@@ -1183,7 +1183,7 @@ class SenseCarbon_TSV:
         if l > 0:
             M = self.dlg.tableView_TimeSeries.model()
             M.beginResetModel()
-            self.TS.addMasks(files)
+            self.TS.addMasks(files, raise_errors=False)
             M.endResetModel()
 
         self.check_enabled()
