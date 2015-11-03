@@ -1,0 +1,24 @@
+<RCC>
+  <qresource prefix="/plugins/EnMAPBox">
+    <file>icon.png</file>
+  </qresource>
+  <qresource prefix="/plugins/icons">
+    <file>TBBitmaps/adddown.bmp</file>
+    <file>TBBitmaps/addleft.bmp</file>
+    <file>TBBitmaps/addright.bmp</file>
+    <file>TBBitmaps/addtop.bmp</file>
+    <file>TBBitmaps/align.bmp</file>
+    <file>TBBitmaps/classification.bmp</file>
+    <file>TBBitmaps/close.bmp</file>
+    <file>TBBitmaps/detach.bmp</file>
+    <file>TBBitmaps/file.bmp</file>
+    <file>TBBitmaps/hand.bmp</file>
+    <file>TBBitmaps/information.bmp</file>
+    <file>TBBitmaps/library.bmp</file>
+    <file>TBBitmaps/linkimages.bmp</file>
+    <file>TBBitmaps/mask.bmp</file>
+    <file>TBBitmaps/multiband.bmp</file>
+    <file>TBBitmaps/singleband.bmp</file>
+    <file>TBBitmaps/adddown.bmp</file>
+  </qresource>
+</RCC>
