@@ -20,27 +20,27 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QAction, QIcon
-# Initialize Qt resources from file resources.py
-import resources
+
 try:
     from qgis.core import *
     from qgis.gui import *
+    import qgis
     qgis_available = True
 except:
     qgis_available = False
 
 # Import the code for the dialog
-from sensecarbon_tsv_gui import SenseCarbon_TSVGui
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+import os, sys, re, fnmatch, collections, copy
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 import pickle
 import six
-import os, sys, re, fnmatch, collections, copy
 import multiprocessing
+
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+from sensecarbon_tsv_gui import SenseCarbon_TSVGui
+
 DEBUG = True
 
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
@@ -86,6 +86,12 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
         self.endRemoveRows()
 
+    def getDateFromIndex(self, index):
+        if index.isValid():
+            i = index.row()
+            if i >= 0 and i < len(self.TS):
+                return self.TS.getDates()[i]
+        return None
 
     def getTimeSeriesDatumFromIndex(self, index):
 
@@ -152,13 +158,13 @@ class TimeSeriesTableModel(QAbstractTableModel):
             return col
         return None
 
-class TSItemModel(QAbstractItemModel):
+class TimeSeriesItemModel(QAbstractItemModel):
 
-    def __init__(self, TimeSeries):
+    def __init__(self, TS):
         QAbstractItemModel.__init__(self)
         #self.rootItem = TreeItem[]
-        assert type(TimeSeries) is TimeSeries
-        self.TS = TimeSeries
+        assert type(TS) is TimeSeries
+        self.TS = TS
 
     def index(self, row, column, parent = QModelIndex()):
         if not parent.isValid():
@@ -190,7 +196,7 @@ class TSItemModel(QAbstractItemModel):
         return Qt.ItemIsSelectable
 
     def rowCount(self, index=QModelIndex()):
-        return len(self)
+        return len(self.TS)
 
     #---------------------------------------------------------------------------
     def columnCount(self, index=QModelIndex()):
@@ -201,6 +207,7 @@ class TimeSeries(QObject):
 
     #define signals
     datumAdded = pyqtSignal(list, name='datumAdded')
+    changed = pyqtSignal()
     progress = pyqtSignal(int,int,int, name='progress')
     chipLoaded = pyqtSignal(object, name='chiploaded')
     closed = pyqtSignal()
@@ -284,9 +291,13 @@ class TimeSeries(QObject):
             args = (TSD, bbWkt, srsWkt)
             kwds = {'bands':bands}
 
-            self.Pool.apply_async(PFunc_TimeSeries_getSpatialChip, \
-                             args=args, kwds=kwds, \
-                             callback=self._callback_spatialchips, error_callback=self._callback_error)
+            if six.PY3:
+                self.Pool.apply_async(PFunc_TimeSeries_getSpatialChip, \
+                                 args=args, kwds=kwds, \
+                                 callback=self._callback_spatialchips, error_callback=self._callback_error)
+            else:
+                self.Pool.apply_async(PFunc_TimeSeries_getSpatialChip, \
+                                      args, kwds, self._callback_spatialchips)
 
         s = ""
 
@@ -310,17 +321,23 @@ class TimeSeries(QObject):
 
         self.progress.emit(0,0,l)
         for i, file in enumerate(files):
-            self.addMask(file, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value)
+            self.addMask(file, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value, _quiet=True)
             self.progress.emit(0,i+1,l)
-        self.progress.emit(0,0,l)
 
-    def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):
+        self.progress.emit(0,0,l)
+        self.changed()
+
+    def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True, _quiet=False):
         print('Add mask {}...'.format(pathMsk))
         ds = getDS(pathMsk)
         date = getImageDate(ds)
 
         if date in self.data.keys():
             TSD = self.data[date]
+
+            if not _quiet:
+                self.changed.emit()
+
             return TSD.setMask(pathMsk, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value)
         else:
             info = 'TimeSeries does not contain date {} {}'.format(date, pathMsk)
@@ -330,14 +347,34 @@ class TimeSeries(QObject):
                 six.print_(info, file=sys.stderr)
             return False
 
-    def removeDate(self, date):
+    def removeAll(self):
+        self.clear()
+
+    def clear(self):
+        dates = list(self.data.keys())
+        for date in dates:
+            self.removeDate(date, _quiet=True)
+        self.changed.emit()
+
+
+    def removeDates(self, dates):
+        for date in dates:
+            self.removeDate(date, _quiet=True)
+        self.changed.emit()
+
+    def removeDate(self, date, _quiet=False):
+        assert type(date) is np.datetime64
         self.data.pop(date, None)
         if len(self.data) == 0:
             self.nb = None
             self.bandnames = None
             self.srs = None
+        if not _quiet:
+            self.changed.emit()
 
-    def addFile(self, pathImg, pathMsk=None, _quiet=True):
+
+    def addFile(self, pathImg, pathMsk=None, _quiet=False):
+        print(pathImg)
         print('Add image {}...'.format(pathImg))
         TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
 
@@ -354,7 +391,9 @@ class TimeSeries(QObject):
 
         if not _quiet:
             self._sortTimeSeriesData()
+            self.changed.emit()
             self.datumAdded.emit(self.bandnames[:])
+
 
     def addFiles(self, files):
         assert isinstance(files, list)
@@ -720,6 +759,70 @@ def Array2Image(d3d):
 
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
+
+class RectangleMapTool(QgsMapToolEmitPoint):
+  def __init__(self, canvas):
+      self.canvas = canvas
+      QgsMapToolEmitPoint.__init__(self, self.canvas)
+      self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
+      self.rubberBand.setColor(Qt.red)
+      self.rubberBand.setWidth(1)
+      self.reset()
+
+  def reset(self):
+      self.startPoint = self.endPoint = None
+      self.isEmittingPoint = False
+      self.rubberBand.reset(QGis.Polygon)
+
+  def canvasPressEvent(self, e):
+      self.startPoint = self.toMapCoordinates(e.pos())
+      self.endPoint = self.startPoint
+      self.isEmittingPoint = True
+      self.showRect(self.startPoint, self.endPoint)
+
+  def canvasReleaseEvent(self, e):
+      self.isEmittingPoint = False
+      r = self.rectangle()
+      if r is not None:
+        pass
+        #print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum()
+
+  def canvasMoveEvent(self, e):
+      if not self.isEmittingPoint:
+        return
+
+      self.endPoint = self.toMapCoordinates(e.pos())
+      self.showRect(self.startPoint, self.endPoint)
+
+  def showRect(self, startPoint, endPoint):
+      self.rubberBand.reset(QGis.Polygon)
+      if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
+        return
+
+      point1 = QgsPoint(startPoint.x(), startPoint.y())
+      point2 = QgsPoint(startPoint.x(), endPoint.y())
+      point3 = QgsPoint(endPoint.x(), endPoint.y())
+      point4 = QgsPoint(endPoint.x(), startPoint.y())
+
+      self.rubberBand.addPoint(point1, False)
+      self.rubberBand.addPoint(point2, False)
+      self.rubberBand.addPoint(point3, False)
+      self.rubberBand.addPoint(point4, True)    # true to update canvas
+      self.rubberBand.show()
+
+  def rectangle(self):
+      if self.startPoint is None or self.endPoint is None:
+        return None
+      elif self.startPoint.x() == self.endPoint.x() or self.startPoint.y() == self.endPoint.y():
+        return None
+
+      return QgsRectangle(self.startPoint, self.endPoint)
+
+  def deactivate(self):
+      super(RectangleMapTool, self).deactivate()
+      self.emit(SIGNAL("deactivated()"))
+
+
 class ImageChipBuffer(object):
 
     data = dict()
@@ -840,8 +943,11 @@ class SenseCarbon_TSV:
         self.TS.datumAdded.connect(self.ua_datumAdded)
         self.TS.progress.connect(self.ua_TSprogress)
         self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
-        D.tableView_TimeSeries.setModel(TimeSeriesTableModel(self.TS))
+        TSM = TimeSeriesTableModel(self.TS)
+        D.tableView_TimeSeries.setModel(TSM)
         D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        D.cb_timeWindow_doi.setModel(TSM)
+        D.cb_timeWindow_doi.setModelColumn(0)
 
         self.VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
@@ -855,7 +961,8 @@ class SenseCarbon_TSV:
         D.btn_addBandView.clicked.connect(lambda :self.ua_addView())
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
-        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
+        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(No-ne))
+        D.btn_removeTS.clicked.connect(self.ua_removeTS)
 
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
 
@@ -863,8 +970,10 @@ class SenseCarbon_TSV:
         self.actions = []
         #self.menu = self.tr(u'&EnMAP-Box')
         # TODO: We are going to let the user set this up in a future iteration
-        #self.toolbar = self.iface.addToolBar(u'EnMAPBox')
-        #self.toolbar.setObjectName(u'EnMAPBox')
+        if self.iface:
+            self.menu = self.tr(u'&SenseCarbon TSV')
+            self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
+            self.toolbar.setObjectName(u'SenseCarbon TSV')
 
         self.CPV = self.dlg.scrollAreaWidgetContents.layout()
         self.check_enabled()
@@ -905,9 +1014,16 @@ class SenseCarbon_TSV:
 
     def check_enabled(self):
         D = self.dlg
-        D.btn_showPxCoordinate.setEnabled(len(self.VIEWS) > 0 and len(self.TS) > 0)
-        D.btn_selectByCoordinate.setEnabled(qgis_available)
-        D.btn_selectByRectangle.setEnabled(qgis_available)
+        hasTS = len(self.TS) > 0
+        hasTSV = len(self.VIEWS) > 0
+        hasQGIS = qgis_available
+
+        D.tabWidget_viewsettings.setEnabled(hasTS)
+        D.btn_showPxCoordinate.setEnabled(hasTS and hasTSV)
+        D.btn_selectByCoordinate.setEnabled(hasQGIS)
+        D.btn_selectByRectangle.setEnabled(hasQGIS)
+
+
 
 
     # noinspection PyMethodMayBeStatic
@@ -1002,10 +1118,10 @@ class SenseCarbon_TSV:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        self.icon_path = ':/plugins/EnMAPBox/icon.png'
+        self.icon_path = ':/plugins/SenseCarbon/icon.png'
         self.add_action(
             self.icon_path,
-            text=self.tr(u'EnMAP-Box'),
+            text=self.tr(u'SenseCarbon Time Series Viewer'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
@@ -1014,7 +1130,7 @@ class SenseCarbon_TSV:
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&EnMAP-Box'),
+                self.tr(u'&SenseCarbon Time Series Viewer'),
                 action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
@@ -1031,6 +1147,9 @@ class SenseCarbon_TSV:
             pass
 
     def ua_showPxCoordinate_start(self):
+
+        if len(self.TS) == 0:
+            return
         D = self.dlg
         h_x = D.doubleSpinBox_subset_size_x.value() * 0.5
         h_y = D.doubleSpinBox_subset_size_x.value() * 0.5
@@ -1062,15 +1181,31 @@ class SenseCarbon_TSV:
         #S.setWidgetResizable(False)
         #remove widgets
 
-        all_dates = self.TS.getDates()
+        #get the dates of interes
+        dates_of_interest = list()
+        if D.rb_showEntireTS.isChecked():
+            dates_of_interest = self.TS.getDates()
+        elif D.rb_showSelectedDates.isChecked():
+            dates_of_interest = self.getSelectedDates()
+        elif D.rb_showTimeWindow.isChecked():
+            TSD = D.cb_timeWindow_doi.itemData(D.cb_timeWindow_doi.currentIndex())
+            s = ""
+            allDates = self.TS.getDates()
+            i_doi = allDates.index(TSD)
+            i0 = max([0, i_doi-D.sb_ndates_before.value()])
+            ie = min([i_doi + D.sb_ndates_after.value(), len(allDates)])
+            dates_of_interest = allDates[i0:ie]
+
+
         if self.CPV is None:
             ScrollArea.setLayout(QHBoxLayout())
             self.CPV = ScrollArea.layout()
         else:
-            diff = set(all_dates)
+            diff = set(dates_of_interest)
             diff = diff.symmetric_difference(self.CHIPWIDGETS.keys())
             if len(diff) != 0:
                 self.clearLayoutWidgets(self.CPV)
+                self.CHIPWIDGETS.clear()
             else:
                 for date, viewList in self.CHIPWIDGETS.items():
                     for imageLabel in viewList:
@@ -1078,7 +1213,7 @@ class SenseCarbon_TSV:
 
         #initialize image labels
 
-        for i, date in enumerate(all_dates):
+        for i, date in enumerate(dates_of_interest):
 
             #LV = QVBoxLayout()
             #LV.setSizeConstraint(QLayout.SetNoConstraint)
@@ -1202,30 +1337,42 @@ class SenseCarbon_TSV:
 
             w = imagechipviewsettings_widget.ImageChipViewSettings(self.TS, parent=self.dlg)
             w.setMaximumSize(w.size())
-            w.setMinimumSize(w.size())
-            w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
-            #imageLabel.setMinimumSize(size_x, size_y)
-            #imageLabel.setMaximumSize(size_x, size_y)
-            #imageLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+            #w.setMinimumSize(w.size())
+            w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
             w.setBands(bands)
             w.removeView.connect(lambda : self.ua_removeView(w))
-            self.VIEWS.append(w)
+
             L = self.dlg.scrollArea_viewsWidget.layout()
             L.addWidget(w)
             self.dlg.scrollArea_views.show()
+            self.VIEWS.append(w)
             self.setViewNames()
             self.check_enabled()
 
-    def ua_removeTSD(self, dates):
-        if dates is None:
-            selected = self.dlg.tableView_TimeSeries.selectedIndexes()
-            s = ""
+    def ua_removeTS(self):
+        #remove views
+
         M = self.dlg.tableView_TimeSeries.model()
         M.beginResetModel()
-        for date in dates:
-            self.TS.removeDate(date)
+        self.TS.clear()
         M.endResetModel()
+        self.check_enabled()
 
+    def getSelectedDates(self):
+        TV = self.dlg.tableView_TimeSeries
+        TVM = TV.model()
+
+        return [TVM.getTimeSeriesDatumFromIndex(idx).getDate() for idx in TV.selectionModel().selectedRows()]
+
+    def ua_removeTSD(self, dates):
+        if dates is None:
+            dates = self.getSelectedDates()
+
+        M = self.dlg.tableView_TimeSeries.model()
+        M.beginResetModel()
+        self.TS.removeDates(dates)
+        M.endResetModel()
+        self.check_enabled()
 
 
     def ua_removeView(self,w):
@@ -1312,12 +1459,12 @@ def run_tests():
         S = SenseCarbon_TSV(a)
         S.run()
 
-        if False:
+        if True:
             dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
             filesImg = file_search(dirSrc, '2014*_BOA.vrt')
             filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             S.ua_addTSImages(files=filesImg)
-            S.ua_addTSMasks(files=filesMsk)
+            #S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
 

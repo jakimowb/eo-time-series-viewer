@@ -29,10 +29,15 @@ from PyQt4 import QtGui, uic
 #    os.path.dirname(__file__), 'sensecarbon_tsv_gui_base.ui'))
 
 #from enmapbox_gui_base import Ui_EnMAPBoxGUIBase
-import sys
+import six, sys
 sys.path.append(os.path.dirname(__file__))
+if six.PY3:
+    rc_suffix = 'py3'
+else:
+    rc_suffix = 'py2'
+
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'sensecarbon_tsv_gui_base.ui'), resource_suffix='')
+    os.path.dirname(__file__), 'sensecarbon_tsv_gui_base.ui'), resource_suffix=rc_suffix)
 
 
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- EnMAPBox
+ SenseCarbon Time Series Viewer
                                  A QGIS plugin
- EnMAP-Box V3
+
                              -------------------
         begin                : 2015-08-20
         copyright            : (C) 2015 by HU-Berlin
@@ -25,7 +25,7 @@
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
-    """Load EnMAPBox class from file EnMAPBox.
+    """Load SenseCarbon_TSV class from file sensecarbon_tsv.py.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface

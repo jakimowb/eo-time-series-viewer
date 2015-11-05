@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>334</width>
-    <height>202</height>
+    <width>196</width>
+    <height>178</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>GroupBox</string>
@@ -74,13 +80,6 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="3">
-    <widget class="QLabel" name="label_min">
-     <property name="text">
-      <string>Min</string>
-     </property>
-    </widget>
-   </item>
    <item row="5" column="0">
     <widget class="QLabel" name="label_b">
      <property name="text">
@@ -88,52 +87,14 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QLabel" name="label_band">
+   <item row="4" column="4">
+    <widget class="QLineEdit" name="tb_range_g_max">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
-      <string>Band</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="label_r">
-     <property name="text">
-      <string>R</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <widget class="QComboBox" name="cb_r">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>21</height>
-      </size>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="4">
-    <widget class="QLineEdit" name="tb_range_b_max">
-     <property name="text">
-      <string>5000</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="4">
-    <widget class="QLineEdit" name="tb_range_r_max">
-     <property name="text">
-      <string>5000</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="4">
-    <widget class="QLineEdit" name="tb_range_g_max">
      <property name="text">
       <string>5000</string>
      </property>
@@ -153,18 +114,12 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="5">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+   <item row="0" column="3">
+    <widget class="QLabel" name="label_min">
+     <property name="text">
+      <string>Min</string>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
+    </widget>
    </item>
    <item row="3" column="3">
     <widget class="QLineEdit" name="tb_range_r_min">
@@ -180,14 +135,125 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="1" colspan="4">
+   <item row="0" column="1">
+    <widget class="QLabel" name="label_band">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Band</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QComboBox" name="cb_r">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>21</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="4">
+    <widget class="QLineEdit" name="tb_range_b_max">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>5000</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="4">
+    <widget class="QLineEdit" name="tb_range_r_max">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>5000</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="5">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_r">
+     <property name="text">
+      <string>R</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1" colspan="4">
     <widget class="QPushButton" name="btn_removeView">
      <property name="text">
       <string>Remove view</string>
      </property>
     </widget>
    </item>
-   <item row="6" column="3">
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="cb_useMask">
+     <property name="toolTip">
+      <string>Draw masked pixels with specific mask color.</string>
+     </property>
+     <property name="text">
+      <string>Mask</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QLabel" name="label_maskexpression">
+     <property name="toolTip">
+      <string>Boolean expression that returns False for masked pixels.</string>
+     </property>
+     <property name="text">
+      <string>Expression</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="3" colspan="2">
+    <widget class="QLineEdit" name="tb_maskexpression">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>Boolean expression that returns False for masked pixels.</string>
+     </property>
+     <property name="text">
+      <string>mask != 0</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="3" colspan="2">
     <widget class="QPushButton" name="bt_color">
      <property name="minimumSize">
       <size>
@@ -209,22 +275,6 @@
      </property>
      <property name="flat">
       <bool>false</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="1">
-    <widget class="QCheckBox" name="cb_useMask">
-     <property name="toolTip">
-      <string>Draw masked pixels with mask color.</string>
-     </property>
-     <property name="text">
-      <string>Use mask</string>
-     </property>
-     <property name="checkable">
-      <bool>true</bool>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
      </property>
     </widget>
    </item>

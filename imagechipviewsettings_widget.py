@@ -39,7 +39,7 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
 
         self.cb_useMask.stateChanged.connect(lambda: self.bt_color.setEnabled(self.cb_useMask.isChecked()))
         self.bt_color.clicked.connect(lambda: self.ua_setMaskColor(None))
-
+        self.cb_useMask.stateChanged.connect(self.ua_setMask)
         self.maskcolor = QColor(255,255,255)
 
         self.TS = TimeSeries
@@ -58,6 +58,13 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
 
         if len(self.TS.bandnames) > 0:
             self._initBands(self.TS.bandnames)
+
+    def ua_setMask(self, state):
+
+        useMask = state != 0
+        for w in [self.bt_color, self.label_maskexpression, self.tb_maskexpression]:
+            w.setEnabled(useMask)
+
 
 
     def ua_setMaskColor(self, color):
