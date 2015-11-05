@@ -99,7 +99,7 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
         assert len(bands) == 3
         for b in bands:
             assert type(b) is int and b > 0
-            assert b <= len(self.TS.bandnames)
+            assert b <= len(self.TS.bandnames), 'TimeSeries is not initializes/has no bands to show'
         self.cb_r.setCurrentIndex(bands[0]-1)
         self.cb_g.setCurrentIndex(bands[1]-1)
         self.cb_b.setCurrentIndex(bands[2]-1)

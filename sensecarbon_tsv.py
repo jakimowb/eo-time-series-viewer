@@ -35,7 +35,6 @@ except:
 from sensecarbon_tsv_gui import SenseCarbon_TSVGui
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import skimage
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 import pickle
@@ -1199,22 +1198,23 @@ class SenseCarbon_TSV:
     def ua_addView(self, bands = [3,2,1]):
         import imagechipviewsettings_widget
 
+        if len(self.TS.bandnames) > 0:
 
-        w = imagechipviewsettings_widget.ImageChipViewSettings(self.TS, parent=self.dlg)
-        w.setMaximumSize(w.size())
-        w.setMinimumSize(w.size())
-        w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
-        #imageLabel.setMinimumSize(size_x, size_y)
-        #imageLabel.setMaximumSize(size_x, size_y)
-        #imageLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
-        w.setBands(bands)
-        w.removeView.connect(lambda : self.ua_removeView(w))
-        self.VIEWS.append(w)
-        L = self.dlg.scrollArea_viewsWidget.layout()
-        L.addWidget(w)
-        self.dlg.scrollArea_views.show()
-        self.setViewNames()
-        self.check_enabled()
+            w = imagechipviewsettings_widget.ImageChipViewSettings(self.TS, parent=self.dlg)
+            w.setMaximumSize(w.size())
+            w.setMinimumSize(w.size())
+            w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+            #imageLabel.setMinimumSize(size_x, size_y)
+            #imageLabel.setMaximumSize(size_x, size_y)
+            #imageLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+            w.setBands(bands)
+            w.removeView.connect(lambda : self.ua_removeView(w))
+            self.VIEWS.append(w)
+            L = self.dlg.scrollArea_viewsWidget.layout()
+            L.addWidget(w)
+            self.dlg.scrollArea_views.show()
+            self.setViewNames()
+            self.check_enabled()
 
     def ua_removeTSD(self, dates):
         if dates is None:
@@ -1311,11 +1311,13 @@ def run_tests():
         a = PyQt4.Qt.QApplication([])
         S = SenseCarbon_TSV(a)
         S.run()
-        dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
-        filesImg = file_search(dirSrc, '2014*_BOA.vrt')
-        filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-        S.ua_addTSImages(files=filesImg)
-        S.ua_addTSMasks(files=filesMsk)
+
+        if False:
+            dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
+            filesImg = file_search(dirSrc, '2014*_BOA.vrt')
+            filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
+            S.ua_addTSImages(files=filesImg)
+            S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
 
