@@ -224,6 +224,7 @@ class TimeSeries(QObject):
 
         self.Pool = None
         self.nb = None
+        self.srs = None
         self.bandnames = list()
 
 
@@ -768,32 +769,26 @@ class PointMapTool(QgsMapToolEmitPoint):
     def __init__(self, canvas):
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = QgsRubberBand(self.canvas, QGis.Point)
-        self.rubberBand.setColor(Qt.red)
-        self.rubberBand.setWidth(10)
-        self.reset()
+        self.marker = QgsVertexMarker(self.canvas)
+        self.marker.setColor(Qt.red)
+        self.marker.setIconSize(5)
+        self.marker.setIconType(QgsVertexMarker.ICON_CROSS) # or ICON_CROSS, ICON_X
+        self.marker.setPenWidth(3)
 
-    def reset(self):
-        self.point = None
-        self.isEmittingPoint = False
-        self.rubberBand.reset(QGis.Point)
 
     def canvasPressEvent(self, e):
         point = self.toMapCoordinates(e.pos())
-        self.showPoint(point)
 
+        self.marker.setCenter(point)
+        self.marker.show()
 
     def canvasReleaseEvent(self, e):
         point = self.toMapCoordinates(e.pos())
         self.coordinateSelected.emit(point, self.canvas.mapRenderer().destinationCrs().authid())
-        self.rubberBand.reset(QGis.Point)
+        self.marker.setCenter(point)
+        self.marker.hide()
 
 
-
-    def showPoint(self, point):
-        self.rubberBand.reset(QGis.Point)
-        self.rubberBand.addPoint(point, True)    # true to update canvas
-        self.rubberBand.show()
 
 
 class RectangleMapTool(QgsMapToolEmitPoint):
@@ -1053,7 +1048,11 @@ class SenseCarbon_TSV:
         dy = D.doubleSpinBox_subset_size_y.value()
 
         canvas_srs = osr.SpatialReference()
-        canvas_srs.AutoIdentifyEPSG(authid)
+        print(authid)
+        print(type(authid))
+        wkt = osr.GetUserInputAsWKT(str(authid))
+        print(wkt)
+        canvas_srs.ImportFromWkt(wkt)
 
         if type(geometry) is QgsRectangle:
             center = geometry.center()
