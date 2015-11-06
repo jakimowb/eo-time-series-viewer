@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>898</width>
-    <height>851</height>
+    <height>873</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -220,7 +220,7 @@
         <enum>QTabWidget::Triangular</enum>
        </property>
        <property name="currentIndex">
-        <number>2</number>
+        <number>0</number>
        </property>
        <property name="elideMode">
         <enum>Qt::ElideNone</enum>
@@ -273,6 +273,15 @@
               <property name="decimals">
                <number>8</number>
               </property>
+              <property name="minimum">
+               <double>-999999999.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>999999999.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>30.000000000000000</double>
+              </property>
              </widget>
             </item>
             <item row="3" column="0">
@@ -286,6 +295,12 @@
              <widget class="QDoubleSpinBox" name="spinBox_coordinate_y">
               <property name="decimals">
                <number>8</number>
+              </property>
+              <property name="minimum">
+               <double>-999999999.000000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>999999999.000000000000000</double>
               </property>
               <property name="singleStep">
                <double>30.000000000000000</double>
@@ -535,8 +550,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>294</width>
-              <height>356</height>
+              <width>281</width>
+              <height>352</height>
              </rect>
             </property>
             <property name="sizePolicy">

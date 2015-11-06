@@ -760,67 +760,112 @@ def Array2Image(d3d):
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
 
+class PointMapTool(QgsMapToolEmitPoint):
+
+    coordinateSelected = pyqtSignal(QgsPoint, object)
+
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, self.canvas)
+        self.rubberBand = QgsRubberBand(self.canvas, QGis.Point)
+        self.rubberBand.setColor(Qt.red)
+        self.rubberBand.setWidth(10)
+        self.reset()
+
+    def reset(self):
+        self.point = None
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Point)
+
+    def canvasPressEvent(self, e):
+        point = self.toMapCoordinates(e.pos())
+        self.showPoint(point)
+
+
+    def canvasReleaseEvent(self, e):
+        point = self.toMapCoordinates(e.pos())
+        self.coordinateSelected.emit(point, self.canvas.mapRenderer().destinationCrs().authid())
+        self.rubberBand.reset(QGis.Point)
+
+
+
+    def showPoint(self, point):
+        self.rubberBand.reset(QGis.Point)
+        self.rubberBand.addPoint(point, True)    # true to update canvas
+        self.rubberBand.show()
+
+
 class RectangleMapTool(QgsMapToolEmitPoint):
-  def __init__(self, canvas):
-      self.canvas = canvas
-      QgsMapToolEmitPoint.__init__(self, self.canvas)
-      self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
-      self.rubberBand.setColor(Qt.red)
-      self.rubberBand.setWidth(1)
-      self.reset()
 
-  def reset(self):
-      self.startPoint = self.endPoint = None
-      self.isEmittingPoint = False
-      self.rubberBand.reset(QGis.Polygon)
+    rectangleDrawed = pyqtSignal(QgsRectangle, object)
 
-  def canvasPressEvent(self, e):
-      self.startPoint = self.toMapCoordinates(e.pos())
-      self.endPoint = self.startPoint
-      self.isEmittingPoint = True
-      self.showRect(self.startPoint, self.endPoint)
 
-  def canvasReleaseEvent(self, e):
-      self.isEmittingPoint = False
-      r = self.rectangle()
-      if r is not None:
-        pass
-        #print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum()
+    def __init__(self, canvas):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, self.canvas)
+        self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.rubberBand.setColor(Qt.red)
+        self.rubberBand.setWidth(1)
+        self.reset()
 
-  def canvasMoveEvent(self, e):
-      if not self.isEmittingPoint:
-        return
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Polygon)
 
-      self.endPoint = self.toMapCoordinates(e.pos())
-      self.showRect(self.startPoint, self.endPoint)
+    def canvasPressEvent(self, e):
+        self.startPoint = self.toMapCoordinates(e.pos())
+        self.endPoint = self.startPoint
+        self.isEmittingPoint = True
+        self.showRect(self.startPoint, self.endPoint)
 
-  def showRect(self, startPoint, endPoint):
-      self.rubberBand.reset(QGis.Polygon)
-      if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
-        return
+    def canvasReleaseEvent(self, e):
+        self.isEmittingPoint = False
 
-      point1 = QgsPoint(startPoint.x(), startPoint.y())
-      point2 = QgsPoint(startPoint.x(), endPoint.y())
-      point3 = QgsPoint(endPoint.x(), endPoint.y())
-      point4 = QgsPoint(endPoint.x(), startPoint.y())
+        r = self.rectangle()
+        if r is not None:
+            print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum())
+        self.reset()
+        self.rectangleDrawed.emit(r, self.canvas.mapRenderer().destinationCrs().authid())
 
-      self.rubberBand.addPoint(point1, False)
-      self.rubberBand.addPoint(point2, False)
-      self.rubberBand.addPoint(point3, False)
-      self.rubberBand.addPoint(point4, True)    # true to update canvas
-      self.rubberBand.show()
 
-  def rectangle(self):
-      if self.startPoint is None or self.endPoint is None:
-        return None
-      elif self.startPoint.x() == self.endPoint.x() or self.startPoint.y() == self.endPoint.y():
-        return None
+    def canvasMoveEvent(self, e):
 
-      return QgsRectangle(self.startPoint, self.endPoint)
+        if not self.isEmittingPoint:
+            return
 
-  def deactivate(self):
-      super(RectangleMapTool, self).deactivate()
-      self.emit(SIGNAL("deactivated()"))
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showRect(self.startPoint, self.endPoint)
+
+    def showRect(self, startPoint, endPoint):
+        self.rubberBand.reset(QGis.Polygon)
+        if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
+            return
+
+        point1 = QgsPoint(startPoint.x(), startPoint.y())
+        point2 = QgsPoint(startPoint.x(), endPoint.y())
+        point3 = QgsPoint(endPoint.x(), endPoint.y())
+        point4 = QgsPoint(endPoint.x(), startPoint.y())
+
+        self.rubberBand.addPoint(point1, False)
+        self.rubberBand.addPoint(point2, False)
+        self.rubberBand.addPoint(point3, False)
+        self.rubberBand.addPoint(point4, True)    # true to update canvas
+        self.rubberBand.show()
+
+    def rectangle(self):
+        if self.startPoint is None or self.endPoint is None:
+            return None
+        elif self.startPoint.x() == self.endPoint.x() or self.startPoint.y() == self.endPoint.y():
+
+            return None
+
+        return QgsRectangle(self.startPoint, self.endPoint)
+
+    #def deactivate(self):
+    #   super(RectangleMapTool, self).deactivate()
+    #self.deactivated.emit()
 
 
 class ImageChipBuffer(object):
@@ -919,6 +964,7 @@ class SenseCarbon_TSV:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
@@ -943,6 +989,8 @@ class SenseCarbon_TSV:
         self.TS.datumAdded.connect(self.ua_datumAdded)
         self.TS.progress.connect(self.ua_TSprogress)
         self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
+
+
         TSM = TimeSeriesTableModel(self.TS)
         D.tableView_TimeSeries.setModel(TSM)
         D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
@@ -957,11 +1005,11 @@ class SenseCarbon_TSV:
         self.ValidatorPxY = QIntValidator(0,99999)
         D.btn_showPxCoordinate.clicked.connect(lambda: self.ua_showPxCoordinate_start())
         D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
-        D.btn_selectByCoordinate.clicked.connect(self.ua_selectByRectangle)
+        D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
         D.btn_addBandView.clicked.connect(lambda :self.ua_addView())
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
-        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(No-ne))
+        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
         D.btn_removeTS.clicked.connect(self.ua_removeTS)
 
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
@@ -970,22 +1018,79 @@ class SenseCarbon_TSV:
         self.actions = []
         #self.menu = self.tr(u'&EnMAP-Box')
         # TODO: We are going to let the user set this up in a future iteration
+        self.RectangleMapTool = None
+        self.PointMapTool = None
         if self.iface:
+            print('Init QGIS Interaction')
+            self.canvas = self.iface.mapCanvas()
             self.menu = self.tr(u'&SenseCarbon TSV')
             self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
             self.toolbar.setObjectName(u'SenseCarbon TSV')
+
+            self.RectangleMapTool = RectangleMapTool(self.canvas)
+            self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
+            self.PointMapTool = PointMapTool(self.canvas)
+            self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
+            #self.RectangleMapTool..connect(self.ua_selectByRectangle_Done)
 
         self.CPV = self.dlg.scrollAreaWidgetContents.layout()
         self.check_enabled()
         s = ""
 
     def ua_selectByRectangle(self):
-
-        pass
+        if self.RectangleMapTool is not None:
+            self.canvas.setMapTool(self.RectangleMapTool)
 
     def ua_selectByCoordinate(self):
+        if self.PointMapTool is not None:
+            self.canvas.setMapTool(self.PointMapTool)
 
-        pass
+    def ua_selectBy_Response(self, geometry, authid):
+        D = self.dlg
+        x = D.spinBox_coordinate_x.value()
+        y = D.spinBox_coordinate_x.value()
+        dx = D.doubleSpinBox_subset_size_x.value()
+        dy = D.doubleSpinBox_subset_size_y.value()
+
+        canvas_srs = osr.SpatialReference()
+        canvas_srs.AutoIdentifyEPSG(authid)
+
+
+
+        if type(geometry) is QgsRectangle:
+            center = geometry.center()
+            x = center.x()
+            y = center.y()
+
+            dx = geometry.xMaximum() - geometry.xMinimum()
+            dy = geometry.yMaximum() - geometry.yMinimum()
+
+        if type(geometry) is QgsPoint:
+            x = geometry.x()
+            y = geometry.y()
+
+        if self.TS.srs is not None and not self.TS.srs.IsSame(canvas_srs):
+            print('Convert canvas coordinates to time series SRS')
+            g = ogr.Geometry(ogr.wkbPoint)
+            g.AddPoint(x,y)
+            g.AssignSpatialReference(canvas_srs)
+            g.TransformTo(self.TS.srs)
+            x = g.GetX()
+            y = g.GetY()
+
+
+        D.doubleSpinBox_subset_size_x.setValue(dx)
+        D.doubleSpinBox_subset_size_y.setValue(dy)
+        D.spinBox_coordinate_x.setValue(x)
+        D.spinBox_coordinate_y.setValue(y)
+
+    def qgs_handleMouseDown(self, pt, btn):
+
+        print('MOUSE DOWN')
+        print(pt)
+        print(btn)
+
+
 
     def ua_TSprogress(self, v_min, v, v_max):
         assert v_min <= v and v <= v_max
@@ -1014,7 +1119,7 @@ class SenseCarbon_TSV:
 
     def check_enabled(self):
         D = self.dlg
-        hasTS = len(self.TS) > 0
+        hasTS = len(self.TS) > 0 or DEBUG
         hasTSV = len(self.VIEWS) > 0
         hasQGIS = qgis_available
 
@@ -1150,22 +1255,27 @@ class SenseCarbon_TSV:
 
         if len(self.TS) == 0:
             return
-        D = self.dlg
-        h_x = D.doubleSpinBox_subset_size_x.value() * 0.5
-        h_y = D.doubleSpinBox_subset_size_x.value() * 0.5
 
-        c_x = D.spinBox_coordinate_x.value()
-        c_y = D.spinBox_coordinate_y.value()
+        D = self.dlg
+        dx = D.doubleSpinBox_subset_size_x.value() * 0.5
+        dy = D.doubleSpinBox_subset_size_x.value() * 0.5
+
+        cx = D.spinBox_coordinate_x.value()
+        cy = D.spinBox_coordinate_y.value()
+
 
 
         ring = ogr.Geometry(ogr.wkbLinearRing)
-        ring.AddPoint(c_x - h_x, c_y + h_y)
-        ring.AddPoint(c_x + h_x, c_y + h_y)
-        ring.AddPoint(c_x + h_x, c_y - h_y)
-        ring.AddPoint(c_x - h_x, c_y - h_y)
+        ring.AddPoint(cx - dx, cy + dy)
+        ring.AddPoint(cx + dx, cy + dy)
+        ring.AddPoint(cx + dx, cy - dy)
+        ring.AddPoint(cx - dx, cy - dy)
 
         bb = ogr.Geometry(ogr.wkbPolygon)
-        bb.AssignSpatialReference(self.TS.srs)
+        if self.srs:
+            bb.AssignSpatialReference(self.srs)
+        else:
+            bb.AssignSpatialReference(self.TS.srs)
         bb.AddGeometry(ring)
         bbWkt = bb.ExportToWkt()
         srsWkt = bb.GetSpatialReference().ExportToWkt()
@@ -1453,9 +1563,10 @@ def run_tests():
         exit(0)
 
 
-    if True:
+    if False:
         import PyQt4.Qt
         a = PyQt4.Qt.QApplication([])
+
         S = SenseCarbon_TSV(a)
         S.run()
 
@@ -1469,6 +1580,33 @@ def run_tests():
         #S.ua_addView(bands=[4,5,3])
 
         a.exec_()
+
+    if False:
+        import qgis.core
+
+        # supply path to where is your qgis installed
+
+        QgsApplication.setPrefixPath("/Applications/QGIS_2.12.app/Contents/MacOS/QGIS", True)
+
+        # load providers
+        QgsApplication.initQgis()
+
+        a = QgsApplication([], True)
+
+        S = SenseCarbon_TSV(a)
+        S.run()
+
+        if True:
+            dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
+            filesImg = file_search(dirSrc, '2014*_BOA.vrt')
+            filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
+            S.ua_addTSImages(files=filesImg)
+            #S.ua_addTSMasks(files=filesMsk)
+
+        #S.ua_addView(bands=[4,5,3])
+
+        a.exec_()
+
     print('Tests done')
     exit(0)
 
