@@ -1283,13 +1283,13 @@ class SenseCarbon_TSV:
         ring.AddPoint(cx - dx, cy - dy)
 
         bb = ogr.Geometry(ogr.wkbPolygon)
-        if self.srs:
-            bb.AssignSpatialReference(self.srs)
-        else:
-            bb.AssignSpatialReference(self.TS.srs)
         bb.AddGeometry(ring)
         bbWkt = bb.ExportToWkt()
-        srsWkt = bb.GetSpatialReference().ExportToWkt()
+        srsWkt = None
+        if self.TS.srs:
+            bb.AssignSpatialReference(self.TS.srs)
+
+            srsWkt = bb.GetSpatialReference().ExportToWkt()
 
 
         self.ImageChipBuffer.setBoundingBox(bb)
