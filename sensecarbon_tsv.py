@@ -322,7 +322,12 @@ class TimeSeries(QObject):
 
         self.progress.emit(0,0,l)
         for i, file in enumerate(files):
-            self.addMask(file, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value, _quiet=True)
+
+            try:
+                self.addMask(file, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value, _quiet=True)
+            except:
+                pass
+
             self.progress.emit(0,i+1,l)
 
         self.progress.emit(0,0,l)
@@ -364,7 +369,9 @@ class TimeSeries(QObject):
         self.changed.emit()
 
     def removeDate(self, date, _quiet=False):
+
         assert type(date) is np.datetime64
+
         self.data.pop(date, None)
         if len(self.data) == 0:
             self.nb = None
@@ -375,18 +382,21 @@ class TimeSeries(QObject):
 
 
     def addFile(self, pathImg, pathMsk=None, _quiet=False):
+
         print(pathImg)
         print('Add image {}...'.format(pathImg))
+
         TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
 
-
         if self.nb is None:
+
             self.nb = TSD.nb
             self.bandnames = TSD.bandnames
             self.srs = TSD.getSpatialReference()
 
         else:
-            assert self.nb == TSD.nb
+
+            assert self.nb == TSD.nb, 'TimeSeries initialized with {} bands but image {} has {} bands'.find(self.nb, pathImg, TSD.nb)
 
         self.data[TSD.getDate()] = TSD
 
@@ -403,7 +413,10 @@ class TimeSeries(QObject):
 
         self.progress.emit(0,0,l)
         for i, file in enumerate(files):
-            self.addFile(file, _quiet=True)
+            try:
+                self.addFile(file, _quiet=True)
+            except:
+                pass
             self.progress.emit(0,i+1,l)
 
         self._sortTimeSeriesData()
