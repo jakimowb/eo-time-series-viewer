@@ -1055,8 +1055,6 @@ class SenseCarbon_TSV:
         canvas_srs = osr.SpatialReference()
         canvas_srs.AutoIdentifyEPSG(authid)
 
-
-
         if type(geometry) is QgsRectangle:
             center = geometry.center()
             x = center.x()
@@ -1077,6 +1075,7 @@ class SenseCarbon_TSV:
             g.TransformTo(self.TS.srs)
             x = g.GetX()
             y = g.GetY()
+
 
 
         D.doubleSpinBox_subset_size_x.setValue(dx)
