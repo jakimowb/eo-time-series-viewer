@@ -240,7 +240,7 @@
           <widget class="QGroupBox" name="groupBox_spatialsubset">
            <property name="minimumSize">
             <size>
-             <width>150</width>
+             <width>0</width>
              <height>0</height>
             </size>
            </property>
@@ -376,47 +376,48 @@
           <widget class="QGroupBox" name="groupBox_rendering">
            <property name="minimumSize">
             <size>
-             <width>150</width>
-             <height>150</height>
+             <width>0</width>
+             <height>0</height>
             </size>
            </property>
            <property name="title">
-            <string>Chip Loading and Rendering</string>
+            <string>Chip Rendering</string>
            </property>
            <layout class="QGridLayout" name="gridLayout_2">
-            <item row="2" column="1">
-             <widget class="QSpinBox" name="spinBox_ncpu"/>
-            </item>
-            <item row="3" column="0">
+            <item row="2" column="0">
              <widget class="QLabel" name="label_6">
               <property name="text">
                <string>First date</string>
               </property>
              </widget>
             </item>
-            <item row="3" column="1" colspan="2">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_11">
+              <property name="text">
+               <string>max. size </string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1" colspan="2">
              <widget class="QComboBox" name="cb_centerdate"/>
             </item>
-            <item row="1" column="2">
-             <spacer name="horizontalSpacer_2">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+            <item row="1" column="1">
+             <widget class="QSpinBox" name="spinBox_ncpu">
+              <property name="toolTip">
+               <string>Number of CPUs used for parallel image chip calculation</string>
               </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
+             </widget>
             </item>
             <item row="0" column="1">
-             <widget class="QSpinBox" name="spinBox_chipsize_x">
+             <widget class="QSpinBox" name="spinBox_chipsize_max">
               <property name="minimumSize">
                <size>
                 <width>100</width>
                 <height>0</height>
                </size>
+              </property>
+              <property name="toolTip">
+               <string>Max. length of an image chip on screen.</string>
               </property>
               <property name="suffix">
                <string>px</string>
@@ -436,44 +437,24 @@
              </widget>
             </item>
             <item row="1" column="0">
-             <widget class="QLabel" name="label_10">
-              <property name="text">
-               <string>size y</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_11">
-              <property name="text">
-               <string>size x</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QSpinBox" name="spinBox_chipsize_y">
-              <property name="suffix">
-               <string>px</string>
-              </property>
-              <property name="minimum">
-               <number>20</number>
-              </property>
-              <property name="maximum">
-               <number>1000</number>
-              </property>
-              <property name="singleStep">
-               <number>10</number>
-              </property>
-              <property name="value">
-               <number>200</number>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
              <widget class="QLabel" name="label">
               <property name="text">
                <string>#cpu</string>
               </property>
              </widget>
+            </item>
+            <item row="0" column="2">
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </widget>
@@ -550,8 +531,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>281</width>
-              <height>352</height>
+              <width>262</width>
+              <height>372</height>
              </rect>
             </property>
             <property name="sizePolicy">

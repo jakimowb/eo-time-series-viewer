@@ -25,6 +25,7 @@ try:
     from qgis.core import *
     from qgis.gui import *
     import qgis
+    import qgis_add_ins
     qgis_available = True
 except:
     qgis_available = False
@@ -36,6 +37,11 @@ import numpy as np
 import pickle
 import six
 import multiprocessing
+#i don't know why but this is required to run this in QGIS
+path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+if os.path.exists(path):
+    multiprocessing.set_executable(path)
+    sys.argv = [ None ]
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -548,7 +554,7 @@ class TimeSeriesDatum(object):
             my_srs = self.getSpatialReference()
             if not my_srs.IsSame(srs):
                 #todo: consider srs differences
-                raise NotImplemented()
+                raise Exception('differeng SRS in bounding box request')
                 pass
 
         return ext
@@ -774,107 +780,6 @@ def Array2Image(d3d):
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
 
-class PointMapTool(QgsMapToolEmitPoint):
-
-    coordinateSelected = pyqtSignal(QgsPoint, object)
-
-
-    def __init__(self, canvas):
-        self.canvas = canvas
-        QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.marker = QgsVertexMarker(self.canvas)
-        self.marker.setColor(Qt.red)
-        self.marker.setIconSize(5)
-        self.marker.setIconType(QgsVertexMarker.ICON_CROSS) # or ICON_CROSS, ICON_X
-        self.marker.setPenWidth(3)
-
-
-    def canvasPressEvent(self, e):
-        point = self.toMapCoordinates(e.pos())
-
-        self.marker.setCenter(point)
-        self.marker.show()
-
-    def canvasReleaseEvent(self, e):
-        point = self.toMapCoordinates(e.pos())
-        self.coordinateSelected.emit(point, self.canvas.mapRenderer().destinationCrs().authid())
-        self.marker.setCenter(point)
-        self.marker.hide()
-
-
-
-
-class RectangleMapTool(QgsMapToolEmitPoint):
-
-    rectangleDrawed = pyqtSignal(QgsRectangle, object)
-
-
-    def __init__(self, canvas):
-        self.canvas = canvas
-        QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
-        self.rubberBand.setColor(Qt.red)
-        self.rubberBand.setWidth(1)
-        self.reset()
-
-    def reset(self):
-        self.startPoint = self.endPoint = None
-        self.isEmittingPoint = False
-        self.rubberBand.reset(QGis.Polygon)
-
-    def canvasPressEvent(self, e):
-        self.startPoint = self.toMapCoordinates(e.pos())
-        self.endPoint = self.startPoint
-        self.isEmittingPoint = True
-        self.showRect(self.startPoint, self.endPoint)
-
-    def canvasReleaseEvent(self, e):
-        self.isEmittingPoint = False
-
-        r = self.rectangle()
-        if r is not None:
-            print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum())
-        self.reset()
-        self.rectangleDrawed.emit(r, self.canvas.mapRenderer().destinationCrs().authid())
-
-
-    def canvasMoveEvent(self, e):
-
-        if not self.isEmittingPoint:
-            return
-
-        self.endPoint = self.toMapCoordinates(e.pos())
-        self.showRect(self.startPoint, self.endPoint)
-
-    def showRect(self, startPoint, endPoint):
-        self.rubberBand.reset(QGis.Polygon)
-        if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
-            return
-
-        point1 = QgsPoint(startPoint.x(), startPoint.y())
-        point2 = QgsPoint(startPoint.x(), endPoint.y())
-        point3 = QgsPoint(endPoint.x(), endPoint.y())
-        point4 = QgsPoint(endPoint.x(), startPoint.y())
-
-        self.rubberBand.addPoint(point1, False)
-        self.rubberBand.addPoint(point2, False)
-        self.rubberBand.addPoint(point3, False)
-        self.rubberBand.addPoint(point4, True)    # true to update canvas
-        self.rubberBand.show()
-
-    def rectangle(self):
-        if self.startPoint is None or self.endPoint is None:
-            return None
-        elif self.startPoint.x() == self.endPoint.x() or self.startPoint.y() == self.endPoint.y():
-
-            return None
-
-        return QgsRectangle(self.startPoint, self.endPoint)
-
-    #def deactivate(self):
-    #   super(RectangleMapTool, self).deactivate()
-    #self.deactivated.emit()
-
 
 class ImageChipBuffer(object):
 
@@ -892,7 +797,7 @@ class ImageChipBuffer(object):
     def getMissingBands(self, date, bands):
         missing = set(bands)
         if date in self.data.keys():
-            missing = missing - self.data[date].keys()
+            missing = missing - set(self.data[date].keys())
 
         return missing
 
@@ -935,6 +840,8 @@ class ImageChipBuffer(object):
             is_masked = np.where(np.logical_not(chipData['mask']))
             for i, c in enumerate(rgb):
                 rgb_data[i, is_masked[0], is_masked[1]] = c
+
+
 
         rgb_data = rgb_data.transpose([1,2,0]).copy()
         return QImage(rgb_data.data, ns, nl, QImage.Format_RGB888)
@@ -1035,9 +942,9 @@ class SenseCarbon_TSV:
             self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
             self.toolbar.setObjectName(u'SenseCarbon TSV')
 
-            self.RectangleMapTool = RectangleMapTool(self.canvas)
+            self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
             self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
-            self.PointMapTool = PointMapTool(self.canvas)
+            self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
             self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
             #self.RectangleMapTool..connect(self.ua_selectByRectangle_Done)
 
@@ -1064,7 +971,7 @@ class SenseCarbon_TSV:
         print(authid)
         print(type(authid))
         wkt = osr.GetUserInputAsWKT(str(authid))
-        print(wkt)
+        six.print_('{}'.format(wkt))
         canvas_srs.ImportFromWkt(wkt)
 
         if type(geometry) is QgsRectangle:
@@ -1269,7 +1176,7 @@ class SenseCarbon_TSV:
 
         D = self.dlg
         dx = D.doubleSpinBox_subset_size_x.value() * 0.5
-        dy = D.doubleSpinBox_subset_size_x.value() * 0.5
+        dy = D.doubleSpinBox_subset_size_y.value() * 0.5
 
         cx = D.spinBox_coordinate_x.value()
         cy = D.spinBox_coordinate_y.value()
@@ -1295,8 +1202,16 @@ class SenseCarbon_TSV:
         self.ImageChipBuffer.setBoundingBox(bb)
 
         D = self.dlg
-        size_x = D.spinBox_chipsize_x.value()
-        size_y = D.spinBox_chipsize_y.value()
+        ratio = dx / dy
+        size_px = D.spinBox_chipsize_max.value()
+        if ratio > 1: #x is largest side
+            size_x = size_px
+            size_y = int(size_px / ratio)
+        else: #y is largest
+            size_y = size_px
+            size_x = int(size_px * ratio)
+        #size_x = D.spinBox_chipsize_x.value()
+        #size_y = D.spinBox_chipsize_y.value()
 
         ScrollArea = D.scrollArea
         #S.setWidgetResizable(False)
@@ -1324,6 +1239,11 @@ class SenseCarbon_TSV:
         else:
             diff = set(dates_of_interest)
             diff = diff.symmetric_difference(self.CHIPWIDGETS.keys())
+
+        self.clearLayoutWidgets(self.CPV)
+        self.CHIPWIDGETS.clear()
+
+        if False:
             if len(diff) != 0:
                 self.clearLayoutWidgets(self.CPV)
                 self.CHIPWIDGETS.clear()
@@ -1346,11 +1266,11 @@ class SenseCarbon_TSV:
             self.CPV.addWidget(textLabel, 0, i)
             viewList = list()
             for j, view in enumerate(self.VIEWS):
-                imageLabel=QLabel()
+                imageLabel = QLabel()
                 imageLabel.setFrameShape(QFrame.StyledPanel)
                 imageLabel.setMinimumSize(size_x, size_y)
-                imageLabel.setMaximumSize(size_x, size_y)
-                imageLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+                imageLabel.setMaximumSize(size_x+1, size_y+1)
+                imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                 viewList.append(imageLabel)
                 self.CPV.addWidget(imageLabel,j+1, i)
             self.CHIPWIDGETS[date] = viewList
@@ -1387,13 +1307,19 @@ class SenseCarbon_TSV:
             for j, view in enumerate(self.VIEWS):
 
                 imageLabel = viewList[j]
+                imageLabel.clear()
+                #imageLabel.setScaledContents(True)
+
                 img = self.ImageChipBuffer.getChipImage(date, view)
                 pxMap = QPixmap.fromImage(img)
                 pxMap = pxMap.scaled(imageLabel.size(), Qt.KeepAspectRatio)
                 imageLabel.setPixmap(pxMap)
+                #imageLabel.update()
+                imageLabel.adjustSize()
 
                 s = ""
                 pass
+            self.CPV.layout().update()
         s = ""
 
         pass
@@ -1504,6 +1430,10 @@ class SenseCarbon_TSV:
         self.setViewNames()
 
 
+def showDataCube(data):
+    from scipy.misc import toimage
+    toimage(data).show()
+
 def run_tests():
 
     if False:
@@ -1574,11 +1504,11 @@ def run_tests():
         exit(0)
 
 
-    if False:
+    if True:
         import PyQt4.Qt
         a = PyQt4.Qt.QApplication([])
 
-        S = SenseCarbon_TSV(a)
+        S = SenseCarbon_TSV(None)
         S.run()
 
         if True:
