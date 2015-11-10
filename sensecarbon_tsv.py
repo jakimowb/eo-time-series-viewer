@@ -35,14 +35,23 @@ import os, sys, re, fnmatch, collections, copy
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 import pickle
-import qimage2ndarray
+
 import six
 import multiprocessing
-#i don't know why but this is required to run this in QGIS
+
+
+#I don't know why but this is required to run this in QGIS
+
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
+
+pluginDir = os.path.dirname(__file__)
+sys.path.append(pluginDir)
+sys.path.append(os.path.join(pluginDir, 'qimage2ndarray'))
+
+import qimage2ndarray
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
