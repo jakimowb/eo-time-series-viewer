@@ -35,6 +35,7 @@ import os, sys, re, fnmatch, collections, copy
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 import pickle
+import qimage2ndarray
 import six
 import multiprocessing
 #i don't know why but this is required to run this in QGIS
@@ -727,7 +728,7 @@ def getDateTime64FromDOY(year, doy):
 
 class PictureTest(QMainWindow):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, qImage=None):
         super(PictureTest,self).__init__(parent)
         self.setWindowTitle("Show Image with pyqt")
         self.imageLabel=QLabel()
@@ -736,20 +737,24 @@ class PictureTest(QMainWindow):
 
         self.cv_img = None
 
+        if qImage:
+            self.addImage(qImage)
+
+    def addImage(self, qImage):
+        pxmap = QPixmap.fromImage(qImage)
+        self.addPixmap(pxmap)
+
+    def addPixmap(self, pixmap):
+        pxmap = pixmap.scaled(self.imageLabel.size(), Qt.KeepAspectRatio)
+        self.imageLabel.setPixmap(pxmap)
+        self.imageLabel.adjustSize()
+        self.imageLabel.update()
+
     def addNumpy(self, data):
 
 
-        if False:
-            nb, nl, ns = data.shape
-            byteperline = nb
-            data = data.transpose([1,2,0]).copy()
-
-            img = QImage(data.data, ns, nl, QImage.Format_RGB888)
-            self.imageLabel.setPixmap(QPixmap.fromImage(img))
         img = Array2Image(data)
-        pxMap = QPixmap.fromImage(img)
-        pxMap = pxMap.scaled(self.imageLabel.size(), Qt.KeepAspectRatio)
-        self.imageLabel.setPixmap(pxMap)
+        self.addImage(img)
 
         #self.resize(img.width(), img.height())
 
@@ -813,7 +818,7 @@ class ImageChipBuffer(object):
     def getDataCube(self, date):
         return self.data.get(date)
 
-    def getChipImage(self, date, view):
+    def getChipRGB(self, date, view):
         bands = view.getBands()
         band_ranges = view.getRanges()
         assert len(bands) == 3 and len(bands) == len(band_ranges)
@@ -841,11 +846,13 @@ class ImageChipBuffer(object):
             for i, c in enumerate(rgb):
                 rgb_data[i, is_masked[0], is_masked[1]] = c
 
+        return  rgb_data
 
-
-        rgb_data = rgb_data.transpose([1,2,0]).copy()
-        return QImage(rgb_data.data, ns, nl, QImage.Format_RGB888)
-
+    def getChipImage(self, date, view):
+        rgb = self.getChipRGB(date, view)
+        nb, nl, ns = rgb.shape
+        rgb = rgb.transpose([1,2,0]).copy('C')
+        return QImage(rgb.data, ns, nl, QImage.Format_RGB888)
 
     def clear(self):
         self.data.clear()
@@ -1303,6 +1310,7 @@ class SenseCarbon_TSV:
             self.ImageChipBuffer.addDataCube(date, chipData)
 
         viewList = self.CHIPWIDGETS.get(date)
+
         if viewList:
             for j, view in enumerate(self.VIEWS):
 
@@ -1310,9 +1318,14 @@ class SenseCarbon_TSV:
                 imageLabel.clear()
                 #imageLabel.setScaledContents(True)
 
-                img = self.ImageChipBuffer.getChipImage(date, view)
-                pxMap = QPixmap.fromImage(img)
+                rgb = self.ImageChipBuffer.getChipRGB(date, view)
+                rgb2 = rgb.transpose([1,2,0]).copy('C')
+                qImg = qimage2ndarray.array2qimage(rgb2)
+                #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
+
+                pxMap = QPixmap.fromImage(qImg)
                 pxMap = pxMap.scaled(imageLabel.size(), Qt.KeepAspectRatio)
+
                 imageLabel.setPixmap(pxMap)
                 #imageLabel.update()
                 imageLabel.adjustSize()
@@ -1405,12 +1418,6 @@ class SenseCarbon_TSV:
         M.endResetModel()
         self.check_enabled()
 
-    def getSelectedDates(self):
-        TV = self.dlg.tableView_TimeSeries
-        TVM = TV.model()
-
-        return [TVM.getTimeSeriesDatumFromIndex(idx).getDate() for idx in TV.selectionModel().selectedRows()]
-
     def ua_removeTSD(self, dates):
         if dates is None:
             dates = self.getSelectedDates()
@@ -1428,9 +1435,15 @@ class SenseCarbon_TSV:
         L.removeWidget(w)
         w.deleteLater()
         self.setViewNames()
+    def getSelectedDates(self):
+        TV = self.dlg.tableView_TimeSeries
+        TVM = TV.model()
+
+        return [TVM.getTimeSeriesDatumFromIndex(idx).getDate() for idx in TV.selectionModel().selectedRows()]
 
 
-def showDataCube(data):
+
+def showRGBData(data):
     from scipy.misc import toimage
     toimage(data).show()
 
@@ -1514,7 +1527,8 @@ def run_tests():
         if True:
             dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
             filesImg = file_search(dirSrc, '2014*_BOA.vrt')
-            filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
+            #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
+            #S.ua_addTSImages(files=filesImg[0:1])
             S.ua_addTSImages(files=filesImg)
             #S.ua_addTSMasks(files=filesMsk)
 
