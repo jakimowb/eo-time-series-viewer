@@ -714,14 +714,19 @@ class TimeSeriesDatum(object):
 
 regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
+regYYYY = re.compile(r'(19|20)\d{2}')
 def parseAcquisitionDate(text):
     match = regYYYYMMDD.search(text)
     if match:
         return np.datetime64(match.group())
-    match = regYYYYDOY
+    match = regYYYYDOY.search(text)
     if match:
         return getDateTime64FromYYYYDOY(match.group())
+    match = regYYYY.search(text)
+    if match:
+        return np.datetime64(match.group())
     return None
+
 
 
 def getDateTime64FromYYYYDOY(yyyydoy):
