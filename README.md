@@ -10,20 +10,19 @@ This README would normally document whatever steps are necessary to get your app
 
 ### How do I get set up? ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+1. Clone this repository to your local QGIS Python Plugin Folder
+
+'''
+cd %USERPROFILE%\.qgis2\python\plugins
+git clone https://jakimowb@bitbucket.org/jakimowb/sensecarbontsviewer.git
+'''
+
+2. Start QGIS, go to Plugins -> Manage and Install and enable the "SenseCarbon TSV" Plugin
+
 
 ### Contribution guidelines ###
 
-* Writing tests
-* Code review
-* Other guidelines
 
 ### Who do I talk to? ###
 
-* Repo owner or admin
-* Other community or team contact
+Benjamin Jakimow
