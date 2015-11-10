@@ -641,7 +641,7 @@ class TimeSeriesDatum(object):
 
     def readImageChip(self, px_x, px_y, bands=[4,5,3]):
 
-        ds = gdal.Open(self.pathImg)
+        ds = gdal.Open(self.pathImg, gdal.GA_ReadOnly)
 
         assert len(px_x) == 2 and px_x[0] <= px_x[1]
         assert len(px_y) == 2 and px_y[0] <= px_y[1]
@@ -676,7 +676,10 @@ class TimeSeriesDatum(object):
 
 
 
-        templateImg = np.ones((nl,ns)) * self.nodata
+        templateImg = np.zeros((nl,ns))
+        if self.nodata:
+            templateImg *= self.nodata
+
         templateImg = templateImg.astype(self.getdtype())
         templateMsk = np.ones((nl,ns), dtype='bool')
 
@@ -1543,7 +1546,7 @@ def run_tests():
             filesImg = file_search(dirSrc, '2014*_BOA.vrt')
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             #S.ua_addTSImages(files=filesImg[0:1])
-            S.ua_addTSImages(files=filesImg)
+            #S.ua_addTSImages(files=filesImg)
             #S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
