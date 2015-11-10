@@ -12,16 +12,16 @@ This README would normally document whatever steps are necessary to get your app
 
 ## Windows ##
 1. Clone this repository to your local QGIS Python Plugin Folder
-
-    cd %USERPROFILE%\.qgis2\python\plugins
+    
+    cd %USERPROFILE%\.qgis2\python\plugins 
     git clone https://jakimowb@bitbucket.org/jakimowb/sensecarbontsviewer.git
 
 
 2. Start QGIS, go to Plugins -> Manage and Install and enable the "SenseCarbon TSV" Plugin
 
-
-3. For updates run
-
+3. Update the repository by
+    
+        
     cd %USERPROFILE%\.qgis2\python\plugins\sensecarbontsviewer
     git reset --hard origin/master 
 
