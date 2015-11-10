@@ -1,14 +1,14 @@
 # README #
 
-SenseCarbon Time Series Viewer
+The SenseCarbon Time Series Viewer is a small improvised viewer for remote sensing time series data.
+
+![Screenshot](Screenshot.png "Screenshot SenseCarbon Time Series Viewer")
 
 
-### What is this repository for? ###
-
-This is a small viewer to visualize image chip views of remote sensing time series data. 
+### Features ###
 
 
-### How do I get set up? ###
+### How do I get this plugin? ###
 
 ## Windows ##
 
