@@ -7,6 +7,10 @@ The SenseCarbon Time Series Viewer is a small improvised viewer for remote sensi
 
 ### Features ###
 
++ uses the python packages shipped with standard QGIS installation
++ reads all image formats supported by gdal (www.gdal.org)
++ the spatial extend shown as image chip for each time series observation can be defined via QGIS 
+
 
 ### How do I get this plugin? ###
 
@@ -28,5 +32,5 @@ The SenseCarbon Time Series Viewer is a small improvised viewer for remote sensi
 
 
 ### Who do I talk to? ###
-
-Benjamin Jakimow
+ 
+Me, benjamin.jakimow@geo.hu-berlin.de
