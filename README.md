@@ -1,19 +1,15 @@
 # README #
 
-The SenseCarbon Time Series Viewer is a small improvised viewer for remote sensing time series data.
+The SenseCarbon Time Series Viewer is a graphical user interface to visualize time series (TS) of remote sensing (RS) data.
+Its major aims are (i) to allow for an interactive and GIS based labeling of TS data and (ii) to use the RS data 
+"as is" and (iii) to allow for an easy installation on different plattforms using standard python packages shipped with [Quantum GIS (QGIS)](www.qgis.org) only.  
+
+
 
 ![Screenshot](Screenshot.png "Screenshot SenseCarbon Time Series Viewer")
 
+### Installation ###
 
-### Features ###
-
-+ uses the python packages shipped with standard QGIS installation
-+ reads all image formats supported by gdal (www.gdal.org)
-+ the spatial extend shown as image chip for each time series observation can be defined via QGIS 
-+ tbd.
-
-
-### How do I get this plugin? ###
 
 ## Windows ##
 
@@ -29,16 +25,29 @@ The SenseCarbon Time Series Viewer is a small improvised viewer for remote sensi
         git rebase origin/master 
 
 
-### Contribution guidelines ###
+### Features ###
++ RS data can be simply added to specify a time series. Observation dates are extracted automatically by evaluating the meta data, file base name or entire file path
++ spatial extends of image chips can be specified in QGIS by selection of single coodinate or rectangle
++ multiple band combination can be used to visualize the time series
++ color scaling is applied to the entire time series, e.g. to visualize and compare surface reflectance data
++ 
++ uses python packages shipped with the most-recent standard QGIS installation. I hope this way the SenseCarbon Time Series Viewer runs on different plattforms 
+without too many complications.
++ uses the [Geospatial Data Abstraction Library (GDAL)](www.gdal.org) that supports up to 142 [raster image formats](http://www.gdal.org/formats_list.html)  
+
+  
++ python2 and python 3 interoperability 
+
+### Missing Features / ToDo's ###
+
+A lot. 
+
+Your feedback (wishes, comments, bugs, ...) is always welcome. You can add it to the [issue section](https://bitbucket.org/jakimowb/sensecarbontsviewer/issues)
+or send me personally via [benjamin.jakimow@geo.hu-berlin.de](benjamin.jakimow@geo.hu-berlin.de).
+
+
+### Licences and Use ###
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
  
-
-
-### Who do I talk to? ###
-
-Comments, bug, hints etc. are welcome in the [issue section](https://bitbucket.org/jakimowb/sensecarbontsviewer/issues)
-or via [benjamin.jakimow@geo.hu-berlin.de](benjamin.jakimow@geo.hu-berlin.de).
-
-
 
