@@ -1,10 +1,9 @@
 # README #
 
-The SenseCarbon Time Series Viewer is a graphical user interface to visualize time series (TS) of remote sensing (RS) data.
-Its major aims are (i) to allow for an interactive and GIS based labeling of TS data and (ii) to use the RS data 
-"as is" and (iii) to allow for an easy installation on different plattforms using standard python packages shipped with [Quantum GIS (QGIS)](www.qgis.org) only.  
+The SenseCarbon Time Series Viewer is a graphical user interface to visualize time series (TS) of remote sensing data.
+Aims are (i) to support a [Quantum GIS (QGIS)](www.qgis.org) based labeling of TS data, (ii) to use remote sensing data "as is" and (iii) avoid a complicated installation process.
 
-
+This viewer requires only python packages that are part of a standard [Quantum GIS (QGIS)](www.qgis.org) installation.
 
 ![Screenshot](Screenshot.png "Screenshot SenseCarbon Time Series Viewer")
 
@@ -40,14 +39,12 @@ without too many complications.
 
 ### Missing Features / ToDo's ###
 
-A lot. 
+Many. 
 
-Your feedback (wishes, comments, bugs, ...) is always welcome. You can add it to the [issue section](https://bitbucket.org/jakimowb/sensecarbontsviewer/issues)
-or send me personally via [benjamin.jakimow@geo.hu-berlin.de](benjamin.jakimow@geo.hu-berlin.de).
+Your feedback (wishes, comments, bugs, ...) is always welcome. Write it into  the [issue section](https://bitbucket.org/jakimowb/sensecarbontsviewer/issues)
+or send me personally to [benjamin.jakimow@geo.hu-berlin.de](benjamin.jakimow@geo.hu-berlin.de).
 
 
 ### Licences and Use ###
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
- 
-
