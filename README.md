@@ -29,7 +29,7 @@ The following instructions use [git](https://en.wikipedia.org/wiki/Git_%28softwa
 3. Download updates if available
 
         cd %USERPROFILE%\.qgis2\python\plugins\sensecarbontsviewer
-        git rebase origin/master 
+        git pull origin/master 
 
 
 ## Features ##
