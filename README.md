@@ -15,7 +15,9 @@ The viewer requires runs with python packages that are also part of a standard [
 ![Screenshot](Screenshot.png "Screenshot SenseCarbon Time Series Viewer")
 
 ## Installation ##
-The following instructions use [git](https://en.wikipedia.org/wiki/Git_%28software%29) commands. If git is not available in your shell, you can download it from [https://git-scm.com/downloads](https://git-scm.com/downloads).
+You really want to use [git](https://en.wikipedia.org/wiki/Git_%28software%29) to install and update the viewer. 
+
+If git is not available in your shell, you can download it from [https://git-scm.com/downloads](https://git-scm.com/downloads). You can install git without admin rights.
 
 
 ### Windows ###
