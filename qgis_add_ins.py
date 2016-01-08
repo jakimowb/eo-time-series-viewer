@@ -27,9 +27,11 @@ class PointMapTool(QgsMapToolEmitPoint):
 
     def canvasReleaseEvent(self, e):
         point = self.toMapCoordinates(e.pos())
-        self.coordinateSelected.emit(point, self.canvas.mapRenderer().destinationCrs().authid())
-        self.marker.setCenter(point)
-        self.marker.hide()
+        wkt = self.canvas.mapSettings().destinationCrs().toWkt()
+        if wkt:
+            self.coordinateSelected.emit(point, wkt)
+            self.marker.setCenter(point)
+            self.marker.hide()
 
 
 
@@ -65,7 +67,9 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         if r is not None:
             print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum())
         self.reset()
-        self.rectangleDrawed.emit(r, self.canvas.mapRenderer().destinationCrs().authid())
+        wkt =  self.canvas.mapSettings().destinationCrs().toWkt()
+        if wkt:
+            self.rectangleDrawed.emit(r, wkt)
 
 
     def canvasMoveEvent(self, e):
