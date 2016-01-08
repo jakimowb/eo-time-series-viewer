@@ -373,6 +373,19 @@
           </widget>
          </item>
          <item>
+          <spacer name="verticalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
           <widget class="QGroupBox" name="groupBox_rendering">
            <property name="minimumSize">
             <size>
@@ -384,31 +397,21 @@
             <string>Chip Rendering</string>
            </property>
            <layout class="QGridLayout" name="gridLayout_2">
-            <item row="2" column="0">
+            <item row="6" column="0">
              <widget class="QLabel" name="label_6">
               <property name="text">
                <string>First date</string>
               </property>
              </widget>
             </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_11">
-              <property name="text">
-               <string>max. size </string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1" colspan="2">
-             <widget class="QComboBox" name="cb_centerdate"/>
-            </item>
-            <item row="1" column="1">
+            <item row="5" column="1">
              <widget class="QSpinBox" name="spinBox_ncpu">
               <property name="toolTip">
                <string>Number of CPUs used for parallel image chip calculation</string>
               </property>
              </widget>
             </item>
-            <item row="0" column="1">
+            <item row="4" column="1">
              <widget class="QSpinBox" name="spinBox_chipsize_max">
               <property name="minimumSize">
                <size>
@@ -436,14 +439,24 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
+            <item row="6" column="1" colspan="2">
+             <widget class="QComboBox" name="cb_centerdate"/>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_11">
+              <property name="text">
+               <string>max. size </string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
              <widget class="QLabel" name="label">
               <property name="text">
                <string>#cpu</string>
               </property>
              </widget>
             </item>
-            <item row="0" column="2">
+            <item row="4" column="2">
              <spacer name="horizontalSpacer_2">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
@@ -456,21 +469,93 @@
               </property>
              </spacer>
             </item>
+            <item row="0" column="0">
+             <widget class="QRadioButton" name="rb_showEntireTS">
+              <property name="text">
+               <string>Entire Time Series</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QRadioButton" name="rb_showTimeWindow">
+              <property name="toolTip">
+               <string>Select </string>
+              </property>
+              <property name="text">
+               <string>Time Window:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" rowspan="2" colspan="3">
+             <widget class="QFrame" name="frame_2">
+              <property name="minimumSize">
+               <size>
+                <width>50</width>
+                <height>50</height>
+               </size>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::StyledPanel</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Raised</enum>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <item>
+                <widget class="QLabel" name="label_8">
+                 <property name="text">
+                  <string>before</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="sb_ndates_before">
+                 <property name="maximum">
+                  <number>9999</number>
+                 </property>
+                 <property name="value">
+                  <number>1</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_9">
+                 <property name="text">
+                  <string>after</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="sb_ndates_after">
+                 <property name="maximum">
+                  <number>9999</number>
+                 </property>
+                 <property name="value">
+                  <number>1</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_3">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
            </layout>
           </widget>
-         </item>
-         <item>
-          <spacer name="verticalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
          </item>
         </layout>
        </widget>
@@ -531,8 +616,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>81</width>
-              <height>28</height>
+              <width>262</width>
+              <height>376</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -543,133 +628,6 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_4"/>
            </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="tab_temporal">
-        <attribute name="title">
-         <string>Temporal</string>
-        </attribute>
-        <layout class="QFormLayout" name="formLayout">
-         <property name="fieldGrowthPolicy">
-          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-         </property>
-         <item row="0" column="0">
-          <widget class="QRadioButton" name="rb_showEntireTS">
-           <property name="text">
-            <string>Entire Time Series</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QRadioButton" name="rb_showSelectedDates">
-           <property name="text">
-            <string>Selected Dates</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QRadioButton" name="rb_showTimeWindow">
-           <property name="text">
-            <string>Time Window</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0" colspan="2">
-          <widget class="QFrame" name="frame_timewindow">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
-           </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
-           </property>
-           <layout class="QFormLayout" name="formLayout_2">
-            <property name="fieldGrowthPolicy">
-             <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-            </property>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_7">
-              <property name="text">
-               <string>Date of interest</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QComboBox" name="cb_timeWindow_doi"/>
-            </item>
-            <item row="3" column="0" colspan="2">
-             <widget class="QFrame" name="frame_2">
-              <property name="minimumSize">
-               <size>
-                <width>50</width>
-                <height>20</height>
-               </size>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::StyledPanel</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Raised</enum>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_3">
-               <item>
-                <widget class="QLabel" name="label_8">
-                 <property name="text">
-                  <string>Dates before</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sb_ndates_before">
-                 <property name="maximum">
-                  <number>9999</number>
-                 </property>
-                 <property name="value">
-                  <number>1</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_9">
-                 <property name="text">
-                  <string>after</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sb_ndates_after">
-                 <property name="maximum">
-                  <number>9999</number>
-                 </property>
-                 <property name="value">
-                  <number>1</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_3">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </widget>
-            </item>
-           </layout>
           </widget>
          </item>
         </layout>
@@ -720,22 +678,5 @@
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>rb_showTimeWindow</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>frame_timewindow</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>62</x>
-     <y>139</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>176</x>
-     <y>202</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

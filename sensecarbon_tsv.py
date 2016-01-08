@@ -146,7 +146,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         elif role == Qt.BackgroundColorRole:
             value = None
         elif role == Qt.UserRole:
-            value = self._data[index.row()]
+            value = TSD
 
         return value
 
@@ -904,6 +904,10 @@ class SenseCarbon_TSV:
         # Save reference to the QGIS interface
         self.iface = iface
 
+
+        #if isinstance(iface, QgsApplication):
+        #self.iface = iface
+
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
@@ -925,16 +929,17 @@ class SenseCarbon_TSV:
         self.dlg = SenseCarbon_TSVGui()
         D = self.dlg
         self.TS = TimeSeries()
+        TSM = TimeSeriesTableModel(self.TS)
+        D.tableView_TimeSeries.setModel(TSM)
+        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        D.cb_centerdate.setModel(TSM)
+        D.cb_centerdate.setModelColumn(0)
+        D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
         self.TS.datumAdded.connect(self.ua_datumAdded)
         self.TS.progress.connect(self.ua_TSprogress)
         self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
 
 
-        TSM = TimeSeriesTableModel(self.TS)
-        D.tableView_TimeSeries.setModel(TSM)
-        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        D.cb_timeWindow_doi.setModel(TSM)
-        D.cb_timeWindow_doi.setModelColumn(0)
 
         self.VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
@@ -970,9 +975,10 @@ class SenseCarbon_TSV:
             self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
             self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
             self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
-            #self.RectangleMapTool..connect(self.ua_selectByRectangle_Done)
+            #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
 
         self.CPV = self.dlg.scrollAreaWidgetContents.layout()
+
         self.check_enabled()
         s = ""
 
@@ -1042,8 +1048,6 @@ class SenseCarbon_TSV:
         P.setValue(v)
 
     def ua_datumAdded(self):
-        cb_centerdate = self.dlg.cb_centerdate
-        cb_centerdate.clear()
         if len(self.TS) > 0:
             if self.dlg.spinBox_coordinate_x.value() == 0.0 and \
                self.dlg.spinBox_coordinate_y.value() == 0.0:
@@ -1052,11 +1056,8 @@ class SenseCarbon_TSV:
                 self.dlg.spinBox_coordinate_y.setRange(ymin, ymax)
                 self.dlg.spinBox_coordinate_x.setValue(0.5*(xmin+xmax))
                 self.dlg.spinBox_coordinate_y.setValue(0.5*(ymin+ymax))
-                s =""
-
-                for date in self.TS.getDates():
-                    cb_centerdate.addItem(date.astype('str'), date)
-            s = ""
+                s = ""
+        self.dlg.cb_centerdate.setCurrentIndex(int(len(self.TS) / 2))
         self.dlg.tableView_TimeSeries.resizeColumnsToContents()
 
     def check_enabled(self):
@@ -1243,26 +1244,25 @@ class SenseCarbon_TSV:
 
         #get the dates of interes
         dates_of_interest = list()
+        centerTSD = D.cb_centerdate.itemData(D.cb_centerdate.currentIndex())
+        if centerTSD is None:
+            idx = int(len(self.TS)/2)
+            centerTSD = D.cb_centerdate.itemData(idx)
+            D.cb_centerdate.setCurrentIndex(idx)
+        centerDate = centerTSD.getDate()
+        allDates = self.TS.getDates()
+        i_doi = allDates.index(centerDate)
+
         if D.rb_showEntireTS.isChecked():
             dates_of_interest = self.TS.getDates()
-        elif D.rb_showSelectedDates.isChecked():
-            dates_of_interest = self.getSelectedDates()
         elif D.rb_showTimeWindow.isChecked():
-            TSD = D.cb_timeWindow_doi.itemData(D.cb_timeWindow_doi.currentIndex())
-            s = ""
-            allDates = self.TS.getDates()
-            i_doi = allDates.index(TSD)
             i0 = max([0, i_doi-D.sb_ndates_before.value()])
-            ie = min([i_doi + D.sb_ndates_after.value(), len(allDates)])
-            dates_of_interest = allDates[i0:ie]
+            ie = min([i_doi + D.sb_ndates_after.value(), len(allDates)-1])
+            dates_of_interest = allDates[i0:ie+1]
 
 
-        if self.CPV is None:
-            ScrollArea.setLayout(QHBoxLayout())
-            self.CPV = ScrollArea.layout()
-        else:
-            diff = set(dates_of_interest)
-            diff = diff.symmetric_difference(self.CHIPWIDGETS.keys())
+        diff = set(dates_of_interest)
+        diff = diff.symmetric_difference(self.CHIPWIDGETS.keys())
 
         self.clearLayoutWidgets(self.CPV)
         self.CHIPWIDGETS.clear()
@@ -1285,27 +1285,37 @@ class SenseCarbon_TSV:
             TSD = self.TS.data[date]
             textLabel = QLabel('{}'.format(date.astype(str)))
             textLabel.setToolTip(str(TSD))
-            #textLabel.setMinimumWidth(size_x)
-            #textLabel.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum)
             self.CPV.addWidget(textLabel, 0, i)
             viewList = list()
-            for j, view in enumerate(self.VIEWS):
+            j = 1
+            for view in self.VIEWS:
                 imageLabel = QLabel()
                 imageLabel.setFrameShape(QFrame.StyledPanel)
                 imageLabel.setMinimumSize(size_x, size_y)
                 imageLabel.setMaximumSize(size_x+1, size_y+1)
                 imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                 viewList.append(imageLabel)
-                self.CPV.addWidget(imageLabel,j+1, i)
+                self.CPV.addWidget(imageLabel,j, i)
+                j += 1
+
+            textLabel = QLabel('{}'.format(date.astype(str)))
+            textLabel.setToolTip(str(TSD))
+            self.CPV.addWidget(textLabel, j, i)
+
             self.CHIPWIDGETS[date] = viewList
 
-        #LH.addSpacerItem(Spacer(size_x, size_y))
-        ScrollArea.show()
+        self.scrollToDate(centerDate)
+
+        s = ""
+        #ScrollArea.show()
+        #ScrollArea.horizontalScrollBar().setValue()
+
+
 
         #fill image labels
         missing_dates = set()
         missing_bands = set()
-        for i, date in enumerate(self.TS.getDates()):
+        for i, date in enumerate(dates_of_interest):
             required_bands = set()
             for j, view in enumerate(self.VIEWS):
                 required_bands = required_bands.union(set(view.getBands()))
@@ -1317,8 +1327,28 @@ class SenseCarbon_TSV:
                 missing_dates.add(date)
                 missing_bands = missing_bands.union(missing)
 
+        missing_dates = list(missing_dates)
         if len(missing_dates) > 0:
-            self.TS.getSpatialChips_parallel(bbWkt, srsWkt, dates=list(missing_dates), bands=list(missing_bands))
+            missing_dates = sorted(missing_dates, key=lambda d: abs(centerDate - d))
+            self.TS.getSpatialChips_parallel(bbWkt, srsWkt, dates=missing_dates, bands=list(missing_bands))
+
+    def scrollToDate(self, date):
+        QApplication.processEvents()
+        HBar = self.dlg.scrollArea.horizontalScrollBar()
+        dates = list(self.CHIPWIDGETS.keys())
+        if len(dates) == 0:
+            return
+
+        #get date INDEX that is closest to requested date
+        if not isinstance(date, int):
+            i_doi = dates.index(sorted(dates, key=lambda d: abs(date - d))[0])
+        else:
+            i_doi = min([date, HBar.maximum()])
+
+        scrollValue = int(float(i_doi+1) / len(dates) * HBar.maximum())
+
+        HBar.setValue(scrollValue)
+
 
     def ua_showPxCoordinate_addChips(self, results, date=None):
 
@@ -1327,6 +1357,10 @@ class SenseCarbon_TSV:
             self.ImageChipBuffer.addDataCube(date, chipData)
 
         viewList = self.CHIPWIDGETS.get(date)
+
+
+
+
 
         if viewList:
             for j, view in enumerate(self.VIEWS):
@@ -1452,6 +1486,7 @@ class SenseCarbon_TSV:
         L.removeWidget(w)
         w.deleteLater()
         self.setViewNames()
+
     def getSelectedDates(self):
         TV = self.dlg.tableView_TimeSeries
         TVM = TV.model()
@@ -1470,23 +1505,25 @@ def run_tests():
 
         pathImg = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted\2014-07-26_LC82270652014207LGN00_BOA.vrt'
         pathMsk = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted\2014-07-26_LC82270652014207LGN00_Msk.vrt'
-        TSD = TimeSeriesDatum(pathImg)
-        TSD.setMask(pathMsk)
 
-        print(TSD)
+        if False:
+            TSD = TimeSeriesDatum(pathImg)
+            TSD.setMask(pathMsk)
 
-        c = [670949.883,-786288.771]
+            print(TSD)
 
-        w_x = w_y = 1000 #1km box
-        srs = TSD.getSpatialReference()
-        ring = ogr.Geometry(ogr.wkbLinearRing)
-        import itertools
-        for x,y in itertools.product([1000, -1000], repeat=2):
-            ring.AddPoint(c[0]+x, c[1]+y)
-        ring.AssignSpatialReference(srs)
-        bb = ogr.Geometry(ogr.wkbPolygon)
-        bb.AddGeometry(ring)
-        bb.AssignSpatialReference(srs)
+            c = [670949.883,-786288.771]
+
+            w_x = w_y = 1000 #1km box
+            srs = TSD.getSpatialReference()
+            ring = ogr.Geometry(ogr.wkbLinearRing)
+            import itertools
+            for x,y in itertools.product([1000, -1000], repeat=2):
+                ring.AddPoint(c[0]+x, c[1]+y)
+            ring.AssignSpatialReference(srs)
+            bb = ogr.Geometry(ogr.wkbPolygon)
+            bb.AddGeometry(ring)
+            bb.AssignSpatialReference(srs)
 
 
 
@@ -1518,9 +1555,9 @@ def run_tests():
         range_b = [0,500]
 
         bands = [3,2,1]
-        chipData = TSD.readSpatialChip(bb,bands=bands )
+        #chipData = TSD.readSpatialChip(bb,bands=bands )
 
-        main.addNumpy(getChip3d(chipData, bands, (range_r, range_g, range_b)))
+        #main.addNumpy(getChip3d(chipData, bands, (range_r, range_g, range_b)))
         app.exec_()
         exit(0)
 
@@ -1536,29 +1573,29 @@ def run_tests():
 
     if True:
         import PyQt4.Qt
-        a = PyQt4.Qt.QApplication([])
 
+        app=PyQt4.Qt.QApplication([])
         S = SenseCarbon_TSV(None)
         S.run()
 
         if True:
-            dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
-            filesImg = file_search(dirSrc, '2014*_BOA.vrt')
+            dirSrc = r'\\141.20.140.107\NAS_Processing\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+            filesImg = file_search(dirSrc, '20*_BOA.vrt')
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             #S.ua_addTSImages(files=filesImg[0:1])
-            #S.ua_addTSImages(files=filesImg)
+            S.ua_addTSImages(files=filesImg)
             #S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
 
-        a.exec_()
+        app.exec_()
 
     if False:
         import qgis.core
 
         # supply path to where is your qgis installed
 
-        QgsApplication.setPrefixPath("/Applications/QGIS_2.12.app/Contents/MacOS/QGIS", True)
+        #QgsApplication.setPrefixPath("/Applications/QGIS_2.12.app/Contents/MacOS/QGIS", True)
 
         # load providers
         QgsApplication.initQgis()
