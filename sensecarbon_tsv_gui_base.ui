@@ -490,7 +490,10 @@
              </widget>
             </item>
             <item row="2" column="0" rowspan="2" colspan="3">
-             <widget class="QFrame" name="frame_2">
+             <widget class="QFrame" name="frame_timewindow">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>50</width>
@@ -678,5 +681,22 @@
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>rb_showTimeWindow</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>frame_timewindow</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>83</x>
+     <y>341</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>160</x>
+     <y>380</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
