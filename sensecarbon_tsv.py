@@ -990,7 +990,7 @@ class SenseCarbon_TSV:
         if self.PointMapTool is not None:
             self.canvas.setMapTool(self.PointMapTool)
 
-    def ua_selectBy_Response(self, geometry, authid):
+    def ua_selectBy_Response(self, geometry, wkt):
         D = self.dlg
         x = D.spinBox_coordinate_x.value()
         y = D.spinBox_coordinate_x.value()
@@ -998,10 +998,7 @@ class SenseCarbon_TSV:
         dy = D.doubleSpinBox_subset_size_y.value()
 
         canvas_srs = osr.SpatialReference()
-        print(authid)
-        print(type(authid))
-        wkt = osr.GetUserInputAsWKT(str(authid))
-        six.print_('{}'.format(wkt))
+        wkt = osr.GetUserInputAsWKT(str(wkt))
         canvas_srs.ImportFromWkt(wkt)
 
         if type(geometry) is QgsRectangle:
@@ -1194,6 +1191,25 @@ class SenseCarbon_TSV:
         if DEBUG:
             pass
 
+
+    def scrollToDate(self, date):
+        QApplication.processEvents()
+        HBar = self.dlg.scrollArea.horizontalScrollBar()
+        dates = list(self.CHIPWIDGETS.keys())
+        if len(dates) == 0:
+            return
+
+        #get date INDEX that is closest to requested date
+        if not isinstance(date, int):
+            i_doi = dates.index(sorted(dates, key=lambda d: abs(date - d))[0])
+        else:
+            i_doi = min([date, HBar.maximum()])
+
+        scrollValue = int(float(i_doi+1) / len(dates) * HBar.maximum())
+
+        HBar.setValue(scrollValue)
+
+
     def ua_showPxCoordinate_start(self):
 
         if len(self.TS) == 0:
@@ -1235,12 +1251,6 @@ class SenseCarbon_TSV:
         else: #y is largest
             size_y = size_px
             size_x = int(size_px * ratio)
-        #size_x = D.spinBox_chipsize_x.value()
-        #size_y = D.spinBox_chipsize_y.value()
-
-        ScrollArea = D.scrollArea
-        #S.setWidgetResizable(False)
-        #remove widgets
 
         #get the dates of interes
         dates_of_interest = list()
@@ -1267,14 +1277,7 @@ class SenseCarbon_TSV:
         self.clearLayoutWidgets(self.CPV)
         self.CHIPWIDGETS.clear()
 
-        if False:
-            if len(diff) != 0:
-                self.clearLayoutWidgets(self.CPV)
-                self.CHIPWIDGETS.clear()
-            else:
-                for date, viewList in self.CHIPWIDGETS.items():
-                    for imageLabel in viewList:
-                        imageLabel.clear()
+
 
         #initialize image labels
 
@@ -1332,22 +1335,7 @@ class SenseCarbon_TSV:
             missing_dates = sorted(missing_dates, key=lambda d: abs(centerDate - d))
             self.TS.getSpatialChips_parallel(bbWkt, srsWkt, dates=missing_dates, bands=list(missing_bands))
 
-    def scrollToDate(self, date):
-        QApplication.processEvents()
-        HBar = self.dlg.scrollArea.horizontalScrollBar()
-        dates = list(self.CHIPWIDGETS.keys())
-        if len(dates) == 0:
-            return
 
-        #get date INDEX that is closest to requested date
-        if not isinstance(date, int):
-            i_doi = dates.index(sorted(dates, key=lambda d: abs(date - d))[0])
-        else:
-            i_doi = min([date, HBar.maximum()])
-
-        scrollValue = int(float(i_doi+1) / len(dates) * HBar.maximum())
-
-        HBar.setValue(scrollValue)
 
 
     def ua_showPxCoordinate_addChips(self, results, date=None):
@@ -1395,6 +1383,7 @@ class SenseCarbon_TSV:
                 w.widget().deleteLater()
                 #if w is not None:
                 #    w.widget().deleteLater()
+        QApplication.processEvents()
 
     def ua_addTSImages(self, files=None):
         if files is None:
