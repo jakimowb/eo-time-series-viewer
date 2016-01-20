@@ -219,6 +219,21 @@ class TimeSeriesItemModel(QAbstractItemModel):
         return 1
 
 
+class SpectralConfiguration():
+
+    def __init__(self, nb, px_size, bandnames=None, wavelengths=None, sensorname=None):
+
+        self.nb = nb
+        self.px_size = float(px_size)
+
+        self.bandnames = bandnames
+        self.wavelengths = wavelengths
+        self.sensorname = sensorname
+
+
+
+
+
 class TimeSeries(QObject):
 
     #define signals
