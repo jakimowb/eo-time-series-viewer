@@ -219,25 +219,58 @@ class TimeSeriesItemModel(QAbstractItemModel):
         return 1
 
 
-class SpectralConfiguration():
 
-    def __init__(self, nb, px_size, bandnames=None, wavelengths=None, sensorname=None):
+class SensorConfiguration(object):
 
+    def __init__(self,nb, px_size_x,px_size_y, band_names=None, wavelengths=None, sensor_name=None):
+
+        assert nb >= 1
+        assert px_size_x >= 0
+        assert px_size_y >= 0
+
+
+        self.TS = None
         self.nb = nb
-        self.px_size = float(px_size)
+        self.px_size_x = float(px_size_x)
+        self.px_size_y = float(px_size_y)
 
-        self.bandnames = bandnames
+        if band_names is not None:
+            assert len(band_names) == nb
+        self.band_names = band_names
+
+        if wavelengths is not None:
+            assert len(wavelengths) == nb
         self.wavelengths = wavelengths
-        self.sensorname = sensorname
 
+        self.sensor_name = sensor_name
 
+    def __eq__(self, other):
+        return self.nb == other.nb and self.px_size_x == other.px_size_x and self.px_size_y == other.px_size_y
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __repr__(self):
+        info = []
+        info.append('Spectral Configuration')
+        info.append('  bands:{}'.format(self.nb))
+        info.append('  px x:{} y:{}'.format(self.px_size_x, self.px_size_y))
+        info.append('  band names:{}'.format(self.band_names))
+        return '\n'.join(info)
 
 
 
 class TimeSeries(QObject):
 
     #define signals
-    datumAdded = pyqtSignal(list, name='datumAdded')
+
+    #fire when a new TSD is added
+    datumAdded = pyqtSignal(name='datumAdded')
+
+    #fire when a new sensor configuration is added
+    sensorAdded = pyqtSignal(object, name='sensorAdded')
+
+
     changed = pyqtSignal()
     progress = pyqtSignal(int,int,int, name='progress')
     chipLoaded = pyqtSignal(object, name='chiploaded')
@@ -250,13 +283,15 @@ class TimeSeries(QObject):
 
     shape = None
 
+    SensorConfigurations = set()
+
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
 
         self.Pool = None
-        self.nb = None
-        self.srs = None
-        self.bandnames = list()
+        #self.nb = None
+        #self.srs = None
+        #self.bandnames = list()
 
 
         if imageFiles is not None:
@@ -266,13 +301,17 @@ class TimeSeries(QObject):
 
 
 
-    def getMaxExtent(self):
+    def getMaxExtent(self, srs=None):
 
         x = []
         y = []
 
+        if srs is None:
+            TSD = self.data[self.getDates()[0]]
+            srs = TSD.getSpatialReference()
+
         for TSD in self.data.values():
-            bb = TSD.getBoundingBox(self.srs)
+            bb = TSD.getBoundingBox(srs)
             x.extend([c[0] for c in bb])
             y.extend([c[1] for c in bb])
 
@@ -419,22 +458,18 @@ class TimeSeries(QObject):
 
         TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
 
-        if self.nb is None:
-
-            self.nb = TSD.nb
-            self.bandnames = TSD.bandnames
-            self.srs = TSD.getSpatialReference()
-
-        else:
-
-            assert self.nb == TSD.nb, 'TimeSeries initialized with {} bands but image {} has {} bands'.find(self.nb, pathImg, TSD.nb)
+        sensor = TSD.SensorConfiguration
+        if sensor not in self.SensorConfigurations:
+            sensor.TS = self
+            self.SensorConfigurations.add(sensor)
+            self.sensorAdded.emit(sensor)
 
         self.data[TSD.getDate()] = TSD
 
         if not _quiet:
             self._sortTimeSeriesData()
             self.changed.emit()
-            self.datumAdded.emit(self.bandnames[:])
+            self.datumAdded.emit()
 
 
     def addFiles(self, files):
@@ -452,7 +487,7 @@ class TimeSeries(QObject):
 
         self._sortTimeSeriesData()
         self.progress.emit(0,0,l)
-        self.datumAdded.emit(self.bandnames[:])
+        self.datumAdded.emit()
 
 
 
@@ -538,18 +573,20 @@ class TimeSeriesDatum(object):
         self.srs_wkt = dsImg.GetProjection()
         self.gt = list(dsImg.GetGeoTransform())
 
+
+
         refBand = dsImg.GetRasterBand(1)
         self.etype = refBand.DataType
 
         self.nodata = refBand.GetNoDataValue()
 
-
-        self.bandnames = list()
+        bandnames = list()
         for b in range(self.nb):
             name = dsImg.GetRasterBand(b+1).GetDescription()
             if name is None or name == '':
                 name = 'Band {}'.format(b+1)
-            self.bandnames.append(name)
+            bandnames.append(name)
+        self.SensorConfiguration = SensorConfiguration(self.nb, self.gt[1], self.gt[4], band_names=bandnames)
 
         if pathMsk:
             self.setMask(pathMsk)
@@ -576,10 +613,12 @@ class TimeSeriesDatum(object):
 
 
         if srs is not None:
+            assert type(srs) is osr.SpatialReference
             my_srs = self.getSpatialReference()
             if not my_srs.IsSame(srs):
                 #todo: consider srs differences
-                raise Exception('differeng SRS in bounding box request')
+
+                raise Exception('differences SRS in bounding box request')
                 pass
 
         return ext
@@ -1410,14 +1449,9 @@ class SenseCarbon_TSV:
             self.TS.addFiles(files)
             M.endResetModel()
 
-            nb = self.TS.nb
-            if len(self.VIEWS) == 0 and nb > 0:
-                if nb < 3:
-                    bands = [1,1,1]
-                else:
-                    self.ua_addView([3,2,1])
-                    if nb >= 5:
-                        self.ua_addView([4,5,3])
+            if len(self.VIEWS) == 0:
+                self.ua_addView([3,2,1])
+                self.ua_addView([4,5,3])
 
 
         self.check_enabled()
@@ -1448,9 +1482,8 @@ class SenseCarbon_TSV:
     def ua_addView(self, bands = [3,2,1]):
         import imagechipviewsettings_widget
 
-        if len(self.TS.bandnames) > 0:
-
-            w = imagechipviewsettings_widget.ImageChipViewSettings(self.TS, parent=self.dlg)
+        for sensor in self.TS.SensorConfigurations:
+            w = imagechipviewsettings_widget.ImageChipViewSettings(sensor, parent=self.dlg)
             w.setMaximumSize(w.size())
             #w.setMinimumSize(w.size())
             w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
