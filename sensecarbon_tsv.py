@@ -21,8 +21,16 @@
  ***************************************************************************/
 """
 
+# Import the code for the dialog
+import os, sys, re, fnmatch, collections, copy, traceback
+from qgis.core import *
+#os.environ['PATH'] += os.pathsep + r'C:\OSGeo4W64\bin'
+
+from osgeo import gdal, ogr, osr, gdal_array
+
+
+
 try:
-    from qgis.core import *
     from qgis.gui import *
     import qgis
     import qgis_add_ins
@@ -30,9 +38,6 @@ try:
 except:
     qgis_available = False
 
-# Import the code for the dialog
-import os, sys, re, fnmatch, collections, copy
-from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 import pickle
 
@@ -60,8 +65,6 @@ from sensecarbon_tsv_gui import SenseCarbon_TSVGui
 DEBUG = True
 
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
-
-
 
 def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
     assert rootdir is not None
@@ -218,45 +221,64 @@ class TimeSeriesItemModel(QAbstractItemModel):
     def columnCount(self, index=QModelIndex()):
         return 1
 
+LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
+                  ,(7,30.,30.): 'L8 OLI' \
+                  ,(4,10.,10.): 'S2 MSI 10m' \
+                  ,(6,20.,20.): 'S2 MSI 20m' \
+                  ,(3,30.,30.): 'S2 MSI 60m' \
+                  ,(3,30.,30.): 'S2 MSI 60m' \
+                  }
 
 
 class SensorConfiguration(object):
+    """
+    Describes a Sensor Configuration
+    """
 
     def __init__(self,nb, px_size_x,px_size_y, band_names=None, wavelengths=None, sensor_name=None):
 
         assert nb >= 1
-        assert px_size_x >= 0
-        assert px_size_y >= 0
-
 
         self.TS = None
         self.nb = nb
-        self.px_size_x = float(px_size_x)
-        self.px_size_y = float(px_size_y)
+        self.px_size_x = float(abs(px_size_x))
+        self.px_size_y = float(abs(px_size_y))
+
+        assert self.px_size_x > 0
+        assert self.px_size_y > 0
 
         if band_names is not None:
             assert len(band_names) == nb
+        else:
+            band_names = ['Band {}'.format(b+1) for b in range(nb)]
+
         self.band_names = band_names
 
         if wavelengths is not None:
             assert len(wavelengths) == nb
+
         self.wavelengths = wavelengths
 
+        if sensor_name is None:
+            id = (self.nb, self.px_size_x, self.px_size_y)
+            if id in LUT_SensorNames.keys():
+                sensor_name = LUT_SensorNames[id]
+            else:
+                sensor_name = '{} b x {} m'.format(self.nb, self.px_size_x)
+
+        print(sensor_name)
         self.sensor_name = sensor_name
+
+        self.hashvalue = hash(','.join(self.band_names))
 
     def __eq__(self, other):
         return self.nb == other.nb and self.px_size_x == other.px_size_x and self.px_size_y == other.px_size_y
 
     def __hash__(self):
-        return hash(self.__repr__())
+        return self.hashvalue
 
     def __repr__(self):
-        info = []
-        info.append('Spectral Configuration')
-        info.append('  bands:{}'.format(self.nb))
-        info.append('  px x:{} y:{}'.format(self.px_size_x, self.px_size_y))
-        info.append('  band names:{}'.format(self.band_names))
-        return '\n'.join(info)
+        return self.sensor_name
 
 
 
@@ -283,16 +305,12 @@ class TimeSeries(QObject):
 
     shape = None
 
-    SensorConfigurations = set()
+    SensorConfigurations = collections.OrderedDict()
 
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
 
         self.Pool = None
-        #self.nb = None
-        #self.srs = None
-        #self.bandnames = list()
-
 
         if imageFiles is not None:
             self.addFiles(imageFiles)
@@ -456,20 +474,26 @@ class TimeSeries(QObject):
         print(pathImg)
         print('Add image {}...'.format(pathImg))
 
-        TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
+        try:
+            TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
 
-        sensor = TSD.SensorConfiguration
-        if sensor not in self.SensorConfigurations:
-            sensor.TS = self
-            self.SensorConfigurations.add(sensor)
-            self.sensorAdded.emit(sensor)
+            sensor = SensorConfiguration(TSD.nb, TSD.gt[1], TSD.gt[5], TSD.bandnames, TSD.wavelength)
+            if sensor not in self.SensorConfigurations.keys():
+                self.SensorConfigurations[sensor] = list()
+            self.SensorConfigurations[sensor].append(TSD)
 
-        self.data[TSD.getDate()] = TSD
+            self.data[TSD.getDate()] = TSD
 
-        if not _quiet:
-            self._sortTimeSeriesData()
-            self.changed.emit()
-            self.datumAdded.emit()
+            if not _quiet:
+                self._sortTimeSeriesData()
+                self.changed.emit()
+                self.datumAdded.emit()
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback, limit=2)
+            six._print('Unable to add {}'.format(file), file=sys.stderr)
+            pass
+
 
 
     def addFiles(self, files):
@@ -479,10 +503,7 @@ class TimeSeries(QObject):
 
         self.progress.emit(0,0,l)
         for i, file in enumerate(files):
-            try:
-                self.addFile(file, _quiet=True)
-            except:
-                pass
+            self.addFile(file, _quiet=True)
             self.progress.emit(0,i+1,l)
 
         self._sortTimeSeriesData()
@@ -580,13 +601,24 @@ class TimeSeriesDatum(object):
 
         self.nodata = refBand.GetNoDataValue()
 
-        bandnames = list()
+        self.bandnames = list()
         for b in range(self.nb):
             name = dsImg.GetRasterBand(b+1).GetDescription()
             if name is None or name == '':
                 name = 'Band {}'.format(b+1)
-            bandnames.append(name)
-        self.SensorConfiguration = SensorConfiguration(self.nb, self.gt[1], self.gt[4], band_names=bandnames)
+            self.bandnames.append(name)
+
+        self.wavelength = None
+        domains = dsImg.GetMetadataDomainList()
+        for domain in domains:
+            md = dsImg.GetMetadata_Dict(domain)
+            if 'wavelength' in md.keys():
+                wl = md['wavelength']
+                wl = re.split('[;,{}]', wl)
+                wl = [float(w) for w in wl]
+                assert len(wl) == self.nb
+                self.wavelength = wl
+                break
 
         if pathMsk:
             self.setMask(pathMsk)
@@ -855,7 +887,27 @@ def Array2Image(d3d):
 
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
+class VerticalLabel(QLabel):
+    def __init__(self, text):
+        super(self.__class__, self).__init__()
+        self.text = text
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(Qt.black)
+        painter.translate(20, 100)
+        painter.rotate(-90)
+        if self.text:
+            painter.drawText(0, 0, self.text)
+        painter.end()
+
+    def minimumSizeHint(self):
+        size = QLabel.minimumSizeHint(self)
+        return QSize(size.height(), size.width())
+
+    def sizeHint(self):
+        size = QLabel.sizeHint(self)
+        return QSize(size.height(), size.width())
 
 class ImageChipBuffer(object):
 
@@ -995,7 +1047,7 @@ class SenseCarbon_TSV:
 
 
 
-        self.VIEWS = list()
+        self.BAND_VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
         self.CHIPWIDGETS = collections.OrderedDict()
 
@@ -1004,7 +1056,7 @@ class SenseCarbon_TSV:
         D.btn_showPxCoordinate.clicked.connect(lambda: self.ua_showPxCoordinate_start())
         D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
         D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
-        D.btn_addBandView.clicked.connect(lambda :self.ua_addView())
+        D.btn_addBandView.clicked.connect(lambda :self.ua_addBandView())
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
         D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
@@ -1031,7 +1083,9 @@ class SenseCarbon_TSV:
             self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
             #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
 
-        self.CPV = self.dlg.scrollAreaWidgetContents.layout()
+        self.ICP = self.dlg.scrollArea_imageChip_content.layout()
+        self.dlg.scrollArea_bandViews_content.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.BVP = self.dlg.scrollArea_bandViews_content.layout()
 
         self.check_enabled()
         s = ""
@@ -1114,10 +1168,10 @@ class SenseCarbon_TSV:
     def check_enabled(self):
         D = self.dlg
         hasTS = len(self.TS) > 0 or DEBUG
-        hasTSV = len(self.VIEWS) > 0
+        hasTSV = len(self.BAND_VIEWS) > 0
         hasQGIS = qgis_available
 
-        D.tabWidget_viewsettings.setEnabled(hasTS)
+        #D.tabWidget_viewsettings.setEnabled(hasTS)
         D.btn_showPxCoordinate.setEnabled(hasTS and hasTSV)
         D.btn_selectByCoordinate.setEnabled(hasQGIS)
         D.btn_selectByRectangle.setEnabled(hasQGIS)
@@ -1248,7 +1302,7 @@ class SenseCarbon_TSV:
 
     def scrollToDate(self, date):
         QApplication.processEvents()
-        HBar = self.dlg.scrollArea.horizontalScrollBar()
+        HBar = self.dlg.scrollArea_imageChips.horizontalScrollBar()
         dates = list(self.CHIPWIDGETS.keys())
         if len(dates) == 0:
             return
@@ -1328,7 +1382,7 @@ class SenseCarbon_TSV:
         diff = set(dates_of_interest)
         diff = diff.symmetric_difference(self.CHIPWIDGETS.keys())
 
-        self.clearLayoutWidgets(self.CPV)
+        self.clearLayoutWidgets(self.ICP)
         self.CHIPWIDGETS.clear()
 
 
@@ -1342,22 +1396,22 @@ class SenseCarbon_TSV:
             TSD = self.TS.data[date]
             textLabel = QLabel('{}'.format(date.astype(str)))
             textLabel.setToolTip(str(TSD))
-            self.CPV.addWidget(textLabel, 0, i)
+            self.ICP.addWidget(textLabel, 0, i)
             viewList = list()
             j = 1
-            for view in self.VIEWS:
+            for view in self.BAND_VIEWS:
                 imageLabel = QLabel()
                 imageLabel.setFrameShape(QFrame.StyledPanel)
                 imageLabel.setMinimumSize(size_x, size_y)
                 imageLabel.setMaximumSize(size_x+1, size_y+1)
                 imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                 viewList.append(imageLabel)
-                self.CPV.addWidget(imageLabel,j, i)
+                self.ICP.addWidget(imageLabel, j, i)
                 j += 1
 
             textLabel = QLabel('{}'.format(date.astype(str)))
             textLabel.setToolTip(str(TSD))
-            self.CPV.addWidget(textLabel, j, i)
+            self.ICP.addWidget(textLabel, j, i)
 
             self.CHIPWIDGETS[date] = viewList
 
@@ -1374,7 +1428,7 @@ class SenseCarbon_TSV:
         missing_bands = set()
         for i, date in enumerate(dates_of_interest):
             required_bands = set()
-            for j, view in enumerate(self.VIEWS):
+            for j, view in enumerate(self.BAND_VIEWS):
                 required_bands = required_bands.union(set(view.getBands()))
 
             missing = self.ImageChipBuffer.getMissingBands(date, required_bands)
@@ -1405,7 +1459,7 @@ class SenseCarbon_TSV:
 
 
         if viewList:
-            for j, view in enumerate(self.VIEWS):
+            for j, view in enumerate(self.BAND_VIEWS):
 
                 imageLabel = viewList[j]
                 imageLabel.clear()
@@ -1425,7 +1479,7 @@ class SenseCarbon_TSV:
 
                 s = ""
                 pass
-            self.CPV.layout().update()
+            self.ICP.layout().update()
         s = ""
 
         pass
@@ -1449,9 +1503,10 @@ class SenseCarbon_TSV:
             self.TS.addFiles(files)
             M.endResetModel()
 
-            if len(self.VIEWS) == 0:
-                self.ua_addView([3,2,1])
-                self.ua_addView([4,5,3])
+
+            if len(self.BAND_VIEWS) == 0:
+                self.ua_addBandView([3, 2, 1])
+                self.ua_addBandView([4, 5, 3])
 
 
         self.check_enabled()
@@ -1472,30 +1527,37 @@ class SenseCarbon_TSV:
         self.check_enabled()
 
 
-    def setViewNames(self):
-        for i, w in enumerate(self.VIEWS):
-            w.setTitle('View {}'.format(i+1))
-        self.check_enabled()
 
 
 
-    def ua_addView(self, bands = [3,2,1]):
+
+    def ua_addBandView(self, band_recommendation = [3, 2, 1]):
         import imagechipviewsettings_widget
 
-        for sensor in self.TS.SensorConfigurations:
+        band_view_widgets = list()
+
+        v_offset = len(self.BAND_VIEWS)
+
+
+        textLabel = VerticalLabel('View {}'.format(v_offset+1))
+        textLabel.setToolTip('')
+        textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+        self.BVP.addWidget(textLabel, v_offset, 0)
+
+        for h_offset, sensor in enumerate(self.TS.SensorConfigurations):
             w = imagechipviewsettings_widget.ImageChipViewSettings(sensor, parent=self.dlg)
             w.setMaximumSize(w.size())
             #w.setMinimumSize(w.size())
             w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
-            w.setBands(bands)
+            w.setBands(band_recommendation)
             w.removeView.connect(lambda : self.ua_removeView(w))
 
-            L = self.dlg.scrollArea_viewsWidget.layout()
-            L.addWidget(w)
-            self.dlg.scrollArea_views.show()
-            self.VIEWS.append(w)
-            self.setViewNames()
+            self.BVP.addWidget(w, v_offset, h_offset+1)
+            band_view_widgets.append(w)
+
             self.check_enabled()
+
+        self.BAND_VIEWS.append(band_view_widgets)
 
     def ua_removeTS(self):
         #remove views
@@ -1518,7 +1580,7 @@ class SenseCarbon_TSV:
 
 
     def ua_removeView(self,w):
-        self.VIEWS.remove(w)
+        self.BAND_VIEWS.remove(w)
         L = self.dlg.scrollArea_viewsWidget.layout()
         L.removeWidget(w)
         w.deleteLater()
