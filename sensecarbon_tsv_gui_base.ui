@@ -264,7 +264,7 @@
               <x>0</x>
               <y>0</y>
               <width>754</width>
-              <height>170</height>
+              <height>190</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -273,12 +273,11 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <layout class="QGridLayout" name="gridLayout_4"/>
+            <layout class="QVBoxLayout" name="verticalLayout_7"/>
            </widget>
           </widget>
          </item>
         </layout>
-        <zorder></zorder>
         <zorder></zorder>
         <zorder>scrollArea_bandViews</zorder>
        </widget>

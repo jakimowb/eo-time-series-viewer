@@ -44,6 +44,7 @@ import pickle
 import six
 import multiprocessing
 
+import imagechipviewsettings_widget
 
 #I don't know why but this is required to run this in QGIS
 
@@ -227,7 +228,44 @@ LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
                   ,(6,20.,20.): 'S2 MSI 20m' \
                   ,(3,30.,30.): 'S2 MSI 60m' \
                   ,(3,30.,30.): 'S2 MSI 60m' \
+                  ,(5,5.,5.): 'RE 5m' \
                   }
+
+
+class BandView(object):
+
+    bandMappings = collections.OrderedDict()
+
+
+    def __init__(self, TS):
+        assert type(TS) is TimeSeries
+        self.TS = TS
+        self.TS.sensorAdded.connect(self.initSensor)
+
+        self.Sensors = self.TS.SensorConfigurations
+
+
+        for sensor in self.Sensors:
+            self.initSensor(sensor)
+
+
+
+
+
+    def initSensor(self, sensor):
+        assert type(sensor) is SensorConfiguration
+        self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
+
+
+    def getSensorStats(self, sensor, bands):
+        assert type(sensor) is SensorConfiguration
+        dsRef = gdal.Open(self.Sensors[sensor][0])
+        return [dsRef.GetRasterBand(b).ComputeRasterMinMax() for b in bands]
+
+
+    def getBands(self, sensor):
+        assert type(sensor) is SensorConfiguration
+        return self.bandMappings[sensor]
 
 
 class SensorConfiguration(object):
@@ -317,7 +355,16 @@ class TimeSeries(QObject):
         if maskFiles is not None:
             self.addMasks(maskFiles)
 
+    def getSRS(self):
+        if len(self.data) == 0:
+            return 0
+        else:
+            TSD = self.data[self.getDates()[0]]
+            return TSD.getSpatialReference()
 
+    def getWKT(self):
+        srs = self.getSRS()
+        return srs.ExportToWkt()
 
     def getMaxExtent(self, srs=None):
 
@@ -325,8 +372,7 @@ class TimeSeries(QObject):
         y = []
 
         if srs is None:
-            TSD = self.data[self.getDates()[0]]
-            srs = TSD.getSpatialReference()
+            srs = self.getSRS()
 
         for TSD in self.data.values():
             bb = TSD.getBoundingBox(srs)
@@ -337,8 +383,6 @@ class TimeSeries(QObject):
 
     def getDates(self):
         return list(self.data.keys())
-
-
 
     def _callback_error(self, error):
         six.print_(error, file=sys.stderr)
@@ -358,7 +402,7 @@ class TimeSeries(QObject):
             self._callback_progress_max = 0
             self.progress.emit(0,0,1)
 
-    def getSpatialChips_parallel(self, bbWkt, srsWkt, dates=None, bands=[4,5,3], ncpu=1):
+    def getSpatialChips_parallel(self, bbWkt, srsWkt, TSD_band_list, ncpu=1):
         assert type(bbWkt) is str and type(srsWkt) is str
 
         import multiprocessing
@@ -367,15 +411,14 @@ class TimeSeries(QObject):
 
         self.Pool = multiprocessing.Pool(processes=ncpu)
 
-        if dates is None:
-            dates = self.getDates()
 
-        self._callback_progress_max = len(dates)
+        self._callback_progress_max = len(TSD_band_list)
         self._callback_progress_done = 0
 
-        for date in dates:
+        for T in TSD_band_list:
 
-            TSD = copy.deepcopy(self.data[date])
+            TSD = copy.deepcopy(T[0])
+            bands = T[1]
             #TSD = pickle.dumps(self.data[date])
             args = (TSD, bbWkt, srsWkt)
             kwds = {'bands':bands}
@@ -476,13 +519,21 @@ class TimeSeries(QObject):
 
         try:
             TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
-
+            sensorAdded = False
             sensor = SensorConfiguration(TSD.nb, TSD.gt[1], TSD.gt[5], TSD.bandnames, TSD.wavelength)
-            if sensor not in self.SensorConfigurations.keys():
+            existingSensors = list(self.SensorConfigurations.keys())
+            if sensor not in existingSensors:
                 self.SensorConfigurations[sensor] = list()
-            self.SensorConfigurations[sensor].append(TSD)
+                sensorAdded = True
+            else:
+                sensor = existingSensors[existingSensors.index(sensor)]
 
+            self.SensorConfigurations[sensor].append(TSD)
+            TSD.sensor = sensor
             self.data[TSD.getDate()] = TSD
+
+            if sensorAdded:
+                self.sensorAdded.emit(sensor)
 
             if not _quiet:
                 self._sortTimeSeriesData()
@@ -527,14 +578,13 @@ class TimeSeries(QObject):
         if l > 0:
             keys = list(self.data.keys())
             info.append('  Range: {} to {}'.format(keys[0], keys[-1]))
-            info.append('  Bands: {} [{}]'.format(self.nb,','.join(self.bandnames)))
         return '\n'.join(info)
 
 def PFunc_TimeSeries_getSpatialChip(TSD, bbWkt, srsWkt , bands=[4,5,3]):
 
     chipdata = TSD.readSpatialChip(bbWkt, srs=srsWkt, bands=bands)
 
-    return TSD.getDate(), chipdata
+    return TSD, chipdata
 
 def px2Coordinate(gt, pxX, pxY, upper_left=True):
     cx = gt[0] + pxX*gt[1] + pxY*gt[2]
@@ -594,7 +644,7 @@ class TimeSeriesDatum(object):
         self.srs_wkt = dsImg.GetProjection()
         self.gt = list(dsImg.GetGeoTransform())
 
-
+        self.sensor = None
 
         refBand = dsImg.GetRasterBand(1)
         self.etype = refBand.DataType
@@ -919,34 +969,38 @@ class ImageChipBuffer(object):
 
         pass
 
-    def hasDataCube(self, date):
-        return date in self.data.keys()
+    def hasDataCube(self, TSD):
+        assert type(TSD) is TimeSeriesDatum
+        return TSD in self.data.keys()
 
-    def getMissingBands(self, date, bands):
+    def getMissingBands(self, TSD, bands):
+        assert type(TSD) is TimeSeriesDatum
+
         missing = set(bands)
-        if date in self.data.keys():
-            missing = missing - set(self.data[date].keys())
-
+        if TSD in self.data.keys():
+            missing = missing - set(self.data[TSD].keys())
         return missing
 
-    def addDataCube(self, date, chipData):
+    def addDataCube(self, TSD, chipData):
+        assert type(TSD) is TimeSeriesDatum
+
         assert self.BBox is not None, 'Please initialize the bounding box first.'
-
-        assert type(date) == np.datetime64
         assert isinstance(chipData, dict)
-        if date not in self.data.keys():
-            self.data[date] = dict()
-        self.data[date].update(chipData)
 
-    def getDataCube(self, date):
-        return self.data.get(date)
+        if TSD not in self.data.keys():
+            self.data[TSD] = dict()
+        self.data[TSD].update(chipData)
 
-    def getChipRGB(self, date, view):
-        bands = view.getBands()
-        band_ranges = view.getRanges()
+    def getDataCube(self, TSD):
+        assert type(TSD) is TimeSeriesDatum
+        return self.data.get(TSD)
+
+    def getChipRGB(self, TSD, band_view):
+        bands = band_view.getBands()
+        band_ranges = band_view.getRanges()
         assert len(bands) == 3 and len(bands) == len(band_ranges)
-        assert date in self.data, 'Date {} is not in buffer'.format(date)
-        chipData = self.data[date]
+        assert TSD in self.data.keys(), 'Date {} is not in buffer'.format(date)
+        chipData = self.data[TSD]
         for b in bands:
             assert b in chipData.keys()
 
@@ -963,8 +1017,8 @@ class ImageChipBuffer(object):
         np.clip(rgb_data, 0, 255, out=rgb_data)
         rgb_data = rgb_data.astype('uint8')
 
-        if view.useMaskValues():
-            rgb = view.getMaskColor()
+        if band_view.useMaskValues():
+            rgb = band_view.getMaskColor()
             is_masked = np.where(np.logical_not(chipData['mask']))
             for i, c in enumerate(rgb):
                 rgb_data[i, is_masked[0], is_masked[1]] = c
@@ -1041,11 +1095,10 @@ class SenseCarbon_TSV:
         D.cb_centerdate.setModel(TSM)
         D.cb_centerdate.setModelColumn(0)
         D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
+
         self.TS.datumAdded.connect(self.ua_datumAdded)
         self.TS.progress.connect(self.ua_TSprogress)
         self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
-
-
 
         self.BAND_VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
@@ -1341,13 +1394,8 @@ class SenseCarbon_TSV:
         bb = ogr.Geometry(ogr.wkbPolygon)
         bb.AddGeometry(ring)
         bbWkt = bb.ExportToWkt()
-        srsWkt = None
-        if self.TS.srs:
-            bb.AssignSpatialReference(self.TS.srs)
-
-            srsWkt = bb.GetSpatialReference().ExportToWkt()
-
-
+        bb.AssignSpatialReference(self.TS.getSRS())
+        srsWkt = bb.GetSpatialReference().ExportToWkt()
         self.ImageChipBuffer.setBoundingBox(bb)
 
         D = self.dlg
@@ -1389,6 +1437,7 @@ class SenseCarbon_TSV:
 
         #initialize image labels
 
+
         for i, date in enumerate(dates_of_interest):
 
             #LV = QVBoxLayout()
@@ -1424,35 +1473,43 @@ class SenseCarbon_TSV:
 
 
         #fill image labels
-        missing_dates = set()
-        missing_bands = set()
+        required_bands = dict()
+        for j, view in enumerate(self.BAND_VIEWS):
+                for S in view.Sensors.keys():
+
+                    bands = set([t[0] for t in view.getBands(S)])
+                    assert len(bands) == 3
+                    if S not in required_bands.keys():
+                        required_bands[S] = set()
+                    required_bands[S] = required_bands[S].union(bands)
+
+        missing = set()
         for i, date in enumerate(dates_of_interest):
-            required_bands = set()
-            for j, view in enumerate(self.BAND_VIEWS):
-                required_bands = required_bands.union(set(view.getBands()))
-
-            missing = self.ImageChipBuffer.getMissingBands(date, required_bands)
-            if len(missing) == 0:
-                self.ua_showPxCoordinate_addChips(None, date=date)
+            TSD = self.TS.data[date]
+            
+            missing_bands = self.ImageChipBuffer.getMissingBands(TSD, required_bands[TSD.sensor])
+            if len(missing_bands) == 0:
+                self.ua_showPxCoordinate_addChips(None, TSD=date)
             else:
-                missing_dates.add(date)
-                missing_bands = missing_bands.union(missing)
-
-        missing_dates = list(missing_dates)
-        if len(missing_dates) > 0:
-            missing_dates = sorted(missing_dates, key=lambda d: abs(centerDate - d))
-            self.TS.getSpatialChips_parallel(bbWkt, srsWkt, dates=missing_dates, bands=list(missing_bands))
+                missing.add((TSD, tuple(missing_bands)))
 
 
+        missing =list(missing)
+        if len(missing) > 0:
+            missing = sorted(missing, key=lambda d: abs(centerDate - d[0].getDate()))
+
+            self.TS.getSpatialChips_parallel(bbWkt, srsWkt, TSD_band_list=missing)
 
 
-    def ua_showPxCoordinate_addChips(self, results, date=None):
+
+
+    def ua_showPxCoordinate_addChips(self, results, TSD=None):
 
         if results is not None:
-            date, chipData = results
-            self.ImageChipBuffer.addDataCube(date, chipData)
+            TSD, chipData = results
+            self.ImageChipBuffer.addDataCube(TSD, chipData)
 
-        viewList = self.CHIPWIDGETS.get(date)
+        viewList = self.CHIPWIDGETS.get(TSD)
 
 
 
@@ -1465,7 +1522,7 @@ class SenseCarbon_TSV:
                 imageLabel.clear()
                 #imageLabel.setScaledContents(True)
 
-                rgb = self.ImageChipBuffer.getChipRGB(date, view)
+                rgb = self.ImageChipBuffer.getChipRGB(TSD, view)
                 rgb2 = rgb.transpose([1,2,0]).copy('C')
                 qImg = qimage2ndarray.array2qimage(rgb2)
                 #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
@@ -1508,6 +1565,9 @@ class SenseCarbon_TSV:
                 self.ua_addBandView([3, 2, 1])
                 self.ua_addBandView([4, 5, 3])
 
+            self.refreshBandViews()
+
+
 
         self.check_enabled()
 
@@ -1528,36 +1588,48 @@ class SenseCarbon_TSV:
 
 
 
-
-
-
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
         import imagechipviewsettings_widget
 
         band_view_widgets = list()
+        self.BAND_VIEWS.append(BandView(self.TS))
 
-        v_offset = len(self.BAND_VIEWS)
+
+    def refreshBandViews(self):
+        self.clearLayoutWidgets(self.BVP)
+
+        for i, BV in enumerate(self.BAND_VIEWS):
+            W = QWidget()
+            hl = QHBoxLayout()
+            textLabel = VerticalLabel('View {}'.format(i+1))
+            textLabel = QLabel('View {}'.format(i+1))
+            textLabel.setToolTip('')
+            textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
+            hl.addWidget(textLabel)
+
+            for S in self.TS.SensorConfigurations:
+
+                w = imagechipviewsettings_widget.ImageChipViewSettings(S, parent=self.dlg)
+                w.setMaximumSize(w.size())
+                #w.setMinimumSize(w.size())
+                w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
+                #w.setBands(band_recommendation)
+                hl.addWidget(w)
+                s = ""
+
+            hl.addItem(QSpacerItem(20,20,QSizePolicy.Expanding,QSizePolicy.Minimum))
+            W.setLayout(hl)
+            self.BVP.addWidget(W)
+        self.check_enabled()
 
 
-        textLabel = VerticalLabel('View {}'.format(v_offset+1))
-        textLabel.setToolTip('')
-        textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
-        self.BVP.addWidget(textLabel, v_offset, 0)
 
-        for h_offset, sensor in enumerate(self.TS.SensorConfigurations):
-            w = imagechipviewsettings_widget.ImageChipViewSettings(sensor, parent=self.dlg)
-            w.setMaximumSize(w.size())
-            #w.setMinimumSize(w.size())
-            w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
-            w.setBands(band_recommendation)
-            w.removeView.connect(lambda : self.ua_removeView(w))
-
-            self.BVP.addWidget(w, v_offset, h_offset+1)
-            band_view_widgets.append(w)
-
-            self.check_enabled()
-
-        self.BAND_VIEWS.append(band_view_widgets)
+    def ua_removeBandView(self, w):
+        self.BAND_VIEWS.remove(w)
+        L = self.dlg.scrollArea_viewsWidget.layout()
+        L.removeWidget(w)
+        w.deleteLater()
+        self.setViewNames()
 
     def ua_removeTS(self):
         #remove views
@@ -1579,12 +1651,6 @@ class SenseCarbon_TSV:
         self.check_enabled()
 
 
-    def ua_removeView(self,w):
-        self.BAND_VIEWS.remove(w)
-        L = self.dlg.scrollArea_viewsWidget.layout()
-        L.removeWidget(w)
-        w.deleteLater()
-        self.setViewNames()
 
     def getSelectedDates(self):
         TV = self.dlg.tableView_TimeSeries
@@ -1646,9 +1712,10 @@ def run_tests():
 
             return a3d.astype('uint8')
 
-        app=QApplication([])
-        main=PictureTest()
+        app  = QApplication([])
+        main = PictureTest()
         main.show()
+
         range_r = [0,500]
         range_g = [0,500]
         range_b = [0,500]
@@ -1661,10 +1728,10 @@ def run_tests():
         exit(0)
 
     if False:
-        dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
-        filesImg = file_search(dirSrc, '2014*_BOA.vrt')
-        filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-        TS = TimeSeries(imageFiles=filesImg, maskFiles=filesMsk)
+        dirSrcLS = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
+        filesImgLS = file_search(dirSrcLS, '2014*_BOA.vrt')
+        filesMsk = file_search(dirSrcLS, '2014*_Msk.vrt')
+        TS = TimeSeries(imageFiles=filesImgLS, maskFiles=filesMsk)
 
         print(TS)
         exit(0)
@@ -1678,11 +1745,17 @@ def run_tests():
         S.run()
 
         if True:
-            dirSrc = r'\\141.20.140.107\NAS_Processing\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-            filesImg = file_search(dirSrc, '20*_BOA.vrt')
+            dirSrcLS = r'\\141.20.140.107\NAS_Processing\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+            dirSrcRE = r'\\141.20.140.91\SAN_RSDBrazil\RapidEye\3A'
+            filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
+            filesImgRE = file_search(dirSrcRE, '*_328202.tif', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             #S.ua_addTSImages(files=filesImg[0:1])
-            S.ua_addTSImages(files=filesImg)
+            S.ua_addTSImages(files=filesImgLS)
+            S.ua_addTSImages(files=filesImgRE)
+
+
+
             #S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
@@ -1705,10 +1778,10 @@ def run_tests():
         S.run()
 
         if True:
-            dirSrc = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
-            filesImg = file_search(dirSrc, '2014*_BOA.vrt')
-            filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-            S.ua_addTSImages(files=filesImg)
+            dirSrcLS = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
+            filesImgLS = file_search(dirSrcLS, '2014*_BOA.vrt')
+            filesMsk = file_search(dirSrcLS, '2014*_Msk.vrt')
+            S.ua_addTSImages(files=filesImgLS)
             #S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])

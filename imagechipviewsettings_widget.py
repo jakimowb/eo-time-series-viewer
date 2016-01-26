@@ -130,3 +130,19 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
     def getSettings(self):
 
         s = ""
+
+
+if __name__ == '__main__':
+
+    import PyQt4.Qt
+
+    app=PyQt4.Qt.QApplication([])
+    W = QDialog()
+    W.setLayout(QHBoxLayout())
+    L = W.layout()
+    w = ImageChipViewSettings()
+    L.addWidget(w)
+    W.show()
+    sys.exit(app.exec_())
+
+    print('Done')
