@@ -110,7 +110,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if index.isValid():
             i = index.row()
             if i >= 0 and i < len(self.TS):
-                return self.TS.getDates()[i]
+                return self.TS.getTSDs()[i]
         return None
 
     def getTimeSeriesDatumFromIndex(self, index):
@@ -118,7 +118,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if index.isValid():
             i = index.row()
             if i >= 0 and i < len(self.TS):
-                date = self.TS.getDates()[i]
+                date = self.TS.getTSDs()[i]
                 return self.TS.data[date]
 
         return None
@@ -234,19 +234,20 @@ LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
 
 class BandView(object):
 
-    bandMappings = collections.OrderedDict()
+
 
 
     def __init__(self, TS):
         assert type(TS) is TimeSeries
+        self.bandMappings = collections.OrderedDict()
         self.TS = TS
         self.TS.sensorAdded.connect(self.initSensor)
 
-        self.Sensors = self.TS.SensorConfigurations
+        self.Sensors = self.TS.Sensors
 
-
+        import copy
         for sensor in self.Sensors:
-            self.initSensor(sensor)
+            self.initSensor(copy.deepcopy(sensor))
 
 
 
@@ -254,7 +255,15 @@ class BandView(object):
 
     def initSensor(self, sensor):
         assert type(sensor) is SensorConfiguration
-        self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
+        if sensor not in self.bandMappings.keys():
+            #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
+            x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
+            x.create()
+            print(('Created',x, id(x)))
+            self.bandMappings[sensor] = x
+        else:
+            print('Sensor in bandmappings {}'.format(sensor))
+            s = ''
 
 
     def getSensorStats(self, sensor, bands):
@@ -263,9 +272,21 @@ class BandView(object):
         return [dsRef.GetRasterBand(b).ComputeRasterMinMax() for b in bands]
 
 
-    def getBands(self, sensor):
+    def getRanges(self, sensor):
+        return self.getWidget(sensor).getRanges()
+
+    def getWidget(self, sensor):
         assert type(sensor) is SensorConfiguration
         return self.bandMappings[sensor]
+
+    def getBands(self, sensor):
+        return self.getWidget(sensor).Bands()
+
+
+    def useMaskValues(self):
+
+        #todo:
+        return False
 
 
 class SensorConfiguration(object):
@@ -343,7 +364,7 @@ class TimeSeries(QObject):
 
     shape = None
 
-    SensorConfigurations = collections.OrderedDict()
+    Sensors = collections.OrderedDict()
 
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
@@ -359,7 +380,7 @@ class TimeSeries(QObject):
         if len(self.data) == 0:
             return 0
         else:
-            TSD = self.data[self.getDates()[0]]
+            TSD = self.data[self.getTSDs()[0]]
             return TSD.getSpatialReference()
 
     def getWKT(self):
@@ -381,8 +402,15 @@ class TimeSeries(QObject):
 
         return (min(x), min(y), max(x), max(y))
 
-    def getDates(self):
-        return list(self.data.keys())
+    def getObservationDates(self):
+        return [tsd.getDate() for tsd in self.data.keys()]
+
+    def getTSDs(self, date_of_interest=None):
+        if date_of_interest:
+            tsds = [tsd for tsd in self.data.keys() if tsd.getDate() == date_of_interest]
+        else:
+            tsds = list(self.data.keys())
+        return tsds
 
     def _callback_error(self, error):
         six.print_(error, file=sys.stderr)
@@ -518,22 +546,23 @@ class TimeSeries(QObject):
         print('Add image {}...'.format(pathImg))
 
         try:
-            TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
             sensorAdded = False
-            sensor = SensorConfiguration(TSD.nb, TSD.gt[1], TSD.gt[5], TSD.bandnames, TSD.wavelength)
-            existingSensors = list(self.SensorConfigurations.keys())
-            if sensor not in existingSensors:
-                self.SensorConfigurations[sensor] = list()
+            TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
+            existingSensors = list(self.Sensors.keys())
+            if TSD.sensor not in existingSensors:
+                self.Sensors[TSD.sensor] = list()
                 sensorAdded = True
             else:
-                sensor = existingSensors[existingSensors.index(sensor)]
+                TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
-            self.SensorConfigurations[sensor].append(TSD)
-            TSD.sensor = sensor
-            self.data[TSD.getDate()] = TSD
+            if TSD in self.data.keys():
+                six.print_('Time series datum already added: {}'.format(str(TSD)), file=sys.stderr)
+            else:
+                self.Sensors[TSD.sensor].append(TSD)
+                self.data[TSD] = TSD
 
             if sensorAdded:
-                self.sensorAdded.emit(sensor)
+                self.sensorAdded.emit(TSD.sensor)
 
             if not _quiet:
                 self._sortTimeSeriesData()
@@ -542,7 +571,7 @@ class TimeSeries(QObject):
         except:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback, limit=2)
-            six._print('Unable to add {}'.format(file), file=sys.stderr)
+            six.print_('Unable to add {}'.format(file), file=sys.stderr)
             pass
 
 
@@ -644,8 +673,6 @@ class TimeSeriesDatum(object):
         self.srs_wkt = dsImg.GetProjection()
         self.gt = list(dsImg.GetGeoTransform())
 
-        self.sensor = None
-
         refBand = dsImg.GetRasterBand(1)
         self.etype = refBand.DataType
 
@@ -669,6 +696,9 @@ class TimeSeriesDatum(object):
                 assert len(wl) == self.nb
                 self.wavelength = wl
                 break
+
+        self.sensor = SensorConfiguration(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
+
 
         if pathMsk:
             self.setMask(pathMsk)
@@ -845,11 +875,17 @@ class TimeSeriesDatum(object):
         return chipdata
 
     def __repr__(self):
-        info = []
-        info.append('TS Datum {}'.format(self.date))
-        for key in ['pathImg', 'pathMsk']:
-            info.append('  {}:{}'.format(key,self.__dict__[key]))
-        return '\n'.join(info)
+        return 'TS Datum {} {}'.format(self.date, str(self.sensor))
+
+    def __cmp__(self, other):
+        return cmp(str((self.date, self.sensor)), str((other.date, other.sensor)))
+
+    def __eq__(self, other):
+        return self.date == other.date and self.sensor == other.sensor
+
+    def __hash__(self):
+        return hash((self.date,self.sensor.sensor_name))
+
 
 regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
@@ -969,20 +1005,18 @@ class ImageChipBuffer(object):
 
         pass
 
+
     def hasDataCube(self, TSD):
-        assert type(TSD) is TimeSeriesDatum
         return TSD in self.data.keys()
 
     def getMissingBands(self, TSD, bands):
-        assert type(TSD) is TimeSeriesDatum
 
         missing = set(bands)
         if TSD in self.data.keys():
-            missing = missing - set(self.data[TSD].keys())
+            missing = missing - set(self.data[id].keys())
         return missing
 
     def addDataCube(self, TSD, chipData):
-        assert type(TSD) is TimeSeriesDatum
 
         assert self.BBox is not None, 'Please initialize the bounding box first.'
         assert isinstance(chipData, dict)
@@ -992,14 +1026,13 @@ class ImageChipBuffer(object):
         self.data[TSD].update(chipData)
 
     def getDataCube(self, TSD):
-        assert type(TSD) is TimeSeriesDatum
         return self.data.get(TSD)
 
     def getChipRGB(self, TSD, band_view):
-        bands = band_view.getBands()
-        band_ranges = band_view.getRanges()
+        bands = band_view.getBands(TSD.sensor)
+        band_ranges = band_view.getRanges(TSD.sensor)
         assert len(bands) == 3 and len(bands) == len(band_ranges)
-        assert TSD in self.data.keys(), 'Date {} is not in buffer'.format(date)
+        assert TSD in self.data.keys(), 'Time Series Datum {} is not in buffer'.format(TSD.getDate())
         chipData = self.data[TSD]
         for b in bands:
             assert b in chipData.keys()
@@ -1356,17 +1389,18 @@ class SenseCarbon_TSV:
     def scrollToDate(self, date):
         QApplication.processEvents()
         HBar = self.dlg.scrollArea_imageChips.horizontalScrollBar()
-        dates = list(self.CHIPWIDGETS.keys())
-        if len(dates) == 0:
+        TSDs = list(self.CHIPWIDGETS.keys())
+        if len(TSDs) == 0:
             return
 
         #get date INDEX that is closest to requested date
-        if not isinstance(date, int):
-            i_doi = dates.index(sorted(dates, key=lambda d: abs(date - d))[0])
-        else:
-            i_doi = min([date, HBar.maximum()])
+        assert type(date) is np.datetime64
+        #if isinstance(date, int):
+        i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
+        #else:
+        #    i_doi = min([date.astype(int), HBar.maximum()])
 
-        scrollValue = int(float(i_doi+1) / len(dates) * HBar.maximum())
+        scrollValue = int(float(i_doi+1) / len(TSDs) * HBar.maximum())
 
         HBar.setValue(scrollValue)
 
@@ -1416,11 +1450,11 @@ class SenseCarbon_TSV:
             centerTSD = D.cb_centerdate.itemData(idx)
             D.cb_centerdate.setCurrentIndex(idx)
         centerDate = centerTSD.getDate()
-        allDates = self.TS.getDates()
+        allDates = self.TS.getObservationDates()
         i_doi = allDates.index(centerDate)
 
         if D.rb_showEntireTS.isChecked():
-            dates_of_interest = self.TS.getDates()
+            dates_of_interest = allDates
         elif D.rb_showTimeWindow.isChecked():
             i0 = max([0, i_doi-D.sb_ndates_before.value()])
             ie = min([i_doi + D.sb_ndates_after.value(), len(allDates)-1])
@@ -1437,32 +1471,40 @@ class SenseCarbon_TSV:
 
         #initialize image labels
 
+        cnt_chips = 0
 
-        for i, date in enumerate(dates_of_interest):
+        TSDs_of_interest = list()
+
+        for date in dates_of_interest:
 
             #LV = QVBoxLayout()
             #LV.setSizeConstraint(QLayout.SetNoConstraint)
-            TSD = self.TS.data[date]
-            textLabel = QLabel('{}'.format(date.astype(str)))
-            textLabel.setToolTip(str(TSD))
-            self.ICP.addWidget(textLabel, 0, i)
-            viewList = list()
-            j = 1
-            for view in self.BAND_VIEWS:
-                imageLabel = QLabel()
-                imageLabel.setFrameShape(QFrame.StyledPanel)
-                imageLabel.setMinimumSize(size_x, size_y)
-                imageLabel.setMaximumSize(size_x+1, size_y+1)
-                imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-                viewList.append(imageLabel)
-                self.ICP.addWidget(imageLabel, j, i)
-                j += 1
 
-            textLabel = QLabel('{}'.format(date.astype(str)))
-            textLabel.setToolTip(str(TSD))
-            self.ICP.addWidget(textLabel, j, i)
+            for TSD in self.TS.getTSDs(date_of_interest=date):
+                TSDs_of_interest.append(TSD)
+                info_label_text = '{}\n{}'.format(TSD.date, TSD.sensor.sensor_name)
+                textLabel = QLabel(info_label_text)
+                textLabel.setToolTip(str(TSD))
+                self.ICP.addWidget(textLabel, 0, cnt_chips)
+                viewList = list()
+                j = 1
+                for view in self.BAND_VIEWS:
+                    imageLabel = QLabel()
+                    imageLabel.setFrameShape(QFrame.StyledPanel)
+                    imageLabel.setMinimumSize(size_x, size_y)
+                    imageLabel.setMaximumSize(size_x+1, size_y+1)
+                    imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+                    viewList.append(imageLabel)
+                    self.ICP.addWidget(imageLabel, j, cnt_chips)
+                    j += 1
 
-            self.CHIPWIDGETS[date] = viewList
+                textLabel = QLabel(info_label_text)
+                textLabel.setToolTip(str(TSD))
+                self.ICP.addWidget(textLabel, j, cnt_chips)
+
+                self.CHIPWIDGETS[TSD] = viewList
+
+                cnt_chips += 1
 
         self.scrollToDate(centerDate)
 
@@ -1477,19 +1519,17 @@ class SenseCarbon_TSV:
         for j, view in enumerate(self.BAND_VIEWS):
                 for S in view.Sensors.keys():
 
-                    bands = set([t[0] for t in view.getBands(S)])
+                    bands = set(view.getBands(S))
                     assert len(bands) == 3
                     if S not in required_bands.keys():
                         required_bands[S] = set()
                     required_bands[S] = required_bands[S].union(bands)
 
         missing = set()
-        for i, date in enumerate(dates_of_interest):
-            TSD = self.TS.data[date]
-            
+        for TSD in TSDs_of_interest:
             missing_bands = self.ImageChipBuffer.getMissingBands(TSD, required_bands[TSD.sensor])
             if len(missing_bands) == 0:
-                self.ua_showPxCoordinate_addChips(None, TSD=date)
+                self.ua_showPxCoordinate_addChips(None, TSD=TSD)
             else:
                 missing.add((TSD, tuple(missing_bands)))
 
@@ -1509,34 +1549,27 @@ class SenseCarbon_TSV:
             TSD, chipData = results
             self.ImageChipBuffer.addDataCube(TSD, chipData)
 
-        viewList = self.CHIPWIDGETS.get(TSD)
+        assert TSD in self.CHIPWIDGETS.keys()
 
+        for imageLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
+            imageLabel.clear()
+            #imageLabel.setScaledContents(True)
 
+            rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
+            rgb2 = rgb.transpose([1,2,0]).copy('C')
+            qImg = qimage2ndarray.array2qimage(rgb2)
+            #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
 
+            pxMap = QPixmap.fromImage(qImg)
+            pxMap = pxMap.scaled(imageLabel.size(), Qt.KeepAspectRatio)
 
+            imageLabel.setPixmap(pxMap)
+            #imageLabel.update()
+            imageLabel.adjustSize()
 
-        if viewList:
-            for j, view in enumerate(self.BAND_VIEWS):
-
-                imageLabel = viewList[j]
-                imageLabel.clear()
-                #imageLabel.setScaledContents(True)
-
-                rgb = self.ImageChipBuffer.getChipRGB(TSD, view)
-                rgb2 = rgb.transpose([1,2,0]).copy('C')
-                qImg = qimage2ndarray.array2qimage(rgb2)
-                #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
-
-                pxMap = QPixmap.fromImage(qImg)
-                pxMap = pxMap.scaled(imageLabel.size(), Qt.KeepAspectRatio)
-
-                imageLabel.setPixmap(pxMap)
-                #imageLabel.update()
-                imageLabel.adjustSize()
-
-                s = ""
-                pass
-            self.ICP.layout().update()
+            s = ""
+            pass
+        self.ICP.layout().update()
         s = ""
 
         pass
@@ -1589,9 +1622,6 @@ class SenseCarbon_TSV:
 
 
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
-        import imagechipviewsettings_widget
-
-        band_view_widgets = list()
         self.BAND_VIEWS.append(BandView(self.TS))
 
 
@@ -1606,10 +1636,12 @@ class SenseCarbon_TSV:
             textLabel.setToolTip('')
             textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
             hl.addWidget(textLabel)
-
-            for S in self.TS.SensorConfigurations:
-
-                w = imagechipviewsettings_widget.ImageChipViewSettings(S, parent=self.dlg)
+            print (BV, id(BV))
+            for S in self.TS.Sensors.keys():
+                w = BV.getWidget(S)
+                #w = imagechipviewsettings_widget.ImageChipViewSettings(S, parent=self.dlg)
+                #w.setParent(self.dlg)
+                print(w, id(w))
                 w.setMaximumSize(w.size())
                 #w.setMinimumSize(w.size())
                 w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
