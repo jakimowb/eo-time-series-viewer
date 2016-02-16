@@ -88,7 +88,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>2</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="tab_console">
         <attribute name="title">
@@ -135,6 +135,9 @@
         <attribute name="title">
          <string>Time Series</string>
         </attribute>
+        <attribute name="toolTip">
+         <string>Here your define which images are part of your time series</string>
+        </attribute>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
           <layout class="QVBoxLayout" name="verticalLayout">
@@ -149,6 +152,36 @@
             <widget class="QPushButton" name="btn_addTSMasks">
              <property name="text">
               <string>Add Masks</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_loadTSFile">
+             <property name="toolTip">
+              <string>Load a time series from a text file.</string>
+             </property>
+             <property name="text">
+              <string>Load TS</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_saveTSFile">
+             <property name="toolTip">
+              <string>Save the time series in a text file.</string>
+             </property>
+             <property name="text">
+              <string>Save TS</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btn_addTSExample">
+             <property name="toolTip">
+              <string>Load an time series example</string>
+             </property>
+             <property name="text">
+              <string>Load Example</string>
              </property>
             </widget>
            </item>
@@ -196,6 +229,9 @@
        <widget class="QWidget" name="tab_bandViews">
         <attribute name="title">
          <string>Band Views</string>
+        </attribute>
+        <attribute name="toolTip">
+         <string>Here you can define the band combinations to show.</string>
         </attribute>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
          <item>
@@ -264,7 +300,7 @@
               <x>0</x>
               <y>0</y>
               <width>754</width>
-              <height>190</height>
+              <height>204</height>
              </rect>
             </property>
             <property name="sizePolicy">
