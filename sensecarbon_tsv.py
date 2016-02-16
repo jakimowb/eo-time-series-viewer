@@ -85,7 +85,7 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
-    columnames = ['date','name','ns','nl','nb','image','mask']
+    columnames = ['date','sensor','ns','nl','nb','image','mask']
 
     def __init__(self, TS, parent=None, *args):
         super(QAbstractTableModel, self).__init__()
@@ -137,6 +137,11 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if role == Qt.DisplayRole or role == Qt.ToolTipRole:
             if ic_name == 'name':
                 value = os.path.basename(TSD.pathImg)
+            elif ic_name == 'sensor':
+                if role == Qt.ToolTipRole:
+                    value = TSD.sensor.getDescription()
+                else:
+                    value = str(TSD.sensor)
             elif ic_name == 'date':
                 value = '{}'.format(TSD.date)
             elif ic_name == 'image':
@@ -280,7 +285,7 @@ class BandView(object):
         return self.bandMappings[sensor]
 
     def getBands(self, sensor):
-        return self.getWidget(sensor).Bands()
+        return self.getWidget(sensor).getBands()
 
 
     def useMaskValues(self):
@@ -339,13 +344,23 @@ class SensorConfiguration(object):
     def __repr__(self):
         return self.sensor_name
 
+    def getDescription(self):
+        info = []
+        info.append(self.sensor_name)
+        info.append('{} Bands'.format(self.nb))
+        info.append('Band\tName\tWavelength')
+        for b in range(self.nb):
+            if self.wavelengths:
+                wl = str(self.wavelengths[b])
+            else:
+                wl = 'unknown'
+            info.append('{}\t{}\t{}'.format(b+1, self.band_names[b],wl))
+
+        return '\n'.join(info)
+
 
 
 class TimeSeries(QObject):
-
-    #define signals
-
-    #fire when a new TSD is added
     datumAdded = pyqtSignal(name='datumAdded')
 
     #fire when a new sensor configuration is added
@@ -358,16 +373,21 @@ class TimeSeries(QObject):
     closed = pyqtSignal()
     error = pyqtSignal(object)
 
-    data = collections.OrderedDict()
-
-    CHIP_BUFFER=dict()
-
-    shape = None
-
-    Sensors = collections.OrderedDict()
-
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
+
+        #define signals
+
+        #fire when a new TSD is added
+
+
+        self.data = collections.OrderedDict()
+
+        self.CHIP_BUFFER=dict()
+
+        self.shape = None
+
+        self.Sensors = collections.OrderedDict()
 
         self.Pool = None
 
@@ -375,6 +395,52 @@ class TimeSeries(QObject):
             self.addFiles(imageFiles)
         if maskFiles is not None:
             self.addMasks(maskFiles)
+
+    _sep = ';'
+
+    @staticmethod
+    def loadFromFile(path):
+
+        images = []
+        masks = []
+        with open(path, 'r') as f:
+            lines = f.readlines()
+            for l in lines:
+                if re.match('^[ ]*[;#&]', l):
+                    continue
+
+                parts = re.split('[\n'+TimeSeries._sep+']', l)
+                parts = [p for p in parts if p != '']
+                images.append(parts[0])
+                if len(parts) > 1:
+                    masks.append(parts[1])
+
+        TS = TimeSeries()
+        TS.addFiles(images)
+        TS.addMasks(masks)
+
+        return TS
+
+
+    def saveToFile(self, path):
+        import time
+        lines = []
+        lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
+        lines.append('#<image path>[;<mask path>]')
+        for TSD in self.data.values():
+
+            line = TSD.pathImg
+            if TSD.pathMsk is not None:
+                line += TimeSeries._sep + TSD.pathMsk
+
+            lines.append(line)
+
+        lines = [l+'\n' for l in lines]
+
+        print('Write {}'.format(path))
+        with open(path, 'w') as f:
+            f.writelines(lines)
+
 
     def getSRS(self):
         if len(self.data) == 0:
@@ -386,6 +452,23 @@ class TimeSeries(QObject):
     def getWKT(self):
         srs = self.getSRS()
         return srs.ExportToWkt()
+
+    def getSceneCenter(self, srs=None):
+
+        if srs is None:
+            srs = self.getSRS()
+
+        bbs = list()
+        for S, TSDs in self.Sensors.items():
+            x = []
+            y = []
+            for TSD in TSDs:
+                bb = TSD.getBoundingBox(srs)
+                x.extend([c[0] for c in bb])
+                y.extend([c[1] for c in bb])
+
+        return None
+        pass
 
     def getMaxExtent(self, srs=None):
 
@@ -477,7 +560,6 @@ class TimeSeries(QObject):
     def addMasks(self, files, raise_errors=True, mask_value=0, exclude_mask_value=True):
         assert isinstance(files, list)
         l = len(files)
-        assert l > 0
 
         self.progress.emit(0,0,l)
         for i, file in enumerate(files):
@@ -490,7 +572,7 @@ class TimeSeries(QObject):
             self.progress.emit(0,i+1,l)
 
         self.progress.emit(0,0,l)
-        self.changed()
+        self.changed.emit()
 
     def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True, _quiet=False):
         print('Add mask {}...'.format(pathMsk))
@@ -516,26 +598,23 @@ class TimeSeries(QObject):
         self.clear()
 
     def clear(self):
-        dates = list(self.data.keys())
-        for date in dates:
-            self.removeDate(date, _quiet=True)
+        self.Sensors.clear()
+        self.data.clear()
         self.changed.emit()
 
 
-    def removeDates(self, dates):
-        for date in dates:
-            self.removeDate(date, _quiet=True)
+    def removeDates(self, TSDs):
+        for TSD in TSDs:
+            self.removeTSD(TSD, _quiet=True)
         self.changed.emit()
 
-    def removeDate(self, date, _quiet=False):
+    def removeTSD(self, TSD, _quiet=False):
 
-        assert type(date) is np.datetime64
+        assert type(TSD) is TimeSeriesDatum
+        S = TSD.sensor
+        self.Sensors[S].remove(TSD)
+        self.data.pop(TSD, None)
 
-        self.data.pop(date, None)
-        if len(self.data) == 0:
-            self.nb = None
-            self.bandnames = None
-            self.srs = None
         if not _quiet:
             self.changed.emit()
 
@@ -589,6 +668,7 @@ class TimeSeries(QObject):
         self._sortTimeSeriesData()
         self.progress.emit(0,0,l)
         self.datumAdded.emit()
+        self.changed.emit()
 
 
 
@@ -627,6 +707,19 @@ def coordinate2px(gt, cx, cy):
     px = int((cx - gt[0]) / gt[1])
     py = int((cy - gt[3]) / gt[5])
     return px, py
+
+
+def getBoundingBoxPolygon(points, srs=None):
+    ring = ogr.Geometry(ogr.wkbLinearRing)
+    for point in points:
+        ring.AddPoint(point[0], point[1])
+    bb = ogr.Geometry(ogr.wkbPolygon)
+    bb.AddGeometry(ring)
+    if srs:
+        bb.AssignSpatialReference(srs)
+    return bb
+
+
 
 def getDS(ds):
     if type(ds) is not gdal.Dataset:
@@ -729,9 +822,9 @@ class TimeSeriesDatum(object):
             my_srs = self.getSpatialReference()
             if not my_srs.IsSame(srs):
                 #todo: consider srs differences
-
-                raise Exception('differences SRS in bounding box request')
-                pass
+                trans = osr.CoordinateTransformation(my_srs, srs)
+                ext = trans.TransformPoints(ext)
+                ext = [(e[0], e[1]) for e in ext]
 
         return ext
 
@@ -780,8 +873,8 @@ class TimeSeriesDatum(object):
 
 
         if type(geometry) is ogr.Geometry:
-            g = geometry
-            srs_bb = g.GetSpatialReference()
+            g_bb = geometry
+            srs_bb = g_bb.GetSpatialReference()
         else:
             assert srs is not None and type(srs) in [str, osr.SpatialReference]
             if type(srs) is str:
@@ -789,15 +882,16 @@ class TimeSeriesDatum(object):
                 srs_bb.ImportFromWkt(srs)
             else:
                 srs_bb = srs.Clone()
-            g = ogr.CreateGeometryFromWkt(geometry, srs_bb)
+            g_bb = ogr.CreateGeometryFromWkt(geometry, srs_bb)
 
-        assert srs_bb is not None and g is not None
-        assert g.GetGeometryName() == 'POLYGON'
+        assert srs_bb is not None and g_bb is not None
+        assert g_bb.GetGeometryName() == 'POLYGON'
 
         if not srs_img.IsSame(srs_bb):
-            g = g.Clone()
-            g.TransformTo(srs_img)
-        cx0,cx1,cy0,cy1 = g.GetEnvelope()
+            g_bb = g_bb.Clone()
+            g_bb.TransformTo(srs_img)
+
+        cx0,cx1,cy0,cy1 = g_bb.GetEnvelope()
 
         ul_px = coordinate2px(self.gt, min([cx0, cx1]), max([cy0, cy1]))
         lr_px = coordinate2px(self.gt, max([cx0, cx1]), min([cy0, cy1]))
@@ -814,7 +908,8 @@ class TimeSeriesDatum(object):
 
         ns = px_x[1]-px_x[0]+1
         nl = px_y[1]-px_y[0]+1
-
+        assert ns >= 0
+        assert nl >= 0
 
         src_ns = ds.RasterXSize
         src_nl = ds.RasterYSize
@@ -850,7 +945,7 @@ class TimeSeriesDatum(object):
         templateMsk = np.ones((nl,ns), dtype='bool')
 
         if win_xsize < 1 or win_ysize < 1:
-            six.print_('Selected image chip is out of raster image', file=sys.stderr)
+            six.print_('Selected image chip is out of raster image {}'.format(self.pathImg), file=sys.stderr)
             for i, b in enumerate(bands):
                 chipdata[b] = np.copy(templateImg)
 
@@ -997,12 +1092,11 @@ class VerticalLabel(QLabel):
 
 class ImageChipBuffer(object):
 
-    data = dict()
-    BBox = None
-    SRS = None
 
     def __init__(self):
-
+        self.data = dict()
+        self.BBox = None
+        self.SRS = None
         pass
 
 
@@ -1013,7 +1107,7 @@ class ImageChipBuffer(object):
 
         missing = set(bands)
         if TSD in self.data.keys():
-            missing = missing - set(self.data[id].keys())
+            missing = missing - set(self.data[TSD].keys())
         return missing
 
     def addDataCube(self, TSD, chipData):
@@ -1121,17 +1215,10 @@ class SenseCarbon_TSV:
         # Create the dialog (after translation) and keep reference
         self.dlg = SenseCarbon_TSVGui()
         D = self.dlg
-        self.TS = TimeSeries()
-        TSM = TimeSeriesTableModel(self.TS)
-        D.tableView_TimeSeries.setModel(TSM)
-        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        D.cb_centerdate.setModel(TSM)
-        D.cb_centerdate.setModelColumn(0)
-        D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
 
-        self.TS.datumAdded.connect(self.ua_datumAdded)
-        self.TS.progress.connect(self.ua_TSprogress)
-        self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
+        #init on empty time series
+        self.TS = None
+        self.init_TimeSeries()
 
         self.BAND_VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
@@ -1148,6 +1235,9 @@ class SenseCarbon_TSV:
         D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
         D.btn_removeTS.clicked.connect(self.ua_removeTS)
 
+        D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
+        D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
+        D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
 
         # Declare instance attributes
@@ -1175,6 +1265,56 @@ class SenseCarbon_TSV:
 
         self.check_enabled()
         s = ""
+
+    def init_TimeSeries(self, TS=None):
+        if TS is None:
+            TS = TimeSeries()
+        assert type(TS) is TimeSeries
+
+        if self.TS is not None:
+            disconnect_signal(self.TS.datumAdded)
+            disconnect_signal(self.TS.progress)
+            disconnect_signal(self.TS.chipLoaded)
+
+        self.TS = TS
+        self.TS.datumAdded.connect(self.ua_datumAdded)
+        self.TS.progress.connect(self.ua_TSprogress)
+        self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
+
+        TSM = TimeSeriesTableModel(self.TS)
+        D = self.dlg
+        D.tableView_TimeSeries.setModel(TSM)
+        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        D.cb_centerdate.setModel(TSM)
+        D.cb_centerdate.setModelColumn(0)
+        D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
+
+
+    def ua_loadTSFile(self, path=None):
+        if path is None or path is False:
+            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file')
+
+        if os.path.exists(path):
+            self.ua_removeTS()
+            TS = TimeSeries.loadFromFile(path)
+            self.init_TimeSeries(TS)
+            self.ua_datumAdded()
+        self.check_enabled()
+
+    def ua_saveTSFile(self):
+        path = QFileDialog.getSaveFileName(self.dlg, caption='Save Time Series file')
+        if path is not None:
+            self.TS.saveToFile(path)
+
+
+    def ua_loadExampleTS(self):
+        import sensecarbon_tsv
+        path_example = file_search(os.path.dirname(sensecarbon_tsv.__file__), 'testdata.txt', recursive=True)
+        if path_example is None or len(path_example) == 0:
+            print('Can not find testdata.txt')
+        else:
+            self.ua_loadTSFile(path=path_example[0])
+
 
     def ua_selectByRectangle(self):
         if self.RectangleMapTool is not None:
@@ -1207,15 +1347,17 @@ class SenseCarbon_TSV:
             x = geometry.x()
             y = geometry.y()
 
-        if self.TS.srs is not None and not self.TS.srs.IsSame(canvas_srs):
+        """
+        ref_srs = self.TS.getSRS()
+        if ref_srs is not None and not ref_srs.IsSame(canvas_srs):
             print('Convert canvas coordinates to time series SRS')
             g = ogr.Geometry(ogr.wkbPoint)
             g.AddPoint(x,y)
             g.AssignSpatialReference(canvas_srs)
-            g.TransformTo(self.TS.srs)
+            g.TransformTo(ref_srs)
             x = g.GetX()
             y = g.GetY()
-
+        """
 
 
         D.doubleSpinBox_subset_size_x.setValue(dx)
@@ -1245,6 +1387,7 @@ class SenseCarbon_TSV:
                 xmin, ymin, xmax, ymax = self.TS.getMaxExtent()
                 self.dlg.spinBox_coordinate_x.setRange(xmin, xmax)
                 self.dlg.spinBox_coordinate_y.setRange(ymin, ymax)
+                #x, y = self.TS.getSceneCenter()
                 self.dlg.spinBox_coordinate_x.setValue(0.5*(xmin+xmax))
                 self.dlg.spinBox_coordinate_y.setValue(0.5*(ymin+ymax))
                 s = ""
@@ -1382,8 +1525,6 @@ class SenseCarbon_TSV:
         # show the GUI
         self.dlg.show()
 
-        if DEBUG:
-            pass
 
 
     def scrollToDate(self, date):
@@ -1394,11 +1535,11 @@ class SenseCarbon_TSV:
             return
 
         #get date INDEX that is closest to requested date
+        if type(date) is str:
+            date = np.datetime64(date)
         assert type(date) is np.datetime64
-        #if isinstance(date, int):
+
         i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
-        #else:
-        #    i_doi = min([date.astype(int), HBar.maximum()])
 
         scrollValue = int(float(i_doi+1) / len(TSDs) * HBar.maximum())
 
@@ -1417,18 +1558,13 @@ class SenseCarbon_TSV:
         cx = D.spinBox_coordinate_x.value()
         cy = D.spinBox_coordinate_y.value()
 
+        pts = [(cx - dx, cy + dy), \
+               (cx + dx, cy + dy), \
+               (cx + dx, cy - dy), \
+               (cx - dx, cy - dy)]
 
-
-        ring = ogr.Geometry(ogr.wkbLinearRing)
-        ring.AddPoint(cx - dx, cy + dy)
-        ring.AddPoint(cx + dx, cy + dy)
-        ring.AddPoint(cx + dx, cy - dy)
-        ring.AddPoint(cx - dx, cy - dy)
-
-        bb = ogr.Geometry(ogr.wkbPolygon)
-        bb.AddGeometry(ring)
+        bb = getBoundingBoxPolygon(pts, srs=self.TS.getSRS())
         bbWkt = bb.ExportToWkt()
-        bb.AssignSpatialReference(self.TS.getSRS())
         srsWkt = bb.GetSpatialReference().ExportToWkt()
         self.ImageChipBuffer.setBoundingBox(bb)
 
@@ -1623,6 +1759,7 @@ class SenseCarbon_TSV:
 
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
         self.BAND_VIEWS.append(BandView(self.TS))
+        self.refreshBandViews()
 
 
     def refreshBandViews(self):
@@ -1672,24 +1809,31 @@ class SenseCarbon_TSV:
         M.endResetModel()
         self.check_enabled()
 
-    def ua_removeTSD(self, dates):
-        if dates is None:
-            dates = self.getSelectedDates()
+    def ua_removeTSD(self, TSDs=None):
+        if TSDs is None:
+            TSDs = self.getSelectedTSDs()
+        assert isinstance(TSDs,list)
 
         M = self.dlg.tableView_TimeSeries.model()
         M.beginResetModel()
-        self.TS.removeDates(dates)
+        self.TS.removeDates(TSDs)
         M.endResetModel()
         self.check_enabled()
 
 
 
-    def getSelectedDates(self):
+    def getSelectedTSDs(self):
         TV = self.dlg.tableView_TimeSeries
         TVM = TV.model()
+        return [TVM.getTimeSeriesDatumFromIndex(idx) for idx in TV.selectionModel().selectedRows()]
 
-        return [TVM.getTimeSeriesDatumFromIndex(idx).getDate() for idx in TV.selectionModel().selectedRows()]
 
+def disconnect_signal(signal):
+    while True:
+        try:
+            signal.disconnect()
+        except TypeError:
+            break
 
 
 def showRGBData(data):
@@ -1783,9 +1927,9 @@ def run_tests():
             filesImgRE = file_search(dirSrcRE, '*_328202.tif', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             #S.ua_addTSImages(files=filesImg[0:1])
-            S.ua_addTSImages(files=filesImgLS)
-            S.ua_addTSImages(files=filesImgRE)
-
+            #S.ua_addTSImages(files=filesImgLS)
+            #S.ua_addTSImages(files=filesImgRE)
+            S.ua_loadExampleTS()
 
 
             #S.ua_addTSMasks(files=filesMsk)
@@ -1823,8 +1967,7 @@ def run_tests():
     print('Tests done')
     exit(0)
 
+
 if __name__ == '__main__':
-
     run_tests()
-
     print('Done')
