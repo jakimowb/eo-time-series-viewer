@@ -37,7 +37,7 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
 
     removeView = pyqtSignal()
 
-    def __init__(self, TimeSeries, parent=None):
+    def __init__(self, SensorConfiguration, parent=None):
         """Constructor."""
         super(ImageChipViewSettings, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -47,15 +47,10 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
-        self.cb_useMask.stateChanged.connect(lambda: self.bt_color.setEnabled(self.cb_useMask.isChecked()))
-        self.bt_color.clicked.connect(lambda: self.ua_setMaskColor(None))
-        self.cb_useMask.stateChanged.connect(self.ua_setMask)
-        self.maskcolor = QColor(255,255,255)
 
-        self.TS = TimeSeries
-        self.TS.datumAdded.connect(self._initBands)
-        func_removeView = lambda :self.removeView.emit()
-        self.TS.closed.connect(func_removeView)
+        self.SensorConfiguration = SensorConfiguration
+        self.setTitle(SensorConfiguration.sensor_name)
+
         self.tb_range_r_min.setValidator(QDoubleValidator())
         self.tb_range_g_min.setValidator(QDoubleValidator())
         self.tb_range_b_min.setValidator(QDoubleValidator())
@@ -63,19 +58,13 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
         self.tb_range_g_max.setValidator(QDoubleValidator())
         self.tb_range_b_max.setValidator(QDoubleValidator())
 
-        #inform if remove button has been pressed
-        self.btn_removeView.clicked.connect(func_removeView)
-
-        if len(self.TS.bandnames) > 0:
-            self._initBands(self.TS.bandnames)
+        self._initBands(self.SensorConfiguration.band_names)
 
     def ua_setMask(self, state):
 
         useMask = state != 0
         for w in [self.bt_color, self.label_maskexpression, self.tb_maskexpression]:
             w.setEnabled(useMask)
-
-
 
     def ua_setMaskColor(self, color):
         if color is None:
@@ -106,7 +95,7 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
             cb_G.addItem(bandname, i+1)
             cb_B.addItem(bandname, i+1)
 
-        if len(self.TS.bandnames) >= 3:
+        if len(self.SensorConfiguration.band_names) >= 3:
             cb_R.setCurrentIndex(2)
             cb_G.setCurrentIndex(1)
             cb_B.setCurrentIndex(0)
@@ -116,7 +105,7 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
         assert len(bands) == 3
         for b in bands:
             assert type(b) is int and b > 0
-            assert b <= len(self.TS.bandnames), 'TimeSeries is not initializes/has no bands to show'
+            assert b <= len(self.SensorConfiguration.band_names), 'TimeSeries is not initializes/has no bands to show'
         self.cb_r.setCurrentIndex(bands[0]-1)
         self.cb_g.setCurrentIndex(bands[1]-1)
         self.cb_b.setCurrentIndex(bands[2]-1)
@@ -139,3 +128,19 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
     def getSettings(self):
 
         s = ""
+
+
+if __name__ == '__main__':
+
+    import PyQt4.Qt
+
+    app=PyQt4.Qt.QApplication([])
+    W = QDialog()
+    W.setLayout(QHBoxLayout())
+    L = W.layout()
+    w = ImageChipViewSettings()
+    L.addWidget(w)
+    W.show()
+    sys.exit(app.exec_())
+
+    print('Done')
