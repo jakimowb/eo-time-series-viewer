@@ -264,11 +264,7 @@ class BandView(object):
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
             x.create()
-            print(('Created',x, id(x)))
             self.bandMappings[sensor] = x
-        else:
-            print('Sensor in bandmappings {}'.format(sensor))
-            s = ''
 
 
     def getSensorStats(self, sensor, bands):
@@ -330,7 +326,7 @@ class SensorConfiguration(object):
             else:
                 sensor_name = '{} b x {} m'.format(self.nb, self.px_size_x)
 
-        print(sensor_name)
+
         self.sensor_name = sensor_name
 
         self.hashvalue = hash(','.join(self.band_names))
@@ -1246,8 +1242,9 @@ class SenseCarbon_TSV:
         # TODO: We are going to let the user set this up in a future iteration
         self.RectangleMapTool = None
         self.PointMapTool = None
+        self.canvas_srs = osr.SpatialReference()
+
         if self.iface:
-            print('Init QGIS Interaction')
             self.canvas = self.iface.mapCanvas()
             self.menu = self.tr(u'&SenseCarbon TSV')
             self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
@@ -1311,7 +1308,7 @@ class SenseCarbon_TSV:
         import sensecarbon_tsv
         path_example = file_search(os.path.dirname(sensecarbon_tsv.__file__), 'testdata.txt', recursive=True)
         if path_example is None or len(path_example) == 0:
-            print('Can not find testdata.txt')
+            QMessageBox.information(self.dlg, 'File not found', 'testdata.txt - this file describes an exemplary time series.')
         else:
             self.ua_loadTSFile(path=path_example[0])
 
@@ -1324,16 +1321,23 @@ class SenseCarbon_TSV:
         if self.PointMapTool is not None:
             self.canvas.setMapTool(self.PointMapTool)
 
-    def ua_selectBy_Response(self, geometry, wkt):
+    def setCanvasSRS(self,srs):
+        if type(srs) is osr.SpatialReference:
+            self.canvas_srs = srs
+        else:
+            self.canvas_srs.ImportFromWkt(srs)
+
+        self.dlg.tb_srs_info.setPlainText(self.canvas_srs.ExportToProj4())
+
+    def ua_selectBy_Response(self, geometry, srs_wkt):
         D = self.dlg
         x = D.spinBox_coordinate_x.value()
         y = D.spinBox_coordinate_x.value()
         dx = D.doubleSpinBox_subset_size_x.value()
         dy = D.doubleSpinBox_subset_size_y.value()
 
-        canvas_srs = osr.SpatialReference()
-        wkt = osr.GetUserInputAsWKT(str(wkt))
-        canvas_srs.ImportFromWkt(wkt)
+        self.setCanvasSRS(osr.GetUserInputAsWKT(str(srs_wkt)))
+
 
         if type(geometry) is QgsRectangle:
             center = geometry.center()
@@ -1366,10 +1370,7 @@ class SenseCarbon_TSV:
         D.spinBox_coordinate_y.setValue(y)
 
     def qgs_handleMouseDown(self, pt, btn):
-
-        print('MOUSE DOWN')
-        print(pt)
-        print(btn)
+        pass
 
 
 
@@ -1381,10 +1382,12 @@ class SenseCarbon_TSV:
         P.setValue(v)
 
     def ua_datumAdded(self):
+
         if len(self.TS) > 0:
+            self.setCanvasSRS(self.TS.getSRS())
             if self.dlg.spinBox_coordinate_x.value() == 0.0 and \
                self.dlg.spinBox_coordinate_y.value() == 0.0:
-                xmin, ymin, xmax, ymax = self.TS.getMaxExtent()
+                xmin, ymin, xmax, ymax = self.TS.getMaxExtent(srs=self.canvas_srs)
                 self.dlg.spinBox_coordinate_x.setRange(xmin, xmax)
                 self.dlg.spinBox_coordinate_y.setRange(ymin, ymax)
                 #x, y = self.TS.getSceneCenter()
@@ -1537,7 +1540,7 @@ class SenseCarbon_TSV:
         #get date INDEX that is closest to requested date
         if type(date) is str:
             date = np.datetime64(date)
-        assert type(date) is np.datetime64
+        assert type(date) is np.datetime64, 'type is: '+str(type(date))
 
         i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
 
@@ -1563,7 +1566,7 @@ class SenseCarbon_TSV:
                (cx + dx, cy - dy), \
                (cx - dx, cy - dy)]
 
-        bb = getBoundingBoxPolygon(pts, srs=self.TS.getSRS())
+        bb = getBoundingBoxPolygon(pts, srs=self.canvas_srs)
         bbWkt = bb.ExportToWkt()
         srsWkt = bb.GetSpatialReference().ExportToWkt()
         self.ImageChipBuffer.setBoundingBox(bb)
@@ -1620,16 +1623,21 @@ class SenseCarbon_TSV:
                 TSDs_of_interest.append(TSD)
                 info_label_text = '{}\n{}'.format(TSD.date, TSD.sensor.sensor_name)
                 textLabel = QLabel(info_label_text)
-                textLabel.setToolTip(str(TSD))
+                tt = [TSD.date,TSD.pathImg, TSD.pathMsk]
+                tt = '\n'.join(str(t) for t in tt)
+                textLabel.setToolTip(tt)
                 self.ICP.addWidget(textLabel, 0, cnt_chips)
                 viewList = list()
                 j = 1
                 for view in self.BAND_VIEWS:
+                    bands = view.getBands(TSD.sensor)
                     imageLabel = QLabel()
                     imageLabel.setFrameShape(QFrame.StyledPanel)
                     imageLabel.setMinimumSize(size_x, size_y)
                     imageLabel.setMaximumSize(size_x+1, size_y+1)
                     imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+                    tt = [TSD.date, TSD.pathImg, 'RGB={}'.format(','.join([str(b) for b in bands]))]
+                    imageLabel.setToolTip(tt)
                     viewList.append(imageLabel)
                     self.ICP.addWidget(imageLabel, j, cnt_chips)
                     j += 1
@@ -1773,12 +1781,10 @@ class SenseCarbon_TSV:
             textLabel.setToolTip('')
             textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
             hl.addWidget(textLabel)
-            print (BV, id(BV))
+
             for S in self.TS.Sensors.keys():
                 w = BV.getWidget(S)
-                #w = imagechipviewsettings_widget.ImageChipViewSettings(S, parent=self.dlg)
-                #w.setParent(self.dlg)
-                print(w, id(w))
+
                 w.setMaximumSize(w.size())
                 #w.setMinimumSize(w.size())
                 w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
