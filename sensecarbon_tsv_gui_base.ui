@@ -331,7 +331,7 @@
      <item>
       <widget class="QPushButton" name="btn_showPxCoordinate">
        <property name="toolTip">
-        <string>Load the image chips for the entire time series. Requires specification of a time series and and spectral view.</string>
+        <string>Load or reload time series image chips. Requires that the time series is specified and which bands are to be shown.</string>
        </property>
        <property name="text">
         <string>Load image chips!</string>
@@ -365,6 +365,9 @@
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_3">
+          <property name="toolTip">
+           <string>Center coordinate x value</string>
+          </property>
           <property name="text">
            <string>x</string>
           </property>
@@ -388,6 +391,9 @@
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="label_4">
+          <property name="toolTip">
+           <string>Center coordinate y value</string>
+          </property>
           <property name="text">
            <string>y</string>
           </property>
@@ -409,14 +415,14 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
+        <item row="5" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
            <string>size x</string>
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="6" column="0">
          <widget class="QLabel" name="label_5">
           <property name="text">
            <string>size y</string>
@@ -433,7 +439,7 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <widget class="QDoubleSpinBox" name="doubleSpinBox_subset_size_x">
           <property name="suffix">
            <string>m</string>
@@ -452,7 +458,7 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="1">
+        <item row="6" column="1">
          <widget class="QDoubleSpinBox" name="doubleSpinBox_subset_size_y">
           <property name="suffix">
            <string>m</string>
@@ -468,6 +474,26 @@
           </property>
           <property name="value">
            <double>2000.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QPlainTextEdit" name="tb_srs_info">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_7">
+          <property name="toolTip">
+           <string>Spatial Reference System (SRS) of center coordinate</string>
+          </property>
+          <property name="text">
+           <string>SRS</string>
           </property>
          </widget>
         </item>
