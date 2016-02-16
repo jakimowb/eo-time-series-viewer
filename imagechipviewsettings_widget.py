@@ -66,8 +66,6 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS):
         for w in [self.bt_color, self.label_maskexpression, self.tb_maskexpression]:
             w.setEnabled(useMask)
 
-
-
     def ua_setMaskColor(self, color):
         if color is None:
             color = QColorDialog.getColor()
