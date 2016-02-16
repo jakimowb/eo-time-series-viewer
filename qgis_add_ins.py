@@ -63,11 +63,11 @@ class RectangleMapTool(QgsMapToolEmitPoint):
     def canvasReleaseEvent(self, e):
         self.isEmittingPoint = False
 
+
+        wkt = self.canvas.mapSettings().destinationCrs().toWkt()
         r = self.rectangle()
-        if r is not None:
-            print("Rectangle:", r.xMinimum(), r.yMinimum(), r.xMaximum(), r.yMaximum())
         self.reset()
-        wkt =  self.canvas.mapSettings().destinationCrs().toWkt()
+
         if wkt:
             self.rectangleDrawed.emit(r, wkt)
 
