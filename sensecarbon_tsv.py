@@ -55,9 +55,12 @@ if os.path.exists(path):
 
 pluginDir = os.path.dirname(__file__)
 sys.path.append(pluginDir)
-sys.path.append(os.path.join(pluginDir, 'qimage2ndarray'))
+sys.path.append(os.path.join(pluginDir, 'libs'))
+#sys.path.append(os.path.join(pluginDir, *['libs','qimage2ndarray']))
+sys.path.append(os.path.join(pluginDir, *['libs','qrangeslider-0.1.1']))
 
 import qimage2ndarray
+import qrangeslider
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -1296,6 +1299,11 @@ class SenseCarbon_TSV:
             TS = TimeSeries.loadFromFile(path)
             self.init_TimeSeries(TS)
             self.ua_datumAdded()
+
+            if len(self.BAND_VIEWS) == 0:
+                self.ua_addBandView([3, 2, 1])
+                self.ua_addBandView([4, 5, 3])
+
         self.check_enabled()
 
     def ua_saveTSFile(self):
