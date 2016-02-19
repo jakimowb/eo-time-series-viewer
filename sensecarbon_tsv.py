@@ -40,7 +40,7 @@ except:
 
 import numpy as np
 import pickle
-
+import tsv_widgets
 import six
 import multiprocessing
 
@@ -58,7 +58,9 @@ sys.path.append(pluginDir)
 sys.path.append(os.path.join(pluginDir, 'libs'))
 #sys.path.append(os.path.join(pluginDir, *['libs','qimage2ndarray']))
 sys.path.append(os.path.join(pluginDir, *['libs','qrangeslider-0.1.1']))
+sys.path.append(os.path.join(pluginDir, *['libs','pyqtgraph']))
 
+import pyqtgraph as pg
 import qimage2ndarray
 import qrangeslider
 
@@ -265,7 +267,8 @@ class BandView(object):
         assert type(sensor) is SensorConfiguration
         if sensor not in self.bandMappings.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
-            x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
+            #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
+            x = tsv_widgets.BandViewSettings(sensor)
             x.create()
             self.bandMappings[sensor] = x
 
@@ -356,6 +359,29 @@ class SensorConfiguration(object):
             info.append('{}\t{}\t{}'.format(b+1, self.band_names[b],wl))
 
         return '\n'.join(info)
+
+
+
+class ImageChipLabel(QLabel):
+    def __init__(self, parent=None, iface=None, path=None, bands=None):
+        super(ImageChipLabel, self).__init__(parent)
+        self.path=path
+        self.iface=iface
+        self.bands=bands
+        self.setContextMenuPolicy(Qt.DefaultContextMenu)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+        #add general options
+        action = menu.addAction('Copy to clipboard')
+        action.triggered.connect(lambda : QApplication.clipboard().setPixmap(self.pixmap()))
+
+        #add QGIS specific options
+        if self.iface:
+            action = menu.addAction('Show image in QGIS')
+            action.triggered.connect(lambda : qgis_add_ins.add_QgsRasterLayer(self.iface, self.path, self.bands))
+
+        menu.exec_(event.globalPos())
 
 
 
@@ -617,8 +643,8 @@ class TimeSeries(QObject):
 
     def addFile(self, pathImg, pathMsk=None, _quiet=False):
 
-        print(pathImg)
-        print('Add image {}...'.format(pathImg))
+        six.print_(pathImg)
+        six.print_('Add image {}...'.format(pathImg))
 
         try:
             sensorAdded = False
@@ -1119,6 +1145,43 @@ class ImageChipBuffer(object):
     def getDataCube(self, TSD):
         return self.data.get(TSD)
 
+    def getChipArray(self, TSD, band_view, mode='rgb'):
+        assert mode in ['rgb', 'bgr']
+        bands = band_view.getBands(TSD.sensor)
+        band_ranges = band_view.getRanges(TSD.sensor)
+        nb = len(bands)
+        assert nb == 3 and nb == len(band_ranges)
+        assert TSD in self.data.keys(), 'Time Series Datum {} is not in buffer'.format(TSD.getDate())
+        chipData = self.data[TSD]
+        for b in bands:
+            assert b in chipData.keys()
+
+
+
+        nl, ns = chipData[bands[0]].shape
+
+        dtype= 'uint8'
+        array_data = np.ndarray((ns, nl, nb), dtype=dtype)
+
+        if mode == 'rgb':
+            ch_dst = [0,1,2]
+        elif mode == 'bgr':
+            # r -> dst channel 2
+            # g -> dst channel 1
+            # b -> dst channel 0
+            ch_dst = [2,1,0]
+        for i, i_dst in enumerate(ch_dst):
+
+            offset = band_ranges[i][0]
+            scale = 255./band_ranges[i][1]
+
+            res = pg.rescaleData(chipData[bands[i]], scale, offset, dtype='float')
+            np.clip(res, 0, 255, out=res)
+            array_data[:,:,i_dst] = res
+
+        return array_data
+
+
     def getChipRGB(self, TSD, band_view):
         bands = band_view.getBands(TSD.sensor)
         band_ranges = band_view.getRanges(TSD.sensor)
@@ -1525,7 +1588,7 @@ class SenseCarbon_TSV:
             parent=self.iface.mainWindow())
 
 
-    def ua_addTSD_to_QGIS(self):
+    def ua_addTSD_to_QGIS(self, TSD, bands):
 
         s = ""
 
@@ -1561,6 +1624,8 @@ class SenseCarbon_TSV:
         #get date INDEX that is closest to requested date
         if type(date) is str:
             date = np.datetime64(date)
+        if type(date) is not np.datetime64:
+            s = ""
         assert type(date) is np.datetime64, 'type is: '+str(type(date))
 
         i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
@@ -1651,19 +1716,21 @@ class SenseCarbon_TSV:
                 j = 1
                 for view in self.BAND_VIEWS:
                     bands = view.getBands(TSD.sensor)
-                    imageLabel = QLabel()
-                    imageLabel.setFrameShape(QFrame.StyledPanel)
-                    imageLabel.setMinimumSize(size_x, size_y)
-                    imageLabel.setMaximumSize(size_x+1, size_y+1)
-                    imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+                    #imageLabel = QLabel()
+                    #imv = pg.GraphicsView()
+                    #imv = QGraphicsView(self.dlg.scrollArea_imageChip_content)
+                    #imv = MyGraphicsView(self.dlg.scrollArea_imageChip_content, iface=self.iface, path=TSD.pathImg, bands=bands)
+                    #imv = pg.ImageView(view=None)
+                    imgLabel = ImageChipLabel()
+                    imgLabel.setFrameShape(QFrame.StyledPanel)
+                    imgLabel.setMinimumSize(size_x, size_y)
+                    imgLabel.setMaximumSize(size_x, size_y)
+                    imgLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                     tt = [TSD.date, TSD.pathImg, 'RGB={}'.format(','.join([str(b) for b in bands]))]
-                    imageLabel.setToolTip(list2str(tt))
+                    imgLabel.setToolTip(list2str(tt))
 
-                    #add context menue
-                    menu = QMenu(self)
-
-                    viewList.append(imageLabel)
-                    self.ICP.addWidget(imageLabel, j, cnt_chips)
+                    viewList.append(imgLabel)
+                    self.ICP.addWidget(imgLabel, j, cnt_chips)
                     j += 1
 
                 textLabel = QLabel(info_label_text)
@@ -1686,8 +1753,10 @@ class SenseCarbon_TSV:
         required_bands = dict()
         for j, view in enumerate(self.BAND_VIEWS):
                 for S in view.Sensors.keys():
-
-                    bands = set(view.getBands(S))
+                    bands = set()
+                    bands.update(view.getBands(S))
+                    if len(bands) != 3:
+                        s = ""
                     assert len(bands) == 3
                     if S not in required_bands.keys():
                         required_bands[S] = set()
@@ -1719,25 +1788,43 @@ class SenseCarbon_TSV:
 
         assert TSD in self.CHIPWIDGETS.keys()
 
-        for imageLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
-            imageLabel.clear()
+        for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
+            #imgView.clear()
             #imageLabel.setScaledContents(True)
 
-            rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
-            rgb2 = rgb.transpose([1,2,0]).copy('C')
-            qImg = qimage2ndarray.array2qimage(rgb2)
+            #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
+            array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
+            qimg = pg.makeQImage(array, copy=True, transpose=False)
+
+            #rgb2 = rgb.transpose([1,2,0]).copy('C')
+            #qImg = qimage2ndarray.array2qimage(rgb2)
             #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
 
-            pxMap = QPixmap.fromImage(qImg)
-            pxMap = pxMap.scaled(imageLabel.size(), Qt.KeepAspectRatio)
-
-            imageLabel.setPixmap(pxMap)
+            pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
+            imgChipLabel.setPixmap(pxMap)
+            imgChipLabel.update()
+            #imgView.setPixmap(pxMap)
             #imageLabel.update()
-            imageLabel.adjustSize()
+            #imgView.adjustSize()
+            #pxmap = QPixmap.fromImage(qimg)
+            #
 
-            s = ""
+            """
+            pxmapitem = QGraphicsPixmapItem(pxmap)
+            if imgChipLabel.scene() is None:
+                imgChipLabel.setScene(QGraphicsScene())
+            else:
+                imgChipLabel.scene().clear()
+
+            scene = imgChipLabel.scene()
+            scene.addItem(pxmapitem)
+
+            imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
+            """
+
             pass
         self.ICP.layout().update()
+        self.dlg.scrollArea_imageChip_content.update()
         s = ""
 
         pass
@@ -1954,9 +2041,9 @@ def run_tests():
             filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
             filesImgRE = file_search(dirSrcRE, '*.vrt', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-            #S.ua_addTSImages(files=filesImg[0:1])
-           # S.ua_addTSImages(files=filesImgLS)
-            S.ua_addTSImages(files=filesImgRE)
+            S.ua_addTSImages(files=filesImgLS[0:3])
+            #S.ua_addTSImages(files=filesImgLS)
+            #S.ua_addTSImages(files=filesImgRE)
             #S.ua_loadExampleTS()
 
 
@@ -1986,7 +2073,7 @@ def run_tests():
             filesImgLS = file_search(dirSrcLS, '2014*_BOA.vrt')
             filesMsk = file_search(dirSrcLS, '2014*_Msk.vrt')
             S.ua_addTSImages(files=filesImgLS)
-            #S.ua_addTSMasks(files=filesMsk)
+            S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
 
