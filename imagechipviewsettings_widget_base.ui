@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>196</width>
-    <height>106</height>
+    <width>198</width>
+    <height>97</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -33,19 +33,19 @@
     <enum>QLayout::SetMinimumSize</enum>
    </property>
    <property name="leftMargin">
-    <number>0</number>
+    <number>1</number>
    </property>
    <property name="topMargin">
-    <number>0</number>
+    <number>1</number>
    </property>
    <property name="rightMargin">
-    <number>0</number>
+    <number>2</number>
    </property>
    <property name="bottomMargin">
-    <number>9</number>
+    <number>1</number>
    </property>
    <property name="spacing">
-    <number>2</number>
+    <number>1</number>
    </property>
    <item row="4" column="1">
     <widget class="QComboBox" name="cb_g">

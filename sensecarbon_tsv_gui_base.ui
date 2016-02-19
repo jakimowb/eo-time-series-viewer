@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>898</width>
-    <height>873</height>
+    <height>926</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -299,8 +299,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>754</width>
-              <height>204</height>
+              <width>81</width>
+              <height>28</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -597,7 +597,7 @@
            <string>Entire Time Series</string>
           </property>
           <property name="checked">
-           <bool>true</bool>
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -608,6 +608,9 @@
           </property>
           <property name="text">
            <string>Time Window:</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
