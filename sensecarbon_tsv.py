@@ -39,12 +39,10 @@ except:
     qgis_available = False
 
 import numpy as np
-import pickle
 import tsv_widgets
 import six
 import multiprocessing
 
-import imagechipviewsettings_widget
 
 #I don't know why but this is required to run this in QGIS
 
@@ -61,8 +59,6 @@ sys.path.append(os.path.join(pluginDir, *['libs','qrangeslider-0.1.1']))
 sys.path.append(os.path.join(pluginDir, *['libs','pyqtgraph']))
 
 import pyqtgraph as pg
-import qimage2ndarray
-import qrangeslider
 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
