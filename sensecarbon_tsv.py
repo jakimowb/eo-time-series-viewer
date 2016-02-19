@@ -397,8 +397,8 @@ class TimeSeries(QObject):
 
     _sep = ';'
 
-    @staticmethod
-    def loadFromFile(path):
+
+    def loadFromFile(self, path):
 
         images = []
         masks = []
@@ -414,11 +414,8 @@ class TimeSeries(QObject):
                 if len(parts) > 1:
                     masks.append(parts[1])
 
-        TS = TimeSeries()
-        TS.addFiles(images)
-        TS.addMasks(masks)
-
-        return TS
+        self.addFiles(images)
+        self.addMasks(masks)
 
 
     def saveToFile(self, path):
@@ -570,7 +567,7 @@ class TimeSeries(QObject):
 
             self.progress.emit(0,i+1,l)
 
-        self.progress.emit(0,0,l)
+        self.progress.emit(0,0,1)
         self.changed.emit()
 
     def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True, _quiet=False):
@@ -665,7 +662,7 @@ class TimeSeries(QObject):
             self.progress.emit(0,i+1,l)
 
         self._sortTimeSeriesData()
-        self.progress.emit(0,0,l)
+        self.progress.emit(0,0,1)
         self.datumAdded.emit()
         self.changed.emit()
 
@@ -779,15 +776,16 @@ class TimeSeriesDatum(object):
 
         self.wavelength = None
         domains = dsImg.GetMetadataDomainList()
-        for domain in domains:
-            md = dsImg.GetMetadata_Dict(domain)
-            if 'wavelength' in md.keys():
-                wl = md['wavelength']
-                wl = re.split('[;,{}]', wl)
-                wl = [float(w) for w in wl]
-                assert len(wl) == self.nb
-                self.wavelength = wl
-                break
+        if domains:
+            for domain in domains:
+                md = dsImg.GetMetadata_Dict(domain)
+                if 'wavelength' in md.keys():
+                    wl = md['wavelength']
+                    wl = re.split('[;,{}]', wl)
+                    wl = [float(w) for w in wl]
+                    assert len(wl) == self.nb
+                    self.wavelength = wl
+                    break
 
         self.sensor = SensorConfiguration(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
 
@@ -1176,6 +1174,8 @@ class ImageChipBuffer(object):
         return '\n'.join(info)
 
 
+list2str = lambda ll : '\n'.join([str(l) for l in ll])
+
 class SenseCarbon_TSV:
     """QGIS Plugin Implementation."""
 
@@ -1232,7 +1232,7 @@ class SenseCarbon_TSV:
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
         D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
-        D.btn_removeTS.clicked.connect(self.ua_removeTS)
+        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
 
         D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
         D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
@@ -1242,7 +1242,7 @@ class SenseCarbon_TSV:
         # Declare instance attributes
         self.actions = []
         #self.menu = self.tr(u'&EnMAP-Box')
-        # TODO: We are going to let the user set this up in a future iteration
+
         self.RectangleMapTool = None
         self.PointMapTool = None
         self.canvas_srs = osr.SpatialReference()
@@ -1267,6 +1267,7 @@ class SenseCarbon_TSV:
         s = ""
 
     def init_TimeSeries(self, TS=None):
+
         if TS is None:
             TS = TimeSeries()
         assert type(TS) is TimeSeries
@@ -1295,14 +1296,15 @@ class SenseCarbon_TSV:
             path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file')
 
         if os.path.exists(path):
-            self.ua_removeTS()
-            TS = TimeSeries.loadFromFile(path)
-            self.init_TimeSeries(TS)
-            self.ua_datumAdded()
 
-            if len(self.BAND_VIEWS) == 0:
-                self.ua_addBandView([3, 2, 1])
-                self.ua_addBandView([4, 5, 3])
+
+            M = self.dlg.tableView_TimeSeries.model()
+            M.beginResetModel()
+            self.ua_clear_TS()
+            self.TS.loadFromFile(path)
+            M.endResetModel()
+
+            self.refreshBandViews()
 
         self.check_enabled()
 
@@ -1384,10 +1386,14 @@ class SenseCarbon_TSV:
 
     def ua_TSprogress(self, v_min, v, v_max):
         assert v_min <= v and v <= v_max
-        P = self.dlg.progressBar
-        if P.minimum() != v_min or P.maximum() != v_max:
-            P.setRange(v_min, v_max)
-        P.setValue(v)
+        if v_min < v_max:
+            P = self.dlg.progressBar
+            if P.minimum() != v_min or P.maximum() != v_max:
+                P.setRange(v_min, v_max)
+            else:
+                s = ""
+
+            P.setValue(v)
 
     def ua_datumAdded(self):
 
@@ -1443,8 +1449,8 @@ class SenseCarbon_TSV:
         enabled_flag=True,
         add_to_menu=True,
         add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
+        status_tip="SenseCarbon Time Series Viewer - a tool to visualize a time series of remote sensing imagery",
+        whats_this="Open SenseCarbon Time Series Viewer",
         parent=None):
         """Add a toolbar icon to the toolbar.
 
@@ -1517,6 +1523,13 @@ class SenseCarbon_TSV:
             text=self.tr(u'SenseCarbon Time Series Viewer'),
             callback=self.run,
             parent=self.iface.mainWindow())
+
+
+    def ua_addTSD_to_QGIS(self):
+
+        s = ""
+
+        pass
 
 
     def unload(self):
@@ -1632,8 +1645,7 @@ class SenseCarbon_TSV:
                 info_label_text = '{}\n{}'.format(TSD.date, TSD.sensor.sensor_name)
                 textLabel = QLabel(info_label_text)
                 tt = [TSD.date,TSD.pathImg, TSD.pathMsk]
-                tt = '\n'.join(str(t) for t in tt)
-                textLabel.setToolTip(tt)
+                textLabel.setToolTip(list2str(tt))
                 self.ICP.addWidget(textLabel, 0, cnt_chips)
                 viewList = list()
                 j = 1
@@ -1645,7 +1657,11 @@ class SenseCarbon_TSV:
                     imageLabel.setMaximumSize(size_x+1, size_y+1)
                     imageLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                     tt = [TSD.date, TSD.pathImg, 'RGB={}'.format(','.join([str(b) for b in bands]))]
-                    imageLabel.setToolTip(tt)
+                    imageLabel.setToolTip(list2str(tt))
+
+                    #add context menue
+                    menu = QMenu(self)
+
                     viewList.append(imageLabel)
                     self.ICP.addWidget(imageLabel, j, cnt_chips)
                     j += 1
@@ -1744,15 +1760,7 @@ class SenseCarbon_TSV:
             M.beginResetModel()
             self.TS.addFiles(files)
             M.endResetModel()
-
-
-            if len(self.BAND_VIEWS) == 0:
-                self.ua_addBandView([3, 2, 1])
-                self.ua_addBandView([4, 5, 3])
-
             self.refreshBandViews()
-
-
 
         self.check_enabled()
 
@@ -1779,6 +1787,12 @@ class SenseCarbon_TSV:
 
 
     def refreshBandViews(self):
+
+        if len(self.BAND_VIEWS) == 0 and len(self.TS) > 0:
+            self.ua_addBandView([3, 2, 1])
+            self.ua_addBandView([4, 5, 3])
+
+
         self.clearLayoutWidgets(self.BVP)
 
         for i, BV in enumerate(self.BAND_VIEWS):
@@ -1814,7 +1828,7 @@ class SenseCarbon_TSV:
         w.deleteLater()
         self.setViewNames()
 
-    def ua_removeTS(self):
+    def ua_clear_TS(self):
         #remove views
 
         M = self.dlg.tableView_TimeSeries.model()
@@ -1936,14 +1950,14 @@ def run_tests():
 
         if True:
             dirSrcLS = r'\\141.20.140.107\NAS_Processing\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-            dirSrcRE = r'\\141.20.140.91\SAN_RSDBrazil\RapidEye\3A'
+            dirSrcRE = r'\\141.20.140.91\SAN_RSDBrazil\RapidEye\3A_VRTs'
             filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
-            filesImgRE = file_search(dirSrcRE, '*_328202.tif', recursive=True)
+            filesImgRE = file_search(dirSrcRE, '*.vrt', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
             #S.ua_addTSImages(files=filesImg[0:1])
-            #S.ua_addTSImages(files=filesImgLS)
-            #S.ua_addTSImages(files=filesImgRE)
-            S.ua_loadExampleTS()
+           # S.ua_addTSImages(files=filesImgLS)
+            S.ua_addTSImages(files=filesImgRE)
+            #S.ua_loadExampleTS()
 
 
             #S.ua_addTSMasks(files=filesMsk)
