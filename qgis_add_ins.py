@@ -3,6 +3,23 @@ from qgis.gui import *
 import qgis
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+import six
+
+
+def add_QgsRasterLayer(iface, path, rgb):
+    if iface:
+
+        fi = QFileInfo(path)
+        layer = QgsRasterLayer(path, fi.baseName())
+        if not layer.isValid():
+            six.print_('Failed to load {}'.format(path))
+        else:
+            iface.addRasterLayer(path, fi.baseName())
+
+
+    s = ""
+
+
 
 class PointMapTool(QgsMapToolEmitPoint):
 
