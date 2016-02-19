@@ -264,7 +264,8 @@ class BandView(object):
         if sensor not in self.bandMappings.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
-            x = tsv_widgets.BandViewSettings(sensor)
+            #x = tsv_widgets.BandViewSettings(sensor)
+            x = tsv_widgets.ImageChipViewSettings(sensor)
             x.create()
             self.bandMappings[sensor] = x
 
@@ -359,12 +360,22 @@ class SensorConfiguration(object):
 
 
 class ImageChipLabel(QLabel):
-    def __init__(self, parent=None, iface=None, path=None, bands=None):
+    def __init__(self, parent=None, iface=None, TSD=None, bands=None):
         super(ImageChipLabel, self).__init__(parent)
-        self.path=path
+        self.TSD = TSD
+        self.bn = os.path.basename(self.TSD.pathImg)
         self.iface=iface
         self.bands=bands
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
+        self.setFrameShape(QFrame.StyledPanel)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        tt = ['Date: {}'.format(TSD.date) \
+             ,'Name: {}'.format(self.bn) \
+             ,'RGB:  {}'.format(','.join([str(b) for b in bands]))]
+
+        self.setToolTip(list2str(tt))
+
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -374,8 +385,8 @@ class ImageChipLabel(QLabel):
 
         #add QGIS specific options
         if self.iface:
-            action = menu.addAction('Show image in QGIS')
-            action.triggered.connect(lambda : qgis_add_ins.add_QgsRasterLayer(self.iface, self.path, self.bands))
+            action = menu.addAction('Add {} to QGIS layers'.format(self.bn))
+            action.triggered.connect(lambda : qgis_add_ins.add_QgsRasterLayer(self.iface, self.TSD.pathImg, self.bands))
 
         menu.exec_(event.globalPos())
 
@@ -1157,7 +1168,7 @@ class ImageChipBuffer(object):
         nl, ns = chipData[bands[0]].shape
 
         dtype= 'uint8'
-        array_data = np.ndarray((ns, nl, nb), dtype=dtype)
+        array_data = np.ndarray((nl,ns, nb), dtype=dtype)
 
         if mode == 'rgb':
             ch_dst = [0,1,2]
@@ -1717,13 +1728,11 @@ class SenseCarbon_TSV:
                     #imv = QGraphicsView(self.dlg.scrollArea_imageChip_content)
                     #imv = MyGraphicsView(self.dlg.scrollArea_imageChip_content, iface=self.iface, path=TSD.pathImg, bands=bands)
                     #imv = pg.ImageView(view=None)
-                    imgLabel = ImageChipLabel()
-                    imgLabel.setFrameShape(QFrame.StyledPanel)
+                    imgLabel = ImageChipLabel(iface=self.iface, TSD=TSD, bands=bands)
+
                     imgLabel.setMinimumSize(size_x, size_y)
                     imgLabel.setMaximumSize(size_x, size_y)
-                    imgLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-                    tt = [TSD.date, TSD.pathImg, 'RGB={}'.format(','.join([str(b) for b in bands]))]
-                    imgLabel.setToolTip(list2str(tt))
+
 
                     viewList.append(imgLabel)
                     self.ICP.addWidget(imgLabel, j, cnt_chips)
