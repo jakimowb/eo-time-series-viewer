@@ -14,7 +14,20 @@ def add_QgsRasterLayer(iface, path, rgb):
         if not layer.isValid():
             six.print_('Failed to load {}'.format(path))
         else:
-            iface.addRasterLayer(path, fi.baseName())
+            rasterLyr = iface.addRasterLayer(path, fi.baseName())
+
+
+            renderer = rasterLyr.renderer()
+            print(type(renderer))
+
+            if type(renderer) is QgsMultiBandColorRenderer:
+                renderer.setRedBand(rgb[0])
+                renderer.setGreenBand(rgb[0])
+                renderer.setBlueBand(rgb[0])
+
+        if hasattr(layer, "triggerRepaint"):
+            #layer.repaintRequested()
+            layer.triggerRepaint()
 
 
     s = ""
@@ -85,7 +98,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         r = self.rectangle()
         self.reset()
 
-        if wkt:
+        if wkt is not None and r is not None:
             self.rectangleDrawed.emit(r, wkt)
 
 
