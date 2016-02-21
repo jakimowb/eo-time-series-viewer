@@ -28,7 +28,7 @@ from qgis.core import *
 
 from osgeo import gdal, ogr, osr, gdal_array
 
-
+DEBUG = True
 
 try:
     from qgis.gui import *
@@ -39,32 +39,44 @@ except:
     qgis_available = False
 
 import numpy as np
-import tsv_widgets
 import six
 import multiprocessing
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
 
 
-#I don't know why but this is required to run this in QGIS
+#abbreviations
+mkdir = lambda p: os.makedirs(p, exist_ok=True)
+jp = os.path.join
 
-path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+def expand_python_path(path):
+    if path not in sys.path:
+        sys.path.append(path)
+
+
+
+#I don't know why, but this is required to run this in QGIS
+path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
 
-pluginDir = os.path.dirname(__file__)
-sys.path.append(pluginDir)
-sys.path.append(os.path.join(pluginDir, 'libs'))
-#sys.path.append(os.path.join(pluginDir, *['libs','qimage2ndarray']))
-sys.path.append(os.path.join(pluginDir, *['libs','qrangeslider-0.1.1']))
-sys.path.append(os.path.join(pluginDir, *['libs','pyqtgraph']))
+#ensure that required non-standard modules are available
+PLUGIN_DIR = os.path.dirname(__file__)
+LIB_DIR = jp(PLUGIN_DIR, 'libs')
+expand_python_path(PLUGIN_DIR)
+expand_python_path(LIB_DIR)
+try:
+    import pyqtgraph
+except:
+    expand_python_path(jp(LIB_DIR,'pyqtgraph'))
 
 import pyqtgraph as pg
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from sensecarbon_tsv_gui import SenseCarbon_TSVGui
+import tsv_widgets
+from sensecarbon_tsv_gui import *
 
-DEBUG = True
+
 
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
 
@@ -83,6 +95,7 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
         if not recursive:
             break
     return results
+
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
@@ -239,13 +252,9 @@ LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
 
 
 class BandView(object):
-
-
-
-
-    def __init__(self, TS):
+    def __init__(self, TS, recommended_bands=None):
         assert type(TS) is TimeSeries
-        self.bandMappings = collections.OrderedDict()
+        self.representation = collections.OrderedDict()
         self.TS = TS
         self.TS.sensorAdded.connect(self.initSensor)
 
@@ -253,21 +262,26 @@ class BandView(object):
 
         import copy
         for sensor in self.Sensors:
-            self.initSensor(copy.deepcopy(sensor))
+            self.initSensor(copy.deepcopy(sensor), recommended_bands=recommended_bands)
 
 
 
 
 
-    def initSensor(self, sensor):
+    def initSensor(self, sensor, recommended_bands=None):
         assert type(sensor) is SensorConfiguration
-        if sensor not in self.bandMappings.keys():
+        if sensor not in self.representation.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
             #x = tsv_widgets.BandViewSettings(sensor)
             x = tsv_widgets.ImageChipViewSettings(sensor)
+
+            if recommended_bands is not None:
+                assert min(recommended_bands) > 0
+                if max(recommended_bands) < sensor.nb:
+                    x.setBands(recommended_bands)
             x.create()
-            self.bandMappings[sensor] = x
+            self.representation[sensor] = x
 
 
     def getSensorStats(self, sensor, bands):
@@ -281,7 +295,7 @@ class BandView(object):
 
     def getWidget(self, sensor):
         assert type(sensor) is SensorConfiguration
-        return self.bandMappings[sensor]
+        return self.representation[sensor]
 
     def getBands(self, sensor):
         return self.getWidget(sensor).getBands()
@@ -1874,15 +1888,15 @@ class SenseCarbon_TSV:
 
 
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
-        self.BAND_VIEWS.append(BandView(self.TS))
+        self.BAND_VIEWS.append(BandView(self.TS, recommended_bands=band_recommendation))
         self.refreshBandViews()
 
 
     def refreshBandViews(self):
 
         if len(self.BAND_VIEWS) == 0 and len(self.TS) > 0:
-            self.ua_addBandView([3, 2, 1])
-            self.ua_addBandView([4, 5, 3])
+            self.ua_addBandView(band_recommendation=[3, 2, 1])
+            self.ua_addBandView(band_recommendation=[4, 5, 3])
 
 
         self.clearLayoutWidgets(self.BVP)
