@@ -9,7 +9,6 @@ Its major aims are:
 
 (iii) to avoid a complicated installation process
 
-
 Please check the [Wiki](https://bitbucket.org/jakimowb/sensecarbontsviewer/wiki/Home) for more information.
 
 ## Licence and Use ##
