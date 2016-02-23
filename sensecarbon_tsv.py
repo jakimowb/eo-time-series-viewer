@@ -1673,9 +1673,10 @@ class SenseCarbon_TSV:
         else:
             i_doi = date_of_interest
 
-        scrollValue = int(float(i_doi+1) / len(TSDs) * HBar.maximum())
-
-        HBar.setValue(scrollValue)
+        step = int(float(HBar.maximum()) / (len(TSDs)+1))
+        HBar.setSingleStep(step)
+        HBar.setPageStep(step*5)
+        HBar.setValue(i_doi * step)
 
 
     def ua_showPxCoordinate_start(self):
@@ -1712,12 +1713,12 @@ class SenseCarbon_TSV:
 
         #get the dates of interes
         dates_of_interest = list()
-        centerTSD = D.cb_doi.itemData(D.cb_doi.currentIndex())
-        if centerTSD is None:
+        doiTSD = D.cb_doi.itemData(D.cb_doi.currentIndex())
+        if doiTSD is None:
             idx = int(len(self.TS)/2)
-            centerTSD = D.cb_doi.itemData(idx)
+            doiTSD = D.cb_doi.itemData(idx)
             D.cb_doi.setCurrentIndex(idx)
-        centerDate = centerTSD.getDate()
+        centerDate = doiTSD.getDate()
         allDates = self.TS.getObservationDates()
         i_doi = allDates.index(centerDate)
 
@@ -1781,6 +1782,8 @@ class SenseCarbon_TSV:
                 self.CHIPWIDGETS[TSD] = viewList
 
                 cnt_chips += 1
+
+        self.dlg.scrollArea_imageChip_content.update()
 
         self.scrollToDate(centerDate)
 
