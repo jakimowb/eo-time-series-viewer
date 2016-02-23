@@ -3,8 +3,11 @@ from qgis.gui import *
 import qgis
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from PyQt4.QtXml import *
+from PyQt4.QtXmlPatterns import *
 import six
-
+import xml.etree
+from qgis.core import *
 
 def add_QgsRasterLayer(iface, path, rgb):
     if iface:
@@ -32,6 +35,63 @@ def add_QgsRasterLayer(iface, path, rgb):
 
     s = ""
 
+
+paste_test = """
+    <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="2.12.3-Lyon">
+ <pipe>
+  <rasterrenderer opacity="1" alphaBand="-1" blueBand="1" greenBand="2" type="multibandcolor" redBand="3">
+   <rasterTransparency/>
+   <redContrastEnhancement>
+    <minValue>2803.02</minValue>
+    <maxValue>6072.21</maxValue>
+    <algorithm>StretchToMinimumMaximum</algorithm>
+   </redContrastEnhancement>
+   <greenContrastEnhancement>
+    <minValue>5103.86</minValue>
+    <maxValue>7228.58</maxValue>
+    <algorithm>StretchToMinimumMaximum</algorithm>
+   </greenContrastEnhancement>
+   <blueContrastEnhancement>
+    <minValue>5992.32</minValue>
+    <maxValue>7718.33</maxValue>
+    <algorithm>StretchToMinimumMaximum</algorithm>
+   </blueContrastEnhancement>
+  </rasterrenderer>
+  <brightnesscontrast brightness="0" contrast="0"/>
+  <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+  <rasterresampler maxOversampling="2"/>
+ </pipe>
+ <blendMode>0</blendMode>
+</qgis>
+    """
+
+def paste_band_settings(txt):
+
+    result = None
+    try:
+        import xml.etree.ElementTree as ET
+        tree = ET.fromstring(txt)
+
+        renderer = tree.find('*/rasterrenderer')
+        if renderer is not None:
+            bands = list()
+            ranges = list()
+            for c in ['red','green','blue']:
+                name = c + 'Band'
+                if name not in renderer.attrib.keys():
+                    return result
+
+                bands.append(int(renderer.attrib[name]))
+                v_min = float(renderer.find(c+'ContrastEnhancement/minValue').text)
+                v_max = float(renderer.find(c+'ContrastEnhancement/maxValue').text)
+                ranges.append((v_min, v_max))
+
+            result = (bands, ranges)
+    except:
+        pass
+
+    return result
 
 
 class PointMapTool(QgsMapToolEmitPoint):
@@ -138,3 +198,14 @@ class RectangleMapTool(QgsMapToolEmitPoint):
     #def deactivate(self):
     #   super(RectangleMapTool, self).deactivate()
     #self.deactivated.emit()
+
+
+
+def tests():
+
+    print(paste_band_settings(paste_test))
+    print(paste_band_settings('foo'))
+
+if __name__ == '__main__':
+    tests()
+    print('Done')
