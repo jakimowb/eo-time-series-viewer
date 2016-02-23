@@ -140,7 +140,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
 
     def data(self, index, role = Qt.DisplayRole):
-        if role is None or Qt is None or index.isValid() == False:
+        if role is None or not index.isValid():
             return None
 
 
@@ -291,14 +291,19 @@ class BandView(object):
 
 
     def getRanges(self, sensor):
-        return self.getWidget(sensor).getRanges()
+        return self.getWidget(sensor).getRGBSettings()[1]
+
+    def getBands(self, sensor):
+        return self.getWidget(sensor).getRGBSettings()[0]
+
+
+    def getRGBSettings(self, sensor):
+        return self.getWidget(sensor).getRGBSettings()
 
     def getWidget(self, sensor):
         assert type(sensor) is SensorConfiguration
         return self.representation[sensor]
 
-    def getBands(self, sensor):
-        return self.getWidget(sensor).getBands()
 
 
     def useMaskValues(self):
@@ -1805,46 +1810,47 @@ class SenseCarbon_TSV:
             TSD, chipData = results
             self.ImageChipBuffer.addDataCube(TSD, chipData)
 
-        assert TSD in self.CHIPWIDGETS.keys()
+        if TSD not in self.CHIPWIDGETS.keys():
+            six.print_('TSD {} does not exist in CHIPBUFFER'.format(TSD), file=sys.stderr)
+        else:
+            for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
+                #imgView.clear()
+                #imageLabel.setScaledContents(True)
 
-        for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
-            #imgView.clear()
-            #imageLabel.setScaledContents(True)
+                #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
+                array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
+                qimg = pg.makeQImage(array, copy=True, transpose=False)
 
-            #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
-            array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
-            qimg = pg.makeQImage(array, copy=True, transpose=False)
+                #rgb2 = rgb.transpose([1,2,0]).copy('C')
+                #qImg = qimage2ndarray.array2qimage(rgb2)
+                #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
 
-            #rgb2 = rgb.transpose([1,2,0]).copy('C')
-            #qImg = qimage2ndarray.array2qimage(rgb2)
-            #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
+                pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
+                imgChipLabel.setPixmap(pxMap)
+                imgChipLabel.update()
+                #imgView.setPixmap(pxMap)
+                #imageLabel.update()
+                #imgView.adjustSize()
+                #pxmap = QPixmap.fromImage(qimg)
+                #
 
-            pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
-            imgChipLabel.setPixmap(pxMap)
-            imgChipLabel.update()
-            #imgView.setPixmap(pxMap)
-            #imageLabel.update()
-            #imgView.adjustSize()
-            #pxmap = QPixmap.fromImage(qimg)
-            #
+                """
+                pxmapitem = QGraphicsPixmapItem(pxmap)
+                if imgChipLabel.scene() is None:
+                    imgChipLabel.setScene(QGraphicsScene())
+                else:
+                    imgChipLabel.scene().clear()
 
-            """
-            pxmapitem = QGraphicsPixmapItem(pxmap)
-            if imgChipLabel.scene() is None:
-                imgChipLabel.setScene(QGraphicsScene())
-            else:
-                imgChipLabel.scene().clear()
+                scene = imgChipLabel.scene()
+                scene.addItem(pxmapitem)
 
-            scene = imgChipLabel.scene()
-            scene.addItem(pxmapitem)
+                imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
+                """
 
-            imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
-            """
-
-            pass
-        self.ICP.layout().update()
-        self.dlg.scrollArea_imageChip_content.update()
-        s = ""
+                pass
+            self.ICP.layout().update()
+            self.dlg.scrollArea_imageChip_content.update()
+            s = ""
 
         pass
 
@@ -2060,7 +2066,8 @@ def run_tests():
             filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
             filesImgRE = file_search(dirSrcRE, '*.vrt', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-            S.ua_addTSImages(files=filesImgLS[0:3])
+            S.ua_addTSImages(files=filesImgLS[0:2])
+            S.ua_addTSImages(files=filesImgRE[0:2])
             #S.ua_addTSImages(files=filesImgLS)
             #S.ua_addTSImages(files=filesImgRE)
             #S.ua_loadExampleTS()
