@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>898</width>
-    <height>926</height>
+    <height>947</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -88,7 +88,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="tab_console">
         <attribute name="title">
@@ -250,19 +250,6 @@
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="bnt_removeBandView">
-             <property name="maximumSize">
-              <size>
-               <width>150</width>
-               <height>16777215</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>PushButton</string>
-             </property>
-            </widget>
-           </item>
-           <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -363,6 +350,16 @@
           </property>
          </widget>
         </item>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="btn_selectByRectangle">
+          <property name="toolTip">
+           <string>Selects the image subset from QGIS.</string>
+          </property>
+          <property name="text">
+           <string>Select subset by rectangle</string>
+          </property>
+         </widget>
+        </item>
         <item row="2" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
@@ -415,27 +412,42 @@
           </property>
          </widget>
         </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_7">
+          <property name="toolTip">
+           <string>Spatial Reference System (SRS) of center coordinate</string>
+          </property>
+          <property name="text">
+           <string>SRS</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QPlainTextEdit" name="tb_bb_srs">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>50</height>
+           </size>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
         <item row="5" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
            <string>size x</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="0">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>size y</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QPushButton" name="btn_selectByRectangle">
-          <property name="toolTip">
-           <string>Selects the image subset from QGIS.</string>
-          </property>
-          <property name="text">
-           <string>Select subset by rectangle</string>
           </property>
          </widget>
         </item>
@@ -458,6 +470,13 @@
           </property>
          </widget>
         </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>size y</string>
+          </property>
+         </widget>
+        </item>
         <item row="6" column="1">
          <widget class="QDoubleSpinBox" name="doubleSpinBox_subset_size_y">
           <property name="suffix">
@@ -477,26 +496,6 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
-         <widget class="QPlainTextEdit" name="tb_srs_info">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_7">
-          <property name="toolTip">
-           <string>Spatial Reference System (SRS) of center coordinate</string>
-          </property>
-          <property name="text">
-           <string>SRS</string>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
      </item>
@@ -511,110 +510,11 @@
        <property name="title">
         <string>Chip Rendering</string>
        </property>
-       <layout class="QGridLayout" name="gridLayout_2">
-        <item row="6" column="0">
-         <widget class="QLabel" name="label_6">
-          <property name="text">
-           <string>First date</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="1">
-         <widget class="QSpinBox" name="spinBox_ncpu">
-          <property name="toolTip">
-           <string>Number of CPUs used for parallel image chip calculation</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
-         <widget class="QSpinBox" name="spinBox_chipsize_max">
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>Max. length of an image chip on screen.</string>
-          </property>
-          <property name="suffix">
-           <string>px</string>
-          </property>
-          <property name="minimum">
-           <number>20</number>
-          </property>
-          <property name="maximum">
-           <number>1000</number>
-          </property>
-          <property name="singleStep">
-           <number>10</number>
-          </property>
-          <property name="value">
-           <number>200</number>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="1" colspan="2">
-         <widget class="QComboBox" name="cb_centerdate">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="label_11">
-          <property name="text">
-           <string>max. size </string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>#cpu</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="2">
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="0" column="0">
-         <widget class="QRadioButton" name="rb_showEntireTS">
-          <property name="text">
-           <string>Entire Time Series</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QRadioButton" name="rb_showTimeWindow">
-          <property name="toolTip">
-           <string>Select </string>
-          </property>
-          <property name="text">
-           <string>Time Window:</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0" rowspan="2" colspan="3">
+       <layout class="QFormLayout" name="formLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+        </property>
+        <item row="2" column="0" colspan="2">
          <widget class="QFrame" name="frame_timewindow">
           <property name="enabled">
            <bool>false</bool>
@@ -682,6 +582,95 @@
           </layout>
          </widget>
         </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="label_11">
+          <property name="text">
+           <string>max. size </string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QSpinBox" name="spinBox_chipsize_max">
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Max. length of an image chip on screen.</string>
+          </property>
+          <property name="suffix">
+           <string>px</string>
+          </property>
+          <property name="minimum">
+           <number>20</number>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>10</number>
+          </property>
+          <property name="value">
+           <number>200</number>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>#cpu</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QSpinBox" name="spinBox_ncpu">
+          <property name="toolTip">
+           <string>Number of CPUs used for parallel image chip calculation</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>DOI</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QComboBox" name="cb_doi">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QRadioButton" name="rb_showTimeWindow">
+          <property name="toolTip">
+           <string>Select </string>
+          </property>
+          <property name="text">
+           <string>Time Window around DOI</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="rb_showEntireTS">
+          <property name="text">
+           <string>Entire Time Series</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
      </item>
@@ -736,11 +725,17 @@
     <property name="title">
      <string>Files</string>
     </property>
+    <addaction name="actionAdd_Images"/>
+    <addaction name="actionAdd_Masks"/>
+    <addaction name="actionLoad_Time_Series"/>
+    <addaction name="actionSave_Time_Series"/>
+    <addaction name="actionLoad_Example_Time_Series"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="title">
-     <string>About</string>
+     <string>Help</string>
     </property>
+    <addaction name="actionAbout"/>
    </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuAbout"/>
@@ -758,6 +753,36 @@
   <action name="actionAdd_View">
    <property name="text">
     <string>Add View</string>
+   </property>
+  </action>
+  <action name="actionAdd_Images">
+   <property name="text">
+    <string>Add Images</string>
+   </property>
+  </action>
+  <action name="actionAdd_Masks">
+   <property name="text">
+    <string>Add Masks</string>
+   </property>
+  </action>
+  <action name="actionLoad_Time_Series">
+   <property name="text">
+    <string>Load Time Series</string>
+   </property>
+  </action>
+  <action name="actionSave_Time_Series">
+   <property name="text">
+    <string>Save Time Series</string>
+   </property>
+  </action>
+  <action name="actionLoad_Example_Time_Series">
+   <property name="text">
+    <string>Load Time Series Example</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
    </property>
   </action>
  </widget>
