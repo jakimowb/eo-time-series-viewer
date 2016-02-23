@@ -471,7 +471,9 @@ class TimeSeries(QObject):
 
 
     def saveToFile(self, path):
-        import time
+        if path is None or len(path) == 0:
+            return
+
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
         lines.append('#<image path>[;<mask path>]')
@@ -1318,15 +1320,29 @@ class SenseCarbon_TSV:
         D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
         D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
         D.btn_addBandView.clicked.connect(lambda :self.ua_addBandView())
+
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
-        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
-        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
-
         D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
         D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
         D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
+
+        D.actionAdd_Images.triggered.connect(lambda :self.ua_addTSImages())
+        D.actionAdd_Masks.triggered.connect(lambda :self.ua_addTSMasks())
+        D.actionLoad_Time_Series.triggered.connect(self.ua_loadTSFile)
+        D.actionSave_Time_Series.triggered.connect(self.ua_saveTSFile)
+        D.actionLoad_Example_Time_Series.triggered.connect(self.ua_loadExampleTS)
+        D.actionAbout.triggered.connect( \
+            lambda: QMessageBox.about(self.dlg, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
+
+        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
+        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
+
+
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
+
+
+
 
         # Declare instance attributes
         self.actions = []
@@ -1375,9 +1391,9 @@ class SenseCarbon_TSV:
         D = self.dlg
         D.tableView_TimeSeries.setModel(TSM)
         D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        D.cb_centerdate.setModel(TSM)
-        D.cb_centerdate.setModelColumn(0)
-        D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
+        D.cb_doi.setModel(TSM)
+        D.cb_doi.setModelColumn(0)
+        D.cb_doi.currentIndexChanged.connect(self.scrollToDate)
 
 
     def ua_loadTSFile(self, path=None):
@@ -1426,7 +1442,7 @@ class SenseCarbon_TSV:
         else:
             self.canvas_srs.ImportFromWkt(srs)
 
-        self.dlg.tb_srs_info.setPlainText(self.canvas_srs.ExportToProj4())
+        self.dlg.tb_bb_srs.setPlainText(self.canvas_srs.ExportToProj4())
 
     def ua_selectBy_Response(self, geometry, srs_wkt):
         D = self.dlg
@@ -1497,7 +1513,7 @@ class SenseCarbon_TSV:
                 self.dlg.spinBox_coordinate_x.setValue(0.5*(xmin+xmax))
                 self.dlg.spinBox_coordinate_y.setValue(0.5*(ymin+ymax))
                 s = ""
-        self.dlg.cb_centerdate.setCurrentIndex(int(len(self.TS) / 2))
+        self.dlg.cb_doi.setCurrentIndex(int(len(self.TS) / 2))
         self.dlg.tableView_TimeSeries.resizeColumnsToContents()
 
     def check_enabled(self):
@@ -1640,7 +1656,7 @@ class SenseCarbon_TSV:
 
 
 
-    def scrollToDate(self, date):
+    def scrollToDate(self, date_of_interest):
         QApplication.processEvents()
         HBar = self.dlg.scrollArea_imageChips.horizontalScrollBar()
         TSDs = list(self.CHIPWIDGETS.keys())
@@ -1648,13 +1664,14 @@ class SenseCarbon_TSV:
             return
 
         #get date INDEX that is closest to requested date
-        if type(date) is str:
-            date = np.datetime64(date)
-        if type(date) is not np.datetime64:
-            s = ""
-        assert type(date) is np.datetime64, 'type is: '+str(type(date))
+        if type(date_of_interest) is str:
+            date_of_interest = np.datetime64(date_of_interest)
 
-        i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
+
+        if type(date_of_interest) is np.datetime64:
+            i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date_of_interest - TSD.getDate()))[0])
+        else:
+            i_doi = date_of_interest
 
         scrollValue = int(float(i_doi+1) / len(TSDs) * HBar.maximum())
 
@@ -1695,11 +1712,11 @@ class SenseCarbon_TSV:
 
         #get the dates of interes
         dates_of_interest = list()
-        centerTSD = D.cb_centerdate.itemData(D.cb_centerdate.currentIndex())
+        centerTSD = D.cb_doi.itemData(D.cb_doi.currentIndex())
         if centerTSD is None:
             idx = int(len(self.TS)/2)
-            centerTSD = D.cb_centerdate.itemData(idx)
-            D.cb_centerdate.setCurrentIndex(idx)
+            centerTSD = D.cb_doi.itemData(idx)
+            D.cb_doi.setCurrentIndex(idx)
         centerDate = centerTSD.getDate()
         allDates = self.TS.getObservationDates()
         i_doi = allDates.index(centerDate)
