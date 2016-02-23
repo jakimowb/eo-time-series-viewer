@@ -24,7 +24,7 @@ from PyQt4 import uic
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-import sys
+import sys, re, os
 sys.path.append(os.path.dirname(__file__))
 
 
@@ -36,6 +36,7 @@ def loadFormClass(name_ui):
 
 FORM_CLASS_BANDVIEWSETTINGS = loadFormClass('bandviewsettings_widget_base.ui')
 FORM_CLASS_IMAGECHIPVIEWSETTINGS = loadFormClass('imagechipviewsettings_widget_base.ui')
+
 
 class ImageChipViewSettings(QGroupBox, FORM_CLASS_IMAGECHIPVIEWSETTINGS):
 
@@ -119,21 +120,59 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS_IMAGECHIPVIEWSETTINGS):
         s = ""
         pass
 
-    def getBands(self):
+    def setRGBSettings(self, bands_and_ranges):
+        bands, ranges = bands_and_ranges
+        assert len(bands) == 3
+        assert len(ranges) == 3
+        for range in ranges:
+            assert len(range) == 2 and range[0] <= range[1]
+
+        #copy values only if all bands fit to this sensor
+        for b in bands:
+            if b > self.SensorConfiguration.nb:
+                return
+
+        self.cb_r.setCurrentIndex(bands[0]-1)
+        self.cb_g.setCurrentIndex(bands[1]-1)
+        self.cb_b.setCurrentIndex(bands[2]-1)
+
+        self.tb_range_r_min.setText(str(ranges[0][0]))
+        self.tb_range_g_min.setText(str(ranges[1][0]))
+        self.tb_range_b_min.setText(str(ranges[2][0]))
+
+        self.tb_range_r_max.setText(str(ranges[0][1]))
+        self.tb_range_g_max.setText(str(ranges[1][1]))
+        self.tb_range_b_max.setText(str(ranges[2][1]))
+
+
+    def getRGBSettings(self):
         bands = [self.cb_r.currentIndex()+1, \
                  self.cb_g.currentIndex()+1, \
                  self.cb_b.currentIndex()+1]
-        return bands
 
-    def getRanges(self):
         range_r = [float(self.tb_range_r_min.text()), float(self.tb_range_r_max.text())]
         range_g = [float(self.tb_range_g_min.text()), float(self.tb_range_g_max.text())]
         range_b = [float(self.tb_range_b_min.text()), float(self.tb_range_b_max.text())]
-        return (range_r, range_g, range_b)
+        ranges = (range_r, range_g, range_b)
 
-    def getSettings(self):
+        return bands, ranges
 
-        s = ""
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+
+        #add general options
+
+        #add QGIS specific options
+        txt = QApplication.clipboard().text()
+        if re.search('<!DOCTYPE(.|\n)*rasterrenderer.*type="multibandcolor"', txt) is not None:
+            import qgis_add_ins
+            action = menu.addAction('Paste style')
+            action.setToolTip('Uses the QGIS raster layer style to specify band selection and band value ranges.')
+            action.triggered.connect(lambda : self.setRGBSettings(qgis_add_ins.paste_band_settings(txt)))
+
+
+        menu.exec_(event.globalPos())
+
 
 
 class BandViewSettings(QGroupBox, FORM_CLASS_BANDVIEWSETTINGS):
@@ -216,20 +255,15 @@ class BandViewSettings(QGroupBox, FORM_CLASS_BANDVIEWSETTINGS):
         s = ""
         pass
 
-    def getBands(self):
+    def getRGBSettings(self):
         bands = [self.cb_r.currentIndex()+1, \
                  self.cb_g.currentIndex()+1, \
                  self.cb_b.currentIndex()+1]
-        return bands
 
-    def getRanges(self):
         range = [float(self.tb_range_min.text()), float(self.tb_range_max.text())]
-        #provide a range for each channel
-        return (range, range, range)
+        ranges = (range, range, range)
 
-    def getSettings(self):
-
-        s = ""
+        return bands, ranges
 
 
 if __name__ == '__main__':
