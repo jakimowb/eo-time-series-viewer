@@ -140,7 +140,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
 
     def data(self, index, role = Qt.DisplayRole):
-        if role is None or Qt is None or index.isValid() == False:
+        if role is None or not index.isValid():
             return None
 
 
@@ -256,7 +256,8 @@ class BandView(object):
         assert type(TS) is TimeSeries
         self.representation = collections.OrderedDict()
         self.TS = TS
-        self.TS.sensorAdded.connect(self.initSensor)
+        self.TS.sensorAdded.connect(self.checkSensors)
+        self.TS.changed.connect(self.checkSensors)
 
         self.Sensors = self.TS.Sensors
 
@@ -266,6 +267,17 @@ class BandView(object):
 
 
 
+    def checkSensors(self):
+        represented_sensors = set(self.representation.keys())
+        ts_sensors = set(self.TS.Sensors.keys())
+
+        to_add = ts_sensors - represented_sensors
+        to_remove = represented_sensors - ts_sensors
+        for S in to_remove:
+            self.representation[S].close()
+            self.representation.pop(S)
+        for S in to_add:
+            self.initSensor(S)
 
 
     def initSensor(self, sensor, recommended_bands=None):
@@ -291,14 +303,19 @@ class BandView(object):
 
 
     def getRanges(self, sensor):
-        return self.getWidget(sensor).getRanges()
+        return self.getWidget(sensor).getRGBSettings()[1]
+
+    def getBands(self, sensor):
+        return self.getWidget(sensor).getRGBSettings()[0]
+
+
+    def getRGBSettings(self, sensor):
+        return self.getWidget(sensor).getRGBSettings()
 
     def getWidget(self, sensor):
         assert type(sensor) is SensorConfiguration
         return self.representation[sensor]
 
-    def getBands(self, sensor):
-        return self.getWidget(sensor).getBands()
 
 
     def useMaskValues(self):
@@ -466,7 +483,9 @@ class TimeSeries(QObject):
 
 
     def saveToFile(self, path):
-        import time
+        if path is None or len(path) == 0:
+            return
+
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
         lines.append('#<image path>[;<mask path>]')
@@ -657,7 +676,8 @@ class TimeSeries(QObject):
         S = TSD.sensor
         self.Sensors[S].remove(TSD)
         self.data.pop(TSD, None)
-
+        if len(self.Sensors[S]) == 0:
+            self.Sensors.pop(S)
         if not _quiet:
             self.changed.emit()
 
@@ -1029,7 +1049,12 @@ class TimeSeriesDatum(object):
 regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
 regYYYY = re.compile(r'(19|20)\d{2}')
+
 def parseAcquisitionDate(text):
+    match = regLandsatSceneID.search(text)
+    if match:
+        id = match.group()
+        return getDateTime64FromYYYYDOY(id[9:16])
     match = regYYYYMMDD.search(text)
     if match:
         return np.datetime64(match.group())
@@ -1313,15 +1338,29 @@ class SenseCarbon_TSV:
         D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
         D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
         D.btn_addBandView.clicked.connect(lambda :self.ua_addBandView())
+
         D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
         D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
-        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
-        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
-
         D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
         D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
         D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
+
+        D.actionAdd_Images.triggered.connect(lambda :self.ua_addTSImages())
+        D.actionAdd_Masks.triggered.connect(lambda :self.ua_addTSMasks())
+        D.actionLoad_Time_Series.triggered.connect(self.ua_loadTSFile)
+        D.actionSave_Time_Series.triggered.connect(self.ua_saveTSFile)
+        D.actionLoad_Example_Time_Series.triggered.connect(self.ua_loadExampleTS)
+        D.actionAbout.triggered.connect( \
+            lambda: QMessageBox.about(self.dlg, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
+
+        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
+        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
+
+
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
+
+
+
 
         # Declare instance attributes
         self.actions = []
@@ -1370,14 +1409,14 @@ class SenseCarbon_TSV:
         D = self.dlg
         D.tableView_TimeSeries.setModel(TSM)
         D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        D.cb_centerdate.setModel(TSM)
-        D.cb_centerdate.setModelColumn(0)
-        D.cb_centerdate.currentIndexChanged.connect(self.scrollToDate)
+        D.cb_doi.setModel(TSM)
+        D.cb_doi.setModelColumn(0)
+        D.cb_doi.currentIndexChanged.connect(self.scrollToDate)
 
 
     def ua_loadTSFile(self, path=None):
         if path is None or path is False:
-            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file')
+            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file', '')
 
         if os.path.exists(path):
 
@@ -1421,7 +1460,7 @@ class SenseCarbon_TSV:
         else:
             self.canvas_srs.ImportFromWkt(srs)
 
-        self.dlg.tb_srs_info.setPlainText(self.canvas_srs.ExportToProj4())
+        self.dlg.tb_bb_srs.setPlainText(self.canvas_srs.ExportToProj4())
 
     def ua_selectBy_Response(self, geometry, srs_wkt):
         D = self.dlg
@@ -1492,7 +1531,7 @@ class SenseCarbon_TSV:
                 self.dlg.spinBox_coordinate_x.setValue(0.5*(xmin+xmax))
                 self.dlg.spinBox_coordinate_y.setValue(0.5*(ymin+ymax))
                 s = ""
-        self.dlg.cb_centerdate.setCurrentIndex(int(len(self.TS) / 2))
+        self.dlg.cb_doi.setCurrentIndex(int(len(self.TS) / 2))
         self.dlg.tableView_TimeSeries.resizeColumnsToContents()
 
     def check_enabled(self):
@@ -1635,7 +1674,7 @@ class SenseCarbon_TSV:
 
 
 
-    def scrollToDate(self, date):
+    def scrollToDate(self, date_of_interest):
         QApplication.processEvents()
         HBar = self.dlg.scrollArea_imageChips.horizontalScrollBar()
         TSDs = list(self.CHIPWIDGETS.keys())
@@ -1643,17 +1682,19 @@ class SenseCarbon_TSV:
             return
 
         #get date INDEX that is closest to requested date
-        if type(date) is str:
-            date = np.datetime64(date)
-        if type(date) is not np.datetime64:
-            s = ""
-        assert type(date) is np.datetime64, 'type is: '+str(type(date))
+        if type(date_of_interest) is str:
+            date_of_interest = np.datetime64(date_of_interest)
 
-        i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date - TSD.getDate()))[0])
 
-        scrollValue = int(float(i_doi+1) / len(TSDs) * HBar.maximum())
+        if type(date_of_interest) is np.datetime64:
+            i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date_of_interest - TSD.getDate()))[0])
+        else:
+            i_doi = date_of_interest
 
-        HBar.setValue(scrollValue)
+        step = int(float(HBar.maximum()) / (len(TSDs)+1))
+        HBar.setSingleStep(step)
+        HBar.setPageStep(step*5)
+        HBar.setValue(i_doi * step)
 
 
     def ua_showPxCoordinate_start(self):
@@ -1690,12 +1731,12 @@ class SenseCarbon_TSV:
 
         #get the dates of interes
         dates_of_interest = list()
-        centerTSD = D.cb_centerdate.itemData(D.cb_centerdate.currentIndex())
-        if centerTSD is None:
+        doiTSD = D.cb_doi.itemData(D.cb_doi.currentIndex())
+        if doiTSD is None:
             idx = int(len(self.TS)/2)
-            centerTSD = D.cb_centerdate.itemData(idx)
-            D.cb_centerdate.setCurrentIndex(idx)
-        centerDate = centerTSD.getDate()
+            doiTSD = D.cb_doi.itemData(idx)
+            D.cb_doi.setCurrentIndex(idx)
+        centerDate = doiTSD.getDate()
         allDates = self.TS.getObservationDates()
         i_doi = allDates.index(centerDate)
 
@@ -1760,6 +1801,8 @@ class SenseCarbon_TSV:
 
                 cnt_chips += 1
 
+        self.dlg.scrollArea_imageChip_content.update()
+
         self.scrollToDate(centerDate)
 
         s = ""
@@ -1805,46 +1848,47 @@ class SenseCarbon_TSV:
             TSD, chipData = results
             self.ImageChipBuffer.addDataCube(TSD, chipData)
 
-        assert TSD in self.CHIPWIDGETS.keys()
+        if TSD not in self.CHIPWIDGETS.keys():
+            six.print_('TSD {} does not exist in CHIPBUFFER'.format(TSD), file=sys.stderr)
+        else:
+            for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
+                #imgView.clear()
+                #imageLabel.setScaledContents(True)
 
-        for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
-            #imgView.clear()
-            #imageLabel.setScaledContents(True)
+                #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
+                array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
+                qimg = pg.makeQImage(array, copy=True, transpose=False)
 
-            #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
-            array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
-            qimg = pg.makeQImage(array, copy=True, transpose=False)
+                #rgb2 = rgb.transpose([1,2,0]).copy('C')
+                #qImg = qimage2ndarray.array2qimage(rgb2)
+                #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
 
-            #rgb2 = rgb.transpose([1,2,0]).copy('C')
-            #qImg = qimage2ndarray.array2qimage(rgb2)
-            #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
+                pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
+                imgChipLabel.setPixmap(pxMap)
+                imgChipLabel.update()
+                #imgView.setPixmap(pxMap)
+                #imageLabel.update()
+                #imgView.adjustSize()
+                #pxmap = QPixmap.fromImage(qimg)
+                #
 
-            pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
-            imgChipLabel.setPixmap(pxMap)
-            imgChipLabel.update()
-            #imgView.setPixmap(pxMap)
-            #imageLabel.update()
-            #imgView.adjustSize()
-            #pxmap = QPixmap.fromImage(qimg)
-            #
+                """
+                pxmapitem = QGraphicsPixmapItem(pxmap)
+                if imgChipLabel.scene() is None:
+                    imgChipLabel.setScene(QGraphicsScene())
+                else:
+                    imgChipLabel.scene().clear()
 
-            """
-            pxmapitem = QGraphicsPixmapItem(pxmap)
-            if imgChipLabel.scene() is None:
-                imgChipLabel.setScene(QGraphicsScene())
-            else:
-                imgChipLabel.scene().clear()
+                scene = imgChipLabel.scene()
+                scene.addItem(pxmapitem)
 
-            scene = imgChipLabel.scene()
-            scene.addItem(pxmapitem)
+                imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
+                """
 
-            imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
-            """
-
-            pass
-        self.ICP.layout().update()
-        self.dlg.scrollArea_imageChip_content.update()
-        s = ""
+                pass
+            self.ICP.layout().update()
+            self.dlg.scrollArea_imageChip_content.update()
+            s = ""
 
         pass
 
@@ -2060,7 +2104,8 @@ def run_tests():
             filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
             filesImgRE = file_search(dirSrcRE, '*.vrt', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-            S.ua_addTSImages(files=filesImgLS[0:3])
+            S.ua_addTSImages(files=filesImgLS[0:2])
+            S.ua_addTSImages(files=filesImgRE[0:2])
             #S.ua_addTSImages(files=filesImgLS)
             #S.ua_addTSImages(files=filesImgRE)
             #S.ua_loadExampleTS()
