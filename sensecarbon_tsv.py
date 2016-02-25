@@ -256,7 +256,8 @@ class BandView(object):
         assert type(TS) is TimeSeries
         self.representation = collections.OrderedDict()
         self.TS = TS
-        self.TS.sensorAdded.connect(self.initSensor)
+        self.TS.sensorAdded.connect(self.checkSensors)
+        self.TS.changed.connect(self.checkSensors)
 
         self.Sensors = self.TS.Sensors
 
@@ -266,6 +267,17 @@ class BandView(object):
 
 
 
+    def checkSensors(self):
+        represented_sensors = set(self.representation.keys())
+        ts_sensors = set(self.TS.Sensors.keys())
+
+        to_add = ts_sensors - represented_sensors
+        to_remove = represented_sensors - ts_sensors
+        for S in to_remove:
+            self.representation[S].close()
+            self.representation.pop(S)
+        for S in to_add:
+            self.initSensor(S)
 
 
     def initSensor(self, sensor, recommended_bands=None):
@@ -664,7 +676,8 @@ class TimeSeries(QObject):
         S = TSD.sensor
         self.Sensors[S].remove(TSD)
         self.data.pop(TSD, None)
-
+        if len(self.Sensors[S]) == 0:
+            self.Sensors.pop(S)
         if not _quiet:
             self.changed.emit()
 
@@ -1036,7 +1049,12 @@ class TimeSeriesDatum(object):
 regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
 regYYYY = re.compile(r'(19|20)\d{2}')
+
 def parseAcquisitionDate(text):
+    match = regLandsatSceneID.search(text)
+    if match:
+        id = match.group()
+        return getDateTime64FromYYYYDOY(id[9:16])
     match = regYYYYMMDD.search(text)
     if match:
         return np.datetime64(match.group())
@@ -1398,7 +1416,7 @@ class SenseCarbon_TSV:
 
     def ua_loadTSFile(self, path=None):
         if path is None or path is False:
-            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file')
+            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file', '')
 
         if os.path.exists(path):
 
