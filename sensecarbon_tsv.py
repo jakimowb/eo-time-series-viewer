@@ -858,13 +858,18 @@ class TimeSeriesDatum(object):
         if domains:
             for domain in domains:
                 md = dsImg.GetMetadata_Dict(domain)
+
                 if 'wavelength' in md.keys():
-                    wl = md['wavelength']
-                    wl = re.split('[;,{}]', wl)
-                    wl = [float(w) for w in wl]
-                    assert len(wl) == self.nb
-                    self.wavelength = wl
-                    break
+                    try:
+                        wl = md['wavelength']
+                        wl = re.split('[;,{} ]+', wl)
+                        wl = [w for w in wl if len(w) > 0]
+                        wl = [float(w) for w in wl]
+                        assert len(wl) == self.nb
+                        self.wavelength = wl
+                        break
+                    except:
+                        pass
 
         self.sensor = SensorConfiguration(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
 
