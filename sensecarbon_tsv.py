@@ -281,6 +281,12 @@ class BandView(object):
 
 
     def initSensor(self, sensor, recommended_bands=None):
+        """
+
+        :param sensor:
+        :param recommended_bands:
+        :return:
+        """
         assert type(sensor) is SensorConfiguration
         if sensor not in self.representation.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
@@ -297,6 +303,12 @@ class BandView(object):
 
 
     def getSensorStats(self, sensor, bands):
+        """
+
+        :param sensor:
+        :param bands:
+        :return:
+        """
         assert type(sensor) is SensorConfiguration
         dsRef = gdal.Open(self.Sensors[sensor][0])
         return [dsRef.GetRasterBand(b).ComputeRasterMinMax() for b in bands]
@@ -846,13 +858,18 @@ class TimeSeriesDatum(object):
         if domains:
             for domain in domains:
                 md = dsImg.GetMetadata_Dict(domain)
+
                 if 'wavelength' in md.keys():
-                    wl = md['wavelength']
-                    wl = re.split('[;,{}]', wl)
-                    wl = [float(w) for w in wl]
-                    assert len(wl) == self.nb
-                    self.wavelength = wl
-                    break
+                    try:
+                        wl = md['wavelength']
+                        wl = re.split('[;,{} ]+', wl)
+                        wl = [w for w in wl if len(w) > 0]
+                        wl = [float(w) for w in wl]
+                        assert len(wl) == self.nb
+                        self.wavelength = wl
+                        break
+                    except:
+                        pass
 
         self.sensor = SensorConfiguration(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
 
