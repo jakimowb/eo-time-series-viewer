@@ -403,6 +403,9 @@ class SensorConfiguration(object):
 
 
 class ImageChipLabel(QLabel):
+
+    clicked = pyqtSignal(object)
+
     def __init__(self, parent=None, iface=None, TSD=None, bands=None):
         super(ImageChipLabel, self).__init__(parent)
         self.TSD = TSD
@@ -418,6 +421,10 @@ class ImageChipLabel(QLabel):
              ,'RGB:  {}'.format(','.join([str(b) for b in bands]))]
 
         self.setToolTip(list2str(tt))
+
+    def mouseReleaseEvent(self, event):
+	    self.clicked.emit(self)
+
 
 
     def contextMenuEvent(self, event):
@@ -1361,7 +1368,7 @@ class SenseCarbon_TSV:
         D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
         D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
         D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
-
+        D.btn_labeling_clear.clicked.connect(D.tb_labeling_text.clear)
         D.actionAdd_Images.triggered.connect(lambda :self.ua_addTSImages())
         D.actionAdd_Masks.triggered.connect(lambda :self.ua_addTSMasks())
         D.actionLoad_Time_Series.triggered.connect(self.ua_loadTSFile)
@@ -1804,6 +1811,7 @@ class SenseCarbon_TSV:
 
                     imgLabel.setMinimumSize(size_x, size_y)
                     imgLabel.setMaximumSize(size_x, size_y)
+                    imgLabel.clicked.connect(self.ua_collect_date)
 
 
                     viewList.append(imgLabel)
@@ -1857,6 +1865,22 @@ class SenseCarbon_TSV:
             self.TS.getSpatialChips_parallel(bbWkt, srsWkt, TSD_band_list=missing)
 
 
+    def ua_collect_date(self, ICL):
+        if not self.dlg.rb_labeling_none.isChecked():
+            txt = self.dlg.tb_labeling_text.toPlainText()
+            reg = re.compile('\d{4}-\d{2}-\d{2}', re.I | re.MULTILINE)
+            dates = set([np.datetime64(m) for m in reg.findall(txt)])
+            doi = ICL.TSD.getDate()
+
+            if self.dlg.rb_labeling_addDates.isChecked():
+                dates.add(doi)
+            elif self.dlg.rb_labeling_removeDates.isChecked():
+                if doi in dates:
+                    dates.remove(doi)
+
+            dates = sorted(list(dates))
+            txt = ' '.join([d.astype(str) for d in dates])
+            self.dlg.tb_labeling_text.setText(txt)
 
 
     def ua_showPxCoordinate_addChips(self, results, TSD=None):
