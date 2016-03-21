@@ -35,15 +35,23 @@ try:
     import qgis
     import qgis_add_ins
     qgis_available = True
+
+    import console.console_output
+    c = console.show_console()
+    sys.stdout = c.writeOut
+    sys.stderr = c.writeOut
+
 except:
     qgis_available = False
 
 import numpy as np
-import six
+
 import multiprocessing
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+import sys
+import code
+import codecs
 
 #abbreviations
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
@@ -251,7 +259,10 @@ LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
                   }
 
 
-class BandView(object):
+class BandView(QObject):
+
+    removeView = pyqtSignal(object)
+
     def __init__(self, TS, recommended_bands=None):
         assert type(TS) is TimeSeries
         self.representation = collections.OrderedDict()
@@ -282,17 +293,18 @@ class BandView(object):
 
     def initSensor(self, sensor, recommended_bands=None):
         """
-
         :param sensor:
         :param recommended_bands:
         :return:
         """
+
         assert type(sensor) is SensorConfiguration
         if sensor not in self.representation.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
             #x = tsv_widgets.BandViewSettings(sensor)
             x = tsv_widgets.ImageChipViewSettings(sensor)
+            #x.removeView.connect(lambda : self.removeView.emit(self))
 
             if recommended_bands is not None:
                 assert min(recommended_bands) > 0
@@ -1973,7 +1985,9 @@ class SenseCarbon_TSV:
 
 
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
-        self.BAND_VIEWS.append(BandView(self.TS, recommended_bands=band_recommendation))
+        bandView = BandView(self.TS, recommended_bands=band_recommendation)
+        #bandView.removeView.connect(self.ua_removeBandView)
+        self.BAND_VIEWS.append(bandView)
         self.refreshBandViews()
 
 
@@ -2014,10 +2028,7 @@ class SenseCarbon_TSV:
 
     def ua_removeBandView(self, w):
         self.BAND_VIEWS.remove(w)
-        L = self.dlg.scrollArea_viewsWidget.layout()
-        L.removeWidget(w)
-        w.deleteLater()
-        self.setViewNames()
+        self.refreshBandViews()
 
     def ua_clear_TS(self):
         #remove views
