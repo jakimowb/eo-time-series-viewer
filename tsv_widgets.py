@@ -161,7 +161,9 @@ class ImageChipViewSettings(QGroupBox, FORM_CLASS_IMAGECHIPVIEWSETTINGS):
         menu = QMenu()
 
         #add general options
-
+        action = menu.addAction('Remove Band View')
+        action.setToolTip('Removes this band view')
+        action.triggered.connect(lambda : self.removeView.emit())
         #add QGIS specific options
         txt = QApplication.clipboard().text()
         if re.search('<!DOCTYPE(.|\n)*rasterrenderer.*type="multibandcolor"', txt) is not None:
