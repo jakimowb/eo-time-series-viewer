@@ -29,21 +29,30 @@ from qgis.core import *
 from osgeo import gdal, ogr, osr, gdal_array
 
 DEBUG = True
-
+import qgis.analysis
 try:
     from qgis.gui import *
     import qgis
     import qgis_add_ins
     qgis_available = True
+
+    #import console.console_output
+    #console.show_console()
+    #sys.stdout = console.console_output.writeOut()
+    #sys.stderr = console.console_output.writeOut()
+
 except:
+    print('Can not find QGIS instance')
     qgis_available = False
 
 import numpy as np
-import six
+
 import multiprocessing
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+import sys
+import code
+import codecs
 
 #abbreviations
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
@@ -241,17 +250,20 @@ class TimeSeriesItemModel(QAbstractItemModel):
     def columnCount(self, index=QModelIndex()):
         return 1
 
-LUT_SensorNames = {(6,30.,30.): 'L7 ETM+' \
-                  ,(7,30.,30.): 'L8 OLI' \
-                  ,(4,10.,10.): 'S2 MSI 10m' \
-                  ,(6,20.,20.): 'S2 MSI 20m' \
-                  ,(3,30.,30.): 'S2 MSI 60m' \
-                  ,(3,30.,30.): 'S2 MSI 60m' \
-                  ,(5,5.,5.): 'RE 5m' \
-                  }
+LUT_SENSORNAMES = {(6, 30., 30.): 'Landsat Legacy' \
+                  , (7,30.,30.): 'L8 OLI' \
+                  , (4,10.,10.): 'S2 MSI 10m' \
+                  , (6,20.,20.): 'S2 MSI 20m' \
+                  , (3,30.,30.): 'S2 MSI 60m' \
+                  , (3,30.,30.): 'S2 MSI 60m' \
+                  , (5,5.,5.): 'RE 5m' \
+                   }
 
 
-class BandView(object):
+class BandView(QObject):
+
+    removeView = pyqtSignal(object)
+
     def __init__(self, TS, recommended_bands=None):
         assert type(TS) is TimeSeries
         self.representation = collections.OrderedDict()
@@ -282,17 +294,18 @@ class BandView(object):
 
     def initSensor(self, sensor, recommended_bands=None):
         """
-
         :param sensor:
         :param recommended_bands:
         :return:
         """
+
         assert type(sensor) is SensorConfiguration
         if sensor not in self.representation.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
             #x = tsv_widgets.BandViewSettings(sensor)
             x = tsv_widgets.ImageChipViewSettings(sensor)
+            #x.removeView.connect(lambda : self.removeView.emit(self))
 
             if recommended_bands is not None:
                 assert min(recommended_bands) > 0
@@ -367,8 +380,8 @@ class SensorConfiguration(object):
 
         if sensor_name is None:
             id = (self.nb, self.px_size_x, self.px_size_y)
-            if id in LUT_SensorNames.keys():
-                sensor_name = LUT_SensorNames[id]
+            if id in LUT_SENSORNAMES.keys():
+                sensor_name = LUT_SENSORNAMES[id]
             else:
                 sensor_name = '{} b x {} m'.format(self.nb, self.px_size_x)
 
@@ -403,10 +416,16 @@ class SensorConfiguration(object):
 
 
 class ImageChipLabel(QLabel):
-    def __init__(self, parent=None, iface=None, TSD=None, bands=None):
-        super(ImageChipLabel, self).__init__(parent)
+
+    clicked = pyqtSignal(object, object)
+
+
+    def __init__(self, time_series_viewer=None, iface=None, TSD=None, bands=None):
+        super(ImageChipLabel, self).__init__(time_series_viewer)
+        self.TSV = time_series_viewer
         self.TSD = TSD
         self.bn = os.path.basename(self.TSD.pathImg)
+
         self.iface=iface
         self.bands=bands
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
@@ -419,12 +438,18 @@ class ImageChipLabel(QLabel):
 
         self.setToolTip(list2str(tt))
 
+    def mouseReleaseEvent(self, event):
+	    self.clicked.emit(self, event)
+
+
 
     def contextMenuEvent(self, event):
         menu = QMenu()
         #add general options
+
         action = menu.addAction('Copy to clipboard')
         action.triggered.connect(lambda : QApplication.clipboard().setPixmap(self.pixmap()))
+
 
         #add QGIS specific options
         if self.iface:
@@ -1302,7 +1327,7 @@ class ImageChipBuffer(object):
 
 list2str = lambda ll : '\n'.join([str(l) for l in ll])
 
-class SenseCarbon_TSV:
+class TimeSeriesViewer:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
@@ -1361,7 +1386,7 @@ class SenseCarbon_TSV:
         D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
         D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
         D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
-
+        D.btn_labeling_clear.clicked.connect(D.tb_labeling_text.clear)
         D.actionAdd_Images.triggered.connect(lambda :self.ua_addTSImages())
         D.actionAdd_Masks.triggered.connect(lambda :self.ua_addTSMasks())
         D.actionLoad_Time_Series.triggered.connect(self.ua_loadTSFile)
@@ -1390,13 +1415,14 @@ class SenseCarbon_TSV:
         if self.iface:
             self.canvas = self.iface.mapCanvas()
             self.menu = self.tr(u'&SenseCarbon TSV')
-            self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
-            self.toolbar.setObjectName(u'SenseCarbon TSV')
+            #self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
+            #self.toolbar.setObjectName(u'SenseCarbon TSV')
 
             self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
             self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
             self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
             self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
+
             #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
 
         self.ICP = self.dlg.scrollArea_imageChip_content.layout()
@@ -1581,88 +1607,20 @@ class SenseCarbon_TSV:
         return QCoreApplication.translate('EnMAPBox', message)
 
 
-    def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip="SenseCarbon Time Series Viewer - a tool to visualize a time series of remote sensing imagery",
-        whats_this="Open SenseCarbon Time Series Viewer",
-        parent=None):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-        :type icon_path: str
-
-        :param text: Text that should be shown in menu items for this action.
-        :type text: str
-
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-        :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
-        :type parent: QWidget
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
-
-        icon = QIcon(icon_path)
-        action = QAction(icon, text, parent)
-        action.triggered.connect(callback)
-        action.setEnabled(enabled_flag)
-
-        if status_tip is not None:
-            action.setStatusTip(status_tip)
-
-        if whats_this is not None:
-            action.setWhatsThis(whats_this)
-
-        if add_to_toolbar:
-            self.toolbar.addAction(action)
-
-        if add_to_menu:
-            self.iface.addPluginToMenu(
-                self.menu,
-                action)
-
-        self.actions.append(action)
-
-        return action
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         self.icon_path = ':/plugins/SenseCarbon/icon.png'
-        self.add_action(
-            self.icon_path,
-            text=self.tr(u'SenseCarbon Time Series Viewer'),
-            callback=self.run,
-            parent=self.iface.mainWindow())
+
+        icon = QIcon(self.icon_path)
+        self.action = QAction(icon, self.tr(u'SenseCarbon Time Series Viewer'), self.iface.mainWindow())
+        self.action.triggered.connect(self.run)
+        #action.setEnabled(enabled_flag)
+
+        #add to toolbar:
+        self.iface.addToolBarIcon(self.action)
+
 
 
     def ua_addTSD_to_QGIS(self, TSD, bands):
@@ -1673,14 +1631,8 @@ class SenseCarbon_TSV:
 
 
     def unload(self):
-        """Removes the plugin menu item and icon from QGIS GUI."""
-        for action in self.actions:
-            self.iface.removePluginMenu(
-                self.tr(u'&SenseCarbon Time Series Viewer'),
-                action)
-            self.iface.removeToolBarIcon(action)
-        # remove the toolbar
-        del self.toolbar
+        """Removes the plugin menu item and icon """
+        self.iface.removeToolBarIcon(self.action)
 
     def run(self):
         """Run method that performs all the real work"""
@@ -1800,10 +1752,11 @@ class SenseCarbon_TSV:
                     #imv = QGraphicsView(self.dlg.scrollArea_imageChip_content)
                     #imv = MyGraphicsView(self.dlg.scrollArea_imageChip_content, iface=self.iface, path=TSD.pathImg, bands=bands)
                     #imv = pg.ImageView(view=None)
-                    imgLabel = ImageChipLabel(iface=self.iface, TSD=TSD, bands=bands)
+                    imgLabel = ImageChipLabel(time_series_viewer=self.dlg, iface=self.iface, TSD=TSD, bands=bands)
 
                     imgLabel.setMinimumSize(size_x, size_y)
                     imgLabel.setMaximumSize(size_x, size_y)
+                    imgLabel.clicked.connect(self.ua_collect_date)
 
 
                     viewList.append(imgLabel)
@@ -1857,6 +1810,21 @@ class SenseCarbon_TSV:
             self.TS.getSpatialChips_parallel(bbWkt, srsWkt, TSD_band_list=missing)
 
 
+    def ua_collect_date(self, ICL, event):
+        if self.dlg.rb_labeling_activate.isChecked():
+            txt = self.dlg.tb_labeling_text.toPlainText()
+            reg = re.compile('\d{4}-\d{2}-\d{2}', re.I | re.MULTILINE)
+            dates = set([np.datetime64(m) for m in reg.findall(txt)])
+            doi = ICL.TSD.getDate()
+
+            if event.button() == Qt.LeftButton:
+                dates.add(doi)
+            elif event.button() == Qt.MiddleButton and doi in dates:
+                dates.remove(doi)
+
+            dates = sorted(list(dates))
+            txt = ' '.join([d.astype(str) for d in dates])
+            self.dlg.tb_labeling_text.setText(txt)
 
 
     def ua_showPxCoordinate_addChips(self, results, TSD=None):
@@ -1949,7 +1917,9 @@ class SenseCarbon_TSV:
 
 
     def ua_addBandView(self, band_recommendation = [3, 2, 1]):
-        self.BAND_VIEWS.append(BandView(self.TS, recommended_bands=band_recommendation))
+        bandView = BandView(self.TS, recommended_bands=band_recommendation)
+        #bandView.removeView.connect(self.ua_removeBandView)
+        self.BAND_VIEWS.append(bandView)
         self.refreshBandViews()
 
 
@@ -1990,10 +1960,7 @@ class SenseCarbon_TSV:
 
     def ua_removeBandView(self, w):
         self.BAND_VIEWS.remove(w)
-        L = self.dlg.scrollArea_viewsWidget.layout()
-        L.removeWidget(w)
-        w.deleteLater()
-        self.setViewNames()
+        self.refreshBandViews()
 
     def ua_clear_TS(self):
         #remove views
@@ -2112,7 +2079,7 @@ def run_tests():
         import PyQt4.Qt
 
         app=PyQt4.Qt.QApplication([])
-        S = SenseCarbon_TSV(None)
+        S = TimeSeriesViewer(None)
         S.run()
 
         if True:
@@ -2146,7 +2113,7 @@ def run_tests():
 
         a = QgsApplication([], True)
 
-        S = SenseCarbon_TSV(a)
+        S = TimeSeriesViewer(a)
         S.run()
 
         if True:
