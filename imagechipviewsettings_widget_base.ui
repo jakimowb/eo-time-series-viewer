@@ -208,13 +208,13 @@
  </widget>
  <tabstops>
   <tabstop>cb_r</tabstop>
-  <tabstop>tb_range_r_min</tabstop>
-  <tabstop>tb_range_r_max</tabstop>
   <tabstop>cb_g</tabstop>
-  <tabstop>tb_range_g_min</tabstop>
-  <tabstop>tb_range_g_max</tabstop>
   <tabstop>cb_b</tabstop>
+  <tabstop>tb_range_r_min</tabstop>
+  <tabstop>tb_range_g_min</tabstop>
   <tabstop>tb_range_b_min</tabstop>
+  <tabstop>tb_range_r_max</tabstop>
+  <tabstop>tb_range_g_max</tabstop>
   <tabstop>tb_range_b_max</tabstop>
  </tabstops>
  <resources/>
