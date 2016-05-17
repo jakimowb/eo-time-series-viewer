@@ -1340,10 +1340,10 @@ class TimeSeriesViewer:
         """
         # Save reference to the QGIS interface
         self.iface = iface
+        if isinstance(self.iface, qgis.gui.QgisInterface):
+            import console
+            console.show_console()
 
-
-        #if isinstance(iface, QgsApplication):
-        #self.iface = iface
 
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
@@ -1544,6 +1544,9 @@ class TimeSeriesViewer:
         D.doubleSpinBox_subset_size_y.setValue(dy)
         D.spinBox_coordinate_x.setValue(x)
         D.spinBox_coordinate_y.setValue(y)
+
+        if D.cb_loadSubsetDirectly.isChecked():
+            self.ua_showPxCoordinate_start()
 
     def qgs_handleMouseDown(self, pt, btn):
         pass
