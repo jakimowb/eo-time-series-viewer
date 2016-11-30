@@ -47,7 +47,7 @@ except:
 
 import numpy as np
 
-import multiprocessing
+import multiprocessing, site
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import sys
@@ -55,56 +55,24 @@ import code
 import codecs
 
 #abbreviations
-mkdir = lambda p: os.makedirs(p, exist_ok=True)
-jp = os.path.join
+from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
 
-def expand_python_path(path):
-    if path not in sys.path:
-        sys.path.append(path)
-
-
+site.addsitedir(DIR_SITE_PACKAGES)
 
 #I don't know why, but this is required to run this in QGIS
+#todo: still required?
 path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
 
 #ensure that required non-standard modules are available
-PLUGIN_DIR = os.path.dirname(__file__)
-LIB_DIR = jp(PLUGIN_DIR, 'libs')
-expand_python_path(PLUGIN_DIR)
-expand_python_path(LIB_DIR)
-try:
-    import pyqtgraph
-except:
-    expand_python_path(jp(LIB_DIR,'pyqtgraph'))
 
 import pyqtgraph as pg
-
-import tsv_widgets
-from sensecarbon_tsv_gui import *
-
-
+from timeseriesviewer.ui import widgets
+from timeseriesviewer.ui.sensecarbon_tsv_gui import *
 
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
-
-def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
-    assert rootdir is not None
-    if not os.path.isdir(rootdir):
-        six.print_("Path is not a directory:{}".format(rootdir), file=sys.stderr)
-
-    results = []
-
-    for root, dirs, files in os.walk(rootdir):
-        for file in files:
-            if (ignoreCase and fnmatch.fnmatch(file.lower(), wildcard.lower())) \
-                    or fnmatch.fnmatch(file, wildcard):
-                results.append(os.path.join(root, file))
-        if not recursive:
-            break
-    return results
-
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
@@ -304,7 +272,7 @@ class BandView(QObject):
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
             #x = tsv_widgets.BandViewSettings(sensor)
-            x = tsv_widgets.ImageChipViewSettings(sensor)
+            x = widgets.ImageChipViewSettings(sensor)
             #x.removeView.connect(lambda : self.removeView.emit(self))
 
             if recommended_bands is not None:
@@ -1121,38 +1089,6 @@ def getDateTime64FromDOY(year, doy):
         return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
 
 
-class PictureTest(QMainWindow):
-
-    def __init__(self, parent=None, qImage=None):
-        super(PictureTest,self).__init__(parent)
-        self.setWindowTitle("Show Image with pyqt")
-        self.imageLabel=QLabel()
-        self.imageLabel.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Ignored)
-        self.setCentralWidget(self.imageLabel)
-
-        self.cv_img = None
-
-        if qImage:
-            self.addImage(qImage)
-
-    def addImage(self, qImage):
-        pxmap = QPixmap.fromImage(qImage)
-        self.addPixmap(pxmap)
-
-    def addPixmap(self, pixmap):
-        pxmap = pixmap.scaled(self.imageLabel.size(), Qt.KeepAspectRatio)
-        self.imageLabel.setPixmap(pxmap)
-        self.imageLabel.adjustSize()
-        self.imageLabel.update()
-
-    def addNumpy(self, data):
-
-
-        img = Array2Image(data)
-        self.addImage(img)
-
-        #self.resize(img.width(), img.height())
-
 def getChip3d(chips, rgb_idx, ranges):
     assert len(rgb_idx) == 3 and len(rgb_idx) == len(ranges)
     for i in rgb_idx:
@@ -1345,25 +1281,9 @@ class TimeSeriesViewer:
             console.show_console()
 
 
-        # initialize plugin directory
-        self.plugin_dir = os.path.dirname(__file__)
-        # initialize locale
-        locale = 'placeholder'
-        #locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'EnMAPBox_{}.qm'.format(locale))
-
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-
-            if qVersion() > '4.3.3':
-                QCoreApplication.installTranslator(self.translator)
-
         # Create the dialog (after translation) and keep reference
-        self.dlg = SenseCarbon_TSVGui()
+        from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
+        self.dlg = TimeSeriesViewerUI()
         D = self.dlg
 
         #init on empty time series
@@ -1402,21 +1322,12 @@ class TimeSeriesViewer:
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
 
 
-
-
-        # Declare instance attributes
-        self.actions = []
-        #self.menu = self.tr(u'&EnMAP-Box')
-
         self.RectangleMapTool = None
         self.PointMapTool = None
         self.canvas_srs = osr.SpatialReference()
 
         if self.iface:
             self.canvas = self.iface.mapCanvas()
-            self.menu = self.tr(u'&SenseCarbon TSV')
-            #self.toolbar = self.iface.addToolBar(u'SenseCarbon TSV')
-            #self.toolbar.setObjectName(u'SenseCarbon TSV')
 
             self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
             self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
@@ -1431,6 +1342,13 @@ class TimeSeriesViewer:
 
         self.check_enabled()
         s = ""
+
+    @staticmethod
+    def icon():
+        return QIcon(':/plugins/SenseCarbon/icon.png')
+
+    def icon(self):
+        return TimeSeriesViewer.icon()
 
     def init_TimeSeries(self, TS=None):
 
@@ -1481,7 +1399,8 @@ class TimeSeriesViewer:
 
 
     def ua_loadExampleTS(self):
-        import sensecarbon_tsv
+        if __name__ == '__main__':
+            import timeseriesviewer
         path_example = file_search(os.path.dirname(sensecarbon_tsv.__file__), 'testdata.txt', recursive=True)
         if path_example is None or len(path_example) == 0:
             QMessageBox.information(self.dlg, 'File not found', 'testdata.txt - this file describes an exemplary time series.')
@@ -1611,19 +1530,6 @@ class TimeSeriesViewer:
 
 
 
-    def initGui(self):
-        """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
-        self.icon_path = ':/plugins/SenseCarbon/icon.png'
-
-        icon = QIcon(self.icon_path)
-        self.action = QAction(icon, self.tr(u'SenseCarbon Time Series Viewer'), self.iface.mainWindow())
-        self.action.triggered.connect(self.run)
-        #action.setEnabled(enabled_flag)
-
-        #add to toolbar:
-        self.iface.addToolBarIcon(self.action)
-
 
 
     def ua_addTSD_to_QGIS(self, TSD, bands):
@@ -1638,10 +1544,6 @@ class TimeSeriesViewer:
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
-        """Run method that performs all the real work"""
-
-        #self.dlg.setWindowIcon(QIcon(self.icon_path))
-        # show the GUI
         self.dlg.show()
 
 
