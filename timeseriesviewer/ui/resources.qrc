@@ -1,0 +1,6 @@
+<RCC>
+ <qresource prefix="timseriesviewer">
+  <file alias="testdata">../../example/testdata.txt</file>
+  <file alias="icon">icons/icon.png</file>
+ </qresource>
+</RCC>
