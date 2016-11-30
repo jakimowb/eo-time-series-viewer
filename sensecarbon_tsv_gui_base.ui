@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1035</width>
-    <height>983</height>
+    <width>1137</width>
+    <height>816</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -245,8 +245,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>891</width>
-              <height>244</height>
+              <width>993</width>
+              <height>204</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -290,7 +290,7 @@
             <string>Load or reload time series image chips. Requires that the time series is specified and which bands are to be shown.</string>
            </property>
            <property name="text">
-            <string>Load image chips!</string>
+            <string>Load image subset!</string>
            </property>
            <property name="flat">
             <bool>false</bool>
@@ -581,6 +581,13 @@
                 </widget>
                </item>
                <item>
+                <widget class="QCheckBox" name="cb_loadSubsetDirectly">
+                 <property name="text">
+                  <string>direct load</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <spacer name="horizontalSpacer_7">
                  <property name="orientation">
                   <enum>Qt::Horizontal</enum>
@@ -846,19 +853,6 @@
            </layout>
           </widget>
          </item>
-         <item>
-          <spacer name="verticalSpacer_5">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
        </widget>
        <widget class="QWidget" name="tab_4">
@@ -934,19 +928,6 @@
            </property>
           </widget>
          </item>
-         <item>
-          <spacer name="verticalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
        </widget>
       </widget>
@@ -994,7 +975,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1035</width>
+     <width>1137</width>
      <height>21</height>
     </rect>
    </property>

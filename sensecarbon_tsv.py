@@ -1314,7 +1314,7 @@ class ImageChipBuffer(object):
         SRS = BBox.GetSpatialReference()
         assert SRS is not None
         if self.BBox is None or not self.BBox.Equals(BBox) or not self.SRS.IsSame(SRS):
-            self.data.clear()
+            self.clear()
             self.BBox = BBox
             self.SRS = SRS
 
