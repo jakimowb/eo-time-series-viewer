@@ -4,7 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtXml import *
 from PyQt4.QtXmlPatterns import *
-ROOT = os.path.dirname(os.path.dirname(__file__))
+
 from timeseriesviewer import DIR_UI, file_search
 jp = os.path.join
 
@@ -18,22 +18,22 @@ def getDOMAttributes(elem):
         values[str(attr.nodeName())] = attr.nodeValue()
     return values
 
-def make():
+def make(ROOT):
     #find ui files
     ui_files = file_search(ROOT, '*.ui', recursive=True)
     qrcs = set()
 
     doc = QDomDocument()
+    reg = re.compile('(?<=resource=")[^"]+\.qrc(?=")')
+
     for ui_file in ui_files:
         pathDir = os.path.dirname(ui_file)
-        if doc.setContent(QFile(ui_file)):
-            items = doc.elementsByTagName('iconset')
-            for i in range(items.count()):
-                nodeQRC = items.item(i)
-                attr = getDOMAttributes(nodeQRC.toElement())
-                if 'resource' in attr.keys():
-                    qrcs.add((pathDir, str(attr['resource'])))
-                s = ""
+        doc.setContent(QFile(ui_file))
+        includeNodes = doc.elementsByTagName('include')
+        for i in range(includeNodes.count()):
+            attr = getDOMAttributes(includeNodes.item(i).toElement())
+            if 'location' in attr.keys():
+                qrcs.add((pathDir, str(attr['location'])))
 
     #compile Qt resource files
     #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
@@ -120,7 +120,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
             s = ""
 
 
-def png2qrc(icondir, pathQrc):
+def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
     pathQrc = os.path.abspath(pathQrc)
     dirQrc = os.path.dirname(pathQrc)
     app = QApplication([])
@@ -130,8 +130,8 @@ def png2qrc(icondir, pathQrc):
 
     query = QXmlQuery()
     #query.setQuery("doc('{}')/RCC/qresource/file".format(pathQrc))
-    query.setQuery("doc('{}')/RCC/qresource[@prefix=\"enmapbox/png\"]/file".format(pathQrc))
-    query.setQuery("for $x in doc('{}')/RCC/qresource[@prefix=\"enmapbox/png\"] return data($x)".format(pathQrc))
+    query.setQuery("doc('{}')/RCC/qresource[@prefix=\"{}\"]/file".format(pathQrc, pngprefix))
+    query.setQuery("for $x in doc('{}')/RCC/qresource[@prefix=\"{}\"] return data($x)".format(pathQrc, pngprefix))
     assert query.isValid()
     #elem = doc.elementsByTagName('qresource')print
     pngFiles = [r.strip() for r in str(query.evaluateToString()).split('\n')]
@@ -142,19 +142,36 @@ def png2qrc(icondir, pathQrc):
         pngFiles.add(xmlPath)
 
     pngFiles = sorted(list(pngFiles))
-    resourceNodes = doc.elementsByTagName('qresource')
-    for i in range(resourceNodes.count()):
-        resourceNode = resourceNodes.item(i).toElement()
-        if resourceNode.hasAttribute('prefix') and resourceNode.attribute('prefix') == "enmapbox/png":
-            childs = resourceNode.childNodes()
-            while not childs.isEmpty():
-                node = childs.item(0)
-                node.parentNode().removeChild(node)
 
-            for pngFile in pngFiles:
-                node = doc.createElement('file')
-                node.appendChild(doc.createTextNode(pngFile))
-                resourceNode.appendChild(node)
+    def getResourcePrefixNodes(prefix):
+        resourceNodes = doc.elementsByTagName('qresource')
+        nodeList = []
+        for i in range(resourceNodes.count()):
+            resourceNode = resourceNodes.item(i).toElement()
+            if resourceNode.hasAttribute('prefix') and resourceNode.attribute('prefix') == prefix:
+                nodeList.append(resourceNode)
+        return nodeList
+
+
+    resourceNode = getResourcePrefixNodes(pngprefix)
+    if len(resourceNode) > 0:
+        resourceNode = resourceNode[0]
+    else:
+        resourceNode = doc.createElement('qresource')
+        resourceNode.setAttribute('prefix', pngprefix)
+
+    #remove childs, as we have all stored in list pngFiles
+    childs = resourceNode.childNodes()
+    while not childs.isEmpty():
+        node = childs.item(0)
+        node.parentNode().removeChild(node)
+
+    #insert new childs
+    for pngFile in pngFiles:
+        node = doc.createElement('file')
+        node.appendChild(doc.createTextNode(pngFile))
+        resourceNode.appendChild(node)
+
     f = open(pathQrc, "w")
     f.write(doc.toString())
     f.close()
@@ -165,10 +182,13 @@ def png2qrc(icondir, pathQrc):
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
-    if False:
+    if True:
         #convert SVG to PNG and link them into the resource file
-        svg2png(icondir, overwrite=True)
+        #svg2png(icondir, overwrite=True)
+
+        #add png icons to qrc file
         png2qrc(icondir, pathQrc)
-    if True: make()
+    if True:
+        make(DIR_UI)
     print('Done')
 
