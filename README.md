@@ -1,16 +1,17 @@
 # README #
 
-The SenseCarbon Time Series Viewer can be used to visualize time series of remote sensing data.
+The SenseCarbon TimeSeriesViewer is tool to visualize raster file based time series data.
 Its major aims are: 
 
-(i) to support a [Quantum GIS (QGIS)](www.qgis.org) based labeling of time series data, 
+(i) support labeling of time series data based on [Quantum GIS (QGIS)](www.qgis.org)
 
-(ii) to use the remote sensing imagery "as is" 
+(ii) use remote sensing imagery "as is", i.e. support each raster format that is read by QGIS
 
-(iii) to avoid a complicated installation process
+(iii) easy installation
 
 Please check the [Wiki](https://bitbucket.org/jakimowb/sensecarbontsviewer/wiki/Home) for more information.
 
 ## Licence and Use ##
 
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+As this software makes use of Qt and QGIS API, it has to be licenced by [GPL-3 Licence](GPL-3.0.txt).
+

@@ -1,0 +1,10 @@
+# Untracked directories
+.idea/
+
+# Untrack compiled files
+*.pyc 
+*.pyd
+*.pyc
+/documentation/build/doctrees/
+enmapbox/testdata/AlpineForeland/AF_Image.bip.aux.xml
+enmapbox/testdata/AlpineForeland/AF_LAI.bsq.aux.xml
