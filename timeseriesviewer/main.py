@@ -22,7 +22,7 @@
 """
 
 # Import the code for the dialog
-import os, sys, re, fnmatch, collections, copy, traceback
+import os, sys, re, fnmatch, collections, copy, traceback, six
 from qgis.core import *
 #os.environ['PATH'] += os.pathsep + r'C:\OSGeo4W64\bin'
 
@@ -70,7 +70,6 @@ if os.path.exists(path):
 
 import pyqtgraph as pg
 from timeseriesviewer.ui import widgets
-from timeseriesviewer.ui.sensecarbon_tsv_gui import *
 
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
 
@@ -1399,13 +1398,12 @@ class TimeSeriesViewer:
 
 
     def ua_loadExampleTS(self):
-        if __name__ == '__main__':
-            import timeseriesviewer
-        path_example = file_search(os.path.dirname(sensecarbon_tsv.__file__), 'testdata.txt', recursive=True)
-        if path_example is None or len(path_example) == 0:
-            QMessageBox.information(self.dlg, 'File not found', 'testdata.txt - this file describes an exemplary time series.')
+        from timeseriesviewer import DIR_EXAMPLE
+        path_example = jp(DIR_EXAMPLE, 'testdata.txt')
+        if not os.path.exists(path_example):
+            QMessageBox.information(self.dlg, 'File not found', '{} - this file describes an exemplary time series.'.format(path_example))
         else:
-            self.ua_loadTSFile(path=path_example[0])
+            self.ua_loadTSFile(path=path_example)
 
 
 
