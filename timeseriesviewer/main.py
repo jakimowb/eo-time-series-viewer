@@ -1408,6 +1408,7 @@ class TimeSeriesViewer:
             self.ua_loadTSFile(path=path_example[0])
 
 
+
     def ua_selectByRectangle(self):
         if self.RectangleMapTool is not None:
             self.canvas.setMapTool(self.RectangleMapTool)
