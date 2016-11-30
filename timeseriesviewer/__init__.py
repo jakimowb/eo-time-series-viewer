@@ -9,7 +9,7 @@ DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
 DIR_UI = jp(DIR,*['ui'])
-
+DIR_EXAMPLE = jp(DIR_REPO, 'example')
 DEBUG = True
 
 def dprint(text, file=None):
