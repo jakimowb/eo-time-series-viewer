@@ -1,7 +1,11 @@
 import os, sys, fnmatch, six, subprocess, re
-from PyQt4.QtSvg import *
-from PyQt4.QtCore import *
+from qgis import *
+from qgis.core import *
+from qgis.gui import *
 from PyQt4.QtGui import *
+from PyQt4.QtCore import *
+
+from PyQt4.QtSvg import *
 from PyQt4.QtXml import *
 from PyQt4.QtXmlPatterns import *
 
@@ -23,7 +27,7 @@ def getDOMAttributes(elem):
     return values
 
 
-def createTestData(pathTS, subsetRectangle, crs, dirTestData):
+def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
     lines = open(pathTS).readlines()
     import tempfile, random
     from timeseriesviewer.main import TimeSeries, TimeSeriesDatum
@@ -44,53 +48,71 @@ def createTestData(pathTS, subsetRectangle, crs, dirTestData):
     max_offset_y = sw / 100 * max_offset
     center = subsetRectangle.center()
 
-    os.mkdir(dirTestData)
-    pathVRT = tempfile.mkstemp(suffix='.vrt', prefix='tempVRT')
+    if not os.path.exists(dirTestData):
+        os.mkdir(dirTestData)
+    dirImages = os.path.join(dirTestData, 'Images')
+    if not os.path.exists(dirImages):
+        os.mkdir(dirImages)
 
-    def random_xy():
-        offset_x = center.x() + random.randrange(-max_offset_x, max_offset_x)
-        offset_y = center.y() + random.randrange(-max_offset_y, max_offset_y)
+    def random_offset():
+        offset_x = random.randrange(-max_offset_x, max_offset_x) if max_offset_x > 0 else 0
+        offset_y = random.randrange(-max_offset_y, max_offset_y) if max_offset_y > 0 else 0
         return offset_x, offset_y
 
-    for TSD in TS:
+    drvMEM = gdal.GetDriverByName('MEM')
+
+    from timeseriesviewer.main import transformGeometry
+    for TSD in TS.data:
         assert isinstance(TSD, TimeSeriesDatum)
 
-        ox, oy = random_xy()
+        ox, oy = random_offset()
+
         UL = QgsPoint(subsetRectangle.xMinimum() + ox,
                       subsetRectangle.yMaximum() + oy)
         LR = QgsPoint(subsetRectangle.xMaximum() + ox,
                       subsetRectangle.yMinimum() + oy)
-
-        lyr = QgsRasterLayer(TSD.pathImg)
-        crsDS = lyr.dataProvider().crs()
-        assert isinstance(crsDS, QgsCoordinateReferenceSystem)
-        transform = QgsCoordinateTransform(crs, crsDS)
-        #transform UL and LR into CRS of source data set
-        UL = transform.transform(UL)
-        LR = transform.transform(LR)
+        UL = transformGeometry(UL, crs, TSD.crs)
+        LR = transformGeometry(LR, crs, TSD.crs)
         BBOX = QgsRectangle(UL, LR)
-
-        #crop src dataset to UL-LR box
+        if not BBOX.intersects(TSD.getBoundingBox()):
+            print('Please note: no intersection with BBOX: '+TSD.pathImg)
+        #crop src dataset to BBOX
         #for this we use GDAL
+        LUT_EXT = {'ENVI':'.bsq'}
 
-        dsSrc = gdal.Open(TSD.pathImg)
-        assert isinstance(dsSrc, gdal.Dataset)
-        proj = dsSrc.GetProjection()
-        trans = dsSrc.GetGeoTransform()
-        trans[0] = UL.x()
-        trans[3] = UL.y()
 
-        ns = BBOX.width() / lyr.rasterUnitsPerPixelX()
-        nl = BBOX.heigth() / lyr.rasterUnitsPerPixelY()
+        filesToCopy = [f for f in [TSD.pathImg, TSD.pathMsk] if f is not None and os.path.exists(f)]
+        for pathSrc in filesToCopy:
+            dsSrc = gdal.Open(pathSrc)
 
-        drv = dsSrc.GetDriver()
-        assert isinstance(drv, gdal.Driver)
+            assert isinstance(dsSrc, gdal.Dataset)
+            proj = dsSrc.GetProjection()
+            trans = list(dsSrc.GetGeoTransform())
+            trans[0] = UL.x()
+            trans[3] = UL.y()
 
-        dsDst = drv.Create(ns, nl, dsSrc.RasterCount, eType = dsSrc.GetRasterBand(1).)
-        assert isinstance(dsDst, gdal.Dataset)
-        dsDst.SetProjection(proj)
-        dsDst.SetGeoTransform(trans)
+            nsDst = int(BBOX.width() / TSD.lyrImg.rasterUnitsPerPixelX())
+            nlDst = int(BBOX.height() / TSD.lyrImg.rasterUnitsPerPixelY())
 
+            dsDst = drvMEM.Create('', nsDst, nlDst, dsSrc.RasterCount, eType = dsSrc.GetRasterBand(1).DataType)
+            assert isinstance(dsDst, gdal.Dataset)
+            dsDst.SetProjection(proj)
+            dsDst.SetGeoTransform(trans)
+            wo = gdal.WarpOptions()
+            r = gdal.Warp(dsDst, dsSrc)
+
+            assert r > 0
+
+            drvDst = gdal.GetDriverByName(drv) if drv is not None else dsSrc.GetDriver()
+            #try to retireve an extension
+            pathDst = os.path.join(dirImages, os.path.splitext(os.path.basename(pathSrc))[0])
+            ext = drvDst.GetMetadata_Dict().get('DMD_EXTENSION','')
+            if ext == '':
+                ext = LUT_EXT.get(drvDst.ShortName, '')
+            if not pathDst.endswith(ext):
+                pathDst += ext
+            print('Write {}'.format(pathDst))
+            drvDst.CreateCopy(pathDst, dsDst)
 
 
 
@@ -259,6 +281,39 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
+    if True:
+        from qgis import *
+        from qgis.core import *
+        from qgis.gui import *
+
+        if sys.platform == 'darwin':
+            PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
+            os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
+        else:
+            # assume OSGeo4W startup
+            PATH_QGS = os.environ['QGIS_PREFIX_PATH']
+        assert os.path.exists(PATH_QGS)
+
+        qgsApp = QgsApplication([], True)
+        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
+        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
+        qgsApp.setPrefixPath(PATH_QGS, True)
+        qgsApp.initQgis()
+
+        pathDirTestData = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\example'
+        #path Novo Progresso site L7/L8/RE time series
+        #pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources2.txt'
+        pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
+        from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
+        subset = QgsRectangle(QgsPoint(-55.36091,-6.79851), #UL
+                              QgsPoint(-55.34132,-6.80514)) #LR
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4326') # lat lon coordinates
+
+
+        createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
+        exit(0)
+
     if True:
         #convert SVG to PNG and link them into the resource file
         #svg2png(icondir, overwrite=True)
