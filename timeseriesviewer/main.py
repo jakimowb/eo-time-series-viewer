@@ -812,10 +812,51 @@ def getBoundingBoxPolygon(points, srs=None):
 
 
 
+def transformGeometry(geom, crsSrc, crsDst, trans=None):
+    if trans is None:
+        assert isinstance(crsSrc, QgsCoordinateReferenceSystem)
+        assert isinstance(crsDst, QgsCoordinateReferenceSystem)
+        return transformGeometry(geom, None, None, trans=QgsCoordinateTransform(crsSrc, crsDst))
+    else:
+        assert isinstance(trans, QgsCoordinateTransform)
+        return trans.transform(geom)
+
+
+
+
 def getDS(ds):
     if type(ds) is not gdal.Dataset:
         ds = gdal.Open(ds)
     return ds
+
+regAcqDate = re.compile(r'acquisition[ ]*(time|date|day)', re.I)
+def getImageDate2(lyr):
+    assert isinstance(lyr, QgsRasterLayer)
+    mdLines = str(lyr.metadata()).splitlines()
+    date = None
+    #find date in metadata
+    for line in [l for l in mdLines if regAcqDate.search(l)]:
+        date = parseAcquisitionDate(line)
+        if date:
+            return date
+    #find date in filename
+    dn, fn = os.path.split(str(lyr.dataProvider().dataSourceUri()))
+    date = parseAcquisitionDate(fn)
+    if date: return date
+
+    #find date in file directory path
+    date = parseAcquisitionDate(date)
+
+    return date
+
+def getBandNames(lyr):
+    assert isinstance(lyr, QgsRasterLayer)
+    dp = lyr.dataProvider()
+    assert isinstance(dp, QgsRasterDataProvider)
+    if str(dp.name()) == 'gdal':
+        s = ""
+    else:
+        return lyr
 
 def getImageDate(ds):
     if type(ds) is str:
@@ -837,8 +878,6 @@ def getImageDate(ds):
     raise Exception('Can not identify acquisition date of {}'.format(path))
 
 
-
-
 class TimeSeriesDatum(object):
     """
     Collects all data sets related to one sensor
@@ -848,55 +887,17 @@ class TimeSeriesDatum(object):
         self.pathImg = pathImg
         self.pathMsk = None
 
-        self.lyrImg = QgsRasterLayer(pathImg)
+        self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
+        self.crs = self.lyrImg.dataProvider().crs()
+        self.sensor = SensorInstrument.fromRasterLayer(self.lyrImg)
 
-        dsImg = gdal.Open(pathImg)
-        assert dsImg
+        self.date = getImageDate2(self.lyrImg)
+        assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
 
-        date = getImageDate(dsImg)
-        assert date is not None
-        self.date = date.astype(str)
-
-        self.ns = dsImg.RasterXSize
-        self.nl = dsImg.RasterYSize
-        self.nb = dsImg.RasterCount
-
-        self.srs_wkt = dsImg.GetProjection()
-        self.gt = list(dsImg.GetGeoTransform())
-
-        refBand = dsImg.GetRasterBand(1)
-        self.etype = refBand.DataType
-
-        self.nodata = refBand.GetNoDataValue()
-
-
-
-        self.bandnames = list()
-        for b in range(self.nb):
-            name = dsImg.GetRasterBand(b+1).GetDescription()
-            if name is None or name == '':
-                name = 'Band {}'.format(b+1)
-            self.bandnames.append(name)
-
-        self.wavelength = None
-        domains = dsImg.GetMetadataDomainList()
-        if domains:
-            for domain in domains:
-                md = dsImg.GetMetadata_Dict(domain)
-
-                if 'wavelength' in md.keys():
-                    try:
-                        wl = md['wavelength']
-                        wl = re.split('[;,{} ]+', wl)
-                        wl = [w for w in wl if len(w) > 0]
-                        wl = [float(w) for w in wl]
-                        assert len(wl) == self.nb
-                        self.wavelength = wl
-                        break
-                    except:
-                        pass
-
-        #self.sensor = SensorInstrument(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
+        self.ns = self.lyrImg.width()
+        self.nl = self.lyrImg.height()
+        self.nb = self.lyrImg.bandCount()
+        self.srs_wkt = str(self.crs.toWkt())
 
 
         if pathMsk:
@@ -908,31 +909,21 @@ class TimeSeriesDatum(object):
     def getDate(self):
         return np.datetime64(self.date)
 
+
     def getSpatialReference(self):
+        return self.crs
         srs = osr.SpatialReference()
         srs.ImportFromWkt(self.srs_wkt)
         return srs
 
+
     def getBoundingBox(self, srs=None):
-        ext = list()
 
-
-        for px in [0,self.ns]:
-            for py in [0, self.nl]:
-                ext.append(px2Coordinate(self.gt, px, py))
-
-
-
-        if srs is not None:
-            assert type(srs) is osr.SpatialReference
-            my_srs = self.getSpatialReference()
-            if not my_srs.IsSame(srs):
-                #todo: consider srs differences
-                trans = osr.CoordinateTransformation(my_srs, srs)
-                ext = trans.TransformPoints(ext)
-                ext = [(e[0], e[1]) for e in ext]
-
-        return ext
+        bbox = self.lyrImg.extent()
+        if srs:
+            assert isinstance(srs, QgsCoordinateReferenceSystem)
+            bbox = transformGeometry(bbox, self.crs, srs)
+        return bbox
 
 
     def setMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):

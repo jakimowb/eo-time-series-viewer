@@ -17,7 +17,54 @@ class HiddenCanvas(QgsMapCanvas):
 
 
 
+class LayerLoaderR(QRunnable):
 
+    layerReady = pyqtSignal(QgsRasterLayer)
+    finished = pyqtSignal(list)
+    def __init__(self):
+        super(LayerLoader, self).__init__()
+
+    def loadLayers(self, paths):
+        lyrs = []
+        for path in paths:
+            print('Load '+path)
+            lyr = QgsRasterLayer(path)
+            if lyr:
+                self.layerReady.emit(lyr)
+                lyrs.append(lyr)
+
+        self.finished.emit(lyrs)
+
+class LayerLoader(QObject):
+
+    layerReady = pyqtSignal(QgsRasterLayer)
+    finished = pyqtSignal(list)
+    def __init__(self):
+        super(LayerLoader, self).__init__()
+
+    def loadLayers(self, paths):
+        lyrs = []
+        for path in paths:
+            print('Load '+path)
+            lyr = QgsRasterLayer(path)
+            if lyr:
+                self.layerReady.emit(lyr)
+                lyrs.append(lyr)
+
+        self.finished.emit(lyrs)
+
+
+def getLoadedLayer(layer):
+    print('LAYER READY')
+    print(layer)
+
+def getLoadedLayers(layers):
+    for lyr in layers:
+        getLoadedLayer(lyr)
+
+
+def loadingDone():
+    print('DONE')
 
 if __name__ == '__main__':
     import site, sys
@@ -41,10 +88,33 @@ if __name__ == '__main__':
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
 
-    #run tests
-    if True: test_gui()
-    if False: test_component()
+    from timeseriesviewer import file_search
+    paths = file_search(r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\example\Images',
+                        '*.bsq')
+    #run
+    import numpy as np
+    pool = QThreadPool()
+    pool.maxThreadCount(3)
 
+    pool.start()
+
+    t0 = np.datetime64('now')
+    #paths = []
+    objThread = QThread()
+    loader = LayerLoader()
+    #loader.loadLayers(paths)
+    loader.moveToThread(objThread)
+    loader.finished.connect(objThread.quit)
+    #loader.layerReady.connect(getLoadedLayer)
+    objThread.started.connect(lambda:loader.loadLayers(paths))
+
+    objThread.finished.connect(loadingDone)
+    objThread.start()
+
+    while not objThread.isFinished():
+
+
+    print('DT: {}'.format(np.datetime64('now') - t0))
 
     #close QGIS
     qgsApp.exec_()
