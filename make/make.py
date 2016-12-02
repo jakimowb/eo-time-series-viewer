@@ -5,6 +5,10 @@ from PyQt4.QtGui import *
 from PyQt4.QtXml import *
 from PyQt4.QtXmlPatterns import *
 
+from PyQt4.uic.Compiler.qtproxies import QtGui
+
+import gdal
+
 from timeseriesviewer import DIR_UI, file_search
 jp = os.path.join
 
@@ -17,6 +21,79 @@ def getDOMAttributes(elem):
         attr = attributes.item(a)
         values[str(attr.nodeName())] = attr.nodeValue()
     return values
+
+
+def createTestData(pathTS, subsetRectangle, crs, dirTestData):
+    lines = open(pathTS).readlines()
+    import tempfile, random
+    from timeseriesviewer.main import TimeSeries, TimeSeriesDatum
+    from qgis.core import QgsRectangle, QgsPoint, QgsPointV2, QgsCoordinateReferenceSystem
+
+    max_offset = 0 #in %
+
+
+    assert isinstance(subsetRectangle, QgsRectangle)
+    assert isinstance(crs, QgsCoordinateReferenceSystem)
+    TS = TimeSeries()
+    TS.loadFromFile(pathTS)
+
+    sw = subsetRectangle.width()
+    sh = subsetRectangle.height()
+
+    max_offset_x = sw / 100 * max_offset
+    max_offset_y = sw / 100 * max_offset
+    center = subsetRectangle.center()
+
+    os.mkdir(dirTestData)
+    pathVRT = tempfile.mkstemp(suffix='.vrt', prefix='tempVRT')
+
+    def random_xy():
+        offset_x = center.x() + random.randrange(-max_offset_x, max_offset_x)
+        offset_y = center.y() + random.randrange(-max_offset_y, max_offset_y)
+        return offset_x, offset_y
+
+    for TSD in TS:
+        assert isinstance(TSD, TimeSeriesDatum)
+
+        ox, oy = random_xy()
+        UL = QgsPoint(subsetRectangle.xMinimum() + ox,
+                      subsetRectangle.yMaximum() + oy)
+        LR = QgsPoint(subsetRectangle.xMaximum() + ox,
+                      subsetRectangle.yMinimum() + oy)
+
+        lyr = QgsRasterLayer(TSD.pathImg)
+        crsDS = lyr.dataProvider().crs()
+        assert isinstance(crsDS, QgsCoordinateReferenceSystem)
+        transform = QgsCoordinateTransform(crs, crsDS)
+        #transform UL and LR into CRS of source data set
+        UL = transform.transform(UL)
+        LR = transform.transform(LR)
+        BBOX = QgsRectangle(UL, LR)
+
+        #crop src dataset to UL-LR box
+        #for this we use GDAL
+
+        dsSrc = gdal.Open(TSD.pathImg)
+        assert isinstance(dsSrc, gdal.Dataset)
+        proj = dsSrc.GetProjection()
+        trans = dsSrc.GetGeoTransform()
+        trans[0] = UL.x()
+        trans[3] = UL.y()
+
+        ns = BBOX.width() / lyr.rasterUnitsPerPixelX()
+        nl = BBOX.heigth() / lyr.rasterUnitsPerPixelY()
+
+        drv = dsSrc.GetDriver()
+        assert isinstance(drv, gdal.Driver)
+
+        dsDst = drv.Create(ns, nl, dsSrc.RasterCount, eType = dsSrc.GetRasterBand(1).)
+        assert isinstance(dsDst, gdal.Dataset)
+        dsDst.SetProjection(proj)
+        dsDst.SetGeoTransform(trans)
+
+
+
+
 
 def make(ROOT):
     #find ui files
