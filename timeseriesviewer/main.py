@@ -50,6 +50,7 @@ import numpy as np
 import multiprocessing, site
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from PyQt4.uic.Compiler.qtproxies import QtGui, QtCore
 import sys
 import code
 import codecs
@@ -266,7 +267,7 @@ class BandView(QObject):
         :return:
         """
 
-        assert type(sensor) is SensorConfiguration
+        assert type(sensor) is SensorInstrument
         if sensor not in self.representation.keys():
             #self.bandMappings[sensor] = ((0, 0, 5000), (1, 0, 5000), (2, 0, 5000))
             #x = imagechipviewsettings_widget.ImageChipViewSettings(sensor)
@@ -289,7 +290,7 @@ class BandView(QObject):
         :param bands:
         :return:
         """
-        assert type(sensor) is SensorConfiguration
+        assert type(sensor) is SensorInstrument
         dsRef = gdal.Open(self.Sensors[sensor][0])
         return [dsRef.GetRasterBand(b).ComputeRasterMinMax() for b in bands]
 
@@ -305,7 +306,7 @@ class BandView(QObject):
         return self.getWidget(sensor).getRGBSettings()
 
     def getWidget(self, sensor):
-        assert type(sensor) is SensorConfiguration
+        assert type(sensor) is SensorInstrument
         return self.representation[sensor]
 
 
@@ -316,13 +317,34 @@ class BandView(QObject):
         return False
 
 
-class SensorConfiguration(object):
+class SensorInstrument(object):
+
+    INSTRUMENTS = dict()
+
+    @staticmethod
+    def fromRasterLayer(lyr):
+
+        assert isinstance(lyr, QgsRasterLayer)
+        nb = lyr.bandCount()
+        sx = lyr.rasterUnitsPerPixelX()
+        sy = lyr.rasterUnitsPerPixelY()
+
+        bandNames = [lyr.bandName(i) for i in range(1, nb+1)]
+
+        return SensorInstrument(nb, sx, sy,
+                                band_names=bandNames,
+                                wavelengths=None,
+                                sensor_name=None)
+
+    def fromGDALDataSet(self, ds):
+        assert isinstance(ds, gdal.Dataset)
+        nb = ds.RasterCount
+
+
     """
     Describes a Sensor Configuration
     """
-
     def __init__(self,nb, px_size_x,px_size_y, band_names=None, wavelengths=None, sensor_name=None):
-
         assert nb >= 1
 
         self.TS = None
@@ -350,7 +372,7 @@ class SensorConfiguration(object):
             if id in LUT_SENSORNAMES.keys():
                 sensor_name = LUT_SENSORNAMES[id]
             else:
-                sensor_name = '{} b x {} m'.format(self.nb, self.px_size_x)
+                sensor_name = '{}band@{}m'.format(self.nb, self.px_size_x)
 
 
         self.sensor_name = sensor_name
@@ -358,7 +380,9 @@ class SensorConfiguration(object):
         self.hashvalue = hash(','.join(self.band_names))
 
     def __eq__(self, other):
-        return self.nb == other.nb and self.px_size_x == other.px_size_x and self.px_size_y == other.px_size_y
+        return self.nb == other.nb and \
+               self.px_size_x == other.px_size_x and \
+               self.px_size_y == other.px_size_y
 
     def __hash__(self):
         return self.hashvalue
@@ -813,11 +837,18 @@ def getImageDate(ds):
     raise Exception('Can not identify acquisition date of {}'.format(path))
 
 
+
+
 class TimeSeriesDatum(object):
+    """
+    Collects all data sets related to one sensor
+    """
 
     def __init__(self, pathImg, pathMsk=None):
         self.pathImg = pathImg
         self.pathMsk = None
+
+        self.lyrImg = QgsRasterLayer(pathImg)
 
         dsImg = gdal.Open(pathImg)
         assert dsImg
@@ -837,6 +868,8 @@ class TimeSeriesDatum(object):
         self.etype = refBand.DataType
 
         self.nodata = refBand.GetNoDataValue()
+
+
 
         self.bandnames = list()
         for b in range(self.nb):
@@ -863,7 +896,7 @@ class TimeSeriesDatum(object):
                     except:
                         pass
 
-        self.sensor = SensorConfiguration(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
+        #self.sensor = SensorInstrument(self.nb, self.gt[1], self.gt[5], self.bandnames, self.wavelength)
 
 
         if pathMsk:
