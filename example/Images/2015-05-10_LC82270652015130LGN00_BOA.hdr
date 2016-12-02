@@ -1,0 +1,20 @@
+ENVI
+description = {
+C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\example\Images\2015-05-10_LC82270652015130LGN00_BOA.bsq}
+samples = 72
+lines   = 24
+bands   = 6
+header offset = 0
+file type = ENVI Standard
+data type = 2
+interleave = bsq
+byte order = 0
+map info = {UTM, 1, 1, 681139.895559748, -751781.717913297, 30, 30, 21, North,WGS-84}
+coordinate system string = {PROJCS["WGS_1984_UTM_Zone_21N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-57],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["Meter",1]]}
+band names = {
+B,
+G,
+R,
+NIR,
+SWIR1,
+SWIR2}

@@ -1,0 +1,103 @@
+<PAMDataset>
+  <Metadata domain="IMAGE_STRUCTURE">
+    <MDI key="INTERLEAVE">BAND</MDI>
+  </Metadata>
+  <Metadata>
+    <MDI key="band names">{'B', 'G', 'R', 'NIR', 'SWIR1', 'SWIR2'}</MDI>
+    <MDI key="Band_1">B</MDI>
+    <MDI key="Band_2">G</MDI>
+    <MDI key="Band_3">R</MDI>
+    <MDI key="Band_4">NIR</MDI>
+    <MDI key="Band_5">SWIR1</MDI>
+    <MDI key="Band_6">SWIR2</MDI>
+    <MDI key="center wavelength">{0.49, 0.56, 0.66, 0.84, 1.65, 2.2}</MDI>
+    <MDI key="sensor type">Landsat ETM+</MDI>
+    <MDI key="wavelength units">micrometers</MDI>
+  </Metadata>
+  <Metadata domain="ENVI">
+    <MDI key="bands">6</MDI>
+    <MDI key="band_names">{B,G,R,NIR,SWIR1,SWIR2}</MDI>
+    <MDI key="byte_order">0</MDI>
+    <MDI key="coordinate_system_string">{PROJCS["WGS_1984_UTM_Zone_21N",GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-57],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["Meter",1]]}</MDI>
+    <MDI key="data_type">2</MDI>
+    <MDI key="description">{C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\example\Images\2014-06-16_LE72270652014167CUB00_BOA.bsq}</MDI>
+    <MDI key="file_type">ENVI Standard</MDI>
+    <MDI key="header_offset">0</MDI>
+    <MDI key="interleave">bsq</MDI>
+    <MDI key="lines">24</MDI>
+    <MDI key="map_info">{UTM, 1, 1, 681139.895559748, -751781.717913297, 30, 30, 21, North,WGS-84}</MDI>
+    <MDI key="samples">72</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>B</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+    <Histograms>
+      <HistItem>
+        <HistMin>97.50158730158731</HistMin>
+        <HistMax>412.4984126984127</HistMax>
+        <BucketCount>315</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>2|1|0|0|1|0|0|2|0|0|0|0|0|0|2|2|1|1|0|0|0|1|1|4|2|1|8|2|4|3|3|2|4|1|0|3|1|2|2|1|2|9|6|6|8|6|5|6|10|10|13|14|12|6|14|5|7|19|6|8|9|11|11|13|19|8|10|17|20|10|16|23|25|18|25|15|16|19|24|21|37|15|11|15|13|15|14|23|15|11|16|8|11|11|16|11|17|26|17|24|28|35|27|28|18|27|20|22|14|15|13|8|11|5|9|5|9|8|15|8|13|15|32|21|15|16|17|15|7|8|9|6|6|4|4|0|0|5|7|5|7|7|4|8|13|22|11|10|6|5|4|1|4|5|2|3|1|0|0|1|1|2|2|9|6|0|5|8|3|4|2|2|3|4|2|1|0|0|0|0|0|2|2|3|3|1|2|1|4|6|0|0|0|0|1|2|1|0|0|0|0|0|2|0|5|1|2|4|0|1|0|0|0|0|1|0|0|1|0|0|0|0|0|0|1|0|1|0|2|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">412</MDI>
+      <MDI key="STATISTICS_MEAN">195.96402439024</MDI>
+      <MDI key="STATISTICS_MINIMUM">98</MDI>
+      <MDI key="STATISTICS_STDDEV">38.62474940671</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="2">
+    <Description>G</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+    <Histograms>
+      <HistItem>
+        <HistMin>232.5009652509652</HistMin>
+        <HistMax>750.4990347490348</HistMax>
+        <BucketCount>518</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>1|0|0|0|1|0|0|0|0|0|0|0|0|0|0|2|0|0|0|1|0|0|1|1|3|0|3|2|0|3|2|1|1|1|1|0|0|5|1|0|1|3|6|6|2|4|5|4|1|10|3|3|4|11|8|6|4|4|8|2|4|6|4|6|6|2|2|4|4|3|4|4|14|4|5|12|8|12|12|20|12|8|9|15|7|15|18|12|4|3|2|0|8|9|10|16|14|15|16|17|20|14|24|20|14|28|8|12|10|16|5|6|6|2|1|4|5|5|4|5|3|6|11|8|8|10|13|27|28|19|13|12|13|20|9|5|5|2|1|0|0|0|0|1|1|0|7|5|10|12|19|33|17|21|10|17|16|13|4|3|4|1|1|0|0|0|1|1|0|0|4|3|7|11|22|20|8|15|11|11|10|6|3|0|1|0|0|0|0|0|0|0|0|1|3|7|6|15|14|9|14|13|7|9|4|3|1|0|0|0|0|0|0|0|0|1|1|6|3|16|21|10|10|7|12|1|0|1|0|0|0|0|0|0|0|0|0|0|1|2|2|4|6|12|7|6|4|0|2|5|3|0|0|0|0|0|0|0|0|0|0|0|4|5|3|1|3|6|8|2|2|3|3|0|0|0|0|0|0|0|0|0|0|0|0|1|4|5|6|8|10|2|1|2|2|1|0|0|0|0|0|0|0|0|0|0|0|0|0|2|4|6|2|9|5|2|0|4|3|0|0|0|0|0|0|0|0|0|0|0|0|0|3|4|3|3|6|3|0|0|2|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|2|2|4|4|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|1|2|0|3|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|2|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">750</MDI>
+      <MDI key="STATISTICS_MEAN">381.48475609756</MDI>
+      <MDI key="STATISTICS_MINIMUM">233</MDI>
+      <MDI key="STATISTICS_STDDEV">75.649414498494</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="3">
+    <Description>R</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+    <Histograms>
+      <HistItem>
+        <HistMin>73.50079491255961</HistMin>
+        <HistMax>702.4992050874404</HistMax>
+        <BucketCount>629</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>1|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|1|0|0|1|2|1|0|0|1|0|0|0|0|0|0|0|2|0|2|2|1|2|4|0|4|3|4|8|5|2|0|3|1|5|6|3|4|5|6|6|1|7|3|5|8|12|15|11|9|19|15|8|10|5|8|13|8|2|3|5|5|11|25|14|19|12|16|28|19|20|19|29|16|14|22|14|25|12|5|3|6|7|10|6|6|9|11|17|14|20|21|31|40|28|23|20|19|14|8|6|4|6|6|0|1|2|5|5|6|5|12|26|36|22|13|16|21|16|7|2|5|1|2|0|0|2|1|1|2|5|6|26|26|21|21|16|9|6|2|3|0|0|0|0|0|0|0|0|3|7|6|8|16|22|16|7|9|6|2|3|0|0|0|0|0|0|0|0|2|2|10|2|6|22|10|7|7|2|5|4|0|0|0|0|0|0|0|0|1|4|4|4|5|13|3|4|2|2|3|1|0|0|0|0|0|0|0|0|0|0|0|6|3|6|10|5|0|3|1|1|0|0|0|0|0|0|0|0|0|1|1|5|10|2|7|6|1|2|0|0|0|0|0|0|0|0|0|0|0|0|1|6|3|0|1|8|0|1|1|0|0|0|0|0|0|0|0|0|0|0|2|2|5|1|2|1|0|0|0|0|0|0|0|0|0|0|0|0|0|1|2|2|4|0|2|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|2|0|1|0|0|1|0|0|0|0|0|0|0|0|0|0|0|1|0|1|1|0|0|0|0|2|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|1|0|2|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|3|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|1|1|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">702</MDI>
+      <MDI key="STATISTICS_MEAN">220.3493902439</MDI>
+      <MDI key="STATISTICS_MINIMUM">74</MDI>
+      <MDI key="STATISTICS_STDDEV">66.77044219449</MDI>
+    </Metadata>
+  </PAMRasterBand>
+  <PAMRasterBand band="4">
+    <Description>NIR</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+  </PAMRasterBand>
+  <PAMRasterBand band="5">
+    <Description>SWIR1</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+  </PAMRasterBand>
+  <PAMRasterBand band="6">
+    <Description>SWIR2</Description>
+    <NoDataValue>-9.99900000000000E+003</NoDataValue>
+  </PAMRasterBand>
+</PAMDataset>
