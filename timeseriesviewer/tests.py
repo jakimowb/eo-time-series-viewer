@@ -44,8 +44,11 @@ class PictureTest(QMainWindow):
 
 def test_gui():
     from timeseriesviewer.main import TimeSeriesViewer
+    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
     S = TimeSeriesViewer(None)
     S.run()
+
+    S.ua_loadTSFile(path=PATH_EXAMPLE_TIMESERIES)
     pass
 
 def test_component():
