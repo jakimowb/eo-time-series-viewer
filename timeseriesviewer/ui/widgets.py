@@ -53,7 +53,7 @@ class ImageChipViewSettings(QGroupBox,
 
     removeView = pyqtSignal()
 
-    def __init__(self, SensorConfiguration, parent=None):
+    def __init__(self, sensor, parent=None):
         """Constructor."""
         super(ImageChipViewSettings, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -63,18 +63,20 @@ class ImageChipViewSettings(QGroupBox,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
+        from timeseriesviewer.timeseries import SensorInstrument
+        assert isinstance(sensor, SensorInstrument)
+        self.sensor = sensor
 
-        self.SensorConfiguration = SensorConfiguration
-        self.setTitle(SensorConfiguration.sensor_name)
+        self.setTitle(sensor.sensorName)
 
-        self.tb_range_r_min.setValidator(QDoubleValidator())
-        self.tb_range_g_min.setValidator(QDoubleValidator())
-        self.tb_range_b_min.setValidator(QDoubleValidator())
-        self.tb_range_r_max.setValidator(QDoubleValidator())
-        self.tb_range_g_max.setValidator(QDoubleValidator())
-        self.tb_range_b_max.setValidator(QDoubleValidator())
-
-        self._initBands(self.SensorConfiguration.band_names)
+        self.minValues = [self.tbRedMin, self.tbGreenMin, self.tbBlueMin]
+        self.maxValues = [self.tbRedMax, self.tbGreenMax, self.tbBlueMax]
+        self.sliders = [self.sliderRed, self.sliderGreen, self.sliderBlue]
+        for tb in self.minValues + self.maxValues:
+            tb.setValidator(QDoubleValidator())
+        for sl in self.sliders:
+            sl.setMinimum(1)
+            sl.setMaximum(self.sensor.nb)
 
     def ua_setMask(self, state):
 
@@ -101,27 +103,13 @@ class ImageChipViewSettings(QGroupBox,
     def useMaskValues(self):
         return self.cb_useMask.isChecked()
 
-    def _initBands(self, band_names):
-        cb_R = self.cb_r
-        cb_G = self.cb_g
-        cb_B = self.cb_b
-
-        for i, bandname in enumerate(band_names):
-            cb_R.addItem(bandname, i+1)
-            cb_G.addItem(bandname, i+1)
-            cb_B.addItem(bandname, i+1)
-
-        if len(self.SensorConfiguration.band_names) >= 3:
-            cb_R.setCurrentIndex(2)
-            cb_G.setCurrentIndex(1)
-            cb_B.setCurrentIndex(0)
 
 
     def setBands(self,bands):
         assert len(bands) == 3
         for b in bands:
             assert type(b) is int and b > 0
-            assert b <= len(self.SensorConfiguration.band_names), 'TimeSeries is not initializes/has no bands to show'
+            assert b <= len(self.sensor.band_names), 'TimeSeries is not initializes/has no bands to show'
         self.cb_r.setCurrentIndex(bands[0]-1)
         self.cb_g.setCurrentIndex(bands[1]-1)
         self.cb_b.setCurrentIndex(bands[2]-1)
@@ -129,7 +117,12 @@ class ImageChipViewSettings(QGroupBox,
         s = ""
         pass
 
-    def setRGBSettings(self, bands_and_ranges):
+    def setLayerRenderer(self, renderer):
+        assert isinstance(renderer, QgsRasterRenderer)
+
+        if isinstance(renderer, QgsMultiBandColorRenderer):
+            s = ""
+
         bands, ranges = bands_and_ranges
         assert len(bands) == 3
         assert len(ranges) == 3
@@ -138,7 +131,7 @@ class ImageChipViewSettings(QGroupBox,
 
         #copy values only if all bands fit to this sensor
         for b in bands:
-            if b > self.SensorConfiguration.nb:
+            if b > self.sensor.nb:
                 return
 
         self.cb_r.setCurrentIndex(bands[0]-1)
@@ -179,7 +172,7 @@ class ImageChipViewSettings(QGroupBox,
             import qgis_add_ins
             action = menu.addAction('Paste style')
             action.setToolTip('Uses the QGIS raster layer style to specify band selection and band value ranges.')
-            action.triggered.connect(lambda : self.setRGBSettings(qgis_add_ins.paste_band_settings(txt)))
+            action.triggered.connect(lambda : self.setLayerRenderer(qgis_add_ins.paste_band_settings(txt)))
 
 
         menu.exec_(event.globalPos())
