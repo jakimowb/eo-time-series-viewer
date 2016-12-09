@@ -1,4 +1,4 @@
-import os, fnmatch
+import os, sys, fnmatch
 import six
 
 jp = os.path.join
@@ -9,7 +9,8 @@ DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
 DIR_UI = jp(DIR,*['ui'])
-DIR_EXAMPLE = jp(DIR_REPO, 'example')
+DIR_EXAMPLES = jp(DIR_REPO, 'example')
+PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 DEBUG = True
 
 def dprint(text, file=None):
@@ -32,3 +33,4 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
         if not recursive:
             break
     return results
+
