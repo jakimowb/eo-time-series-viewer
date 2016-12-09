@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1137</width>
-    <height>816</height>
+    <height>993</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -92,7 +92,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="tab_timeseries">
         <attribute name="title">
@@ -249,8 +249,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>993</width>
-              <height>204</height>
+              <width>943</width>
+              <height>243</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -638,100 +638,6 @@
             <property name="bottomMargin">
              <number>6</number>
             </property>
-            <item row="4" column="0" colspan="2">
-             <widget class="QFrame" name="frame_5">
-              <property name="frameShape">
-               <enum>QFrame::NoFrame</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Raised</enum>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_9">
-               <property name="margin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="label_11">
-                 <property name="text">
-                  <string>max. size </string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spinBox_chipsize_max">
-                 <property name="minimumSize">
-                  <size>
-                   <width>50</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Max. length of an image chip on screen.</string>
-                 </property>
-                 <property name="suffix">
-                  <string>px</string>
-                 </property>
-                 <property name="minimum">
-                  <number>20</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000</number>
-                 </property>
-                 <property name="singleStep">
-                  <number>50</number>
-                 </property>
-                 <property name="value">
-                  <number>300</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label">
-                 <property name="text">
-                  <string>#cpu</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spinBox_ncpu">
-                 <property name="toolTip">
-                  <string>Number of CPUs used for parallel image chip calculation</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_5">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>DOI</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="1">
-             <widget class="QComboBox" name="cb_doi">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-             </widget>
-            </item>
             <item row="0" column="0" colspan="2">
              <widget class="QRadioButton" name="rb_showEntireTS">
               <property name="text">
@@ -742,7 +648,7 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
+            <item row="2" column="0">
              <widget class="QRadioButton" name="rb_showTimeWindow">
               <property name="enabled">
                <bool>true</bool>
@@ -758,7 +664,7 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="1">
+            <item row="2" column="1">
              <widget class="QFrame" name="frame_timewindow">
               <property name="enabled">
                <bool>false</bool>
@@ -840,6 +746,100 @@
                </item>
                <item>
                 <spacer name="horizontalSpacer_3">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="labelDOI">
+              <property name="text">
+               <string>DOI</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QSlider" name="sliderDOI">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="tickPosition">
+               <enum>QSlider::TicksAbove</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0" colspan="2">
+             <widget class="QFrame" name="frame_5">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Raised</enum>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_9">
+               <property name="margin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="label_11">
+                 <property name="text">
+                  <string>max. size </string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="spinBox_chipsize_max">
+                 <property name="minimumSize">
+                  <size>
+                   <width>50</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="toolTip">
+                  <string>Max. length of an image chip on screen.</string>
+                 </property>
+                 <property name="suffix">
+                  <string>px</string>
+                 </property>
+                 <property name="minimum">
+                  <number>20</number>
+                 </property>
+                 <property name="maximum">
+                  <number>1000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>50</number>
+                 </property>
+                 <property name="value">
+                  <number>300</number>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>#cpu</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="spinBox_ncpu">
+                 <property name="toolTip">
+                  <string>Number of CPUs used for parallel image chip calculation</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_5">
                  <property name="orientation">
                   <enum>Qt::Horizontal</enum>
                  </property>
@@ -980,7 +980,7 @@
      <x>0</x>
      <y>0</y>
      <width>1137</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
@@ -1059,12 +1059,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>72</x>
-     <y>336</y>
+     <x>88</x>
+     <y>408</y>
     </hint>
     <hint type="destinationlabel">
-     <x>227</x>
-     <y>337</y>
+     <x>355</x>
+     <y>416</y>
     </hint>
    </hints>
   </connection>
