@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1137</width>
-    <height>993</height>
+    <height>979</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -288,6 +288,21 @@
          <string>Viewer</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_9">
+         <property name="spacing">
+          <number>5</number>
+         </property>
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>5</number>
+         </property>
          <item>
           <widget class="QPushButton" name="btn_showPxCoordinate">
            <property name="toolTip">
@@ -310,7 +325,7 @@
             </size>
            </property>
            <property name="title">
-            <string>Image subset</string>
+            <string>Subset</string>
            </property>
            <layout class="QFormLayout" name="formLayout_3">
             <property name="fieldGrowthPolicy">
@@ -629,7 +644,7 @@
             </size>
            </property>
            <property name="title">
-            <string>Chip Rendering</string>
+            <string>Rendering</string>
            </property>
            <layout class="QFormLayout" name="formLayout">
             <property name="fieldGrowthPolicy">
@@ -641,7 +656,7 @@
             <item row="0" column="0" colspan="2">
              <widget class="QRadioButton" name="rb_showEntireTS">
               <property name="text">
-               <string>Time Series</string>
+               <string>Entire Time Series</string>
               </property>
               <property name="checked">
                <bool>true</bool>
@@ -760,24 +775,7 @@
               </layout>
              </widget>
             </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="labelDOI">
-              <property name="text">
-               <string>DOI</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="1">
-             <widget class="QSlider" name="sliderDOI">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="0" colspan="2">
+            <item row="3" column="0" colspan="2">
              <widget class="QFrame" name="frame_5">
               <property name="frameShape">
                <enum>QFrame::NoFrame</enum>
@@ -797,7 +795,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="spinBox_chipsize_max">
+                <widget class="QSpinBox" name="spinBoxMaxPixmapSize">
                  <property name="minimumSize">
                   <size>
                    <width>50</width>
@@ -852,6 +850,47 @@
                 </spacer>
                </item>
               </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_2">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>50</height>
+            </size>
+           </property>
+           <property name="title">
+            <string>Navigation</string>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_10">
+            <item>
+             <widget class="QLabel" name="labelDOI">
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>DOI</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSlider" name="sliderDOI">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="tickPosition">
+               <enum>QSlider::TicksAbove</enum>
+              </property>
              </widget>
             </item>
            </layout>

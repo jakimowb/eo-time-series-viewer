@@ -67,7 +67,7 @@ class TSVPlugin:
             self.iface.removeToolBarIcon(action)
 
         if isinstance(self.tsv, TimeSeriesViewer):
-            self.tsv.dlg.close()
+            self.tsv.ui.close()
             self.tsv = None
 
 

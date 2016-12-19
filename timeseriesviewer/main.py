@@ -56,7 +56,7 @@ import code
 import codecs
 
 #abbreviations
-from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
+from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, dprint
 
 site.addsitedir(DIR_SITE_PACKAGES)
 from timeseriesviewer.ui import widgets
@@ -224,6 +224,7 @@ class BandView(QObject):
     removeView = pyqtSignal(object)
 
     def __init__(self, TS, recommended_bands=None):
+        super(BandView, self).__init__()
         assert type(TS) is TimeSeries
         self.representation = collections.OrderedDict()
         self.TS = TS
@@ -245,60 +246,190 @@ class BandView(QObject):
         to_add = ts_sensors - represented_sensors
         to_remove = represented_sensors - ts_sensors
         for S in to_remove:
-            self.representation[S].close()
+            self.representation[S].getWidget().close()
             self.representation.pop(S)
         for S in to_add:
             self.initSensor(S)
 
 
-    def initSensor(self, sensor, recommended_bands=None):
+    def initSensor(self, sensor):
         """
         :param sensor:
-        :param recommended_bands:
         :return:
         """
-
         assert type(sensor) is SensorInstrument
         if sensor not in self.representation.keys():
             x = widgets.ImageChipViewSettings(sensor)
-            x.create()
             self.representation[sensor] = x
 
-
-    def getSensorStats(self, sensor, bands):
-        """
-
-        :param sensor:
-        :param bands:
-        :return:
-        """
-        assert type(sensor) is SensorInstrument
-        dsRef = gdal.Open(self.Sensors[sensor][0])
-        return [dsRef.GetRasterBand(b).ComputeRasterMinMax() for b in bands]
-
-
-    def getRanges(self, sensor):
-        return self.getWidget(sensor).getRGBSettings()[1]
-
-    def getBands(self, sensor):
-        return self.getWidget(sensor).getRGBSettings()[0]
-
-
-    def getRGBSettings(self, sensor):
-        return self.getWidget(sensor).getRGBSettings()
 
     def getWidget(self, sensor):
         assert type(sensor) is SensorInstrument
         return self.representation[sensor]
 
+class RenderJob(object):
+
+    def __init__(self, TSD, renderer, destinationId=None):
+        assert isinstance(TSD, TimeSeriesDatum)
+        assert isinstance(renderer, QgsRasterRenderer)
+
+        self.TSD = TSD
+        self.renderer = renderer
+        self.destinationId = destinationId
+
+    def __eq__(self, other):
+        if not isinstance(other, RenderJob):
+            return False
+        return self.TSD == other.TSD and \
+               self.renderer == other.renderer and \
+               self.destinationId == other.destinationId
 
 
-    def useMaskValues(self):
 
-        #todo:
-        return False
+class PixmapBuffer(QObject):
+    sigProgress = pyqtSignal(int, int)
+    sigPixmapCreated = pyqtSignal(RenderJob, QPixmap)
+
+    def __init__(self):
+        super(PixmapBuffer, self).__init__()
+
+        self.extent = None
+        self.crs = None
+        self.size = None
+        self.nWorkersMax = 1
+        self.Workers = []
+        self.PIXMAPS = dict()
+        self.JOBS = []
+        self.nTotalJobs = -1
+        self.nJobsDone = -1
+
+    def addWorker(self):
+        w = Worker()
+        w.setCrsTransformEnabled(True)
+        w.sigPixmapCreated.connect(self.newPixmapCreated)
+        if self.isValid():
+            self.setWorkerProperties(w)
+        self.Workers.append(w)
+
+    def setWorkerProperties(self, worker):
+        assert isinstance(worker, Worker)
+        worker.setFixedSize(self.size)
+        worker.setDestinationCrs(self.crs)
+        worker.setExtent(self.extent)
+        worker.setCenter(self.extent.center())
+
+    def newPixmapCreated(self, renderJob, pixmap):
+        self.JOBS.remove(renderJob)
+        self.nJobsDone += 1
+        self.sigPixmapCreated.emit(renderJob, pixmap)
+        self.sigProgress.emit(self.nJobsDone, self.nTotalJobs)
+
+    def isValid(self):
+        return self.extent != None and self.crs != None and self.size != None
+
+    def setExtent(self, extent, crs, maxPx):
+        self.stopRendering()
+        assert isinstance(extent, QgsRectangle)
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        assert isinstance(maxPx, int)
+        ratio = extent.width() / extent.height()
+        if ratio < 1:  # x is largest side
+            size = QSize(maxPx, int(maxPx / ratio))
+        else:  # y is largest
+            size = QSize(int(maxPx * ratio), maxPx)
+
+        self.crs = crs
+        self.size = size
+        self.extent = extent
+        for w in self.Workers:
+            self.setWorkerProperties(w)
+        return size
+
+    def stopRendering(self):
+        for w in self.Workers:
+            w.stopRendering()
+            w.clear()
+        while len(self.JOBS) > 0:
+            self.JOBS.pop(0)
+        self.sigProgress.emit(0, 0)
+
+    def loadSubsets(self, jobs):
+        for j in jobs:
+            assert isinstance(j, RenderJob)
+
+        self.stopRendering()
+
+        self.JOBS.extend(jobs)
+        self.nTotalJobs = len(self.JOBS)
+        self.nJobsDone = 0
+        self.sigProgress.emit(0, self.nTotalJobs)
+
+        if len(self.Workers) == 0:
+            self.addWorker()
+
+        #split jobs to number of workers
+        i = 0
+        chunkSize = int(len(self.JOBS) / len(self.Workers))
+        assert chunkSize > 0
+        for i in range(0, len(self.Workers), chunkSize):
+            worker = self.Workers[i]
+            j = min(i+chunkSize, len(self.JOBS))
+            worker.startLayerRendering(self.JOBS[i:j])
+
+class Worker(QgsMapCanvas):
+
+    sigPixmapCreated = pyqtSignal(RenderJob, QPixmap)
 
 
+    def __init__(self, *args, **kwds):
+        super(Worker,self).__init__(*args, **kwds)
+        self.reg = QgsMapLayerRegistry.instance()
+        self.painter = QPainter()
+        self.renderJobs = list()
+        self.mapCanvasRefreshed.connect(self.createPixmap)
+
+    def isBusy(self):
+        return len(self.renderJobs) != 0
+
+    def createPixmap(self, *args):
+        if len(self.renderJobs) > 0:
+            pixmap = QPixmap(self.size())
+            self.painter.begin(pixmap)
+            self.map().paint(self.painter)
+            self.painter.end()
+            assert not pixmap.isNull()
+            job = self.renderJobs.pop(0)
+            self.sigPixmapCreated.emit(job, pixmap)
+            self.startSingleLayerRendering()
+
+    def stopLayerRendering(self):
+        self.stopRendering()
+        del self.renderJobs[:]
+        assert self.isBusy() is False
+
+    def startLayerRendering(self, renderJobs):
+        assert isinstance(renderJobs, list)
+        self.renderJobs.extend(renderJobs)
+        self.startSingleLayerRendering()
+
+
+
+    def startSingleLayerRendering(self):
+
+        if len(self.renderJobs) > 0:
+            renderJob = self.renderJobs[0]
+            assert isinstance(renderJob, RenderJob)
+            #mapLayer = QgsRasterLayer(renderJob.TSD.pathImg)
+            mapLayer = renderJob.TSD.lyrImg
+            mapLayer.setRenderer(renderJob.renderer)
+            dprint('QgsMapLayerRegistry count: {}'.format(self.reg.count()))
+            self.reg.addMapLayer(mapLayer)
+
+            lyrSet = [QgsMapCanvasLayer(mapLayer)]
+            self.setLayerSet(lyrSet)
+
+            #todo: add crosshair
+            self.refreshAllLayers()
 
 
 class ImageChipLabel(QLabel):
@@ -306,21 +437,24 @@ class ImageChipLabel(QLabel):
     clicked = pyqtSignal(object, object)
 
 
-    def __init__(self, time_series_viewer=None, iface=None, TSD=None, bands=None):
-        super(ImageChipLabel, self).__init__(time_series_viewer)
+    def __init__(self, time_series_viewer, TSD, renderer):
+        assert isinstance(time_series_viewer, TimeSeriesViewer)
+        assert isinstance(TSD, TimeSeriesDatum)
+        assert isinstance(renderer, QgsRasterRenderer)
+
+        super(ImageChipLabel, self).__init__(time_series_viewer.ui)
         self.TSV = time_series_viewer
         self.TSD = TSD
         self.bn = os.path.basename(self.TSD.pathImg)
 
-        self.iface=iface
-        self.bands=bands
+        self.renderer = renderer
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
         self.setFrameShape(QFrame.StyledPanel)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         tt = ['Date: {}'.format(TSD.date) \
              ,'Name: {}'.format(self.bn) \
-             ,'RGB:  {}'.format(','.join([str(b) for b in bands]))]
+             ]
 
         self.setToolTip(list2str(tt))
 
@@ -338,7 +472,7 @@ class ImageChipLabel(QLabel):
 
 
         #add QGIS specific options
-        if self.iface:
+        if self.TSV.iface:
             action = menu.addAction('Add {} to QGIS layers'.format(self.bn))
             action.triggered.connect(lambda : qgis_add_ins.add_QgsRasterLayer(self.iface, self.TSD.pathImg, self.bands))
 
@@ -430,47 +564,32 @@ def Array2Image(d3d):
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
 
-class LayerLoader(QRunnable):
-
-    def __init__(self, paths):
-        super(LayerLoader, self).__init__()
-        self.signals = LoaderSignals()
-
-        self.paths = paths
-
-    def run(self):
-        lyrs = []
-        for path in self.paths:
-            lyr = QgsRasterLayer(path)
-            if lyr:
-                lyrs.append(lyr)
-                self.signals.sigRasterLayerLoaded.emit(lyr)
-                print('{} loaded'.format(path))
-            else:
-                print('Failed to load {}'.format(path))
-        self.signals.sigFinished.emit()
-
 class VerticalLabel(QLabel):
     def __init__(self, text):
-        super(self.__class__, self).__init__()
-        self.text = text
+        super(VerticalLabel, self).__init__(text)
+        self.update()
+        self.updateGeometry()
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setPen(Qt.black)
-        painter.translate(20, 100)
-        painter.rotate(-90)
-        if self.text:
-            painter.drawText(0, 0, self.text)
-        painter.end()
 
-    def minimumSizeHint(self):
-        size = QLabel.minimumSizeHint(self)
-        return QSize(size.height(), size.width())
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        p.rotate(-90)
+        rgn = QRect(-self.height(), 0, self.height(), self.width())
+        align = self.alignment()
+        self.hint = p.drawText(rgn, align, self.text())
+        p.end()
+
+        self.setMaximumWidth(self.hint.height())
+        self.setMinimumWidth(0)
+        self.setMaximumHeight(16777215)
+        self.setMinimumHeight(self.hint.width())
 
     def sizeHint(self):
-        size = QLabel.sizeHint(self)
-        return QSize(size.height(), size.width())
+        if hasattr(self, 'hint'):
+            return QSize(self.hint.height(), self.hint.width())
+        else:
+            return QSize(19, 50)
+
 
 class ImageChipBuffer(object):
 
@@ -598,6 +717,9 @@ class ImageChipBuffer(object):
 
 list2str = lambda ll : '\n'.join([str(l) for l in ll])
 
+
+
+
 class TimeSeriesViewer:
     """QGIS Plugin Implementation."""
 
@@ -618,20 +740,31 @@ class TimeSeriesViewer:
 
         # Create the dialog (after translation) and keep reference
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
-        self.dlg = TimeSeriesViewerUI()
-        D = self.dlg
+        self.ui = TimeSeriesViewerUI()
+        D = self.ui
 
-        #init on empty time series
-        self.TS = None
-        self.init_TimeSeries()
+        #init empty time series
+        self.TS = TimeSeries()
+        self.hasInitialCenterPoint = False
+        self.TS.datumAdded.connect(self.ua_datumAdded)
+        self.TS.changed.connect(self.timeseriesChanged)
+        self.TS.progress.connect(self.ua_TSprogress)
+
+        #init TS model
+        TSM = TimeSeriesTableModel(self.TS)
+        D = self.ui
+        D.tableView_TimeSeries.setModel(TSM)
+        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
         self.BAND_VIEWS = list()
         self.ImageChipBuffer = ImageChipBuffer()
+        self.PIXMAPS = PixmapBuffer()
+        self.PIXMAPS.sigPixmapCreated.connect(self.showSubset)
         self.CHIPWIDGETS = collections.OrderedDict()
 
         self.ValidatorPxX = QIntValidator(0,99999)
         self.ValidatorPxY = QIntValidator(0,99999)
-        D.btn_showPxCoordinate.clicked.connect(lambda: self.ua_showPxCoordinate_start())
+        D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
         D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
         D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
         D.btn_addBandView.clicked.connect(lambda :self.ua_addBandView())
@@ -648,7 +781,7 @@ class TimeSeriesViewer:
         D.actionSave_Time_Series.triggered.connect(self.ua_saveTSFile)
         D.actionLoad_Example_Time_Series.triggered.connect(self.ua_loadExampleTS)
         D.actionAbout.triggered.connect( \
-            lambda: QMessageBox.about(self.dlg, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
+            lambda: QMessageBox.about(self.ui, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
 
         D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
         D.btn_removeTS.clicked.connect(self.ua_clear_TS)
@@ -659,28 +792,28 @@ class TimeSeriesViewer:
 
         self.RectangleMapTool = None
         self.PointMapTool = None
-        self.canvas_srs = osr.SpatialReference()
+        self.canvasCrs = QgsCoordinateReferenceSystem()
 
         if self.iface:
             self.canvas = self.iface.mapCanvas()
 
             self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
-            self.RectangleMapTool.rectangleDrawed.connect(self.ua_selectBy_Response)
+            self.RectangleMapTool.rectangleDrawed.connect(self.setSpatialSubset)
             self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
-            self.PointMapTool.coordinateSelected.connect(self.ua_selectBy_Response)
+            self.PointMapTool.coordinateSelected.connect(self.setSpatialSubset)
 
             #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
 
-        self.ICP = self.dlg.scrollArea_imageChip_content.layout()
-        self.dlg.scrollArea_bandViews_content.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-        self.BVP = self.dlg.scrollArea_bandViews_content.layout()
+        self.ICP = self.ui.scrollArea_imageChip_content.layout()
+        self.ui.scrollArea_bandViews_content.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.BVP = self.ui.scrollArea_bandViews_content.layout()
 
         self.check_enabled()
         s = ""
 
     def setDOILabel(self, i):
         TSD = self.TS.data[i-1]
-        self.dlg.labelDOI.setText(str(TSD.date))
+        self.ui.labelDOI.setText(str(TSD.date))
         s = ""
 
     @staticmethod
@@ -690,46 +823,25 @@ class TimeSeriesViewer:
     def icon(self):
         return TimeSeriesViewer.icon()
 
-    def init_TimeSeries(self, TS=None):
-
-        if TS is None:
-            TS = TimeSeries()
-        assert type(TS) is TimeSeries
-
-        if self.TS is not None:
-            disconnect_signal(self.TS.datumAdded)
-            disconnect_signal(self.TS.progress)
-            disconnect_signal(self.TS.chipLoaded)
-            disconnect_signal(self.TS.changed)
-
-        self.TS = TS
-        self.TS.datumAdded.connect(self.ua_datumAdded)
-        self.TS.changed.connect(self.timeseriesChanged)
-        self.TS.progress.connect(self.ua_TSprogress)
-        self.TS.chipLoaded.connect(self.ua_showPxCoordinate_addChips)
-
-        TSM = TimeSeriesTableModel(self.TS)
-        D = self.dlg
-        D.tableView_TimeSeries.setModel(TSM)
-        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        #D.cb_doi.setModel(TSM)
-        #D.cb_doi.setModelColumn(0)
-        #D.cb_doi.currentIndexChanged.connect(self.scrollToDate)
-
     def timeseriesChanged(self):
-        D = self.dlg
+        D = self.ui
         D.sliderDOI.setMinimum(1)
         D.sliderDOI.setMaximum(len(self.TS.data))
-        s = ""
+        if len(self.TS.data)>0 and not self.hasInitialCenterPoint:
+            extent = self.TS.getMaxExtent(self.canvasCrs)
+            self.setSpatialSubset(extent.center(), self.canvasCrs)
+            self.hasInitialCenterPoint = True
+        if len(self.TS.data) == 0:
+            self.hasInitialCenterPoint = False
 
     def ua_loadTSFile(self, path=None):
         if path is None or path is False:
-            path = QFileDialog.getOpenFileName(self.dlg, 'Open Time Series file', '')
+            path = QFileDialog.getOpenFileName(self.ui, 'Open Time Series file', '')
 
         if os.path.exists(path):
 
 
-            M = self.dlg.tableView_TimeSeries.model()
+            M = self.ui.tableView_TimeSeries.model()
             M.beginResetModel()
             self.ua_clear_TS()
             self.TS.loadFromFile(path)
@@ -740,7 +852,7 @@ class TimeSeriesViewer:
         self.check_enabled()
 
     def ua_saveTSFile(self):
-        path = QFileDialog.getSaveFileName(self.dlg, caption='Save Time Series file')
+        path = QFileDialog.getSaveFileName(self.ui, caption='Save Time Series file')
         if path is not None:
             self.TS.saveToFile(path)
 
@@ -748,7 +860,7 @@ class TimeSeriesViewer:
     def ua_loadExampleTS(self):
         from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
         if not os.path.exists(PATH_EXAMPLE_TIMESERIES):
-            QMessageBox.information(self.dlg, 'File not found', '{} - this file describes an exemplary time series.'.format(path_example))
+            QMessageBox.information(self.ui, 'File not found', '{} - this file describes an exemplary time series.'.format(path_example))
         else:
             self.ua_loadTSFile(path=PATH_EXAMPLE_TIMESERIES)
 
@@ -764,18 +876,21 @@ class TimeSeriesViewer:
 
     def setCanvasSRS(self,srs):
         assert isinstance(srs, QgsCoordinateReferenceSystem)
-        self.canvas_srs = srs
+        #self.canvas_srs = srs
+        self.canvasCrs = srs
+        self.ui.tb_bb_srs.setPlainText(self.canvasCrs.toWkt())
 
-        self.dlg.tb_bb_srs.setPlainText(self.canvas_srs.toWkt())
+    def setSpatialSubset(self, geometry, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        assert isinstance(geometry, QgsRectangle) or isinstance(geometry, QgsPoint)
 
-    def ua_selectBy_Response(self, geometry, srs_wkt):
-        D = self.dlg
+        D = self.ui
         x = D.spinBox_coordinate_x.value()
         y = D.spinBox_coordinate_x.value()
         dx = D.doubleSpinBox_subset_size_x.value()
         dy = D.doubleSpinBox_subset_size_y.value()
 
-        self.setCanvasSRS(osr.GetUserInputAsWKT(str(srs_wkt)))
+        self.setCanvasSRS(crs)
 
 
         if type(geometry) is QgsRectangle:
@@ -790,26 +905,13 @@ class TimeSeriesViewer:
             x = geometry.x()
             y = geometry.y()
 
-        """
-        ref_srs = self.TS.getSRS()
-        if ref_srs is not None and not ref_srs.IsSame(canvas_srs):
-            print('Convert canvas coordinates to time series SRS')
-            g = ogr.Geometry(ogr.wkbPoint)
-            g.AddPoint(x,y)
-            g.AssignSpatialReference(canvas_srs)
-            g.TransformTo(ref_srs)
-            x = g.GetX()
-            y = g.GetY()
-        """
-
-
         D.doubleSpinBox_subset_size_x.setValue(dx)
         D.doubleSpinBox_subset_size_y.setValue(dy)
         D.spinBox_coordinate_x.setValue(x)
         D.spinBox_coordinate_y.setValue(y)
 
         if D.cb_loadSubsetDirectly.isChecked():
-            self.ua_showPxCoordinate_start()
+            self.showSubsetsStart()
 
     def qgs_handleMouseDown(self, pt, btn):
         pass
@@ -819,7 +921,7 @@ class TimeSeriesViewer:
     def ua_TSprogress(self, v_min, v, v_max):
         assert v_min <= v and v <= v_max
         if v_min < v_max:
-            P = self.dlg.progressBar
+            P = self.ui.progressBar
             if P.minimum() != v_min or P.maximum() != v_max:
                 P.setRange(v_min, v_max)
             else:
@@ -827,27 +929,27 @@ class TimeSeriesViewer:
 
             P.setValue(v)
 
-    def ua_datumAdded(self):
+    def ua_datumAdded(self, TSD):
 
-        if len(self.TS) > 0:
-            self.setCanvasSRS(self.TS.getSRS())
-            if self.dlg.spinBox_coordinate_x.value() == 0.0 and \
-               self.dlg.spinBox_coordinate_y.value() == 0.0:
+        if len(self.TS) == 1:
+            self.setCanvasSRS(TSD.lyrImg.crs())
+            if self.ui.spinBox_coordinate_x.value() == 0.0 and \
+               self.ui.spinBox_coordinate_y.value() == 0.0:
                 bbox = self.TS.getMaxExtent(srs=self.canvas_srs)
 
-                self.dlg.spinBox_coordinate_x.setRange(bbox.xMinimum(), bbox.xMaximum())
-                self.dlg.spinBox_coordinate_y.setRange(bbox.yMinimum(), bbox.yMaximum())
+                self.ui.spinBox_coordinate_x.setRange(bbox.xMinimum(), bbox.xMaximum())
+                self.ui.spinBox_coordinate_y.setRange(bbox.yMinimum(), bbox.yMaximum())
                 #x, y = self.TS.getSceneCenter()
                 c = bbox.center()
-                self.dlg.spinBox_coordinate_x.setValue(c.x())
-                self.dlg.spinBox_coordinate_y.setValue(c.y())
+                self.ui.spinBox_coordinate_x.setValue(c.x())
+                self.ui.spinBox_coordinate_y.setValue(c.y())
                 s = ""
         #self.dlg.sliderDOI
 
-        self.dlg.tableView_TimeSeries.resizeColumnsToContents()
+        self.ui.tableView_TimeSeries.resizeColumnsToContents()
 
     def check_enabled(self):
-        D = self.dlg
+        D = self.ui
         hasTS = len(self.TS) > 0 or DEBUG
         hasTSV = len(self.BAND_VIEWS) > 0
         hasQGIS = qgis_available
@@ -891,13 +993,13 @@ class TimeSeriesViewer:
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
-        self.dlg.show()
+        self.ui.show()
 
 
 
     def scrollToDate(self, date_of_interest):
         QApplication.processEvents()
-        HBar = self.dlg.scrollArea_imageChips.horizontalScrollBar()
+        HBar = self.ui.scrollArea_imageChips.horizontalScrollBar()
         TSDs = list(self.CHIPWIDGETS.keys())
         if len(TSDs) == 0:
             return
@@ -918,37 +1020,21 @@ class TimeSeriesViewer:
         HBar.setValue(i_doi * step)
 
 
-    def ua_showPxCoordinate_start(self):
+    def showSubsetsStart(self):
 
         if len(self.TS) == 0:
             return
 
-        D = self.dlg
-        dx = D.doubleSpinBox_subset_size_x.value() * 0.5
-        dy = D.doubleSpinBox_subset_size_y.value() * 0.5
+        D = self.ui
+        easting = QgsVector(D.doubleSpinBox_subset_size_x.value(), 0.0)
+        northing = QgsVector(0.0, D.doubleSpinBox_subset_size_y.value())
 
-        cx = D.spinBox_coordinate_x.value()
-        cy = D.spinBox_coordinate_y.value()
-
-        pts = [(cx - dx, cy + dy), \
-               (cx + dx, cy + dy), \
-               (cx + dx, cy - dy), \
-               (cx - dx, cy - dy)]
-
-        bb = getBoundingBoxPolygon(pts, srs=self.canvas_srs)
-        bbWkt = bb.ExportToWkt()
-        srsWkt = bb.GetSpatialReference().ExportToWkt()
-        self.ImageChipBuffer.setBoundingBox(bb)
-
-        D = self.dlg
-        ratio = dx / dy
-        size_px = D.spinBox_chipsize_max.value()
-        if ratio > 1: #x is largest side
-            size_x = size_px
-            size_y = int(size_px / ratio)
-        else: #y is largest
-            size_y = size_px
-            size_x = int(size_px * ratio)
+        Center = QgsPoint(D.spinBox_coordinate_x.value(), D.spinBox_coordinate_y.value())
+        UL = Center - (easting * 0.5) + (northing * 0.5)
+        LR = Center + (easting * 0.5) - (northing * 0.5)
+        extent = QgsRectangle(UL,LR)
+        maxPx = int(D.spinBoxMaxPixmapSize.value())
+        pxSize = self.PIXMAPS.setExtent(extent, self.canvasCrs, maxPx)
 
         #get the dates of interes
         dates_of_interest = list()
@@ -987,7 +1073,7 @@ class TimeSeriesViewer:
 
             for TSD in self.TS.getTSDs(date_of_interest=date):
                 TSDs_of_interest.append(TSD)
-                info_label_text = '{}\n{}'.format(TSD.date, TSD.sensor.sensor_name)
+                info_label_text = '{}\n{}'.format(TSD.date, TSD.sensor.sensorName)
                 textLabel = QLabel(info_label_text)
                 tt = [TSD.date,TSD.pathImg, TSD.pathMsk]
                 textLabel.setToolTip(list2str(tt))
@@ -995,16 +1081,18 @@ class TimeSeriesViewer:
                 viewList = list()
                 j = 1
                 for view in self.BAND_VIEWS:
-                    bands = view.getBands(TSD.sensor)
+                    viewWidget = view.getWidget(TSD.sensor)
+                    layerRenderer = viewWidget.layerRenderer()
+
                     #imageLabel = QLabel()
                     #imv = pg.GraphicsView()
                     #imv = QGraphicsView(self.dlg.scrollArea_imageChip_content)
                     #imv = MyGraphicsView(self.dlg.scrollArea_imageChip_content, iface=self.iface, path=TSD.pathImg, bands=bands)
                     #imv = pg.ImageView(view=None)
-                    imgLabel = ImageChipLabel(time_series_viewer=self.dlg, iface=self.iface, TSD=TSD, bands=bands)
+                    imgLabel = ImageChipLabel(self, TSD, layerRenderer)
 
-                    imgLabel.setMinimumSize(size_x, size_y)
-                    imgLabel.setMaximumSize(size_x, size_y)
+                    imgLabel.setMinimumSize(pxSize)
+                    imgLabel.setMaximumSize(pxSize)
                     imgLabel.clicked.connect(self.ua_collect_date)
 
 
@@ -1020,48 +1108,47 @@ class TimeSeriesViewer:
 
                 cnt_chips += 1
 
-        self.dlg.scrollArea_imageChip_content.update()
+        self.ui.scrollArea_imageChip_content.update()
 
         self.scrollToDate(centerDate)
 
-        s = ""
-        #ScrollArea.show()
-        #ScrollArea.horizontalScrollBar().setValue()
+        #todo: start pixmap loading
+        #define render jobs
+        #(TSD, [renderers] in order of views)
+
+        LUT_RENDERER = {}
+        for view in self.BAND_VIEWS:
+            for sensor in view.Sensors.keys():
+                if sensor not in LUT_RENDERER.keys():
+                    LUT_RENDERER[sensor] = []
+                LUT_RENDERER[sensor].append(
+                    view.getWidget(sensor).layerRenderer()
+                )
 
 
-
-        #fill image labels
-        required_bands = dict()
-        for j, view in enumerate(self.BAND_VIEWS):
-                for S in view.Sensors.keys():
-                    bands = set()
-                    bands.update(view.getBands(S))
-                    if len(bands) != 3:
-                        s = ""
-                    assert len(bands) == 3
-                    if S not in required_bands.keys():
-                        required_bands[S] = set()
-                    required_bands[S] = required_bands[S].union(bands)
-
-        missing = set()
+        jobs = []
         for TSD in TSDs_of_interest:
-            missing_bands = self.ImageChipBuffer.getMissingBands(TSD, required_bands[TSD.sensor])
-            if len(missing_bands) == 0:
-                self.ua_showPxCoordinate_addChips(None, TSD=TSD)
-            else:
-                missing.add((TSD, tuple(missing_bands)))
+            for i, r in enumerate(LUT_RENDERER[TSD.sensor]):
+                jobs.append(RenderJob(TSD, r.clone(), destinationId=i))
 
+        #oder jobs by distance to DOI
+        jobs = sorted(jobs, key = lambda j: abs(j.TSD.date - doiTSD.date))
 
-        missing =list(missing)
-        if len(missing) > 0:
-            missing = sorted(missing, key=lambda d: abs(centerDate - d[0].getDate()))
+        #todo: recycling to save loading time
+        self.PIXMAPS.loadSubsets(jobs)
 
-            self.TS.getSpatialChips_parallel(bbWkt, srsWkt, TSD_band_list=missing)
+    def showSubset(self, renderJob, pixmap):
 
+        assert isinstance(renderJob, RenderJob)
+        chipLabel = self.CHIPWIDGETS[renderJob.TSD][renderJob.destinationId]
+        chipLabel.setPixmap(pixmap)
+        chipLabel.setFixedSize(pixmap.size())
+        chipLabel.update()
+        s = ""
 
     def ua_collect_date(self, ICL, event):
-        if self.dlg.rb_labeling_activate.isChecked():
-            txt = self.dlg.tb_labeling_text.toPlainText()
+        if self.ui.rb_labeling_activate.isChecked():
+            txt = self.ui.tb_labeling_text.toPlainText()
             reg = re.compile('\d{4}-\d{2}-\d{2}', re.I | re.MULTILINE)
             dates = set([np.datetime64(m) for m in reg.findall(txt)])
             doi = ICL.TSD.getDate()
@@ -1073,64 +1160,15 @@ class TimeSeriesViewer:
 
             dates = sorted(list(dates))
             txt = ' '.join([d.astype(str) for d in dates])
-            self.dlg.tb_labeling_text.setText(txt)
+            self.ui.tb_labeling_text.setText(txt)
 
-
-    def ua_showPxCoordinate_addChips(self, results, TSD=None):
-
-        if results is not None:
-            TSD, chipData = results
-            self.ImageChipBuffer.addDataCube(TSD, chipData)
-
-        if TSD not in self.CHIPWIDGETS.keys():
-            six.print_('TSD {} does not exist in CHIPBUFFER'.format(TSD), file=sys.stderr)
-        else:
-            for imgChipLabel, bandView in zip(self.CHIPWIDGETS[TSD], self.BAND_VIEWS):
-                #imgView.clear()
-                #imageLabel.setScaledContents(True)
-
-                #rgb = self.ImageChipBuffer.getChipRGB(TSD, bandView)
-                array = self.ImageChipBuffer.getChipArray(TSD, bandView, mode = 'bgr')
-                qimg = pg.makeQImage(array, copy=True, transpose=False)
-
-                #rgb2 = rgb.transpose([1,2,0]).copy('C')
-                #qImg = qimage2ndarray.array2qimage(rgb2)
-                #img = QImage(rgb2.data, nl, ns, QImage.Format_RGB888)
-
-                pxMap = QPixmap.fromImage(qimg).scaled(imgChipLabel.size(), Qt.KeepAspectRatio)
-                imgChipLabel.setPixmap(pxMap)
-                imgChipLabel.update()
-                #imgView.setPixmap(pxMap)
-                #imageLabel.update()
-                #imgView.adjustSize()
-                #pxmap = QPixmap.fromImage(qimg)
-                #
-
-                """
-                pxmapitem = QGraphicsPixmapItem(pxmap)
-                if imgChipLabel.scene() is None:
-                    imgChipLabel.setScene(QGraphicsScene())
-                else:
-                    imgChipLabel.scene().clear()
-
-                scene = imgChipLabel.scene()
-                scene.addItem(pxmapitem)
-
-                imgChipLabel.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
-                """
-
-                pass
-            self.ICP.layout().update()
-            self.dlg.scrollArea_imageChip_content.update()
-            s = ""
-
-        pass
 
     def clearLayoutWidgets(self, L):
         if L is not None:
             while L.count():
                 w = L.takeAt(0)
-                w.widget().deleteLater()
+                if w.widget():
+                    w.widget().deleteLater()
                 #if w is not None:
                 #    w.widget().deleteLater()
         QApplication.processEvents()
@@ -1140,7 +1178,7 @@ class TimeSeriesViewer:
             files = QFileDialog.getOpenFileNames()
 
         if files:
-            M = self.dlg.tableView_TimeSeries.model()
+            M = self.ui.tableView_TimeSeries.model()
             M.beginResetModel()
             self.TS.addFiles(files)
             M.endResetModel()
@@ -1156,7 +1194,7 @@ class TimeSeriesViewer:
 
         l = len(files)
         if l > 0:
-            M = self.dlg.tableView_TimeSeries.model()
+            M = self.ui.tableView_TimeSeries.model()
             M.beginResetModel()
             self.TS.addMasks(files, raise_errors=False)
             M.endResetModel()
@@ -1165,34 +1203,38 @@ class TimeSeriesViewer:
 
 
 
-    def ua_addBandView(self, band_recommendation = [3, 2, 1]):
-        bandView = BandView(self.TS, recommended_bands=band_recommendation)
+    def ua_addBandView(self):
+        bandView = BandView(self.TS)
         #bandView.removeView.connect(self.ua_removeBandView)
         self.BAND_VIEWS.append(bandView)
         self.refreshBandViews()
 
 
     def refreshBandViews(self):
-
         if len(self.BAND_VIEWS) == 0 and len(self.TS) > 0:
-            self.ua_addBandView(band_recommendation=[3, 2, 1])
-            self.ua_addBandView(band_recommendation=[4, 5, 3])
-
+            self.ua_addBandView() # add two bandviews by default
+            self.ua_addBandView()
 
         self.clearLayoutWidgets(self.BVP)
 
         for i, BV in enumerate(self.BAND_VIEWS):
             W = QWidget()
+
             hl = QHBoxLayout()
+            hl.setSpacing(2)
+            hl.setMargin(0)
+
+
             textLabel = VerticalLabel('View {}'.format(i+1))
-            textLabel = QLabel('View {}'.format(i+1))
+            #textLabel = QLabel('View {}'.format(i+1))
             textLabel.setToolTip('')
             textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
             hl.addWidget(textLabel)
 
             for S in self.TS.Sensors.keys():
-                w = BV.getWidget(S)
-
+                w = BV.getWidget(S).ui
+                if i > 0:
+                    w.setTitle(None) #show sensor name only on top
                 w.setMaximumSize(w.size())
                 #w.setMinimumSize(w.size())
                 w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
@@ -1200,9 +1242,10 @@ class TimeSeriesViewer:
                 hl.addWidget(w)
                 s = ""
 
-            hl.addItem(QSpacerItem(20,20,QSizePolicy.Expanding,QSizePolicy.Minimum))
+            hl.addItem(QSpacerItem(1,1))
             W.setLayout(hl)
             self.BVP.addWidget(W)
+        self.BVP.addItem(QSpacerItem(1, 1))
         self.check_enabled()
 
 
@@ -1214,7 +1257,7 @@ class TimeSeriesViewer:
     def ua_clear_TS(self):
         #remove views
 
-        M = self.dlg.tableView_TimeSeries.model()
+        M = self.ui.tableView_TimeSeries.model()
         M.beginResetModel()
         self.TS.clear()
         M.endResetModel()
@@ -1225,7 +1268,7 @@ class TimeSeriesViewer:
             TSDs = self.getSelectedTSDs()
         assert isinstance(TSDs,list)
 
-        M = self.dlg.tableView_TimeSeries.model()
+        M = self.ui.tableView_TimeSeries.model()
         M.beginResetModel()
         self.TS.removeDates(TSDs)
         M.endResetModel()
@@ -1234,7 +1277,7 @@ class TimeSeriesViewer:
 
 
     def getSelectedTSDs(self):
-        TV = self.dlg.tableView_TimeSeries
+        TV = self.ui.tableView_TimeSeries
         TVM = TV.model()
         return [TVM.getTimeSeriesDatumFromIndex(idx) for idx in TV.selectionModel().selectedRows()]
 

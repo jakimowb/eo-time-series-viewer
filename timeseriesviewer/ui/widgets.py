@@ -19,7 +19,8 @@
 '''
 
 import os
-
+from qgis.core import *
+from qgis.gui import *
 from PyQt4 import uic
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -46,8 +47,23 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
-class ImageChipViewSettings(QGroupBox,
-                            loadUIFormClass(PATH_IMAGECHIPVIEWSETTINGS_UI)):
+
+class ImageChipViewSettingsUI(QGroupBox,
+                             loadUIFormClass(PATH_IMAGECHIPVIEWSETTINGS_UI)):
+
+    def __init__(self, sensor, parent=None):
+        """Constructor."""
+        super(ImageChipViewSettingsUI, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+
+        self.setupUi(self)
+
+
+class ImageChipViewSettings(QObject):
 
     #define signals
 
@@ -56,108 +72,97 @@ class ImageChipViewSettings(QGroupBox,
     def __init__(self, sensor, parent=None):
         """Constructor."""
         super(ImageChipViewSettings, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
+
+        self.ui = ImageChipViewSettingsUI(sensor, parent)
+        self.ui.create()
+
+
+        self.ui.setTitle(sensor.sensorName)
+        self.ui.bandNames = sensor.bandNames
+        self.minValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
+        self.maxValues = [self.ui.tbRedMax, self.ui.tbGreenMax, self.ui.tbBlueMax]
+        self.sliders = [self.ui.sliderRed, self.ui.sliderGreen, self.ui.sliderBlue]
+
+        for tb in self.minValues + self.maxValues:
+            tb.setValidator(QDoubleValidator())
+        for sl in self.sliders:
+            sl.setMinimum(1)
+            sl.setMaximum(sensor.nb)
+            sl.valueChanged.connect(self.bandSelectionChanged)
+
+        self.ceAlgs = [("No enhancement", QgsContrastEnhancement.NoEnhancement),
+                       ("Stretch to MinMax", QgsContrastEnhancement.StretchToMinimumMaximum),
+                       ("Stretch and clip to MinMax",QgsContrastEnhancement.StretchAndClipToMinimumMaximum),
+                       ("Clip to MinMax", QgsContrastEnhancement.ClipToMinimumMaximum)]
+        for item in self.ceAlgs:
+            self.ui.comboBoxContrastEnhancement.addItem(item[0], item[1])
+
 
         from timeseriesviewer.timeseries import SensorInstrument
         assert isinstance(sensor, SensorInstrument)
         self.sensor = sensor
 
-        self.setTitle(sensor.sensorName)
+        lyr = QgsRasterLayer(self.sensor.refUri)
+        self.setLayerRenderer(lyr.renderer())
 
-        self.minValues = [self.tbRedMin, self.tbGreenMin, self.tbBlueMin]
-        self.maxValues = [self.tbRedMax, self.tbGreenMax, self.tbBlueMax]
-        self.sliders = [self.sliderRed, self.sliderGreen, self.sliderBlue]
-        for tb in self.minValues + self.maxValues:
-            tb.setValidator(QDoubleValidator())
-        for sl in self.sliders:
-            sl.setMinimum(1)
-            sl.setMaximum(self.sensor.nb)
-
-    def ua_setMask(self, state):
-
-        useMask = state != 0
-        for w in [self.bt_color, self.label_maskexpression, self.tb_maskexpression]:
-            w.setEnabled(useMask)
-
-    def ua_setMaskColor(self, color):
-        if color is None:
-            color = QColorDialog.getColor()
-
-        if color is not None:
-            self.maskcolor = color
-            r = color.red()
-            g = color.green()
-            b = color.blue()
-            style = "background:rgb({},{},{})".format(r,g,b)
-            self.bt_color.setStyleSheet(style)
-            self.bt_color.update()
-
-    def getMaskColor(self):
-        return (self.maskcolor.red(), self.maskcolor.green(), self.maskcolor.blue())
-
-    def useMaskValues(self):
-        return self.cb_useMask.isChecked()
-
-
-
-    def setBands(self,bands):
-        assert len(bands) == 3
-        for b in bands:
-            assert type(b) is int and b > 0
-            assert b <= len(self.sensor.band_names), 'TimeSeries is not initializes/has no bands to show'
-        self.cb_r.setCurrentIndex(bands[0]-1)
-        self.cb_g.setCurrentIndex(bands[1]-1)
-        self.cb_b.setCurrentIndex(bands[2]-1)
+        #provide default min max
 
         s = ""
-        pass
+
+
+    def bandSelectionChanged(self, *args):
+
+        text = 'RGB {}-{}-{}'.format(self.ui.sliderRed.value(),
+                                        self.ui.sliderGreen.value(),
+                                        self.ui.sliderBlue.value())
+        self.ui.labelBands.setText(text)
+        s = ""
 
     def setLayerRenderer(self, renderer):
+        ui = self.ui
         assert isinstance(renderer, QgsRasterRenderer)
 
         if isinstance(renderer, QgsMultiBandColorRenderer):
-            s = ""
+            ui.sliderRed.setValue(renderer.redBand())
+            ui.sliderGreen.setValue(renderer.greenBand())
+            ui.sliderBlue.setValue(renderer.blueBand())
 
-        bands, ranges = bands_and_ranges
-        assert len(bands) == 3
-        assert len(ranges) == 3
-        for range in ranges:
-            assert len(range) == 2 and range[0] <= range[1]
+            ceRed = renderer.redContrastEnhancement()
+            ceGreen = renderer.greenContrastEnhancement()
+            ceBlue = renderer.blueContrastEnhancement()
 
-        #copy values only if all bands fit to this sensor
-        for b in bands:
-            if b > self.sensor.nb:
-                return
-
-        self.cb_r.setCurrentIndex(bands[0]-1)
-        self.cb_g.setCurrentIndex(bands[1]-1)
-        self.cb_b.setCurrentIndex(bands[2]-1)
-
-        self.tb_range_r_min.setText(str(ranges[0][0]))
-        self.tb_range_g_min.setText(str(ranges[1][0]))
-        self.tb_range_b_min.setText(str(ranges[2][0]))
-
-        self.tb_range_r_max.setText(str(ranges[0][1]))
-        self.tb_range_g_max.setText(str(ranges[1][1]))
-        self.tb_range_b_max.setText(str(ranges[2][1]))
+            algs = [i[1] for i in self.ceAlgs]
+            ui.comboBoxContrastEnhancement.setCurrentIndex(algs.index(ceRed.contrastEnhancementAlgorithm()))
 
 
-    def getRGBSettings(self):
-        bands = [self.cb_r.currentIndex()+1, \
-                 self.cb_g.currentIndex()+1, \
-                 self.cb_b.currentIndex()+1]
 
-        range_r = [float(self.tb_range_r_min.text()), float(self.tb_range_r_max.text())]
-        range_g = [float(self.tb_range_g_min.text()), float(self.tb_range_g_max.text())]
-        range_b = [float(self.tb_range_b_min.text()), float(self.tb_range_b_max.text())]
-        ranges = (range_r, range_g, range_b)
+    def layerRenderer(self):
+        ui = self.ui
+        r = QgsMultiBandColorRenderer(None,
+            ui.sliderRed.value(), ui.sliderGreen.value(), ui.sliderBlue.value())
 
-        return bands, ranges
+        i = self.ui.comboBoxContrastEnhancement.currentIndex()
+        alg = self.ui.comboBoxContrastEnhancement.itemData(i)
+
+        if alg == QgsContrastEnhancement.NoEnhancement:
+            r.setRedContrastEnhancement(None)
+            r.setGreenContrastEnhancement(None)
+            r.setBlueContrastEnhancement(None)
+        else:
+            rgbEnhancements = []
+            for i in range(3):
+                e = QgsContrastEnhancement(self.sensor.bandDataType)
+                e.setMinimumValue(float(self.ui.minValues[i].text()))
+                e.setMaximumValue(float(self.ui.maxValues[i].text()))
+                e.setContrastEnhancementAlgorithm(alg)
+                rgbEnhancements.append(e)
+            r.setRedContrastEnhancement(rgbEnhancements[0])
+            r.setGreenContrastEnhancement(rgbEnhancements[1])
+            r.setBlueContrastEnhancement(rgbEnhancements[2])
+        return r
+
+
+        s = ""
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -178,112 +183,3 @@ class ImageChipViewSettings(QGroupBox,
         menu.exec_(event.globalPos())
 
 
-
-class BandViewSettings(QGroupBox,
-                       loadUIFormClass(PATH_BANDVIEWSETTINGS_UI)):
-
-    #define signals
-
-    removeView = pyqtSignal()
-
-    def __init__(self, SensorConfiguration, parent=None):
-        """Constructor."""
-        super(BandViewSettings, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
-
-
-        self.SensorConfiguration = SensorConfiguration
-        self.setTitle(SensorConfiguration.sensor_name)
-
-        self.tb_range_min.setValidator(QDoubleValidator())
-        self.tb_range_max.setValidator(QDoubleValidator())
-
-        self._initBands(self.SensorConfiguration.band_names)
-
-    def ua_setMask(self, state):
-        raise NotImplementedError()
-        useMask = state != 0
-        for w in [self.bt_color, self.label_maskexpression, self.tb_maskexpression]:
-            w.setEnabled(useMask)
-
-    def ua_setMaskColor(self, color):
-        raise NotImplementedError()
-        if color is None:
-            color = QColorDialog.getColor()
-
-        if color is not None:
-            self.maskcolor = color
-            r = color.red()
-            g = color.green()
-            b = color.blue()
-            style = "background:rgb({},{},{})".format(r,g,b)
-            self.bt_color.setStyleSheet(style)
-            self.bt_color.update()
-
-    def getMaskColor(self):
-        raise NotImplementedError()
-        return (self.maskcolor.red(), self.maskcolor.green(), self.maskcolor.blue())
-
-    def useMaskValues(self):
-        return self.cb_useMask.isChecked()
-
-    def _initBands(self, band_names):
-        cb_R = self.cb_r
-        cb_G = self.cb_g
-        cb_B = self.cb_b
-
-        for i, bandname in enumerate(band_names):
-            cb_R.addItem(bandname, i+1)
-            cb_G.addItem(bandname, i+1)
-            cb_B.addItem(bandname, i+1)
-
-        if len(self.SensorConfiguration.band_names) >= 3:
-            cb_R.setCurrentIndex(2)
-            cb_G.setCurrentIndex(1)
-            cb_B.setCurrentIndex(0)
-
-
-    def setBands(self,bands):
-        assert len(bands) == 3
-        for b in bands:
-            assert type(b) is int and b > 0
-            assert b <= len(self.SensorConfiguration.band_names), 'TimeSeries is not initializes/has no bands to show'
-        self.cb_r.setCurrentIndex(bands[0]-1)
-        self.cb_g.setCurrentIndex(bands[1]-1)
-        self.cb_b.setCurrentIndex(bands[2]-1)
-
-        s = ""
-        pass
-
-    def getRGBSettings(self):
-        bands = [self.cb_r.currentIndex()+1, \
-                 self.cb_g.currentIndex()+1, \
-                 self.cb_b.currentIndex()+1]
-
-        range = [float(self.tb_range_min.text()), float(self.tb_range_max.text())]
-        ranges = (range, range, range)
-
-        return bands, ranges
-
-
-if __name__ == '__main__':
-
-    import PyQt4.Qt
-
-    app=PyQt4.Qt.QApplication([])
-    W = QDialog()
-    W.setLayout(QHBoxLayout())
-    L = W.layout()
-    import sensecarbon_tsv
-    S = sensecarbon_tsv.SensorConfiguration(6,30,30)
-    w = BandViewSettings(S)
-    L.addWidget(w)
-    W.show()
-    sys.exit(app.exec_())
-
-    print('Done')

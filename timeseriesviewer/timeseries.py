@@ -8,6 +8,7 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from PyQt4.QtXml import *
 
 import numpy as np
 
@@ -24,7 +25,7 @@ def transformGeometry(geom, crsSrc, crsDst, trans=None):
 
 
 
-class SensorInstrument(object):
+class SensorInstrument(QObject):
 
     INSTRUMENTS = dict()
     INSTRUMENTS = {(6, 30., 30.): 'Landsat Legacy' \
@@ -36,49 +37,51 @@ class SensorInstrument(object):
                 , (5, 5., 5.): 'RE 5m' \
                     }
 
-    @staticmethod
-    def fromRasterLayer(lyr):
-
-        assert isinstance(lyr, QgsRasterLayer)
-        nb = lyr.bandCount()
-        sx = lyr.rasterUnitsPerPixelX()
-        sy = lyr.rasterUnitsPerPixelY()
-
-        bandNames = [lyr.bandName(i) for i in range(1, nb+1)]
-
-        return SensorInstrument(nb, sx, sy,
-                                band_names=bandNames,
-                                wavelengths=None,
-                                sensor_name=None)
-
+    """
     def fromGDALDataSet(self, ds):
         assert isinstance(ds, gdal.Dataset)
         nb = ds.RasterCount
-
+    """
 
     """
     Describes a Sensor Configuration
     """
-    def __init__(self,nb, px_size_x,px_size_y, band_names=None, wavelengths=None, sensor_name=None):
-        assert nb >= 1
+    def __init__(self, refLyr, sensor_name=None):
+        super(SensorInstrument, self).__init__()
+        assert isinstance(refLyr, QgsRasterLayer)
+        #QgsMapLayerRegistry.instance().addMapLayer(refLyr)
+        self.nb = refLyr.bandCount()
+        self.bandDataType = refLyr.dataProvider().dataType(1)
+        self.refUri = refLyr.dataProvider().dataSourceUri()
+        r = refLyr.renderer()
+        self.defaultRGB = [r.redBand(), r.greenBand(), r.blueBand()]
+        s = ""
+        """
+        dom = QDomDocument()
+        root = dom.createElement('root')
+        refLyr.renderer().writeXML(dom, root)
+        dom.appendChild(root)
+        self.renderXML = dom.toString()
+        """
+
+        #todo: better band names
+        self.bandNames = [refLyr.bandName(i) for i in range(1, self.nb + 1)]
+        #self.refLyr = refLyr
 
         self.TS = None
-        self.nb = nb
+        px_size_x = refLyr.rasterUnitsPerPixelX()
+        px_size_y = refLyr.rasterUnitsPerPixelY()
+
         self.px_size_x = float(abs(px_size_x))
         self.px_size_y = float(abs(px_size_y))
 
         assert self.px_size_x > 0
         assert self.px_size_y > 0
 
-        if band_names is not None:
-            assert len(band_names) == nb
-        else:
-            band_names = ['Band {}'.format(b+1) for b in range(nb)]
-
-        self.bandNames = band_names
-
+        wavelengths = None
+        #todo: find wavelength
         if wavelengths is not None:
-            assert len(wavelengths) == nb
+            assert len(wavelengths) == self.nb
 
         self.wavelengths = wavelengths
 
@@ -153,16 +156,215 @@ class TSDLoader(QRunnable):
         #return lyrs
 
 
+class TimeSeriesDatum(QObject):
+    """
+    Collects all data sets related to one sensor
+    """
+
+    def __init__(self, pathImg, pathMsk=None):
+        super(TimeSeriesDatum,self).__init__()
+        self.pathImg = pathImg
+        self.pathMsk = None
+
+        self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
+        self.uriImg = self.lyrImg.dataProvider().dataSourceUri()
+
+        self.crs = self.lyrImg.dataProvider().crs()
+        self.sensor = SensorInstrument(self.lyrImg)
+
+        self.date = getImageDate2(self.lyrImg)
+        assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
+
+        self.ns = self.lyrImg.width()
+        self.nl = self.lyrImg.height()
+        self.nb = self.lyrImg.bandCount()
+        self.srs_wkt = str(self.crs.toWkt())
+
+
+        if pathMsk:
+            self.setMask(pathMsk)
+
+    def getdtype(self):
+        return gdal_array.GDALTypeCodeToNumericTypeCode(self.etype)
+
+    def getDate(self):
+        return np.datetime64(self.date)
+
+
+    def getSpatialReference(self):
+        return self.crs
+
+
+    def getBoundingBox(self, srs=None):
+
+        bbox = self.lyrImg.extent()
+        if srs:
+            assert isinstance(srs, QgsCoordinateReferenceSystem)
+            bbox = transformGeometry(bbox, self.crs, srs)
+        return bbox
+
+
+    def setMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):
+        dsMsk = gdal.Open(pathMsk)
+        mskDate = getImageDate(dsMsk)
+
+
+        errors = list()
+        if mskDate and mskDate != self.getDate():
+            errors.append('Mask date differs from image date')
+        if self.ns != dsMsk.RasterXSize or self.nl != dsMsk.RasterYSize:
+            errors.append('Spatial size differs')
+        if dsMsk.RasterCount != 1:
+            errors.append('Mask has > 1 bands')
+
+        projImg = self.getSpatialReference()
+        projMsk = osr.SpatialReference()
+        projMsk.ImportFromWkt(dsMsk.GetProjection())
+
+        if not projImg.IsSame(projMsk):
+            errors.append('Spatial Reference differs from image')
+        if self.gt != list(dsMsk.GetGeoTransform()):
+            errors.append('Geotransformation differs from image')
+
+        if len(errors) > 0:
+            errors.insert(0, 'pathImg:{} \npathMsk:{}'.format(self.pathImg, pathMsk))
+            errors = '\n'.join(errors)
+            if raise_errors:
+                raise Exception(errors)
+            else:
+                six.print_(errors, file=sys.stderr)
+                return False
+        else:
+            self.pathMsk = pathMsk
+            self.mask_value = mask_value
+            self.exclude_mask_value = exclude_mask_value
+
+            return True
+
+    def readSpatialChip(self, geometry, srs=None, bands=[4,5,3]):
+
+        srs_img = osr.SpatialReference()
+        srs_img.ImportFromWkt(self.srs_wkt)
+
+
+        if type(geometry) is ogr.Geometry:
+            g_bb = geometry
+            srs_bb = g_bb.GetSpatialReference()
+        else:
+            assert srs is not None and type(srs) in [str, osr.SpatialReference]
+            if type(srs) is str:
+                srs_bb = osr.SpatialReference()
+                srs_bb.ImportFromWkt(srs)
+            else:
+                srs_bb = srs.Clone()
+            g_bb = ogr.CreateGeometryFromWkt(geometry, srs_bb)
+
+        assert srs_bb is not None and g_bb is not None
+        assert g_bb.GetGeometryName() == 'POLYGON'
+
+        if not srs_img.IsSame(srs_bb):
+            g_bb = g_bb.Clone()
+            g_bb.TransformTo(srs_img)
+
+        cx0,cx1,cy0,cy1 = g_bb.GetEnvelope()
+
+        ul_px = coordinate2px(self.gt, min([cx0, cx1]), max([cy0, cy1]))
+        lr_px = coordinate2px(self.gt, max([cx0, cx1]), min([cy0, cy1]))
+        lr_px = [c+1 for c in lr_px] #+1
+
+        return self.readImageChip([ul_px[0], lr_px[0]], [ul_px[1], lr_px[1]], bands=bands)
+
+    def readImageChip(self, px_x, px_y, bands=[4,5,3]):
+
+        ds = gdal.Open(self.pathImg, gdal.GA_ReadOnly)
+
+        assert len(px_x) == 2 and px_x[0] <= px_x[1]
+        assert len(px_y) == 2 and px_y[0] <= px_y[1]
+
+        ns = px_x[1]-px_x[0]+1
+        nl = px_y[1]-px_y[0]+1
+        assert ns >= 0
+        assert nl >= 0
+
+        src_ns = ds.RasterXSize
+        src_nl = ds.RasterYSize
+
+
+        chipdata = dict()
+
+
+
+        #pixel indices in source image
+        x0 = max([0, px_x[0]])
+        y0 = max([0, px_y[0]])
+        x1 = min([src_ns, px_x[1]])
+        y1 = min([src_nl, px_y[1]])
+        win_xsize = x1-x0+1
+        win_ysize = y1-y0+1
+
+        #pixel indices in image chip (ideally 0 and ns-1 or nl-1)
+        i0 = x0 - px_x[0]
+        i1 = i0 + win_xsize
+
+        j0 = y0 - px_y[0]
+        j1 = j0+ win_ysize
+
+
+
+
+        templateImg = np.zeros((nl,ns))
+        if self.nodata:
+            templateImg *= self.nodata
+
+        templateImg = templateImg.astype(self.getdtype())
+        templateMsk = np.ones((nl,ns), dtype='bool')
+
+        if win_xsize < 1 or win_ysize < 1:
+            six.print_('Selected image chip is out of raster image {}'.format(self.pathImg), file=sys.stderr)
+            for i, b in enumerate(bands):
+                chipdata[b] = np.copy(templateImg)
+
+        else:
+            for i, b in enumerate(bands):
+                band = ds.GetRasterBand(b)
+                data = np.copy(templateImg)
+                data[j0:j1,i0:i1] = band.ReadAsArray(xoff=x0, yoff=y0, win_xsize=win_xsize,win_ysize=win_ysize)
+                chipdata[b] = data
+                nodatavalue = band.GetNoDataValue()
+                if nodatavalue is not None:
+                    templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], data[j0:j1,i0:i1] != nodatavalue)
+
+            if self.pathMsk:
+                ds = gdal.Open(self.pathMsk)
+                tmp = ds.GetRasterBand(1).ReadAsArray(xoff=x0, yoff=y0, \
+                            win_xsize=win_xsize,win_ysize=win_ysize) == 0
+
+                templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], tmp)
+
+        chipdata['mask'] = templateMsk
+        return chipdata
+
+    def __repr__(self):
+        return 'TS Datum {} {}'.format(self.date, str(self.sensor))
+
+    def __cmp__(self, other):
+        return cmp(str((self.date, self.sensor)), str((other.date, other.sensor)))
+
+    def __eq__(self, other):
+        return self.date == other.date and self.sensor == other.sensor
+
+    def __hash__(self):
+        return hash((self.date,self.sensor.sensorName))
+
+
 class TimeSeries(QObject):
-    datumAdded = pyqtSignal(name='datumAdded')
+    datumAdded = pyqtSignal(TimeSeriesDatum)
 
     #fire when a new sensor configuration is added
     sensorAdded = pyqtSignal(SensorInstrument, name='sensorAdded')
 
     changed = pyqtSignal()
-
     progress = pyqtSignal(int,int,int, name='progress')
-    chipLoaded = pyqtSignal(object, name='chiploaded')
     closed = pyqtSignal()
     error = pyqtSignal(object)
 
@@ -235,45 +437,19 @@ class TimeSeries(QObject):
             f.writelines(lines)
 
 
-    def getSRS(self):
-        if len(self.data) == 0:
-            return 0
-        else:
-            TSD = self.data[0]
-            return TSD.getSpatialReference()
-
-    def getWKT(self):
-        srs = self.getSRS()
-        return srs.ExportToWkt()
-
-    def getSceneCenter(self, srs=None):
-
-        if srs is None:
-            srs = self.getSRS()
-
-        bbs = list()
-        for S, TSDs in self.Sensors.items():
-            x = []
-            y = []
-            for TSD in TSDs:
-                bb = TSD.getBoundingBox(srs)
-                x.extend([c[0] for c in bb])
-                y.extend([c[1] for c in bb])
-
-        return None
-        pass
 
     def getMaxExtent(self, srs=None):
-
+        if len(self.data) == 0:
+            return None
 
         if srs is None:
-            srs = self.getSRS()
+            srs = self.data[0].crs()
         bb = None
         for TSD in self.data:
             if bb is None:
-                bb = TSD.getBoundingBox(srs)
+                bb = TSD.getBoundingBox(srs=srs)
             else:
-                bb.unionRect(TSD.getBoundingBox(srs))
+                bb.unionRect(TSD.getBoundingBox(srs=srs))
 
         return bb
 
@@ -438,7 +614,7 @@ class TimeSeries(QObject):
                 #insert sorted
                 bisect.insort(self.data, TSD)
                 #self.data[TSD] = TSD
-
+                self.datumAdded.emit(TSD)
             if sensorAdded:
                 self.sensorAdded.emit(TSD.sensor)
 
@@ -466,15 +642,20 @@ class TimeSeries(QObject):
             self.progress.emit(0,i+1,l)
 
         self.progress.emit(0,0,1)
-        self.datumAdded.emit()
         self.changed.emit()
-
-
-
 
 
     def __len__(self):
         return len(self.data)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __contains__(self, item):
+        return item in self.data
 
     def __repr__(self):
         info = []
@@ -508,206 +689,6 @@ def getImageDate2(lyr):
     date = parseAcquisitionDate(date)
 
     return date
-
-class TimeSeriesDatum(QObject):
-    """
-    Collects all data sets related to one sensor
-    """
-
-    def __init__(self, pathImg, pathMsk=None):
-        self.pathImg = pathImg
-        self.pathMsk = None
-
-        self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
-        self.crs = self.lyrImg.dataProvider().crs()
-        self.sensor = SensorInstrument.fromRasterLayer(self.lyrImg)
-
-        self.date = getImageDate2(self.lyrImg)
-        assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
-
-        self.ns = self.lyrImg.width()
-        self.nl = self.lyrImg.height()
-        self.nb = self.lyrImg.bandCount()
-        self.srs_wkt = str(self.crs.toWkt())
-
-
-        if pathMsk:
-            self.setMask(pathMsk)
-
-    def getdtype(self):
-        return gdal_array.GDALTypeCodeToNumericTypeCode(self.etype)
-
-    def getDate(self):
-        return np.datetime64(self.date)
-
-
-    def getSpatialReference(self):
-        return self.crs
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(self.srs_wkt)
-        return srs
-
-
-    def getBoundingBox(self, srs=None):
-
-        bbox = self.lyrImg.extent()
-        if srs:
-            assert isinstance(srs, QgsCoordinateReferenceSystem)
-            bbox = transformGeometry(bbox, self.crs, srs)
-        return bbox
-
-
-    def setMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):
-        dsMsk = gdal.Open(pathMsk)
-        mskDate = getImageDate(dsMsk)
-
-
-        errors = list()
-        if mskDate and mskDate != self.getDate():
-            errors.append('Mask date differs from image date')
-        if self.ns != dsMsk.RasterXSize or self.nl != dsMsk.RasterYSize:
-            errors.append('Spatial size differs')
-        if dsMsk.RasterCount != 1:
-            errors.append('Mask has > 1 bands')
-
-        projImg = self.getSpatialReference()
-        projMsk = osr.SpatialReference()
-        projMsk.ImportFromWkt(dsMsk.GetProjection())
-
-        if not projImg.IsSame(projMsk):
-            errors.append('Spatial Reference differs from image')
-        if self.gt != list(dsMsk.GetGeoTransform()):
-            errors.append('Geotransformation differs from image')
-
-        if len(errors) > 0:
-            errors.insert(0, 'pathImg:{} \npathMsk:{}'.format(self.pathImg, pathMsk))
-            errors = '\n'.join(errors)
-            if raise_errors:
-                raise Exception(errors)
-            else:
-                six.print_(errors, file=sys.stderr)
-                return False
-        else:
-            self.pathMsk = pathMsk
-            self.mask_value = mask_value
-            self.exclude_mask_value = exclude_mask_value
-
-            return True
-
-    def readSpatialChip(self, geometry, srs=None, bands=[4,5,3]):
-
-        srs_img = osr.SpatialReference()
-        srs_img.ImportFromWkt(self.srs_wkt)
-
-
-        if type(geometry) is ogr.Geometry:
-            g_bb = geometry
-            srs_bb = g_bb.GetSpatialReference()
-        else:
-            assert srs is not None and type(srs) in [str, osr.SpatialReference]
-            if type(srs) is str:
-                srs_bb = osr.SpatialReference()
-                srs_bb.ImportFromWkt(srs)
-            else:
-                srs_bb = srs.Clone()
-            g_bb = ogr.CreateGeometryFromWkt(geometry, srs_bb)
-
-        assert srs_bb is not None and g_bb is not None
-        assert g_bb.GetGeometryName() == 'POLYGON'
-
-        if not srs_img.IsSame(srs_bb):
-            g_bb = g_bb.Clone()
-            g_bb.TransformTo(srs_img)
-
-        cx0,cx1,cy0,cy1 = g_bb.GetEnvelope()
-
-        ul_px = coordinate2px(self.gt, min([cx0, cx1]), max([cy0, cy1]))
-        lr_px = coordinate2px(self.gt, max([cx0, cx1]), min([cy0, cy1]))
-        lr_px = [c+1 for c in lr_px] #+1
-
-        return self.readImageChip([ul_px[0], lr_px[0]], [ul_px[1], lr_px[1]], bands=bands)
-
-    def readImageChip(self, px_x, px_y, bands=[4,5,3]):
-
-        ds = gdal.Open(self.pathImg, gdal.GA_ReadOnly)
-
-        assert len(px_x) == 2 and px_x[0] <= px_x[1]
-        assert len(px_y) == 2 and px_y[0] <= px_y[1]
-
-        ns = px_x[1]-px_x[0]+1
-        nl = px_y[1]-px_y[0]+1
-        assert ns >= 0
-        assert nl >= 0
-
-        src_ns = ds.RasterXSize
-        src_nl = ds.RasterYSize
-
-
-        chipdata = dict()
-
-
-
-        #pixel indices in source image
-        x0 = max([0, px_x[0]])
-        y0 = max([0, px_y[0]])
-        x1 = min([src_ns, px_x[1]])
-        y1 = min([src_nl, px_y[1]])
-        win_xsize = x1-x0+1
-        win_ysize = y1-y0+1
-
-        #pixel indices in image chip (ideally 0 and ns-1 or nl-1)
-        i0 = x0 - px_x[0]
-        i1 = i0 + win_xsize
-
-        j0 = y0 - px_y[0]
-        j1 = j0+ win_ysize
-
-
-
-
-        templateImg = np.zeros((nl,ns))
-        if self.nodata:
-            templateImg *= self.nodata
-
-        templateImg = templateImg.astype(self.getdtype())
-        templateMsk = np.ones((nl,ns), dtype='bool')
-
-        if win_xsize < 1 or win_ysize < 1:
-            six.print_('Selected image chip is out of raster image {}'.format(self.pathImg), file=sys.stderr)
-            for i, b in enumerate(bands):
-                chipdata[b] = np.copy(templateImg)
-
-        else:
-            for i, b in enumerate(bands):
-                band = ds.GetRasterBand(b)
-                data = np.copy(templateImg)
-                data[j0:j1,i0:i1] = band.ReadAsArray(xoff=x0, yoff=y0, win_xsize=win_xsize,win_ysize=win_ysize)
-                chipdata[b] = data
-                nodatavalue = band.GetNoDataValue()
-                if nodatavalue is not None:
-                    templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], data[j0:j1,i0:i1] != nodatavalue)
-
-            if self.pathMsk:
-                ds = gdal.Open(self.pathMsk)
-                tmp = ds.GetRasterBand(1).ReadAsArray(xoff=x0, yoff=y0, \
-                            win_xsize=win_xsize,win_ysize=win_ysize) == 0
-
-                templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], tmp)
-
-        chipdata['mask'] = templateMsk
-        return chipdata
-
-    def __repr__(self):
-        return 'TS Datum {} {}'.format(self.date, str(self.sensor))
-
-    def __cmp__(self, other):
-        return cmp(str((self.date, self.sensor)), str((other.date, other.sensor)))
-
-    def __eq__(self, other):
-        return self.date == other.date and self.sensor == other.sensor
-
-    def __hash__(self):
-        return hash((self.date,self.sensor.sensorName))
 
 
 def PFunc_TimeSeries_getSpatialChip(TSD, bbWkt, srsWkt , bands=[4,5,3]):
