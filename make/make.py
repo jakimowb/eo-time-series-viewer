@@ -209,12 +209,16 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
             del painter, frame, img, page
             s  =""
         elif mode == 'INKSCAPE':
-            dirInkscape = r'C:\Program Files\Inkscape'
-            assert os.path.isdir(dirInkscape)
-            cmd = [jp(dirInkscape,'inkscape')]
-            cmd.append('--file={}'.format(pathSvg))
-            cmd.append('--export-png={}'.format(pathPng))
-            subprocess.call(cmd)
+            if not os.path.exists(pathPng) or overwrite:
+                if sys.platform == 'darwin':
+                    cmd = ['inkscape']
+                else:
+                    dirInkscape = r'C:\Program Files\Inkscape'
+                    assert os.path.isdir(dirInkscape)
+                    cmd = [jp(dirInkscape,'inkscape')]
+                cmd.append('--file={}'.format(pathSvg))
+                cmd.append('--export-png={}'.format(pathPng))
+                subprocess.call(cmd)
 
             s = ""
 
@@ -281,7 +285,7 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
-    if True:
+    if False:
         from qgis import *
         from qgis.core import *
         from qgis.gui import *
@@ -316,10 +320,10 @@ if __name__ == '__main__':
 
     if True:
         #convert SVG to PNG and link them into the resource file
-        #svg2png(icondir, overwrite=True)
+        svg2png(icondir, overwrite=False)
 
         #add png icons to qrc file
-        png2qrc(icondir, pathQrc)
+        #png2qrc(icondir, pathQrc)
     if True:
         make(DIR_UI)
     print('Done')
