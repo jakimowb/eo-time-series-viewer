@@ -6,15 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1137</width>
-    <height>979</height>
+    <width>1095</width>
+    <height>760</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>SenseCarbon Time Series Viewer</string>
   </property>
   <property name="windowIcon">
-   <iconset>
+   <iconset resource="resources.qrc">
     <normaloff>:/timseriesviewer/icons/icon.png</normaloff>:/timseriesviewer/icons/icon.png</iconset>
   </property>
   <property name="documentMode">
@@ -31,8 +31,14 @@
     </size>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout_3">
+    <property name="spacing">
+     <number>1</number>
+    </property>
+    <property name="margin">
+     <number>0</number>
+    </property>
     <item>
-     <widget class="QScrollArea" name="scrollArea_imageChips">
+     <widget class="QScrollArea" name="scrollAreaSubsets">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -51,10 +57,10 @@
       <property name="widgetResizable">
        <bool>false</bool>
       </property>
-      <widget class="QWidget" name="scrollArea_imageChip_content">
+      <widget class="QWidget" name="scrollAreaSubsetContent">
        <property name="geometry">
         <rect>
-         <x>0</x>
+         <x>-110</x>
          <y>0</y>
          <width>723</width>
          <height>491</height>
@@ -66,11 +72,6 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <layout class="QGridLayout" name="gridLayout">
-        <property name="sizeConstraint">
-         <enum>QLayout::SetFixedSize</enum>
-        </property>
-       </layout>
       </widget>
      </widget>
     </item>
@@ -86,8 +87,14 @@
    </attribute>
    <widget class="QWidget" name="dockWidget_bottom_contents">
     <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="spacing">
+      <number>1</number>
+     </property>
+     <property name="margin">
+      <number>1</number>
+     </property>
      <item>
-      <widget class="QTabWidget" name="tabWidget">
+      <widget class="QTabWidget" name="tabBar">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -102,86 +109,101 @@
          <string>Here your define which images are part of your time series</string>
         </attribute>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>1</number>
+         </property>
+         <property name="margin">
+          <number>1</number>
+         </property>
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout">
-           <item>
-            <widget class="QPushButton" name="btn_addTSImages">
-             <property name="text">
-              <string>Add Images</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_addTSMasks">
-             <property name="text">
-              <string>Add Masks</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_loadTSFile">
-             <property name="toolTip">
-              <string>Load a time series from a text file.</string>
-             </property>
-             <property name="text">
-              <string>Load TS</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_saveTSFile">
-             <property name="toolTip">
-              <string>Save the time series in a text file.</string>
-             </property>
-             <property name="text">
-              <string>Save TS</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_addTSExample">
-             <property name="toolTip">
-              <string>Load an time series example</string>
-             </property>
-             <property name="text">
-              <string>Load Example</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_removeTSD">
-             <property name="toolTip">
-              <string>Remove selected dates from time series</string>
-             </property>
-             <property name="text">
-              <string>Remove Dates</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="btn_removeTS">
-             <property name="text">
-              <string>Remove all</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer_2">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
+          <widget class="QFrame" name="TSButtonList">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>25</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <layout class="QVBoxLayout" name="verticalLayout">
+            <property name="spacing">
+             <number>1</number>
+            </property>
+            <property name="margin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QToolButton" name="btnAddTSD">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="btnRemoveTSD">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="btnLoadTS">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="btnSaveTS">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="btnClearTS">
+              <property name="text">
+               <string>...</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>10</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
          </item>
          <item>
           <widget class="QTableView" name="tableView_TimeSeries">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="alternatingRowColors">
             <bool>true</bool>
            </property>
@@ -197,43 +219,22 @@
          <string>Here you can define the band combinations to show.</string>
         </attribute>
         <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="spacing">
+          <number>1</number>
+         </property>
+         <property name="margin">
+          <number>1</number>
+         </property>
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout_8">
-           <item>
-            <widget class="QPushButton" name="btn_addBandView">
-             <property name="maximumSize">
-              <size>
-               <width>150</width>
-               <height>16777215</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>Add View</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QScrollArea" name="scrollArea_bandViews">
+          <widget class="QScrollArea" name="scrollAreaBandViews">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
-             <horstretch>0</horstretch>
+            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+             <horstretch>1</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="autoFillBackground">
+            <bool>true</bool>
            </property>
            <property name="verticalScrollBarPolicy">
             <enum>Qt::ScrollBarAlwaysOn</enum>
@@ -244,13 +245,13 @@
            <property name="widgetResizable">
             <bool>true</bool>
            </property>
-           <widget class="QWidget" name="scrollArea_bandViews_content">
+           <widget class="QWidget" name="scrollAreaBandViewsContent">
             <property name="geometry">
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>943</width>
-              <height>243</height>
+              <width>1068</width>
+              <height>120</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -259,33 +260,50 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_7"/>
+            <property name="styleSheet">
+             <string notr="true"/>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_7">
+             <property name="spacing">
+              <number>1</number>
+             </property>
+             <property name="margin">
+              <number>1</number>
+             </property>
+            </layout>
            </widget>
           </widget>
          </item>
         </layout>
-        <zorder></zorder>
-        <zorder>scrollArea_bandViews</zorder>
        </widget>
       </widget>
      </item>
     </layout>
    </widget>
   </widget>
-  <widget class="QDockWidget" name="dockWidget_left">
+  <widget class="QDockWidget" name="dockNavigation">
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
    <widget class="QWidget" name="dockWidgetContents_4">
     <layout class="QVBoxLayout" name="verticalLayout_6">
+     <property name="spacing">
+      <number>2</number>
+     </property>
+     <property name="margin">
+      <number>2</number>
+     </property>
      <item>
       <widget class="QTabWidget" name="tabbar_left">
        <property name="currentIndex">
         <number>0</number>
        </property>
-       <widget class="QWidget" name="tab_3">
+       <widget class="QWidget" name="tabNavigation">
         <attribute name="title">
-         <string>Viewer</string>
+         <string>Navigation</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_9">
          <property name="spacing">
@@ -304,20 +322,7 @@
           <number>5</number>
          </property>
          <item>
-          <widget class="QPushButton" name="btn_showPxCoordinate">
-           <property name="toolTip">
-            <string>Load or reload time series image chips. Requires that the time series is specified and which bands are to be shown.</string>
-           </property>
-           <property name="text">
-            <string>Load image subset!</string>
-           </property>
-           <property name="flat">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_spatialsubset">
+          <widget class="QGroupBox" name="gbNavSpatial">
            <property name="minimumSize">
             <size>
              <width>0</width>
@@ -325,12 +330,78 @@
             </size>
            </property>
            <property name="title">
-            <string>Subset</string>
+            <string>Spatial</string>
            </property>
            <layout class="QFormLayout" name="formLayout_3">
             <property name="fieldGrowthPolicy">
              <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
             </property>
+            <property name="verticalSpacing">
+             <number>1</number>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QFrame" name="frame_3">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Plain</enum>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_7">
+               <property name="spacing">
+                <number>1</number>
+               </property>
+               <property name="margin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QToolButton" name="btnSelectCenterCoordinate">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomPoint.png</normaloff>:/timseriesviewer/icons/mActionZoomPoint.png</iconset>
+                 </property>
+                 <property name="arrowType">
+                  <enum>Qt::NoArrow</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnSelectArea">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomToArea.png</normaloff>:/timseriesviewer/icons/mActionZoomToArea.png</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="cb_loadSubsetDirectly">
+                 <property name="text">
+                  <string>load immediatelly</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_7">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
             <item row="1" column="0">
              <widget class="QLabel" name="label_12">
               <property name="toolTip">
@@ -344,6 +415,9 @@
             <item row="1" column="1">
              <widget class="QFrame" name="frame_2">
               <layout class="QHBoxLayout" name="horizontalLayout_6">
+               <property name="spacing">
+                <number>1</number>
+               </property>
                <property name="margin">
                 <number>0</number>
                </property>
@@ -440,6 +514,9 @@
             <item row="2" column="1">
              <widget class="QFrame" name="frame">
               <layout class="QHBoxLayout" name="horizontalLayout">
+               <property name="spacing">
+                <number>1</number>
+               </property>
                <property name="margin">
                 <number>0</number>
                </property>
@@ -536,12 +613,13 @@
              </widget>
             </item>
             <item row="3" column="0">
-             <widget class="QLabel" name="label_7">
-              <property name="toolTip">
-               <string>Spatial Reference System (SRS) of center coordinate</string>
-              </property>
+             <widget class="QToolButton" name="btnCRS">
               <property name="text">
-               <string>SRS</string>
+               <string>...</string>
+              </property>
+              <property name="icon">
+               <iconset resource="resources.qrc">
+                <normaloff>:/timseriesviewer/icons/CRS.png</normaloff>:/timseriesviewer/icons/CRS.png</iconset>
               </property>
              </widget>
             </item>
@@ -562,73 +640,14 @@
                 <height>50</height>
                </size>
               </property>
-              <property name="readOnly">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QFrame" name="frame_3">
               <property name="frameShape">
-               <enum>QFrame::NoFrame</enum>
+               <enum>QFrame::StyledPanel</enum>
               </property>
               <property name="frameShadow">
                <enum>QFrame::Plain</enum>
               </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_7">
-               <property name="margin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QPushButton" name="btn_selectByCoordinate">
-                 <property name="toolTip">
-                  <string>Selects the center coordinate from QGIS.</string>
-                 </property>
-                 <property name="text">
-                  <string>center coordinate</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="btn_selectByRectangle">
-                 <property name="toolTip">
-                  <string>Selects the image subset from QGIS.</string>
-                 </property>
-                 <property name="text">
-                  <string>rectangle</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QCheckBox" name="cb_loadSubsetDirectly">
-                 <property name="text">
-                  <string>direct load</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_7">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_13">
-              <property name="toolTip">
-               <string>Spatial Reference System (SRS) of center coordinate</string>
-              </property>
-              <property name="text">
-               <string>Select</string>
+              <property name="readOnly">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -636,7 +655,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QGroupBox" name="groupBox_rendering">
+          <widget class="QGroupBox" name="gbNavTemporal">
            <property name="minimumSize">
             <size>
              <width>0</width>
@@ -644,229 +663,24 @@
             </size>
            </property>
            <property name="title">
-            <string>Rendering</string>
+            <string>Temporal</string>
            </property>
-           <layout class="QFormLayout" name="formLayout">
-            <property name="fieldGrowthPolicy">
-             <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+           <layout class="QVBoxLayout" name="verticalLayout_11">
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>2</number>
+            </property>
+            <property name="rightMargin">
+             <number>2</number>
             </property>
             <property name="bottomMargin">
-             <number>6</number>
+             <number>2</number>
             </property>
-            <item row="0" column="0" colspan="2">
-             <widget class="QRadioButton" name="rb_showEntireTS">
-              <property name="text">
-               <string>Entire Time Series</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QRadioButton" name="rb_showTimeWindow">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="toolTip">
-               <string>Select </string>
-              </property>
-              <property name="text">
-               <string>Time Window</string>
-              </property>
-              <property name="checked">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QFrame" name="frame_timewindow">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>50</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::NoFrame</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Raised</enum>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_3">
-               <property name="spacing">
-                <number>2</number>
-               </property>
-               <property name="margin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="label_8">
-                 <property name="text">
-                  <string>before</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QFrame" name="frame_4">
-                 <property name="frameShape">
-                  <enum>QFrame::NoFrame</enum>
-                 </property>
-                 <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
-                 </property>
-                 <layout class="QHBoxLayout" name="horizontalLayout_8">
-                  <property name="margin">
-                   <number>0</number>
-                  </property>
-                 </layout>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sb_ndates_before">
-                 <property name="maximum">
-                  <number>9999</number>
-                 </property>
-                 <property name="value">
-                  <number>1</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_9">
-                 <property name="text">
-                  <string>after</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="sb_ndates_after">
-                 <property name="maximum">
-                  <number>9999</number>
-                 </property>
-                 <property name="value">
-                  <number>1</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label_14">
-                 <property name="text">
-                  <string>DOI</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_3">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item row="3" column="0" colspan="2">
-             <widget class="QFrame" name="frame_5">
-              <property name="frameShape">
-               <enum>QFrame::NoFrame</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Raised</enum>
-              </property>
-              <layout class="QHBoxLayout" name="horizontalLayout_9">
-               <property name="margin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="label_11">
-                 <property name="text">
-                  <string>max. size </string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spinBoxMaxPixmapSize">
-                 <property name="minimumSize">
-                  <size>
-                   <width>50</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="toolTip">
-                  <string>Max. length of an image chip on screen.</string>
-                 </property>
-                 <property name="suffix">
-                  <string>px</string>
-                 </property>
-                 <property name="minimum">
-                  <number>20</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000</number>
-                 </property>
-                 <property name="singleStep">
-                  <number>50</number>
-                 </property>
-                 <property name="value">
-                  <number>300</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="label">
-                 <property name="text">
-                  <string>#cpu</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="spinBox_ncpu">
-                 <property name="toolTip">
-                  <string>Number of CPUs used for parallel image chip calculation</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="horizontalSpacer_5">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>40</width>
-                   <height>20</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_2">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>50</height>
-            </size>
-           </property>
-           <property name="title">
-            <string>Navigation</string>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_10">
             <item>
              <widget class="QLabel" name="labelDOI">
               <property name="minimumSize">
@@ -879,30 +693,100 @@
                <string>DOI</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignCenter</set>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QSlider" name="sliderDOI">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+             <layout class="QHBoxLayout" name="horizontalLayout_10">
+              <property name="spacing">
+               <number>2</number>
               </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
+              <item>
+               <widget class="QToolButton" name="btnNavToFirstTSD">
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/timseriesviewer/icons/mActionAtlasFirst.png</normaloff>:/timseriesviewer/icons/mActionAtlasFirst.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="btnNavToPreviousTSD">
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/timseriesviewer/icons/mActionAtlasPrev.png</normaloff>:/timseriesviewer/icons/mActionAtlasPrev.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSlider" name="sliderDOI">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="tickPosition">
+                 <enum>QSlider::TicksAbove</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="btnNavToNextTSD">
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/timseriesviewer/icons/mActionAtlasNext.png</normaloff>:/timseriesviewer/icons/mActionAtlasNext.png</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="btnNavToLastTSD">
+                <property name="text">
+                 <string>...</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/timseriesviewer/icons/mActionAtlasLast.png</normaloff>:/timseriesviewer/icons/mActionAtlasLast.png</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </item>
            </layout>
           </widget>
          </item>
+         <item>
+          <spacer name="verticalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="tab_4">
+       <widget class="QWidget" name="tabLabeling">
         <attribute name="title">
          <string>Labeling</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_4">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="margin">
+          <number>0</number>
+         </property>
          <item>
           <widget class="QFrame" name="frame">
            <property name="frameShape">
@@ -912,6 +796,12 @@
             <enum>QFrame::Raised</enum>
            </property>
            <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <property name="spacing">
+             <number>1</number>
+            </property>
+            <property name="margin">
+             <number>0</number>
+            </property>
             <item>
              <widget class="QRadioButton" name="rb_labeling_none">
               <property name="text">
@@ -936,7 +826,7 @@
              <widget class="QPushButton" name="btn_labeling_clear">
               <property name="maximumSize">
                <size>
-                <width>50</width>
+                <width>100</width>
                 <height>16777215</height>
                </size>
               </property>
@@ -975,6 +865,284 @@
        </widget>
       </widget>
      </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1095</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFiles">
+    <property name="title">
+     <string>Files</string>
+    </property>
+    <addaction name="actionAddTSD"/>
+    <addaction name="actionLoadTS"/>
+    <addaction name="actionSaveTS"/>
+    <addaction name="actionClearTS"/>
+   </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>Views</string>
+    </property>
+    <addaction name="actionAddBandView"/>
+   </widget>
+   <addaction name="menuFiles"/>
+   <addaction name="menuView"/>
+   <addaction name="menuAbout"/>
+  </widget>
+  <widget class="QDockWidget" name="dockRendering">
+   <property name="minimumSize">
+    <size>
+     <width>281</width>
+     <height>216</height>
+    </size>
+   </property>
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_5">
+     <item>
+      <widget class="QGroupBox" name="groupBox_rendering">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="title">
+        <string>Rendering</string>
+       </property>
+       <layout class="QFormLayout" name="formLayout">
+        <property name="fieldGrowthPolicy">
+         <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+        </property>
+        <property name="horizontalSpacing">
+         <number>2</number>
+        </property>
+        <property name="verticalSpacing">
+         <number>5</number>
+        </property>
+        <property name="bottomMargin">
+         <number>6</number>
+        </property>
+        <item row="0" column="0" colspan="2">
+         <widget class="QRadioButton" name="rb_showEntireTS">
+          <property name="text">
+           <string>Entire Time Series</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QRadioButton" name="rb_showTimeWindow">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="toolTip">
+           <string>Select </string>
+          </property>
+          <property name="text">
+           <string>Time Window</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QFrame" name="frame_timewindow">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>50</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Raised</enum>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <property name="spacing">
+            <number>2</number>
+           </property>
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_8">
+             <property name="text">
+              <string>before</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QFrame" name="frame_4">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_8">
+              <property name="margin">
+               <number>0</number>
+              </property>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="sb_ndates_before">
+             <property name="maximum">
+              <number>9999</number>
+             </property>
+             <property name="value">
+              <number>1</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_9">
+             <property name="text">
+              <string>after</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="sb_ndates_after">
+             <property name="maximum">
+              <number>9999</number>
+             </property>
+             <property name="value">
+              <number>1</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_14">
+             <property name="text">
+              <string>DOI</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="2">
+         <widget class="QFrame" name="frame_5">
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Raised</enum>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_9">
+           <property name="margin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_11">
+             <property name="text">
+              <string>max. size </string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinBoxMaxPixmapSize">
+             <property name="minimumSize">
+              <size>
+               <width>50</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Max. length of an image chip on screen.</string>
+             </property>
+             <property name="suffix">
+              <string>px</string>
+             </property>
+             <property name="minimum">
+              <number>20</number>
+             </property>
+             <property name="maximum">
+              <number>1000</number>
+             </property>
+             <property name="singleStep">
+              <number>50</number>
+             </property>
+             <property name="value">
+              <number>300</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label">
+             <property name="text">
+              <string>#cpu</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spinBox_ncpu">
+             <property name="toolTip">
+              <string>Number of CPUs used for parallel image chip calculation</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_5">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
      <item>
       <widget class="QGroupBox" name="groupBox">
        <property name="minimumSize">
@@ -997,93 +1165,201 @@
        </layout>
       </widget>
      </item>
-     <item>
-      <spacer name="verticalSpacer_6">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
     </layout>
    </widget>
   </widget>
-  <widget class="QMenuBar" name="menuBar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>1137</width>
-     <height>22</height>
-    </rect>
+  <action name="actionSelectCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomPoint.png</normaloff>:/timseriesviewer/icons/mActionZoomPoint.png</iconset>
    </property>
-   <widget class="QMenu" name="menuFiles">
-    <property name="title">
-     <string>Files</string>
-    </property>
-    <addaction name="actionAdd_Images"/>
-    <addaction name="actionAdd_Masks"/>
-    <addaction name="actionLoad_Time_Series"/>
-    <addaction name="actionSave_Time_Series"/>
-    <addaction name="actionLoad_Example_Time_Series"/>
-   </widget>
-   <widget class="QMenu" name="menuAbout">
-    <property name="title">
-     <string>Help</string>
-    </property>
-    <addaction name="actionAbout"/>
-   </widget>
-   <addaction name="menuFiles"/>
-   <addaction name="menuAbout"/>
-  </widget>
-  <action name="actionSelectCoordinate">
    <property name="text">
-    <string>selectCoordinate</string>
+    <string>SelectCenter</string>
+   </property>
+   <property name="toolTip">
+    <string>select center coordinate</string>
    </property>
   </action>
-  <action name="actionSelect_Coordinate">
+  <action name="actionSelectArea">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomToArea.png</normaloff>:/timseriesviewer/icons/mActionZoomToArea.png</iconset>
+   </property>
    <property name="text">
-    <string>Select Coordinate</string>
+    <string>selectArea</string>
    </property>
   </action>
-  <action name="actionAdd_View">
+  <action name="actionSelectCRS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/CRS.png</normaloff>:/timseriesviewer/icons/CRS.png</iconset>
+   </property>
    <property name="text">
-    <string>Add View</string>
+    <string>selectCRS</string>
+   </property>
+   <property name="toolTip">
+    <string>Select coordinate reference system</string>
    </property>
   </action>
-  <action name="actionAdd_Images">
+  <action name="actionNextTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAtlasNext.png</normaloff>:/timseriesviewer/icons/mActionAtlasNext.png</iconset>
+   </property>
    <property name="text">
-    <string>Add Images</string>
+    <string>nextTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>go to next time series datum</string>
    </property>
   </action>
-  <action name="actionAdd_Masks">
+  <action name="actionPreviousTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAtlasPrev.png</normaloff>:/timseriesviewer/icons/mActionAtlasPrev.png</iconset>
+   </property>
    <property name="text">
-    <string>Add Masks</string>
+    <string>previousTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to prevoius time series datum</string>
    </property>
   </action>
-  <action name="actionLoad_Time_Series">
+  <action name="actionFirstTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAtlasFirst.png</normaloff>:/timseriesviewer/icons/mActionAtlasFirst.png</iconset>
+   </property>
    <property name="text">
-    <string>Load Time Series</string>
+    <string>first TSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to first time series datum</string>
    </property>
   </action>
-  <action name="actionSave_Time_Series">
+  <action name="actionLastTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAtlasLast.png</normaloff>:/timseriesviewer/icons/mActionAtlasLast.png</iconset>
+   </property>
    <property name="text">
-    <string>Save Time Series</string>
+    <string>lastTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to last time series datum</string>
    </property>
   </action>
-  <action name="actionLoad_Example_Time_Series">
+  <action name="actionLoadTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAddTS.png</normaloff>:/timseriesviewer/icons/mActionAddTS.png</iconset>
+   </property>
    <property name="text">
-    <string>Load Time Series Example</string>
+    <string>Load time series</string>
+   </property>
+   <property name="toolTip">
+    <string>Load time series from CSV file</string>
+   </property>
+  </action>
+  <action name="actionAddTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAddRasterLayer.png</normaloff>:/timseriesviewer/icons/mActionAddRasterLayer.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add image</string>
+   </property>
+   <property name="toolTip">
+    <string>Add image to time series</string>
+   </property>
+  </action>
+  <action name="actionRemoveTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionRemoveTSD.png</normaloff>:/timseriesviewer/icons/mActionRemoveTSD.png</iconset>
+   </property>
+   <property name="text">
+    <string>Remove image</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove datum image from time series</string>
+   </property>
+  </action>
+  <action name="actionSaveTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionSaveTS.png</normaloff>:/timseriesviewer/icons/mActionSaveTS.png</iconset>
+   </property>
+   <property name="text">
+    <string>Save time serie</string>
+   </property>
+   <property name="toolTip">
+    <string>Save time series as CSV file</string>
+   </property>
+  </action>
+  <action name="actionAddBandView">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAddBandView.png</normaloff>:/timseriesviewer/icons/mActionAddBandView.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add view</string>
+   </property>
+   <property name="toolTip">
+    <string>Add a view on selected bands</string>
+   </property>
+  </action>
+  <action name="actionRemoveBandView">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</iconset>
+   </property>
+   <property name="text">
+    <string>Remove View</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove selected view</string>
+   </property>
+  </action>
+  <action name="actionAddTSExample">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionAddTS.png</normaloff>:/timseriesviewer/icons/mActionAddTS.png</iconset>
+   </property>
+   <property name="text">
+    <string>Add example</string>
+   </property>
+   <property name="toolTip">
+    <string>Add example time series</string>
    </property>
   </action>
   <action name="actionAbout">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/metadata.png</normaloff>:/timseriesviewer/icons/metadata.png</iconset>
+   </property>
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionDummy">
+   <property name="text">
+    <string>Dummy</string>
+   </property>
+   <property name="toolTip">
+    <string>This is an obviously not removed dummy</string>
+   </property>
+  </action>
+  <action name="actionClearTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionRemoveTS.png</normaloff>:/timseriesviewer/icons/mActionRemoveTS.png</iconset>
+   </property>
+   <property name="text">
+    <string>Clear Time Series</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove all images from time series</string>
    </property>
   </action>
  </widget>
@@ -1098,12 +1374,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>88</x>
-     <y>408</y>
+     <x>101</x>
+     <y>437</y>
     </hint>
     <hint type="destinationlabel">
-     <x>355</x>
-     <y>416</y>
+     <x>451</x>
+     <y>445</y>
     </hint>
    </hints>
   </connection>

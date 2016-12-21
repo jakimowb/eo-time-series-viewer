@@ -33,6 +33,7 @@ from timeseriesviewer.ui import loadUIFormClass, DIR_UI
 PATH_MAIN_UI = jp(DIR_UI, 'timseriesviewer.ui')
 PATH_BANDVIEWSETTINGS_UI = jp(DIR_UI, 'bandviewsettings.ui')
 PATH_IMAGECHIPVIEWSETTINGS_UI = jp(DIR_UI, 'imagechipviewsettings.ui')
+PATH_BANDVIEW_UI = jp(DIR_UI, 'bandview.ui')
 
 class TimeSeriesViewerUI(QMainWindow,
                          loadUIFormClass(PATH_MAIN_UI)):
@@ -47,11 +48,100 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
+        #connect buttons with actions
+        self.btnCRS.setDefaultAction(self.actionSelectCRS)
+        self.btnSelectArea.setDefaultAction(self.actionSelectArea)
+        self.btnSelectCenterCoordinate.setDefaultAction(self.actionSelectCenter)
+
+        self.btnNavToFirstTSD.setDefaultAction(self.actionFirstTSD)
+        self.btnNavToLastTSD.setDefaultAction(self.actionLastTSD)
+        self.btnNavToPreviousTSD.setDefaultAction(self.actionPreviousTSD)
+        self.btnNavToNextTSD.setDefaultAction(self.actionNextTSD)
+
+        self.btnAddTSD.setDefaultAction(self.actionAddTSD)
+        self.btnRemoveTSD.setDefaultAction(self.actionRemoveTSD)
+        self.btnLoadTS.setDefaultAction(self.actionLoadTS)
+        self.btnSaveTS.setDefaultAction(self.actionSaveTS)
+        self.btnClearTS.setDefaultAction(self.actionClearTS)
+
+class VerticalLabel(QLabel):
+    def __init__(self, text, orientation='vertical', forceWidth=True):
+        QLabel.__init__(self, text)
+        self.forceWidth = forceWidth
+        self.orientation = None
+        self.setOrientation(orientation)
+
+    def setOrientation(self, o):
+        if self.orientation == o:
+            return
+        self.orientation = o
+        self.update()
+        self.updateGeometry()
+
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        # p.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 200)))
+        # p.setPen(QtGui.QPen(QtGui.QColor(50, 50, 100)))
+        # p.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+        # p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
+
+        if self.orientation == 'vertical':
+            p.rotate(-90)
+            rgn = QRect(-self.height(), 0, self.height(), self.width())
+        else:
+            rgn = self.contentsRect()
+        align = self.alignment()
+        # align  = QtCore.Qt.AlignTop|QtCore.Qt.AlignHCenter
+
+        self.hint = p.drawText(rgn, align, self.text())
+        p.end()
+
+        if self.orientation == 'vertical':
+            self.setMaximumWidth(self.hint.height())
+            self.setMinimumWidth(0)
+            self.setMaximumHeight(16777215)
+            if self.forceWidth:
+                self.setMinimumHeight(self.hint.width())
+            else:
+                self.setMinimumHeight(0)
+        else:
+            self.setMaximumHeight(self.hint.height())
+            self.setMinimumHeight(0)
+            self.setMaximumWidth(16777215)
+            if self.forceWidth:
+                self.setMinimumWidth(self.hint.width())
+            else:
+                self.setMinimumWidth(0)
+
+    def sizeHint(self):
+        if self.orientation == 'vertical':
+            if hasattr(self, 'hint'):
+                return QSize(self.hint.height(), self.hint.width())
+            else:
+                return QSize(19, 50)
+        else:
+            if hasattr(self, 'hint'):
+                return QSize(self.hint.width(), self.hint.height())
+            else:
+                return QSize(50, 19)
+
+class BandViewUI(QFrame, loadUIFormClass(PATH_BANDVIEW_UI)):
+
+    def __init__(self, title='View',parent=None):
+        super(BandViewUI, self).__init__(parent)
+
+        self.setupUi(self)
+        self.btnRemoveBandView.setDefaultAction(self.actionRemoveBandView)
+        self.btnAddBandView.setDefaultAction(self.actionAddBandView)
+
+
+
 
 class ImageChipViewSettingsUI(QGroupBox,
                              loadUIFormClass(PATH_IMAGECHIPVIEWSETTINGS_UI)):
 
-    def __init__(self, sensor, parent=None):
+    def __init__(self, parent=None):
         """Constructor."""
         super(ImageChipViewSettingsUI, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -62,10 +152,19 @@ class ImageChipViewSettingsUI(QGroupBox,
 
         self.setupUi(self)
 
+        self.btnDefault.setDefaultAction(self.actionSetDefault)
+        self.btnTrueColor.setDefaultAction(self.actionSetTrueColor)
+        self.btnCIR.setDefaultAction(self.actionSetCIR)
+        self.btn453.setDefaultAction(self.actionSet453)
+
+
+
 
 class ImageChipViewSettings(QObject):
 
     #define signals
+
+
 
     removeView = pyqtSignal()
 
@@ -73,7 +172,7 @@ class ImageChipViewSettings(QObject):
         """Constructor."""
         super(ImageChipViewSettings, self).__init__(parent)
 
-        self.ui = ImageChipViewSettingsUI(sensor, parent)
+        self.ui = ImageChipViewSettingsUI(parent)
         self.ui.create()
 
 
@@ -103,18 +202,59 @@ class ImageChipViewSettings(QObject):
         self.sensor = sensor
 
         lyr = QgsRasterLayer(self.sensor.refUri)
-        self.setLayerRenderer(lyr.renderer())
+        renderer = lyr.renderer()
+        self.setLayerRenderer(renderer)
 
         #provide default min max
+        self.defaultRGB = [renderer.redBand(), renderer.greenBand(), renderer.blueBand()]
+        self.ui.actionSetDefault.triggered.connect(lambda : self.setBandSelection('default'))
+        self.ui.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('TrueColor'))
+        self.ui.actionSetCIR.triggered.connect(lambda: self.setBandSelection('CIR'))
+        self.ui.actionSet453.triggered.connect(lambda: self.setBandSelection('453'))
 
+        if not self.sensor.wavelengthsDefined():
+            self.ui.btnTrueColor.setEnabled(False)
+            self.ui.btnCIR.setEnabled(False)
+            self.ui.btn453.setEnabled(False)
         s = ""
 
+    def showSensorName(self, b):
+        if b:
+            self.ui.setTitle(self.sensor.sensorName)
+        else:
+            self.ui.setTitle(None)
+
+    def setBandSelection(self, key):
+
+        if key == 'default':
+            bands = self.defaultRGB
+        else:
+            if key == 'TrueColor':
+                colors = ['R','G','B']
+            elif key == 'CIR':
+                colors = ['nIR', 'R', 'G']
+            elif key == '453':
+                colors = ['nIR','swIR', 'R']
+            bands = [self.sensor.bandClosestToWavelength(c) for c in colors]
+
+        for i, b in enumerate(bands):
+            self.sliders[i].setValue(b)
+
+    def rgb(self):
+        return [self.ui.sliderRed.value(),
+               self.ui.sliderGreen.value(),
+               self.ui.sliderBlue.value()]
 
     def bandSelectionChanged(self, *args):
+        rgb = self.rgb()
 
-        text = 'RGB {}-{}-{}'.format(self.ui.sliderRed.value(),
-                                        self.ui.sliderGreen.value(),
-                                        self.ui.sliderBlue.value())
+        text = 'RGB {}-{}-{}'.format(*rgb)
+        if self.sensor.wavelengthsDefined():
+            text += ' ({} {})'.format(
+                ','.join(['{:0.2f}'.format(self.sensor.wavelengths[b-1]) for b in rgb]),
+                self.sensor.wavelengthUnits)
+
+
         self.ui.labelBands.setText(text)
         s = ""
 
@@ -152,8 +292,8 @@ class ImageChipViewSettings(QObject):
             rgbEnhancements = []
             for i in range(3):
                 e = QgsContrastEnhancement(self.sensor.bandDataType)
-                e.setMinimumValue(float(self.ui.minValues[i].text()))
-                e.setMaximumValue(float(self.ui.maxValues[i].text()))
+                e.setMinimumValue(float(self.minValues[i].text()))
+                e.setMaximumValue(float(self.maxValues[i].text()))
                 e.setContrastEnhancementAlgorithm(alg)
                 rgbEnhancements.append(e)
             r.setRedContrastEnhancement(rgbEnhancements[0])

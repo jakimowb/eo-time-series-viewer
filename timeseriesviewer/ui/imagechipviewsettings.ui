@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>332</width>
-    <height>135</height>
+    <width>285</width>
+    <height>137</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,7 +18,7 @@
   </property>
   <property name="font">
    <font>
-    <pointsize>13</pointsize>
+    <pointsize>10</pointsize>
    </font>
   </property>
   <property name="windowTitle">
@@ -41,7 +41,7 @@
     <number>0</number>
    </property>
    <item>
-    <layout class="QGridLayout" name="bandSelectionGridLayout" rowstretch="0,0,0,0,0" columnstretch="0,0,0,0">
+    <layout class="QGridLayout" name="bandSelectionGridLayout" rowstretch="0,0,0,0,0,0" columnstretch="0,0,0,0">
      <property name="horizontalSpacing">
       <number>5</number>
      </property>
@@ -51,24 +51,124 @@
      <property name="leftMargin">
       <number>0</number>
      </property>
-     <item row="2" column="1">
-      <widget class="QSlider" name="sliderGreen">
-       <property name="styleSheet">
-        <string notr="true"/>
+     <item row="1" column="0" colspan="2">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <property name="spacing">
+        <number>0</number>
        </property>
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QToolButton" name="btnDefault">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <italic>false</italic>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>default band selection</string>
+         </property>
+         <property name="text">
+          <string>D</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="btnTrueColor">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <italic>false</italic>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>red-green-blue (true colour)</string>
+         </property>
+         <property name="text">
+          <string>TC</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="btnCIR">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <italic>false</italic>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>swIR-red-green (coloured infra-red)</string>
+         </property>
+         <property name="text">
+          <string>CIR</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="btn453">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <italic>false</italic>
+          </font>
+         </property>
+         <property name="toolTip">
+          <string>swIR-mwIR-red</string>
+         </property>
+         <property name="text">
+          <string>453</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLineEdit" name="tbGreenMin">
+       <property name="text">
+        <string>0</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
+     <item row="0" column="0" colspan="4">
+      <widget class="QLabel" name="labelBands">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>15</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
       <widget class="QSlider" name="sliderBlue">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
-     <item row="2" column="3">
+     <item row="5" column="0" colspan="2">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Stretch</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3">
       <widget class="QLineEdit" name="tbGreenMax">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -81,7 +181,7 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="3">
+     <item row="2" column="3">
       <widget class="QLineEdit" name="tbRedMax">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -100,27 +200,41 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="1">
-      <widget class="QLabel" name="labelBands">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
+     <item row="3" column="0">
+      <widget class="QLabel" name="labelGreen">
+       <property name="styleSheet">
+        <string notr="true"/>
        </property>
        <property name="text">
-        <string/>
+        <string>G</string>
        </property>
       </widget>
      </item>
-     <item row="2" column="2">
-      <widget class="QLineEdit" name="tbGreenMin">
+     <item row="4" column="2">
+      <widget class="QLineEdit" name="tbBlueMin">
        <property name="text">
         <string>0</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
+     <item row="3" column="1">
+      <widget class="QSlider" name="sliderGreen">
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QLabel" name="labelMin">
+       <property name="text">
+        <string>Max</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
       <widget class="QLabel" name="labelRed">
        <property name="styleSheet">
         <string notr="true"/>
@@ -130,14 +244,7 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="3">
-      <widget class="QLabel" name="labelMin">
-       <property name="text">
-        <string>Max</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
+     <item row="2" column="1">
       <widget class="QSlider" name="sliderRed">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -159,38 +266,14 @@
        </property>
       </widget>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="labelGreen">
-       <property name="styleSheet">
-        <string notr="true"/>
-       </property>
-       <property name="text">
-        <string>G</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="2">
-      <widget class="QLabel" name="labelMax">
-       <property name="text">
-        <string>Min</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
+     <item row="4" column="0">
       <widget class="QLabel" name="labelBlue">
        <property name="text">
         <string>B</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="2">
-      <widget class="QLineEdit" name="tbBlueMin">
-       <property name="text">
-        <string>0</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="3">
+     <item row="4" column="3">
       <widget class="QLineEdit" name="tbBlueMax">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -203,7 +286,7 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="2">
+     <item row="2" column="2">
       <widget class="QLineEdit" name="tbRedMin">
        <property name="minimumSize">
         <size>
@@ -216,22 +299,51 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="0" colspan="2">
-      <widget class="QLabel" name="label">
+     <item row="5" column="2" colspan="2">
+      <widget class="QComboBox" name="comboBoxContrastEnhancement"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLabel" name="labelMax">
        <property name="text">
-        <string>Stretch</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <string>Min</string>
        </property>
       </widget>
-     </item>
-     <item row="4" column="2" colspan="2">
-      <widget class="QComboBox" name="comboBoxContrastEnhancement"/>
      </item>
     </layout>
    </item>
   </layout>
+  <action name="actionSetDefault">
+   <property name="text">
+    <string>Def</string>
+   </property>
+   <property name="toolTip">
+    <string>Set default band selection</string>
+   </property>
+  </action>
+  <action name="actionSetTrueColor">
+   <property name="text">
+    <string>True</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to true color (red-green-blue)</string>
+   </property>
+  </action>
+  <action name="actionSetCIR">
+   <property name="text">
+    <string>CIR</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to coloured infra red (swIR-red-green)</string>
+   </property>
+  </action>
+  <action name="actionSet453">
+   <property name="text">
+    <string>453</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to swIR-mwIR-red (Landsat 4-5-3)</string>
+   </property>
+  </action>
  </widget>
  <tabstops>
   <tabstop>tbRedMin</tabstop>
