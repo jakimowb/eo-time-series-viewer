@@ -22,7 +22,27 @@ def transformGeometry(geom, crsSrc, crsDst, trans=None):
         assert isinstance(trans, QgsCoordinateTransform)
         return trans.transform(geom)
 
+METRIC_EXPONENTS = {
+    "nm":-9,"um": -6, "mm":-3, "cm":-2, "dm":-1, "m": 0,"hm":2, "km":3
+}
+#add synonyms
+METRIC_EXPONENTS['nanometers'] = METRIC_EXPONENTS['nm']
+METRIC_EXPONENTS['micrometers'] = METRIC_EXPONENTS['um']
+METRIC_EXPONENTS['millimeters'] = METRIC_EXPONENTS['mm']
+METRIC_EXPONENTS['centimeters'] = METRIC_EXPONENTS['cm']
+METRIC_EXPONENTS['decimeters'] = METRIC_EXPONENTS['dm']
+METRIC_EXPONENTS['meters'] = METRIC_EXPONENTS['m']
+METRIC_EXPONENTS['hectometers'] = METRIC_EXPONENTS['hm']
+METRIC_EXPONENTS['kilometers'] = METRIC_EXPONENTS['km']
 
+def convertMetricUnit(value, u1, u2):
+    assert u1 in METRIC_EXPONENTS.keys()
+    assert u2 in METRIC_EXPONENTS.keys()
+
+    e1 = METRIC_EXPONENTS[u1]
+    e2 = METRIC_EXPONENTS[u2]
+
+    return value * 10**(e1-e2)
 
 
 class SensorInstrument(QObject):
@@ -37,12 +57,15 @@ class SensorInstrument(QObject):
                 , (5, 5., 5.): 'RE 5m' \
                     }
 
-    """
-    def fromGDALDataSet(self, ds):
-        assert isinstance(ds, gdal.Dataset)
-        nb = ds.RasterCount
-    """
 
+    LUT_Wavelenghts = dict({'B':480,
+                            'G':570,
+                            'R':660,
+                            'nIR':850,
+                            'swIR':1650,
+                            'swIR1':1650,
+                            'swIR2':2150
+                            })
     """
     Describes a Sensor Configuration
     """
@@ -78,12 +101,10 @@ class SensorInstrument(QObject):
         assert self.px_size_x > 0
         assert self.px_size_y > 0
 
-        wavelengths = None
-        #todo: find wavelength
-        if wavelengths is not None:
-            assert len(wavelengths) == self.nb
-
-        self.wavelengths = wavelengths
+        #find wavelength
+        wl, wlu = parseWavelength(refLyr)
+        self.wavelengths = np.asarray(wl)
+        self.wavelengthUnits = wlu
 
         if sensor_name is None:
             id = (self.nb, self.px_size_x, self.px_size_y)
@@ -94,6 +115,35 @@ class SensorInstrument(QObject):
         self.sensorName = sensor_name
 
         self.hashvalue = hash(','.join(self.bandNames))
+
+
+    def bandClosestToWavelength(self, wl, wl_unit='nm'):
+        """
+        Returns the band number (>=1) of the band closest to wavelength wl
+        :param wl:
+        :param wl_unit:
+        :return:
+        """
+        if not self.wavelengthsDefined():
+            return None
+
+        if wl in SensorInstrument.LUT_Wavelenghts.keys():
+            wl_unit = 'nm'
+            wl = SensorInstrument.LUT_Wavelenghts[wl]
+
+        wl = float(wl)
+        if self.wavelengthUnits != wl_unit:
+            wl = convertMetricUnit(wl, wl_unit, self.wavelengthUnits)
+
+
+        return np.argmin(np.abs(self.wavelengths - wl))+1
+
+
+
+
+    def wavelengthsDefined(self):
+        return self.wavelengths is not None and \
+                self.wavelengthUnits is not None
 
     def __eq__(self, other):
         return self.nb == other.nb and \
@@ -358,15 +408,15 @@ class TimeSeriesDatum(QObject):
 
 
 class TimeSeries(QObject):
-    datumAdded = pyqtSignal(TimeSeriesDatum)
+    sigTimeSeriesDatumAdded = pyqtSignal(TimeSeriesDatum)
 
     #fire when a new sensor configuration is added
-    sensorAdded = pyqtSignal(SensorInstrument, name='sensorAdded')
-
-    changed = pyqtSignal()
-    progress = pyqtSignal(int,int,int, name='progress')
-    closed = pyqtSignal()
-    error = pyqtSignal(object)
+    sigSensorAdded = pyqtSignal(SensorInstrument)
+    sigSensorRemoved = pyqtSignal(SensorInstrument)
+    sigChanged = pyqtSignal()
+    sigProgress = pyqtSignal(int, int, int, name='progress')
+    sigClosed = pyqtSignal()
+    sigError = pyqtSignal(object)
 
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
@@ -465,7 +515,7 @@ class TimeSeries(QObject):
 
     def _callback_error(self, error):
         six.print_(error, file=sys.stderr)
-        self.error.emit(error)
+        self.sigError.emit(error)
         self._callback_progress()
 
     def _callback_spatialchips(self, results):
@@ -474,12 +524,12 @@ class TimeSeries(QObject):
 
     def _callback_progress(self):
         self._callback_progress_done += 1
-        self.progress.emit(0, self._callback_progress_done, self._callback_progress_max)
+        self.sigProgress.emit(0, self._callback_progress_done, self._callback_progress_max)
 
         if self._callback_progress_done >= self._callback_progress_max:
             self._callback_progress_done = 0
             self._callback_progress_max = 0
-            self.progress.emit(0,0,1)
+            self.sigProgress.emit(0, 0, 1)
 
     def getSpatialChips_parallel(self, bbWkt, srsWkt, TSD_band_list, ncpu=1):
         assert type(bbWkt) is str and type(srsWkt) is str
@@ -529,7 +579,7 @@ class TimeSeries(QObject):
         assert isinstance(files, list)
         l = len(files)
 
-        self.progress.emit(0,0,l)
+        self.sigProgress.emit(0, 0, l)
         for i, file in enumerate(files):
 
             try:
@@ -537,10 +587,10 @@ class TimeSeries(QObject):
             except:
                 pass
 
-            self.progress.emit(0,i+1,l)
+            self.sigProgress.emit(0, i + 1, l)
 
-        self.progress.emit(0,0,1)
-        self.changed.emit()
+        self.sigProgress.emit(0, 0, 1)
+        self.sigChanged.emit()
 
     def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True, _quiet=False):
         print('Add mask {}...'.format(pathMsk))
@@ -551,7 +601,7 @@ class TimeSeries(QObject):
             TSD = self.data[date]
 
             if not _quiet:
-                self.changed.emit()
+                self.sigChanged.emit()
 
             return TSD.setMask(pathMsk, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value)
         else:
@@ -568,13 +618,13 @@ class TimeSeries(QObject):
     def clear(self):
         self.Sensors.clear()
         del self.data[:]
-        self.changed.emit()
+        self.sigChanged.emit()
 
 
     def removeDates(self, TSDs):
         for TSD in TSDs:
             self.removeTSD(TSD, _quiet=True)
-        self.changed.emit()
+        self.sigChanged.emit()
 
     def removeTSD(self, TSD, _quiet=False):
 
@@ -584,8 +634,9 @@ class TimeSeries(QObject):
         self.data.pop(TSD, None)
         if len(self.Sensors[S]) == 0:
             self.Sensors.pop(S)
+            self.sigSensorRemoved(S)
         if not _quiet:
-            self.changed.emit()
+            self.sigChanged.emit()
 
 
 
@@ -614,9 +665,9 @@ class TimeSeries(QObject):
                 #insert sorted
                 bisect.insort(self.data, TSD)
                 #self.data[TSD] = TSD
-                self.datumAdded.emit(TSD)
+                self.sigTimeSeriesDatumAdded.emit(TSD)
             if sensorAdded:
-                self.sensorAdded.emit(TSD.sensor)
+                self.sigSensorAdded.emit(TSD.sensor)
 
 
         except:
@@ -636,13 +687,13 @@ class TimeSeries(QObject):
         l = len(files)
         assert l > 0
 
-        self.progress.emit(0,0,l)
+        self.sigProgress.emit(0, 0, l)
         for i, file in enumerate(files):
             self.addFile(file, _quiet=True)
-            self.progress.emit(0,i+1,l)
+            self.sigProgress.emit(0, i + 1, l)
 
-        self.progress.emit(0,0,1)
-        self.changed.emit()
+        self.sigProgress.emit(0, 0, 1)
+        self.sigChanged.emit()
 
 
     def __len__(self):
@@ -715,6 +766,40 @@ regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
 regYYYY = re.compile(r'(19|20)\d{2}')
 
+
+
+
+def parseWavelength(lyr):
+    wl = None
+    wlu = None
+    assert isinstance(lyr, QgsRasterLayer)
+    md = [l.split('=') for l in str(lyr.metadata()).splitlines() if 'wavelength' in l.lower()]
+    #see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+    regWLU = re.compile('((micro|nano|centi)meters)|(um|nm|mm|cm|m|GHz|MHz)')
+    for kv in md:
+        key, value = kv
+        key = key.lower()
+        if key == 'center wavelength':
+            tmp = re.findall('\d*\.\d+|\d+', value) #find floats
+            if len(tmp) == 0:
+                tmp = re.findall('\d+', value) #find integers
+            if len(tmp) == lyr.bandCount():
+                wl = [float(w) for w in tmp]
+
+        if key == 'wavelength units':
+            match = regWLU.search(value)
+            if match:
+                wlu = match.group()
+
+            names = ['nanometers','micrometers','millimeters','centimeters','decimenters']
+            si   = ['nm','um','mm','cm','dm']
+            if wlu in names:
+                wlu = si[names.index(wlu)]
+
+    return wl, wlu
+
+
+
 def parseAcquisitionDate(text):
     match = regLandsatSceneID.search(text)
     if match:
@@ -742,3 +827,9 @@ def getDateTime64FromDOY(year, doy):
         if type(doy) is str:
             doy = int(doy)
         return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
+
+
+if __name__ == '__main__':
+
+    print convertMetricUnit(100, 'cm', 'm')
+    print convertMetricUnit(1, 'm', 'um')

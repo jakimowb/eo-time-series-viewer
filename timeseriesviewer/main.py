@@ -221,51 +221,63 @@ class TimeSeriesItemModel(QAbstractItemModel):
 
 class BandView(QObject):
 
-    removeView = pyqtSignal(object)
+    sigAddBandView = pyqtSignal(object)
+    sigRemoveBandView = pyqtSignal(object)
 
-    def __init__(self, TS, recommended_bands=None):
+    def __init__(self, TS, recommended_bands=None, parent=None, showSensorNames=True):
         super(BandView, self).__init__()
+        self.ui = widgets.BandViewUI(parent)
+        self.ui.create()
+
+        #forward actions with reference to this band view
+        self.ui.actionAddBandView.triggered.connect(lambda : self.sigAddBandView.emit(self))
+        self.ui.actionRemoveBandView.triggered.connect(lambda: self.sigRemoveBandView.emit(self))
+
         assert type(TS) is TimeSeries
-        self.representation = collections.OrderedDict()
+        self.sensorViews = collections.OrderedDict()
         self.TS = TS
-        self.TS.sensorAdded.connect(self.checkSensors)
-        self.TS.changed.connect(self.checkSensors)
+        self.TS.sigSensorAdded.connect(self.addSensor)
+        self.TS.sigChanged.connect(self.removeSensor)
 
-        self.Sensors = self.TS.Sensors
+        self.mShowSensorNames = showSensorNames
 
-        import copy
-        for sensor in self.Sensors:
-            self.initSensor(copy.deepcopy(sensor))
+        for sensor in self.TS.Sensors:
+            self.addSensor(sensor)
 
+    def setTitle(self, title):
+        self.ui.labelViewName.setText(title)
 
+    def showSensorNames(self, b):
+        assert isinstance(b, bool)
+        self.mShowSensorNames = b
 
-    def checkSensors(self):
-        represented_sensors = set(self.representation.keys())
-        ts_sensors = set(self.TS.Sensors.keys())
-
-        to_add = ts_sensors - represented_sensors
-        to_remove = represented_sensors - ts_sensors
-        for S in to_remove:
-            self.representation[S].getWidget().close()
-            self.representation.pop(S)
-        for S in to_add:
-            self.initSensor(S)
+        for s,w in self.sensorViews.items():
+            w.showSensorName(b)
 
 
-    def initSensor(self, sensor):
+    def removeSensor(self, sensor):
+        assert type(sensor) is SensorInstrument
+        assert sensor in self.sensorViews.keys()
+        self.sensorViews[sensor].close()
+        self.sensorViews.pop(sensor)
+
+    def addSensor(self, sensor):
         """
         :param sensor:
         :return:
         """
         assert type(sensor) is SensorInstrument
-        if sensor not in self.representation.keys():
-            x = widgets.ImageChipViewSettings(sensor)
-            self.representation[sensor] = x
+        assert sensor not in self.sensorViews.keys()
+        w = widgets.ImageChipViewSettings(sensor)
+        w.showSensorName(self.mShowSensorNames)
+        self.sensorViews[sensor] = w
+        i = self.ui.mainLayout.count()-1
+        self.ui.mainLayout.insertWidget(i, w.ui)
+        s = ""
 
-
-    def getWidget(self, sensor):
+    def getSensorWidget(self, sensor):
         assert type(sensor) is SensorInstrument
-        return self.representation[sensor]
+        return self.sensorViews[sensor]
 
 class RenderJob(object):
 
@@ -564,32 +576,6 @@ def Array2Image(d3d):
     return QImage(d3d.data, ns, nl, QImage.Format_RGB888)
 
 
-class VerticalLabel(QLabel):
-    def __init__(self, text):
-        super(VerticalLabel, self).__init__(text)
-        self.update()
-        self.updateGeometry()
-
-
-    def paintEvent(self, ev):
-        p = QPainter(self)
-        p.rotate(-90)
-        rgn = QRect(-self.height(), 0, self.height(), self.width())
-        align = self.alignment()
-        self.hint = p.drawText(rgn, align, self.text())
-        p.end()
-
-        self.setMaximumWidth(self.hint.height())
-        self.setMinimumWidth(0)
-        self.setMaximumHeight(16777215)
-        self.setMinimumHeight(self.hint.width())
-
-    def sizeHint(self):
-        if hasattr(self, 'hint'):
-            return QSize(self.hint.height(), self.hint.width())
-        else:
-            return QSize(19, 50)
-
 
 class ImageChipBuffer(object):
 
@@ -741,14 +727,14 @@ class TimeSeriesViewer:
         # Create the dialog (after translation) and keep reference
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
         self.ui = TimeSeriesViewerUI()
-        D = self.ui
+
 
         #init empty time series
         self.TS = TimeSeries()
         self.hasInitialCenterPoint = False
-        self.TS.datumAdded.connect(self.ua_datumAdded)
-        self.TS.changed.connect(self.timeseriesChanged)
-        self.TS.progress.connect(self.ua_TSprogress)
+        self.TS.sigTimeSeriesDatumAdded.connect(self.ua_datumAdded)
+        self.TS.sigChanged.connect(self.timeseriesChanged)
+        self.TS.sigProgress.connect(self.ua_TSprogress)
 
         #init TS model
         TSM = TimeSeriesTableModel(self.TS)
@@ -764,29 +750,36 @@ class TimeSeriesViewer:
 
         self.ValidatorPxX = QIntValidator(0,99999)
         self.ValidatorPxY = QIntValidator(0,99999)
-        D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
-        D.btn_selectByCoordinate.clicked.connect(self.ua_selectByCoordinate)
-        D.btn_selectByRectangle.clicked.connect(self.ua_selectByRectangle)
-        D.btn_addBandView.clicked.connect(lambda :self.ua_addBandView())
 
-        D.btn_addTSImages.clicked.connect(lambda :self.ua_addTSImages())
-        D.btn_addTSMasks.clicked.connect(lambda :self.ua_addTSMasks())
-        D.btn_loadTSFile.clicked.connect(self.ua_loadTSFile)
-        D.btn_saveTSFile.clicked.connect(self.ua_saveTSFile)
-        D.btn_addTSExample.clicked.connect(self.ua_loadExampleTS)
+        #connect actions with logic
+
+        #D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
+        D.actionSelectCenter.triggered.connect(self.ua_selectByCoordinate)
+        D.actionSelectArea.triggered.connect(self.ua_selectByRectangle)
+
+        D.actionAddBandView.triggered.connect(self.ua_addBandView)
+        #D.actionRemoveBandView.triggered.connect(self.ua_removeBandView)
+
+        D.actionAddTSD.triggered.connect(self.ua_addTSImages)
+        D.actionRemoveTSD.triggered.connect(self.ua_removeTSD)
+
+        D.actionLoadTS.triggered.connect(self.ua_loadTSFile)
+        D.actionClearTS.triggered.connect(self.ua_clear_TS)
+        D.actionSaveTS.triggered.connect(self.ua_saveTSFile)
+        D.actionAddTSExample.triggered.connect(self.ua_loadExampleTS)
+
         D.btn_labeling_clear.clicked.connect(D.tb_labeling_text.clear)
-        D.actionAdd_Images.triggered.connect(lambda :self.ua_addTSImages())
-        D.actionAdd_Masks.triggered.connect(lambda :self.ua_addTSMasks())
-        D.actionLoad_Time_Series.triggered.connect(self.ua_loadTSFile)
-        D.actionSave_Time_Series.triggered.connect(self.ua_saveTSFile)
-        D.actionLoad_Example_Time_Series.triggered.connect(self.ua_loadExampleTS)
         D.actionAbout.triggered.connect( \
             lambda: QMessageBox.about(self.ui, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
 
-        D.btn_removeTSD.clicked.connect(lambda : self.ua_removeTSD(None))
-        D.btn_removeTS.clicked.connect(self.ua_clear_TS)
 
-        D.sliderDOI.sliderMoved.connect(self.setDOILabel)
+        D.actionFirstTSD.triggered.connect(lambda: self.setDOISliderValue('first'))
+        D.actionLastTSD.triggered.connect(lambda: self.setDOISliderValue('last'))
+        D.actionNextTSD.triggered.connect(lambda: self.setDOISliderValue('next'))
+        D.actionPreviousTSD.triggered.connect(lambda: self.setDOISliderValue('previous'))
+
+
+        D.sliderDOI.valueChanged.connect(self.setDOI)
         D.spinBox_ncpu.setRange(0, multiprocessing.cpu_count())
 
 
@@ -796,22 +789,37 @@ class TimeSeriesViewer:
 
         if self.iface:
             self.canvas = self.iface.mapCanvas()
-
             self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
             self.RectangleMapTool.rectangleDrawed.connect(self.setSpatialSubset)
             self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
             self.PointMapTool.coordinateSelected.connect(self.setSpatialSubset)
-
+        else:
+            D.btnSelectCenterCoordinate.setEnabled(False)
+            D.btnSelectArea.setEnabled(False)
             #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
 
-        self.ICP = self.ui.scrollArea_imageChip_content.layout()
-        self.ui.scrollArea_bandViews_content.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-        self.BVP = self.ui.scrollArea_bandViews_content.layout()
+        self.ICP = D.scrollAreaSubsetContent.layout()
+        D.scrollAreaBandViewsContent.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.BVP = self.ui.scrollAreaBandViewsContent.layout()
 
         self.check_enabled()
         s = ""
 
-    def setDOILabel(self, i):
+
+    def setDOISliderValue(self, key):
+        ui = self.ui
+        v = ui.sliderDOI.value()
+        if key == 'first':
+            v = ui.sliderDOI.minimum()
+        elif key == 'last':
+            v = ui.sliderDOI.maximum()
+        elif key =='next':
+            v = min([v+1,ui.sliderDOI.maximum()])
+        elif key =='previous':
+            v = max([v - 1, ui.sliderDOI.minimum()])
+        ui.sliderDOI.setValue(v)
+
+    def setDOI(self, i):
         TSD = self.TS.data[i-1]
         self.ui.labelDOI.setText(str(TSD.date))
         s = ""
@@ -846,8 +854,6 @@ class TimeSeriesViewer:
             self.ua_clear_TS()
             self.TS.loadFromFile(path)
             M.endResetModel()
-
-            self.refreshBandViews()
 
         self.check_enabled()
 
@@ -955,9 +961,9 @@ class TimeSeriesViewer:
         hasQGIS = qgis_available
 
         #D.tabWidget_viewsettings.setEnabled(hasTS)
-        D.btn_showPxCoordinate.setEnabled(hasTS and hasTSV)
-        D.btn_selectByCoordinate.setEnabled(hasQGIS)
-        D.btn_selectByRectangle.setEnabled(hasQGIS)
+        #D.btn_showPxCoordinate.setEnabled(hasTS and hasTSV)
+        D.btnSelectCenterCoordinate.setEnabled(hasQGIS)
+        D.btnSelectArea.setEnabled(hasQGIS)
 
 
 
@@ -1081,7 +1087,7 @@ class TimeSeriesViewer:
                 viewList = list()
                 j = 1
                 for view in self.BAND_VIEWS:
-                    viewWidget = view.getWidget(TSD.sensor)
+                    viewWidget = view.getSensorWidget(TSD.sensor)
                     layerRenderer = viewWidget.layerRenderer()
 
                     #imageLabel = QLabel()
@@ -1122,7 +1128,7 @@ class TimeSeriesViewer:
                 if sensor not in LUT_RENDERER.keys():
                     LUT_RENDERER[sensor] = []
                 LUT_RENDERER[sensor].append(
-                    view.getWidget(sensor).layerRenderer()
+                    view.getSensorWidget(sensor).layerRenderer()
                 )
 
 
@@ -1187,72 +1193,31 @@ class TimeSeriesViewer:
         self.check_enabled()
 
 
-    def ua_addTSMasks(self, files=None):
-
-        if files is None:
-            files = QFileDialog.getOpenFileNames()
-
-        l = len(files)
-        if l > 0:
-            M = self.ui.tableView_TimeSeries.model()
-            M.beginResetModel()
-            self.TS.addMasks(files, raise_errors=False)
-            M.endResetModel()
-
-        self.check_enabled()
-
 
 
     def ua_addBandView(self):
-        bandView = BandView(self.TS)
+
+        bandView = BandView(self.TS, showSensorNames=len(self.BAND_VIEWS)==0)
+        bandView.sigAddBandView.connect(self.ua_addBandView)
+        bandView.sigRemoveBandView.connect(self.ua_removeBandView)
+
         #bandView.removeView.connect(self.ua_removeBandView)
         self.BAND_VIEWS.append(bandView)
-        self.refreshBandViews()
+        self.BVP.addWidget(bandView.ui)
+
+        bandView.setTitle('#{}'.format(len(self.BAND_VIEWS)))
+
+    def ua_removeBandView(self, bandView):
+        #bandView.ui.setHidden(True)
+        self.BAND_VIEWS.remove(bandView)
+        self.BVP.removeWidget(bandView.ui)
+        bandView.ui.close()
+        self.BAND_VIEWS[0].showSensorNames(True)
+        for i, bv in enumerate(self.BAND_VIEWS):
+            bv.setTitle('#{}'.format(i+1))
+        #self.ui.scrollAreaBandViewsContent.update()
 
 
-    def refreshBandViews(self):
-        if len(self.BAND_VIEWS) == 0 and len(self.TS) > 0:
-            self.ua_addBandView() # add two bandviews by default
-            self.ua_addBandView()
-
-        self.clearLayoutWidgets(self.BVP)
-
-        for i, BV in enumerate(self.BAND_VIEWS):
-            W = QWidget()
-
-            hl = QHBoxLayout()
-            hl.setSpacing(2)
-            hl.setMargin(0)
-
-
-            textLabel = VerticalLabel('View {}'.format(i+1))
-            #textLabel = QLabel('View {}'.format(i+1))
-            textLabel.setToolTip('')
-            textLabel.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.Fixed)
-            hl.addWidget(textLabel)
-
-            for S in self.TS.Sensors.keys():
-                w = BV.getWidget(S).ui
-                if i > 0:
-                    w.setTitle(None) #show sensor name only on top
-                w.setMaximumSize(w.size())
-                #w.setMinimumSize(w.size())
-                w.setSizePolicy(QSizePolicy.Fixed,QSizePolicy.MinimumExpanding)
-                #w.setBands(band_recommendation)
-                hl.addWidget(w)
-                s = ""
-
-            hl.addItem(QSpacerItem(1,1))
-            W.setLayout(hl)
-            self.BVP.addWidget(W)
-        self.BVP.addItem(QSpacerItem(1, 1))
-        self.check_enabled()
-
-
-
-    def ua_removeBandView(self, w):
-        self.BAND_VIEWS.remove(w)
-        self.refreshBandViews()
 
     def ua_clear_TS(self):
         #remove views
