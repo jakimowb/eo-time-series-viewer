@@ -400,8 +400,14 @@ class TimeSeriesDatum(QObject):
     def __cmp__(self, other):
         return cmp(str((self.date, self.sensor)), str((other.date, other.sensor)))
 
-    def __eq__(self, other):
-        return self.date == other.date and self.sensor == other.sensor
+    #def __eq__(self, other):
+    #    return self.date == other.date and self.sensor == other.sensor
+
+    def __lt__(self, other):
+        if self.date < other.date:
+            return True
+        else:
+            return self.sensor.sensorName < other.sensor.sensorName
 
     def __hash__(self):
         return hash((self.date,self.sensor.sensorName))
@@ -445,7 +451,7 @@ class TimeSeries(QObject):
     _sep = ';'
 
 
-    def loadFromFile(self, path):
+    def loadFromFile(self, path, n_max=None):
 
         images = []
         masks = []
@@ -461,8 +467,12 @@ class TimeSeries(QObject):
                 if len(parts) > 1:
                     masks.append(parts[1])
 
-        self.addFiles(images)
-        self.addMasks(masks)
+        if n_max:
+            n_max = min([len(images), n_max])
+            self.addFiles(images[0:n_max])
+        else:
+            self.addFiles(images)
+        #self.addMasks(masks)
 
 
     def saveToFile(self, path):
@@ -490,7 +500,7 @@ class TimeSeries(QObject):
 
     def getMaxExtent(self, srs=None):
         if len(self.data) == 0:
-            return None
+            return QgsRectangle()
 
         if srs is None:
             srs = self.data[0].crs()

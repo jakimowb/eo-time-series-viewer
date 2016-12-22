@@ -34,6 +34,7 @@ PATH_MAIN_UI = jp(DIR_UI, 'timseriesviewer.ui')
 PATH_BANDVIEWSETTINGS_UI = jp(DIR_UI, 'bandviewsettings.ui')
 PATH_IMAGECHIPVIEWSETTINGS_UI = jp(DIR_UI, 'imagechipviewsettings.ui')
 PATH_BANDVIEW_UI = jp(DIR_UI, 'bandview.ui')
+PATH_TSDVIEW_UI = jp(DIR_UI, 'timeseriesdatumview.ui')
 
 class TimeSeriesViewerUI(QMainWindow,
                          loadUIFormClass(PATH_MAIN_UI)):
@@ -47,9 +48,11 @@ class TimeSeriesViewerUI(QMainWindow,
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.mCrs = None
 
-        #connect buttons with actions
-        self.btnCRS.setDefaultAction(self.actionSelectCRS)
+        #set button default actions -> this will show the action icons as well
+        #I don't know why this is not possible in the QDesigner when QToolButtons are
+        #placed outside a toolbar
         self.btnSelectArea.setDefaultAction(self.actionSelectArea)
         self.btnSelectCenterCoordinate.setDefaultAction(self.actionSelectCenter)
 
@@ -63,6 +66,94 @@ class TimeSeriesViewerUI(QMainWindow,
         self.btnLoadTS.setDefaultAction(self.actionLoadTS)
         self.btnSaveTS.setDefaultAction(self.actionSaveTS)
         self.btnClearTS.setDefaultAction(self.actionClearTS)
+
+        #define subset-size behaviour
+        self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
+        self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+
+    def crs(self):
+        return self.mCrs
+        pass
+
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    def setCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        old = self.mCrs
+        self.mCrs = crs
+        self.textBoxCRSInfo.setText(crs.toWkt())
+        if self.mCrs != old:
+            self.sigCrsChanged.emit(crs)
+
+
+    def extent(self):
+        width = QgsVector(self.spinBoxExtentWidth.value(), 0.0)
+        height = QgsVector(0.0, self.spinBoxExtentHeight.value())
+
+        Center = QgsPoint(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
+        UL = Center - (width * 0.5) + (height * 0.5)
+        LR = Center + (width * 0.5) - (height * 0.5)
+        return QgsRectangle(UL, LR)
+
+    sigExtentChanged = pyqtSignal(QgsRectangle)
+    def setExtent(self, extent):
+        old = self.extent()
+        assert isinstance(extent, QgsRectangle)
+        center = extent.center()
+        self.spinBoxExtentCenterX.setValue(center.x())
+        self.spinBoxExtentCenterY.setValue(center.y())
+        self.spinBoxExtentWidth.setValue(extent.width())
+        self.spinBoxExtentHeight.setValue(extent.height())
+
+        if old != extent:
+            self.sigExtentChanged.emit(extent)
+
+    sigSubsetSizeChanged = pyqtSignal(QSize)
+
+    def setSubsetSize(self, size):
+        old = self.subsetSize()
+        self.spinBoxSubsetSizeX.setValue(size.width())
+        self.spinBoxSubsetSizeY.setValue(size.height())
+
+        if old != size:
+            self.sigSubsetSizeChanged(size)
+
+    def subsetSize(self):
+        return QSize(self.spinBoxSubsetSizeX.value(),
+                     self.spinBoxSubsetSizeY.value())
+
+
+    def setProgress(self, value, valueMax=None, valueMin=0):
+        p = self.progressBar
+        if valueMin is not None and valueMin != self.progessBar.minimum():
+            p.setMinimum(valueMin)
+        if valueMax is not None and valueMax != self.progessBar.maximum():
+            p.setMaximum(valueMax)
+        self.progressBar.setValue(value)
+
+
+    def onSubsetValueChanged(self, key):
+        if self.checkBoxLockSubsetAspect.isChecked():
+
+            if key == 'X':
+                v_old = self.lastSubsetSizeX
+                v_new = self.spinBoxSubsetSizeX.value()
+                s = self.spinBoxSubsetSizeY
+            elif key == 'Y':
+                v_old = self.lastSubsetSizeY
+                v_new = self.spinBoxSubsetSizeY.value()
+                s = self.spinBoxSubsetSizeX
+
+            oldState = s.blockSignals(True)
+            s.setValue(int(round(float(v_new) / v_old * s.value())))
+            s.blockSignals(oldState)
+
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+        self.actionSetSubsetSize.activate(QAction.Trigger)
 
 class VerticalLabel(QLabel):
     def __init__(self, text, orientation='vertical', forceWidth=True):
@@ -136,7 +227,33 @@ class BandViewUI(QFrame, loadUIFormClass(PATH_BANDVIEW_UI)):
         self.btnAddBandView.setDefaultAction(self.actionAddBandView)
 
 
+class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
+    def __init__(self, title='<#>', parent=None):
+        super(TimeSeriesDatumViewUI, self).__init__(parent)
 
+        self.emptyHeight = self.height()
+        self.setupUi(self)
+
+    def sizeHint(self):
+
+        w = self.minimumWidth()
+        canvases = self.findChildren(BandViewMapCanvas)
+        h = self.emptyHeight + len(canvases) * w
+        return QSize(w,h)
+
+class LineWidget(QFrame):
+
+    def __init__(self, parent=None, orientation='horizontal'):
+        super(LineWidget, self).__init__(parent)
+
+        self.setFrameShadow(QFrame.Sunken)
+        self.setFixedHeight(3)
+        self.setStyleSheet("background-color: #c0c0c0;")
+        self.orientation = orientation
+        if self.orientation == 'horizontal':
+            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        else:
+            self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
 
 class ImageChipViewSettingsUI(QGroupBox,
                              loadUIFormClass(PATH_IMAGECHIPVIEWSETTINGS_UI)):
@@ -158,6 +275,35 @@ class ImageChipViewSettingsUI(QGroupBox,
         self.btn453.setDefaultAction(self.actionSet453)
 
 
+class BandViewMapCanvas(QgsMapCanvas):
+
+    def __init__(self, parent=None):
+        super(BandViewMapCanvas, self).__init__(parent)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.lyr = None
+        self.renderer = None
+        self.registry = QgsMapLayerRegistry.instance()
+
+    def setLayer(self, uri):
+        assert isinstance(uri, str)
+
+        self.setLayerSet([])
+        if self.lyr is not None:
+            #de-register layer
+            self.registry.removeMapLayer(self.lyr)
+
+        self.lyr = QgsRasterLayer(uri)
+        self.lyr.setRenderer(self.renderer)
+        self.registry.addMapLayer(self.lyr, False)
+
+        lset = [QgsMapCanvasLayer(self.lyr)]
+        self.setLayerSet(lset)
+
+    def setRenderer(self, renderer):
+        s = ""
+        self.renderer = renderer.clone()
+
+
 
 
 class ImageChipViewSettings(QObject):
@@ -165,8 +311,8 @@ class ImageChipViewSettings(QObject):
     #define signals
 
 
-
-    removeView = pyqtSignal()
+    sigRendererChanged = pyqtSignal(QgsRasterRenderer)
+    sigRemoveView = pyqtSignal()
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
@@ -187,7 +333,7 @@ class ImageChipViewSettings(QObject):
         for sl in self.sliders:
             sl.setMinimum(1)
             sl.setMaximum(sensor.nb)
-            sl.valueChanged.connect(self.bandSelectionChanged)
+            sl.valueChanged.connect(self.layerRendererChanged)
 
         self.ceAlgs = [("No enhancement", QgsContrastEnhancement.NoEnhancement),
                        ("Stretch to MinMax", QgsContrastEnhancement.StretchToMinimumMaximum),
@@ -239,13 +385,14 @@ class ImageChipViewSettings(QObject):
 
         for i, b in enumerate(bands):
             self.sliders[i].setValue(b)
+            #slider value change emits signal -> no emit required here
 
     def rgb(self):
         return [self.ui.sliderRed.value(),
                self.ui.sliderGreen.value(),
                self.ui.sliderBlue.value()]
 
-    def bandSelectionChanged(self, *args):
+    def setRenderInfo(self, *args):
         rgb = self.rgb()
 
         text = 'RGB {}-{}-{}'.format(*rgb)
@@ -253,10 +400,7 @@ class ImageChipViewSettings(QObject):
             text += ' ({} {})'.format(
                 ','.join(['{:0.2f}'.format(self.sensor.wavelengths[b-1]) for b in rgb]),
                 self.sensor.wavelengthUnits)
-
-
         self.ui.labelBands.setText(text)
-        s = ""
 
     def setLayerRenderer(self, renderer):
         ui = self.ui
@@ -273,8 +417,11 @@ class ImageChipViewSettings(QObject):
 
             algs = [i[1] for i in self.ceAlgs]
             ui.comboBoxContrastEnhancement.setCurrentIndex(algs.index(ceRed.contrastEnhancementAlgorithm()))
+            self.layerRendererChanged()
 
-
+    def layerRendererChanged(self):
+        self.setRenderInfo()
+        self.sigRendererChanged.emit(self.layerRenderer())
 
     def layerRenderer(self):
         ui = self.ui
@@ -310,7 +457,7 @@ class ImageChipViewSettings(QObject):
         #add general options
         action = menu.addAction('Remove Band View')
         action.setToolTip('Removes this band view')
-        action.triggered.connect(lambda : self.removeView.emit())
+        action.triggered.connect(lambda : self.sigRemoveView.emit())
         #add QGIS specific options
         txt = QApplication.clipboard().text()
         if re.search('<!DOCTYPE(.|\n)*rasterrenderer.*type="multibandcolor"', txt) is not None:

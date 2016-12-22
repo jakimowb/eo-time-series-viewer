@@ -48,7 +48,7 @@ def test_gui():
     S = TimeSeriesViewer(None)
     S.run()
 
-    S.ua_loadTSFile(path=PATH_EXAMPLE_TIMESERIES)
+    S.ua_loadTSFile(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
     pass
 
 def test_component():
