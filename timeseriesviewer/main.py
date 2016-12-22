@@ -58,8 +58,6 @@ import codecs
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, dprint
 
 site.addsitedir(DIR_SITE_PACKAGES)
-from timeseriesviewer.ui import widgets
-from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
 
 #I don't know why, but this is required to run this in QGIS
@@ -72,6 +70,31 @@ if os.path.exists(path):
 #ensure that required non-standard modules are available
 
 import pyqtgraph as pg
+
+
+class SpatialExtent(QgsRectangle):
+    def __init__(self, crs, *args):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        super(SpatialExtent, self).__init__(*args)
+        self.mCrs = crs
+
+    def setCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        self.mCrs = crs
+
+    def crs(self):
+        return self.mCrs
+
+    def toCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        box = super(SpatialExtent, self)
+        if self.mCrs != crs:
+            trans = QgsCoordinateTransform(self.mCrs, crs)
+            box = trans.transformBoundingBox(box)
+        return SpatialExtent(crs, box)
+
+from timeseriesviewer.ui.widgets import *
+from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
@@ -229,6 +252,7 @@ class TimeSeriesDatumViewManager(QObject):
         self.bandViewMananger = self.TSV.bandViewManager
         self.bandViewMananger.sigBandViewAdded.connect(self.addBandView)
         self.bandViewMananger.sigBandViewRemoved.connect(self.removeBandView)
+        self.bandViewMananger.sigBandViewVisibility.connect(self.setBandViewVisibility)
         self.setExtent(self.TSV.TS.getMaxExtent())
         self.setMaxTSDViews()
         self.setTimeSeries(self.TSV.TS)
@@ -288,6 +312,14 @@ class TimeSeriesDatumViewManager(QObject):
             smax = scrollBar.maximum()
             v = smin + (smax - smin) * float(i) / n
             scrollBar.setValue(int(round(v)))
+
+    def setBandViewVisibility(self, bandView, isVisible):
+        assert isinstance(bandView, BandView)
+        assert isinstance(isVisible, bool)
+
+        for tsdv in self.TSDViews:
+            tsdv.ui.setBandViewVisibility(isVisible)
+
 
     def addBandView(self, bandView):
         assert isinstance(bandView, BandView)
@@ -356,16 +388,17 @@ class BandView(QObject):
 
     sigAddBandView = pyqtSignal(object)
     sigRemoveBandView = pyqtSignal(object)
+    sigSetVisibility = pyqtSignal(bool)
 
     def __init__(self, recommended_bands=None, parent=None, showSensorNames=True):
         super(BandView, self).__init__()
-        self.ui = widgets.BandViewUI(parent)
+        self.ui = BandViewUI(parent)
         self.ui.create()
 
         #forward actions with reference to this band view
         self.ui.actionAddBandView.triggered.connect(lambda : self.sigAddBandView.emit(self))
         self.ui.actionRemoveBandView.triggered.connect(lambda: self.sigRemoveBandView.emit(self))
-
+        self.ui.actionToggleVisibility.toggled.connect(self.sigSetVisibility)
         self.sensorViews = collections.OrderedDict()
         self.mShowSensorNames = showSensorNames
 
@@ -400,7 +433,7 @@ class BandView(QObject):
         """
         assert type(sensor) is SensorInstrument
         assert sensor not in self.sensorViews.keys()
-        w = widgets.ImageChipViewSettings(sensor)
+        w = ImageChipViewSettings(sensor)
         w.showSensorName(self.mShowSensorNames)
         self.sensorViews[sensor] = w
         l = self.ui.sensorList.layout()
@@ -414,12 +447,15 @@ class BandView(QObject):
 
 
 
+
+
 class BandViewManager(QObject):
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
     sigBandViewAdded = pyqtSignal(BandView)
     sigBandViewRemoved = pyqtSignal(BandView)
+    sigBandViewVisibility = pyqtSignal(BandView, bool)
 
     def __init__(self, timeSeriesViewer):
         assert isinstance(timeSeriesViewer, TimeSeriesViewer)
@@ -443,8 +479,14 @@ class BandViewManager(QObject):
         bandView = BandView(parent=self.TSV.ui.scrollAreaBandViewsContent, showSensorNames=False)
         bandView.sigAddBandView.connect(self.createBandView)
         bandView.sigRemoveBandView.connect(self.removeBandView)
-
+        bandView.sigSetVisibility.connect(lambda b: self.sigBandViewVisibility.emit(bandView, b))
         self.addBandView(bandView)
+
+    def setBandViewVisibility(self, bandView, isVisible):
+        assert isinstance(bandView, BandView)
+        assert isinstance(isVisible, bool)
+
+
 
     def addBandView(self, bandView):
         assert isinstance(bandView, BandView)
@@ -491,23 +533,26 @@ class TimeSeriesDatumView(QObject):
     def __init__(self, TSD, parent=None):
 
         super(TimeSeriesDatumView, self).__init__()
-        self.ui = widgets.TimeSeriesDatumViewUI(parent)
+        self.ui = TimeSeriesDatumViewUI(parent)
         self.ui.create()
 
         self.TSD = None
         self.setTimeSeriesDatum(TSD)
-        self.bandViewCanvases = []
+        self.bandViewCanvases = dict()
+        self.bandViewOrder = []
         self.L = self.ui.layout()
         self.wOffset = self.L.count()-1
-        self.setSubsetSize(QSize(300,300))
+        self.setSubsetSize(QSize(150,100))
 
+    def setBandViewVisibility(self, bandView, isVisible):
+        self.bandViewCanvases[bandView].setVisible(isVisible)
 
     def setSpatialExtent(self, extent):
+        assert isinstance(extent, SpatialExtent)
 
-        assert isinstance(extent, QgsRectangle)
-        for t in self.bandViewCanvases:
-            c = t[1]
+        for c in self.bandViewCanvases.values():
             c.setExtent(extent)
+            c.setDestinationCrs(extent.crs())
 
     def setSubsetSize(self, size):
         assert isinstance(size, QSize)
@@ -519,7 +564,7 @@ class TimeSeriesDatumView(QObject):
         self.ui.line.setFixedWidth(size.width())
 
         #apply new subset size to existing canvases
-        for c in self.ui.findChildren(widgets.BandViewMapCanvas):
+        for c in self.bandViewCanvases.values():
             c.setFixedSize(size)
 
         self.ui.setFixedWidth(size.width() + 2*(m.left() + m.right()))
@@ -533,36 +578,30 @@ class TimeSeriesDatumView(QObject):
         self.TSD = TSD
         self.ui.labelTitle.setText(str(TSD.date))
 
-        for c in self.ui.findChildren(widgets.BandViewMapCanvas):
+        for c in self.ui.findChildren(BandViewMapCanvas):
             c.setLayer(self.TSD.pathImg)
 
     def removeBandView(self, bandView):
-        toRemove = self.findItems(bandView)
-        for t in toRemove:
-            self.bandViewCanvases.remove(t)
-            bandView, canvas = t
-            self.L.removeWidget(canvas)
-            canvas.close()
-
-
-    def findItems(self, item):
-        if isinstance(item, BandView):
-            return [t for t in self.bandViewCanvases if t[0] == item]
-        if isinstance(item, widgets.BandViewMapCanvas):
-            return [t for t in self.bandViewCanvases if t[1] == item]
-
+        self.bandViewOrder.remove(bandView)
+        canvas = self.bandViewCanvases[bandView]
+        self.L.removeWidget(canvas)
+        canvas.close()
 
     def insertBandView(self, bandView, i=-1):
         assert isinstance(bandView, BandView)
-        assert len(self.findItems(bandView)) == 0
-        assert i >= -1 and i <= len(self.bandViewCanvases)
+        assert bandView not in self.bandViewOrder
+        assert len(self.bandViewCanvases) == self.bandViewOrder
+
+        assert i >= -1 and i <= len(self.bandViewOrder)
         if i == -1:
             i = len(self.bandViewCanvases)
 
-        canvas = widgets.BandViewMapCanvas(self.ui)
+        canvas = BandViewMapCanvas(self.ui)
         canvas.setLayer(self.TSD.pathImg)
         canvas.setFixedSize(self.subsetSize)
-        self.bandViewCanvases.insert(i, (bandView, canvas))
+
+        self.bandViewCanvases[bandView] = canvas
+        self.bandViewOrder.insert(i, bandView)
         self.L.insertWidget(self.wOffset + i, canvas)
 
     def __lt__(self, other):
@@ -1197,18 +1236,16 @@ class TimeSeriesViewer:
         self.canvasCrs = srs
         self.ui.tb_bb_srs.setPlainText(self.canvasCrs.toWkt())
 
+    #todo: define as qt slot
     def setSpatialSubset(self, geometry, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         assert isinstance(geometry, QgsRectangle) or isinstance(geometry, QgsPoint)
 
-        D = self.ui
-        x = D.spinBox_coordinate_x.value()
-        y = D.spinBox_coordinate_x.value()
-        dx = D.doubleSpinBox_subset_size_x.value()
-        dy = D.doubleSpinBox_subset_size_y.value()
+        oldExtent = self.ui.spatialExtent()
+        oldExtent = oldExtent.toCrs(crs)
 
-        self.setCanvasSRS(crs)
-
+        if type(geometry) is QgsPoint:
+            oldExtent.setCenter(geometry)
 
         if type(geometry) is QgsRectangle:
             center = geometry.center()
@@ -1218,17 +1255,12 @@ class TimeSeriesViewer:
             dx = geometry.xMaximum() - geometry.xMinimum()
             dy = geometry.yMaximum() - geometry.yMinimum()
 
-        if type(geometry) is QgsPoint:
-            x = geometry.x()
-            y = geometry.y()
 
         D.doubleSpinBox_subset_size_x.setValue(dx)
         D.doubleSpinBox_subset_size_y.setValue(dy)
         D.spinBox_coordinate_x.setValue(x)
         D.spinBox_coordinate_y.setValue(y)
 
-        if D.cb_loadSubsetDirectly.isChecked():
-            self.showSubsetsStart()
 
     def qgs_handleMouseDown(self, pt, btn):
         pass

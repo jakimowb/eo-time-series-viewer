@@ -9,6 +9,8 @@ import six
 import xml.etree
 from qgis.core import *
 
+from timeseriesviewer.main import SpatialExtent
+
 def add_QgsRasterLayer(iface, path, rgb):
     if iface:
 
@@ -96,34 +98,112 @@ def paste_band_settings(txt):
 
 class PointMapTool(QgsMapToolEmitPoint):
 
-    coordinateSelected = pyqtSignal(QgsPoint, object)
-
+    sigCoordinateSelected = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
     def __init__(self, canvas):
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.marker = QgsVertexMarker(self.canvas)
-        self.marker.setColor(Qt.red)
-        self.marker.setIconSize(5)
-        self.marker.setIconType(QgsVertexMarker.ICON_CROSS) # or ICON_CROSS, ICON_X
-        self.marker.setPenWidth(3)
+        self.setStyle(Qt.red, 3, 5, QgsVertexMarker.ICON_CROSS)
 
+
+    def setStyle(self, color, penWidth, iconSize, iconType):
+        self.marker.setColor(color)
+        self.marker.setPenWidth(penWidth)
+        self.marker.setIconSize(iconSize)
+        self.marker.setIconType(iconType)  # or ICON_CROSS, ICON_X
 
     def canvasPressEvent(self, e):
         point = self.toMapCoordinates(e.pos())
-
         self.marker.setCenter(point)
         self.marker.show()
 
     def canvasReleaseEvent(self, e):
         point = self.toMapCoordinates(e.pos())
-        wkt = self.canvas.mapSettings().destinationCrs().toWkt()
-        if wkt:
-            self.coordinateSelected.emit(point, wkt)
+        crs = self.canvas.mapSettings().destinationCrs()
+        if crs:
             self.marker.setCenter(point)
             self.marker.hide()
+            self.sigCoordinateSelected.emit(point, crs)
 
 
+
+class SpatialExtentMapTool(QgsMapToolEmitPoint):
+    from timeseriesviewer.main import SpatialExtent
+    sigSpatialExtentSelected = pyqtSignal(SpatialExtent)
+
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+        QgsMapToolEmitPoint.__init__(self, self.canvas)
+        self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.setStyle(Qt.red, 1)
+        self.reset()
+
+    def setStyle(self, color, width):
+        self.rubberBand.setColor(color)
+        self.rubberBand.setWidth(width)
+
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QGis.Polygon)
+
+    def canvasPressEvent(self, e):
+        self.startPoint = self.toMapCoordinates(e.pos())
+        self.endPoint = self.startPoint
+        self.isEmittingPoint = True
+        self.showRect(self.startPoint, self.endPoint)
+
+    def canvasReleaseEvent(self, e):
+        self.isEmittingPoint = False
+
+        crs = self.canvas.mapSettings().destinationCrs()
+        rect = self.rectangle()
+
+        self.reset()
+
+        if crs is not None and rect is not None:
+            extent = SpatialExtent(crs, rect)
+            self.rectangleDrawed.emit(extent)
+
+
+    def canvasMoveEvent(self, e):
+
+        if not self.isEmittingPoint:
+            return
+
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showRect(self.startPoint, self.endPoint)
+
+    def showRect(self, startPoint, endPoint):
+        self.rubberBand.reset(QGis.Polygon)
+        if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
+            return
+
+        point1 = QgsPoint(startPoint.x(), startPoint.y())
+        point2 = QgsPoint(startPoint.x(), endPoint.y())
+        point3 = QgsPoint(endPoint.x(), endPoint.y())
+        point4 = QgsPoint(endPoint.x(), startPoint.y())
+
+        self.rubberBand.addPoint(point1, False)
+        self.rubberBand.addPoint(point2, False)
+        self.rubberBand.addPoint(point3, False)
+        self.rubberBand.addPoint(point4, True)    # true to update canvas
+        self.rubberBand.show()
+
+    def rectangle(self):
+        if self.startPoint is None or self.endPoint is None:
+            return None
+        elif self.startPoint.x() == self.endPoint.x() or self.startPoint.y() == self.endPoint.y():
+
+            return None
+
+        return QgsRectangle(self.startPoint, self.endPoint)
+
+    #def deactivate(self):
+    #   super(RectangleMapTool, self).deactivate()
+    #self.deactivated.emit()
 
 
 class RectangleMapTool(QgsMapToolEmitPoint):
