@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="timseriesviewer">
+    <file>icons/bandview.png</file>
     <file>icons/mActionAddBandView.png</file>
     <file>icons/mActionRemoveBandView.png</file>
     <file>icons/mActionRemoveTSD.png</file>

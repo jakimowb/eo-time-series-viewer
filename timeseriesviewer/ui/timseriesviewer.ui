@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1095</width>
-    <height>820</height>
+    <height>907</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -68,8 +68,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>613</width>
-         <height>595</height>
+         <width>556</width>
+         <height>638</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -84,7 +84,7 @@
          <height>200</height>
         </size>
        </property>
-       <layout class="QHBoxLayout" name="scrollAreaLayout" stretch="">
+       <layout class="QHBoxLayout" name="scrollAreaLayout">
         <property name="spacing">
          <number>1</number>
         </property>
@@ -359,7 +359,7 @@
             </size>
            </property>
            <property name="title">
-            <string>Spatial</string>
+            <string>Spatial navigation</string>
            </property>
            <layout class="QFormLayout" name="formLayout_3">
             <property name="fieldGrowthPolicy">
@@ -409,9 +409,53 @@
                 </widget>
                </item>
                <item>
-                <widget class="QCheckBox" name="cb_loadSubsetDirectly">
+                <widget class="QToolButton" name="btnZoomIn">
                  <property name="text">
-                  <string>load immediatelly</string>
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomIn.png</normaloff>:/timseriesviewer/icons/mActionZoomIn.png</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnZoomOut">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomOut.png</normaloff>:/timseriesviewer/icons/mActionZoomOut.png</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnZoomMaxExtent">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomFullExtent.png</normaloff>:/timseriesviewer/icons/mActionZoomFullExtent.png</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnZoomPixelScale">
+                 <property name="text">
+                  <string>...</string>
+                 </property>
+                 <property name="icon">
+                  <iconset resource="resources.qrc">
+                   <normaloff>:/timseriesviewer/icons/mActionZoomActual.png</normaloff>:/timseriesviewer/icons/mActionZoomActual.png</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="btnPan">
+                 <property name="text">
+                  <string>...</string>
                  </property>
                 </widget>
                </item>
@@ -641,7 +685,7 @@
               </layout>
              </widget>
             </item>
-            <item row="3" column="0">
+            <item row="4" column="0">
              <widget class="QToolButton" name="btnCRS">
               <property name="text">
                <string>...</string>
@@ -652,7 +696,7 @@
               </property>
              </widget>
             </item>
-            <item row="3" column="1">
+            <item row="4" column="1">
              <widget class="QPlainTextEdit" name="textBoxCRSInfo">
               <property name="enabled">
                <bool>true</bool>
@@ -680,6 +724,47 @@
               </property>
              </widget>
             </item>
+            <item row="3" column="1">
+             <widget class="QCheckBox" name="cb_loadSubsetDirectly">
+              <property name="text">
+               <string>load immediatelly</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <layout class="QHBoxLayout" name="horizontalLayout_11">
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QCheckBox" name="cbSyncQgsMapCenter">
+                <property name="text">
+                 <string>map center</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="cbSyncQgsMapExtent">
+                <property name="text">
+                 <string>map extent</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_3">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
            </layout>
           </widget>
          </item>
@@ -692,7 +777,7 @@
             </size>
            </property>
            <property name="title">
-            <string>Temporal</string>
+            <string>Temporal navigation</string>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_11">
             <property name="spacing">
@@ -788,6 +873,13 @@
              </layout>
             </item>
            </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Rendering</string>
+           </property>
           </widget>
          </item>
          <item>
@@ -928,6 +1020,7 @@
      <string>Views</string>
     </property>
     <addaction name="actionAddBandView"/>
+    <addaction name="actionShowToolBar"/>
    </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuView"/>
@@ -937,7 +1030,7 @@
    <property name="minimumSize">
     <size>
      <width>324</width>
-     <height>232</height>
+     <height>110</height>
     </size>
    </property>
    <property name="features">
@@ -974,6 +1067,37 @@
         </property>
        </layout>
       </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Progress</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QProgressBar" name="progressBar">
+         <property name="value">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -1044,9 +1168,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="checkBoxLockSubsetAspect">
+        <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
          <property name="text">
-          <string>lock aspect</string>
+          <string>keep ratio</string>
          </property>
          <property name="checked">
           <bool>true</bool>
@@ -1060,7 +1184,7 @@
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>40</width>
+           <width>20</width>
            <height>20</height>
           </size>
          </property>
@@ -1068,36 +1192,80 @@
        </item>
       </layout>
      </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionAddTSD"/>
+   <addaction name="actionLoadTS"/>
+   <addaction name="actionClearTS"/>
+   <addaction name="actionSaveTS"/>
+   <addaction name="actionAddBandView"/>
+   <addaction name="separator"/>
+   <addaction name="actionZoomIn"/>
+   <addaction name="actionZoomOut"/>
+   <addaction name="actionZoomArea"/>
+   <addaction name="actionZoomToPixelScale"/>
+   <addaction name="actionActionPan"/>
+   <addaction name="separator"/>
+   <addaction name="actionAbout"/>
+  </widget>
+  <widget class="QDockWidget" name="dockWidgetQgsInteraction">
+   <property name="minimumSize">
+    <size>
+     <width>359</width>
+     <height>145</height>
+    </size>
+   </property>
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <property name="windowTitle">
+    <string>QGIS Interaction</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QVBoxLayout" name="verticalLayout_8">
+     <property name="spacing">
+      <number>1</number>
+     </property>
+     <property name="margin">
+      <number>1</number>
+     </property>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <layout class="QHBoxLayout" name="horizontalLayout_12">
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
        <item>
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="label_7">
          <property name="text">
-          <string>Progress</string>
+          <string>Vector layer </string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QProgressBar" name="progressBar">
-         <property name="value">
-          <number>0</number>
+        <widget class="QComboBox" name="comboBoxQgsVectorLayer">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
         </widget>
        </item>
       </layout>
-     </item>
-     <item>
-      <spacer name="verticalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </widget>
@@ -1306,6 +1474,67 @@
     <string>setExtent</string>
    </property>
   </action>
+  <action name="actionZoomIn">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomIn.png</normaloff>:/timseriesviewer/icons/mActionZoomIn.png</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom in</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom into map</string>
+   </property>
+  </action>
+  <action name="actionZoomOut">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomOut.png</normaloff>:/timseriesviewer/icons/mActionZoomOut.png</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom out</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom out</string>
+   </property>
+  </action>
+  <action name="actionZoomArea">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomFullExtent.png</normaloff>:/timseriesviewer/icons/mActionZoomFullExtent.png</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom area</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom to maximum extent of time series</string>
+   </property>
+  </action>
+  <action name="actionZoomToPixelScale">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/mActionZoomActual.png</normaloff>:/timseriesviewer/icons/mActionZoomActual.png</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom to pixel scale</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom to pixel scale</string>
+   </property>
+  </action>
+  <action name="actionActionPan">
+   <property name="text">
+    <string>actionPan</string>
+   </property>
+   <property name="toolTip">
+    <string>Pan on map</string>
+   </property>
+  </action>
+  <action name="actionShowToolBar">
+   <property name="text">
+    <string>Show toolbar</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
@@ -1318,8 +1547,8 @@
    <slot>trigger()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>125</x>
-     <y>150</y>
+     <x>175</x>
+     <y>199</y>
     </hint>
     <hint type="destinationlabel">
      <x>-1</x>
@@ -1334,8 +1563,8 @@
    <slot>trigger()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>234</x>
-     <y>150</y>
+     <x>284</x>
+     <y>199</y>
     </hint>
     <hint type="destinationlabel">
      <x>-1</x>
@@ -1350,8 +1579,8 @@
    <slot>trigger()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>234</x>
-     <y>175</y>
+     <x>284</x>
+     <y>224</y>
     </hint>
     <hint type="destinationlabel">
      <x>-1</x>
@@ -1366,8 +1595,8 @@
    <slot>trigger()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>125</x>
-     <y>175</y>
+     <x>175</x>
+     <y>224</y>
     </hint>
     <hint type="destinationlabel">
      <x>-1</x>

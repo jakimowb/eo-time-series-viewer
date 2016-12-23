@@ -244,15 +244,10 @@ class TimeSeriesDatum(QObject):
     def getSpatialReference(self):
         return self.crs
 
-
-    def getBoundingBox(self, srs=None):
-
-        bbox = self.lyrImg.extent()
-        if srs:
-            assert isinstance(srs, QgsCoordinateReferenceSystem)
-            bbox = transformGeometry(bbox, self.crs, srs)
-        return bbox
-
+    def spatialExtent(self):
+        from timeseriesviewer.main import SpatialExtent
+        extent = SpatialExtent(self.lyrImg.crs(), self.lyrImg.extent())
+        return extent
 
     def setMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):
         dsMsk = gdal.Open(pathMsk)
@@ -498,20 +493,16 @@ class TimeSeries(QObject):
 
 
 
-    def getMaxExtent(self, srs=None):
+    def getMaxExtent(self, crs=None):
         if len(self.data) == 0:
-            return QgsRectangle()
+            return None
 
-        if srs is None:
-            srs = self.data[0].crs()
-        bb = None
-        for TSD in self.data:
-            if bb is None:
-                bb = TSD.getBoundingBox(srs=srs)
-            else:
-                bb.unionRect(TSD.getBoundingBox(srs=srs))
+        extent = self.data[0].spatialExtent()
+        if len(self.data) > 1:
+            for TSD in self.data[1:]:
+                extent += TSD.spatialExtent()
 
-        return bb
+        return extent
 
     def getObservationDates(self):
         return [tsd.getDate() for tsd in self.data]

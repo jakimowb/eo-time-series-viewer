@@ -93,6 +93,9 @@ class SpatialExtent(QgsRectangle):
             box = trans.transformBoundingBox(box)
         return SpatialExtent(crs, box)
 
+    def __radd__(self, other):
+        s = ""
+
 from timeseriesviewer.ui.widgets import *
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
@@ -253,7 +256,11 @@ class TimeSeriesDatumViewManager(QObject):
         self.bandViewMananger.sigBandViewAdded.connect(self.addBandView)
         self.bandViewMananger.sigBandViewRemoved.connect(self.removeBandView)
         self.bandViewMananger.sigBandViewVisibility.connect(self.setBandViewVisibility)
-        self.setExtent(self.TSV.TS.getMaxExtent())
+
+        extent = self.TSV.TS.getMaxExtent()
+        if extent:
+            self.setExtent(extent)
+
         self.setMaxTSDViews()
         self.setTimeSeries(self.TSV.TS)
         self.L = self.TSV.ui.scrollAreaSubsetContent.layout()
@@ -578,7 +585,7 @@ class TimeSeriesDatumView(QObject):
         self.TSD = TSD
         self.ui.labelTitle.setText(str(TSD.date))
 
-        for c in self.ui.findChildren(BandViewMapCanvas):
+        for c in self.bandViewCanvases.values():
             c.setLayer(self.TSD.pathImg)
 
     def removeBandView(self, bandView):
@@ -1281,19 +1288,7 @@ class TimeSeriesViewer:
     def ua_datumAdded(self, TSD):
 
         if len(self.TS) == 1:
-            self.setCanvasSRS(TSD.lyrImg.crs())
-            if self.ui.spinBox_coordinate_x.value() == 0.0 and \
-               self.ui.spinBox_coordinate_y.value() == 0.0:
-                bbox = self.TS.getMaxExtent(srs=self.canvasCrs)
-
-                self.ui.spinBox_coordinate_x.setRange(bbox.xMinimum(), bbox.xMaximum())
-                self.ui.spinBox_coordinate_y.setRange(bbox.yMinimum(), bbox.yMaximum())
-                #x, y = self.TS.getSceneCenter()
-                c = bbox.center()
-                self.ui.spinBox_coordinate_x.setValue(c.x())
-                self.ui.spinBox_coordinate_y.setValue(c.y())
-                s = ""
-        #self.dlg.sliderDOI
+            self.ui.setSpatialExtent(TSD.spatialExtent())
 
         self.ui.tableView_TimeSeries.resizeColumnsToContents()
 

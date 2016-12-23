@@ -29,6 +29,7 @@ import sys, re, os, six
 
 from timeseriesviewer import jp
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
+from timeseriesviewer.main import SpatialExtent
 
 PATH_MAIN_UI = jp(DIR_UI, 'timseriesviewer.ui')
 PATH_BANDVIEWSETTINGS_UI = jp(DIR_UI, 'bandviewsettings.ui')
@@ -70,13 +71,25 @@ class TimeSeriesViewerUI(QMainWindow,
         #define subset-size behaviour
         self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
         self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+        self.subsetRatio = None
 
 
-    def crs(self):
-        return self.mCrs
-        pass
+        self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
+        self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
+                                     self.spinBoxExtentWidth, self.spinBoxExtentHeight]
+
+    def _blockSignals(self, widgets, block=True):
+        states = dict()
+        if isinstance(widgets, dict):
+            for w, block in widgets.items():
+                states[w] = w.blockSignals(block)
+        else:
+            for w in widgets:
+                states[w] = w.blockSignals(block)
+        return states
+
+
 
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     def setCrs(self, crs):
@@ -87,37 +100,62 @@ class TimeSeriesViewerUI(QMainWindow,
         if self.mCrs != old:
             self.sigCrsChanged.emit(crs)
 
+    def crs(self):
+        return self.mCrs
 
-    def extent(self):
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+
+    def spatialExtent(self):
+        crs = self.crs()
+        if not crs:
+            return None
         width = QgsVector(self.spinBoxExtentWidth.value(), 0.0)
         height = QgsVector(0.0, self.spinBoxExtentHeight.value())
 
         Center = QgsPoint(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
         UL = Center - (width * 0.5) + (height * 0.5)
         LR = Center + (width * 0.5) - (height * 0.5)
-        return QgsRectangle(UL, LR)
 
-    sigExtentChanged = pyqtSignal(QgsRectangle)
-    def setExtent(self, extent):
-        old = self.extent()
-        assert isinstance(extent, QgsRectangle)
+        from timeseriesviewer.main import SpatialExtent
+        return SpatialExtent(self.crs(), UL, LR)
+
+    def setSpatialExtent(self, extent):
+        old = self.spatialExtent()
+        from timeseriesviewer.main import SpatialExtent
+        assert isinstance(extent, SpatialExtent)
         center = extent.center()
+
+
+
+        states = self._blockSignals(self.spatialExtentWidgets, True)
+
         self.spinBoxExtentCenterX.setValue(center.x())
         self.spinBoxExtentCenterY.setValue(center.y())
         self.spinBoxExtentWidth.setValue(extent.width())
         self.spinBoxExtentHeight.setValue(extent.height())
+        self.setCrs(extent.crs())
+        self._blockSignals(self.spatialExtentWidgets, states)
 
         if old != extent:
-            self.sigExtentChanged.emit(extent)
+            self.sigSpatialExtentChanged.emit(extent)
+
+
+
 
     sigSubsetSizeChanged = pyqtSignal(QSize)
-
-    def setSubsetSize(self, size):
+    def setSubsetSize(self, size, blockSignal=False):
         old = self.subsetSize()
+
+        if blockSignal:
+            states = self._blockSignals(w, True)
+
         self.spinBoxSubsetSizeX.setValue(size.width())
         self.spinBoxSubsetSizeY.setValue(size.height())
+        self._setUpdateBehaviour()
 
-        if old != size:
+        if blockSignal:
+            self._blockSignals(states)
+        elif old != size:
             self.sigSubsetSizeChanged(size)
 
     def subsetSize(self):
@@ -135,7 +173,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
     def onSubsetValueChanged(self, key):
-        if self.checkBoxLockSubsetAspect.isChecked():
+        if self.checkBoxKeepSubsetAspectRatio.isChecked():
 
             if key == 'X':
                 v_old = self.lastSubsetSizeX
@@ -225,7 +263,7 @@ class BandViewUI(QFrame, loadUIFormClass(PATH_BANDVIEW_UI)):
         self.setupUi(self)
         self.btnRemoveBandView.setDefaultAction(self.actionRemoveBandView)
         self.btnAddBandView.setDefaultAction(self.actionAddBandView)
-
+        self.btnToggleVisibility.setDefaultAction(self.actionToggleVisibility)
 
 class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
     def __init__(self, title='<#>', parent=None):

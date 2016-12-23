@@ -76,15 +76,28 @@
          </widget>
         </item>
         <item>
-         <widget class="QToolButton" name="btnAddBandView">
+         <widget class="QToolButton" name="btnToogleVisibility">
           <property name="text">
            <string>...</string>
           </property>
           <property name="icon">
            <iconset resource="resources.qrc">
-            <normaloff>:/timseriesviewer/icons/mActionAddBandView.png</normaloff>:/timseriesviewer/icons/mActionAddBandView.png</iconset>
+            <normaloff>:/timseriesviewer/icons/bandview.png</normaloff>:/timseriesviewer/icons/bandview.png</iconset>
           </property>
          </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>0</height>
+           </size>
+          </property>
+         </spacer>
         </item>
         <item>
          <widget class="QToolButton" name="btnRemoveBandView">
@@ -101,17 +114,15 @@
          </widget>
         </item>
         <item>
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
+         <widget class="QToolButton" name="btnAddBandView">
+          <property name="text">
+           <string>...</string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>0</height>
-           </size>
+          <property name="icon">
+           <iconset resource="resources.qrc">
+            <normaloff>:/timseriesviewer/icons/mActionAddBandView.png</normaloff>:/timseriesviewer/icons/mActionAddBandView.png</iconset>
           </property>
-         </spacer>
+         </widget>
         </item>
        </layout>
       </item>
@@ -173,6 +184,18 @@
    </property>
    <property name="toolTip">
     <string>Adds a new view</string>
+   </property>
+  </action>
+  <action name="actionToggleVisibility">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timseriesviewer/icons/bandview.png</normaloff>:/timseriesviewer/icons/bandview.png</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle visibility</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle band view visibility</string>
    </property>
   </action>
  </widget>
