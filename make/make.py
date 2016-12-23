@@ -158,6 +158,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
 
     svgs = file_search(pathDir, '*.svg')
     app = QApplication([], True)
+    buggySvg = []
 
     for pathSvg in svgs:
         dn = os.path.dirname(pathSvg)
@@ -218,12 +219,23 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
                     cmd = [jp(dirInkscape,'inkscape')]
                 cmd.append('--file={}'.format(pathSvg))
                 cmd.append('--export-png={}'.format(pathPng))
-                subprocess.call(cmd)
+                from subprocess import PIPE
+                p = subprocess.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+                output, err = p.communicate()
+                rc = p.returncode
+                print('Saved {}'.format(pathPng))
+                if err != '':
+                    buggySvg.append((pathSvg, err))
 
-            s = ""
+    if len(buggySvg) > 0:
+        six._print('SVG Errors')
+        for t in buggySvg:
+            pathSvg, error = t
+            six._print(pathSvg, error, file=sys.stderr)
+    s = ""
 
 
-def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
+def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
     pathQrc = os.path.abspath(pathQrc)
     dirQrc = os.path.dirname(pathQrc)
     app = QApplication([])
@@ -231,37 +243,59 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
     doc = QDomDocument()
     doc.setContent(QFile(pathQrc))
 
-    query = QXmlQuery()
-    #query.setQuery("doc('{}')/RCC/qresource/file".format(pathQrc))
-    query.setQuery("doc('{}')/RCC/qresource[@prefix=\"{}\"]/file".format(pathQrc, pngprefix))
-    query.setQuery("for $x in doc('{}')/RCC/qresource[@prefix=\"{}\"] return data($x)".format(pathQrc, pngprefix))
-    assert query.isValid()
-    #elem = doc.elementsByTagName('qresource')print
-    pngFiles = [r.strip() for r in str(query.evaluateToString()).split('\n')]
-    pngFiles = set([f for f in pngFiles if os.path.isfile(jp(dirQrc,f))])
+    pngFiles = set()
+    fileAttributes = {}
+    #add files already included in QRC
 
+    fileNodes = doc.elementsByTagName('file')
+    for i in range(fileNodes.count()):
+        fileNode = fileNodes.item(i).toElement()
+
+        file = str(fileNode.childNodes().item(0).nodeValue())
+        if file.lower().endswith('.png'):
+            pngFiles.add(file)
+            if fileNode.hasAttributes():
+                attributes = {}
+                for i in range(fileNode.attributes().count()):
+                    attr = fileNode.attributes().item(i).toAttr()
+                    attributes[str(attr.name())] = str(attr.value())
+                fileAttributes[file] = attributes
+
+    #add new pngs in icondir
     for f in  file_search(icondir, '*.png'):
-        xmlPath = os.path.relpath(f, dirQrc).replace('\\','/')
-        pngFiles.add(xmlPath)
+        file = os.path.relpath(f, dirQrc).replace('\\','/')
+        pngFiles.add(file)
 
     pngFiles = sorted(list(pngFiles))
 
-    def getResourcePrefixNodes(prefix):
-        resourceNodes = doc.elementsByTagName('qresource')
+    def elementsByTagAndProperties(elementName, attributeProperties, rootNode=None):
+        assert isinstance(elementName, str)
+        assert isinstance(attributeProperties, dict)
+        if rootNode is None:
+            rootNode = doc
+        resourceNodes = rootNode.elementsByTagName(elementName)
         nodeList = []
         for i in range(resourceNodes.count()):
             resourceNode = resourceNodes.item(i).toElement()
-            if resourceNode.hasAttribute('prefix') and resourceNode.attribute('prefix') == prefix:
-                nodeList.append(resourceNode)
+            for aName, aValue in attributeProperties.items():
+                if resourceNode.hasAttribute(aName):
+                    if aValue != None:
+                        assert isinstance(aValue, str)
+                        if str(resourceNode.attribute(aName)) == aValue:
+                            nodeList.append(resourceNode)
+                    else:
+                        nodeList.append(resourceNode)
         return nodeList
 
 
-    resourceNode = getResourcePrefixNodes(pngprefix)
-    if len(resourceNode) > 0:
-        resourceNode = resourceNode[0]
-    else:
+    resourceNodes = elementsByTagAndProperties('qresource', {'prefix':pngprefix})
+    if len(resourceNodes) == 1:
+        resourceNode = resourceNodes[0]
+    elif len(resourceNodes) == 0:
         resourceNode = doc.createElement('qresource')
         resourceNode.setAttribute('prefix', pngprefix)
+    else:
+        raise NotImplementedError()
 
     #remove childs, as we have all stored in list pngFiles
     childs = resourceNode.childNodes()
@@ -271,7 +305,13 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer/png'):
 
     #insert new childs
     for pngFile in pngFiles:
+
         node = doc.createElement('file')
+        attributes = fileAttributes.get(pngFile)
+        if attributes:
+            for k, v in attributes.items():
+                node.setAttribute(k,v)
+            s = 2
         node.appendChild(doc.createTextNode(pngFile))
         resourceNode.appendChild(node)
 
@@ -320,10 +360,9 @@ if __name__ == '__main__':
 
     if True:
         #convert SVG to PNG and link them into the resource file
-        svg2png(icondir, overwrite=False)
-
+        #svg2png(icondir, overwrite=True)
         #add png icons to qrc file
-        #png2qrc(icondir, pathQrc)
+        png2qrc(icondir, pathQrc)
     if True:
         make(DIR_UI)
     print('Done')
