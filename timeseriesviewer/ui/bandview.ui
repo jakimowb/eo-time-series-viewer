@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Frame</class>
- <widget class="QFrame" name="Frame">
+ <class>BandView</class>
+ <widget class="QFrame" name="BandView">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -76,13 +76,23 @@
          </widget>
         </item>
         <item>
-         <widget class="QToolButton" name="btnToogleVisibility">
+         <widget class="QToolButton" name="btnHideBandView">
           <property name="text">
            <string>...</string>
           </property>
           <property name="icon">
            <iconset resource="resources.qrc">
-            <normaloff>:/timseriesviewer/icons/bandview.png</normaloff>:/timseriesviewer/icons/bandview.png</iconset>
+            <normaloff>:/timeseriesviewer/icons/mActionShowAllLayers.png</normaloff>
+            <normalon>:/timeseriesviewer/icons/bandviewHidden.png</normalon>:/timeseriesviewer/icons/mActionShowAllLayers.png</iconset>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+          <property name="autoRaise">
+           <bool>false</bool>
           </property>
          </widget>
         </item>
@@ -109,7 +119,7 @@
           </property>
           <property name="icon">
            <iconset resource="resources.qrc">
-            <normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</iconset>
+            <normaloff>:/timeseriesviewer/icons/mActionRemoveBandView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveBandView.png</iconset>
           </property>
          </widget>
         </item>
@@ -120,7 +130,7 @@
           </property>
           <property name="icon">
            <iconset resource="resources.qrc">
-            <normaloff>:/timseriesviewer/icons/mActionAddBandView.png</normaloff>:/timseriesviewer/icons/mActionAddBandView.png</iconset>
+            <normaloff>:/timeseriesviewer/icons/mActionAddBandView.png</normaloff>:/timeseriesviewer/icons/mActionAddBandView.png</iconset>
           </property>
          </widget>
         </item>
@@ -165,7 +175,7 @@
   <action name="actionRemoveBandView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</normaloff>:/timseriesviewer/icons/mActionRemoveBandView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveBandView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveBandView.png</iconset>
    </property>
    <property name="text">
     <string>Remove view</string>
@@ -177,7 +187,7 @@
   <action name="actionAddBandView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timseriesviewer/icons/mActionAddBandView.png</normaloff>:/timseriesviewer/icons/mActionAddBandView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddBandView.png</normaloff>:/timeseriesviewer/icons/mActionAddBandView.png</iconset>
    </property>
    <property name="text">
     <string>Add view</string>
@@ -186,16 +196,20 @@
     <string>Adds a new view</string>
    </property>
   </action>
-  <action name="actionToggleVisibility">
+  <action name="actionHideBandView">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timseriesviewer/icons/bandview.png</normaloff>:/timseriesviewer/icons/bandview.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionShowAllLayers.png</normaloff>
+     <normalon>:/timeseriesviewer/icons/bandviewHidden.png</normalon>:/timeseriesviewer/icons/mActionShowAllLayers.png</iconset>
    </property>
    <property name="text">
-    <string>Toggle visibility</string>
-   </property>
-   <property name="toolTip">
-    <string>Toggle band view visibility</string>
+    <string>Hide view</string>
    </property>
   </action>
  </widget>

@@ -12,6 +12,7 @@ from PyQt4.QtXml import *
 
 import numpy as np
 
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
     if trans is None:
@@ -72,6 +73,7 @@ class SensorInstrument(QObject):
     def __init__(self, refLyr, sensor_name=None):
         super(SensorInstrument, self).__init__()
         assert isinstance(refLyr, QgsRasterLayer)
+        assert refLyr.isValid()
         #QgsMapLayerRegistry.instance().addMapLayer(refLyr)
         self.nb = refLyr.bandCount()
         self.bandDataType = refLyr.dataProvider().dataType(1)
@@ -213,10 +215,12 @@ class TimeSeriesDatum(QObject):
 
     def __init__(self, pathImg, pathMsk=None):
         super(TimeSeriesDatum,self).__init__()
+        assert os.path.exists(pathImg)
         self.pathImg = pathImg
         self.pathMsk = None
 
         self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
+        assert self.lyrImg.isValid()
         self.uriImg = self.lyrImg.dataProvider().dataSourceUri()
 
         self.crs = self.lyrImg.dataProvider().crs()
@@ -500,7 +504,7 @@ class TimeSeries(QObject):
         extent = self.data[0].spatialExtent()
         if len(self.data) > 1:
             for TSD in self.data[1:]:
-                extent += TSD.spatialExtent()
+                extent.combineExtentWith(TSD.spatialExtent())
 
         return extent
 
@@ -682,6 +686,14 @@ class TimeSeries(QObject):
     def addFilesAsync(self, files):
         assert isinstance(files, list)
 
+    def findAbsolutePath(self,file):
+        if os.path.exists(file): return file
+        possibleRoots = [DIR_EXAMPLES, DIR_REPO, os.getcwd()]
+        for root in possibleRoots:
+            tmp = jp(root, file)
+            if os.path.exists(tmp):
+                return tmp
+        return None
 
     def addFiles(self, files):
         assert isinstance(files, list)
@@ -690,7 +702,11 @@ class TimeSeries(QObject):
 
         self.sigProgress.emit(0, 0, l)
         for i, file in enumerate(files):
-            self.addFile(file, _quiet=True)
+            tmp = self.findAbsolutePath(file)
+            if tmp:
+                self.addFile(tmp, _quiet=True)
+            else:
+                dprint('Unable to locate: {}'.format(file), file=sys.stderr)
             self.sigProgress.emit(0, i + 1, l)
 
         self.sigProgress.emit(0, 0, 1)

@@ -85,16 +85,53 @@ class SpatialExtent(QgsRectangle):
     def crs(self):
         return self.mCrs
 
+
+
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
-        box = super(SpatialExtent, self)
+        box = QgsRectangle(self)
         if self.mCrs != crs:
             trans = QgsCoordinateTransform(self.mCrs, crs)
             box = trans.transformBoundingBox(box)
         return SpatialExtent(crs, box)
 
-    def __radd__(self, other):
+    def __copy__(self):
+        return SpatialExtent(self.crs(), QgsRectangle(self))
+
+    def combineExtentWith(self, *args):
+        if args is None:
+            return
+        elif isinstance(args[0], SpatialExtent):
+            extent2 = args[0].toCrs(self.crs())
+            self.combineExtentWith(QgsRectangle(extent2))
+        else:
+            super(SpatialExtent, self).combineExtentWith(*args)
+
+    def setCenter(self, centerPoint, crs=None):
+
+        if crs and crs != self.crs():
+            trans = QgsCoordinateTransform(crs, self.crs())
+            centerPoint = trans.transform(centerPoint)
+
+        delta = centerPoint - self.center()
+        self.setXMaximum(self.xMaximum() + delta.x())
+        self.setXMinimum(self.xMinimum() + delta.x())
+        self.setYMaximum(self.yMaximum() + delta.y())
+        self.setYMinimum(self.yMinimum() + delta.y())
+
+
+    def __cmp__(self, other):
+        if other is None: return 1
         s = ""
+
+    def __eq__(self, other):
+        s = ""
+
+    def __sub__(self, other):
+        raise NotImplementedError()
+
+    def __mul__(self, other):
+        raise NotImplementedError()
 
 from timeseriesviewer.ui.widgets import *
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
@@ -257,9 +294,8 @@ class TimeSeriesDatumViewManager(QObject):
         self.bandViewMananger.sigBandViewRemoved.connect(self.removeBandView)
         self.bandViewMananger.sigBandViewVisibility.connect(self.setBandViewVisibility)
 
-        extent = self.TSV.TS.getMaxExtent()
-        if extent:
-            self.setExtent(extent)
+
+        self.setExtent(self.TSV.TS.getMaxExtent())
 
         self.setMaxTSDViews()
         self.setTimeSeries(self.TSV.TS)
@@ -301,10 +337,11 @@ class TimeSeriesDatumViewManager(QObject):
 
     def setExtent(self, extent):
         self.extent = extent
-        assert isinstance(extent, QgsRectangle)
-        tsdviews = sorted(self.TSDViews, key=lambda t:t.TSD)
-        for tsdview in tsdviews:
-            tsdview.setSpatialExtent(extent)
+        if extent:
+            assert isinstance(extent, SpatialExtent)
+            tsdviews = sorted(self.TSDViews, key=lambda t:t.TSD)
+            for tsdview in tsdviews:
+                tsdview.setSpatialExtent(extent)
 
     def navToDOI(self, TSD):
         assert isinstance(TSD, TimeSeriesDatum)
@@ -358,7 +395,8 @@ class TimeSeriesDatumViewManager(QObject):
         assert isinstance(TSD, TimeSeriesDatum)
         tsdView = TimeSeriesDatumView(TSD)
         tsdView.setSubsetSize(self.subsetSize)
-        tsdView.setSpatialExtent(self.extent)
+        if self.extent:
+            tsdView.setSpatialExtent(self.extent)
         self.addTSDView(tsdView)
 
 
@@ -395,7 +433,7 @@ class BandView(QObject):
 
     sigAddBandView = pyqtSignal(object)
     sigRemoveBandView = pyqtSignal(object)
-    sigSetVisibility = pyqtSignal(bool)
+    sigHideBandView = pyqtSignal(bool)
 
     def __init__(self, recommended_bands=None, parent=None, showSensorNames=True):
         super(BandView, self).__init__()
@@ -405,7 +443,7 @@ class BandView(QObject):
         #forward actions with reference to this band view
         self.ui.actionAddBandView.triggered.connect(lambda : self.sigAddBandView.emit(self))
         self.ui.actionRemoveBandView.triggered.connect(lambda: self.sigRemoveBandView.emit(self))
-        self.ui.actionToggleVisibility.toggled.connect(self.sigSetVisibility)
+        self.ui.actionHideBandView.toggled.connect(self.sigHideBandView)
         self.sensorViews = collections.OrderedDict()
         self.mShowSensorNames = showSensorNames
 
@@ -440,7 +478,7 @@ class BandView(QObject):
         """
         assert type(sensor) is SensorInstrument
         assert sensor not in self.sensorViews.keys()
-        w = ImageChipViewSettings(sensor)
+        w = BandViewRenderSettings(sensor)
         w.showSensorName(self.mShowSensorNames)
         self.sensorViews[sensor] = w
         l = self.ui.sensorList.layout()
@@ -486,7 +524,7 @@ class BandViewManager(QObject):
         bandView = BandView(parent=self.TSV.ui.scrollAreaBandViewsContent, showSensorNames=False)
         bandView.sigAddBandView.connect(self.createBandView)
         bandView.sigRemoveBandView.connect(self.removeBandView)
-        bandView.sigSetVisibility.connect(lambda b: self.sigBandViewVisibility.emit(bandView, b))
+        bandView.sigHideBandView.connect(lambda b: self.sigBandViewVisibility.emit(bandView, b))
         self.addBandView(bandView)
 
     def setBandViewVisibility(self, bandView, isVisible):
@@ -544,9 +582,10 @@ class TimeSeriesDatumView(QObject):
         self.ui.create()
 
         self.TSD = None
-        self.setTimeSeriesDatum(TSD)
+
         self.bandViewCanvases = dict()
         self.bandViewOrder = []
+        self.setTimeSeriesDatum(TSD)
         self.L = self.ui.layout()
         self.wOffset = self.L.count()-1
         self.setSubsetSize(QSize(150,100))
@@ -597,7 +636,7 @@ class TimeSeriesDatumView(QObject):
     def insertBandView(self, bandView, i=-1):
         assert isinstance(bandView, BandView)
         assert bandView not in self.bandViewOrder
-        assert len(self.bandViewCanvases) == self.bandViewOrder
+        assert len(self.bandViewCanvases) == len(self.bandViewOrder)
 
         assert i >= -1 and i <= len(self.bandViewOrder)
         if i == -1:
@@ -1097,23 +1136,24 @@ class TimeSeriesViewer:
         #connect actions with logic
 
         #D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
+        #connect actions with logic
         D.actionSelectCenter.triggered.connect(self.ua_selectByCoordinate)
         D.actionSelectArea.triggered.connect(self.ua_selectByRectangle)
 
         D.actionAddBandView.triggered.connect(self.bandViewManager.createBandView)
 
         D.actionAddTSD.triggered.connect(self.ua_addTSImages)
-        D.actionRemoveTSD.triggered.connect(self.ua_removeTSD)
+        D.actionRemoveTSD.triggered.connect(self.removeTimeSeriesDates)
 
         D.actionLoadTS.triggered.connect(self.ua_loadTSFile)
-        D.actionClearTS.triggered.connect(self.ua_clear_TS)
+        D.actionClearTS.triggered.connect(self.clearTimeSeries)
         D.actionSaveTS.triggered.connect(self.ua_saveTSFile)
         D.actionAddTSExample.triggered.connect(self.ua_loadExampleTS)
 
-        D.btn_labeling_clear.clicked.connect(D.tb_labeling_text.clear)
+        #connect buttons with actions
+        D.btnClearLabelList.clicked.connect(D.tbCollectedLabels.clear)
         D.actionAbout.triggered.connect( \
             lambda: QMessageBox.about(self.ui, 'SenseCarbon TimeSeriesViewer', 'A viewer to visualize raster time series data'))
-
 
         D.actionFirstTSD.triggered.connect(lambda: self.setDOISliderValue('first'))
         D.actionLastTSD.triggered.connect(lambda: self.setDOISliderValue('last'))
@@ -1132,19 +1172,15 @@ class TimeSeriesViewer:
         self.canvasCrs = QgsCoordinateReferenceSystem()
 
         if self.iface:
+
             self.canvas = self.iface.mapCanvas()
             self.RectangleMapTool = qgis_add_ins.RectangleMapTool(self.canvas)
             self.RectangleMapTool.rectangleDrawed.connect(self.setSpatialSubset)
             self.PointMapTool = qgis_add_ins.PointMapTool(self.canvas)
             self.PointMapTool.coordinateSelected.connect(self.setSpatialSubset)
+            self.ui.setQgsLinkWidgets(True)
         else:
-            D.btnSelectCenterCoordinate.setEnabled(False)
-            D.btnSelectArea.setEnabled(False)
-            #self.RectangleMapTool.connect(self.ua_selectByRectangle_Done)
-
-
-        self.check_enabled()
-        s = ""
+            self.ui.setQgsLinkWidgets(False)
 
 
     def setDOISliderValue(self, key):
@@ -1164,13 +1200,14 @@ class TimeSeriesViewer:
 
         TSD = None
 
-        if i is None or i > len(self.TS):
+        if len(self.TS) == 0:
             text = '<empty timeseries>'
         else:
+            assert i < len(self.TS)
             TSD = self.TS.data[i - 1]
             text = str(TSD.date)
 
-        self.ui.labelDOI.setText(text)
+        self.ui.labelDOIValue.setText(text)
 
         if TSD:
             self.timeSeriesViewManager.navToDOI(TSD)
@@ -1208,11 +1245,9 @@ class TimeSeriesViewer:
 
             M = self.ui.tableView_TimeSeries.model()
             M.beginResetModel()
-            self.ua_clear_TS()
+            self.clearTimeSeries()
             self.TS.loadFromFile(path, n_max=n_max)
             M.endResetModel()
-
-        self.check_enabled()
 
     def ua_saveTSFile(self):
         path = QFileDialog.getSaveFileName(self.ui, caption='Save Time Series file')
@@ -1248,26 +1283,13 @@ class TimeSeriesViewer:
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         assert isinstance(geometry, QgsRectangle) or isinstance(geometry, QgsPoint)
 
-        oldExtent = self.ui.spatialExtent()
-        oldExtent = oldExtent.toCrs(crs)
-
+        extent = self.ui.spatialExtent()
         if type(geometry) is QgsPoint:
-            oldExtent.setCenter(geometry)
+            extent.setCenter(geometry, crs)
 
         if type(geometry) is QgsRectangle:
-            center = geometry.center()
-            x = center.x()
-            y = center.y()
-
-            dx = geometry.xMaximum() - geometry.xMinimum()
-            dy = geometry.yMaximum() - geometry.yMinimum()
-
-
-        D.doubleSpinBox_subset_size_x.setValue(dx)
-        D.doubleSpinBox_subset_size_y.setValue(dy)
-        D.spinBox_coordinate_x.setValue(x)
-        D.spinBox_coordinate_y.setValue(y)
-
+            extent = SpatialExtent(crs,geometry).toCrs(self.ui.crs())
+        self.ui.setSpatialExtent(extent)
 
     def qgs_handleMouseDown(self, pt, btn):
         pass
@@ -1291,18 +1313,6 @@ class TimeSeriesViewer:
             self.ui.setSpatialExtent(TSD.spatialExtent())
 
         self.ui.tableView_TimeSeries.resizeColumnsToContents()
-
-    def check_enabled(self):
-        D = self.ui
-        hasTS = len(self.TS) > 0 or DEBUG
-        hasTSV = len(self.bandViewManager) > 0
-        hasQGIS = qgis_available
-
-        #D.tabWidget_viewsettings.setEnabled(hasTS)
-        #D.btn_showPxCoordinate.setEnabled(hasTS and hasTSV)
-        D.btnSelectCenterCoordinate.setEnabled(hasQGIS)
-        D.btnSelectArea.setEnabled(hasQGIS)
-
 
 
 
@@ -1541,16 +1551,16 @@ class TimeSeriesViewer:
 
 
 
-    def ua_clear_TS(self):
+    def clearTimeSeries(self):
         #remove views
 
         M = self.ui.tableView_TimeSeries.model()
         M.beginResetModel()
         self.TS.clear()
         M.endResetModel()
-        self.check_enabled()
 
-    def ua_removeTSD(self, TSDs=None):
+
+    def removeTimeSeriesDates(self, TSDs=None):
         if TSDs is None:
             TSDs = self.getSelectedTSDs()
         assert isinstance(TSDs,list)
@@ -1559,7 +1569,7 @@ class TimeSeriesViewer:
         M.beginResetModel()
         self.TS.removeDates(TSDs)
         M.endResetModel()
-        self.check_enabled()
+
 
 
 

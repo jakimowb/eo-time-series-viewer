@@ -151,6 +151,15 @@ def make(ROOT):
         print('Make {}'.format(pathPy3))
         subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
 
+def fileNeedsUpdate(file1, file2):
+    if not os.path.exists(file2):
+        return True
+    else:
+        if not os.path.exists(file1):
+            return True
+        else:
+            return os.path.getmtime(file1) > os.path.getmtime(file2)
+
 
 def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
     assert mode in ['INKSCAPE', 'WEBKIT', 'SVG']
@@ -159,6 +168,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
     svgs = file_search(pathDir, '*.svg')
     app = QApplication([], True)
     buggySvg = []
+
 
     for pathSvg in svgs:
         dn = os.path.dirname(pathSvg)
@@ -210,7 +220,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
             del painter, frame, img, page
             s  =""
         elif mode == 'INKSCAPE':
-            if not os.path.exists(pathPng) or overwrite:
+            if fileNeedsUpdate(pathSvg, pathPng):
                 if sys.platform == 'darwin':
                     cmd = ['inkscape']
                 else:
@@ -360,7 +370,7 @@ if __name__ == '__main__':
 
     if True:
         #convert SVG to PNG and link them into the resource file
-        #svg2png(icondir, overwrite=True)
+        svg2png(icondir, overwrite=False)
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
     if True:
