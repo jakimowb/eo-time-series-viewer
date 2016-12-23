@@ -31,9 +31,9 @@ from timeseriesviewer import jp
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
 from timeseriesviewer.main import SpatialExtent
 
-PATH_MAIN_UI = jp(DIR_UI, 'timseriesviewer.ui')
+PATH_MAIN_UI = jp(DIR_UI, 'timeseriesviewer.ui')
 PATH_BANDVIEWSETTINGS_UI = jp(DIR_UI, 'bandviewsettings.ui')
-PATH_IMAGECHIPVIEWSETTINGS_UI = jp(DIR_UI, 'imagechipviewsettings.ui')
+PATH_BANDVIEWRENDERSETTINGS_UI = jp(DIR_UI, 'bandviewrendersettings.ui')
 PATH_BANDVIEW_UI = jp(DIR_UI, 'bandview.ui')
 PATH_TSDVIEW_UI = jp(DIR_UI, 'timeseriesdatumview.ui')
 
@@ -54,8 +54,6 @@ class TimeSeriesViewerUI(QMainWindow,
         #set button default actions -> this will show the action icons as well
         #I don't know why this is not possible in the QDesigner when QToolButtons are
         #placed outside a toolbar
-        self.btnSelectArea.setDefaultAction(self.actionSelectArea)
-        self.btnSelectCenterCoordinate.setDefaultAction(self.actionSelectCenter)
 
         self.btnNavToFirstTSD.setDefaultAction(self.actionFirstTSD)
         self.btnNavToLastTSD.setDefaultAction(self.actionLastTSD)
@@ -72,12 +70,20 @@ class TimeSeriesViewerUI(QMainWindow,
         self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
         self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
 
+        self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
+        self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
+
+
         self.subsetRatio = None
 
 
         self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
         self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
                                      self.spinBoxExtentWidth, self.spinBoxExtentHeight]
+
+    def setQgsLinkWidgets(self, b):
+        #enable/disable widgets that rely on QGIS instance interaction
+        s = ""
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -96,7 +102,7 @@ class TimeSeriesViewerUI(QMainWindow,
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         old = self.mCrs
         self.mCrs = crs
-        self.textBoxCRSInfo.setText(crs.toWkt())
+        self.textBoxCRSInfo.setPlainText(crs.toWkt())
         if self.mCrs != old:
             self.sigCrsChanged.emit(crs)
 
@@ -134,9 +140,9 @@ class TimeSeriesViewerUI(QMainWindow,
         self.spinBoxExtentWidth.setValue(extent.width())
         self.spinBoxExtentHeight.setValue(extent.height())
         self.setCrs(extent.crs())
-        self._blockSignals(self.spatialExtentWidgets, states)
+        self._blockSignals(states)
 
-        if old != extent:
+        if extent != old:
             self.sigSpatialExtentChanged.emit(extent)
 
 
@@ -263,7 +269,15 @@ class BandViewUI(QFrame, loadUIFormClass(PATH_BANDVIEW_UI)):
         self.setupUi(self)
         self.btnRemoveBandView.setDefaultAction(self.actionRemoveBandView)
         self.btnAddBandView.setDefaultAction(self.actionAddBandView)
-        self.btnToggleVisibility.setDefaultAction(self.actionToggleVisibility)
+        self.btnHideBandView.setDefaultAction(self.actionHideBandView)
+        s= ""
+
+
+    def bandViewVisibility(self):
+        return self.btnHideBandView.isChecked()
+
+    def setBandViewVisibility(self, show):
+        self.btnHideBandView.setChecked(show)  # send signal to thoose that need to know the visibility
 
 class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
     def __init__(self, title='<#>', parent=None):
@@ -293,12 +307,12 @@ class LineWidget(QFrame):
         else:
             self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
 
-class ImageChipViewSettingsUI(QGroupBox,
-                             loadUIFormClass(PATH_IMAGECHIPVIEWSETTINGS_UI)):
+class BandViewRenderSettingsUI(QGroupBox,
+                               loadUIFormClass(PATH_BANDVIEWRENDERSETTINGS_UI)):
 
     def __init__(self, parent=None):
         """Constructor."""
-        super(ImageChipViewSettingsUI, self).__init__(parent)
+        super(BandViewRenderSettingsUI, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
         # self.<objectname>, and you can use autoconnect slots - see
@@ -344,21 +358,20 @@ class BandViewMapCanvas(QgsMapCanvas):
 
 
 
-class ImageChipViewSettings(QObject):
+class BandViewRenderSettings(QObject):
 
     #define signals
 
-
+    sigBandViewVisibility = pyqtSignal(bool)
     sigRendererChanged = pyqtSignal(QgsRasterRenderer)
     sigRemoveView = pyqtSignal()
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
-        super(ImageChipViewSettings, self).__init__(parent)
+        super(BandViewRenderSettings, self).__init__(parent)
 
-        self.ui = ImageChipViewSettingsUI(parent)
+        self.ui = BandViewRenderSettingsUI(parent)
         self.ui.create()
-
 
         self.ui.setTitle(sensor.sensorName)
         self.ui.bandNames = sensor.bandNames
@@ -402,6 +415,7 @@ class ImageChipViewSettings(QObject):
             self.ui.btn453.setEnabled(False)
         s = ""
 
+
     def showSensorName(self, b):
         if b:
             self.ui.setTitle(self.sensor.sensorName)
@@ -438,7 +452,7 @@ class ImageChipViewSettings(QObject):
             text += ' ({} {})'.format(
                 ','.join(['{:0.2f}'.format(self.sensor.wavelengths[b-1]) for b in rgb]),
                 self.sensor.wavelengthUnits)
-        self.ui.labelBands.setText(text)
+        self.ui.labelSummary.setText(text)
 
     def setLayerRenderer(self, renderer):
         ui = self.ui
