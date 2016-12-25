@@ -2,7 +2,8 @@
 .idea/
 
 # Untrack compiled files
-*.pyc 
-*.pyd
+.idea/*
 *.pyc
+*.pyd
 *.iml
+__pycache__/
