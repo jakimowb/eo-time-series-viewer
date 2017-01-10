@@ -250,9 +250,11 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
     dirQrc = os.path.dirname(pathQrc)
     app = QApplication([])
     assert os.path.exists(pathQrc)
-    doc = QDomDocument()
+    doc = QDomDocument('RCC')
     doc.setContent(QFile(pathQrc))
-
+    if str(doc.toString()) == '':
+        doc.appendChild(doc.createElement('RCC'))
+    root = doc.documentElement()
     pngFiles = set()
     fileAttributes = {}
     #add files already included in QRC
@@ -299,13 +301,15 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
 
 
     resourceNodes = elementsByTagAndProperties('qresource', {'prefix':pngprefix})
-    if len(resourceNodes) == 1:
-        resourceNode = resourceNodes[0]
-    elif len(resourceNodes) == 0:
+
+    if len(resourceNodes) == 0:
         resourceNode = doc.createElement('qresource')
+        root.appendChild(resourceNode)
         resourceNode.setAttribute('prefix', pngprefix)
+    elif len(resourceNodes) == 1:
+        resourceNode = resourceNodes[0]
     else:
-        raise NotImplementedError()
+        raise NotImplementedError('Multiple resource nodes')
 
     #remove childs, as we have all stored in list pngFiles
     childs = resourceNode.childNodes()
@@ -324,6 +328,7 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
             s = 2
         node.appendChild(doc.createTextNode(pngFile))
         resourceNode.appendChild(node)
+        print(pngFile)
 
     f = open(pathQrc, "w")
     f.write(doc.toString())
@@ -401,13 +406,15 @@ if __name__ == '__main__':
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
 
-    if True:
+    if False:
         createCreditsHTML()
 
 
-    if True:
+    if False:
         #convert SVG to PNG and link them into the resource file
         svg2png(icondir, overwrite=False)
+
+    if True:
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
     if True:
