@@ -31,5 +31,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .sensecarbon_tsv import TimeSeriesViewer
-    return TimeSeriesViewer(iface)
+    from  timeseriesviewerplugin import TimeSeriesViewerPlugin
+    return TimeSeriesViewerPlugin(iface)
