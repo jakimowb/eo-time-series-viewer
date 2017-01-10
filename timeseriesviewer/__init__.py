@@ -4,13 +4,15 @@ import six
 jp = os.path.join
 dn = os.path.dirname
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
-
+VERSION = '0.2'
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
 DIR_UI = jp(DIR,*['ui'])
+DIR_DOCS = jp(DIR,'docs')
 DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
+PATH_LICENSE = jp(DIR_REPO, 'GPL-3.0.txt')
 DEBUG = True
 
 def dprint(text, file=None):
