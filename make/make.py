@@ -332,7 +332,7 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
 
 def createCreditsHTML():
     import site, os, sys, codecs
-    from timeseriesviewer import DIR_SITE_PACKAGES, DIR_DOCS
+    from timeseriesviewer import DIR_SITE_PACKAGES, DIR_DOCS, DIR_REPO
     site.addsitedir(DIR_SITE_PACKAGES)
     import markdown
     import pyqtgraph
@@ -345,15 +345,20 @@ def createCreditsHTML():
     * encoding: Encoding of input and output.
     * Any arguments accepted by the Markdown class.
     """
-    pathPyQtGraphMD = jp(os.path.dirname(pyqtgraph.path), 'README.md')
-    pathPyQtGraphCredits = jp(DIR_DOCS, 'README_PyQtGraph.html')
 
 
-    markdown.markdownFromFile(input=pathPyQtGraphMD, output=pathPyQtGraphCredits)
+    pathSrc = jp(os.path.dirname(pyqtgraph.path), 'README.md')
+    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
+    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
 
-    pathQGISMD = r'C:\Users\geo_beja\Repositories\QGIS\README.md'
-    pathQGISCredits = jp(DIR_DOCS, 'README_QGIS.html')
-    markdown.markdownFromFile(input=pathQGISMD, output=pathQGISCredits, output_format='html5')
+    pathSrc = r'C:\Users\geo_beja\Repositories\QGIS\README.md'
+    pathDst = jp(DIR_DOCS, 'README_QGIS.html')
+    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
+
+    pathSrc = jp(DIR_REPO, 'CHANGES.md')
+    pathDst = jp(DIR_DOCS, 'CHANGES.html')
+    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
+
     s = ""
     pass
 
