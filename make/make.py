@@ -328,7 +328,35 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
     f = open(pathQrc, "w")
     f.write(doc.toString())
     f.close()
+
+
+def createCreditsHTML():
+    import site, os, sys, codecs
+    from timeseriesviewer import DIR_SITE_PACKAGES, DIR_DOCS
+    site.addsitedir(DIR_SITE_PACKAGES)
+    import markdown
+    import pyqtgraph
+
+    """
+    Keyword arguments:
+
+    * input: a file name or readable object.
+    * output: a file name or writable object.
+    * encoding: Encoding of input and output.
+    * Any arguments accepted by the Markdown class.
+    """
+    pathPyQtGraphMD = jp(os.path.dirname(pyqtgraph.path), 'README.md')
+    pathPyQtGraphCredits = jp(DIR_DOCS, 'README_PyQtGraph.html')
+
+
+    markdown.markdownFromFile(input=pathPyQtGraphMD, output=pathPyQtGraphCredits)
+
+    pathQGISMD = r'C:\Users\geo_beja\Repositories\QGIS\README.md'
+    pathQGISCredits = jp(DIR_DOCS, 'README_QGIS.html')
+    markdown.markdownFromFile(input=pathQGISMD, output=pathQGISCredits, output_format='html5')
     s = ""
+    pass
+
 
 
 
@@ -367,6 +395,10 @@ if __name__ == '__main__':
 
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
+
+    if True:
+        createCreditsHTML()
+
 
     if True:
         #convert SVG to PNG and link them into the resource file
