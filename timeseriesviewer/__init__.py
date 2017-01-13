@@ -1,6 +1,7 @@
 import os, sys, fnmatch
 import six
-
+from PyQt4.QtCore import QSettings
+from PyQt4.QtGui import QIcon
 jp = os.path.join
 dn = os.path.dirname
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
@@ -14,6 +15,15 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'GPL-3.0.txt')
 DEBUG = True
+
+SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
+
+QGIS_TSV_BRIDGE = None
+
+
+def icon():
+    return QIcon(':/timeseriesviewer/icons/icon.png')
+
 
 def dprint(text, file=None):
     if DEBUG:
