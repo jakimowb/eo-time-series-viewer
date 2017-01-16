@@ -715,9 +715,7 @@ class TimeSeries(QObject):
         l = len(self)
         info.append('  Scenes: {}'.format(l))
 
-        if l > 0:
-            keys = list(self.data.keys())
-            info.append('  Range: {} to {}'.format(keys[0], keys[-1]))
+
         return '\n'.join(info)
 
 regAcqDate = re.compile(r'acquisition[ ]*(time|date|day)', re.I)
