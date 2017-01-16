@@ -24,21 +24,33 @@ from qgis.gui import *
 from PyQt4 import uic
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+import PyQt4.QtWebKit
 
 import sys, re, os, six
 
-from timeseriesviewer import jp
+from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
 from timeseriesviewer.main import SpatialExtent
 
 PATH_MAIN_UI = jp(DIR_UI, 'timeseriesviewer.ui')
-PATH_BANDVIEWSETTINGS_UI = jp(DIR_UI, 'bandviewsettings.ui')
-PATH_BANDVIEWRENDERSETTINGS_UI = jp(DIR_UI, 'bandviewrendersettings.ui')
-PATH_BANDVIEW_UI = jp(DIR_UI, 'bandview.ui')
+PATH_MAPVIEWSETTINGS_UI = jp(DIR_UI, 'mapviewsettings.ui')
+PATH_MAPVIEWRENDERSETTINGS_UI = jp(DIR_UI, 'mapviewrendersettings.ui')
+PATH_MAPVIEWDEFINITION_UI = jp(DIR_UI, 'mapviewdefinition.ui')
 PATH_TSDVIEW_UI = jp(DIR_UI, 'timeseriesdatumview.ui')
+PATH_ABOUTDIALOG_UI = jp(DIR_UI, 'aboutdialog.ui')
+PATH_SETTINGSDIALOG_UI = jp(DIR_UI, 'settingsdialog.ui')
+
+PATH_PROFILEVIEWDOCK_UI = jp(DIR_UI, 'profileviewdock.ui')
+PATH_RENDERINGDOCK_UI = jp(DIR_UI, 'renderingdock.ui')
+
+
+
+
 
 class TimeSeriesViewerUI(QMainWindow,
                          loadUIFormClass(PATH_MAIN_UI)):
+
+    sigQgsSyncChanged = pyqtSignal(bool, bool, bool)
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -55,6 +67,41 @@ class TimeSeriesViewerUI(QMainWindow,
         #I don't know why this is not possible in the QDesigner when QToolButtons are
         #placed outside a toolbar
 
+        import timeseriesviewer.ui.docks as docks
+
+        area = None
+
+        def addDockWidget(dock):
+            """
+            shortcut to add a created dock and return it
+            :param dock:
+            :return:
+            """
+            self.addDockWidget(area, dock)
+            return dock
+
+        area = Qt.LeftDockWidgetArea
+        self.dockSensors = addDockWidget(docks.SensorDockUI(self))
+
+        area = Qt.RightDockWidgetArea
+        self.dockProfiles = addDockWidget(docks.ProfileViewDockUI(self))
+
+        area = Qt.BottomDockWidgetArea
+        self.dockMapViews = addDockWidget(docks.MapViewDockUI(self))
+
+        for dock in self.findChildren(QDockWidget):
+            self.menuPanels.addAction(dock.toggleViewAction())
+
+        self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
+        self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
+
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+
+        self.dockTimeSeries.raise_()
+        self.dockNavigation.raise_()
+
+
         self.btnNavToFirstTSD.setDefaultAction(self.actionFirstTSD)
         self.btnNavToLastTSD.setDefaultAction(self.actionLastTSD)
         self.btnNavToPreviousTSD.setDefaultAction(self.actionPreviousTSD)
@@ -65,25 +112,74 @@ class TimeSeriesViewerUI(QMainWindow,
         self.btnLoadTS.setDefaultAction(self.actionLoadTS)
         self.btnSaveTS.setDefaultAction(self.actionSaveTS)
         self.btnClearTS.setDefaultAction(self.actionClearTS)
+        self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
+
+        #connect QPushButtons
+        self.btnRefresh.clicked.connect(self.actionRedraw.trigger)
+
+
+        self.cbSyncQgsMapExtent.clicked.connect(self.syncExtent)
+        self.cbSyncQgsMapCenter.clicked.connect(self.qgsSyncStateChanged)
+        self.cbSyncQgsCRS.clicked.connect(self.qgsSyncStateChanged)
+
+        self.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
 
         #define subset-size behaviour
         self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
         self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
 
-        self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
-        self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
-
 
         self.subsetRatio = None
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
 
 
-        self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
+
+
+        self.subsetSizeWidgets    = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
         self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
                                      self.spinBoxExtentWidth, self.spinBoxExtentHeight]
 
-    def setQgsLinkWidgets(self, b):
-        #enable/disable widgets that rely on QGIS instance interaction
+
+        self.restoreSettings()
+
+
+
+
+    def syncExtent(self, isChecked):
+        if isChecked:
+            self.cbSyncQgsMapCenter.setEnabled(False)
+            self.cbSyncQgsMapCenter.blockSignals(True)
+            self.cbSyncQgsMapCenter.setChecked(True)
+            self.cbSyncQgsMapCenter.blockSignals(False)
+        else:
+            self.cbSyncQgsMapCenter.setEnabled(True)
+        self.qgsSyncStateChanged()
+
+    def qgsSyncState(self):
+        return (self.cbSyncQgsMapCenter.isChecked(),
+                self.cbSyncQgsMapExtent.isChecked(),
+                self.cbSyncQgsCRS.isChecked())
+
+    def qgsSyncStateChanged(self, *args):
+        s = self.qgsSyncState()
+        self.sigQgsSyncChanged.emit(s[0], s[1], s[2])
+
+    def restoreSettings(self):
+        from timeseriesviewer import SETTINGS
+
+        #set last CRS
+        self.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         s = ""
+
+
+    def setQgsLinkWidgets(self):
+        #enable/disable widgets that rely on QGIS instance interaction
+        from timeseriesviewer import QGIS_TSV_BRIDGE
+        from timeseriesviewer.main import QgsInstanceInteraction
+        b = isinstance(QGIS_TSV_BRIDGE, QgsInstanceInteraction)
+        self.gbSyncQgs.setEnabled(b)
+        self.gbQgsVectorLayer.setEnabled(b)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -199,6 +295,66 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.actionSetSubsetSize.activate(QAction.Trigger)
 
+
+
+
+
+class AboutDialogUI(QDialog,
+                    loadUIFormClass(PATH_ABOUTDIALOG_UI)):
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(AboutDialogUI, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+
+        self.init()
+
+    def init(self):
+        self.mTitle = self.windowTitle()
+        self.listWidget.currentItemChanged.connect(lambda: self.setAboutTitle())
+        self.setAboutTitle()
+
+        # page About
+        from timeseriesviewer import PATH_LICENSE, VERSION, DIR_DOCS
+        import pyqtgraph
+        self.labelVersion.setText('Version ' + VERSION)
+
+        lf = lambda p: str(open(p).read())
+        # page Changed
+        self.tbChanges.setText(lf(jp(DIR_DOCS, 'CHANGES.html')))
+
+        # page Credits
+        self.CREDITS = dict()
+        self.CREDITS['QGIS'] = lf(jp(DIR_DOCS, 'README_QGIS.html'))
+        self.CREDITS['PYQTGRAPH'] = lf(jp(DIR_DOCS, 'README_PyQtGraph.html'))
+        self.webViewCredits.setHtml(self.CREDITS['QGIS'])
+        self.btnPyQtGraph.clicked.connect(lambda: self.showCredits('PYQTGRAPH'))
+        self.btnQGIS.clicked.connect(lambda: self.showCredits('QGIS'))
+
+        # page License
+        self.tbLicense.setText(lf(PATH_LICENSE))
+
+
+    def showCredits(self, key):
+        self.webViewCredits.setHtml(self.CREDITS[key])
+        self.setAboutTitle(key)
+
+    def setAboutTitle(self, suffix=None):
+        item = self.listWidget.currentItem()
+
+        if item:
+            title = '{} | {}'.format(self.mTitle, item.text())
+        else:
+            title = self.mTitle
+        if suffix:
+            title += ' ' + suffix
+        self.setWindowTitle(title)
+
+
 class VerticalLabel(QLabel):
     def __init__(self, text, orientation='vertical', forceWidth=True):
         QLabel.__init__(self, text)
@@ -261,23 +417,34 @@ class VerticalLabel(QLabel):
             else:
                 return QSize(50, 19)
 
-class BandViewUI(QFrame, loadUIFormClass(PATH_BANDVIEW_UI)):
+class MapViewDefinitionUI(QFrame, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
 
-    def __init__(self, title='View',parent=None):
-        super(BandViewUI, self).__init__(parent)
+    sigHideMapView = pyqtSignal()
+    sigShowMapView = pyqtSignal()
+
+    def __init__(self, mapViewDefinition,parent=None):
+        super(MapViewDefinitionUI, self).__init__(parent)
 
         self.setupUi(self)
-        self.btnRemoveBandView.setDefaultAction(self.actionRemoveBandView)
-        self.btnAddBandView.setDefaultAction(self.actionAddBandView)
-        self.btnHideBandView.setDefaultAction(self.actionHideBandView)
-        s= ""
+        self.mMapViewDefinition = mapViewDefinition
+        self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
+        self.btnMapViewVisibility.setDefaultAction(self.actionToggleVisibility)
+        self.actionToggleVisibility.toggled.connect(lambda: self.setVisibility(not self.actionToggleVisibility.isChecked()))
 
+    def mapViewDefinition(self):
+        return self.mMapViewDefinition
 
-    def bandViewVisibility(self):
-        return self.btnHideBandView.isChecked()
+    def setVisibility(self, isVisible):
+        print(('Set to',isVisible))
+        if isVisible != self.actionToggleVisibility.isChecked():
+            self.btnMapViewVisibility.setChecked(isVisible)
+            if isVisible:
+                self.sigShowMapView.emit()
+            else:
+                self.sigHideMapView.emit()
 
-    def setBandViewVisibility(self, show):
-        self.btnHideBandView.setChecked(show)  # send signal to thoose that need to know the visibility
+    def visibility(self):
+        return self.actionToggleVisibility.isChecked()
 
 class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
     def __init__(self, title='<#>', parent=None):
@@ -289,30 +456,17 @@ class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
     def sizeHint(self):
 
         w = self.minimumWidth()
-        canvases = self.findChildren(BandViewMapCanvas)
+        canvases = self.findChildren(MapViewMapCanvas)
         h = self.emptyHeight + len(canvases) * w
         return QSize(w,h)
 
-class LineWidget(QFrame):
 
-    def __init__(self, parent=None, orientation='horizontal'):
-        super(LineWidget, self).__init__(parent)
-
-        self.setFrameShadow(QFrame.Sunken)
-        self.setFixedHeight(3)
-        self.setStyleSheet("background-color: #c0c0c0;")
-        self.orientation = orientation
-        if self.orientation == 'horizontal':
-            self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        else:
-            self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
-
-class BandViewRenderSettingsUI(QGroupBox,
-                               loadUIFormClass(PATH_BANDVIEWRENDERSETTINGS_UI)):
+class MapViewRenderSettingsUI(QGroupBox,
+                              loadUIFormClass(PATH_MAPVIEWRENDERSETTINGS_UI)):
 
     def __init__(self, parent=None):
         """Constructor."""
-        super(BandViewRenderSettingsUI, self).__init__(parent)
+        super(MapViewRenderSettingsUI, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
         # self.<objectname>, and you can use autoconnect slots - see
@@ -327,18 +481,32 @@ class BandViewRenderSettingsUI(QGroupBox,
         self.btn453.setDefaultAction(self.actionSet453)
 
 
-class BandViewMapCanvas(QgsMapCanvas):
+class MapViewMapCanvas(QgsMapCanvas):
 
     def __init__(self, parent=None):
-        super(BandViewMapCanvas, self).__init__(parent)
+        super(MapViewMapCanvas, self).__init__(parent)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.lyr = None
         self.renderer = None
         self.registry = QgsMapLayerRegistry.instance()
 
+        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0,0,0)))
+
+
+        self.MAPTOOLS = dict()
+        self.MAPTOOLS['zoomOut'] = QgsMapToolZoom(self, True)
+        self.MAPTOOLS['zoomIn'] = QgsMapToolZoom(self, False)
+        self.MAPTOOLS['pan'] = QgsMapToolPan(self)
+
+    def activateMapTool(self, key):
+        if key is None:
+            self.setMapTool(None)
+        else:
+            self.setMapTool(self.MAPTOOLS[key])
+
+
     def setLayer(self, uri):
         assert isinstance(uri, str)
-
         self.setLayerSet([])
         if self.lyr is not None:
             #de-register layer
@@ -347,33 +515,51 @@ class BandViewMapCanvas(QgsMapCanvas):
         self.lyr = QgsRasterLayer(uri)
         self.lyr.setRenderer(self.renderer)
         self.registry.addMapLayer(self.lyr, False)
-
         lset = [QgsMapCanvasLayer(self.lyr)]
+
+        from timeseriesviewer import QGIS_TSV_BRIDGE
+
+        if QGIS_TSV_BRIDGE:
+            lyrVec = QGIS_TSV_BRIDGE.getVectorLayerRepresentation()
+            if lyrVec:
+                self.registry.addMapLayer(lyrVec, False)
+                lset.append(QgsMapCanvasLayer(self.lyr))
+        lset = list(reversed(lset))
         self.setLayerSet(lset)
 
     def setRenderer(self, renderer):
-        s = ""
         self.renderer = renderer.clone()
 
+    def setSpatialExtent(self, spatialExtent):
+        assert isinstance(spatialExtent, SpatialExtent)
+        if self.spatialExtent() != spatialExtent:
+            self.blockSignals(True)
+            self.setDestinationCrs(spatialExtent.crs())
+            self.setExtent(spatialExtent)
+            self.blockSignals(False)
+            self.refresh()
+
+    def spatialExtent(self):
+        return SpatialExtent.fromMapCanvas(self)
 
 
 
-class BandViewRenderSettings(QObject):
+class MapViewRenderSettings(QObject):
 
     #define signals
 
-    sigBandViewVisibility = pyqtSignal(bool)
+    sigMapViewVisibility = pyqtSignal(bool)
     sigRendererChanged = pyqtSignal(QgsRasterRenderer)
     sigRemoveView = pyqtSignal()
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
-        super(BandViewRenderSettings, self).__init__(parent)
+        super(MapViewRenderSettings, self).__init__(parent)
 
-        self.ui = BandViewRenderSettingsUI(parent)
+        self.ui = MapViewRenderSettingsUI(parent)
         self.ui.create()
 
-        self.ui.setTitle(sensor.sensorName)
+        self.ui.labelTitle.setText(sensor.sensorName)
         self.ui.bandNames = sensor.bandNames
         self.minValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
         self.maxValues = [self.ui.tbRedMax, self.ui.tbGreenMax, self.ui.tbBlueMax]
@@ -413,14 +599,7 @@ class BandViewRenderSettings(QObject):
             self.ui.btnTrueColor.setEnabled(False)
             self.ui.btnCIR.setEnabled(False)
             self.ui.btn453.setEnabled(False)
-        s = ""
 
-
-    def showSensorName(self, b):
-        if b:
-            self.ui.setTitle(self.sensor.sensorName)
-        else:
-            self.ui.setTitle(None)
 
     def setBandSelection(self, key):
 
@@ -521,4 +700,42 @@ class BandViewRenderSettings(QObject):
 
         menu.exec_(event.globalPos())
 
+class PropertyDialogUI(QDialog, loadUIFormClass(PATH_SETTINGSDIALOG_UI)):
 
+    def __init__(self, parent=None):
+        super(PropertyDialogUI, self).__init__(parent)
+        self.setupUi(self)
+
+
+
+if __name__ == '__main__':
+    import site, sys
+    #add site-packages to sys.path as done by enmapboxplugin.py
+
+    from timeseriesviewer import DIR_SITE_PACKAGES
+    site.addsitedir(DIR_SITE_PACKAGES)
+
+    #prepare QGIS environment
+    if sys.platform == 'darwin':
+        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
+        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
+    else:
+        # assume OSGeo4W startup
+        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
+    assert os.path.exists(PATH_QGS)
+
+    qgsApp = QgsApplication([], True)
+    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
+    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
+    qgsApp.setPrefixPath(PATH_QGS, True)
+    qgsApp.initQgis()
+
+    #run tests
+    #d = AboutDialogUI()
+    #d.show()
+
+    d = PropertyDialogUI()
+    d.exec_()
+    #close QGIS
+    qgsApp.exec_()
+    qgsApp.exitQgis()
