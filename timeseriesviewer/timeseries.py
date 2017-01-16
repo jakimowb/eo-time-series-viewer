@@ -413,12 +413,12 @@ class TimeSeriesDatum(QObject):
 
 
 class TimeSeries(QObject):
-    sigTimeSeriesDatumAdded = pyqtSignal(TimeSeriesDatum)
-
+    sigTimeSeriesDatesAdded = pyqtSignal(list)
+    sigTimeSeriesDatesRemoved = pyqtSignal(list)
     #fire when a new sensor configuration is added
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
-    sigChanged = pyqtSignal()
+
     sigProgress = pyqtSignal(int, int, int, name='progress')
     sigClosed = pyqtSignal()
     sigError = pyqtSignal(object)
@@ -497,7 +497,7 @@ class TimeSeries(QObject):
 
 
 
-    def getMaxExtent(self, crs=None):
+    def getMaxSpatialExtent(self, crs=None):
         if len(self.data) == 0:
             return None
 
@@ -617,70 +617,57 @@ class TimeSeries(QObject):
                 six.print_(info, file=sys.stderr)
             return False
 
-    def removeAll(self):
-        self.clear()
-
     def clear(self):
         self.Sensors.clear()
+        dates = self.data[:]
         del self.data[:]
-        self.sigChanged.emit()
+        self.sigTimeSeriesDatesRemoved.emit(dates)
 
 
     def removeDates(self, TSDs):
+        removed = list()
         for TSD in TSDs:
-            self.removeTSD(TSD, _quiet=True)
-        self.sigChanged.emit()
-
-    def removeTSD(self, TSD, _quiet=False):
-
-        assert type(TSD) is TimeSeriesDatum
-        S = TSD.sensor
-        self.Sensors[S].remove(TSD)
-        self.data.pop(TSD, None)
-        if len(self.Sensors[S]) == 0:
-            self.Sensors.pop(S)
-            self.sigSensorRemoved(S)
-        if not _quiet:
-            self.sigChanged.emit()
+            assert type(TSD) is TimeSeriesDatum
+            S = TSD.sensor
+            self.Sensors[S].remove(TSD)
+            if len(self.Sensors[S]) == 0:
+                self.Sensors.pop(S)
+                self.sigSensorRemoved(S)
+            removed.append(self.data.pop(TSD, None))
+        self.sigTimeSeriesDatesRemoved.emit(removed)
 
 
+    def addTimeSeriesDates(self, timeSeriesDates):
+        assert isinstance(timeSeriesDates, list)
+        added = list()
+        for TSD in timeSeriesDates:
+            try:
+                sensorAdded = False
+                existingSensors = list(self.Sensors.keys())
+                if TSD.sensor not in existingSensors:
+                    self.Sensors[TSD.sensor] = list()
+                    sensorAdded = True
+                else:
+                    TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
-    def addFile(self, pathImg, pathMsk=None, _quiet=False):
-        six.print_(pathImg)
-        six.print_('Add image {}...'.format(pathImg))
-        TSD = TimeSeriesDatum(pathImg, pathMsk=pathMsk)
-        self.addTimeSeriesDatum(TSD)
+                if TSD in self.data:
+                    six.print_('Time series datum already added: {}'.format(str(TSD)), file=sys.stderr)
+                else:
+                    self.Sensors[TSD.sensor].append(TSD)
+                    #insert sorted
+                    bisect.insort(self.data, TSD)
+                    added.append(TSD)
+                if sensorAdded:
+                    self.sigSensorAdded.emit(TSD.sensor)
 
-    def addTimeSeriesDatum(self, TSD):
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback, limit=2)
+                six.print_('Unable to add {}'.format(file), file=sys.stderr)
+                pass
 
-        try:
-            sensorAdded = False
-            existingSensors = list(self.Sensors.keys())
-            if TSD.sensor not in existingSensors:
-                self.Sensors[TSD.sensor] = list()
-                sensorAdded = True
-            else:
-                TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
-
-            if TSD in self.data:
-                six.print_('Time series datum already added: {}'.format(str(TSD)), file=sys.stderr)
-            else:
-                self.Sensors[TSD.sensor].append(TSD)
-
-                #insert sorted
-                bisect.insort(self.data, TSD)
-                #self.data[TSD] = TSD
-                self.sigTimeSeriesDatumAdded.emit(TSD)
-            if sensorAdded:
-                self.sigSensorAdded.emit(TSD.sensor)
-
-
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback, limit=2)
-            six.print_('Unable to add {}'.format(file), file=sys.stderr)
-            pass
-
+        if len(added) > 0:
+            self.sigTimeSeriesDatesAdded.emit(added)
 
 
     def addFilesAsync(self, files):
@@ -699,19 +686,16 @@ class TimeSeries(QObject):
         assert isinstance(files, list)
         l = len(files)
         assert l > 0
+        toadd = list()
 
-        self.sigProgress.emit(0, 0, l)
         for i, file in enumerate(files):
             tmp = self.findAbsolutePath(file)
             if tmp:
-                self.addFile(tmp, _quiet=True)
+                toadd.append(TimeSeriesDatum(tmp))
+                six.print_('Add image {}...'.format(tmp))
             else:
                 dprint('Unable to locate: {}'.format(file), file=sys.stderr)
-            self.sigProgress.emit(0, i + 1, l)
-
-        self.sigProgress.emit(0, 0, 1)
-        self.sigChanged.emit()
-
+        self.addTimeSeriesDates(toadd)
 
     def __len__(self):
         return len(self.data)
