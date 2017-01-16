@@ -9,38 +9,6 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
 
-class PictureTest(QMainWindow):
-
-    def __init__(self, parent=None, qImage=None):
-        super(PictureTest,self).__init__(parent)
-        self.setWindowTitle("Show Image with pyqt")
-        self.imageLabel=QLabel()
-        self.imageLabel.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Ignored)
-        self.setCentralWidget(self.imageLabel)
-
-        self.cv_img = None
-
-        if qImage:
-            self.addImage(qImage)
-
-    def addImage(self, qImage):
-        pxmap = QPixmap.fromImage(qImage)
-        self.addPixmap(pxmap)
-
-    def addPixmap(self, pixmap):
-        pxmap = pixmap.scaled(self.imageLabel.size(), Qt.KeepAspectRatio)
-        self.imageLabel.setPixmap(pxmap)
-        self.imageLabel.adjustSize()
-        self.imageLabel.update()
-
-    def addNumpy(self, data):
-
-
-        img = Array2Image(data)
-        self.addImage(img)
-
-        #self.resize(img.width(), img.height())
-
 
 def test_gui():
     from timeseriesviewer.main import TimeSeriesViewer
@@ -48,7 +16,7 @@ def test_gui():
     S = TimeSeriesViewer(None)
     S.run()
 
-    S.ua_loadTSFile(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
+    S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
     pass
 
 def test_component():
