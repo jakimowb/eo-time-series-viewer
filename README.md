@@ -13,5 +13,5 @@ Please check the [Wiki](https://bitbucket.org/jakimowb/sensecarbontsviewer/wiki/
 
 ## Licence and Use ##
 
-As this software makes use of Qt and QGIS API, it has to be licenced by [GPL-3 Licence](GPL-3.0.txt).
+This software makes is licenced under the [GPL-3 Licence](GPL-3.0.txt).
 
