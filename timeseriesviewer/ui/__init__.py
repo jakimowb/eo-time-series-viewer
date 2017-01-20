@@ -1,4 +1,4 @@
-import os, sys, six
+import os, sys, six, importlib
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 from PyQt4.QtGui import *
@@ -19,7 +19,7 @@ def loadUIFormClass(pathUi, from_imports=False):
     """
     RC_SUFFIX =  '_py3' if six.PY3 else '_py2'
     dirUi = os.path.dirname(pathUi)
-    assert os.path.exists(pathUi)
+    assert os.path.exists(pathUi), 'Missing UI file:'+pathUi
     if pathUi not in FORM_CLASSES.keys():
         add_and_remove = dirUi not in sys.path
         if add_and_remove:
@@ -49,10 +49,14 @@ def loadUIFormClass(pathUi, from_imports=False):
                 file = open(pathTmp, 'w')
                 file.write(s)
                 file.close()
-                os.remove(pathTmp)
+                #os.remove(pathTmp)
                 pathUi = pathTmp
 
-        dprint('Load UI file: {}'.format(pathUi))
+
+        assert os.path.exists(pathUi), 'File does not exist: '+pathUi
+        #dprint('Load UI file: {}'.format(pathUi))
+        t = open(pathUi).read()
+        #dprint(t)
         formClass, _ = uic.loadUiType(pathUi,from_imports=from_imports, resource_suffix=RC_SUFFIX)
 
         if add_and_remove:
