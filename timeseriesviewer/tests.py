@@ -16,7 +16,21 @@ def test_gui():
     S = TimeSeriesViewer(None)
     S.run()
 
-    S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
+    if False:
+        from timeseriesviewer import file_search
+        searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
+        files = file_search(searchDir, '*band4.img', recursive=True)
+
+        #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
+        #files = file_search(searchDir, '*BOA.vrt', recursive=True)
+
+        files = files[0:10]
+        S.loadImageFiles(files)
+    if False:
+        S.spatialTemporalVis.MVC.createMapView()
+        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
+    if True:
+        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
     pass
 
 def test_component():
