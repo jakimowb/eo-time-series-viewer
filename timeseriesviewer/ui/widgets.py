@@ -24,13 +24,15 @@ from qgis.gui import *
 from PyQt4 import uic
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from PyQt4.QtXml import *
 import PyQt4.QtWebKit
+
 
 import sys, re, os, six
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
-from timeseriesviewer.main import SpatialExtent
+from timeseriesviewer.main import SpatialExtent, QgisTsvBridge, TsvMimeDataUtils
 
 PATH_MAIN_UI = jp(DIR_UI, 'timeseriesviewer.ui')
 PATH_MAPVIEWSETTINGS_UI = jp(DIR_UI, 'mapviewsettings.ui')
@@ -43,6 +45,36 @@ PATH_SETTINGSDIALOG_UI = jp(DIR_UI, 'settingsdialog.ui')
 PATH_PROFILEVIEWDOCK_UI = jp(DIR_UI, 'profileviewdock.ui')
 PATH_RENDERINGDOCK_UI = jp(DIR_UI, 'renderingdock.ui')
 
+
+
+
+def maxWidgetSizes(layout):
+    assert isinstance(layout, QBoxLayout)
+
+    p = layout.parentWidget()
+    m = layout.contentsMargins()
+
+    sizeX = 0
+    sizeY = 0
+    horizontal = isinstance(layout, QHBoxLayout)
+
+    for item in [layout.itemAt(i) for i in range(layout.count())]:
+        wid = item.widget()
+        if wid:
+            s = wid.sizeHint()
+        elif isinstance(item, QLayout):
+            s = ""
+            continue
+        if horizontal:
+            sizeX += s.width() + layout.spacing()
+            sizeY = max([sizeY, s.height()])  + layout.spacing()
+        else:
+            sizeX = max([sizeX, s.width()])  + layout.spacing()
+            sizeY += s.height()  + layout.spacing()
+
+
+    return QSize(sizeX + m.left()+ m.right(),
+                 sizeY + m.top() + m.bottom())
 
 
 
@@ -61,7 +93,9 @@ class TimeSeriesViewerUI(QMainWindow,
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.mCrs = None
+        self.addActions(self.findChildren(QAction))
+
+
 
         #set button default actions -> this will show the action icons as well
         #I don't know why this is not possible in the QDesigner when QToolButtons are
@@ -81,103 +115,62 @@ class TimeSeriesViewerUI(QMainWindow,
             return dock
 
         area = Qt.LeftDockWidgetArea
-        self.dockSensors = addDockWidget(docks.SensorDockUI(self))
 
-        area = Qt.RightDockWidgetArea
-        self.dockProfiles = addDockWidget(docks.ProfileViewDockUI(self))
-
-        area = Qt.BottomDockWidgetArea
-        self.dockMapViews = addDockWidget(docks.MapViewDockUI(self))
-
-        for dock in self.findChildren(QDockWidget):
-            self.menuPanels.addAction(dock.toggleViewAction())
-
+        self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
+        self.dockNavigation = addDockWidget(docks.NavigationDockUI(self))
+        self.dockLabeling = addDockWidget(docks.LabelingDockUI(self))
         self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
         self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
+        #area = Qt.RightDockWidgetArea
 
+
+        area = Qt.BottomDockWidgetArea
+        self.dockSensors = addDockWidget(docks.SensorDockUI(self))
+        self.dockMapViews = addDockWidget(docks.MapViewDockUI(self))
+        self.dockProfiles = addDockWidget(docks.ProfileViewDockUI(self))
+        self.dockTimeSeries = addDockWidget(docks.TimeSeriesDockUI(self))
         self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+
+        for dock in self.findChildren(QDockWidget):
+            if len(dock.actions()) > 0:
+                s = ""
+            self.menuPanels.addAction(dock.toggleViewAction())
+
+
+
 
         self.dockTimeSeries.raise_()
         self.dockNavigation.raise_()
 
-
-        self.btnNavToFirstTSD.setDefaultAction(self.actionFirstTSD)
-        self.btnNavToLastTSD.setDefaultAction(self.actionLastTSD)
-        self.btnNavToPreviousTSD.setDefaultAction(self.actionPreviousTSD)
-        self.btnNavToNextTSD.setDefaultAction(self.actionNextTSD)
-
-        self.btnAddTSD.setDefaultAction(self.actionAddTSD)
-        self.btnRemoveTSD.setDefaultAction(self.actionRemoveTSD)
-        self.btnLoadTS.setDefaultAction(self.actionLoadTS)
-        self.btnSaveTS.setDefaultAction(self.actionSaveTS)
-        self.btnClearTS.setDefaultAction(self.actionClearTS)
         self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
         #connect QPushButtons
-        self.btnRefresh.clicked.connect(self.actionRedraw.trigger)
+        self.dockRendering.btnRefresh.clicked.connect(self.actionRedraw.trigger)
 
 
-        self.cbSyncQgsMapExtent.clicked.connect(self.syncExtent)
-        self.cbSyncQgsMapCenter.clicked.connect(self.qgsSyncStateChanged)
-        self.cbSyncQgsCRS.clicked.connect(self.qgsSyncStateChanged)
 
-        self.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
+        #todo: move to QGS_TSV_Bridge
+        self.dockRendering.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
 
         #define subset-size behaviour
-        self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
-        self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
-
-
-        self.subsetRatio = None
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
-
-
-
-
-        self.subsetSizeWidgets    = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
-        self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
-                                     self.spinBoxExtentWidth, self.spinBoxExtentHeight]
-
 
         self.restoreSettings()
 
-
-
-
-    def syncExtent(self, isChecked):
-        if isChecked:
-            self.cbSyncQgsMapCenter.setEnabled(False)
-            self.cbSyncQgsMapCenter.blockSignals(True)
-            self.cbSyncQgsMapCenter.setChecked(True)
-            self.cbSyncQgsMapCenter.blockSignals(False)
-        else:
-            self.cbSyncQgsMapCenter.setEnabled(True)
-        self.qgsSyncStateChanged()
-
-    def qgsSyncState(self):
-        return (self.cbSyncQgsMapCenter.isChecked(),
-                self.cbSyncQgsMapExtent.isChecked(),
-                self.cbSyncQgsCRS.isChecked())
-
-    def qgsSyncStateChanged(self, *args):
-        s = self.qgsSyncState()
-        self.sigQgsSyncChanged.emit(s[0], s[1], s[2])
 
     def restoreSettings(self):
         from timeseriesviewer import SETTINGS
 
         #set last CRS
-        self.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        self.dockNavigation.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
         s = ""
 
 
     def setQgsLinkWidgets(self):
         #enable/disable widgets that rely on QGIS instance interaction
         from timeseriesviewer import QGIS_TSV_BRIDGE
-        from timeseriesviewer.main import QgsInstanceInteraction
-        b = isinstance(QGIS_TSV_BRIDGE, QgsInstanceInteraction)
+        from timeseriesviewer.main import QgisTsvBridge
+        b = isinstance(QGIS_TSV_BRIDGE, QgisTsvBridge)
         self.gbSyncQgs.setEnabled(b)
         self.gbQgsVectorLayer.setEnabled(b)
 
@@ -192,54 +185,6 @@ class TimeSeriesViewerUI(QMainWindow,
         return states
 
 
-
-    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
-    def setCrs(self, crs):
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
-        old = self.mCrs
-        self.mCrs = crs
-        self.textBoxCRSInfo.setPlainText(crs.toWkt())
-        if self.mCrs != old:
-            self.sigCrsChanged.emit(crs)
-
-    def crs(self):
-        return self.mCrs
-
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
-
-    def spatialExtent(self):
-        crs = self.crs()
-        if not crs:
-            return None
-        width = QgsVector(self.spinBoxExtentWidth.value(), 0.0)
-        height = QgsVector(0.0, self.spinBoxExtentHeight.value())
-
-        Center = QgsPoint(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
-        UL = Center - (width * 0.5) + (height * 0.5)
-        LR = Center + (width * 0.5) - (height * 0.5)
-
-        from timeseriesviewer.main import SpatialExtent
-        return SpatialExtent(self.crs(), UL, LR)
-
-    def setSpatialExtent(self, extent):
-        old = self.spatialExtent()
-        from timeseriesviewer.main import SpatialExtent
-        assert isinstance(extent, SpatialExtent)
-        center = extent.center()
-
-
-
-        states = self._blockSignals(self.spatialExtentWidgets, True)
-
-        self.spinBoxExtentCenterX.setValue(center.x())
-        self.spinBoxExtentCenterY.setValue(center.y())
-        self.spinBoxExtentWidth.setValue(extent.width())
-        self.spinBoxExtentHeight.setValue(extent.height())
-        self.setCrs(extent.crs())
-        self._blockSignals(states)
-
-        if extent != old:
-            self.sigSpatialExtentChanged.emit(extent)
 
 
 
@@ -260,10 +205,6 @@ class TimeSeriesViewerUI(QMainWindow,
         elif old != size:
             self.sigSubsetSizeChanged(size)
 
-    def subsetSize(self):
-        return QSize(self.spinBoxSubsetSizeX.value(),
-                     self.spinBoxSubsetSizeY.value())
-
 
     def setProgress(self, value, valueMax=None, valueMin=0):
         p = self.progressBar
@@ -272,30 +213,6 @@ class TimeSeriesViewerUI(QMainWindow,
         if valueMax is not None and valueMax != self.progessBar.maximum():
             p.setMaximum(valueMax)
         self.progressBar.setValue(value)
-
-
-    def onSubsetValueChanged(self, key):
-        if self.checkBoxKeepSubsetAspectRatio.isChecked():
-
-            if key == 'X':
-                v_old = self.lastSubsetSizeX
-                v_new = self.spinBoxSubsetSizeX.value()
-                s = self.spinBoxSubsetSizeY
-            elif key == 'Y':
-                v_old = self.lastSubsetSizeY
-                v_new = self.spinBoxSubsetSizeY.value()
-                s = self.spinBoxSubsetSizeX
-
-            oldState = s.blockSignals(True)
-            s.setValue(int(round(float(v_new) / v_old * s.value())))
-            s.blockSignals(oldState)
-
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
-
-        self.actionSetSubsetSize.activate(QAction.Trigger)
-
-
 
 
 
@@ -417,7 +334,7 @@ class VerticalLabel(QLabel):
             else:
                 return QSize(50, 19)
 
-class MapViewDefinitionUI(QFrame, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
+class MapViewDefinitionUI(QGroupBox, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
 
     sigHideMapView = pyqtSignal()
     sigShowMapView = pyqtSignal()
@@ -429,13 +346,25 @@ class MapViewDefinitionUI(QFrame, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
         self.mMapViewDefinition = mapViewDefinition
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
         self.btnMapViewVisibility.setDefaultAction(self.actionToggleVisibility)
+        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
         self.actionToggleVisibility.toggled.connect(lambda: self.setVisibility(not self.actionToggleVisibility.isChecked()))
+
+    def _sizeHint(self):
+
+        m = self.layout().contentsMargins()
+        sl = maxWidgetSizes(self.sensorList)
+        sm = self.buttonList.size()
+        w = sl.width() + m.left()+ m.right() + sm.width() + 50
+        h = sl.height() + m.top() + m.bottom() + sm.height() + 50
+
+        return QSize(w,h)
+
 
     def mapViewDefinition(self):
         return self.mMapViewDefinition
 
+
     def setVisibility(self, isVisible):
-        print(('Set to',isVisible))
         if isVisible != self.actionToggleVisibility.isChecked():
             self.btnMapViewVisibility.setChecked(isVisible)
             if isVisible:
@@ -447,18 +376,31 @@ class MapViewDefinitionUI(QFrame, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
         return self.actionToggleVisibility.isChecked()
 
 class TimeSeriesDatumViewUI(QFrame, loadUIFormClass(PATH_TSDVIEW_UI)):
+
     def __init__(self, title='<#>', parent=None):
         super(TimeSeriesDatumViewUI, self).__init__(parent)
-
-        self.emptyHeight = self.height()
         self.setupUi(self)
 
     def sizeHint(self):
+        m = self.layout().contentsMargins()
 
-        w = self.minimumWidth()
-        canvases = self.findChildren(MapViewMapCanvas)
-        h = self.emptyHeight + len(canvases) * w
-        return QSize(w,h)
+        s = QSize(0, 0)
+
+        for w in [self.layout().itemAt(i).widget() for i in range(self.layout().count())]:
+            if w:
+                s = s + w.size()
+
+        if isinstance(self.layout(), QVBoxLayout):
+            s = QSize(self.line.width() + m.left() + m.right(),
+                      s.height() + m.top() + m.bottom())
+        else:
+            s = QSize(self.line.heigth() + m.top() + m.bottom(),
+                      s.width() + m.left() + m.right())
+
+        return s
+
+
+
 
 
 class MapViewRenderSettingsUI(QGroupBox,
@@ -480,17 +422,46 @@ class MapViewRenderSettingsUI(QGroupBox,
         self.btnCIR.setDefaultAction(self.actionSetCIR)
         self.btn453.setDefaultAction(self.actionSet453)
 
+        self.btnPasteStyle.setDefaultAction(self.actionPasteStyle)
+        self.btnCopyStyle.setDefaultAction(self.actionCopyStyle)
+        self.btnApplyStyle.setDefaultAction(self.actionApplyStyle)
 
-class MapViewMapCanvas(QgsMapCanvas):
 
-    def __init__(self, parent=None):
-        super(MapViewMapCanvas, self).__init__(parent)
+class TsvMapCanvas(QgsMapCanvas):
+
+    saveFileDirectories = dict()
+    #sigRendererChanged = pyqtSignal(QgsRasterRenderer)
+
+    def __init__(self, tsdView, mapView, parent=None):
+        super(TsvMapCanvas, self).__init__(parent)
+        from timeseriesviewer.main import TimeSeriesDatumView, MapView
+        assert isinstance(tsdView, TimeSeriesDatumView)
+        assert isinstance(mapView, MapView)
+
+        #the canvas
+        self.setCrsTransformEnabled(True)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.lyr = None
-        self.renderer = None
-        self.registry = QgsMapLayerRegistry.instance()
+        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
+        self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0,0,0)))
+        self.qgsInteraction = QgisTsvBridge.instance()
+
+        self.tsdView = tsdView
+        self.mapView = mapView
+        self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
+        self.mapView.sigMapViewVisibility.connect(self.setVisible)
+        self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
+        self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
+        QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
+
+        self.MapCanvasLayers = [QgsMapCanvasLayer(self.referenceLayer)]
+        self.setLayerSet(self.MapCanvasLayers)
+        #todo: handle QGIS interaction
+
+        #set raster layer style
+
+        self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
+        self.setRenderer(self.sensorView.layerRenderer())
 
 
         self.MAPTOOLS = dict()
@@ -498,37 +469,92 @@ class MapViewMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['zoomIn'] = QgsMapToolZoom(self, False)
         self.MAPTOOLS['pan'] = QgsMapToolPan(self)
 
+    def setVisibilityFromCollections(self):
+        b = self.mapView.visibility() and self.tsdView.TSD.isVisible()
+        self.setVisible(b)
+
+    def pixmap(self):
+        """
+        Returns the current map image as pixmap
+        :return:
+        """
+        return QPixmap(self.map().contentImage().copy())
+
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+        # add general options
+        menu.addSeparator()
+        action = menu.addAction('Stretch using current Extent')
+        action = menu.addAction('Zoom to Layer')
+        action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
+        menu.addSeparator()
+
+
+        action = menu.addAction('Copy to Clipboard')
+        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+        m = menu.addMenu('Save as...')
+        action = m.addAction('PNG')
+        action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
+        action = m.addAction('JPEG')
+        action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
+
+
+        if self.qgsInteraction:
+            assert isinstance(self.qgsInteraction, QgisTsvBridge)
+            action = m.addAction('Add layer to QGIS')
+
+            action = m.addAction('Import extent from QGIS')
+            action = m.addAction('Export extent to QGIS')
+            s = ""
+
+
+
+
+        menu.addSeparator()
+        TSD = self.tsdView.TSD
+        action = menu.addAction('Hide date')
+        action.triggered.connect(lambda : self.tsdView.TSD.setVisibility(False))
+        action = menu.addAction('Remove date')
+        action.triggered.connect(lambda: TSD.timeSeries.removeDates([TSD]))
+        action = menu.addAction('Remove map view')
+        action.triggered.connect(lambda: self.mapView.sigRemoveMapView.emit(self.mapView))
+        action = menu.addAction('Hide map view')
+        action.triggered.connect(lambda: self.mapView.sigHideMapView.emit())
+
+
+        menu.exec_(event.globalPos())
+
     def activateMapTool(self, key):
         if key is None:
             self.setMapTool(None)
         else:
             self.setMapTool(self.MAPTOOLS[key])
 
+    def saveMapImageDialog(self, fileType):
+        lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
+        path = jp(lastDir, '{}.{}.{}'.format(self.tsdView.TSD.date, self.mapView.title(), fileType.lower()))
 
-    def setLayer(self, uri):
-        assert isinstance(uri, str)
-        self.setLayerSet([])
-        if self.lyr is not None:
-            #de-register layer
-            self.registry.removeMapLayer(self.lyr)
+        path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
+        if len(path) > 0:
+            self.saveAsImage(path, None, fileType)
+            SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
 
-        self.lyr = QgsRasterLayer(uri)
-        self.lyr.setRenderer(self.renderer)
-        self.registry.addMapLayer(self.lyr, False)
-        lset = [QgsMapCanvasLayer(self.lyr)]
 
-        from timeseriesviewer import QGIS_TSV_BRIDGE
+    def setRenderer(self, renderer, targetLayerUri=None):
+        if targetLayerUri is None:
+            targetLayerUri = str(self.referenceLayer.source())
 
-        if QGIS_TSV_BRIDGE:
-            lyrVec = QGIS_TSV_BRIDGE.getVectorLayerRepresentation()
-            if lyrVec:
-                self.registry.addMapLayer(lyrVec, False)
-                lset.append(QgsMapCanvasLayer(self.lyr))
-        lset = list(reversed(lset))
-        self.setLayerSet(lset)
+        lyrs = [mcl.layer() for mcl in self.MapCanvasLayers if str(mcl.layer().source()) == targetLayerUri]
+        assert len(lyrs) <= 1
+        for lyr in lyrs:
+            r = renderer.clone()
+            r.setInput(lyr.dataProvider())
+            lyr.setRenderer(r)
 
-    def setRenderer(self, renderer):
-        self.renderer = renderer.clone()
+        self.refresh()
+        a = ""
+        #self.refreshMap()
+
 
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
@@ -537,24 +563,23 @@ class MapViewMapCanvas(QgsMapCanvas):
             self.setDestinationCrs(spatialExtent.crs())
             self.setExtent(spatialExtent)
             self.blockSignals(False)
-            self.refresh()
+            self.refreshMap()
 
     def spatialExtent(self):
         return SpatialExtent.fromMapCanvas(self)
 
 
 
-class MapViewRenderSettings(QObject):
+class MapViewSensorSettings(QObject):
+    """
+    Describes the rendering of images of one Sensor
+    """
 
-    #define signals
-
-    sigMapViewVisibility = pyqtSignal(bool)
-    sigRendererChanged = pyqtSignal(QgsRasterRenderer)
-    sigRemoveView = pyqtSignal()
+    sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
-        super(MapViewRenderSettings, self).__init__(parent)
+        super(MapViewSensorSettings, self).__init__(parent)
 
         self.ui = MapViewRenderSettingsUI(parent)
         self.ui.create()
@@ -570,7 +595,7 @@ class MapViewRenderSettings(QObject):
         for sl in self.sliders:
             sl.setMinimum(1)
             sl.setMaximum(sensor.nb)
-            sl.valueChanged.connect(self.layerRendererChanged)
+            sl.valueChanged.connect(self.updateUi)
 
         self.ceAlgs = [("No enhancement", QgsContrastEnhancement.NoEnhancement),
                        ("Stretch to MinMax", QgsContrastEnhancement.StretchToMinimumMaximum),
@@ -586,6 +611,19 @@ class MapViewRenderSettings(QObject):
 
         lyr = QgsRasterLayer(self.sensor.refUri)
         renderer = lyr.renderer()
+
+        #todo: support singleband and other renderers
+        if not isinstance(renderer, QgsMultiBandColorRenderer):
+            renderer = QgsMultiBandColorRenderer(lyr.dataProvider(), 0, 0, 0)
+            e = QgsContrastEnhancement(self.sensor.bandDataType)
+            bandStats = lyr.dataProvider().bandStatistics(0)
+            e.setMinimumValue(bandStats.Min)
+            e.setMaximumValue(bandStats.Max)
+            e.setContrastEnhancementAlgorithm(QgsContrastEnhancement.ClipToMinimumMaximum)
+            renderer.setRedContrastEnhancement(QgsContrastEnhancement(e))
+            renderer.setGreenContrastEnhancement(QgsContrastEnhancement(e))
+            renderer.setBlueContrastEnhancement(QgsContrastEnhancement(e))
+
         self.setLayerRenderer(renderer)
 
         #provide default min max
@@ -595,10 +633,31 @@ class MapViewRenderSettings(QObject):
         self.ui.actionSetCIR.triggered.connect(lambda: self.setBandSelection('CIR'))
         self.ui.actionSet453.triggered.connect(lambda: self.setBandSelection('453'))
 
+
+        self.ui.actionApplyStyle.triggered.connect(lambda : self.sigSensorRendererChanged.emit(self.layerRenderer()))
+        #self.ui.actionCopyStyle.triggered.connect(lambda : QApplication.clipboard().setMimeData(self.mimeDataStyle()))
+        self.ui.actionPasteStyle.triggered.connect(lambda : self.pasteStyleFromClipboard())
         if not self.sensor.wavelengthsDefined():
             self.ui.btnTrueColor.setEnabled(False)
             self.ui.btnCIR.setEnabled(False)
             self.ui.btn453.setEnabled(False)
+
+        QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
+        self.onClipboardChange()
+
+    def pasteStyleFromClipboard(self):
+        utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
+        if utils.hasRasterStyle():
+            renderer = utils.rasterStyle(self.sensor.bandDataType)
+            if renderer is not None:
+                self.setLayerRenderer(renderer)
+
+    def applyStyle(self):
+        self.sigSensorRendererChanged.emit(self.layerRenderer())
+
+    def onClipboardChange(self):
+        utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
+        self.ui.btnPasteStyle.setEnabled(utils.hasRasterStyle())
 
 
     def setBandSelection(self, key):
@@ -623,7 +682,8 @@ class MapViewRenderSettings(QObject):
                self.ui.sliderGreen.value(),
                self.ui.sliderBlue.value()]
 
-    def setRenderInfo(self, *args):
+    SignalizeImmediately = False
+    def updateUi(self, *args):
         rgb = self.rgb()
 
         text = 'RGB {}-{}-{}'.format(*rgb)
@@ -633,14 +693,22 @@ class MapViewRenderSettings(QObject):
                 self.sensor.wavelengthUnits)
         self.ui.labelSummary.setText(text)
 
+        if MapViewSensorSettings.SignalizeImmediately:
+            self.sigSensorRendererChanged.emit(self.layerRenderer())
+
     def setLayerRenderer(self, renderer):
         ui = self.ui
         assert isinstance(renderer, QgsRasterRenderer)
 
+        updated = False
         if isinstance(renderer, QgsMultiBandColorRenderer):
+            for s in self.sliders:
+                s.blockSignals(True)
             ui.sliderRed.setValue(renderer.redBand())
             ui.sliderGreen.setValue(renderer.greenBand())
             ui.sliderBlue.setValue(renderer.blueBand())
+            for s in self.sliders:
+                s.blockSignals(False)
 
             ceRed = renderer.redContrastEnhancement()
             ceGreen = renderer.greenContrastEnhancement()
@@ -648,11 +716,14 @@ class MapViewRenderSettings(QObject):
 
             algs = [i[1] for i in self.ceAlgs]
             ui.comboBoxContrastEnhancement.setCurrentIndex(algs.index(ceRed.contrastEnhancementAlgorithm()))
-            self.layerRendererChanged()
+            #self.updateUi()
+            updated = True
+        self.updateUi()
+        if updated and MapViewSensorSettings.SignalizeImmediately:
+            self.sigSensorRendererChanged.emit(renderer.clone())
 
-    def layerRendererChanged(self):
-        self.setRenderInfo()
-        self.sigRendererChanged.emit(self.layerRenderer())
+
+
 
     def layerRenderer(self):
         ui = self.ui
@@ -680,25 +751,6 @@ class MapViewRenderSettings(QObject):
         return r
 
 
-        s = ""
-
-    def contextMenuEvent(self, event):
-        menu = QMenu()
-
-        #add general options
-        action = menu.addAction('Remove Band View')
-        action.setToolTip('Removes this band view')
-        action.triggered.connect(lambda : self.sigRemoveView.emit())
-        #add QGIS specific options
-        txt = QApplication.clipboard().text()
-        if re.search('<!DOCTYPE(.|\n)*rasterrenderer.*type="multibandcolor"', txt) is not None:
-            import qgis_add_ins
-            action = menu.addAction('Paste style')
-            action.setToolTip('Uses the QGIS raster layer style to specify band selection and band value ranges.')
-            action.triggered.connect(lambda : self.setLayerRenderer(qgis_add_ins.paste_band_settings(txt)))
-
-
-        menu.exec_(event.globalPos())
 
 class PropertyDialogUI(QDialog, loadUIFormClass(PATH_SETTINGSDIALOG_UI)):
 
