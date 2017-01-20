@@ -73,15 +73,15 @@ import pyqtgraph as pg
 
 
 class SpatialExtent(QgsRectangle):
-
+    """
+    Object to keep QgsRectangle and QgsCoordinateReferenceSystem together
+    """
     @staticmethod
     def fromMapCanvas(mapCanvas):
         assert isinstance(mapCanvas, QgsMapCanvas)
         extent = mapCanvas.extent()
         crs = mapCanvas.mapSettings().destinationCrs()
         return SpatialExtent(crs, extent)
-
-
 
     def __init__(self, crs, *args):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -94,8 +94,6 @@ class SpatialExtent(QgsRectangle):
 
     def crs(self):
         return self.mCrs
-
-
 
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -153,78 +151,253 @@ class SpatialExtent(QgsRectangle):
 
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
+class TsvMimeDataUtils(QObject):
+    def __init__(self, mimeData):
+        assert isinstance(mimeData, QMimeData)
+        super(TsvMimeDataUtils, self).__init__()
+
+        self.mimeData = mimeData
+
+        self.xmlDoc = QDomDocument()
+
+        if self.mimeData.hasText():
+            self.xmlDoc.setContent(self.mimeData.text())
+        self.xmlRoot = self.xmlDoc.documentElement()
+        pass
+
+    def hasRasterStyle(self):
+        if self.xmlRoot.tagName() == 'qgis':
+            elem = self.xmlRoot.elementsByTagName('rasterrenderer')
+            return elem.count() != 0
+
+        return False
+
+
+    def rasterStyle(self, qgisDataType):
+
+        elem = self.xmlRoot.elementsByTagName('rasterrenderer').item(0).toElement()
+        type = str(elem.attribute('type'))
+        from qgis.core import QGis, QgsContrastEnhancement
+
+        def bandSettings(colorName):
+            band = int(elem.attribute(colorName + 'Band'))
+            ceNode = elem.elementsByTagName(colorName + 'ContrastEnhancement').item(0)
+            vMin = float(ceNode.firstChildElement('minValue').firstChild().nodeValue())
+            vMax = float(ceNode.firstChildElement('maxValue').firstChild().nodeValue())
+            ceName = ceNode.firstChildElement('algorithm').firstChild().nodeValue()
+            ceAlg = QgsContrastEnhancement.contrastEnhancementAlgorithmFromString(ceName)
+            ce = QgsContrastEnhancement(qgisDataType)
+            ce.setContrastEnhancementAlgorithm(ceAlg)
+            ce.setMinimumValue(vMin)
+            ce.setMaximumValue(vMax)
+            return band, ce
+
+        style = None
+        if type == 'multibandcolor':
+                A = int(elem.attribute('alphaBand'))
+                O = int(elem.attribute('opacity'))
+                R, ceR = bandSettings('red')
+                G, ceG = bandSettings('green')
+                B, ceB = bandSettings('blue')
+
+                style = QgsMultiBandColorRenderer(None, R, G, B)
+                style.setRedContrastEnhancement(ceR)
+                style.setGreenContrastEnhancement(ceG)
+                style.setBlueContrastEnhancement(ceB)
+
+        elif type == 'singlebandgrey':
+
+            pass
+
+        return style
+
+class QgisTsvBridge(QObject):
+    """
+    Class to control interactions between TSV and a running QGIS instance
+    """
+    _instance = None
+
+
+    @staticmethod
+    def instance():
+        return QgisTsvBridge._instance
+
+    def __init__(self, iface, TSV_UI):
+        super(QgisTsvBridge, self).__init__()
+        assert QgisTsvBridge._instance is None
+        assert isinstance(iface, QgisInterface)
+        self.iface = iface
+        self.ui = TSV_UI
+        self.cbVectorLayer = TSV_UI.cbQgsVectorLayer
+
+    def extent(self):
+        canvas = self.iface.mapCanvas()
+        assert isinstance(canvas, QgsMapCanvas)
+        crs = canvas.dest
+        self.iface.mapCanvas().extent()
+        s = ""
+
+    def center(self):
+        s = ""
+
+    def crs(self):
+        s = ""
+
+    def getVectorLayerRepresentation(self):
+        if self.ui.gbQgsVectorLayer.isChecked():
+            lyr = self.cbVectorLayer.currentLayer()
+            alpha = self.ui.sliderQgsVectorTransparency.value()
+            return lyr
+        else:
+            return None
+
+
+    def syncExtent(self, isChecked):
+        if isChecked:
+            self.dockRendering.cbSyncQgsMapCenter.setEnabled(False)
+            self.dockRendering.cbSyncQgsMapCenter.blockSignals(True)
+            self.dockRendering.cbSyncQgsMapCenter.setChecked(True)
+            self.dockRendering.cbSyncQgsMapCenter.blockSignals(False)
+        else:
+            self.dockRendering.cbSyncQgsMapCenter.setEnabled(True)
+        self.qgsSyncStateChanged()
+
+    def qgsSyncState(self):
+        return (self.cbSyncQgsMapCenter.isChecked(),
+                self.cbSyncQgsMapExtent.isChecked(),
+                self.cbSyncQgsCRS.isChecked())
+
+    def qgsSyncStateChanged(self, *args):
+        s = self.qgsSyncState()
+        self.sigQgsSyncChanged.emit(s[0], s[1], s[2])
+
+
 
 from timeseriesviewer.ui.widgets import *
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
-
-class TimeSeriesTableModel(QAbstractTableModel):
-    columnames = ['date','sensor','ns','nl','nb','image','mask']
+class SensorTableModel(QAbstractTableModel):
+    columnames = ['sensor', 'nb', 'n images']
 
     def __init__(self, TS, parent=None, *args):
-        super(QAbstractTableModel, self).__init__()
+        super(SensorTableModel, self).__init__()
         assert isinstance(TS, TimeSeries)
         self.TS = TS
 
-    def rowCount(self, parent = QModelIndex()):
-        return len(self.TS)
 
-    def columnCount(self, parent = QModelIndex()):
-        return len(self.columnames)
+class TimeSeriesTableModel(QAbstractTableModel):
+    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image', 'mask']
+
+    def __init__(self, TS, parent=None, *args):
+
+        super(TimeSeriesTableModel, self).__init__()
+        assert isinstance(TS, TimeSeries)
+        self.TS = TS
+
+        self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
+        self.TS.sigTimeSeriesDatesAdded.connect(self.addTSDs)
+
+        self.items = []
+        self.sortColumnIndex = 0
+        self.sortOrder = Qt.AscendingOrder
+        self.addTSDs([tsd for tsd in self.TS])
+
+    def removeTSDs(self, tsds):
+        #self.TS.removeDates(tsds)
+        for tsd in tsds:
+            if tsd in self.TS:
+                #remove from TimeSeries first.
+                self.TS.removeDates([tsd])
+            elif tsd in self.items:
+                idx = self.getIndexFromDate(tsd)
+                self.removeRows(idx.row(), 1)
+
+        #self.sort(self.sortColumnIndex, self.sortOrder)
+
+
+    def addTSDs(self, tsds):
+        self.items.extend(tsds)
+        self.sort(self.sortColumnIndex, self.sortOrder)
+
+
+
+    def sort(self, col, order):
+        if self.rowCount() == 0:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        colName = self.columnames[col]
+        r = order != Qt.AscendingOrder
+
+        if colName in ['date','ns','nl','sensor']:
+            self.items.sort(key = lambda d:d.__dict__[colName], reverse=r)
+
+        self.layoutChanged.emit()
+        s = ""
+
+
+    def rowCount(self, parent = QModelIndex()):
+        return len(self.items)
+
 
     def removeRows(self, row, count , parent=QModelIndex()):
         self.beginRemoveRows(parent, row, row+count-1)
-        toRemove = self._data[row:row+count]
-        for i in toRemove:
-            self._data.remove(i)
-
+        toRemove = self.items[row:row+count]
+        for tsd in toRemove:
+            self.items.remove(tsd)
         self.endRemoveRows()
+
+    def getIndexFromDate(self, tsd):
+        return self.createIndex(self.items.index(tsd),0)
 
     def getDateFromIndex(self, index):
         if index.isValid():
-            i = index.row()
-            if i >= 0 and i < len(self.TS):
-                return self.TS.getTSDs()[i]
+            return self.items[index.row()]
         return None
 
     def getTimeSeriesDatumFromIndex(self, index):
-
         if index.isValid():
             i = index.row()
-            if i >= 0 and i < len(self.TS):
-                return self.TS.data[i]
+            if i >= 0 and i < len(self.items):
+                return self.items[i]
 
         return None
 
-
+    def columnCount(self, parent = QModelIndex()):
+        return len(self.columnames)
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
-
         value = None
-        ic_name = self.columnames[index.column()]
+        columnName = self.columnames[index.column()]
+
         TSD = self.getTimeSeriesDatumFromIndex(index)
         keys = list(TSD.__dict__.keys())
+
+
         if role == Qt.DisplayRole or role == Qt.ToolTipRole:
-            if ic_name == 'name':
+            if columnName == 'name':
                 value = os.path.basename(TSD.pathImg)
-            elif ic_name == 'sensor':
+            elif columnName == 'sensor':
                 if role == Qt.ToolTipRole:
                     value = TSD.sensor.getDescription()
                 else:
                     value = str(TSD.sensor)
-            elif ic_name == 'date':
+            elif columnName == 'date':
                 value = '{}'.format(TSD.date)
-            elif ic_name == 'image':
+            elif columnName == 'image':
                 value = TSD.pathImg
-            elif ic_name == 'mask':
+            elif columnName == 'mask':
                 value = TSD.pathMsk
-            elif ic_name in keys:
-                value = TSD.__dict__[ic_name]
+            elif columnName in keys:
+                value = TSD.__dict__[columnName]
             else:
                 s = ""
+        elif role == Qt.CheckStateRole:
+            if columnName == 'date':
+                value = Qt.Checked if TSD.isVisible() else Qt.Unchecked
         elif role == Qt.BackgroundColorRole:
             value = None
         elif role == Qt.UserRole:
@@ -232,17 +405,33 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
         return value
 
-    #def flags(self, index):
-    #    return Qt.ItemIsEnabled
+    def setData(self, index, value, role=None):
+        if role is None or not index.isValid():
+            return None
+
+        if role is Qt.UserRole:
+
+            s = ""
+
+        columnName = self.columnames[index.column()]
+
+        TSD = self.getTimeSeriesDatumFromIndex(index)
+        if columnName == 'date' and role == Qt.CheckStateRole:
+            TSD.setVisibility(value != Qt.Unchecked)
+            return True
+        else:
+            return False
+
+        return False
 
     def flags(self, index):
         if index.isValid():
-            item = self.getTimeSeriesDatumFromIndex(index)
-            cname = self.columnames[index.column()]
-            if cname.startswith('d'): #relative values can be edited
-                flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
-            else:
-                flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            TSD = self.getTimeSeriesDatumFromIndex(index)
+            columnName = self.columnames[index.column()]
+            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            if columnName == 'date': #allow check state
+                flags = flags | Qt.ItemIsUserCheckable
+
             return flags
             #return item.qt_flags(index.column())
         return None
@@ -256,253 +445,58 @@ class TimeSeriesTableModel(QAbstractTableModel):
             return col
         return None
 
-class TimeSeriesItemModel(QAbstractItemModel):
 
-    def __init__(self, TS):
-        QAbstractItemModel.__init__(self)
-        #self.rootItem = TreeItem[]
-        assert type(TS) is TimeSeries
-        self.TS = TS
-
-    def index(self, row, column, parent = QModelIndex()):
-        if not parent.isValid():
-            parentItem = self.rootItem
-        else:
-            parentItem = parent.internalPointer()
-        childItem = parentItem.child(row)
-        if childItem:
-            return self.createIndex(row, column, childItem)
-        else:
-            return QModelIndex()
-
-    def setData(self, index, value, role = Qt.EditRole):
-        if role == Qt.EditRole:
-            row = index.row()
-
-            return False
-        return False
-
-    def data(self, index, role=Qt.DisplayRole):
-        data = None
-        if role == Qt.DisplayRole or role == Qt.EditRole:
-            data = 'sampletext'
-
-
-        return data
-
-    def flags(self, QModelIndex):
-        return Qt.ItemIsSelectable
-
-    def rowCount(self, index=QModelIndex()):
-        return len(self.TS)
-
-    #---------------------------------------------------------------------------
-    def columnCount(self, index=QModelIndex()):
-        return 1
-
-
-class TimeSeriesDateViewManager(QObject):
-
-    def __init__(self, timeSeriesViewer):
-        assert isinstance(timeSeriesViewer, TimeSeriesViewer)
-        super(TimeSeriesDateViewManager, self).__init__()
-
-        self.TSV = timeSeriesViewer
-        self.TSDViews = list()
-
-        self.mapViewManager = self.TSV.mapViewManager
-        self.mapViewManager.sigMapViewAdded.connect(self.addMapView)
-        self.mapViewManager.sigMapViewRemoved.connect(self.removeMapView)
-        self.mapViewManager.sigMapViewVisibility.connect(self.setMapViewVisibility)
-
-        self.setSpatialExtent(self.TSV.TS.getMaxSpatialExtent())
-        self.setMaxTSDViews()
-        self.initTimeSeries(self.TSV.TS)
-        self.L = self.TSV.ui.scrollAreaSubsetContent.layout()
-        self.setSubsetSize(QSize(100,50))
-
-
-    def activateMapTool(self, key):
-        for tsdv in self.TSDViews:
-            tsdv.activateMapTool(key)
-
-
-    def setSubsetSize(self, size):
-        assert isinstance(size, QSize)
-        self.subsetSize = size
-        for tsdv in self.TSDViews:
-            tsdv.setSubsetSize(size)
-        self.adjustScrollArea()
-
-    def redraw(self):
-        for tsdv in self.TSDViews:
-            tsdv.redraw()
-
-
-    def adjustScrollArea(self):
-
-        m = self.L.contentsMargins()
-        n = len(self.TSDViews)
-        if n > 0:
-            refTSDView = self.TSDViews[0]
-            size = refTSDView.ui.size()
-
-            w = n * size.width() + (n-1) * (m.left()+ m.right())
-            h = max([refTSDView.ui.minimumHeight() + m.top() + m.bottom(),
-                     self.TSV.ui.scrollAreaSubsets.height()-25])
-
-            self.L.parentWidget().setFixedSize(w,h)
-
-
-    def initTimeSeries(self, TS):
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-        self.TS.sigTimeSeriesDatesAdded.connect(self.createTSDViews)
-
-    def setMaxTSDViews(self, n=-1):
-        self.nMaxTSDViews = n
-        #todo: remove views
-
-    def setSpatialExtent(self, extent):
-        self.extent = extent
-        if extent:
-            assert isinstance(extent, SpatialExtent)
-            tsdviews = sorted(self.TSDViews, key=lambda t:t.TSD)
-            for tsdview in tsdviews:
-                tsdview.setSpatialExtent(extent)
-
-    def navToDOI(self, TSD):
-        assert isinstance(TSD, TimeSeriesDatum)
-        #get widget related to TSD
-        tsdviews = [t for t in self.TSDViews if t.TSD == TSD]
-        if len(tsdviews) > 0:
-            i = self.TSDViews.index(tsdviews[0])+1.5
-            n = len(self.TSDViews)
-
-            scrollBar = self.TSV.ui.scrollAreaSubsets.horizontalScrollBar()
-            smin = scrollBar.minimum()
-            smax = scrollBar.maximum()
-            v = smin + (smax - smin) * float(i) / n
-            scrollBar.setValue(int(round(v)))
-
-    def setMapViewVisibility(self, bandView, isVisible):
-        assert isinstance(bandView, MapViewDefinition)
-        assert isinstance(isVisible, bool)
-
-        for tsdv in self.TSDViews:
-            tsdv.setMapViewVisibility(bandView, isVisible)
-
-
-    def addMapView(self, bandView):
-        assert isinstance(bandView, MapViewDefinition)
-
-        w = self.L.parentWidget()
-        w.setUpdatesEnabled(False)
-
-        for tsdv in self.TSDViews:
-            tsdv.ui.setUpdatesEnabled(False)
-
-        for tsdv in self.TSDViews:
-            tsdv.insertMapView(bandView)
-
-        for tsdv in self.TSDViews:
-            tsdv.ui.setUpdatesEnabled(True)
-
-        w.setUpdatesEnabled(True)
-
-
-
-    def removeMapView(self, bandView):
-        assert isinstance(bandView, MapViewDefinition)
-        for tsdv in self.TSDViews:
-            tsdv.removeMapView(bandView)
-
-    def createTSDViews(self, timeSeriesDates):
-        for TSD in timeSeriesDates:
-            assert isinstance(TSD, TimeSeriesDatum)
-            tsdView = TimeSeriesDatumView(TSD)
-            tsdView.setSubsetSize(self.subsetSize)
-            tsdView.sigExtentsChanged.connect(self.setSpatialExtent)
-            for i, bandView in enumerate(self.mapViewManager):
-                tsdView.insertMapView(bandView)
-            if self.extent:
-                tsdView.setSpatialExtent(self.extent)
-            self.addTSDView(tsdView)
-
-
-    def removeTSD(self, TSD):
-        assert isinstance(TSD, TimeSeriesDatum)
-        tsdvs = [tsdv for tsdv in self.TSDViews if tsdv.TSD == TSD]
-        assert len(tsdvs) == 1
-        self.removeTSDView(tsdvs[0])
-
-    def removeTSDView(self, TSDV):
-        assert isinstance(TSDV, TimeSeriesDatumView)
-        self.TSDViews.remove(TSDV)
-
-    def addTSDView(self, TSDV):
-        assert isinstance(TSDV, TimeSeriesDatumView)
-
-        if len(self.TSDViews) < 10:
-            pass
-
-        bisect.insort(self.TSDViews, TSDV)
-
-        TSDV.ui.setParent(self.L.parentWidget())
-        self.L.addWidget(TSDV.ui)
-
-        self.adjustScrollArea()
-        #self.TSV.ui.scrollAreaSubsetContent.update()
-        #self.TSV.ui.scrollAreaSubsets.update()
-        s = ""
-
-
-
-
-class MapViewDefinition(QObject):
-
+class MapView(QObject):
 
     sigRemoveMapView = pyqtSignal(object)
-    sigHideMapView = pyqtSignal()
-    sigShowMapView = pyqtSignal()
+    sigMapViewVisibility = pyqtSignal(bool)
     sigTitleChanged = pyqtSignal(str)
+    sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
-    def __init__(self, recommended_bands=None, parent=None, showSensorNames=True):
-        super(MapViewDefinition, self).__init__()
+    def __init__(self, mapViewCollection, recommended_bands=None, parent=None):
+        super(MapView, self).__init__()
+        assert isinstance(mapViewCollection, MapViewCollection)
+        self.MVC = mapViewCollection
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
+
         self.setVisibility(True)
 
         #forward actions with reference to this band view
-
+        self.spatialExtent = None
         self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
-        self.ui.sigHideMapView.connect(lambda : self.sigHideMapView.emit())
-        self.ui.sigShowMapView.connect(lambda: self.sigShowMapView.emit())
+        self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
+        self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
+        self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
         self.sensorViews = collections.OrderedDict()
-        self.mShowSensorNames = showSensorNames
+
+        self.mSpatialExtent = None
+
+    def applyStyles(self):
+        for sensorView in self.sensorViews.values():
+            sensorView.applyStyle()
+        s = ""
 
 
     def setVisibility(self, isVisible):
         self.ui.setVisibility(isVisible)
 
+    def setSpatialExtent(self, extent):
+        assert isinstance(extent, SpatialExtent)
+        self.mSpatialExtent = extent
+        self.sigSpatialExtentChanged.emit(extent)
 
     def visibility(self):
         return self.ui.visibility()
 
     def setTitle(self, title):
         self.mTitle = title
-        self.ui.labelName.setText(title)
+        self.ui.setTitle('Map View' + title)
         self.sigTitleChanged.emit(self.mTitle)
 
     def title(self):
         return self.mTitle
-
-    def showSensorNames(self, b):
-        assert isinstance(b, bool)
-        self.mShowSensorNames = b
-
-        for s,w in self.sensorViews.items():
-            w.showSensorName(b)
 
 
     def removeSensor(self, sensor):
@@ -510,6 +504,7 @@ class MapViewDefinition(QObject):
         if sensor in self.sensorViews.keys():
             self.sensorViews[sensor].close()
             self.sensorViews.pop(sensor)
+            self.ui.adjustSize()
             return True
         else:
             return False
@@ -525,12 +520,17 @@ class MapViewDefinition(QObject):
         """
         assert type(sensor) is SensorInstrument
         assert sensor not in self.sensorViews.keys()
-        w = MapViewRenderSettings(sensor)
+        w = MapViewSensorSettings(sensor)
+
         #w.showSensorName(False)
         self.sensorViews[sensor] = w
         l = self.ui.sensorList
         i = l.count()
         l.addWidget(w.ui)
+        from timeseriesviewer.ui.widgets import maxWidgetSizes
+
+
+        s = ""
 
 
     def getSensorWidget(self, sensor):
@@ -540,158 +540,41 @@ class MapViewDefinition(QObject):
 
 
 
-
-class MapViewManager(QObject):
-
-    sigSensorAdded = pyqtSignal(SensorInstrument)
-    sigSensorRemoved = pyqtSignal(SensorInstrument)
-    sigMapViewAdded = pyqtSignal(MapViewDefinition)
-    sigMapViewRemoved = pyqtSignal(MapViewDefinition)
-    sigMapViewVisibility = pyqtSignal(MapViewDefinition, bool)
-
-    def __init__(self, timeSeriesViewer):
-        assert isinstance(timeSeriesViewer, TimeSeriesViewer)
-        super(MapViewManager, self).__init__()
-
-        self.TSV = timeSeriesViewer
-        self.ui = self.TSV.ui
-        self.mapViewsDefinitions = []
-        self.mapViewButtons = dict()
-
-
-    def removeSensor(self, sensor):
-        assert isinstance(sensor, SensorInstrument)
-
-        removed = False
-        for view in self.mapViewsDefinitions:
-            removed = removed and view.removeSensor(sensor)
-
-        if removed:
-            self.sigSensorRemoved(sensor)
-
-
-    def createMapView(self):
-        btnList = self.TSV.ui.dockMapViews.BVButtonList
-        btn = QToolButton(btnList)
-        btnList.layout().insertWidget(btnList.layout().count() - 1, btn)
-
-        mapView = MapViewDefinition(parent=self.TSV.ui.dockMapViews.scrollAreaMapViews, showSensorNames=False)
-        mapView.sigRemoveMapView.connect(self.removeMapView)
-        mapView.sigShowMapView.connect(lambda : self.sigMapViewVisibility.emit(mapView, mapView.visibility()))
-        mapView.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(mapView, mapView.visibility()))
-        #mapView.sigTitleChanged.connect(btn.setText)
-
-        #bandView.setTitle('#{}'.format(len(self)))
-
-        self.mapViewButtons[mapView] = btn
-        self.mapViewsDefinitions.append(mapView)
-        for sensor in self.TSV.TS.Sensors:
-            mapView.addSensor(sensor)
-
-        btn.clicked.connect(lambda : self.showMapViewDefinition(mapView))
-        self.refreshMapViewTitles()
-        self.sigMapViewAdded.emit(mapView)
-
-        if len(self) == 1:
-            self.showMapViewDefinition(mapView)
-
-    def removeMapView(self, mapView):
-        assert isinstance(mapView, MapViewDefinition)
-        btn = self.mapViewButtons[mapView]
-        btnList = self.TSV.ui.dockMapViews.BVButtonList
-
-        idx = self.mapViewsDefinitions.index(mapView)
-
-        self.mapViewsDefinitions.remove(mapView)
-        self.mapViewButtons.pop(mapView)
-
-        mapView.ui.setVisible(False)
-        btn.setVisible(False)
-        btnList.layout().removeWidget(btn)
-        l = self.ui.dockMapViews.scrollAreaMapsViewDockContent.layout()
-
-        for d in self.recentMapViewDefinitions():
-            d.ui.setVisible(False)
-            l.removeWidget(d.ui)
-        l.removeWidget(mapView.ui)
-        mapView.ui.close()
-        btn.close()
-        self.refreshMapViewTitles()
-        self.sigMapViewRemoved.emit(mapView)
-
-        if len(self) > 0:
-            #show previous mapViewDefinition
-            idxNext = max([idx-1, 0])
-            self.showMapViewDefinition(self.mapViewsDefinitions[idxNext])
-
-    def refreshMapViewTitles(self):
-        for i, mapView in enumerate(self.mapViewsDefinitions):
-            number = i+1
-            title = '#{}'.format(number)
-            mapView.setTitle(title)
-            btn = self.mapViewButtons[mapView]
-            btn.setText('{}'.format(number))
-            btn.setToolTip('Show definition for map view {}'.format(number))
-            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            s = ""
-
-    def showMapViewDefinition(self, mapViewDefinition):
-        assert mapViewDefinition in self.mapViewsDefinitions
-        assert isinstance(mapViewDefinition, MapViewDefinition)
-        l = self.ui.dockMapViews.scrollAreaMapsViewDockContent.layout()
-
-        for d in self.recentMapViewDefinitions():
-            d.ui.setVisible(False)
-            l.removeWidget(d.ui)
-
-        l.insertWidget(l.count() - 1, mapViewDefinition.ui)
-        mapViewDefinition.ui.setVisible(True)
-
-    def recentMapViewDefinitions(self):
-        parent = self.ui.dockMapViews.scrollAreaMapsViewDockContent
-        return [ui.mapViewDefinition() for ui in parent.findChildren(MapViewDefinitionUI)]
-
-
-    def setMapViewVisibility(self, bandView, isVisible):
-        assert isinstance(bandView, MapViewDefinition)
-        assert isinstance(isVisible, bool)
-
-
-
-
-
-    def __len__(self):
-        return len(self.mapViewsDefinitions)
-
-    def __iter__(self):
-        return iter(self.mapViewsDefinitions)
-
-    def __getitem__(self, key):
-        return self.mapViewsDefinitions[key]
-
-    def __contains__(self, mapView):
-        return mapView in self.mapViewsDefinitions
-
-
 class TimeSeriesDatumView(QObject):
 
     sigExtentsChanged = pyqtSignal(SpatialExtent)
+    sigRenderProgress = pyqtSignal(int,int)
+    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
+    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
+    sigVisibilityChanged = pyqtSignal(bool)
 
-    def __init__(self, TSD, parent=None):
+    def __init__(self, TSD, timeSeriesDateViewCollection, mapViewCollection, parent=None):
+        assert isinstance(TSD, TimeSeriesDatum)
+        assert isinstance(timeSeriesDateViewCollection, TimeSeriesDateViewCollection)
+        assert isinstance(mapViewCollection, MapViewCollection)
 
         super(TimeSeriesDatumView, self).__init__()
         self.ui = TimeSeriesDatumViewUI(parent)
         self.ui.create()
 
-        self.TSD = None
-
-        self.mapCanvases = dict()
-        self.mapOrder = []
-        self.setTimeSeriesDatum(TSD)
         self.L = self.ui.layout()
         self.wOffset = self.L.count()-1
-        self.setSubsetSize(QSize(150,100))
+        self.minHeight = self.ui.height()
+        self.minWidth = 50
+        self.renderProgress = dict()
 
+        self.TSD = TSD
+        self.Sensor = self.TSD.sensor
+        self.TSD.sigVisibilityChanged.connect(self.setVisibility)
+        self.ui.labelTitle.setText(str(TSD.date))
+        self.MVC = mapViewCollection
+        self.TSDVC = timeSeriesDateViewCollection
+        self.mapCanvases = dict()
+        self.setSubsetSize(QSize(50, 50))
+
+    def setVisibility(self, b):
+        self.ui.setVisible(b)
+        self.sigVisibilityChanged.emit(b)
 
     def activateMapTool(self, key):
         for c in self.mapCanvases.values():
@@ -711,111 +594,447 @@ class TimeSeriesDatumView(QObject):
         assert isinstance(size, QSize)
         assert size.width() > 5 and size.height() > 5
         self.subsetSize = size
-        m = self.L.contentsMargins()
+
 
         self.ui.labelTitle.setFixedWidth(size.width())
         self.ui.line.setFixedWidth(size.width())
 
         #apply new subset size to existing canvases
-        for c in self.mapCanvases.values():
-            c.setFixedSize(size)
 
-        self.ui.setFixedWidth(size.width() + 2*(m.left() + m.right()))
-        n = len(self.mapCanvases)
-        #todo: improve size forecast
-        self.ui.setMinimumHeight((n+1) * size.height())
+        for canvas in self.mapCanvases.values():
+            canvas.setFixedSize(size)
+        self.adjustBaseMinSize()
 
 
-    def setTimeSeriesDatum(self, TSD):
-        assert isinstance(TSD, TimeSeriesDatum)
-        self.TSD = TSD
-        self.ui.labelTitle.setText(str(TSD.date))
+    def adjustBaseMinSize(self):
+        self.ui.setFixedSize(self.ui.sizeHint())
 
-        for c in self.mapCanvases.values():
-            c.setLayer(self.TSD.pathImg)
-
-    def removeMapView(self, bandView):
-        self.mapOrder.remove(bandView)
-        canvas = self.mapCanvases.pop(bandView)
+    def removeMapView(self, mapView):
+        canvas = self.mapCanvases.pop(mapView)
         self.L.removeWidget(canvas)
         canvas.close()
+        self.adjustBaseMinSize()
 
     def redraw(self):
-        for c in self.mapCanvases.values():
-            c.refreshAllLayers()
+        if self.ui.isVisible():
+            for c in self.mapCanvases.values():
+                if c.isVisible():
+                    c.refreshAllLayers()
 
-    def insertMapView(self, bandView, i=-1):
-        assert isinstance(bandView, MapViewDefinition)
-        assert bandView not in self.mapOrder
-        if len(self.mapCanvases) != len(self.mapOrder):
-            s = ""
+    def insertMapView(self, mapView):
+        assert isinstance(mapView, MapView)
 
-        assert i >= -1 and i <= len(self.mapOrder)
-        if i == -1:
-            i = len(self.mapCanvases)
+        i = self.MVC.index(mapView)
 
-        canvas = MapViewMapCanvas(self.ui)
-        canvas.setLayer(self.TSD.pathImg)
+        canvas = TsvMapCanvas(self, mapView, parent=self.ui)
+
         canvas.setFixedSize(self.subsetSize)
         canvas.extentsChanged.connect(lambda : self.sigExtentsChanged.emit(canvas.spatialExtent()))
+        canvas.renderStarting.connect(lambda : self.sigLoadingStarted.emit(mapView, self.TSD))
+        canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
 
 
-        self.mapCanvases[bandView] = canvas
-        self.mapOrder.insert(i, bandView)
+        self.mapCanvases[mapView] = canvas
         self.L.insertWidget(self.wOffset + i, canvas)
+        canvas.refreshMap()
+        self.adjustBaseMinSize()
+        return canvas
 
     def __lt__(self, other):
 
         return self.TSD < other.TSD
 
+    def __cmp__(self, other):
+        return cmp(self.TSD, other.TSD)
 
-class RenderJob(object):
 
-    def __init__(self, TSD, renderer, destinationId=None):
+
+class SpatialTemporalVisualization(QObject):
+    """
+
+    """
+
+    def __init__(self, timeSeriesViewer):
+        assert isinstance(timeSeriesViewer, TimeSeriesViewer)
+        super(SpatialTemporalVisualization, self).__init__()
+
+
+        self.TS = timeSeriesViewer.TS
+        self.targetLayout = timeSeriesViewer.ui.scrollAreaSubsetContent.layout()
+        self.dockMapViews = timeSeriesViewer.ui.dockMapViews
+        self.MVC = MapViewCollection(self)
+        self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
+        self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
+        self.timeSeriesDateViewCollection.sigLoadingStarted.connect(timeSeriesViewer.ui.dockRendering.addStartedWork)
+        self.timeSeriesDateViewCollection.sigLoadingFinished.connect(timeSeriesViewer.ui.dockRendering.addFinishedWork)
+        self.TS.sigTimeSeriesDatesAdded.connect(self.timeSeriesDateViewCollection.addDates)
+        self.TS.sigTimeSeriesDatesRemoved.connect(self.timeSeriesDateViewCollection.removeDates)
+        #add dates, if already existing
+        self.timeSeriesDateViewCollection.addDates(self.TS[:])
+
+        self.setSpatialExtent(self.TS.getMaxSpatialExtent())
+        self.setSubsetSize(QSize(100,50))
+
+    def createMapView(self):
+        self.MVC.createMapView()
+
+    def activateMapTool(self, key):
+        for tsdv in self.TSDViews:
+            tsdv.activateMapTool(key)
+
+    def setSubsetSize(self, size):
+        assert isinstance(size, QSize)
+        self.subsetSize = size
+        self.timeSeriesDateViewCollection.setSubsetSize(size)
+        self.adjustScrollArea()
+
+    def redraw(self):
+        for tsdView in self.timeSeriesDateViewCollection:
+            tsdView.redraw()
+
+
+    def adjustScrollArea(self):
+        #adjust scroll area widget to fit all visible widgets
+        m = self.targetLayout.contentsMargins()
+        n = len(self.timeSeriesDateViewCollection)
+        w = h = 0
+
+        s = QSize()
+        r = None
+        tmp = [v for v in self.timeSeriesDateViewCollection if not v.ui.isVisible()]
+        for TSDView in [v for v in self.timeSeriesDateViewCollection if v.ui.isVisible()]:
+            s = s + TSDView.ui.sizeHint()
+            if r is None:
+                r = TSDView.ui.sizeHint()
+        if r:
+            if isinstance(self.targetLayout, QHBoxLayout):
+
+                s = QSize(s.width(), r.height())
+            else:
+                s = QSize(r.width(), s.height())
+
+            s = s + QSize(m.left() + m.right(), m.top() + m.bottom())
+            self.targetLayout.parentWidget().setFixedSize(s)
+
+
+
+    def setMaxTSDViews(self, n=-1):
+        self.nMaxTSDViews = n
+        #todo: remove views
+
+    def setSpatialExtent(self, extent):
+        self.extent = extent
+        if extent:
+            self.timeSeriesDateViewCollection.setSpatialExtent(extent)
+
+
+    def navToDOI(self, TSD):
         assert isinstance(TSD, TimeSeriesDatum)
-        assert isinstance(renderer, QgsRasterRenderer)
+        #get widget related to TSD
+        tsdviews = [t for t in self.TSDViews if t.TSD == TSD]
+        if len(tsdviews) > 0:
+            i = self.TSDViews.index(tsdviews[0])+1.5
+            n = len(self.TSDViews)
 
-        self.TSD = TSD
-        self.renderer = renderer
-        self.destinationId = destinationId
+            scrollBar = self.TSV.ui.scrollAreaSubsets.horizontalScrollBar()
+            smin = scrollBar.minimum()
+            smax = scrollBar.maximum()
+            v = smin + (smax - smin) * float(i) / n
+            scrollBar.setValue(int(round(v)))
 
-    def __eq__(self, other):
-        if not isinstance(other, RenderJob):
-            return False
-        return self.TSD == other.TSD and \
-               self.renderer == other.renderer and \
-               self.destinationId == other.destinationId
+    def setMapViewVisibility(self, bandView, isVisible):
+        assert isinstance(bandView, MapView)
+        assert isinstance(isVisible, bool)
+
+        for tsdv in self.TSDViews:
+            tsdv.setMapViewVisibility(bandView, isVisible)
+
+    sigLoadingStarted = pyqtSignal(TimeSeriesDatumView, MapView)
+    sigLoadingFinished = pyqtSignal(TimeSeriesDatumView, MapView)
 
 
 
-list2str = lambda ll : '\n'.join([str(l) for l in ll])
 
 
-class QgsInstanceInteraction(QObject):
 
-    def __init__(self, iface, TSV_UI):
-        super(QgsInstanceInteraction, self).__init__()
+class TimeSeriesDateViewCollection(QObject):
 
-        self.iface = iface
-        self.ui = TSV_UI
-        self.cbVectorLayer = TSV_UI.cbQgsVectorLayer
+    sigResizeRequired = pyqtSignal()
+    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
+    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
 
-    def extent(self):
-        s = ""
+    def __init__(self, STViz):
+        assert isinstance(STViz, SpatialTemporalVisualization)
+        super(TimeSeriesDateViewCollection, self).__init__()
+        #self.tsv = tsv
+        #self.timeSeries = tsv.TS
 
-    def center(self):
-        s = ""
+        self.views = list()
+        self.STViz = STViz
 
-    def crs(self):
-        s = ""
+        #potentially there are many more dates than views.
+        #therefore we implement the addinng/removing of mapviews here
+        #we reduce the number of layout refresh calls by
+        #suspending signals, adding the new map view canvases, and sending sigResizeRequired
 
-    def getVectorLayerRepresentation(self):
-        if self.ui.gbQgsVectorLayer.isChecked():
-            lyr = self.cbVectorLayer.currentLayer()
-            alpha = self.ui.sliderQgsVectorTransparency.value()
-            return lyr
+        self.STViz.MVC.sigMapViewAdded.connect(self.addMapView)
+        self.STViz.MVC.sigMapViewRemoved.connect(self.removeMapView)
+
+        self.setFocusView(None)
+        self.setSubsetSize(QSize(50,50))
+
+
+    def addMapView(self, mapView):
+        assert isinstance(mapView, MapView)
+        w = self.STViz.targetLayout.parentWidget()
+        w.setUpdatesEnabled(False)
+        for tsdv in self.views:
+
+            tsdv.ui.setUpdatesEnabled(False)
+
+        for tsdv in self.views:
+            tsdv.insertMapView(mapView)
+
+        for tsdv in self.views:
+            tsdv.ui.setUpdatesEnabled(True)
+
+        #mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
+        w.setUpdatesEnabled(True)
+        self.sigResizeRequired.emit()
+
+    def removeMapView(self, mapView):
+        assert isinstance(mapView, MapView)
+        for tsdv in self.views:
+            tsdv.removeMapView(mapView)
+        self.sigResizeRequired.emit()
+
+
+    def setFocusView(self, tsd):
+        self.focusView = tsd
+
+    def setSpatialExtent(self, extent):
+        for tsdview in self.orderedViews():
+            tsdview.setSpatialExtent(extent)
+
+    def orderedViews(self):
+        #returns the
+        if self.focusView is not None:
+            assert isinstance(self.focusView, TimeSeriesDatumView)
+            return sorted(self.views,key=lambda v: np.abs(v.TSD.date - self.focusView.TSD.date))
         else:
-            return None
+            return self.views
+
+    def setSubsetSize(self, size):
+        assert isinstance(size, QSize)
+        self.subsetSize = size
+        for tsdView in self.orderedViews():
+            tsdView.setSubsetSize(size)
+
+
+
+    def addDates(self, tsdList):
+        """
+        Create a new TSDView
+        :param tsdList:
+        :return:
+        """
+        for tsd in tsdList:
+            assert isinstance(tsd, TimeSeriesDatum)
+            tsdView = TimeSeriesDatumView(tsd, self, self.STViz.MVC)
+            tsdView.setSubsetSize(self.subsetSize)
+
+            tsdView.sigExtentsChanged.connect(self.setSpatialExtent)
+            tsdView.sigLoadingStarted.connect(self.sigLoadingStarted.emit)
+            tsdView.sigLoadingFinished.connect(self.sigLoadingFinished.emit)
+            tsdView.sigVisibilityChanged.connect(lambda: self.STViz.adjustScrollArea())
+
+
+            for i, mapView in enumerate(self.STViz.MVC):
+                tsdView.insertMapView(mapView)
+
+            bisect.insort(self.views, tsdView)
+            tsdView.ui.setParent(self.STViz.targetLayout.parentWidget())
+            self.STViz.targetLayout.addWidget(tsdView.ui)
+            tsdView.ui.show()
+
+
+        if len(tsdList) > 0:
+            self.sigResizeRequired.emit()
+
+    def removeDates(self, tsdList):
+        toRemove = [v for v in self.views if v.TSD in tsdList]
+        removedDates = []
+        for tsdView in toRemove:
+
+            self.views.remove(tsdView)
+
+            tsdView.ui.parent().layout().removeWidget(tsdView.ui)
+            tsdView.ui.hide()
+            tsdView.ui.close()
+            removedDates.append(tsdView.TSD)
+            del tsdView
+
+        if len(removedDates) > 0:
+            self.sigResizeRequired.emit()
+
+    def __len__(self):
+        return len(self.views)
+
+    def __iter__(self):
+        return iter(self.views)
+
+    def __getitem__(self, slice):
+        return self.views[slice]
+
+    def __delitem__(self, slice):
+        self.removeDates(self.views[slice])
+
+class MapViewCollection(QObject):
+
+    sigMapViewAdded = pyqtSignal(MapView)
+    sigMapViewRemoved = pyqtSignal(MapView)
+    sigSetMapViewVisibility = pyqtSignal(MapView, bool)
+
+    def __init__(self, STViz):
+        assert isinstance(STViz, SpatialTemporalVisualization)
+        super(MapViewCollection, self).__init__()
+        self.STViz = STViz
+        self.STViz.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
+        self.STViz.TS.sigSensorAdded.connect(self.addSensor)
+        self.btnList = STViz.dockMapViews.BVButtonList
+        self.scrollArea = STViz.dockMapViews.scrollAreaMapViews
+        self.scrollAreaContent = STViz.dockMapViews.scrollAreaMapsViewDockContent
+        self.mapViewsDefinitions = []
+        self.mapViewButtons = dict()
+        self.adjustScrollArea()
+    def applyStyles(self):
+        for mapView in self.mapViewsDefinitions:
+            mapView.applyStyles()
+
+    def index(self, mapView):
+        assert isinstance(mapView, MapView)
+        return self.mapViewsDefinitions.index(mapView)
+
+    def adjustScrollArea(self):
+        #adjust scroll area widget to fit all visible widgets
+        l = self.scrollAreaContent.layout()
+        from timeseriesviewer.ui.widgets import maxWidgetSizes
+        newSize = maxWidgetSizes(l)
+        #print(newSize)
+        #newSize = self.scrollAreaContent.sizeHint()
+        self.scrollAreaContent.setFixedSize(newSize)
+
+    def addSensor(self, sensor):
+        for mapView in self.mapViewsDefinitions:
+            mapView.addSensor(sensor)
+        self.adjustScrollArea()
+
+    def removeSensor(self, sensor):
+        for mapView in self.mapViewsDefinitions:
+            mapView.removeSensor(sensor)
+
+
+    def createMapView(self):
+
+        btn = QToolButton(self.btnList)
+        self.btnList.layout().insertWidget(self.btnList.layout().count() - 1, btn)
+
+        mapView = MapView(self, parent=self.scrollArea)
+        mapView.sigRemoveMapView.connect(self.removeMapView)
+
+        for sensor in self.STViz.TS.Sensors:
+            mapView.addSensor(sensor)
+
+        self.mapViewButtons[mapView] = btn
+        self.mapViewsDefinitions.append(mapView)
+
+
+        btn.clicked.connect(lambda : self.showMapViewDefinition(mapView))
+        self.refreshMapViewTitles()
+        if len(self) == 1:
+            self.showMapViewDefinition(mapView)
+        self.sigMapViewAdded.emit(mapView)
+        self.adjustScrollArea()
+
+    def removeMapView(self, mapView):
+        assert isinstance(mapView, MapView)
+        btn = self.mapViewButtons[mapView]
+
+        idx = self.mapViewsDefinitions.index(mapView)
+
+        self.mapViewsDefinitions.remove(mapView)
+        self.mapViewButtons.pop(mapView)
+
+        mapView.ui.setVisible(False)
+        btn.setVisible(False)
+        self.btnList.layout().removeWidget(btn)
+        l = self.scrollAreaContent.layout()
+
+        for d in self.recentMapViewDefinitions():
+            d.ui.setVisible(False)
+            l.removeWidget(d.ui)
+        l.removeWidget(mapView.ui)
+        mapView.ui.close()
+        btn.close()
+        self.refreshMapViewTitles()
+        self.sigMapViewRemoved.emit(mapView)
+        if len(self) > 0:
+            #show previous mapViewDefinition
+            idxNext = max([idx-1, 0])
+            self.showMapViewDefinition(self.mapViewsDefinitions[idxNext])
+
+    def refreshMapViewTitles(self):
+
+        for i, mapView in enumerate(self.mapViewsDefinitions):
+            number = i+1
+            title = '#{}'.format(number)
+            mapView.setTitle(title)
+            btn = self.mapViewButtons[mapView]
+            btn.setText('{}'.format(number))
+            btn.setToolTip('Show definition for map view {}'.format(number))
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+
+    def setSpatialExtent(self, extent):
+        for mv in self.mapViewsDefinitions:
+            mv.setSpatialExtent(extent)
+
+    def showMapViewDefinition(self, mapViewDefinition):
+        assert mapViewDefinition in self.mapViewsDefinitions
+        assert isinstance(mapViewDefinition, MapView)
+        l = self.scrollAreaContent.layout()
+
+        for d in self.recentMapViewDefinitions():
+            d.ui.setVisible(False)
+            l.removeWidget(d.ui)
+
+        l.insertWidget(l.count() - 1, mapViewDefinition.ui)
+        mapViewDefinition.ui.setVisible(True)
+
+    def recentMapViewDefinitions(self):
+        parent = self.scrollAreaContent
+        return [ui.mapViewDefinition() for ui in parent.findChildren(MapViewDefinitionUI)]
+
+
+    def setMapViewVisibility(self, bandView, isVisible):
+        assert isinstance(bandView, MapView)
+        assert isinstance(isVisible, bool)
+
+
+
+
+
+    def __len__(self):
+        return len(self.mapViewsDefinitions)
+
+    def __iter__(self):
+        return iter(self.mapViewsDefinitions)
+
+    def __getitem__(self, key):
+        return self.mapViewsDefinitions[key]
+
+    def __contains__(self, mapView):
+        return mapView in self.mapViewsDefinitions
 
 
 class TimeSeriesViewer:
@@ -831,30 +1050,34 @@ class TimeSeriesViewer:
         # Save reference to the QGIS interface
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
 
-        self.ui = TimeSeriesViewerUI()
+        self.ui = TimeSeriesViewerUI(parent=iface)
         if iface:
             import timeseriesviewer
-            timeseriesviewer.QGIS_TSV_BRIDGE = QgsInstanceInteraction(iface, self.ui)
+            timeseriesviewer.QGIS_TSV_BRIDGE = QgisTsvBridge(iface, self.ui)
             self.ui.setQgsLinkWidgets()
 
         #init empty time series
         self.TS = TimeSeries()
         self.hasInitialCenterPoint = False
         self.TS.sigTimeSeriesDatesAdded.connect(self.datesAdded)
-        self.TS.sigProgress.connect(self.ua_TSprogress)
+
+
+
 
         #init TS model
-        TSM = TimeSeriesTableModel(self.TS)
+
         D = self.ui
         #self.ICP = D.scrollAreaSubsetContent.layout()
         #D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         #self.BVP = self.ui.scrollAreaMapViews.layout()
+        D.dockNavigation.connectTimeSeries(self.TS)
+        D.dockTimeSeries.connectTimeSeries(self.TS)
 
-        D.tableView_TimeSeries.setModel(TSM)
-        D.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        self.spatialTemporalVis = SpatialTemporalVisualization(self)
+        self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
 
-        self.mapViewManager = MapViewManager(self)
-        self.timeSeriesDateViewManager = TimeSeriesDateViewManager(self)
+
 
         self.ValidatorPxX = QIntValidator(0,99999)
         self.ValidatorPxY = QIntValidator(0,99999)
@@ -864,19 +1087,18 @@ class TimeSeriesViewer:
         #D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
         #connect actions with logic
 
-        D.actionSelectCenter.triggered.connect(lambda : self.timeSeriesDateViewManager.activateMapTool('selectCenter'))
-        D.actionSelectArea.triggered.connect(lambda : self.timeSeriesDateViewManager.activateMapTool('selectArea'))
+        D.actionSelectCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectCenter'))
+        D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
         D.actionZoomMaxExtent.triggered.connect(lambda : self.zoomTo('maxExtent'))
         D.actionZoomPixelScale.triggered.connect(lambda: self.zoomTo('pixelScale'))
-        D.actionZoomIn.triggered.connect(lambda: self.timeSeriesDateViewManager.activateMapTool('zoomIn'))
-        D.actionZoomOut.triggered.connect(lambda: self.timeSeriesDateViewManager.activateMapTool('zoomOut'))
-        D.actionPan.triggered.connect(lambda: self.timeSeriesDateViewManager.activateMapTool('pan'))
+        D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomIn'))
+        D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomOut'))
+        D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
+        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.createMapView)
 
-        D.actionAddMapView.triggered.connect(self.mapViewManager.createMapView)
-
-        D.actionAddTSD.triggered.connect(self.ua_addTSImages)
-        D.actionRemoveTSD.triggered.connect(self.removeTimeSeriesDates)
-        D.actionRedraw.triggered.connect(self.timeSeriesDateViewManager.redraw)
+        D.actionAddTSD.triggered.connect(lambda : self.ua_addTSImages())
+        D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
+        D.actionRedraw.triggered.connect(self.spatialTemporalVis.redraw)
         D.actionLoadTS.triggered.connect(self.loadTimeSeries)
         D.actionClearTS.triggered.connect(self.clearTimeSeries)
         D.actionSaveTS.triggered.connect(self.ua_saveTSFile)
@@ -884,7 +1106,6 @@ class TimeSeriesViewer:
 
 
         #connect buttons with actions
-        D.btnClearLabelList.clicked.connect(D.tbCollectedLabels.clear)
         D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
 
@@ -894,82 +1115,16 @@ class TimeSeriesViewer:
         D.actionPreviousTSD.triggered.connect(lambda: self.setDOISliderValue('previous'))
 
 
-        D.sliderDOI.valueChanged.connect(self.setDOI)
-
-        D.actionSetSubsetSize.triggered.connect(lambda : self.timeSeriesDateViewManager.setSubsetSize(
-                                                self.ui.subsetSize()))
-        D.actionSetExtent.triggered.connect(lambda: self.timeSeriesDateViewManager.setSpatialExtent(self.ui.spatialExtent()))
+        D.dockRendering.actionSetSubsetSize.triggered.connect(lambda : self.spatialTemporalVis.setSubsetSize(
+                                                D.dockRendering.subsetSize()))
+        D.actionSetExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(self.ui.spatialExtent()))
 
         self.canvasCrs = QgsCoordinateReferenceSystem()
 
 
-    def zoomTo(self, key):
-        if key == 'maxExtent':
-            ext = self.TS.getMaxSpatialExtent(self.ui.crs())
-            self.timeSeriesDateViewManager.setSpatialExtent(ext)
-        elif key == 'pixelScale':
-            s = ""
-
-
-    def setDOISliderValue(self, key):
-        ui = self.ui
-        v = ui.sliderDOI.value()
-        if key == 'first':
-            v = ui.sliderDOI.minimum()
-        elif key == 'last':
-            v = ui.sliderDOI.maximum()
-        elif key =='next':
-            v = min([v+1,ui.sliderDOI.maximum()])
-        elif key =='previous':
-            v = max([v - 1, ui.sliderDOI.minimum()])
-        ui.sliderDOI.setValue(v)
-
-    def setDOI(self, i):
-
-        TSD = None
-
-        if len(self.TS) == 0:
-            text = '<empty timeseries>'
-        else:
-            assert i <= len(self.TS)
-            TSD = self.TS.data[i - 1]
-            text = str(TSD.date)
-
-        self.ui.labelDOIValue.setText(text)
-
-        if TSD:
-            self.timeSeriesDateViewManager.navToDOI(TSD)
-
-
-    def icon(self):
-        return TimeSeriesViewer.icon()
-
-    def timeseriesChanged(self):
-        D = self.ui
-        D.sliderDOI.setMinimum(1)
-        l = len(self.TS.data)
-        D.sliderDOI.setMaximum(l)
-        #get meaningfull tick intervall
-        for tickInterval in [1,5,10,25,50,100,200]:
-            if (D.sliderDOI.size().width() / float(l) * tickInterval) > 5:
-                break
-        D.sliderDOI.setTickInterval(tickInterval)
-
-        if not self.hasInitialCenterPoint:
-            if len(self.TS.data) > 0:
-                extent = self.TS.getMaxSpatialExtent(self.canvasCrs)
-                self.timeSeriesDateViewManager.setSubsetSize(self.ui.subsetSize())
-                self.timeSeriesDateViewManager.setSpatialExtent(extent)
-                self.ui.setSpatialExtent(extent)
-                self.hasInitialCenterPoint = True
-
-            if len(self.mapViewManager) == 0:
-                # add two empty band-views by default
-                self.mapViewManager.createMapView()
-                self.mapViewManager.createMapView()
-
-        if len(self.TS.data) == 0:
-            self.hasInitialCenterPoint = False
+    def loadImageFiles(self, files):
+        assert isinstance(files, list)
+        self.TS.addFiles(files)
 
 
     def loadTimeSeries(self, path=None, n_max=None):
@@ -977,13 +1132,42 @@ class TimeSeriesViewer:
             path = QFileDialog.getOpenFileName(self.ui, 'Open Time Series file', '')
 
         if os.path.exists(path):
-
-
-            M = self.ui.tableView_TimeSeries.model()
+            M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
             M.beginResetModel()
             self.clearTimeSeries()
             self.TS.loadFromFile(path, n_max=n_max)
             M.endResetModel()
+
+
+    def zoomTo(self, key):
+        if key == 'maxExtent':
+            ext = self.TS.getMaxSpatialExtent(self.ui.dockNavigation.crs())
+            self.spatialTemporalVis.setSpatialExtent(ext)
+        elif key == 'pixelScale':
+            s = ""
+
+
+    def icon(self):
+        return TimeSeriesViewer.icon()
+
+    def timeseriesChanged(self):
+
+        if not self.hasInitialCenterPoint:
+            if len(self.TS.data) > 0:
+                extent = self.TS.getMaxSpatialExtent()
+                self.spatialTemporalVis.setSubsetSize(self.ui.dockRendering.subsetSize())
+                self.spatialTemporalVis.setSpatialExtent(extent)
+                self.hasInitialCenterPoint = True
+
+            if len(self.spatialTemporalVis.MVC) == 0:
+                # add two empty band-views by default
+                self.spatialTemporalVis.createMapView()
+                self.spatialTemporalVis.createMapView()
+
+        if len(self.TS.data) == 0:
+            self.hasInitialCenterPoint = False
+
+
 
     def ua_saveTSFile(self):
         path = QFileDialog.getSaveFileName(self.ui, caption='Save Time Series file')
@@ -1013,7 +1197,7 @@ class TimeSeriesViewer:
         #keep specified CRS but translate extent
         oldExtent = self.ui.spatialExtent()
         self.ui.setSpatialExtent(extent)
-        self.timeSeriesDateViewManager.setSpatialExtent(extent)
+        self.spatialTemporalVis.setSpatialExtent(extent)
 
     def qgs_handleMouseDown(self, pt, btn):
         pass
@@ -1033,7 +1217,7 @@ class TimeSeriesViewer:
 
     def datesAdded(self, dates):
         assert isinstance(dates, list)
-        self.ui.tableView_TimeSeries.resizeColumnsToContents()
+        self.ui.dockTimeSeries.tableView_TimeSeries.resizeColumnsToContents()
         self.timeseriesChanged()
 
 
@@ -1136,38 +1320,15 @@ class TimeSeriesViewer:
             files = QFileDialog.getOpenFileNames()
 
         if files:
-            M = self.ui.tableView_TimeSeries.model()
-            M.beginResetModel()
             self.TS.addFiles(files)
-            M.endResetModel()
-            self.refreshMapViews()
-
-        self.check_enabled()
-
-
-
 
     def clearTimeSeries(self):
         #remove views
 
-        M = self.ui.tableView_TimeSeries.model()
+        M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
         M.beginResetModel()
         self.TS.clear()
         M.endResetModel()
-
-
-    def removeTimeSeriesDates(self, TSDs=None):
-        if TSDs is None:
-            TSDs = self.getSelectedTSDs()
-        assert isinstance(TSDs,list)
-
-        M = self.ui.tableView_TimeSeries.model()
-        M.beginResetModel()
-        self.TS.removeDates(TSDs)
-        M.endResetModel()
-
-
-
 
     def getSelectedTSDs(self):
         TV = self.ui.tableView_TimeSeries
@@ -1197,8 +1358,6 @@ def run_tests():
         if False:
             TSD = TimeSeriesDatum(pathImg)
             TSD.setMask(pathMsk)
-
-            print(TSD)
 
             c = [670949.883,-786288.771]
 
@@ -1318,4 +1477,9 @@ def run_tests():
 
 if __name__ == '__main__':
     run_tests()
+
+    newExtent = model.convertSpatialExten(exten, crs)
+
+    ext = SpatialExtent()
+
     print('Done')
