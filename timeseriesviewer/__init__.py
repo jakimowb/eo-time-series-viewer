@@ -44,5 +44,15 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
                 results.append(os.path.join(root, file))
         if not recursive:
             break
+            pass
     return results
 
+
+def findAbsolutePath(file):
+    if os.path.exists(file): return file
+    possibleRoots = [DIR_EXAMPLES, DIR_REPO, os.getcwd()]
+    for root in possibleRoots:
+        tmp = jp(root, file)
+        if os.path.exists(tmp):
+            return tmp
+    return None
