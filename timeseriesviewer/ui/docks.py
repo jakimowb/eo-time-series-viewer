@@ -18,6 +18,9 @@ load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
 class TsvDockWidgetBase(QgsDockWidget):
 
+    def __init__(self, parent):
+        super(TsvDockWidgetBase, self).__init__(parent)
+        self.setupUi(self)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -41,16 +44,64 @@ class SensorDockUI(TsvDockWidgetBase, load('sensordock.ui')):
         self.setupUi(self)
 
 
-
 class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
         self.setupUi(self)
+        self.progress = dict()
+        self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
+        self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
+
+        self.subsetRatio = None
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+        self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
 
     def subsetSize(self):
         return QSize(self.spinBoxSubsetSizeX.value(),
                      self.spinBoxSubsetSizeY.value())
+    def onSubsetValueChanged(self, key):
+        if self.checkBoxKeepSubsetAspectRatio.isChecked():
 
+            if key == 'X':
+                v_old = self.lastSubsetSizeX
+                v_new = self.spinBoxSubsetSizeX.value()
+                s = self.spinBoxSubsetSizeY
+            elif key == 'Y':
+                v_old = self.lastSubsetSizeY
+                v_new = self.spinBoxSubsetSizeY.value()
+                s = self.spinBoxSubsetSizeX
+
+            oldState = s.blockSignals(True)
+            s.setValue(int(round(float(v_new) / v_old * s.value())))
+            s.blockSignals(oldState)
+
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+        self.actionSetSubsetSize.activate(QAction.Trigger)
+
+
+    def addStartedWork(self, *args):
+        self.progress[args] = False
+        self.refreshProgressBar()
+
+
+    def refreshProgressBar(self):
+        #todo: do this delayed
+        self.progressBar.setMaximum(len(self.progress.keys()))
+        p = len([v for v in self.progress.values() if v == True])
+        self.progressBar.setValue(p)
+
+
+    def addFinishedWork(self, *args):
+        if args in self.progress.keys():
+            self.progress[args] = True
+
+        else:
+            s = ""
+        self.refreshProgressBar()
 
 class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
     from timeseriesviewer.timeseries import TimeSeriesDatum
@@ -201,14 +252,50 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
 class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
-        self.setupUi(self)
+        #self.setupUi(self)
+        self.btnAddTSD.setDefaultAction(parent.actionAddTSD)
+        self.btnRemoveTSD.setDefaultAction(parent.actionRemoveTSD)
+        self.btnLoadTS.setDefaultAction(parent.actionLoadTS)
+        self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
+        self.btnClearTS.setDefaultAction(parent.actionClearTS)
+
+        self.connectTimeSeries(None)
+
+
+    def onSelectionChanged(self, *args):
+        self.btnRemoveTSD.setEnabled(self.SM is not None and len(self.SM.selectedRows()) > 0)
+
+
+        s = ""
+
+    def selectedTimeSeriesDates(self):
+        if self.SM is not None:
+            return [self.TSM.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
+        return []
+
+    def connectTimeSeries(self, TS):
+        self.TS = TS
+        self.TSM = None
+        self.SM = None
+        self.timeSeriesInitialized = False
+        if TS is not None:
+            from timeseriesviewer.main import TimeSeriesTableModel
+            self.TSM = TimeSeriesTableModel(self.TS)
+            self.tableView_TimeSeries.setModel(self.TSM)
+            self.SM = QItemSelectionModel(self.TSM)
+            self.tableView_TimeSeries.setSelectionModel(self.SM)
+            self.SM.selectionChanged.connect(self.onSelectionChanged)
+            self.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        self.onSelectionChanged()
 
 class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
     def __init__(self, parent=None):
         super(MapViewDockUI, self).__init__(parent)
         self.setupUi(self)
 
-        self.dockLocationChanged.connect(self.adjustLayouts)
+        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
+
+        #self.dockLocationChanged.connect(self.adjustLayouts)
 
     def toogleLayout(self, p):
         newLayout = None
