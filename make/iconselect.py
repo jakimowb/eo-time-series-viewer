@@ -4,9 +4,9 @@ from PyQt4.QtGui import *
 #from PyQt4.QtWidgets import *
 
 
-class Widget(QWidget):
+class AvailableIcons(QWidget):
     def __init__(self, parent=None):
-        super(Widget, self).__init__()
+        super(AvailableIcons, self).__init__()
 
         icons = [
             'SP_ArrowBack',
@@ -81,25 +81,42 @@ class Widget(QWidget):
             'SP_VistaShield'
         ]
 
-        colSize = 4
+        colSize = 35
 
         layout = QGridLayout()
 
         count = 0
-        for i in icons:
-            btn = QPushButton(i)
-            btn.setIcon(self.style().standardIcon(getattr(QStyle, i)))
 
+        for name in icons:
+            btn = QPushButton()
+            btn.setIcon(self.style().standardIcon(getattr(QStyle, name)))
+            btn.clicked.connect(lambda : QApplication.clipboard().setText(name))
+            btn.setToolTip(name)
+            layout.addWidget(btn, count / colSize, count % colSize)
+            count += 1
+
+        i = QDirIterator(":", QDirIterator.Subdirectories)
+        while i.hasNext():
+            path = i.next()
+            btn = QPushButton()
+            btn.clicked.connect(lambda: QApplication.clipboard().setText(path))
+            btn.setToolTip(path)
+            btn.setIcon(QIcon(path))
             layout.addWidget(btn, count / colSize, count % colSize)
             count += 1
 
         self.setLayout(layout)
+from PyQt4.QtCore import *
+i = QDirIterator(":/timeseriesviewer", QDirIterator.Subdirectories)
+while i.hasNext(): print(i.next())
 
-
-if __name__ == '__main__':
+def run():
     app = QApplication(sys.argv)
 
-    dialog = Widget()
+    dialog = AvailableIcons()
+    dialog.setWindowModality(Qt.ApplicationModal)
     dialog.show()
 
     app.exec_()
+if __name__ == '__main__':
+    run()
