@@ -12,7 +12,7 @@ from PyQt4.QtXml import *
 
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp, findAbsolutePath
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
     if trans is None:
@@ -44,6 +44,16 @@ def convertMetricUnit(value, u1, u2):
     e2 = METRIC_EXPONENTS[u2]
 
     return value * 10**(e1-e2)
+
+def verifyVRT(pathVRT):
+
+    ds = gdal.Open(pathVRT)
+    if ds is None:
+        return False
+    s = ""
+
+    return True
+
 
 
 class SensorInstrument(QObject):
@@ -79,8 +89,8 @@ class SensorInstrument(QObject):
         self.bandDataType = refLyr.dataProvider().dataType(1)
         self.refUri = refLyr.dataProvider().dataSourceUri()
         r = refLyr.renderer()
-        self.defaultRGB = [r.redBand(), r.greenBand(), r.blueBand()]
-        s = ""
+
+
         """
         dom = QDomDocument()
         root = dom.createElement('root')
@@ -118,6 +128,8 @@ class SensorInstrument(QObject):
 
         self.hashvalue = hash(','.join(self.bandNames))
 
+    def dataType(self, p_int):
+        return self.bandDataType
 
     def bandClosestToWavelength(self, wl, wl_unit='nm'):
         """
@@ -164,7 +176,7 @@ class SensorInstrument(QObject):
         info.append('{} Bands'.format(self.nb))
         info.append('Band\tName\tWavelength')
         for b in range(self.nb):
-            if self.wavelengths:
+            if self.wavelengths is not None:
                 wl = str(self.wavelengths[b])
             else:
                 wl = 'unknown'
@@ -208,14 +220,51 @@ class TSDLoader(QRunnable):
         #return lyrs
 
 
+def verifyInputImage(path, vrtInspection=''):
+
+    if not os.path.exists(path):
+        print('{}Image does not exist: '.format(vrtInspection, path))
+        return False
+    ds = gdal.Open(path)
+    if not ds:
+        print('{}GDAL unable to open: '.format(vrtInspection, path))
+        return False
+    if ds.GetDriver().ShortName == 'VRT':
+        vrtInspection = 'Inspection {}\n'.format(path)
+        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in set(ds.GetFileList()) - set([path])]
+        return all(validSrc)
+    else:
+        return True
+
+
 class TimeSeriesDatum(QObject):
+    @staticmethod
+    def createFromPath(path):
+        """
+        Creates a valid TSD or returns None if this is impossible
+        :param path:
+        :return:
+        """
+        p = findAbsolutePath(path)
+        if verifyInputImage(p):
+            return TimeSeriesDatum(None, p)
+        else:
+            return None
+
+
+
     """
     Collects all data sets related to one sensor
     """
+    sigVisibilityChanged = pyqtSignal(bool)
+    sigRemoveMe = pyqtSignal()
 
-    def __init__(self, pathImg, pathMsk=None):
+
+
+    def __init__(self, timeSeries, pathImg, pathMsk=None):
         super(TimeSeriesDatum,self).__init__()
         assert os.path.exists(pathImg)
+        self.timeSeries = timeSeries
         self.pathImg = pathImg
         self.pathMsk = None
 
@@ -234,12 +283,24 @@ class TimeSeriesDatum(QObject):
         self.nb = self.lyrImg.bandCount()
         self.srs_wkt = str(self.crs.toWkt())
 
+        self.mVisibility = True
 
         if pathMsk:
             self.setMask(pathMsk)
 
-    def getdtype(self):
-        return gdal_array.GDALTypeCodeToNumericTypeCode(self.etype)
+
+    def rank(self):
+        return self.timeSeries.index(self)
+
+    def setVisibility(self, b):
+        old = self.mVisibility
+        self.mVisibility = b
+        if old != self.mVisibility:
+            self.sigVisibilityChanged.emit(b)
+
+    def isVisible(self):
+        return self.mVisibility
+
 
     def getDate(self):
         return np.datetime64(self.date)
@@ -252,146 +313,6 @@ class TimeSeriesDatum(QObject):
         from timeseriesviewer.main import SpatialExtent
         extent = SpatialExtent(self.lyrImg.crs(), self.lyrImg.extent())
         return extent
-
-    def setMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True):
-        dsMsk = gdal.Open(pathMsk)
-        mskDate = getImageDate(dsMsk)
-
-
-        errors = list()
-        if mskDate and mskDate != self.getDate():
-            errors.append('Mask date differs from image date')
-        if self.ns != dsMsk.RasterXSize or self.nl != dsMsk.RasterYSize:
-            errors.append('Spatial size differs')
-        if dsMsk.RasterCount != 1:
-            errors.append('Mask has > 1 bands')
-
-        projImg = self.getSpatialReference()
-        projMsk = osr.SpatialReference()
-        projMsk.ImportFromWkt(dsMsk.GetProjection())
-
-        if not projImg.IsSame(projMsk):
-            errors.append('Spatial Reference differs from image')
-        if self.gt != list(dsMsk.GetGeoTransform()):
-            errors.append('Geotransformation differs from image')
-
-        if len(errors) > 0:
-            errors.insert(0, 'pathImg:{} \npathMsk:{}'.format(self.pathImg, pathMsk))
-            errors = '\n'.join(errors)
-            if raise_errors:
-                raise Exception(errors)
-            else:
-                six.print_(errors, file=sys.stderr)
-                return False
-        else:
-            self.pathMsk = pathMsk
-            self.mask_value = mask_value
-            self.exclude_mask_value = exclude_mask_value
-
-            return True
-
-    def readSpatialChip(self, geometry, srs=None, bands=[4,5,3]):
-
-        srs_img = osr.SpatialReference()
-        srs_img.ImportFromWkt(self.srs_wkt)
-
-
-        if type(geometry) is ogr.Geometry:
-            g_bb = geometry
-            srs_bb = g_bb.GetSpatialReference()
-        else:
-            assert srs is not None and type(srs) in [str, osr.SpatialReference]
-            if type(srs) is str:
-                srs_bb = osr.SpatialReference()
-                srs_bb.ImportFromWkt(srs)
-            else:
-                srs_bb = srs.Clone()
-            g_bb = ogr.CreateGeometryFromWkt(geometry, srs_bb)
-
-        assert srs_bb is not None and g_bb is not None
-        assert g_bb.GetGeometryName() == 'POLYGON'
-
-        if not srs_img.IsSame(srs_bb):
-            g_bb = g_bb.Clone()
-            g_bb.TransformTo(srs_img)
-
-        cx0,cx1,cy0,cy1 = g_bb.GetEnvelope()
-
-        ul_px = coordinate2px(self.gt, min([cx0, cx1]), max([cy0, cy1]))
-        lr_px = coordinate2px(self.gt, max([cx0, cx1]), min([cy0, cy1]))
-        lr_px = [c+1 for c in lr_px] #+1
-
-        return self.readImageChip([ul_px[0], lr_px[0]], [ul_px[1], lr_px[1]], bands=bands)
-
-    def readImageChip(self, px_x, px_y, bands=[4,5,3]):
-
-        ds = gdal.Open(self.pathImg, gdal.GA_ReadOnly)
-
-        assert len(px_x) == 2 and px_x[0] <= px_x[1]
-        assert len(px_y) == 2 and px_y[0] <= px_y[1]
-
-        ns = px_x[1]-px_x[0]+1
-        nl = px_y[1]-px_y[0]+1
-        assert ns >= 0
-        assert nl >= 0
-
-        src_ns = ds.RasterXSize
-        src_nl = ds.RasterYSize
-
-
-        chipdata = dict()
-
-
-
-        #pixel indices in source image
-        x0 = max([0, px_x[0]])
-        y0 = max([0, px_y[0]])
-        x1 = min([src_ns, px_x[1]])
-        y1 = min([src_nl, px_y[1]])
-        win_xsize = x1-x0+1
-        win_ysize = y1-y0+1
-
-        #pixel indices in image chip (ideally 0 and ns-1 or nl-1)
-        i0 = x0 - px_x[0]
-        i1 = i0 + win_xsize
-
-        j0 = y0 - px_y[0]
-        j1 = j0+ win_ysize
-
-
-
-
-        templateImg = np.zeros((nl,ns))
-        if self.nodata:
-            templateImg *= self.nodata
-
-        templateImg = templateImg.astype(self.getdtype())
-        templateMsk = np.ones((nl,ns), dtype='bool')
-
-        if win_xsize < 1 or win_ysize < 1:
-            six.print_('Selected image chip is out of raster image {}'.format(self.pathImg), file=sys.stderr)
-            for i, b in enumerate(bands):
-                chipdata[b] = np.copy(templateImg)
-
-        else:
-            for i, b in enumerate(bands):
-                band = ds.GetRasterBand(b)
-                data = np.copy(templateImg)
-                data[j0:j1,i0:i1] = band.ReadAsArray(xoff=x0, yoff=y0, win_xsize=win_xsize,win_ysize=win_ysize)
-                chipdata[b] = data
-                nodatavalue = band.GetNoDataValue()
-                if nodatavalue is not None:
-                    templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], data[j0:j1,i0:i1] != nodatavalue)
-
-            if self.pathMsk:
-                ds = gdal.Open(self.pathMsk)
-                tmp = ds.GetRasterBand(1).ReadAsArray(xoff=x0, yoff=y0, \
-                            win_xsize=win_xsize,win_ysize=win_ysize) == 0
-
-                templateMsk[j0:j1,i0:i1] = np.logical_and(templateMsk[j0:j1,i0:i1], tmp)
-
-        chipdata['mask'] = templateMsk
-        return chipdata
 
     def __repr__(self):
         return 'TS Datum {} {}'.format(self.date, str(self.sensor))
@@ -413,15 +334,12 @@ class TimeSeriesDatum(QObject):
 
 
 class TimeSeries(QObject):
+
     sigTimeSeriesDatesAdded = pyqtSignal(list)
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
-    #fire when a new sensor configuration is added
+
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
-
-    sigProgress = pyqtSignal(int, int, int, name='progress')
-    sigClosed = pyqtSignal()
-    sigError = pyqtSignal(object)
 
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
@@ -518,105 +436,6 @@ class TimeSeries(QObject):
             tsds = self.data
         return tsds
 
-    def _callback_error(self, error):
-        six.print_(error, file=sys.stderr)
-        self.sigError.emit(error)
-        self._callback_progress()
-
-    def _callback_spatialchips(self, results):
-        self.chipLoaded.emit(results)
-        self._callback_progress()
-
-    def _callback_progress(self):
-        self._callback_progress_done += 1
-        self.sigProgress.emit(0, self._callback_progress_done, self._callback_progress_max)
-
-        if self._callback_progress_done >= self._callback_progress_max:
-            self._callback_progress_done = 0
-            self._callback_progress_max = 0
-            self.sigProgress.emit(0, 0, 1)
-
-    def getSpatialChips_parallel(self, bbWkt, srsWkt, TSD_band_list, ncpu=1):
-        assert type(bbWkt) is str and type(srsWkt) is str
-
-        import multiprocessing
-        if self.Pool is not None:
-            self.Pool.terminate()
-
-        self.Pool = multiprocessing.Pool(processes=ncpu)
-
-
-        self._callback_progress_max = len(TSD_band_list)
-        self._callback_progress_done = 0
-
-        for T in TSD_band_list:
-
-            TSD = copy.deepcopy(T[0])
-            bands = T[1]
-            #TSD = pickle.dumps(self.data[date])
-            args = (TSD, bbWkt, srsWkt)
-            kwds = {'bands':bands}
-
-            if six.PY3:
-                self.Pool.apply_async(PFunc_TimeSeries_getSpatialChip, \
-                                 args=args, kwds=kwds, \
-                                 callback=self._callback_spatialchips, error_callback=self._callback_error)
-            else:
-                self.Pool.apply_async(PFunc_TimeSeries_getSpatialChip, \
-                                      args, kwds, self._callback_spatialchips)
-
-        s = ""
-
-        pass
-
-    def getImageChips(self, xy, size=50, bands=[4,5,6], dates=None):
-        chipCollection = collections.OrderedDict()
-
-        if dates is None:
-            dates = self.data.keys()
-        for date in dates:
-            TSD = self.data[date]
-            chipCollection[date] = TSD.readImageChip(xy, size=size, bands=bands)
-
-        return chipCollection
-
-    def addMasks(self, files, raise_errors=True, mask_value=0, exclude_mask_value=True):
-        assert isinstance(files, list)
-        l = len(files)
-
-        self.sigProgress.emit(0, 0, l)
-        for i, file in enumerate(files):
-
-            try:
-                self.addMask(file, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value, _quiet=True)
-            except:
-                pass
-
-            self.sigProgress.emit(0, i + 1, l)
-
-        self.sigProgress.emit(0, 0, 1)
-        self.sigChanged.emit()
-
-    def addMask(self, pathMsk, raise_errors=True, mask_value=0, exclude_mask_value=True, _quiet=False):
-        print('Add mask {}...'.format(pathMsk))
-        ds = getDS(pathMsk)
-        date = getImageDate(ds)
-
-        if date in self.data.keys():
-            TSD = self.data[date]
-
-            if not _quiet:
-                self.sigChanged.emit()
-
-            return TSD.setMask(pathMsk, raise_errors=raise_errors, mask_value=mask_value, exclude_mask_value=exclude_mask_value)
-        else:
-            info = 'TimeSeries does not contain date {} {}'.format(date, pathMsk)
-            if raise_errors:
-                raise Exception(info)
-            else:
-                six.print_(info, file=sys.stderr)
-            return False
-
     def clear(self):
         self.Sensors.clear()
         dates = self.data[:]
@@ -628,12 +447,16 @@ class TimeSeries(QObject):
         removed = list()
         for TSD in TSDs:
             assert type(TSD) is TimeSeriesDatum
+            self.data.remove(TSD)
+            TSD.timeSeries = None
+            removed.append(TSD)
+
             S = TSD.sensor
-            self.Sensors[S].remove(TSD)
+            #self.Sensors[S].remove(TSD)
             if len(self.Sensors[S]) == 0:
                 self.Sensors.pop(S)
                 self.sigSensorRemoved(S)
-            removed.append(self.data.pop(TSD, None))
+
         self.sigTimeSeriesDatesRemoved.emit(removed)
 
 
@@ -655,7 +478,10 @@ class TimeSeries(QObject):
                 else:
                     self.Sensors[TSD.sensor].append(TSD)
                     #insert sorted
+
                     bisect.insort(self.data, TSD)
+                    TSD.timeSeries = self
+                    TSD.sigRemoveMe.connect(lambda : self.removeDates([TSD]))
                     added.append(TSD)
                 if sensorAdded:
                     self.sigSensorAdded.emit(TSD.sensor)
@@ -670,32 +496,14 @@ class TimeSeries(QObject):
             self.sigTimeSeriesDatesAdded.emit(added)
 
 
-    def addFilesAsync(self, files):
-        assert isinstance(files, list)
-
-    def findAbsolutePath(self,file):
-        if os.path.exists(file): return file
-        possibleRoots = [DIR_EXAMPLES, DIR_REPO, os.getcwd()]
-        for root in possibleRoots:
-            tmp = jp(root, file)
-            if os.path.exists(tmp):
-                return tmp
-        return None
-
     def addFiles(self, files):
         assert isinstance(files, list)
-        l = len(files)
-        assert l > 0
-        toadd = list()
-
         for i, file in enumerate(files):
-            tmp = self.findAbsolutePath(file)
-            if tmp:
-                toadd.append(TimeSeriesDatum(tmp))
-                six.print_('Add image {}...'.format(tmp))
+            tsd = TimeSeriesDatum.createFromPath(file)
+            if tsd is None:
+                dprint('Unable to add: {}'.format(file), file=sys.stderr)
             else:
-                dprint('Unable to locate: {}'.format(file), file=sys.stderr)
-        self.addTimeSeriesDates(toadd)
+                self.addTimeSeriesDates([tsd])
 
     def __len__(self):
         return len(self.data)
@@ -703,8 +511,11 @@ class TimeSeries(QObject):
     def __iter__(self):
         return iter(self.data)
 
-    def __getitem__(self, key):
-        return self.data[key]
+    def __getitem__(self, slice):
+        return self.data[slice]
+
+    def __delitem__(self, slice):
+        self.removeDates(slice)
 
     def __contains__(self, item):
         return item in self.data
