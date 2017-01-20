@@ -1,0 +1,16 @@
+[general]
+name=HUB TimeSeriesViewer
+description=A viewer to explore remote sensing time series data
+about=HUB Time Series Viewer
+category=Analysis
+version=0.02
+qgisMinimumVersion=2.18
+
+author=Benjamin Jakimow
+email=benjamin.jakimow@geo.hu-berlin.de
+
+icon=timeseriesviewer/ui/icons/icon.png
+
+homepage=https://bitbucket.org/jakimowb/sensecarbontsviewer
+tracker=https://bitbucket.org/jakimowb/sensecarbontsviewer/issues
+repository=https://bitbucket.org/jakimowb/sensecarbontsviewer.git
