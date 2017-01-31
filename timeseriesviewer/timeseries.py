@@ -268,6 +268,7 @@ class TimeSeriesDatum(QObject):
         self.pathImg = pathImg
         self.pathMsk = None
 
+        assert os.path.exists(pathImg)
         self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
         assert self.lyrImg.isValid()
         self.uriImg = self.lyrImg.dataProvider().dataSourceUri()
@@ -275,7 +276,7 @@ class TimeSeriesDatum(QObject):
         self.crs = self.lyrImg.dataProvider().crs()
         self.sensor = SensorInstrument(self.lyrImg)
 
-        self.date = getImageDate2(self.lyrImg)
+        self.date = getImageDate(self.lyrImg)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
 
         self.ns = self.lyrImg.width()
@@ -413,8 +414,6 @@ class TimeSeries(QObject):
         with open(path, 'w') as f:
             f.writelines(lines)
 
-
-
     def getMaxSpatialExtent(self, crs=None):
         if len(self.data) == 0:
             return None
@@ -429,11 +428,13 @@ class TimeSeries(QObject):
     def getObservationDates(self):
         return [tsd.getDate() for tsd in self.data]
 
-    def getTSDs(self, date_of_interest=None):
-        if date_of_interest:
-            tsds = [tsd for tsd in self.data if tsd.getDate() == date_of_interest]
+    def getTSDs(self, dateOfInterest=None, sensorOfInterest=None):
+        if dateOfInterest:
+            tsds = [tsd for tsd in self.data if tsd.getDate() == dateOfInterest]
         else:
             tsds = self.data
+        if sensorOfInterest:
+            tsds = [tsd for tsd in tsds if tsd.sensor == sensorOfInterest]
         return tsds
 
     def clear(self):
@@ -532,7 +533,7 @@ class TimeSeries(QObject):
 regAcqDate = re.compile(r'acquisition[ ]*(time|date|day)', re.I)
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
 
-def getImageDate2(lyr):
+def getImageDate(lyr):
     assert isinstance(lyr, QgsRasterLayer)
     mdLines = str(lyr.metadata()).splitlines()
     date = None
