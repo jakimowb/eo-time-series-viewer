@@ -30,6 +30,247 @@ import PyQt4.QtWebKit
 
 import sys, re, os, six
 
+#widgets defined without UI file
+class TsvScrollArea(QScrollArea):
+
+    sigResized = pyqtSignal()
+    def __init__(self, *args, **kwds):
+        super(TsvScrollArea, self).__init__(*args, **kwds)
+
+    def resizeEvent(self, event):
+        super(TsvScrollArea, self).resizeEvent(event)
+        self.sigResized.emit()
+
+class TsvMapCanvas(QgsMapCanvas):
+
+    saveFileDirectories = dict()
+    #sigRendererChanged = pyqtSignal(QgsRasterRenderer)
+
+    def __init__(self, tsdView, mapView, parent=None):
+        super(TsvMapCanvas, self).__init__(parent=parent)
+        from timeseriesviewer.main import TimeSeriesDatumView, MapView
+        assert isinstance(tsdView, TimeSeriesDatumView)
+        assert isinstance(mapView, MapView)
+
+
+
+        #the canvas
+        self.setCrsTransformEnabled(True)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
+        self.setContextMenuPolicy(Qt.DefaultContextMenu)
+
+        self.qgsInteraction = QgisTsvBridge.instance()
+
+        #self.scrollAreaContent = tsdView.TSDVC.STViz.targetLayout.parentWidget()
+        #self.viewport = tsdView.TSDVC.STViz.targetLayout.parentWidget().parentWidget()
+        self.scrollArea = tsdView.scrollArea
+        assert isinstance(self.scrollArea, TsvScrollArea)
+        self.scrollArea.sigResized.connect(self.setRenderMe)
+        self.scrollArea.horizontalScrollBar().valueChanged.connect(self.setRenderMe)
+
+        self.tsdView = tsdView
+        self.mapView = mapView
+
+        self.renderMe = False
+        self.setRenderMe()
+
+        self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
+        self.mapView.sigMapViewVisibility.connect(self.setVisible)
+        self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
+        self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
+        QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
+
+        self.MapCanvasLayers = [QgsMapCanvasLayer(self.referenceLayer)]
+        self.setLayerSet(self.MapCanvasLayers)
+        #todo: handle QGIS interaction
+
+        #set raster layer style
+
+        self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
+        self.setRenderer(self.sensorView.layerRenderer())
+
+
+        self.MAPTOOLS = dict()
+        self.MAPTOOLS['zoomOut'] = QgsMapToolZoom(self, True)
+        self.MAPTOOLS['zoomIn'] = QgsMapToolZoom(self, False)
+        self.MAPTOOLS['pan'] = QgsMapToolPan(self)
+
+    def refresh(self):
+
+        self.setRenderMe()
+        super(TsvMapCanvas, self).refresh()
+
+
+    def setRenderMe(self):
+        oldFlag = self.renderFlag()
+
+        newFlag = self.visibleRegion().boundingRect().isValid() and self.isVisible() and self.tsdView.TSD.isVisible()
+        if oldFlag != newFlag:
+            self.setRenderFlag(newFlag)
+        #print((self.tsdView.TSD, self.renderFlag()))
+        #return b.isValid()
+
+    def pixmap(self):
+        """
+        Returns the current map image as pixmap
+        :return:
+        """
+        return QPixmap(self.map().contentImage().copy())
+
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+        # add general options
+        menu.addSeparator()
+        action = menu.addAction('Stretch using current Extent')
+        action = menu.addAction('Zoom to Layer')
+        action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
+        menu.addSeparator()
+
+
+        action = menu.addAction('Copy to Clipboard')
+        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+        m = menu.addMenu('Save as...')
+        action = m.addAction('PNG')
+        action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
+        action = m.addAction('JPEG')
+        action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
+
+
+        if self.qgsInteraction:
+            assert isinstance(self.qgsInteraction, QgisTsvBridge)
+            action = m.addAction('Add layer to QGIS')
+
+            action = m.addAction('Import extent from QGIS')
+            action = m.addAction('Export extent to QGIS')
+            s = ""
+
+
+
+
+        menu.addSeparator()
+        TSD = self.tsdView.TSD
+        action = menu.addAction('Hide date')
+        action.triggered.connect(lambda : self.tsdView.TSD.setVisibility(False))
+        action = menu.addAction('Remove date')
+        action.triggered.connect(lambda: TSD.timeSeries.removeDates([TSD]))
+        action = menu.addAction('Remove map view')
+        action.triggered.connect(lambda: self.mapView.sigRemoveMapView.emit(self.mapView))
+        action = menu.addAction('Hide map view')
+        action.triggered.connect(lambda: self.mapView.sigHideMapView.emit())
+
+
+        menu.exec_(event.globalPos())
+
+    def activateMapTool(self, key):
+        if key is None:
+            self.setMapTool(None)
+        else:
+            self.setMapTool(self.MAPTOOLS[key])
+
+    def saveMapImageDialog(self, fileType):
+        lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
+        path = jp(lastDir, '{}.{}.{}'.format(self.tsdView.TSD.date, self.mapView.title(), fileType.lower()))
+
+        path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
+        if len(path) > 0:
+            self.saveAsImage(path, None, fileType)
+            SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
+
+
+    def setRenderer(self, renderer, targetLayerUri=None):
+        if targetLayerUri is None:
+            targetLayerUri = str(self.referenceLayer.source())
+
+        lyrs = [mcl.layer() for mcl in self.MapCanvasLayers if str(mcl.layer().source()) == targetLayerUri]
+        assert len(lyrs) <= 1
+        for lyr in lyrs:
+            r = renderer.clone()
+            r.setInput(lyr.dataProvider())
+            lyr.setRenderer(r)
+
+        self.refresh()
+
+    def setSpatialExtent(self, spatialExtent):
+        assert isinstance(spatialExtent, SpatialExtent)
+        if self.spatialExtent() != spatialExtent:
+            self.blockSignals(True)
+            self.setDestinationCrs(spatialExtent.crs())
+            self.setExtent(spatialExtent)
+            self.blockSignals(False)
+            self.refresh()
+
+
+    def spatialExtent(self):
+        return SpatialExtent.fromMapCanvas(self)
+
+
+
+class VerticalLabel(QLabel):
+    def __init__(self, text, orientation='vertical', forceWidth=True):
+        QLabel.__init__(self, text)
+        self.forceWidth = forceWidth
+        self.orientation = None
+        self.setOrientation(orientation)
+
+    def setOrientation(self, o):
+        if self.orientation == o:
+            return
+        self.orientation = o
+        self.update()
+        self.updateGeometry()
+
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        # p.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 200)))
+        # p.setPen(QtGui.QPen(QtGui.QColor(50, 50, 100)))
+        # p.drawRect(self.rect().adjusted(0, 0, -1, -1))
+
+        # p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
+
+        if self.orientation == 'vertical':
+            p.rotate(-90)
+            rgn = QRect(-self.height(), 0, self.height(), self.width())
+        else:
+            rgn = self.contentsRect()
+        align = self.alignment()
+        # align  = QtCore.Qt.AlignTop|QtCore.Qt.AlignHCenter
+
+        self.hint = p.drawText(rgn, align, self.text())
+        p.end()
+
+        if self.orientation == 'vertical':
+            self.setMaximumWidth(self.hint.height())
+            self.setMinimumWidth(0)
+            self.setMaximumHeight(16777215)
+            if self.forceWidth:
+                self.setMinimumHeight(self.hint.width())
+            else:
+                self.setMinimumHeight(0)
+        else:
+            self.setMaximumHeight(self.hint.height())
+            self.setMinimumHeight(0)
+            self.setMaximumWidth(16777215)
+            if self.forceWidth:
+                self.setMinimumWidth(self.hint.width())
+            else:
+                self.setMinimumWidth(0)
+
+    def sizeHint(self):
+        if self.orientation == 'vertical':
+            if hasattr(self, 'hint'):
+                return QSize(self.hint.height(), self.hint.width())
+            else:
+                return QSize(19, 50)
+        else:
+            if hasattr(self, 'hint'):
+                return QSize(self.hint.width(), self.hint.height())
+            else:
+                return QSize(50, 19)
+
+
+
+
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
 from timeseriesviewer.main import SpatialExtent, QgisTsvBridge, TsvMimeDataUtils
@@ -272,68 +513,6 @@ class AboutDialogUI(QDialog,
         self.setWindowTitle(title)
 
 
-class VerticalLabel(QLabel):
-    def __init__(self, text, orientation='vertical', forceWidth=True):
-        QLabel.__init__(self, text)
-        self.forceWidth = forceWidth
-        self.orientation = None
-        self.setOrientation(orientation)
-
-    def setOrientation(self, o):
-        if self.orientation == o:
-            return
-        self.orientation = o
-        self.update()
-        self.updateGeometry()
-
-    def paintEvent(self, ev):
-        p = QPainter(self)
-        # p.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 200)))
-        # p.setPen(QtGui.QPen(QtGui.QColor(50, 50, 100)))
-        # p.drawRect(self.rect().adjusted(0, 0, -1, -1))
-
-        # p.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))
-
-        if self.orientation == 'vertical':
-            p.rotate(-90)
-            rgn = QRect(-self.height(), 0, self.height(), self.width())
-        else:
-            rgn = self.contentsRect()
-        align = self.alignment()
-        # align  = QtCore.Qt.AlignTop|QtCore.Qt.AlignHCenter
-
-        self.hint = p.drawText(rgn, align, self.text())
-        p.end()
-
-        if self.orientation == 'vertical':
-            self.setMaximumWidth(self.hint.height())
-            self.setMinimumWidth(0)
-            self.setMaximumHeight(16777215)
-            if self.forceWidth:
-                self.setMinimumHeight(self.hint.width())
-            else:
-                self.setMinimumHeight(0)
-        else:
-            self.setMaximumHeight(self.hint.height())
-            self.setMinimumHeight(0)
-            self.setMaximumWidth(16777215)
-            if self.forceWidth:
-                self.setMinimumWidth(self.hint.width())
-            else:
-                self.setMinimumWidth(0)
-
-    def sizeHint(self):
-        if self.orientation == 'vertical':
-            if hasattr(self, 'hint'):
-                return QSize(self.hint.height(), self.hint.width())
-            else:
-                return QSize(19, 50)
-        else:
-            if hasattr(self, 'hint'):
-                return QSize(self.hint.width(), self.hint.height())
-            else:
-                return QSize(50, 19)
-
 class MapViewDefinitionUI(QGroupBox, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI)):
 
     sigHideMapView = pyqtSignal()
@@ -425,148 +604,6 @@ class MapViewRenderSettingsUI(QGroupBox,
         self.btnPasteStyle.setDefaultAction(self.actionPasteStyle)
         self.btnCopyStyle.setDefaultAction(self.actionCopyStyle)
         self.btnApplyStyle.setDefaultAction(self.actionApplyStyle)
-
-
-class TsvMapCanvas(QgsMapCanvas):
-
-    saveFileDirectories = dict()
-    #sigRendererChanged = pyqtSignal(QgsRasterRenderer)
-
-    def __init__(self, tsdView, mapView, parent=None):
-        super(TsvMapCanvas, self).__init__(parent)
-        from timeseriesviewer.main import TimeSeriesDatumView, MapView
-        assert isinstance(tsdView, TimeSeriesDatumView)
-        assert isinstance(mapView, MapView)
-
-        #the canvas
-        self.setCrsTransformEnabled(True)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
-        self.setContextMenuPolicy(Qt.DefaultContextMenu)
-
-        self.qgsInteraction = QgisTsvBridge.instance()
-
-        self.tsdView = tsdView
-        self.mapView = mapView
-        self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
-        self.mapView.sigMapViewVisibility.connect(self.setVisible)
-        self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
-        self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
-        QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
-
-        self.MapCanvasLayers = [QgsMapCanvasLayer(self.referenceLayer)]
-        self.setLayerSet(self.MapCanvasLayers)
-        #todo: handle QGIS interaction
-
-        #set raster layer style
-
-        self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
-        self.setRenderer(self.sensorView.layerRenderer())
-
-
-        self.MAPTOOLS = dict()
-        self.MAPTOOLS['zoomOut'] = QgsMapToolZoom(self, True)
-        self.MAPTOOLS['zoomIn'] = QgsMapToolZoom(self, False)
-        self.MAPTOOLS['pan'] = QgsMapToolPan(self)
-
-    def setVisibilityFromCollections(self):
-        b = self.mapView.visibility() and self.tsdView.TSD.isVisible()
-        self.setVisible(b)
-
-    def pixmap(self):
-        """
-        Returns the current map image as pixmap
-        :return:
-        """
-        return QPixmap(self.map().contentImage().copy())
-
-    def contextMenuEvent(self, event):
-        menu = QMenu()
-        # add general options
-        menu.addSeparator()
-        action = menu.addAction('Stretch using current Extent')
-        action = menu.addAction('Zoom to Layer')
-        action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
-        menu.addSeparator()
-
-
-        action = menu.addAction('Copy to Clipboard')
-        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
-        m = menu.addMenu('Save as...')
-        action = m.addAction('PNG')
-        action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
-        action = m.addAction('JPEG')
-        action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
-
-
-        if self.qgsInteraction:
-            assert isinstance(self.qgsInteraction, QgisTsvBridge)
-            action = m.addAction('Add layer to QGIS')
-
-            action = m.addAction('Import extent from QGIS')
-            action = m.addAction('Export extent to QGIS')
-            s = ""
-
-
-
-
-        menu.addSeparator()
-        TSD = self.tsdView.TSD
-        action = menu.addAction('Hide date')
-        action.triggered.connect(lambda : self.tsdView.TSD.setVisibility(False))
-        action = menu.addAction('Remove date')
-        action.triggered.connect(lambda: TSD.timeSeries.removeDates([TSD]))
-        action = menu.addAction('Remove map view')
-        action.triggered.connect(lambda: self.mapView.sigRemoveMapView.emit(self.mapView))
-        action = menu.addAction('Hide map view')
-        action.triggered.connect(lambda: self.mapView.sigHideMapView.emit())
-
-
-        menu.exec_(event.globalPos())
-
-    def activateMapTool(self, key):
-        if key is None:
-            self.setMapTool(None)
-        else:
-            self.setMapTool(self.MAPTOOLS[key])
-
-    def saveMapImageDialog(self, fileType):
-        lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
-        path = jp(lastDir, '{}.{}.{}'.format(self.tsdView.TSD.date, self.mapView.title(), fileType.lower()))
-
-        path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
-        if len(path) > 0:
-            self.saveAsImage(path, None, fileType)
-            SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
-
-
-    def setRenderer(self, renderer, targetLayerUri=None):
-        if targetLayerUri is None:
-            targetLayerUri = str(self.referenceLayer.source())
-
-        lyrs = [mcl.layer() for mcl in self.MapCanvasLayers if str(mcl.layer().source()) == targetLayerUri]
-        assert len(lyrs) <= 1
-        for lyr in lyrs:
-            r = renderer.clone()
-            r.setInput(lyr.dataProvider())
-            lyr.setRenderer(r)
-
-        self.refresh()
-        a = ""
-        #self.refreshMap()
-
-
-    def setSpatialExtent(self, spatialExtent):
-        assert isinstance(spatialExtent, SpatialExtent)
-        if self.spatialExtent() != spatialExtent:
-            self.blockSignals(True)
-            self.setDestinationCrs(spatialExtent.crs())
-            self.setExtent(spatialExtent)
-            self.blockSignals(False)
-            self.refreshMap()
-
-    def spatialExtent(self):
-        return SpatialExtent.fromMapCanvas(self)
 
 
 
