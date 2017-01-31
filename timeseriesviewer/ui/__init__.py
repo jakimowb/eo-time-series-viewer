@@ -10,6 +10,7 @@ FORM_CLASSES = dict()
 
 from timeseriesviewer import jp, DIR_UI, dprint
 
+
 def loadUIFormClass(pathUi, from_imports=False):
     """
     Load UI files and takes care on Qgs custom widgets
