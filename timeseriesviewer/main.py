@@ -916,8 +916,8 @@ class TimeSeriesViewer:
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        from timeseriesviewer.ui.docks import ProfileView
-        self.spectralTemporalVis = ProfileView(self)
+
+        self.spectralTemporalVis = D.dockProfiles
 
 
         self.ValidatorPxX = QIntValidator(0,99999)
