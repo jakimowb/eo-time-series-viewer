@@ -43,6 +43,19 @@ class SensorDockUI(TsvDockWidgetBase, load('sensordock.ui')):
         super(SensorDockUI, self).__init__(parent)
         self.setupUi(self)
 
+        self.TS = None
+
+    def connectTimeSeries(self, timeSeries):
+        from timeseriesviewer.timeseries import TimeSeries
+        from timeseriesviewer.viewmodels import SensorTableModel
+        assert isinstance(timeSeries, TimeSeries)
+        self.TS = timeSeries
+        model = SensorTableModel(self.TS)
+        self.sensorView.setModel(model)
+        self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        s = ""
+
+
 
 class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     def __init__(self, parent=None):
@@ -138,7 +151,6 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
         self.timeSeriesInitialized = False
         if TS is not None:
             TS.sigTimeSeriesDatesAdded.connect(self.updateFromTimeSeries)
-
         self.updateFromTimeSeries()
 
 
@@ -279,7 +291,7 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
         self.SM = None
         self.timeSeriesInitialized = False
         if TS is not None:
-            from timeseriesviewer.main import TimeSeriesTableModel
+            from timeseriesviewer.viewmodels import TimeSeriesTableModel
             self.TSM = TimeSeriesTableModel(self.TS)
             self.tableView_TimeSeries.setModel(self.TSM)
             self.SM = QItemSelectionModel(self.TSM)
@@ -342,6 +354,8 @@ class LabelingDockUI(TsvDockWidgetBase, load('labelingdock.ui')):
         self.setupUi(self)
 
         self.btnClearLabelList.clicked.connect(self.tbCollectedLabels.clear)
+
+
 
 if __name__ == '__main__':
     import site, sys
