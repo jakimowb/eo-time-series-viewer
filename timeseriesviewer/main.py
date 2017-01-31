@@ -56,6 +56,7 @@ import codecs
 
 #abbreviations
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, dprint
+from timeseriesviewer.timeseries import *
 
 site.addsitedir(DIR_SITE_PACKAGES)
 
@@ -273,177 +274,7 @@ class QgisTsvBridge(QObject):
 
 
 
-from timeseriesviewer.ui.widgets import *
-from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
-class SensorTableModel(QAbstractTableModel):
-    columnames = ['sensor', 'nb', 'n images']
-
-    def __init__(self, TS, parent=None, *args):
-        super(SensorTableModel, self).__init__()
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-
-
-class TimeSeriesTableModel(QAbstractTableModel):
-    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image', 'mask']
-
-    def __init__(self, TS, parent=None, *args):
-
-        super(TimeSeriesTableModel, self).__init__()
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-
-        self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
-        self.TS.sigTimeSeriesDatesAdded.connect(self.addTSDs)
-
-        self.items = []
-        self.sortColumnIndex = 0
-        self.sortOrder = Qt.AscendingOrder
-        self.addTSDs([tsd for tsd in self.TS])
-
-    def removeTSDs(self, tsds):
-        #self.TS.removeDates(tsds)
-        for tsd in tsds:
-            if tsd in self.TS:
-                #remove from TimeSeries first.
-                self.TS.removeDates([tsd])
-            elif tsd in self.items:
-                idx = self.getIndexFromDate(tsd)
-                self.removeRows(idx.row(), 1)
-
-        #self.sort(self.sortColumnIndex, self.sortOrder)
-
-
-    def addTSDs(self, tsds):
-        self.items.extend(tsds)
-        self.sort(self.sortColumnIndex, self.sortOrder)
-
-
-
-    def sort(self, col, order):
-        if self.rowCount() == 0:
-            return
-
-        self.layoutAboutToBeChanged.emit()
-        colName = self.columnames[col]
-        r = order != Qt.AscendingOrder
-
-        if colName in ['date','ns','nl','sensor']:
-            self.items.sort(key = lambda d:d.__dict__[colName], reverse=r)
-
-        self.layoutChanged.emit()
-        s = ""
-
-
-    def rowCount(self, parent = QModelIndex()):
-        return len(self.items)
-
-
-    def removeRows(self, row, count , parent=QModelIndex()):
-        self.beginRemoveRows(parent, row, row+count-1)
-        toRemove = self.items[row:row+count]
-        for tsd in toRemove:
-            self.items.remove(tsd)
-        self.endRemoveRows()
-
-    def getIndexFromDate(self, tsd):
-        return self.createIndex(self.items.index(tsd),0)
-
-    def getDateFromIndex(self, index):
-        if index.isValid():
-            return self.items[index.row()]
-        return None
-
-    def getTimeSeriesDatumFromIndex(self, index):
-        if index.isValid():
-            i = index.row()
-            if i >= 0 and i < len(self.items):
-                return self.items[i]
-
-        return None
-
-    def columnCount(self, parent = QModelIndex()):
-        return len(self.columnames)
-
-    def data(self, index, role = Qt.DisplayRole):
-        if role is None or not index.isValid():
-            return None
-
-        value = None
-        columnName = self.columnames[index.column()]
-
-        TSD = self.getTimeSeriesDatumFromIndex(index)
-        keys = list(TSD.__dict__.keys())
-
-
-        if role == Qt.DisplayRole or role == Qt.ToolTipRole:
-            if columnName == 'name':
-                value = os.path.basename(TSD.pathImg)
-            elif columnName == 'sensor':
-                if role == Qt.ToolTipRole:
-                    value = TSD.sensor.getDescription()
-                else:
-                    value = str(TSD.sensor)
-            elif columnName == 'date':
-                value = '{}'.format(TSD.date)
-            elif columnName == 'image':
-                value = TSD.pathImg
-            elif columnName == 'mask':
-                value = TSD.pathMsk
-            elif columnName in keys:
-                value = TSD.__dict__[columnName]
-            else:
-                s = ""
-        elif role == Qt.CheckStateRole:
-            if columnName == 'date':
-                value = Qt.Checked if TSD.isVisible() else Qt.Unchecked
-        elif role == Qt.BackgroundColorRole:
-            value = None
-        elif role == Qt.UserRole:
-            value = TSD
-
-        return value
-
-    def setData(self, index, value, role=None):
-        if role is None or not index.isValid():
-            return None
-
-        if role is Qt.UserRole:
-
-            s = ""
-
-        columnName = self.columnames[index.column()]
-
-        TSD = self.getTimeSeriesDatumFromIndex(index)
-        if columnName == 'date' and role == Qt.CheckStateRole:
-            TSD.setVisibility(value != Qt.Unchecked)
-            return True
-        else:
-            return False
-
-        return False
-
-    def flags(self, index):
-        if index.isValid():
-            TSD = self.getTimeSeriesDatumFromIndex(index)
-            columnName = self.columnames[index.column()]
-            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName == 'date': #allow check state
-                flags = flags | Qt.ItemIsUserCheckable
-
-            return flags
-            #return item.qt_flags(index.column())
-        return None
-
-    def headerData(self, col, orientation, role):
-        if Qt is None:
-            return None
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.columnames[col]
-        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
-        return None
 
 
 class MapView(QObject):
@@ -458,6 +289,7 @@ class MapView(QObject):
         super(MapView, self).__init__()
         assert isinstance(mapViewCollection, MapViewCollection)
         self.MVC = mapViewCollection
+        from timeseriesviewer.ui.widgets import MapViewDefinitionUI
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
@@ -520,6 +352,7 @@ class MapView(QObject):
         """
         assert type(sensor) is SensorInstrument
         assert sensor not in self.sensorViews.keys()
+        from timeseriesviewer.ui.widgets import MapViewSensorSettings
         w = MapViewSensorSettings(sensor)
 
         #w.showSensorName(False)
@@ -554,7 +387,8 @@ class TimeSeriesDatumView(QObject):
         assert isinstance(mapViewCollection, MapViewCollection)
 
         super(TimeSeriesDatumView, self).__init__()
-        self.ui = TimeSeriesDatumViewUI(parent)
+        from timeseriesviewer.ui.widgets import TimeSeriesDatumViewUI
+        self.ui = TimeSeriesDatumViewUI(parent=parent)
         self.ui.create()
 
         self.L = self.ui.layout()
@@ -564,6 +398,7 @@ class TimeSeriesDatumView(QObject):
         self.renderProgress = dict()
 
         self.TSD = TSD
+        self.scrollArea = timeSeriesDateViewCollection.scrollArea
         self.Sensor = self.TSD.sensor
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
         self.ui.labelTitle.setText(str(TSD.date))
@@ -626,6 +461,7 @@ class TimeSeriesDatumView(QObject):
 
         i = self.MVC.index(mapView)
 
+        from timeseriesviewer.ui.widgets import TsvMapCanvas
         canvas = TsvMapCanvas(self, mapView, parent=self.ui)
 
         canvas.setFixedSize(self.subsetSize)
@@ -658,7 +494,7 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(timeSeriesViewer, TimeSeriesViewer)
         super(SpatialTemporalVisualization, self).__init__()
 
-
+        self.TSV = timeSeriesViewer
         self.TS = timeSeriesViewer.TS
         self.targetLayout = timeSeriesViewer.ui.scrollAreaSubsetContent.layout()
         self.dockMapViews = timeSeriesViewer.ui.dockMapViews
@@ -679,7 +515,7 @@ class SpatialTemporalVisualization(QObject):
         self.MVC.createMapView()
 
     def activateMapTool(self, key):
-        for tsdv in self.TSDViews:
+        for tsdv in self.timeSeriesDateViewCollection:
             tsdv.activateMapTool(key)
 
     def setSubsetSize(self, size):
@@ -771,7 +607,8 @@ class TimeSeriesDateViewCollection(QObject):
 
         self.views = list()
         self.STViz = STViz
-
+        self.ui = self.STViz.targetLayout.parentWidget()
+        self.scrollArea = self.ui.parentWidget().parentWidget()
         #potentially there are many more dates than views.
         #therefore we implement the addinng/removing of mapviews here
         #we reduce the number of layout refresh calls by
@@ -786,7 +623,7 @@ class TimeSeriesDateViewCollection(QObject):
 
     def addMapView(self, mapView):
         assert isinstance(mapView, MapView)
-        w = self.STViz.targetLayout.parentWidget()
+        w = self.ui
         w.setUpdatesEnabled(False)
         for tsdv in self.views:
 
@@ -840,7 +677,7 @@ class TimeSeriesDateViewCollection(QObject):
         """
         for tsd in tsdList:
             assert isinstance(tsd, TimeSeriesDatum)
-            tsdView = TimeSeriesDatumView(tsd, self, self.STViz.MVC)
+            tsdView = TimeSeriesDatumView(tsd, self, self.STViz.MVC, parent=self.ui)
             tsdView.setSubsetSize(self.subsetSize)
 
             tsdView.sigExtentsChanged.connect(self.setSpatialExtent)
@@ -1013,6 +850,7 @@ class MapViewCollection(QObject):
 
     def recentMapViewDefinitions(self):
         parent = self.scrollAreaContent
+        from timeseriesviewer.ui.widgets import MapViewDefinitionUI
         return [ui.mapViewDefinition() for ui in parent.findChildren(MapViewDefinitionUI)]
 
 
@@ -1048,6 +886,7 @@ class TimeSeriesViewer:
         :type iface: QgsInterface
         """
         # Save reference to the QGIS interface
+
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
 
         self.ui = TimeSeriesViewerUI(parent=iface)
@@ -1072,11 +911,13 @@ class TimeSeriesViewer:
         #self.BVP = self.ui.scrollAreaMapViews.layout()
         D.dockNavigation.connectTimeSeries(self.TS)
         D.dockTimeSeries.connectTimeSeries(self.TS)
+        D.dockSensors.connectTimeSeries(self.TS)
 
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-
+        from timeseriesviewer.ui.docks import ProfileView
+        self.spectralTemporalVis = ProfileView(self)
 
 
         self.ValidatorPxX = QIntValidator(0,99999)
@@ -1088,7 +929,7 @@ class TimeSeriesViewer:
         #connect actions with logic
 
         D.actionSelectCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectCenter'))
-        D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
+        #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
         D.actionZoomMaxExtent.triggered.connect(lambda : self.zoomTo('maxExtent'))
         D.actionZoomPixelScale.triggered.connect(lambda: self.zoomTo('pixelScale'))
         D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomIn'))
@@ -1477,9 +1318,4 @@ def run_tests():
 
 if __name__ == '__main__':
     run_tests()
-
-    newExtent = model.convertSpatialExten(exten, crs)
-
-    ext = SpatialExtent()
-
     print('Done')
