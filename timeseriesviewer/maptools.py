@@ -9,7 +9,27 @@ import six
 import xml.etree
 from qgis.core import *
 
+from timeseriesviewer import SETTINGS
 from timeseriesviewer.main import SpatialExtent
+
+
+class CursorLocationValueMapTool(QgsMapTool):
+    sigLocationIdentified = pyqtSignal(list)
+    sigLocationRequest = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self.layerType = QgsMapToolIdentify.AllLayers
+        self.identifyMode = QgsMapToolIdentify.LayerSelection
+        QgsMapToolIdentify.__init__(self, canvas)
+
+
+    def canvasReleaseEvent(self, mouseEvent):
+        x = mouseEvent.x()
+        y = mouseEvent.y()
+        point = self.canvas.getCoordinateTransform().toMapCoordinates(x,y)
+        crs = self.canvas.mapRenderer().destinationCrs()
+        self.sigLocationRequest.emit(point, crs)
+
 
 def add_QgsRasterLayer(iface, path, rgb):
     if iface:
@@ -101,32 +121,48 @@ class PointMapTool(QgsMapToolEmitPoint):
     sigCoordinateSelected = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
     def __init__(self, canvas):
+
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.marker = QgsVertexMarker(self.canvas)
-        self.setStyle(Qt.red, 3, 5, QgsVertexMarker.ICON_CROSS)
+        self.setStyle()
 
-
-    def setStyle(self, color, penWidth, iconSize, iconType):
+    def setStyle(self):
+        color = QColor(SETTINGS.value('map_tool_color', Qt.red))
+        penWidth = 3
+        iconSize = 5
+        iconType = QgsVertexMarker.ICON_CROSS
         self.marker.setColor(color)
         self.marker.setPenWidth(penWidth)
         self.marker.setIconSize(iconSize)
         self.marker.setIconType(iconType)  # or ICON_CROSS, ICON_X
 
     def canvasPressEvent(self, e):
-        point = self.toMapCoordinates(e.pos())
-        self.marker.setCenter(point)
+        geoPoint = self.toMapCoordinates(e.pos())
+        self.marker.setCenter(geoPoint)
         self.marker.show()
 
     def canvasReleaseEvent(self, e):
-        point = self.toMapCoordinates(e.pos())
+
+
+        pixelPoint = e.pixelPoint()
+        _crs = self.canvas.mapRenderer().destinationCrs()
         crs = self.canvas.mapSettings().destinationCrs()
+        self.marker.hide()
         if crs:
-            self.marker.setCenter(point)
-            self.marker.hide()
-            self.sigCoordinateSelected.emit(point, crs)
+
+            geoPoint = self.toMapCoordinates(pixelPoint)
+            self.marker.setCenter(geoPoint)
+            self.sigCoordinateSelected.emit(geoPoint, crs)
 
 
+class PointLayersMapTool(PointMapTool):
+
+    def __init__(self, canvas):
+        super(PointLayersMapTool, self).__init__(self, canvas)
+        self.layerType = QgsMapToolIdentify.AllLayers
+        self.identifyMode = QgsMapToolIdentify.LayerSelection
+        QgsMapToolIdentify.__init__(self, canvas)
 
 class SpatialExtentMapTool(QgsMapToolEmitPoint):
     from timeseriesviewer.main import SpatialExtent
