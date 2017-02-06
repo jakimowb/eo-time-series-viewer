@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy
-import bisect
+
+import bisect, datetime
 from osgeo import gdal, ogr
 
 from qgis import *
@@ -122,7 +123,7 @@ class SensorInstrument(QObject):
             id = (self.nb, self.px_size_x, self.px_size_y)
             sensor_name = SensorInstrument.INSTRUMENTS.get(
                 id,
-                '{}band@{}m'.format(self.nb, self.px_size_x))
+                '{}b@{}m'.format(self.nb, self.px_size_x))
 
         self.sensorName = sensor_name
 
@@ -133,7 +134,7 @@ class SensorInstrument(QObject):
 
     def bandClosestToWavelength(self, wl, wl_unit='nm'):
         """
-        Returns the band number (>=1) of the band closest to wavelength wl
+        Returns the band index (>=0) of the band closest to wavelength wl
         :param wl:
         :param wl_unit:
         :return:
@@ -150,7 +151,7 @@ class SensorInstrument(QObject):
             wl = convertMetricUnit(wl, wl_unit, self.wavelengthUnits)
 
 
-        return np.argmin(np.abs(self.wavelengths - wl))+1
+        return np.argmin(np.abs(self.wavelengths - wl))
 
 
 
@@ -277,6 +278,7 @@ class TimeSeriesDatum(QObject):
         self.sensor = SensorInstrument(self.lyrImg)
 
         self.date = getImageDate(self.lyrImg)
+        self.doy = getDOYfromDate(self.date)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
 
         self.ns = self.lyrImg.width()
@@ -425,14 +427,26 @@ class TimeSeries(QObject):
 
         return extent
 
+
+    def tsdFromPath(self, path):
+        for tsd in self.data:
+            if tsd.pathImg == path:
+                return tsd
+        return False
+
     def getObservationDates(self):
         return [tsd.getDate() for tsd in self.data]
 
+    def getTSD(self, pathOfInterest):
+        for tsd in self.data:
+            if tsd.pathImg == pathOfInterest:
+                return tsd
+        return None
+
     def getTSDs(self, dateOfInterest=None, sensorOfInterest=None):
+        tsds = self.data[:]
         if dateOfInterest:
-            tsds = [tsd for tsd in self.data if tsd.getDate() == dateOfInterest]
-        else:
-            tsds = self.data
+            tsds = [tsd for tsd in tsds if tsd.getDate() == dateOfInterest]
         if sensorOfInterest:
             tsds = [tsd for tsd in tsds if tsd.sensor == sensorOfInterest]
         return tsds
@@ -630,9 +644,13 @@ def parseAcquisitionDate(text):
 
 
 def getDateTime64FromYYYYDOY(yyyydoy):
-    return getDateTime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
+    return getDateFromDOY(yyyydoy[0:4], yyyydoy[4:7])
 
-def getDateTime64FromDOY(year, doy):
+def getDOYfromDate(dt):
+
+    return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int)+1
+
+def getDateFromDOY(year, doy):
         if type(year) is str:
             year = int(year)
         if type(doy) is str:
@@ -641,6 +659,9 @@ def getDateTime64FromDOY(year, doy):
 
 
 if __name__ == '__main__':
+
+    assert getDOYfromDate(np.datetime64('2014-01-01')) == 1
+    assert getDOYfromDate(np.datetime64('2017-12-31')) == 365
 
     print convertMetricUnit(100, 'cm', 'm')
     print convertMetricUnit(1, 'm', 'um')
