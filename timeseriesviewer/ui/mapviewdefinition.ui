@@ -7,14 +7,14 @@
     <x>0</x>
     <y>0</y>
     <width>453</width>
-    <height>199</height>
+    <height>110</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>GroupBox</string>
+   <string/>
   </property>
   <property name="title">
-   <string>Map View #1</string>
+   <string/>
   </property>
   <layout class="QFormLayout" name="formLayout">
    <property name="horizontalSpacing">
@@ -210,7 +210,6 @@
  </widget>
  <resources>
   <include location="resources.qrc"/>
-  <include location="../../../../../Programs/OSGeo4W/bin/resources.qrc"/>
  </resources>
  <connections/>
 </ui>

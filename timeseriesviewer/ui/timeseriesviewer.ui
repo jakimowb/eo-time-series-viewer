@@ -200,8 +200,9 @@
    <addaction name="actionZoomMaxExtent"/>
    <addaction name="actionZoomPixelScale"/>
    <addaction name="actionPan"/>
+   <addaction name="actionIdentifyMapLayers"/>
+   <addaction name="actionIdentifyTimeSeries"/>
    <addaction name="separator"/>
-   <addaction name="actionIdentify"/>
    <addaction name="actionAbout"/>
   </widget>
   <action name="actionSelectCenter">
@@ -459,7 +460,7 @@
     <string>Panels</string>
    </property>
   </action>
-  <action name="actionIdentify">
+  <action name="actionIdentifyMapLayers">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionIdentify.png</normaloff>:/timeseriesviewer/icons/mActionIdentify.png</iconset>
@@ -468,7 +469,7 @@
     <string>Identify</string>
    </property>
    <property name="toolTip">
-    <string>Identify pixel information</string>
+    <string>Identify map layers</string>
    </property>
   </action>
   <action name="actionClearLabelList">
@@ -522,6 +523,18 @@
    </property>
    <property name="toolTip">
     <string>Collect labels by clicking on related map windows</string>
+   </property>
+  </action>
+  <action name="actionIdentifyTimeSeries">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.png</normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.png</iconset>
+   </property>
+   <property name="text">
+    <string>IdentifyTimeSeries</string>
+   </property>
+   <property name="toolTip">
+    <string>Identify pixel time series for specific coordinate</string>
    </property>
   </action>
  </widget>
