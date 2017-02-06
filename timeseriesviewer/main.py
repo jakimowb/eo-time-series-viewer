@@ -73,6 +73,8 @@ if os.path.exists(path):
 import pyqtgraph as pg
 
 
+
+
 class SpatialExtent(QgsRectangle):
     """
     Object to keep QgsRectangle and QgsCoordinateReferenceSystem together
@@ -284,6 +286,7 @@ class MapView(QObject):
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
     def __init__(self, mapViewCollection, recommended_bands=None, parent=None):
         super(MapView, self).__init__()
@@ -324,7 +327,7 @@ class MapView(QObject):
 
     def setTitle(self, title):
         self.mTitle = title
-        self.ui.setTitle('Map View' + title)
+        #self.ui.setTitle('Map View' + title)
         self.sigTitleChanged.emit(self.mTitle)
 
     def title(self):
@@ -468,7 +471,7 @@ class TimeSeriesDatumView(QObject):
         canvas.extentsChanged.connect(lambda : self.sigExtentsChanged.emit(canvas.spatialExtent()))
         canvas.renderStarting.connect(lambda : self.sigLoadingStarted.emit(mapView, self.TSD))
         canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
-
+        canvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
 
         self.mapCanvases[mapView] = canvas
         self.L.insertWidget(self.wOffset + i, canvas)
@@ -489,6 +492,10 @@ class SpatialTemporalVisualization(QObject):
     """
 
     """
+    sigLoadingStarted = pyqtSignal(TimeSeriesDatumView, MapView)
+    sigLoadingFinished = pyqtSignal(TimeSeriesDatumView, MapView)
+    sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
+    sigShowMapLayerInfo = pyqtSignal(dict)
 
     def __init__(self, timeSeriesViewer):
         assert isinstance(timeSeriesViewer, TimeSeriesViewer)
@@ -499,6 +506,7 @@ class SpatialTemporalVisualization(QObject):
         self.targetLayout = timeSeriesViewer.ui.scrollAreaSubsetContent.layout()
         self.dockMapViews = timeSeriesViewer.ui.dockMapViews
         self.MVC = MapViewCollection(self)
+        self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
         self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
         self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
         self.timeSeriesDateViewCollection.sigLoadingStarted.connect(timeSeriesViewer.ui.dockRendering.addStartedWork)
@@ -585,9 +593,6 @@ class SpatialTemporalVisualization(QObject):
         for tsdv in self.TSDViews:
             tsdv.setMapViewVisibility(bandView, isVisible)
 
-    sigLoadingStarted = pyqtSignal(TimeSeriesDatumView, MapView)
-    sigLoadingFinished = pyqtSignal(TimeSeriesDatumView, MapView)
-
 
 
 
@@ -598,6 +603,7 @@ class TimeSeriesDateViewCollection(QObject):
     sigResizeRequired = pyqtSignal()
     sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
     sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
+    sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
     def __init__(self, STViz):
         assert isinstance(STViz, SpatialTemporalVisualization)
@@ -626,7 +632,6 @@ class TimeSeriesDateViewCollection(QObject):
         w = self.ui
         w.setUpdatesEnabled(False)
         for tsdv in self.views:
-
             tsdv.ui.setUpdatesEnabled(False)
 
         for tsdv in self.views:
@@ -731,6 +736,7 @@ class MapViewCollection(QObject):
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
     sigSetMapViewVisibility = pyqtSignal(MapView, bool)
+    sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
     def __init__(self, STViz):
         assert isinstance(STViz, SpatialTemporalVisualization)
@@ -738,6 +744,7 @@ class MapViewCollection(QObject):
         self.STViz = STViz
         self.STViz.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
         self.STViz.TS.sigSensorAdded.connect(self.addSensor)
+        self.ui = STViz.dockMapViews
         self.btnList = STViz.dockMapViews.BVButtonList
         self.scrollArea = STViz.dockMapViews.scrollAreaMapViews
         self.scrollAreaContent = STViz.dockMapViews.scrollAreaMapsViewDockContent
@@ -770,7 +777,6 @@ class MapViewCollection(QObject):
         for mapView in self.mapViewsDefinitions:
             mapView.removeSensor(sensor)
 
-
     def createMapView(self):
 
         btn = QToolButton(self.btnList)
@@ -778,6 +784,7 @@ class MapViewCollection(QObject):
 
         mapView = MapView(self, parent=self.scrollArea)
         mapView.sigRemoveMapView.connect(self.removeMapView)
+        mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
         for sensor in self.STViz.TS.Sensors:
             mapView.addSensor(sensor)
@@ -847,6 +854,7 @@ class MapViewCollection(QObject):
 
         l.insertWidget(l.count() - 1, mapViewDefinition.ui)
         mapViewDefinition.ui.setVisible(True)
+        self.ui.setWindowTitle(self.ui.baseTitle + '|'+mapViewDefinition.title())
 
     def recentMapViewDefinitions(self):
         parent = self.scrollAreaContent
@@ -912,13 +920,16 @@ class TimeSeriesViewer:
         D.dockNavigation.connectTimeSeries(self.TS)
         D.dockTimeSeries.connectTimeSeries(self.TS)
         D.dockSensors.connectTimeSeries(self.TS)
+        D.dockProfiles.connectTimeSeries(self.TS)
+
+        self.spectralTemporalVis = D.dockProfiles
 
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
+        #todo: self.spatialTemporalVis.sigShowMapLayerInfo
 
-        self.spectralTemporalVis = D.dockProfiles
-
+        self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
 
         self.ValidatorPxX = QIntValidator(0,99999)
         self.ValidatorPxY = QIntValidator(0,99999)
@@ -935,6 +946,8 @@ class TimeSeriesViewer:
         D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomIn'))
         D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomOut'))
         D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
+        D.actionIdentifyTimeSeries.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyProfile'))
+        D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         D.actionAddMapView.triggered.connect(self.spatialTemporalVis.createMapView)
 
         D.actionAddTSD.triggered.connect(lambda : self.ua_addTSImages())
