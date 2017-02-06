@@ -8,6 +8,16 @@ from qgis.gui import *
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
+from timeseriesviewer import *
+
+class TestObjects(object):
+    @staticmethod
+    def TimeSeries():
+        files = file_search(DIR_EXAMPLES, '*.bsq')
+        from timeseriesviewer.timeseries import TimeSeries
+        ts = TimeSeries()
+        ts.addFiles(files[0:5])
+        return ts
 
 
 def test_gui():
@@ -17,7 +27,7 @@ def test_gui():
     S.ui.show()
     S.run()
 
-    if True:
+    if False:
         from timeseriesviewer import file_search
         searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
         files = file_search(searchDir, '*band4.img', recursive=True)
@@ -26,6 +36,10 @@ def test_gui():
         #files = file_search(searchDir, '*BOA.vrt', recursive=True)
 
         files = files[0:10]
+        S.loadImageFiles(files)
+        return
+    if False:
+        files = [r'H:\\LandsatData\\Landsat_NovoProgresso\\LC82270652013140LGN01\\LC82270652013140LGN01_sr_band4.img']
         S.loadImageFiles(files)
         return
     if False:
