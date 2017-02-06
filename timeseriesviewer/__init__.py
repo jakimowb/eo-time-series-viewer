@@ -20,6 +20,12 @@ SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 QGIS_TSV_BRIDGE = None
 
+OPENGL_AVAILABLE = False
+try:
+    import OpenGL
+    OPENGL_AVAILABLE = True
+except:
+    pass
 
 def icon():
     return QIcon(':/timeseriesviewer/icons/icon.png')
