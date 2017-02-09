@@ -132,6 +132,7 @@ def make(ROOT):
         for i in range(includeNodes.count()):
             attr = getDOMAttributes(includeNodes.item(i).toElement())
             if 'location' in attr.keys():
+                print((ui_file, str(attr['location'])))
                 qrcs.add((pathDir, str(attr['location'])))
 
     #compile Qt resource files
@@ -141,7 +142,7 @@ def make(ROOT):
     for root_dir, f in resourcefiles:
         #dn = os.path.dirname(f)
         pathQrc = os.path.normpath(jp(root_dir, f))
-        assert os.path.exists(pathQrc)
+        assert os.path.exists(pathQrc), pathQrc
         bn = os.path.basename(f)
         bn = os.path.splitext(bn)[0]
         pathPy2 = os.path.join(DIR_UI, bn+'_py2.py' )
@@ -410,10 +411,10 @@ if __name__ == '__main__':
         createCreditsHTML()
 
 
-    if True:
+    if False:
         #convert SVG to PNG and link them into the resource file
         svg2png(icondir, overwrite=False)
-    if True:
+    if False:
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
     if True:

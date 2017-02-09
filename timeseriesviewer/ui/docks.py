@@ -1,4 +1,4 @@
-import os
+import os, time, datetime
 from qgis.core import *
 from qgis.gui import *
 from PyQt4 import uic
@@ -8,13 +8,15 @@ import PyQt4.QtWebKit
 
 import sys, re, os, six
 
+
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
 
 from timeseriesviewer.main import SpatialExtent
-
+import pyqtgraph as pg
 
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
+
 
 class TsvDockWidgetBase(QgsDockWidget):
 
@@ -31,96 +33,6 @@ class TsvDockWidgetBase(QgsDockWidget):
             for w in widgets:
                 states[w] = w.blockSignals(block)
         return states
-
-
-class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
-    def __init__(self, parent=None):
-        super(ProfileViewDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        from timeseriesviewer.pixelloader import PixelLoader
-        from timeseriesviewer.viewmodels import PixelCollection
-        from timeseriesviewer import OPENGL_AVAILABLE, SETTINGS
-        if OPENGL_AVAILABLE:
-            l = self.page3D.layout()
-            l.removeWidget(self.labelDummy3D)
-            from pyqtgraph.opengl import GLViewWidget
-            self.plotWidget3D = GLViewWidget(self.page3D)
-            l.addWidget(self.plotWidget3D)
-        else:
-            self.plotWidget3D = None
-
-        self.baseTitle = self.windowTitle()
-        self.TS = None
-        self.PxCollection = None
-        self.progressBar.setMinimum(0)
-        self.progressBar.setMaximum(100)
-        self.progressBar.setValue(0)
-        self.progressInfo.setText('')
-        self.pixelLoader = PixelLoader()
-        self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
-        self.pixelLoader.sigLoadingFinished.connect(self.refresh2D)
-        self.PxModel = None
-        self.btnRefresh2D.setDefaultAction(self.actionRefresh2D)
-
-        self.actionRefresh2D.triggered.connect(self.refresh2D)
-
-    def connectTimeSeries(self, TS):
-        from timeseriesviewer.timeseries import TimeSeries
-        from timeseriesviewer.viewmodels import PixelCollection, PixelCollectionSensorExpressionModel
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-        self.PxCollection = PixelCollection(self.TS)
-        self.PxModel = PixelCollectionSensorExpressionModel(self.PxCollection)
-
-        self.tableView2DBands.setModel(self.PxModel)
-        self.tableView2DBands.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-
-
-    def refresh2D(self, *arg):
-        from timeseriesviewer.viewmodels import PixelCollection, PixelCollectionSensorExpressionModel
-        if isinstance(self.PxModel, PixelCollectionSensorExpressionModel):
-            for sw in self.PxModel.items:
-
-                assert isinstance(sw, PixelCollectionSensorExpressionModel.SensorView)
-                if sw.isVisible:
-                    values = self.PxCollection.values(sw.sensor,sw.expression)
-                    for t in values:
-                        tsdStr, v = t
-
-                        s = ""
-
-
-    def onPixelLoaded(self, nDone, nMax, d):
-        self.progressBar.setValue(nDone)
-        self.progressBar.setMaximum(nMax)
-        t = ''
-        if len(d) > 0:
-            self.PxCollection.addPixel(d)
-            t = 'Last loaded from {}.'.format(os.path.basename(d['path']))
-            QgsApplication.processEvents()
-        self.progressInfo.setText(t)
-
-
-
-    def loadCoordinate(self, coordinate, crs):
-
-        assert isinstance(coordinate, QgsPoint)
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
-        from timeseriesviewer.timeseries import TimeSeries
-        assert isinstance(self.TS, TimeSeries)
-
-        self.setWindowTitle('{} | {} {}'.format(self.baseTitle, str(coordinate), crs.authid()))
-        self.pixelLoader.setNumberOfThreads(SETTINGS.value('n_threads', 1))
-
-        #shoudl we allow to keep pixels in memory, e.g. limited by buffer?
-        self.PxCollection.clear()
-        self.pixelLoader.removeFinishedThreads()
-        files = [d.pathImg for d in self.TS.data]
-        self.progressInfo.setText('Start loading from {} images...'.format(len(files)))
-        self.pixelLoader.startLoading(files, coordinate, crs)
-
-
 
 
 class SensorDockUI(TsvDockWidgetBase, load('sensordock.ui')):
@@ -469,8 +381,19 @@ if __name__ == '__main__':
     #d = AboutDialogUI()
     #d.show()
 
-    d = ProfileDockUI()
+    from timeseriesviewer.tests import *
+
+    TS = TestObjects.TimeSeries()
+    ext = TS.getMaxSpatialExtent()
+
+    d = ProfileViewDockUI()
+    d.connectTimeSeries(TS)
     d.show()
+    d.loadCoordinate(ext.center(), ext.crs())
+
     #close QGIS
-    qgsApp.exec_()
+    try:
+        qgsApp.exec_()
+    except:
+        s = ""
     qgsApp.exitQgis()
