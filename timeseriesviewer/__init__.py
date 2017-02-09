@@ -1,4 +1,4 @@
-import os, sys, fnmatch
+import os, sys, fnmatch, site
 import six
 from PyQt4.QtCore import QSettings
 from PyQt4.QtGui import QIcon
@@ -18,9 +18,13 @@ DEBUG = True
 
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
+print('BASE INIT SITE-packages')
+site.addsitedir(DIR_SITE_PACKAGES)
+
 QGIS_TSV_BRIDGE = None
 
 OPENGL_AVAILABLE = False
+
 try:
     import OpenGL
     OPENGL_AVAILABLE = True

@@ -58,7 +58,7 @@ import codecs
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, dprint
 from timeseriesviewer.timeseries import *
 
-site.addsitedir(DIR_SITE_PACKAGES)
+
 
 
 #I don't know why, but this is required to run this in QGIS
@@ -71,8 +71,6 @@ if os.path.exists(path):
 #ensure that required non-standard modules are available
 
 import pyqtgraph as pg
-
-
 
 
 class SpatialExtent(QgsRectangle):
