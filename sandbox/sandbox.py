@@ -8,7 +8,7 @@ from qgis.gui import *
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
-from timeseriesviewer import DIR_EXAMPLES, jp, dprint
+#from timeseriesviewer import DIR_EXAMPLES, jp, dprint
 DIR_SANDBOX = os.path.dirname(__file__)
 
 from itertools import izip_longest
@@ -86,6 +86,9 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
+    import timeseriesviewer.main
+
+    s = ""
     from timeseriesviewer import DIR_SITE_PACKAGES
     site.addsitedir(DIR_SITE_PACKAGES)
 
