@@ -11,12 +11,18 @@ from PyQt4.QtCore import *
 from timeseriesviewer import *
 
 class TestObjects(object):
+
     @staticmethod
-    def TimeSeries():
-        files = file_search(DIR_EXAMPLES, '*.bsq')
+    def TimeSeries(nMax=10):
+        files = file_search(jp(DIR_EXAMPLES,'Images'),'*.bsq')
         from timeseriesviewer.timeseries import TimeSeries
         ts = TimeSeries()
-        ts.addFiles(files[0:5])
+        n = len(files)
+        if nMax:
+            nMax = min([n, nMax])
+            ts.addFiles(files[0:nMax])
+        else:
+            ts.addFiles(files[:])
         return ts
 
 
@@ -47,7 +53,7 @@ def test_gui():
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
     if True:
-        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
+        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=100)
         return
     pass
 
