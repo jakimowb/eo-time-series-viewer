@@ -177,8 +177,11 @@ class TsvMapCanvas(QgsMapCanvas):
     def activateMapTool(self, key):
         if key is None:
             self.setMapTool(None)
-        else:
+        elif key in self.MAPTOOLS.keys():
             self.setMapTool(self.MAPTOOLS[key])
+        else:
+            from timeseriesviewer import dprint
+            dprint('unknown map tool key "{}"'.format(key))
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
@@ -382,7 +385,8 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockMapViews = addDockWidget(docks.MapViewDockUI(self))
         self.dockTimeSeries = addDockWidget(docks.TimeSeriesDockUI(self))
-        self.dockProfiles = addDockWidget(docks.ProfileViewDockUI(self))
+        from timeseriesviewer.profilevisualization import ProfileViewDockUI
+        self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
         self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
 
