@@ -70,7 +70,7 @@ class SensorInstrument(QObject):
                     }
 
 
-    LUT_Wavelenghts = dict({'B':480,
+    LUT_Wavelengths = dict({'B':480,
                             'G':570,
                             'R':660,
                             'nIR':850,
@@ -121,9 +121,7 @@ class SensorInstrument(QObject):
 
         if sensor_name is None:
             id = (self.nb, self.px_size_x, self.px_size_y)
-            sensor_name = SensorInstrument.INSTRUMENTS.get(
-                id,
-                '{}b@{}m'.format(self.nb, self.px_size_x))
+            sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
 
         self.sensorName = sensor_name
 
@@ -142,9 +140,9 @@ class SensorInstrument(QObject):
         if not self.wavelengthsDefined():
             return None
 
-        if wl in SensorInstrument.LUT_Wavelenghts.keys():
+        if wl in SensorInstrument.LUT_Wavelengths.keys():
             wl_unit = 'nm'
-            wl = SensorInstrument.LUT_Wavelenghts[wl]
+            wl = SensorInstrument.LUT_Wavelengths[wl]
 
         wl = float(wl)
         if self.wavelengthUnits != wl_unit:
