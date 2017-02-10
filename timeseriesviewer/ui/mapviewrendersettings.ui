@@ -147,7 +147,7 @@
       <enum>QFrame::NoFrame</enum>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="pageMultiBand">
       <layout class="QGridLayout" name="gridLayout_2">
@@ -807,7 +807,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset>
          <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
        </property>
       </widget>
@@ -818,7 +818,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset>
          <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
        </property>
       </widget>
@@ -829,7 +829,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset>
          <normaloff>:/timeseriesviewer/icons/mActionEditPaste.png</normaloff>:/timeseriesviewer/icons/mActionEditPaste.png</iconset>
        </property>
       </widget>
@@ -901,7 +901,7 @@
   </action>
   <action name="actionCopyStyle">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
    </property>
    <property name="text">
@@ -913,7 +913,7 @@
   </action>
   <action name="actionPasteStyle">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/timeseriesviewer/icons/mActionEditPaste.png</normaloff>:/timeseriesviewer/icons/mActionEditPaste.png</iconset>
    </property>
    <property name="text">
@@ -925,7 +925,7 @@
   </action>
   <action name="actionApplyStyle">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
    </property>
    <property name="text">
