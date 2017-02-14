@@ -430,8 +430,8 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer import QGIS_TSV_BRIDGE
         from timeseriesviewer.main import QgisTsvBridge
         b = isinstance(QGIS_TSV_BRIDGE, QgisTsvBridge)
-        self.gbSyncQgs.setEnabled(b)
-        self.gbQgsVectorLayer.setEnabled(b)
+        self.dockNavigation.gbSyncQgs.setEnabled(b)
+        self.dockRendering.gbQgsVectorLayer.setEnabled(b)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()

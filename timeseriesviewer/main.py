@@ -33,7 +33,6 @@ import qgis.analysis
 try:
     from qgis.gui import *
     import qgis
-    import qgis_add_ins
     qgis_available = True
 
     #import console.console_output
@@ -229,24 +228,39 @@ class QgisTsvBridge(QObject):
         assert isinstance(iface, QgisInterface)
         self.iface = iface
         self.ui = TSV_UI
-        self.cbVectorLayer = TSV_UI.cbQgsVectorLayer
+        from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
+        assert isinstance(self.ui, TimeSeriesViewerUI)
+        self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
+        self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
+        self.qgsMapCanvas = self.iface.mapCanvas()
+
+        assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
+        assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
+        assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
+
+        self.cbSyncQgsMapCenter = self.ui.dockNavigation.cbSyncQgsMapCenter
+        self.cbSyncQgsMapExtent = self.ui.dockNavigation.cbSyncQgsMapExtent
+        self.cbSyncQgsCRS = self.ui.dockNavigation.cbSyncQgsCRS
+
+        for cb in [self.cbSyncQgsMapCenter, self.cbSyncQgsMapExtent, self.cbSyncQgsCRS]:
+            assert isinstance(cb, QCheckBox)
+            self.cbSyncQgsMapExtent.clicked.connect(lambda : self.onSpatialSyncChanged())
+
+        self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
+    def onSpatialSyncChanged(self):
+        dprint('QgisTsvBridge: spatial sync changed')
+        s = ""
+    def onQgsVectorLayerChanged(self, lyr):
+        dprint('QgisTsvBridge: selected Qgs Vector layer changed')
+        s = ""
 
     def extent(self):
-        canvas = self.iface.mapCanvas()
-        assert isinstance(canvas, QgsMapCanvas)
-        crs = canvas.dest
-        self.iface.mapCanvas().extent()
-        s = ""
-
-    def center(self):
-        s = ""
-
-    def crs(self):
-        s = ""
+        assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
+        return SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
 
     def getVectorLayerRepresentation(self):
         if self.ui.gbQgsVectorLayer.isChecked():
-            lyr = self.cbVectorLayer.currentLayer()
+            lyr = self.cbQgsVectorLayer.currentLayer()
             alpha = self.ui.sliderQgsVectorTransparency.value()
             return lyr
         else:
@@ -255,22 +269,18 @@ class QgisTsvBridge(QObject):
 
     def syncExtent(self, isChecked):
         if isChecked:
-            self.dockRendering.cbSyncQgsMapCenter.setEnabled(False)
-            self.dockRendering.cbSyncQgsMapCenter.blockSignals(True)
-            self.dockRendering.cbSyncQgsMapCenter.setChecked(True)
-            self.dockRendering.cbSyncQgsMapCenter.blockSignals(False)
+            self.cbSyncQgsMapCenter.setEnabled(False)
+            self.cbSyncQgsMapCenter.blockSignals(True)
+            self.cbSyncQgsMapCenter.setChecked(True)
+            self.cbSyncQgsMapCenter.blockSignals(False)
         else:
-            self.dockRendering.cbSyncQgsMapCenter.setEnabled(True)
+            self.cbSyncQgsMapCenter.setEnabled(True)
         self.qgsSyncStateChanged()
 
     def qgsSyncState(self):
         return (self.cbSyncQgsMapCenter.isChecked(),
                 self.cbSyncQgsMapExtent.isChecked(),
                 self.cbSyncQgsCRS.isChecked())
-
-    def qgsSyncStateChanged(self, *args):
-        s = self.qgsSyncState()
-        self.sigQgsSyncChanged.emit(s[0], s[1], s[2])
 
 
 
@@ -667,8 +677,15 @@ class TimeSeriesDateViewCollection(QObject):
     def setSubsetSize(self, size):
         assert isinstance(size, QSize)
         self.subsetSize = size
+
+        for tsdView in self.orderedViews():
+            tsdView.blockSignals(True)
+
         for tsdView in self.orderedViews():
             tsdView.setSubsetSize(size)
+
+        for tsdView in self.orderedViews():
+            tsdView.blockSignals(False)
 
 
 
@@ -895,7 +912,7 @@ class TimeSeriesViewer:
 
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
 
-        self.ui = TimeSeriesViewerUI(parent=iface)
+        self.ui = TimeSeriesViewerUI()
         if iface:
             import timeseriesviewer
             timeseriesviewer.QGIS_TSV_BRIDGE = QgisTsvBridge(iface, self.ui)

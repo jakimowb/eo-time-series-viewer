@@ -33,7 +33,7 @@ def test_gui():
     S.ui.show()
     S.run()
 
-    if False:
+    if True:
         from timeseriesviewer import file_search
         searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
         files = file_search(searchDir, '*band4.img', recursive=True)
@@ -52,7 +52,7 @@ def test_gui():
         S.spatialTemporalVis.MVC.createMapView()
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
-    if True:
+    if False:
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=100)
         return
     pass

@@ -137,7 +137,7 @@ class PixelLoadWorker(QObject):
                 continue
             nb = ds.RasterCount
             values = gdal_array.DatasetReadAsArray(ds, px_x, px_y, win_xsize=size_x, win_ysize=size_y)
-
+            values = np.reshape(values, (nb, size_y, size_x))
             nodata = [ds.GetRasterBand(b+1).GetNoDataValue() for b in range(nb)]
 
 
