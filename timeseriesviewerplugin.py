@@ -42,13 +42,12 @@ class TimeSeriesViewerPlugin:
         # init main UI
         from timeseriesviewer import dprint, DIR_UI, jp
         icon = QIcon(jp(DIR_UI, *['icons', 'icon.png']))
-        action = QAction(icon, 'SenseCarbon Time Series Viewer', self.iface)
+        action = QAction(icon, 'HUB Time Series Viewer', self.iface)
         action.triggered.connect(self.run)
         self.toolbarActions.append(action)
 
 
         for action in self.toolbarActions:
-            print('ADD ICON')
             self.iface.addToolBarIcon(action)
 
     def run(self):
@@ -63,7 +62,7 @@ class TimeSeriesViewerPlugin:
     def unload(self):
         from timeseriesviewer import dprint
         from timeseriesviewer.main import TimeSeriesViewer
-        dprint('UNLOAD SenseCarbon TimeSeriesViewer Plugin')
+        dprint('UNLOAD TimeSeriesViewer Plugin')
 
         for action in self.toolbarActions:
             print(action)
