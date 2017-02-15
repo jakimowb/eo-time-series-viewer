@@ -16,10 +16,10 @@ from osgeo import gdal, gdal_array
 import numpy as np
 
 
-class DateAxis(pg.AxisItem):
+class DateTimeAxis(pg.AxisItem):
 
     def __init__(self, *args, **kwds):
-        super(DateAxis, self).__init__(*args, **kwds)
+        super(DateTimeAxis, self).__init__(*args, **kwds)
 
     def logTickStrings(self, values, scale, spacing):
         s = ""
@@ -45,7 +45,7 @@ class DateAxis(pg.AxisItem):
         return strns
 
     def tickValues(self, minVal, maxVal, size):
-        d = super(DateAxis, self).tickValues(minVal, maxVal, size)
+        d = super(DateTimeAxis, self).tickValues(minVal, maxVal, size)
 
         return d
 
@@ -281,7 +281,7 @@ class PixelLoader(QObject):
         self._sigLoadCoordinate.emit(theGeometry.asWkt(50), str(crs.authid()))
 
 
-class SensorPoints(pg.ScatterPlotItem):
+class SensorPoints(pg.PlotDataItem):
     def __init__(self, *args, **kwds):
         super(SensorPoints, self).__init__(*args, **kwds)
         # menu creation is deferred because it is expensive and often
@@ -627,6 +627,50 @@ class SensorPlotSettings(object):
         self.isVisible = True
         self.memLyr = memoryLyr
 
+class DateTimeViewBox(pg.ViewBox):
+    """
+    Subclass of ViewBox
+    """
+    sigMoveToDate = pyqtSignal(np.datetime64)
+    def __init__(self, parent=None):
+        """
+        Constructor of the CustomViewBox
+        """
+        super(DateTimeViewBox, self).__init__(parent)
+        #self.menu = None # Override pyqtgraph ViewBoxMenu
+        #self.menu = self.getMenu() # Create the menu
+        #self.menu = None
+
+        self.moveToDateAction = QAction('Move to...', self)
+        self.moveToDateAction.triggered.connect(lambda : self.sigMoveToDate.emit(self.moveToDateAction.data()))
+    def raiseContextMenu(self, ev):
+        menu = self.getMenu(ev)
+        if self.moveToDateAction not in menu.actions():
+            menu.addSeparator()
+            menu.addAction(self.moveToDateAction)
+
+        #refresh action
+        pt = self.mapDeviceToView(ev.pos())
+        doi = num2date(pt.x())
+        self.moveToDateAction.setText('Move to {}'.format(doi))
+        self.moveToDateAction.setData(doi)
+        #self.scene().addParentContextMenus(self, menu, ev)
+        menu.popup(ev.screenPos().toPoint())
+
+
+
+class DateTimePlotWidget(pg.PlotWidget):
+    """
+    Subclass of PlotWidget
+    """
+    def __init__(self, parent=None):
+        """
+        Constructor of the widget
+        """
+        super(DateTimePlotWidget, self).__init__(parent, viewBox=DateTimeViewBox())
+        self.plotItem = pg.PlotItem(axisItems={'bottom':DateTimeAxis(orientation='bottom')}, viewBox=DateTimeViewBox())
+        self.setCentralItem(self.plotItem)
+
 
 class PlotSettingsModel(QAbstractTableModel):
 
@@ -810,6 +854,9 @@ class PlotSettingsModel(QAbstractTableModel):
 
 
 class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
+
+    sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
+
     def __init__(self, parent=None):
         super(ProfileViewDockUI, self).__init__(parent)
         self.setupUi(self)
@@ -823,9 +870,10 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
         else:
             self.plotWidget3D = None
 
-        pi = self.plotWidget2D.plotItem
-        ax = DateAxis(orientation='bottom', showValues=True)
-        pi.layout.addItem(ax, 3,2)
+
+        #pi = self.plotWidget2D.plotItem
+        #ax = DateAxis(orientation='bottom', showValues=True)
+        #pi.layout.addItem(ax, 3,2)
 
         self.baseTitle = self.windowTitle()
         self.TS = None
@@ -850,7 +898,13 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
         self.TS = TS
         self.pixelCollection = PixelCollection(self.TS)
         self.spectralTempVis = SpectralTemporalVisualization(self)
+        self.spectralTempVis.sigMoveToDate.connect(self.onMoveToDate)
         self.actionRefresh2D.triggered.connect(lambda : self.spectralTempVis.setData())
+
+    def onMoveToDate(self, date):
+        dt = np.asarray([np.abs(tsd.date - date) for tsd in self.TS])
+        i = np.argmin(dt)
+        self.sigMoveToTSD.emit(self.TS[i])
 
 
     def onPixelLoaded(self, nDone, nMax, d):
@@ -897,7 +951,7 @@ def num2date(n):
 class SpectralTemporalVisualization(QObject):
 
     sigShowPixel = pyqtSignal(TimeSeriesDatum, QgsPoint, QgsCoordinateReferenceSystem)
-
+    sigMoveToDate = pyqtSignal(np.datetime64)
     def __init__(self, ui):
         super(SpectralTemporalVisualization, self).__init__()
         #assert isinstance(timeSeries, TimeSeries)
@@ -910,15 +964,8 @@ class SpectralTemporalVisualization(QObject):
         self.TV = ui.tableView2DBands
         self.TV.setSortingEnabled(False)
         self.plot2D = ui.plotWidget2D
-        ax = DateAxis(orientation='bottom')
-        self.plot2D.plotItem = pg.PlotItem(axisItems={'bottom':ax})
-        self.plot2D.setCentralItem(self.plot2D.plotItem)
+        self.plot2D.plotItem.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
 
-        #if len(self.)
-        #xrange = [self.ui.TS[0].date, self.ui.TS[-1].date]
-        #xrange = [date2num(d) for d in xrange]
-        #self.plot2D.getPlotItem().setRange(xRange=xrange)
-        #self.plot2D.setContentsMargins(5,5,5,5)
         self.plot3D = ui.plotWidget3D
 
         self.pxCollection = ui.pixelCollection
@@ -1028,15 +1075,17 @@ class SpectralTemporalVisualization(QObject):
 
         if sensorView.sensor not in self.plotData2D.keys():
             plotDataItem = SensorPoints(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
-            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.sensorName,
-                                              pen= {'color': 'w', 'width': 2},
-                                              brush=QColor('green'), symbol='o')
+            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.sensorName, pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
             #self.plot2D.addItem(plotDataItem)
-            #plotDataItem = self.plot2D.plot(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
-            #plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
-            self.plot2D.addItem(plotDataItem)
-            self.plot2D.scene().addItem(plotDataItem)
-            self.plot2D.setMenuEnabled(True)
+
+
+            plotDataItem = self.plot2D.plot(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
+            #plotDataItem.curve.setClickable(True)
+            plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
+
+            #self.plot2D.scene().addItem(plotDataItem)
+            #self.plot2D.setMenuEnabled(True)
+            #self.plot2D.addItem(plotDataItem)
             self.plotData2D[sensorView.sensor] = plotDataItem
             self.setVisibility2D(sensorView)
 
@@ -1052,15 +1101,16 @@ class SpectralTemporalVisualization(QObject):
             values = np.asarray(values)
 
             #item = pg.PlotDataItem()
-            spots = []
-            for i, tsd in enumerate(tsds):
-                spots.append({'pos':(dates[i], values[i])})
-            plotDataItem.setPoints(spots)
+            #spots = []
+            #for i, tsd in enumerate(tsds):
+            #    spots.append({'pos':(dates[i], values[i])})
+            #plotDataItem.setPoints(spots)
             #plotDataItem.invalidate()
             #self.plot2D.invalidate()
             #self.setVisibility2D()
             #plotDataItem.setPoints(x=dates, y=values, data=tsds)
-            #plotDataItem.setData(x=dates, y=values, data=tsds)
+            plotDataItem.setData(x=dates, y=values, data=tsds)
+            #plotDataItem.scatter.addPoints(x=dates, y=values, data=tsds)
             #self.plot2D.addItem(plotDataItem)
 
             s = ""
