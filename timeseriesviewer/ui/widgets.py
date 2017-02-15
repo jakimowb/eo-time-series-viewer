@@ -41,6 +41,7 @@ class TsvScrollArea(QScrollArea):
         super(TsvScrollArea, self).resizeEvent(event)
         self.sigResized.emit()
 
+
 class TsvMapCanvas(QgsMapCanvas):
 
     saveFileDirectories = dict()

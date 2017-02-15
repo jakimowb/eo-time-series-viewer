@@ -101,7 +101,7 @@
           </sizepolicy>
          </property>
          <property name="currentIndex">
-          <number>2</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="page2D">
           <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -211,7 +211,7 @@
                  </item>
                 </layout>
                </widget>
-               <widget class="PlotWidget" name="plotWidget2D">
+               <widget class="DateTimePlotWidget" name="plotWidget2D">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                   <horstretch>3</horstretch>
@@ -508,9 +508,9 @@ Please ensure that PyOpenGL is installed
  </widget>
  <customwidgets>
   <customwidget>
-   <class>PlotWidget</class>
+   <class>DateTimePlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
+   <header>profilevisualization</header>
   </customwidget>
  </customwidgets>
  <resources>

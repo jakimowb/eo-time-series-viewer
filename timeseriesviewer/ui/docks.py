@@ -123,11 +123,6 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
         self.setupUi(self)
         self.mCrs = None
 
-        self.btnNavToFirstTSD.setDefaultAction(parent.actionFirstTSD)
-        self.btnNavToLastTSD.setDefaultAction(parent.actionLastTSD)
-        self.btnNavToPreviousTSD.setDefaultAction(parent.actionPreviousTSD)
-        self.btnNavToNextTSD.setDefaultAction(parent.actionNextTSD)
-
         #default: disable QgsSync box
         self.gbSyncQgs.setEnabled(False)
 
@@ -138,8 +133,8 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
         self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
                                      self.spinBoxExtentWidth, self.spinBoxExtentHeight]
 
-        self.sliderDOI.valueChanged.connect(self.onSliderDOIChanged)
-
+        for sb in self.spatialExtentWidgets:
+            sb.valueChanged.connect(lambda: self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
         self.connectTimeSeries(None)
 
@@ -152,48 +147,15 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
 
 
     def updateFromTimeSeries(self):
-        self.sliderDOI.setMinimum(1)
         if self.TS is None or len(self.TS) == 0:
             #reset
             self.timeSeriesInitialized = False
-            self.labelDOIValue.setText('Time series is empty')
-            self.sliderDOI.setMaximum(1)
         else:
-            l = len(self.TS)
-            self.sliderDOI.setMaximum(l)
-            # get meaningfull tick intervall
-            for tickInterval in [1, 5, 10, 25, 50, 100, 200]:
-                if (self.sliderDOI.size().width() / float(l) * tickInterval) > 5:
-                    break
-            self.sliderDOI.setTickInterval(tickInterval)
-
             if not self.timeSeriesInitialized:
                 self.setSpatialExtent(self.TS.getMaxSpatialExtent(self.crs()))
                 self.timeSeriesInitialized = True
+                self.sigSpatialExtentChanged.emit(self.spatialExtent())
 
-    def setDOISliderValue(self, key):
-        ui = self.ui
-        v = ui.sliderDOI.value()
-        if key == 'first':
-            v = ui.sliderDOI.minimum()
-        elif key == 'last':
-            v = ui.sliderDOI.maximum()
-        elif key == 'next':
-            v = min([v + 1, ui.sliderDOI.maximum()])
-        elif key == 'previous':
-            v = max([v - 1, ui.sliderDOI.minimum()])
-        ui.sliderDOI.setValue(v)
-
-
-    def onSliderDOIChanged(self, i):
-
-        if self.TS is None or len(self.TS) == 0:
-            self.labelDOIValue.setText('<empty timeseries>')
-        else:
-            assert i <= len(self.TS)
-            TSD = self.TS.data[i - 1]
-            self.labelDOIValue.setText(str(TSD.date))
-            self.sigNavToDOI.emit(TSD)
 
     def qgsSyncStateChanged(self, *args):
 

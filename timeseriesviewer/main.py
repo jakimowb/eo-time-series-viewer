@@ -509,16 +509,18 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(timeSeriesViewer, TimeSeriesViewer)
         super(SpatialTemporalVisualization, self).__init__()
 
+        self.ui = timeSeriesViewer.ui
+        self.scrollArea = self.ui.scrollAreaSubsets
         self.TSV = timeSeriesViewer
         self.TS = timeSeriesViewer.TS
-        self.targetLayout = timeSeriesViewer.ui.scrollAreaSubsetContent.layout()
-        self.dockMapViews = timeSeriesViewer.ui.dockMapViews
+        self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
+        self.dockMapViews = self.ui.dockMapViews
         self.MVC = MapViewCollection(self)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
         self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
         self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
-        self.timeSeriesDateViewCollection.sigLoadingStarted.connect(timeSeriesViewer.ui.dockRendering.addStartedWork)
-        self.timeSeriesDateViewCollection.sigLoadingFinished.connect(timeSeriesViewer.ui.dockRendering.addFinishedWork)
+        self.timeSeriesDateViewCollection.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        self.timeSeriesDateViewCollection.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
         self.TS.sigTimeSeriesDatesAdded.connect(self.timeSeriesDateViewCollection.addDates)
         self.TS.sigTimeSeriesDatesRemoved.connect(self.timeSeriesDateViewCollection.removeDates)
         #add dates, if already existing
@@ -580,19 +582,12 @@ class SpatialTemporalVisualization(QObject):
             self.timeSeriesDateViewCollection.setSpatialExtent(extent)
 
 
-    def navToDOI(self, TSD):
+    def navigateToTSD(self, TSD):
         assert isinstance(TSD, TimeSeriesDatum)
         #get widget related to TSD
-        tsdviews = [t for t in self.TSDViews if t.TSD == TSD]
-        if len(tsdviews) > 0:
-            i = self.TSDViews.index(tsdviews[0])+1.5
-            n = len(self.TSDViews)
-
-            scrollBar = self.TSV.ui.scrollAreaSubsets.horizontalScrollBar()
-            smin = scrollBar.minimum()
-            smax = scrollBar.maximum()
-            v = smin + (smax - smin) * float(i) / n
-            scrollBar.setValue(int(round(v)))
+        tsdv = self.timeSeriesDateViewCollection.tsdView(TSD)
+        assert isinstance(self.scrollArea, QScrollArea)
+        self.scrollArea.ensureWidgetVisible(tsdv.ui)
 
     def setMapViewVisibility(self, bandView, isVisible):
         assert isinstance(bandView, MapView)
@@ -634,6 +629,13 @@ class TimeSeriesDateViewCollection(QObject):
         self.setFocusView(None)
         self.setSubsetSize(QSize(50,50))
 
+
+    def tsdView(self, tsd):
+        r = [v for v in self.views if v.TSD == tsd]
+        if len(r) == 1:
+            return r[0]
+        else:
+            raise Exception('TSD not in list')
 
     def addMapView(self, mapView):
         assert isinstance(mapView, MapView)
@@ -942,10 +944,10 @@ class TimeSeriesViewer:
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        #todo: self.spatialTemporalVis.sigShowMapLayerInfo
-
         self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
 
+        self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
+        D.dockNavigation.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
         self.ValidatorPxX = QIntValidator(0,99999)
         self.ValidatorPxY = QIntValidator(0,99999)
 
