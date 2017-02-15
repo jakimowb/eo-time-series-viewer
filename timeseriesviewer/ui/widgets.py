@@ -103,6 +103,7 @@ class TsvMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['identifyProfile'] = mt
         #todo: self.MAPTOOLS['identifyMapLayers'] =
 
+
     def refresh(self):
 
         self.setRenderMe()
@@ -130,6 +131,7 @@ class TsvMapCanvas(QgsMapCanvas):
         # add general options
         menu.addSeparator()
         action = menu.addAction('Stretch using current Extent')
+        action.triggered.connect(self.stretchToCurrentExtent)
         action = menu.addAction('Zoom to Layer')
         action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
         menu.addSeparator()
@@ -174,6 +176,39 @@ class TsvMapCanvas(QgsMapCanvas):
 
 
         menu.exec_(event.globalPos())
+
+    def stretchToCurrentExtent(self):
+        results = dict()
+        se = self.spatialExtent()
+
+        for l in self.layers():
+            if isinstance(l, QgsRasterLayer):
+                r = l.renderer()
+                dp = l.dataProvider()
+
+
+                extent = se.toCrs(l.crs())
+
+                assert isinstance(dp, QgsRasterDataProvider)
+                bands = None
+                if isinstance(r, QgsMultiBandColorRenderer):
+
+                    def getCE(band, ce):
+                        stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
+                        ce = QgsContrastEnhancement(ce)
+                        ce.setMinimumValue(stats.minimumValue)
+                        ce.setMaximumValue(stats.maximumValue)
+                        return ce
+                    r2 = QgsMultiBandColorRenderer(None,r.redBand(), r.greenBand(), r.blueBand())
+                    r2.setRedContrastEnhancement(getCE(r.redBand(), r.redContrastEnhancement()))
+                    r2.setGreenContrastEnhancement(getCE(r.greenBand(), r.greenContrastEnhancement()))
+                    r2.setBlueContrastEnhancement(getCE(r.blueBand(), r.blueContrastEnhancement()))
+                    self.sensorView.setLayerRenderer(r2)
+                    results[self.tsdView.TSD.sensor] = r2
+                else:
+                    s = ""
+
+        s = ""
 
     def activateMapTool(self, key):
         if key is None:
@@ -828,7 +863,8 @@ class MapViewSensorSettings(QObject):
                self.ui.sliderGreen.value(),
                self.ui.sliderBlue.value()]
 
-    SignalizeImmediately = False
+    SignalizeImmediately = True
+
     def updateUi(self, *args):
         rgb = self.rgb()
 

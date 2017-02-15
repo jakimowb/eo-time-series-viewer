@@ -481,6 +481,7 @@ class TimeSeriesDatumView(QObject):
         canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
         canvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
 
+
         self.mapCanvases[mapView] = canvas
         self.L.insertWidget(self.wOffset + i, canvas)
         canvas.refreshMap()
