@@ -11,7 +11,7 @@ from [https://git-scm.com/download](https://git-scm.com/download)
 
         git clone https://bitbucket.org/jakimowb/hub-timeseriesviewer.git
         cd hub-timeseriesviewer
-        git fetch && git checkout qgis_api
+        git fetch && git checkout develop
 
     The qgis_api branch source code should now appear within `QGIS_Plugin/hub-timeseriesviewer`.
 

@@ -281,7 +281,7 @@ class PixelLoader(QObject):
         self._sigLoadCoordinate.emit(theGeometry.asWkt(50), str(crs.authid()))
 
 
-class SensorPoints(pg.PlotDataItem):
+class SensorPoints(pg.ScatterPlotItem):
     def __init__(self, *args, **kwds):
         super(SensorPoints, self).__init__(*args, **kwds)
         # menu creation is deferred because it is expensive and often
@@ -623,6 +623,7 @@ class SensorPlotSettings(object):
         self.sensor = sensor
         self.expression = u'"b1"'
         self.color = QColor('green')
+        self.color.setAlpha(50)
         self.isVisible = True
         self.memLyr = memoryLyr
 
@@ -1002,7 +1003,7 @@ class SpectralTemporalVisualization(QObject):
     def setVisibility2D(self, sensorView):
         assert isinstance(sensorView, SensorPlotSettings)
         p = self.plotData2D[sensorView.sensor]
-        assert isinstance(p, pg.PlotDataItem)
+        #assert isinstance(p, pg.PlotDataItem)
         p.setData(symbol='o', symbolBrush=sensorView.color, symbolPen='w', symbolSize=8)
 
         p.setVisible(sensorView.isVisible)
@@ -1026,10 +1027,15 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(sensorView, SensorPlotSettings)
 
         if sensorView.sensor not in self.plotData2D.keys():
-            #plotDataItem = SensorPoints(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
+            plotDataItem = SensorPoints(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
+            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.sensorName,
+                                              pen= {'color': 'w', 'width': 2},
+                                              brush=QColor('green'), symbol='o')
             #self.plot2D.addItem(plotDataItem)
-            plotDataItem = self.plot2D.plot(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
-            plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
+            #plotDataItem = self.plot2D.plot(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
+            #plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
+            self.plot2D.addItem(plotDataItem)
+            self.plot2D.scene().addItem(plotDataItem)
             self.plot2D.setMenuEnabled(True)
             self.plotData2D[sensorView.sensor] = plotDataItem
             self.setVisibility2D(sensorView)
@@ -1044,7 +1050,18 @@ class SpectralTemporalVisualization(QObject):
         if len(tsds) > 0:
             dates = np.asarray([date2num(tsd.date) for tsd in tsds])
             values = np.asarray(values)
-            plotDataItem.setData(x=dates, y=values, data=tsds)
+
+            #item = pg.PlotDataItem()
+            spots = []
+            for i, tsd in enumerate(tsds):
+                spots.append({'pos':(dates[i], values[i])})
+            plotDataItem.setPoints(spots)
+            #plotDataItem.invalidate()
+            #self.plot2D.invalidate()
+            #self.setVisibility2D()
+            #plotDataItem.setPoints(x=dates, y=values, data=tsds)
+            #plotDataItem.setData(x=dates, y=values, data=tsds)
+            #self.plot2D.addItem(plotDataItem)
 
             s = ""
 
