@@ -53,7 +53,7 @@ def test_gui():
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
     if True:
-        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=10)
+        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
     pass
 
