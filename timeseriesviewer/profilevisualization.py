@@ -371,12 +371,12 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             w = QgsFieldExpressionWidget(parent)
             sv = self.tableView.model().data(index, Qt.UserRole)
             w.setLayer(sv.memLyr)
-            w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor.sensorName))
-            w.setToolTip('Set values shown for sensor {}'.format(sv.sensor.sensorName))
+            w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor.name()))
+            w.setToolTip('Set values shown for sensor {}'.format(sv.sensor.name()))
             w.fieldChanged.connect(lambda : self.commitExpression(w, w.expression()))
         elif cname == 'style':
             sv = self.tableView.model().data(index, Qt.UserRole)
-            sn = sv.sensor.sensorName
+            sn = sv.sensor.name()
             w = QgsColorButton(parent, 'Point color {}'.format(sn))
             w.setColor(QColor(index.data()))
             w.colorChanged.connect(lambda: self.commitData.emit(w))
@@ -493,7 +493,7 @@ class PixelCollection(QObject):
             assert isinstance(tsd, TimeSeriesDatum)
             if tsd.sensor not in self.sensorPxLayers.keys():
                 #create new temp layer
-                mem = QgsVectorLayer('point', 'Pixels_sensor_'+tsd.sensor.sensorName, 'memory')
+                mem = QgsVectorLayer('point', 'Pixels_sensor_'+tsd.sensor.name(), 'memory')
 
                 self.sensorPxLayers[tsd.sensor] = mem
                 assert mem.startEditing()
@@ -701,6 +701,7 @@ class PlotSettingsModel(QAbstractTableModel):
         print('TESTSLOT')
         s = ""
 
+
     def signaler(self, idxUL, idxLR):
         if idxUL.isValid():
             sensorView = self.getSensorFromIndex(idxUL)
@@ -715,6 +716,7 @@ class PlotSettingsModel(QAbstractTableModel):
     def addSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
         assert sensor in self.pxCollection.sensorPxLayers.keys()
+
         sensorSettings = SensorPlotSettings(sensor, self.pxCollection.sensorPxLayers[sensor])
 
         i = len(self.items)
@@ -725,7 +727,12 @@ class PlotSettingsModel(QAbstractTableModel):
         #self.sort(self.sortColumnIndex, self.sortOrder)
 
         self.sigSensorAdded.emit(sensorSettings)
+        sensor.sigNameChanged.connect(self.onSensorNameChanged)
 
+    def onSensorNameChanged(self, name):
+        self.beginResetModel()
+
+        self.endResetModel()
 
     def sort(self, col, order):
         if self.rowCount() == 0:
@@ -738,7 +745,7 @@ class PlotSettingsModel(QAbstractTableModel):
         #self.beginMoveRows(idxSrc,
 
         if colName == 'sensor':
-            self.items.sort(key = lambda sv:sv.sensor.sensorName, reverse=r)
+            self.items.sort(key = lambda sv:sv.sensor.name(), reverse=r)
         elif colName == 'nb':
             self.items.sort(key=lambda sv: sv.sensor.nb, reverse=r)
         elif colName == 'y-value':
@@ -784,7 +791,7 @@ class PlotSettingsModel(QAbstractTableModel):
         #print(('data', columnName, role))
         if role == Qt.DisplayRole:
             if columnName == 'sensor':
-                value = sw.sensor.sensorName
+                value = sw.sensor.name()
             elif columnName == 'nb':
                 value = str(sw.sensor.nb)
             elif columnName == 'y-value':
@@ -836,7 +843,7 @@ class PlotSettingsModel(QAbstractTableModel):
             if columnName == 'sensor':
                 flags = flags | Qt.ItemIsUserCheckable
 
-            if columnName in ['y-value']: #allow check state
+            if columnName in ['y-value','style']: #allow check state
                 flags = flags | Qt.ItemIsEditable
             return flags
             #return item.qt_flags(index.column())
@@ -978,6 +985,7 @@ class SpectralTemporalVisualization(QObject):
 
         #self.plotSettingsModel.sigVisiblityChanged.connect(self.refresh)
         self.plotSettingsModel.rowsInserted.connect(self.onRowsInserted)
+        #self.plotSettingsModel.modelReset.connect(self.updatePersistantWidgets)
         self.TV.setModel(self.plotSettingsModel)
         self.delegate = PlotSettingsWidgetDelegate(self.TV)
         self.TV.setItemDelegateForColumn(2, self.delegate)
@@ -990,17 +998,26 @@ class SpectralTemporalVisualization(QObject):
         self.ui.pixelLoader.sigLoadingStarted.connect(self.clear)
         self.ui.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
 
-
-        """
-        def setPersistentWidgets(self, index, start, end):
-            self.VIEW.openPersistentEditor(self.createIndex(index.row(), 2))
-            self.VIEW.openPersistentEditor(self.createIndex(index.row(), 3))
-        """
         # self.VIEW.setItemDelegateForColumn(3, PointStyleDelegate(self.VIEW))
         self.plotData2D = dict()
         self.plotData3D = dict()
         self.setData()
 
+    def updatePersistantWidgets(self):
+        model = self.TV.model()
+        if model:
+            colExpression = model.columnames.index('y-value')
+            colStyle = model.columnames.index('style')
+            for row in range(model.rowCount()):
+                idxExpr = model.createIndex(row, colExpression)
+                idxStyle = model.createIndex(row, colStyle)
+                #self.TV.closePersistentEditor(idxExpr)
+                #self.TV.closePersistentEditor(idxStyle)
+                self.TV.openPersistentEditor(idxExpr)
+                self.TV.openPersistentEditor(idxStyle)
+
+                #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
+            s = ""
 
 
     def onRowsInserted(self, parent, start, end):
@@ -1011,8 +1028,8 @@ class SpectralTemporalVisualization(QObject):
             while start <= end:
                 idxExpr = model.createIndex(start, colExpression)
                 idxStyle = model.createIndex(start, colStyle)
-                self.TV.openPersistentEditor(idxExpr)
-                self.TV.openPersistentEditor(idxStyle)
+                #self.TV.openPersistentEditor(idxExpr)
+                #self.TV.openPersistentEditor(idxStyle)
                 start += 1
                 #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
             s = ""
@@ -1074,12 +1091,12 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(sensorView, SensorPlotSettings)
 
         if sensorView.sensor not in self.plotData2D.keys():
-            plotDataItem = SensorPoints(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
-            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.sensorName, pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
+            plotDataItem = SensorPoints(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
+            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.name(), pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
             #self.plot2D.addItem(plotDataItem)
 
 
-            plotDataItem = self.plot2D.plot(name=sensorView.sensor.sensorName, pen=None, symbol='o', symbolPen=None)
+            plotDataItem = self.plot2D.plot(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
             #plotDataItem.curve.setClickable(True)
             plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
 
@@ -1090,7 +1107,7 @@ class SpectralTemporalVisualization(QObject):
             self.setVisibility2D(sensorView)
 
         plotDataItem = self.plotData2D[sensorView.sensor]
-        plotDataItem.setToolTip('Values {}'.format(sensorView.sensor.sensorName))
+        plotDataItem.setToolTip('Values {}'.format(sensorView.sensor.name()))
 
 
         #https://github.com/pyqtgraph/pyqtgraph/blob/5195d9dd6308caee87e043e859e7e553b9887453/examples/customPlot.py
