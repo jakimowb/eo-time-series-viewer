@@ -686,8 +686,9 @@ class MapViewSensorSettings(QObject):
 
         self.ui = MapViewRenderSettingsUI(parent)
         self.ui.create()
-        self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
-        self.ui.labelTitle.setText(self.sensor.name())
+        self.sensor.sigNameChanged.connect(self.onSensorNameChanged)
+        self.onSensorNameChanged(self.sensor.name())
+
         self.ui.bandNames = sensor.bandNames
 
         self.multiBandMinValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
@@ -819,6 +820,11 @@ class MapViewSensorSettings(QObject):
 
         QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
         self.onClipboardChange()
+
+    def onSensorNameChanged(self, newName):
+        self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
+        self.ui.labelTitle.setText(self.sensor.name())
+        self.ui.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.sensor.name()))
 
     def pasteStyleFromClipboard(self):
         utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())

@@ -978,6 +978,7 @@ class TimeSeriesViewer:
 
 
         #connect buttons with actions
+        from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
         D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
 
