@@ -185,7 +185,7 @@ class TsvMapCanvas(QgsMapCanvas):
             if isinstance(l, QgsRasterLayer):
                 r = l.renderer()
                 dp = l.dataProvider()
-
+                newRenderer = None
 
                 extent = se.toCrs(l.crs())
 
@@ -199,15 +199,25 @@ class TsvMapCanvas(QgsMapCanvas):
                         ce.setMinimumValue(stats.minimumValue)
                         ce.setMaximumValue(stats.maximumValue)
                         return ce
-                    r2 = QgsMultiBandColorRenderer(None,r.redBand(), r.greenBand(), r.blueBand())
-                    r2.setRedContrastEnhancement(getCE(r.redBand(), r.redContrastEnhancement()))
-                    r2.setGreenContrastEnhancement(getCE(r.greenBand(), r.greenContrastEnhancement()))
-                    r2.setBlueContrastEnhancement(getCE(r.blueBand(), r.blueContrastEnhancement()))
-                    self.sensorView.setLayerRenderer(r2)
-                    results[self.tsdView.TSD.sensor] = r2
-                else:
+
+                    newRenderer = QgsMultiBandColorRenderer(None,r.redBand(), r.greenBand(), r.blueBand())
+                    newRenderer.setRedContrastEnhancement(getCE(r.redBand(), r.redContrastEnhancement()))
+                    newRenderer.setGreenContrastEnhancement(getCE(r.greenBand(), r.greenContrastEnhancement()))
+                    newRenderer.setBlueContrastEnhancement(getCE(r.blueBand(), r.blueContrastEnhancement()))
+
+                    results[self.tsdView.TSD.sensor] = newRenderer
+                elif isinstance(r, QgsSingleBandPseudoColorRenderer):
+                    newRenderer = r.clone()
+                    stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
+                    shader = newRenderer.shader()
+                    newRenderer.setClassificationMax(stats.maximumValue)
+                    newRenderer.setClassificationMin(stats.minimumValue)
+                    shader.setMaximumValue(stats.maximumValue)
+                    shader.setMinimumValue(stats.minimumValue)
                     s = ""
 
+                if newRenderer is not None:
+                    self.sensorView.setLayerRenderer(newRenderer)
         s = ""
 
     def activateMapTool(self, key):
@@ -236,8 +246,21 @@ class TsvMapCanvas(QgsMapCanvas):
         lyrs = [mcl.layer() for mcl in self.MapCanvasLayers if str(mcl.layer().source()) == targetLayerUri]
         assert len(lyrs) <= 1
         for lyr in lyrs:
-            r = renderer.clone()
-            r.setInput(lyr.dataProvider())
+            if isinstance(renderer, QgsMultiBandColorRenderer):
+                r = renderer.clone()
+                r.setInput(lyr.dataProvider())
+            elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                r = renderer.clone()
+                #r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
+                r.setInput(lyr.dataProvider())
+                cmin = renderer.classificationMin()
+                cmax = renderer.classificationMax()
+                r.setClassificationMin(cmin)
+                r.setClassificationMax(cmax)
+                #r.setShader(renderer.shader())
+                s = ""
+            else:
+                raise NotImplementedError()
             lyr.setRenderer(r)
 
         self.refresh()
@@ -736,7 +759,9 @@ class MapViewSensorSettings(QObject):
 
         #define default renderers:
         bands = [min([b,nb-1]) for b in range(3)]
-        bandStats = [lyr.dataProvider().bandStatistics(b) for b in range(nb)]
+        extent = lyr.extent()
+
+        bandStats = [lyr.dataProvider().bandStatistics(b, QgsRasterBandStats.All, extent, 500) for b in range(nb)]
 
         def createEnhancement(bandIndex):
             bandIndex = min([nb - 1, bandIndex])
@@ -752,8 +777,6 @@ class MapViewSensorSettings(QObject):
         self.defaultMB.setBlueContrastEnhancement(createEnhancement(bands[2]))
 
         self.defaultSB = QgsSingleBandPseudoColorRenderer(lyr.dataProvider(), 0, None)
-        self.defaultSB.setClassificationMin(bandStats[0].Min)
-        self.defaultSB.setClassificationMax(bandStats[0].Max)
 
         colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
 
@@ -763,7 +786,7 @@ class MapViewSensorSettings(QObject):
         shaderFunc.setClip(True)
         nSteps = 5
         colorRampItems = []
-        diff = bandStats[0].Min - bandStats[0].Max
+        diff = bandStats[0].Max - bandStats[0].Min
         for  i in range(nSteps+1):
             f = float(i) / nSteps
             color = colorRamp.color(f)
@@ -775,7 +798,8 @@ class MapViewSensorSettings(QObject):
         shader.setMinimumValue(bandStats[0].Max)
         shader.setRasterShaderFunction(shaderFunc)
         self.defaultSB.setShader(shader)
-
+        self.defaultSB.setClassificationMin(shader.minimumValue())
+        self.defaultSB.setClassificationMax(shader.maximumValue())
         #init connect signals
         self.ui.actionSetDefaultMB.triggered.connect(lambda : self.setBandSelection('defaultMB'))
         self.ui.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('TrueColor'))
@@ -925,8 +949,8 @@ class MapViewSensorSettings(QObject):
             shader = renderer.shader()
             cmin = shader.minimumValue()
             cmax = shader.maximumValue()
-            self.ui.tbSingleBandMin.setText(str(cmax))
-            self.ui.tbSingleBandMax.setText(str(cmin))
+            self.ui.tbSingleBandMin.setText(str(cmin))
+            self.ui.tbSingleBandMax.setText(str(cmax))
 
             shaderFunc = shader.rasterShaderFunction()
             self.ui.cbSingleBandColorRampType.setCurrentIndex(shaderFunc.colorRampType())
@@ -965,8 +989,11 @@ class MapViewSensorSettings(QObject):
                 rgbEnhancements = []
                 for i in range(3):
                     e = QgsContrastEnhancement(self.sensor.bandDataType)
-                    e.setMinimumValue(float(self.multiBandMinValues[i].text()))
-                    e.setMaximumValue(float(self.multiBandMaxValues[i].text()))
+                    minmax = [float(self.multiBandMinValues[i].text()), float(self.multiBandMaxValues[i].text())]
+                    cmin = min(minmax)
+                    cmax = max(minmax)
+                    e.setMinimumValue(cmin)
+                    e.setMaximumValue(cmax)
                     e.setContrastEnhancementAlgorithm(alg)
                     rgbEnhancements.append(e)
                 r.setRedContrastEnhancement(rgbEnhancements[0])
@@ -975,8 +1002,9 @@ class MapViewSensorSettings(QObject):
 
         if ui.stackedWidget.currentWidget() == ui.pageSingleBand:
             r = QgsSingleBandPseudoColorRenderer(None, ui.sliderSingleBand.value(), None)
-            cmin = float(ui.tbSingleBandMin.text())
-            cmax = float(ui.tbSingleBandMax.text())
+            minmax = [float(ui.tbSingleBandMin.text()), float(ui.tbSingleBandMax.text())]
+            cmin = min(minmax)
+            cmax = max(minmax)
             r.setClassificationMin(cmin)
             r.setClassificationMax(cmax)
             colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
@@ -987,7 +1015,7 @@ class MapViewSensorSettings(QObject):
             shaderFunc.setClip(True)
             nSteps = 10
             colorRampItems = []
-            diff = cmin - cmax
+            diff = cmax - cmin
             for i in range(nSteps + 1):
                 f = float(i) / nSteps
                 color = colorRamp.color(f)
@@ -995,11 +1023,12 @@ class MapViewSensorSettings(QObject):
                 colorRampItems.append(QgsColorRampShader.ColorRampItem(value, color))
             shaderFunc.setColorRampItemList(colorRampItems)
             shader = QgsRasterShader()
-            shader.setMaximumValue(cmin)
-            shader.setMinimumValue(cmax)
+            shader.setMaximumValue(cmax)
+            shader.setMinimumValue(cmin)
             shader.setRasterShaderFunction(shaderFunc)
             r.setShader(shader)
 
+            s = ""
         return r
 
 

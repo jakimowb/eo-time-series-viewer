@@ -212,6 +212,8 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
         self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
         self.btnClearTS.setDefaultAction(parent.actionClearTS)
 
+        self.frameFilters.setVisible(False)
+
         self.connectTimeSeries(None)
 
 
