@@ -59,16 +59,7 @@ def verifyVRT(pathVRT):
 
 class SensorInstrument(QObject):
 
-    INSTRUMENTS = dict()
-    INSTRUMENTS = {(6, 30., 30.): 'Landsat Legacy' \
-                , (7, 30., 30.): 'L8 OLI' \
-                , (4, 10., 10.): 'S2 MSI 10m' \
-                , (6, 20., 20.): 'S2 MSI 20m' \
-                , (3, 30., 30.): 'S2 MSI 60m' \
-                , (3, 30., 30.): 'S2 MSI 60m' \
-                , (5, 5., 5.): 'RE 5m' \
-                    }
-
+    sigNameChanged = pyqtSignal(str)
 
     LUT_Wavelengths = dict({'B':480,
                             'G':570,
@@ -119,13 +110,25 @@ class SensorInstrument(QObject):
         self.wavelengths = np.asarray(wl)
         self.wavelengthUnits = wlu
 
+        self._id = '{}b{}m'.format(self.nb, self.px_size_x)
+        if wl is not None:
+            self._id += ';'.join([str(w) for w in self.wavelengths])+ wlu
         if sensor_name is None:
-            id = (self.nb, self.px_size_x, self.px_size_y)
-            sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
 
-        self.sensorName = sensor_name
+            sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
+        self.setName(sensor_name)
 
         self.hashvalue = hash(','.join(self.bandNames))
+
+    def id(self):
+        return self._id
+
+    def setName(self, name):
+        self._name = name
+        self.sigNameChanged.emit(self.name())
+
+    def name(self):
+        return self._name
 
     def dataType(self, p_int):
         return self.bandDataType
@@ -164,14 +167,14 @@ class SensorInstrument(QObject):
                self.px_size_y == other.px_size_y
 
     def __hash__(self):
-        return self.hashvalue
+        return hash(self.id())
 
     def __repr__(self):
-        return self.sensorName
+        return str(self.__class__) +' ' + self.name()
 
     def getDescription(self):
         info = []
-        info.append(self.sensorName)
+        info.append(self.name())
         info.append('{} Bands'.format(self.nb))
         info.append('Band\tName\tWavelength')
         for b in range(self.nb):
@@ -328,10 +331,10 @@ class TimeSeriesDatum(QObject):
         if self.date < other.date:
             return True
         else:
-            return self.sensor.sensorName < other.sensor.sensorName
+            return self.sensor.id() < other.sensor.id()
 
     def __hash__(self):
-        return hash((self.date,self.sensor.sensorName))
+        return hash((self.date,self.sensor.id()))
 
 
 class TimeSeries(QObject):

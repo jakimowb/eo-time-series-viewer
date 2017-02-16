@@ -35,24 +35,6 @@ class TsvDockWidgetBase(QgsDockWidget):
         return states
 
 
-class SensorDockUI(TsvDockWidgetBase, load('sensordock.ui')):
-    def __init__(self, parent=None):
-        super(SensorDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        self.TS = None
-
-    def connectTimeSeries(self, timeSeries):
-        from timeseriesviewer.timeseries import TimeSeries
-        from timeseriesviewer.viewmodels import SensorTableModel
-        assert isinstance(timeSeries, TimeSeries)
-        self.TS = timeSeries
-        model = SensorTableModel(self.TS)
-        self.sensorView.setModel(model)
-        self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        s = ""
-
-
 
 class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     def __init__(self, parent=None):

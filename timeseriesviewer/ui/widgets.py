@@ -413,7 +413,9 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockLabeling = addDockWidget(docks.LabelingDockUI(self))
         self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
         self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
-        self.dockSensors = addDockWidget(docks.SensorDockUI(self))
+
+        from timeseriesviewer.sensorvisualization import SensorDockUI
+        self.dockSensors = addDockWidget(SensorDockUI(self))
         #area = Qt.RightDockWidgetArea
 
 
@@ -678,11 +680,14 @@ class MapViewSensorSettings(QObject):
     def __init__(self, sensor, parent=None):
         """Constructor."""
         super(MapViewSensorSettings, self).__init__(parent)
+        from timeseriesviewer.timeseries import SensorInstrument
+        assert isinstance(sensor, SensorInstrument)
+        self.sensor = sensor
 
         self.ui = MapViewRenderSettingsUI(parent)
         self.ui.create()
-
-        self.ui.labelTitle.setText(sensor.sensorName)
+        self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
+        self.ui.labelTitle.setText(self.sensor.name())
         self.ui.bandNames = sensor.bandNames
 
         self.multiBandMinValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
@@ -724,9 +729,7 @@ class MapViewSensorSettings(QObject):
 
         self.ui.cbSingleBandColorRamp.populate(QgsStyleV2.defaultStyle())
 
-        from timeseriesviewer.timeseries import SensorInstrument
-        assert isinstance(sensor, SensorInstrument)
-        self.sensor = sensor
+
         nb = self.sensor.nb
         lyr = QgsRasterLayer(self.sensor.refUri)
 
