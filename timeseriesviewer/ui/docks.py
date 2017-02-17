@@ -106,20 +106,31 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
 
         #default: disable QgsSync box
         self.gbSyncQgs.setEnabled(False)
-        self.btnCrs.crsChanged.connect(self.sigCrsChanged.emit)
+        self.btnCrs.crsChanged.connect(self.sigSetCrs.emit)
         self.btnCrs.crsChanged.connect(self.onCrsUpdated)
 
-        self.cbSyncQgsMapExtent.clicked.connect(self.qgsSyncStateChanged)
-        self.cbSyncQgsMapCenter.clicked.connect(self.qgsSyncStateChanged)
-        self.cbSyncQgsCRS.clicked.connect(self.qgsSyncStateChanged)
+        self.syncStateWidgets = [self.cbSyncQgsMapExtent, self.cbSyncQgsMapCenter, self.cbSyncQgsCRS]
 
         self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
                                      self.spinBoxExtentWidth, self.spinBoxExtentHeight]
 
+
         for sb in self.spatialExtentWidgets:
-            sb.valueChanged.connect(lambda: self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+            sb.valueChanged.connect(self.onExtentDefinitionChanges)
+        for cb in self.syncStateWidgets:
+            cb.clicked.connect(self.onExtentDefinitionChanges)
+
 
         self.connectTimeSeries(None)
+
+    def onExtentDefinitionChanges(self):
+        if self.cbSyncQgsMapExtent.isChecked():
+            self.cbSyncQgsMapCenter.setEnabled(False)
+            self.cbSyncQgsMapCenter.setChecked(True)
+        else:
+            self.cbSyncQgsMapCenter.setEnabled(True)
+
+        self.sigSetSpatialExtent.emit(self.spatialExtent())
 
     def connectTimeSeries(self, TS):
         self.TS = TS
@@ -137,14 +148,17 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
             if not self.timeSeriesInitialized:
                 self.setSpatialExtent(self.TS.getMaxSpatialExtent(self.crs()))
                 self.timeSeriesInitialized = True
-                self.sigSpatialExtentChanged.emit(self.spatialExtent())
+                self.sigSetSpatialExtent.emit(self.spatialExtent())
 
 
-    def qgsSyncStateChanged(self, *args):
 
-        s = ""
+    def qgsSyncState(self):
+        return {'center':self.cbSyncQgsMapCenter.isChecked(),
+                'extent':self.cbSyncQgsMapExtent.isChecked(),
+                'crs':self.cbSyncQgsCRS.isChecked()}
 
-    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+
+    sigSetCrs = pyqtSignal(QgsCoordinateReferenceSystem)
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         self.btnCrs.setCrs(crs)
@@ -157,8 +171,9 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
     def onCrsUpdated(self, crs):
         self.gbCrs.setTitle(crs.authid())
         self.textBoxCRSInfo.setPlainText(crs.toWkt())
+        self.sigSetCrs.emit(self.crs())
 
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigSetSpatialExtent = pyqtSignal(SpatialExtent)
 
     def spatialExtent(self):
         crs = self.crs()
@@ -192,7 +207,7 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
         self._blockSignals(states)
 
         if extent != old:
-            self.sigSpatialExtentChanged.emit(extent)
+            self.sigSetSpatialExtent.emit(extent)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()

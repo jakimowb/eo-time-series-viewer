@@ -57,6 +57,94 @@ def test_gui():
         return
     pass
 
+class QgisFake(QgisInterface):
+
+    def __init__(self, *args):
+        super(QgisFake, self).__init__(*args)
+
+        self.canvas = QgsMapCanvas()
+        self.canvas.blockSignals(False)
+        print(self.canvas)
+        self.canvas.setCrsTransformEnabled(True)
+        self.canvas.setCanvasColor(Qt.black)
+        self.canvas.extentsChanged.connect(self.testSlot)
+        self.layerTreeView = QgsLayerTreeView()
+        self.rootNode =QgsLayerTreeGroup()
+        self.treeModel = QgsLayerTreeModel(self.rootNode)
+        self.layerTreeView.setModel(self.treeModel)
+        self.bridge = QgsLayerTreeMapCanvasBridge(self.rootNode, self.canvas)
+        self.bridge.setAutoSetupOnFirstLayer(True)
+        self.ui = QMainWindow()
+        mainFrame = QFrame()
+
+        self.ui.setCentralWidget(mainFrame)
+        self.ui.setWindowTitle('Fake QGIS')
+        l = QHBoxLayout()
+        l.addWidget(self.layerTreeView)
+        l.addWidget(self.canvas)
+        mainFrame.setLayout(l)
+        self.ui.setCentralWidget(mainFrame)
+        self.lyrs = []
+        self.createActions()
+
+    def testSlot(self, *args):
+        #print('--canvas changes--')
+        s = ""
+
+    def addVectorLayer(selfpath, basename, providerkey):
+        pass
+
+    def addRasterLayer(self, path, baseName=''):
+        l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
+        self.lyrs.append(l)
+        QgsMapLayerRegistry.instance().addMapLayer(l, True)
+        self.rootNode.addLayer(l)
+        self.bridge.setCanvasLayers()
+        return
+
+        cnt = len(self.canvas.layers())
+
+        self.canvas.setLayerSet([QgsMapCanvasLayer(l)])
+        l.dataProvider()
+        if cnt == 0:
+            self.canvas.mapSettings().setDestinationCrs(l.crs())
+            self.canvas.setExtent(l.extent())
+            from timeseriesviewer.main import SpatialExtent
+
+            spatialExtent = SpatialExtent.fromMapLayer(l)
+            #self.canvas.blockSignals(True)
+            self.canvas.setDestinationCrs(spatialExtent.crs())
+            self.canvas.setExtent(spatialExtent)
+            #self.blockSignals(False)
+            self.canvas.refresh()
+
+        self.canvas.refresh()
+
+    def createActions(self):
+        m = self.ui.menuBar().addAction('Add Vector')
+        m = self.ui.menuBar().addAction('Add Raster')
+
+    def mapCanvas(self):
+        return self.canvas
+
+def test_qgisbridge():
+    from timeseriesviewer.main import TimeSeriesViewer
+    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
+
+    fakeQGIS = QgisFake()
+
+    S = TimeSeriesViewer(fakeQGIS)
+    S.ui.show()
+    S.run()
+
+    fakeQGIS.ui.show()
+    import example.Images
+    fakeQGIS.addRasterLayer(example.Images.Img_2014_08_03_LE72270652014215CUB00_BOA)
+    S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
+    s = ""
+
+
+
 def test_component():
 
     pass
@@ -84,7 +172,8 @@ if __name__ == '__main__':
     qgsApp.initQgis()
 
     #run tests
-    if True: test_gui()
+    if True: test_qgisbridge()
+    if False: test_gui()
     if False: test_component()
 
 

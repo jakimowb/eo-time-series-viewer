@@ -43,10 +43,11 @@ class TsvScrollArea(QScrollArea):
 
 
 class TsvMapCanvas(QgsMapCanvas):
-
+    from timeseriesviewer.main import SpatialExtent
     saveFileDirectories = dict()
     #sigRendererChanged = pyqtSignal(QgsRasterRenderer)
     sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def __init__(self, tsdView, mapView, parent=None):
         super(TsvMapCanvas, self).__init__(parent=parent)
@@ -62,7 +63,8 @@ class TsvMapCanvas(QgsMapCanvas):
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-        self.qgsInteraction = QgisTsvBridge.instance()
+        self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+
 
         #self.scrollAreaContent = tsdView.TSDVC.STViz.targetLayout.parentWidget()
         #self.viewport = tsdView.TSDVC.STViz.targetLayout.parentWidget().parentWidget()
