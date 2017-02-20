@@ -510,7 +510,7 @@ Please ensure that PyOpenGL is installed
   <customwidget>
    <class>DateTimePlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>profilevisualization</header>
+   <header>timeseriesviewer.profilevisualization</header>
   </customwidget>
  </customwidgets>
  <resources>

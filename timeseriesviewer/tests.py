@@ -53,7 +53,7 @@ def test_gui():
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
     if True:
-        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
+        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=100)
         return
     pass
 
@@ -91,8 +91,20 @@ class QgisFake(QgisInterface):
         #print('--canvas changes--')
         s = ""
 
-    def addVectorLayer(selfpath, basename, providerkey):
-        pass
+    def addVectorLayer(self, path, basename=None, providerkey=None):
+        if basename is None:
+            basename = os.path.basename(path)
+        if providerkey is None:
+            bn, ext = os.path.splitext(basename)
+
+            providerkey = 'ogr'
+        l = QgsVectorLayer(path, basename, providerkey)
+        assert l.isValid()
+        QgsMapLayerRegistry.instance().addMapLayer(l, True)
+        self.rootNode.addLayer(l)
+        self.bridge.setCanvasLayers()
+        s = ""
+
 
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
@@ -139,8 +151,11 @@ def test_qgisbridge():
 
     fakeQGIS.ui.show()
     import example.Images
+    fakeQGIS.addVectorLayer(example.exampleEvents)
     fakeQGIS.addRasterLayer(example.Images.Img_2014_08_03_LE72270652014215CUB00_BOA)
+
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
+
     s = ""
 
 

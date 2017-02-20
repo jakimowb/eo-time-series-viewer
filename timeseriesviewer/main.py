@@ -354,8 +354,14 @@ class MapView(QObject):
 
     sigRemoveMapView = pyqtSignal(object)
     sigMapViewVisibility = pyqtSignal(bool)
+    sigVectorVisibility = pyqtSignal(bool)
+
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
+
+    sigVectorLayerChanged = pyqtSignal(QgsVectorLayer)
+    sigVectorLayerRemoved = pyqtSignal()
+
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
 
@@ -369,15 +375,27 @@ class MapView(QObject):
 
         self.setVisibility(True)
 
+        self.vectorLayer = None
+
         #forward actions with reference to this band view
         self.spatialExtent = None
         self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
         self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
         self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
         self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
+        self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
         self.sensorViews = collections.OrderedDict()
 
         self.mSpatialExtent = None
+
+    def setVectorLayer(self, lyr):
+        if lyr is not None:
+            assert isinstance(lyr, QgsVectorLayer)
+            self.vectorLayer = lyr
+            self.sigVectorLayerChanged.emit(self.vectorLayer)
+        else:
+            lyr = None
+            self.sigVectorLayerRemoved.emit()
 
     def applyStyles(self):
         for sensorView in self.sensorViews.values():
@@ -583,6 +601,7 @@ class SpatialTemporalVisualization(QObject):
         self.MVC = MapViewCollection(self)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
+
         self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
         self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
         self.timeSeriesDateViewCollection.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
@@ -636,6 +655,7 @@ class SpatialTemporalVisualization(QObject):
 
             s = s + QSize(m.left() + m.right(), m.top() + m.bottom())
             self.targetLayout.parentWidget().setFixedSize(s)
+
 
 
 

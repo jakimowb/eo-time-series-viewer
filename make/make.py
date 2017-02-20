@@ -17,7 +17,7 @@ from timeseriesviewer import DIR_UI, file_search
 jp = os.path.join
 
 
-def createFilePackage(dirData):
+def createFilePackage(dirData, recursive=True):
     import numpy as np
     from timeseriesviewer import DIR_REPO
     pathInit = jp(dirData, '__init__.py')
@@ -34,7 +34,7 @@ def createFilePackage(dirData):
             'thisDir = os.path.dirname(__file__)',
             '# File path attributes:',
             ]
-    files = file_search(dirData, '*', recursive=True)
+    files = file_search(dirData, '*', recursive=recursive)
 
     filePathAttributes = set()
     def addFiles(files, comment=None, numberPrefix='File'):
@@ -72,7 +72,7 @@ def createFilePackage(dirData):
         "            sys.stderr.write('Missing package attribute file: {}={}'.format(a, v))",
         "",
         "# cleanup",
-        "del thisDir ",
+        "del thisDir, a, v ",
         ]
         )
 
@@ -431,9 +431,6 @@ def createCreditsHTML():
     s = ""
     pass
 
-
-
-
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
@@ -476,7 +473,8 @@ if __name__ == '__main__':
 
         # update __init__.py of testdata directories
         d = pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        createFilePackage(d)
+        d = pathDirTestData = DIR_EXAMPLES
+        createFilePackage(d, recursive=False)
 
     if False:
         createCreditsHTML()

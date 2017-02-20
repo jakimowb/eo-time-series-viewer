@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>453</width>
-    <height>110</height>
+    <height>123</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -128,6 +128,32 @@
        </widget>
       </item>
       <item>
+       <widget class="QToolButton" name="btnVectorOverlayVisibility">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="resources.qrc">
+          <normaloff>:/timeseriesviewer/icons/mapview.png</normaloff>:/timeseriesviewer/icons/mapview.png</iconset>
+        </property>
+        <property name="checkable">
+         <bool>false</bool>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+        <property name="autoRaise">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer_2">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
@@ -205,6 +231,28 @@
    </property>
    <property name="toolTip">
     <string>Apply Render Styles</string>
+   </property>
+  </action>
+  <action name="actionToggleVectorVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
+     <normalon>:/timeseriesviewer/icons/mapview.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+   </property>
+   <property name="text">
+    <string>Toogle vector overlay visibility</string>
+   </property>
+   <property name="toolTip">
+    <string>Toogle visibility of overlayed vector file</string>
    </property>
   </action>
  </widget>
