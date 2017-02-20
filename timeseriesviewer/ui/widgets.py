@@ -45,7 +45,6 @@ class TsvScrollArea(QScrollArea):
 class TsvMapCanvas(QgsMapCanvas):
     from timeseriesviewer.main import SpatialExtent
     saveFileDirectories = dict()
-    #sigRendererChanged = pyqtSignal(QgsRasterRenderer)
     sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
@@ -55,8 +54,6 @@ class TsvMapCanvas(QgsMapCanvas):
         assert isinstance(tsdView, TimeSeriesDatumView)
         assert isinstance(mapView, MapView)
 
-
-
         #the canvas
         self.setCrsTransformEnabled(True)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -65,9 +62,6 @@ class TsvMapCanvas(QgsMapCanvas):
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
-
-        #self.scrollAreaContent = tsdView.TSDVC.STViz.targetLayout.parentWidget()
-        #self.viewport = tsdView.TSDVC.STViz.targetLayout.parentWidget().parentWidget()
         self.scrollArea = tsdView.scrollArea
         assert isinstance(self.scrollArea, TsvScrollArea)
         self.scrollArea.sigResized.connect(self.setRenderMe)
@@ -75,21 +69,20 @@ class TsvMapCanvas(QgsMapCanvas):
 
         self.tsdView = tsdView
         self.mapView = mapView
-
+        self.vectorLayer = None
+        self.mapView.sigVectorLayerChanged.connect(self.onVectorLayerChanged)
+        self.mapView.sigVectorVisibility.connect(self.refresh)
         self.renderMe = False
         self.setRenderMe()
 
         self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
-        self.mapView.sigMapViewVisibility.connect(self.setVisible)
+        self.mapView.sigMapViewVisibility.connect(self.setMapLayers)
         self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
         QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
 
-        self.MapCanvasLayers = [QgsMapCanvasLayer(self.referenceLayer)]
-        self.setLayerSet(self.MapCanvasLayers)
-        #todo: handle QGIS interaction
-
-        #set raster layer style
+        self.MapCanvasLayers = []
+        self.setMapLayers()
 
         self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
         self.setRenderer(self.sensorView.layerRenderer())
@@ -105,8 +98,33 @@ class TsvMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['identifyProfile'] = mt
         #todo: self.MAPTOOLS['identifyMapLayers'] =
 
+    def setMapLayers(self, *args):
+        del self.MapCanvasLayers[:]
+
+        if self.vectorLayer:
+            self.MapCanvasLayers.append(QgsMapCanvasLayer(self.vectorLayer))
+        if self.referenceLayer:
+            self.MapCanvasLayers.append(QgsMapCanvasLayer(self.referenceLayer))
+
+        self.setLayerSet(self.MapCanvasLayers)
+        self.refresh()
+
+    def onVectorLayerChanged(self, lyr=None):
+        if isinstance(lyr, QgsRasterLayer):
+
+            self.vectorLayer = QgsVectorLayer()
+            QgsMapLayerRegistry.instance().addMapLayer(self.vectorLayer, False)
+        else:
+
+            self.vectorLayer = False
+
+        self.setMapLayers()
+        self.refresh()
+
+
 
     def refresh(self):
+
 
         self.setRenderMe()
         super(TsvMapCanvas, self).refresh()
@@ -153,11 +171,11 @@ class TsvMapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
-
-        if self.qgsInteraction:
-            assert isinstance(self.qgsInteraction, QgisTsvBridge)
+        from timeseriesviewer.main import QgisTsvBridge
+        bridge = QgisTsvBridge.instance()
+        if bridge:
+            assert isinstance(bridge, QgisTsvBridge)
             action = m.addAction('Add layer to QGIS')
-
             action = m.addAction('Import extent from QGIS')
             action = m.addAction('Export extent to QGIS')
             s = ""
@@ -598,6 +616,7 @@ class MapViewDefinitionUI(QGroupBox, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI))
 
     sigHideMapView = pyqtSignal()
     sigShowMapView = pyqtSignal()
+    sigVectorVisibility = pyqtSignal(bool)
 
     def __init__(self, mapViewDefinition,parent=None):
         super(MapViewDefinitionUI, self).__init__(parent)
@@ -607,7 +626,9 @@ class MapViewDefinitionUI(QGroupBox, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI))
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
         self.btnMapViewVisibility.setDefaultAction(self.actionToggleVisibility)
         self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
+        self.btnVectorOverlayVisibility.setDefaultAction(self.actionToggleVectorVisibility)
         self.actionToggleVisibility.toggled.connect(lambda: self.setVisibility(not self.actionToggleVisibility.isChecked()))
+        self.actionToggleVectorVisibility.toggled.connect(lambda : self.sigVectorVisibility.emit(self.actionToggleVectorVisibility.isChecked()))
 
     def _sizeHint(self):
 
