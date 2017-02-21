@@ -56,6 +56,13 @@ def verifyVRT(pathVRT):
     return True
 
 
+def getDS(pathOrDataset):
+    if isinstance(pathOrDataset, gdal.Dataset):
+        return pathOrDataset
+    else:
+        ds = gdal.Open(pathOrDataset)
+        assert isinstance(ds, gdal.Dataset)
+        return ds
 
 class SensorInstrument(QObject):
 
@@ -72,41 +79,25 @@ class SensorInstrument(QObject):
     """
     Describes a Sensor Configuration
     """
-    def __init__(self, refLyr, sensor_name=None):
+    def __init__(self, pathImg, sensor_name=None):
         super(SensorInstrument, self).__init__()
-        assert isinstance(refLyr, QgsRasterLayer)
-        assert refLyr.isValid()
-        #QgsMapLayerRegistry.instance().addMapLayer(refLyr)
-        self.nb = refLyr.bandCount()
-        self.bandDataType = refLyr.dataProvider().dataType(1)
-        self.refUri = refLyr.dataProvider().dataSourceUri()
-        r = refLyr.renderer()
 
+        ds = getDS(pathImg)
+        self.nb, nl, ns, crs, self.px_size_x, self.px_size_y = getSpatialPropertiesFromDataset(ds)
 
-        """
-        dom = QDomDocument()
-        root = dom.createElement('root')
-        refLyr.renderer().writeXML(dom, root)
-        dom.appendChild(root)
-        self.renderXML = dom.toString()
-        """
+        self.bandDataType = ds.GetRasterBand(1).DataType
+        self.pathImg = ds.GetFileList()[0]
 
         #todo: better band names
-        self.bandNames = [refLyr.bandName(i) for i in range(1, self.nb + 1)]
-        #self.refLyr = refLyr
+        self.bandNames = [ds.GetRasterBand(b+1).GetDescription() for b in range(self.nb)]
 
         self.TS = None
-        px_size_x = refLyr.rasterUnitsPerPixelX()
-        px_size_y = refLyr.rasterUnitsPerPixelY()
-
-        self.px_size_x = float(abs(px_size_x))
-        self.px_size_y = float(abs(px_size_y))
 
         assert self.px_size_x > 0
         assert self.px_size_y > 0
 
         #find wavelength
-        wl, wlu = parseWavelength(refLyr)
+        wl, wlu = parseWavelengthFromDataSet(ds)
         self.wavelengths = np.asarray(wl)
         self.wavelengthUnits = wlu
 
@@ -187,41 +178,6 @@ class SensorInstrument(QObject):
         return '\n'.join(info)
 
 
-class TSDLoaderSignals(QObject):
-
-    sigRasterLayerLoaded = pyqtSignal(QgsRasterLayer)
-    sigFinished = pyqtSignal()
-
-class TSDLoader(QRunnable):
-    """
-    Runnable to load QgsRasterLayers from a parallel thread
-    """
-    def __init__(self, tsd_paths):
-        super(TSDLoader, self).__init__()
-        self.signals = TSDLoaderSignals()
-
-        self.paths = list()
-        for p in tsd_paths:
-            if not (isinstance(p, tuple) or isinstance(p, list)):
-                p = [p]
-            self.paths.append(p)
-
-
-    def run(self):
-        lyrs = []
-        for path in self.paths:
-            TSD = TimeSeriesDatum(path)
-            lyr = QgsRasterLayer(path)
-            if lyr:
-                lyrs.append(lyr)
-                self.signals.sigRasterLayerLoaded.emit(lyr)
-                dprint('{} loaded'.format(path))
-            else:
-                dprint('Failed to load {}'.format(path))
-        self.signals.sigFinished.emit()
-        #return lyrs
-
-
 def verifyInputImage(path, vrtInspection=''):
 
     if not os.path.exists(path):
@@ -238,6 +194,13 @@ def verifyInputImage(path, vrtInspection=''):
     else:
         return True
 
+def pixel2coord(gt, x, y):
+    """Returns global coordinates from pixel x, y coords"""
+    """https://scriptndebug.wordpress.com/2014/11/24/latitudelongitude-of-each-pixel-using-python-and-gdal/"""
+    xoff, a, b, yoff, d, e = gt
+    xp = a * x + b * y + xoff
+    yp = d * x + e * y + yoff
+    return (xp, yp)
 
 class TimeSeriesDatum(QObject):
     @staticmethod
@@ -263,26 +226,31 @@ class TimeSeriesDatum(QObject):
 
 
 
-    def __init__(self, timeSeries, lyr, pathMsk=None):
+    def __init__(self, timeSeries, pathImg):
         super(TimeSeriesDatum,self).__init__()
-        assert isinstance(lyr, QgsRasterLayer)
-        assert lyr.isValid()
 
-        self.lyrImg = lyr
+        ds = getDS(pathImg)
+
+        self.pathImg = ds.GetFileList()[0]
+
         self.timeSeries = timeSeries
+        self.nb, self.nl, self.ns, self.crs, px_x, px_y = getSpatialPropertiesFromDataset(ds)
 
-        self.pathImg = self.lyrImg.dataProvider().dataSourceUri()
+        self.sensor = SensorInstrument(ds)
 
-        self.crs = self.lyrImg.dataProvider().crs()
-        self.sensor = SensorInstrument(self.lyrImg)
-
-        self.date = getImageDate(self.lyr)
+        self.date = getImageDateFromDataset(ds)
         self.doy = getDOYfromDate(self.date)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
-        self.ns = self.lyrImg.width()
-        self.nl = self.lyrImg.height()
-        self.nb = self.lyrImg.bandCount()
+
+        gt = ds.GetGeoTransform()
+
+        UL = QgsPoint(*pixel2coord(gt, 0, 0))
+        LR = QgsPoint(*pixel2coord(gt, self.ns, self.nl))
+        from timeseriesviewer.main import SpatialExtent
+        self._spatialExtent = SpatialExtent(self.crs, UL, LR)
+
         self.srs_wkt = str(self.crs.toWkt())
+
 
         self.mVisibility = True
 
@@ -308,9 +276,7 @@ class TimeSeriesDatum(QObject):
         return self.crs
 
     def spatialExtent(self):
-        from timeseriesviewer.main import SpatialExtent
-        extent = SpatialExtent(self.lyrImg.crs(), self.lyrImg.extent())
-        return extent
+        return self._spatialExtent
 
     def __repr__(self):
         return 'TS Datum {} {}'.format(self.date, str(self.sensor))
@@ -335,9 +301,10 @@ class TimeSeries(QObject):
 
     sigTimeSeriesDatesAdded = pyqtSignal(list)
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
-
+    sigLoadingProgress = pyqtSignal(int, int, str)
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
+    sigRuntimeStats = pyqtSignal(dict)
 
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
@@ -447,10 +414,7 @@ class TimeSeries(QObject):
         return tsds
 
     def clear(self):
-        self.Sensors.clear()
-        dates = self.data[:]
-        del self.data[:]
-        self.sigTimeSeriesDatesRemoved.emit(dates)
+        self.removeDates(self[:])
 
 
     def removeDates(self, TSDs):
@@ -462,10 +426,10 @@ class TimeSeries(QObject):
             removed.append(TSD)
 
             S = TSD.sensor
-            #self.Sensors[S].remove(TSD)
+            self.Sensors[S].remove(TSD)
             if len(self.Sensors[S]) == 0:
                 self.Sensors.pop(S)
-                self.sigSensorRemoved(S)
+                self.sigSensorRemoved.emit(S)
 
         self.sigTimeSeriesDatesRemoved.emit(removed)
 
@@ -484,7 +448,7 @@ class TimeSeries(QObject):
                     TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
                 if TSD in self.data:
-                    six.print_('Time series datum already added: {}'.format(str(TSD)), file=sys.stderr)
+                    six.print_('Time series datum already added: {} {}'.format(str(TSD), TSD.pathImg), file=sys.stderr)
                 else:
                     self.Sensors[TSD.sensor].append(TSD)
                     #insert sorted
@@ -508,12 +472,23 @@ class TimeSeries(QObject):
 
     def addFiles(self, files):
         assert isinstance(files, list)
+        nMax = len(files)
+        nDone = 0
+        self.sigLoadingProgress.emit(0,nMax, 'Start loading {} files...'.format(nMax))
+
         for i, file in enumerate(files):
+            t0 = np.datetime64('now')
             tsd = TimeSeriesDatum.createFromPath(file)
             if tsd is None:
-                dprint('Unable to add: {}'.format(file), file=sys.stderr)
+                msg = 'Unable to add: {}'.format(os.path.basename(file))
+                dprint(msg, file=sys.stderr)
             else:
                 self.addTimeSeriesDates([tsd])
+                msg = 'Added {}'.format(os.path.basename(file))
+                self.sigRuntimeStats.emit({'dt_addTSD':np.datetime64('now')-t0})
+            nDone += 1
+            self.sigLoadingProgress.emit(nDone, nMax, msg)
+
 
     def __len__(self):
         return len(self.data)
@@ -542,23 +517,47 @@ class TimeSeries(QObject):
 regAcqDate = re.compile(r'acquisition[ ]*(time|date|day)', re.I)
 regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
 
-def getImageDate(lyr):
-    assert isinstance(lyr, QgsRasterLayer)
-    mdLines = str(lyr.metadata()).splitlines()
-    date = None
-    #find date in metadata
-    for line in [l for l in mdLines if regAcqDate.search(l)]:
-        date = parseAcquisitionDate(line)
-        if date:
-            return date
-    #find date in filename
-    dn, fn = os.path.split(str(lyr.dataProvider().dataSourceUri()))
-    date = parseAcquisitionDate(fn)
+def getSpatialPropertiesFromDataset(ds):
+    assert isinstance(ds, gdal.Dataset)
+
+    nb = ds.RasterCount
+    nl = ds.RasterYSize
+    ns = ds.RasterXSize
+    proj = ds.GetGeoTransform()
+    px_x = float(abs(proj[1]))
+    px_y = float(abs(proj[5]))
+
+    crs = QgsCoordinateReferenceSystem(ds.GetProjection())
+
+    return nb, nl, ns, crs, px_x, px_y
+
+def getImageDateFromDataset(ds):
+    assert isinstance(ds, gdal.Dataset)
+
+
+
+    #search metadata for datetime information
+    # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for datetime format
+
+    regDateKeys = re.compile('(acquisition[ ]*time|date)')
+
+    for domain in ds.GetMetadataDomainList():
+        md = ds.GetMetadata_Dict(domain)
+        for key, value in md.items():
+            if regDateKeys.search(key):
+                return np.datetime64(value)
+
+    #extract from file basename
+    path = ds.GetFileList()[0]
+    bn = os.path.basename(path)
+    path_dir = os.path.dirname(path)
+
+    #search in basename
+    date = parseAcquisitionDate(bn)
     if date: return date
 
     #find date in file directory path
-    date = parseAcquisitionDate(date)
-
+    date = parseAcquisitionDate(path_dir)
     return date
 
 
@@ -567,6 +566,34 @@ regYYYYDOY = re.compile(r'(19|20)\d{5}')
 regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
 regYYYY = re.compile(r'(19|20)\d{2}')
 
+def parseWavelengthFromDataSet(ds):
+    assert isinstance(ds, gdal.Dataset)
+    wl = None
+    wlu = None
+
+    #see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+    regWLkey = re.compile('.*wavelength[_ ]*$')
+    regWLUkey = re.compile('.*wavelength[_ ]*units?$')
+    regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)")
+    regWLU = re.compile('((micro|nano|centi)meters)|(um|nm|mm|cm|m|GHz|MHz)')
+    for domain in ds.GetMetadataDomainList():
+        md = ds.GetMetadata_Dict(domain)
+        for key, value in md.items():
+            if wl is None and regWLkey.search(key):
+                numbers = regNumeric.findall(value)
+                if len(numbers) == ds.RasterCount:
+                    wl = [float(n) for n in numbers]
+
+            if wlu is None and regWLUkey.search(key):
+                match = regWLU.search(value)
+                if match:
+                    wlu = match.group()
+                names = ['nanometers', 'micrometers', 'millimeters', 'centimeters', 'decimeters']
+                si = ['nm', 'um', 'mm', 'cm', 'dm']
+                if wlu in names:
+                    wlu = si[names.index(wlu)]
+
+    return wl, wlu
 
 
 
