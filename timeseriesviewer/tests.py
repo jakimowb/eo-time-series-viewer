@@ -45,6 +45,17 @@ def test_gui():
         S.loadImageFiles(files)
         return
     if False:
+        files = [r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LC81720342015129LGN00\LC81720342015129LGN00_sr.tif']
+        S.loadImageFiles(files)
+        return
+    if True:
+        from timeseriesviewer import file_search
+        files = file_search(r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB', '*_sr.tif', recursive=True)
+        #files = files[0:15]
+        print('Load {} images...'.format(len(files)))
+        S.loadImageFiles(files)
+        return
+    if False:
         files = [r'H:\\LandsatData\\Landsat_NovoProgresso\\LC82270652013140LGN01\\LC82270652013140LGN01_sr_band4.img']
         S.loadImageFiles(files)
         return
@@ -155,9 +166,57 @@ def test_qgisbridge():
     fakeQGIS.addRasterLayer(example.Images.Img_2014_08_03_LE72270652014215CUB00_BOA)
 
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
-
+    S.ui.resize(600,600)
     s = ""
 
+
+def gdal_qgis_benchmark():
+    """Benchmark to compare loading times between GDAL a QGIS"""
+    import numpy as np
+
+    def load_via_gdal(path):
+        ds = gdal.Open(path)
+        assert isinstance(ds, gdal.Dataset)
+        nb = ds.RasterCount
+        ns = ds.RasterXSize
+        nl = ds.RasterYSize
+        wkt = ds.GetProjectionRef()
+        crs = QgsCoordinateReferenceSystem(wkt)
+        return crs, nb, nl, ns
+
+
+    def load_via_qgis(path):
+        lyr = QgsRasterLayer(path)
+        nb = lyr.bandCount()
+        ns = lyr.width()
+        nl = lyr.height()
+        crs = lyr.crs()
+        return crs, nb, nl, ns
+
+    t0 = None
+    dtime = lambda t0 : np.datetime64('now') - t0
+
+    root = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB'
+    files = file_search(root, '*_sr.tif', recursive=True)
+    #files = files[0:10]
+
+
+    print('Load {} images with gdal...'.format(len(files)))
+    t0 = np.datetime64('now')
+    results_gdal = [load_via_gdal(p) for p in files]
+    dt_gdal = dtime(t0)
+
+    print('Load {} images with qgis...'.format(len(files)))
+    t0 = np.datetime64('now')
+    results_qgis = [load_via_qgis(p) for p in files]
+    dt_qgis = dtime(t0)
+
+    print('gdal: {} qgis: {}'.format(str(dt_gdal), str(dt_qgis)))
+    for t in zip(results_gdal, results_qgis):
+        assert t[0] == t[1]
+        assert t[0][0].authid() == t[1][0].authid()
+    print('Benchmark done')
+    s =""
 
 
 def test_component():
@@ -187,8 +246,9 @@ if __name__ == '__main__':
     qgsApp.initQgis()
 
     #run tests
-    if True: test_qgisbridge()
-    if False: test_gui()
+    if False: gdal_qgis_benchmark()
+    if False: test_qgisbridge()
+    if True: test_gui()
     if False: test_component()
 
 

@@ -243,8 +243,11 @@ class QgisTsvBridge(QObject):
 
         from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
         assert isinstance(self.ui, TimeSeriesViewerUI)
+
         self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
         self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
+        self.cbQgsVectorLayer.setEnabled(True)
+        self.gbQgsVectorLayer.setEnabled(True)
         self.qgsMapCanvas = self.iface.mapCanvas()
         assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
 
@@ -257,7 +260,9 @@ class QgisTsvBridge(QObject):
 
         self.TSV.spatialTemporalVis.sigSpatialExtentChanged.connect(self.syncQgsWithTsv)
 
+        self.gbQgsVectorLayer.clicked.connect(self.onQgsVectorLayerChanged)
         self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
+        self.onQgsVectorLayerChanged(None)
 
     def syncTsvWithQgs(self, *args):
         if self.syncBlocked:
@@ -265,7 +270,6 @@ class QgisTsvBridge(QObject):
         syncState = self.ui.dockNavigation.qgsSyncState()
         if any(syncState.values()):
             self.syncBlocked = True
-            print(('# QGIS -> TSV#', syncState))
             self.syncBlocked = True
             QTimer.singleShot(500, lambda: self.unblock())
             tsvExt = self.TSV.spatialTemporalVis.extent
@@ -285,7 +289,6 @@ class QgisTsvBridge(QObject):
 
         syncState = self.ui.dockNavigation.qgsSyncState()
         if any(syncState.values()):
-            print(('# TSV -> QGIS #', syncState))
             self.syncBlocked = True
             QTimer.singleShot(500, lambda: self.unblock())
             tsvExt = self.TSV.spatialTemporalVis.extent
@@ -295,7 +298,9 @@ class QgisTsvBridge(QObject):
             self.qgsMapCanvas.setExtent(newExtent)
             self.syncBlocked = False
 
-            #QTimer.singleShot(500, lambda : self.unblock())
+            QTimer.singleShot(1000, lambda : self.unblock())
+
+
     def unblock(self):
         self.syncBlocked = False
 
@@ -314,20 +319,16 @@ class QgisTsvBridge(QObject):
 
 
     def onQgsVectorLayerChanged(self, lyr):
-        dprint('QgisTsvBridge: selected Qgs Vector layer changed')
-        s = ""
+        if self.gbQgsVectorLayer.isChecked() and \
+           isinstance(self.cbQgsVectorLayer.currentLayer(), QgsVectorLayer):
+            self.TSV.spatialTemporalVis.setVectorLayer(self.cbQgsVectorLayer.currentLayer())
+        else:
+            self.TSV.spatialTemporalVis.setVectorLayer(None)
+
 
     def extent(self):
         assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
         return SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
-
-    def getVectorLayerRepresentation(self):
-        if self.ui.gbQgsVectorLayer.isChecked():
-            lyr = self.cbQgsVectorLayer.currentLayer()
-            alpha = self.ui.sliderQgsVectorTransparency.value()
-            return lyr
-        else:
-            return None
 
 
     def syncExtent(self, isChecked):
@@ -359,8 +360,7 @@ class MapView(QObject):
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
 
-    sigVectorLayerChanged = pyqtSignal(QgsVectorLayer)
-    sigVectorLayerRemoved = pyqtSignal()
+    sigVectorLayerChanged = pyqtSignal()
 
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
@@ -376,6 +376,7 @@ class MapView(QObject):
         self.setVisibility(True)
 
         self.vectorLayer = None
+        self.setVectorLayer(None)
 
         #forward actions with reference to this band view
         self.spatialExtent = None
@@ -389,13 +390,17 @@ class MapView(QObject):
         self.mSpatialExtent = None
 
     def setVectorLayer(self, lyr):
-        if lyr is not None:
-            assert isinstance(lyr, QgsVectorLayer)
+        if isinstance(lyr, QgsVectorLayer):
             self.vectorLayer = lyr
-            self.sigVectorLayerChanged.emit(self.vectorLayer)
+            self.vectorLayer.rendererChanged.connect(self.sigVectorLayerChanged)
+            self.ui.btnVectorOverlayVisibility.setEnabled(True)
+
+
         else:
-            lyr = None
-            self.sigVectorLayerRemoved.emit()
+            self.vectorLayer = None
+            self.ui.btnVectorOverlayVisibility.setEnabled(False)
+
+        self.sigVectorLayerChanged.emit()
 
     def applyStyles(self):
         for sensorView in self.sensorViews.values():
@@ -414,6 +419,12 @@ class MapView(QObject):
     def visibility(self):
         return self.ui.visibility()
 
+    def visibleVectorOverlay(self):
+        return isinstance(self.vectorLayer, QgsVectorLayer) and \
+            self.ui.btnVectorOverlayVisibility.isChecked()
+
+
+
     def setTitle(self, title):
         self.mTitle = title
         #self.ui.setTitle('Map View' + title)
@@ -426,8 +437,12 @@ class MapView(QObject):
     def removeSensor(self, sensor):
         assert type(sensor) is SensorInstrument
         if sensor in self.sensorViews.keys():
-            self.sensorViews[sensor].close()
-            self.sensorViews.pop(sensor)
+            w = self.sensorViews.pop(sensor)
+            from timeseriesviewer.ui.widgets import MapViewSensorSettings
+            assert isinstance(w, MapViewSensorSettings)
+            l = self.ui.sensorList
+            l.removeWidget(w.ui)
+            w.ui.close()
             self.ui.adjustSize()
             return True
         else:
@@ -452,10 +467,6 @@ class MapView(QObject):
         l = self.ui.sensorList
         i = l.count()
         l.addWidget(w.ui)
-        from timeseriesviewer.ui.widgets import maxWidgetSizes
-
-
-        s = ""
 
 
     def getSensorWidget(self, sensor):
@@ -542,7 +553,7 @@ class TimeSeriesDatumView(QObject):
         canvas.close()
         self.adjustBaseMinSize()
 
-    def redraw(self):
+    def refresh(self):
         if self.ui.isVisible():
             for c in self.mapCanvases.values():
                 if c.isVisible():
@@ -601,6 +612,7 @@ class SpatialTemporalVisualization(QObject):
         self.MVC = MapViewCollection(self)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
+        self.vectorOverlay = None
 
         self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
         self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
@@ -615,6 +627,9 @@ class SpatialTemporalVisualization(QObject):
         self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         self.setSubsetSize(QSize(100,50))
 
+    def setVectorLayer(self, lyr):
+        self.MVC.setVectorLayer(lyr)
+
     def createMapView(self):
         self.MVC.createMapView()
 
@@ -628,9 +643,9 @@ class SpatialTemporalVisualization(QObject):
         self.timeSeriesDateViewCollection.setSubsetSize(size)
         self.adjustScrollArea()
 
-    def redraw(self):
+    def refresh(self):
         for tsdView in self.timeSeriesDateViewCollection:
-            tsdView.redraw()
+            tsdView.refresh()
 
 
     def adjustScrollArea(self):
@@ -859,6 +874,7 @@ class MapViewCollection(QObject):
         self.STViz = STViz
         self.STViz.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
         self.STViz.TS.sigSensorAdded.connect(self.addSensor)
+        self.STViz.TS.sigSensorRemoved.connect(self.removeSensor)
         self.ui = STViz.dockMapViews
         self.btnList = STViz.dockMapViews.BVButtonList
         self.scrollArea = STViz.dockMapViews.scrollAreaMapViews
@@ -882,6 +898,11 @@ class MapViewCollection(QObject):
         #print(newSize)
         #newSize = self.scrollAreaContent.sizeHint()
         self.scrollAreaContent.setFixedSize(newSize)
+
+    def setVectorLayer(self, lyr):
+        for mapView in self.mapViewsDefinitions:
+            assert isinstance(mapView, MapView)
+            mapView.setVectorLayer(lyr)
 
     def addSensor(self, sensor):
         for mapView in self.mapViewsDefinitions:
@@ -1060,7 +1081,7 @@ class TimeSeriesViewer:
 
         D.actionAddTSD.triggered.connect(lambda : self.ua_addTSImages())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
-        D.actionRedraw.triggered.connect(self.spatialTemporalVis.redraw)
+        D.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         D.actionLoadTS.triggered.connect(self.loadTimeSeries)
         D.actionClearTS.triggered.connect(self.clearTimeSeries)
         D.actionSaveTS.triggered.connect(self.ua_saveTSFile)

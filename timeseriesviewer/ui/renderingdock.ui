@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>396</height>
+    <width>266</width>
+    <height>368</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,53 +22,12 @@
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QFrame" name="frame">
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
+     <widget class="QGroupBox" name="groupBox_2">
+      <property name="title">
+       <string>Render progress</string>
       </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-      <layout class="QFormLayout" name="formLayout_2">
-       <item row="0" column="0">
-        <widget class="QPushButton" name="btnRefresh">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>125</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Refresh</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QCheckBox" name="cbRefreshImmediately">
-         <property name="text">
-          <string>immediately</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0" colspan="2">
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
         <widget class="QProgressBar" name="progressBar">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -259,6 +218,9 @@
       <property name="checkable">
        <bool>true</bool>
       </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
       <property name="saveCheckedState">
        <bool>true</bool>
       </property>
@@ -266,7 +228,7 @@
        <item row="0" column="0">
         <widget class="QLabel" name="label_13">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="text">
           <string>Type</string>
@@ -276,7 +238,7 @@
        <item row="0" column="1">
         <widget class="QComboBox" name="cbCrosshairStyle">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <item>
           <property name="text">
@@ -298,7 +260,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="label_14">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="text">
           <string>Color</string>
@@ -308,7 +270,7 @@
        <item row="1" column="1">
         <widget class="QgsColorButton" name="btnCrosshairColor">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="maximumSize">
           <size>
@@ -329,6 +291,9 @@
       <property name="checkable">
        <bool>true</bool>
       </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
       <property name="collapsed">
        <bool>false</bool>
       </property>
@@ -342,36 +307,13 @@
        <item row="0" column="0" colspan="2">
         <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>Alpha</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QSlider" name="sliderQgsVectorTransparency">
-         <property name="maximum">
-          <number>100</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="tickPosition">
-          <enum>QSlider::TicksBelow</enum>
-         </property>
-         <property name="tickInterval">
-          <number>10</number>
          </property>
         </widget>
        </item>

@@ -50,6 +50,11 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
         self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
 
+        self.gbCrosshair.setVisible(False)
+
+
+
+
     def subsetSize(self):
         return QSize(self.spinBoxSubsetSizeX.value(),
                      self.spinBoxSubsetSizeY.value())
@@ -81,7 +86,6 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
 
     def refreshProgressBar(self):
-        #todo: do this delayed
         self.progressBar.setMaximum(len(self.progress.keys()))
         p = len([v for v in self.progress.values() if v == True])
         self.progressBar.setValue(p)
@@ -230,9 +234,33 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
         self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
         self.btnClearTS.setDefaultAction(parent.actionClearTS)
 
+        self.progressBar.setMinimum(0)
+        self.setProgressInfo(0,100, 'Add images to fill time series')
+        self.progressBar.setValue(0)
+        self.progressInfo.setText(None)
         self.frameFilters.setVisible(False)
 
         self.connectTimeSeries(None)
+
+    def setStatus(self):
+        from timeseriesviewer.timeseries import TimeSeries
+        if isinstance(self.TS, TimeSeries):
+            ndates = len(self.TS)
+            nsensors = len(set([tsd.sensor for tsd in self.TS]))
+            msg = '{} scene(s) from {} sensor(s)'.format(ndates, nsensors)
+            if ndates > 1:
+                msg += ', {} to {}'.format(str(self.TS[0].date), str(self.TS[-1].date))
+            self.progressInfo.setText(msg)
+
+
+    def setProgressInfo(self, nDone, nMax, message=None):
+        if self.progressBar.maximum() != nMax:
+            self.progressBar.setMaximum(nMax)
+        self.progressBar.setValue(nDone)
+        self.progressInfo.setText(message)
+        QgsApplication.processEvents()
+        if nDone == nMax:
+            QTimer.singleShot(3000, lambda: self.setStatus())
 
 
     def onSelectionChanged(self, *args):
@@ -247,11 +275,13 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
         return []
 
     def connectTimeSeries(self, TS):
+        from timeseriesviewer.timeseries import TimeSeries
         self.TS = TS
         self.TSM = None
         self.SM = None
         self.timeSeriesInitialized = False
-        if TS is not None:
+
+        if isinstance(TS, TimeSeries):
             from timeseriesviewer.viewmodels import TimeSeriesTableModel
             self.TSM = TimeSeriesTableModel(self.TS)
             self.tableView_TimeSeries.setModel(self.TSM)
@@ -259,6 +289,8 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
             self.tableView_TimeSeries.setSelectionModel(self.SM)
             self.SM.selectionChanged.connect(self.onSelectionChanged)
             self.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+            TS.sigLoadingProgress.connect(self.setProgressInfo)
+
         self.onSelectionChanged()
 
 class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
@@ -271,7 +303,7 @@ class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
 
         #self.dockLocationChanged.connect(self.adjustLayouts)
 
-    def toogleLayout(self, p):
+    def toggleLayout(self, p):
         newLayout = None
         l = p.layout()
         print('toggle layout {}'.format(str(p.objectName())))
@@ -308,7 +340,7 @@ class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
                         and isinstance(lOld, QHBoxLayout):
 
             #self.toogleLayout(self.scrollAreaMapsViewDockContent)
-            self.toogleLayout(self.BVButtonList)
+            self.toggleLayout(self.BVButtonList)
 
 class LabelingDockUI(TsvDockWidgetBase, load('labelingdock.ui')):
     def __init__(self, parent=None):

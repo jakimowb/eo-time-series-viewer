@@ -70,13 +70,13 @@ class TsvMapCanvas(QgsMapCanvas):
         self.tsdView = tsdView
         self.mapView = mapView
         self.vectorLayer = None
-        self.mapView.sigVectorLayerChanged.connect(self.onVectorLayerChanged)
+        self.mapView.sigVectorLayerChanged.connect(self.refresh)
         self.mapView.sigVectorVisibility.connect(self.refresh)
         self.renderMe = False
         self.setRenderMe()
 
         self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
-        self.mapView.sigMapViewVisibility.connect(self.setMapLayers)
+        self.mapView.sigMapViewVisibility.connect(self.refresh)
         self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
         QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
@@ -100,32 +100,30 @@ class TsvMapCanvas(QgsMapCanvas):
 
     def setMapLayers(self, *args):
         del self.MapCanvasLayers[:]
+        if self.mapView.visibleVectorOverlay():
+            #if necessary, register new vector layer
+            refLyr = self.mapView.vectorLayer
+            uri = refLyr.dataProvider().dataSourceUri()
 
-        if self.vectorLayer:
+            if self.vectorLayer is None or self.vectorLayer.dataProvider().dataSourceUri() != uri:
+                providerKey = refLyr.dataProvider().name()
+                baseName = os.path.basename(uri)
+                self.vectorLayer = QgsVectorLayer(uri, baseName, providerKey)
+                QgsMapLayerRegistry.instance().addMapLayer(self.vectorLayer, False)
+
+            #update layer style
+            self.vectorLayer.setRendererV2(refLyr.rendererV2().clone())
+
             self.MapCanvasLayers.append(QgsMapCanvasLayer(self.vectorLayer))
         if self.referenceLayer:
             self.MapCanvasLayers.append(QgsMapCanvasLayer(self.referenceLayer))
 
         self.setLayerSet(self.MapCanvasLayers)
-        self.refresh()
-
-    def onVectorLayerChanged(self, lyr=None):
-        if isinstance(lyr, QgsRasterLayer):
-
-            self.vectorLayer = QgsVectorLayer()
-            QgsMapLayerRegistry.instance().addMapLayer(self.vectorLayer, False)
-        else:
-
-            self.vectorLayer = False
-
-        self.setMapLayers()
-        self.refresh()
 
 
 
     def refresh(self):
-
-
+        self.setMapLayers()
         self.setRenderMe()
         super(TsvMapCanvas, self).refresh()
 
@@ -454,8 +452,8 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
         self.dockNavigation = addDockWidget(docks.NavigationDockUI(self))
         self.dockLabeling = addDockWidget(docks.LabelingDockUI(self))
-        self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
-        self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
+        #self.tabifyDockWidget(self.dockNavigation, self.dockRendering)
+        #self.tabifyDockWidget(self.dockNavigation, self.dockLabeling)
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
@@ -478,16 +476,12 @@ class TimeSeriesViewerUI(QMainWindow,
             self.menuPanels.addAction(dock.toggleViewAction())
 
 
-
+        self.dockLabeling.setHidden(True)
 
         self.dockTimeSeries.raise_()
         self.dockNavigation.raise_()
 
         self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
-
-        #connect QPushButtons
-        self.dockRendering.btnRefresh.clicked.connect(self.actionRedraw.trigger)
-
 
 
         #todo: move to QGS_TSV_Bridge
@@ -778,7 +772,7 @@ class MapViewSensorSettings(QObject):
 
 
         nb = self.sensor.nb
-        lyr = QgsRasterLayer(self.sensor.refUri)
+        lyr = QgsRasterLayer(self.sensor.pathImg)
 
         #define default renderers:
         bands = [min([b,nb-1]) for b in range(3)]

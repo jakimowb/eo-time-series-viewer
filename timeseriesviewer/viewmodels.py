@@ -12,7 +12,7 @@ from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstr
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
-    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image', 'mask']
+    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image']
 
     def __init__(self, TS, parent=None, *args):
 
@@ -119,8 +119,6 @@ class TimeSeriesTableModel(QAbstractTableModel):
                 value = '{}'.format(TSD.date)
             elif columnName == 'image':
                 value = TSD.pathImg
-            elif columnName == 'mask':
-                value = TSD.pathMsk
             elif columnName in keys:
                 value = TSD.__dict__[columnName]
             else:

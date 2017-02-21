@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>561</width>
-    <height>603</height>
+    <width>809</width>
+    <height>379</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -80,8 +80,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>559</width>
-         <height>526</height>
+         <width>807</width>
+         <height>302</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -128,7 +128,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>561</width>
+     <width>809</width>
      <height>21</height>
     </rect>
    </property>
@@ -159,6 +159,7 @@
       <string>Panels...</string>
      </property>
     </widget>
+    <addaction name="actionRefresh"/>
     <addaction name="actionAddMapView"/>
     <addaction name="menuPanels"/>
    </widget>
@@ -194,6 +195,7 @@
    <addaction name="actionSaveTS"/>
    <addaction name="actionAddMapView"/>
    <addaction name="separator"/>
+   <addaction name="actionRefresh"/>
    <addaction name="actionSelectCenter"/>
    <addaction name="actionZoomIn"/>
    <addaction name="actionZoomOut"/>
@@ -496,14 +498,6 @@
     <string>Copy labels to clipboard</string>
    </property>
   </action>
-  <action name="actionRedraw">
-   <property name="text">
-    <string>Re-draw</string>
-   </property>
-   <property name="toolTip">
-    <string>Redraws all image subsets</string>
-   </property>
-  </action>
   <action name="actionSettings">
    <property name="icon">
     <iconset resource="resources.qrc">
@@ -535,6 +529,21 @@
    </property>
    <property name="toolTip">
     <string>Identify pixel time series for specific coordinate</string>
+   </property>
+  </action>
+  <action name="actionRefresh">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
+   </property>
+   <property name="text">
+    <string>Refresh</string>
+   </property>
+   <property name="toolTip">
+    <string>Refresh maps</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
    </property>
   </action>
  </widget>
