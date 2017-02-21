@@ -232,7 +232,7 @@ def verifyInputImage(path, vrtInspection=''):
         print('{}GDAL unable to open: '.format(vrtInspection, path))
         return False
     if ds.GetDriver().ShortName == 'VRT':
-        vrtInspection = 'Inspection {}\n'.format(path)
+        vrtInspection = 'VRT Inspection {}\n'.format(path)
         validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in set(ds.GetFileList()) - set([path])]
         return all(validSrc)
     else:
@@ -263,34 +263,28 @@ class TimeSeriesDatum(QObject):
 
 
 
-    def __init__(self, timeSeries, pathImg, pathMsk=None):
+    def __init__(self, timeSeries, lyr, pathMsk=None):
         super(TimeSeriesDatum,self).__init__()
-        assert os.path.exists(pathImg)
-        self.timeSeries = timeSeries
-        self.pathImg = pathImg
-        self.pathMsk = None
+        assert isinstance(lyr, QgsRasterLayer)
+        assert lyr.isValid()
 
-        assert os.path.exists(pathImg)
-        self.lyrImg = QgsRasterLayer(pathImg, os.path.basename(pathImg), False)
-        assert self.lyrImg.isValid()
-        self.uriImg = self.lyrImg.dataProvider().dataSourceUri()
+        self.lyrImg = lyr
+        self.timeSeries = timeSeries
+
+        self.pathImg = self.lyrImg.dataProvider().dataSourceUri()
 
         self.crs = self.lyrImg.dataProvider().crs()
         self.sensor = SensorInstrument(self.lyrImg)
 
-        self.date = getImageDate(self.lyrImg)
+        self.date = getImageDate(self.lyr)
         self.doy = getDOYfromDate(self.date)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
-
         self.ns = self.lyrImg.width()
         self.nl = self.lyrImg.height()
         self.nb = self.lyrImg.bandCount()
         self.srs_wkt = str(self.crs.toWkt())
 
         self.mVisibility = True
-
-        if pathMsk:
-            self.setMask(pathMsk)
 
 
     def rank(self):
@@ -567,25 +561,6 @@ def getImageDate(lyr):
 
     return date
 
-
-def PFunc_TimeSeries_getSpatialChip(TSD, bbWkt, srsWkt , bands=[4,5,3]):
-
-    chipdata = TSD.readSpatialChip(bbWkt, srs=srsWkt, bands=bands)
-
-    return TSD, chipdata
-
-def px2Coordinate(gt, pxX, pxY, upper_left=True):
-    cx = gt[0] + pxX*gt[1] + pxY*gt[2]
-    cy = gt[3] + pxX*gt[4] + pxY*gt[5]
-    if not upper_left:
-        cx += gt[1]*0.5
-        cy += gt[5]*0.5
-    return cx, cy
-
-def coordinate2px(gt, cx, cy):
-    px = int((cx - gt[0]) / gt[1])
-    py = int((cy - gt[3]) / gt[5])
-    return px, py
 
 
 regYYYYDOY = re.compile(r'(19|20)\d{5}')

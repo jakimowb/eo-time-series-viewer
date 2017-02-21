@@ -15,7 +15,13 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QDeclarativeView" name="declarativeView"/>
+    <widget class="ParameterTree" name="treeWidget">
+     <column>
+      <property name="text">
+       <string notr="true">1</string>
+      </property>
+     </column>
+    </widget>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
@@ -31,9 +37,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QDeclarativeView</class>
-   <extends>QGraphicsView</extends>
-   <header>QtDeclarative/QDeclarativeView</header>
+   <class>ParameterTree</class>
+   <extends>QTreeWidget</extends>
+   <header>pyqtgraph.parametertree</header>
   </customwidget>
  </customwidgets>
  <resources/>
