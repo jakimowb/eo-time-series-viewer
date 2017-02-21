@@ -628,20 +628,40 @@ def parseWavelength(lyr):
 
 
 
-def parseAcquisitionDate(text):
+def extractDateFromLandsatID(text):
     match = regLandsatSceneID.search(text)
     if match:
         id = match.group()
         return getDateTime64FromYYYYDOY(id[9:16])
-    match = regYYYYMMDD.search(text)
-    if match:
-        return np.datetime64(match.group())
-    match = regYYYYDOY.search(text)
-    if match:
-        return getDateTime64FromYYYYDOY(match.group())
+    return None
+
+def extractDateFromRapidEyeID(text):
+    pass
+
+def extractDateFromISO(text):
     match = regYYYY.search(text)
     if match:
         return np.datetime64(match.group())
+    return None
+
+def extractDateFromYYYYDOY(text):
+    match = regYYYYDOY.search(text)
+    if match:
+        return getDateTime64FromYYYYDOY(match.group())
+    return None
+
+DATE_EXTRACTION_FUNCTIONS = []
+DATE_EXTRACTION_FUNCTIONS.append(extractDateFromISO)
+DATE_EXTRACTION_FUNCTIONS.append(extractDateFromLandsatID)
+DATE_EXTRACTION_FUNCTIONS.append(extractDateFromRapidEyeID)
+DATE_EXTRACTION_FUNCTIONS.append(extractDateFromYYYYDOY)
+
+def parseAcquisitionDate(text):
+
+    for func in DATE_EXTRACTION_FUNCTIONS:
+        v = func(text)
+        if isinstance(v, np.datetime64):
+            return v
     return None
 
 
