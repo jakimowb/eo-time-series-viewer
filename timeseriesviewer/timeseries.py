@@ -11,10 +11,11 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 
+from osgeo import gdal, ogr
 import numpy as np
 
 from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp, findAbsolutePath
-
+from timeseriesviewer.dateparser import parseDateFromDataSet
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
     if trans is None:
         assert isinstance(crsSrc, QgsCoordinateReferenceSystem)
@@ -63,6 +64,9 @@ def getDS(pathOrDataset):
         ds = gdal.Open(pathOrDataset)
         assert isinstance(ds, gdal.Dataset)
         return ds
+
+
+
 
 class SensorInstrument(QObject):
 
@@ -190,7 +194,8 @@ def verifyInputImage(path, vrtInspection=''):
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
         validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in set(ds.GetFileList()) - set([path])]
-        return all(validSrc)
+        if not all(validSrc):
+            return False
     else:
         return True
 
@@ -211,10 +216,15 @@ class TimeSeriesDatum(QObject):
         :return:
         """
         p = findAbsolutePath(path)
+        tsd = None
         if verifyInputImage(p):
-            return TimeSeriesDatum(None, p)
-        else:
-            return None
+
+            try:
+                tsd =TimeSeriesDatum(None, p)
+            except :
+                pass
+
+        return tsd
 
 
 
@@ -238,9 +248,11 @@ class TimeSeriesDatum(QObject):
 
         self.sensor = SensorInstrument(ds)
 
-        self.date = getImageDateFromDataset(ds)
-        self.doy = getDOYfromDate(self.date)
+        self.date = parseDateFromDataSet(ds)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
+        from timeseriesviewer.dateparser import getDOYfromDatetime64
+        self.doy = getDOYfromDatetime64(self.date)
+
 
         gt = ds.GetGeoTransform()
 
@@ -514,9 +526,6 @@ class TimeSeries(QObject):
 
         return '\n'.join(info)
 
-regAcqDate = re.compile(r'acquisition[ ]*(time|date|day)', re.I)
-regLandsatSceneID = re.compile(r"L[EMCT][1234578]{1}[12]\d{12}[a-zA-Z]{3}\d{2}")
-
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
 
@@ -531,40 +540,15 @@ def getSpatialPropertiesFromDataset(ds):
 
     return nb, nl, ns, crs, px_x, px_y
 
-def getImageDateFromDataset(ds):
-    assert isinstance(ds, gdal.Dataset)
 
 
 
-    #search metadata for datetime information
-    # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for datetime format
-
-    regDateKeys = re.compile('(acquisition[ ]*time|date)')
-
-    for domain in ds.GetMetadataDomainList():
-        md = ds.GetMetadata_Dict(domain)
-        for key, value in md.items():
-            if regDateKeys.search(key):
-                return np.datetime64(value)
-
-    #extract from file basename
-    path = ds.GetFileList()[0]
-    bn = os.path.basename(path)
-    path_dir = os.path.dirname(path)
-
-    #search in basename
-    date = parseAcquisitionDate(bn)
-    if date: return date
-
-    #find date in file directory path
-    date = parseAcquisitionDate(path_dir)
-    return date
 
 
 
-regYYYYDOY = re.compile(r'(19|20)\d{5}')
-regYYYYMMDD = re.compile(r'(19|20)\d{2}-\d{2}-\d{2}')
-regYYYY = re.compile(r'(19|20)\d{2}')
+
+
+
 
 def parseWavelengthFromDataSet(ds):
     assert isinstance(ds, gdal.Dataset)
@@ -628,63 +612,8 @@ def parseWavelength(lyr):
 
 
 
-def extractDateFromLandsatID(text):
-    match = regLandsatSceneID.search(text)
-    if match:
-        id = match.group()
-        return getDateTime64FromYYYYDOY(id[9:16])
-    return None
-
-def extractDateFromRapidEyeID(text):
-    pass
-
-def extractDateFromISO(text):
-    match = regYYYY.search(text)
-    if match:
-        return np.datetime64(match.group())
-    return None
-
-def extractDateFromYYYYDOY(text):
-    match = regYYYYDOY.search(text)
-    if match:
-        return getDateTime64FromYYYYDOY(match.group())
-    return None
-
-DATE_EXTRACTION_FUNCTIONS = []
-DATE_EXTRACTION_FUNCTIONS.append(extractDateFromISO)
-DATE_EXTRACTION_FUNCTIONS.append(extractDateFromLandsatID)
-DATE_EXTRACTION_FUNCTIONS.append(extractDateFromRapidEyeID)
-DATE_EXTRACTION_FUNCTIONS.append(extractDateFromYYYYDOY)
-
-def parseAcquisitionDate(text):
-
-    for func in DATE_EXTRACTION_FUNCTIONS:
-        v = func(text)
-        if isinstance(v, np.datetime64):
-            return v
-    return None
-
-
-
-def getDateTime64FromYYYYDOY(yyyydoy):
-    return getDateFromDOY(yyyydoy[0:4], yyyydoy[4:7])
-
-def getDOYfromDate(dt):
-
-    return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int)+1
-
-def getDateFromDOY(year, doy):
-        if type(year) is str:
-            year = int(year)
-        if type(doy) is str:
-            doy = int(doy)
-        return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
-
-
 if __name__ == '__main__':
 
-    assert getDOYfromDate(np.datetime64('2014-01-01')) == 1
-    assert getDOYfromDate(np.datetime64('2017-12-31')) == 365
 
     print convertMetricUnit(100, 'cm', 'm')
     print convertMetricUnit(1, 'm', 'um')

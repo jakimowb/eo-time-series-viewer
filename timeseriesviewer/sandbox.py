@@ -10,7 +10,7 @@ from PyQt4.QtCore import *
 
 from timeseriesviewer import *
 
-class TestObjects(object):
+class SandboxObjects(object):
 
     @staticmethod
     def TimeSeries(nMax=10):
@@ -26,7 +26,7 @@ class TestObjects(object):
         return ts
 
 
-def test_gui():
+def sandboxGui():
     from timeseriesviewer.main import TimeSeriesViewer
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
     S = TimeSeriesViewer(None)
@@ -150,7 +150,7 @@ class QgisFake(QgisInterface):
     def mapCanvas(self):
         return self.canvas
 
-def test_qgisbridge():
+def sandboxQgisBridge():
     from timeseriesviewer.main import TimeSeriesViewer
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
 
@@ -219,9 +219,6 @@ def gdal_qgis_benchmark():
     s =""
 
 
-def test_component():
-
-    pass
 
 if __name__ == '__main__':
     import site, sys
@@ -247,8 +244,8 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if False: test_qgisbridge()
-    if True: test_gui()
+    if False: sandboxQgisBridge()
+    if True: sandboxGui()
     if False: test_component()
 
 
