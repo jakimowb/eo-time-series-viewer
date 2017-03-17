@@ -67,18 +67,21 @@ class ImageDateParser(object):
 class ImageDateParserGeneric(ImageDateParser):
     def __init__(self, dataSet):
         super(ImageDateParserGeneric, self).__init__(dataSet)
-        self.regDateKeys = re.compile('(acquisition[ ]*time|date)')
+        self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
 
     def parseDate(self):
         # search metadata for datetime information
         # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for datetime format
+        dtg = None
         for domain in self.dataSet.GetMetadataDomainList():
             md = self.dataSet.GetMetadata_Dict(domain)
             for key, value in md.items():
                 if self.regDateKeys.search(key):
-                    dtg = extractDateTimeGroup(regISODate, value)
-                    if dtg:
+                    try:
+                        dtg = np.datetime64(value)
                         return dtg
+                    except:
+                        pass
 
         # search for ISO date in basename
         # search in basename
@@ -90,22 +93,58 @@ class ImageDateParserGeneric(ImageDateParser):
         return dtg
 
 
+class ImageDateParserPLEIADES(ImageDateParser):
+    def __init__(self, dataSet):
+        super(ImageDateParserPLEIADES, self).__init__(dataSet)
 
-class ImageDataParserLandsat(ImageDateParser):
+    def parseDate(self):
+        timeStamp = ''
+        ext = self.extension.lower()
+
+        if ext == '.xml':
+            md = self.dataSet.GetMetadata_Dict()
+            timeStamp = '{}T{}'.format(md.get('IMAGING_DATE', ''),
+                                       md.get('IMAGING_TIME', ''))
+        elif ext == '.jp2':
+            timeStamp = self.dataSet.GetMetadataItem('ACQUISITIONDATETIME', 'IMAGERY')
+        if len(timeStamp) > 0:
+            return np.datetime64(timeStamp)
+        return None
+
+
+class ImageDateParserSentinel2(ImageDateParser):
+    def __init__(self, dataSet):
+        super(ImageDateParserSentinel2, self).__init__(dataSet)
+
+    def parseDate(self):
+        timeStamp = ''
+        ext = self.extension.lower()
+
+        if ext == '.xml':
+            md = self.dataSet.GetMetadata_Dict()
+            timeStamp = '{}T{}'.format(md.get('IMAGING_DATE', ''),
+                                       md.get('IMAGING_TIME', ''))
+        elif ext == '.jp2':
+            timeStamp = self.dataSet.GetMetadataItem('ACQUISITIONDATETIME', 'IMAGERY')
+        if len(timeStamp) > 0:
+            return np.datetime64(timeStamp)
+        return None
+
+class ImageDateParserLandsat(ImageDateParser):
     #see https://landsat.usgs.gov/what-are-naming-conventions-landsat-scene-identifiers
     regLandsatSceneID  = re.compile(r'L[COTEM][4578]\d{3}\d{3}\d{4}\d{3}[A-Z]{2}[A-Z1]\d{2}')
     regLandsatProductID = re.compile(r'L[COTEM]0[78]_(L1TP|L1GT|L1GS)_\d{3}\d{3}_\d{4}\d{2}\d{2}_\d{4}\d{2}\d{2}_0\d{1}_(RT|T1|T2)')
 
     def __init__(self, dataSet):
-        super(ImageDataParserLandsat, self).__init__(dataSet)
+        super(ImageDateParserLandsat, self).__init__(dataSet)
 
     def parseDate(self):
         #search for LandsatSceneID (old) and Landsat Product IDs (new)
-        sceneID = matchOrNone(ImageDataParserLandsat.regLandsatSceneID, self.baseName)
+        sceneID = matchOrNone(ImageDateParserLandsat.regLandsatSceneID, self.baseName)
         if sceneID:
             return getDateTime64FromYYYYDOY(sceneID[9:16])
 
-        productID = matchOrNone(ImageDataParserLandsat.regLandsatProductID, self.baseName)
+        productID = matchOrNone(ImageDateParserLandsat.regLandsatProductID, self.baseName)
         if productID:
             return np.datetim64(productID[17:25])
         return None
@@ -118,7 +157,6 @@ dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateParser
 def parseDateFromDataSet(dataSet):
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
-        print(parser)
         dtg = parser(dataSet).parseDate()
         if dtg:
             return dtg
