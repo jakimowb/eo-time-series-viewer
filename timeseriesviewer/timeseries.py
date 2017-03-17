@@ -49,15 +49,6 @@ def convertMetricUnit(value, u1, u2):
 
     return value * 10**(e1-e2)
 
-def verifyVRT(pathVRT):
-
-    ds = gdal.Open(pathVRT)
-    if ds is None:
-        return False
-    s = ""
-
-    return True
-
 
 def getDS(pathOrDataset):
     if isinstance(pathOrDataset, gdal.Dataset):
@@ -185,9 +176,12 @@ class SensorInstrument(QObject):
 
 
 def verifyInputImage(path, vrtInspection=''):
+    if path is None or not type(path) in [str, unicode]:
+        return None
 
-    if not os.path.exists(path):
-        print('{}Image does not exist: '.format(vrtInspection, path))
+    path2 = path.split(':')[0]
+    if not os.path.exists(path2):
+        print('{}Image does not exist: '.format(vrtInspection, path2))
         return False
 
     ds = gdal.Open(path)
@@ -196,6 +190,9 @@ def verifyInputImage(path, vrtInspection=''):
         print('{}GDAL unable to open: '.format(vrtInspection, path))
         return False
 
+    if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
+        print('Can not open container {}.\nPlease specify a subdataset'.format(path))
+        return False
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
         nextFiles = set(ds.GetFileList()) - set([path])
@@ -220,6 +217,7 @@ class TimeSeriesDatum(QObject):
         :param path:
         :return:
         """
+
         p = findAbsolutePath(path)
         tsd = None
         if verifyInputImage(p):
@@ -465,7 +463,7 @@ class TimeSeries(QObject):
                     TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
                 if TSD in self.data:
-                    six.print_('Time series datum already added: {} {}'.format(str(TSD), TSD.pathImg), file=sys.stderr)
+                    six.print_('Time series date-time already added ({} {}). \nPlease use VRTs to mosaic images with same acquisition date-time.'.format(str(TSD), TSD.pathImg), file=sys.stderr)
                 else:
                     self.Sensors[TSD.sensor].append(TSD)
                     #insert sorted
@@ -489,6 +487,8 @@ class TimeSeries(QObject):
 
     def addFiles(self, files):
         assert isinstance(files, list)
+        files = [f for f in files if f is not None]
+
         nMax = len(files)
         nDone = 0
         self.sigLoadingProgress.emit(0,nMax, 'Start loading {} files...'.format(nMax))

@@ -33,22 +33,51 @@ def sandboxGui():
     S.ui.show()
     S.run()
 
+    from timeseriesviewer import file_search
     if False:
-        from timeseriesviewer import file_search
+        #load VRTs pointing to Landsat imagery
+        searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+        files = file_search(searchDir, '*BOA.vrt', recursive=True)
+        S.loadImageFiles(files[0:5])
+        return
+
+    if False:
+        #load Pleiades data
+        searchDir = r'H:\Pleiades'
+        #files = file_search(searchDir, 'DIM*.xml', recursive=True)
+        files = file_search(searchDir, '*.jp2', recursive=True)
+        S.loadImageFiles(files[0:5])
+
+    if False:
+        #load RapidEye
+        searchDir = r'H:\RapidEye\3A'
+        files = file_search(searchDir, '*.tif', recursive=True)
+        files = [f for f in files if not f.endswith('_udm.tif')]
+        S.loadImageFiles(files[0:5])
+
+    if True:
+        #load Sentinel-2
+        searchDir = r'H:\Sentinel2'
+        files = file_search(searchDir, 'S2*.xml', recursive=True)
+        files = [f+':20m' for f in files]
+        S.loadImageFiles(files[0:5])
+
+
+    if False:
         searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
         files = file_search(searchDir, '*band4.img', recursive=True)
-
-        #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
-        #files = file_search(searchDir, '*BOA.vrt', recursive=True)
 
         files = files[0:10]
         S.loadImageFiles(files)
         return
+
+
     if False:
         files = [r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LC81720342015129LGN00\LC81720342015129LGN00_sr.tif']
         S.loadImageFiles(files)
         return
-    if True:
+
+    if False:
         from timeseriesviewer import file_search
         files = file_search(r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB', '*_sr.tif', recursive=True)
         #files = files[0:15]
@@ -63,7 +92,7 @@ def sandboxGui():
         S.spatialTemporalVis.MVC.createMapView()
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
         return
-    if True:
+    if False:
         S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=100)
         return
     pass
@@ -219,15 +248,11 @@ def gdal_qgis_benchmark():
     s =""
 
 
-
-if __name__ == '__main__':
-    import site, sys
-    #add site-packages to sys.path as done by enmapboxplugin.py
-
+def initQgisEnvironment():
+    global qgsApp
     from timeseriesviewer import DIR_SITE_PACKAGES
     site.addsitedir(DIR_SITE_PACKAGES)
-
-    #prepare QGIS environment
+    # prepare QGIS environment
     if sys.platform == 'darwin':
         PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
         os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
@@ -235,19 +260,23 @@ if __name__ == '__main__':
         # assume OSGeo4W startup
         PATH_QGS = os.environ['QGIS_PREFIX_PATH']
     assert os.path.exists(PATH_QGS)
-
     qgsApp = QgsApplication([], True)
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
 
+
+if __name__ == '__main__':
+    import site, sys
+    #add site-packages to sys.path as done by enmapboxplugin.py
+
+    initQgisEnvironment()
+
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
     if True: sandboxGui()
-    if False: test_component()
-
 
     #close QGIS
     qgsApp.exec_()

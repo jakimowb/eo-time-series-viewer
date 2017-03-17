@@ -59,10 +59,19 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
 
 
 def findAbsolutePath(file):
-    if os.path.exists(file): return file
+    filepath, attr = getFileAndAttributes(file)
+
+    if os.path.exists(filepath): return file
     possibleRoots = [DIR_EXAMPLES, DIR_REPO, os.getcwd()]
     for root in possibleRoots:
-        tmp = jp(root, file)
+        tmp = jp(root, filepath)
         if os.path.exists(tmp):
-            return tmp
+            return tmp + attr
     return None
+
+
+def getFileAndAttributes(file):
+    dn = os.path.dirname(file)
+    bn = os.path.basename(file)
+    bnSplit = bn.split(':')
+    return os.path.join(dn,bn), ':'.join(bnSplit[1:])
