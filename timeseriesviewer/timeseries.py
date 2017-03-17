@@ -12,6 +12,8 @@ from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 
 from osgeo import gdal, ogr
+gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
+
 import numpy as np
 
 from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp, findAbsolutePath
@@ -187,17 +189,20 @@ def verifyInputImage(path, vrtInspection=''):
     if not os.path.exists(path):
         print('{}Image does not exist: '.format(vrtInspection, path))
         return False
+
     ds = gdal.Open(path)
+
     if not ds:
         print('{}GDAL unable to open: '.format(vrtInspection, path))
         return False
+
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
-        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in set(ds.GetFileList()) - set([path])]
+        nextFiles = set(ds.GetFileList()) - set([path])
+        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in nextFiles]
         if not all(validSrc):
             return False
-    else:
-        return True
+    return True
 
 def pixel2coord(gt, x, y):
     """Returns global coordinates from pixel x, y coords"""
@@ -220,7 +225,7 @@ class TimeSeriesDatum(QObject):
         if verifyInputImage(p):
 
             try:
-                tsd =TimeSeriesDatum(None, p)
+                tsd = TimeSeriesDatum(None, p)
             except :
                 pass
 
