@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect
+import logging
+logger = logging.getLogger(__name__)
 from osgeo import gdal, ogr
 
 from qgis import *
@@ -9,6 +11,7 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
 from timeseriesviewer import *
+from timeseriesviewer.utils import *
 
 class SandboxObjects(object):
 
@@ -58,9 +61,24 @@ def sandboxGui():
     if True:
         #load Sentinel-2
         searchDir = r'H:\Sentinel2'
-        files = file_search(searchDir, 'S2*.xml', recursive=True)
-        files = [f+':20m' for f in files]
-        S.loadImageFiles(files[0:5])
+        files = file_search(searchDir, '*MSIL1C.xml', recursive=True)
+
+        subLayerEndings = getSubLayerEndings(files)
+        if len(subLayerEndings) > 0:
+            layerDefinitions = []
+            for i, subLayer in enumerate(subLayerEndings):
+                ldef = QgsSublayersDialog.LayerDefinition()
+                ldef.layerName = subLayer
+                ldef.layerId = i
+                layerDefinitions.append(ldef)
+
+            d = QgsSublayersDialog(QgsSublayersDialog.Gdal, 'Select Sublayers')
+            d.populateLayerTable(layerDefinitions)
+            d.exec_()
+            subLayerEndings = [l.layerName for l in d.selection()]
+
+        files = filterSubLayers(files, subLayerEndings)
+        S.loadImageFiles(files)
 
 
     if False:

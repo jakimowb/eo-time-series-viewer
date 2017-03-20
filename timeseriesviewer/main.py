@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- EnMAPBox
-                                 A QGIS plugin
- EnMAP-Box V3
+ HUB TimeSeriesViewer
+                                 A QGIS based time series viewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$
-        copyright            : (C) 2015 by HU-Berlin
-        email                : bj@geo.hu-berlin.de
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
  ***************************************************************************/
 
 /***************************************************************************
@@ -23,38 +22,19 @@
 
 # Import the code for the dialog
 import os, sys, re, fnmatch, collections, copy, traceback, six
+import logging
+logger = logging.getLogger(__name__)
 from qgis.core import *
-#os.environ['PATH'] += os.pathsep + r'C:\OSGeo4W64\bin'
 
-from osgeo import gdal, ogr, osr, gdal_array
+from timeseriesviewer.utils import *
+
 
 DEBUG = True
-import qgis.analysis
-try:
-    from qgis.gui import *
-    import qgis
-    qgis_available = True
-
-    #import console.console_output
-    #console.show_console()
-    #sys.stdout = console.console_output.writeOut()
-    #sys.stderr = console.console_output.writeOut()
-
-except:
-    print('Can not find QGIS instance')
-    qgis_available = False
 
 import numpy as np
-
-import sys, bisect, multiprocessing, site
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.uic.Compiler.qtproxies import QtGui, QtCore
-import code
-import codecs
-
+import multiprocessing
 #abbreviations
-from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, dprint
+from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
 from timeseriesviewer.timeseries import *
 
 
@@ -71,93 +51,6 @@ if os.path.exists(path):
 
 import pyqtgraph as pg
 
-
-class SpatialExtent(QgsRectangle):
-    """
-    Object to keep QgsRectangle and QgsCoordinateReferenceSystem together
-    """
-    @staticmethod
-    def fromMapCanvas(mapCanvas):
-        assert isinstance(mapCanvas, QgsMapCanvas)
-        extent = mapCanvas.extent()
-        crs = mapCanvas.mapSettings().destinationCrs()
-        return SpatialExtent(crs, extent)
-
-    @staticmethod
-    def fromMapLayer(lyr):
-        assert isinstance(lyr, QgsMapLayer)
-        extent = lyr.extent()
-        crs = lyr.crs()
-        return SpatialExtent(crs, extent)
-
-
-    def __init__(self, crs, *args):
-            assert isinstance(crs, QgsCoordinateReferenceSystem)
-            super(SpatialExtent, self).__init__(*args)
-            self.mCrs = crs
-
-    def setCrs(self, crs):
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
-        self.mCrs = crs
-
-    def crs(self):
-        return self.mCrs
-
-    def toCrs(self, crs):
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
-        box = QgsRectangle(self)
-        if self.mCrs != crs:
-            trans = QgsCoordinateTransform(self.mCrs, crs)
-            box = trans.transformBoundingBox(box)
-        return SpatialExtent(crs, box)
-
-    def __copy__(self):
-        return SpatialExtent(self.crs(), QgsRectangle(self))
-
-    def combineExtentWith(self, *args):
-        if args is None:
-            return
-        elif isinstance(args[0], SpatialExtent):
-            extent2 = args[0].toCrs(self.crs())
-            self.combineExtentWith(QgsRectangle(extent2))
-        else:
-            super(SpatialExtent, self).combineExtentWith(*args)
-
-    def setCenter(self, centerPoint, crs=None):
-
-        if crs and crs != self.crs():
-            trans = QgsCoordinateTransform(crs, self.crs())
-            centerPoint = trans.transform(centerPoint)
-
-        delta = centerPoint - self.center()
-        self.setXMaximum(self.xMaximum() + delta.x())
-        self.setXMinimum(self.xMinimum() + delta.x())
-        self.setYMaximum(self.yMaximum() + delta.y())
-        self.setYMinimum(self.yMinimum() + delta.y())
-
-
-    def __cmp__(self, other):
-        if other is None: return 1
-        s = ""
-
-    def __eq__(self, other):
-        s = ""
-
-    def __sub__(self, other):
-        raise NotImplementedError()
-
-    def __mul__(self, other):
-        raise NotImplementedError()
-
-    def upperLeft(self):
-        return self.xMinimum(), self.yMaximum()
-
-    def lowerRight(self):
-        return self.xMaximum(), self.yMinimum()
-
-    def __repr__(self):
-
-        return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
 class TsvMimeDataUtils(QObject):
     def __init__(self, mimeData):
@@ -1079,7 +972,7 @@ class TimeSeriesViewer:
         D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         D.actionAddMapView.triggered.connect(self.spatialTemporalVis.createMapView)
 
-        D.actionAddTSD.triggered.connect(lambda : self.ua_addTSImages())
+        D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         D.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         D.actionLoadTS.triggered.connect(self.loadTimeSeries)
@@ -1304,9 +1197,12 @@ class TimeSeriesViewer:
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
-    def ua_addTSImages(self, files=None):
+    def addTimeSeriesImages(self, files=None):
         if files is None:
             files = QFileDialog.getOpenFileNames()
+
+            #collect sublayers, if existing
+
 
         if files:
             self.TS.addFiles(files)
@@ -1423,8 +1319,8 @@ def run_tests():
             filesImgLS = file_search(dirSrcLS, '20*_BOA.vrt')
             filesImgRE = file_search(dirSrcRE, '*.vrt', recursive=True)
             #filesMsk = file_search(dirSrc, '2014*_Msk.vrt')
-            S.ua_addTSImages(files=filesImgLS[0:2])
-            S.ua_addTSImages(files=filesImgRE[0:2])
+            S.addTimeSeriesImages(files=filesImgLS[0:2])
+            S.addTimeSeriesImages(files=filesImgRE[0:2])
             #S.ua_addTSImages(files=filesImgLS)
             #S.ua_addTSImages(files=filesImgRE)
             #S.ua_loadExampleTS()
@@ -1455,7 +1351,7 @@ def run_tests():
             dirSrcLS = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\00_VRTs\02_Cutted'
             filesImgLS = file_search(dirSrcLS, '2014*_BOA.vrt')
             filesMsk = file_search(dirSrcLS, '2014*_Msk.vrt')
-            S.ua_addTSImages(files=filesImgLS)
+            S.addTimeSeriesImages(files=filesImgLS)
             S.ua_addTSMasks(files=filesMsk)
 
         #S.ua_addView(bands=[4,5,3])
