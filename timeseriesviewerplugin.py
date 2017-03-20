@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import inspect
 import os
 import six
@@ -7,7 +6,8 @@ import sys
 import importlib
 import re
 import site
-
+import logging
+logger = logging.getLogger(__name__)
 from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
@@ -40,7 +40,7 @@ class TimeSeriesViewerPlugin:
 
         import timeseriesviewer
         # init main UI
-        from timeseriesviewer import dprint, DIR_UI, jp
+        from timeseriesviewer import DIR_UI, jp
         icon = QIcon(jp(DIR_UI, *['icons', 'icon.png']))
         action = QAction(icon, 'HUB Time Series Viewer', self.iface)
         action.triggered.connect(self.run)
@@ -60,9 +60,8 @@ class TimeSeriesViewerPlugin:
         self.tsv.run()
 
     def unload(self):
-        from timeseriesviewer import dprint
         from timeseriesviewer.main import TimeSeriesViewer
-        dprint('UNLOAD TimeSeriesViewer Plugin')
+
 
         for action in self.toolbarActions:
             print(action)
