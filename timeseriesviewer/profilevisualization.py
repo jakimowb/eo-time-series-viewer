@@ -87,6 +87,9 @@ class PixelLoadWorker(QObject):
             self.recentFile = path
 
             lyr = QgsRasterLayer(path)
+            if not lyr.isValid():
+                logger.debug('Layer not valid: {}'.format(path))
+                continue
             dp = lyr.dataProvider()
 
             trans = QgsCoordinateTransform(crs, dp.crs())

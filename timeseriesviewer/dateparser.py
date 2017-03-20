@@ -103,8 +103,9 @@ class ImageDateParserPLEIADES(ImageDateParser):
 
         if ext == '.xml':
             md = self.dataSet.GetMetadata_Dict()
-            timeStamp = '{}T{}'.format(md.get('IMAGING_DATE', ''),
-                                       md.get('IMAGING_TIME', ''))
+            if 'IMAGING_DATE' in md.keys() and 'IMAGING_TIME' in md.keys():
+                timeStamp = '{}T{}'.format(md.get('IMAGING_DATE', ''),
+                                           md.get('IMAGING_TIME', ''))
         elif ext == '.jp2':
             timeStamp = self.dataSet.GetMetadataItem('ACQUISITIONDATETIME', 'IMAGERY')
         if len(timeStamp) > 0:
@@ -122,10 +123,7 @@ class ImageDateParserSentinel2(ImageDateParser):
 
         if ext == '.xml':
             md = self.dataSet.GetMetadata_Dict()
-            timeStamp = '{}T{}'.format(md.get('IMAGING_DATE', ''),
-                                       md.get('IMAGING_TIME', ''))
-        elif ext == '.jp2':
-            timeStamp = self.dataSet.GetMetadataItem('ACQUISITIONDATETIME', 'IMAGERY')
+            timeStamp = md.get('DATATAKE_1_DATATAKE_SENSING_START', '')
         if len(timeStamp) > 0:
             return np.datetime64(timeStamp)
         return None

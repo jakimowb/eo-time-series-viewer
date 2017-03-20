@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy
-
+import logging
+logger = logging.getLogger(__name__)
 import bisect, datetime
 from osgeo import gdal, ogr
 
@@ -11,13 +12,15 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 
-from osgeo import gdal, ogr
+from osgeo import gdal, ogr, gdal_array
+
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp, findAbsolutePath
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp
 from timeseriesviewer.dateparser import parseDateFromDataSet
+
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
     if trans is None:
         assert isinstance(crsSrc, QgsCoordinateReferenceSystem)
@@ -178,12 +181,6 @@ class SensorInstrument(QObject):
 def verifyInputImage(path, vrtInspection=''):
     if path is None or not type(path) in [str, unicode]:
         return None
-
-    path2 = path.split(':')[0]
-    if not os.path.exists(path2):
-        print('{}Image does not exist: '.format(vrtInspection, path2))
-        return False
-
     ds = gdal.Open(path)
 
     if not ds:
@@ -218,12 +215,11 @@ class TimeSeriesDatum(QObject):
         :return:
         """
 
-        p = findAbsolutePath(path)
         tsd = None
-        if verifyInputImage(p):
+        if verifyInputImage(path):
 
             try:
-                tsd = TimeSeriesDatum(None, p)
+                tsd = TimeSeriesDatum(None, path)
             except :
                 pass
 
@@ -244,7 +240,7 @@ class TimeSeriesDatum(QObject):
 
         ds = getDS(pathImg)
 
-        self.pathImg = ds.GetFileList()[0]
+        self.pathImg = ds.GetFileList()[0] if isinstance(pathImg, gdal.Dataset) else pathImg
 
         self.timeSeries = timeSeries
         self.nb, self.nl, self.ns, self.crs, px_x, px_y = getSpatialPropertiesFromDataset(ds)
@@ -498,7 +494,7 @@ class TimeSeries(QObject):
             tsd = TimeSeriesDatum.createFromPath(file)
             if tsd is None:
                 msg = 'Unable to add: {}'.format(os.path.basename(file))
-                dprint(msg, file=sys.stderr)
+                logger.error(msg)
             else:
                 self.addTimeSeriesDates([tsd])
                 msg = 'Added {}'.format(os.path.basename(file))
