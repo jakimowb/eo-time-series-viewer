@@ -1,7 +1,25 @@
 import os, sys, fnmatch, site
-import six
+import six, logging
+logger = logging.getLogger(__name__)
+
 from PyQt4.QtCore import QSettings
 from PyQt4.QtGui import QIcon
+
+DEBUG = True
+if DEBUG:
+    #initiate loggers for all pyfiles
+    import pkgutil
+    DIR = os.path.dirname(__file__)
+    for m, name, ispkg in pkgutil.walk_packages(path=DIR, prefix='timeseriesviewer'):
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+        fh = logging.StreamHandler()
+        fh_formatter = logging.Formatter('%(levelname)s %(lineno)d:%(filename)s%(module)s %(funcName)s \n\t%(message)s')
+        fh.setFormatter(fh_formatter)
+        fh.addFilter(logging.Filter(name))
+        logger.addHandler(fh)
+
+
 jp = os.path.join
 dn = os.path.dirname
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
@@ -35,11 +53,6 @@ def icon():
     return QIcon(':/timeseriesviewer/icons/icon.png')
 
 
-def dprint(text, file=None):
-    if DEBUG:
-        six._print('DEBUG::{}'.format(text), file=file)
-
-
 def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
     assert rootdir is not None
     if not os.path.isdir(rootdir):
@@ -58,20 +71,14 @@ def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
     return results
 
 
-def findAbsolutePath(file):
-    filepath, attr = getFileAndAttributes(file)
-
-    if os.path.exists(filepath): return file
-    possibleRoots = [DIR_EXAMPLES, DIR_REPO, os.getcwd()]
-    for root in possibleRoots:
-        tmp = jp(root, filepath)
-        if os.path.exists(tmp):
-            return tmp + attr
-    return None
-
 
 def getFileAndAttributes(file):
+    """
+    splits a GDAL valid file path into
+    :param file:
+    :return:
+    """
     dn = os.path.dirname(file)
     bn = os.path.basename(file)
     bnSplit = bn.split(':')
-    return os.path.join(dn,bn), ':'.join(bnSplit[1:])
+    return os.path.join(dn,bnSplit[0]), ':'.join(bnSplit[1:])
