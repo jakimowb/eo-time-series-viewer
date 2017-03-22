@@ -6,18 +6,23 @@ from PyQt4.QtCore import QSettings
 from PyQt4.QtGui import QIcon
 
 DEBUG = True
-if DEBUG:
-    #initiate loggers for all pyfiles
-    import pkgutil
-    DIR = os.path.dirname(__file__)
-    for m, name, ispkg in pkgutil.walk_packages(path=DIR, prefix='timeseriesviewer'):
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
-        fh = logging.StreamHandler()
-        fh_formatter = logging.Formatter('%(levelname)s %(lineno)d:%(filename)s%(module)s %(funcName)s \n\t%(message)s')
-        fh.setFormatter(fh_formatter)
-        fh.addFilter(logging.Filter(name))
-        logger.addHandler(fh)
+
+#initiate loggers for all pyfiles
+import pkgutil
+DIR = os.path.dirname(__file__)
+names = []
+for m, name, ispkg in pkgutil.walk_packages(path=__file__, prefix='timeseriesviewer.'):
+    if name not in names:
+        names.append(name)
+
+for name in names:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    fh = logging.StreamHandler()
+    fh_formatter = logging.Formatter('%(levelname)s %(lineno)d:%(filename)s%(module)s %(funcName)s \n\t%(message)s')
+    fh.setFormatter(fh_formatter)
+    fh.addFilter(logging.Filter(name))
+    logger.addHandler(fh)
 
 
 jp = os.path.join
