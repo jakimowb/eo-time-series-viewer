@@ -919,7 +919,8 @@ class MapViewSensorSettings(QObject):
         rgb = self.rgb()
 
         text = 'RGB {}-{}-{}'.format(*rgb)
-        if self.sensor.wavelengthsDefined():
+
+        if False and self.sensor.wavelengthsDefined():
             text += ' ({} {})'.format(
                 ','.join(['{:0.2f}'.format(self.sensor.wavelengths[b-1]) for b in rgb]),
                 self.sensor.wavelengthUnits)
