@@ -184,11 +184,11 @@ def verifyInputImage(path, vrtInspection=''):
     ds = gdal.Open(path)
 
     if not ds:
-        print('{}GDAL unable to open: '.format(vrtInspection, path))
+        logger.error('{}GDAL unable to open: '.format(vrtInspection, path))
         return False
 
     if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
-        print('Can not open container {}.\nPlease specify a subdataset'.format(path))
+        logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
         return False
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
