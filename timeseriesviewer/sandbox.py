@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect
-import logging
+import logging, io
 logger = logging.getLogger(__name__)
 from osgeo import gdal, ogr
-
+from unittest import TestCase
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
@@ -12,6 +12,8 @@ from PyQt4.QtCore import *
 
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
+from timeseriesviewer import file_search
+from timeseriesviewer.timeseries import *
 
 class SandboxObjects(object):
 
@@ -36,72 +38,6 @@ def sandboxGui():
     S.ui.show()
     S.run()
 
-    from timeseriesviewer import file_search
-    if False:
-        #load VRTs pointing to Landsat imagery
-        searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-        files = file_search(searchDir, '*BOA.vrt', recursive=True)
-        S.loadImageFiles(files[0:5])
-        return
-
-    if False:
-        #load Pleiades data
-        searchDir = r'H:\Pleiades'
-        #files = file_search(searchDir, 'DIM*.xml', recursive=True)
-        files = file_search(searchDir, '*.jp2', recursive=True)
-        S.loadImageFiles(files[0:5])
-
-    if False:
-        #load RapidEye
-        searchDir = r'H:\RapidEye\3A'
-        files = file_search(searchDir, '*.tif', recursive=True)
-        files = [f for f in files if not f.endswith('_udm.tif')]
-        S.loadImageFiles(files[0:5])
-
-    if True:
-        #load Sentinel-2
-        searchDir = r'H:\Sentinel2'
-        files = file_search(searchDir, '*MSIL1C.xml', recursive=True)
-
-        subLayerEndings = getSubLayerEndings(files)
-        if len(subLayerEndings) > 0:
-            layerDefinitions = []
-            for i, subLayer in enumerate(subLayerEndings):
-                ldef = QgsSublayersDialog.LayerDefinition()
-                ldef.layerName = subLayer
-                ldef.layerId = i
-                layerDefinitions.append(ldef)
-
-            d = QgsSublayersDialog(QgsSublayersDialog.Gdal, 'Select Sublayers')
-            d.populateLayerTable(layerDefinitions)
-            d.exec_()
-            subLayerEndings = [l.layerName for l in d.selection()]
-
-        files = filterSubLayers(files, subLayerEndings)
-        S.loadImageFiles(files)
-
-
-    if False:
-        searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
-        files = file_search(searchDir, '*band4.img', recursive=True)
-
-        files = files[0:10]
-        S.loadImageFiles(files)
-        return
-
-
-    if False:
-        files = [r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LC81720342015129LGN00\LC81720342015129LGN00_sr.tif']
-        S.loadImageFiles(files)
-        return
-
-    if False:
-        from timeseriesviewer import file_search
-        files = file_search(r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB', '*_sr.tif', recursive=True)
-        #files = files[0:15]
-        print('Load {} images...'.format(len(files)))
-        S.loadImageFiles(files)
-        return
     if False:
         files = [r'H:\\LandsatData\\Landsat_NovoProgresso\\LC82270652013140LGN01\\LC82270652013140LGN01_sr_band4.img']
         S.loadImageFiles(files)
@@ -284,6 +220,82 @@ def initQgisEnvironment():
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
 
+
+
+class TestFileFormatLoading(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.TS = TimeSeries()
+
+        if False:
+            cls.savedStdOut = sys.stdout
+            cls.savedStdIn = sys.stdin
+
+            cls.stdout = io.StringIO()
+            cls.stderr = io.StringIO()
+            sys.stdout = cls.stdout
+            sys.stderr = cls.stderr
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+        #sys.stdout = cls.stdout
+        #sys.stderr = cls.stderr
+
+    def setUp(self):
+        self.TS.clear()
+
+    def tearDown(self):
+        self.TS.clear()
+
+
+
+    def test_loadLandsat(self):
+        searchDir = jp(DIR_EXAMPLES, 'Images')
+        files = file_search(searchDir, '*_L*_BOA.bsq')[0:3]
+        self.TS.addFiles(files)
+
+        self.assertEqual(len(files), len(self.TS))
+        s = ""
+
+    def test_nestedVRTs(self):
+        # load VRTs pointing to another VRT pointing to Landsat imagery
+        searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+        files = file_search(searchDir, '*BOA.vrt', recursive=True)[0:3]
+        self.TS.addFiles(files)
+        self.assertEqual(len(files), len(self.TS))
+
+    def test_loadRapidEye(self):
+        # load RapidEye
+        searchDir = r'H:\RapidEye\3A'
+        files = file_search(searchDir, '*.tif', recursive=True)
+        files = [f for f in files if not re.search('_(udm|browse)\.tif$', f)]
+        self.TS.addFiles(files)
+        self.assertEqual(len(files), len(self.TS))
+
+    def test_loadPleiades(self):
+        #load Pleiades data
+        searchDir = r'H:\Pleiades'
+        #files = file_search(searchDir, 'DIM*.xml', recursive=True)
+        files = file_search(searchDir, '*.jp2', recursive=True)[0:3]
+        self.TS.addFiles(files)
+        self.assertEqual(len(files), len(self.TS))
+
+    def test_loadSentinel2(self):
+        #load Sentinel-2
+        searchDir = r'H:\Sentinel2'
+        files = file_search(searchDir, '*MSIL1C.xml', recursive=True)
+        self.TS.addFiles(files)
+
+        #self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
+        self.assertEqual(0, len(self.TS))  # do not add a containers
+        subdatasets = []
+        for file in files:
+            subs = gdal.Open(file).GetSubDatasets()
+            subdatasets.extend(s[0] for s in subs)
+        self.TS.addFiles(subdatasets)
+        self.assertEqual(len(subdatasets), len(self.TS))  # add subdatasets
 
 if __name__ == '__main__':
     import site, sys
