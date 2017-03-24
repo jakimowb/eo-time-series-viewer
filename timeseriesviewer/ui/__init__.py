@@ -66,3 +66,4 @@ def loadUIFormClass(pathUi, from_imports=False):
         FORM_CLASSES[pathUi] = formClass
 
     return FORM_CLASSES[pathUi]
+

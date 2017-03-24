@@ -37,18 +37,9 @@ def sandboxGui():
     S.ui.show()
     S.run()
 
-    if False:
-        files = [r'H:\\LandsatData\\Landsat_NovoProgresso\\LC82270652013140LGN01\\LC82270652013140LGN01_sr_band4.img']
-        S.loadImageFiles(files)
-        return
-    if False:
-        S.spatialTemporalVis.MVC.createMapView()
-        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=1)
-        return
-    if False:
-        S.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES, n_max=100)
-        return
-    pass
+    S.spatialTemporalVis.MVC.createMapView()
+    import example.Images
+    S.addTimeSeriesImages([example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA])
 
 class QgisFake(QgisInterface):
 
@@ -202,7 +193,7 @@ def gdal_qgis_benchmark():
 
 
 def initQgisEnvironment():
-    global qgsApp
+
     from timeseriesviewer import DIR_SITE_PACKAGES
     site.addsitedir(DIR_SITE_PACKAGES)
     # prepare QGIS environment
@@ -218,6 +209,7 @@ def initQgisEnvironment():
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
+    return qgsApp
 
 
 
@@ -225,7 +217,7 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    initQgisEnvironment()
+    qgsApp = initQgisEnvironment()
 
     #run tests
     if False: gdal_qgis_benchmark()

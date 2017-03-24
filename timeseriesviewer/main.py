@@ -252,7 +252,8 @@ class MapView(QObject):
 
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
-
+    from timeseriesviewer.crosshair import CrosshairStyle
+    sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
     sigVectorLayerChanged = pyqtSignal()
 
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
@@ -325,6 +326,9 @@ class MapView(QObject):
 
     def title(self):
         return self.mTitle
+
+    def setCrosshairStyle(self, crosshairStyle):
+        self.sigCrosshairStyleChanged.emit(crosshairStyle)
 
 
     def removeSensor(self, sensor):
@@ -457,7 +461,7 @@ class TimeSeriesDatumView(QObject):
 
         i = self.MVC.index(mapView)
 
-        from timeseriesviewer.ui.widgets import TsvMapCanvas
+        from timeseriesviewer.mapcanvas import TsvMapCanvas
         canvas = TsvMapCanvas(self, mapView, parent=self.ui)
 
         canvas.setFixedSize(self.subsetSize)
@@ -519,6 +523,9 @@ class SpatialTemporalVisualization(QObject):
 
         self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         self.setSubsetSize(QSize(100,50))
+
+    def setCrosshairStyle(self, crosshairStyle):
+        self.MVC.setCrosshairStyle(crosshairStyle)
 
     def setVectorLayer(self, lyr):
         self.MVC.setVectorLayer(lyr)
@@ -775,9 +782,15 @@ class MapViewCollection(QObject):
         self.mapViewsDefinitions = []
         self.mapViewButtons = dict()
         self.adjustScrollArea()
+
     def applyStyles(self):
         for mapView in self.mapViewsDefinitions:
             mapView.applyStyles()
+
+    def setCrosshairStyle(self, crosshairStyle):
+        for mapView in self.mapViewsDefinitions:
+            mapView.setCrosshairStyle(crosshairStyle)
+
 
     def index(self, mapView):
         assert isinstance(mapView, MapView)

@@ -58,6 +58,7 @@ def icon():
     return QIcon(':/timeseriesviewer/icons/icon.png')
 
 
+
 def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
     assert rootdir is not None
     if not os.path.isdir(rootdir):
