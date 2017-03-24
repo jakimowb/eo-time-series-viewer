@@ -26,6 +26,8 @@ def fileSizeString(num, suffix='B', div=1000):
         num /= div
     return "{:.1f} {}{}".format(num, unit, suffix)
 
+
+
 class SpatialPoint(QgsPoint):
     """
     Object to keep QgsPoint and QgsCoordinateReferenceSystem together
@@ -156,6 +158,19 @@ class SpatialExtent(QgsRectangle):
 
     def __mul__(self, other):
         raise NotImplementedError()
+
+    def upperRightPt(self):
+        return QgsPoint(*self.upperRight())
+
+    def upperLeftPt(self):
+        return QgsPoint(*self.upperLeft())
+
+    def lowerRightPt(self):
+        return QgsPoint(*self.lowerRight())
+
+    def lowerLeftPt(self):
+        return QgsPoint(*self.lowerLeft())
+
 
     def upperRight(self):
         return self.xMaximum(), self.yMaximum()
