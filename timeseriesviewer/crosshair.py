@@ -257,6 +257,7 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
 
 
 
+
 class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
@@ -317,6 +318,52 @@ class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
         style.setShowPixelBorder(self.cbShowPixelBoundaries.isChecked())
         return style
 
+class CrosshairDialog(QgsDialog):
+
+    def __init__(self, parent=None, crosshairStyle=None, mapCanvas=None):
+        super(CrosshairDialog, self).__init__(parent=parent , \
+            buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.w = CrosshairWidget(parent=self)
+
+        self.btOk = QPushButton('Ok')
+        self.btCancel = QPushButton('Cance')
+        buttonBar = QHBoxLayout()
+        #buttonBar.addWidget(self.btCancel)
+        #buttonBar.addWidget(self.btOk)
+        l = self.layout()
+        l.addWidget(self.w)
+        l.addLayout(buttonBar)
+        #self.setLayout(l)
+
+        if isinstance(mapCanvas, QgsMapCanvas):
+            self.setMapCanvas(mapCanvas)
+
+        if isinstance(crosshairStyle, CrosshairStyle):
+            self.setCrosshairStyle(crosshairStyle)
+        s = ""
+
+    def crosshairStyle(self):
+        return self.w.crosshairStyle()
+
+    def setCrosshairStyle(self, crosshairStyle):
+        assert isinstance(crosshairStyle, CrosshairStyle)
+        self.w.setCrosshairStyle(crosshairStyle)
+
+    def setMapCanvas(self, mapCanvas):
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        # copy layers
+        canvas = self.w.mapCanvasItem.canvas
+        lyrs = []
+        for lyr in mapCanvas.layers():
+            s = ""
+        lyrs = mapCanvas.layers()
+        canvas.setLayerSet([QgsMapCanvasLayer(l) for l in lyrs])
+        canvas.mapSettings().setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
+        canvas.setExtent(mapCanvas.extent())
+        canvas.setCenter(mapCanvas.center())
+        canvas.refresh()
+        canvas.updateMap()
+        canvas.refreshAllLayers()
 
 if __name__ == '__main__':
     import site, sys
@@ -335,12 +382,16 @@ if __name__ == '__main__':
         i.setCrosshairStyle(s)
         c.show()
 
-    d = CrosshairWidget()
+
     import example.Images
     lyr = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
     QgsMapLayerRegistry.instance().addMapLayer(lyr)
-    d.mapCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
-    d.mapCanvas.setExtent(lyr.extent())
-    d.show()
+    refCanvas = QgsMapCanvas()
+    refCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
+    refCanvas.setExtent(lyr.extent())
+    refCanvas.show()
+    d = CrosshairDialog(mapCanvas=refCanvas)
+    d.exec_()
+
     qgsApp.exec_()
     qgsApp.exitQgis()
