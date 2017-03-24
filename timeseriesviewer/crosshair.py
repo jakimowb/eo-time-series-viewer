@@ -287,6 +287,8 @@ class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
         self.cbShowPixelBoundaries.toggled.connect(self.refreshCrosshairPreview)
         self.refreshCrosshairPreview()
 
+
+
     def setCanvasColor(self, color):
         self.mapCanvas.setBackgroundColor(color)
         self.btnMapCanvasColor.colorChanged.connect(self.onMapCanvasColorChanged)
@@ -305,6 +307,17 @@ class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
         #self.crossHairCanvas.refreshAllLayers()
         self.sigCrosshairStyleChanged.emit(style)
 
+    def setCrosshairStyle(self, style):
+        assert isinstance(style, CrosshairStyle)
+        self.btnCrosshairColor.setColor(style.mColor)
+        self.spinBoxCrosshairAlpha.setValue(style.mColor.alpha())
+        self.spinBoxCrosshairThickness.setValue(style.mThickness)
+        self.spinBoxCrosshairSize.setValue(int(style.mSize*100))
+        self.spinBoxCrosshairGap.setValue(int(style.mGap*100))
+        self.spinBoxDotSize.setValue(style.mDotSize)
+        self.cbCrosshairShowDot.setChecked(style.mShowDot)
+        self.cbShowPixelBoundaries.setChecked(style.mShowPixelBorder)
+
     def crosshairStyle(self):
         style = CrosshairStyle()
         c = self.btnCrosshairColor.color()
@@ -320,11 +333,28 @@ class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
 
 class CrosshairDialog(QgsDialog):
 
-    def __init__(self, parent=None, crosshairStyle=None, mapCanvas=None):
+    @staticmethod
+    def getCrosshairStyle(*args, **kwds):
+        """
+        Opens a CrosshairDialog.
+        :param args:
+        :param kwds:
+        :return: specified CrosshairStyle if accepted, else None
+        """
+        d = CrosshairDialog(*args, **kwds)
+        d.exec_()
+
+        if d.result() == QDialog.Accepted:
+            return d.crosshairStyle()
+        else:
+
+            return None
+
+    def __init__(self, parent=None, crosshairStyle=None, mapCanvas=None, title='Specify Crosshair'):
         super(CrosshairDialog, self).__init__(parent=parent , \
             buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.w = CrosshairWidget(parent=self)
-
+        self.setWindowTitle(title)
         self.btOk = QPushButton('Ok')
         self.btCancel = QPushButton('Cance')
         buttonBar = QHBoxLayout()
@@ -361,6 +391,7 @@ class CrosshairDialog(QgsDialog):
         canvas.mapSettings().setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
         canvas.setExtent(mapCanvas.extent())
         canvas.setCenter(mapCanvas.center())
+        canvas.setCanvasColor(mapCanvas.canvasColor())
         canvas.refresh()
         canvas.updateMap()
         canvas.refreshAllLayers()
@@ -390,8 +421,8 @@ if __name__ == '__main__':
     refCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
     refCanvas.setExtent(lyr.extent())
     refCanvas.show()
-    d = CrosshairDialog(mapCanvas=refCanvas)
-    d.exec_()
+
+    style = CrosshairDialog.getCrosshairStyle(mapCanvas=refCanvas)
 
     qgsApp.exec_()
     qgsApp.exitQgis()
