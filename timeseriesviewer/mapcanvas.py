@@ -55,6 +55,7 @@ class TsvMapCanvas(QgsMapCanvas):
         self.mapView.sigMapViewVisibility.connect(self.refresh)
         self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         self.mapView.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
+        self.mapView.sigShowCrosshair.connect(self.setShowCrosshair)
         self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
 
 
@@ -126,7 +127,8 @@ class TsvMapCanvas(QgsMapCanvas):
             assert isinstance(crosshairStyle, CrosshairStyle)
             self.crosshairItem.setCrosshairStyle(crosshairStyle)
 
-
+    def setShowCrosshair(self,b):
+        self.crosshairItem.setShow(b)
 
     def setRenderMe(self):
         oldFlag = self.renderFlag()
@@ -144,9 +146,7 @@ class TsvMapCanvas(QgsMapCanvas):
         """
         return QPixmap(self.map().contentImage().copy())
 
-    def setShowCrosshair(self, b):
-        assert isinstance(b, bool)
-        self.crosshairItem.crosshairStyle.setShow(b)
+
 
     def contextMenuEvent(self, event):
         menu = QMenu()

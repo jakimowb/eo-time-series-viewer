@@ -128,6 +128,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QToolButton" name="btnShowCrosshair">
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QToolButton" name="btnVectorOverlayVisibility">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -253,6 +260,21 @@
    </property>
    <property name="toolTip">
     <string>Toogle visibility of overlayed vector file</string>
+   </property>
+  </action>
+  <action name="actionShowCrosshair">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show Crosshair</string>
    </property>
   </action>
  </widget>

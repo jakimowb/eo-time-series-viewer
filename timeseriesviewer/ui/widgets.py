@@ -365,6 +365,9 @@ class MapViewDefinitionUI(QGroupBox, loadUIFormClass(PATH_MAPVIEWDEFINITION_UI))
         self.btnMapViewVisibility.setDefaultAction(self.actionToggleVisibility)
         self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
         self.btnVectorOverlayVisibility.setDefaultAction(self.actionToggleVectorVisibility)
+        self.btnShowCrosshair.setDefaultAction(self.actionShowCrosshair)
+
+
         self.actionToggleVisibility.toggled.connect(lambda: self.setVisibility(not self.actionToggleVisibility.isChecked()))
         self.actionToggleVectorVisibility.toggled.connect(lambda : self.sigVectorVisibility.emit(self.actionToggleVectorVisibility.isChecked()))
 

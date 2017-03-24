@@ -122,7 +122,12 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
 
     def setShow(self, b):
         assert isinstance(b, bool)
+        old = self.mShow
         self.mShow = b
+        self.crosshairStyle.setShow(b)
+        if old != b:
+            self.canvas.update()
+
 
     def connectRasterGrid(self, qgsRasterLayer):
 

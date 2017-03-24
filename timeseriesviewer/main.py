@@ -254,6 +254,7 @@ class MapView(QObject):
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
     from timeseriesviewer.crosshair import CrosshairStyle
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
+    sigShowCrosshair = pyqtSignal(bool)
     sigVectorLayerChanged = pyqtSignal()
 
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
@@ -276,6 +277,7 @@ class MapView(QObject):
         self.spatialExtent = None
         self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
         self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
+        self.ui.actionShowCrosshair.toggled.connect(self.setShowCrosshair)
         self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
         self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
         self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
@@ -329,7 +331,8 @@ class MapView(QObject):
 
     def setCrosshairStyle(self, crosshairStyle):
         self.sigCrosshairStyleChanged.emit(crosshairStyle)
-
+    def setShowCrosshair(self, b):
+        self.sigShowCrosshair.emit(b)
 
     def removeSensor(self, sensor):
         assert type(sensor) is SensorInstrument
@@ -526,6 +529,9 @@ class SpatialTemporalVisualization(QObject):
 
     def setCrosshairStyle(self, crosshairStyle):
         self.MVC.setCrosshairStyle(crosshairStyle)
+
+    def setShowCrosshair(self, b):
+        self.MVC.setShowCrosshair(b)
 
     def setVectorLayer(self, lyr):
         self.MVC.setVectorLayer(lyr)
@@ -791,6 +797,9 @@ class MapViewCollection(QObject):
         for mapView in self.mapViewsDefinitions:
             mapView.setCrosshairStyle(crosshairStyle)
 
+    def setShowCrosshair(self, b):
+        for mapView in self.mapViewsDefinitions:
+            mapView.setShowCrosshair(b)
 
     def index(self, mapView):
         assert isinstance(mapView, MapView)
@@ -993,6 +1002,7 @@ class TimeSeriesViewer:
         D.actionSaveTS.triggered.connect(self.ua_saveTSFile)
         D.actionAddTSExample.triggered.connect(self.ua_loadExampleTS)
 
+        D.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
 
         #connect buttons with actions
         from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
