@@ -1,5 +1,7 @@
 
-import os
+import os, logging
+
+logger = logging.getLogger(__name__)
 
 from qgis.core import *
 from qgis.gui import *
@@ -37,22 +39,24 @@ class TsvMapCanvas(QgsMapCanvas):
         self.tsdView = tsdView
         self.mapView = mapView
 
-        self.crossHairLayer = CrosshairLayer()
-        self.crossHairLayer.connectCanvas(self)
+        from timeseriesviewer.crosshair import CrosshairMapCanvasItem
+        self.crosshairItem = CrosshairMapCanvasItem(self)
+
 
         self.vectorLayer = None
 
         self.mapView.sigVectorLayerChanged.connect(self.refresh)
         self.mapView.sigVectorVisibility.connect(self.refresh)
+
         self.renderMe = False
         self.setRenderMe()
 
         self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
         self.mapView.sigMapViewVisibility.connect(self.refresh)
         self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
-        self.mapView.sigCrossHairStyleChanged.connect(lambda r:self.setCrossHairRenderer(r))
+        self.mapView.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
         self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
-        QgsMapLayerRegistry.instance().addMapLayer(self.referenceLayer, False)
+
 
 
 
@@ -70,19 +74,12 @@ class TsvMapCanvas(QgsMapCanvas):
         mt.sigCoordinateSelected.connect(self.sigShowProfiles.emit)
         self.MAPTOOLS['identifyProfile'] = mt
 
-        self.showCrossHair(True)
         self.refresh()
 
-    def setCrossHairRenderer(self, renderer):
-        self.crossHairLayer.setRendererV2(renderer)
-        self.refresh()
 
     def mapLayersToRender(self, *args):
         """Returns the map layers actually to be rendered"""
         mapLayers = []
-
-        if len(self.crossHairLayer.rendererV2().symbols()) > 0:
-            mapLayers.append(self.crossHairLayer)
 
         if self.mapView.visibleVectorOverlay():
             #if necessary, register new vector layer
@@ -120,19 +117,16 @@ class TsvMapCanvas(QgsMapCanvas):
         super(TsvMapCanvas, self).refresh()
 
 
-    def showCrossHair(self, show):
-        if show:
-            if self.crossHairLayer is None:
-                self.crossHairLayer = CrosshairLayer()
-                self.crossHairLayer.connectCanvas(self)
-            QgsMapLayerRegistry.instance().addMapLayer(self.crossHairLayer)
-
+    def setCrosshairStyle(self,crosshairStyle):
+        from timeseriesviewer.crosshair import CrosshairStyle
+        if crosshairStyle is None:
+            self.crosshairItem.crosshairStyle.setShow(False)
+            self.crosshairItem.update()
         else:
-            if self.crossHairLayer is not None:
-                QgsMapLayerRegistry.instance().removeLayer(self.crossHairLayer)
-                self.crossHairLayer = None
+            assert isinstance(crosshairStyle, CrosshairStyle)
+            self.crosshairItem.setCrosshairStyle(crosshairStyle)
 
-        self.refresh()
+
 
     def setRenderMe(self):
         oldFlag = self.renderFlag()
@@ -150,6 +144,10 @@ class TsvMapCanvas(QgsMapCanvas):
         """
         return QPixmap(self.map().contentImage().copy())
 
+    def setShowCrosshair(self, b):
+        assert isinstance(b, bool)
+        self.crosshairItem.crosshairStyle.setShow(b)
+
     def contextMenuEvent(self, event):
         menu = QMenu()
         # add general options
@@ -158,6 +156,23 @@ class TsvMapCanvas(QgsMapCanvas):
         action.triggered.connect(self.stretchToCurrentExtent)
         action = menu.addAction('Zoom to Layer')
         action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
+        menu.addSeparator()
+
+        action = menu.addAction('Change crosshair style')
+        from timeseriesviewer.crosshair import CrosshairDialog
+        action.triggered.connect(lambda : self.setCrosshairStyle(
+                CrosshairDialog.getCrosshairStyle(parent=self,
+                                                mapCanvas=self,
+                                                crosshairStyle=self.crosshairItem.crosshairStyle)
+                ))
+
+        if self.crosshairItem.crosshairStyle.mShow:
+            action = menu.addAction('Hide crosshair')
+            action.triggered.connect(lambda : self.setShowCrosshair(False))
+        else:
+            action = menu.addAction('Show crosshair')
+            action.triggered.connect(lambda: self.setShowCrosshair(True))
+
         menu.addSeparator()
 
         m = menu.addMenu('Copy...')
@@ -249,8 +264,7 @@ class TsvMapCanvas(QgsMapCanvas):
         elif key in self.MAPTOOLS.keys():
             self.setMapTool(self.MAPTOOLS[key])
         else:
-            from timeseriesviewer import dprint
-            dprint('unknown map tool key "{}"'.format(key))
+            logger.error('unknown map tool key "{}"'.format(key))
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
@@ -301,32 +315,3 @@ class TsvMapCanvas(QgsMapCanvas):
     def spatialExtent(self):
         return SpatialExtent.fromMapCanvas(self)
 
-
-if __name__ == '__main__':
-    import sandbox
-    import example.Images
-
-    qgsApp =sandbox.initQgisEnvironment()
-    canvas = QgsMapCanvas()
-    canvas.show()
-    canvas.resize(600,600)
-
-    reg = QgsMapLayerRegistry.instance()
-    lyr1 = CrosshairLayer()
-    lyr1.connectCanvas(canvas)
-    lyr2 = QgsRasterLayer(example.Images.Img_2012_08_29_LE72270652012242CUB00_BOA)
-
-    reg.addMapLayer(lyr1, False)
-    reg.addMapLayer(lyr2, False)
-
-    canvas.mapSettings().setDestinationCrs(lyr2.crs())
-    canvas.setExtent(lyr2.extent())
-
-    assert lyr1.extent() == canvas.extent()
-
-    mapLyrs = [QgsMapCanvasLayer(l) for l in [lyr1, lyr2]]
-    canvas.setLayerSet(mapLyrs)
-    qgsApp.exec_()
-
-
-    print('Done')
