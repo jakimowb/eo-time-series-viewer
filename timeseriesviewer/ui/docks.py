@@ -37,6 +37,9 @@ class TsvDockWidgetBase(QgsDockWidget):
 
 
 class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
+    from timeseriesviewer.crosshair import CrosshairStyle
+
+    sigMapCanvasColorChanged = pyqtSignal(QColor)
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
         self.setupUi(self)
@@ -50,14 +53,12 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
         self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
 
-        self.gbCrosshair.setVisible(False)
-
-
 
 
     def subsetSize(self):
         return QSize(self.spinBoxSubsetSizeX.value(),
                      self.spinBoxSubsetSizeY.value())
+
     def onSubsetValueChanged(self, key):
         if self.checkBoxKeepSubsetAspectRatio.isChecked():
 
@@ -355,41 +356,9 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import DIR_SITE_PACKAGES
-    site.addsitedir(DIR_SITE_PACKAGES)
-
-    #prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-
-    #run tests
-    #d = AboutDialogUI()
-    #d.show()
-
-    from timeseriesviewer.tests import *
-
-    TS = TestObjects.TimeSeries()
-    ext = TS.getMaxSpatialExtent()
-
-    d = ProfileViewDockUI()
-    d.connectTimeSeries(TS)
+    from timeseriesviewer import sandbox
+    qgsApp = sandbox.initQgisEnvironment()
+    d = RenderingDockUI()
     d.show()
-    d.loadCoordinate(ext.center(), ext.crs())
-
-    #close QGIS
-    try:
-        qgsApp.exec_()
-    except:
-        s = ""
+    qgsApp.exec_()
     qgsApp.exitQgis()
