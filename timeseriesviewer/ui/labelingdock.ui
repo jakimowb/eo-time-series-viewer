@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>256</height>
+    <height>261</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -75,6 +75,16 @@
        </spacer>
       </item>
      </layout>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="checkBox">
+      <property name="text">
+       <string>Edit layer</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox"/>
     </item>
     <item>
      <widget class="QGroupBox" name="groupBoxLabelProperties">
@@ -178,6 +188,13 @@
    </layout>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsMapLayerComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsmaplayercombobox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="resources.qrc"/>
  </resources>
