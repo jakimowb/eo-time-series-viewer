@@ -315,3 +315,118 @@ class TsvMapCanvas(QgsMapCanvas):
     def spatialExtent(self):
         return SpatialExtent.fromMapCanvas(self)
 
+
+
+
+class CanvasBoundingBoxItem(QgsGeometryRubberBand):
+
+    def __init__(self, mapCanvas):
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        super(CanvasBoundingBoxItem, self).__init__(mapCanvas)
+
+        self.canvas = mapCanvas
+        self.mCanvasExtents = dict()
+        self.mShow = True
+        self.mShowTitles = True
+        self.setIconType(QgsGeometryRubberBand.ICON_NONE)
+
+    def connectCanvas(self, canvas):
+        assert isinstance(canvas, QgsMapCanvas)
+        assert canvas != self.canvas
+        if canvas not in self.mCanvasExtents.keys():
+            self.mCanvasExtents[canvas] = None
+            canvas.extentsChanged.connect(lambda : self.onExtentsChanged(canvas))
+            canvas.destroyed.connect(lambda : self.disconnectCanvas(canvas))
+            self.onExtentsChanged(canvas)
+
+    def disconnectCanvas(self, canvas):
+            self.mCanvasExtents.pop(canvas)
+
+    def onExtentsChanged(self, canvas):
+        assert isinstance(canvas, QgsMapCanvas)
+
+        ext = SpatialExtent.fromMapCanvas(canvas)
+        ext = ext.toCrs(self.canvas.mapSettings().destinationCrs())
+
+        geom = QgsPolygonV2()
+        assert geom.fromWkt(ext.asWktPolygon())
+
+        self.mCanvasExtents[canvas] = (ext, geom)
+        self.refreshExtents()
+
+    def refreshExtents(self):
+        multi = QgsMultiPolygonV2()
+        if self.mShow:
+            for canvas, t in self.mCanvasExtents.items():
+                ext, geom = t
+                multi.addGeometry(geom.clone())
+        self.setGeometry(multi)
+
+    def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
+        super(CanvasBoundingBoxItem, self).paint(painter)
+
+        if self.mShowTitles and self.mShow:
+            painter.setPen(Qt.blue);
+            painter.setFont(QFont("Arial", 30))
+
+            for canvas, t in self.mCanvasExtents.items():
+                ext, geom = t
+                ULpx = self.toCanvasCoordinates(ext.center())
+                txt = canvas.windowTitle()
+                painter.drawLine(0, 0, 200, 200);
+                painter.drawText(ULpx,  txt)
+
+
+    def setShow(self, b):
+        assert isinstance(b, bool)
+        self.mShow = b
+
+    def setShowTitles(self, b):
+        assert isinstance(b, bool)
+        self.mShowTitles = b
+
+if __name__ == '__main__':
+    import site, sys
+    #add site-packages to sys.path as done by enmapboxplugin.py
+
+    from timeseriesviewer import sandbox
+    qgsApp = sandbox.initQgisEnvironment()
+
+
+
+    import example.Images
+    lyr1 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
+    lyr2 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
+    lyr3 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
+
+    QgsMapLayerRegistry.instance().addMapLayers([lyr1, lyr2, lyr3])
+
+    w = QWidget()
+    l = QHBoxLayout()
+    canvas1 = QgsMapCanvas()
+    canvas1.setWindowTitle('Canvas1')
+    canvas1.setLayerSet([QgsMapCanvasLayer(lyr1)])
+    canvas1.setExtent(lyr1.extent())
+    canvas2 = QgsMapCanvas()
+    canvas2.setWindowTitle('Canvas2')
+    canvas2.setLayerSet([QgsMapCanvasLayer(lyr2)])
+    canvas2.setExtent(lyr2.extent())
+    canvas3 = QgsMapCanvas()
+    canvas3.setWindowTitle('Canvas3')
+    #canvas3.setLayerSet([QgsMapCanvasLayer(lyr3)])
+    #canvas3.setExtent(lyr3.extent())
+
+    item = CanvasBoundingBoxItem(canvas1)
+    item.setShowTitles(True)
+    item.connectCanvas(canvas2)
+    item.connectCanvas(canvas3)
+
+    l.addWidget(canvas1)
+    l.addWidget(canvas2)
+    l.addWidget(canvas3)
+    w.setLayout(l)
+
+    w.show()
+
+    qgsApp.exec_()
+    qgsApp.exitQgis()
