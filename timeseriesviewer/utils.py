@@ -9,11 +9,12 @@ from PyQt4.QtGui import *
 from osgeo import gdal
 
 import weakref
+import numpy as np
 
 jp = os.path.join
 dn = os.path.dirname
 
-def fileSizeString(num, suffix='B', div=1000):
+def scaledUnitString(num, infix=' ', suffix='B', div=1000):
     """
     Returns a human-readable file size string.
     thanks to Fred Cirera
@@ -25,10 +26,9 @@ def fileSizeString(num, suffix='B', div=1000):
     """
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < div:
-            return "{:3.1f}{}{}".format(num, unit, suffix)
+            return "{:3.1f}{}{}{}".format(num, infix, unit, suffix)
         num /= div
-    return "{:.1f} {}{}".format(num, unit, suffix)
-
+    return "{:.1f}{}{}{}".format(num, infix, unit, suffix)
 
 
 class SpatialPoint(QgsPoint):
@@ -246,3 +246,43 @@ def getSubLayerEndings(files):
             pass
 
     return subLayerEndings
+
+
+def nicePredecessor(l):
+    mul = -1 if l < 0 else 1
+    l = np.abs(l)
+    if l > 1.0:
+        exp = np.fix(np.log10(l))
+        # normalize to [0.0,1.0]
+        l2 = l / 10 ** (exp)
+        m = np.fix(l2)
+        rest = l2 - m
+        if rest >= 0.5:
+            m += 0.5
+
+        return mul * m * 10 ** exp
+
+    elif l < 1.0:
+        exp = np.fix(np.log10(l))
+        #normalize to [0.0,1.0]
+        m = l / 10 ** (exp-1)
+        if m >= 5:
+            m = 5.0
+        else:
+            m = 1.0
+        return mul * m * 10 ** (exp-1)
+    else:
+        return 0.0
+
+if __name__ == '__main__':
+    #nice predecessors
+    assert nicePredecessor(26) == 25
+    assert nicePredecessor(25) == 25
+    assert nicePredecessor(23) == 20
+    assert nicePredecessor(999) == 950
+    assert nicePredecessor(1001) == 1000
+    assert nicePredecessor(1.2) == 1.0      #
+    assert nicePredecessor(0.8) == 0.5
+    assert nicePredecessor(0.2) == 0.1
+    assert nicePredecessor(0.021) == 0.01
+    assert nicePredecessor(0.0009991) == 0.0005
