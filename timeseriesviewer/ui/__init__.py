@@ -10,7 +10,7 @@ from PyQt4 import uic
 FORM_CLASSES = dict()
 
 from timeseriesviewer import jp, DIR_UI
-
+load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
 def loadUIFormClass(pathUi, from_imports=False):
     """

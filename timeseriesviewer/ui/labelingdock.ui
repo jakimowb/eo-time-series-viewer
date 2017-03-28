@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>261</height>
+    <height>499</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -28,6 +28,13 @@
       </property>
       <item>
        <widget class="QToolButton" name="btnCollectLabels">
+        <property name="text">
+         <string>...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="toolButton">
         <property name="text">
          <string>...</string>
         </property>
@@ -77,37 +84,7 @@
      </layout>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <property name="spacing">
-       <number>6</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QCheckBox" name="checkBox">
-        <property name="text">
-         <string>Edit layer</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>1</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="QGroupBox" name="groupBoxLabelProperties">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
+     <widget class="QgsCollapsibleGroupBox" name="mGroupBox">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
@@ -117,20 +94,41 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>65</height>
+        <height>0</height>
        </size>
       </property>
       <property name="title">
-       <string>Label Properties</string>
+       <string>Labels to extract</string>
       </property>
-      <property name="checkable">
-       <bool>false</bool>
-      </property>
-      <layout class="QGridLayout" name="gridLayout_2">
-       <property name="margin">
-        <number>6</number>
+      <layout class="QFormLayout" name="formLayout">
+       <property name="fieldGrowthPolicy">
+        <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
        </property>
-       <item row="0" column="0">
+       <item row="2" column="1">
+        <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Attribute</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Text Field / Column in Vector File</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
         <widget class="QCheckBox" name="cbLabelPropertyTimeStamp">
          <property name="enabled">
           <bool>true</bool>
@@ -143,39 +141,74 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="2">
+       <item row="5" column="1">
+        <widget class="QgsFieldComboBox" name="mFieldBoxTimestamp"/>
+       </item>
+       <item row="6" column="0">
         <widget class="QCheckBox" name="cbLabelPropertyCoordinate">
          <property name="text">
           <string>Coordinate</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="2">
+       <item row="6" column="1">
+        <widget class="QgsFieldComboBox" name="mFieldBoxGeoCoordinate"/>
+       </item>
+       <item row="7" column="0">
         <widget class="QCheckBox" name="cbLabelPropertyPixel">
          <property name="text">
           <string>Pixel</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
+       <item row="7" column="1">
+        <widget class="QgsFieldComboBox" name="mFieldBoxPixelCoordinate"/>
+       </item>
+       <item row="8" column="0">
         <widget class="QCheckBox" name="cbLabelPropertySensor">
          <property name="text">
           <string>Sensor</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="4">
-        <spacer name="horizontalSpacer_4">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+       <item row="8" column="1">
+        <widget class="QgsFieldComboBox" name="mFieldBoxSensor"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QCheckBox" name="cbLabelPropertyTimeStamp_2">
+         <property name="enabled">
+          <bool>true</bool>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
+         <property name="text">
+          <string>Vector Layer</string>
          </property>
-        </spacer>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="cbLabelPropertyTimeStamp_3">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Text File</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="lineEdit"/>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Write to...</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -202,10 +235,34 @@
       </property>
      </widget>
     </item>
+    <item>
+     <spacer name="verticalSpacer">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>40</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
    </layout>
   </widget>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QgsCollapsibleGroupBox</class>
+   <extends>QGroupBox</extends>
+   <header>qgscollapsiblegroupbox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsFieldComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsfieldcombobox.h</header>
+  </customwidget>
   <customwidget>
    <class>QgsMapLayerComboBox</class>
    <extends>QComboBox</extends>

@@ -343,14 +343,6 @@ class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
             #self.toogleLayout(self.scrollAreaMapsViewDockContent)
             self.toggleLayout(self.BVButtonList)
 
-class LabelingDockUI(TsvDockWidgetBase, load('labelingdock.ui')):
-    def __init__(self, parent=None):
-        super(LabelingDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        self.btnClearLabelList.clicked.connect(self.tbCollectedLabels.clear)
-
-
 
 if __name__ == '__main__':
     import site, sys
