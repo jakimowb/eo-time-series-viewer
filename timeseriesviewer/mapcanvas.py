@@ -19,7 +19,7 @@ class TsvMapCanvas(QgsMapCanvas):
 
     def __init__(self, tsdView, mapView, parent=None):
         super(TsvMapCanvas, self).__init__(parent=parent)
-        from timeseriesviewer.main import TimeSeriesDatumView, MapView
+        from timeseriesviewer.mapvisualization import TimeSeriesDatumView, MapView
         assert isinstance(tsdView, TimeSeriesDatumView)
         assert isinstance(mapView, MapView)
 

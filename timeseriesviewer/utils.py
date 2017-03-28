@@ -1,5 +1,5 @@
 
-
+import os
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
@@ -9,6 +9,9 @@ from PyQt4.QtGui import *
 from osgeo import gdal
 
 import weakref
+
+jp = os.path.join
+dn = os.path.dirname
 
 def fileSizeString(num, suffix='B', div=1000):
     """
