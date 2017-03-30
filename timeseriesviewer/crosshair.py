@@ -182,15 +182,15 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
 
 
                 extent = self.canvas.extent()
-                maxD = 0.5 * max([extent.width(), extent.height()])
+                maxD = 0.5 * min([extent.width(), extent.height()])
 
-                np = nicePredecessor(maxD)
+                pred = nicePredecessor(maxD)
 
                 #exp = int(np.log10(maxD))
                 #md = 10**exp #marker distance = distance to crosshair center
 
 
-                pt = m2p.transform(QgsPoint(centerGeo.x()- np, centerGeo.y()))
+                pt = m2p.transform(QgsPoint(centerGeo.x()- pred, centerGeo.y()))
 
                 line = QLineF((pt + QgsVector(0, ml)).toQPointF(),
                               (pt - QgsVector(0, ml)).toQPointF())
@@ -209,9 +209,9 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                     if unitString == 'meters':
                         from timeseriesviewer.utils import scaledUnitString
 
-                        labelText = scaledUnitString(ml, suffix='m')
+                        labelText = scaledUnitString(pred, suffix='m')
                     else:
-                        labelText = '{}{}'.format(ml, unitString)
+                        labelText = '{}{}'.format(pred, unitString)
 
                     pen = QPen(Qt.SolidLine)
                     pen.setWidth(self.crosshairStyle.mThickness)
@@ -333,7 +333,6 @@ def nicePredecessor(l):
         rest = l2 - m
         if rest >= 0.5:
             m += 0.5
-
         return mul * m * 10 ** exp
 
     elif l < 1.0:
