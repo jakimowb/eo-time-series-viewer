@@ -1,15 +1,20 @@
 import os, re, logging
 from osgeo import gdal
 import numpy as np
-
-logger = logging.getLogger('hub-tsv')
+from qgis import *
+logger = logging.getLogger(__file__)
 
 #regular expression. compile them only once
 
 #thanks user "funkwurm" in
 #http://stackoverflow.com/questions/28020805/regex-validate-correct-iso8601-date-string-with-time
-regISODate = re.compile(r'^(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)$')
+regISODate = re.compile(r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
 
+#https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
+
+regYYYYMMDD = re.compile(r'(?P<year>[0-9]{4})(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
+regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
+regYYYYDOY = re.compile(r'(?P<year>[0-9]{4})-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 
 def matchOrNone(regex, text):
     match = regex.search(text)
@@ -85,13 +90,13 @@ class ImageDateParserGeneric(ImageDateParser):
 
         # search for ISO date in basename
         # search in basename
-        dtg = extractDateTimeGroup(regISODate, self.baseName)
-        if dtg: return dtg
-
-        # search for ISO date in file directory path
-        dtg = extractDateTimeGroup(regISODate, self.dirName)
-        return dtg
-
+        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
+            dtg = extractDateTimeGroup(reg, self.baseName)
+            if dtg: return dtg
+        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
+            dtg = extractDateTimeGroup(reg, self.dirName)
+            if dtg: return dtg
+        return None
 
 class ImageDateParserPLEIADES(ImageDateParser):
     def __init__(self, dataSet):
@@ -164,7 +169,6 @@ def parseDateFromDataSet(dataSet):
 if __name__ == '__main__':
 
     p = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LE71720342015009SG100\LE71720342015009SG100_sr.tif'
-
+    p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-07_LE72270652012098EDC00_BOA.bsq'
     ds = gdal.Open(p)
-    parseDateFromDataSet(ds)
-    s = ""
+    print(parseDateFromDataSet(ds))
