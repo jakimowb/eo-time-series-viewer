@@ -328,7 +328,6 @@ class TimeSeries(QObject):
         #self.data = collections.OrderedDict()
         self.data = list()
 
-        self.CHIP_BUFFER=dict()
 
         self.shape = None
 
@@ -389,6 +388,14 @@ class TimeSeries(QObject):
         with open(path, 'w') as f:
             f.writelines(lines)
 
+    def getPixelSizes(self):
+
+        r = []
+        for sensor in self.Sensors.keys():
+            r.append((QgsRectangle(sensor.px_size_x, sensor.px_size_y)))
+        return r
+
+        return None
     def getMaxSpatialExtent(self, crs=None):
         if len(self.data) == 0:
             return None
