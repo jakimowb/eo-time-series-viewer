@@ -41,7 +41,7 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
     def canvasPressEvent(self, e):
         geoPoint = self.toMapCoordinates(e.pos())
         self.marker.setCenter(geoPoint)
-        self.marker.show()
+        #self.marker.show()
 
     def setStyle(self, color=None, brushStyle=None, fillColor=None, lineStyle=None):
         if color:
