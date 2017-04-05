@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>499</height>
+    <width>335</width>
+    <height>768</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,69 +22,116 @@
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QHBoxLayout" name="btnBar">
-      <property name="topMargin">
-       <number>0</number>
+     <widget class="QgsCollapsibleGroupBox" name="gbLabelShortcuts">
+      <property name="title">
+       <string>Shortcuts</string>
       </property>
-      <item>
-       <widget class="QToolButton" name="btnCollectLabels">
-        <property name="text">
-         <string>...</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="toolButton">
-        <property name="text">
-         <string>...</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnCopyLabelList">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnClearLabelList">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mIconClearText.png</normaloff>:/timeseriesviewer/icons/mIconClearText.png</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_7">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <layout class="QHBoxLayout" name="btnBarCommonShortcuts">
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QToolButton" name="btnShowLabelTable">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnSaveOutput">
+           <property name="text">
+            <string>Load</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/mActionFileSave.png</normaloff>:/timeseriesviewer/icons/mActionFileSave.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnCopyLabelList">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnClearLabelList">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/mIconClearText.png</normaloff>:/timeseriesviewer/icons/mIconClearText.png</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_7">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="btnBarClassShortcuts">
+         <property name="topMargin">
+          <number>10</number>
+         </property>
+         <property name="rightMargin">
+          <number>10</number>
+         </property>
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>&lt;load / define classification scheme for class label buttons&gt;</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+      <zorder>btnShowLabelTable</zorder>
+      <zorder>btnSaveOutput</zorder>
+      <zorder>btnCopyLabelList</zorder>
+      <zorder>btnClearLabelList</zorder>
+      <zorder></zorder>
+      <zorder>verticalLayoutWidget</zorder>
+      <zorder></zorder>
+     </widget>
     </item>
     <item>
-     <widget class="QgsCollapsibleGroupBox" name="mGroupBox">
+     <widget class="QgsCollapsibleGroupBox" name="gbClassificationScheme">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
@@ -98,115 +145,19 @@
        </size>
       </property>
       <property name="title">
-       <string>Labels to extract</string>
+       <string>Classification Scheme</string>
       </property>
-      <layout class="QFormLayout" name="formLayout">
-       <property name="fieldGrowthPolicy">
-        <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-       </property>
-       <item row="2" column="1">
-        <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>1</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="label_3">
-         <property name="text">
-          <string>Attribute</string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="1">
-        <widget class="QLabel" name="label_2">
-         <property name="text">
-          <string>Text Field / Column in Vector File</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertyTimeStamp">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>Timestamp</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="1">
-        <widget class="QgsFieldComboBox" name="mFieldBoxTimestamp"/>
-       </item>
-       <item row="6" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertyCoordinate">
-         <property name="text">
-          <string>Coordinate</string>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="1">
-        <widget class="QgsFieldComboBox" name="mFieldBoxGeoCoordinate"/>
-       </item>
-       <item row="7" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertyPixel">
-         <property name="text">
-          <string>Pixel</string>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="1">
-        <widget class="QgsFieldComboBox" name="mFieldBoxPixelCoordinate"/>
-       </item>
-       <item row="8" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertySensor">
-         <property name="text">
-          <string>Sensor</string>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="1">
-        <widget class="QgsFieldComboBox" name="mFieldBoxSensor"/>
-       </item>
-       <item row="2" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertyTimeStamp_2">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>Vector Layer</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QCheckBox" name="cbLabelPropertyTimeStamp_3">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>Text File</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLineEdit" name="lineEdit"/>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_4">
-         <property name="text">
-          <string>Write to...</string>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="ClassificationSchemeWidget" name="classSchemeWidget" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>100</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -214,25 +165,244 @@
      </widget>
     </item>
     <item>
-     <widget class="QTextEdit" name="tbCollectedLabels">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
+     <widget class="QgsCollapsibleGroupBox" name="gbOutput">
+      <property name="minimumSize">
        <size>
-        <width>16777215</width>
-        <height>16777215</height>
+        <width>0</width>
+        <height>0</height>
        </size>
       </property>
-      <property name="readOnly">
-       <bool>true</bool>
+      <property name="title">
+       <string>Output</string>
       </property>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="QGroupBox" name="gbOutputSources">
+         <property name="title">
+          <string>Write in-memory data to...</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_2">
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="cbOutputVectorLayer">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Vector Layer</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="lineEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>2</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="cbOutputTextfile">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Text File</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>2</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="btnSelectTextFile">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>1</horstretch>
+              <verstretch>1</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>25</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QPushButton" name="btnSelectVectorLayer">
+            <property name="maximumSize">
+             <size>
+              <width>25</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="gbFieldsClassificationScheme">
+         <property name="title">
+          <string>Fields to write the classification scheme</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout">
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertySensor_2">
+            <property name="minimumSize">
+             <size>
+              <width>100</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Label</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxClassLabel"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertySensor_3">
+            <property name="text">
+             <string>Name</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxClassName"/>
+          </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertySensor_4">
+            <property name="text">
+             <string>Color</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxClassColor"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="gbFieldsGeneral">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="title">
+          <string>Fields to write date general attributes</string>
+         </property>
+         <layout class="QFormLayout" name="formLayout_3">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertyTimeStamp">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>Timestamp</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxTimestamp"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertyCoordinate">
+            <property name="text">
+             <string>Geo Coordinate</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxGeoCoordinate"/>
+          </item>
+          <item row="2" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertyPixel">
+            <property name="text">
+             <string>Pixel Coodinate</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxPixelCoordinate"/>
+          </item>
+          <item row="3" column="0">
+           <widget class="QCheckBox" name="cbLabelPropertySensor">
+            <property name="text">
+             <string>Filename</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QgsFieldComboBox" name="mFieldBoxSensor"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
     <item>
@@ -268,9 +438,176 @@
    <extends>QComboBox</extends>
    <header>qgsmaplayercombobox.h</header>
   </customwidget>
+  <customwidget>
+   <class>ClassificationSchemeWidget</class>
+   <extends>QWidget</extends>
+   <header>timeseriesviewer.classificationscheme</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mMapLayerComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>71</x>
+     <y>447</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>209</x>
+     <y>457</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxTimestamp</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>58</x>
+     <y>453</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>202</x>
+     <y>630</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxGeoCoordinate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>35</x>
+     <y>447</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>189</x>
+     <y>650</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxPixelCoordinate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>85</x>
+     <y>450</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>169</x>
+     <y>678</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxSensor</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>98</x>
+     <y>448</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>166</x>
+     <y>701</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputTextfile</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lineEdit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>35</x>
+     <y>424</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>242</x>
+     <y>426</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxClassColor</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>141</x>
+     <y>463</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>141</x>
+     <y>572</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxClassName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>66</x>
+     <y>455</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>164</x>
+     <y>540</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cbOutputVectorLayer</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>mFieldBoxClassLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>52</x>
+     <y>451</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>154</x>
+     <y>510</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>gbClassificationScheme</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>gbFieldsClassificationScheme</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>58</x>
+     <y>122</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>56</x>
+     <y>490</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

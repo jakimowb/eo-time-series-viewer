@@ -295,8 +295,8 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
         area = Qt.BottomDockWidgetArea
-
-        self.dockMapViews = addDockWidget(docks.MapViewDockUI(self))
+        from timeseriesviewer.mapvisualization import MapViewDockUI
+        self.dockMapViews = addDockWidget(MapViewDockUI(self))
         self.dockTimeSeries = addDockWidget(docks.TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
@@ -435,10 +435,10 @@ class TimeSeriesViewer:
         #D.btn_showPxCoordinate.clicked.connect(lambda: self.showSubsetsStart())
         #connect actions with logic
 
-        D.actionSelectCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectCenter'))
+        D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('moveCenter'))
         #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
-        D.actionZoomMaxExtent.triggered.connect(lambda : self.zoomTo('maxExtent'))
-        D.actionZoomPixelScale.triggered.connect(lambda: self.zoomTo('pixelScale'))
+        D.actionZoomMaxExtent.triggered.connect(lambda : self.zoomTo('zoomMaxExtent'))
+        D.actionZoomPixelScale.triggered.connect(lambda: self.zoomTo('zoomPixelScale'))
         D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomIn'))
         D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomOut'))
         D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
@@ -497,29 +497,44 @@ class TimeSeriesViewer:
 
 
     def zoomTo(self, key):
-        if key == 'maxExtent':
+        if key == 'zoomMaxExtent':
             ext = self.TS.getMaxSpatialExtent(self.ui.dockNavigation.crs())
-            self.spatialTemporalVis.setSpatialExtent(ext)
-        elif key == 'pixelScale':
-            s = ""
+        elif key == 'zoomPixelScale':
+
+            extent = self.spatialTemporalVis.spatialExtent()
+            center = extent.center()
+            crs = extent.crs()
+            pxSize = max(self.TS.getPixelSizes(), key= lambda s :s.width())
+            canvasSize = self.spatialTemporalVis.subsetSize
+            f = 0.05
+            width = f * canvasSize.width() * pxSize.width()  # width in map units
+            height = f * canvasSize.height() * pxSize.height()
+
+            ext = SpatialExtent(crs, 0, 0, width, height)
+            ext.setCenter(center)
+        else:
+            raise NotImplementedError(key)
+        self.spatialTemporalVis.setSpatialExtent(ext)
 
 
     def icon(self):
         return TimeSeriesViewer.icon()
 
-    def timeseriesChanged(self):
+    def onTimeSeriesChanged(self):
 
         if not self.hasInitialCenterPoint:
             if len(self.TS.data) > 0:
+                if len(self.spatialTemporalVis.MVC) == 0:
+                    # add two empty band-views by default
+                    self.spatialTemporalVis.createMapView()
+                    self.spatialTemporalVis.createMapView()
+
                 extent = self.TS.getMaxSpatialExtent()
                 self.spatialTemporalVis.setSubsetSize(self.ui.dockRendering.subsetSize())
                 self.spatialTemporalVis.setSpatialExtent(extent)
                 self.hasInitialCenterPoint = True
 
-            if len(self.spatialTemporalVis.MVC) == 0:
-                # add two empty band-views by default
-                self.spatialTemporalVis.createMapView()
-                self.spatialTemporalVis.createMapView()
+
 
         if len(self.TS.data) == 0:
             self.hasInitialCenterPoint = False
@@ -570,7 +585,7 @@ class TimeSeriesViewer:
     def datesAdded(self, dates):
         assert isinstance(dates, list)
         self.ui.dockTimeSeries.tableView_TimeSeries.resizeColumnsToContents()
-        self.timeseriesChanged()
+        self.onTimeSeriesChanged()
 
 
     # noinspection PyMethodMayBeStatic
