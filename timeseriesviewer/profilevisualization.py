@@ -10,11 +10,18 @@ from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
+from timeseriesviewer.utils import SpatialExtent, SpatialPoint
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
 import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
 
+def getTextColorWithContrast(c):
+    assert isinstance(c, QColor)
+    if c.lightness() < 0.5:
+        return QColor('white')
+    else:
+        return QColor('black')
 
 class DateTimeAxis(pg.AxisItem):
 
@@ -229,15 +236,16 @@ class PixelLoader(QObject):
         for t in toRemove:
             self.threadsAndWorkers.remove(t)
 
-    def startLoading(self, pathList, theGeometry, crs):
+    def startLoading(self, pathList, theGeometry):
         self.removeFinishedThreads()
         self.sigLoadingStarted.emit(pathList[:])
 
         assert isinstance(pathList, list)
-
-        if isinstance(theGeometry, QgsPoint):
+        assert type(theGeometry) in [SpatialPoint, SpatialExtent]
+        crs = theGeometry.crs()
+        if isinstance(theGeometry, SpatialPoint):
             theGeometry = QgsPointV2(theGeometry)
-        elif isinstance(theGeometry, QgsRectangle):
+        elif isinstance(theGeometry, SpatialExtent):
             theGeometry = QgsPolygonV2(theGeometry.asWktPolygon())
         assert type(theGeometry) in [QgsPointV2, QgsPolygonV2]
 
@@ -626,7 +634,7 @@ class SensorPlotSettings(object):
         self.sensor = sensor
         self.expression = u'"b1"'
         self.color = QColor('green')
-        self.color.setAlpha(50)
+        #self.color.setAlpha(255)
         self.isVisible = True
         self.memLyr = memoryLyr
 
@@ -801,6 +809,12 @@ class PlotSettingsModel(QAbstractTableModel):
                 value = sw.expression
             elif columnName == 'style':
                 value = QColor(sw.color)
+        elif role == Qt.BackgroundRole:
+            if columnName == 'style':
+                value = QColor(sw.color)
+        elif role == Qt.ForegroundRole:
+            if columnName == 'style':
+                value = getTextColorWithContrast(sw.color)
 
         elif role == Qt.CheckStateRole:
             if columnName == 'sensor':
@@ -930,18 +944,17 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
 
 
 
-    def loadCoordinate(self, coordinate, crs):
+    def loadCoordinate(self, spatialPoint):
 
-        assert isinstance(coordinate, QgsPoint)
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        assert isinstance(spatialPoint, SpatialPoint)
         from timeseriesviewer.timeseries import TimeSeries
         assert isinstance(self.TS, TimeSeries)
 
         files = [tsd.pathImg for tsd in self.TS]
         self.pixelLoader.setNumberOfThreads(SETTINGS.value('n_threads', 1))
-        self.pixelLoader.startLoading(files, coordinate, crs)
+        self.pixelLoader.startLoading(files, spatialPoint)
         if self.spectralTempVis is not None:
-            self.setWindowTitle('{} | {} {}'.format(self.baseTitle, str(coordinate), crs.authid()))
+            self.setWindowTitle('{} | {} {}'.format(self.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
 
 def date2num(d):
     d2 = d.astype(datetime.datetime)
