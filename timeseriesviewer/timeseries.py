@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy
-
+import logging
+logger = logging.getLogger(__name__)
 import bisect, datetime
 from osgeo import gdal, ogr
 
@@ -11,11 +12,15 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 
-from osgeo import gdal, ogr
+from osgeo import gdal, ogr, gdal_array
+
+gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
+
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, dprint, jp, findAbsolutePath
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp
 from timeseriesviewer.dateparser import parseDateFromDataSet
+
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
     if trans is None:
         assert isinstance(crsSrc, QgsCoordinateReferenceSystem)
@@ -46,15 +51,6 @@ def convertMetricUnit(value, u1, u2):
     e2 = METRIC_EXPONENTS[u2]
 
     return value * 10**(e1-e2)
-
-def verifyVRT(pathVRT):
-
-    ds = gdal.Open(pathVRT)
-    if ds is None:
-        return False
-    s = ""
-
-    return True
 
 
 def getDS(pathOrDataset):
@@ -183,21 +179,24 @@ class SensorInstrument(QObject):
 
 
 def verifyInputImage(path, vrtInspection=''):
-
-    if not os.path.exists(path):
-        print('{}Image does not exist: '.format(vrtInspection, path))
-        return False
+    if path is None or not type(path) in [str, unicode]:
+        return None
     ds = gdal.Open(path)
+
     if not ds:
-        print('{}GDAL unable to open: '.format(vrtInspection, path))
+        logger.error('{}GDAL unable to open: '.format(vrtInspection, path))
+        return False
+
+    if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
+        logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
         return False
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
-        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in set(ds.GetFileList()) - set([path])]
+        nextFiles = set(ds.GetFileList()) - set([path])
+        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in nextFiles]
         if not all(validSrc):
             return False
-    else:
-        return True
+    return True
 
 def pixel2coord(gt, x, y):
     """Returns global coordinates from pixel x, y coords"""
@@ -215,12 +214,12 @@ class TimeSeriesDatum(QObject):
         :param path:
         :return:
         """
-        p = findAbsolutePath(path)
+
         tsd = None
-        if verifyInputImage(p):
+        if verifyInputImage(path):
 
             try:
-                tsd =TimeSeriesDatum(None, p)
+                tsd = TimeSeriesDatum(None, path)
             except :
                 pass
 
@@ -241,7 +240,7 @@ class TimeSeriesDatum(QObject):
 
         ds = getDS(pathImg)
 
-        self.pathImg = ds.GetFileList()[0]
+        self.pathImg = ds.GetFileList()[0] if isinstance(pathImg, gdal.Dataset) else pathImg
 
         self.timeSeries = timeSeries
         self.nb, self.nl, self.ns, self.crs, px_x, px_y = getSpatialPropertiesFromDataset(ds)
@@ -460,7 +459,7 @@ class TimeSeries(QObject):
                     TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
                 if TSD in self.data:
-                    six.print_('Time series datum already added: {} {}'.format(str(TSD), TSD.pathImg), file=sys.stderr)
+                    six.print_('Time series date-time already added ({} {}). \nPlease use VRTs to mosaic images with same acquisition date-time.'.format(str(TSD), TSD.pathImg), file=sys.stderr)
                 else:
                     self.Sensors[TSD.sensor].append(TSD)
                     #insert sorted
@@ -484,6 +483,8 @@ class TimeSeries(QObject):
 
     def addFiles(self, files):
         assert isinstance(files, list)
+        files = [f for f in files if f is not None]
+
         nMax = len(files)
         nDone = 0
         self.sigLoadingProgress.emit(0,nMax, 'Start loading {} files...'.format(nMax))
@@ -493,7 +494,7 @@ class TimeSeries(QObject):
             tsd = TimeSeriesDatum.createFromPath(file)
             if tsd is None:
                 msg = 'Unable to add: {}'.format(os.path.basename(file))
-                dprint(msg, file=sys.stderr)
+                logger.error(msg)
             else:
                 self.addTimeSeriesDates([tsd])
                 msg = 'Added {}'.format(os.path.basename(file))

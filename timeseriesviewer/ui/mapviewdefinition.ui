@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>453</width>
-    <height>123</height>
+    <height>159</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -124,6 +124,13 @@
         </property>
         <property name="autoRaise">
          <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnShowCrosshair">
+        <property name="text">
+         <string>...</string>
         </property>
        </widget>
       </item>
@@ -253,6 +260,21 @@
    </property>
    <property name="toolTip">
     <string>Toogle visibility of overlayed vector file</string>
+   </property>
+  </action>
+  <action name="actionShowCrosshair">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show Crosshair</string>
    </property>
   </action>
  </widget>

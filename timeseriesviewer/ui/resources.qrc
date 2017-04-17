@@ -2,6 +2,7 @@
   <qresource prefix="timeseriesviewer">
     <file>icons/ActionIdentifyTimeSeries.png</file>
     <file>icons/CRS.png</file>
+    <file>icons/crosshair.png</file>
     <file>icons/IconTimeSeries.png</file>
     <file>icons/copyright_label.png</file>
     <file>icons/general.png</file>

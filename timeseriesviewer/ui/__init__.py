@@ -1,4 +1,5 @@
-import os, sys, six, importlib
+import os, sys, six, importlib, logging
+logger = logging.getLogger(__name__)
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 from PyQt4.QtGui import *
@@ -8,7 +9,7 @@ from PyQt4 import uic
 #dictionary to store form classes. *.ui file name is key
 FORM_CLASSES = dict()
 
-from timeseriesviewer import jp, DIR_UI, dprint
+from timeseriesviewer import jp, DIR_UI
 
 
 def loadUIFormClass(pathUi, from_imports=False):
@@ -65,3 +66,4 @@ def loadUIFormClass(pathUi, from_imports=False):
         FORM_CLASSES[pathUi] = formClass
 
     return FORM_CLASSES[pathUi]
+

@@ -162,6 +162,7 @@
     <addaction name="actionRefresh"/>
     <addaction name="actionAddMapView"/>
     <addaction name="menuPanels"/>
+    <addaction name="actionShowCrosshair"/>
    </widget>
    <widget class="QMenu" name="menuNavigation">
     <property name="title">
@@ -544,6 +545,21 @@
    </property>
    <property name="shortcut">
     <string>F5</string>
+   </property>
+  </action>
+  <action name="actionShowCrosshair">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show Crosshair</string>
    </property>
   </action>
  </widget>

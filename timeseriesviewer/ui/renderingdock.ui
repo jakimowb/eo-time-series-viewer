@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>266</width>
-    <height>368</height>
+    <width>281</width>
+    <height>256</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -63,7 +63,7 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>100</height>
+        <height>0</height>
        </size>
       </property>
       <property name="maximumSize">
@@ -73,25 +73,19 @@
        </size>
       </property>
       <property name="title">
-       <string>Map Size</string>
+       <string>Map</string>
       </property>
       <property name="checkable">
        <bool>false</bool>
       </property>
-      <layout class="QFormLayout" name="formLayout_6">
+      <layout class="QGridLayout" name="gridLayout">
        <property name="margin">
         <number>6</number>
        </property>
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_7">
-         <property name="minimumSize">
-          <size>
-           <width>30</width>
-           <height>0</height>
-          </size>
-         </property>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_6">
          <property name="text">
-          <string>width</string>
+          <string>height</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -144,16 +138,13 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_6">
+       <item row="0" column="2">
+        <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
          <property name="text">
-          <string>height</string>
+          <string>keep aspect ratio</string>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-         </property>
-         <property name="buddy">
-          <cstring>spinBoxSubsetSizeY</cstring>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -197,86 +188,59 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="0" colspan="2">
-        <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
-         <property name="text">
-          <string>keep aspect ratio</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QgsCollapsibleGroupBox" name="gbCrosshair">
-      <property name="title">
-       <string>Show Crosshair</string>
-      </property>
-      <property name="checkable">
-       <bool>true</bool>
-      </property>
-      <property name="checked">
-       <bool>false</bool>
-      </property>
-      <property name="saveCheckedState">
-       <bool>true</bool>
-      </property>
-      <layout class="QFormLayout" name="formLayout_4">
        <item row="0" column="0">
-        <widget class="QLabel" name="label_13">
-         <property name="enabled">
-          <bool>false</bool>
+        <widget class="QLabel" name="label_7">
+         <property name="minimumSize">
+          <size>
+           <width>30</width>
+           <height>0</height>
+          </size>
          </property>
          <property name="text">
-          <string>Type</string>
+          <string>width</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>spinBoxSubsetSizeY</cstring>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QComboBox" name="cbCrosshairStyle">
-         <property name="enabled">
-          <bool>false</bool>
+       <item row="0" column="3">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
          </property>
-         <item>
-          <property name="text">
-           <string>Cross</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Dot</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Cross + Dot</string>
-          </property>
-         </item>
-        </widget>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_14">
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_15">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="text">
           <string>Color</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="1">
-        <widget class="QgsColorButton" name="btnCrosshairColor">
-         <property name="enabled">
-          <bool>false</bool>
+       <item row="2" column="1">
+        <widget class="QgsColorButton" name="btnMapCanvasColor">
+         <property name="colorDialogTitle">
+          <string>Select Map Canvas Background Color</string>
          </property>
-         <property name="maximumSize">
-          <size>
-           <width>50</width>
-           <height>16777215</height>
-          </size>
+         <property name="color">
+          <color>
+           <red>0</red>
+           <green>0</green>
+           <blue>0</blue>
+          </color>
          </property>
         </widget>
        </item>
