@@ -201,6 +201,7 @@ def make(ROOT):
     #compile Qt resource files
     #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
     resourcefiles = list(qrcs)
+
     assert len(resourcefiles) > 0
     for root_dir, f in resourcefiles:
         #dn = os.path.dirname(f)
@@ -208,8 +209,19 @@ def make(ROOT):
         assert os.path.exists(pathQrc), pathQrc
         bn = os.path.basename(f)
         bn = os.path.splitext(bn)[0]
-        pathPy2 = os.path.join(DIR_UI, bn+'_py2.py' )
-        pathPy3 = os.path.join(DIR_UI, bn+'_py3.py' )
+        pathPy2 = jp(DIR_UI, bn+'_py2.py' )
+        pathPy3 = jp(DIR_UI, bn+'_py3.py' )
+        print('Make {}'.format(pathPy2))
+        subprocess.call(['pyrcc4','-py2','-o',pathPy2, pathQrc])
+        print('Make {}'.format(pathPy3))
+        subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
+
+
+    if False: #compile QGIS resource files
+        pathQrc = r'D:\Repositories\QGIS\images\images.qrc'
+        assert os.path.exists(pathQrc)
+        pathPy2 = jp(DIR_UI, 'qgis_icons_py2.py')
+        pathPy3 = jp(DIR_UI, 'qgis_icons_py3.py')
         print('Make {}'.format(pathPy2))
         subprocess.call(['pyrcc4','-py2','-o',pathPy2, pathQrc])
         print('Make {}'.format(pathPy3))
@@ -469,7 +481,7 @@ if __name__ == '__main__':
 
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
-    if True:
+    if False:
 
         # update __init__.py of testdata directories
         d = pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
