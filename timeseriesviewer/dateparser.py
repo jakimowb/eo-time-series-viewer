@@ -47,10 +47,7 @@ def getDatetime64FromDOY(year, doy):
         return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
 
 
-
-from timeseriesviewer.utils import KeepRefs
-
-class ImageDateParser(object):
+class ImageDateReader(object):
     """
     Base class to extract numpy.datetime64 date-time-stamps
     """
@@ -62,19 +59,19 @@ class ImageDateParser(object):
         self.dirName = os.path.dirname(self.filePath)
         self.baseName, self.extension = os.path.splitext(os.path.basename(self.filePath))
 
-    def parseDate(self):
+    def readDTG(self):
         """
         :return: None in case date was not found, numpy.datetime64 else
         """
         raise NotImplementedError()
         return None
 
-class ImageDateParserGeneric(ImageDateParser):
+class ImageDateReaderDefault(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserGeneric, self).__init__(dataSet)
+        super(ImageDateReaderDefault, self).__init__(dataSet)
         self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
 
-    def parseDate(self):
+    def readDTG(self):
         # search metadata for datetime information
         # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for datetime format
         dtg = None
@@ -98,11 +95,11 @@ class ImageDateParserGeneric(ImageDateParser):
             if dtg: return dtg
         return None
 
-class ImageDateParserPLEIADES(ImageDateParser):
+class ImageDateReaderPLEIADES(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserPLEIADES, self).__init__(dataSet)
+        super(ImageDateReaderPLEIADES, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         timeStamp = ''
         ext = self.extension.lower()
 
@@ -118,22 +115,20 @@ class ImageDateParserPLEIADES(ImageDateParser):
         return None
 
 
-class ImageDateParserSentinel2(ImageDateParser):
+class ImageDateReaderSentinel2(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserSentinel2, self).__init__(dataSet)
+        super(ImageDateReaderSentinel2, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         timeStamp = ''
-        ext = self.extension.lower()
-
-        if ext == '.xml':
+        if self.extension.lower() == '.xml':
             md = self.dataSet.GetMetadata_Dict()
             timeStamp = md.get('DATATAKE_1_DATATAKE_SENSING_START', '')
         if len(timeStamp) > 0:
             return np.datetime64(timeStamp)
         return None
 
-class ImageDateParserLandsat(ImageDateParser):
+class ImageDateParserLandsat(ImageDateReader):
     #see https://landsat.usgs.gov/what-are-naming-conventions-landsat-scene-identifiers
     regLandsatSceneID  = re.compile(r'L[COTEM][4578]\d{3}\d{3}\d{4}\d{3}[A-Z]{2}[A-Z1]\d{2}')
     regLandsatProductID = re.compile(r'L[COTEM]0[78]_(L1TP|L1GT|L1GS)_\d{3}\d{3}_\d{4}\d{2}\d{2}_\d{4}\d{2}\d{2}_0\d{1}_(RT|T1|T2)')
@@ -141,7 +136,7 @@ class ImageDateParserLandsat(ImageDateParser):
     def __init__(self, dataSet):
         super(ImageDateParserLandsat, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         #search for LandsatSceneID (old) and Landsat Product IDs (new)
         sceneID = matchOrNone(ImageDateParserLandsat.regLandsatSceneID, self.baseName)
         if sceneID:
@@ -154,13 +149,13 @@ class ImageDateParserLandsat(ImageDateParser):
 
 
 
-dateParserList = [c for c in ImageDateParser.__subclasses__()]
-dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateParserGeneric))) #set to first position
+dateParserList = [c for c in ImageDateReader.__subclasses__()]
+dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault))) #set to first position
 
 def parseDateFromDataSet(dataSet):
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
-        dtg = parser(dataSet).parseDate()
+        dtg = parser(dataSet).readDTG()
         if dtg:
             return dtg
     return None
