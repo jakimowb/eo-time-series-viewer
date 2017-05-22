@@ -622,9 +622,8 @@ class TimeSeriesDatumView(QObject):
 
         return self.TSD < other.TSD
 
-    def __cmp__(self, other):
-        return cmp(self.TSD, other.TSD)
-
+    def __eq__(self, other):
+        return self.TSD == other.TSD
 
 class SpatialTemporalVisualization(QObject):
     """
@@ -866,8 +865,9 @@ class TimeSeriesDateViewCollection(QObject):
                 tsdView.insertMapView(mapView)
 
             bisect.insort(self.views, tsdView)
+            i = self.views.index(tsdView)
             tsdView.ui.setParent(self.STViz.targetLayout.parentWidget())
-            self.STViz.targetLayout.addWidget(tsdView.ui)
+            self.STViz.targetLayout.insertWidget(i, tsdView.ui)
             tsdView.ui.show()
 
 
