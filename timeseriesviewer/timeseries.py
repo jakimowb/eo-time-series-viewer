@@ -298,6 +298,8 @@ class TimeSeriesDatum(QObject):
     def __lt__(self, other):
         if self.date < other.date:
             return True
+        elif self.date > other.date:
+            return False
         else:
             return self.sensor.id() < other.sensor.id()
 
