@@ -1,15 +1,9 @@
 # README #
 
-The SenseCarbon TimeSeriesViewer is tool to visualize raster file based time series data.
-Its major aims are: 
+The HUB TimeSeriesViewer is tool to visualize time-series of remote sensing images.
+Its major purpose is to ease the visualization and labeling of images that might originate from multiple sensors.
 
-(i) to support labeling of time series data based on [Quantum GIS (QGIS)](www.qgis.org)
-
-(ii) to use remote sensing imagery "as is", i.e. support each raster format that is read by QGIS
-
-(iii) an almost platform independent installation
-
-Please check the [Wiki](https://bitbucket.org/jakimowb/sensecarbontsviewer/wiki/Home) for more information.
+Please check the [Wiki](https://bitbucket.org/jakimowb/hub-timeseriesviewer/wiki/Home) for more information.
 
 ## Licence and Use ##
 
