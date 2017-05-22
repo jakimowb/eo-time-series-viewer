@@ -875,11 +875,13 @@ class TimeSeriesDateViewCollection(QObject):
 
             bisect.insort(self.views, tsdView)
             i = self.views.index(tsdView)
+            print(i)
             tsdView.ui.setParent(self.STViz.targetLayout.parentWidget())
             self.STViz.targetLayout.insertWidget(i, tsdView.ui)
             tsdView.ui.show()
 
-
+            if i == 23:
+                s =""
         if len(tsdList) > 0:
             self.sigResizeRequired.emit()
 
