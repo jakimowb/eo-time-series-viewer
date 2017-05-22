@@ -39,7 +39,16 @@ def sandboxGui():
 
     S.spatialTemporalVis.MVC.createMapView()
     import example.Images
-    S.addTimeSeriesImages([example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA])
+    #imgs = file_search(jp(DIR_EXAMPLES,'Images'),'*.bsq')
+    searchDir = jp(DIR_EXAMPLES, 'Images')
+
+    #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
+    #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:5]
+
+    #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
+    S.addTimeSeriesImages(imgs)
+
 
 class QgisFake(QgisInterface):
 
@@ -207,10 +216,37 @@ def initQgisEnvironment():
     qgsApp = QgsApplication([], True)
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
+
+    gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
+    #register resource files (all)
+    import timeseriesviewer.ui
+    dn = os.path.dirname(timeseriesviewer.ui.__file__)
+    import timeseriesviewer.ui.qgis_icons_py2
+
+
+
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
     return qgsApp
 
+def sandboxTestdata():
+    from timeseriesviewer.main import TimeSeriesViewer
+
+    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
+    S = TimeSeriesViewer(None)
+    S.ui.show()
+    S.run()
+
+    S.spatialTemporalVis.MVC.createMapView()
+    import example.Images
+    searchDir = jp(DIR_EXAMPLES, 'Images')
+    imgs = file_search(searchDir, '*.bsq', recursive=True)  # [0:5]
+
+    imgs = [
+        r'D:\\Repositories\\QGIS_Plugins\\hub-timeseriesviewer\\example\\Images\\2015-11-10_LE72270652015314ASN00_BOA.bsq',
+        r'D:\\Repositories\\QGIS_Plugins\\hub-timeseriesviewer\\example\\Images\\re_2012-06-12.bsq'
+    ]
+    S.addTimeSeriesImages(imgs)
 
 
 if __name__ == '__main__':
@@ -222,8 +258,8 @@ if __name__ == '__main__':
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if True: sandboxGui()
-
+    if False: sandboxGui()
+    if True: sandboxTestdata()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()

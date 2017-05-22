@@ -173,7 +173,7 @@
     <addaction name="actionZoomOut"/>
     <addaction name="actionZoomMaxExtent"/>
     <addaction name="actionZoomPixelScale"/>
-    <addaction name="actionSelectCenter"/>
+    <addaction name="actionMoveCenter"/>
    </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuView"/>
@@ -197,7 +197,7 @@
    <addaction name="actionAddMapView"/>
    <addaction name="separator"/>
    <addaction name="actionRefresh"/>
-   <addaction name="actionSelectCenter"/>
+   <addaction name="actionMoveCenter"/>
    <addaction name="actionZoomIn"/>
    <addaction name="actionZoomOut"/>
    <addaction name="actionZoomMaxExtent"/>
@@ -208,7 +208,7 @@
    <addaction name="separator"/>
    <addaction name="actionAbout"/>
   </widget>
-  <action name="actionSelectCenter">
+  <action name="actionMoveCenter">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomPoint.png</normaloff>:/timeseriesviewer/icons/mActionZoomPoint.png</iconset>
@@ -428,7 +428,7 @@
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.png</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.png</iconset>
    </property>
    <property name="text">
-    <string>Zoom Max</string>
+    <string>Max. Extent</string>
    </property>
    <property name="toolTip">
     <string>Zoom to maximum extent of time series</string>
@@ -440,7 +440,7 @@
      <normaloff>:/timeseriesviewer/icons/mActionZoomActual.png</normaloff>:/timeseriesviewer/icons/mActionZoomActual.png</iconset>
    </property>
    <property name="text">
-    <string>Zoom to pixel scale</string>
+    <string>Pixel Scale</string>
    </property>
    <property name="toolTip">
     <string>Zoom to pixel scale</string>

@@ -292,11 +292,8 @@ class TimeSeriesDatum(QObject):
     def __repr__(self):
         return 'TS Datum {} {}'.format(self.date, str(self.sensor))
 
-    def __cmp__(self, other):
-        return cmp(str((self.date, self.sensor)), str((other.date, other.sensor)))
-
-    #def __eq__(self, other):
-    #    return self.date == other.date and self.sensor == other.sensor
+    def __eq__(self, other):
+        return self.date == other.date and self.sensor.id() == other.sensor.id()
 
     def __lt__(self, other):
         if self.date < other.date:
@@ -328,7 +325,6 @@ class TimeSeries(QObject):
         #self.data = collections.OrderedDict()
         self.data = list()
 
-        self.CHIP_BUFFER=dict()
 
         self.shape = None
 
@@ -389,6 +385,14 @@ class TimeSeries(QObject):
         with open(path, 'w') as f:
             f.writelines(lines)
 
+    def getPixelSizes(self):
+
+        r = []
+        for sensor in self.Sensors.keys():
+            r.append((QgsRectangle(sensor.px_size_x, sensor.px_size_y)))
+        return r
+
+        return None
     def getMaxSpatialExtent(self, crs=None):
         if len(self.data) == 0:
             return None

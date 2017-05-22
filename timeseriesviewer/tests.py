@@ -1,16 +1,17 @@
 
 import os, re, io
-from unittest import TestCase
-from osgeo import gdal
-from qgis import *
-#from timeseriesviewer import *
-from . import *
-from timeseries import *
 
+from sandbox import initQgisEnvironment
+qgsApp = initQgisEnvironment()
+
+from unittest import TestCase
+from timeseriesviewer import *
+from timeseriesviewer.timeseries import *
 class TestFileFormatLoading(TestCase):
 
     @classmethod
     def setUpClass(cls):
+
         cls.TS = TimeSeries()
 
         if False:
@@ -34,7 +35,12 @@ class TestFileFormatLoading(TestCase):
     def tearDown(self):
         self.TS.clear()
 
-
+    def test_loadRapidEyeLocal(self):
+        # load RapidEye
+        searchDir = jp(DIR_EXAMPLES, 'Images')
+        files = file_search(searchDir, 're_*.bsq', recursive=True)
+        self.TS.addFiles(files)
+        self.assertEqual(len(files), len(self.TS))
 
     def test_loadLandsat(self):
         searchDir = jp(DIR_EXAMPLES, 'Images')
@@ -58,6 +64,8 @@ class TestFileFormatLoading(TestCase):
         files = [f for f in files if not re.search('_(udm|browse)\.tif$', f)]
         self.TS.addFiles(files)
         self.assertEqual(len(files), len(self.TS))
+
+
 
     def test_loadPleiades(self):
         #load Pleiades data

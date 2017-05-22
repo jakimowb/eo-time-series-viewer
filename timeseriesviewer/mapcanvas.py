@@ -12,14 +12,14 @@ from timeseriesviewer.utils import *
 from timeseriesviewer.ui.widgets import TsvScrollArea
 
 class TsvMapCanvas(QgsMapCanvas):
-    from timeseriesviewer.main import SpatialExtent
+    from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
-    sigShowProfiles = pyqtSignal(QgsPoint, QgsCoordinateReferenceSystem)
+    sigShowProfiles = pyqtSignal(SpatialPoint)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def __init__(self, tsdView, mapView, parent=None):
         super(TsvMapCanvas, self).__init__(parent=parent)
-        from timeseriesviewer.main import TimeSeriesDatumView, MapView
+        from timeseriesviewer.mapvisualization import TimeSeriesDatumView, MapView
         assert isinstance(tsdView, TimeSeriesDatumView)
         assert isinstance(mapView, MapView)
 
@@ -70,11 +70,14 @@ class TsvMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['zoomOut'] = QgsMapToolZoom(self, True)
         self.MAPTOOLS['zoomIn'] = QgsMapToolZoom(self, False)
         self.MAPTOOLS['pan'] = QgsMapToolPan(self)
-        from timeseriesviewer.maptools import PointMapTool, PointLayersMapTool
-        mt = PointMapTool(self)
-        mt.sigCoordinateSelected.connect(self.sigShowProfiles.emit)
-        self.MAPTOOLS['identifyProfile'] = mt
 
+        from timeseriesviewer.maptools import CursorLocationMapTool
+        mt = CursorLocationMapTool(self)
+        mt.sigLocationRequest.connect(self.sigShowProfiles.emit)
+        self.MAPTOOLS['identifyProfile'] = mt
+        mt = CursorLocationMapTool(self)
+        mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
+        self.MAPTOOLS['moveCenter'] = mt
         self.refresh()
 
 
@@ -155,7 +158,8 @@ class TsvMapCanvas(QgsMapCanvas):
         action = menu.addAction('Stretch using current Extent')
         action.triggered.connect(self.stretchToCurrentExtent)
         action = menu.addAction('Zoom to Layer')
-        action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent())))
+        action.triggered.connect(lambda : self.setExtent(SpatialExtent(self.referenceLayer.crs(),self.referenceLayer.extent()).toCrs(self.mapSettings().destinationCrs())
+                                                         ))
         menu.addSeparator()
 
         action = menu.addAction('Change crosshair style')

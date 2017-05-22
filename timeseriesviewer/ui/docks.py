@@ -294,63 +294,6 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
 
         self.onSelectionChanged()
 
-class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
-    def __init__(self, parent=None):
-        super(MapViewDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        self.baseTitle = self.windowTitle()
-        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
-
-        #self.dockLocationChanged.connect(self.adjustLayouts)
-
-    def toggleLayout(self, p):
-        newLayout = None
-        l = p.layout()
-        print('toggle layout {}'.format(str(p.objectName())))
-        tmp = QWidget()
-        tmp.setLayout(l)
-        sMax = p.maximumSize()
-        sMax.transpose()
-        sMin = p.minimumSize()
-        sMin.transpose()
-        p.setMaximumSize(sMax)
-        p.setMinimumSize(sMin)
-        if isinstance(l, QVBoxLayout):
-            newLayout = QHBoxLayout()
-        else:
-            newLayout = QVBoxLayout()
-        print(l, '->', newLayout)
-
-        while l.count() > 0:
-            item = l.itemAt(0)
-            l.removeItem(item)
-
-            newLayout.addItem(item)
-
-
-        p.setLayout(newLayout)
-        return newLayout
-
-    def adjustLayouts(self, area):
-        return
-        lOld = self.scrollAreaMapsViewDockContent.layout()
-        if area in [Qt.LeftDockWidgetArea, Qt.RightDockWidgetArea] \
-            and isinstance(lOld, QVBoxLayout) or \
-        area in [Qt.TopDockWidgetArea, Qt.BottomDockWidgetArea] \
-                        and isinstance(lOld, QHBoxLayout):
-
-            #self.toogleLayout(self.scrollAreaMapsViewDockContent)
-            self.toggleLayout(self.BVButtonList)
-
-class LabelingDockUI(TsvDockWidgetBase, load('labelingdock.ui')):
-    def __init__(self, parent=None):
-        super(LabelingDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        self.btnClearLabelList.clicked.connect(self.tbCollectedLabels.clear)
-
-
 
 if __name__ == '__main__':
     import site, sys

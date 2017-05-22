@@ -1,16 +1,17 @@
 import os, sys, six, importlib, logging
 logger = logging.getLogger(__name__)
+
+from qgis.core import *
+from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtXml import *
 from PyQt4.QtGui import *
-from qgis.gui import *
-from qgis.core import *
 from PyQt4 import uic
 #dictionary to store form classes. *.ui file name is key
 FORM_CLASSES = dict()
 
 from timeseriesviewer import jp, DIR_UI
-
+load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
 def loadUIFormClass(pathUi, from_imports=False):
     """

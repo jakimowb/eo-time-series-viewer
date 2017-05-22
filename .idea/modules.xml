@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" filepath="$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../wiki-hub-tsv/.idea/wiki-hub-tsv.iml" filepath="$PROJECT_DIR$/../../wiki-hub-tsv/.idea/wiki-hub-tsv.iml" />
     </modules>
   </component>
 </project>

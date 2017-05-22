@@ -1,15 +1,20 @@
 import os, re, logging
 from osgeo import gdal
 import numpy as np
-
-logger = logging.getLogger('hub-tsv')
+from qgis import *
+logger = logging.getLogger(__file__)
 
 #regular expression. compile them only once
 
 #thanks user "funkwurm" in
 #http://stackoverflow.com/questions/28020805/regex-validate-correct-iso8601-date-string-with-time
-regISODate = re.compile(r'^(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)$')
+regISODate = re.compile(r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
 
+#https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
+
+regYYYYMMDD = re.compile(r'(?P<year>[0-9]{4})(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
+regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
+regYYYYDOY = re.compile(r'(?P<year>[0-9]{4})-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 
 def matchOrNone(regex, text):
     match = regex.search(text)
@@ -42,10 +47,7 @@ def getDatetime64FromDOY(year, doy):
         return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
 
 
-
-from timeseriesviewer.utils import KeepRefs
-
-class ImageDateParser(object):
+class ImageDateReader(object):
     """
     Base class to extract numpy.datetime64 date-time-stamps
     """
@@ -57,19 +59,19 @@ class ImageDateParser(object):
         self.dirName = os.path.dirname(self.filePath)
         self.baseName, self.extension = os.path.splitext(os.path.basename(self.filePath))
 
-    def parseDate(self):
+    def readDTG(self):
         """
         :return: None in case date was not found, numpy.datetime64 else
         """
         raise NotImplementedError()
         return None
 
-class ImageDateParserGeneric(ImageDateParser):
+class ImageDateReaderDefault(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserGeneric, self).__init__(dataSet)
+        super(ImageDateReaderDefault, self).__init__(dataSet)
         self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
 
-    def parseDate(self):
+    def readDTG(self):
         # search metadata for datetime information
         # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for datetime format
         dtg = None
@@ -85,19 +87,19 @@ class ImageDateParserGeneric(ImageDateParser):
 
         # search for ISO date in basename
         # search in basename
-        dtg = extractDateTimeGroup(regISODate, self.baseName)
-        if dtg: return dtg
+        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
+            dtg = extractDateTimeGroup(reg, self.baseName)
+            if dtg: return dtg
+        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
+            dtg = extractDateTimeGroup(reg, self.dirName)
+            if dtg: return dtg
+        return None
 
-        # search for ISO date in file directory path
-        dtg = extractDateTimeGroup(regISODate, self.dirName)
-        return dtg
-
-
-class ImageDateParserPLEIADES(ImageDateParser):
+class ImageDateReaderPLEIADES(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserPLEIADES, self).__init__(dataSet)
+        super(ImageDateReaderPLEIADES, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         timeStamp = ''
         ext = self.extension.lower()
 
@@ -113,22 +115,20 @@ class ImageDateParserPLEIADES(ImageDateParser):
         return None
 
 
-class ImageDateParserSentinel2(ImageDateParser):
+class ImageDateReaderSentinel2(ImageDateReader):
     def __init__(self, dataSet):
-        super(ImageDateParserSentinel2, self).__init__(dataSet)
+        super(ImageDateReaderSentinel2, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         timeStamp = ''
-        ext = self.extension.lower()
-
-        if ext == '.xml':
+        if self.extension.lower() == '.xml':
             md = self.dataSet.GetMetadata_Dict()
             timeStamp = md.get('DATATAKE_1_DATATAKE_SENSING_START', '')
         if len(timeStamp) > 0:
             return np.datetime64(timeStamp)
         return None
 
-class ImageDateParserLandsat(ImageDateParser):
+class ImageDateParserLandsat(ImageDateReader):
     #see https://landsat.usgs.gov/what-are-naming-conventions-landsat-scene-identifiers
     regLandsatSceneID  = re.compile(r'L[COTEM][4578]\d{3}\d{3}\d{4}\d{3}[A-Z]{2}[A-Z1]\d{2}')
     regLandsatProductID = re.compile(r'L[COTEM]0[78]_(L1TP|L1GT|L1GS)_\d{3}\d{3}_\d{4}\d{2}\d{2}_\d{4}\d{2}\d{2}_0\d{1}_(RT|T1|T2)')
@@ -136,7 +136,7 @@ class ImageDateParserLandsat(ImageDateParser):
     def __init__(self, dataSet):
         super(ImageDateParserLandsat, self).__init__(dataSet)
 
-    def parseDate(self):
+    def readDTG(self):
         #search for LandsatSceneID (old) and Landsat Product IDs (new)
         sceneID = matchOrNone(ImageDateParserLandsat.regLandsatSceneID, self.baseName)
         if sceneID:
@@ -149,13 +149,13 @@ class ImageDateParserLandsat(ImageDateParser):
 
 
 
-dateParserList = [c for c in ImageDateParser.__subclasses__()]
-dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateParserGeneric))) #set to first position
+dateParserList = [c for c in ImageDateReader.__subclasses__()]
+dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault))) #set to first position
 
 def parseDateFromDataSet(dataSet):
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
-        dtg = parser(dataSet).parseDate()
+        dtg = parser(dataSet).readDTG()
         if dtg:
             return dtg
     return None
@@ -164,7 +164,6 @@ def parseDateFromDataSet(dataSet):
 if __name__ == '__main__':
 
     p = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LE71720342015009SG100\LE71720342015009SG100_sr.tif'
-
+    p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-07_LE72270652012098EDC00_BOA.bsq'
     ds = gdal.Open(p)
-    parseDateFromDataSet(ds)
-    s = ""
+    print(parseDateFromDataSet(ds))

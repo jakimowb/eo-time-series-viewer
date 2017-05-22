@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mActionOpenTable.svg</file>
     <file>icons/ActionIdentifyTimeSeries.png</file>
     <file>icons/CRS.png</file>
     <file>icons/crosshair.png</file>
