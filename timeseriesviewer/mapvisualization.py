@@ -541,12 +541,21 @@ class TimeSeriesDatumView(QObject):
         self.TSD = TSD
         self.scrollArea = timeSeriesDateViewCollection.scrollArea
         self.Sensor = self.TSD.sensor
+        self.Sensor.sigNameChanged.connect(lambda :self.setColumnInfo())
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
-        self.ui.labelTitle.setText(str(TSD.date))
+        self.setColumnInfo()
         self.MVC = mapViewCollection
         self.TSDVC = timeSeriesDateViewCollection
         self.mapCanvases = dict()
         self.setSubsetSize(QSize(50, 50))
+
+    def setColumnInfo(self):
+
+        labelTxt = '{}\n{}'.format(str(self.TSD.date), self.TSD.sensor.name())
+        tooltip = '{}'.format(self.TSD.pathImg)
+
+        self.ui.labelTitle.setText(labelTxt)
+        self.ui.labelTitle.setToolTip(tooltip)
 
     def setVisibility(self, b):
         self.ui.setVisible(b)
