@@ -135,7 +135,7 @@ class QgisTsvBridge(QObject):
         self.SpatTempVis = self
         self.syncBlocked = False
 
-        from timeseriesviewer.ui.widgets import TimeSeriesViewerUI
+        from main import TimeSeriesViewerUI
         assert isinstance(self.ui, TimeSeriesViewerUI)
 
         self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
@@ -419,6 +419,8 @@ class TimeSeriesViewer:
 
         self.spectralTemporalVis = D.dockProfiles
 
+        assert isinstance(self, TimeSeriesViewer)
+
         from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
@@ -473,7 +475,7 @@ class TimeSeriesViewer:
 
         self.canvasCrs = QgsCoordinateReferenceSystem()
 
-        if iface:
+        if isinstance(iface,QgisInterface):
             import timeseriesviewer
             timeseriesviewer.QGIS_TSV_BRIDGE = QgisTsvBridge(iface, self)
             self.ui.setQgsLinkWidgets()

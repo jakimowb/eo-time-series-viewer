@@ -242,10 +242,6 @@ def sandboxTestdata():
     searchDir = jp(DIR_EXAMPLES, 'Images')
     imgs = file_search(searchDir, '*.bsq', recursive=True)  # [0:5]
 
-    imgs = [
-        r'D:\\Repositories\\QGIS_Plugins\\hub-timeseriesviewer\\example\\Images\\2015-11-10_LE72270652015314ASN00_BOA.bsq',
-        r'D:\\Repositories\\QGIS_Plugins\\hub-timeseriesviewer\\example\\Images\\re_2012-06-12.bsq'
-    ]
     S.addTimeSeriesImages(imgs)
 
 
@@ -257,9 +253,9 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if False: sandboxQgisBridge()
+    if True: sandboxQgisBridge()
     if False: sandboxGui()
-    if True: sandboxTestdata()
+    if False: sandboxTestdata()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
