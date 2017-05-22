@@ -44,7 +44,7 @@ def sandboxGui():
 
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:5]
+    imgs = file_search(searchDir, '*.bsq', recursive=True)[0:5]
 
     #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
     S.addTimeSeriesImages(imgs)
@@ -253,8 +253,8 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if True: sandboxQgisBridge()
-    if False: sandboxGui()
+    if False: sandboxQgisBridge()
+    if True: sandboxGui()
     if False: sandboxTestdata()
     #close QGIS
     qgsApp.exec_()
