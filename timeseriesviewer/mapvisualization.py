@@ -1,4 +1,5 @@
 import os, sys, re, fnmatch, collections, copy, traceback, six, bisect
+from future import *
 import logging
 logger = logging.getLogger(__name__)
 from qgis.core import *
@@ -645,8 +646,8 @@ class SpatialTemporalVisualization(QObject):
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def __init__(self, timeSeriesViewer):
-        assert isinstance(timeSeriesViewer, TimeSeriesViewer)
         super(SpatialTemporalVisualization, self).__init__()
+        #assert isinstance(timeSeriesViewer, TimeSeriesViewer), timeSeriesViewer
         self.mSpatialExtent = None
         self.ui = timeSeriesViewer.ui
         self.scrollArea = self.ui.scrollAreaSubsets
@@ -875,13 +876,11 @@ class TimeSeriesDateViewCollection(QObject):
 
             bisect.insort(self.views, tsdView)
             i = self.views.index(tsdView)
-            print(i)
+
             tsdView.ui.setParent(self.STViz.targetLayout.parentWidget())
             self.STViz.targetLayout.insertWidget(i, tsdView.ui)
             tsdView.ui.show()
 
-            if i == 23:
-                s =""
         if len(tsdList) > 0:
             self.sigResizeRequired.emit()
 
