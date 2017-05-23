@@ -626,8 +626,10 @@ class PixelCollection(QObject):
 
         return tsds, values
 
-class SensorPlotSettings(object):
+from plotstyling import PlotStyle
+class SensorPlotSettings(PlotStyle):
     def __init__(self, sensor, memoryLyr):
+        super(SensorPlotSettings, self).__init__()
 
         assert isinstance(sensor, SensorInstrument)
         assert isinstance(memoryLyr, QgsVectorLayer)
@@ -1107,8 +1109,8 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(sensorView, SensorPlotSettings)
 
         if sensorView.sensor not in self.plotData2D.keys():
-            plotDataItem = SensorPoints(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
-            plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.name(), pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
+            #plotDataItem = SensorPoints(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
+            #plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.name(), pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
             #self.plot2D.addItem(plotDataItem)
 
 
