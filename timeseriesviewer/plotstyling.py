@@ -12,14 +12,43 @@ from timeseriesviewer.ui.widgets import loadUIFormClass
 import pyqtgraph as pg
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
+MARKERSYMBOLS = [('o', u'Circle'),
+                 ('t',u'Triangle Down'),
+                 ('t1',u'Triangle Up'),
+                 ('t2',u'Triangle Right'),
+                 ('t3', u'Triangle Left'),
+                 ('p',u'Pentagon'),
+                 ('h', u'Hexagon'),
+                 ('s',u'Star'),
+                 ('+',u'Plus'),
+                 ('d',u'Diamond'),
+                 (None, u'No Symbol')
+                 ]
+
+PENSTYLES = [(Qt.SolidLine, '___'),
+             (Qt.DashLine, '_ _ _'),
+             (Qt.DotLine, '. . .'),
+             (Qt.DashDotLine, '_ .'),
+             (Qt.DashDotDotLine, '_ . .'),
+             (Qt.NoPen, 'No Pen')]
 
 class PlotStyle(object):
     def __init__(self, **kwds):
 
-        self.symbol = 'o'
-        self.symbolBrush = QColor('green')
-        self.symbolPen = 'w'
-        self.symbolSize = 8
+        self.markerSymbol = MARKERSYMBOLS[0][0]
+        self.markerSize = 10
+        self.markerBrush = QBrush()
+        self.markerBrush.setColor(QColor(55,55,55))
+        self.markerBrush.setStyle(Qt.SolidPattern)
+
+        self.markerPen = QPen()
+        self.markerPen.setStyle(Qt.SolidLine)
+        self.markerPen.setColor(Qt.white)
+
+        self.linePen = QPen()
+        self.linePen.setStyle(Qt.SolidLine)
+        self.linePen.setColor(QColor(74,75,75))
+
 
 
 class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
@@ -30,39 +59,122 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
         self.setupUi(self)
         assert isinstance(self.plotWidget, pg.PlotWidget)
 
-
-        self.plotWidget.disableAutoRange()
-        self.plotWidget.setAspectLocked()
-        self.plotWidget.setLimits(xMin=0, xMax=2, yMin=0, yMax=2)
+        self.mBlockUpdates = False
+        #self.plotWidget.disableAutoRange()
+        #self.plotWidget.setAspectLocked()
+        self.plotWidget.setRange(xRange=[0,1], yRange=[0,1], update=True)
+        self.plotWidget.setLimits(xMin=0, xMax=1, yMin=0, yMax=1)
         self.plotWidget.setMouseEnabled(x=False, y=False)
-        self.plotWidget.disableAutoRange()
 
-        self.plotItem = self.plotWidget.plot()
-        self.plotItem.setData(x=[0.25, 0.5, 0.75], y=[0.25, 0.75, 0.5])
-        #self.plotWidget.setCentralItem(self.plotItem)
-        self.plotWidget.disableAutoRange()
+        for ax in self.plotWidget.plotItem.axes:
+            self.plotWidget.plotItem.hideAxis(ax)
+        #self.plotWidget.disableAutoRange()
 
-        self.lastStyle = PlotStyle()
-        self.setPlotStyle(self.lastStyle)
-    def refreshPlotStylePreview(self, *args):
-        style = self.plotStyle()
-        #todo: set style to style preview
+        self.plotDataItem = self.plotWidget.plot(x=[0.1, 0.5, 0.9], y=[0.25, 0.9, 0.5])
+
+        for t in MARKERSYMBOLS:
+            self.cbMarkerSymbol.addItem(t[1], t[0])
+        for t in PENSTYLES:
+            self.cbMarkerPenStyle.addItem(t[1], t[0])
+            self.cbLinePenStyle.addItem(t[1], t[0])
+
+        #connect signals
+        self.btnMarkerBrushColor.colorChanged.connect(self.refreshPreview)
+        self.btnMarkerPenColor.colorChanged.connect(self.refreshPreview)
+        self.btnLinePenColor.colorChanged.connect(self.refreshPreview)
+
+        self.cbMarkerSymbol.currentIndexChanged.connect(self.refreshPreview)
+        self.cbMarkerPenStyle.currentIndexChanged.connect(self.refreshPreview)
+        self.cbLinePenStyle.currentIndexChanged.connect(self.refreshPreview)
+
+        self.sbMarkerSize.valueChanged.connect(self.refreshPreview)
+        self.sbMarkerPenWidth.valueChanged.connect(self.refreshPreview)
+        self.sbLinePenWidth.valueChanged.connect(self.refreshPreview)
 
 
-        self.sigPlotStyleChanged.emit(style)
+        self.setPlotStyle(PlotStyle())
+        self.refreshPreview()
+
+    def refreshPreview(self, *args):
+        if not self.mBlockUpdates:
+            print('DEBUG: REFRESH NOW')
+            style = self.plotStyle()
+            #todo: set style to style preview
+
+
+            pi = self.plotDataItem
+            pi.setData(x=[0.25, 0.5, 0.75], y=[0.25, 0.75, 0.5],
+                       symbol=style.markerSymbol, symbolBrush=style.markerBrush,
+                       symbolPen=style.markerPen, symbolSize=style.markerSize,
+                       pen = style.linePen, width=style.linePen.width())
+            #symbol='o', symbolBrush=sensorView.color, symbolPen='w', symbolSize=8
+            pi.update()
+            self.plotWidget.update()
+            self.sigPlotStyleChanged.emit(style)
+
+    def _setComboBoxToValue(self, cb, value):
+        assert isinstance(cb, QComboBox)
+        for i in range(cb.count()):
+            v = cb.itemData(i)
+            if type(value) in [str, unicode]:
+                v = str(v)
+            if v == value:
+                cb.setCurrentIndex(i)
+                break
+        s = ""
 
     def setPlotStyle(self, style):
         assert isinstance(style, PlotStyle)
+        #set widget values
 
-        self.plotItem.setData(symbol=style.symbol, symbolBrush=style.symbolBrush,
-                              symbolPen=style.symbolPen, symbolSize=style.symbolSize)
+        self.mBlockUpdates = True
+        self.sbMarkerSize.setValue(style.markerSize)
+        self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
 
-        self.plotItem.update()
-        self.plotWidget.update()
+
+        assert isinstance(style.markerPen, QPen)
+        assert isinstance(style.markerBrush, QBrush)
+        assert isinstance(style.linePen, QPen)
+
+
+        self.btnMarkerPenColor.setColor(style.markerPen.color())
+        self._setComboBoxToValue(self.cbMarkerPenStyle, style.markerPen.style())
+        self.sbMarkerPenWidth.setValue(style.markerPen.width())
+        self.btnMarkerBrushColor.setColor(style.markerBrush.color())
+
+        self.btnLinePenColor.setColor(style.linePen.color())
+        self._setComboBoxToValue(self.cbLinePenStyle, style.linePen.style())
+
+        self.sbLinePenWidth.setValue(style.linePen.width())
+
+        self.mBlockUpdates = False
+
+        self.refreshPreview()
 
     def plotStyle(self):
         style = PlotStyle()
-        #todo: read plotstyle values from widgets
+        #read plotstyle values from widgets
+        style.markerSize = self.sbMarkerSize.value()
+        symbol = self.cbMarkerSymbol.itemData(self.cbMarkerSymbol.currentIndex())
+        if isinstance(symbol, unicode):
+            symbol = str(symbol)
+        style.markerSymbol = symbol
+        assert isinstance(style.markerPen, QPen)
+        assert isinstance(style.markerBrush, QBrush)
+        assert isinstance(style.linePen, QPen)
+
+        style.markerPen = pg.mkPen(color=self.btnMarkerPenColor.color(),
+                                   width=self.sbMarkerPenWidth.value(),
+                                   style=self.cbMarkerPenStyle.itemData(self.cbMarkerPenStyle.currentIndex()))
+
+
+        style.markerBrush.setColor(self.btnMarkerBrushColor.color())
+        style.markerBrush.setColor(self.btnMarkerBrushColor.color())
+
+        style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
+                                 width=self.sbLinePenWidth.value(),
+                                 style=self.cbLinePenStyle.itemData(self.cbLinePenStyle.currentIndex()))
+
         return style
 
 class PlotStyleDialog(QgsDialog):
@@ -79,7 +191,7 @@ class PlotStyleDialog(QgsDialog):
         d.exec_()
 
         if d.result() == QDialog.Accepted:
-            return d.crosshairStyle()
+            return d.plotStyle()
         else:
 
             return None
