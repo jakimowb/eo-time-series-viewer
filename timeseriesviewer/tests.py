@@ -2,11 +2,26 @@
 import os, re, io
 
 from sandbox import initQgisEnvironment
-qgsApp = initQgisEnvironment()
+#qgsApp = initQgisEnvironment()
 
 from unittest import TestCase
 from timeseriesviewer import *
 from timeseriesviewer.timeseries import *
+
+class TestObjects():
+
+    @staticmethod
+    def timeSeries():
+
+        TS = TimeSeries()
+        from timeseriesviewer import DIR_EXAMPLES, file_search
+        files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
+        TS.addFiles(files)
+        return TS
+
+
+
+
 class TestFileFormatLoading(TestCase):
 
     @classmethod
