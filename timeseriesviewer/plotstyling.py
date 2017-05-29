@@ -32,6 +32,8 @@ PENSTYLES = [(Qt.SolidLine, '___'),
              (Qt.DashDotDotLine, '_ . .'),
              (Qt.NoPen, 'No Pen')]
 
+
+
 class PlotStyle(object):
     def __init__(self, **kwds):
 
@@ -71,6 +73,9 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
         #self.plotWidget.disableAutoRange()
 
         self.plotDataItem = self.plotWidget.plot(x=[0.1, 0.5, 0.9], y=[0.25, 0.9, 0.5])
+        self.legend = pg.LegendItem((100,60), offset=(70,30))  # args are (size, offset)
+        self.legend.setParentItem(self.plotDataItem.topLevelItem())   # Note we do NOT call plt.addItem in this case
+        self.legend.hide()
 
         for t in MARKERSYMBOLS:
             self.cbMarkerSymbol.addItem(t[1], t[0])
@@ -99,15 +104,15 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
         if not self.mBlockUpdates:
             print('DEBUG: REFRESH NOW')
             style = self.plotStyle()
+
             #todo: set style to style preview
-
-
             pi = self.plotDataItem
             pi.setData(x=[0.25, 0.5, 0.75], y=[0.25, 0.75, 0.5],
                        symbol=style.markerSymbol, symbolBrush=style.markerBrush,
                        symbolPen=style.markerPen, symbolSize=style.markerSize,
                        pen = style.linePen, width=style.linePen.width())
             #symbol='o', symbolBrush=sensorView.color, symbolPen='w', symbolSize=8
+
             pi.update()
             self.plotWidget.update()
             self.sigPlotStyleChanged.emit(style)
@@ -151,6 +156,12 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
 
         self.refreshPreview()
 
+
+    def plotStyleIcon(self):
+        icon = QIcon()
+        #todo: get plot preview as 60x60 icon
+        return icon
+
     def plotStyle(self):
         style = PlotStyle()
         #read plotstyle values from widgets
@@ -176,6 +187,62 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
                                  style=self.cbLinePenStyle.itemData(self.cbLinePenStyle.currentIndex()))
 
         return style
+
+
+class PlotStyleButton(QPushButton):
+
+    def __init__(self, *args):
+        super(PlotStyleButton, self).__init__(*args)
+        self.mPlotStyle = PlotStyle()
+        self.clicked.connect(self.showDialog)
+        self._updateIcon()
+
+    def plotStyle(self):
+        return self.mPlotStyle
+
+    def setPlotStyle(self, plotStyle):
+        assert isinstance(plotStyle, PlotStyle)
+        self.mPlotStyle = plotStyle
+        self._updateIcon()
+        pass
+
+    def showDialog(self):
+        style = PlotStyleDialog.getPlotStyle()
+        if style:
+            self.setPlotStyle(style)
+
+    def _updateIcon(self):
+        return
+        c = self.mPlotStyle.markerBrush.color()
+        style = "PlotStyleButton {{color:rgb({},{},{})}}".format(*c.getRgb())
+        style = "QPushButton, PlotStyleButton {{color:rgb({},{},{})}}".format(*c.getRgb())
+        style = """"* { background-color: rgb(253, 136, 64);}; """
+        print(style)
+
+
+            if opts.get('fillLevel', None) is not None and opts.get('fillBrush', None) is not None:
+                p.setBrush(fn.mkBrush(opts['fillBrush']))
+                p.setPen(fn.mkPen(None))
+                p.drawPolygon(QtGui.QPolygonF([QtCore.QPointF(2, 18), QtCore.QPointF(18, 2), QtCore.QPointF(18, 18)]))
+
+            if not isinstance(self.item, ScatterPlotItem):
+                p.setPen(fn.mkPen(opts['pen']))
+                p.drawLine(2, 18, 18, 2)
+
+            symbol = opts.get('symbol', None)
+            if symbol is not None:
+                if isinstance(self.item, PlotDataItem):
+                    opts = self.item.scatter.opts
+
+                pen = fn.mkPen(opts['pen'])
+                brush = fn.mkBrush(opts['brush'])
+                size = opts['size']
+
+                p.translate(10, 10)
+                path = drawSymbol(p, symbol, size, pen, brush)
+        s = ""
+
+        pass
 
 class PlotStyleDialog(QgsDialog):
 
@@ -227,8 +294,9 @@ if __name__ == '__main__':
 
     from timeseriesviewer import sandbox
     qgsApp = sandbox.initQgisEnvironment()
-
-    style = PlotStyleDialog.getPlotStyle()
-    print(style)
+    btn = PlotStyleButton()
+    btn.show()
+    #style = PlotStyleDialog.getPlotStyle()
+    #print(style)
     qgsApp.exec_()
     qgsApp.exitQgis()

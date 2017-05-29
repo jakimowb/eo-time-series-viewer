@@ -246,7 +246,7 @@ def sandboxTestdata():
 
 
 if __name__ == '__main__':
-    import site, sys
+    import site, sys, pyqtgraph
     #add site-packages to sys.path as done by enmapboxplugin.py
 
     qgsApp = initQgisEnvironment()
