@@ -12,6 +12,7 @@ from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
+from timeseriesviewer.plotstyling import *
 import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
@@ -385,12 +386,17 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor.name()))
             w.setToolTip('Set values shown for sensor {}'.format(sv.sensor.name()))
             w.fieldChanged.connect(lambda : self.commitExpression(w, w.expression()))
+
         elif cname == 'style':
             sv = self.tableView.model().data(index, Qt.UserRole)
             sn = sv.sensor.name()
-            w = QgsColorButton(parent, 'Point color {}'.format(sn))
-            w.setColor(QColor(index.data()))
-            w.colorChanged.connect(lambda: self.commitData.emit(w))
+            #w = QgsColorButton(parent, 'Point color {}'.format(sn))
+            #w.setColor(QColor(index.data()))
+            #w.colorChanged.connect(lambda: self.commitData.emit(w))
+
+            w = PlotStyleButton(parent)
+            w.setPlotStyle(sv)
+            w.setToolTip('Set sensor style.')
         else:
             raise NotImplementedError()
         return w
@@ -415,10 +421,10 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             editor.setProperty('lastexpr', lastExpr)
             editor.setField(lastExpr)
         elif cname == 'style':
-            lastColor = index.data()
-            assert isinstance(editor, QgsColorButton)
-            assert isinstance(lastColor, QColor)
-            editor.setColor(QColor(lastColor))
+            style = index.data()
+            assert isinstance(editor, PlotStyleButton)
+            editor.setPlotStyle(style)
+
         else:
             raise NotImplementedError()
 
@@ -431,11 +437,11 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             exprLast = model.data(index, Qt.DisplayRole)
 
             if expr != exprLast:
-                model.setData(index, w.expression(), Qt.DisplayRole)
+                model.setData(index, w.expression(), Qt.UserRole)
         elif cname == 'style':
-            assert isinstance(w, QgsColorButton)
-            if index.data() != w.color():
-                model.setData(index, w.color(), Qt.DisplayRole)
+            assert isinstance(w, PlotStyleButton)
+            model.setData(index, w.plotStyle(), Qt.UserRole)
+
         else:
             raise NotImplementedError()
 
@@ -635,8 +641,6 @@ class SensorPlotSettings(PlotStyle):
         assert isinstance(memoryLyr, QgsVectorLayer)
         self.sensor = sensor
         self.expression = u'"b1"'
-        self.color = QColor('green')
-        #self.color.setAlpha(255)
         self.isVisible = True
         self.memLyr = memoryLyr
 
@@ -809,15 +813,6 @@ class PlotSettingsModel(QAbstractTableModel):
                 value = str(sw.sensor.nb)
             elif columnName == 'y-value':
                 value = sw.expression
-            elif columnName == 'style':
-                value = QColor(sw.color)
-        elif role == Qt.BackgroundRole:
-            if columnName == 'style':
-                value = QColor(sw.color)
-        elif role == Qt.ForegroundRole:
-            if columnName == 'style':
-                value = getTextColorWithContrast(sw.color)
-
         elif role == Qt.CheckStateRole:
             if columnName == 'sensor':
                 value = Qt.Checked if sw.isVisible else Qt.Unchecked
@@ -839,7 +834,7 @@ class PlotSettingsModel(QAbstractTableModel):
                 sw.expression = value
                 result = True
             elif columnName == 'style':
-                if isinstance(value, QColor):
+                if isinstance(value, PlotStyle):
                     sw.color = QColor(value)
                     #print(sw.color.getRgb())
                     result = True
@@ -848,6 +843,15 @@ class PlotSettingsModel(QAbstractTableModel):
             if columnName == 'sensor':
                 sw.isVisible = value == Qt.Checked
                 result = True
+        if role == Qt.UserRole:
+            if columnName == 'y-value':
+                sw.expression = value
+                result = True
+            elif columnName == 'style':
+                if isinstance(value, PlotStyle):
+                    sw.color = QColor(value)
+                    #print(sw.color.getRgb())
+                    result = True
 
 
         if result:
@@ -1048,8 +1052,8 @@ class SpectralTemporalVisualization(QObject):
             while start <= end:
                 idxExpr = model.createIndex(start, colExpression)
                 idxStyle = model.createIndex(start, colStyle)
-                #self.TV.openPersistentEditor(idxExpr)
-                #self.TV.openPersistentEditor(idxStyle)
+                self.TV.openPersistentEditor(idxExpr)
+                self.TV.openPersistentEditor(idxStyle)
                 start += 1
                 #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
             s = ""
@@ -1088,7 +1092,9 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(sensorView, SensorPlotSettings)
         p = self.plotData2D[sensorView.sensor]
         #assert isinstance(p, pg.PlotDataItem)
-        p.setData(symbol='o', symbolBrush=sensorView.color, symbolPen='w', symbolSize=8)
+        p.setData(symbol=sensorView.markerSymbol, symbolBrush=sensorView.markerBrush,
+                       symbolPen=sensorView.markerPen, symbolSize=sensorView.markerSize,
+                       pen = sensorView.linePen, width=sensorView.linePen.width())
 
         p.setVisible(sensorView.isVisible)
         p.update()
