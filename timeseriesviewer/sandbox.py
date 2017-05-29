@@ -254,8 +254,8 @@ if __name__ == '__main__':
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if True: sandboxGui()
-    if False: sandboxTestdata()
+    if False: sandboxGui()
+    if True: sandboxTestdata()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
