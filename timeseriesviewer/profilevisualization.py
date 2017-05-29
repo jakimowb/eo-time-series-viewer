@@ -696,7 +696,7 @@ class PlotSettingsModel(QAbstractTableModel):
 
         #assert isinstance(tableView, QTableView)
 
-        super(PlotSettingsModel, self).__init__()
+        super(PlotSettingsModel, self).__init__(parent=parent)
 
         self.items = []
 
@@ -995,7 +995,7 @@ class SpectralTemporalVisualization(QObject):
 
         self.pxCollection = ui.pixelCollection
 
-        self.plotSettingsModel = PlotSettingsModel(self.pxCollection)
+        self.plotSettingsModel = PlotSettingsModel(self.pxCollection, parent=self)
         self.plotSettingsModel.sigSensorAdded.connect(self.setData)
         self.plotSettingsModel.sigVisibilityChanged.connect(self.setVisibility)
         #self.plotSettingsModel.sigVisibilityChanged.connect(self.loadData)
@@ -1009,8 +1009,10 @@ class SpectralTemporalVisualization(QObject):
         self.TV.setItemDelegateForColumn(2, self.delegate)
         self.TV.setItemDelegateForColumn(3, self.delegate)
         #self.TV.setItemDelegateForColumn(3, PointStyleDelegate(self.TV))
+
         for s in self.pxCollection.sensorPxLayers.keys():
             self.plotSettingsModel.addSensor(s)
+
         self.pxCollection.sigPixelAdded.connect(lambda : self.setData())
         self.pxCollection.sigPixelRemoved.connect(self.clear)
         self.ui.pixelLoader.sigLoadingStarted.connect(self.clear)
@@ -1242,43 +1244,22 @@ def testPixelLoader():
 
 if __name__ == '__main__':
     import site, sys
-    #add site-packages to sys.path as done by enmapboxplugin.py
-
-    from timeseriesviewer import DIR_SITE_PACKAGES
-    site.addsitedir(DIR_SITE_PACKAGES)
-
-    #prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-
-    #run tests
-    #d = AboutDialogUI()
-    #d.show()
-
-    from timeseriesviewer.tests import *
-
-    TS = TestObjects.TimeSeries(100)
-    ext = TS.getMaxSpatialExtent()
+    from timeseriesviewer import sandbox
+    qgsApp = sandbox.initQgisEnvironment()
 
     d = ProfileViewDockUI()
-    d.connectTimeSeries(TS)
     d.show()
-    d.loadCoordinate(ext.center(), ext.crs())
 
-    #close QGIS
-    try:
-        qgsApp.exec_()
-        qgsApp.exitQgis()
-    except:
-        s = ""
+    if True:
+        from timeseriesviewer.tests import *
+
+        TS = TestObjects.timeSeries()
+        d.connectTimeSeries(TS)
+
+        ext = TS.getMaxSpatialExtent()
+        cp = SpatialPoint(ext.crs(),ext.center())
+        d.loadCoordinate(cp)
+
+    qgsApp.exec_()
+    qgsApp.exitQgis()
+
