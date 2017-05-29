@@ -43,6 +43,8 @@ class PlotStyle(object):
         self.markerBrush.setColor(QColor(55,55,55))
         self.markerBrush.setStyle(Qt.SolidPattern)
 
+        self.backgroundColor = Qt.black
+
         self.markerPen = QPen()
         self.markerPen.setStyle(Qt.SolidLine)
         self.markerPen.setColor(Qt.white)
@@ -50,6 +52,24 @@ class PlotStyle(object):
         self.linePen = QPen()
         self.linePen.setStyle(Qt.SolidLine)
         self.linePen.setColor(QColor(74,75,75))
+
+    def createIcon(self, size=None):
+
+        if size is None:
+            size = QSize(60,60)
+
+        pm = QPixmap(size)
+        pm.fill(self.backgroundColor)
+
+        p = QPainter(pm)
+        #draw the line
+        p.setPen(self.linePen)
+        p.drawLine(2, pm.height()-2, pm.width()-2, 2)
+        p.translate(pm.width() / 2, pm.height() / 2)
+        from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+        path = drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
+        p.end()
+        return QIcon(pm)
 
 
 
@@ -193,54 +213,33 @@ class PlotStyleButton(QPushButton):
 
     def __init__(self, *args):
         super(PlotStyleButton, self).__init__(*args)
-        self.mPlotStyle = PlotStyle()
+        self.mPlotStyle = None
         self.clicked.connect(self.showDialog)
-        self._updateIcon()
+        self.setPlotStyle(PlotStyle())
 
     def plotStyle(self):
         return self.mPlotStyle
 
     def setPlotStyle(self, plotStyle):
-        assert isinstance(plotStyle, PlotStyle)
+        #assert isinstance(plotStyle, PlotStyle)
         self.mPlotStyle = plotStyle
         self._updateIcon()
         pass
 
     def showDialog(self):
-        style = PlotStyleDialog.getPlotStyle()
+        style = PlotStyleDialog.getPlotStyle(plotStyle=self.mPlotStyle)
         if style:
             self.setPlotStyle(style)
 
+    def resizeEvent(self, arg):
+        self._updateIcon()
+
     def _updateIcon(self):
-        return
-        c = self.mPlotStyle.markerBrush.color()
-        style = "PlotStyleButton {{color:rgb({},{},{})}}".format(*c.getRgb())
-        style = "QPushButton, PlotStyleButton {{color:rgb({},{},{})}}".format(*c.getRgb())
-        style = """"* { background-color: rgb(253, 136, 64);}; """
-        print(style)
 
-
-            if opts.get('fillLevel', None) is not None and opts.get('fillBrush', None) is not None:
-                p.setBrush(fn.mkBrush(opts['fillBrush']))
-                p.setPen(fn.mkPen(None))
-                p.drawPolygon(QtGui.QPolygonF([QtCore.QPointF(2, 18), QtCore.QPointF(18, 2), QtCore.QPointF(18, 18)]))
-
-            if not isinstance(self.item, ScatterPlotItem):
-                p.setPen(fn.mkPen(opts['pen']))
-                p.drawLine(2, 18, 18, 2)
-
-            symbol = opts.get('symbol', None)
-            if symbol is not None:
-                if isinstance(self.item, PlotDataItem):
-                    opts = self.item.scatter.opts
-
-                pen = fn.mkPen(opts['pen'])
-                brush = fn.mkBrush(opts['brush'])
-                size = opts['size']
-
-                p.translate(10, 10)
-                path = drawSymbol(p, symbol, size, pen, brush)
-        s = ""
+        if self.mPlotStyle != None:
+            icon = self.mPlotStyle.createIcon(self.size())
+            #self.setIconSize(self.size())
+            self.setIcon(icon)
 
         pass
 
@@ -296,7 +295,5 @@ if __name__ == '__main__':
     qgsApp = sandbox.initQgisEnvironment()
     btn = PlotStyleButton()
     btn.show()
-    #style = PlotStyleDialog.getPlotStyle()
-    #print(style)
     qgsApp.exec_()
     qgsApp.exitQgis()
