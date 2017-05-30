@@ -41,9 +41,18 @@ class TimeSeriesTableModel(QAbstractTableModel):
         #self.sort(self.sortColumnIndex, self.sortOrder)
 
 
+    def tsdChanged(self, tsd):
+        idx = self.getIndexFromDate(tsd)
+        self.dataChanged.emit(idx, idx)
+
     def addTSDs(self, tsds):
         self.items.extend(tsds)
         self.sort(self.sortColumnIndex, self.sortOrder)
+
+        for tsd in tsds:
+            assert isinstance(tsd, TimeSeriesDatum)
+            tsd.sigVisibilityChanged.connect(lambda: self.tsdChanged(tsd))
+
         for sensor in set([tsd.sensor for tsd in tsds]):
             if sensor not in self.sensors:
                 self.sensors.add(sensor)
