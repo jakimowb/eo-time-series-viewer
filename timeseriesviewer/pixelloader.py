@@ -1,11 +1,12 @@
 import os
 import sys
 import datetime
-
 from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
 import numpy as np
+from utils import SpatialPoint, SpatialExtent
+from osgeo import gdal, gdal_array
 
 class PixelLoadWorker(QObject):
     #qRegisterMetaType
@@ -15,13 +16,19 @@ class PixelLoadWorker(QObject):
 
     sigWorkFinished = pyqtSignal()
 
-    def __init__(self, files, parent=None):
+    def __init__(self, files, jobid, parent=None):
         super(PixelLoadWorker, self).__init__(parent)
         assert isinstance(files, list)
         self.files = files
+        self.jobid = jobid
+        self.mTerminate = False
 
     def info(self):
-        return 'recent file {}'.format(self.recentFile)
+        return 'jobid:{} recent file: {}'.format(self.jobid, self.recentFile)
+
+    @pyqtSlot()
+    def terminate(self):
+        self.mTerminate = True
 
     @pyqtSlot(str, str)
     def doWork(self, theGeometryWkt, theCrsDefinition):
@@ -34,7 +41,7 @@ class PixelLoadWorker(QObject):
         else:
             raise NotImplementedError()
 
-
+        if self.mTerminate: return
 
         crs = QgsCoordinateReferenceSystem(theCrsDefinition)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -42,11 +49,14 @@ class PixelLoadWorker(QObject):
         self.sigWorkStarted.emit(len(paths))
 
         for i, path in enumerate(paths):
+            if QThread.currentThread() is None or self.mTerminate:
+                return
+
             self.recentFile = path
 
             lyr = QgsRasterLayer(path)
             if not lyr.isValid():
-                logger.debug('Layer not valid: {}'.format(path))
+                #logger.debug('Layer not valid: {}'.format(path))
                 continue
             dp = lyr.dataProvider()
 
@@ -105,6 +115,7 @@ class PixelLoadWorker(QObject):
             md = dict()
             md['_worker_'] = self.objectName()
             md['_thread_'] = QThread.currentThread().objectName()
+            md['_jobid_'] = self.jobid
             md['_wkt_'] = theGeometryWkt
             md['path'] = path
             md['xres'] = xres
@@ -115,7 +126,8 @@ class PixelLoadWorker(QObject):
             md['px_ul_y'] = px_y
             md['values'] = values
             md['nodata'] = nodata
-
+            if QThread.currentThread() is None or self.mTerminate:
+                return
             self.sigPixelLoaded.emit(md)
         self.recentFile = None
         self.sigWorkFinished.emit()
@@ -128,26 +140,33 @@ class PixelLoader(QObject):
 
     sigPixelLoaded = pyqtSignal(int, int, dict)
     sigLoadingStarted = pyqtSignal(list)
-    sigLoadingDone = pyqtSignal()
     sigLoadingFinished = pyqtSignal()
     sigLoadingCanceled = pyqtSignal()
-    _sigLoadCoordinate = pyqtSignal(str, str)
+    _sigStartThreadWorkers = pyqtSignal(str, str)
+    _sigTerminateThreadWorkers = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
-
+        self.filesList = []
+        self.jobid = -1
         self.nThreads = 1
         self.nMax = 0
-        self.nDone = 0
         self.threadsAndWorkers = []
 
     @QtCore.pyqtSlot(dict)
-    def onPixelLoaded(self, d):
-        self.nDone += 1
-        self.sigPixelLoaded.emit(self.nDone, self.nMax, d)
+    def onPixelLoaded(self, data):
+        path = data.get('path')
+        jobid = data.get('_jobid_')
+        if jobid != self.jobid:
+            #do not return results from previous jobs...
+            #print('got thread results from {} but need {}...'.format(jobid, self.jobid))
+            return
+        elif path is not None and path in self.filesList:
+            self.filesList.remove(path)
+            self.sigPixelLoaded.emit(self.nMax - len(self.filesList), self.nMax, data)
 
-        if self.nDone == self.nMax:
-            self.sigLoadingFinished.emit()
+            if len(self.filesList) == 0:
+                self.sigLoadingFinished.emit()
 
 
     def setNumberOfThreads(self, nThreads):
@@ -163,36 +182,36 @@ class PixelLoader(QObject):
         return '\n'.join(info)
 
     def cancelLoading(self):
-        for t in self.threadsAndWorkers:
-            thread, worker = t
-            thread.quit()
-        del self.threadsAndWorkers[:]
-
-        for t,w in self.workerThreads.items():
-            w.stop()
-            t.quit()
-            t.deleteLater()
-            self.workerThreads.pop(t)
-        self.nMax = self.nDone = None
+        self._sigTerminateThreadWorkers.emit()
+        threads = [t[0] for t in self.threadsAndWorkers]
+        for thread in threads:
+            self.finishThread(thread)
+        assert len(self.threadsAndWorkers) == 0
+        del self.filesList[:]
+        self.nMax = 0
         self.sigLoadingCanceled.emit()
 
-    def removeFinishedThreads(self):
 
-        toRemove = []
-        for i, t in enumerate(self.threadsAndWorkers):
-            thread, worker = t
-            if thread.isFinished():
-                thread.quit()
-                toRemove.append(t)
-        for t in toRemove:
-            self.threadsAndWorkers.remove(t)
+    def finishThread(self, thread):
+        thread.quit()
+        thread.wait()
+        for t in self.threadsAndWorkers:
+            th, worker = t
+            if th == thread:
+                worker.terminate()
+                self.threadsAndWorkers.remove(t)
+                break
+
 
     def startLoading(self, pathList, theGeometry):
-        self.removeFinishedThreads()
-        self.sigLoadingStarted.emit(pathList[:])
-
         assert isinstance(pathList, list)
         assert type(theGeometry) in [SpatialPoint, SpatialExtent]
+
+        self.cancelLoading()
+        self.jobid += 1
+        self.sigLoadingStarted.emit(pathList[:])
+
+
         crs = theGeometry.crs()
         if isinstance(theGeometry, SpatialPoint):
             theGeometry = QgsPointV2(theGeometry)
@@ -200,86 +219,66 @@ class PixelLoader(QObject):
             theGeometry = QgsPolygonV2(theGeometry.asWktPolygon())
         assert type(theGeometry) in [QgsPointV2, QgsPolygonV2]
 
-
-        wkt = theGeometry.asWkt(50)
-
+        self.filesList.extend(pathList[:])
 
         l = len(pathList)
         self.nMax = l
         self.nFailed = 0
-        self.nDone = 0
 
-        nThreads = self.nThreads
-        filesPerThread = int(np.ceil(float(l) / nThreads))
 
-        if True:
-            worker = PixelLoadWorker(pathList[0:1])
-            worker.doWork(wkt, str(crs.authid()))
-
-        n = 0
         files = pathList[:]
+        workPackages = list()
+        i = 0
+        while(len(files)) > 0:
+            if len(workPackages) <= i:
+                workPackages.append([])
+            workPackages[i].append(files.pop(0))
+            i = i + 1 if i < self.nThreads - 1 else 0
 
-        while len(files) > 0:
-            n += 1
-
-            i = min([filesPerThread, len(files)])
+        for i, workPackage in enumerate(workPackages):
             thread = QThread()
-            thread.setObjectName('Thread {}'.format(n))
-            thread.finished.connect(self.removeFinishedThreads)
-            thread.terminated.connect(self.removeFinishedThreads)
+            thread.setObjectName('Thread {}'.format(i))
+            #thread.finished.connect(lambda : self.removeFinishedThreads())
+            #thread.finished.connect(thread.deleteLater)
+            thread.finished.connect(lambda : self.finishThread(thread))
+            thread.terminated.connect(lambda : self.finishThread(thread))
 
-            worker = PixelLoadWorker(files[0:i])
-            worker.setObjectName('W {}'.format(n))
+            worker = PixelLoadWorker(workPackage, self.jobid)
+            self.threadsAndWorkers.append((thread, worker))
+            worker.setObjectName('W {}'.format(i))
             worker.moveToThread(thread)
             worker.sigPixelLoaded.connect(self.onPixelLoaded)
-            worker.sigWorkFinished.connect(thread.quit)
-            self._sigLoadCoordinate.connect(worker.doWork)
+
+            #worker.sigWorkFinished.connect(lambda : self.finishThread(thread))
+            self._sigStartThreadWorkers.connect(worker.doWork)
+            self._sigTerminateThreadWorkers.connect(worker.terminate)
             thread.start()
-            self.threadsAndWorkers.append((thread, worker))
-            del files[0:i]
+
 
         #stark the workers
-
-        self._sigLoadCoordinate.emit(theGeometry.asWkt(50), str(crs.authid()))
-
-
-def testPixelLoader():
-
-    # prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
+        self._sigStartThreadWorkers.emit(theGeometry.asWkt(50), str(crs.authid()))
+        s = ""
 
 
+
+if __name__ == '__main__':
+
+    from sandbox import initQgisEnvironment
+    qgsApp = initQgisEnvironment()
+    from PyQt4.QtGui import *
     gb = QGroupBox()
     gb.setTitle('Sandbox')
 
     PL = PixelLoader()
     PL.setNumberOfThreads(1)
 
-    if False:
-        files = ['observationcloud/testdata/2014-07-26_LC82270652014207LGN00_BOA.bsq',
-                 'observationcloud/testdata/2014-08-03_LE72270652014215CUB00_BOA.bsq'
-                 ]
-    else:
-        from utils import file_search
-        searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
-        files = file_search(searchDir, '*227065*band4.img', recursive=True)
-        #files = files[0:3]
+    files = [r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-23_LE72270652012114EDC00_BOA.bsq',
+             r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-05-25_LE72270652012146EDC00_BOA.bsq'
+            ]
 
     lyr = QgsRasterLayer(files[0])
-    coord = lyr.extent().center()
-    crs = lyr.crs()
+    coord = SpatialPoint(lyr.crs(),lyr.extent().center())
+
 
     l = QVBoxLayout()
 
@@ -307,7 +306,7 @@ def testPixelLoader():
 
     PL.sigPixelLoaded.connect(showProgress)
     btnStart.setText('Start loading')
-    btnStart.clicked.connect(lambda : PL.startLoading(files, coord, crs))
+    btnStart.clicked.connect(lambda : PL.startLoading(files, coord))
     btnStop.setText('Cancel')
     btnStop.clicked.connect(lambda: PL.cancelLoading())
     lh = QHBoxLayout()

@@ -4,6 +4,7 @@ example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
 # Untrack compiled files
 .idea/*
+*.aux.xml
 *.pyc
 *.pyd
 *.iml
