@@ -112,7 +112,7 @@ class TsvMapCanvas(QgsMapCanvas):
     def setLayers(self, mapLayers):
         reg = QgsMapLayerRegistry.instance()
         for l in mapLayers:
-            reg.addMapLayer(l)
+            reg.addMapLayer(l, False)
         super(TsvMapCanvas,self).setLayerSet([QgsMapCanvasLayer(l) for l in mapLayers])
 
     def refresh(self):

@@ -44,7 +44,7 @@ def sandboxGui():
 
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:5]
+    imgs = file_search(searchDir, '*.bsq', recursive=True)[0:5]
 
     #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
     S.addTimeSeriesImages(imgs)
@@ -208,7 +208,7 @@ def initQgisEnvironment():
     # prepare QGIS environment
     if sys.platform == 'darwin':
         PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
+        os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
     else:
         # assume OSGeo4W startup
         PATH_QGS = os.environ['QGIS_PREFIX_PATH']
@@ -246,16 +246,16 @@ def sandboxTestdata():
 
 
 if __name__ == '__main__':
-    import site, sys
+    import site, sys, pyqtgraph
     #add site-packages to sys.path as done by enmapboxplugin.py
 
     qgsApp = initQgisEnvironment()
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if True: sandboxQgisBridge()
+    if False: sandboxQgisBridge()
     if False: sandboxGui()
-    if False: sandboxTestdata()
+    if True: sandboxTestdata()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
