@@ -9,10 +9,10 @@ from PyQt4.QtXml import *
 from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.timeseries import *
-from timeseriesviewer.utils import SpatialExtent, SpatialPoint
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
-from timeseriesviewer.plotstyling import *
+from timeseries import *
+from utils import SpatialExtent, SpatialPoint
+from ui.docks import TsvDockWidgetBase, load
+from plotstyling import PlotStyle, PlotStyleButton
 import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
@@ -65,13 +65,19 @@ class PixelLoadWorker(QObject):
 
     sigWorkFinished = pyqtSignal()
 
-    def __init__(self, files, parent=None):
+    def __init__(self, files, jobid, parent=None):
         super(PixelLoadWorker, self).__init__(parent)
         assert isinstance(files, list)
         self.files = files
+        self.jobid = jobid
+        self.mTerminate = False
 
     def info(self):
-        return 'recent file {}'.format(self.recentFile)
+        return 'jobid:{} recent file: {}'.format(self.jobid, self.recentFile)
+
+    @pyqtSlot()
+    def terminate(self):
+        self.mTerminate = True
 
     @pyqtSlot(str, str)
     def doWork(self, theGeometryWkt, theCrsDefinition):
@@ -84,7 +90,7 @@ class PixelLoadWorker(QObject):
         else:
             raise NotImplementedError()
 
-
+        if self.mTerminate: return
 
         crs = QgsCoordinateReferenceSystem(theCrsDefinition)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -92,6 +98,9 @@ class PixelLoadWorker(QObject):
         self.sigWorkStarted.emit(len(paths))
 
         for i, path in enumerate(paths):
+            if QThread.currentThread() is None or self.mTerminate:
+                return
+
             self.recentFile = path
 
             lyr = QgsRasterLayer(path)
@@ -155,6 +164,7 @@ class PixelLoadWorker(QObject):
             md = dict()
             md['_worker_'] = self.objectName()
             md['_thread_'] = QThread.currentThread().objectName()
+            md['_jobid_'] = self.jobid
             md['_wkt_'] = theGeometryWkt
             md['path'] = path
             md['xres'] = xres
@@ -165,7 +175,8 @@ class PixelLoadWorker(QObject):
             md['px_ul_y'] = px_y
             md['values'] = values
             md['nodata'] = nodata
-
+            if QThread.currentThread() is None or self.mTerminate:
+                return
             self.sigPixelLoaded.emit(md)
         self.recentFile = None
         self.sigWorkFinished.emit()
@@ -178,26 +189,33 @@ class PixelLoader(QObject):
 
     sigPixelLoaded = pyqtSignal(int, int, dict)
     sigLoadingStarted = pyqtSignal(list)
-    sigLoadingDone = pyqtSignal()
     sigLoadingFinished = pyqtSignal()
     sigLoadingCanceled = pyqtSignal()
-    _sigLoadCoordinate = pyqtSignal(str, str)
+    _sigStartThreadWorkers = pyqtSignal(str, str)
+    _sigTerminateThreadWorkers = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
-
+        self.filesList = []
+        self.jobid = -1
         self.nThreads = 1
         self.nMax = 0
-        self.nDone = 0
         self.threadsAndWorkers = []
 
     @QtCore.pyqtSlot(dict)
-    def onPixelLoaded(self, d):
-        self.nDone += 1
-        self.sigPixelLoaded.emit(self.nDone, self.nMax, d)
+    def onPixelLoaded(self, data):
+        path = data.get('path')
+        jobid = data.get('_jobid_')
+        if jobid != self.jobid:
+            #do not return results from previous jobs...
+            #print('got thread results from {} but need {}...'.format(jobid, self.jobid))
+            return
+        elif path is not None and path in self.filesList:
+            self.filesList.remove(path)
+            self.sigPixelLoaded.emit(self.nMax - len(self.filesList), self.nMax, data)
 
-        if self.nDone == self.nMax:
-            self.sigLoadingFinished.emit()
+            if len(self.filesList) == 0:
+                self.sigLoadingFinished.emit()
 
 
     def setNumberOfThreads(self, nThreads):
@@ -213,36 +231,36 @@ class PixelLoader(QObject):
         return '\n'.join(info)
 
     def cancelLoading(self):
-        for t in self.threadsAndWorkers:
-            thread, worker = t
-            thread.quit()
-        del self.threadsAndWorkers[:]
-
-        for t,w in self.workerThreads.items():
-            w.stop()
-            t.quit()
-            t.deleteLater()
-            self.workerThreads.pop(t)
-        self.nMax = self.nDone = None
+        self._sigTerminateThreadWorkers.emit()
+        threads = [t[0] for t in self.threadsAndWorkers]
+        for thread in threads:
+            self.finishThread(thread)
+        assert len(self.threadsAndWorkers) == 0
+        del self.filesList[:]
+        self.nMax = 0
         self.sigLoadingCanceled.emit()
 
-    def removeFinishedThreads(self):
 
-        toRemove = []
-        for i, t in enumerate(self.threadsAndWorkers):
-            thread, worker = t
-            if thread.isFinished():
-                thread.quit()
-                toRemove.append(t)
-        for t in toRemove:
-            self.threadsAndWorkers.remove(t)
+    def finishThread(self, thread):
+        thread.quit()
+        thread.wait()
+        for t in self.threadsAndWorkers:
+            th, worker = t
+            if th == thread:
+                worker.terminate()
+                self.threadsAndWorkers.remove(t)
+                break
+
 
     def startLoading(self, pathList, theGeometry):
-        self.removeFinishedThreads()
-        self.sigLoadingStarted.emit(pathList[:])
-
         assert isinstance(pathList, list)
         assert type(theGeometry) in [SpatialPoint, SpatialExtent]
+
+        self.cancelLoading()
+        self.jobid += 1
+        self.sigLoadingStarted.emit(pathList[:])
+
+
         crs = theGeometry.crs()
         if isinstance(theGeometry, SpatialPoint):
             theGeometry = QgsPointV2(theGeometry)
@@ -250,47 +268,46 @@ class PixelLoader(QObject):
             theGeometry = QgsPolygonV2(theGeometry.asWktPolygon())
         assert type(theGeometry) in [QgsPointV2, QgsPolygonV2]
 
-
-        wkt = theGeometry.asWkt(50)
-
+        self.filesList.extend(pathList[:])
 
         l = len(pathList)
         self.nMax = l
         self.nFailed = 0
-        self.nDone = 0
 
-        nThreads = self.nThreads
-        filesPerThread = int(np.ceil(float(l) / nThreads))
 
-        if True:
-            worker = PixelLoadWorker(pathList[0:1])
-            worker.doWork(wkt, str(crs.authid()))
-
-        n = 0
         files = pathList[:]
+        workPackages = list()
+        i = 0
+        while(len(files)) > 0:
+            if len(workPackages) <= i:
+                workPackages.append([])
+            workPackages[i].append(files.pop(0))
+            i = i + 1 if i < self.nThreads - 1 else 0
 
-        while len(files) > 0:
-            n += 1
-
-            i = min([filesPerThread, len(files)])
+        for i, workPackage in enumerate(workPackages):
             thread = QThread()
-            thread.setObjectName('Thread {}'.format(n))
-            thread.finished.connect(self.removeFinishedThreads)
-            thread.terminated.connect(self.removeFinishedThreads)
+            thread.setObjectName('Thread {}'.format(i))
+            #thread.finished.connect(lambda : self.removeFinishedThreads())
+            #thread.finished.connect(thread.deleteLater)
+            thread.finished.connect(lambda : self.finishThread(thread))
+            thread.terminated.connect(lambda : self.finishThread(thread))
 
-            worker = PixelLoadWorker(files[0:i])
-            worker.setObjectName('W {}'.format(n))
+            worker = PixelLoadWorker(workPackage, self.jobid)
+            self.threadsAndWorkers.append((thread, worker))
+            worker.setObjectName('W {}'.format(i))
             worker.moveToThread(thread)
             worker.sigPixelLoaded.connect(self.onPixelLoaded)
-            worker.sigWorkFinished.connect(thread.quit)
-            self._sigLoadCoordinate.connect(worker.doWork)
+
+            #worker.sigWorkFinished.connect(lambda : self.finishThread(thread))
+            self._sigStartThreadWorkers.connect(worker.doWork)
+            self._sigTerminateThreadWorkers.connect(worker.terminate)
             thread.start()
-            self.threadsAndWorkers.append((thread, worker))
-            del files[0:i]
+
 
         #stark the workers
+        self._sigStartThreadWorkers.emit(theGeometry.asWkt(50), str(crs.authid()))
+        s = ""
 
-        self._sigLoadCoordinate.emit(theGeometry.asWkt(50), str(crs.authid()))
 
 
 class SensorPoints(pg.PlotDataItem):
@@ -385,7 +402,7 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             w.setLayer(sv.memLyr)
             w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor.name()))
             w.setToolTip('Set values shown for sensor {}'.format(sv.sensor.name()))
-            w.fieldChanged.connect(lambda : self.commitExpression(w, w.expression()))
+            w.fieldChanged.connect(lambda : self.checkData(w, w.expression()))
 
         elif cname == 'style':
             sv = self.tableView.model().data(index, Qt.UserRole)
@@ -397,34 +414,37 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             w = PlotStyleButton(parent)
             w.setPlotStyle(sv)
             w.setToolTip('Set sensor style.')
+            w.sigPlotStyleChanged.connect(lambda: self.checkData(w, w.plotStyle()))
         else:
             raise NotImplementedError()
         return w
 
-    def commitExpression(self, w, expression):
+    def checkData(self, w, expression):
+        if isinstance(w, QgsFieldExpressionWidget):
+            assert expression == w.expression()
+            assert w.isExpressionValid(expression) == w.isValidExpression()
 
-        assert expression == w.expression()
-        assert w.isExpressionValid(expression) == w.isValidExpression()
+            if w.isValidExpression():
+                self.commitData.emit(w)
+            else:
+                print(('Delegate commit failed',w.asExpression()))
+        if isinstance(w, PlotStyleButton):
 
-        if w.isValidExpression():
+            #todo: check if it is a new plot style
             self.commitData.emit(w)
-        else:
-            print(('Delegate commit failed',w.asExpression()))
-
 
     def setEditorData(self, editor, index):
         cname = self.getColumnName(index)
         if cname == 'y-value':
             lastExpr = index.model().data(index, Qt.DisplayRole)
             assert isinstance(editor, QgsFieldExpressionWidget)
-            #print(('Set expr2editor', lastExpr))
             editor.setProperty('lastexpr', lastExpr)
             editor.setField(lastExpr)
+
         elif cname == 'style':
             style = index.data()
             assert isinstance(editor, PlotStyleButton)
             editor.setPlotStyle(style)
-
         else:
             raise NotImplementedError()
 
@@ -432,12 +452,11 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
         cname = self.getColumnName(index)
         if cname == 'y-value':
             assert isinstance(w, QgsFieldExpressionWidget)
-            assert w.isValidExpression()
-            expr = w.expression()
+            expr = w.asExpression()
             exprLast = model.data(index, Qt.DisplayRole)
 
-            if expr != exprLast:
-                model.setData(index, w.expression(), Qt.UserRole)
+            if w.isValidExpression() and expr != exprLast:
+                model.setData(index, w.asExpression(), Qt.UserRole)
         elif cname == 'style':
             assert isinstance(w, PlotStyleButton)
             model.setData(index, w.plotStyle(), Qt.UserRole)
@@ -627,8 +646,7 @@ class PixelCollection(QObject):
                     tsd = next(tsd for tsd in possibleTsds if tsd.date == date)
                     tsds.append(tsd)
                     values.append(y)
-                else:
-                    print(exp.evalErrorString())
+
 
         return tsds, values
 
@@ -723,7 +741,7 @@ class PlotSettingsModel(QAbstractTableModel):
         if idxUL.isValid():
             sensorView = self.getSensorFromIndex(idxUL)
             cname = self.columnames[idxUL.column()]
-            if cname in ['style', 'sensor']:
+            if cname in ['sensor','style']:
                 self.sigVisibilityChanged.emit(sensorView)
             if cname in ['y-value']:
                 self.sigDataChanged.emit(sensorView)
@@ -835,24 +853,22 @@ class PlotSettingsModel(QAbstractTableModel):
                 result = True
             elif columnName == 'style':
                 if isinstance(value, PlotStyle):
-                    sw.color = QColor(value)
-                    #print(sw.color.getRgb())
+                    sw.plotStyle.copyFrom(value)
+
                     result = True
 
         if role == Qt.CheckStateRole:
             if columnName == 'sensor':
                 sw.isVisible = value == Qt.Checked
                 result = True
+
         if role == Qt.UserRole:
             if columnName == 'y-value':
                 sw.expression = value
                 result = True
             elif columnName == 'style':
-                if isinstance(value, PlotStyle):
-                    sw.color = QColor(value)
-                    #print(sw.color.getRgb())
-                    result = True
-
+                sw.copyFrom(value)
+                result = True
 
         if result:
             self.dataChanged.emit(index, index)
@@ -980,30 +996,35 @@ def num2date(n):
 class SpectralTemporalVisualization(QObject):
 
     sigShowPixel = pyqtSignal(TimeSeriesDatum, QgsPoint, QgsCoordinateReferenceSystem)
+
+    """
+    Signalizes to move to specific date of interest
+    """
     sigMoveToDate = pyqtSignal(np.datetime64)
+
+
     def __init__(self, ui):
         super(SpectralTemporalVisualization, self).__init__()
         #assert isinstance(timeSeries, TimeSeries)
         assert isinstance(ui, ProfileViewDockUI)
         self.ui = ui
 
+
+
         self.plot_initialized = False
-        #assert isinstance(pixelCollection, PixelCollection)
-        #self.TS = timeSeries
         self.TV = ui.tableView2DBands
         self.TV.setSortingEnabled(False)
         self.plot2D = ui.plotWidget2D
         self.plot2D.plotItem.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
 
         self.plot3D = ui.plotWidget3D
-
         self.pxCollection = ui.pixelCollection
 
         self.plotSettingsModel = PlotSettingsModel(self.pxCollection, parent=self)
-        self.plotSettingsModel.sigSensorAdded.connect(self.setData)
+        self.plotSettingsModel.sigSensorAdded.connect(self.requestUpdate)
         self.plotSettingsModel.sigVisibilityChanged.connect(self.setVisibility)
         #self.plotSettingsModel.sigVisibilityChanged.connect(self.loadData)
-        self.plotSettingsModel.sigDataChanged.connect(self.setData)
+        self.plotSettingsModel.sigDataChanged.connect(self.requestUpdate)
 
         #self.plotSettingsModel.sigVisiblityChanged.connect(self.refresh)
         self.plotSettingsModel.rowsInserted.connect(self.onRowsInserted)
@@ -1017,7 +1038,7 @@ class SpectralTemporalVisualization(QObject):
         for s in self.pxCollection.sensorPxLayers.keys():
             self.plotSettingsModel.addSensor(s)
 
-        self.pxCollection.sigPixelAdded.connect(lambda : self.setData())
+        self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
         self.pxCollection.sigPixelRemoved.connect(self.clear)
         self.ui.pixelLoader.sigLoadingStarted.connect(self.clear)
         self.ui.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
@@ -1025,9 +1046,17 @@ class SpectralTemporalVisualization(QObject):
         # self.VIEW.setItemDelegateForColumn(3, PointStyleDelegate(self.VIEW))
         self.plotData2D = dict()
         self.plotData3D = dict()
-        self.setData()
 
-    def updatePersistantWidgets(self):
+        self.updateRequested = True
+        self.updateTimer = QTimer(self)
+        self.updateTimer.timeout.connect(self.updatePlot)
+        self.updateTimer.start(2000)
+
+    def requestUpdate(self, *args):
+        self.updateRequested = True
+        #next time
+
+    def updatePersistentWidgets(self):
         model = self.TV.model()
         if model:
             colExpression = model.columnames.index('y-value')
@@ -1091,18 +1120,20 @@ class SpectralTemporalVisualization(QObject):
     def setVisibility2D(self, sensorView):
         assert isinstance(sensorView, SensorPlotSettings)
         p = self.plotData2D[sensorView.sensor]
-        #assert isinstance(p, pg.PlotDataItem)
-        p.setData(symbol=sensorView.markerSymbol, symbolBrush=sensorView.markerBrush,
-                       symbolPen=sensorView.markerPen, symbolSize=sensorView.markerSize,
-                       pen = sensorView.linePen, width=sensorView.linePen.width())
+
+        p.setSymbol(sensorView.markerSymbol)
+        p.setSymbolSize(sensorView.markerSize)
+        p.setSymbolBrush(sensorView.markerBrush)
+        p.setSymbolPen(sensorView.markerPen)
+
+        p.setPen(sensorView.linePen)
 
         p.setVisible(sensorView.isVisible)
         p.update()
         self.plot2D.update()
-        s =""
 
 
-    def setData(self, sensorView = None):
+    def addData(self, sensorView = None):
 
         if sensorView is None:
             for sv in self.plotSettingsModel.items:
@@ -1111,24 +1142,32 @@ class SpectralTemporalVisualization(QObject):
             assert isinstance(sensorView, SensorPlotSettings)
             self.setData2D(sensorView)
 
-        pass
+    @QtCore.pyqtSlot()
+    def updatePlot(self):
+        if self.updateRequested:
+            self.setData()
+            self.updateRequested = False
+
+    def setData(self, sensorView = None):
+        self.updateLock = True
+        if sensorView is None:
+            for sv in self.plotSettingsModel.items:
+                self.setData(sv)
+        else:
+            assert isinstance(sensorView, SensorPlotSettings)
+            self.setData2D(sensorView)
+
+        self.updateLock = False
+
 
     def setData2D(self, sensorView):
         assert isinstance(sensorView, SensorPlotSettings)
 
         if sensorView.sensor not in self.plotData2D.keys():
-            #plotDataItem = SensorPoints(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
-            #plotDataItem = pg.ScatterPlotItem(name=sensorView.sensor.name(), pen= {'color': 'w', 'width': 2},brush=QColor('green'), symbol='o')
-            #self.plot2D.addItem(plotDataItem)
-
 
             plotDataItem = self.plot2D.plot(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
-            #plotDataItem.curve.setClickable(True)
             plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
 
-            #self.plot2D.scene().addItem(plotDataItem)
-            #self.plot2D.setMenuEnabled(True)
-            #self.plot2D.addItem(plotDataItem)
             self.plotData2D[sensorView.sensor] = plotDataItem
             self.setVisibility2D(sensorView)
 
@@ -1141,21 +1180,13 @@ class SpectralTemporalVisualization(QObject):
         tsds, values = self.pxCollection.dateValues(sensorView.sensor, sensorView.expression)
         if len(tsds) > 0:
             dates = np.asarray([date2num(tsd.date) for tsd in tsds])
+            tsds = np.asarray(tsds)
             values = np.asarray(values)
+            i = np.argsort(dates)
+            plotDataItem.appendData()
+            plotDataItem.setData(x=dates[i], y=values[i], data=tsds[i])
 
-            #item = pg.PlotDataItem()
-            #spots = []
-            #for i, tsd in enumerate(tsds):
-            #    spots.append({'pos':(dates[i], values[i])})
-            #plotDataItem.setPoints(spots)
-            #plotDataItem.invalidate()
-            #self.plot2D.invalidate()
-            #self.setVisibility2D()
-            #plotDataItem.setPoints(x=dates, y=values, data=tsds)
-            plotDataItem.setData(x=dates, y=values, data=tsds)
-            #plotDataItem.scatter.addPoints(x=dates, y=values, data=tsds)
-            #self.plot2D.addItem(plotDataItem)
-
+            self.setVisibility2D(sensorView)
             s = ""
 
 
@@ -1188,7 +1219,7 @@ def testPixelLoader():
     gb.setTitle('Sandbox')
 
     PL = PixelLoader()
-    PL.setNumberOfThreads(1)
+    PL.setNumberOfThreads(2)
 
     if False:
         files = ['observationcloud/testdata/2014-07-26_LC82270652014207LGN00_BOA.bsq',
