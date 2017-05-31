@@ -34,25 +34,40 @@ PENSTYLES = [(Qt.SolidLine, '___'),
 
 
 
-class PlotStyle(object):
+class PlotStyle(QObject):
     def __init__(self, **kwds):
 
-        self.markerSymbol = MARKERSYMBOLS[0][0]
-        self.markerSize = 10
-        self.markerBrush = QBrush()
-        self.markerBrush.setColor(QColor(55,55,55))
-        self.markerBrush.setStyle(Qt.SolidPattern)
+        super(PlotStyle,self).__init__(**kwds)
 
-        self.backgroundColor = Qt.black
+        if 'plotStyle' in kwds.keys():
+            self.copyFrom(kwds['plotStyle'])
+        else:
+            self.markerSymbol = MARKERSYMBOLS[0][0]
+            self.markerSize = 10
+            self.markerBrush = QBrush()
+            self.markerBrush.setColor(Qt.green)
+            self.markerBrush.setStyle(Qt.SolidPattern)
 
-        self.markerPen = QPen()
-        self.markerPen.setStyle(Qt.SolidLine)
-        self.markerPen.setColor(Qt.white)
+            self.backgroundColor = Qt.black
 
-        self.linePen = QPen()
-        self.linePen.setStyle(Qt.SolidLine)
-        self.linePen.setColor(QColor(74,75,75))
+            self.markerPen = QPen()
+            self.markerPen.setStyle(Qt.SolidLine)
+            self.markerPen.setColor(Qt.white)
 
+            self.linePen = QPen()
+            self.linePen.setStyle(Qt.NoPen)
+            self.linePen.setColor(QColor(74,75,75))
+
+    def copyFrom(self, plotStyle):
+        assert isinstance(plotStyle, PlotStyle)
+
+        self.markerSymbol = plotStyle.markerSymbol
+        self.markerBrush = QBrush(plotStyle.markerBrush)
+        self.markerPen = QPen(plotStyle.markerPen)
+        self.markerSize = plotStyle.markerSize
+        self.backgroundColor = QColor(plotStyle.backgroundColor)
+        self.linePen = QPen(plotStyle.linePen)
+        s = ""
     def createIcon(self, size=None):
 
         if size is None:
@@ -127,11 +142,11 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
 
             #todo: set style to style preview
             pi = self.plotDataItem
-            pi.setData(x=[0.25, 0.5, 0.75], y=[0.25, 0.75, 0.5],
-                       symbol=style.markerSymbol, symbolBrush=style.markerBrush,
-                       symbolPen=style.markerPen, symbolSize=style.markerSize,
-                       pen = style.linePen, width=style.linePen.width())
-            #symbol='o', symbolBrush=sensorView.color, symbolPen='w', symbolSize=8
+            pi.setSymbol(style.markerSymbol)
+            pi.setSymbolSize(style.markerSize)
+            pi.setSymbolBrush(style.markerBrush)
+            pi.setSymbolPen(style.markerPen)
+            pi.setPen(style.linePen)
 
             pi.update()
             self.plotWidget.update()
@@ -211,11 +226,17 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
 
 class PlotStyleButton(QPushButton):
 
+
+    sigPlotStyleChanged = pyqtSignal(PlotStyle)
+
     def __init__(self, *args):
         super(PlotStyleButton, self).__init__(*args)
         self.mPlotStyle = None
+        self.mInitialButtonSize = None
+        self.setStyleSheet('* { padding: 0px; }')
         self.clicked.connect(self.showDialog)
         self.setPlotStyle(PlotStyle())
+
 
     def plotStyle(self):
         return self.mPlotStyle
@@ -224,6 +245,7 @@ class PlotStyleButton(QPushButton):
         #assert isinstance(plotStyle, PlotStyle)
         self.mPlotStyle = plotStyle
         self._updateIcon()
+        self.sigPlotStyleChanged.emit(self.mPlotStyle)
         pass
 
     def showDialog(self):
@@ -235,11 +257,18 @@ class PlotStyleButton(QPushButton):
         self._updateIcon()
 
     def _updateIcon(self):
+        if self.mInitialButtonSize is None:
+            self.mInitialButtonSize = self.sizeHint()
+            self.setIconSize(self.mInitialButtonSize)
 
         if self.mPlotStyle != None:
-            icon = self.mPlotStyle.createIcon(self.size())
-            #self.setIconSize(self.size())
+            s = self.mInitialButtonSize
+            s = self.sizeHint()
+            #s = QSize()
+            icon = self.mPlotStyle.createIcon(self.mInitialButtonSize)
             self.setIcon(icon)
+
+
 
         pass
 
