@@ -1,9 +1,11 @@
 # Untracked directories
 .idea/
-
+example/*.aux.xml
+timeseriesviewer/ui/tmp.ui
 # Untrack compiled files
 .idea/*
 *.pyc
 *.pyd
 *.iml
 __pycache__/
+
