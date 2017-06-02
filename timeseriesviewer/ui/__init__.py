@@ -1,4 +1,4 @@
-import os, sys, six, importlib, logging
+import os, sys, six, importlib, logging, StringIO
 logger = logging.getLogger(__name__)
 
 from qgis.core import *
@@ -8,11 +8,13 @@ from PyQt4.QtXml import *
 from PyQt4.QtGui import *
 from PyQt4 import uic
 #dictionary to store form classes. *.ui file name is key
-FORM_CLASSES = dict()
+
+
 
 from timeseriesviewer import jp, DIR_UI
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
+FORM_CLASSES = dict()
 def loadUIFormClass(pathUi, from_imports=False):
     """
     Load UI files and takes care on Qgs custom widgets
@@ -21,50 +23,62 @@ def loadUIFormClass(pathUi, from_imports=False):
     :return:
     """
     RC_SUFFIX =  '_py3' if six.PY3 else '_py2'
-    dirUi = os.path.dirname(pathUi)
-    assert os.path.exists(pathUi), 'Missing UI file:'+pathUi
+    assert os.path.exists(pathUi), '*.ui file does not exist: {}'.format(pathUi)
+
+    buffer = StringIO.StringIO() #buffer to store modified XML
     if pathUi not in FORM_CLASSES.keys():
-        add_and_remove = dirUi not in sys.path
-        if add_and_remove:
-            sys.path.append(dirUi)
+        #parse *.ui xml and replace *.h by qgis.gui
+        doc = QDomDocument()
+        doc.setContent(QFile(pathUi))
 
-
-        #replace for <customwidget> with <class>Qgs...</class>
+        # Replace *.h file references in <customwidget> with <class>Qgs...</class>, e.g.
         #       <header>qgscolorbutton.h</header>
         # by    <header>qgis.gui</header>
+        # this is require to compile QgsWidgets on-the-fly
+        elem = doc.elementsByTagName('customwidget')
+        for child in [elem.item(i) for i in range(elem.count())]:
+            child = child.toElement()
+            className = str(child.firstChildElement('class').firstChild().nodeValue())
+            if className.startswith('Qgs'):
+                cHeader = child.firstChildElement('header').firstChild()
+                cHeader.setNodeValue('qgis.gui')
 
-        if True:
-            pathTmp = jp(os.path.dirname(pathUi), 'tmp.ui')
-
-            doc = QDomDocument()
-            doc.setContent(QFile(pathUi))
-            elem = doc.elementsByTagName('customwidget')
-            overwrite = False
-            for child in [elem.item(i) for i in range(elem.count())]:
-                child = child.toElement()
-                className = str(child.firstChildElement('class').firstChild().nodeValue())
-                if className.startswith('Qgs'):
-                    cHeader = child.firstChildElement('header').firstChild()
-                    cHeader.setNodeValue('qgis.gui')
-                    overwrite=True
-            if overwrite:
-                s = str(doc.toString())
-                file = open(pathTmp, 'w')
-                file.write(s)
-                file.close()
-                #os.remove(pathTmp)
-                pathUi = pathTmp
+        #collect resource file locations
+        elem = doc.elementsByTagName('include')
+        qrcPathes = []
+        for child in [elem.item(i) for i in range(elem.count())]:
+            path = child.attributes().item(0).nodeValue()
+            if path.endswith('.qrc'):
+                qrcPathes.append(path)
 
 
-        assert os.path.exists(pathUi), 'File does not exist: '+pathUi
-        #dprint('Load UI file: {}'.format(pathUi))
-        t = open(pathUi).read()
-        #dprint(t)
-        formClass, _ = uic.loadUiType(pathUi,from_imports=from_imports, resource_suffix=RC_SUFFIX)
 
-        if add_and_remove:
-            sys.path.remove(dirUi)
-        FORM_CLASSES[pathUi] = formClass
+        logger.debug('Load UI file: {}'.format(pathUi))
+        buffer.write(doc.toString())
+        buffer.flush()
+        buffer.seek(0)
+
+        s = doc.toString()
+
+        #make resource file directories temporary available
+        baseDir = os.path.dirname(pathUi)
+        tmpDirs = []
+        for qrcPath in qrcPathes:
+            d = os.path.dirname(os.path.join(baseDir, os.path.dirname(qrcPath)))
+            if d not in sys.path:
+                tmpDirs.append(d)
+        sys.path.extend(tmpDirs)
+
+        #load form class
+        try:
+            FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
+        except:
+            FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
+
+        FORM_CLASSES[pathUi] = FORM_CLASS
+
+        for d in tmpDirs:
+            sys.path.remove(d)
 
     return FORM_CLASSES[pathUi]
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- SenseCarbon Time Series Viewer
+ HUB Time Series Viewer
                                  A QGIS plugin
 
                              -------------------

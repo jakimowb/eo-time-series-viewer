@@ -176,9 +176,30 @@ class AboutDialogUI(QDialog,
         self.setAboutTitle()
 
         # page About
-        from timeseriesviewer import PATH_LICENSE, VERSION, DIR_DOCS
+        from timeseriesviewer import PATH_LICENSE, VERSION, DIR_DOCS, DESCRIPTION, WEBSITE, REPOSITORY
         import pyqtgraph
-        self.labelVersion.setText('Version ' + VERSION)
+        self.labelAboutText.setText(
+            """
+            <html><head/><body>
+            <p align="center">Version {version}
+            </p>
+            <p align="center">{description}
+            </p>
+            <p align="center">Website<br/>
+            <a href="{website}"><span style=" text-decoration: underline; color:#0000ff;">{website}</span></a>
+            </p>
+            <p align="center">Repository<br/>
+            <a href="{repo}"><span style=" text-decoration: underline; color:#0000ff;">{repo}</span></a>
+            </p>
+            
+            <p align="center">Licenced under the GNU General Public Licence<br/>
+            <a href="http://www.gnu.org/licenses/">
+            <span style=" text-decoration: underline; color:#0000ff;">http://www.gnu.org/licenses/</span></a>
+            </p>
+            
+            </body></html>
+            """.format(description=DESCRIPTION, version=VERSION, website=WEBSITE, repo=REPOSITORY)
+        )
 
         lf = lambda p: str(open(p).read())
         # page Changed
@@ -271,8 +292,8 @@ if __name__ == '__main__':
     qgsApp.initQgis()
 
     #run tests
-    #d = AboutDialogUI()
-    #d.show()
+    d = AboutDialogUI()
+    d.show()
 
     d = PropertyDialogUI()
     d.exec_()

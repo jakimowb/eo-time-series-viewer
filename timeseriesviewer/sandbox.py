@@ -209,14 +209,14 @@ def initQgisEnvironment():
     if sys.platform == 'darwin':
         PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
         os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
+        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
+        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
     else:
         # assume OSGeo4W startup
         PATH_QGS = os.environ['QGIS_PREFIX_PATH']
     assert os.path.exists(PATH_QGS)
-    qgsApp = QgsApplication([], True)
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
 
+    qgsApp = QgsApplication([], True)
     gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
     #register resource files (all)
     import timeseriesviewer.ui
