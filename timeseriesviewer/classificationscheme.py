@@ -1,12 +1,12 @@
-
+# noinspection PyPep8Naming
 
 import os
-
 from qgis.core import *
 from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import numpy as np
+
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
@@ -15,6 +15,7 @@ from timeseriesviewer.ui.widgets import loadUIFormClass
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
 
+# noinspection PyPep8Naming
 def getTextColorWithContrast(c):
     assert isinstance(c, QColor)
     if c.lightness() < 0.5:
