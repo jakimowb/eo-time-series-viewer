@@ -19,7 +19,7 @@ class TsvMapCanvas(QgsMapCanvas):
 
     def __init__(self, tsdView, mapView, parent=None):
         super(TsvMapCanvas, self).__init__(parent=parent)
-        from timeseriesviewer.mapvisualization import TimeSeriesDatumView, MapView
+        from timeseriesviewer.mapvisualization import TimeSeriesDatumView, MapView, SpatialTemporalVisualization
         assert isinstance(tsdView, TimeSeriesDatumView)
         assert isinstance(mapView, MapView)
 
@@ -38,6 +38,11 @@ class TsvMapCanvas(QgsMapCanvas):
 
         self.tsdView = tsdView
         self.mapView = mapView
+        self.spatTempVis = mapView.spatTempVis
+        assert isinstance(self.spatTempVis, SpatialTemporalVisualization)
+
+        self.spatTempVis.sigSpatialExtentChanged.connect(self.setSpatialExtent)
+        self.sigSpatialExtentChanged.connect(self.spatTempVis.setSpatialExtent)
 
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
         self.crosshairItem = CrosshairMapCanvasItem(self)
@@ -53,14 +58,9 @@ class TsvMapCanvas(QgsMapCanvas):
 
         self.sensorView = self.mapView.sensorViews[self.tsdView.Sensor]
         self.mapView.sigMapViewVisibility.connect(self.refresh)
-        self.mapView.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         self.mapView.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
         self.mapView.sigShowCrosshair.connect(self.setShowCrosshair)
-        self.referenceLayer = QgsRasterLayer(self.tsdView.TSD.pathImg)
-
-
-
-
+        self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
 
         self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
         self.setRenderer(self.sensorView.layerRenderer())
@@ -136,7 +136,10 @@ class TsvMapCanvas(QgsMapCanvas):
     def setRenderMe(self):
         oldFlag = self.renderFlag()
 
-        newFlag = self.visibleRegion().boundingRect().isValid() and self.isVisible() and self.tsdView.TSD.isVisible()
+        newFlag = self.visibleRegion().boundingRect().isValid() \
+                  and self.isVisible() \
+                  and self.tsdView.timeSeriesDatum.isVisible()
+
         if oldFlag != newFlag:
             self.setRenderFlag(newFlag)
         #print((self.tsdView.TSD, self.renderFlag()))

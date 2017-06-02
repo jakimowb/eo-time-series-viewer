@@ -26,13 +26,13 @@ class MapView(QObject):
     sigShowCrosshair = pyqtSignal(bool)
     sigVectorLayerChanged = pyqtSignal()
 
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigShowProfiles = pyqtSignal(SpatialPoint)
 
     def __init__(self, mapViewCollection, recommended_bands=None, parent=None):
         super(MapView, self).__init__()
         assert isinstance(mapViewCollection, MapViewCollection)
-        self.MVC = mapViewCollection
+        self.mapViewCollection = mapViewCollection
+        self.spatTempVis = mapViewCollection.spatTempVis
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
@@ -42,7 +42,6 @@ class MapView(QObject):
         self.setVectorLayer(None)
 
         #forward actions with reference to this band view
-        self.spatialExtent = None
         self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
         self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
         self.ui.actionShowCrosshair.toggled.connect(self.setShowCrosshair)
@@ -51,7 +50,6 @@ class MapView(QObject):
         self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
         self.sensorViews = collections.OrderedDict()
 
-        self.mSpatialExtent = None
 
     def setVectorLayer(self, lyr):
         if isinstance(lyr, QgsVectorLayer):
@@ -74,11 +72,6 @@ class MapView(QObject):
 
     def setVisibility(self, isVisible):
         self.ui.setVisibility(isVisible)
-
-    def setSpatialExtent(self, extent):
-        assert isinstance(extent, SpatialExtent)
-        self.mSpatialExtent = extent
-        self.sigSpatialExtentChanged.emit(extent)
 
     def visibility(self):
         return self.ui.visibility()
@@ -517,14 +510,13 @@ class MapViewSensorSettings(QObject):
 
 class TimeSeriesDatumView(QObject):
 
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigRenderProgress = pyqtSignal(int,int)
     sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
     sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
     sigVisibilityChanged = pyqtSignal(bool)
 
-    def __init__(self, TSD, timeSeriesDateViewCollection, mapViewCollection, parent=None):
-        assert isinstance(TSD, TimeSeriesDatum)
+    def __init__(self, timeSeriesDatum, timeSeriesDateViewCollection, mapViewCollection, parent=None):
+        assert isinstance(timeSeriesDatum, TimeSeriesDatum)
         assert isinstance(timeSeriesDateViewCollection, TimeSeriesDateViewCollection)
         assert isinstance(mapViewCollection, MapViewCollection)
 
@@ -538,12 +530,12 @@ class TimeSeriesDatumView(QObject):
         self.minHeight = self.ui.height()
         self.minWidth = 50
         self.renderProgress = dict()
-
-        self.TSD = TSD
+        self.spatTempVis = mapViewCollection.spatTempVis
+        self.timeSeriesDatum = timeSeriesDatum
         self.scrollArea = timeSeriesDateViewCollection.scrollArea
-        self.Sensor = self.TSD.sensor
+        self.Sensor = self.timeSeriesDatum.sensor
         self.Sensor.sigNameChanged.connect(lambda :self.setColumnInfo())
-        self.TSD.sigVisibilityChanged.connect(self.setVisibility)
+        self.timeSeriesDatum.sigVisibilityChanged.connect(self.setVisibility)
         self.setColumnInfo()
         self.MVC = mapViewCollection
         self.TSDVC = timeSeriesDateViewCollection
@@ -552,8 +544,8 @@ class TimeSeriesDatumView(QObject):
 
     def setColumnInfo(self):
 
-        labelTxt = '{}\n{}'.format(str(self.TSD.date), self.TSD.sensor.name())
-        tooltip = '{}'.format(self.TSD.pathImg)
+        labelTxt = '{}\n{}'.format(str(self.timeSeriesDatum.date), self.timeSeriesDatum.sensor.name())
+        tooltip = '{}'.format(self.timeSeriesDatum.pathImg)
 
         self.ui.labelTitle.setText(labelTxt)
         self.ui.labelTitle.setToolTip(tooltip)
@@ -616,11 +608,10 @@ class TimeSeriesDatumView(QObject):
         canvas = TsvMapCanvas(self, mapView, parent=self.ui)
 
         canvas.setFixedSize(self.subsetSize)
-        canvas.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(canvas.spatialExtent()))
-        canvas.renderStarting.connect(lambda : self.sigLoadingStarted.emit(mapView, self.TSD))
-        canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
+        canvas.renderStarting.connect(lambda : self.sigLoadingStarted.emit(mapView, self.timeSeriesDatum))
+        canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.timeSeriesDatum))
         canvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
-        canvas.sigSpatialExtentChanged.connect(mapView.sigSpatialExtentChanged.emit)
+
 
         self.mapCanvases[mapView] = canvas
         self.L.insertWidget(self.wOffset + i, canvas)
@@ -630,10 +621,10 @@ class TimeSeriesDatumView(QObject):
 
     def __lt__(self, other):
 
-        return self.TSD < other.TSD
+        return self.timeSeriesDatum < other.timeSeriesDatum
 
     def __eq__(self, other):
-        return self.TSD == other.TSD
+        return self.timeSeriesDatum == other.timeSeriesDatum
 
 class SpatialTemporalVisualization(QObject):
     """
@@ -648,7 +639,7 @@ class SpatialTemporalVisualization(QObject):
     def __init__(self, timeSeriesViewer):
         super(SpatialTemporalVisualization, self).__init__()
         #assert isinstance(timeSeriesViewer, TimeSeriesViewer), timeSeriesViewer
-        self.mSpatialExtent = None
+        self.mSpatialExtent = SpatialExtent.world()
         self.ui = timeSeriesViewer.ui
         self.scrollArea = self.ui.scrollAreaSubsets
         self.TSV = timeSeriesViewer
@@ -734,9 +725,18 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(extent, SpatialExtent)
         oldExtent = self.mSpatialExtent
         self.mSpatialExtent = extent
-        self.timeSeriesDateViewCollection.setSpatialExtent(extent)
         if oldExtent != extent:
             self.sigSpatialExtentChanged.emit(extent)
+
+    def setCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+
+        #todo: check if this is possible
+        newExt = self.mSpatialExtent.toCrs(crs)
+        self.setSpatialExtent(newExt)
+
+    def crs(self):
+        return self.mSpatialExtent.crs()
 
     def spatialExtent(self):
         return self.mSpatialExtent
@@ -822,15 +822,6 @@ class TimeSeriesDateViewCollection(QObject):
     def setFocusView(self, tsd):
         self.focusView = tsd
 
-    def onSpatialExtentChanged(self, extent):
-        for tsdview in self.orderedViews():
-            tsdview.setSpatialExtent(extent)
-        self.sigSpatialExtentChanged.emit(extent)
-
-    def setSpatialExtent(self, extent):
-        for tsdview in self.orderedViews():
-            tsdview.setSpatialExtent(extent)
-
     def orderedViews(self):
         #returns the
         if self.focusView is not None:
@@ -865,7 +856,7 @@ class TimeSeriesDateViewCollection(QObject):
             tsdView = TimeSeriesDatumView(tsd, self, self.STViz.MVC, parent=self.ui)
             tsdView.setSubsetSize(self.subsetSize)
 
-            tsdView.sigSpatialExtentChanged.connect(self.onSpatialExtentChanged)
+
             tsdView.sigLoadingStarted.connect(self.sigLoadingStarted.emit)
             tsdView.sigLoadingFinished.connect(self.sigLoadingFinished.emit)
             tsdView.sigVisibilityChanged.connect(lambda: self.STViz.adjustScrollArea())
@@ -919,17 +910,17 @@ class MapViewCollection(QObject):
     sigSetMapViewVisibility = pyqtSignal(MapView, bool)
     sigShowProfiles = pyqtSignal(SpatialPoint)
 
-    def __init__(self, STViz):
-        assert isinstance(STViz, SpatialTemporalVisualization)
+    def __init__(self, spatialTemporalVisualization):
+        assert isinstance(spatialTemporalVisualization, SpatialTemporalVisualization)
         super(MapViewCollection, self).__init__()
-        self.STViz = STViz
-        self.STViz.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
-        self.STViz.TS.sigSensorAdded.connect(self.addSensor)
-        self.STViz.TS.sigSensorRemoved.connect(self.removeSensor)
-        self.ui = STViz.dockMapViews
-        self.btnList = STViz.dockMapViews.BVButtonList
-        self.scrollArea = STViz.dockMapViews.scrollAreaMapViews
-        self.scrollAreaContent = STViz.dockMapViews.scrollAreaMapsViewDockContent
+        self.spatTempVis = spatialTemporalVisualization
+        self.spatTempVis.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
+        self.spatTempVis.TS.sigSensorAdded.connect(self.addSensor)
+        self.spatTempVis.TS.sigSensorRemoved.connect(self.removeSensor)
+        self.ui = spatialTemporalVisualization.dockMapViews
+        self.btnList = spatialTemporalVisualization.dockMapViews.BVButtonList
+        self.scrollArea = spatialTemporalVisualization.dockMapViews.scrollAreaMapViews
+        self.scrollAreaContent = spatialTemporalVisualization.dockMapViews.scrollAreaMapsViewDockContent
         self.mapViewsDefinitions = []
         self.mapViewButtons = dict()
         self.adjustScrollArea()
@@ -982,7 +973,7 @@ class MapViewCollection(QObject):
         mapView.sigRemoveMapView.connect(self.removeMapView)
         mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
-        for sensor in self.STViz.TS.Sensors:
+        for sensor in self.spatTempVis.TS.Sensors:
             mapView.addSensor(sensor)
 
         self.mapViewButtons[mapView] = btn
