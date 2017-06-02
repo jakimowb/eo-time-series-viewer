@@ -95,6 +95,13 @@ class SpatialExtent(QgsRectangle):
         return SpatialExtent(crs, extent)
 
     @staticmethod
+    def world():
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        ext = QgsRectangle(-180,-90,180,90)
+        return SpatialExtent(crs, ext)
+
+
+    @staticmethod
     def fromLayer(mapLayer):
         assert isinstance(mapLayer, QgsMapLayer)
         extent = mapLayer.extent()
@@ -276,6 +283,9 @@ def nicePredecessor(l):
 
 if __name__ == '__main__':
     #nice predecessors
+    from sandbox import initQgisEnvironment
+    qgsApp = initQgisEnvironment()
+    se = SpatialExtent.world()
     assert nicePredecessor(26) == 25
     assert nicePredecessor(25) == 25
     assert nicePredecessor(23) == 20
