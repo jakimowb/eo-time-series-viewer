@@ -335,7 +335,7 @@ def nicePredecessor(l):
             m += 0.5
         return mul * m * 10 ** exp
 
-    elif l < 1.0:
+    elif l < 1.0 and l > 0:
         exp = np.fix(np.log10(l))
         #normalize to [0.0,1.0]
         m = l / 10 ** (exp-1)
