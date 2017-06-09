@@ -200,6 +200,38 @@ def gdal_qgis_benchmark():
     print('Benchmark done')
     s =""
 
+class SignalPrinter(object):
+
+    def __init__(self,  objs=None):
+
+        self.objects = []
+        if objs:
+            self.addObject(objs)
+
+    def addObject(self, obj):
+        import inspect
+        if isinstance(obj, list):
+            for o in obj:
+                self.addObject(o)
+        elif isinstance(obj, QObject):
+            t = QThread.currentThread()
+            metaObject = obj.metaObject()
+            for i in range(metaObject.methodCount()):
+                method = metaObject.method(i)
+                assert isinstance(method, QMetaMethod)
+                if method.methodType() == QMetaMethod.Signal:
+                    sigName = str(method.signature()).split('(')[0]
+                    sig = getattr(obj, sigName)
+                    sig.connect(lambda *args , **kwds : self.printSignal(sigName, *args, **kwds))
+            s = ""
+
+    def printSignal(self, sigName, *args, **kwds):
+        info = '{}'.format(sigName)
+        if len(args) > 0:
+            info += ' {}'.format(str(args))
+        if len(kwds) > 0:
+            info += ' {}'.format(str(kwds))
+        print(info)
 
 def initQgisEnvironment():
 
