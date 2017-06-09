@@ -53,7 +53,7 @@ def loadUIFormClass(pathUi, from_imports=False):
 
 
 
-        logger.debug('Load UI file: {}'.format(pathUi))
+        #logger.debug('Load UI file: {}'.format(pathUi))
         buffer.write(doc.toString())
         buffer.flush()
         buffer.seek(0)

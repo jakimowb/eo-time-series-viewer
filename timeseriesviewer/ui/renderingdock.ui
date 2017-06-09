@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>281</width>
-    <height>256</height>
+    <width>283</width>
+    <height>386</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Rendering</string>
+   <string>Map Rendering</string>
   </property>
   <widget class="QFrame" name="dockWidgetContents2">
    <property name="frameShape">
@@ -21,37 +21,6 @@
     <enum>QFrame::Sunken</enum>
    </property>
    <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
-     <widget class="QGroupBox" name="groupBox_2">
-      <property name="title">
-       <string>Render progress</string>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="QProgressBar" name="progressBar">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="value">
-          <number>0</number>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="invertedAppearance">
-          <bool>false</bool>
-         </property>
-         <property name="textDirection">
-          <enum>QProgressBar::TopToBottom</enum>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
     <item>
      <widget class="QGroupBox" name="groupBox">
       <property name="sizePolicy">
@@ -69,72 +38,55 @@
       <property name="maximumSize">
        <size>
         <width>16777215</width>
-        <height>100</height>
+        <height>200</height>
        </size>
       </property>
       <property name="title">
-       <string>Map</string>
+       <string>Map Properties</string>
       </property>
       <property name="checkable">
        <bool>false</bool>
       </property>
       <layout class="QGridLayout" name="gridLayout">
-       <property name="margin">
+       <property name="leftMargin">
         <number>6</number>
        </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>6</number>
+       </property>
+       <property name="bottomMargin">
+        <number>6</number>
+       </property>
+       <property name="spacing">
+        <number>2</number>
+       </property>
+       <item row="2" column="1">
+        <widget class="QgsColorButton" name="btnMapCanvasColor">
+         <property name="colorDialogTitle" stdset="0">
+          <string>Select Map Canvas Background Color</string>
+         </property>
+         <property name="color" stdset="0">
+          <color>
+           <red>0</red>
+           <green>0</green>
+           <blue>0</blue>
+          </color>
+         </property>
+        </widget>
+       </item>
        <item row="1" column="0">
         <widget class="QLabel" name="label_6">
          <property name="text">
-          <string>height</string>
+          <string>Height</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
          </property>
          <property name="buddy">
           <cstring>spinBoxSubsetSizeY</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QSpinBox" name="spinBoxSubsetSizeX">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>50</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>75</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="toolTip">
-          <string>Max. length of an image chip on screen.</string>
-         </property>
-         <property name="specialValueText">
-          <string/>
-         </property>
-         <property name="suffix">
-          <string>px</string>
-         </property>
-         <property name="minimum">
-          <number>20</number>
-         </property>
-         <property name="maximum">
-          <number>1000</number>
-         </property>
-         <property name="singleStep">
-          <number>25</number>
-         </property>
-         <property name="value">
-          <number>200</number>
          </property>
         </widget>
        </item>
@@ -197,13 +149,56 @@
           </size>
          </property>
          <property name="text">
-          <string>width</string>
+          <string>Width</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
          </property>
          <property name="buddy">
           <cstring>spinBoxSubsetSizeY</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QSpinBox" name="spinBoxSubsetSizeX">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>75</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Max. length of an image chip on screen.</string>
+         </property>
+         <property name="specialValueText">
+          <string/>
+         </property>
+         <property name="suffix">
+          <string>px</string>
+         </property>
+         <property name="minimum">
+          <number>20</number>
+         </property>
+         <property name="maximum">
+          <number>1000</number>
+         </property>
+         <property name="singleStep">
+          <number>25</number>
+         </property>
+         <property name="value">
+          <number>200</number>
          </property>
         </widget>
        </item>
@@ -230,19 +225,80 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
-        <widget class="QgsColorButton" name="btnMapCanvasColor">
-         <property name="colorDialogTitle">
-          <string>Select Map Canvas Background Color</string>
+       <item row="3" column="0">
+        <widget class="QLabel" name="label_16">
+         <property name="enabled">
+          <bool>true</bool>
          </property>
-         <property name="color">
-          <color>
-           <red>0</red>
-           <green>0</green>
-           <blue>0</blue>
-          </color>
+         <property name="text">
+          <string>CRS</string>
          </property>
         </widget>
+       </item>
+       <item row="3" column="1" colspan="2">
+        <widget class="QgsProjectionSelectionWidget" name="btnCrs" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>15</width>
+           <height>25</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="gbSyncQgs">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>60</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Sync with QGIS Map on...</string>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <item>
+        <widget class="QCheckBox" name="cbSyncQgsMapCenter">
+         <property name="text">
+          <string>Center</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbSyncQgsMapExtent">
+         <property name="text">
+          <string>Exent</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbSyncQgsCRS">
+         <property name="text">
+          <string>CRS</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -258,10 +314,10 @@
       <property name="checked">
        <bool>false</bool>
       </property>
-      <property name="collapsed">
+      <property name="collapsed" stdset="0">
        <bool>false</bool>
       </property>
-      <property name="saveCheckedState">
+      <property name="saveCheckedState" stdset="0">
        <bool>true</bool>
       </property>
       <layout class="QFormLayout" name="formLayout_5">
@@ -278,6 +334,37 @@
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupBox_2">
+      <property name="title">
+       <string>Render progress</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QProgressBar" name="progressBar">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="value">
+          <number>0</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="invertedAppearance">
+          <bool>false</bool>
+         </property>
+         <property name="textDirection">
+          <enum>QProgressBar::TopToBottom</enum>
          </property>
         </widget>
        </item>
@@ -310,6 +397,12 @@
    <class>QgsCollapsibleGroupBox</class>
    <extends>QGroupBox</extends>
    <header>qgscollapsiblegroupbox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsProjectionSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsprojectionselectionwidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

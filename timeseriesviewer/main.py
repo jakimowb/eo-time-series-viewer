@@ -282,7 +282,6 @@ class TimeSeriesViewerUI(QMainWindow,
         area = Qt.LeftDockWidgetArea
 
         self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
-        self.dockNavigation = addDockWidget(docks.NavigationDockUI(self))
 
         from timeseriesviewer.labeling import LabelingDockUI
         self.dockLabeling = addDockWidget(LabelingDockUI(self))
@@ -313,7 +312,6 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockLabeling.setHidden(True)
 
         self.dockTimeSeries.raise_()
-        self.dockNavigation.raise_()
 
         self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
@@ -329,8 +327,7 @@ class TimeSeriesViewerUI(QMainWindow,
     def restoreSettings(self):
         from timeseriesviewer import SETTINGS
 
-        #set last CRS
-        self.dockNavigation.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
+        #todo: restore settings
         s = ""
 
 
@@ -412,7 +409,7 @@ class TimeSeriesViewer:
         #self.ICP = D.scrollAreaSubsetContent.layout()
         #D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         #self.BVP = self.ui.scrollAreaMapViews.layout()
-        D.dockNavigation.connectTimeSeries(self.TS)
+        #D.dockNavigation.connectTimeSeries(self.TS)
         D.dockTimeSeries.connectTimeSeries(self.TS)
         D.dockSensors.connectTimeSeries(self.TS)
         D.dockProfiles.connectTimeSeries(self.TS)
@@ -428,9 +425,6 @@ class TimeSeriesViewer:
         self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
 
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
-        D.dockNavigation.sigSetSpatialExtent.connect(self.spatialTemporalVis.setSpatialExtent)
-        self.ValidatorPxX = QIntValidator(0,99999)
-        self.ValidatorPxY = QIntValidator(0,99999)
 
         #connect actions with logic
 
@@ -470,7 +464,7 @@ class TimeSeriesViewer:
 
 
         D.dockRendering.actionSetSubsetSize.triggered.connect(lambda : self.spatialTemporalVis.setSubsetSize(
-                                                D.dockRendering.subsetSize()))
+                                                D.dockRendering.mapSize()))
         D.actionSetExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(self.ui.spatialExtent()))
 
         self.canvasCrs = QgsCoordinateReferenceSystem()
@@ -532,7 +526,7 @@ class TimeSeriesViewer:
                     self.spatialTemporalVis.createMapView()
 
                 extent = self.TS.getMaxSpatialExtent()
-                self.spatialTemporalVis.setSubsetSize(self.ui.dockRendering.subsetSize())
+                self.spatialTemporalVis.setSubsetSize(self.ui.dockRendering.mapSize())
                 self.spatialTemporalVis.setSpatialExtent(extent)
                 self.hasInitialCenterPoint = True
 
