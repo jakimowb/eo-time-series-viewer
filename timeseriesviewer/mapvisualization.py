@@ -13,6 +13,7 @@ from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
 
+
 class MapView(QObject):
 
     sigRemoveMapView = pyqtSignal(object)
@@ -635,11 +636,18 @@ class SpatialTemporalVisualization(QObject):
     sigShowProfiles = pyqtSignal(SpatialPoint)
     sigShowMapLayerInfo = pyqtSignal(dict)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigCRSChanged = pyqtSignal(QgsCoordinateReferenceSystem)
 
     def __init__(self, timeSeriesViewer):
         super(SpatialTemporalVisualization, self).__init__()
         #assert isinstance(timeSeriesViewer, TimeSeriesViewer), timeSeriesViewer
+
+        #default map settings
         self.mSpatialExtent = SpatialExtent.world()
+        self.mCRS = self.mSpatialExtent.crs()
+        self.mSize = QSize(200,200)
+        self.mColor = Qt.black
+
         self.ui = timeSeriesViewer.ui
         self.scrollArea = self.ui.scrollAreaSubsets
         self.TSV = timeSeriesViewer
@@ -724,19 +732,31 @@ class SpatialTemporalVisualization(QObject):
     def setSpatialExtent(self, extent):
         assert isinstance(extent, SpatialExtent)
         oldExtent = self.mSpatialExtent
-        self.mSpatialExtent = extent
-        if oldExtent != extent:
+        self.mSpatialExtent = extent.toCrs(self.mCRS)
+        if oldExtent != self.mSpatialExtent:
             self.sigSpatialExtentChanged.emit(extent)
+
+    def setBackgroundColor(self, color):
+        assert isinstance(color, QColor)
+        self.mColor = color
+
+    def backgroundColor(self):
+        return self.mColor
 
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
 
         #todo: check if this is possible
+        b = self.mCRS != crs
+        self.mCRS = crs
         newExt = self.mSpatialExtent.toCrs(crs)
         self.setSpatialExtent(newExt)
+        if b:
+            self.sigCRSChanged.emit(self.mCRS)
+
 
     def crs(self):
-        return self.mSpatialExtent.crs()
+        return self.mCRS
 
     def spatialExtent(self):
         return self.mSpatialExtent
