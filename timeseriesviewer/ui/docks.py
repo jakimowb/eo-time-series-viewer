@@ -1,19 +1,12 @@
-import os, time, datetime
 from qgis.core import *
-from qgis.gui import *
-from PyQt4 import uic
+from qgis.gui import QgsDockWidget
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import PyQt4.QtWebKit
-
-import sys, re, os, six
-
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
+from timeseriesviewer.main import SpatialExtent, SpatialPoint
 
-from timeseriesviewer.main import SpatialExtent
-import pyqtgraph as pg
 
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
@@ -46,6 +39,7 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         self.progress = dict()
         self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
         self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
+        self.mChangeMapSize = False
 
         self.subsetRatio = None
         self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
@@ -53,61 +47,15 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
         self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
 
-
-
-    def subsetSize(self):
-        return QSize(self.spinBoxSubsetSizeX.value(),
-                     self.spinBoxSubsetSizeY.value())
-
-    def onSubsetValueChanged(self, key):
-        if self.checkBoxKeepSubsetAspectRatio.isChecked():
-
-            if key == 'X':
-                v_old = self.lastSubsetSizeX
-                v_new = self.spinBoxSubsetSizeX.value()
-                s = self.spinBoxSubsetSizeY
-            elif key == 'Y':
-                v_old = self.lastSubsetSizeY
-                v_new = self.spinBoxSubsetSizeY.value()
-                s = self.spinBoxSubsetSizeX
-
-            oldState = s.blockSignals(True)
-            s.setValue(int(round(float(v_new) / v_old * s.value())))
-            s.blockSignals(oldState)
-
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
-
-        self.actionSetSubsetSize.activate(QAction.Trigger)
-
-
-    def addStartedWork(self, *args):
-        self.progress[args] = False
-        self.refreshProgressBar()
-
-
-    def refreshProgressBar(self):
-        self.progressBar.setMaximum(len(self.progress.keys()))
-        p = len([v for v in self.progress.values() if v == True])
-        self.progressBar.setValue(p)
-
-
-    def addFinishedWork(self, *args):
-        if args in self.progress.keys():
-            self.progress[args] = True
-
+    def onExtentDefinitionChanges(self):
+        if self.cbSyncQgsMapExtent.isChecked():
+            self.cbSyncQgsMapCenter.setEnabled(False)
+            self.cbSyncQgsMapCenter.setChecked(True)
         else:
-            s = ""
-        self.refreshProgressBar()
+            self.cbSyncQgsMapCenter.setEnabled(True)
 
-class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
-    from timeseriesviewer.timeseries import TimeSeriesDatum
+        self.sigSetSpatialExtent.emit(self.spatialExtent())
 
-    sigNavToDOI = pyqtSignal(TimeSeriesDatum)
-
-    def __init__(self, parent=None):
-        super(NavigationDockUI, self).__init__(parent)
-        self.setupUi(self)
 
         #default: disable QgsSync box
         self.gbSyncQgs.setEnabled(False)
@@ -128,14 +76,6 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
 
         self.connectTimeSeries(None)
 
-    def onExtentDefinitionChanges(self):
-        if self.cbSyncQgsMapExtent.isChecked():
-            self.cbSyncQgsMapCenter.setEnabled(False)
-            self.cbSyncQgsMapCenter.setChecked(True)
-        else:
-            self.cbSyncQgsMapCenter.setEnabled(True)
-
-        self.sigSetSpatialExtent.emit(self.spatialExtent())
 
     def connectTimeSeries(self, TS):
         self.TS = TS
@@ -163,7 +103,7 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
                 'crs':self.cbSyncQgsCRS.isChecked()}
 
 
-    sigSetCrs = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         self.btnCrs.setCrs(crs)
@@ -178,7 +118,7 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
         self.textBoxCRSInfo.setPlainText(crs.toWkt())
         self.sigSetCrs.emit(self.crs())
 
-    sigSetSpatialExtent = pyqtSignal(SpatialExtent)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def spatialExtent(self):
         crs = self.crs()
@@ -196,7 +136,6 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
 
     def setSpatialExtent(self, extent):
         old = self.spatialExtent()
-        from timeseriesviewer.main import SpatialExtent
         assert isinstance(extent, SpatialExtent)
         center = extent.center()
 
@@ -223,6 +162,56 @@ class NavigationDockUI(TsvDockWidgetBase, load('navigationdock.ui')):
             for w in widgets:
                 states[w] = w.blockSignals(block)
         return states
+
+
+    def mapSize(self):
+        return QSize(self.spinBoxSubsetSizeX.value(),
+                     self.spinBoxSubsetSizeY.value())
+
+    def onSubsetValueChanged(self, key):
+
+        #1. set size value accordingly
+        if self.checkBoxKeepSubsetAspectRatio.isChecked():
+
+            if key == 'X':
+                v_old = self.lastSubsetSizeX
+                v_new = self.spinBoxSubsetSizeX.value()
+                s = self.spinBoxSubsetSizeY
+            elif key == 'Y':
+                v_old = self.lastSubsetSizeY
+                v_new = self.spinBoxSubsetSizeY.value()
+                s = self.spinBoxSubsetSizeX
+
+            oldState = s.blockSignals(True)
+            s.setValue(int(round(float(v_new) / v_old * s.value())))
+            s.blockSignals(oldState)
+
+        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
+        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+
+        self.mChangeMapSize = True
+
+
+
+    def addStartedWork(self, *args):
+        self.progress[args] = False
+        self.refreshProgressBar()
+
+
+    def refreshProgressBar(self):
+        self.progressBar.setMaximum(len(self.progress.keys()))
+        p = len([v for v in self.progress.values() if v == True])
+        self.progressBar.setValue(p)
+
+
+    def addFinishedWork(self, *args):
+        if args in self.progress.keys():
+            self.progress[args] = True
+
+        else:
+            s = ""
+        self.refreshProgressBar()
+
 
 
 class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
