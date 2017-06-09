@@ -11,6 +11,7 @@ from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 from timeseriesviewer.ui.widgets import TsvScrollArea
 
+
 class TsvMapCanvas(QgsMapCanvas):
     from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
@@ -80,6 +81,12 @@ class TsvMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['moveCenter'] = mt
         self.refresh()
 
+    def setCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        self.setDestinationCrs(crs)
+
+    def crs(self):
+        self.mapSettings.destinationCrs()
 
     def mapLayersToRender(self, *args):
         """Returns the map layers actually to be rendered"""
@@ -209,9 +216,9 @@ class TsvMapCanvas(QgsMapCanvas):
 
 
         menu.addSeparator()
-        TSD = self.tsdView.TSD
+        TSD = self.tsdView.timeSeriesDatum
         action = menu.addAction('Hide date')
-        action.triggered.connect(lambda : self.tsdView.TSD.setVisibility(False))
+        action.triggered.connect(lambda : TSD.setVisibility(False))
         action = menu.addAction('Remove date')
         action.triggered.connect(lambda: TSD.timeSeries.removeDates([TSD]))
         action = menu.addAction('Remove map view')
@@ -313,8 +320,7 @@ class TsvMapCanvas(QgsMapCanvas):
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
             self.blockSignals(True)
-            self.setDestinationCrs(spatialExtent.crs())
-            self.setExtent(spatialExtent)
+            self.setExtent(spatialExtent.toCrs(self.crs()))
             self.blockSignals(False)
             self.refresh()
 
