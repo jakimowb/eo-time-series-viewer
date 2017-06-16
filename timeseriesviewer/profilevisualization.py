@@ -180,7 +180,6 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
                 print(('Delegate commit failed',w.asExpression()))
         if isinstance(w, PlotStyleButton):
 
-            #todo: check if it is a new plot style
             self.commitData.emit(w)
 
     def setEditorData(self, editor, index):
@@ -595,6 +594,8 @@ class PlotSettingsModel(QAbstractTableModel):
         #print(('Set data', index.row(), index.column(), value, role))
         columnName = self.columnames[index.column()]
 
+        if value is None:
+            return False
         result = False
         sw = self.getSensorFromIndex(index)
         if role in [Qt.DisplayRole, Qt.EditRole]:

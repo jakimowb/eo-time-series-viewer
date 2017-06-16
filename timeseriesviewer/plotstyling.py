@@ -36,11 +36,12 @@ PENSTYLES = [(Qt.SolidLine, '___'),
 
 class PlotStyle(QObject):
     def __init__(self, **kwds):
-
+        plotStyle = kwds.get('plotStyle')
+        if plotStyle: kwds.pop('plotStyle')
         super(PlotStyle,self).__init__(**kwds)
 
-        if 'plotStyle' in kwds.keys():
-            self.copyFrom(kwds['plotStyle'])
+        if plotStyle:
+            self.copyFrom(plotStyle)
         else:
             self.markerSymbol = MARKERSYMBOLS[0][0]
             self.markerSize = 10
@@ -231,7 +232,7 @@ class PlotStyleButton(QPushButton):
 
     def __init__(self, *args):
         super(PlotStyleButton, self).__init__(*args)
-        self.mPlotStyle = None
+        self.mPlotStyle = PlotStyle()
         self.mInitialButtonSize = None
         self.setStyleSheet('* { padding: 0px; }')
         self.clicked.connect(self.showDialog)
@@ -239,20 +240,23 @@ class PlotStyleButton(QPushButton):
 
 
     def plotStyle(self):
-        return self.mPlotStyle
+        return PlotStyle(plotStyle=self.mPlotStyle)
 
     def setPlotStyle(self, plotStyle):
         #assert isinstance(plotStyle, PlotStyle)
-        self.mPlotStyle = plotStyle
-        self._updateIcon()
-        self.sigPlotStyleChanged.emit(self.mPlotStyle)
-        pass
+        if isinstance(plotStyle, PlotStyle):
+            self.mPlotStyle = plotStyle
+            self._updateIcon()
+            self.sigPlotStyleChanged.emit(self.mPlotStyle)
+
 
     def showDialog(self):
+        print(('A',self.mPlotStyle))
         style = PlotStyleDialog.getPlotStyle(plotStyle=self.mPlotStyle)
+
         if style:
             self.setPlotStyle(style)
-
+        print(('B',self.mPlotStyle))
     def resizeEvent(self, arg):
         self._updateIcon()
 
@@ -267,6 +271,8 @@ class PlotStyleButton(QPushButton):
             #s = QSize()
             icon = self.mPlotStyle.createIcon(self.mInitialButtonSize)
             self.setIcon(icon)
+        self.update()
+
 
 
 
