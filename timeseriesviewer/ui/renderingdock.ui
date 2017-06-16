@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>283</width>
+    <width>206</width>
     <height>386</height>
    </rect>
   </property>
@@ -47,17 +47,8 @@
       <property name="checkable">
        <bool>false</bool>
       </property>
-      <layout class="QGridLayout" name="gridLayout">
-       <property name="leftMargin">
-        <number>6</number>
-       </property>
-       <property name="topMargin">
-        <number>6</number>
-       </property>
-       <property name="rightMargin">
-        <number>6</number>
-       </property>
-       <property name="bottomMargin">
+      <layout class="QGridLayout" name="gridLayout" columnstretch="0,2,0,2">
+       <property name="margin">
         <number>6</number>
        </property>
        <property name="spacing">
@@ -65,10 +56,10 @@
        </property>
        <item row="2" column="1">
         <widget class="QgsColorButton" name="btnMapCanvasColor">
-         <property name="colorDialogTitle" stdset="0">
+         <property name="colorDialogTitle">
           <string>Select Map Canvas Background Color</string>
          </property>
-         <property name="color" stdset="0">
+         <property name="color">
           <color>
            <red>0</red>
            <green>0</green>
@@ -77,31 +68,61 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_6">
-         <property name="text">
-          <string>Height</string>
+       <item row="0" column="1">
+        <widget class="QSpinBox" name="spinBoxMapSizeX">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         <property name="minimumSize">
+          <size>
+           <width>50</width>
+           <height>0</height>
+          </size>
          </property>
-         <property name="buddy">
-          <cstring>spinBoxSubsetSizeY</cstring>
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Max. length of an image chip on screen.</string>
+         </property>
+         <property name="specialValueText">
+          <string/>
+         </property>
+         <property name="suffix">
+          <string>px</string>
+         </property>
+         <property name="minimum">
+          <number>20</number>
+         </property>
+         <property name="maximum">
+          <number>1000</number>
+         </property>
+         <property name="singleStep">
+          <number>25</number>
+         </property>
+         <property name="value">
+          <number>200</number>
          </property>
         </widget>
        </item>
-       <item row="0" column="2">
-        <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
-         <property name="text">
-          <string>keep aspect ratio</string>
-         </property>
-         <property name="checked">
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_15">
+         <property name="enabled">
           <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Color</string>
          </property>
         </widget>
        </item>
        <item row="1" column="1">
-        <widget class="QSpinBox" name="spinBoxSubsetSizeY">
+        <widget class="QSpinBox" name="spinBoxMapSizeY">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -116,7 +137,7 @@
          </property>
          <property name="maximumSize">
           <size>
-           <width>75</width>
+           <width>100</width>
            <height>16777215</height>
           </size>
          </property>
@@ -155,73 +176,20 @@
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
          </property>
          <property name="buddy">
-          <cstring>spinBoxSubsetSizeY</cstring>
+          <cstring>spinBoxMapSizeY</cstring>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QSpinBox" name="spinBoxSubsetSizeX">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>50</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>75</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="toolTip">
-          <string>Max. length of an image chip on screen.</string>
-         </property>
-         <property name="specialValueText">
-          <string/>
-         </property>
-         <property name="suffix">
-          <string>px</string>
-         </property>
-         <property name="minimum">
-          <number>20</number>
-         </property>
-         <property name="maximum">
-          <number>1000</number>
-         </property>
-         <property name="singleStep">
-          <number>25</number>
-         </property>
-         <property name="value">
-          <number>200</number>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="3">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label_15">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_6">
          <property name="text">
-          <string>Color</string>
+          <string>Height</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>spinBoxMapSizeY</cstring>
          </property>
         </widget>
        </item>
@@ -235,8 +203,25 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="1" colspan="2">
-        <widget class="QgsProjectionSelectionWidget" name="btnCrs" native="true">
+       <item row="0" column="2">
+        <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
+         <property name="text">
+          <string>keep ratio</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QPushButton" name="btnApplySizeChanges">
+         <property name="text">
+          <string>Apply</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1" colspan="3">
+        <widget class="QgsProjectionSelectionWidget" name="btnCrs">
          <property name="minimumSize">
           <size>
            <width>15</width>
@@ -262,32 +247,15 @@
       <property name="flat">
        <bool>false</bool>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <property name="spacing">
-        <number>6</number>
-       </property>
-       <item>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <item row="0" column="0">
         <widget class="QCheckBox" name="cbSyncQgsMapCenter">
          <property name="text">
           <string>Center</string>
          </property>
         </widget>
        </item>
-       <item>
-        <widget class="QCheckBox" name="cbSyncQgsMapExtent">
-         <property name="text">
-          <string>Exent</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="cbSyncQgsCRS">
-         <property name="text">
-          <string>CRS</string>
-         </property>
-        </widget>
-       </item>
-       <item>
+       <item row="0" column="3">
         <spacer name="horizontalSpacer_3">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -299,6 +267,20 @@
           </size>
          </property>
         </spacer>
+       </item>
+       <item row="0" column="2">
+        <widget class="QCheckBox" name="cbSyncQgsCRS">
+         <property name="text">
+          <string>CRS</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="cbSyncQgsMapExtent">
+         <property name="text">
+          <string>Exent</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -314,17 +296,17 @@
       <property name="checked">
        <bool>false</bool>
       </property>
-      <property name="collapsed" stdset="0">
+      <property name="collapsed">
        <bool>false</bool>
       </property>
-      <property name="saveCheckedState" stdset="0">
+      <property name="saveCheckedState">
        <bool>true</bool>
       </property>
       <layout class="QFormLayout" name="formLayout_5">
        <property name="fieldGrowthPolicy">
         <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
        </property>
-       <item row="0" column="0" colspan="2">
+       <item row="0" column="1">
         <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
          <property name="enabled">
           <bool>false</bool>
@@ -400,12 +382,6 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QgsProjectionSelectionWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsprojectionselectionwidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>QgsColorButton</class>
    <extends>QPushButton</extends>
    <header>qgscolorbutton.h</header>
@@ -414,6 +390,12 @@
    <class>QgsMapLayerComboBox</class>
    <extends>QComboBox</extends>
    <header>qgsmaplayercombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsProjectionSelectionWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsprojectionselectionwidget.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

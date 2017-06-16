@@ -44,10 +44,12 @@ def sandboxGui():
 
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-    imgs = file_search(searchDir, '*.bsq', recursive=True)[0:5]
+    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:2]
 
     #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
     S.addTimeSeriesImages(imgs)
+
+    SP = SignalPrinter(S.spatialTemporalVis)
 
 
 class QgisFake(QgisInterface):
@@ -204,7 +206,7 @@ class SignalPrinter(object):
 
     def __init__(self,  objs=None):
 
-        self.objects = []
+        self.signals = dict()
         if objs:
             self.addObject(objs)
 
@@ -222,11 +224,16 @@ class SignalPrinter(object):
                 if method.methodType() == QMetaMethod.Signal:
                     sigName = str(method.signature()).split('(')[0]
                     sig = getattr(obj, sigName)
-                    sig.connect(lambda *args , **kwds : self.printSignal(sigName, *args, **kwds))
+                    if obj not in self.signals:
+                        self.signals[obj] = []
+                    self.signals[obj].append(sig)
+
+            for sig in self.signals[obj]:
+                sig.connect(lambda obj=obj, sig=sig, *args , **kwds : self.printSignal(obj, sig, *args, **kwds))
             s = ""
 
-    def printSignal(self, sigName, *args, **kwds):
-        info = '{}'.format(sigName)
+    def printSignal(self, o, sig, *args, **kwds):
+        info = '{}'.format(sig.signal[1:])
         if len(args) > 0:
             info += ' {}'.format(str(args))
         if len(kwds) > 0:

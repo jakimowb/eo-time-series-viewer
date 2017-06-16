@@ -5,7 +5,7 @@ from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.ui import loadUIFormClass, DIR_UI
-from timeseriesviewer.main import SpatialExtent, SpatialPoint
+from timeseriesviewer.main import SpatialExtent, SpatialPoint, QgisTsvBridge
 
 
 load = lambda p : loadUIFormClass(jp(DIR_UI,p))
@@ -33,92 +33,76 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     from timeseriesviewer.crosshair import CrosshairStyle
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigMapSizeChanged = pyqtSignal(QSize)
+    sigQgisSyncStateChanged = pyqtSignal(QgisTsvBridge.SyncState)
+
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
         self.setupUi(self)
         self.progress = dict()
-        self.spinBoxSubsetSizeX.valueChanged.connect(lambda: self.onSubsetValueChanged('X'))
-        self.spinBoxSubsetSizeY.valueChanged.connect(lambda: self.onSubsetValueChanged('Y'))
-        self.mChangeMapSize = False
+        self.spinBoxMapSizeX.valueChanged.connect(lambda : self.onMapSizeChanged('X'))
+        self.spinBoxMapSizeY.valueChanged.connect(lambda : self.onMapSizeChanged('Y'))
+        self.mLastMapSize = self.mapSize()
+        self.mSubsetRatio = None
+        self.mResizeStop = False
+        self.btnApplySizeChanges.setEnabled(False)
+        self.btnApplySizeChanges.clicked.connect(lambda: self.onMapSizeChanged(None))
+        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
+        self.btnCrs.crsChanged.connect(self.sigCrsChanged)
 
-        self.subsetRatio = None
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
+        #default: disable QgsSync box
+        self.enableQgisSyncronization(False)
 
-        self.subsetSizeWidgets = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
+        self.mLastSyncState = self.qgsSyncState()
+        self.cbSyncQgsMapExtent.stateChanged.connect(self.onSyncStateChanged)
+        self.cbSyncQgsMapCenter.stateChanged.connect(self.onSyncStateChanged)
+        self.cbSyncQgsCRS.stateChanged.connect(self.onSyncStateChanged)
 
-    def onExtentDefinitionChanges(self):
+    def enableQgisSyncronization(self, b):
+        self.gbSyncQgs.setEnabled(b)
+
+    def onSyncStateChanged(self, *args):
+
+        w = [self.cbSyncQgsMapCenter, self.cbSyncQgsMapExtent]
+        self._blockSignals(w, True)
         if self.cbSyncQgsMapExtent.isChecked():
             self.cbSyncQgsMapCenter.setEnabled(False)
             self.cbSyncQgsMapCenter.setChecked(True)
         else:
             self.cbSyncQgsMapCenter.setEnabled(True)
+        state = self.qgsSyncState()
+        self._blockSignals(w, False)
 
-        self.sigSetSpatialExtent.emit(self.spatialExtent())
-
-
-        #default: disable QgsSync box
-        self.gbSyncQgs.setEnabled(False)
-        self.btnCrs.crsChanged.connect(self.sigSetCrs.emit)
-        self.btnCrs.crsChanged.connect(self.onCrsUpdated)
-
-        self.syncStateWidgets = [self.cbSyncQgsMapExtent, self.cbSyncQgsMapCenter, self.cbSyncQgsCRS]
-
-        self.spatialExtentWidgets = [self.spinBoxExtentCenterX, self.spinBoxExtentCenterY,
-                                     self.spinBoxExtentWidth, self.spinBoxExtentHeight]
+        if self.mLastSyncState != state:
+            self.mLastSyncState = state
+            self.sigQgisSyncStateChanged.emit(state)
 
 
-        for sb in self.spatialExtentWidgets:
-            sb.valueChanged.connect(self.onExtentDefinitionChanges)
-        for cb in self.syncStateWidgets:
-            cb.clicked.connect(self.onExtentDefinitionChanges)
+    def setQgisSyncState(self, syncState):
+        assert isinstance(syncState, QgisTsvBridge.SyncState)
 
-
-        self.connectTimeSeries(None)
-
-
-    def connectTimeSeries(self, TS):
-        self.TS = TS
-        self.timeSeriesInitialized = False
-        if TS is not None:
-            TS.sigTimeSeriesDatesAdded.connect(self.updateFromTimeSeries)
-        self.updateFromTimeSeries()
-
-
-    def updateFromTimeSeries(self):
-        if self.TS is None or len(self.TS) == 0:
-            #reset
-            self.timeSeriesInitialized = False
-        else:
-            if not self.timeSeriesInitialized:
-                self.setSpatialExtent(self.TS.getMaxSpatialExtent(self.crs()))
-                self.timeSeriesInitialized = True
-                self.sigSetSpatialExtent.emit(self.spatialExtent())
-
-
+        self.cbSyncQgsCRS.setChecked(syncState.crs)
+        self.cbSyncQgsMapExtent.setChecked(syncState.extent)
+        self.cbSyncQgsMapCenter.setChecked(syncState.center)
 
     def qgsSyncState(self):
-        return {'center':self.cbSyncQgsMapCenter.isChecked(),
-                'extent':self.cbSyncQgsMapExtent.isChecked(),
-                'crs':self.cbSyncQgsCRS.isChecked()}
+        s = QgisTsvBridge.SyncState()
+        s.crs = self.cbSyncQgsCRS.isChecked()
+        s.extent = self.cbSyncQgsMapExtent.isChecked()
+        s.center = self.cbSyncQgsMapCenter.isChecked()
+        return s
 
 
-    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         self.btnCrs.setCrs(crs)
         self.btnCrs.setLayerCrs(crs)
-        self.onCrsUpdated(crs)
+        #self.sigCrsChanged.emit(self.crs())
 
     def crs(self):
         return self.btnCrs.crs()
-
-    def onCrsUpdated(self, crs):
-        self.gbCrs.setTitle(crs.authid())
-        self.textBoxCRSInfo.setPlainText(crs.toWkt())
-        self.sigSetCrs.emit(self.crs())
-
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def spatialExtent(self):
         crs = self.crs()
@@ -164,34 +148,47 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         return states
 
 
+    def setMapSize(self, size, blockWidgetSignals = True):
+        assert isinstance(size, QSize)
+        w = [self.spinBoxMapSizeX, self.spinBoxMapSizeY]
+
+        if blockWidgetSignals:
+            self._blockSignals(w, True)
+
+        self.spinBoxMapSizeX.setValue(size.width()),
+        self.spinBoxMapSizeY.setValue(size.height())
+        self.mLastMapSize = QSize(size)
+        if blockWidgetSignals:
+            self._blockSignals(w, False)
+
     def mapSize(self):
-        return QSize(self.spinBoxSubsetSizeX.value(),
-                     self.spinBoxSubsetSizeY.value())
+        return QSize(self.spinBoxMapSizeX.value(),
+                     self.spinBoxMapSizeY.value())
 
-    def onSubsetValueChanged(self, key):
+    def onMapSizeChanged(self, dim):
+        newSize = self.mapSize()
+        #1. set size of other dimension accordingly
+        if dim is not None:
+            if self.checkBoxKeepSubsetAspectRatio.isChecked():
+                if dim == 'X':
+                    vOld = self.mLastMapSize.width()
+                    vNew = newSize.width()
+                    targetSpinBox = self.spinBoxMapSizeY
+                elif dim == 'Y':
+                    vOld = self.mLastMapSize.height()
+                    vNew = newSize.height()
+                    targetSpinBox = self.spinBoxMapSizeX
 
-        #1. set size value accordingly
-        if self.checkBoxKeepSubsetAspectRatio.isChecked():
-
-            if key == 'X':
-                v_old = self.lastSubsetSizeX
-                v_new = self.spinBoxSubsetSizeX.value()
-                s = self.spinBoxSubsetSizeY
-            elif key == 'Y':
-                v_old = self.lastSubsetSizeY
-                v_new = self.spinBoxSubsetSizeY.value()
-                s = self.spinBoxSubsetSizeX
-
-            oldState = s.blockSignals(True)
-            s.setValue(int(round(float(v_new) / v_old * s.value())))
-            s.blockSignals(oldState)
-
-        self.lastSubsetSizeX = self.spinBoxSubsetSizeX.value()
-        self.lastSubsetSizeY = self.spinBoxSubsetSizeY.value()
-
-        self.mChangeMapSize = True
-
-
+                oldState = targetSpinBox.blockSignals(True)
+                targetSpinBox.setValue(int(round(float(vNew) / vOld * targetSpinBox.value())))
+                targetSpinBox.blockSignals(oldState)
+                newSize = self.mapSize()
+            if newSize != self.mLastMapSize:
+                self.btnApplySizeChanges.setEnabled(True)
+        else:
+            self.sigMapSizeChanged.emit(self.mapSize())
+            self.btnApplySizeChanges.setEnabled(False)
+        self.setMapSize(newSize, True)
 
     def addStartedWork(self, *args):
         self.progress[args] = False
@@ -292,5 +289,7 @@ if __name__ == '__main__':
     qgsApp = sandbox.initQgisEnvironment()
     d = RenderingDockUI()
     d.show()
+    p = sandbox.SignalPrinter(d)
+
     qgsApp.exec_()
     qgsApp.exitQgis()
