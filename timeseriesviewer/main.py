@@ -113,11 +113,31 @@ class TsvMimeDataUtils(QObject):
 
         return style
 
+
+
 class QgisTsvBridge(QObject):
     """
     Class to control interactions between TSV and a running QGIS instance
     """
     _instance = None
+
+    class SyncState(object):
+        def __init__(self):
+            self.center = False
+            self.extent = False
+            self.crs = False
+
+        def __eq__(self, other):
+            if not isinstance(other, QgisTsvBridge.SyncState):
+                return False
+            else:
+                return \
+                    self.center == other.center \
+                    and self.extent == other.extent \
+                    and self.crs == other.crs
+        def any(self):
+            return any([self.center, self.extent, self.crs])
+
 
 
     @staticmethod
@@ -161,12 +181,11 @@ class QgisTsvBridge(QObject):
     def syncTsvWithQgs(self, *args):
         if self.syncBlocked:
             return
-        syncState = self.ui.dockNavigation.qgsSyncState()
-        if any(syncState.values()):
-            self.syncBlocked = True
+        syncState = self.ui.dockRendering.qgsSyncState()
+        if syncState.any():
             self.syncBlocked = True
             QTimer.singleShot(500, lambda: self.unblock())
-            tsvExt = self.TSV.spatialTemporalVis.extent
+            tsvExt = self.TSV.spatialTemporalVis.spatialExtent()
             qgsExt = SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
             newExtent = self.newExtent(tsvExt, syncState, qgsExt)
             self.TSV.spatialTemporalVis.setSpatialExtent(newExtent)
@@ -181,11 +200,11 @@ class QgisTsvBridge(QObject):
             return
 
 
-        syncState = self.ui.dockNavigation.qgsSyncState()
-        if any(syncState.values()):
+        syncState = self.ui.dockRendering.qgsSyncState()
+        if syncState.any():
             self.syncBlocked = True
             QTimer.singleShot(500, lambda: self.unblock())
-            tsvExt = self.TSV.spatialTemporalVis.extent
+            tsvExt = self.TSV.spatialTemporalVis.spatialExtent()
             qgsExt = SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
             newExtent = self.newExtent(qgsExt, syncState, tsvExt)
             self.qgsMapCanvas.setDestinationCrs(newExtent.crs())
@@ -199,12 +218,12 @@ class QgisTsvBridge(QObject):
         self.syncBlocked = False
 
     def newExtent(self, oldExtent, syncState, newExtent):
-
-        crs = newExtent.crs() if syncState['crs'] else oldExtent.crs()
+        assert isinstance(syncState, QgisTsvBridge.SyncState)
+        crs = newExtent.crs() if syncState.crs else oldExtent.crs()
         extent = oldExtent
-        if syncState['extent']:
+        if syncState.extent:
             extent = newExtent.toCrs(crs)
-        elif syncState['center']:
+        elif syncState.center:
             import copy
             extent = copy.copy(oldExtent)
             extent.setCenter(newExtent.center(), newExtent.crs())
@@ -236,9 +255,11 @@ class QgisTsvBridge(QObject):
         self.qgsSyncStateChanged()
 
     def qgsSyncState(self):
-        return (self.cbSyncQgsMapCenter.isChecked(),
-                self.cbSyncQgsMapExtent.isChecked(),
-                self.cbSyncQgsCRS.isChecked())
+        s = QgisTsvBridge.SyncState()
+        s.center = self.cbSyncQgsMapCenter.isChecked()
+        s.extent = self.cbSyncQgsMapExtent.isChecked()
+        s.crs = self.cbSyncQgsCRS.isChecked()
+        return s
 
 
 
@@ -291,7 +312,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
         #area = Qt.RightDockWidgetArea
-
+        self.tabifyDockWidget(self.dockSensors, self.dockRendering)
 
         area = Qt.BottomDockWidgetArea
         from timeseriesviewer.mapvisualization import MapViewDockUI
@@ -336,7 +357,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer import QGIS_TSV_BRIDGE
         from timeseriesviewer.main import QgisTsvBridge
         b = isinstance(QGIS_TSV_BRIDGE, QgisTsvBridge)
-        self.dockNavigation.gbSyncQgs.setEnabled(b)
+        self.dockRendering.gbSyncQgs.setEnabled(b)
         self.dockRendering.gbQgsVectorLayer.setEnabled(b)
 
     def _blockSignals(self, widgets, block=True):
@@ -397,8 +418,8 @@ class TimeSeriesViewer:
 
         #init empty time series
         self.TS = TimeSeries()
-        self.hasInitialCenterPoint = False
-        self.TS.sigTimeSeriesDatesAdded.connect(self.datesAdded)
+        self.mSpatialMapExtentInitialized = False
+        self.TS.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
 
 
@@ -457,17 +478,13 @@ class TimeSeriesViewer:
         D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
 
-        D.actionFirstTSD.triggered.connect(lambda: self.setDOISliderValue('first'))
-        D.actionLastTSD.triggered.connect(lambda: self.setDOISliderValue('last'))
-        D.actionNextTSD.triggered.connect(lambda: self.setDOISliderValue('next'))
-        D.actionPreviousTSD.triggered.connect(lambda: self.setDOISliderValue('previous'))
 
-
-        D.dockRendering.actionSetSubsetSize.triggered.connect(lambda : self.spatialTemporalVis.setSubsetSize(
-                                                D.dockRendering.mapSize()))
-        D.actionSetExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(self.ui.spatialExtent()))
-
-        self.canvasCrs = QgsCoordinateReferenceSystem()
+        D.dockRendering.sigMapSizeChanged.connect(self.spatialTemporalVis.setSubsetSize)
+        D.dockRendering.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
+        self.spatialTemporalVis.sigCRSChanged.connect(D.dockRendering.setCrs)
+        D.dockRendering.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
+        D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
+        self.spatialTemporalVis.setSubsetSize(D.dockRendering.mapSize())
 
         if isinstance(iface,QgisInterface):
             import timeseriesviewer
@@ -494,20 +511,24 @@ class TimeSeriesViewer:
 
     def zoomTo(self, key):
         if key == 'zoomMaxExtent':
-            ext = self.TS.getMaxSpatialExtent(self.ui.dockNavigation.crs())
+            ext = self.TS.getMaxSpatialExtent(self.ui.dockRendering.crs())
         elif key == 'zoomPixelScale':
 
             extent = self.spatialTemporalVis.spatialExtent()
-            center = extent.center()
-            crs = extent.crs()
+            #calculate in web-mercator for metric distances
+            crs = self.spatialTemporalVis.crs()
+            crsWMC = QgsCoordinateReferenceSystem('EPSG:3857')
+
+            extentWMC = extent.toCrs(crsWMC)
             pxSize = max(self.TS.getPixelSizes(), key= lambda s :s.width())
-            canvasSize = self.spatialTemporalVis.subsetSize
+            canvasSize = self.spatialTemporalVis.subsetSize()
             f = 0.05
             width = f * canvasSize.width() * pxSize.width()  # width in map units
             height = f * canvasSize.height() * pxSize.height()
-
-            ext = SpatialExtent(crs, 0, 0, width, height)
-            ext.setCenter(center)
+            ext = SpatialExtent(crsWMC, 0, 0, width, height)
+            ext.setCenter(extentWMC.center())
+            #return to original CRS
+            ext = ext.toCrs(crs)
         else:
             raise NotImplementedError(key)
         self.spatialTemporalVis.setSpatialExtent(ext)
@@ -516,9 +537,9 @@ class TimeSeriesViewer:
     def icon(self):
         return TimeSeriesViewer.icon()
 
-    def onTimeSeriesChanged(self):
+    def onTimeSeriesChanged(self, *args):
 
-        if not self.hasInitialCenterPoint:
+        if not self.mSpatialMapExtentInitialized:
             if len(self.TS.data) > 0:
                 if len(self.spatialTemporalVis.MVC) == 0:
                     # add two empty band-views by default
@@ -526,14 +547,15 @@ class TimeSeriesViewer:
                     self.spatialTemporalVis.createMapView()
 
                 extent = self.TS.getMaxSpatialExtent()
-                self.spatialTemporalVis.setSubsetSize(self.ui.dockRendering.mapSize())
+
+                self.spatialTemporalVis.setCrs(extent.crs())
                 self.spatialTemporalVis.setSpatialExtent(extent)
-                self.hasInitialCenterPoint = True
+                self.mSpatialMapExtentInitialized = True
 
 
 
         if len(self.TS.data) == 0:
-            self.hasInitialCenterPoint = False
+            self.mSpatialMapExtentInitialized = False
 
 
 
@@ -578,10 +600,8 @@ class TimeSeriesViewer:
 
             P.setValue(v)
 
-    def datesAdded(self, dates):
-        assert isinstance(dates, list)
-        self.ui.dockTimeSeries.tableView_TimeSeries.resizeColumnsToContents()
-        self.onTimeSeriesChanged()
+
+
 
 
     # noinspection PyMethodMayBeStatic
