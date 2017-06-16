@@ -14,6 +14,9 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
+
+
+
 def scaledUnitString(num, infix=' ', suffix='B', div=1000):
     """
     Returns a human-readable file size string.
@@ -57,10 +60,11 @@ class SpatialPoint(QgsPoint):
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         pt = QgsPoint(self)
+
         if self.mCrs != crs:
-            trans = QgsCoordinateTransform(self.mCrs, crs)
-            pt = trans.transform(pt)
-        return SpatialPoint(crs, pt)
+            pt = saveTransform(pt, self.mCrs, crs)
+
+        return SpatialPoint(crs, pt) if pt else None
 
     def __copy__(self):
         return SpatialExtent(self.crs(), QgsRectangle(self))
@@ -78,6 +82,35 @@ def findParent(qObject, parentType, checkInstance = False):
         while parent != None and type(parent) != parentType:
             parent = parent.parent()
     return parent
+
+def saveTransform(geom, crs1, crs2):
+    assert isinstance(crs1, QgsCoordinateReferenceSystem)
+    assert isinstance(crs2, QgsCoordinateReferenceSystem)
+
+    result = None
+    if isinstance(geom, QgsRectangle):
+        if geom.isEmpty():
+            return None
+
+
+        transform = QgsCoordinateTransform(crs1, crs2);
+        try:
+            rect = transform.transformBoundingBox(geom);
+            result = SpatialExtent(crs2, rect)
+        except:
+            print('Can not transform from {} to {} on rectangle {}'.format( \
+                crs1.description(), crs2.description(), str(geom)))
+
+    elif isinstance(geom, QgsPoint):
+
+        transform = QgsCoordinateTransform(crs1, crs2);
+        try:
+            pt = transform.transformBoundingBox(geom);
+            result = SpatialPoint(crs2, pt)
+        except:
+            print('Can not transform from {} to {} on QgsPoint {}'.format( \
+                crs1.description(), crs2.description(), str(geom)))
+    return result
 
 class SpatialExtent(QgsRectangle):
     """
@@ -124,9 +157,8 @@ class SpatialExtent(QgsRectangle):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         box = QgsRectangle(self)
         if self.mCrs != crs:
-            trans = QgsCoordinateTransform(self.mCrs, crs)
-            box = trans.transformBoundingBox(box)
-        return SpatialExtent(crs, box)
+            box = saveTransform(box, self.mCrs, crs)
+        return SpatialExtent(crs, box) if box else None
 
     def __copy__(self):
         return SpatialExtent(self.crs(), QgsRectangle(self))
@@ -161,7 +193,7 @@ class SpatialExtent(QgsRectangle):
         s = ""
 
     def __eq__(self, other):
-        s = ""
+        return self.toString() == other.toString()
 
     def __sub__(self, other):
         raise NotImplementedError()
@@ -280,6 +312,7 @@ def nicePredecessor(l):
         return mul * m * 10 ** (exp-1)
     else:
         return 0.0
+
 
 if __name__ == '__main__':
     #nice predecessors

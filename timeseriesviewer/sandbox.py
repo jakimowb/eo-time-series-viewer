@@ -44,7 +44,7 @@ def sandboxGui():
 
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
     #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:2]
+    imgs = file_search(searchDir, '*.bsq', recursive=True)[0:2]
 
     #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
     S.addTimeSeriesImages(imgs)
@@ -133,6 +133,7 @@ class QgisFake(QgisInterface):
 
     def mapCanvas(self):
         return self.canvas
+
 
 def sandboxQgisBridge():
     from timeseriesviewer.main import TimeSeriesViewer

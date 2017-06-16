@@ -479,12 +479,12 @@ class TimeSeriesViewer:
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
 
 
-        D.dockRendering.sigMapSizeChanged.connect(self.spatialTemporalVis.setSubsetSize)
+        D.dockRendering.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
         D.dockRendering.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
         self.spatialTemporalVis.sigCRSChanged.connect(D.dockRendering.setCrs)
         D.dockRendering.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
-        self.spatialTemporalVis.setSubsetSize(D.dockRendering.mapSize())
+        self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
         if isinstance(iface,QgisInterface):
             import timeseriesviewer
