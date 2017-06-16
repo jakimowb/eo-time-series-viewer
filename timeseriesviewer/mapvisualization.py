@@ -531,7 +531,10 @@ class TimeSeriesDatumView(QObject):
         self.minHeight = self.ui.height()
         self.minWidth = 50
         self.renderProgress = dict()
+
+        assert isinstance(mapViewCollection.spatTempVis, SpatialTemporalVisualization)
         self.spatTempVis = mapViewCollection.spatTempVis
+
         self.timeSeriesDatum = timeSeriesDatum
         self.scrollArea = timeSeriesDateViewCollection.scrollArea
         self.Sensor = self.timeSeriesDatum.sensor
@@ -541,7 +544,6 @@ class TimeSeriesDatumView(QObject):
         self.MVC = mapViewCollection
         self.TSDVC = timeSeriesDateViewCollection
         self.mapCanvases = dict()
-        self.setSubsetSize(QSize(50, 50))
 
     def setColumnInfo(self):
 
@@ -555,38 +557,22 @@ class TimeSeriesDatumView(QObject):
         self.ui.setVisible(b)
         self.sigVisibilityChanged.emit(b)
 
-    def activateMapTool(self, key):
-        for c in self.mapCanvases.values():
-            c.activateMapTool(key)
 
     def setMapViewVisibility(self, bandView, isVisible):
         self.mapCanvases[bandView].setVisible(isVisible)
 
-    def setSpatialExtent(self, spatialExtent):
-        assert isinstance(spatialExtent, SpatialExtent)
+    def sizeHint(self):
 
-        for c in self.mapCanvases.values():
-            c.setSpatialExtent(spatialExtent)
+        if not self.ui.isVisible():
+            return QSize(0,0)
 
+        l = len(self.mapCanvases)
+        if l == 0:
+            self.ui.sizeHint()
+        else:
+            baseSize = self.mapCanvases.values()[0].size()
+            return QSize(baseSize.width(), l*baseSize.height())
 
-    def setSubsetSize(self, size):
-        assert isinstance(size, QSize)
-        assert size.width() > 5 and size.height() > 5
-        self.subsetSize = size
-
-
-        self.ui.labelTitle.setFixedWidth(size.width())
-        self.ui.line.setFixedWidth(size.width())
-
-        #apply new subset size to existing canvases
-
-        for canvas in self.mapCanvases.values():
-            canvas.setFixedSize(size)
-        self.adjustBaseMinSize()
-
-
-    def adjustBaseMinSize(self):
-        self.ui.setFixedSize(self.ui.sizeHint())
 
     def removeMapView(self, mapView):
         canvas = self.mapCanvases.pop(mapView)
@@ -608,7 +594,8 @@ class TimeSeriesDatumView(QObject):
         from timeseriesviewer.mapcanvas import TsvMapCanvas
         canvas = TsvMapCanvas(self, mapView, parent=self.ui)
 
-        canvas.setFixedSize(self.subsetSize)
+        #canvas.setFixedSize(self.spatTempVis.subsetSize())
+        #canvas.setSpatialExtent(self.spatTempVis.spatialExtent())
         canvas.renderStarting.connect(lambda : self.sigLoadingStarted.emit(mapView, self.timeSeriesDatum))
         canvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.timeSeriesDatum))
         canvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
@@ -617,7 +604,7 @@ class TimeSeriesDatumView(QObject):
         self.mapCanvases[mapView] = canvas
         self.L.insertWidget(self.wOffset + i, canvas)
         canvas.refreshMap()
-        self.adjustBaseMinSize()
+
         return canvas
 
     def __lt__(self, other):
@@ -636,7 +623,9 @@ class SpatialTemporalVisualization(QObject):
     sigShowProfiles = pyqtSignal(SpatialPoint)
     sigShowMapLayerInfo = pyqtSignal(dict)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigMapSizeChanged = pyqtSignal(QSize)
     sigCRSChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigActivateMapTool = pyqtSignal(str)
 
     def __init__(self, timeSeriesViewer):
         super(SpatialTemporalVisualization, self).__init__()
@@ -659,18 +648,18 @@ class SpatialTemporalVisualization(QObject):
 
         self.vectorOverlay = None
 
-        self.timeSeriesDateViewCollection = TimeSeriesDateViewCollection(self)
-        self.timeSeriesDateViewCollection.sigResizeRequired.connect(self.adjustScrollArea)
-        self.timeSeriesDateViewCollection.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        self.timeSeriesDateViewCollection.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        self.timeSeriesDateViewCollection.sigSpatialExtentChanged.connect(self.setSpatialExtent)
-        self.TS.sigTimeSeriesDatesAdded.connect(self.timeSeriesDateViewCollection.addDates)
-        self.TS.sigTimeSeriesDatesRemoved.connect(self.timeSeriesDateViewCollection.removeDates)
+        self.DVC = TimeSeriesDateViewCollection(self)
+        self.DVC.sigResizeRequired.connect(self.adjustScrollArea)
+        self.DVC.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        self.DVC.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
+        #self.timeSeriesDateViewCollection.sigSpatialExtentChanged.connect(self.setSpatialExtent)
+        self.TS.sigTimeSeriesDatesAdded.connect(self.DVC.addDates)
+        self.TS.sigTimeSeriesDatesRemoved.connect(self.DVC.removeDates)
         #add dates, if already existing
-        self.timeSeriesDateViewCollection.addDates(self.TS[:])
+        self.DVC.addDates(self.TS[:])
         if len(self.TS) > 0:
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
-        self.setSubsetSize(QSize(100,50))
+        #self.setSubsetSize(QSize(100,50))
 
     def setCrosshairStyle(self, crosshairStyle):
         self.MVC.setCrosshairStyle(crosshairStyle)
@@ -685,33 +674,34 @@ class SpatialTemporalVisualization(QObject):
         self.MVC.createMapView()
 
     def activateMapTool(self, key):
-        for tsdv in self.timeSeriesDateViewCollection:
-            tsdv.activateMapTool(key)
+        self.sigActivateMapTool.emit(key)
 
     def setSubsetSize(self, size):
         assert isinstance(size, QSize)
-        self.subsetSize = size
-        self.timeSeriesDateViewCollection.setSubsetSize(size)
+        self.mSize = size
+        self.sigMapSizeChanged.emit(self.mSize)
         self.adjustScrollArea()
 
+    def subsetSize(self):
+        return QSize(self.mSize)
+
     def refresh(self):
-        for tsdView in self.timeSeriesDateViewCollection:
+        for tsdView in self.DVC:
             tsdView.refresh()
 
 
     def adjustScrollArea(self):
         #adjust scroll area widget to fit all visible widgets
         m = self.targetLayout.contentsMargins()
-        n = len(self.timeSeriesDateViewCollection)
+        n = len(self.DVC)
         w = h = 0
 
         s = QSize()
         r = None
-        tmp = [v for v in self.timeSeriesDateViewCollection if not v.ui.isVisible()]
-        for TSDView in [v for v in self.timeSeriesDateViewCollection if v.ui.isVisible()]:
-            s = s + TSDView.ui.sizeHint()
+        for TSDView in [v for v in self.DVC if v.ui.isVisible()]:
+            s = s + TSDView.sizeHint()
             if r is None:
-                r = TSDView.ui.sizeHint()
+                r = TSDView.sizeHint()
         if r:
             if isinstance(self.targetLayout, QHBoxLayout):
 
@@ -731,9 +721,15 @@ class SpatialTemporalVisualization(QObject):
 
     def setSpatialExtent(self, extent):
         assert isinstance(extent, SpatialExtent)
-        oldExtent = self.mSpatialExtent
-        self.mSpatialExtent = extent.toCrs(self.mCRS)
-        if oldExtent != self.mSpatialExtent:
+
+        if extent.width() <= 0 or extent.height() <= 0:
+            return
+        if extent == self.mSpatialExtent:
+             return
+        extentT = extent.toCrs(self.mCRS)
+        if self.mSpatialExtent != extentT:
+            self.mSpatialExtent = extentT
+            print(('STV set EXTENT', extentT))
             self.sigSpatialExtentChanged.emit(extent)
 
     def setBackgroundColor(self, color):
@@ -746,12 +742,14 @@ class SpatialTemporalVisualization(QObject):
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
 
+        if not crs.isValid():
+            return
         #todo: check if this is possible
-        b = self.mCRS != crs
-        self.mCRS = crs
-        newExt = self.mSpatialExtent.toCrs(crs)
-        self.setSpatialExtent(newExt)
-        if b:
+
+
+        if self.mCRS != crs:
+            self.mCRS = crs
+            print(('STV set CRS', self.mCRS.description()))
             self.sigCRSChanged.emit(self.mCRS)
 
 
@@ -766,7 +764,7 @@ class SpatialTemporalVisualization(QObject):
     def navigateToTSD(self, TSD):
         assert isinstance(TSD, TimeSeriesDatum)
         #get widget related to TSD
-        tsdv = self.timeSeriesDateViewCollection.tsdView(TSD)
+        tsdv = self.DVC.tsdView(TSD)
         assert isinstance(self.scrollArea, QScrollArea)
         self.scrollArea.ensureWidgetVisible(tsdv.ui)
 
@@ -805,7 +803,7 @@ class TimeSeriesDateViewCollection(QObject):
         self.STViz.MVC.sigMapViewRemoved.connect(self.removeMapView)
 
         self.setFocusView(None)
-        self.setSubsetSize(QSize(50,50))
+
 
 
     def tsdView(self, tsd):
@@ -850,6 +848,7 @@ class TimeSeriesDateViewCollection(QObject):
         else:
             return self.views
 
+    """
     def setSubsetSize(self, size):
         assert isinstance(size, QSize)
         self.subsetSize = size
@@ -862,7 +861,7 @@ class TimeSeriesDateViewCollection(QObject):
 
         for tsdView in self.orderedViews():
             tsdView.blockSignals(False)
-
+    """
 
 
     def addDates(self, tsdList):
@@ -874,9 +873,7 @@ class TimeSeriesDateViewCollection(QObject):
         for tsd in tsdList:
             assert isinstance(tsd, TimeSeriesDatum)
             tsdView = TimeSeriesDatumView(tsd, self, self.STViz.MVC, parent=self.ui)
-            tsdView.setSubsetSize(self.subsetSize)
-
-
+            #tsdView.setSubsetSize(self.subsetSize)
             tsdView.sigLoadingStarted.connect(self.sigLoadingStarted.emit)
             tsdView.sigLoadingFinished.connect(self.sigLoadingFinished.emit)
             tsdView.sigVisibilityChanged.connect(lambda: self.STViz.adjustScrollArea())

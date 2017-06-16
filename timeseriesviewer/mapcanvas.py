@@ -16,7 +16,7 @@ class TsvMapCanvas(QgsMapCanvas):
     from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint)
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    #sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
     def __init__(self, tsdView, mapView, parent=None):
         super(TsvMapCanvas, self).__init__(parent=parent)
@@ -30,20 +30,33 @@ class TsvMapCanvas(QgsMapCanvas):
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-        self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+
+        self.mBlockExtentsChangedSignal = False
 
         self.scrollArea = tsdView.scrollArea
         assert isinstance(self.scrollArea, TsvScrollArea)
         self.scrollArea.sigResized.connect(self.setRenderMe)
         self.scrollArea.horizontalScrollBar().valueChanged.connect(self.setRenderMe)
 
+
+
         self.tsdView = tsdView
+        self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
+
         self.mapView = mapView
         self.spatTempVis = mapView.spatTempVis
         assert isinstance(self.spatTempVis, SpatialTemporalVisualization)
-
+        self.setCrs(self.spatTempVis.crs())
+        self.setSpatialExtent(self.spatTempVis.spatialExtent())
+        #connect signals
+        self.setFixedSize(self.spatTempVis.subsetSize())
+        self.setSpatialExtent(self.spatTempVis.spatialExtent())
+        self.spatTempVis.sigCRSChanged.connect(self.setCrs)
         self.spatTempVis.sigSpatialExtentChanged.connect(self.setSpatialExtent)
-        self.sigSpatialExtentChanged.connect(self.spatTempVis.setSpatialExtent)
+        self.spatTempVis.sigMapSizeChanged.connect(self.setFixedSize)
+        self.spatTempVis.sigActivateMapTool.connect(self.activateMapTool)
+        self.extentsChanged.connect(self.onExtentsChanged)
+        #self.sigSpatialExtentChanged.connect(self.spatTempVis.setSpatialExtent)
 
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
         self.crosshairItem = CrosshairMapCanvasItem(self)
@@ -61,7 +74,7 @@ class TsvMapCanvas(QgsMapCanvas):
         self.mapView.sigMapViewVisibility.connect(self.refresh)
         self.mapView.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
         self.mapView.sigShowCrosshair.connect(self.setShowCrosshair)
-        self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
+
 
         self.sensorView.sigSensorRendererChanged.connect(self.setRenderer)
         self.setRenderer(self.sensorView.layerRenderer())
@@ -81,12 +94,28 @@ class TsvMapCanvas(QgsMapCanvas):
         self.MAPTOOLS['moveCenter'] = mt
         self.refresh()
 
+    def setFixedSize(self, size):
+        assert isinstance(size, QSize)
+        if self.size() != size:
+            super(TsvMapCanvas, self).setFixedSize(size)
+
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
-        self.setDestinationCrs(crs)
+        if self.crs() != crs:
+            print('Set MapCanvas CRS to {}'.format(crs.description()))
+            self.mBlockExtentsChangedSignal = True
+            self.setDestinationCrs(crs)
+            self.mBlockExtentsChangedSignal = False
 
     def crs(self):
-        self.mapSettings.destinationCrs()
+        return self.mapSettings().destinationCrs()
+
+    def onExtentsChanged(self, *args):
+        if not self.mBlockExtentsChangedSignal:
+            self.mBlockExtentsChangedSignal = True
+            print('set STV extent')
+            self.spatTempVis.setSpatialExtent(self.spatialExtent())
+            self.mBlockExtentsChangedSignal = False
 
     def mapLayersToRender(self, *args):
         """Returns the map layers actually to be rendered"""
@@ -257,7 +286,7 @@ class TsvMapCanvas(QgsMapCanvas):
                     newRenderer.setGreenContrastEnhancement(getCE(r.greenBand(), r.greenContrastEnhancement()))
                     newRenderer.setBlueContrastEnhancement(getCE(r.blueBand(), r.blueContrastEnhancement()))
 
-                    results[self.tsdView.TSD.sensor] = newRenderer
+                    results[self.tsdView.timeSeriesDatum.sensor] = newRenderer
                 elif isinstance(r, QgsSingleBandPseudoColorRenderer):
                     newRenderer = r.clone()
                     stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
@@ -318,11 +347,16 @@ class TsvMapCanvas(QgsMapCanvas):
 
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
-        if self.spatialExtent() != spatialExtent:
+        if not self.mBlockExtentsChangedSignal and self.spatialExtent() != spatialExtent:
+
+            spatialExtent = spatialExtent.toCrs(self.crs())
+            print('MapCanvas {} set Spatial extent'.format(self.tsdView.timeSeriesDatum.date, spatialExtent))
             self.blockSignals(True)
-            self.setExtent(spatialExtent.toCrs(self.crs()))
+            self.setExtent(spatialExtent)
             self.blockSignals(False)
             self.refresh()
+        else:
+            s =""
 
 
     def spatialExtent(self):
@@ -406,40 +440,6 @@ if __name__ == '__main__':
     qgsApp = sandbox.initQgisEnvironment()
 
 
-
-    import example.Images
-    lyr1 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
-    lyr2 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
-    lyr3 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
-
-    QgsMapLayerRegistry.instance().addMapLayers([lyr1, lyr2, lyr3])
-
-    w = QWidget()
-    l = QHBoxLayout()
-    canvas1 = QgsMapCanvas()
-    canvas1.setWindowTitle('Canvas1')
-    canvas1.setLayerSet([QgsMapCanvasLayer(lyr1)])
-    canvas1.setExtent(lyr1.extent())
-    canvas2 = QgsMapCanvas()
-    canvas2.setWindowTitle('Canvas2')
-    canvas2.setLayerSet([QgsMapCanvasLayer(lyr2)])
-    canvas2.setExtent(lyr2.extent())
-    canvas3 = QgsMapCanvas()
-    canvas3.setWindowTitle('Canvas3')
-    #canvas3.setLayerSet([QgsMapCanvasLayer(lyr3)])
-    #canvas3.setExtent(lyr3.extent())
-
-    item = CanvasBoundingBoxItem(canvas1)
-    item.setShowTitles(True)
-    item.connectCanvas(canvas2)
-    item.connectCanvas(canvas3)
-
-    l.addWidget(canvas1)
-    l.addWidget(canvas2)
-    l.addWidget(canvas3)
-    w.setLayout(l)
-
-    w.show()
 
     qgsApp.exec_()
     qgsApp.exitQgis()
