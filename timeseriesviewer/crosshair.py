@@ -203,12 +203,11 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                     font = painter.font()
                     ptLabel = QPointF(pt.x(), pt.y() + (ml + font.pointSize() + 3))
 
-                    distUnit = self.canvas.mapUnits()
+                    distUnit = self.canvas.mapSettings().destinationCrs().mapUnits()
                     unitString = str(QgsUnitTypes.encodeUnit(distUnit))
 
                     if unitString == 'meters':
                         from timeseriesviewer.utils import scaledUnitString
-
                         labelText = scaledUnitString(pred, suffix='m')
                     else:
                         labelText = '{}{}'.format(pred, unitString)
