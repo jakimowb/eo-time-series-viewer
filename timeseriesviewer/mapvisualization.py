@@ -12,7 +12,7 @@ from timeseriesviewer.main import TimeSeriesViewer
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
-
+from timeseriesviewer.mapcanvas import MapCanvas
 
 
 class MapView(QObject):
@@ -38,7 +38,7 @@ class MapView(QObject):
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
-        self.mMapCanvases = []
+        self.mMapCanvases = dict()
         self.setVisibility(True)
 
         self.vectorLayer = None
@@ -123,16 +123,19 @@ class MapView(QObject):
 
         #set basic settings
         sensorView = self.sensorViews[sensor]
+        assert isinstance(sensorView, MapViewSensorSettings)
+        sensorView.registerMapCanvas(mapCanvas)
+
+        #register signals sensor specific signals
         mapCanvas.setRenderer(sensorView.layerRenderer())
 
-        #register signals
-        sensorView.sigSensorRendererChanged.connect(mapCanvas.setRenderer)
+        #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
         self.sigCrosshairStyleChanged.connect(mapCanvas.setCrosshairStyle)
         self.sigShowCrosshair.connect(mapCanvas.setShowCrosshair)
         self.sigVectorLayerChanged.connect(mapCanvas.refresh)
         self.sigVectorVisibility.connect(mapCanvas.refresh)
-        self.mMapCanvases.append(mapCanvas)
+
 
 
 
@@ -195,7 +198,7 @@ class MapViewSensorSettings(QObject):
     Describes the rendering of images of one Sensor
     """
 
-    sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
+    #sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
@@ -208,7 +211,7 @@ class MapViewSensorSettings(QObject):
         self.ui.create()
         self.sensor.sigNameChanged.connect(self.onSensorNameChanged)
         self.onSensorNameChanged(self.sensor.name())
-
+        self.mMapCanvases = []
         self.ui.bandNames = sensor.bandNames
 
         self.multiBandMinValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
@@ -311,7 +314,7 @@ class MapViewSensorSettings(QObject):
         self.ui.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
 
 
-        self.ui.actionApplyStyle.triggered.connect(lambda : self.sigSensorRendererChanged.emit(self.layerRenderer()))
+        self.ui.actionApplyStyle.triggered.connect(self.applyStyle)
         self.ui.actionCopyStyle.triggered.connect(lambda : QApplication.clipboard().setMimeData(self.mimeDataStyle()))
         self.ui.actionPasteStyle.triggered.connect(lambda : self.pasteStyleFromClipboard())
 
@@ -342,6 +345,13 @@ class MapViewSensorSettings(QObject):
         QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
         self.onClipboardChange()
 
+    def registerMapCanvas(self, mapCanvas):
+
+        assert isinstance(mapCanvas, MapCanvas)
+        self.mMapCanvases.append(mapCanvas)
+        mapCanvas.sigChangeSVRequest.connect(self.onMapCanvasRendererChangeRequest)
+
+
     def onSensorNameChanged(self, newName):
         self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
         self.ui.labelTitle.setText(self.sensor.name())
@@ -354,13 +364,19 @@ class MapViewSensorSettings(QObject):
             if renderer is not None:
                 self.setLayerRenderer(renderer)
 
-    def applyStyle(self):
-        self.sigSensorRendererChanged.emit(self.layerRenderer())
+    def applyStyle(self, *args):
+        #self.sigSensorRendererChanged.emit(self.layerRenderer())
+        r = self.layerRenderer()
+        for mapCanvas in self.mMapCanvases:
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.setRenderer(r)
 
     def onClipboardChange(self):
         utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
         self.ui.btnPasteStyle.setEnabled(utils.hasRasterStyle())
 
+    def onMapCanvasRendererChangeRequest(self, mapCanvas, renderer):
+        self.setLayerRenderer(renderer)
 
     def setBandSelection(self, key):
 
@@ -407,7 +423,8 @@ class MapViewSensorSettings(QObject):
         self.ui.labelSummary.setText(text)
 
         if MapViewSensorSettings.SignalizeImmediately:
-            self.sigSensorRendererChanged.emit(self.layerRenderer())
+            #self.sigSensorRendererChanged.emit(self.layerRenderer())
+            self.applyStyle()
 
     def setLayerRenderer(self, renderer):
         ui = self.ui
@@ -426,13 +443,19 @@ class MapViewSensorSettings(QObject):
             for s in self.multiBandSliders:
                 s.blockSignals(False)
 
+
             ceRed = renderer.redContrastEnhancement()
             ceGreen = renderer.greenContrastEnhancement()
             ceBlue = renderer.blueContrastEnhancement()
 
+            if ceRed is None:
+                ceRed = ceGreen = ceBlue = QgsContrastEnhancement(self.sensor.bandDataType)
+                s = ""
             for i, ce in enumerate([ceRed, ceGreen, ceBlue]):
-                self.multiBandMinValues[i].setText(str(ce.minimumValue()))
-                self.multiBandMaxValues[i].setText(str(ce.maximumValue()))
+                vMin = ce.minimumValue()
+                vMax = ce.maximumValue()
+                self.multiBandMinValues[i].setText(str(vMin))
+                self.multiBandMaxValues[i].setText(str(vMax))
 
             idx = self.ceAlgs.values().index(ceRed.contrastEnhancementAlgorithm())
             ui.comboBoxContrastEnhancement.setCurrentIndex(idx)
@@ -456,7 +479,8 @@ class MapViewSensorSettings(QObject):
 
         self.updateUi()
         if updated and MapViewSensorSettings.SignalizeImmediately:
-            self.sigSensorRendererChanged.emit(renderer.clone())
+            #self.sigSensorRendererChanged.emit(renderer.clone())
+            self.applyStyle()
 
     def mimeDataStyle(self):
         r = self.layerRenderer()

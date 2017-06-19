@@ -8,8 +8,6 @@ from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from timeseriesviewer import SETTINGS
-from timeseriesviewer.timeseries import TimeSeriesDatum
-from mapvisualization import MapView
 from timeseriesviewer.utils import *
 from timeseriesviewer.ui.widgets import TsvScrollArea
 
@@ -234,7 +232,7 @@ class MapCanvas(QgsMapCanvas):
     def stretchToCurrentExtent(self):
 
         se = self.spatialExtent()
-
+        ceAlg = QgsContrastEnhancement.StretchToMinimumMaximum
         for l in self.layers():
             if isinstance(l, QgsRasterLayer):
                 r = l.renderer()
@@ -248,7 +246,10 @@ class MapCanvas(QgsMapCanvas):
 
                     def getCE(band, ce):
                         stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
-                        ce = QgsContrastEnhancement(ce)
+                        if stats.maximumValue is None:
+                            s = ""
+                        ce = QgsContrastEnhancement(dp.dataType(band))
+                        ce.setContrastEnhancementAlgorithm(ceAlg)
                         ce.setMinimumValue(stats.minimumValue)
                         ce.setMaximumValue(stats.maximumValue)
                         return ce
@@ -288,6 +289,8 @@ class MapCanvas(QgsMapCanvas):
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
+
+
 
 
     def setRenderer(self, renderer):
