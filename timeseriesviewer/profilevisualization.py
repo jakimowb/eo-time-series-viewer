@@ -658,6 +658,12 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
         super(ProfileViewDockUI, self).__init__(parent)
         self.setupUi(self)
         from timeseriesviewer import OPENGL_AVAILABLE, SETTINGS
+
+        #TBD.
+        self.line.setVisible(False)
+        self.listWidget.setVisible(False)
+        self.stackedWidget.setCurrentWidget(self.page2D)
+
         if OPENGL_AVAILABLE:
             l = self.page3D.layout()
             l.removeWidget(self.labelDummy3D)
@@ -666,7 +672,6 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
             l.addWidget(self.plotWidget3D)
         else:
             self.plotWidget3D = None
-
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -948,7 +953,7 @@ class SpectralTemporalVisualization(QObject):
 
 
 
-def testPixelLoader():
+def examplePixelLoader():
 
     # prepare QGIS environment
     if sys.platform == 'darwin':
