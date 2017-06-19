@@ -239,7 +239,6 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
                 msg += ', {} to {}'.format(str(self.TS[0].date), str(self.TS[-1].date))
             self.progressInfo.setText(msg)
 
-
     def setProgressInfo(self, nDone, nMax, message=None):
         if self.progressBar.maximum() != nMax:
             self.progressBar.setMaximum(nMax)
@@ -249,12 +248,8 @@ class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
         if nDone == nMax:
             QTimer.singleShot(3000, lambda: self.setStatus())
 
-
     def onSelectionChanged(self, *args):
         self.btnRemoveTSD.setEnabled(self.SM is not None and len(self.SM.selectedRows()) > 0)
-
-
-        s = ""
 
     def selectedTimeSeriesDates(self):
         if self.SM is not None:
