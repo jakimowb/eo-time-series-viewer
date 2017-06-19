@@ -243,11 +243,12 @@ class PlotStyleButton(QPushButton):
         return PlotStyle(plotStyle=self.mPlotStyle)
 
     def setPlotStyle(self, plotStyle):
-        #assert isinstance(plotStyle, PlotStyle)
         if isinstance(plotStyle, PlotStyle):
-            self.mPlotStyle = plotStyle
+            self.mPlotStyle.copyFrom(plotStyle)
             self._updateIcon()
             self.sigPlotStyleChanged.emit(self.mPlotStyle)
+        else:
+            s = ""
 
 
     def showDialog(self):
@@ -307,6 +308,8 @@ class PlotStyleDialog(QgsDialog):
         buttonBar = QHBoxLayout()
         #buttonBar.addWidget(self.btCancel)
         #buttonBar.addWidget(self.btOk)
+        if plotStyle:
+            self.setPlotStyle(plotStyle)
         l = self.layout()
         l.addWidget(self.w)
         l.addLayout(buttonBar)
