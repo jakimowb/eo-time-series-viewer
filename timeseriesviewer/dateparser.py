@@ -23,23 +23,37 @@ def matchOrNone(regex, text):
     else:
         return None
 
-def extractDateTimeGroup(regex, text):
-
-    match = regex.search(text)
-    if match is not None:
+def extractDateTimeGroup(text):
+    match = regISODate.search(text)
+    if match:
         return np.datetime64(match.group())
-    else:
-        return None
 
+    match = regYYYYMMDD.search(text)
+    if match:
+        return datetime64FromYYYYMMDD(match.group())
 
-def getDateTime64FromYYYYDOY(yyyydoy):
-    return getDatetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
+    match = regYYYYDOY.search(text)
+    if match:
+        return datetime64FromYYYYDOY(match.group())
 
-def getDOYfromDatetime64(dt):
+    match = regYYYYMM.search(text)
+    if match:
+        return np.datetime64(match.group())
+
+    return None
+
+def datetime64FromYYYYMMDD(yyyymmdd):
+
+    return np.datetime64('{}-{}-{}'.format(yyyymmdd[0:4],yyyymmdd[4:6],yyyymmdd[6:8]))
+
+def datetime64FromYYYYDOY(yyyydoy):
+    return datetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
+
+def DOYfromDatetime64(dt):
 
     return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int)+1
 
-def getDatetime64FromDOY(year, doy):
+def datetime64FromDOY(year, doy):
         if type(year) is str:
             year = int(year)
         if type(doy) is str:
@@ -87,12 +101,12 @@ class ImageDateReaderDefault(ImageDateReader):
 
         # search for ISO date in basename
         # search in basename
-        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
-            dtg = extractDateTimeGroup(reg, self.baseName)
-            if dtg: return dtg
-        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
-            dtg = extractDateTimeGroup(reg, self.dirName)
-            if dtg: return dtg
+        dtg = extractDateTimeGroup(self.baseName)
+        if dtg:
+            return dtg
+        dtg = extractDateTimeGroup(self.dirName)
+        if dtg:
+            return dtg
         return None
 
 class ImageDateReaderPLEIADES(ImageDateReader):
@@ -140,7 +154,7 @@ class ImageDateParserLandsat(ImageDateReader):
         #search for LandsatSceneID (old) and Landsat Product IDs (new)
         sceneID = matchOrNone(ImageDateParserLandsat.regLandsatSceneID, self.baseName)
         if sceneID:
-            return getDateTime64FromYYYYDOY(sceneID[9:16])
+            return datetime64FromYYYYDOY(sceneID[9:16])
 
         productID = matchOrNone(ImageDateParserLandsat.regLandsatProductID, self.baseName)
         if productID:
@@ -166,4 +180,6 @@ if __name__ == '__main__':
     p = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LE71720342015009SG100\LE71720342015009SG100_sr.tif'
     p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-07_LE72270652012098EDC00_BOA.bsq'
     ds = gdal.Open(p)
+
+    print(datetime64FromYYYYMMDD('20141212'))
     print(parseDateFromDataSet(ds))
