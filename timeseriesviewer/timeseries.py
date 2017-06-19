@@ -190,12 +190,19 @@ def verifyInputImage(path, vrtInspection=''):
     if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
         logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
         return False
+
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
         nextFiles = set(ds.GetFileList()) - set([path])
         validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in nextFiles]
         if not all(validSrc):
             return False
+
+    from timeseriesviewer.dateparser import parseDateFromDataSet
+    date = parseDateFromDataSet(ds)
+    if date is None:
+        return False
+
     return True
 
 def pixel2coord(gt, x, y):
@@ -249,8 +256,8 @@ class TimeSeriesDatum(QObject):
 
         self.date = parseDateFromDataSet(ds)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
-        from timeseriesviewer.dateparser import getDOYfromDatetime64
-        self.doy = getDOYfromDatetime64(self.date)
+        from timeseriesviewer.dateparser import DOYfromDatetime64
+        self.doy = DOYfromDatetime64(self.date)
 
 
         gt = ds.GetGeoTransform()

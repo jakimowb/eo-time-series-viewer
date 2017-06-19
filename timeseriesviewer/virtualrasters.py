@@ -5,9 +5,6 @@ from timeseriesviewer import file_search
 
 
 def createVirtualBandMosaic(bandFiles, pathVRT):
-
-
-
     drv = gdal.GetDriverByName('VRT')
 
     refPath = bandFiles[0]
@@ -25,9 +22,7 @@ def createVirtualBandMosaic(bandFiles, pathVRT):
     vrtDS.FlushCache()
 
     assert vrtDS.RasterCount == nb
-
     return vrtDS
-
 
 def createVirtualBandStack(bandFiles, pathVRT):
 
@@ -53,6 +48,7 @@ def createVirtualBandStack(bandFiles, pathVRT):
     for i in range(nb):
         band = vrtDS.GetRasterBand(i+1)
         band.SetDescription(bandFiles[i])
+        band.ComputeBandStats()
 
         if noData:
             band.SetNoDataValue(noData)
@@ -87,9 +83,6 @@ def groupRapidEyeTiles(dirIn, dirOut):
     for date, files in sources.items():
         pathVRT = os.path.join(dirOut, 're_{}.vrt'.format(date))
         createVirtualBandMosaic(files, pathVRT)
-
-
-    pass
 
 def groupCBERS(dirIn, dirOut):
     files = file_search(dirIn, 'CBERS*.tif', recursive=True)
@@ -126,7 +119,7 @@ def groupLandsat(dirIn, dirOut):
 
 if __name__ == '__main__':
 
-    if False:
+    if True:
         dirIn = r'H:\CBERS\hugo\Download20170523'
         dirOut = r'H:\CBERS\VRTs'
         groupCBERS(dirIn, dirOut)

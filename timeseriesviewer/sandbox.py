@@ -284,6 +284,26 @@ def sandboxTestdata():
 
     S.addTimeSeriesImages(imgs)
 
+def sandboxCBERS():
+    from timeseriesviewer.main import TimeSeriesViewer
+
+    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
+    S = TimeSeriesViewer(None)
+    S.ui.show()
+    S.run()
+
+    S.spatialTemporalVis.MVC.createMapView()
+    import example.Images
+
+
+    searchDir = r'H:\CBERS\VRTs'
+    imgs = file_search(searchDir, 'CBERS*.vrt', recursive=True)#[0:1]
+    S.addTimeSeriesImages(imgs)
+
+    searchDir = r'H:\RapidEye\VRTs'
+    imgs = file_search(searchDir, '*.vrt', recursive=True)  # [0:1]
+    S.addTimeSeriesImages(imgs)
+
 
 if __name__ == '__main__':
     import site, sys, pyqtgraph
@@ -294,8 +314,10 @@ if __name__ == '__main__':
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if True: sandboxGui()
+    if False: sandboxGui()
     if False: sandboxTestdata()
+    if True: sandboxCBERS()
+
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
