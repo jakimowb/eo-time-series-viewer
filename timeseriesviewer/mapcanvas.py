@@ -153,6 +153,9 @@ class MapCanvas(QgsMapCanvas):
         if oldFlag != newFlag:
             self.setRenderFlag(newFlag)
 
+    def layerPaths(self):
+        return [str(l.source()) for l in self.layers()]
+
     def pixmap(self):
         """
         Returns the current map image as pixmap
@@ -193,7 +196,7 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('Map to Clipboard')
         action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
         action = m.addAction('Image Path')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(self.tsdView.TSD.pathImg))
+        action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(self.layerPaths())))
         action = m.addAction('Image Style')
         #action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.tsdView.TSD.pathImg))
 

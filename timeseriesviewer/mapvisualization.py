@@ -835,7 +835,6 @@ class SpatialTemporalVisualization(QObject):
         self.mBlockCanvasSignals = True
         self.mSpatialExtent = extent
         for mapCanvas in self.mMapCanvases:
-            print('STV set EXTENT', str(mapCanvas))
             if mapCanvas != mapCanvas0:
                 oldState = mapCanvas.blockSignals(True)
                 mapCanvas.setExtent(extent)
