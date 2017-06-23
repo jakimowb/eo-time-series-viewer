@@ -11,9 +11,10 @@ from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 from timeseriesviewer.ui.widgets import TsvScrollArea
 
-
-
 class MapCanvas(QgsMapCanvas):
+
+
+
     from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint)
@@ -32,6 +33,7 @@ class MapCanvas(QgsMapCanvas):
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
+        #refreshTimer.timeout.connect(self.onTimerRefresh)
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
 
@@ -49,7 +51,7 @@ class MapCanvas(QgsMapCanvas):
 
 
 
-        self.renderMe = False
+        self.mDataRefreshRequired = False
 
 
 
@@ -76,7 +78,7 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         if self.crs() != crs:
             self.setDestinationCrs(crs)
-
+            self.mDataRefreshRequired = True
     def crs(self):
         return self.mapSettings().destinationCrs()
 
@@ -120,16 +122,22 @@ class MapCanvas(QgsMapCanvas):
 
     def setLayers(self, mapLayers):
         reg = QgsMapLayerRegistry.instance()
-        for l in mapLayers:
-            reg.addMapLayer(l, False)
+        reg.addMapLayers(mapLayers, False)
+
         self.mLayers = mapLayers[:]
+        self.mDataRefreshRequired = True
         super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
-        s = ""
+
+        #self.refresh()
+
     def refresh(self):
-        self.setLayers(self.mapLayersToRender())
-        self.setRenderMe()
-        super(MapCanvas, self).refresh()
-        self.refreshAllLayers()
+        #low-level, only performed if MapCanvas is visible
+        self.checkRenderFlag()
+        if self.renderFlag():
+            print('REFRESH {}'.format(self.objectName()))
+            self.setLayers(self.mapLayersToRender())
+            #super(MapCanvas, self).refresh()
+            self.refreshAllLayers()
 
 
     def setCrosshairStyle(self,crosshairStyle):
@@ -144,14 +152,18 @@ class MapCanvas(QgsMapCanvas):
     def setShowCrosshair(self,b):
         self.crosshairItem.setShow(b)
 
-    def setRenderMe(self):
-        oldFlag = self.renderFlag()
+    def onTimerRefresh(self):
+        self.checkRenderFlag()
+        self.refresh()
 
-        newFlag = self.visibleRegion().boundingRect().isValid() \
+    def checkRenderFlag(self):
+        isVisible = self.visibleRegion().boundingRect().isValid() \
                   and self.isVisible()
-                  #and self.tsdView.timeSeriesDatum.isVisible()
-        if oldFlag != newFlag:
-            self.setRenderFlag(newFlag)
+        if not isVisible:
+            self.setRenderFlag(False)
+        else:
+            isRequired = self.renderFlag() or self.mDataRefreshRequired and not self.signalsBlocked()
+            self.setRenderFlag(isRequired)
 
     def layerPaths(self):
         return [str(l.source()) for l in self.layers()]
@@ -282,7 +294,8 @@ class MapCanvas(QgsMapCanvas):
         elif key in self.mMapTools.keys():
             super(MapCanvas, self).setMapTool(self.mMapTools[key])
         else:
-            logger.error('unknown map tool key "{}"'.format(key))
+            s = ""
+            #logger.error('unknown map tool key "{}"'.format(key))
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
@@ -324,8 +337,7 @@ class MapCanvas(QgsMapCanvas):
             for lyr in lyrs:
                 lyr.setRenderer(renderer)
 
-        if not self.signalsBlocked():
-            self.refresh()
+        self.refresh()
 
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
@@ -333,9 +345,7 @@ class MapCanvas(QgsMapCanvas):
             spatialExtent = spatialExtent.toCrs(self.crs())
             if spatialExtent:
                 self.setExtent(spatialExtent)
-
-            if not self.signalsBlocked():
-                self.refresh()
+                self.mDataRefreshRequired = True
 
 
     def spatialExtent(self):
