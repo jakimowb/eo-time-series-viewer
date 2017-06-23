@@ -36,6 +36,7 @@ class VirtualRasterBuilder(object):
 
     def __init__(self):
         self.vBands = []
+        self.vMetadata = dict()
 
     def addVirtualBand(self, virtualBand):
         assert isinstance(virtualBand, VirtualBand)
@@ -65,16 +66,16 @@ class VirtualRasterBuilder(object):
             os.mkdir(dn)
 
         srcFiles = self.sourceFiles()
-        srcNodata = []
+        srcNodata = None
         for src in srcFiles:
             ds = gdal.Open(src)
             band = ds.GetRasterBand(1)
             noData = band.GetNoDataValue()
-            if noData:
-                srcNodata.append(noData)
-        if len(srcNodata) == 0:
-            srcNodata = None
-        vro = gdal.BuildVRTOptions(separate=True, srcNodata=srcNodata)
+            if noData and srcNodata is None:
+                srcNodata = noData
+
+        vro = gdal.BuildVRTOptions(separate=True,
+                                   srcNodata=srcNodata)
         #1. build a temporary VRT that described the spatial shifts of all input sources
         gdal.BuildVRT(pathVRT, srcFiles, options=vro)
         dsVRTDst = gdal.Open(pathVRT)
@@ -99,7 +100,7 @@ class VirtualRasterBuilder(object):
         #2. build final VRT from scratch
         drvVRT = gdal.GetDriverByName('VRT')
         assert isinstance(drvVRT, gdal.Driver)
-        dsVRTDst = drvVRT.Create(pathVRT, ns, nl, eType=eType)
+        dsVRTDst = drvVRT.Create(pathVRT, ns, nl,0, eType=eType)
         #2.1. set general properties
         assert isinstance(dsVRTDst, gdal.Dataset)
         dsVRTDst.SetProjection(crs)
@@ -121,7 +122,7 @@ class VirtualRasterBuilder(object):
                 xml = re.sub('<SourceBand>1</SourceBand>','<SourceBand>{}</SourceBand>'.format(bandIndex+1), xml)
                 md['source_{}'.format(iSrc)] = xml
             vrtBandDst.SetMetadata(md,'vrt_sources')
-            if True:
+            if False:
                 vrtBandDst.ComputeBandStats(1)
 
 
@@ -131,8 +132,7 @@ class VirtualRasterBuilder(object):
         dsCheck = gdal.Open(pathVRT)
 
         s = ""
-
-        pass
+        return dsCheck
 
     def __repr__(self):
 

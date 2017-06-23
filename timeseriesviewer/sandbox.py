@@ -280,11 +280,11 @@ def sandboxTestdata():
     S.spatialTemporalVis.MVC.createMapView()
     import example.Images
     searchDir = jp(DIR_EXAMPLES, 'Images')
-    imgs = file_search(searchDir, '*.bsq', recursive=True)  # [0:5]
+    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:1]  # [0:5]
 
     S.addTimeSeriesImages(imgs)
 
-def sandboxCBERS():
+def sandboxMultitemp2017():
     from timeseriesviewer.main import TimeSeriesViewer
 
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
@@ -295,14 +295,19 @@ def sandboxCBERS():
     S.spatialTemporalVis.MVC.createMapView()
     import example.Images
 
+    if True:
+        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\Landsat'
+        imgs = file_search(searchDir, 'LC8*.vrt', recursive=True)[0:10]
+        S.addTimeSeriesImages(imgs)
 
-    searchDir = r'H:\CBERS\VRTs'
-    imgs = file_search(searchDir, 'CBERS*.vrt', recursive=True)#[0:1]
-    S.addTimeSeriesImages(imgs)
+    if True:
+        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\CBERS'
+        imgs = file_search(searchDir, 'CBERS*.vrt', recursive=True)#[0:1]
+        S.addTimeSeriesImages(imgs)
 
-    searchDir = r'H:\RapidEye\VRTs'
-    imgs = file_search(searchDir, '*.vrt', recursive=True)  # [0:1]
-    S.addTimeSeriesImages(imgs)
+        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\RapidEye'
+        imgs = file_search(searchDir, 're*.vrt', recursive=True)#[0:1]
+        S.addTimeSeriesImages(imgs)
 
 
 if __name__ == '__main__':
@@ -316,7 +321,7 @@ if __name__ == '__main__':
     if False: sandboxQgisBridge()
     if False: sandboxGui()
     if False: sandboxTestdata()
-    if True: sandboxCBERS()
+    if True: sandboxMultitemp2017()
 
     #close QGIS
     qgsApp.exec_()
