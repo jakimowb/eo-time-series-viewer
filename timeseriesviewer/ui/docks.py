@@ -37,6 +37,7 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
     sigQgisSyncStateChanged = pyqtSignal(QgisTsvBridge.SyncState)
+    sigQgisInteractionRequest = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
@@ -53,6 +54,11 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
 
         #default: disable QgsSync box
+
+        #todo: realt-time syncing?
+        self.frameRTSync.setVisible(False)
+        self.progressBar.setVisible(False)
+
         self.enableQgisSyncronization(False)
 
         self.mLastSyncState = self.qgsSyncState()
@@ -60,8 +66,19 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         self.cbSyncQgsMapCenter.stateChanged.connect(self.onSyncStateChanged)
         self.cbSyncQgsCRS.stateChanged.connect(self.onSyncStateChanged)
 
+        self.btnSetQGISCenter.clicked.connect(lambda : self.sigQgisInteractionRequest.emit('tsvCenter2qgsCenter'))
+        self.btnSetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('tsvExtent2qgsExtent'))
+        self.btnGetQGISCenter.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisCenter2tsvCenter'))
+        self.btnGetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisExtent2tsvExtent'))
+
     def enableQgisSyncronization(self, b):
+
         self.gbSyncQgs.setEnabled(b)
+        if b:
+            self.gbSyncQgs.setTitle('QGIS')
+        else:
+            self.gbSyncQgs.setTitle('QGIS (not available)')
+        #self.gbQgsVectorLayer.setEnabled(b)
 
     def onSyncStateChanged(self, *args):
 

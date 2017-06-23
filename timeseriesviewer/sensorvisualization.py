@@ -116,7 +116,7 @@ class SensorTableModel(QAbstractTableModel):
             elif columnName == 'id':
                 value = sensor.id()
             elif columnName == 'wl':
-                if sensor.wavelengths.ndim == 0:
+                if sensor.wavelengths is None or sensor.wavelengths.ndim == 0:
                     value = 'undefined'
                 else:
                     value = ','.join([str(w) for w in sensor.wavelengths]) +sensor.wavelengthUnits
