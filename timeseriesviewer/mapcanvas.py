@@ -83,13 +83,6 @@ class MapCanvas(QgsMapCanvas):
         return self.mapSettings().destinationCrs()
 
 
-    def _depr_onExtentsChanged(self, *args):
-        if not self.mBlockExtentsChangedSignal:
-            self.mBlockExtentsChangedSignal = True
-            print('set STV extent')
-            self.spatTempVis.setSpatialExtent(self.spatialExtent())
-            self.mBlockExtentsChangedSignal = False
-
     def mapLayersToRender(self, *args):
         """Returns the map layers actually to be rendered"""
         return self.mLayers
@@ -120,7 +113,9 @@ class MapCanvas(QgsMapCanvas):
     def setLayerSet(self, *args):
         raise DeprecationWarning()
 
+
     def setLayers(self, mapLayers):
+
         reg = QgsMapLayerRegistry.instance()
         reg.addMapLayers(mapLayers, False)
 
@@ -191,8 +186,8 @@ class MapCanvas(QgsMapCanvas):
         from timeseriesviewer.crosshair import CrosshairDialog
         action.triggered.connect(lambda : self.setCrosshairStyle(
                 CrosshairDialog.getCrosshairStyle(parent=self,
-                                                mapCanvas=self,
-                                                crosshairStyle=self.crosshairItem.crosshairStyle)
+                                                  mapCanvas=self,
+                                                  crosshairStyle=self.crosshairItem.crosshairStyle)
                 ))
 
         if self.crosshairItem.crosshairStyle.mShow:

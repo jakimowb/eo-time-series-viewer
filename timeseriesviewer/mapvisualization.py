@@ -659,10 +659,7 @@ class DatumView(QObject):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         self.mapCanvases[mapView] = mapCanvas
-        rasterLyr = QgsRasterLayer(self.TSD.pathImg)
-        QgsMapLayerRegistry.instance().addMapLayer(rasterLyr)
-        mapCanvas.mLayers.append(rasterLyr)
-
+        mapCanvas.setLayers(QgsRasterLayer(self.TSD.pathImg))
         self.L.insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.update()
 
