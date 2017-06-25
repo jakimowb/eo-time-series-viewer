@@ -8,13 +8,16 @@ logger = logging.getLogger(__file__)
 
 #thanks user "funkwurm" in
 #http://stackoverflow.com/questions/28020805/regex-validate-correct-iso8601-date-string-with-time
-regISODate = re.compile(r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
-
+regISODate1 = re.compile(r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
+regISODate3 = re.compile(r'([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
+regISODate2 = re.compile(r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
+#regISODate2 = re.compile(r'([12]\d{3}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
 #https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
 
-regYYYYMMDD = re.compile(r'(?P<year>[0-9]{4})(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
+regYYYYMMDD = re.compile(r'(?P<year>(19|20)\d\d)(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
+regMissingHypen = re.compile('^\d{8}')
 regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
-regYYYYDOY = re.compile(r'(?P<year>[0-9]{4})-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
+regYYYYDOY = re.compile(r'(?P<year>(19|20)\d\d)-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 
 def matchOrNone(regex, text):
     match = regex.search(text)
@@ -23,23 +26,42 @@ def matchOrNone(regex, text):
     else:
         return None
 
-def extractDateTimeGroup(regex, text):
+def extractDateTimeGroup(text):
+    match = regISODate1.search(text)
+    if match:
+        matchedText = match.group()
+        if regMissingHypen.search(matchedText):
+            matchedText = '{}-{}-{}'.format(matchedText[0:4],matchedText[4:6],matchedText[6:])
+        return np.datetime64(matchedText)
 
-    match = regex.search(text)
-    if match is not None:
+    match = regYYYYMMDD.search(text)
+    if match:
+        return datetime64FromYYYYMMDD(match.group())
+
+    match = regYYYYDOY.search(text)
+    if match:
+        return datetime64FromYYYYDOY(match.group())
+
+    match = regYYYYMM.search(text)
+    if match:
         return np.datetime64(match.group())
-    else:
-        return None
 
+    return None
 
-def getDateTime64FromYYYYDOY(yyyydoy):
-    return getDatetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
+def datetime64FromYYYYMMDD(yyyymmdd):
+    if re.search('^\d{8}$', yyyymmdd):
+        #insert hyphens
+        yyyymmdd = '{}-{}-{}'.format(yyyymmdd[0:4],yyyymmdd[4:6],yyyymmdd[6:8])
+    return np.datetime64(yyyymmdd)
 
-def getDOYfromDatetime64(dt):
+def datetime64FromYYYYDOY(yyyydoy):
+    return datetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
+
+def DOYfromDatetime64(dt):
 
     return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int)+1
 
-def getDatetime64FromDOY(year, doy):
+def datetime64FromDOY(year, doy):
         if type(year) is str:
             year = int(year)
         if type(doy) is str:
@@ -87,12 +109,12 @@ class ImageDateReaderDefault(ImageDateReader):
 
         # search for ISO date in basename
         # search in basename
-        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
-            dtg = extractDateTimeGroup(reg, self.baseName)
-            if dtg: return dtg
-        for reg in [regISODate, regYYYYMMDD, regYYYYDOY, regYYYYMM]:
-            dtg = extractDateTimeGroup(reg, self.dirName)
-            if dtg: return dtg
+        dtg = extractDateTimeGroup(self.baseName)
+        if dtg:
+            return dtg
+        dtg = extractDateTimeGroup(self.dirName)
+        if dtg:
+            return dtg
         return None
 
 class ImageDateReaderPLEIADES(ImageDateReader):
@@ -140,7 +162,7 @@ class ImageDateParserLandsat(ImageDateReader):
         #search for LandsatSceneID (old) and Landsat Product IDs (new)
         sceneID = matchOrNone(ImageDateParserLandsat.regLandsatSceneID, self.baseName)
         if sceneID:
-            return getDateTime64FromYYYYDOY(sceneID[9:16])
+            return datetime64FromYYYYDOY(sceneID[9:16])
 
         productID = matchOrNone(ImageDateParserLandsat.regLandsatProductID, self.baseName)
         if productID:
@@ -166,4 +188,6 @@ if __name__ == '__main__':
     p = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LE71720342015009SG100\LE71720342015009SG100_sr.tif'
     p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-07_LE72270652012098EDC00_BOA.bsq'
     ds = gdal.Open(p)
+
+    print(datetime64FromYYYYMMDD('20141212'))
     print(parseDateFromDataSet(ds))

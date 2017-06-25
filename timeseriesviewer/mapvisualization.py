@@ -12,7 +12,7 @@ from timeseriesviewer.main import TimeSeriesViewer
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
-
+from timeseriesviewer.mapcanvas import MapCanvas
 
 
 class MapView(QObject):
@@ -38,7 +38,7 @@ class MapView(QObject):
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
-        self.mMapCanvases = []
+        self.mMapCanvases = dict()
         self.setVisibility(True)
 
         self.vectorLayer = None
@@ -123,16 +123,19 @@ class MapView(QObject):
 
         #set basic settings
         sensorView = self.sensorViews[sensor]
+        assert isinstance(sensorView, MapViewSensorSettings)
+        sensorView.registerMapCanvas(mapCanvas)
+
+        #register signals sensor specific signals
         mapCanvas.setRenderer(sensorView.layerRenderer())
 
-        #register signals
-        sensorView.sigSensorRendererChanged.connect(mapCanvas.setRenderer)
+        #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
         self.sigCrosshairStyleChanged.connect(mapCanvas.setCrosshairStyle)
         self.sigShowCrosshair.connect(mapCanvas.setShowCrosshair)
         self.sigVectorLayerChanged.connect(mapCanvas.refresh)
         self.sigVectorVisibility.connect(mapCanvas.refresh)
-        self.mMapCanvases.append(mapCanvas)
+
 
 
 
@@ -148,9 +151,13 @@ class MapView(QObject):
 
         #w.showSensorName(False)
         self.sensorViews[sensor] = w
-        l = self.ui.sensorList
+        l = self.ui.sensorList.layout()
         i = l.count()
-        l.addWidget(w.ui)
+        lastWidgetIndex = 0
+        for i in range(l.count()):
+            if isinstance(l.itemAt(i), QWidget):
+                lastWidgetIndex = i
+        l.insertWidget(lastWidgetIndex, w.ui)
         self.ui.resize(self.ui.sizeHint())
 
     def getSensorWidget(self, sensor):
@@ -195,7 +202,7 @@ class MapViewSensorSettings(QObject):
     Describes the rendering of images of one Sensor
     """
 
-    sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
+    #sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
@@ -208,7 +215,7 @@ class MapViewSensorSettings(QObject):
         self.ui.create()
         self.sensor.sigNameChanged.connect(self.onSensorNameChanged)
         self.onSensorNameChanged(self.sensor.name())
-
+        self.mMapCanvases = []
         self.ui.bandNames = sensor.bandNames
 
         self.multiBandMinValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
@@ -311,7 +318,7 @@ class MapViewSensorSettings(QObject):
         self.ui.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
 
 
-        self.ui.actionApplyStyle.triggered.connect(lambda : self.sigSensorRendererChanged.emit(self.layerRenderer()))
+        self.ui.actionApplyStyle.triggered.connect(self.applyStyle)
         self.ui.actionCopyStyle.triggered.connect(lambda : QApplication.clipboard().setMimeData(self.mimeDataStyle()))
         self.ui.actionPasteStyle.triggered.connect(lambda : self.pasteStyleFromClipboard())
 
@@ -342,6 +349,13 @@ class MapViewSensorSettings(QObject):
         QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
         self.onClipboardChange()
 
+    def registerMapCanvas(self, mapCanvas):
+
+        assert isinstance(mapCanvas, MapCanvas)
+        self.mMapCanvases.append(mapCanvas)
+        mapCanvas.sigChangeSVRequest.connect(self.onMapCanvasRendererChangeRequest)
+
+
     def onSensorNameChanged(self, newName):
         self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
         self.ui.labelTitle.setText(self.sensor.name())
@@ -354,13 +368,19 @@ class MapViewSensorSettings(QObject):
             if renderer is not None:
                 self.setLayerRenderer(renderer)
 
-    def applyStyle(self):
-        self.sigSensorRendererChanged.emit(self.layerRenderer())
+    def applyStyle(self, *args):
+        #self.sigSensorRendererChanged.emit(self.layerRenderer())
+        r = self.layerRenderer()
+        for mapCanvas in self.mMapCanvases:
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.setRenderer(r)
 
     def onClipboardChange(self):
         utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
         self.ui.btnPasteStyle.setEnabled(utils.hasRasterStyle())
 
+    def onMapCanvasRendererChangeRequest(self, mapCanvas, renderer):
+        self.setLayerRenderer(renderer)
 
     def setBandSelection(self, key):
 
@@ -407,7 +427,8 @@ class MapViewSensorSettings(QObject):
         self.ui.labelSummary.setText(text)
 
         if MapViewSensorSettings.SignalizeImmediately:
-            self.sigSensorRendererChanged.emit(self.layerRenderer())
+            #self.sigSensorRendererChanged.emit(self.layerRenderer())
+            self.applyStyle()
 
     def setLayerRenderer(self, renderer):
         ui = self.ui
@@ -426,13 +447,19 @@ class MapViewSensorSettings(QObject):
             for s in self.multiBandSliders:
                 s.blockSignals(False)
 
+
             ceRed = renderer.redContrastEnhancement()
             ceGreen = renderer.greenContrastEnhancement()
             ceBlue = renderer.blueContrastEnhancement()
 
+            if ceRed is None:
+                ceRed = ceGreen = ceBlue = QgsContrastEnhancement(self.sensor.bandDataType)
+                s = ""
             for i, ce in enumerate([ceRed, ceGreen, ceBlue]):
-                self.multiBandMinValues[i].setText(str(ce.minimumValue()))
-                self.multiBandMaxValues[i].setText(str(ce.maximumValue()))
+                vMin = ce.minimumValue()
+                vMax = ce.maximumValue()
+                self.multiBandMinValues[i].setText(str(vMin))
+                self.multiBandMaxValues[i].setText(str(vMax))
 
             idx = self.ceAlgs.values().index(ceRed.contrastEnhancementAlgorithm())
             ui.comboBoxContrastEnhancement.setCurrentIndex(idx)
@@ -456,7 +483,8 @@ class MapViewSensorSettings(QObject):
 
         self.updateUi()
         if updated and MapViewSensorSettings.SignalizeImmediately:
-            self.sigSensorRendererChanged.emit(renderer.clone())
+            #self.sigSensorRendererChanged.emit(renderer.clone())
+            self.applyStyle()
 
     def mimeDataStyle(self):
         r = self.layerRenderer()
@@ -603,16 +631,19 @@ class DatumView(QObject):
         self.adjustBaseMinSize()
 
     def refresh(self):
+
         if self.ui.isVisible():
             for c in self.mapCanvases.values():
                 if c.isVisible():
-                    c.refreshAllLayers()
+                    #c.refreshAllLayers()
+                    c.refresh()
 
     def insertMapView(self, mapView):
         assert isinstance(mapView, MapView)
         from timeseriesviewer.mapcanvas import MapCanvas
 
         mapCanvas = MapCanvas(self.ui)
+        mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
         mapCanvas.blockSignals(True)
         self.registerMapCanvas(mapView, mapCanvas)
 
@@ -621,8 +652,8 @@ class DatumView(QObject):
         # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
         mapCanvas.blockSignals(False)
-        mapCanvas.refreshAllLayers()
-        mapCanvas.refresh()
+        #mapCanvas.refreshAllLayers()
+        #mapCanvas.refresh()
 
     def registerMapCanvas(self, mapView, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
@@ -639,12 +670,13 @@ class DatumView(QObject):
         mapCanvas.renderStarting.connect(lambda: self.sigLoadingStarted.emit(mapView, self.TSD))
         mapCanvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
         mapCanvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
+        mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
 
+    def onMapCanvasRequest(self, mapCanvas, key):
 
+        if key == 'hide_date':
+            self.TSD.setVisibility(False)
 
-
-
-        pass
 
     def __lt__(self, other):
         assert isinstance(other, DatumView)
@@ -679,10 +711,20 @@ class SpatialTemporalVisualization(QObject):
         self.mColor = Qt.black
         self.mMapCanvases = []
         self.ui = timeSeriesViewer.ui
+        from timeseriesviewer.ui.widgets import TsvScrollArea
         self.scrollArea = self.ui.scrollAreaSubsets
+        assert isinstance(self.scrollArea, TsvScrollArea)
+        #self.scrollArea.sigResized.connect(self.refresh)
+        #self.scrollArea.horizontalScrollBar().valueChanged.connect(lambda:QTimer.singleShot(2000,self.refresh))
+
+
         self.TSV = timeSeriesViewer
         self.TS = timeSeriesViewer.TS
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
+
+
+
+
         self.dockMapViews = self.ui.dockMapViews
         self.MVC = MapViewCollection(self)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
@@ -716,12 +758,6 @@ class SpatialTemporalVisualization(QObject):
 
         #register on map canvas signals
         mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
-
-        from timeseriesviewer.ui.widgets import TsvScrollArea
-        assert isinstance(self.scrollArea, TsvScrollArea)
-        self.scrollArea.sigResized.connect(mapCanvas.setRenderMe)
-        self.scrollArea.horizontalScrollBar().valueChanged.connect(mapCanvas.setRenderMe)
-
 
 
 
@@ -761,6 +797,7 @@ class SpatialTemporalVisualization(QObject):
     def subsetSize(self):
         return QSize(self.mSize)
 
+
     def refresh(self):
         for tsdView in self.DVC:
             tsdView.refresh()
@@ -795,6 +832,26 @@ class SpatialTemporalVisualization(QObject):
         self.nMaxTSDViews = n
         #todo: remove views
 
+    def setSpatialCenter(self, center, mapCanvas0=None):
+        if self.mBlockCanvasSignals:
+            return True
+
+        assert isinstance(center, SpatialPoint)
+        center = center.toCrs(self.mCRS)
+        if not isinstance(center, SpatialPoint):
+            return
+
+        self.mBlockCanvasSignals = True
+        self.mSpatialExtent.setCenter(center)
+        for mapCanvas in self.mMapCanvases:
+            if mapCanvas != mapCanvas0:
+                oldState = mapCanvas.blockSignals(True)
+                mapCanvas.setCenter(center)
+                mapCanvas.blockSignals(oldState)
+        self.mBlockCanvasSignals = False
+        self.sigSpatialExtentChanged.emit(self.mSpatialExtent)
+
+
     def setSpatialExtent(self, extent, mapCanvas0=None):
         if self.mBlockCanvasSignals:
             return True
@@ -811,12 +868,14 @@ class SpatialTemporalVisualization(QObject):
         self.mBlockCanvasSignals = True
         self.mSpatialExtent = extent
         for mapCanvas in self.mMapCanvases:
-            print('STV set EXTENT', str(mapCanvas))
             if mapCanvas != mapCanvas0:
                 oldState = mapCanvas.blockSignals(True)
                 mapCanvas.setExtent(extent)
                 mapCanvas.blockSignals(oldState)
+
         self.mBlockCanvasSignals = False
+        #for mapCanvas in self.mMapCanvases:
+        #    mapCanvas.refresh()
         self.sigSpatialExtentChanged.emit(extent)
 
     def setBackgroundColor(self, color):
@@ -859,6 +918,7 @@ class SpatialTemporalVisualization(QObject):
         tsdv = self.DVC.tsdView(TSD)
         assert isinstance(self.scrollArea, QScrollArea)
         self.scrollArea.ensureWidgetVisible(tsdv.ui)
+
 
     def setMapViewVisibility(self, bandView, isVisible):
         assert isinstance(bandView, MapView)
@@ -1195,15 +1255,15 @@ class MapViewDefinitionUI(QGroupBox, load('mapviewdefinition.ui')):
         self.actionToggleVisibility.toggled.connect(lambda: self.setVisibility(not self.actionToggleVisibility.isChecked()))
         self.actionToggleVectorVisibility.toggled.connect(lambda : self.sigVectorVisibility.emit(self.actionToggleVectorVisibility.isChecked()))
 
-    def sizeHint(self):
+    def DEPRsizeHint(self):
 
         #m = self.layout().contentsMargins()
         #sl = maxWidgetSizes(self.sensorList)
         #sm = self.buttonList.size()
         #w = sl.width() + m.left()+ m.right() + sm.width()
         #h = sl.height() + m.top() + m.bottom() + sm.height()
-        return maxWidgetSizes(self.sensorList)
-        return QSize(w,h)
+        return maxWidgetSizes(self.sensorList.layout())
+
 
 
     def mapViewDefinition(self):

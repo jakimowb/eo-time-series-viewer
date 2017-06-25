@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>504</width>
-    <height>189</height>
+    <width>480</width>
+    <height>175</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -30,8 +30,8 @@
     <item>
      <widget class="QScrollArea" name="scrollAreaMapViews">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-        <horstretch>1</horstretch>
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
@@ -51,7 +51,7 @@
        <number>1</number>
       </property>
       <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
+       <enum>Qt::ScrollBarAlwaysOff</enum>
       </property>
       <property name="horizontalScrollBarPolicy">
        <enum>Qt::ScrollBarAsNeeded</enum>
@@ -67,8 +67,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>504</width>
-         <height>167</height>
+         <width>480</width>
+         <height>153</height>
         </rect>
        </property>
        <property name="sizePolicy">

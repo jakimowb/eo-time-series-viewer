@@ -45,6 +45,12 @@ class SpatialPoint(QgsPoint):
         crs = mapCanvas.mapSettings().destinationCrs()
         return SpatialPoint(crs, mapCanvas.center())
 
+    @staticmethod
+    def fromSpatialExtent(spatialExtent):
+        assert isinstance(spatialExtent, SpatialExtent)
+        crs = spatialExtent.crs()
+        return SpatialPoint(crs, spatialExtent.center())
+
     def __init__(self, crs, *args):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         super(SpatialPoint, self).__init__(*args)
@@ -105,7 +111,7 @@ def saveTransform(geom, crs1, crs2):
 
         transform = QgsCoordinateTransform(crs1, crs2);
         try:
-            pt = transform.transformBoundingBox(geom);
+            pt = transform.transform(geom);
             result = SpatialPoint(crs2, pt)
         except:
             print('Can not transform from {} to {} on QgsPoint {}'.format( \

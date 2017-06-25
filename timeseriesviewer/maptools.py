@@ -26,7 +26,7 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.rubberband = QgsRubberBand(self.canvas, QGis.Polygon)
 
         color = QColor('red')
-
+        self.mButtons = [Qt.LeftButton]
         self.rubberband.setLineStyle(Qt.SolidLine)
         self.rubberband.setColor(color)
         self.rubberband.setWidth(2)
@@ -38,9 +38,15 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.marker.setIconSize(5)
         self.marker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
 
+    def setMouseButtons(self, listOfButtons):
+        assert isinstance(listOfButtons)
+        self.mButtons = listOfButtons
+
     def canvasPressEvent(self, e):
-        geoPoint = self.toMapCoordinates(e.pos())
-        self.marker.setCenter(geoPoint)
+        assert isinstance(e, QgsMapMouseEvent)
+        if e.button() in self.mButtons:
+            geoPoint = self.toMapCoordinates(e.pos())
+            self.marker.setCenter(geoPoint)
         #self.marker.show()
 
     def setStyle(self, color=None, brushStyle=None, fillColor=None, lineStyle=None):
@@ -53,28 +59,28 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         if lineStyle:
             self.rubberband.setLineStyle(lineStyle)
     def canvasReleaseEvent(self, e):
+        if e.button() in self.mButtons:
 
+            pixelPoint = e.pixelPoint()
 
-        pixelPoint = e.pixelPoint()
+            crs = self.canvas.mapSettings().destinationCrs()
+            self.marker.hide()
+            geoPoint = self.toMapCoordinates(pixelPoint)
+            if self.mShowCrosshair:
+                #show a temporary crosshair
+                ext = SpatialExtent.fromMapCanvas(self.canvas)
+                cen = geoPoint
+                geom = QgsGeometry()
+                geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
+                              QGis.Line)
+                geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
+                              QGis.Line)
+                self.rubberband.addGeometry(geom, None)
+                self.rubberband.show()
+                #remove crosshair after 0.25 sec
+                QTimer.singleShot(250, self.hideRubberband)
 
-        crs = self.canvas.mapSettings().destinationCrs()
-        self.marker.hide()
-        geoPoint = self.toMapCoordinates(pixelPoint)
-        if self.mShowCrosshair:
-            #show a temporary crosshair
-            ext = SpatialExtent.fromMapCanvas(self.canvas)
-            cen = geoPoint
-            geom = QgsGeometry()
-            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
-                          QGis.Line)
-            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
-                          QGis.Line)
-            self.rubberband.addGeometry(geom, None)
-            self.rubberband.show()
-            #remove crosshair after 0.25 sec
-            QTimer.singleShot(250, self.hideRubberband)
-
-        self.sigLocationRequest.emit(SpatialPoint(crs, geoPoint))
+            self.sigLocationRequest.emit(SpatialPoint(crs, geoPoint))
 
     def hideRubberband(self):
         self.rubberband.reset()

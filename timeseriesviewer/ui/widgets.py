@@ -125,7 +125,7 @@ PATH_RENDERINGDOCK_UI = jp(DIR_UI, 'renderingdock.ui')
 
 
 
-def maxWidgetSizes(layout):
+def maxWidgetSizes(layout, onHint=True):
     assert isinstance(layout, QBoxLayout)
 
     p = layout.parentWidget()
@@ -137,10 +137,15 @@ def maxWidgetSizes(layout):
 
     for item in [layout.itemAt(i) for i in range(layout.count())]:
         wid = item.widget()
+        ly = item.layout()
         if wid:
-            s = wid.sizeHint()
-        elif isinstance(item, QLayout):
-            s = ""
+            if onHint:
+                s = wid.sizeHint()
+            else:
+                s = wid.size()
+        elif ly:
+            continue
+        else:
             continue
         if horizontal:
             sizeX += s.width() + layout.spacing()

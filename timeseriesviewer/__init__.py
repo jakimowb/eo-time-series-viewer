@@ -7,6 +7,8 @@ REPOSITORY = 'https://bitbucket.org/jakimowb/hub-timeseriesviewer.git'
 
 import os, sys, fnmatch, site
 import six, logging
+from qgis.core import *
+from qgis.gui import *
 
 logger = logging.getLogger(__name__)
 

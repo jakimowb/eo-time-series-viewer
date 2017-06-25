@@ -156,12 +156,16 @@ class QgisTsvBridge(QObject):
         self.syncBlocked = False
 
         from main import TimeSeriesViewerUI
+        from timeseriesviewer.ui.docks import RenderingDockUI
         assert isinstance(self.ui, TimeSeriesViewerUI)
+        assert isinstance(self.ui.dockRendering, RenderingDockUI)
+
+        self.ui.dockRendering.sigQgisInteractionRequest.connect(self.onQgisInteractionRequest)
 
         self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
         self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
-        self.cbQgsVectorLayer.setEnabled(True)
-        self.gbQgsVectorLayer.setEnabled(True)
+        #self.cbQgsVectorLayer.setEnabled(True)
+        #self.gbQgsVectorLayer.setEnabled(True)
         self.qgsMapCanvas = self.iface.mapCanvas()
         assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
 
@@ -177,6 +181,47 @@ class QgisTsvBridge(QObject):
         self.gbQgsVectorLayer.clicked.connect(self.onQgsVectorLayerChanged)
         self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
         self.onQgsVectorLayerChanged(None)
+
+    def onQgisInteractionRequest(self, request):
+        assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
+        extQgs = SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
+
+        assert isinstance(self.TSV, TimeSeriesViewer)
+        extTsv = self.TSV.spatialTemporalVis.spatialExtent()
+
+        assert request in ['tsvCenter2qgsCenter',
+                            'tsvExtent2qgsExtent',
+                            'qgisCenter2tsvCenter',
+                            'qgisExtent2tsvExtent']
+
+        if request == 'tsvCenter2qgsCenter':
+            center = SpatialPoint.fromSpatialExtent(extTsv)
+            center = center.toCrs(extQgs.crs())
+            if center:
+                self.qgsMapCanvas.setCenter(center)
+                self.qgsMapCanvas.refresh()
+
+        if request == 'qgisCenter2tsvCenter':
+            center = SpatialPoint.fromSpatialExtent(extQgs)
+            center = center.toCrs(extTsv.crs())
+            if center:
+                self.TSV.spatialTemporalVis.setSpatialCenter(center)
+
+
+        if request == 'tsvExtent2qgsExtent':
+            extent = extTsv.toCrs(extQgs.crs())
+            if extent:
+                self.qgsMapCanvas.setExtent(extent)
+                self.qgsMapCanvas.refresh()
+
+        if request == 'qgisExtent2tsvExtent':
+            extent = extQgs.toCrs(extTsv.crs())
+            if extent:
+                self.TSV.spatialTemporalVis.setSpatialExtent(extent)
+
+
+
+
 
     def syncTsvWithQgs(self, *args):
         if self.syncBlocked:
@@ -340,8 +385,6 @@ class TimeSeriesViewerUI(QMainWindow,
         #todo: move to QGS_TSV_Bridge
         self.dockRendering.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
 
-        #define subset-size behaviour
-
         self.restoreSettings()
 
 
@@ -357,8 +400,8 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer import QGIS_TSV_BRIDGE
         from timeseriesviewer.main import QgisTsvBridge
         b = isinstance(QGIS_TSV_BRIDGE, QgisTsvBridge)
-        self.dockRendering.gbSyncQgs.setEnabled(b)
-        self.dockRendering.gbQgsVectorLayer.setEnabled(b)
+        self.dockRendering.enableQgisSyncronization(b)
+        #self.dockRendering.gbQgsVectorLayer.setEnabled(b)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -691,8 +734,14 @@ class TimeSeriesViewer:
 
     def addTimeSeriesImages(self, files=None):
         if files is None:
-            files = QFileDialog.getOpenFileNames()
+            s = QSettings('HU-Berlin','HUB TSV')
+            defDir = s.value('DIR_FILESEARCH')
+            files = QFileDialog.getOpenFileNames(directory=defDir)
 
+            if len(files) > 0 and os.path.exists(files[0]):
+                dn = os.path.dirname(files[0])
+                s.setValue('DIR_FILESEARCH', dn)
+            s = ""
             #collect sublayers, if existing
 
 

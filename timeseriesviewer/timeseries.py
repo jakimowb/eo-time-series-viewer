@@ -98,9 +98,12 @@ class SensorInstrument(QObject):
 
         #find wavelength
         wl, wlu = parseWavelengthFromDataSet(ds)
-        self.wavelengths = np.asarray(wl)
-        self.wavelengthUnits = wlu
-
+        if wl is None:
+            self.wavelengths = None
+            self.wavelengthUnits = None
+        else:
+            self.wavelengths = np.asarray(wl)
+            self.wavelengthUnits = wlu
         self._id = '{}b{}m'.format(self.nb, self.px_size_x)
         if wl is not None:
             self._id += ';'.join([str(w) for w in self.wavelengths])+ wlu
@@ -190,12 +193,19 @@ def verifyInputImage(path, vrtInspection=''):
     if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
         logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
         return False
+
     if ds.GetDriver().ShortName == 'VRT':
         vrtInspection = 'VRT Inspection {}\n'.format(path)
         nextFiles = set(ds.GetFileList()) - set([path])
         validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in nextFiles]
         if not all(validSrc):
             return False
+
+    from timeseriesviewer.dateparser import parseDateFromDataSet
+    date = parseDateFromDataSet(ds)
+    if date is None:
+        return False
+
     return True
 
 def pixel2coord(gt, x, y):
@@ -249,8 +259,8 @@ class TimeSeriesDatum(QObject):
 
         self.date = parseDateFromDataSet(ds)
         assert self.date is not None, 'Unable to find acquisition date of {}'.format(pathImg)
-        from timeseriesviewer.dateparser import getDOYfromDatetime64
-        self.doy = getDOYfromDatetime64(self.date)
+        from timeseriesviewer.dateparser import DOYfromDatetime64
+        self.doy = DOYfromDatetime64(self.date)
 
 
         gt = ds.GetGeoTransform()
@@ -563,10 +573,10 @@ def parseWavelengthFromDataSet(ds):
     wlu = None
 
     #see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
-    regWLkey = re.compile('.*wavelength[_ ]*$')
-    regWLUkey = re.compile('.*wavelength[_ ]*units?$')
-    regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)")
-    regWLU = re.compile('((micro|nano|centi)meters)|(um|nm|mm|cm|m|GHz|MHz)')
+    regWLkey = re.compile('.*wavelength[_ ]*$', re.I)
+    regWLUkey = re.compile('.*wavelength[_ ]*units?$', re.I)
+    regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)", re.I)
+    regWLU = re.compile('((micro|nano|centi)meters)|(um|nm|mm|cm|m|GHz|MHz)', re.I)
     for domain in ds.GetMetadataDomainList():
         md = ds.GetMetadata_Dict(domain)
         for key, value in md.items():
@@ -578,7 +588,7 @@ def parseWavelengthFromDataSet(ds):
             if wlu is None and regWLUkey.search(key):
                 match = regWLU.search(value)
                 if match:
-                    wlu = match.group()
+                    wlu = match.group().lower()
                 names = ['nanometers', 'micrometers', 'millimeters', 'centimeters', 'decimeters']
                 si = ['nm', 'um', 'mm', 'cm', 'dm']
                 if wlu in names:
