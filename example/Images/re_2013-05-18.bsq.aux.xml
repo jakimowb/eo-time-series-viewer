@@ -37,9 +37,9 @@
     </Histograms>
     <Metadata>
       <MDI key="STATISTICS_MAXIMUM">9797</MDI>
-      <MDI key="STATISTICS_MEAN">6861.5996621622</MDI>
+      <MDI key="STATISTICS_MEAN">6861.5996621621</MDI>
       <MDI key="STATISTICS_MINIMUM">5736</MDI>
-      <MDI key="STATISTICS_STDDEV">572.39213469832</MDI>
+      <MDI key="STATISTICS_STDDEV">572.39213469833</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="2">
