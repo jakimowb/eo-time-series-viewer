@@ -26,14 +26,13 @@ class TimeSeriesViewerPlugin:
             CONSOLE._console = CONSOLE.PythonConsole(iface.mainWindow())
             QTimer.singleShot(0, CONSOLE._console.activate)
 
-
     def initGui(self):
         self.toolbarActions = []
         syspaths = [os.path.normpath(p) for p in sys.path]
         if DIR_REPO not in syspaths: sys.path.append(DIR_REPO)
 
         import timeseriesviewer.ui.resources_py2
-        timeseriesviewer.ui.resources_py2.qInitResources()
+        #timeseriesviewer.ui.resources_py2.qInitResources()
         # add platform independent site-packages
         if DIR_SITE_PACKAGES:
             site.addsitedir(DIR_SITE_PACKAGES)
@@ -54,9 +53,9 @@ class TimeSeriesViewerPlugin:
         from timeseriesviewer.main import TimeSeriesViewer
         # open QGIS python console. this is required to allow for print() statements in the source code.
 
-        if self.tsv is None:
-            self.tsv = TimeSeriesViewer(self.iface)
-            self.tsv.run()
+        #if self.tsv is None:
+        self.tsv = TimeSeriesViewer(self.iface)
+        self.tsv.run()
         self.tsv.ui.show()
 
 

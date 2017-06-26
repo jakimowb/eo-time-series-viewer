@@ -138,7 +138,7 @@ class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
 
     def refreshPreview(self, *args):
         if not self.mBlockUpdates:
-            print('DEBUG: REFRESH NOW')
+            #print('DEBUG: REFRESH NOW')
             style = self.plotStyle()
 
             #todo: set style to style preview

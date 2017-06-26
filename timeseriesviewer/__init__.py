@@ -58,8 +58,6 @@ SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 print('BASE INIT SITE-packages')
 site.addsitedir(DIR_SITE_PACKAGES)
 
-QGIS_TSV_BRIDGE = None
-
 OPENGL_AVAILABLE = False
 
 try:
