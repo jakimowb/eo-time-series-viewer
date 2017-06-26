@@ -1,5 +1,6 @@
 
 VERSION = '0.2'
+TITLE = 'HUB TimeSeriesViewer'
 DESCRIPTION = 'This software visualizes remote sensing time series data'
 WEBSITE = 'https://bitbucket.org/jakimowb/hub-timeseriesviewer/wiki/Home'
 REPOSITORY = 'https://bitbucket.org/jakimowb/hub-timeseriesviewer.git'

@@ -13,7 +13,7 @@ class PixelLoadWorker(QObject):
     sigPixelLoaded = pyqtSignal(dict)
 
     sigWorkStarted = pyqtSignal(int)
-
+    sigWorkCanceled = pyqtSignal()
     sigWorkFinished = pyqtSignal()
 
     def __init__(self, files, jobid, parent=None):
@@ -49,14 +49,24 @@ class PixelLoadWorker(QObject):
         self.sigWorkStarted.emit(len(paths))
 
         for i, path in enumerate(paths):
+
             if QThread.currentThread() is None or self.mTerminate:
+                self.sigWorkCanceled.emit()
                 return
+
+            md = dict()
+            md['_worker_'] = self.objectName()
+            md['_thread_'] = QThread.currentThread().objectName()
+            md['_jobid_'] = self.jobid
+            md['path'] = path
+            md['_success_'] = False
 
             self.recentFile = path
 
             lyr = QgsRasterLayer(path)
             if not lyr.isValid():
                 #logger.debug('Layer not valid: {}'.format(path))
+                self.sigPixelLoaded.emit(md)
                 continue
             dp = lyr.dataProvider()
 
@@ -69,7 +79,7 @@ class PixelLoadWorker(QObject):
             try:
                 geo = trans.transform(g)
             except(QgsCsException):
-                self.sigPixelLoaded.emit({})
+                self.sigPixelLoaded.emit(md)
                 continue
 
             ns = dp.xSize()  # ns = number of samples = number of image columns
@@ -80,7 +90,7 @@ class PixelLoadWorker(QObject):
             yres = ex.height() / nl
 
             if not ex.contains(geo):
-                self.sigPixelLoaded.emit({})
+                self.sigPixelLoaded.emit(md)
                 continue
 
             def geo2px(x, y):
@@ -104,20 +114,14 @@ class PixelLoadWorker(QObject):
 
             ds = gdal.Open(path)
             if ds is None:
-                self.sigPixelLoaded.emit({})
+                self.sigPixelLoaded.emit(md)
                 continue
             nb = ds.RasterCount
             values = gdal_array.DatasetReadAsArray(ds, px_x, px_y, win_xsize=size_x, win_ysize=size_y)
             values = np.reshape(values, (nb, size_y, size_x))
             nodata = [ds.GetRasterBand(b+1).GetNoDataValue() for b in range(nb)]
 
-
-            md = dict()
-            md['_worker_'] = self.objectName()
-            md['_thread_'] = QThread.currentThread().objectName()
-            md['_jobid_'] = self.jobid
             md['_wkt_'] = theGeometryWkt
-            md['path'] = path
             md['xres'] = xres
             md['yres'] = xres
             md['geo_ul_x'] = UL.x()
@@ -126,7 +130,9 @@ class PixelLoadWorker(QObject):
             md['px_ul_y'] = px_y
             md['values'] = values
             md['nodata'] = nodata
+            md['_success_'] = True
             if QThread.currentThread() is None or self.mTerminate:
+                self.sigWorkCanceled.emit()
                 return
             self.sigPixelLoaded.emit(md)
         self.recentFile = None
@@ -149,19 +155,21 @@ class PixelLoader(QObject):
         super(PixelLoader, self).__init__(*args, **kwds)
         self.filesList = []
         self.jobid = -1
-        self.nThreads = 1
+        self.nThreads = 2
         self.nMax = 0
+        self.nFailed = 0
         self.threadsAndWorkers = []
 
     @QtCore.pyqtSlot(dict)
     def onPixelLoaded(self, data):
         path = data.get('path')
         jobid = data.get('_jobid_')
+        success = data.get('_success_')
         if jobid != self.jobid:
             #do not return results from previous jobs...
             #print('got thread results from {} but need {}...'.format(jobid, self.jobid))
             return
-        elif path is not None and path in self.filesList:
+        else:
             self.filesList.remove(path)
             self.sigPixelLoaded.emit(self.nMax - len(self.filesList), self.nMax, data)
 
@@ -189,6 +197,7 @@ class PixelLoader(QObject):
         assert len(self.threadsAndWorkers) == 0
         del self.filesList[:]
         self.nMax = 0
+        self.nFailed = 0
         self.sigLoadingCanceled.emit()
 
 

@@ -284,11 +284,16 @@ def sandboxTestdata():
 
     S.addTimeSeriesImages(imgs)
 
-def sandboxMultitemp2017():
+def sandboxMultitemp2017(qgis=False):
     from timeseriesviewer.main import TimeSeriesViewer
 
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
-    S = TimeSeriesViewer(None)
+
+    iface = None
+    if qgis:
+        iface = QgisFake()
+
+    S = TimeSeriesViewer(iface)
     S.ui.show()
     S.run()
 
@@ -320,8 +325,8 @@ if __name__ == '__main__':
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
     if False: sandboxGui()
-    if True: sandboxTestdata()
-    if False: sandboxMultitemp2017()
+    if False: sandboxTestdata()
+    if True: sandboxMultitemp2017(qgis=True)
 
     #close QGIS
     qgsApp.exec_()

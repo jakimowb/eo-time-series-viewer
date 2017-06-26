@@ -48,7 +48,7 @@ class DateTimeAxis(pg.AxisItem):
         for v in values:
             if ndays == 0:
                 strns.append(v.astype(str))
-            elif ndays > 2*365:
+            else:
                 strns.append(v.astype(str))
 
         return strns
@@ -177,7 +177,8 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             if w.isValidExpression():
                 self.commitData.emit(w)
             else:
-                print(('Delegate commit failed',w.asExpression()))
+                s = ""
+                #print(('Delegate commit failed',w.asExpression()))
         if isinstance(w, PlotStyleButton):
 
             self.commitData.emit(w)
@@ -713,11 +714,17 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
         self.progressBar.setValue(nDone)
         self.progressBar.setMaximum(nMax)
         t = ''
-        if len(d) > 0:
-            t = 'Last loaded from {}.'.format(os.path.basename(d['path']))
-            QgsApplication.processEvents()
+        path = os.path.basename(d['path'])
+        bn = os.path.basename(path)
+        success = d['_success_']
+
+        QgsApplication.processEvents()
+        if success:
+            t = 'Last loaded from {}.'.format(bn)
             if self.pixelCollection is not None:
                 self.pixelCollection.addPixel(d)
+        else:
+            t = 'Failed loading from {}.'.format(bn)
         self.progressInfo.setText(t)
 
 
@@ -846,6 +853,7 @@ class SpectralTemporalVisualization(QObject):
     def onObservationClicked(self, plotDataItem, points):
         for p in points:
             tsd = p.data()
+
             print(tsd)
         s =""
 
@@ -1046,9 +1054,13 @@ if __name__ == '__main__':
     if True:
         from timeseriesviewer.tests import *
 
-        TS = TestObjects.timeSeries()
+        #TS = TestObjects.timeSeries()
+        #d.connectTimeSeries(TS)
+        TS = TimeSeries()
         d.connectTimeSeries(TS)
-
+        print('Load TS...')
+        TS.loadFromFile(r'O:\SenseCarbonProcessing\BJ_Multitemp2017\timeseriesCBERS_LS_RE.csv')
+        print('Loading done')
         ext = TS.getMaxSpatialExtent()
         cp = SpatialPoint(ext.crs(),ext.center())
         d.loadCoordinate(cp)

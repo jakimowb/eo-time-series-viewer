@@ -14,8 +14,8 @@
    <string>HUB Time Series Viewer</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/timeseriesviewer/icon</normaloff>:/timeseriesviewer/icon</iconset>
+   <iconset resource="resources.qrc">
+    <normaloff>:/timeseriesviewer/icons/icon.png</normaloff>:/timeseriesviewer/icons/icon.png</iconset>
   </property>
   <property name="documentMode">
    <bool>false</bool>
