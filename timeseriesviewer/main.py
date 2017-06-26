@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- HUB TimeSeriesViewer
-                                 A QGIS based time series viewer
+                              HUB TimeSeriesViewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$
@@ -121,6 +120,7 @@ class QgisTsvBridge(QObject):
     """
     _instance = None
 
+
     class SyncState(object):
         def __init__(self):
             self.center = False
@@ -144,11 +144,26 @@ class QgisTsvBridge(QObject):
     def instance():
         return QgisTsvBridge._instance
 
+    def addLayersToQGIS(self, mapLayers):
+        assert isinstance(mapLayers, list)
+        if not self.iface:
+            return
+
+
+        for ml in mapLayers:
+            assert isinstance(ml, QgsMapLayer)
+            src = ml.source()
+            if isinstance(ml, QgsRasterLayer):
+                self.iface.addRasterLayer(src)
+            if isinstance(ml, QgsVectorLayer):
+                self.iface.addVectorLayer(src , os.path.basename(src), ml.providerType())
+
     def __init__(self, iface, TSV):
-        super(QgisTsvBridge, self).__init__()
-        assert QgisTsvBridge._instance is None
+
+        #assert QgisTsvBridge._instance is None
         assert isinstance(TSV, TimeSeriesViewer)
         assert isinstance(iface, QgisInterface)
+        #super(QgisTsvBridge, self).__init__(parent=TSV)
         self.iface = iface
         self.TSV = TSV
         self.ui = self.TSV.ui
@@ -181,6 +196,9 @@ class QgisTsvBridge(QObject):
         self.gbQgsVectorLayer.clicked.connect(self.onQgsVectorLayerChanged)
         self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
         self.onQgsVectorLayerChanged(None)
+
+        print('QGIS TSV Bridge initialized')
+        QgisTsvBridge._instance = self
 
     def onQgisInteractionRequest(self, request):
         assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
@@ -395,13 +413,6 @@ class TimeSeriesViewerUI(QMainWindow,
         s = ""
 
 
-    def setQgsLinkWidgets(self):
-        #enable/disable widgets that rely on QGIS instance interaction
-        from timeseriesviewer import QGIS_TSV_BRIDGE
-        from timeseriesviewer.main import QgisTsvBridge
-        b = isinstance(QGIS_TSV_BRIDGE, QgisTsvBridge)
-        self.dockRendering.enableQgisSyncronization(b)
-        #self.dockRendering.gbQgsVectorLayer.setEnabled(b)
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -509,10 +520,10 @@ class TimeSeriesViewer:
         D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         D.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
-        D.actionLoadTS.triggered.connect(self.loadTimeSeries)
+        D.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         D.actionClearTS.triggered.connect(self.clearTimeSeries)
-        D.actionSaveTS.triggered.connect(self.ua_saveTSFile)
-        D.actionAddTSExample.triggered.connect(self.ua_loadExampleTS)
+        D.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
+        D.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
 
         D.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
 
@@ -529,10 +540,12 @@ class TimeSeriesViewer:
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
         self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
-        if isinstance(iface,QgisInterface):
+        self.mQgisBridge = None
+        if isinstance(iface, QgisInterface):
             import timeseriesviewer
-            timeseriesviewer.QGIS_TSV_BRIDGE = QgisTsvBridge(iface, self)
-            self.ui.setQgsLinkWidgets()
+            self.mQgisBridge = QgisTsvBridge(iface, self)
+            D.dockRendering.enableQgisSyncronization(True)
+            assert QgisTsvBridge.instance() == self.mQgisBridge
 
 
     def loadImageFiles(self, files):
@@ -540,11 +553,15 @@ class TimeSeriesViewer:
         self.TS.addFiles(files)
 
 
-    def loadTimeSeries(self, path=None, n_max=None):
-        if path is None or path is False:
-            path = QFileDialog.getOpenFileName(self.ui, 'Open Time Series file', '')
-
-        if os.path.exists(path):
+    def loadTimeSeriesDefinition(self, path=None, n_max=None):
+        s = getSettings()
+        defFile = s.value('FILE_TS_DEFINITION')
+        if defFile is not None:
+            defFile = os.path.dirname(defFile)
+        path = QFileDialog.getOpenFileName(caption='Load Time Series definition',
+                                           directory=defFile)
+        if path is not None and os.path.exists(path):
+            s.setValue('FILE_TS_DEFINITION', path)
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
             M.beginResetModel()
             self.clearTimeSeries()
@@ -602,48 +619,28 @@ class TimeSeriesViewer:
 
 
 
-    def ua_saveTSFile(self):
-        path = QFileDialog.getSaveFileName(self.ui, caption='Save Time Series file')
+    def saveTimeSeriesDefinition(self):
+        s = getSettings()
+        defFile = s.value('FILE_TS_DEFINITION')
+        if defFile is not None:
+            defFile = os.path.dirname(defFile)
+        path = QFileDialog.getSaveFileName(caption='Save Time Series definition',
+                                           directory=defFile)
         if path is not None:
+            s.setValue('FILE_TS_DEFINITION', path)
             self.TS.saveToFile(path)
 
 
-    def ua_loadExampleTS(self):
+    def loadExampleTimeSeries(self):
         from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
         if not os.path.exists(PATH_EXAMPLE_TIMESERIES):
             QMessageBox.information(self.ui, 'File not found', '{} - this file describes an exemplary time series.'.format(PATH_EXAMPLE_TIMESERIES))
         else:
-            self.loadTimeSeries(path=PATH_EXAMPLE_TIMESERIES)
-
-
-
-    def ua_selectByRectangle(self):
-        if self.RectangleMapTool is not None:
-            self.qgsCanvas.setMapTool(self.RectangleMapTool)
-
-    def ua_selectByCoordinate(self):
-        if self.PointMapTool is not None:
-            self.qgsCanvas.setMapTool(self.PointMapTool)
-
+            self.loadTimeSeriesDefinition(path=PATH_EXAMPLE_TIMESERIES)
 
 
     def qgs_handleMouseDown(self, pt, btn):
         pass
-
-
-
-    def ua_TSprogress(self, v_min, v, v_max):
-        assert v_min <= v and v <= v_max
-        if v_min < v_max:
-            P = self.ui.progressBar
-            if P.minimum() != v_min or P.maximum() != v_max:
-                P.setRange(v_min, v_max)
-            else:
-                s = ""
-
-            P.setValue(v)
-
-
 
 
 
@@ -662,15 +659,6 @@ class TimeSeriesViewer:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('EnMAPBox', message)
 
-
-
-
-
-    def ua_addTSD_to_QGIS(self, TSD, bands):
-
-        s = ""
-
-        pass
 
 
     def unload(self):
@@ -705,23 +693,6 @@ class TimeSeriesViewer:
         HBar.setValue(i_doi * step)
 
 
-    def ua_collect_date(self, ICL, event):
-        if self.ui.rb_labeling_activate.isChecked():
-            txt = self.ui.tb_labeling_text.toPlainText()
-            reg = re.compile('\d{4}-\d{2}-\d{2}', re.I | re.MULTILINE)
-            dates = set([np.datetime64(m) for m in reg.findall(txt)])
-            doi = ICL.TSD.getDate()
-
-            if event.button() == Qt.LeftButton:
-                dates.add(doi)
-            elif event.button() == Qt.MiddleButton and doi in dates:
-                dates.remove(doi)
-
-            dates = sorted(list(dates))
-            txt = ' '.join([d.astype(str) for d in dates])
-            self.ui.tb_labeling_text.setText(txt)
-
-
     def clearLayoutWidgets(self, L):
         if L is not None:
             while L.count():
@@ -734,15 +705,13 @@ class TimeSeriesViewer:
 
     def addTimeSeriesImages(self, files=None):
         if files is None:
-            s = QSettings('HU-Berlin','HUB TSV')
+            s = getSettings()
             defDir = s.value('DIR_FILESEARCH')
             files = QFileDialog.getOpenFileNames(directory=defDir)
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])
                 s.setValue('DIR_FILESEARCH', dn)
-            s = ""
-            #collect sublayers, if existing
 
 
         if files:

@@ -46,16 +46,7 @@
     <property name="spacing">
      <number>1</number>
     </property>
-    <property name="leftMargin">
-     <number>0</number>
-    </property>
-    <property name="topMargin">
-     <number>0</number>
-    </property>
-    <property name="rightMargin">
-     <number>0</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>0</number>
     </property>
     <item>
@@ -90,7 +81,7 @@
          <x>0</x>
          <y>0</y>
          <width>807</width>
-         <height>290</height>
+         <height>302</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -112,16 +103,7 @@
         <property name="sizeConstraint">
          <enum>QLayout::SetNoConstraint</enum>
         </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>0</number>
         </property>
         <item>
@@ -147,7 +129,7 @@
      <x>0</x>
      <y>0</y>
      <width>809</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
@@ -244,7 +226,7 @@
      <normaloff>:/timeseriesviewer/icons/CRS.png</normaloff>:/timeseriesviewer/icons/CRS.png</iconset>
    </property>
    <property name="text">
-    <string>selectCRS</string>
+    <string>Select CRS</string>
    </property>
    <property name="toolTip">
     <string>Select coordinate reference system</string>
@@ -413,7 +395,7 @@
   </action>
   <action name="actionSetExtent">
    <property name="text">
-    <string>setExtent</string>
+    <string>Set Extent</string>
    </property>
   </action>
   <action name="actionZoomIn">
@@ -470,7 +452,7 @@
      <normaloff>:/timeseriesviewer/icons/mActionPan.png</normaloff>:/timeseriesviewer/icons/mActionPan.png</iconset>
    </property>
    <property name="text">
-    <string>actionPan</string>
+    <string>Pan Map</string>
    </property>
    <property name="toolTip">
     <string>Pan map</string>
