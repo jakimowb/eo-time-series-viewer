@@ -184,18 +184,18 @@ class QgisTsvBridge(QObject):
         self.qgsMapCanvas = self.iface.mapCanvas()
         assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
 
-        self.qgsMapCanvas.extentsChanged.connect(self.syncTsvWithQgs)
-        self.qgsMapCanvas.destinationCrsChanged.connect(self.syncTsvWithQgs)
+        #self.qgsMapCanvas.extentsChanged.connect(self.syncTsvWithQgs)
+        #self.qgsMapCanvas.destinationCrsChanged.connect(self.syncTsvWithQgs)
 
 
         assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
         assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
 
-        self.TSV.spatialTemporalVis.sigSpatialExtentChanged.connect(self.syncQgsWithTsv)
+        #self.TSV.spatialTemporalVis.sigSpatialExtentChanged.connect(self.syncQgsWithTsv)
 
-        self.gbQgsVectorLayer.clicked.connect(self.onQgsVectorLayerChanged)
-        self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
-        self.onQgsVectorLayerChanged(None)
+        #self.gbQgsVectorLayer.clicked.connect(self.onQgsVectorLayerChanged)
+        #self.cbQgsVectorLayer.layerChanged.connect(self.onQgsVectorLayerChanged)
+        #self.onQgsVectorLayerChanged(None)
 
         print('QGIS TSV Bridge initialized')
         QgisTsvBridge._instance = self
@@ -343,7 +343,8 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.addActions(self.findChildren(QAction))
-
+        from timeseriesviewer import TITLE
+        self.setWindowTitle(TITLE)
 
 
         #set button default actions -> this will show the action icons as well
