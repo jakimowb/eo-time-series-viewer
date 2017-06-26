@@ -34,12 +34,18 @@ class MapCanvas(QgsMapCanvas):
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
         #refreshTimer.timeout.connect(self.onTimerRefresh)
+        #self.extentsChanged.connect(lambda : self._setDataRefreshed())
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
+        self.mLazyRasterSources = []
+        self.mRendererRaster = None
+        self.mRendererVector = None
 
         #self.tsdView = tsdView
         #self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
 
+        self.mWasVisible = False
+        self.mMapSummary = self.mapSummary()
         self.mLayers = []
         #self.mapView = mapView
         #self.spatTempVis = mapView.spatTempVis
@@ -50,8 +56,6 @@ class MapCanvas(QgsMapCanvas):
         self.crosshairItem = CrosshairMapCanvasItem(self)
 
 
-
-        self.mDataRefreshRequired = False
 
 
 
@@ -78,37 +82,39 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         if self.crs() != crs:
             self.setDestinationCrs(crs)
-            self.mDataRefreshRequired = True
+
     def crs(self):
         return self.mapSettings().destinationCrs()
 
 
     def mapLayersToRender(self, *args):
-        """Returns the map layers actually to be rendered"""
+        """Returns the map layers to be rendered"""
+        if len(self.mLazyRasterSources) > 0:
+            mls = [QgsRasterLayer(src) for src in self.mLazyRasterSources]
+            QgsMapLayerRegistry.instance().addMapLayers(mls, False)
+            del self.mLazyRasterSources[:]
+            self.mLayers.extend(mls)
+            self.setRasterRenderer(self.mRendererRaster, refresh=False)
+            self.setVectorRenderer(self.mRendererVector, refresh=False)
         return self.mLayers
 
-        mapLayers = []
-        self.mLayers
-        if self.mapView.visibleVectorOverlay():
-            #if necessary, register new vector layer
-            refLyr = self.mapView.vectorLayer
-            refUri = refLyr.dataProvider().dataSourceUri()
-
-            if self.vectorLayer is None or self.vectorLayer.dataProvider().dataSourceUri() != refUri:
-                providerKey = refLyr.dataProvider().name()
-                baseName = os.path.basename(refUri)
-                self.vectorLayer = QgsVectorLayer(refUri, baseName, providerKey)
-
-            #update layer style
-            self.vectorLayer.setRendererV2(refLyr.rendererV2().clone())
-            mapLayers.append(self.vectorLayer)
-
-        if self.referenceLayer:
-            mapLayers.append(self.referenceLayer)
-
-        return mapLayers
+    def addLazyRasterSources(self, sources):
+        assert isinstance(sources, list)
+        self.mLazyRasterSources.extend(sources[:])
 
 
+    def mapSummary(self):
+        from PyQt4.QtXml import QDomDocument
+        dom = QDomDocument()
+        root = dom.createElement('renderer')
+        dom.appendChild(root)
+        if self.mRendererVector:
+            self.mRendererVector.writeXML(dom, root)
+        if self.mRendererRaster:
+            self.mRendererRaster.writeXML(dom, root)
+        xml = dom.toString()
+
+        return (self.crs(), self.spatialExtent(), self.size(), self.layers(),xml)
 
     def setLayerSet(self, *args):
         raise DeprecationWarning()
@@ -116,23 +122,27 @@ class MapCanvas(QgsMapCanvas):
 
     def setLayers(self, mapLayers):
 
-        reg = QgsMapLayerRegistry.instance()
-        reg.addMapLayers(mapLayers, False)
 
-        self.mLayers = mapLayers[:]
-        self.mDataRefreshRequired = True
-        super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
+        oldLayerSet = set(self.layers())
+        newLayerSet = set(mapLayers)
+        diffLayers = len(oldLayerSet.symmetric_difference(newLayerSet)) > 0
+        if diffLayers:
+            reg = QgsMapLayerRegistry.instance()
+            reg.addMapLayers(mapLayers, False)
+            self.mLayers = mapLayers[:]
+            super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
 
         #self.refresh()
 
-    def refresh(self):
+    def refresh(self, force=False):
         #low-level, only performed if MapCanvas is visible
+
         self.checkRenderFlag()
-        if self.renderFlag():
-            print('REFRESH {}'.format(self.objectName()))
+        if self.renderFlag() or force:
+            #print('Refresh {}'.format(self.objectName()))
             self.setLayers(self.mapLayersToRender())
-            #super(MapCanvas, self).refresh()
-            self.refreshAllLayers()
+            super(MapCanvas, self).refresh()
+            #self.refreshAllLayers()
 
 
     def setCrosshairStyle(self,crosshairStyle):
@@ -147,18 +157,33 @@ class MapCanvas(QgsMapCanvas):
     def setShowCrosshair(self,b):
         self.crosshairItem.setShow(b)
 
-    def onTimerRefresh(self):
-        self.checkRenderFlag()
-        self.refresh()
 
     def checkRenderFlag(self):
+        """
+        Controls the MapCanvas Render flag to decide if rendering is required
+        :return:
+        """
+        wasVisible = self.mWasVisible
         isVisible = self.visibleRegion().boundingRect().isValid() \
                   and self.isVisible()
         if not isVisible:
             self.setRenderFlag(False)
+            self.mWasVisible = False
+            #will stop active render jobs
+
         else:
-            isRequired = self.renderFlag() or self.mDataRefreshRequired and not self.signalsBlocked()
-            self.setRenderFlag(isRequired)
+            #the canvas is visible, but is a new rendering required?
+            lastSummary = self.mMapSummary
+
+            #isRequired = (wasVisible == False) or self.renderFlag() or self.mDataRefreshed
+            isRequired = lastSummary != self.mapSummary()
+            self.mWasVisible = True
+            if isRequired:
+                self.setRenderFlag(True)
+                self.mMapSummary = self.mapSummary()
+            else:
+                self.setRenderFlag(False)
+
 
     def layerPaths(self):
         return [str(l.source()) for l in self.layers()]
@@ -176,10 +201,21 @@ class MapCanvas(QgsMapCanvas):
         menu = QMenu()
         # add general options
         menu.addSeparator()
-        action = menu.addAction('Stretch using current Extent')
-        action.triggered.connect(self.stretchToCurrentExtent)
+        m = menu.addMenu('Stretch to current extent...')
+        action = m.addAction('Linear')
+        action.triggered.connect(lambda : self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.0))
+
+        action = m.addAction('Linear 5%')
+        action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.05))
+
+        action = m.addAction('Gaussian')
+        action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'gaussian', n=3))
+
+
         action = menu.addAction('Zoom to Layer')
         action.triggered.connect(lambda : self.setSpatialExtent(self.spatialExtentHint()))
+        action = menu.addAction('Refresh')
+        action.triggered.connect(lambda: self.refresh(True))
         menu.addSeparator()
 
         action = menu.addAction('Change crosshair style')
@@ -200,29 +236,27 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         m = menu.addMenu('Copy...')
-        action = m.addAction('Map to Clipboard')
-        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
-        action = m.addAction('Image Path')
-        action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(self.layerPaths())))
-        action = m.addAction('Image Style')
-        #action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.tsdView.TSD.pathImg))
+        action = m.addAction('Date')
+        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_date'))
+        action = m.addAction('Sensor')
+        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_sensor'))
+        action = m.addAction('Path')
+        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_path'))
 
-        m = menu.addMenu('Save as...')
+        m = menu.addMenu('Save to...')
         action = m.addAction('PNG')
         action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
-
+        action = m.addAction('Clipboard')
+        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
         from timeseriesviewer.main import QgisTsvBridge
+
         bridge = QgisTsvBridge.instance()
-        if bridge:
-            assert isinstance(bridge, QgisTsvBridge)
-            action = m.addAction('Add layer to QGIS')
-            action = m.addAction('Import extent from QGIS')
-            action = m.addAction('Export extent to QGIS')
-            s = ""
-
-
+        if isinstance(bridge, QgisTsvBridge):
+            menu.addSeparator()
+            action = menu.addAction('Add raster to QGIS')
+            action.triggered.connect(lambda: bridge.addLayersToQGIS([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
 
 
         menu.addSeparator()
@@ -231,52 +265,78 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda : self.sigChangeDVRequest.emit(self, 'hide_date'))
         action = menu.addAction('Remove date')
         action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'remove_date'))
-        action = menu.addAction('Remove map view')
-        action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
+        menu.addSeparator()
         action = menu.addAction('Hide map view')
         action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'hide_mapview'))
-
+        action = menu.addAction('Remove map view')
+        action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
 
         menu.exec_(event.globalPos())
 
     def stretchToCurrentExtent(self):
 
         se = self.spatialExtent()
-        ceAlg = QgsContrastEnhancement.StretchToMinimumMaximum
+        self.stretchToExtent(se)
+
+    def stretchToExtent(self, spatialExtent, stretchType='linear_minmax', **stretchArgs):
+        """
+
+        :param spatialExtent: rectangle to get the image statistics for
+        :param stretchType: ['linear_minmax' (default), 'gaussian']
+        :param stretchArgs:
+            linear_minmax: 'p'  percentage from min/max, e.g. +- 5 %
+            gaussian: 'n' mean +- n* standard deviations
+        :return:
+        """
+
         for l in self.layers():
             if isinstance(l, QgsRasterLayer):
                 r = l.renderer()
                 dp = l.dataProvider()
                 newRenderer = None
-                extent = se.toCrs(l.crs())
+                extent = spatialExtent.toCrs(l.crs())
 
                 assert isinstance(dp, QgsRasterDataProvider)
-                bands = None
-                if isinstance(r, QgsMultiBandColorRenderer):
 
-                    def getCE(band, ce):
-                        stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
-                        if stats.maximumValue is None:
-                            s = ""
-                        ce = QgsContrastEnhancement(dp.dataType(band))
-                        ce.setContrastEnhancementAlgorithm(ceAlg)
+                def getCE(band):
+                    stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
+                    # hist = dp.histogram(band,100, stats.minimumValue, stats.maximumValue, extent, 500, False)
+                    ce = QgsContrastEnhancement(dp.dataType(band))
+                    d = (stats.maximumValue - stats.minimumValue)
+                    if stretchType == 'linear_minmax':
+                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                        ce.setMinimumValue(stats.minimumValue + d * stretchArgs.get('p', 0))
+                        ce.setMaximumValue(stats.maximumValue - d * stretchArgs.get('p', 0))
+                    elif stretchType == 'gaussian':
+                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                        ce.setMinimumValue(stats.mean - stats.stdDev * stretchArgs.get('n', 3))
+                        ce.setMaximumValue(stats.mean + stats.stdDev * stretchArgs.get('n', 3))
+                    else:
+                        # stretchType == 'linear_minmax':
+                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
                         ce.setMinimumValue(stats.minimumValue)
                         ce.setMaximumValue(stats.maximumValue)
-                        return ce
 
-                    newRenderer = QgsMultiBandColorRenderer(None,r.redBand(), r.greenBand(), r.blueBand())
-                    newRenderer.setRedContrastEnhancement(getCE(r.redBand(), r.redContrastEnhancement()))
-                    newRenderer.setGreenContrastEnhancement(getCE(r.greenBand(), r.greenContrastEnhancement()))
-                    newRenderer.setBlueContrastEnhancement(getCE(r.blueBand(), r.blueContrastEnhancement()))
+                    return ce
+
+                if isinstance(r, QgsMultiBandColorRenderer):
+
+
+                    newRenderer = QgsMultiBandColorRenderer(None, r.redBand(), r.greenBand(), r.blueBand())
+                    newRenderer.setRedContrastEnhancement(getCE(r.redBand()))
+                    newRenderer.setGreenContrastEnhancement(getCE(r.greenBand()))
+                    newRenderer.setBlueContrastEnhancement(getCE(r.blueBand()))
 
                 elif isinstance(r, QgsSingleBandPseudoColorRenderer):
                     newRenderer = r.clone()
-                    stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
+                    ce = getCE(newRenderer.band())
+                    #stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
+
                     shader = newRenderer.shader()
-                    newRenderer.setClassificationMax(stats.maximumValue)
-                    newRenderer.setClassificationMin(stats.minimumValue)
-                    shader.setMaximumValue(stats.maximumValue)
-                    shader.setMinimumValue(stats.minimumValue)
+                    newRenderer.setClassificationMax(ce.maximumValue())
+                    newRenderer.setClassificationMin(ce.minimumValue())
+                    shader.setMaximumValue(ce.maximumValue())
+                    shader.setMinimumValue(ce.minimumValue())
                     s = ""
 
                 if newRenderer is not None:
@@ -302,37 +362,48 @@ class MapCanvas(QgsMapCanvas):
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
 
 
-
-
     def setRenderer(self, renderer):
-
+        #print('Set renderer {}'.format(self.objectName()))
         #lyrs = [l for l in self.mapLayersToRender() if str(l.source()) == targetLayerUri]
         isRasterRenderer = isinstance(renderer, QgsRasterRenderer)
         if isRasterRenderer:
-            lyrs = [l for l in self.mLayers if isinstance(l, QgsRasterLayer)]
-            for lyr in lyrs:
-                if isinstance(renderer, QgsMultiBandColorRenderer):
-                    r = renderer.clone()
-                    r.setInput(lyr.dataProvider())
-                elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-                    r = renderer.clone()
-                    #r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
-                    r.setInput(lyr.dataProvider())
-                    cmin = renderer.classificationMin()
-                    cmax = renderer.classificationMax()
-                    r.setClassificationMin(cmin)
-                    r.setClassificationMax(cmax)
-                    #r.setShader(renderer.shader())
-                    s = ""
-                else:
-                    raise NotImplementedError()
-                lyr.setRenderer(r)
+            self.setRasterRenderer(renderer, refresh=False)
         else:
-            lyrs = [l for l in self.mLayers if isinstance(l, QgsVectorLayer)]
-            for lyr in lyrs:
-                lyr.setRenderer(renderer)
+            self.setVectorRenderer(renderer, refresh=False)
 
         self.refresh()
+
+    def setVectorRenderer(self, renderer, refresh=True):
+        self.mRendererVector = renderer
+        lyrs = [l for l in self.mLayers if isinstance(l, QgsVectorLayer)]
+        for lyr in lyrs:
+            # todo: do we need to clone this?
+            lyr.setRenderer(renderer)
+        if refresh:
+            self.refresh()
+
+    def setRasterRenderer(self, renderer, refresh=False):
+        self.mRendererRaster = renderer
+        lyrs = [l for l in self.mLayers if isinstance(l, QgsRasterLayer)]
+        for lyr in lyrs:
+            if isinstance(renderer, QgsMultiBandColorRenderer):
+                r = renderer.clone()
+                r.setInput(lyr.dataProvider())
+            elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                r = renderer.clone()
+                # r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
+                r.setInput(lyr.dataProvider())
+                cmin = renderer.classificationMin()
+                cmax = renderer.classificationMax()
+                r.setClassificationMin(cmin)
+                r.setClassificationMax(cmax)
+                # r.setShader(renderer.shader())
+                s = ""
+            else:
+                raise NotImplementedError()
+            lyr.setRenderer(r)
+        if refresh:
+            self.refresh()
 
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
@@ -340,7 +411,7 @@ class MapCanvas(QgsMapCanvas):
             spatialExtent = spatialExtent.toCrs(self.crs())
             if spatialExtent:
                 self.setExtent(spatialExtent)
-                self.mDataRefreshRequired = True
+
 
 
     def spatialExtent(self):
