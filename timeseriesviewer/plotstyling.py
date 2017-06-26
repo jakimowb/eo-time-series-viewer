@@ -252,12 +252,12 @@ class PlotStyleButton(QPushButton):
 
 
     def showDialog(self):
-        print(('A',self.mPlotStyle))
+        #print(('A',self.mPlotStyle))
         style = PlotStyleDialog.getPlotStyle(plotStyle=self.mPlotStyle)
 
         if style:
             self.setPlotStyle(style)
-        print(('B',self.mPlotStyle))
+        #print(('B',self.mPlotStyle))
     def resizeEvent(self, arg):
         self._updateIcon()
 
