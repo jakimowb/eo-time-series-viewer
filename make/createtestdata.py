@@ -254,12 +254,19 @@ def vrt2Binary(dirVRTs, dirBins, drvNameDst='GTiff', recursive=False, overwrite=
 
 def testdataMultitemp2017():
 
-    dirSrcCBERS = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\CBERS\Data'
-    dirVRTCBERS = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\CBERS'
-    dirSrcL8 = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\Landsat\L1T'
-    dirVRTL8 = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\Landsat'
-    dirSrcRE = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\RapidEye\3A'
-    dirVRTRE = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\RapidEye'
+    jp = os.path.join
+
+    if sys.platform == 'darwin':
+        root = r'/Users/Shared/Multitemp2017'
+    else:
+        root = r'O:\SenseCarbonProcessing\BJ_Multitemp2017'
+
+    dirSrcCBERS = jp(root, *['01_Data','CBERS','Data'])
+    dirVRTCBERS = jp(root, *['01_Data','CBERS'])
+    dirSrcL8 = jp(root, *['01_Data','Landsat','L1T'])
+    dirVRTL8 = jp(root, *['01_Data','Landsat'])
+    dirSrcRE = jp(root, *['01_Data','RapidEye','3A'])
+    dirVRTRE = jp(root, *['01_Data','RapidEye'])
 
     if False:
         groupCBERS(dirSrcCBERS, dirVRTCBERS, '*CBERS*167_108_*.tif')
@@ -267,14 +274,16 @@ def testdataMultitemp2017():
     if False:
         groupLandsat(dirSrcL8, dirVRTL8)
 
-    if True:
-        #groupRapidEyeTiles(dirSrcRE, dirVRTRE)
-        addPyramids(dirVRTRE, '*.vrt', levels=[2,4,8])
+    if False:
+        groupRapidEyeTiles(dirSrcRE, dirVRTRE)
+        #addPyramids(dirVRTRE, '*.vrt', levels=[2,4,8])
 
     if True:
-        dirBinL8 = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\Landsat\L1TS'
+        dirVRT = dirVRTL8
+        dirBin = jp(dirVRT, '3AS')
+
         gdal.SetCacheMax(100*2*20)
-        vrt2Binary(dirVRTL8, dirBinL8, overwrite=False)
+        vrt2Binary(dirVRT, dirBin, overwrite=False)
 
 
 if __name__ == '__main__':

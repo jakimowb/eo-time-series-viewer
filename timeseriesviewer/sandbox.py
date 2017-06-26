@@ -325,8 +325,8 @@ if __name__ == '__main__':
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
     if False: sandboxGui()
-    if False: sandboxTestdata()
-    if True: sandboxMultitemp2017(qgis=True)
+    if True: sandboxTestdata()
+    if False: sandboxMultitemp2017(qgis=True)
 
     #close QGIS
     qgsApp.exec_()
