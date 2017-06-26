@@ -212,6 +212,7 @@ class MapViewSensorSettings(QObject):
 
         self.ui = MapViewRenderSettingsUI(parent)
         self.ui.create()
+        self.ui.stackedWidget.currentChanged.connect(self.updateUi)
         self.sensor.sigNameChanged.connect(self.onSensorNameChanged)
         self.onSensorNameChanged(self.sensor.name())
         self.mMapCanvases = []
@@ -227,6 +228,7 @@ class MapViewSensorSettings(QObject):
             sl.setMinimum(1)
             sl.setMaximum(sensor.nb)
             sl.valueChanged.connect(self.updateUi)
+
 
         self.ceAlgs = collections.OrderedDict()
 
@@ -406,22 +408,24 @@ class MapViewSensorSettings(QObject):
                 self.multiBandSliders[i].setValue(b+1)
 
 
-    def rgb(self):
-        return [self.ui.sliderRed.value(),
-               self.ui.sliderGreen.value(),
-               self.ui.sliderBlue.value()]
+
 
     SignalizeImmediately = True
 
     def updateUi(self, *args):
-        rgb = self.rgb()
 
-        text = 'RGB {}-{}-{}'.format(*rgb)
+        cw = self.ui.stackedWidget.currentWidget()
+        text = ''
+        if cw == self.ui.pageMultiBand:
+            text = 'RGB {} {} {}'.format(
+                self.ui.sliderRed.value(),
+                self.ui.sliderGreen.value(),
+                self.ui.sliderBlue.value()
+            )
+        elif cw == self.ui.pageSingleBand:
+            text = 'Band {}'.format(self.ui.sliderSingleBand.value())
 
-        if False and self.sensor.wavelengthsDefined():
-            text += ' ({} {})'.format(
-                ','.join(['{:0.2f}'.format(self.sensor.wavelengths[b-1]) for b in rgb]),
-                self.sensor.wavelengthUnits)
+
         self.ui.labelSummary.setText(text)
 
 
@@ -477,6 +481,7 @@ class MapViewSensorSettings(QObject):
             updated = True
 
         self.updateUi()
+
         if updated and MapViewSensorSettings.SignalizeImmediately:
             #self.sigSensorRendererChanged.emit(renderer.clone())
             self.applyStyle()

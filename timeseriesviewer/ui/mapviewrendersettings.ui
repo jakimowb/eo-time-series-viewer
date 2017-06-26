@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>260</width>
-    <height>135</height>
+    <height>161</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -49,16 +49,28 @@
    <property name="spacing">
     <number>2</number>
    </property>
-   <property name="margin">
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
     <number>2</number>
    </property>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <property name="spacing">
+      <number>6</number>
+     </property>
      <item>
       <widget class="QLabel" name="labelTitle">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
          <weight>50</weight>
          <italic>false</italic>
          <bold>false</bold>
@@ -80,13 +92,13 @@
       <widget class="QComboBox" name="cbRenderType">
        <property name="maximumSize">
         <size>
-         <width>60</width>
+         <width>100</width>
          <height>16777215</height>
         </size>
        </property>
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <item>
@@ -117,7 +129,7 @@
        </property>
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -163,11 +175,20 @@
       </property>
       <property name="font">
        <font>
-        <pointsize>8</pointsize>
+        <pointsize>10</pointsize>
        </font>
       </property>
       <layout class="QGridLayout" name="gridLayout_2">
-       <property name="margin">
+       <property name="leftMargin">
+        <number>2</number>
+       </property>
+       <property name="topMargin">
+        <number>2</number>
+       </property>
+       <property name="rightMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
         <number>2</number>
        </property>
        <property name="spacing">
@@ -214,7 +235,7 @@
         <widget class="QLabel" name="labelMax">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -238,7 +259,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -250,7 +271,7 @@
         <widget class="QLineEdit" name="tbGreenMin">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -274,7 +295,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -286,7 +307,7 @@
         <widget class="QLabel" name="labelMin">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -304,7 +325,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -316,7 +337,7 @@
         <widget class="QLabel" name="labelGreen">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="styleSheet">
@@ -362,7 +383,7 @@
         <widget class="QLabel" name="labelRed">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="styleSheet">
@@ -377,7 +398,7 @@
         <widget class="QLabel" name="labelBlue">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -414,7 +435,7 @@
         <widget class="QLineEdit" name="tbBlueMin">
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -432,7 +453,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -458,7 +479,16 @@
           <property name="spacing">
            <number>3</number>
           </property>
-          <property name="margin">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
           <item>
@@ -471,7 +501,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>8</pointsize>
+              <pointsize>10</pointsize>
               <italic>false</italic>
              </font>
             </property>
@@ -493,7 +523,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>8</pointsize>
+              <pointsize>10</pointsize>
               <italic>false</italic>
              </font>
             </property>
@@ -515,7 +545,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>8</pointsize>
+              <pointsize>10</pointsize>
               <italic>false</italic>
              </font>
             </property>
@@ -537,7 +567,7 @@
             </property>
             <property name="font">
              <font>
-              <pointsize>8</pointsize>
+              <pointsize>10</pointsize>
               <italic>false</italic>
              </font>
             </property>
@@ -576,18 +606,27 @@
       </property>
       <property name="font">
        <font>
-        <pointsize>8</pointsize>
+        <pointsize>10</pointsize>
        </font>
       </property>
       <layout class="QGridLayout" name="gridLayout" columnstretch="2,0,0,0,0">
-       <property name="horizontalSpacing">
+       <property name="leftMargin">
         <number>2</number>
        </property>
-       <property name="verticalSpacing">
-        <number>0</number>
+       <property name="topMargin">
+        <number>2</number>
        </property>
-       <property name="margin">
-        <number>0</number>
+       <property name="rightMargin">
+        <number>2</number>
+       </property>
+       <property name="bottomMargin">
+        <number>2</number>
+       </property>
+       <property name="horizontalSpacing">
+        <number>5</number>
+       </property>
+       <property name="verticalSpacing">
+        <number>2</number>
        </property>
        <item row="4" column="4">
         <widget class="QLineEdit" name="tbSingleBandMax">
@@ -605,7 +644,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -660,7 +699,7 @@
          </property>
          <property name="font">
           <font>
-           <pointsize>8</pointsize>
+           <pointsize>10</pointsize>
           </font>
          </property>
          <property name="text">
@@ -682,30 +721,23 @@
          <property name="frameShadow">
           <enum>QFrame::Raised</enum>
          </property>
-         <layout class="QGridLayout" name="gridLayout_4" columnstretch="0,0,0,0">
-          <property name="horizontalSpacing">
-           <number>1</number>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <property name="spacing">
+           <number>6</number>
           </property>
-          <property name="verticalSpacing">
-           <number>0</number>
+          <property name="leftMargin">
+           <number>2</number>
           </property>
-          <property name="margin">
-           <number>0</number>
+          <property name="topMargin">
+           <number>2</number>
           </property>
-          <item row="1" column="2">
-           <widget class="QComboBox" name="cbSingleBandColorRampType">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>2</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="toolTip">
-             <string>Type of color ramp</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
+          <property name="rightMargin">
+           <number>2</number>
+          </property>
+          <property name="bottomMargin">
+           <number>2</number>
+          </property>
+          <item>
            <widget class="QgsColorRampComboBox" name="cbSingleBandColorRamp">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -724,7 +756,20 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="3">
+          <item>
+           <widget class="QComboBox" name="cbSingleBandColorRampType">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>2</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Type of color ramp</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QComboBox" name="cbSingleBandMode">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -742,6 +787,11 @@
        </item>
        <item row="3" column="3">
         <widget class="QLabel" name="labelMin_2">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
          <property name="text">
           <string>Min</string>
          </property>
@@ -749,6 +799,11 @@
        </item>
        <item row="3" column="4">
         <widget class="QLabel" name="labelMax_2">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
          <property name="text">
           <string>Max</string>
          </property>
@@ -762,11 +817,25 @@
            <height>0</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <property name="spacing">
            <number>0</number>
           </property>
-          <property name="margin">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
           <item>
@@ -893,7 +962,7 @@
       <widget class="QLabel" name="label">
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
        <property name="text">
@@ -914,7 +983,7 @@
        </property>
        <property name="font">
         <font>
-         <pointsize>8</pointsize>
+         <pointsize>10</pointsize>
         </font>
        </property>
       </widget>
