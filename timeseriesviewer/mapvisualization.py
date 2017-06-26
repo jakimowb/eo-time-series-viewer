@@ -34,7 +34,7 @@ class MapView(QObject):
         super(MapView, self).__init__()
         assert isinstance(mapViewCollection, MapViewCollection)
         self.mapViewCollection = mapViewCollection
-        self.spatTempVis = mapViewCollection.spatTempVis
+        self.spatTempVis = mapViewCollection.STV
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
@@ -102,9 +102,8 @@ class MapView(QObject):
         assert type(sensor) is SensorInstrument
         if sensor in self.sensorViews.keys():
             w = self.sensorViews.pop(sensor)
-            from timeseriesviewer.ui.widgets import MapViewSensorSettings
             assert isinstance(w, MapViewSensorSettings)
-            l = self.ui.sensorList
+            l = self.ui.sensorList.layout()
             l.removeWidget(w.ui)
             w.ui.close()
             self.ui.adjustSize()
@@ -298,8 +297,8 @@ class MapViewSensorSettings(QObject):
             colorRampItems.append(QgsColorRampShader.ColorRampItem(value, color))
         shaderFunc.setColorRampItemList(colorRampItems)
         shader = QgsRasterShader()
-        shader.setMaximumValue(bandStats[0].Min)
-        shader.setMinimumValue(bandStats[0].Max)
+        shader.setMaximumValue(bandStats[0].Max)
+        shader.setMinimumValue(bandStats[0].Min)
         shader.setRasterShaderFunction(shaderFunc)
         self.defaultSB.setShader(shader)
         self.defaultSB.setClassificationMin(shader.minimumValue())
@@ -369,7 +368,6 @@ class MapViewSensorSettings(QObject):
                 self.setLayerRenderer(renderer)
 
     def applyStyle(self, *args):
-        #self.sigSensorRendererChanged.emit(self.layerRenderer())
         r = self.layerRenderer()
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
@@ -426,14 +424,11 @@ class MapViewSensorSettings(QObject):
                 self.sensor.wavelengthUnits)
         self.ui.labelSummary.setText(text)
 
-        if MapViewSensorSettings.SignalizeImmediately:
-            #self.sigSensorRendererChanged.emit(self.layerRenderer())
-            self.applyStyle()
 
     def setLayerRenderer(self, renderer):
         ui = self.ui
         assert isinstance(renderer, QgsRasterRenderer)
-
+        from timeseriesviewer.utils import niceNumberString
         updated = False
         if isinstance(renderer, QgsMultiBandColorRenderer):
             self.ui.cbRenderType.setCurrentIndex(0)
@@ -458,8 +453,8 @@ class MapViewSensorSettings(QObject):
             for i, ce in enumerate([ceRed, ceGreen, ceBlue]):
                 vMin = ce.minimumValue()
                 vMax = ce.maximumValue()
-                self.multiBandMinValues[i].setText(str(vMin))
-                self.multiBandMaxValues[i].setText(str(vMax))
+                self.multiBandMinValues[i].setText(niceNumberString(vMin))
+                self.multiBandMaxValues[i].setText(niceNumberString(vMax))
 
             idx = self.ceAlgs.values().index(ceRed.contrastEnhancementAlgorithm())
             ui.comboBoxContrastEnhancement.setCurrentIndex(idx)
@@ -582,8 +577,8 @@ class DatumView(QObject):
         self.minWidth = 50
         self.renderProgress = dict()
 
-        assert isinstance(mapViewCollection.spatTempVis, SpatialTemporalVisualization)
-        self.STV = mapViewCollection.spatTempVis
+        assert isinstance(mapViewCollection.STV, SpatialTemporalVisualization)
+        self.STV = mapViewCollection.STV
 
         self.TSD = timeSeriesDatum
         self.scrollArea = timeSeriesDateViewCollection.scrollArea
@@ -616,12 +611,20 @@ class DatumView(QObject):
         if not self.ui.isVisible():
             return QSize(0,0)
 
-        l = len(self.mapCanvases)
-        if l == 0:
-            self.ui.sizeHint()
-        else:
+        x = y = 0
+        for i in range(self.ui.layout().count()):
+            item = self.ui.layout().itemAt(i)
+            w = item.widget()
+            if isinstance(w, QWidget):
+                size = item.sizeHint()
+                x = max([x, size.width()])
+                y += size.height()
+
+        size = self.ui.sizeHint()
+        if len(self.mapCanvases) > 0:
             baseSize = self.mapCanvases.values()[0].size()
-            return QSize(baseSize.width(), l*baseSize.height())
+            size = QSize(baseSize.width(), size.height())
+        return size
 
 
     def removeMapView(self, mapView):
@@ -635,7 +638,6 @@ class DatumView(QObject):
         if self.ui.isVisible():
             for c in self.mapCanvases.values():
                 if c.isVisible():
-                    #c.refreshAllLayers()
                     c.refresh()
 
     def insertMapView(self, mapView):
@@ -652,14 +654,14 @@ class DatumView(QObject):
         # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
         mapCanvas.blockSignals(False)
-        #mapCanvas.refreshAllLayers()
-        #mapCanvas.refresh()
+
 
     def registerMapCanvas(self, mapView, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         self.mapCanvases[mapView] = mapCanvas
-        mapCanvas.setLayers(QgsRasterLayer(self.TSD.pathImg))
+        mapCanvas.addLazyRasterSources([self.TSD.pathImg])
+        #mapCanvas.setLayers([QgsRasterLayer(self.TSD.pathImg)])
         self.L.insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.update()
 
@@ -673,7 +675,12 @@ class DatumView(QObject):
 
         if key == 'hide_date':
             self.TSD.setVisibility(False)
-
+        if key == 'copy_sensor':
+            QApplication.clipboard().setText(self.TSD.sensor.name())
+        if key == 'copy_date':
+            QApplication.clipboard().setText(str(self.TSD.date))
+        if key == 'copy_path':
+            QApplication.clipboard().setText(str(self.TSD.pathImg))
 
     def __lt__(self, other):
         assert isinstance(other, DatumView)
@@ -711,8 +718,14 @@ class SpatialTemporalVisualization(QObject):
         from timeseriesviewer.ui.widgets import TsvScrollArea
         self.scrollArea = self.ui.scrollAreaSubsets
         assert isinstance(self.scrollArea, TsvScrollArea)
-        #self.scrollArea.sigResized.connect(self.refresh)
-        #self.scrollArea.horizontalScrollBar().valueChanged.connect(lambda:QTimer.singleShot(2000,self.refresh))
+
+
+        self.mRefreshTimer = QTimer(self)
+        self.mRefreshTimer.setInterval(1000)
+        self.mRefreshTimer.timeout.connect(self.refresh)
+
+        self.scrollArea.sigResized.connect(self.mRefreshTimer.start)
+        self.scrollArea.horizontalScrollBar().valueChanged.connect(self.mRefreshTimer.start)
 
 
         self.TSV = timeSeriesViewer
@@ -740,6 +753,7 @@ class SpatialTemporalVisualization(QObject):
         if len(self.TS) > 0:
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
+
 
     def registerMapCanvas(self, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
@@ -796,9 +810,10 @@ class SpatialTemporalVisualization(QObject):
 
 
     def refresh(self):
+        #print('STV REFRESH')
         for tsdView in self.DVC:
             tsdView.refresh()
-
+        self.mRefreshTimer.stop()
 
     def adjustScrollArea(self):
         #adjust scroll area widget to fit all visible widgets
@@ -846,6 +861,7 @@ class SpatialTemporalVisualization(QObject):
                 mapCanvas.setCenter(center)
                 mapCanvas.blockSignals(oldState)
         self.mBlockCanvasSignals = False
+
         self.sigSpatialExtentChanged.emit(self.mSpatialExtent)
 
 
@@ -873,6 +889,7 @@ class SpatialTemporalVisualization(QObject):
         self.mBlockCanvasSignals = False
         #for mapCanvas in self.mMapCanvases:
         #    mapCanvas.refresh()
+        self.mRefreshTimer.start()
         self.sigSpatialExtentChanged.emit(extent)
 
     def setBackgroundColor(self, color):
@@ -894,7 +911,7 @@ class SpatialTemporalVisualization(QObject):
             if saveTransform(self.mSpatialExtent, self.mCRS, crs):
                 self.mCRS = crs
                 for mapCanvas in self.mapCanvasIterator():
-                    print(('STV set CRS {} {}', str(mapCanvas), self.mCRS.description()))
+                    #print(('STV set CRS {} {}', str(mapCanvas), self.mCRS.description()))
                     mapCanvas.setCrs(crs)
             else:
                 pass
@@ -915,6 +932,8 @@ class SpatialTemporalVisualization(QObject):
         tsdv = self.DVC.tsdView(TSD)
         assert isinstance(self.scrollArea, QScrollArea)
         self.scrollArea.ensureWidgetVisible(tsdv.ui)
+
+
 
 
     def setMapViewVisibility(self, bandView, isVisible):
@@ -1077,10 +1096,10 @@ class MapViewCollection(QObject):
     def __init__(self, spatialTemporalVisualization):
         assert isinstance(spatialTemporalVisualization, SpatialTemporalVisualization)
         super(MapViewCollection, self).__init__()
-        self.spatTempVis = spatialTemporalVisualization
-        self.spatTempVis.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
-        self.spatTempVis.TS.sigSensorAdded.connect(self.addSensor)
-        self.spatTempVis.TS.sigSensorRemoved.connect(self.removeSensor)
+        self.STV = spatialTemporalVisualization
+        self.STV.dockMapViews.actionApplyStyles.triggered.connect(self.applyStyles)
+        self.STV.TS.sigSensorAdded.connect(self.addSensor)
+        self.STV.TS.sigSensorRemoved.connect(self.removeSensor)
         self.ui = spatialTemporalVisualization.dockMapViews
         self.btnList = spatialTemporalVisualization.dockMapViews.BVButtonList
         self.scrollArea = spatialTemporalVisualization.dockMapViews.scrollAreaMapViews
@@ -1137,7 +1156,7 @@ class MapViewCollection(QObject):
         mapView.sigRemoveMapView.connect(self.removeMapView)
         mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
-        for sensor in self.spatTempVis.TS.Sensors:
+        for sensor in self.STV.TS.Sensors:
             mapView.addSensor(sensor)
 
         self.mapViewButtons[mapView] = btn
