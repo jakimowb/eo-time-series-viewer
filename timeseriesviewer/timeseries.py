@@ -156,6 +156,8 @@ class SensorInstrument(QObject):
                 self.wavelengthUnits is not None
 
     def __eq__(self, other):
+        if not isinstance(other, SensorInstrument):
+            return False
         return self.nb == other.nb and \
                self.px_size_x == other.px_size_x and \
                self.px_size_y == other.px_size_y
