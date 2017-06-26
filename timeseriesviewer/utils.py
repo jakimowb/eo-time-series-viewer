@@ -1,5 +1,5 @@
 
-import os
+import os, math
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
@@ -291,6 +291,20 @@ def getSubLayerEndings(files):
             pass
 
     return subLayerEndings
+
+
+def getSettings():
+    return QSettings('HU-Berlin', 'HUB TimeSeriesViewer')
+
+def niceNumberString(number):
+    if isinstance(number, int):
+        return '{}'.format(number)
+    else:
+        if math.fabs(number) > 1:
+            return '{:0.2f}'.format(number)
+        else:
+            return '{:f}'.format(number)
+
 
 
 def nicePredecessor(l):
