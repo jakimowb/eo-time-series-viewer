@@ -383,12 +383,9 @@ class TimeSeries(QObject):
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
         lines.append('#<image path>[;<mask path>]')
-        for TSD in self.data.values():
+        for TSD in self.data:
 
             line = TSD.pathImg
-            if TSD.pathMsk is not None:
-                line += TimeSeries._sep + TSD.pathMsk
-
             lines.append(line)
 
         lines = [l+'\n' for l in lines]
@@ -442,6 +439,7 @@ class TimeSeries(QObject):
 
     def clear(self):
         self.removeDates(self[:])
+
 
 
     def removeDates(self, TSDs):
