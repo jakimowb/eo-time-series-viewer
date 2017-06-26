@@ -515,6 +515,16 @@ class PlotSettingsModel(QAbstractTableModel):
         self.sigSensorAdded.emit(sensorSettings)
         sensor.sigNameChanged.connect(self.onSensorNameChanged)
 
+    def removeSensor(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+        toRemove = [s for s in self.items if s.sensor == sensor]
+        for s in toRemove:
+
+            idx = self.getIndexFromSensor(s.sensor)
+            self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
+            self.items.remove(s)
+            self.endRemoveRows()
+
     def onSensorNameChanged(self, name):
         self.beginResetModel()
 
@@ -553,6 +563,8 @@ class PlotSettingsModel(QAbstractTableModel):
         for tsd in toRemove:
             self.items.remove(tsd)
         self.endRemoveRows()
+
+
 
     def getIndexFromSensor(self, sensor):
         sensorViews = [i for i, s in enumerate(self.items) if s.sensor == sensor]
@@ -700,9 +712,11 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
 
         assert isinstance(TS, TimeSeries)
         self.TS = TS
+
         self.pixelCollection = PixelCollection(self.TS)
         self.spectralTempVis = SpectralTemporalVisualization(self)
         self.spectralTempVis.sigMoveToDate.connect(self.onMoveToDate)
+        self.TS.sigSensorRemoved.connect(self.spectralTempVis.removeSensor)
         self.actionRefresh2D.triggered.connect(lambda : self.spectralTempVis.setData())
 
     def onMoveToDate(self, date):
@@ -923,6 +937,20 @@ class SpectralTemporalVisualization(QObject):
             self.setData2D(sensorView)
 
         self.updateLock = False
+
+    def removeSensor(self, sensor):
+        s = ""
+        self.plotSettingsModel.removeSensor(sensor)
+
+        if sensor in self.plotData2D.keys():
+            #remove from settings model
+            self.plotSettingsModel.removeSensor(sensor)
+            self.plotData2D.pop(sensor)
+            self.pxCollection.sensorPxLayers.pop(sensor)
+            # remove from px layer dictionary
+            #self.sensorPxLayers.pop(sensor)
+            #todo: remove from plot
+            s = ""
 
 
     def setData2D(self, sensorView):
