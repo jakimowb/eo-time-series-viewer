@@ -279,7 +279,8 @@ class PixelCollection(QObject):
             assert isinstance(tsd, TimeSeriesDatum)
             if tsd.sensor not in self.sensorPxLayers.keys():
                 #create new temp layer
-                mem = QgsVectorLayer('point', 'Pixels_sensor_'+tsd.sensor.name(), 'memory')
+                uri = 'Point?crs=epsg:4326'
+                mem = QgsVectorLayer(uri, 'Pixels_sensor_'+tsd.sensor.name(), 'memory', False)
 
                 self.sensorPxLayers[tsd.sensor] = mem
                 assert mem.startEditing()
