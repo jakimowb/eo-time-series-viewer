@@ -736,7 +736,7 @@ class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
         from timeseriesviewer.timeseries import TimeSeries
         assert isinstance(self.TS, TimeSeries)
 
-        files = [tsd.pathImg for tsd in self.TS]
+        files = [tsd.pathImg for tsd in self.TS if tsd.isVisible()]
         self.pixelLoader.setNumberOfThreads(SETTINGS.value('n_threads', 1))
         self.pixelLoader.startLoading(files, spatialPoint)
         if self.spectralTempVis is not None:
