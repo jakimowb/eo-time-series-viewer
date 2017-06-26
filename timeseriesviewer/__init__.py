@@ -56,7 +56,7 @@ DEBUG = True
 
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
-print('BASE INIT SITE-packages')
+#print('BASE INIT SITE-packages')
 site.addsitedir(DIR_SITE_PACKAGES)
 
 OPENGL_AVAILABLE = False
