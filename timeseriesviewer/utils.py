@@ -237,6 +237,19 @@ class SpatialExtent(QgsRectangle):
 
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
+# works in Python 2 & 3
+class _Singleton(type):
+    """ A metaclass that creates a Singleton base class when called. """
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(_Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Singleton(_Singleton('SingletonMeta', (object,), {})): pass
+
+"""
+#work, but require metaclass pattern 
 class Singleton(type):
     _instances = {}
 
@@ -244,6 +257,7 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args,**kwds)
         return cls._instances[cls]
+"""
 
 class KeepRefs(object):
     __refs__ = defaultdict(list)
@@ -283,6 +297,18 @@ def filterSubLayers(filePaths, subLayerEndings):
         except:
             pass
     return results
+
+
+def getIface():
+    """
+    Returns the QGIS Interface or None
+    :return:
+    """
+    import qgis.utils
+    if qgis.utils is not None and isinstance(qgis.utils.iface, QgisInterface):
+        return qgis.utils.iface
+    else:
+        return None
 
 def getSubLayerEndings(files):
     subLayerEndings = []

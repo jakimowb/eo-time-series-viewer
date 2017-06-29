@@ -140,9 +140,10 @@ def sandboxQgisBridge():
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
 
     fakeQGIS = QgisFake()
+    import qgis.utils
+    qgis.utils.iface = fakeQGIS
 
     S = TimeSeriesViewer(fakeQGIS)
-    S.ui.show()
     S.run()
 
     fakeQGIS.ui.show()
@@ -323,9 +324,9 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if False: sandboxQgisBridge()
+    if True: sandboxQgisBridge()
     if False: sandboxGui()
-    if True: sandboxTestdata()
+    if False: sandboxTestdata()
     if False: sandboxMultitemp2017(qgis=True)
 
     #close QGIS

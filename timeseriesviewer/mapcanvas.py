@@ -254,9 +254,14 @@ class MapCanvas(QgsMapCanvas):
 
         menu.addSeparator()
         action = menu.addAction('Add raster to QGIS')
-        bridge = QgisTsvBridge.instance()
-        if isinstance(bridge, QgisTsvBridge):
-            action.triggered.connect(lambda: bridge.addLayersToQGIS([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+        from PyQt4.QtCore import QThread
+        print('ON_MENU')
+        print(QThread.currentThreadId())
+        print(QgisTsvBridge.instance())
+
+        import qgis.utils
+        if qgis.utils is not None:
+            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers(self.layers()))
         else:
             action.setEnabled(False)
 
