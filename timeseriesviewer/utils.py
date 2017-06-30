@@ -305,7 +305,7 @@ def copyRenderer(renderer, targetLayer):
     :param targetLayer:
     :return: True, if 'renderer' could be copied and applied to 'targetLayer'
     """
-    if isinstance(targetLayer, QgsRasterLayer):
+    if isinstance(targetLayer, QgsRasterLayer) and isinstance(renderer, QgsRasterRenderer):
         if isinstance(renderer, QgsMultiBandColorRenderer):
             r = renderer.clone()
             r.setInput(targetLayer.dataProvider())
@@ -321,12 +321,12 @@ def copyRenderer(renderer, targetLayer):
             r.setClassificationMax(cmax)
             targetLayer.setRenderer(r)
             return True
-    elif isinstance(targetLayer, QgsVectorLayer):
+    elif isinstance(targetLayer, QgsVectorLayer) and isinstance(renderer, QgsFeatureRendererV2):
         #todo: add render-specific switches
         targetLayer.setRenderer(renderer)
         return True
-    else:
-        return False
+
+    return False
 
 def getIface():
     """
