@@ -443,12 +443,6 @@ class TimeSeriesViewer:
         if isinstance(iface, QgisInterface):
             self.mQgisBridge.connect(self)
 
-        print('TINFO:')
-        from PyQt4.QtCore import QThread
-        print(QThread.currentThreadId())
-        print(QgisTsvBridge.instance())
-        print(self.mQgisBridge)
-        print('TSV init done')
 
     def loadImageFiles(self, files):
         assert isinstance(files, list)

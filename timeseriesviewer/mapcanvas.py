@@ -161,7 +161,6 @@ class MapCanvas(QgsMapCanvas):
 
         self.checkRenderFlag()
         if self.renderFlag() or force:
-            #print('Refresh {}'.format(self.objectName()))
             self.setLayers(self.mapLayersToRender())
             super(MapCanvas, self).refresh()
             #self.refreshAllLayers()
@@ -277,9 +276,6 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
         action = menu.addAction('Add raster to QGIS')
         from PyQt4.QtCore import QThread
-        print('ON_MENU')
-        print(QThread.currentThreadId())
-        print(QgisTsvBridge.instance())
 
         import qgis.utils
         if qgis.utils is not None:
