@@ -328,16 +328,6 @@ def copyRenderer(renderer, targetLayer):
 
     return False
 
-def getIface():
-    """
-    Returns the QGIS Interface or None
-    :return:
-    """
-    import qgis.utils
-    if qgis.utils is not None and isinstance(qgis.utils.iface, QgisInterface):
-        return qgis.utils.iface
-    else:
-        return None
 
 def getSubLayerEndings(files):
     subLayerEndings = []
@@ -355,7 +345,7 @@ def getSubLayerEndings(files):
     return subLayerEndings
 
 
-def getSettings():
+def settings():
     return QSettings('HU-Berlin', 'HUB TimeSeriesViewer')
 
 def niceNumberString(number):

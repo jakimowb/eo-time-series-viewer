@@ -456,7 +456,7 @@ class TimeSeriesViewer:
 
 
     def loadTimeSeriesDefinition(self, path=None, n_max=None):
-        s = getSettings()
+        s = settings()
         defFile = s.value('FILE_TS_DEFINITION')
         if defFile is not None:
             defFile = os.path.dirname(defFile)
@@ -522,7 +522,7 @@ class TimeSeriesViewer:
 
 
     def saveTimeSeriesDefinition(self):
-        s = getSettings()
+        s = settings()
         defFile = s.value('FILE_TS_DEFINITION')
         if defFile is not None:
             defFile = os.path.dirname(defFile)
@@ -607,7 +607,7 @@ class TimeSeriesViewer:
 
     def addTimeSeriesImages(self, files=None):
         if files is None:
-            s = getSettings()
+            s = settings()
             defDir = s.value('DIR_FILESEARCH')
             files = QFileDialog.getOpenFileNames(directory=defDir)
 
