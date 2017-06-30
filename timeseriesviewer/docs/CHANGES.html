@@ -1,6 +1,30 @@
+<h2>Known issues</h2>
+<ul>
+<li>changing the coordinate reference system to one that is obviously not suited for the data might cause system crashes</li>
+</ul>
 <h2>Change History</h2>
+<h3>June 2017</h3>
+<ul>
+<li>improved QGIS-TimeSeriesViewer integration:<ul>
+<li>synchronizes map extent or map center, either from QGIS to TSV or the other direction</li>
+<li>one (1) vector layers that is opened in QGIS can be displayed on top of TSV maps. Renderstyle is the same as in QGIS.</li>
+</ul>
+</li>
+<li>fixed several bugs</li>
+</ul>
+<h2>May 2017</h2>
+<ul>
+<li>crosshairs</li>
+<li>temporal pixel profiles with sensor-specific scaling and visualization</li>
+</ul>
 <h3>December 2016</h3>
 <ul>
-<li>refactoring</li>
+<li>handling of VRT without memory leakage (VRT_SHARED_SOURCE = 0)</li>
+<li>test data (Landsat + RapidEye)</li>
+<li>refactoring of GUI and class names</li>
 </ul>
 <h3>June 2015</h3>
+<ul>
+<li>extraction of image chips for AOI selected in QGIS</li>
+<li>gdal based IO</li>
+</ul>

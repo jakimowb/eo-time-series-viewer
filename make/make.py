@@ -426,15 +426,26 @@ def createCreditsHTML():
     * encoding: Encoding of input and output.
     * Any arguments accepted by the Markdown class.
     """
+    import urllib
 
+    def readUrlTxt(url):
+        req = urllib.urlopen(url)
+        enc = req.headers['content-type'].split('charset=')[-1]
+        txt = req.read()
+        req.close()
+        return unicode(txt, enc)
+
+    txtQGISreadme = readUrlTxt("https://github.com/qgis/QGIS/blob/master/README.md")
+
+    txtPyQtreadme = readUrlTxt("https://github.com/pyqtgraph/pyqtgraph/blob/develop/README.md")
 
     pathSrc = jp(os.path.dirname(pyqtgraph.path), 'README.md')
     pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
-    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
+    html = markdown.markdown(txtQGISreadme, output_format='html5')
+    open(pathDst, 'w').write(html.encode('UTF-8'))
 
-    pathSrc = r'C:\Users\geo_beja\Repositories\QGIS\README.md'
-    pathDst = jp(DIR_DOCS, 'README_QGIS.html')
-    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
+    html = markdown.markdown(txtPyQtreadme, output_format='html5')
+    open(pathDst, 'w').write(html.encode('UTF-8'))
 
     pathSrc = jp(DIR_REPO, 'CHANGES.md')
     pathDst = jp(DIR_DOCS, 'CHANGES.html')
@@ -488,7 +499,7 @@ if __name__ == '__main__':
         d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
-    if False:
+    if True:
         createCreditsHTML()
 
 

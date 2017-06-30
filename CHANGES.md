@@ -11,7 +11,7 @@
 - fixed several bugs
 
 
-## May 2017
+### May 2017
 - crosshairs
 - temporal pixel profiles with sensor-specific scaling and visualization
 
