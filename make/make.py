@@ -465,9 +465,9 @@ def updateMetadataTxt():
     md['name'] = timeseriesviewer.TITLE
     md['qgisMinimumVersion'] = "2.18"
     #md['qgisMaximumVersion'] =
-    md['description'] = timeseriesviewer.DESCRIPTION
-    md['about'] = timeseriesviewer.ABOUT
-    md['version'] = timeseriesviewer.VERSION
+    md['description'] = timeseriesviewer.DESCRIPTION.strip()
+    md['about'] = timeseriesviewer.ABOUT.strip()
+    md['version'] = timeseriesviewer.VERSION.strip()
     md['author'] = "Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
     md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
     #md['changelog'] =
@@ -533,7 +533,7 @@ if __name__ == '__main__':
         d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
-    if True:
+    if False:
         createCreditsHTML()
 
     if True:
