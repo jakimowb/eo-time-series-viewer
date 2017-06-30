@@ -24,7 +24,7 @@ import os, sys, re, fnmatch, collections, copy, traceback, six
 import logging
 logger = logging.getLogger(__name__)
 from qgis.core import *
-
+import qgis.utils
 from timeseriesviewer.utils import *
 from timeseriesviewer.ui import load
 
@@ -127,54 +127,50 @@ class QgisTsvBridge(QObject):
         return QgisTsvBridge._instance
 
     @staticmethod
-    def addMapLayers(mapLayers):
-        import qgis.utils
+    def qgisInstance():
         if qgis.utils is not None and isinstance(qgis.utils.iface, QgisInterface):
+            return qgis.utils.iface
+        else:
+            return None
+
+    @staticmethod
+    def addMapLayers(mapLayers, checkDuplicates=False):
+        iface = QgisTsvBridge.qgisInstance()
+        if iface:
+            existingSources = [lyr.source() for lyr in iface.mapCanvas().layers()]
+
             for ml in mapLayers:
                 assert isinstance(ml, QgsMapLayer)
                 src = ml.source()
+                if checkDuplicates and src in existingSources:
+                    continue
+
                 if isinstance(ml, QgsRasterLayer):
-                    qgis.utils.iface.addRasterLayer(src)
+                    iface.addRasterLayer(src)
                 if isinstance(ml, QgsVectorLayer):
-                    qgis.utils.iface.addVectorLayer(src, os.path.basename(src), ml.providerType())
+                    iface.addVectorLayer(src, os.path.basename(src), ml.providerType())
 
 
-    class SyncState(object):
-        def __init__(self):
-            self.center = False
-            self.extent = False
-            self.crs = False
 
-        def __eq__(self, other):
-            if not isinstance(other, QgisTsvBridge.SyncState):
-                return False
-            else:
-                return \
-                    self.center == other.center \
-                    and self.extent == other.extent \
-                    and self.crs == other.crs
-        def any(self):
-            return any([self.center, self.extent, self.crs])
-
-
+    sigQgisProjectClosed = pyqtSignal()
 
     def __init__(self):
         assert QgisTsvBridge._instance is None, 'Can not instantiate QgsTsvBridge twice'
         self.TSV = None
+
 
     def isValid(self):
         return isinstance(self.iface, QgisInterface) and isinstance(self.TSV, TimeSeriesViewer)
 
     def connect(self,TSV):
         # super(QgisTsvBridge, self).__init__(parent=TSV)
-        from timeseriesviewer.utils import getIface
-        iface = getIface()
+        iface = QgisTsvBridge.qgisInstance()
         if iface:
             self.iface = iface
             self.TSV = TSV
             self.ui = self.TSV.ui
             self.SpatTempVis = self
-            self.syncBlocked = False
+
 
             from main import TimeSeriesViewerUI
             from timeseriesviewer.ui.docks import RenderingDockUI
@@ -183,7 +179,8 @@ class QgisTsvBridge(QObject):
 
             self.ui.dockRendering.sigQgisInteractionRequest.connect(self.onQgisInteractionRequest)
             self.ui.dockRendering.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
-            self.ui.dockRendering.enableQgisSyncronization(True)
+            self.ui.dockRendering.enableQgisInteraction(True)
+
             self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
             self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
 
@@ -192,10 +189,11 @@ class QgisTsvBridge(QObject):
             assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
             assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
             return True
-        return False
+        else:
+            return False
 
-    def addLayersToQGIS(self, mapLayers):
-        QgisTsvBridge.addMapLayers(mapLayers)
+    def addLayersToQGIS(self, mapLayers, noDuplicates=False):
+        QgisTsvBridge.addMapLayers(mapLayers, checkDuplicates=noDuplicates)
 
     def onQgisInteractionRequest(self, request):
         if not self.isValid(): return
@@ -234,6 +232,7 @@ class QgisTsvBridge(QObject):
             extent = extQgs.toCrs(extTsv.crs())
             if extent:
                 self.TSV.spatialTemporalVis.setSpatialExtent(extent)
+
 
 class TimeSeriesViewerUI(QMainWindow,
                          load('timeseriesviewer.ui')):
@@ -432,6 +431,9 @@ class TimeSeriesViewer:
 
         D.dockRendering.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
         D.dockRendering.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
+        D.dockRendering.sigShowVectorOverlay.connect(self.spatialTemporalVis.setVectorLayer)
+        D.dockRendering.sigRemoveVectorOverlay.connect(lambda: self.spatialTemporalVis.setVectorLayer(None))
+
         self.spatialTemporalVis.sigCRSChanged.connect(D.dockRendering.setCrs)
         D.dockRendering.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
