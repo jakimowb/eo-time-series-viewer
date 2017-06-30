@@ -11,7 +11,7 @@ from PyQt4.QtGui import *
 from timeseriesviewer import jp, SETTINGS
 from timeseries import *
 from utils import SpatialExtent, SpatialPoint
-from ui.docks import TsvDockWidgetBase, load
+from ui.docks import TsvDockWidgetBase, loadUi
 from plotstyling import PlotStyle, PlotStyleButton
 from pixelloader import PixelLoader
 import pyqtgraph as pg
@@ -664,7 +664,7 @@ class PlotSettingsModel(QAbstractTableModel):
 
 
 
-class ProfileViewDockUI(TsvDockWidgetBase, load('profileviewdock.ui')):
+class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
 
     sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
 

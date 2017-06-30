@@ -91,6 +91,7 @@ class MapCanvas(QgsMapCanvas):
     def onVectorOverlayChange(self, *args):
 
         self.refresh()
+
     def mapLayersToRender(self, *args):
         """Returns the map layers to be rendered"""
         if len(self.mLazyRasterSources) > 0:

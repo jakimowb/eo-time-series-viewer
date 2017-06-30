@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 from qgis.core import *
 import qgis.utils
 from timeseriesviewer.utils import *
-from timeseriesviewer.ui import load
+
 
 
 DEBUG = True
@@ -235,7 +235,7 @@ class QgisTsvBridge(QObject):
 
 
 class TimeSeriesViewerUI(QMainWindow,
-                         load('timeseriesviewer.ui')):
+                         loadUi('timeseriesviewer.ui')):
 
     sigQgsSyncChanged = pyqtSignal(bool, bool, bool)
 

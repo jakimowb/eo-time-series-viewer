@@ -3,7 +3,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from osgeo import gdal
 
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
 from timeseriesviewer.classificationscheme import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, getTextColorWithContrast
 
 class LabelShortcutButton(QPushButton):
@@ -28,7 +28,7 @@ class LabelShortcutButton(QPushButton):
 
         self.setStyleSheet(style)
 
-class LabelingDockUI(TsvDockWidgetBase, load('labelingdock.ui')):
+class LabelingDockUI(TsvDockWidgetBase, loadUi('labelingdock.ui')):
     def __init__(self, parent=None):
         super(LabelingDockUI, self).__init__(parent)
         self.setupUi(self)

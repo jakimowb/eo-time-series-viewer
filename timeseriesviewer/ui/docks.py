@@ -4,12 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.ui import loadUIFormClass, DIR_UI
-from timeseriesviewer.main import SpatialExtent, SpatialPoint, QgisTsvBridge
-
-
-load = lambda p : loadUIFormClass(jp(DIR_UI,p))
-
+from timeseriesviewer.utils import loadUi, SpatialExtent
 
 class TsvDockWidgetBase(QgsDockWidget):
 
@@ -29,7 +24,7 @@ class TsvDockWidgetBase(QgsDockWidget):
 
 
 
-class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
+class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
     from timeseriesviewer.crosshair import CrosshairStyle
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)
@@ -202,7 +197,7 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
 
 
-class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
+class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
         #self.setupUi(self)

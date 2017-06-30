@@ -10,7 +10,7 @@ import numpy as np
 from timeseriesviewer.utils import *
 from timeseriesviewer.main import TimeSeriesViewer
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, load
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
 from timeseriesviewer.mapcanvas import MapCanvas
 
@@ -191,7 +191,7 @@ class MapView(QObject):
 
 
 
-class MapViewRenderSettingsUI(QGroupBox, load('mapviewrendersettings.ui')):
+class MapViewRenderSettingsUI(QGroupBox, loadUi('mapviewrendersettings.ui')):
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -1282,7 +1282,7 @@ class MapViewCollection(QObject):
 
 
 
-class MapViewDefinitionUI(QGroupBox, load('mapviewdefinition.ui')):
+class MapViewDefinitionUI(QGroupBox, loadUi('mapviewdefinition.ui')):
 
     sigHideMapView = pyqtSignal()
     sigShowMapView = pyqtSignal()
@@ -1330,7 +1330,7 @@ class MapViewDefinitionUI(QGroupBox, load('mapviewdefinition.ui')):
         return self.actionToggleVisibility.isChecked()
 
 
-class MapViewDockUI(TsvDockWidgetBase, load('mapviewdock.ui')):
+class MapViewDockUI(TsvDockWidgetBase, loadUi('mapviewdock.ui')):
     def __init__(self, parent=None):
         super(MapViewDockUI, self).__init__(parent)
         self.setupUi(self)
