@@ -8,9 +8,8 @@ import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
-from timeseriesviewer.ui.widgets import loadUIFormClass
 import pyqtgraph as pg
-load = lambda p : loadUIFormClass(jp(DIR_UI,p))
+
 
 MARKERSYMBOLS = [('o', u'Circle'),
                  ('t',u'Triangle Down'),
@@ -89,7 +88,7 @@ class PlotStyle(QObject):
 
 
 
-class PlotStyleWidget(QWidget, load('plotstylewidget.ui')):
+class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
     def __init__(self, title='<#>', parent=None):

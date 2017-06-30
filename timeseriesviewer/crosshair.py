@@ -9,10 +9,6 @@ import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
-from timeseriesviewer.ui.widgets import loadUIFormClass
-
-#load = lambda p : loadUIFormClass(jp(DIR_UI,p))
-
 class CrosshairStyle(object):
     def __init__(self, **kwds):
 

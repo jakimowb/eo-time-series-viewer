@@ -108,22 +108,8 @@ class VerticalLabel(QLabel):
 
 
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.utils import loadUIFormClass, DIR_UI, loadUi
+from timeseriesviewer.utils import loadUi
 from timeseriesviewer.main import SpatialExtent, QgisTsvBridge, TsvMimeDataUtils
-
-"""
-PATH_MAIN_UI = jp(DIR_UI, 'timeseriesviewer.ui')
-PATH_MAPVIEWSETTINGS_UI = jp(DIR_UI, 'mapviewsettings.ui')
-PATH_MAPVIEWRENDERSETTINGS_UI = jp(DIR_UI, 'mapviewrendersettings.ui')
-PATH_MAPVIEWDEFINITION_UI = jp(DIR_UI, 'mapviewdefinition.ui')
-PATH_TSDVIEW_UI = jp(DIR_UI, 'timeseriesdatumview.ui')
-PATH_ABOUTDIALOG_UI = jp(DIR_UI, 'aboutdialog.ui')
-PATH_SETTINGSDIALOG_UI = jp(DIR_UI, 'settingsdialog.ui')
-
-PATH_PROFILEVIEWDOCK_UI = jp(DIR_UI, 'profileviewdock.ui')
-PATH_RENDERINGDOCK_UI = jp(DIR_UI, 'renderingdock.ui')
-"""
-
 
 
 def maxWidgetSizes(layout, onHint=True):
