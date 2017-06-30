@@ -398,7 +398,7 @@ loadUi = lambda p : loadUIFormClass(jp(DIR_UI, p))
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
 
-def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_py2'):
+def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
     """
     Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
     Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
