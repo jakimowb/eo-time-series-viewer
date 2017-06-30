@@ -94,8 +94,9 @@ class MapCanvas(QgsMapCanvas):
             QgsMapLayerRegistry.instance().addMapLayers(mls, False)
             del self.mLazyRasterSources[:]
             self.mLayers.extend(mls)
-            self.setRasterRenderer(self.mRendererRaster, refresh=False)
-            self.setVectorRenderer(self.mRendererVector, refresh=False)
+            self.setRenderer(self.mRendererVector, refresh=False)
+            self.setRenderer(self.mRendererRaster, refresh=False)
+
         return self.mLayers
 
     def addLazyRasterSources(self, sources):
@@ -368,18 +369,13 @@ class MapCanvas(QgsMapCanvas):
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
 
 
-    def setRenderer(self, renderer):
-        #print('Set renderer {}'.format(self.objectName()))
-        #lyrs = [l for l in self.mapLayersToRender() if str(l.source()) == targetLayerUri]
-        isRasterRenderer = isinstance(renderer, QgsRasterRenderer)
-        if isRasterRenderer:
-            self.setRasterRenderer(renderer, refresh=False)
-        else:
-            self.setVectorRenderer(renderer, refresh=False)
+    def setRenderer(self, renderer, refresh=True):
+        from utils import copyRenderer
+        success = [copyRenderer(renderer, lyr) for lyr in self.mLayers]
+        if refresh and any(success):
+            self.refresh()
 
-        self.refresh()
-
-    def setVectorRenderer(self, renderer, refresh=True):
+    def depr_setVectorRenderer(self, renderer, refresh=True):
         self.mRendererVector = renderer
         lyrs = [l for l in self.mLayers if isinstance(l, QgsVectorLayer)]
         for lyr in lyrs:
@@ -388,7 +384,7 @@ class MapCanvas(QgsMapCanvas):
         if refresh:
             self.refresh()
 
-    def setRasterRenderer(self, renderer, refresh=False):
+    def depr_setRasterRenderer(self, renderer, refresh=False):
         self.mRendererRaster = renderer
         lyrs = [l for l in self.mLayers if isinstance(l, QgsRasterLayer)]
         for lyr in lyrs:

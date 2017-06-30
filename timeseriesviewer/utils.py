@@ -298,6 +298,35 @@ def filterSubLayers(filePaths, subLayerEndings):
             pass
     return results
 
+def copyRenderer(renderer, targetLayer):
+    """
+    Copies and applies renderer to targetLayer.
+    :param renderer:
+    :param targetLayer:
+    :return: True, if 'renderer' could be copied and applied to 'targetLayer'
+    """
+    if isinstance(targetLayer, QgsRasterLayer):
+        if isinstance(renderer, QgsMultiBandColorRenderer):
+            r = renderer.clone()
+            r.setInput(targetLayer.dataProvider())
+            targetLayer.setRenderer(r)
+            return True
+        elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+            r = renderer.clone()
+            # r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
+            r.setInput(targetLayer.dataProvider())
+            cmin = renderer.classificationMin()
+            cmax = renderer.classificationMax()
+            r.setClassificationMin(cmin)
+            r.setClassificationMax(cmax)
+            targetLayer.setRenderer(r)
+            return True
+    elif isinstance(targetLayer, QgsVectorLayer):
+        #todo: add render-specific switches
+        targetLayer.setRenderer(renderer)
+        return True
+    else:
+        return False
 
 def getIface():
     """
