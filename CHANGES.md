@@ -5,9 +5,9 @@
 ## Change History ##
 
 ### June 2017
-- improved QGIS-TimeSeriesViewer integration:
-    -  synchronizes map extent or map center, either from QGIS to TSV or the other direction
-    -  one (1) vector layers that is opened in QGIS can be displayed on top of TSV maps. Renderstyle is the same as in QGIS.
+- improved QGIS-TimeSeriesViewer integration
+- synchronizes map extent or map center, either from QGIS to TSV or the other direction
+- TSV can overlay a vector layer that is opened in QGIS on top of TSV maps. Renderstyle is the same as in QGIS.
 - fixed several bugs
 
 

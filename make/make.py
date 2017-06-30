@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os, sys, fnmatch, six, subprocess, re
 from qgis import *
 from qgis.core import *
@@ -13,7 +15,7 @@ from PyQt4.uic.Compiler.qtproxies import QtGui
 
 import gdal
 
-from timeseriesviewer import DIR_UI, file_search
+from timeseriesviewer import DIR_UI, DIR_REPO, file_search
 jp = os.path.join
 
 
@@ -424,15 +426,15 @@ def createCreditsHTML():
         req.close()
         return unicode(txt, enc)
 
-    txtQGISreadme = readUrlTxt("https://github.com/qgis/QGIS/blob/master/README.md")
+    txtQGISreadme = readUrlTxt("https://raw.githubusercontent.com/qgis/QGIS/master/README.md")
+    txtPyQtreadme = readUrlTxt("https://raw.githubusercontent.com/pyqtgraph/pyqtgraph/master/README.md")
 
-    txtPyQtreadme = readUrlTxt("https://github.com/pyqtgraph/pyqtgraph/blob/develop/README.md")
 
-    pathSrc = jp(os.path.dirname(pyqtgraph.path), 'README.md')
-    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
+    pathDst = jp(DIR_DOCS, 'README_QGIS.html')
     html = markdown.markdown(txtQGISreadme, output_format='html5')
     open(pathDst, 'w').write(html.encode('UTF-8'))
 
+    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
     html = markdown.markdown(txtPyQtreadme, output_format='html5')
     open(pathDst, 'w').write(html.encode('UTF-8'))
 
@@ -442,6 +444,51 @@ def createCreditsHTML():
 
     s = ""
     pass
+
+def updateMetadataTxt():
+    #see http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/plugins.html#plugin-metadata
+    #for required metatags
+    pathDst = jp(DIR_REPO, 'metadata.txt')
+    assert os.path.exists(pathDst)
+    import timeseriesviewer.sandbox
+    #required to use QIcons
+    qgis = timeseriesviewer.sandbox.initQgisEnvironment()
+
+    import timeseriesviewer, collections
+    md = collections.OrderedDict()
+    for line in open(pathDst).readlines():
+        parts = line.split('=')
+        if len(parts) >= 2:
+            md[parts[0]] = '='.join(parts[1:])
+
+    #update/set new metadata
+    md['name'] = timeseriesviewer.TITLE
+    md['qgisMinimumVersion'] = "2.18"
+    #md['qgisMaximumVersion'] =
+    md['description'] = timeseriesviewer.DESCRIPTION
+    md['about'] = timeseriesviewer.ABOUT
+    md['version'] = timeseriesviewer.VERSION
+    md['author'] = "Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
+    md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
+    #md['changelog'] =
+    md['experimental'] = "False"
+    md['deprecated'] = "False"
+    md['tags'] = "remote sensing, raster, time series"
+    md['homepage'] = timeseriesviewer.WEBSITE
+    md['repository'] = timeseriesviewer.WEBSITE
+    md['tracker'] = timeseriesviewer.WEBSITE+'/issues'
+    md['icon'] = r'timeseriesviewer/ui/icons/icon.png'
+    md['category'] = 'Raster'
+
+    lines = ['[general]']
+    for k, line in md.items():
+        lines.append('{}={}'.format(k, line))
+    open(pathDst, 'w').writelines('\n'.join(lines))
+    s = ""
+
+
+
+
 
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
@@ -469,8 +516,6 @@ if __name__ == '__main__':
 
 
         pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        #path Novo Progresso site L7/L8/RE time series
-        #pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources2.txt'
         pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
         from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
         subset = QgsRectangle(QgsPoint(-55.36091,-6.79851), #UL
@@ -488,9 +533,11 @@ if __name__ == '__main__':
         d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
-    if False:
+    if True:
         createCreditsHTML()
 
+    if True:
+        updateMetadataTxt()
 
     if False:
         #convert SVG to PNG and link them into the resource file
@@ -498,7 +545,7 @@ if __name__ == '__main__':
     if False:
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
-    if True:
+    if False:
         make(DIR_UI)
     print('Done')
 

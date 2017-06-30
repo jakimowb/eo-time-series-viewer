@@ -1,10 +1,12 @@
-
+# -*- coding: utf-8 -*-
 VERSION = '0.2'
 TITLE = 'HUB TimeSeriesViewer'
-DESCRIPTION = 'This software visualizes remote sensing time series data'
-WEBSITE = 'https://bitbucket.org/jakimowb/hub-timeseriesviewer/wiki/Home'
-REPOSITORY = 'https://bitbucket.org/jakimowb/hub-timeseriesviewer.git'
-
+DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote sensing time-series data.'
+WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
+REPOSITORY = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
+ABOUT = """
+The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
+"""
 
 import os, sys, fnmatch, site
 import six, logging

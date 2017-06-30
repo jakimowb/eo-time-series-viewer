@@ -1,16 +1,17 @@
 [general]
 name=HUB TimeSeriesViewer
-description=A viewer to explore remote sensing time series data
-about=HUB Time Series Viewer
-category=Analysis
-version=0.02
+description=A QGIS Plugin to visualize multi-sensor remote sensing time-series data.
+category=Raster
+version=0.2
 qgisMinimumVersion=2.18
-
-author=Benjamin Jakimow
+author=Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin
 email=benjamin.jakimow@geo.hu-berlin.de
-
 icon=timeseriesviewer/ui/icons/icon.png
-
-homepage=https://bitbucket.org/jakimowb/sensecarbontsviewer
-tracker=https://bitbucket.org/jakimowb/sensecarbontsviewer/issues
-repository=https://bitbucket.org/jakimowb/sensecarbontsviewer.git
+homepage=bitbucket.org/jakimowb/hub-timeseriesviewer
+tracker=bitbucket.org/jakimowb/hub-timeseriesviewer/issues
+repository=bitbucket.org/jakimowb/hub-timeseriesviewer
+experimental=False
+deprecated=False
+tags=remote sensing, raster, time series
+about=
+The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).

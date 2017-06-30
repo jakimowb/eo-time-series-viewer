@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import inspect
 import os
 import six
@@ -31,7 +32,7 @@ class TimeSeriesViewerPlugin:
         syspaths = [os.path.normpath(p) for p in sys.path]
         if DIR_REPO not in syspaths: sys.path.append(DIR_REPO)
 
-        import timeseriesviewer.ui.resources_py2
+        #import timeseriesviewer.ui.resources_py2
         #timeseriesviewer.ui.resources_py2.qInitResources()
         # add platform independent site-packages
         if DIR_SITE_PACKAGES:
