@@ -34,14 +34,14 @@ class MapView(QObject):
         super(MapView, self).__init__()
         assert isinstance(mapViewCollection, MapViewCollection)
         self.mapViewCollection = mapViewCollection
+        self.sensorViews = collections.OrderedDict()
         self.spatTempVis = mapViewCollection.STV
         self.ui = MapViewDefinitionUI(self, parent=parent)
         self.ui.create()
 
-        self.mMapCanvases = dict()
         self.setVisibility(True)
 
-        self.vectorLayer = None
+        self.mVectorLayer = None
         self.setVectorLayer(None)
 
         #forward actions with reference to this band view
@@ -51,21 +51,47 @@ class MapView(QObject):
         self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
         self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
         self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
-        self.sensorViews = collections.OrderedDict()
 
+
+
+    def mapCanvases(self):
+        m = []
+        for sensor, sensorView in self.sensorViews.items():
+            m.extend(sensorView.mapCanvases())
+        return m
+
+    def vectorLayerRenderer(self):
+        if isinstance(self.mVectorLayer, QgsVectorLayer):
+            return self.mVectorLayer.rendererV2()
+        return None
+
+    def setVectorLayerRenderer(self, renderer):
+        if isinstance(renderer, QgsFeatureRendererV2) and \
+            isinstance(self.mVectorLayer, QgsVectorLayer):
+            self.mVectorLayer.setRendererV2(renderer)
 
     def setVectorLayer(self, lyr):
         if isinstance(lyr, QgsVectorLayer):
-            self.vectorLayer = lyr
-            self.vectorLayer.rendererChanged.connect(self.sigVectorLayerChanged)
+            #add vector layer
+            self.mVectorLayer = lyr
+            self.mVectorLayer.rendererChanged.connect(self.sigVectorLayerChanged)
             self.ui.btnVectorOverlayVisibility.setEnabled(True)
 
+            for mapCanvas in self.mapCanvases():
+                assert isinstance(mapCanvas, MapCanvas)
+                mapCanvas.addLazyVectorSources([lyr])
+                mapCanvas.refresh()
 
         else:
-            self.vectorLayer = None
+            #remove vector layers
+            self.mVectorLayer = None
             self.ui.btnVectorOverlayVisibility.setEnabled(False)
-
+            for mapCanvas in self.mapCanvases():
+                mapCanvas.setLayers([l for l in mapCanvas.mLayers if not isinstance(l, QgsVectorLayer)])
+                #mapCanvas.refresh()
         self.sigVectorLayerChanged.emit()
+
+
 
     def applyStyles(self):
         for sensorView in self.sensorViews.values():
@@ -80,8 +106,8 @@ class MapView(QObject):
         return self.ui.visibility()
 
     def visibleVectorOverlay(self):
-        return isinstance(self.vectorLayer, QgsVectorLayer) and \
-            self.ui.btnVectorOverlayVisibility.isChecked()
+        return isinstance(self.mVectorLayer, QgsVectorLayer) and \
+               self.ui.btnVectorOverlayVisibility.isChecked()
 
 
 
@@ -126,7 +152,7 @@ class MapView(QObject):
         sensorView.registerMapCanvas(mapCanvas)
 
         #register signals sensor specific signals
-        mapCanvas.setRenderer(sensorView.layerRenderer())
+        mapCanvas.setRenderer(sensorView.rasterLayerRenderer())
 
         #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
@@ -350,6 +376,9 @@ class MapViewSensorSettings(QObject):
         QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
         self.onClipboardChange()
 
+    def mapCanvases(self):
+        return self.mMapCanvases[:]
+
     def registerMapCanvas(self, mapCanvas):
 
         assert isinstance(mapCanvas, MapCanvas)
@@ -370,7 +399,7 @@ class MapViewSensorSettings(QObject):
                 self.setLayerRenderer(renderer)
 
     def applyStyle(self, *args):
-        r = self.layerRenderer()
+        r = self.rasterLayerRenderer()
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
             mapCanvas.setRenderer(r)
@@ -487,7 +516,7 @@ class MapViewSensorSettings(QObject):
             self.applyStyle()
 
     def mimeDataStyle(self):
-        r = self.layerRenderer()
+        r = self.rasterLayerRenderer()
         doc = QDomDocument()
         root = doc.createElement('qgis')
 
@@ -497,7 +526,7 @@ class MapViewSensorSettings(QObject):
         d = cb.itemData(cb.currentIndex(), Qt.UserRole)
         return d
 
-    def layerRenderer(self):
+    def rasterLayerRenderer(self):
         ui = self.ui
         r = None
         if ui.stackedWidget.currentWidget() == ui.pageMultiBand:
@@ -616,19 +645,17 @@ class DatumView(QObject):
         if not self.ui.isVisible():
             return QSize(0,0)
 
-        x = y = 0
-        for i in range(self.ui.layout().count()):
-            item = self.ui.layout().itemAt(i)
-            w = item.widget()
-            if isinstance(w, QWidget):
-                size = item.sizeHint()
-                x = max([x, size.width()])
-                y += size.height()
 
         size = self.ui.sizeHint()
-        if len(self.mapCanvases) > 0:
+        m = self.ui.layout().contentsMargins()
+        dx = m.left() + m.right()
+        dy = self.ui.layout().spacing()
+
+        n = len(self.mapCanvases)
+        if n > 0:
             baseSize = self.mapCanvases.values()[0].size()
-            size = QSize(baseSize.width(), size.height())
+            size = QSize(baseSize.width()+ dx, \
+                         size.height()+ n*dy)
         return size
 
 

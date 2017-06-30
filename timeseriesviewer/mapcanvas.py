@@ -38,6 +38,8 @@ class MapCanvas(QgsMapCanvas):
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
         self.mLazyRasterSources = []
+        self.mLazyVectorSources = []
+
         self.mRendererRaster = None
         self.mRendererVector = None
 
@@ -86,7 +88,9 @@ class MapCanvas(QgsMapCanvas):
     def crs(self):
         return self.mapSettings().destinationCrs()
 
+    def onVectorOverlayChange(self, *args):
 
+        self.refresh()
     def mapLayersToRender(self, *args):
         """Returns the map layers to be rendered"""
         if len(self.mLazyRasterSources) > 0:
@@ -94,14 +98,30 @@ class MapCanvas(QgsMapCanvas):
             QgsMapLayerRegistry.instance().addMapLayers(mls, False)
             del self.mLazyRasterSources[:]
             self.mLayers.extend(mls)
-            self.setRenderer(self.mRendererVector, refresh=False)
             self.setRenderer(self.mRendererRaster, refresh=False)
+        if len(self.mLazyVectorSources) > 0:
+            for t in self.mLazyVectorSources:
+
+                lyr, path, name, provider = t
+                #lyr = QgsVectorLayer(path, name, provider, False)
+                #lyr = t
+                #add vector layers on top
+                lyr.rendererChanged.connect(self.onVectorOverlayChange)
+                self.mLayers.insert(0, lyr)
+            del self.mLazyVectorSources[:]
+            self.setRenderer(self.mRendererVector, refresh=False)
 
         return self.mLayers
 
     def addLazyRasterSources(self, sources):
         assert isinstance(sources, list)
         self.mLazyRasterSources.extend(sources[:])
+
+    def addLazyVectorSources(self, sourceLayers):
+        assert isinstance(sourceLayers, list)
+        for lyr in sourceLayers:
+            assert isinstance(lyr, QgsVectorLayer)
+            self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
 
 
     def mapSummary(self):
@@ -115,7 +135,7 @@ class MapCanvas(QgsMapCanvas):
             self.mRendererRaster.writeXML(dom, root)
         xml = dom.toString()
 
-        return (self.crs(), self.spatialExtent(), self.size(), self.layers(),xml)
+        return (self.crs(), self.spatialExtent(), self.size(), str(self.layers()), str(self.mLazyVectorSources), str(self.mLazyRasterSources), xml)
 
     def setLayerSet(self, *args):
         raise DeprecationWarning()
@@ -371,6 +391,13 @@ class MapCanvas(QgsMapCanvas):
 
     def setRenderer(self, renderer, refresh=True):
         from utils import copyRenderer
+        if renderer is None:
+            return
+        if isinstance(renderer, QgsRasterRenderer):
+            self.mRendererRaster = renderer
+        elif isinstance(renderer, QgsFeatureRendererV2):
+            self.mRendererVector = renderer
+
         success = [copyRenderer(renderer, lyr) for lyr in self.mLayers]
         if refresh and any(success):
             self.refresh()
