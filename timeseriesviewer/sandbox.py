@@ -149,6 +149,7 @@ def sandboxQgisBridge():
     fakeQGIS.ui.show()
     import example.Images
     fakeQGIS.addVectorLayer(example.exampleEvents)
+    fakeQGIS.addVectorLayer(example.exampleEvents)
     fakeQGIS.addRasterLayer(example.Images.Img_2014_08_03_LE72270652014215CUB00_BOA)
 
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])

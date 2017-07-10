@@ -139,25 +139,6 @@ class QgisTsvBridge(QObject):
                     qgis.utils.iface.addVectorLayer(src, os.path.basename(src), ml.providerType())
 
 
-    class SyncState(object):
-        def __init__(self):
-            self.center = False
-            self.extent = False
-            self.crs = False
-
-        def __eq__(self, other):
-            if not isinstance(other, QgisTsvBridge.SyncState):
-                return False
-            else:
-                return \
-                    self.center == other.center \
-                    and self.extent == other.extent \
-                    and self.crs == other.crs
-        def any(self):
-            return any([self.center, self.extent, self.crs])
-
-
-
     def __init__(self):
         assert QgisTsvBridge._instance is None, 'Can not instantiate QgsTsvBridge twice'
         self.TSV = None
@@ -435,6 +416,9 @@ class TimeSeriesViewer:
         self.spatialTemporalVis.sigCRSChanged.connect(D.dockRendering.setCrs)
         D.dockRendering.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
+        D.dockRendering.sigShowVectorLayer.connect(self.spatialTemporalVis.setVectorLayer)
+        D.dockRendering.sigRemoveVectorLayer.connect(lambda : self.spatialTemporalVis.setVectorLayer(None))
+
         self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
 

@@ -36,8 +36,9 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
-    sigQgisSyncStateChanged = pyqtSignal(QgisTsvBridge.SyncState)
     sigQgisInteractionRequest = pyqtSignal(str)
+    sigShowVectorLayer = pyqtSignal(QgsVectorLayer)
+    sigRemoveVectorLayer = pyqtSignal()
 
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
@@ -53,23 +54,28 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
 
-        #default: disable QgsSync box
+        self.gbQgsVectorLayer.clicked.connect(self.onLayerChanged)
+        self.cbQgsVectorLayer.layerChanged.connect(self.onLayerChanged)
 
-        #todo: realt-time syncing?
         self.frameRTSync.setVisible(False)
         self.progressBar.setVisible(False)
 
         self.enableQgisSyncronization(False)
 
-        self.mLastSyncState = self.qgsSyncState()
-        self.cbSyncQgsMapExtent.stateChanged.connect(self.onSyncStateChanged)
-        self.cbSyncQgsMapCenter.stateChanged.connect(self.onSyncStateChanged)
-        self.cbSyncQgsCRS.stateChanged.connect(self.onSyncStateChanged)
-
         self.btnSetQGISCenter.clicked.connect(lambda : self.sigQgisInteractionRequest.emit('tsvCenter2qgsCenter'))
         self.btnSetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('tsvExtent2qgsExtent'))
         self.btnGetQGISCenter.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisCenter2tsvCenter'))
         self.btnGetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisExtent2tsvExtent'))
+
+    def onLayerChanged(self, *args):
+        lyr = self.cbQgsVectorLayer.currentLayer()
+        b = self.gbQgsVectorLayer.isChecked()
+
+        if b and isinstance(lyr, QgsVectorLayer):
+            self.sigShowVectorLayer.emit(lyr)
+        else:
+            self.sigRemoveVectorLayer.emit()
+
 
     def enableQgisSyncronization(self, b):
 
@@ -78,38 +84,8 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
             self.gbSyncQgs.setTitle('QGIS')
         else:
             self.gbSyncQgs.setTitle('QGIS (not available)')
-        #self.gbQgsVectorLayer.setEnabled(b)
+        self.gbQgsVectorLayer.setEnabled(b)
 
-    def onSyncStateChanged(self, *args):
-
-        w = [self.cbSyncQgsMapCenter, self.cbSyncQgsMapExtent]
-        self._blockSignals(w, True)
-        if self.cbSyncQgsMapExtent.isChecked():
-            self.cbSyncQgsMapCenter.setEnabled(False)
-            self.cbSyncQgsMapCenter.setChecked(True)
-        else:
-            self.cbSyncQgsMapCenter.setEnabled(True)
-        state = self.qgsSyncState()
-        self._blockSignals(w, False)
-
-        if self.mLastSyncState != state:
-            self.mLastSyncState = state
-            self.sigQgisSyncStateChanged.emit(state)
-
-
-    def setQgisSyncState(self, syncState):
-        assert isinstance(syncState, QgisTsvBridge.SyncState)
-
-        self.cbSyncQgsCRS.setChecked(syncState.crs)
-        self.cbSyncQgsMapExtent.setChecked(syncState.extent)
-        self.cbSyncQgsMapCenter.setChecked(syncState.center)
-
-    def qgsSyncState(self):
-        s = QgisTsvBridge.SyncState()
-        s.crs = self.cbSyncQgsCRS.isChecked()
-        s.extent = self.cbSyncQgsMapExtent.isChecked()
-        s.center = self.cbSyncQgsMapCenter.isChecked()
-        return s
 
 
     def setCrs(self, crs):
