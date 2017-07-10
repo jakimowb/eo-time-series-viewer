@@ -128,7 +128,7 @@ class ClassificationScheme(QObject):
         assert isinstance(c, ClassInfo)
         if index is None:
             index = len(self.classes)
-        c.setColumnInfo(index)
+        c.setLabel(index)
         self.classes.insert(index, c)
         self.sigClassAdded.emit(c)
 

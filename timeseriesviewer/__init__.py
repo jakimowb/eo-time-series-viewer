@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 VERSION = '0.2'
+LICENSE = 'GNU GPL-3'
 TITLE = 'HUB TimeSeriesViewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote sensing time-series data.'
 WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
@@ -70,7 +71,9 @@ except:
     pass
 
 def icon():
-    return QIcon(':/timeseriesviewer/icons/icon.png')
+
+
+    return QIcon(os.path.join(os.path.dirname(__file__), *['ui','icons','icon.png']))
 
 
 
