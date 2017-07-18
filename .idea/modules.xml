@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" filepath="$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../untitled folder/testclass/.idea/testclass.iml" filepath="$PROJECT_DIR$/../untitled folder/testclass/.idea/testclass.iml" />
     </modules>
   </component>
 </project>
