@@ -51,12 +51,8 @@ class TimeSeriesViewerPlugin:
 
     def run(self):
         from timeseriesviewer.main import TimeSeriesViewer
-        # open QGIS python console. this is required to allow for print() statements in the source code.
-
-        #if self.tsv is None:
         self.tsv = TimeSeriesViewer(self.iface)
         self.tsv.run()
-        self.tsv.ui.show()
 
 
     def unload(self):

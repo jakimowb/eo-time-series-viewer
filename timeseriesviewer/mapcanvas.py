@@ -252,12 +252,18 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
         from timeseriesviewer.main import QgisTsvBridge
 
-        bridge = QgisTsvBridge.instance()
-        if isinstance(bridge, QgisTsvBridge):
-            menu.addSeparator()
-            action = menu.addAction('Add raster to QGIS')
-            action.triggered.connect(lambda: bridge.addLayersToQGIS([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+        menu.addSeparator()
+        action = menu.addAction('Add raster to QGIS')
+        from PyQt4.QtCore import QThread
+        print('ON_MENU')
+        print(QThread.currentThreadId())
+        print(QgisTsvBridge.instance())
 
+        import qgis.utils
+        if qgis.utils is not None:
+            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers(self.layers()))
+        else:
+            action.setEnabled(False)
 
         menu.addSeparator()
 

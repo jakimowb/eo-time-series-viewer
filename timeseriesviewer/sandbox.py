@@ -140,13 +140,15 @@ def sandboxQgisBridge():
     from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
 
     fakeQGIS = QgisFake()
+    import qgis.utils
+    qgis.utils.iface = fakeQGIS
 
     S = TimeSeriesViewer(fakeQGIS)
-    S.ui.show()
     S.run()
 
     fakeQGIS.ui.show()
     import example.Images
+    fakeQGIS.addVectorLayer(example.exampleEvents)
     fakeQGIS.addVectorLayer(example.exampleEvents)
     fakeQGIS.addRasterLayer(example.Images.Img_2014_08_03_LE72270652014215CUB00_BOA)
 
@@ -258,10 +260,11 @@ def initQgisEnvironment():
 
     qgsApp = QgsApplication([], True)
     gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
+
     #register resource files (all)
-    import timeseriesviewer.ui
-    dn = os.path.dirname(timeseriesviewer.ui.__file__)
-    import timeseriesviewer.ui.qgis_icons_py2
+    #import timeseriesviewer.ui
+    #dn = os.path.dirname(timeseriesviewer.ui.__file__)
+    #import timeseriesviewer.ui.qgis_icons_py2
 
 
 
@@ -324,8 +327,8 @@ if __name__ == '__main__':
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if False: sandboxGui()
-    if True: sandboxTestdata()
+    if True: sandboxGui()
+    if False: sandboxTestdata()
     if False: sandboxMultitemp2017(qgis=True)
 
     #close QGIS

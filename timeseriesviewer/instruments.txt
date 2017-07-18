@@ -1,3 +1,0 @@
-#define new instruments by:
-#<name>;<spat. resolution x>;<spat. resolution y>;<#bands>;[<comma separated center wavelength with unit>]
-Landsat legacy bands; 30; 30;6;

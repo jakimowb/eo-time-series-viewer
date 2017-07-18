@@ -21,7 +21,20 @@ class VirtualBand(object):
     def addSourceBand(self, path, bandIndex):
         self.sources.append(VirtualBandInputSource(path, bandIndex))
 
+    def removeSourceBand(self, bandOrIndex):
+        """
+        Removes a virtual band
+        :param bandOrIndex: int | VirtualBand
+        :return: The VirtualBand that was removed
+        """
+        if not isinstance(bandOrIndex, VirtualBand):
+            bandOrIndex = self.sources[bandOrIndex]
+        return self.sources.remove(bandOrIndex)
+
     def sourceFiles(self):
+        """
+        :return: list of file-paths to all source files
+        """
         files = set([inputSource.path for inputSource in self.sources])
         return sorted(list(files))
 
@@ -38,19 +51,85 @@ class VirtualRasterBuilder(object):
         self.vBands = []
         self.vMetadata = dict()
 
+
     def addVirtualBand(self, virtualBand):
+        """
+        Adds a virtual band
+        :param virtualBand: the VirtualBand to be added
+        :return: VirtualBand
+        """
         assert isinstance(virtualBand, VirtualBand)
         self.vBands.append(virtualBand)
+        return self[-1]
+
 
     def insertVirtualBand(self, i, virtualBand):
+        """
+        Inserts a VirtualBand
+        :param i: the insert position
+        :param virtualBand: the VirtualBand to be inserted
+        :return: the VirtualBand
+        """
         assert isinstance(virtualBand, VirtualBand)
         self.vBands.insert(i, virtualBand)
+        return self[i]
+
+
+
+    def removeVirtualBands(self, bandsOrIndices):
+        assert isinstance(bandsOrIndices, list)
+        to_remove = []
+        for bandOrIndex in bandsOrIndices:
+            if not isinstance(bandOrIndex, VirtualBand):
+                bandOrIndex = self.vBands[bandOrIndex]
+            to_remove.append(bandOrIndex)
+
+        for band in to_remove:
+            self.vBands.remove(band)
+        return to_remove
+
+
+    def removeVirtualBand(self, bandOrIndex):
+        r = self.removeVirtualBands([bandOrIndex])
+        return r[0]
 
     def addFilesAsMosaic(self, files):
-        pass
+        """
+        Shortcut to mosaic all input files. All bands will maintain their band position in the virtual file.
+        :param files: [list-of-file-paths]
+        """
+
+        for file in files:
+            ds = gdal.Open(file)
+            assert isinstance(ds, gdal.Dataset)
+            nb = ds.RasterCount
+            for b in range(nb):
+                if b+1 < len(self):
+                    #add new virtual band
+                    self.addVirtualBand(VirtualBand())
+                vBand = self[b]
+                assert isinstance(vBand, VirtualBand)
+                vBand.addSourceBand(file, b)
+        return self
 
     def addFilesAsStack(self, files):
-        pass
+        """
+        Shortcut to stack all input files, i.e. each band of an input file will be a new virtual band.
+        Bands in the virtual file will be ordered as file1-band1, file1-band n, file2-band1, file2-band,...
+        :param files: [list-of-file-paths]
+        :return: self
+        """
+        for file in files:
+            ds = gdal.Open(file)
+            assert isinstance(ds, gdal.Dataset)
+            nb = ds.RasterCount
+            ds = None
+            for b in range(nb):
+                #each new band is a new virtual band
+                vBand = self.addVirtualBand(VirtualBand())
+                assert isinstance(vBand, VirtualBand)
+                vBand.addSourceBand(file, b)
+        return self
 
     def sourceFiles(self):
         files = set()
@@ -59,7 +138,32 @@ class VirtualRasterBuilder(object):
             files.update(set(vBand.sourceFiles()))
         return sorted(list(files))
 
-    def saveVRT(self, pathVRT):
+    def saveVRT(self, pathVRT, **kwds):
+        """
+        :param pathVRT: path to VRT that is created
+        :param options --- can be be an array of strings, a string or let empty and filled from other keywords..
+        :param resolution --- 'highest', 'lowest', 'average', 'user'.
+        :param outputBounds --- output bounds as (minX, minY, maxX, maxY) in target SRS.
+        :param xRes, yRes --- output resolution in target SRS.
+        :param targetAlignedPixels --- whether to force output bounds to be multiple of output resolution.
+        :param bandList --- array of band numbers (index start at 1).
+        :param addAlpha --- whether to add an alpha mask band to the VRT when the source raster have none.
+        :param resampleAlg --- resampling mode.
+        :param outputSRS --- assigned output SRS.
+        :param allowProjectionDifference --- whether to accept input datasets have not the same projection. Note: they will *not* be reprojected.
+        :param srcNodata --- source nodata value(s).
+        :param callback --- callback method.
+        :param callback_data --- user data for callback.
+        :return: gdal.DataSet(pathVRT)
+        """
+
+        _kwds = dict()
+        supported = ['options','resolution','outputBounds','xRes','yRes','targetAlignedPixels','addAlpha','resampleAlg',
+        'outputSRS','allowProjectionDifference','srcNodata','VRTNodata','hideNodata','callback', 'callback_data']
+        for k in kwds.keys():
+            if k in supported:
+                _kwds[k] = kwds[k]
+
 
         dn = os.path.dirname(pathVRT)
         if not os.path.isdir(dn):
@@ -74,8 +178,7 @@ class VirtualRasterBuilder(object):
             if noData and srcNodata is None:
                 srcNodata = noData
 
-        vro = gdal.BuildVRTOptions(separate=True,
-                                   srcNodata=srcNodata)
+        vro = gdal.BuildVRTOptions(separate=True, **_kwds)
         #1. build a temporary VRT that described the spatial shifts of all input sources
         gdal.BuildVRT(pathVRT, srcFiles, options=vro)
         dsVRTDst = gdal.Open(pathVRT)
@@ -142,6 +245,22 @@ class VirtualRasterBuilder(object):
             info.append(str(vBand))
         return '\n'.join(info)
 
+    def __len__(self):
+        return len(self.vBands)
+
+    def __getitem__(self, slice):
+        return self.vBands[slice]
+
+    def __delitem__(self, slice):
+        self.removeVirtualBands(self[slice])
+
+    def __contains__(self, item):
+        return item in self.vBands
+
+
+    def __iter__(self):
+        return iter(self.mClasses)
+
 def createVirtualBandMosaic(bandFiles, pathVRT):
     drv = gdal.GetDriverByName('VRT')
 
@@ -175,7 +294,7 @@ def createVirtualBandStack(bandFiles, pathVRT):
 
     vrtOptions = gdal.BuildVRTOptions(
         # here we can use the options known from http://www.gdal.org/gdalbuildvrt.html
-        separate=True
+        separate=True,
     )
     vrtDS = gdal.BuildVRT(pathVRT, bandFiles, options=vrtOptions)
     vrtDS.FlushCache()
@@ -193,102 +312,3 @@ def createVirtualBandStack(bandFiles, pathVRT):
 
     return vrtDS
 
-
-def groupRapidEyeTiles(dirIn, dirOut):
-    """
-
-    :param dirIn:
-    :param dirOut:
-    :return:
-    """
-
-    files = file_search(dirIn, '*_RE*_3A_*2.tif', recursive=True)
-
-    if not os.path.exists(dirOut):
-        os.mkdir(dirOut)
-
-    sources = dict()
-    for file in files:
-        if not file.endswith('.tif'):
-            continue
-        dn = os.path.dirname(file)
-        bn = os.path.basename(file)
-        print(bn)
-        id, date, sensor, product, _ = tuple(bn.split('_'))
-
-        if not date in sources.keys():
-            sources[date] = []
-        sources[date].append(file)
-    for date, files in sources.items():
-        pathVRT = os.path.join(dirOut, 're_{}.vrt'.format(date))
-        createVirtualBandMosaic(files, pathVRT)
-
-def groupCBERS(dirIn, dirOut):
-    files = file_search(dirIn, 'CBERS*.tif', recursive=True)
-
-    if not os.path.exists(dirOut):
-        os.mkdir(dirOut)
-
-    CONTAINERS = dict()
-    for file in files:
-        dn = os.path.dirname(file)
-        bn = os.path.basename(file)
-        #basenames like CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif
-        splitted = bn.split('_')
-        id = '_'.join(splitted[:4])
-        bandName = splitted[7]
-
-        if id not in CONTAINERS.keys():
-            CONTAINERS[id] = dict()
-
-        bandSources = CONTAINERS[id]
-        if bandName not in bandSources.keys():
-            bandSources[bandName] = list()
-        bandSources[bandName].append(file)
-
-    #mosaic all scenes of same date
-    # and stack all bands related to the same channel
-    for id, bandSources in CONTAINERS.items():
-
-        pathVRT = id + '.vrt'
-        pathVRT = os.path.join(dirOut, pathVRT)
-        V = VirtualRasterBuilder()
-
-        #vrt = createVirtualBandStack(bandSources, pathVRT)
-        #add bands in sorted order
-        for bandName in sorted(bandSources.keys()):
-            vBandSources = bandSources[bandName]
-            VB = VirtualBand(name=bandName)
-            for path in vBandSources:
-                VB.addSourceBand(path, 0) #it's always one band only
-
-            V.addVirtualBand(VB)
-        #print(V)
-        V.saveVRT(pathVRT)
-        s = ""
-        #add ISO time stamp
-
-    pass
-
-def groupLandsat(dirIn, dirOut):
-
-    pass
-
-
-if __name__ == '__main__':
-    if True:
-        dirIn = r'H:\CBERS\hugo\Download20170523'
-        dirOut = r'H:\CBERS\VRTs'
-
-        groupCBERS(dirIn, dirOut)
-        exit(0)
-
-    if True:
-        dirIn = r'H:\CBERS\hugo\Download20170523'
-        dirOut = r'H:\CBERS\VRTs'
-        groupCBERS(dirIn, dirOut)
-
-    if True:
-        dirIn = r'H:\RapidEye\3A'
-        dirOut = r'H:\RapidEye\VRTs'
-        groupRapidEyeTiles(dirIn, dirOut)

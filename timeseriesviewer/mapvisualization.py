@@ -57,15 +57,19 @@ class MapView(QObject):
     def setVectorLayer(self, lyr):
         if isinstance(lyr, QgsVectorLayer):
             self.vectorLayer = lyr
-            self.vectorLayer.rendererChanged.connect(self.sigVectorLayerChanged)
+            self.vectorLayer.rendererChanged.connect(self.onVectorLayerChanges)
             self.ui.btnVectorOverlayVisibility.setEnabled(True)
-
-
         else:
             self.vectorLayer = None
             self.ui.btnVectorOverlayVisibility.setEnabled(False)
 
-        self.sigVectorLayerChanged.emit()
+        self.onVectorLayerChanges()
+
+    def onVectorLayerChanges(self):
+
+        s = ""
+        for mapCanvas in self.mMapCanvases:
+            s = ""
 
     def applyStyles(self):
         for sensorView in self.sensorViews.values():

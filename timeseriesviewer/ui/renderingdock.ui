@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>220</width>
+    <width>245</width>
     <height>359</height>
    </rect>
   </property>
@@ -48,7 +48,16 @@
        <bool>false</bool>
       </property>
       <layout class="QGridLayout" name="gridLayout" columnstretch="0,2,0,2">
-       <property name="margin">
+       <property name="leftMargin">
+        <number>6</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>6</number>
+       </property>
+       <property name="bottomMargin">
         <number>6</number>
        </property>
        <property name="spacing">
@@ -56,10 +65,10 @@
        </property>
        <item row="2" column="1">
         <widget class="QgsColorButton" name="btnMapCanvasColor">
-         <property name="colorDialogTitle">
+         <property name="colorDialogTitle" stdset="0">
           <string>Select Map Canvas Background Color</string>
          </property>
-         <property name="color">
+         <property name="color" stdset="0">
           <color>
            <red>0</red>
            <green>0</green>
@@ -221,7 +230,7 @@
         </widget>
        </item>
        <item row="3" column="1" colspan="3">
-        <widget class="QgsProjectionSelectionWidget" name="btnCrs">
+        <widget class="QgsProjectionSelectionWidget" name="btnCrs" native="true">
          <property name="minimumSize">
           <size>
            <width>15</width>
@@ -263,7 +272,16 @@
        <property name="sizeConstraint">
         <enum>QLayout::SetMinimumSize</enum>
        </property>
-       <property name="margin">
+       <property name="leftMargin">
+        <number>6</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <property name="rightMargin">
+        <number>6</number>
+       </property>
+       <property name="bottomMargin">
         <number>6</number>
        </property>
        <property name="spacing">
@@ -398,10 +416,10 @@
          <property name="checked">
           <bool>false</bool>
          </property>
-         <property name="collapsed">
+         <property name="collapsed" stdset="0">
           <bool>true</bool>
          </property>
-         <property name="saveCheckedState">
+         <property name="saveCheckedState" stdset="0">
           <bool>true</bool>
          </property>
          <layout class="QFormLayout" name="formLayout_5">
@@ -411,7 +429,7 @@
           <item row="0" column="1">
            <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
