@@ -1,11 +1,16 @@
 
-import os, math
+import os, sys, math, StringIO, re
+
+import logging
+logger = logging.getLogger(__name__)
+
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-
+from PyQt4.QtXml import QDomDocument
+from PyQt4 import uic
 from osgeo import gdal
 
 import weakref
@@ -14,6 +19,7 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
+from timeseriesviewer import DIR_UI
 
 
 
@@ -104,7 +110,7 @@ def saveTransform(geom, crs1, crs2):
             rect = transform.transformBoundingBox(geom);
             result = SpatialExtent(crs2, rect)
         except:
-            print('Can not transform from {} to {} on rectangle {}'.format( \
+            logger.debug('Can not transform from {} to {} on rectangle {}'.format( \
                 crs1.description(), crs2.description(), str(geom)))
 
     elif isinstance(geom, QgsPoint):
@@ -114,7 +120,7 @@ def saveTransform(geom, crs1, crs2):
             pt = transform.transform(geom);
             result = SpatialPoint(crs2, pt)
         except:
-            print('Can not transform from {} to {} on QgsPoint {}'.format( \
+            logger.debug('Can not transform from {} to {} on QgsPoint {}'.format( \
                 crs1.description(), crs2.description(), str(geom)))
     return result
 
@@ -298,17 +304,36 @@ def filterSubLayers(filePaths, subLayerEndings):
             pass
     return results
 
+def copyRenderer(renderer, targetLayer):
+    """
+    Copies and applies renderer to targetLayer.
+    :param renderer:
+    :param targetLayer:
+    :return: True, if 'renderer' could be copied and applied to 'targetLayer'
+    """
+    if isinstance(targetLayer, QgsRasterLayer) and isinstance(renderer, QgsRasterRenderer):
+        if isinstance(renderer, QgsMultiBandColorRenderer):
+            r = renderer.clone()
+            r.setInput(targetLayer.dataProvider())
+            targetLayer.setRenderer(r)
+            return True
+        elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+            r = renderer.clone()
+            # r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
+            r.setInput(targetLayer.dataProvider())
+            cmin = renderer.classificationMin()
+            cmax = renderer.classificationMax()
+            r.setClassificationMin(cmin)
+            r.setClassificationMax(cmax)
+            targetLayer.setRenderer(r)
+            return True
+    elif isinstance(targetLayer, QgsVectorLayer) and isinstance(renderer, QgsFeatureRendererV2):
+        #todo: add render-specific switches
+        targetLayer.setRenderer(renderer)
+        return True
 
-def getIface():
-    """
-    Returns the QGIS Interface or None
-    :return:
-    """
-    import qgis.utils
-    if qgis.utils is not None and isinstance(qgis.utils.iface, QgisInterface):
-        return qgis.utils.iface
-    else:
-        return None
+    return False
+
 
 def getSubLayerEndings(files):
     subLayerEndings = []
@@ -326,7 +351,7 @@ def getSubLayerEndings(files):
     return subLayerEndings
 
 
-def getSettings():
+def settings():
     return QSettings('HU-Berlin', 'HUB TimeSeriesViewer')
 
 def niceNumberString(number):
@@ -365,6 +390,88 @@ def nicePredecessor(l):
         return mul * m * 10 ** (exp-1)
     else:
         return 0.0
+
+
+
+loadUi = lambda p : loadUIFormClass(jp(DIR_UI, p))
+
+#dictionary to store form classes and avoid multiple calls to read <myui>.ui
+FORM_CLASSES = dict()
+
+def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
+    """
+    Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
+    Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
+    :param pathUi: *.ui file path
+    :param from_imports:  is optionally set to use import statements that are relative to '.'. At the moment this only applies to the import of resource modules.
+    :param resourceSuffix: is the suffix appended to the basename of any resource file specified in the .ui file to create the name of the Python module generated from the resource file by pyrcc4. The default is '_rc', i.e. if the .ui file specified a resource file called foo.qrc then the corresponding Python module is foo_rc.
+    :return: the form class, e.g. to be used in a class definition like MyClassUI(QFrame, loadUi('myclassui.ui'))
+    """
+
+    RC_SUFFIX =  resourceSuffix
+    assert os.path.exists(pathUi), '*.ui file does not exist: {}'.format(pathUi)
+
+    buffer = StringIO.StringIO() #buffer to store modified XML
+    if pathUi not in FORM_CLASSES.keys():
+        #parse *.ui xml and replace *.h by qgis.gui
+        doc = QDomDocument()
+
+        #remove new-lines. this prevents uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
+        #to mess up the *.ui xml
+        txt = ''.join(open(pathUi).readlines())
+        doc.setContent(txt)
+
+        # Replace *.h file references in <customwidget> with <class>Qgs...</class>, e.g.
+        #       <header>qgscolorbutton.h</header>
+        # by    <header>qgis.gui</header>
+        # this is require to compile QgsWidgets on-the-fly
+        elem = doc.elementsByTagName('customwidget')
+        for child in [elem.item(i) for i in range(elem.count())]:
+            child = child.toElement()
+            className = str(child.firstChildElement('class').firstChild().nodeValue())
+            if className.startswith('Qgs'):
+                cHeader = child.firstChildElement('header').firstChild()
+                cHeader.setNodeValue('qgis.gui')
+
+        #collect resource file locations
+        elem = doc.elementsByTagName('include')
+        qrcPathes = []
+        for child in [elem.item(i) for i in range(elem.count())]:
+            path = child.attributes().item(0).nodeValue()
+            if path.endswith('.qrc'):
+                qrcPathes.append(path)
+
+
+
+        #logger.debug('Load UI file: {}'.format(pathUi))
+        buffer.write(doc.toString())
+        buffer.flush()
+        buffer.seek(0)
+
+
+        #make resource file directories available to the python path (sys.path)
+        baseDir = os.path.dirname(pathUi)
+        tmpDirs = []
+        for qrcPath in qrcPathes:
+            d = os.path.dirname(os.path.join(baseDir, os.path.dirname(qrcPath)))
+            if d not in sys.path:
+                tmpDirs.append(d)
+        sys.path.extend(tmpDirs)
+
+        #load form class
+        try:
+            FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
+        except SyntaxError as ex:
+            logger.info('{}\n{}:"{}"\ncall instead uic.loadUiType(path,...) directly'.format(pathUi, ex, ex.text))
+            FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
+
+        FORM_CLASSES[pathUi] = FORM_CLASS
+
+        #remove temporary added directories from python path
+        for d in tmpDirs:
+            sys.path.remove(d)
+
+    return FORM_CLASSES[pathUi]
 
 
 if __name__ == '__main__':

@@ -4,12 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.ui import loadUIFormClass, DIR_UI
-from timeseriesviewer.main import SpatialExtent, SpatialPoint, QgisTsvBridge
-
-
-load = lambda p : loadUIFormClass(jp(DIR_UI,p))
-
+from timeseriesviewer.utils import loadUi, SpatialExtent
 
 class TsvDockWidgetBase(QgsDockWidget):
 
@@ -29,7 +24,7 @@ class TsvDockWidgetBase(QgsDockWidget):
 
 
 
-class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
+class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
     from timeseriesviewer.crosshair import CrosshairStyle
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)
@@ -37,8 +32,6 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
     sigQgisInteractionRequest = pyqtSignal(str)
-    sigShowVectorLayer = pyqtSignal(QgsVectorLayer)
-    sigRemoveVectorLayer = pyqtSignal()
 
     def __init__(self, parent=None):
         super(RenderingDockUI, self).__init__(parent)
@@ -54,38 +47,38 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
 
-        self.gbQgsVectorLayer.clicked.connect(self.onLayerChanged)
-        self.cbQgsVectorLayer.layerChanged.connect(self.onLayerChanged)
-
-        self.frameRTSync.setVisible(False)
         self.progressBar.setVisible(False)
+        self.enableQgisInteraction(False)
 
-        self.enableQgisSyncronization(False)
+        self.gbQgsVectorLayer.clicked.connect(self.onVectorOverlayerChanged)
+        self.cbQgsVectorLayer.currentIndexChanged.connect(self.onVectorOverlayerChanged)
 
         self.btnSetQGISCenter.clicked.connect(lambda : self.sigQgisInteractionRequest.emit('tsvCenter2qgsCenter'))
         self.btnSetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('tsvExtent2qgsExtent'))
         self.btnGetQGISCenter.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisCenter2tsvCenter'))
         self.btnGetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisExtent2tsvExtent'))
 
-    def onLayerChanged(self, *args):
-        lyr = self.cbQgsVectorLayer.currentLayer()
+    sigShowVectorOverlay = pyqtSignal(QgsVectorLayer)
+    sigRemoveVectorOverlay = pyqtSignal()
+    def onVectorOverlayerChanged(self, *args):
+
         b = self.gbQgsVectorLayer.isChecked()
-
+        lyr = self.cbQgsVectorLayer.currentLayer()
         if b and isinstance(lyr, QgsVectorLayer):
-            self.sigShowVectorLayer.emit(lyr)
+            self.sigShowVectorOverlay.emit(lyr)
         else:
-            self.sigRemoveVectorLayer.emit()
+            self.sigRemoveVectorOverlay.emit()
+        s = ""
 
-
-    def enableQgisSyncronization(self, b):
+    def enableQgisInteraction(self, b):
 
         self.gbSyncQgs.setEnabled(b)
         if b:
             self.gbSyncQgs.setTitle('QGIS')
         else:
             self.gbSyncQgs.setTitle('QGIS (not available)')
-        self.gbQgsVectorLayer.setEnabled(b)
 
+        self.gbQgsVectorLayer.setEnabled(b)
 
 
     def setCrs(self, crs):
@@ -204,7 +197,7 @@ class RenderingDockUI(TsvDockWidgetBase, load('renderingdock.ui')):
 
 
 
-class TimeSeriesDockUI(TsvDockWidgetBase, load('timeseriesdock.ui')):
+class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
         #self.setupUi(self)

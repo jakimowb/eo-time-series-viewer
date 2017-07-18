@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os, sys, fnmatch, six, subprocess, re
 from qgis import *
 from qgis.core import *
@@ -13,7 +15,7 @@ from PyQt4.uic.Compiler.qtproxies import QtGui
 
 import gdal
 
-from timeseriesviewer import DIR_UI, file_search
+from timeseriesviewer import DIR_UI, DIR_REPO, file_search
 jp = os.path.join
 
 
@@ -209,23 +211,12 @@ def make(ROOT):
         assert os.path.exists(pathQrc), pathQrc
         bn = os.path.basename(f)
         bn = os.path.splitext(bn)[0]
-        pathPy2 = jp(DIR_UI, bn+'_py2.py' )
-        pathPy3 = jp(DIR_UI, bn+'_py3.py' )
-        print('Make {}'.format(pathPy2))
+        pathPy2 = jp(DIR_UI, bn+'_rc.py' )
+        #pathPy3 = jp(DIR_UI, bn+'_py3.py' )
+        #print('Make {}'.format(pathPy2))
         subprocess.call(['pyrcc4','-py2','-o',pathPy2, pathQrc])
-        print('Make {}'.format(pathPy3))
-        subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
-
-
-    if False: #compile QGIS resource files
-        pathQrc = r'D:\Repositories\QGIS\images\images.qrc'
-        assert os.path.exists(pathQrc)
-        pathPy2 = jp(DIR_UI, 'qgis_icons_py2.py')
-        pathPy3 = jp(DIR_UI, 'qgis_icons_py3.py')
-        print('Make {}'.format(pathPy2))
-        subprocess.call(['pyrcc4','-py2','-o',pathPy2, pathQrc])
-        print('Make {}'.format(pathPy3))
-        subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
+        #print('Make {}'.format(pathPy3))
+        #subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
 
 def fileNeedsUpdate(file1, file2):
     if not os.path.exists(file2):
@@ -426,15 +417,26 @@ def createCreditsHTML():
     * encoding: Encoding of input and output.
     * Any arguments accepted by the Markdown class.
     """
+    import urllib
+
+    def readUrlTxt(url):
+        req = urllib.urlopen(url)
+        enc = req.headers['content-type'].split('charset=')[-1]
+        txt = req.read()
+        req.close()
+        return unicode(txt, enc)
+
+    txtQGISreadme = readUrlTxt("https://raw.githubusercontent.com/qgis/QGIS/master/README.md")
+    txtPyQtreadme = readUrlTxt("https://raw.githubusercontent.com/pyqtgraph/pyqtgraph/master/README.md")
 
 
-    pathSrc = jp(os.path.dirname(pyqtgraph.path), 'README.md')
-    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
-    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
-
-    pathSrc = r'C:\Users\geo_beja\Repositories\QGIS\README.md'
     pathDst = jp(DIR_DOCS, 'README_QGIS.html')
-    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
+    html = markdown.markdown(txtQGISreadme, output_format='html5')
+    open(pathDst, 'w').write(html.encode('UTF-8'))
+
+    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
+    html = markdown.markdown(txtPyQtreadme, output_format='html5')
+    open(pathDst, 'w').write(html.encode('UTF-8'))
 
     pathSrc = jp(DIR_REPO, 'CHANGES.md')
     pathDst = jp(DIR_DOCS, 'CHANGES.html')
@@ -442,6 +444,51 @@ def createCreditsHTML():
 
     s = ""
     pass
+
+def updateMetadataTxt():
+    #see http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/plugins.html#plugin-metadata
+    #for required metatags
+    pathDst = jp(DIR_REPO, 'metadata.txt')
+    assert os.path.exists(pathDst)
+    import timeseriesviewer.sandbox
+    #required to use QIcons
+    qgis = timeseriesviewer.sandbox.initQgisEnvironment()
+
+    import timeseriesviewer, collections
+    md = collections.OrderedDict()
+    for line in open(pathDst).readlines():
+        parts = line.split('=')
+        if len(parts) >= 2:
+            md[parts[0]] = '='.join(parts[1:])
+
+    #update/set new metadata
+    md['name'] = timeseriesviewer.TITLE
+    md['qgisMinimumVersion'] = "2.18"
+    #md['qgisMaximumVersion'] =
+    md['description'] = timeseriesviewer.DESCRIPTION.strip()
+    md['about'] = timeseriesviewer.ABOUT.strip()
+    md['version'] = timeseriesviewer.VERSION.strip()
+    md['author'] = "Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
+    md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
+    #md['changelog'] =
+    md['experimental'] = "False"
+    md['deprecated'] = "False"
+    md['tags'] = "remote sensing, raster, time series"
+    md['homepage'] = timeseriesviewer.WEBSITE
+    md['repository'] = timeseriesviewer.WEBSITE
+    md['tracker'] = timeseriesviewer.WEBSITE+'/issues'
+    md['icon'] = r'timeseriesviewer/ui/icons/icon.png'
+    md['category'] = 'Raster'
+
+    lines = ['[general]']
+    for k, line in md.items():
+        lines.append('{}={}'.format(k, line))
+    open(pathDst, 'w').writelines('\n'.join(lines))
+    s = ""
+
+
+
+
 
 if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
@@ -469,8 +516,6 @@ if __name__ == '__main__':
 
 
         pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        #path Novo Progresso site L7/L8/RE time series
-        #pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources2.txt'
         pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
         from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
         subset = QgsRectangle(QgsPoint(-55.36091,-6.79851), #UL
@@ -491,6 +536,8 @@ if __name__ == '__main__':
     if False:
         createCreditsHTML()
 
+    if True:
+        updateMetadataTxt()
 
     if False:
         #convert SVG to PNG and link them into the resource file

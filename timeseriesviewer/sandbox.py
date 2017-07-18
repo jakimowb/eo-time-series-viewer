@@ -52,6 +52,8 @@ def sandboxGui():
     SP = SignalPrinter(S.spatialTemporalVis)
 
 
+
+
 class QgisFake(QgisInterface):
 
     def __init__(self, *args):
@@ -100,7 +102,8 @@ class QgisFake(QgisInterface):
         self.bridge.setCanvasLayers()
         s = ""
 
-
+    def legendInterface(self):
+        QgsLegendInterface
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
         self.lyrs.append(l)
@@ -154,6 +157,8 @@ def sandboxQgisBridge():
 
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
     S.ui.resize(600,600)
+    S.ui.dockRendering.gbQgsVectorLayer.setChecked(True)
+
     s = ""
 
 
@@ -320,7 +325,7 @@ def sandboxMultitemp2017(qgis=False):
 
 if __name__ == '__main__':
     import site, sys, pyqtgraph
-    #add site-packages to sys.path as done by enmapboxplugin.py
+    # add site-packages to sys.path as done by enmapboxplugin.py
 
     qgsApp = initQgisEnvironment()
 

@@ -10,9 +10,8 @@ import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
-from timeseriesviewer.ui.widgets import loadUIFormClass
-
-load = lambda p : loadUIFormClass(jp(DIR_UI,p))
+#from timeseriesviewer.ui.widgets import loadUIFormClass
+#load = lambda p : loadUIFormClass(jp(DIR_UI,p))
 
 
 # noinspection PyPep8Naming
@@ -129,7 +128,7 @@ class ClassificationScheme(QObject):
         assert isinstance(c, ClassInfo)
         if index is None:
             index = len(self.classes)
-        c.setColumnInfo(index)
+        c.setLabel(index)
         self.classes.insert(index, c)
         self.sigClassAdded.emit(c)
 
@@ -369,7 +368,7 @@ class ClassificationWidgetDelegates(QStyledItemDelegate):
             if index.data() != w.color():
                 model.setData(index, w.color(), Qt.EditRole)
 
-class ClassificationSchemeWidget(QWidget, load('classificationscheme.ui')):
+class ClassificationSchemeWidget(QWidget, loadUi('classificationscheme.ui')):
 
 
 

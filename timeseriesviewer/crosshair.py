@@ -9,10 +9,6 @@ import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
-from timeseriesviewer.ui.widgets import loadUIFormClass
-
-load = lambda p : loadUIFormClass(jp(DIR_UI,p))
-
 class CrosshairStyle(object):
     def __init__(self, **kwds):
 
@@ -347,7 +343,7 @@ def nicePredecessor(l):
         return 0.0
 
 
-class CrosshairWidget(QWidget, load('crosshairwidget.ui')):
+class CrosshairWidget(QWidget, loadUi('crosshairwidget.ui')):
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, title='<#>', parent=None):

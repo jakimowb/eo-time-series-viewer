@@ -38,6 +38,8 @@ class MapCanvas(QgsMapCanvas):
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
         self.mLazyRasterSources = []
+        self.mLazyVectorSources = []
+
         self.mRendererRaster = None
         self.mRendererVector = None
 
@@ -86,6 +88,9 @@ class MapCanvas(QgsMapCanvas):
     def crs(self):
         return self.mapSettings().destinationCrs()
 
+    def onVectorOverlayChange(self, *args):
+
+        self.refresh()
 
     def mapLayersToRender(self, *args):
         """Returns the map layers to be rendered"""
@@ -94,13 +99,30 @@ class MapCanvas(QgsMapCanvas):
             QgsMapLayerRegistry.instance().addMapLayers(mls, False)
             del self.mLazyRasterSources[:]
             self.mLayers.extend(mls)
-            self.setRasterRenderer(self.mRendererRaster, refresh=False)
-            self.setVectorRenderer(self.mRendererVector, refresh=False)
+            self.setRenderer(self.mRendererRaster, refresh=False)
+        if len(self.mLazyVectorSources) > 0:
+            for t in self.mLazyVectorSources:
+
+                lyr, path, name, provider = t
+                #lyr = QgsVectorLayer(path, name, provider, False)
+                #lyr = t
+                #add vector layers on top
+                lyr.rendererChanged.connect(self.onVectorOverlayChange)
+                self.mLayers.insert(0, lyr)
+            del self.mLazyVectorSources[:]
+            self.setRenderer(self.mRendererVector, refresh=False)
+
         return self.mLayers
 
     def addLazyRasterSources(self, sources):
         assert isinstance(sources, list)
         self.mLazyRasterSources.extend(sources[:])
+
+    def addLazyVectorSources(self, sourceLayers):
+        assert isinstance(sourceLayers, list)
+        for lyr in sourceLayers:
+            assert isinstance(lyr, QgsVectorLayer)
+            self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
 
 
     def mapSummary(self):
@@ -114,7 +136,7 @@ class MapCanvas(QgsMapCanvas):
             self.mRendererRaster.writeXML(dom, root)
         xml = dom.toString()
 
-        return (self.crs(), self.spatialExtent(), self.size(), self.layers(),xml)
+        return (self.crs(), self.spatialExtent(), self.size(), str(self.layers()), str(self.mLazyVectorSources), str(self.mLazyRasterSources), xml)
 
     def setLayerSet(self, *args):
         raise DeprecationWarning()
@@ -139,7 +161,6 @@ class MapCanvas(QgsMapCanvas):
 
         self.checkRenderFlag()
         if self.renderFlag() or force:
-            #print('Refresh {}'.format(self.objectName()))
             self.setLayers(self.mapLayersToRender())
             super(MapCanvas, self).refresh()
             #self.refreshAllLayers()
@@ -255,9 +276,6 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
         action = menu.addAction('Add raster to QGIS')
         from PyQt4.QtCore import QThread
-        print('ON_MENU')
-        print(QThread.currentThreadId())
-        print(QgisTsvBridge.instance())
 
         import qgis.utils
         if qgis.utils is not None:
@@ -368,18 +386,20 @@ class MapCanvas(QgsMapCanvas):
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
 
 
-    def setRenderer(self, renderer):
-        #print('Set renderer {}'.format(self.objectName()))
-        #lyrs = [l for l in self.mapLayersToRender() if str(l.source()) == targetLayerUri]
-        isRasterRenderer = isinstance(renderer, QgsRasterRenderer)
-        if isRasterRenderer:
-            self.setRasterRenderer(renderer, refresh=False)
-        else:
-            self.setVectorRenderer(renderer, refresh=False)
+    def setRenderer(self, renderer, refresh=True):
+        from utils import copyRenderer
+        if renderer is None:
+            return
+        if isinstance(renderer, QgsRasterRenderer):
+            self.mRendererRaster = renderer
+        elif isinstance(renderer, QgsFeatureRendererV2):
+            self.mRendererVector = renderer
 
-        self.refresh()
+        success = [copyRenderer(renderer, lyr) for lyr in self.mLayers]
+        if refresh and any(success):
+            self.refresh()
 
-    def setVectorRenderer(self, renderer, refresh=True):
+    def depr_setVectorRenderer(self, renderer, refresh=True):
         self.mRendererVector = renderer
         lyrs = [l for l in self.mLayers if isinstance(l, QgsVectorLayer)]
         for lyr in lyrs:
@@ -388,7 +408,7 @@ class MapCanvas(QgsMapCanvas):
         if refresh:
             self.refresh()
 
-    def setRasterRenderer(self, renderer, refresh=False):
+    def depr_setRasterRenderer(self, renderer, refresh=False):
         self.mRendererRaster = renderer
         lyrs = [l for l in self.mLayers if isinstance(l, QgsRasterLayer)]
         for lyr in lyrs:
