@@ -260,10 +260,11 @@ def initQgisEnvironment():
 
     qgsApp = QgsApplication([], True)
     gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
+
     #register resource files (all)
-    import timeseriesviewer.ui
-    dn = os.path.dirname(timeseriesviewer.ui.__file__)
-    import timeseriesviewer.ui.qgis_icons_py2
+    #import timeseriesviewer.ui
+    #dn = os.path.dirname(timeseriesviewer.ui.__file__)
+    #import timeseriesviewer.ui.qgis_icons_py2
 
 
 
@@ -325,8 +326,8 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if True: sandboxQgisBridge()
-    if False: sandboxGui()
+    if False: sandboxQgisBridge()
+    if True: sandboxGui()
     if False: sandboxTestdata()
     if False: sandboxMultitemp2017(qgis=True)
 

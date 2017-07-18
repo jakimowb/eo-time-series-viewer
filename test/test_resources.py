@@ -30,11 +30,12 @@ class testclassDialogTest(unittest.TestCase):
         """Runs after each test."""
         pass
 
+
     def test_icon_png(self):
         """Test we can click OK."""
-        path = ':/plugins/testclass/icon.png'
-        icon = QIcon(path)
-        self.assertFalse(icon.isNull())
+        from timeseriesviewer import  icon
+
+        self.assertFalse(icon().isNull())
 
 if __name__ == "__main__":
     suite = unittest.makeSuite(testclassResourcesTest)

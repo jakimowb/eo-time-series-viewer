@@ -481,11 +481,11 @@ if __name__ == '__main__':
 
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
-    if False:
+    if True:
 
         # update __init__.py of testdata directories
         d = pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        d = pathDirTestData = DIR_EXAMPLES
+        #d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
     if False:
@@ -498,7 +498,7 @@ if __name__ == '__main__':
     if False:
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
-    if True:
+    if False:
         make(DIR_UI)
     print('Done')
 

@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import sys, re, os, collections
 from os.path import join as jp
 
 
-from osgeo import gdal, ogr
+from osgeo import gdal, ogr, gdal_array
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
@@ -286,8 +287,65 @@ def testdataMultitemp2017():
         vrt2Binary(dirVRT, dirBin, overwrite=False)
 
 
-if __name__ == '__main__':
-    testdataMultitemp2017()
+def compressTestdata(dirTestdata, dirCompressedData=None):
 
+    files = file_search(dirTestdata, '*.bsq')
+    files += file_search(dirTestdata, '*.tif')
+    if dirCompressedData is None:
+        dirCompressedData = dirTestdata +'_compressed'
+
+    if not os.path.exists(dirCompressedData):
+        os.makedirs(dirCompressedData)
+
+    drvTIFF = gdal.GetDriverByName('GTiff')
+    assert isinstance(drvTIFF, gdal.Driver)
+    ext = drvTIFF.GetMetadataItem('DMD_EXTENSION')
+    co = ['NUM_THREADS=ALL_CPUS','COMPRESS=LZW']
+    n_total = len(files)
+    def callback(*args):
+        progress, msg, t = args
+        i, n_total, file = t
+        totalProgress = (i+progress) / n_total
+        print('Progress {:0.2f}'.format(totalProgress*100))
+
+    for i,file in enumerate(files):
+        bn = os.path.basename(file)
+        bn = os.path.splitext(bn)[0]
+        ds = gdal.Open(file)
+        assert isinstance(ds, gdal.Dataset)
+        band = ds.GetRasterBand(1)
+        assert isinstance(band, gdal.Band)
+        data = band.ReadAsArray()
+        if data.std() == 0:
+            continue
+        if band.GetNoDataValue():
+            s = ""
+
+
+        pathDst = jp(dirCompressedData,bn+'.'+ext )
+        """
+         options = [], format = 'GTiff',
+         outputType = GDT_Unknown, bandList = None, maskBand = None,
+         width = 0, height = 0, widthPct = 0.0, heightPct = 0.0,
+         xRes = 0.0, yRes = 0.0,
+         creationOptions = None, srcWin = None, projWin = None, projWinSRS = None, strict = False,
+         unscale = False, scaleParams = None, exponents = None,
+         outputBounds = None, metadataOptions = None,
+         outputSRS = None, GCPs = None,
+         noData = None, rgbExpand = None,
+         stats = False, rat = True, resampleAlg = None,
+         callback = None, callback_data = None)
+        """
+        options = gdal.TranslateOptions(options=co, format=drvTIFF.ShortName,
+                                        callback = callback, callback_data=(i,n_total, file))
+
+        gdal.Translate(pathDst,file,options=options )
+        s = ""
+
+
+if __name__ == '__main__':
+    #testdataMultitemp2017()
+    import example.Images
+    compressTestdata(os.path.dirname(example.Images.__file__))
 
     print('done')
