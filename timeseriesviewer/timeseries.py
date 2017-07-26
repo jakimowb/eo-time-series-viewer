@@ -328,6 +328,90 @@ class TimeSeriesDatum(QObject):
         return hash((self.date,self.sensor.id()))
 
 
+class TimeSeriesTableView(QTableView):
+
+    def __init__(self, parent=None):
+        super(TimeSeriesTableView, self).__init__(parent)
+
+    def contextMenuEvent(self, event):
+
+        menu = QMenu(self)
+        menu.addAction('Check selected observation')
+        menu.addAction('Uncheck selected observation')
+
+        menu.popup(QCursor.pos())
+
+    def selectSelectedObservations(b):
+        assert isinstance(b, bool)
+
+
+from timeseriesviewer.ui.docks import TsvDockWidgetBase
+from timeseriesviewer.utils import loadUi
+class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
+    def __init__(self, parent=None):
+        super(TimeSeriesDockUI, self).__init__(parent)
+        self.setupUi(self)
+        self.btnAddTSD.setDefaultAction(parent.actionAddTSD)
+        self.btnRemoveTSD.setDefaultAction(parent.actionRemoveTSD)
+        self.btnLoadTS.setDefaultAction(parent.actionLoadTS)
+        self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
+        self.btnClearTS.setDefaultAction(parent.actionClearTS)
+
+        self.progressBar.setMinimum(0)
+        self.setProgressInfo(0,100, 'Add images to fill time series')
+        self.progressBar.setValue(0)
+        self.progressInfo.setText(None)
+        self.frameFilters.setVisible(False)
+
+        self.connectTimeSeries(None)
+
+    def setStatus(self):
+        from timeseriesviewer.timeseries import TimeSeries
+        if isinstance(self.TS, TimeSeries):
+            ndates = len(self.TS)
+            nsensors = len(set([tsd.sensor for tsd in self.TS]))
+            msg = '{} scene(s) from {} sensor(s)'.format(ndates, nsensors)
+            if ndates > 1:
+                msg += ', {} to {}'.format(str(self.TS[0].date), str(self.TS[-1].date))
+            self.progressInfo.setText(msg)
+
+    def setProgressInfo(self, nDone, nMax, message=None):
+        if self.progressBar.maximum() != nMax:
+            self.progressBar.setMaximum(nMax)
+        self.progressBar.setValue(nDone)
+        self.progressInfo.setText(message)
+        QgsApplication.processEvents()
+        if nDone == nMax:
+            QTimer.singleShot(3000, lambda: self.setStatus())
+
+    def onSelectionChanged(self, *args):
+        self.btnRemoveTSD.setEnabled(self.SM is not None and len(self.SM.selectedRows()) > 0)
+
+    def selectedTimeSeriesDates(self):
+        if self.SM is not None:
+            return [self.TSM.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
+        return []
+
+    def connectTimeSeries(self, TS):
+        from timeseriesviewer.timeseries import TimeSeries
+        self.TS = TS
+        self.TSM = None
+        self.SM = None
+        self.timeSeriesInitialized = False
+
+        if isinstance(TS, TimeSeries):
+            from timeseriesviewer.timeseries import TimeSeriesTableModel
+            self.TSM = TimeSeriesTableModel(self.TS)
+            self.tableView_TimeSeries.setModel(self.TSM)
+            self.SM = QItemSelectionModel(self.TSM)
+            self.tableView_TimeSeries.setSelectionModel(self.SM)
+            self.SM.selectionChanged.connect(self.onSelectionChanged)
+            self.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+            TS.sigLoadingProgress.connect(self.setProgressInfo)
+
+        self.onSelectionChanged()
+
+
 class TimeSeries(QObject):
 
     sigTimeSeriesDatesAdded = pyqtSignal(list)
@@ -552,6 +636,177 @@ class TimeSeries(QObject):
 
         return '\n'.join(info)
 
+
+
+class TimeSeriesTableModel(QAbstractTableModel):
+    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image']
+
+    def __init__(self, TS, parent=None, *args):
+
+        super(TimeSeriesTableModel, self).__init__()
+        assert isinstance(TS, TimeSeries)
+        self.TS = TS
+        self.sensors = set()
+        self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
+        self.TS.sigTimeSeriesDatesAdded.connect(self.addTSDs)
+
+        self.items = []
+        self.sortColumnIndex = 0
+        self.sortOrder = Qt.AscendingOrder
+        self.addTSDs([tsd for tsd in self.TS])
+
+    def removeTSDs(self, tsds):
+        #self.TS.removeDates(tsds)
+        for tsd in tsds:
+            if tsd in self.TS:
+                #remove from TimeSeries first.
+                self.TS.removeDates([tsd])
+            elif tsd in self.items:
+                idx = self.getIndexFromDate(tsd)
+                self.removeRows(idx.row(), 1)
+
+        #self.sort(self.sortColumnIndex, self.sortOrder)
+
+
+    def tsdChanged(self, tsd):
+        idx = self.getIndexFromDate(tsd)
+        self.dataChanged.emit(idx, idx)
+
+    def addTSDs(self, tsds):
+        self.items.extend(tsds)
+        self.sort(self.sortColumnIndex, self.sortOrder)
+
+        for tsd in tsds:
+            assert isinstance(tsd, TimeSeriesDatum)
+            tsd.sigVisibilityChanged.connect(lambda: self.tsdChanged(tsd))
+
+        for sensor in set([tsd.sensor for tsd in tsds]):
+            if sensor not in self.sensors:
+                self.sensors.add(sensor)
+                sensor.sigNameChanged.connect(lambda: self.reset())
+
+
+
+    def sort(self, col, order):
+        if self.rowCount() == 0:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        colName = self.columnames[col]
+        r = order != Qt.AscendingOrder
+
+        if colName in ['date','ns','nl','sensor']:
+            self.items.sort(key = lambda d:d.__dict__[colName], reverse=r)
+
+        self.layoutChanged.emit()
+        s = ""
+
+
+    def rowCount(self, parent = QModelIndex()):
+        return len(self.items)
+
+
+    def removeRows(self, row, count , parent=QModelIndex()):
+        self.beginRemoveRows(parent, row, row+count-1)
+        toRemove = self.items[row:row+count]
+        for tsd in toRemove:
+            self.items.remove(tsd)
+        self.endRemoveRows()
+
+    def getIndexFromDate(self, tsd):
+        return self.createIndex(self.items.index(tsd),0)
+
+    def getDateFromIndex(self, index):
+        if index.isValid():
+            return self.items[index.row()]
+        return None
+
+    def getTimeSeriesDatumFromIndex(self, index):
+        if index.isValid():
+            i = index.row()
+            if i >= 0 and i < len(self.items):
+                return self.items[i]
+
+        return None
+
+    def columnCount(self, parent = QModelIndex()):
+        return len(self.columnames)
+
+    def data(self, index, role = Qt.DisplayRole):
+        if role is None or not index.isValid():
+            return None
+
+        value = None
+        columnName = self.columnames[index.column()]
+
+        TSD = self.getTimeSeriesDatumFromIndex(index)
+        keys = list(TSD.__dict__.keys())
+
+
+        if role == Qt.DisplayRole or role == Qt.ToolTipRole:
+            if columnName == 'name':
+                value = os.path.basename(TSD.pathImg)
+            elif columnName == 'sensor':
+                if role == Qt.ToolTipRole:
+                    value = TSD.sensor.getDescription()
+                else:
+                    value = TSD.sensor.name()
+            elif columnName == 'date':
+                value = '{}'.format(TSD.date)
+            elif columnName == 'image':
+                value = TSD.pathImg
+            elif columnName in keys:
+                value = TSD.__dict__[columnName]
+            else:
+                s = ""
+        elif role == Qt.CheckStateRole:
+            if columnName == 'date':
+                value = Qt.Checked if TSD.isVisible() else Qt.Unchecked
+        elif role == Qt.BackgroundColorRole:
+            value = None
+        elif role == Qt.UserRole:
+            value = TSD
+
+        return value
+
+    def setData(self, index, value, role=None):
+        if role is None or not index.isValid():
+            return None
+
+        if role is Qt.UserRole:
+
+            s = ""
+
+        columnName = self.columnames[index.column()]
+
+        TSD = self.getTimeSeriesDatumFromIndex(index)
+        if columnName == 'date' and role == Qt.CheckStateRole:
+            TSD.setVisibility(value != Qt.Unchecked)
+            return True
+        else:
+            return False
+
+        return False
+
+    def flags(self, index):
+        if index.isValid():
+            columnName = self.columnames[index.column()]
+            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            if columnName == 'date': #allow check state
+                flags = flags | Qt.ItemIsUserCheckable
+
+            return flags
+            #return item.qt_flags(index.column())
+        return None
+
+    def headerData(self, col, orientation, role):
+        if Qt is None:
+            return None
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.columnames[col]
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            return col
+        return None
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
 
@@ -635,8 +890,6 @@ def parseWavelength(lyr):
                 wlu = si[names.index(wlu)]
 
     return wl, wlu
-
-
 
 if __name__ == '__main__':
 

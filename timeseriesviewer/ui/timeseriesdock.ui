@@ -234,7 +234,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QTableView" name="tableView_TimeSeries">
+         <widget class="TimeSeriesTableView" name="tableView_TimeSeries">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>1</horstretch>
@@ -358,6 +358,13 @@
    </layout>
   </widget>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>TimeSeriesTableView</class>
+   <extends>QTableView</extends>
+   <header>timeseriesviewer.timeseries</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="resources.qrc"/>
  </resources>

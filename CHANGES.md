@@ -3,6 +3,10 @@
 - changing the coordinate reference system to one that is obviously not suited for the data might cause system crashes
 
 ## Change History ##
+## July 2017
+- Sensor/Product names are now stored in system settings and will be restored after restart
+- Pixel profiles are now loaded in a parallel process that will not block the UI (required because of python GIL.)
+
 
 ### June 2017
 - improved QGIS-TimeSeriesViewer integration

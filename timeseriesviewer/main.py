@@ -286,7 +286,8 @@ class TimeSeriesViewerUI(QMainWindow,
         area = Qt.BottomDockWidgetArea
         from timeseriesviewer.mapvisualization import MapViewDockUI
         self.dockMapViews = addDockWidget(MapViewDockUI(self))
-        self.dockTimeSeries = addDockWidget(docks.TimeSeriesDockUI(self))
+
+        self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
         self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
