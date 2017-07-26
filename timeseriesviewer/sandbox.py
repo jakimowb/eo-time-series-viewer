@@ -39,12 +39,13 @@ def sandboxGui():
 
     S.spatialTemporalVis.MVC.createMapView()
     import example.Images
-    #imgs = file_search(jp(DIR_EXAMPLES,'Images'),'*.bsq')
-    searchDir = jp(DIR_EXAMPLES, 'Images')
 
-    #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\01_UncutVRT'
-    #searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
-    imgs = file_search(searchDir, '*.bsq', recursive=True)[:]
+
+    searchDir = jp(DIR_EXAMPLES, 'Images')
+    imgs = file_search(searchDir, '*.tif', recursive=True)[:]
+    #searchDir = r'O:\SenseCarbonProcessing\09_testFolder\HLS-data-HUB-viewer\DE\L30\2016\33UUT'
+    #imgs = file_search(searchDir, '*OLI.img')
+
 
     #imgs = [example.Images.Img_2014_07_10_LC82270652014191LGN00_BOA]
     S.addTimeSeriesImages(imgs)
@@ -211,6 +212,9 @@ def gdal_qgis_benchmark():
     s =""
 
 class SignalPrinter(object):
+    """
+    A printer to print Qt Signals
+    """
 
     def __init__(self,  objs=None):
 
@@ -219,6 +223,11 @@ class SignalPrinter(object):
             self.addObject(objs)
 
     def addObject(self, obj):
+        """
+        Adds an object to the printer. In case of QObjects, its QSignals will get connected to print emitted signals.
+        :param obj:
+        :return:
+        """
         import inspect
         if isinstance(obj, list):
             for o in obj:
@@ -265,14 +274,6 @@ def initQgisEnvironment():
 
     qgsApp = QgsApplication([], True)
     gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
-
-    #register resource files (all)
-    #import timeseriesviewer.ui
-    #dn = os.path.dirname(timeseriesviewer.ui.__file__)
-    #import timeseriesviewer.ui.qgis_icons_py2
-
-
-
     qgsApp.setPrefixPath(PATH_QGS, True)
     qgsApp.initQgis()
     return qgsApp
@@ -292,37 +293,6 @@ def sandboxTestdata():
 
     S.addTimeSeriesImages(imgs)
 
-def sandboxMultitemp2017(qgis=False):
-    from timeseriesviewer.main import TimeSeriesViewer
-
-    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
-
-    iface = None
-    if qgis:
-        iface = QgisFake()
-
-    S = TimeSeriesViewer(iface)
-    S.ui.show()
-    S.run()
-
-    S.spatialTemporalVis.MVC.createMapView()
-    import example.Images
-
-    if True:
-        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\Landsat'
-        imgs = file_search(searchDir, 'LC8*.vrt', recursive=True)#[0:5]
-        S.addTimeSeriesImages(imgs)
-
-    if True:
-        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\CBERS'
-        imgs = file_search(searchDir, 'CBERS*.vrt', recursive=True)#[0:1]
-        S.addTimeSeriesImages(imgs)
-
-        searchDir = r'O:\SenseCarbonProcessing\BJ_Multitemp2017\01_Data\RapidEye'
-        imgs = file_search(searchDir, 're*.vrt', recursive=True)#[0:1]
-        S.addTimeSeriesImages(imgs)
-
-
 if __name__ == '__main__':
     import site, sys, pyqtgraph
     # add site-packages to sys.path as done by enmapboxplugin.py
@@ -334,7 +304,6 @@ if __name__ == '__main__':
     if False: sandboxQgisBridge()
     if True: sandboxGui()
     if False: sandboxTestdata()
-    if False: sandboxMultitemp2017(qgis=True)
 
     #close QGIS
     qgsApp.exec_()

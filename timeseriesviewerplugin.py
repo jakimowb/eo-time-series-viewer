@@ -41,7 +41,7 @@ class TimeSeriesViewerPlugin:
         import timeseriesviewer
         # init main UI
         from timeseriesviewer import DIR_UI, jp, TITLE
-        icon = QIcon(jp(DIR_UI, *['icons', 'icon.png']))
+        icon = timeseriesviewer.icon()
         action = QAction(icon, TITLE, self.iface)
         action.triggered.connect(self.run)
         self.toolbarActions.append(action)
