@@ -58,6 +58,8 @@ class SpatialPoint(QgsPoint):
         return SpatialPoint(crs, spatialExtent.center())
 
     def __init__(self, crs, *args):
+        if not isinstance(crs, QgsCoordinateReferenceSystem):
+            crs = QgsCoordinateReferenceSystem(crs)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         super(SpatialPoint, self).__init__(*args)
         self.mCrs = crs
@@ -69,6 +71,29 @@ class SpatialPoint(QgsPoint):
     def crs(self):
         return self.mCrs
 
+    def toPixelPosition(self, rasterDataSource, allowOutOfRaster=False):
+        """
+        Returns the pixel position of this SpatialPoint within the rasterDataSource
+        :param rasterDataSource: gdal.Dataset
+        :param allowOutOfRaster: set True to return out-of-raster pixel positions, e.g. QPoint(-1,0)
+        :return: the pixel position as QPoint
+        """
+        ds = gdalDataset(rasterDataSource)
+        ns, nl = ds.RasterXSize, ds.RasterYSize
+        gt = ds.GetGeoTransform()
+
+        pt = self.toCrs(ds.GetProjection())
+        if pt is None:
+            return None
+
+        px = geo2px(pt, gt)
+        if not allowOutOfRaster:
+            if px.x() < 0 or px.x() >= ns:
+                return None
+            if px.y() < 0 or px.y() >= nl:
+                return None
+        return px
+
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         pt = QgsPoint(self)
@@ -78,8 +103,21 @@ class SpatialPoint(QgsPoint):
 
         return SpatialPoint(crs, pt) if pt else None
 
+    def __reduce_ex__(self, protocol):
+        return self.__class__, (self.crs().toWkt(), self.x(), self.y()), {}
+
+    def __eq__(self, other):
+        if not isinstance(other, SpatialPoint):
+            return False
+        return self.x() == other.x() and \
+               self.y() == other.y() and \
+               self.crs() == other.crs()
+
     def __copy__(self):
-        return SpatialExtent(self.crs(), QgsRectangle(self))
+        return SpatialPoint(self.crs(), self.x(), self.y())
+
+    def __str__(self):
+        return self.__repr__()
 
     def __repr__(self):
         return '{} {} {}'.format(self.x(), self.y(), self.crs().authid())
@@ -124,6 +162,41 @@ def saveTransform(geom, crs1, crs2):
                 crs1.description(), crs2.description(), str(geom)))
     return result
 
+
+def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
+    """
+
+    :param pathOrDataset: path or gdal.Dataset
+    :return: gdal.Dataset
+    """
+    if not isinstance(pathOrDataset, gdal.Dataset):
+        pathOrDataset = gdal.Open(pathOrDataset, eAccess)
+    assert isinstance(pathOrDataset, gdal.Dataset)
+    return pathOrDataset
+
+
+def geo2pxF(geo, gt):
+    """
+    Returns the pixel position related to a Geo-Coordinate in floating point precision.
+    :param geo: Geo-Coordinate as QgsPoint
+    :param gt: GDAL Geo-Transformation tuple, as described in http://www.gdal.org/gdal_datamodel.html
+    :return: pixel position as QPointF
+    """
+    assert isinstance(geo, QgsPoint)
+    # see http://www.gdal.org/gdal_datamodel.html
+    px = (geo.x() - gt[0]) / gt[1]  # x pixel
+    py = (geo.y() - gt[3]) / gt[5]  # y pixel
+    return QPointF(px,py)
+
+geo2px = lambda geo, gt : geo2pxF(geo,gt).toPoint()
+
+def px2geo(px, gt):
+    #see http://www.gdal.org/gdal_datamodel.html
+    gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
+    gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
+    return QgsPoint(gx,gy)
+
+
 class SpatialExtent(QgsRectangle):
     """
     Object to keep QgsRectangle and QgsCoordinateReferenceSystem together
@@ -147,6 +220,29 @@ class SpatialExtent(QgsRectangle):
 
 
     @staticmethod
+    def fromRasterSource(pathSrc):
+        ds = gdalDataset(pathSrc)
+        assert isinstance(ds, gdal.Dataset)
+        ns, nl = ds.RasterXSize, ds.RasterYSize
+        gt = ds.GetGeoTransform()
+        crs = QgsCoordinateReferenceSystem(ds.GetProjection())
+
+        xValues = []
+        yValues = []
+        for x in [0, ns]:
+            for y in [0, nl]:
+                px = px2geo(QPoint(x,y), gt)
+                xValues.append(px.x())
+                yValues.append(px.y())
+
+        return SpatialExtent(crs, min(xValues), min(yValues),
+                                  max(xValues), max(yValues))
+
+
+
+
+
+    @staticmethod
     def fromLayer(mapLayer):
         assert isinstance(mapLayer, QgsMapLayer)
         extent = mapLayer.extent()
@@ -154,6 +250,8 @@ class SpatialExtent(QgsRectangle):
         return SpatialExtent(crs, extent)
 
     def __init__(self, crs, *args):
+        if not isinstance(crs, QgsCoordinateReferenceSystem):
+            crs = QgsCoordinateReferenceSystem(crs)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         super(SpatialExtent, self).__init__(*args)
         self.mCrs = crs
@@ -172,8 +270,8 @@ class SpatialExtent(QgsRectangle):
             box = saveTransform(box, self.mCrs, crs)
         return SpatialExtent(crs, box) if box else None
 
-    def __copy__(self):
-        return SpatialExtent(self.crs(), QgsRectangle(self))
+    def spatialCenter(self):
+        return SpatialPoint(self.crs(), self.center())
 
     def combineExtentWith(self, *args):
         if args is None:
@@ -204,15 +302,6 @@ class SpatialExtent(QgsRectangle):
         if other is None: return 1
         s = ""
 
-    def __eq__(self, other):
-        return self.toString() == other.toString()
-
-    def __sub__(self, other):
-        raise NotImplementedError()
-
-    def __mul__(self, other):
-        raise NotImplementedError()
-
     def upperRightPt(self):
         return QgsPoint(*self.upperRight())
 
@@ -238,6 +327,26 @@ class SpatialExtent(QgsRectangle):
     def lowerLeft(self):
         return self.xMinimum(), self.yMinimum()
 
+
+    def __eq__(self, other):
+        return self.toString() == other.toString()
+
+    def __sub__(self, other):
+        raise NotImplementedError()
+
+    def __mul__(self, other):
+        raise NotImplementedError()
+
+    def __copy__(self):
+        return SpatialExtent(self.crs(), QgsRectangle(self))
+
+    def __reduce_ex__(self, protocol):
+        return self.__class__, (self.crs().toWkt(),
+                                self.xMinimum(), self.yMinimum(),
+                                self.xMaximum(), self.yMaximum()
+                                ), {}
+    def __str__(self):
+        return self.__repr__()
 
     def __repr__(self):
 
