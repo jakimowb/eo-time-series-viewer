@@ -18,7 +18,7 @@ gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not chang
 
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp, SETTINGS
 from timeseriesviewer.dateparser import parseDateFromDataSet
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
@@ -65,7 +65,7 @@ def getDS(pathOrDataset):
 
 
 class SensorInstrument(QObject):
-
+    SensorNameSettingsPrefix = 'SensorName.'
     sigNameChanged = pyqtSignal(str)
 
     LUT_Wavelengths = dict({'B':480,
@@ -88,7 +88,6 @@ class SensorInstrument(QObject):
         self.bandDataType = ds.GetRasterBand(1).DataType
         self.pathImg = ds.GetFileList()[0]
 
-        #todo: better band names
         self.bandNames = [ds.GetRasterBand(b+1).GetDescription() for b in range(self.nb)]
 
         self.TS = None
@@ -105,22 +104,30 @@ class SensorInstrument(QObject):
             self.wavelengths = np.asarray(wl)
             self.wavelengthUnits = wlu
         self._id = '{}b{}m'.format(self.nb, self.px_size_x)
-        if wlu is None:
-            wlu = ''
         if wl is not None:
             self._id += ';'.join([str(w) for w in self.wavelengths])+wlu
-        if sensor_name is None:
 
+        if wlu is None:
+            wlu = ''
+
+        if sensor_name is None:
             sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
+            sensor_name = SETTINGS.value(self._sensorSettingsKey(), sensor_name)
+
         self.setName(sensor_name)
 
         self.hashvalue = hash(','.join(self.bandNames))
 
+
     def id(self):
         return self._id
 
+    def _sensorSettingsKey(self):
+        return SensorInstrument.SensorNameSettingsPrefix+self._id
     def setName(self, name):
         self._name = name
+
+        SETTINGS.setValue(self._sensorSettingsKey(), name)
         self.sigNameChanged.emit(self.name())
 
     def name(self):
