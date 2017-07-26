@@ -105,8 +105,10 @@ class SensorInstrument(QObject):
             self.wavelengths = np.asarray(wl)
             self.wavelengthUnits = wlu
         self._id = '{}b{}m'.format(self.nb, self.px_size_x)
+        if wlu is None:
+            wlu = ''
         if wl is not None:
-            self._id += ';'.join([str(w) for w in self.wavelengths])+ wlu
+            self._id += ';'.join([str(w) for w in self.wavelengths])+wlu
         if sensor_name is None:
 
             sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
