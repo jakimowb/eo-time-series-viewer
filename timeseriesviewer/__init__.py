@@ -59,6 +59,7 @@ DEBUG = True
 
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
+
 #print('BASE INIT SITE-packages')
 site.addsitedir(DIR_SITE_PACKAGES)
 
@@ -69,6 +70,18 @@ try:
     OPENGL_AVAILABLE = True
 except:
     pass
+
+
+def initSettings():
+    def setIfNone(key, value):
+        if SETTINGS.value(key) is None:
+            SETTINGS.setValue(key, value)
+
+    setIfNone('n_processes', 3)
+    setIfNone('n_timer', 500)
+
+    pass
+initSettings()
 
 def icon():
 

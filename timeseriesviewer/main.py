@@ -249,8 +249,10 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.addActions(self.findChildren(QAction))
-        from timeseriesviewer import TITLE
+        from timeseriesviewer import TITLE, icon
         self.setWindowTitle(TITLE)
+
+        self.setWindowIcon(icon())
 
 
         #set button default actions -> this will show the action icons as well
@@ -528,11 +530,9 @@ class TimeSeriesViewer:
 
 
     def loadExampleTimeSeries(self):
-        from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
-        if not os.path.exists(PATH_EXAMPLE_TIMESERIES):
-            QMessageBox.information(self.ui, 'File not found', '{} - this file describes an exemplary time series.'.format(PATH_EXAMPLE_TIMESERIES))
-        else:
-            self.loadTimeSeriesDefinition(path=PATH_EXAMPLE_TIMESERIES)
+        import example.Images
+        files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
+        self.addTimeSeriesImages(files)
 
 
     def qgs_handleMouseDown(self, pt, btn):

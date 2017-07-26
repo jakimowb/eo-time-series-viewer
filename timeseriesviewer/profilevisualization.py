@@ -10,10 +10,10 @@ from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseries import *
-from utils import SpatialExtent, SpatialPoint
+from utils import SpatialExtent, SpatialPoint, px2geo
 from ui.docks import TsvDockWidgetBase, loadUi
 from plotstyling import PlotStyle, PlotStyleButton
-from pixelloader import PixelLoader
+from pixelloader import PixelLoader, PixelLoaderResult
 import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
@@ -233,7 +233,7 @@ class PixelCollection(QObject):
         self.TS = timeSeries
         self.sensors = []
         self.sensorPxLayers = dict()
-
+        self.memLyrCrs = QgsCoordinateReferenceSystem('EPSG:4326')
 
     def getFieldDefn(self, name, values):
         if isinstance(values, np.ndarray):
@@ -267,11 +267,11 @@ class PixelCollection(QObject):
 
 
     def addPixel(self, d):
-        assert isinstance(d, dict)
-        if len(d) > 0:
-            tsd = self.TS.getTSD(d['path'])
-            values = d['values']
-            nodata = np.asarray(d['nodata'])
+        assert isinstance(d, PixelLoaderResult)
+        if d.success():
+            tsd = self.TS.getTSD(d.source)
+            values = d.pxData
+            nodata = np.asarray(d.noDataValue)
 
             nb, nl, ns = values.shape
             assert nb >= 1
@@ -279,7 +279,7 @@ class PixelCollection(QObject):
             assert isinstance(tsd, TimeSeriesDatum)
             if tsd.sensor not in self.sensorPxLayers.keys():
                 #create new temp layer
-                uri = 'Point?crs=epsg:4326'
+                uri = 'Point?crs={}'.format(self.memLyrCrs.authid())
                 mem = QgsVectorLayer(uri, 'Pixels_sensor_'+tsd.sensor.name(), 'memory', False)
 
                 self.sensorPxLayers[tsd.sensor] = mem
@@ -311,28 +311,23 @@ class PixelCollection(QObject):
 
 
             #insert each single pixel, line by line
-            xres = d['xres']
-            yres = d['yres']
-            geo_ul_x = d['geo_ul_x']
-            geo_ul_y = d['geo_ul_y']
-            px_ul_x = d['px_ul_x']
-            px_ul_y = d['px_ul_y']
+            indicesY, indicesX = d.imagePixelIndices()
 
             doy = tsd.doy
+            gt = d.geoTransformation
+            nb, nl, ns = d.pxData.shape
+            srcCrs = d.imageCrs()
             for i in range(ns):
-                geo_x = geo_ul_x + xres * i
-                px_x = px_ul_x + i
                 for j in range(nl):
-                    geo_y = geo_ul_y + yres * j
-                    px_y = px_ul_y + j
-                    profile = values[:,j,i]
-
+                    profile = d.pxData[:, j, i]
                     if np.any(np.any(profile == nodata)):
                         continue
+                    geo = px2geo(QPoint(indicesX[i], indicesY[i]), gt)
+                    geo = SpatialPoint(srcCrs, geo).toCrs(self.memLyrCrs)
+                    if not isinstance(geo, SpatialPoint):
+                        continue
 
-
-                    geometry = QgsPointV2(geo_x, geo_y)
-
+                    geometry = QgsPointV2(geo.x(), geo.y())
                     feature = QgsFeature(mem.fields())
 
                     #fnames = [f.name() for f in mem.fields()]
@@ -340,10 +335,10 @@ class PixelCollection(QObject):
                     feature.setGeometry(QgsGeometry(geometry))
                     feature.setAttribute('date', str(tsd.date))
                     feature.setAttribute('doy', doy)
-                    feature.setAttribute('geo_x', geo_x)
-                    feature.setAttribute('geo_y', geo_y)
-                    feature.setAttribute('px_x', px_x)
-                    feature.setAttribute('px_y', px_y)
+                    feature.setAttribute('geo_x', geo.x())
+                    feature.setAttribute('geo_y', geo.y())
+                    feature.setAttribute('px_x', indicesX[i])
+                    feature.setAttribute('px_y', indicesY[i])
                     for b in range(nb):
                         name ='b{}'.format(b+1)
                         self.setFeatureAttribute(feature, name, profile[b])
@@ -728,13 +723,14 @@ class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
     def onPixelLoaded(self, nDone, nMax, d):
         self.progressBar.setValue(nDone)
         self.progressBar.setMaximum(nMax)
-        t = ''
-        path = os.path.basename(d['path'])
-        bn = os.path.basename(path)
-        success = d['_success_']
+
+        assert isinstance(d, PixelLoaderResult)
+
 
         QgsApplication.processEvents()
-        if success:
+        bn = os.path.basename(d.source)
+        if d.success():
+
             t = 'Last loaded from {}.'.format(bn)
             if self.pixelCollection is not None:
                 self.pixelCollection.addPixel(d)
@@ -751,7 +747,7 @@ class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
         assert isinstance(self.TS, TimeSeries)
 
         files = [tsd.pathImg for tsd in self.TS if tsd.isVisible()]
-        self.pixelLoader.setNumberOfThreads(SETTINGS.value('n_threads', 1))
+        self.pixelLoader.setNumberOfProcesses(SETTINGS.value('n_threads', 1))
         self.pixelLoader.startLoading(files, spatialPoint)
         if self.spectralTempVis is not None:
             self.setWindowTitle('{} | {} {}'.format(self.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))

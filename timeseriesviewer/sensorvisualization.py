@@ -119,7 +119,9 @@ class SensorTableModel(QAbstractTableModel):
                 if sensor.wavelengths is None or sensor.wavelengths.ndim == 0:
                     value = 'undefined'
                 else:
-                    value = ','.join([str(w) for w in sensor.wavelengths]) +sensor.wavelengthUnits
+                    value = ','.join([str(w) for w in sensor.wavelengths])
+                    if sensor.wavelengthUnits is not None:
+                        value += '[{}]'.format(sensor.wavelengthUnits)
 
         elif role == Qt.CheckStateRole:
             if columnName == 'name':
