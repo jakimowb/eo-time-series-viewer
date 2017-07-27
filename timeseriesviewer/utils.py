@@ -503,7 +503,7 @@ def nicePredecessor(l):
 
 
 loadUi = lambda p : loadUIFormClass(jp(DIR_UI, p))
-
+loadIcon = lambda p: jp(DIR_UI, *['icons',p])
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
 

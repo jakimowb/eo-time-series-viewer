@@ -604,7 +604,7 @@ class DatumView(QObject):
         from timeseriesviewer.ui.widgets import TimeSeriesDatumViewUI
         self.ui = TimeSeriesDatumViewUI(parent=parent)
         self.ui.create()
-
+        self.showLoading(False)
         self.L = self.ui.layout()
         self.wOffset = self.L.count()-1
         self.minHeight = self.ui.height()
@@ -623,6 +623,7 @@ class DatumView(QObject):
         self.MVC = mapViewCollection
         self.DVC = timeSeriesDateViewCollection
         self.mapCanvases = dict()
+        self.mRenderState = dict()
 
     def setColumnInfo(self):
 
@@ -685,8 +686,34 @@ class DatumView(QObject):
         mapView.registerMapCanvas(self.Sensor, mapCanvas)
         # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
-        mapCanvas.blockSignals(False)
 
+        mapCanvas.blockSignals(False)
+        mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
+        mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
+
+    def showLoading(self, b):
+        if b:
+            self.ui.progressBar.setRange(0,0)
+            self.ui.progressBar.setValue(-1)
+        else:
+            self.ui.progressBar.setRange(0,1)
+            self.ui.progressBar.setValue(0)
+
+    def onRenderingChange(self, b):
+        mc = self.sender()
+        #assert isinstance(mc, QgsMapCanvas)
+        self.mRenderState[mc] = b
+        self.showLoading(any(self.mRenderState.values()))
+
+    def onRendering(self, *args):
+        renderFlags = [m.renderFlag() for m in self.mapCanvases.values()]
+        drawFlags = [m.isDrawing() for m in self.mapCanvases.values()]
+        print((renderFlags, drawFlags))
+        isLoading = any(renderFlags)
+
+        self.showLoading(isLoading)
+
+        s = ""
 
     def registerMapCanvas(self, mapView, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
@@ -702,6 +729,7 @@ class DatumView(QObject):
         mapCanvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
         mapCanvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
         mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
+
 
     def onMapCanvasRequest(self, mapCanvas, key):
 

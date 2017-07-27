@@ -241,10 +241,10 @@ class TimeSeriesDatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
                 s = s + w.size()
 
         if isinstance(self.layout(), QVBoxLayout):
-            s = QSize(self.line.width() + m.left() + m.right(),
+            s = QSize(self.progressBar.width() + m.left() + m.right(),
                       s.height() + m.top() + m.bottom())
         else:
-            s = QSize(self.line.heigth() + m.top() + m.bottom(),
+            s = QSize(self.progressBar.heigth() + m.top() + m.bottom(),
                       s.width() + m.left() + m.right())
 
         return s

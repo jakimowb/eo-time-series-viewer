@@ -97,18 +97,17 @@ class SensorInstrument(QObject):
 
         #find wavelength
         wl, wlu = parseWavelengthFromDataSet(ds)
+        self.wavelengthUnits = wlu
         if wl is None:
             self.wavelengths = None
-            self.wavelengthUnits = None
         else:
             self.wavelengths = np.asarray(wl)
-            self.wavelengthUnits = wlu
+
+
         self._id = '{}b{}m'.format(self.nb, self.px_size_x)
         if wl is not None:
-            self._id += ';'.join([str(w) for w in self.wavelengths])+wlu
+            self._id += ';'.join([str(w) for w in self.wavelengths])+str(self.wavelengthUnits)
 
-        if wlu is None:
-            wlu = ''
 
         if sensor_name is None:
             sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
@@ -921,7 +920,12 @@ def parseWavelength(lyr):
     return wl, wlu
 
 if __name__ == '__main__':
+    q  = QApplication([])
+    p = QProgressBar()
+    p.setRange(0,0)
 
+    p.show()
+    q.exec_()
 
     print convertMetricUnit(100, 'cm', 'm')
     print convertMetricUnit(1, 'm', 'um')
