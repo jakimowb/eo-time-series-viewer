@@ -336,10 +336,39 @@ class TimeSeriesTableView(QTableView):
     def contextMenuEvent(self, event):
 
         menu = QMenu(self)
-        menu.addAction('Check selected observation')
-        menu.addAction('Uncheck selected observation')
-
+        a = menu.addAction('Copy value(s)')
+        a.triggered.connect(self.onCopyValues)
+        a = menu.addAction('Check')
+        a.triggered.connect(lambda : self.onSetCheckState(Qt.Checked))
+        a = menu.addAction('Uncheck')
+        a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
         menu.popup(QCursor.pos())
+
+    def onSetCheckState(self, checkState):
+        indices = self.selectionModel().selectedIndexes()
+        rows = sorted(list(set([i.row() for i in indices])))
+        model = self.model()
+        if isinstance(model, TimeSeriesTableModel):
+            for r in rows:
+                idx = model.index(r,0)
+                model.setData(idx, checkState, Qt.CheckStateRole)
+
+    def onCopyValues(self):
+        indices = self.selectionModel().selectedIndexes()
+        model = self.model()
+        if isinstance(model, TimeSeriesTableModel):
+            from collections import OrderedDict
+            R = OrderedDict()
+            for idx in indices:
+                if not idx.row() in R.keys():
+                    R[idx.row()] = []
+                R[idx.row()].append(model.data(idx, Qt.DisplayRole))
+            info = []
+            for k, values in R.items():
+                info.append(';'.join([str(v) for v in values]))
+            info = '\n'.join(info)
+            QApplication.clipboard().setText(info)
+        s = ""
 
     def selectSelectedObservations(b):
         assert isinstance(b, bool)
