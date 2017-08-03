@@ -86,7 +86,20 @@ class PlotStyle(QObject):
         p.end()
         return QIcon(pm)
 
+    def __reduce_ex__(self, protocol):
 
+        return self.__class__, (), self.__getstate__()
+
+    def __getstate__(self):
+        result = dict()
+        for k, i in self.__dict__.items():
+            t = type(i)
+            if t in [str, int, float, QColor]:
+                result[k] = i
+        return result
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
 class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
@@ -330,6 +343,11 @@ if __name__ == '__main__':
 
     from timeseriesviewer import sandbox
     qgsApp = sandbox.initQgisEnvironment()
+
+    import pickle
+    s1 = PlotStyle()
+    s2 = pickle.loads(pickle.dumps(s1))
+    assert s1 == s2
     btn = PlotStyleButton()
     btn.show()
     qgsApp.exec_()
