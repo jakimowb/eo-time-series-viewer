@@ -6,10 +6,10 @@ from qgis.core import *
 from PyQt4.QtCore import *
 import numpy as np
 from utils import SpatialPoint, SpatialExtent, geo2px, px2geo
-from osgeo import gdal
+from osgeo import gdal, gdal_array
 import multiprocessing as mp
 
-
+DEBUG = False
 
 def isOutOfImage(ds, px):
     if px.x() < 0 or px.x() >= ds.RasterXSize:
@@ -35,9 +35,18 @@ class PixelLoaderResult(object):
         self.geoTransformation = None
         self.source = source
         self.pxData = None
+        self.pxBandIndices = None
         self.noDataValue = None
         self.exception = None
         self.info = None
+
+    def setValues(self, values, bandIndices = None, noDataValue=None):
+        self.pxData = values
+        self.noDataValue = noDataValue
+        if bandIndices is None:
+            self.pxBandIndices = np.arange(self.pxData.shape[0])
+        else:
+            self.pxBandIndices = bandIndices
 
     def imageCrs(self):
         return QgsCoordinateReferenceSystem(self.srcCrsWkt)
@@ -75,12 +84,14 @@ LOADING_FINISHED = 'finished'
 LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
 
-def loadProfiles(paths, jobid, poolWorker, geom, q, cancelEvent):
+def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent):
     #geom = pickle.loads(geomDump)
     assert type(geom) in [SpatialPoint, SpatialExtent]
     crs = geom.crs()
 
-    for i, path in enumerate(paths):
+    for i, t in enumerate(pathsAndBandIndices):
+        path, bandIndices = t
+
         if cancelEvent.is_set():
             return LOADING_CANCELED
 
@@ -127,18 +138,32 @@ def loadProfiles(paths, jobid, poolWorker, geom, q, cancelEvent):
             R.pxUL = px
             R.pxSubsetSize = QSize(size_x, size_y)
 
-            nb = ds.RasterCount
-            values = ds.ReadAsArray(px.x(), px.y(), size_x, size_y)
+            values = None
+            noData = None
+            if bandIndices is None:
+                values = ds.ReadAsArray(px.x(), px.y(), size_x, size_y)
+                noData = [ds.GetRasterBand(b + 1).GetNoDataValue() for b in range(ds.RasterCount)]
+            else:
+                bandIndices = sorted(list(set(bandIndices)))
+                noData = []
+                for j, b in enumerate(bandIndices):
+                    band = ds.GetRasterBand(b+1)
+                    bandData = band.ReadAsArray(px.x(), px.y(), size_x, size_y)
+                    if values is None:
+                        values = np.empty((len(bandIndices), size_y, size_x), dtype=bandData.dtype)
 
-            values = np.reshape(values, (nb, size_y, size_x))
-            noData = [ds.GetRasterBand(b+1).GetNoDataValue() for b in range(nb)]
+                    noData.append(band.GetNoDataValue())
+                    values[j,:] = bandData
+
+            assert values.ndim == 3
+
         except Exception as ex:
             R.exception = ex
             q.put(R)
             continue
 
-        R.noDataValue = noData
-        R.pxData = values
+        R.setValues(values, bandIndices=bandIndices, noDataValue=noData)
+
         q.put(R)
     return LOADING_FINISHED
 
@@ -195,39 +220,46 @@ class PixelLoader(QObject):
         assert nProcesses >= 1
         self.nProcesses = nProcesses
 
-    def startLoading(self, pathList, theGeometry):
-        assert isinstance(pathList, list)
+    def startLoading(self, paths, theGeometry, bandIndices=None):
+        assert isinstance(paths, list)
+        if bandIndices is not None:
+            assert len(bandIndices) == len(paths)
+        else:
+            bandIndices = [None for _ in paths]
+
         assert type(theGeometry) in [SpatialPoint, SpatialExtent]
         import pickle
         geomDump = pickle.dumps(theGeometry)
 
         self.jobid += 1
-        self.sigLoadingStarted.emit(pathList[:])
-        self.filesList.extend(pathList[:])
+        self.sigLoadingStarted.emit(paths[:])
+        self.filesList.extend(paths)
 
-        l = len(pathList)
+        l = len(paths)
         self.nMax = l
         self.nFailed = 0
 
         #split number of files into list
-        files = pathList[:]
+        _pathsAndIndices = zip(paths, bandIndices)
         workPackages = list()
         i = 0
-        while(len(files)) > 0:
+        while(len(_pathsAndIndices)) > 0:
             if len(workPackages) <= i:
                 workPackages.append([])
-            workPackages[i].append(files.pop(0))
+            workPackages[i].append(_pathsAndIndices.pop(0))
             i = i + 1 if i < self.nProcesses - 1 else 0
         self.pool = mp.Pool(self.nProcesses)
         del self.APPLYRESULTS[:]
         self.queueChecker.start()
         for i, workPackage in enumerate(workPackages):
             args = (workPackage, self.jobid, i, theGeometry, self.resultQueue, self.cancelEvent)
-            if False:
+            if DEBUG:
+                self.checkQueue(loadProfiles(*args))
+            else:
                 r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue)
                 self.APPLYRESULTS.append(r)
-            else:
-                self.checkQueue(loadProfiles(*args))
+
+
         self.pool.close()
 
     def cancelLoading(self):

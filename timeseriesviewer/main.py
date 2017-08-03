@@ -393,10 +393,10 @@ class TimeSeriesViewer:
         #D.dockNavigation.connectTimeSeries(self.TS)
         D.dockTimeSeries.connectTimeSeries(self.TS)
         D.dockSensors.connectTimeSeries(self.TS)
-        D.dockProfiles.connectTimeSeries(self.TS)
 
-        self.spectralTemporalVis = D.dockProfiles
-
+        from profilevisualization import SpectralTemporalVisualization
+        self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
+        self.spectralTemporalVis.connectTimeSeries(self.TS)
         assert isinstance(self, TimeSeriesViewer)
 
         from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
@@ -636,3 +636,15 @@ def disconnect_signal(signal):
             break
 
 
+
+if __name__ == '__main__':
+
+    # add site-packages to sys.path as done by enmapboxplugin.py
+    from sandbox import initQgisEnvironment, sandboxGui
+    qgsApp = initQgisEnvironment()
+
+    sandboxGui()
+
+    #close QGIS
+    qgsApp.exec_()
+    qgsApp.exitQgis()
