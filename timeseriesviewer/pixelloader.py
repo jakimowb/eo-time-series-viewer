@@ -223,10 +223,11 @@ class PixelLoader(QObject):
         self.queueChecker.start()
         for i, workPackage in enumerate(workPackages):
             args = (workPackage, self.jobid, i, theGeometry, self.resultQueue, self.cancelEvent)
-            if False:
+            if True:
                 r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue)
                 self.APPLYRESULTS.append(r)
             else:
+                #debug
                 self.checkQueue(loadProfiles(*args))
         self.pool.close()
 
