@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os, pickle
 import sys
 import datetime
@@ -6,9 +7,9 @@ from qgis.core import *
 from PyQt4.QtCore import *
 import numpy as np
 from utils import SpatialPoint, SpatialExtent, geo2px, px2geo
-from osgeo import gdal, gdal_array
+from osgeo import gdal, gdal_array, osr
 import multiprocessing as mp
-
+from timeseriesviewer.sandbox import initQgisEnvironment
 DEBUG = False
 
 def isOutOfImage(ds, px):
@@ -85,9 +86,23 @@ LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
 
 def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent):
-    #geom = pickle.loads(geomDump)
     assert type(geom) in [SpatialPoint, SpatialExtent]
-    crs = geom.crs()
+
+    #this routine might run in a parallel thread.
+    crsRequest = osr.SpatialReference()
+    crsRequest.ImportFromWkt(geom.crs().toWkt())
+
+    ptUL = ptLR = None
+    TYPE = None
+    if isinstance(geom, QgsPoint):
+        ptUL = QgsPoint(geom)
+        TYPE = 'PIXEL'
+    elif isinstance(geom, QgsRectangle):
+        TYPE = 'RECTANGLE'
+        ptUL = QgsPoint(geom.xMinimum(), geom.yMaximum())
+        ptLR = QgsPoint(geom.xMaximum(), geom.yMinimum())
+    else:
+        raise NotImplementedError()
 
     for i, t in enumerate(pathsAndBandIndices):
         path, bandIndices = t
@@ -102,26 +117,28 @@ def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent):
             gt = ds.GetGeoTransform()
             R.srcCrsWkt = ds.GetProjection()
             R.geoTransformation = gt
-            crsSrc = QgsCoordinateReferenceSystem(ds.GetProjection())
-            trans = QgsCoordinateTransform(crs, crsSrc)
+            crsSrc = osr.SpatialReference(R.srcCrsWkt)
+            #print('SRC {} WKT:{}'.format(i, R.srcCrsWkt))
+            trans = osr.CoordinateTransformation(crsRequest, crsSrc)
 
-            geo = trans.transform(geom)
-            if isinstance(geo, QgsPoint):
-                px = geo2px(geo, gt)
+            def transformPoint2Px(trans, pt, gt):
+                x,y,_ = trans.TransformPoint(pt.x(),pt.y())
+                return geo2px(QgsPoint(x,y), gt)
+
+
+            if TYPE == 'PIXEL':
+                px = transformPoint2Px(trans, ptUL, gt)
                 if isOutOfImage(ds, px):
                     R.info = INFO_OUT_OF_IMAGE
-
                     q.put(R)
                     continue
 
                 size_x = 1
                 size_y = 1
 
-            elif isinstance(geo, QgsRectangle):
-                pt1 = QgsPoint(geo.xMinimum(), geo.yMaximum())
-                pt2 = QgsPoint(geo.xMaximum(), geo.yMinimum())
-                px = geo2px(pt1, gt)
-                px2 = geo2px(pt2, gt)
+            elif TYPE == 'RECTANGLE':
+                px = transformPoint2Px(trans, ptUL, gt)
+                px2 = transformPoint2Px(trans, ptLR, gt)
 
                 #todo: cut to existing pixel coordinates
                 #if px2.x() > 0: px.setX(max([0, px.x()]))
@@ -196,7 +213,7 @@ class PixelLoader(QObject):
 
         self.pool = None
         self.MGR = mp.Manager()
-        self.APPLYRESULTS=[]
+        self.mAsyncResults = []
         self.resultQueue = self.MGR.Queue()
         self.cancelEvent = self.MGR.Event()
 
@@ -228,8 +245,6 @@ class PixelLoader(QObject):
             bandIndices = [None for _ in paths]
 
         assert type(theGeometry) in [SpatialPoint, SpatialExtent]
-        import pickle
-        geomDump = pickle.dumps(theGeometry)
 
         self.jobid += 1
         self.sigLoadingStarted.emit(paths[:])
@@ -248,24 +263,36 @@ class PixelLoader(QObject):
                 workPackages.append([])
             workPackages[i].append(_pathsAndIndices.pop(0))
             i = i + 1 if i < self.nProcesses - 1 else 0
-        self.pool = mp.Pool(self.nProcesses)
-        del self.APPLYRESULTS[:]
-        self.queueChecker.start()
+
+        from multiprocessing.pool import Pool
+
+        if not DEBUG:
+            if isinstance(self.pool, Pool):
+                self.pool.terminate()
+                self.pool = None
+
+            self.pool = Pool(self.nProcesses)
+            del self.mAsyncResults[:]
+            self.queueChecker.start()
+
+        #print('theGeometryWKT: '+theGeometry.crs().toWkt())
         for i, workPackage in enumerate(workPackages):
             args = (workPackage, self.jobid, i, theGeometry, self.resultQueue, self.cancelEvent)
             if DEBUG:
                 self.checkQueue(loadProfiles(*args))
             else:
                 r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue)
-                self.APPLYRESULTS.append(r)
+                self.mAsyncResults.append(r)
 
-
-        self.pool.close()
+        if not DEBUG:
+            self.pool.close()
 
     def cancelLoading(self):
         self.cancelEvent.set()
 
 
+    def isReadyToLoad(self):
+        return len(self.mAsyncResults) == 0 and self.pool is None
 
     def checkQueue(self, *args):
 
@@ -273,11 +300,13 @@ class PixelLoader(QObject):
             md = self.resultQueue.get()
             self.onPixelLoaded(md)
 
-        if all([w.ready() for w in self.APPLYRESULTS]):
-            print('All done')
+        if all([w.ready() for w in self.mAsyncResults]):
+            #print('All done')
 
-            del self.APPLYRESULTS[:]
+
             self.queueChecker.stop()
+            del self.mAsyncResults[:]
+            self.pool = None
             if not self.cancelEvent.is_set():
                 self.sigLoadingFinished.emit()
         elif self.cancelEvent.is_set():
@@ -300,8 +329,9 @@ if __name__ == '__main__':
     import example.Images
     from timeseriesviewer import file_search
     dir = os.path.dirname(example.Images.__file__)
-    files = file_search(dir, '*_BOA.tif')
-
+    #files = file_search(dir, '*.tif')
+    files = [example.Images.Img_2014_05_07_LC82270652014127LGN00_BOA]
+    files.extend(file_search(dir, 're_*.tif'))
     ext = SpatialExtent.fromRasterSource(files[0])
     pt = SpatialPoint(ext.crs(), ext.center())
 
@@ -314,10 +344,11 @@ if __name__ == '__main__':
     PL = PixelLoader()
     def onDummy(*args):
         print(('dummy',args))
+        pass
 
     def onTimer(*args):
         print(('TIMER',PL))
-
+        pass
     PL.sigPixelLoaded.connect(onPxLoaded)
     PL.sigLoadingFinished.connect(lambda: onDummy('finished'))
     PL.sigLoadingCanceled.connect(lambda: onDummy('canceled'))

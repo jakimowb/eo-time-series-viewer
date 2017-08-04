@@ -259,6 +259,10 @@ class SignalPrinter(object):
 
 def initQgisEnvironment():
 
+    if isinstance(QgsApplication.instance(), QgsApplication):
+        #alread started
+        return QgsApplication.instance()
+
     from timeseriesviewer import DIR_SITE_PACKAGES
     site.addsitedir(DIR_SITE_PACKAGES)
     # prepare QGIS environment

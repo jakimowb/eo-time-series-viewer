@@ -1,10 +1,20 @@
 ## Known issues ##
 
-- changing the coordinate reference system to one that is obviously not suited for the data might cause system crashes
+- changing the map coordinate reference system (CRS) to one that is obviously not suited for
+the data might cause system crashes
+
+
 
 ## Change History ##
+## August 2017
+- Temporal Profile Visualization:
+    - sensor/product plot settings like the band/spectral index, plot symbol and colors are restored after restart
+    - profile loading speed increased by loading required bands only
+    - profile values are loaded in a parallel process
+
 ## July 2017
-- Sensor/Product names are now stored in system settings and will be restored after restart
+- Map Visualization: progress bars indicate if map data is loaded in background
+- Sensor/product names are restored after restart
 - Pixel profiles are now loaded in a parallel process that will not block the UI (required because of python GIL.)
 
 

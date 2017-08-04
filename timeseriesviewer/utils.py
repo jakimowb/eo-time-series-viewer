@@ -22,6 +22,45 @@ dn = os.path.dirname
 from timeseriesviewer import DIR_UI
 
 
+def appendItemsToMenu(menu, itemsToAdd):
+    """
+    Appends items to QMenu "menu"
+    :param menu: the QMenu to be extended
+    :param itemsToAdd: QMenu or [list-of-QActions-or-QMenus]
+    :return: menu
+    """
+    assert isinstance(menu, QMenu)
+    if isinstance(itemsToAdd, QMenu):
+        itemsToAdd = itemsToAdd.children()
+    if not isinstance(itemsToAdd, list):
+        itemsToAdd = [itemsToAdd]
+    for item in itemsToAdd:
+        if isinstance(item, QAction):
+            #item.setParent(menu)
+
+
+            a = menu.addAction(item.text(), item.triggered, item.shortcut())
+            a.setEnabled(item.isEnabled())
+            a.setIcon(item.icon())
+            menu.addAction(a)
+            s = ""
+        elif isinstance(item, QMenu):
+            item.setParent(menu)
+            menu.addMenu(menu)
+        else:
+            s = ""
+
+    return menu
+
+def allSubclasses(cls):
+    """
+    Returns all subclasses of class 'cls'
+    Thx to: http://stackoverflow.com/questions/3862310/how-can-i-find-all-subclasses-of-a-class-given-its-name
+    :param cls:
+    :return:
+    """
+    return cls.__subclasses__() + [g for s in cls.__subclasses__()
+                                   for g in allSubclasses(s)]
 
 def scaledUnitString(num, infix=' ', suffix='B', div=1000):
     """
@@ -188,7 +227,17 @@ def geo2pxF(geo, gt):
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
     return QPointF(px,py)
 
-geo2px = lambda geo, gt : geo2pxF(geo,gt).toPoint()
+def geo2px(geo, gt):
+    """
+    Returns the pixel position related to a Geo-Coordinate as integer number.
+    Floating-point coordinate are casted to integer coordinate, e.g. the pixel coordinate (0.815, 23.42) is returned as (0,23)
+    :param geo: Geo-Coordinate as QgsPoint
+    :param gt: GDAL Geo-Transformation tuple, as described in http://www.gdal.org/gdal_datamodel.html
+    :return: pixel position as QPpint
+    """
+    px = geo2pxF(geo, gt)
+    return QPoint(int(px.x()), int(px.y()))
+
 
 def px2geo(px, gt):
     #see http://www.gdal.org/gdal_datamodel.html

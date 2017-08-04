@@ -109,7 +109,7 @@ class PlotStyle(QObject):
         s.writeQVariant(self.linePen)
         s.writeQVariant(self.markerPen)
         s.writeQVariant(self.markerBrush)
-        result['__tmp__'] = ba
+        result['__pickleStateQByteArray__'] = ba
         result.pop('linePen')
         result.pop('markerPen')
         result.pop('markerBrush')
@@ -117,7 +117,7 @@ class PlotStyle(QObject):
         return result
 
     def __setstate__(self, state):
-        ba = state['__tmp__']
+        ba = state['__pickleStateQByteArray__']
         s = QDataStream(ba)
         state['linePen'] = s.readQVariant()
         state['markerPen'] = s.readQVariant()
