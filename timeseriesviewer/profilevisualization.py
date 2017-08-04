@@ -1,3 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import os, sys, pickle, datetime
 
 from qgis.gui import *
@@ -7,11 +29,11 @@ from PyQt4.QtXml import *
 from PyQt4.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
-from timeseries import *
-from utils import SpatialExtent, SpatialPoint, px2geo
-from ui.docks import TsvDockWidgetBase, loadUi
-from plotstyling import PlotStyle, PlotStyleButton
-from pixelloader import PixelLoader, PixelLoaderResult
+from timeseriesviewer.timeseries import *
+from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
+from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
+from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderResult
 import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
@@ -437,7 +459,7 @@ class PixelCollection(QObject):
 
         return tsds, values
 
-from plotstyling import PlotStyle
+
 class SensorPlotStyle(PlotStyle):
 
     def __init__(self):
@@ -885,7 +907,11 @@ class SpectralTemporalVisualization(QObject):
     def __init__(self, ui):
         super(SpectralTemporalVisualization, self).__init__()
         #assert isinstance(timeSeries, TimeSeries)
-        assert isinstance(ui, ProfileViewDockUI)
+
+        if not isinstance(ui, ProfileViewDockUI):
+            print('UI : {}'.format(ui))
+
+        assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
         self.ui = ui
 
         self.pixelLoader = PixelLoader()
@@ -1090,7 +1116,7 @@ class SpectralTemporalVisualization(QObject):
 
     @QtCore.pyqtSlot()
     def updatePlot(self):
-        if self.updateRequested:
+        if isinstance(self.plotSettingsModel, PlotSettingsModel) and self.updateRequested:
             self.setData()
             self.updateRequested = False
 
@@ -1186,7 +1212,7 @@ def examplePixelLoader():
                  'observationcloud/testdata/2014-08-03_LE72270652014215CUB00_BOA.bsq'
                  ]
     else:
-        from utils import file_search
+        from timeseriesviewer.utils import file_search
         searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
         files = file_search(searchDir, '*227065*band4.img', recursive=True)
         #files = files[0:3]

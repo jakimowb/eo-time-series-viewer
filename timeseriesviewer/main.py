@@ -18,8 +18,8 @@
  *                                                                         *
  ***************************************************************************/
 """
-
-# Import the code for the dialog
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import os, sys, re, fnmatch, collections, copy, traceback, six
 import logging
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ import multiprocessing
 #abbreviations
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
 from timeseriesviewer.timeseries import *
-
+from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 
 
 
@@ -172,7 +172,7 @@ class QgisTsvBridge(QObject):
             self.SpatTempVis = self
 
 
-            from main import TimeSeriesViewerUI
+
             from timeseriesviewer.ui.docks import RenderingDockUI
             assert isinstance(self.ui, TimeSeriesViewerUI)
             assert isinstance(self.ui.dockRendering, RenderingDockUI)
@@ -335,7 +335,7 @@ class TimeSeriesViewerUI(QMainWindow,
     sigSubsetSizeChanged = pyqtSignal(QSize)
     def setSubsetSize(self, size, blockSignal=False):
         old = self.subsetSize()
-
+        w = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
         if blockSignal:
             states = self._blockSignals(w, True)
 
@@ -394,7 +394,7 @@ class TimeSeriesViewer:
         D.dockTimeSeries.connectTimeSeries(self.TS)
         D.dockSensors.connectTimeSeries(self.TS)
 
-        from profilevisualization import SpectralTemporalVisualization
+
         self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
         self.spectralTemporalVis.connectTimeSeries(self.TS)
         assert isinstance(self, TimeSeriesViewer)
@@ -563,6 +563,7 @@ class TimeSeriesViewer:
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
+        QApplication.processEvents()
         self.ui.show()
 
 
@@ -640,7 +641,7 @@ def disconnect_signal(signal):
 if __name__ == '__main__':
 
     # add site-packages to sys.path as done by enmapboxplugin.py
-    from sandbox import initQgisEnvironment, sandboxGui
+    from timeseriesviewer.sandbox import initQgisEnvironment, sandboxGui
     qgsApp = initQgisEnvironment()
 
     sandboxGui()

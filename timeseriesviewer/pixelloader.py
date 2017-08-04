@@ -1,4 +1,25 @@
 # -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import os, pickle
 import sys
 import datetime
@@ -6,7 +27,7 @@ from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
 import numpy as np
-from utils import SpatialPoint, SpatialExtent, geo2px, px2geo
+from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 import multiprocessing as mp
 from timeseriesviewer.sandbox import initQgisEnvironment
@@ -317,7 +338,7 @@ class PixelLoader(QObject):
 
 if __name__ == '__main__':
 
-    from sandbox import initQgisEnvironment
+    from timeseriesviewer.sandbox import initQgisEnvironment
     qgsApp = initQgisEnvironment()
     from PyQt4.QtGui import *
     gb = QGroupBox()
