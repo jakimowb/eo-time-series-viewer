@@ -525,9 +525,10 @@ class TimeSeriesViewer:
             defFile = os.path.dirname(defFile)
         path = QFileDialog.getSaveFileName(caption='Save Time Series definition',
                                            directory=defFile)
+        path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
-            self.TS.saveToFile(path)
+
 
 
     def loadExampleTimeSeries(self):

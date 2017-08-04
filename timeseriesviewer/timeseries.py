@@ -522,7 +522,7 @@ class TimeSeries(QObject):
 
     def saveToFile(self, path):
         if path is None or len(path) == 0:
-            return
+            return None
 
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
@@ -537,7 +537,7 @@ class TimeSeries(QObject):
         print('Write {}'.format(path))
         with open(path, 'w') as f:
             f.writelines(lines)
-
+        return path
     def getPixelSizes(self):
 
         r = []
