@@ -27,10 +27,17 @@ class TestPlotStyling(unittest.TestCase):
 
 
     def test_plotstyles(self):
-        #qgsApp = QGIS_APP()
-
-        import pickle
         s1 = PlotStyle()
+        s2 = PlotStyle()
+
+        self.assertEqual(s1,s2)
+        s2.markerSize = 3
+        self.assertNotEquals(s1,s2)
+
+
+        #test if we can pickle a plot style
+        import pickle
+
         s2 = pickle.loads(pickle.dumps(s1))
         self.assertEqual(s1,s2)
 
