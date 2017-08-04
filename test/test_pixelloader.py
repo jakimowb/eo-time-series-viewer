@@ -71,7 +71,7 @@ class PixelLoaderTest(unittest.TestCase):
         cancelationEvent = Event()
 
         #simulate successful loading
-        result = loadProfiles([img1],42,23,ptUL,resultQueue, cancelationEvent)
+        result = loadProfiles([(img1, None)],42,23,ptUL,resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_FINISHED)
         qresult = resultQueue.get()
         self.assertIsInstance(qresult, PixelLoaderResult)
@@ -85,7 +85,7 @@ class PixelLoaderTest(unittest.TestCase):
         self.assertTrue(np.array_equal(qresult.pxData, self.img1ProfileUL))
 
         #test lower-left coordinate
-        result = loadProfiles([img1], 42, 23, ptLR, resultQueue, cancelationEvent)
+        result = loadProfiles([(img1, None)], 42, 23, ptLR, resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_FINISHED)
         qresult = resultQueue.get()
         pxIndices = qresult.imagePixelIndices()
@@ -94,7 +94,7 @@ class PixelLoaderTest(unittest.TestCase):
         self.assertTrue(np.array_equal(qresult.pxData, self.img1ProfileLR))
 
         #simulate out-of-image loading
-        result = loadProfiles([img1], 42, 23, ptOutOfImage, resultQueue, cancelationEvent)
+        result = loadProfiles([(img1, None)], 42, 23, ptOutOfImage, resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_FINISHED)
         qresult = resultQueue.get()
         self.assertIsInstance(qresult, PixelLoaderResult)
@@ -104,7 +104,7 @@ class PixelLoaderTest(unittest.TestCase):
 
         #simulate cancellation event
         cancelationEvent.set()
-        result = loadProfiles([img1], 42, 23, ptUL, resultQueue, cancelationEvent)
+        result = loadProfiles([(img1, None)], 42, 23, ptUL, resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_CANCELED)
 
 

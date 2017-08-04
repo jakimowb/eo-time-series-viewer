@@ -181,7 +181,6 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
 
 
 
-
 def make(ROOT):
     #find ui files
     ui_files = file_search(ROOT, '*.ui', recursive=True)
@@ -488,9 +487,17 @@ def updateMetadataTxt():
 
 
 
+def make_pb_tool_cfg():
+    pathPBToolCgf = r''
+
+    lines = open(pathPBToolCgf).readlines()
+
+    #main_dialog:
 
 
-if __name__ == '__main__':
+
+
+    if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
     from timeseriesviewer import DIR_EXAMPLES
@@ -515,6 +522,7 @@ if __name__ == '__main__':
         qgsApp.initQgis()
 
 
+
         pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
         pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
         from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
@@ -526,6 +534,11 @@ if __name__ == '__main__':
 
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
+
+    if True:
+        make_pb_tool_cfg()
+        exit(0)
+
     if True:
 
         # update __init__.py of testdata directories

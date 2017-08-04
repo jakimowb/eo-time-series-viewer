@@ -1,6 +1,4 @@
-import os
-import sys
-import datetime
+import os, sys, pickle, datetime
 
 from qgis.gui import *
 from qgis.core import *
@@ -150,16 +148,13 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
             w = QgsFieldExpressionWidget(parent)
             sv = self.tableView.model().data(index, Qt.UserRole)
             w.setLayer(sv.memLyr)
-            w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor.name()))
-            w.setToolTip('Set values shown for sensor {}'.format(sv.sensor.name()))
+            w.setExpressionDialogTitle('Values sensor {}'.format(sv.sensor().name()))
+            w.setToolTip('Set values shown for sensor {}'.format(sv.sensor().name()))
             w.fieldChanged.connect(lambda : self.checkData(w, w.expression()))
 
         elif cname == 'style':
             sv = self.tableView.model().data(index, Qt.UserRole)
-            sn = sv.sensor.name()
-            #w = QgsColorButton(parent, 'Point color {}'.format(sn))
-            #w.setColor(QColor(index.data()))
-            #w.colorChanged.connect(lambda: self.commitData.emit(w))
+
 
             w = PlotStyleButton(parent)
             w.setPlotStyle(sv)
@@ -214,9 +209,54 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
         else:
             raise NotImplementedError()
 
+
+class SensorPixelDataMemoryLayer(QgsVectorLayer):
+
+    def __init__(self, sensor, crs=None):
+        assert isinstance(sensor, SensorInstrument)
+        if crs is None:
+            crs = QgsCoordinateReferenceSystem('EPSG:4862')
+
+        uri = 'Point?crs={}'.format(crs.authid())
+        super(SensorPixelDataMemoryLayer, self).__init__(uri, 'Pixels_sensor_' + sensor.name(), 'memory', False)
+        self.mSensor = sensor
+
+        #initialize fields
+        assert self.startEditing()
+        # standard field names, types, etc.
+        fieldDefs = [('pxid', QVariant.String, 'integer'),
+                     ('date', QVariant.String, 'char'),
+                     ('doy', QVariant.Int, 'integer'),
+                     ('geo_x', QVariant.Double, 'decimal'),
+                     ('geo_y', QVariant.Double, 'decimal'),
+                     ('px_x', QVariant.Int, 'integer'),
+                     ('px_y', QVariant.Int, 'integer'),
+                     ]
+        # one field for each band
+        for b in range(sensor.nb):
+            fName = 'b{}'.format(b + 1)
+            fieldDefs.append((fName, QVariant.Double, 'decimal'))
+
+        # initialize fields
+        for fieldDef in fieldDefs:
+            field = QgsField(fieldDef[0], fieldDef[1], fieldDef[2])
+            self.addAttribute(field)
+        self.commitChanges()
+
+    def sensor(self):
+        return self.mSensor
+
+    def nPixels(self):
+        raise NotImplementedError()
+
+    def dates(self):
+        raise NotImplementedError()
+
+
+
 class PixelCollection(QObject):
     """
-    Object to store pixel data returned by PixelLoader
+    Object to store pixel data delivered by PixelLoader
     """
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
@@ -226,14 +266,26 @@ class PixelCollection(QObject):
 
 
 
-    def __init__(self, timeSeries):
-        assert isinstance(timeSeries, TimeSeries)
+    def __init__(self, ):
         super(PixelCollection, self).__init__()
 
-        self.TS = timeSeries
-        self.sensors = []
+
         self.sensorPxLayers = dict()
         self.memLyrCrs = QgsCoordinateReferenceSystem('EPSG:4326')
+
+    def connectTimeSeries(self, timeSeries):
+        self.clear()
+
+        if isinstance(timeSeries, TimeSeries):
+            self.TS = timeSeries
+            for sensor in self.TS.Sensors:
+                self.addSensor(sensor)
+            self.TS.sigSensorAdded.connect(self.addSensor)
+            self.TS.sigSensorRemoved.connect(self.removeSensor)
+
+        else:
+            self.TS = None
+
 
     def getFieldDefn(self, name, values):
         if isinstance(values, np.ndarray):
@@ -254,7 +306,7 @@ class PixelCollection(QObject):
         assert isinstance(feature, QgsFeature)
         assert isinstance(name, str)
         i = feature.fieldNameIndex(name)
-        assert i >= 0
+        assert i >= 0, 'Field "{}" does not exist'.format(name)
         field = feature.fields()[i]
         if field.isNumeric():
             if field.type() == QVariant.Int:
@@ -265,6 +317,22 @@ class PixelCollection(QObject):
                 raise NotImplementedError()
         feature.setAttribute(i, value)
 
+    def addSensor(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+        assert sensor not in self.sensorPxLayers.keys()
+
+        mem = SensorPixelDataMemoryLayer(sensor, crs=self.memLyrCrs)
+        self.sensorPxLayers[sensor] = mem
+        self.sigSensorAdded.emit(sensor)
+
+    def sensorData(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+        assert sensor in self.sensorPxLayers.keys()
+        return self.sensorPxLayers[sensor]
+
+    def removeSensor(self, sensor):
+        if sensor in self.sensorPxLayers.keys():
+            del self.sensorPxLayers[sensor]
 
     def addPixel(self, d):
         assert isinstance(d, PixelLoaderResult)
@@ -277,38 +345,8 @@ class PixelCollection(QObject):
             assert nb >= 1
 
             assert isinstance(tsd, TimeSeriesDatum)
-            if tsd.sensor not in self.sensorPxLayers.keys():
-                #create new temp layer
-                uri = 'Point?crs={}'.format(self.memLyrCrs.authid())
-                mem = QgsVectorLayer(uri, 'Pixels_sensor_'+tsd.sensor.name(), 'memory', False)
 
-                self.sensorPxLayers[tsd.sensor] = mem
-                assert mem.startEditing()
-
-                #standard field names, types, etc.
-                fieldDefs = [('date',QVariant.String, 'char'),
-                             ('doy', QVariant.Int, 'integer'),
-                             ('geo_x', QVariant.Double, 'decimal'),
-                             ('geo_y', QVariant.Double, 'decimal'),
-                             ('px_x', QVariant.Int, 'integer'),
-                             ('px_y', QVariant.Int, 'integer'),
-                             ]
-                for fieldDef in fieldDefs:
-                    field = QgsField(fieldDef[0], fieldDef[1], fieldDef[2])
-                    mem.addAttribute(field)
-
-                for i in range(nb):
-                    fName = 'b{}'.format(i+1)
-                    mem.addAttribute(self.getFieldDefn(fName, values))
-                assert mem.commitChanges()
-
-
-
-                self.sigSensorAdded.emit(tsd.sensor)
-                s = ""
-
-            mem = self.sensorPxLayers[tsd.sensor]
-
+            mem = self.sensorData(tsd.sensor)
 
             #insert each single pixel, line by line
             indicesY, indicesX = d.imagePixelIndices()
@@ -339,9 +377,12 @@ class PixelCollection(QObject):
                     feature.setAttribute('geo_y', geo.y())
                     feature.setAttribute('px_x', indicesX[i])
                     feature.setAttribute('px_y', indicesY[i])
-                    for b in range(nb):
-                        name ='b{}'.format(b+1)
-                        self.setFeatureAttribute(feature, name, profile[b])
+                    for iBand, bandIndex in enumerate(d.pxBandIndices):
+                        name ='b{}'.format(bandIndex+1)
+                        if profile.ndim == 1:
+                            self.setFeatureAttribute(feature, name, profile[iBand])
+                        else:
+                            self.setFeatureAttribute(feature, name, profile[iBand,:])
                     mem.startEditing()
                     assert mem.addFeature(feature)
                     assert mem.commitChanges()
@@ -352,6 +393,8 @@ class PixelCollection(QObject):
         pass
 
 
+    def clear(self):
+        self.sensorPxLayers.clear()
 
     def clearPixels(self):
         sensors = self.sensorPxLayers.keys()
@@ -364,15 +407,13 @@ class PixelCollection(QObject):
             n_deleted += n
             assert mem.commitChanges()
 
-            self.sigSensorRemoved.emit(sensor)
+            #self.sigSensorRemoved.emit(sensor)
 
         if n_deleted > 0:
             self.sigPixelRemoved.emit()
 
     def dateValues(self, sensor, expression):
-        if sensor not in self.sensorPxLayers.keys():
-            return []
-        mem = self.sensorPxLayers[sensor]
+        mem = self.sensorData(sensor)
         dp = mem.dataProvider()
         exp = QgsExpression(expression)
         exp.prepare(dp.fields())
@@ -397,16 +438,57 @@ class PixelCollection(QObject):
         return tsds, values
 
 from plotstyling import PlotStyle
-class SensorPlotSettings(PlotStyle):
-    def __init__(self, sensor, memoryLyr):
-        super(SensorPlotSettings, self).__init__()
+class SensorPlotStyle(PlotStyle):
 
+    def __init__(self):
+        super(SensorPlotStyle, self).__init__()
+
+        self.mSensor = None
+        self.memLyr = None
+        self.mExpression = u'"b1"'
+        self.mIsVisible = True
+
+
+    def connectSensor(self, sensor, memoryLayer):
         assert isinstance(sensor, SensorInstrument)
-        assert isinstance(memoryLyr, QgsVectorLayer)
-        self.sensor = sensor
-        self.expression = u'"b1"'
-        self.isVisible = True
-        self.memLyr = memoryLyr
+        assert isinstance(memoryLayer, QgsVectorLayer)
+
+        self.memLyr = memoryLayer
+        self.mSensor = sensor
+
+    def isValid(self):
+        """
+        :return: True, if connected to a sensor and memoryLayer that contains pixel values
+        """
+        return isinstance(self.memLyr, QgsVectorLayer) and isinstance(self.mSensor, SensorInstrument)
+
+    def sensor(self):
+        return self.mSensor
+
+    def setVisibility(self, b):
+        self.mIsVisible
+    def isVisible(self):
+        return self.mIsVisible
+
+    def setExpression(self, exp):
+        self.mExpression = exp
+
+    def expression(self):
+        return self.mExpression
+
+    def __reduce_ex__(self, protocol):
+        return self.__class__, (), self.__getstate__()
+
+    def __getstate__(self):
+        result = super(SensorPlotStyle, self).__getstate__()
+        #remove
+        del result['memLyr']
+        del result['mSensor']
+
+        return result
+
+
+
 
 class DateTimeViewBox(pg.ViewBox):
     """
@@ -422,21 +504,19 @@ class DateTimeViewBox(pg.ViewBox):
         #self.menu = self.getMenu() # Create the menu
         #self.menu = None
 
-        self.moveToDateAction = QAction('Move to...', self)
-        self.moveToDateAction.triggered.connect(lambda : self.sigMoveToDate.emit(self.moveToDateAction.data()))
-    def raiseContextMenu(self, ev):
-        menu = self.getMenu(ev)
-        if self.moveToDateAction not in menu.actions():
-            menu.addSeparator()
-            menu.addAction(self.moveToDateAction)
 
-        #refresh action
+    def raiseContextMenu(self, ev):
+
         pt = self.mapDeviceToView(ev.pos())
-        doi = num2date(pt.x())
-        self.moveToDateAction.setText('Move to {}'.format(doi))
-        self.moveToDateAction.setData(doi)
-        #self.scene().addParentContextMenus(self, menu, ev)
-        menu.popup(ev.screenPos().toPoint())
+        print(pt.x(), pt.y())
+        date = num2date(pt.x())
+        menu = QMenu(None)
+        a = menu.addAction('Move to {}'.format(date))
+        a.setData(date)
+        a.triggered.connect(lambda : self.sigMoveToDate.emit(date))
+        self.scene().addParentContextMenus(self, menu, ev)
+        menu.exec_(ev.screenPos().toPoint())
+
 
 
 
@@ -455,24 +535,29 @@ class DateTimePlotWidget(pg.PlotWidget):
 
 class PlotSettingsModel(QAbstractTableModel):
 
-    sigSensorAdded = pyqtSignal(SensorPlotSettings)
-    sigVisibilityChanged = pyqtSignal(SensorPlotSettings)
-    sigDataChanged = pyqtSignal(SensorPlotSettings)
+    #sigSensorAdded = pyqtSignal(SensorPlotSettings)
+    sigVisibilityChanged = pyqtSignal(SensorPlotStyle)
+    sigDataChanged = pyqtSignal(SensorPlotStyle)
 
     columnames = ['sensor','nb','style','y-value']
-    def __init__(self, pxCollection, parent=None, *args):
+    def __init__(self, pixelCollection, parent=None, *args):
 
         #assert isinstance(tableView, QTableView)
 
         super(PlotSettingsModel, self).__init__(parent=parent)
+        assert isinstance(pixelCollection, PixelCollection)
 
-        self.items = []
+        self.mSensorPlotSettings = []
 
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
-        self.pxCollection = pxCollection
+        self.pxCollection = pixelCollection
+
         self.pxCollection.sigSensorAdded.connect(self.addSensor)
-        #self.pxCollection.sigSensorRemoved.connect(self.removeSensor)
+        self.pxCollection.sigSensorRemoved.connect(self.removeSensor)
+
+        for sensor in self.pxCollection.sensorPxLayers.keys():
+            self.addSensor(sensor)
 
         self.sort(0, Qt.AscendingOrder)
         s = ""
@@ -485,39 +570,79 @@ class PlotSettingsModel(QAbstractTableModel):
 
     def signaler(self, idxUL, idxLR):
         if idxUL.isValid():
-            sensorView = self.getSensorFromIndex(idxUL)
+            sensorView = self.getSensorPlotSettingsFromIndex(idxUL)
             cname = self.columnames[idxUL.column()]
             if cname in ['sensor','style']:
                 self.sigVisibilityChanged.emit(sensorView)
             if cname in ['y-value']:
                 self.sigDataChanged.emit(sensorView)
 
+    def requiredBands(self, sensor):
+        """
+        Returns the band indices required to calculate the values for this sensor
+        :param sensor:
+        :return: [list-of-band-indices]
+        """
+        idx = self.getIndexFromSensor(sensor)
+        idx = self.createIndex(idx.row(),self.columnames.index('y-value'))
+
+        equation = self.data(idx)
+        plotSettings = self.data(idx, Qt.UserRole)
+        assert isinstance(plotSettings, SensorPlotStyle)
+        expression = plotSettings.expression()
+
+        fields = plotSettings.memLyr.fields()
+
+        bandNames = []
+        bandIndices = []
+        LUT_Field2Band = dict()
+        for field in fields:
+            assert isinstance(field, QgsField)
+            LUT_Field2Band[field.name()] = field.name()
+            if len(field.alias()) > 0:
+                LUT_Field2Band[field.alias()] = field.name()
+
+
+        for name, fieldName in LUT_Field2Band.items():
+            if re.search(name+'($|[^\d])', expression):
+                bandNames.append(fieldName)
+                continue
+
+        for bandName in bandNames:
+            if re.search('b\d+', bandName):
+                bandIndices.append(int(bandName[1:])-1)
+        return bandIndices
+
+
+
+
 
 
     def addSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
-        assert sensor in self.pxCollection.sensorPxLayers.keys()
+        index = 'DEFAULT'
 
-        sensorSettings = SensorPlotSettings(sensor, self.pxCollection.sensorPxLayers[sensor])
+        sensorSettings = self.restorePlotSettings(sensor, index=index)
+        if not isinstance(sensorSettings, SensorPlotStyle):
+            sensorSettings = SensorPlotStyle()
+        sensorSettings.connectSensor(sensor, self.pxCollection.sensorPxLayers[sensor])
 
-        i = len(self.items)
-        idx = self.createIndex(i,i, sensorSettings)
+
+        i = len(self.mSensorPlotSettings)
+
         self.beginInsertRows(QModelIndex(),i,i)
-        self.items.append(sensorSettings)
+        self.mSensorPlotSettings.append(sensorSettings)
         self.endInsertRows()
-        #self.sort(self.sortColumnIndex, self.sortOrder)
-
-        self.sigSensorAdded.emit(sensorSettings)
         sensor.sigNameChanged.connect(self.onSensorNameChanged)
 
     def removeSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
-        toRemove = [s for s in self.items if s.sensor == sensor]
+        toRemove = [s for s in self.mSensorPlotSettings if s.sensor() == sensor]
         for s in toRemove:
 
-            idx = self.getIndexFromSensor(s.sensor)
+            idx = self.getIndexFromSensor(s.sensor())
             self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
-            self.items.remove(s)
+            self.mSensorPlotSettings.remove(s)
             self.endRemoveRows()
 
     def onSensorNameChanged(self, name):
@@ -536,39 +661,40 @@ class PlotSettingsModel(QAbstractTableModel):
         #self.beginMoveRows(idxSrc,
 
         if colName == 'sensor':
-            self.items.sort(key = lambda sv:sv.sensor.name(), reverse=r)
+            self.mSensorPlotSettings.sort(key = lambda sv:sv.sensor.name(), reverse=r)
         elif colName == 'nb':
-            self.items.sort(key=lambda sv: sv.sensor.nb, reverse=r)
+            self.mSensorPlotSettings.sort(key=lambda sv: sv.sensor.nb, reverse=r)
         elif colName == 'y-value':
-            self.items.sort(key=lambda sv: sv.expression, reverse=r)
+            self.mSensorPlotSettings.sort(key=lambda sv: sv.expression, reverse=r)
         elif colName == 'style':
-            self.items.sort(key=lambda sv: sv.color, reverse=r)
+            self.mSensorPlotSettings.sort(key=lambda sv: sv.color, reverse=r)
 
 
 
 
 
     def rowCount(self, parent = QModelIndex()):
-        return len(self.items)
+        return len(self.mSensorPlotSettings)
 
 
     def removeRows(self, row, count , parent=QModelIndex()):
         self.beginRemoveRows(parent, row, row+count-1)
-        toRemove = self.items[row:row+count]
+        toRemove = self.mSensorPlotSettings[row:row + count]
         for tsd in toRemove:
-            self.items.remove(tsd)
+            self.mSensorPlotSettings.remove(tsd)
         self.endRemoveRows()
 
 
 
     def getIndexFromSensor(self, sensor):
-        sensorViews = [i for i, s in enumerate(self.items) if s.sensor == sensor]
+        assert isinstance(sensor, SensorInstrument)
+        sensorViews = [i for i, s in enumerate(self.mSensorPlotSettings) if s.sensor() == sensor]
         assert len(sensorViews) == 1
         return self.createIndex(sensorViews[0],0)
 
-    def getSensorFromIndex(self, index):
+    def getSensorPlotSettingsFromIndex(self, index):
         if index.isValid():
-            return self.items[index.row()]
+            return self.mSensorPlotSettings[index.row()]
         return None
 
     def columnCount(self, parent = QModelIndex()):
@@ -580,18 +706,19 @@ class PlotSettingsModel(QAbstractTableModel):
 
         value = None
         columnName = self.columnames[index.column()]
-        sw = self.getSensorFromIndex(index)
+        sw = self.getSensorPlotSettingsFromIndex(index)
+        sensor = sw.sensor()
         #print(('data', columnName, role))
         if role == Qt.DisplayRole:
             if columnName == 'sensor':
-                value = sw.sensor.name()
+                value = sensor.name()
             elif columnName == 'nb':
-                value = str(sw.sensor.nb)
+                value = str(sensor.nb)
             elif columnName == 'y-value':
-                value = sw.expression
+                value = sw.expression()
         elif role == Qt.CheckStateRole:
             if columnName == 'sensor':
-                value = Qt.Checked if sw.isVisible else Qt.Unchecked
+                value = Qt.Checked if sw.isVisible() else Qt.Unchecked
         elif role == Qt.UserRole:
             value = sw
         #print(('get data',value))
@@ -606,10 +733,11 @@ class PlotSettingsModel(QAbstractTableModel):
         if value is None:
             return False
         result = False
-        sw = self.getSensorFromIndex(index)
+        sw = self.getSensorPlotSettingsFromIndex(index)
+        assert isinstance(sw, SensorPlotStyle)
         if role in [Qt.DisplayRole, Qt.EditRole]:
             if columnName == 'y-value':
-                sw.expression = value
+                sw.setExpression(value)
                 result = True
             elif columnName == 'style':
                 if isinstance(value, PlotStyle):
@@ -619,21 +747,47 @@ class PlotSettingsModel(QAbstractTableModel):
 
         if role == Qt.CheckStateRole:
             if columnName == 'sensor':
-                sw.isVisible = value == Qt.Checked
+                sw.setVisibility(value == Qt.Checked)
                 result = True
 
         if role == Qt.UserRole:
             if columnName == 'y-value':
-                sw.expression = value
+                sw.setExpression(value)
                 result = True
             elif columnName == 'style':
                 sw.copyFrom(value)
                 result = True
 
         if result:
+            #save plot-style
+            self.savePlotSettings(sw, index='DEFAULT')
             self.dataChanged.emit(index, index)
 
         return result
+
+    def savePlotSettings(self, sensorPlotSettings, index='DEFAULT'):
+        assert isinstance(sensorPlotSettings, SensorPlotStyle)
+        id = 'SPS.{}.{}'.format(index, sensorPlotSettings.sensor().id())
+        d = pickle.dumps(sensorPlotSettings)
+        SETTINGS.setValue(id, d)
+
+    def restorePlotSettings(self, sensor, index='DEFAULT'):
+        assert isinstance(sensor, SensorInstrument)
+        id = 'SPS.{}.{}'.format(index, sensor.id())
+        sensorPlotSettings = SETTINGS.value(id)
+        if sensorPlotSettings is not None:
+            try:
+                sensorPlotSettings = pickle.loads(sensorPlotSettings)
+                s = ""
+            except:
+                sensorPlotSettings = None
+                pass
+
+        if isinstance(sensorPlotSettings, SensorPlotStyle):
+            return sensorPlotSettings
+        else:
+            return None
+
 
     def flags(self, index):
         if index.isValid():
@@ -661,7 +815,6 @@ class PlotSettingsModel(QAbstractTableModel):
 
 class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
 
-    sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
 
     def __init__(self, parent=None):
         super(ProfileViewDockUI, self).__init__(parent)
@@ -695,62 +848,14 @@ class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
         self.progressInfo.setText('')
         self.pxViewModel2D = None
         self.pxViewModel3D = None
-        self.pixelLoader = PixelLoader()
-        self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
-        self.pixelLoader.sigLoadingStarted.connect(lambda : self.progressInfo.setText('Start loading...'))
-        self.pixelCollection = None
+
         self.tableView2DBands.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.tableView2DBands.setSortingEnabled(True)
         self.btnRefresh2D.setDefaultAction(self.actionRefresh2D)
 
-    def connectTimeSeries(self, TS):
-
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-
-        self.pixelCollection = PixelCollection(self.TS)
-        self.spectralTempVis = SpectralTemporalVisualization(self)
-        self.spectralTempVis.sigMoveToDate.connect(self.onMoveToDate)
-        self.TS.sigSensorRemoved.connect(self.spectralTempVis.removeSensor)
-        self.actionRefresh2D.triggered.connect(lambda : self.spectralTempVis.setData())
-
-    def onMoveToDate(self, date):
-        dt = np.asarray([np.abs(tsd.date - date) for tsd in self.TS])
-        i = np.argmin(dt)
-        self.sigMoveToTSD.emit(self.TS[i])
-
-
-    def onPixelLoaded(self, nDone, nMax, d):
-        self.progressBar.setValue(nDone)
-        self.progressBar.setMaximum(nMax)
-
-        assert isinstance(d, PixelLoaderResult)
-
-
-        QgsApplication.processEvents()
-        bn = os.path.basename(d.source)
-        if d.success():
-
-            t = 'Last loaded from {}.'.format(bn)
-            if self.pixelCollection is not None:
-                self.pixelCollection.addPixel(d)
-        else:
-            t = 'Failed loading from {}.'.format(bn)
-        self.progressInfo.setText(t)
 
 
 
-    def loadCoordinate(self, spatialPoint):
-
-        assert isinstance(spatialPoint, SpatialPoint)
-        from timeseriesviewer.timeseries import TimeSeries
-        assert isinstance(self.TS, TimeSeries)
-
-        files = [tsd.pathImg for tsd in self.TS if tsd.isVisible()]
-        self.pixelLoader.setNumberOfProcesses(SETTINGS.value('n_threads', 1))
-        self.pixelLoader.startLoading(files, spatialPoint)
-        if self.spectralTempVis is not None:
-            self.setWindowTitle('{} | {} {}'.format(self.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
 
 def date2num(d):
     d2 = d.astype(datetime.datetime)
@@ -761,7 +866,7 @@ def date2num(d):
     return o
 
 def num2date(n):
-    n = int(n)
+    n = int(np.round(n))
     if n < 1:
         n = 1
     d = datetime.date.fromordinal(n)
@@ -783,6 +888,9 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(ui, ProfileViewDockUI)
         self.ui = ui
 
+        self.pixelLoader = PixelLoader()
+        self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
+        self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
 
 
         self.plot_initialized = False
@@ -792,30 +900,15 @@ class SpectralTemporalVisualization(QObject):
         self.plot2D.plotItem.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
 
         self.plot3D = ui.plotWidget3D
-        self.pxCollection = ui.pixelCollection
-
-        self.plotSettingsModel = PlotSettingsModel(self.pxCollection, parent=self)
-        self.plotSettingsModel.sigSensorAdded.connect(self.requestUpdate)
-        self.plotSettingsModel.sigVisibilityChanged.connect(self.setVisibility)
-        #self.plotSettingsModel.sigVisibilityChanged.connect(self.loadData)
-        self.plotSettingsModel.sigDataChanged.connect(self.requestUpdate)
-
-        #self.plotSettingsModel.sigVisiblityChanged.connect(self.refresh)
-        self.plotSettingsModel.rowsInserted.connect(self.onRowsInserted)
-        #self.plotSettingsModel.modelReset.connect(self.updatePersistantWidgets)
-        self.TV.setModel(self.plotSettingsModel)
-        self.delegate = PlotSettingsWidgetDelegate(self.TV)
-        self.TV.setItemDelegateForColumn(2, self.delegate)
-        self.TV.setItemDelegateForColumn(3, self.delegate)
-        #self.TV.setItemDelegateForColumn(3, PointStyleDelegate(self.TV))
-
-        for s in self.pxCollection.sensorPxLayers.keys():
-            self.plotSettingsModel.addSensor(s)
-
+        self.pxCollection = PixelCollection()
         self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
         self.pxCollection.sigPixelRemoved.connect(self.clear)
-        self.ui.pixelLoader.sigLoadingStarted.connect(self.clear)
-        self.ui.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
+
+        self.plotSettingsModel = None
+
+        self.pixelLoader.sigLoadingStarted.connect(self.clear)
+        self.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
+        self.ui.actionRefresh2D.triggered.connect(lambda: self.setData())
 
         # self.VIEW.setItemDelegateForColumn(3, PointStyleDelegate(self.VIEW))
         self.plotData2D = dict()
@@ -825,6 +918,56 @@ class SpectralTemporalVisualization(QObject):
         self.updateTimer = QTimer(self)
         self.updateTimer.timeout.connect(self.updatePlot)
         self.updateTimer.start(2000)
+
+        self.sigMoveToDate.connect(self.onMoveToDate)
+
+    def connectTimeSeries(self, TS):
+
+        assert isinstance(TS, TimeSeries)
+        self.TS = TS
+
+        self.pxCollection.connectTimeSeries(self.TS)
+
+        self.TS.sigSensorRemoved.connect(self.removeSensor)
+
+        self.plotSettingsModel = PlotSettingsModel(self.pxCollection, parent=self)
+        self.plotSettingsModel.sigVisibilityChanged.connect(self.setVisibility)
+        self.plotSettingsModel.sigDataChanged.connect(self.requestUpdate)
+        self.plotSettingsModel.rowsInserted.connect(self.onRowsInserted)
+        # self.plotSettingsModel.modelReset.connect(self.updatePersistantWidgets)
+        self.TV.setModel(self.plotSettingsModel)
+        self.delegate = PlotSettingsWidgetDelegate(self.TV)
+        self.TV.setItemDelegateForColumn(2, self.delegate)
+        self.TV.setItemDelegateForColumn(3, self.delegate)
+        # self.TV.setItemDelegateForColumn(3, PointStyleDelegate(self.TV))
+
+
+    sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
+
+    def onMoveToDate(self, date):
+        dt = np.asarray([np.abs(tsd.date - date) for tsd in self.TS])
+        i = np.argmin(dt)
+        self.sigMoveToTSD.emit(self.TS[i])
+
+
+    def onPixelLoaded(self, nDone, nMax, d):
+        self.ui.progressBar.setValue(nDone)
+        self.ui.progressBar.setMaximum(nMax)
+
+        assert isinstance(d, PixelLoaderResult)
+
+
+        QgsApplication.processEvents()
+        bn = os.path.basename(d.source)
+        if d.success():
+
+            t = 'Last loaded from {}.'.format(bn)
+            self.pxCollection.addPixel(d)
+        else:
+            t = 'Failed loading from {}.'.format(bn)
+            if d.info and d.info != '':
+                t += '({})'.format(d.info)
+        self.ui.progressInfo.setText(t)
 
     def requestUpdate(self, *args):
         self.updateRequested = True
@@ -879,8 +1022,8 @@ class SpectralTemporalVisualization(QObject):
             p.clear()
             p.update()
 
-        if len(self.ui.TS) > 0:
-            rng = [self.ui.TS[0].date, self.ui.TS[-1].date]
+        if len(self.TS) > 0:
+            rng = [self.TS[0].date, self.TS[-1].date]
             rng = [date2num(d) for d in rng]
             self.plot2D.getPlotItem().setRange(xRange=rng)
         QApplication.processEvents()
@@ -888,22 +1031,50 @@ class SpectralTemporalVisualization(QObject):
             pass
 
 
-    def setVisibility(self, sensorView):
-        assert isinstance(sensorView, SensorPlotSettings)
-        self.setVisibility2D(sensorView)
+    def loadCoordinate(self, spatialPoint):
+        if not isinstance(self.plotSettingsModel, PlotSettingsModel):
+            return False
 
-    def setVisibility2D(self, sensorView):
-        assert isinstance(sensorView, SensorPlotSettings)
-        p = self.plotData2D[sensorView.sensor]
+        if not self.pixelLoader.isReadyToLoad():
+            return False
 
-        p.setSymbol(sensorView.markerSymbol)
-        p.setSymbolSize(sensorView.markerSize)
-        p.setSymbolBrush(sensorView.markerBrush)
-        p.setSymbolPen(sensorView.markerPen)
+        assert isinstance(spatialPoint, SpatialPoint)
+        assert isinstance(self.TS, TimeSeries)
 
-        p.setPen(sensorView.linePen)
+        LUT_bandIndices = dict()
+        for sensor in self.TS.Sensors:
+            LUT_bandIndices[sensor] = self.plotSettingsModel.requiredBands(sensor)
 
-        p.setVisible(sensorView.isVisible)
+        paths = []
+        bandIndices = []
+        for tsd in self.TS:
+            if tsd.isVisible():
+                paths.append(tsd.pathImg)
+                bandIndices.append(LUT_bandIndices[tsd.sensor])
+
+        aGoodDefault = 2 if len(self.TS) > 25 else 1
+        self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
+        self.pixelLoader.startLoading(paths, spatialPoint, bandIndices=bandIndices)
+
+        self.ui.setWindowTitle('{} | {} {}'.format(self.ui.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
+
+
+    def setVisibility(self, sensorPlotStyle):
+        assert isinstance(sensorPlotStyle, SensorPlotStyle)
+        self.setVisibility2D(sensorPlotStyle)
+
+    def setVisibility2D(self, sensorPlotStyle):
+        assert isinstance(sensorPlotStyle, SensorPlotStyle)
+        p = self.plotData2D[sensorPlotStyle.sensor()]
+
+        p.setSymbol(sensorPlotStyle.markerSymbol)
+        p.setSymbolSize(sensorPlotStyle.markerSize)
+        p.setSymbolBrush(sensorPlotStyle.markerBrush)
+        p.setSymbolPen(sensorPlotStyle.markerPen)
+
+        p.setPen(sensorPlotStyle.linePen)
+
+        p.setVisible(sensorPlotStyle.isVisible())
         p.update()
         self.plot2D.update()
 
@@ -914,7 +1085,7 @@ class SpectralTemporalVisualization(QObject):
             for sv in self.plotSettingsModel.items:
                 self.setData(sv)
         else:
-            assert isinstance(sensorView, SensorPlotSettings)
+            assert isinstance(sensorView, SensorPlotStyle)
             self.setData2D(sensorView)
 
     @QtCore.pyqtSlot()
@@ -926,10 +1097,10 @@ class SpectralTemporalVisualization(QObject):
     def setData(self, sensorView = None):
         self.updateLock = True
         if sensorView is None:
-            for sv in self.plotSettingsModel.items:
+            for sv in self.plotSettingsModel.mSensorPlotSettings:
                 self.setData(sv)
         else:
-            assert isinstance(sensorView, SensorPlotSettings)
+            assert isinstance(sensorView, SensorPlotStyle)
             self.setData2D(sensorView)
 
         self.updateLock = False
@@ -942,7 +1113,7 @@ class SpectralTemporalVisualization(QObject):
             #remove from settings model
             self.plotSettingsModel.removeSensor(sensor)
             self.plotData2D.pop(sensor)
-            self.pxCollection.sensorPxLayers.pop(sensor)
+            self.pxCollection.removeSensor(sensor)
             # remove from px layer dictionary
             #self.sensorPxLayers.pop(sensor)
             #todo: remove from plot
@@ -950,23 +1121,23 @@ class SpectralTemporalVisualization(QObject):
 
 
     def setData2D(self, sensorView):
-        assert isinstance(sensorView, SensorPlotSettings)
+        assert isinstance(sensorView, SensorPlotStyle)
 
-        if sensorView.sensor not in self.plotData2D.keys():
+        if sensorView.sensor() not in self.plotData2D.keys():
 
-            plotDataItem = self.plot2D.plot(name=sensorView.sensor.name(), pen=None, symbol='o', symbolPen=None)
+            plotDataItem = self.plot2D.plot(name=sensorView.sensor().name(), pen=None, symbol='o', symbolPen=None)
             plotDataItem.sigPointsClicked.connect(self.onObservationClicked)
 
-            self.plotData2D[sensorView.sensor] = plotDataItem
+            self.plotData2D[sensorView.sensor()] = plotDataItem
             self.setVisibility2D(sensorView)
 
-        plotDataItem = self.plotData2D[sensorView.sensor]
-        plotDataItem.setToolTip('Values {}'.format(sensorView.sensor.name()))
+        plotDataItem = self.plotData2D[sensorView.sensor()]
+        plotDataItem.setToolTip('Values {}'.format(sensorView.sensor().name()))
 
 
         #https://github.com/pyqtgraph/pyqtgraph/blob/5195d9dd6308caee87e043e859e7e553b9887453/examples/customPlot.py
 
-        tsds, values = self.pxCollection.dateValues(sensorView.sensor, sensorView.expression)
+        tsds, values = self.pxCollection.dateValues(sensorView.sensor(), sensorView.expression())
         if len(tsds) > 0:
             dates = np.asarray([date2num(tsd.date) for tsd in tsds])
             tsds = np.asarray(tsds)
@@ -1073,22 +1244,27 @@ if __name__ == '__main__':
     from timeseriesviewer import sandbox
     qgsApp = sandbox.initQgisEnvironment()
 
-    d = ProfileViewDockUI()
-    d.show()
+    d1 = np.datetime64('2012-05-23')
+    d2 = np.datetime64('2012-05-24')
+    n1 = date2num(d1)
+    n2 = date2num(d2)
+    assert d1 == num2date(n1)
+    assert d2 == num2date(n2)
+    delta = n2-n1
+
+    ui = ProfileViewDockUI()
+    ui.show()
 
     if True:
-        from timeseriesviewer.tests import *
-
-        #TS = TestObjects.timeSeries()
-        #d.connectTimeSeries(TS)
         TS = TimeSeries()
-        d.connectTimeSeries(TS)
-        print('Load TS...')
-        TS.loadFromFile(r'O:\SenseCarbonProcessing\BJ_Multitemp2017\timeseriesCBERS_LS_RE.csv')
-        print('Loading done')
+        SViz = SpectralTemporalVisualization(ui)
+        SViz.connectTimeSeries(TS)
+
+        from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
+        TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA])
         ext = TS.getMaxSpatialExtent()
         cp = SpatialPoint(ext.crs(),ext.center())
-        d.loadCoordinate(cp)
+        SViz.loadCoordinate(cp)
 
     qgsApp.exec_()
     qgsApp.exitQgis()

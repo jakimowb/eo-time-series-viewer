@@ -212,9 +212,10 @@ class MapCanvas(QgsMapCanvas):
     def pixmap(self):
         """
         Returns the current map image as pixmap
-        :return:
+        :return: QPixmap
         """
-        return QPixmap(self.map().contentImage().copy())
+        #return QPixmap(self.map().contentImage().copy())
+        return QPixmap.grabWidget(self)
 
 
 

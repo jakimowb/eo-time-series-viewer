@@ -86,7 +86,44 @@ class PlotStyle(QObject):
         p.end()
         return QIcon(pm)
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
+    def __eq__(self, other):
+        if not isinstance(other, PlotStyle):
+            return False
+        for k in self.__dict__.keys():
+            if not self.__dict__[k] == other.__dict__[k]:
+                return False
+        return True
+
+    def __reduce_ex__(self, protocol):
+
+        return self.__class__, (), self.__getstate__()
+
+    def __getstate__(self):
+        result = self.__dict__.copy()
+
+        ba = QByteArray()
+        s = QDataStream(ba, QIODevice.WriteOnly)
+        s.writeQVariant(self.linePen)
+        s.writeQVariant(self.markerPen)
+        s.writeQVariant(self.markerBrush)
+        result['__pickleStateQByteArray__'] = ba
+        result.pop('linePen')
+        result.pop('markerPen')
+        result.pop('markerBrush')
+
+        return result
+
+    def __setstate__(self, state):
+        ba = state['__pickleStateQByteArray__']
+        s = QDataStream(ba)
+        state['linePen'] = s.readQVariant()
+        state['markerPen'] = s.readQVariant()
+        state['markerBrush'] = s.readQVariant()
+
+        self.__dict__.update(state)
 
 class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
@@ -330,6 +367,12 @@ if __name__ == '__main__':
 
     from timeseriesviewer import sandbox
     qgsApp = sandbox.initQgisEnvironment()
+
+    import pickle
+    s1 = PlotStyle()
+    s2 = pickle.loads(pickle.dumps(s1))
+    assert isinstance(s2, PlotStyle)
+
     btn = PlotStyleButton()
     btn.show()
     qgsApp.exec_()
