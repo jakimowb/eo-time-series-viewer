@@ -409,7 +409,7 @@ class MapCanvas(QgsMapCanvas):
 
 
     def setRenderer(self, renderer, refresh=True):
-        from utils import copyRenderer
+        from timeseriesviewer.utils import copyRenderer
         if renderer is None:
             return
         if isinstance(renderer, QgsRasterRenderer):
