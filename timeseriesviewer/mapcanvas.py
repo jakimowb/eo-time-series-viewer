@@ -286,14 +286,42 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_sensor'))
         action = m.addAction('Path')
         action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_path'))
+        action = m.addAction('Map')
+        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+
+        m = menu.addMenu('Map Coordinates...')
+
+        ext = self.spatialExtent()
+        center = self.spatialExtent().spatialCenter()
+        action = m.addAction('Extent (WKT Coordinates)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.asWktCoordinates()))
+        action = m.addAction('Extent (WKT Polygon)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.asWktPolygon()))
+
+        m.addSeparator()
+
+        action = m.addAction('Center (WKT Point)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(center.wellKnownText()))
+
+        action = m.addAction('Center (x,y)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(center.toString()))
+
+        m.addSeparator()
+
+        action = m.addAction('CRS (EPSG)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().authid()))
+        action = m.addAction('CRS (WKT)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toWkt()))
+        action = m.addAction('CRS (Proj4)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
+
 
         m = menu.addMenu('Save to...')
         action = m.addAction('PNG')
         action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
-        action = m.addAction('Clipboard')
-        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+
         from timeseriesviewer.main import QgisTsvBridge
 
         menu.addSeparator()
