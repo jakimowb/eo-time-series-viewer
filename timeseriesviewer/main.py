@@ -20,10 +20,12 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
+from qgis.core import *
 import os, sys, re, fnmatch, collections, copy, traceback, six
 import logging
 logger = logging.getLogger(__name__)
-from qgis.core import *
+
+
 import qgis.utils
 from timeseriesviewer.utils import *
 
@@ -154,11 +156,12 @@ class QgisTsvBridge(QObject):
 
     sigQgisProjectClosed = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, parent=None):
         assert QgisTsvBridge._instance is None, 'Can not instantiate QgsTsvBridge twice'
+        super(QgisTsvBridge, self).__init__(parent)
         self.TSV = None
-
-
+        self.ui = None
+        self.SpatTempVis = None
     def isValid(self):
         return isinstance(self.iface, QgisInterface) and isinstance(self.TSV, TimeSeriesViewer)
 
@@ -220,7 +223,8 @@ class QgisTsvBridge(QObject):
             center = center.toCrs(extTsv.crs())
             if center:
                 self.TSV.spatialTemporalVis.setSpatialCenter(center)
-
+                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
+                    self.TSV.spectralTemporalVis.loadCoordinate(center)
 
         if request == 'tsvExtent2qgsExtent':
             extent = extTsv.toCrs(extQgs.crs())
@@ -232,6 +236,8 @@ class QgisTsvBridge(QObject):
             extent = extQgs.toCrs(extTsv.crs())
             if extent:
                 self.TSV.spatialTemporalVis.setSpatialExtent(extent)
+                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
+                    self.TSV.spectralTemporalVis.loadCoordinate(extent.spatialCenter())
 
 
 class TimeSeriesViewerUI(QMainWindow,
@@ -638,15 +644,17 @@ def disconnect_signal(signal):
             break
 
 
-
-if __name__ == '__main__':
-
+def main():
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.sandbox import initQgisEnvironment, sandboxGui
     qgsApp = initQgisEnvironment()
 
     sandboxGui()
 
-    #close QGIS
+    # close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
+
+if __name__ == '__main__':
+
+    main()

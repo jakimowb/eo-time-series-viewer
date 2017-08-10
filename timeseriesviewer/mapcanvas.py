@@ -135,16 +135,17 @@ class MapCanvas(QgsMapCanvas):
 
         return self.mLayers
 
-    def addLazyRasterSources(self, sources):
+    def setLazyRasterSources(self, sources):
+        del self.mLazyRasterSources[:]
         assert isinstance(sources, list)
         self.mLazyRasterSources.extend(sources[:])
 
-    def addLazyVectorSources(self, sourceLayers):
+    def setLazyVectorSources(self, sourceLayers):
         assert isinstance(sourceLayers, list)
+        del self.mLazyVectorSources[:]
         for lyr in sourceLayers:
             assert isinstance(lyr, QgsVectorLayer)
             self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
-
 
     def mapSummary(self):
         from PyQt4.QtXml import QDomDocument
@@ -166,14 +167,14 @@ class MapCanvas(QgsMapCanvas):
     def setLayers(self, mapLayers):
 
 
-        oldLayerSet = set(self.layers())
-        newLayerSet = set(mapLayers)
-        diffLayers = len(oldLayerSet.symmetric_difference(newLayerSet)) > 0
-        if diffLayers:
+        oldLayers = self.layers()
+        newLayers = [l for l in mapLayers if l not in oldLayers]
+
+        if len(newLayers) > 0:
             reg = QgsMapLayerRegistry.instance()
-            reg.addMapLayers(mapLayers, False)
-            self.mLayers = mapLayers[:]
-            super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
+            reg.addMapLayers(newLayers, False)
+        self.mLayers = mapLayers[:]
+        super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
 
         #self.refresh()
 

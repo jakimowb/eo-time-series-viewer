@@ -100,7 +100,8 @@ class MapView(QObject):
 
             for mapCanvas in self.mapCanvases():
                 assert isinstance(mapCanvas, MapCanvas)
-                mapCanvas.addLazyVectorSources([lyr])
+                mapCanvas.setLayers([l for l in mapCanvas.layers() if isinstance(l, QgsRasterLayer)])
+                mapCanvas.setLazyVectorSources([lyr])
                 mapCanvas.refresh()
 
         else:
@@ -740,7 +741,7 @@ class DatumView(QObject):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         self.mapCanvases[mapView] = mapCanvas
-        mapCanvas.addLazyRasterSources([self.TSD.pathImg])
+        mapCanvas.setLazyRasterSources([self.TSD.pathImg])
         #mapCanvas.setLayers([QgsRasterLayer(self.TSD.pathImg)])
         self.L.insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.update()
