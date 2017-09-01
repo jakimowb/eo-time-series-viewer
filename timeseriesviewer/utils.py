@@ -652,6 +652,70 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
 
     return FORM_CLASSES[pathUi]
 
+def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
+    """
+    Initializes the QGIS Environment
+    :return: QgsApplication instance of local QGIS installation
+    """
+    import site
+    if pythonPlugins is None:
+        pythonPlugins = []
+    assert isinstance(pythonPlugins, list)
+
+    from timeseriesviewer import DIR_REPO
+    pythonPlugins.append(os.path.dirname(DIR_REPO))
+    PLUGIN_DIR = os.path.dirname(DIR_REPO)
+
+    if os.path.isdir(PLUGIN_DIR):
+        for subDir in os.listdir(PLUGIN_DIR):
+            if not subDir.startswith('.'):
+                pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
+
+    envVar = os.environ.get('QGIS_PLUGINPATH', None)
+    if isinstance(envVar, list):
+        pythonPlugins.extend(r  e.split('[;:]', envVar))
+
+    #make plugin paths available to QGIS and Python
+    os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
+    os.environ['QGIS_DEBUG'] = '1' if qgisDebug else '0'
+    for p in pythonPlugins:
+        sys.path.append(p)
+
+    if isinstance(QgsApplication.instance(), QgsApplication):
+        #alread started
+        return QgsApplication.instance()
+    else:
+
+
+
+        if PATH_QGIS is None:
+            # find QGIS Path
+            if sys.platform == 'darwin':
+                #search for the QGIS.app
+                import qgis, re
+                assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
+                PATH_QGIS_APP = re.split('\.app[\/]', qgis.__file__)[0]+ '.app'
+                PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents','MacOS'])
+
+                if not 'GDAL_DATA' in os.environ.keys():
+                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
+
+                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
+                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns','qgis']))
+
+
+            else:
+                # assume OSGeo4W startup
+                PATH_QGIS = os.environ['QGIS_PREFIX_PATH']
+
+        assert os.path.exists(PATH_QGIS)
+
+        QgsApplication.setGraphicsSystem("raster")
+        qgsApp = QgsApplication([], True)
+        qgsApp.setPrefixPath(PATH_QGIS, True)
+        qgsApp.initQgis()
+        return qgsApp
+
 
 if __name__ == '__main__':
     #nice predecessors
