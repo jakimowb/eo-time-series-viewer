@@ -535,9 +535,6 @@ def make_pb_tool_cfg():
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
 
-    if True:
-        make_pb_tool_cfg()
-        exit(0)
 
     if True:
 

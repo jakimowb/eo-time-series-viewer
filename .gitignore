@@ -1,6 +1,8 @@
 # Untracked directories
 .idea/
 .idea/*
+deploy/
+temp/
 
 example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
