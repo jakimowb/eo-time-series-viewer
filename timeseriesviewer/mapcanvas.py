@@ -330,7 +330,7 @@ class MapCanvas(QgsMapCanvas):
 
         import qgis.utils
         if qgis.utils is not None:
-            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers(self.layers()))
+            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
         else:
             action.setEnabled(False)
 
