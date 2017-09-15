@@ -2,11 +2,11 @@
 
 """
 ***************************************************************************
-    __main__
+
     ---------------------
-    Date                 : August 2017
+    Date                 : 10.08.2017
     Copyright            : (C) 2017 by Benjamin Jakimow
-    Email                : benjamin.jakimow@geo.hu-berlin.de
+    Email                : benjamin jakimow at geo dot hu-berlin dot de
 ***************************************************************************
 *                                                                         *
 *   This program is free software; you can redistribute it and/or modify  *
@@ -17,24 +17,23 @@
 ***************************************************************************
 """
 from __future__ import absolute_import
-import sys, os, site
+import sys
 
+class run():
 
-def run():
+    # add site-packages to sys.path as done by enmapboxplugin.py
+
+    from timeseriesviewer.sandbox import initQgisEnvironment
+    qgsApp = initQgisEnvironment()
     from timeseriesviewer.main import TimeSeriesViewer
-    from timeseriesviewer.utils import initQgisApplication
-    from qgis.utils import iface
-    qgisApp = initQgisApplication()
-    tsv = TimeSeriesViewer(iface)
-    tsv.run()
-    qgisApp.exec_()
+    S = TimeSeriesViewer(None)
+    S.ui.show()
+    S.run()
 
+    #close QGIS
+    qgsApp.exec_()
+    qgsApp.exitQgis()
 
 if __name__ == '__main__':
-    thisDir = os.path.dirname(__file__)
-    if thisDir in sys.path:
-        sys.path.remove(thisDir)
-
-    args = sys.argv[1:]
-
-    run()
+    from timeseriesviewer.main import __main__
+    __main__()

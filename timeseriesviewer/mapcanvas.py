@@ -135,16 +135,17 @@ class MapCanvas(QgsMapCanvas):
 
         return self.mLayers
 
-    def addLazyRasterSources(self, sources):
+    def setLazyRasterSources(self, sources):
+        del self.mLazyRasterSources[:]
         assert isinstance(sources, list)
         self.mLazyRasterSources.extend(sources[:])
 
-    def addLazyVectorSources(self, sourceLayers):
+    def setLazyVectorSources(self, sourceLayers):
         assert isinstance(sourceLayers, list)
+        del self.mLazyVectorSources[:]
         for lyr in sourceLayers:
             assert isinstance(lyr, QgsVectorLayer)
             self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
-
 
     def mapSummary(self):
         from PyQt4.QtXml import QDomDocument
@@ -166,14 +167,14 @@ class MapCanvas(QgsMapCanvas):
     def setLayers(self, mapLayers):
 
 
-        oldLayerSet = set(self.layers())
-        newLayerSet = set(mapLayers)
-        diffLayers = len(oldLayerSet.symmetric_difference(newLayerSet)) > 0
-        if diffLayers:
+        oldLayers = self.layers()
+        newLayers = [l for l in mapLayers if l not in oldLayers]
+
+        if len(newLayers) > 0:
             reg = QgsMapLayerRegistry.instance()
-            reg.addMapLayers(mapLayers, False)
-            self.mLayers = mapLayers[:]
-            super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
+            reg.addMapLayers(newLayers, False)
+        self.mLayers = mapLayers[:]
+        super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in self.mLayers])
 
         #self.refresh()
 
@@ -285,14 +286,42 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_sensor'))
         action = m.addAction('Path')
         action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_path'))
+        action = m.addAction('Map')
+        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+
+        m = menu.addMenu('Map Coordinates...')
+
+        ext = self.spatialExtent()
+        center = self.spatialExtent().spatialCenter()
+        action = m.addAction('Extent (WKT Coordinates)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.asWktCoordinates()))
+        action = m.addAction('Extent (WKT Polygon)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.asWktPolygon()))
+
+        m.addSeparator()
+
+        action = m.addAction('Center (WKT Point)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(center.wellKnownText()))
+
+        action = m.addAction('Center (x,y)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(center.toString()))
+
+        m.addSeparator()
+
+        action = m.addAction('CRS (EPSG)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().authid()))
+        action = m.addAction('CRS (WKT)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toWkt()))
+        action = m.addAction('CRS (Proj4)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
+
 
         m = menu.addMenu('Save to...')
         action = m.addAction('PNG')
         action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
-        action = m.addAction('Clipboard')
-        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+
         from timeseriesviewer.main import QgisTsvBridge
 
         menu.addSeparator()

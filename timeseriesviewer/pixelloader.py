@@ -31,6 +31,8 @@ from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 import multiprocessing as mp
 
+#mp.freeze_support()
+from timeseriesviewer.sandbox import initQgisEnvironment
 DEBUG = False
 
 def isOutOfImage(ds, px):
