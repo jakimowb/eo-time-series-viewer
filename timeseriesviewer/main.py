@@ -289,6 +289,7 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockSensors = addDockWidget(SensorDockUI(self))
         self.tabifyDockWidget(self.dockSensors, self.dockRendering)
 
+
         area = Qt.BottomDockWidgetArea
         from timeseriesviewer.mapvisualization import MapViewDockUI
         self.dockMapViews = addDockWidget(MapViewDockUI(self))
@@ -298,6 +299,11 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
         self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+
+        area = Qt.RightDockWidgetArea
+        from timeseriesviewer.systeminfo import SystemInfoDock
+        self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
+        self.dockSystemInfo.setVisible(False)
 
 
         for dock in self.findChildren(QDockWidget):
@@ -403,6 +409,8 @@ class TimeSeriesViewer:
 
         self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
         self.spectralTemporalVis.connectTimeSeries(self.TS)
+        self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
+            lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
 
         from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
@@ -646,11 +654,11 @@ def disconnect_signal(signal):
 
 def main():
     # add site-packages to sys.path as done by enmapboxplugin.py
-    from timeseriesviewer.sandbox import initQgisEnvironment, sandboxGui
-    qgsApp = initQgisEnvironment()
-
-    sandboxGui()
-
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
+    ts = TimeSeriesViewer(None)
+    ts.run()
+    ts.loadExampleTimeSeries()
     # close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()

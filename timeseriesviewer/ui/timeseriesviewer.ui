@@ -541,7 +541,7 @@
     <string>Refresh</string>
    </property>
    <property name="toolTip">
-    <string>Refresh maps</string>
+    <string>Refresh maps (F5)</string>
    </property>
    <property name="shortcut">
     <string>F5</string>

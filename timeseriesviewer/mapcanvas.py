@@ -30,7 +30,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
-from timeseriesviewer.ui.widgets import TsvScrollArea
+
 
 class MapCanvas(QgsMapCanvas):
 
@@ -43,12 +43,26 @@ class MapCanvas(QgsMapCanvas):
     sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
-
+    sigDataLoadingFinished = pyqtSignal(np.timedelta64)
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
         from timeseriesviewer.mapvisualization import DatumView, MapView, SpatialTemporalVisualization
 
+
+
         #the canvas
+
+
+        def resetRenderStartTime():
+            self.mRenderStartTime = np.datetime64('now' ,'ms')
+        resetRenderStartTime()
+
+        def emitRenderTimeDelta(*args):
+            dt = np.datetime64('now', 'ms') - self.mRenderStartTime
+            self.sigDataLoadingFinished.emit(dt)
+
+        self.renderStarting.connect(resetRenderStartTime)
+        self.renderComplete.connect(emitRenderTimeDelta)
         self.setCrsTransformEnabled(True)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
@@ -94,7 +108,6 @@ class MapCanvas(QgsMapCanvas):
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
-
 
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
@@ -647,4 +660,18 @@ def exampleSyncedCanvases():
 
 
 if __name__ == '__main__':
-    exampleSyncedCanvases()
+    from timeseriesviewer import utils
+    from timeseriesviewer.mapcanvas import MapCanvas
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
+    qgsApp = utils.initQgisApplication()
+
+    def printTimeDelta(dt):
+        print(dt)
+    c = MapCanvas()
+    c.sigDataLoadingFinished.connect(printTimeDelta)
+    c.show()
+    lyr = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
+    c.setDestinationCrs(lyr.crs())
+    c.setExtent(lyr.extent())
+    c.setLayers([lyr])
+    qgsApp.exec_()

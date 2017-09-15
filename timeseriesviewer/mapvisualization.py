@@ -713,6 +713,11 @@ class DatumView(QObject):
         mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
 
+        mapCanvas.sigDataLoadingFinished.connect(
+            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.Sensor.name()), dt))
+        mapCanvas.sigDataLoadingFinished.connect(
+            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('All Sensors', dt))
+
     def showLoading(self, b):
         if b:
             self.ui.progressBar.setRange(0,0)
@@ -1147,6 +1152,14 @@ class DateViewCollection(QObject):
         removedDates = []
         for DV in toRemove:
             self.views.remove(DV)
+
+            for mapCanvas in DV.mapCanvases.values():
+                toRemove = mapCanvas.layers()
+                mapCanvas.setLayers([])
+                toRemove = [l for l in toRemove if isinstance(l, QgsRasterLayer)]
+                if len(toRemove) > 0:
+                    QgsMapLayerRegistry.instance().removeMapLayers(toRemove)
+
             DV.ui.parent().layout().removeWidget(DV.ui)
             DV.ui.hide()
             DV.ui.close()

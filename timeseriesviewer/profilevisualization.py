@@ -1145,7 +1145,6 @@ class SpectralTemporalVisualization(QObject):
             #todo: remove from plot
             s = ""
 
-
     def setData2D(self, sensorView):
         assert isinstance(sensorView, SensorPlotStyle)
 
