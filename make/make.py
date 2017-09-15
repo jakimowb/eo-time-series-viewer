@@ -181,7 +181,47 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
 
 
 
-def make(ROOT):
+def compile_rc_files(ROOT):
+    #find ui files
+    ui_files = file_search(ROOT, '*.ui', recursive=True)
+    qrcs = set()
+
+    doc = QDomDocument()
+    reg = re.compile('(?<=resource=")[^"]+\.qrc(?=")')
+
+    for ui_file in ui_files:
+        pathDir = os.path.dirname(ui_file)
+        doc.setContent(QFile(ui_file))
+        includeNodes = doc.elementsByTagName('include')
+        for i in range(includeNodes.count()):
+            attr = getDOMAttributes(includeNodes.item(i).toElement())
+            if 'location' in attr.keys():
+                print((ui_file, str(attr['location'])))
+                qrcs.add((pathDir, str(attr['location'])))
+
+    #compile Qt resource files
+    #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
+    resourcefiles = list(qrcs)
+    assert len(resourcefiles) > 0
+
+    if sys.platform == 'darwin':
+        prefix = '/Applications/QGIS.app/Contents/MacOS/bin/'
+    else:
+        prefix = ''
+
+
+
+    for root_dir, f in resourcefiles:
+        #dn = os.path.dirname(f)
+        pathQrc = os.path.normpath(jp(root_dir, f))
+        assert os.path.exists(pathQrc), pathQrc
+        bn = os.path.basename(f)
+        bn = os.path.splitext(bn)[0]
+        pathPy2 = os.path.join(DIR_UI, bn+'.py' )
+        subprocess.call(['pyrcc4', '-py2', '-o', pathPy2, pathQrc])
+
+
+def depr_make(ROOT):
     #find ui files
     ui_files = file_search(ROOT, '*.ui', recursive=True)
     qrcs = set()
@@ -497,7 +537,7 @@ def make_pb_tool_cfg():
 
 
 
-    if __name__ == '__main__':
+if __name__ == '__main__':
     icondir = jp(DIR_UI, *['icons'])
     pathQrc = jp(DIR_UI,'resources.qrc')
     from timeseriesviewer import DIR_EXAMPLES
@@ -536,7 +576,7 @@ def make_pb_tool_cfg():
         exit(0)
 
 
-    if True:
+    if False:
 
         # update __init__.py of testdata directories
         d = pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
@@ -546,7 +586,7 @@ def make_pb_tool_cfg():
     if False:
         createCreditsHTML()
 
-    if True:
+    if False:
         updateMetadataTxt()
 
     if False:
@@ -555,7 +595,7 @@ def make_pb_tool_cfg():
     if False:
         #add png icons to qrc file
         png2qrc(icondir, pathQrc)
-    if False:
-        make(DIR_UI)
+    if True:
+        compile_rc_files(DIR_UI)
     print('Done')
 

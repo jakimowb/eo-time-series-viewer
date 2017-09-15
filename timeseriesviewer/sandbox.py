@@ -257,31 +257,6 @@ class SignalPrinter(object):
             info += ' {}'.format(str(kwds))
         print(info)
 
-def initQgisEnvironment():
-
-    if isinstance(QgsApplication.instance(), QgsApplication):
-        #alread started
-        return QgsApplication.instance()
-
-    from timeseriesviewer import DIR_SITE_PACKAGES
-    site.addsitedir(DIR_SITE_PACKAGES)
-    # prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-    return qgsApp
-
 def sandboxTestdata():
     from timeseriesviewer.main import TimeSeriesViewer
 
@@ -300,8 +275,8 @@ def sandboxTestdata():
 if __name__ == '__main__':
     import site, sys, pyqtgraph
     # add site-packages to sys.path as done by enmapboxplugin.py
-
-    qgsApp = initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
 
     #run tests
     if False: gdal_qgis_benchmark()

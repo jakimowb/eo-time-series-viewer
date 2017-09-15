@@ -577,7 +577,7 @@ loadIcon = lambda p: jp(DIR_UI, *['icons',p])
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
 
-def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
+def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
     """
     Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
     Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
@@ -652,6 +652,7 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
 
     return FORM_CLASSES[pathUi]
 
+
 def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
     """
     Initializes the QGIS Environment
@@ -663,7 +664,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
     assert isinstance(pythonPlugins, list)
 
     from timeseriesviewer import DIR_REPO
-    pythonPlugins.append(os.path.dirname(DIR_REPO))
+    #pythonPlugins.append(os.path.dirname(DIR_REPO))
     PLUGIN_DIR = os.path.dirname(DIR_REPO)
 
     if os.path.isdir(PLUGIN_DIR):
@@ -673,7 +674,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
-        pythonPlugins.extend(r  e.split('[;:]', envVar))
+        pythonPlugins.extend(re.split('[;:]', envVar))
 
     #make plugin paths available to QGIS and Python
     os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
@@ -715,6 +716,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
         return qgsApp
+
 
 
 if __name__ == '__main__':
