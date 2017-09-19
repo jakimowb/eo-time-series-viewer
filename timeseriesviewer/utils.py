@@ -422,6 +422,24 @@ class SpatialExtent(QgsRectangle):
 
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
+def value2str(value, sep=' '):
+    """
+    Converts a value into a string
+    :param value:
+    :param sep:
+    :return:
+    """
+    if isinstance(value, list):
+        value = sep.join([str(v) for v in value])
+    elif isinstance(value, np.array):
+        value = value2str(value.astype(list), sep=sep)
+    elif value is None:
+        value = ''
+    else:
+        value = str(value)
+    return value
+
+
 # works in Python 2 & 3
 class _Singleton(type):
     """ A metaclass that creates a Singleton base class when called. """

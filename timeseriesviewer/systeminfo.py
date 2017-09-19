@@ -28,7 +28,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import numpy as np
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.utils import loadUi, SpatialExtent
+from timeseriesviewer.utils import loadUi, SpatialExtent, value2str
 
 PSUTIL_AVAILABLE = False
 try:
@@ -203,12 +203,12 @@ class DataLoadingModel(QAbstractTableModel):
 
             self.layoutChanged.emit()
 
-        def columnNames(self):
+        def variableNames(self):
             return [self.cName, self.cSamples, self.cLast, self.cMaxAll, self.cAvgAll, self.cMax10, self.cAvg10]
 
         def headerData(self, col, orientation, role):
             if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-                return self.columnNames()[col]
+                return self.variableNames()[col]
             elif orientation == Qt.Vertical and role == Qt.DisplayRole:
                 return col
             return None
@@ -217,7 +217,7 @@ class DataLoadingModel(QAbstractTableModel):
             """Sort table by given column number.
             """
             self.layoutAboutToBeChanged.emit()
-            columnName = self.columnNames()[col]
+            columnName = self.variableNames()[col]
             rev = order == Qt.DescendingOrder
             sortedNames = None
             if columnName == self.cName:
@@ -241,7 +241,7 @@ class DataLoadingModel(QAbstractTableModel):
             return len(self.mLoadingTimes)
 
         def columnCount(self, QModelIndex_parent=None, *args, **kwargs):
-            return len(self.columnNames())
+            return len(self.variableNames())
 
         def type2idx(self, type):
             assert isinstance(type, str)
@@ -259,11 +259,11 @@ class DataLoadingModel(QAbstractTableModel):
             if role is None or not index.isValid():
                 return None
 
-            columnName = self.columnNames()[index.column()]
+            columnName = self.variableNames()[index.column()]
             name = self.idx2type(index)
             lTimes = self.mLoadingTimes[name]
             value = None
-            if role == Qt.DisplayRole:
+            if role in [Qt.DisplayRole, Qt.EditRole]:
                 if columnName == self.cName:
                     value = name
                 elif columnName == self.cSamples:
@@ -288,7 +288,7 @@ class DataLoadingModel(QAbstractTableModel):
 
         def flags(self, index):
             if index.isValid():
-                columnName = self.columnNames()[index.column()]
+                columnName = self.variableNames()[index.column()]
                 flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
                 return flags
             return None
@@ -304,13 +304,19 @@ class SystemInfoDock(QgsDockWidget, loadUi('systeminfo.ui')):
 
         self.lyrModel = MapLayerRegistryModel()
         self.tableViewMapLayerRegistry.setModel(self.lyrModel)
+        self.tableViewMapLayerRegistry.contextMenuEvent = \
+            lambda event: self.contextMenuEvent(self.tableViewMapLayerRegistry, event)
 
         self.dataLoadingModel = DataLoadingModel()
+
         def resetModel():
             self.dataLoadingModel.mLoadingTimes.clear()
             self.dataLoadingModel.layoutChanged.emit()
 
         self.tableViewDataLoading.setModel(self.dataLoadingModel)
+        self.tableViewDataLoading.contextMenuEvent = \
+            lambda event: self.contextMenuEvent(self.tableViewDataLoading, event)
+
         self.btnResetDataLoadingModel.clicked.connect(resetModel)
 
         self.labelPSUTIL.setVisible(PSUTIL_AVAILABLE == False)
@@ -323,6 +329,74 @@ class SystemInfoDock(QgsDockWidget, loadUi('systeminfo.ui')):
 
     def addTimeDelta(self, type, timedelta):
         self.dataLoadingModel.addTimeDelta(type, timedelta)
+
+
+    def contextMenuEvent(self, tableView, event):
+        assert isinstance(tableView, QTableView)
+        menu = QMenu(self)
+        a = menu.addAction("Copy selected")
+        a.triggered.connect(lambda :self.onCopy2Clipboard(tableView, 'SELECTED', separator=';'))
+
+        a = menu.addAction("Copy table")
+        a.triggered.connect(lambda: self.onCopy2Clipboard(tableView, 'TABLE', separator=';'))
+
+        a = menu.addAction('Save to file')
+        a.triggered.connect(lambda : self.onSaveToFile(tableView, 'TABLE'))
+
+
+        menu.popup(QCursor.pos())
+
+    def onCopy2Clipboard(self, tableView, key, separator='\t'):
+        lines = self.readTableValues(key, tableView)
+        if len(lines) > 0:
+            lines = [value2str(l, sep=separator) for l in lines]
+            QApplication.clipboard().setText('\n'.join(lines))
+
+    def readTableValues(self, key, tableView):
+        assert key in ['SELECTED', 'TABLE']
+        txt = None
+        model = tableView.model()
+        assert isinstance(model, QAbstractTableModel)
+        lines = []
+        if key == 'SELECTED':
+            line = []
+            row = None
+            for idx in tableView.selectionModel().selectedIndexes():
+                if row is None:
+                    row = idx.row()
+                elif row != idx.row():
+                    lines.append(line)
+                    line = []
+                line.append(model.data(idx, role=Qt.DisplayRole))
+            lines.append(line)
+        elif key == 'TABLE':
+            for row in range(model.rowCount()):
+                line = []
+                for col in range(model.columnCount()):
+                    idx = model.createIndex(row, col)
+                    line.append(model.data(idx, role=Qt.DisplayRole))
+            lines.append(line)
+        return lines
+
+    def onSaveToFile(self, tableView, key):
+        lines = self.readTableValues(key, tableView)
+
+
+        if len(lines) > 0:
+            filters = 'Textfile (*.txt);;CSV Table (*.csv)'
+            path = QFileDialog.getSaveFileName(parent=None, caption="Save Table to file",
+                                               directory='', filter=filters)
+            if len(path) > 0:
+                ext = os.path.splitext(path)[-1].lower()
+                if ext in ['.txt']:
+                    lines = [value2str(l, sep=';') for l in lines]
+                else:
+                    lines = [value2str(l, sep='\t') for l in lines]
+                file = open(path, 'w')
+                for line in lines:
+                    file.write(line + '\n')
+                file.flush()
+                file.close()
 
 
 if __name__ == '__main__':
