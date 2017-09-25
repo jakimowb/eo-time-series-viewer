@@ -20,40 +20,64 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
-import os, sys, re, pickle
+import os, sys, re, pickle, tempfile
+from collections import OrderedDict
 import tempfile
-from osgeo import gdal
+from osgeo import gdal, osr, ogr
 from qgis.core import *
+from qgis.gui import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from timeseriesviewer import file_search
 
-class VirtualBandInputSource(object):
-    def __init__(self, path, bandIndex):
-        self.path = os.path.normpath(path)
-        self.bandIndex = bandIndex
-        self.noData = None
+def px2geo(px, gt):
+    #see http://www.gdal.org/gdal_datamodel.html
+    gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
+    gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
+    return QgsPoint(gx,gy)
+
+
+class VRTRasterInputSourceBand(object):
+    def __init__(self, path, bandIndex, bandName=''):
+        self.mPath = os.path.normpath(path)
+        self.mBandIndex = bandIndex
+        self.mBandName = bandName
+        self.mNoData = None
         self.mVirtualBand = None
 
-    def __eq__(self, other):
-        if isinstance(other, VirtualBandInputSource):
-            return self.path == other.path and self.bandIndex == other.bandIndex
+
+    def isEqual(self, other):
+        if isinstance(other, VRTRasterInputSourceBand):
+            return self.mPath == other.mPath and self.mBandIndex == other.mBandIndex
         else:
             return False
+
+    def __reduce_ex__(self, protocol):
+
+        return self.__class__, (self.mPath, self.mBandIndex, self.mBandName), self.__getstate__()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('mVirtualBand')
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
     def virtualBand(self):
         return self.mVirtualBand
 
 
-class VirtualBand(QObject):
-
+class VRTRasterBand(QObject):
+    sigNameChanged = pyqtSignal(str)
+    sigSourceInserted = pyqtSignal(int, VRTRasterInputSourceBand)
+    sigSourceRemoved = pyqtSignal(int, VRTRasterInputSourceBand)
     def __init__(self, name='', parent=None):
-        super(VirtualBand, self).__init__(parent)
+        super(VRTRasterBand, self).__init__(parent)
         self.sources = []
         self.mName = name
         self.mVRT = None
 
-    sigNameChanged = pyqtSignal(str)
+
     def setName(self, name):
         oldName = self.mName
         self.mName = name
@@ -64,61 +88,98 @@ class VirtualBand(QObject):
         return self.mName
 
 
-    def addSourceBand(self, path, bandIndex):
-        vBand = VirtualBandInputSource(path, bandIndex)
-        return self.insertSourceBand(len(self.sources), vBand)
 
-    sigSourceBandInserted = pyqtSignal(VirtualBandInputSource)
-    def insertSourceBand(self, index, virtualBandInputSource):
-        assert isinstance(virtualBandInputSource, VirtualBandInputSource)
+    def addSource(self, virtualBandInputSource):
+        assert isinstance(virtualBandInputSource, VRTRasterInputSourceBand)
+        self.insertSource(len(self.sources), virtualBandInputSource)
+
+    def insertSource(self, index, virtualBandInputSource):
+        assert isinstance(virtualBandInputSource, VRTRasterInputSourceBand)
         virtualBandInputSource.mVirtualBand = self
         assert index <= len(self.sources)
         self.sources.insert(index, virtualBandInputSource)
-        self.sigSourceBandInserted.emit(virtualBandInputSource)
+        self.sigSourceInserted.emit(index, virtualBandInputSource)
 
     def bandIndex(self):
-        if isinstance(self.mVRT, VirtualRasterBuilder):
-            return self.mVRT.vBands.index(self)
+        if isinstance(self.mVRT, VRTRaster):
+            return self.mVRT.mBands.index(self)
         else:
             return None
 
-    sigSourceBandRemoved = pyqtSignal(int, VirtualBandInputSource)
-    def removeSourceBand(self, bandOrIndex):
+
+    def removeSource(self, vrtRasterInputSourceBand):
         """
-        Removes a virtual band
-        :param bandOrIndex: int | VirtualBand
-        :return: The VirtualBand that was removed
+        Removes a VRTRasterInputSourceBand
+        :param vrtRasterInputSourceBand: band index| VRTRasterInputSourceBand
+        :return: The VRTRasterInputSourceBand that was removed
         """
-        if not isinstance(bandOrIndex, VirtualBand):
-            bandOrIndex = self.sources[bandOrIndex]
-        i = self.sources.index(bandOrIndex)
-        self.sources.remove(bandOrIndex)
-        self.sigSourceBandRemoved.emit(i, bandOrIndex)
-        return bandOrIndex
+        if not isinstance(vrtRasterInputSourceBand, VRTRasterInputSourceBand):
+            vrtRasterInputSourceBand = self.sources[vrtRasterInputSourceBand]
+        if vrtRasterInputSourceBand in self.sources:
+            i = self.sources.index(vrtRasterInputSourceBand)
+            self.sources.remove(vrtRasterInputSourceBand)
+            self.sigSourceRemoved.emit(i, vrtRasterInputSourceBand)
+
 
     def sourceFiles(self):
         """
         :return: list of file-paths to all source files
         """
-        files = set([inputSource.path for inputSource in self.sources])
+        files = set([inputSource.mPath for inputSource in self.sources])
         return sorted(list(files))
 
     def __repr__(self):
         infos = ['VirtualBand name="{}"'.format(self.mName)]
         for i, info in enumerate(self.sources):
-            assert isinstance(info, VirtualBandInputSource)
-            infos.append('\t{} SourceFileName {} SourceBand {}'.format(i+1, info.path, info.bandIndex))
+            assert isinstance(info, VRTRasterInputSourceBand)
+            infos.append('\t{} SourceFileName {} SourceBand {}'.format(i + 1, info.mPath, info.mBandIndex))
         return '\n'.join(infos)
 
+LUT_ReampleAlg = {'nearest': gdal.GRA_NearestNeighbour,
+                  'bilinear': gdal.GRA_Bilinear,
+                  'mode':gdal.GRA_Mode,
+                  'lanczos':gdal.GRA_Lanczos,
+                  'average':gdal.GRA_Average,
+                  'cubic':gdal.GRA_Cubic,
+                  'cubic_splie':gdal.GRA_CubicSpline}
 
 
-class VirtualRasterBuilder(QObject):
+class VRTRaster(QObject):
+
+    sigSourceBandInserted = pyqtSignal(VRTRasterBand, VRTRasterInputSourceBand)
+    sigSourceBandRemoved = pyqtSignal(VRTRasterBand, VRTRasterInputSourceBand)
+    sigSourceRasterAdded = pyqtSignal(list)
+    sigSourceRasterRemoved = pyqtSignal(list)
+    sigBandInserted = pyqtSignal(int, VRTRasterBand)
+    sigBandRemoved = pyqtSignal(int, VRTRasterBand)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+
 
     def __init__(self, parent=None):
-        super(VirtualRasterBuilder, self).__init__(parent)
-        self.vBands = []
-        self.vMetadata = dict()
+        super(VRTRaster, self).__init__(parent)
+        self.mBands = []
+        self.mCrs = None
+        self.mResampleAlg = gdal.GRA_NearestNeighbour
+        self.mMetadata = dict()
+        self.mSourceRasterBounds = dict()
+        self.mOutputBounds = None
+        self.sigSourceBandRemoved.connect(self.updateSourceRasterBounds)
+        self.sigSourceBandInserted.connect(self.updateSourceRasterBounds)
+        self.sigBandRemoved.connect(self.updateSourceRasterBounds)
+        self.sigBandInserted.connect(self.updateSourceRasterBounds)
 
+    def setCrs(self, crs):
+        if isinstance(crs, osr.SpatialReference):
+            auth = '{}:{}'.format(crs.GetAttrValue('AUTHORITY',0), crs.GetAttrValue('AUTHORITY',1))
+            crs = QgsCoordinateReferenceSystem(auth)
+        if isinstance(crs, QgsCoordinateReferenceSystem):
+            if crs != self.mCrs:
+                self.mCrs = crs
+                self.sigCrsChanged.emit(self.mCrs)
+
+
+    def crs(self):
+        return self.mCrs
 
     def addVirtualBand(self, virtualBand):
         """
@@ -126,10 +187,8 @@ class VirtualRasterBuilder(QObject):
         :param virtualBand: the VirtualBand to be added
         :return: VirtualBand
         """
-        assert isinstance(virtualBand, VirtualBand)
+        assert isinstance(virtualBand, VRTRasterBand)
         return self.insertVirtualBand(len(self), virtualBand)
-
-
 
     def insertSourceBand(self, virtualBandIndex, pathSource, sourceBandIndex):
         """
@@ -139,50 +198,57 @@ class VirtualRasterBuilder(QObject):
         :param sourceBandIndex: source file band index
         """
 
-        while virtualBandIndex > len(self.vBands)-1:
-            self.insertVirtualBand(len(self.vBands), VirtualBand())
+        while virtualBandIndex > len(self.mBands)-1:
 
-        vBand = self.vBands[virtualBandIndex]
+            self.insertVirtualBand(len(self.mBands), VRTRasterBand())
+
+        vBand = self.mBands[virtualBandIndex]
         vBand.addSourceBand(pathSource, sourceBandIndex)
 
-    sigSourceAdded = pyqtSignal(VirtualBand, VirtualBandInputSource)
-    sigBandAdded = pyqtSignal(VirtualBand)
-    def insertVirtualBand(self, i, virtualBand):
+
+    def insertVirtualBand(self, index, virtualBand):
         """
         Inserts a VirtualBand
-        :param i: the insert position
+        :param index: the insert position
         :param virtualBand: the VirtualBand to be inserted
         :return: the VirtualBand
         """
-        assert isinstance(virtualBand, VirtualBand)
-        assert i <= len(self.vBands)
+        assert isinstance(virtualBand, VRTRasterBand)
+        assert index <= len(self.mBands)
+        if len(virtualBand.name()) == 0:
+            virtualBand.setName('Band {}'.format(index+1))
         virtualBand.mVRT = self
-        virtualBand.sigSourceBandInserted.connect(lambda sourceBand: self.sigSourceAdded(virtualBand, VirtualBandInputSource))
-        self.vBands.insert(i, virtualBand)
-        self.sigBandAdded.emit(virtualBand)
 
-        return self[i]
+        virtualBand.sigSourceInserted.connect(
+            lambda _, sourceBand: self.sigSourceBandInserted.emit(virtualBand, sourceBand))
+        virtualBand.sigSourceRemoved.connect(
+            lambda _, sourceBand: self.sigSourceBandInserted.emit(virtualBand, sourceBand))
+
+        self.mBands.insert(index, virtualBand)
+        self.sigBandInserted.emit(index, virtualBand)
+
+        return self[index]
 
 
-    sigBandsRemoved = pyqtSignal(list)
+
     def removeVirtualBands(self, bandsOrIndices):
         assert isinstance(bandsOrIndices, list)
         to_remove = []
-        for bandOrIndex in bandsOrIndices:
-            if not isinstance(bandOrIndex, VirtualBand):
-                bandOrIndex = self.vBands[bandOrIndex]
-            to_remove.append(bandOrIndex)
+        for virtualBand in bandsOrIndices:
+            if not isinstance(virtualBand, VRTRasterBand):
+                virtualBand = self.mBands[virtualBand]
+            to_remove.append((self.mBands.index(virtualBand), virtualBand))
 
-        for band in to_remove:
-            self.vBands.remove(band)
+        to_remove = sorted(to_remove, key=lambda t: t[0], reverse=True)
+        for index, virtualBand in to_remove:
+            self.mBands.remove(virtualBand)
+            self.sigBandRemoved.emit(index, virtualBand)
 
-        self.sigBandsRemoved.emit(to_remove)
-        return to_remove
 
 
     def removeVirtualBand(self, bandOrIndex):
-        r = self.removeVirtualBands([bandOrIndex])
-        return r[0]
+        self.removeVirtualBands([bandOrIndex])
+
 
     def addFilesAsMosaic(self, files):
         """
@@ -197,9 +263,9 @@ class VirtualRasterBuilder(QObject):
             for b in range(nb):
                 if b+1 < len(self):
                     #add new virtual band
-                    self.addVirtualBand(VirtualBand())
+                    self.addVirtualBand(VRTRasterBand())
                 vBand = self[b]
-                assert isinstance(vBand, VirtualBand)
+                assert isinstance(vBand, VRTRasterBand)
                 vBand.addSourceBand(file, b)
         return self
 
@@ -217,19 +283,56 @@ class VirtualRasterBuilder(QObject):
             ds = None
             for b in range(nb):
                 #each new band is a new virtual band
-                vBand = self.addVirtualBand(VirtualBand())
-                assert isinstance(vBand, VirtualBand)
-                vBand.addSourceBand(file, b)
+                vBand = self.addVirtualBand(VRTRasterBand())
+                assert isinstance(vBand, VRTRasterBand)
+                vBand.addSource(VRTRasterInputSourceBand(file, b))
         return self
 
-    def sourceFiles(self):
+    def sourceRaster(self):
         files = set()
-        for vBand in self.vBands:
-            assert isinstance(vBand, VirtualBand)
+        for vBand in self.mBands:
+            assert isinstance(vBand, VRTRasterBand)
             files.update(set(vBand.sourceFiles()))
         return sorted(list(files))
 
-    def saveVRT(self, pathVRT, **kwds):
+    def sourceRasterBounds(self):
+        return self.mSourceRasterBounds
+
+    def outputBounds(self):
+        if isinstance(self.mOutputBounds, RasterBounds):
+            return
+            #calculate from source rasters
+
+    def setOutputBounds(self, bounds):
+        assert isinstance(self, RasterBounds)
+        self.mOutputBounds = bounds
+
+
+    def updateSourceRasterBounds(self):
+
+        srcFiles = self.sourceRaster()
+        toRemove = [f for f in self.mSourceRasterBounds.keys() if f not in srcFiles]
+        toAdd = [f for f in srcFiles if f not in self.mSourceRasterBounds.keys()]
+
+        for f in toRemove:
+            del self.mSourceRasterBounds[f]
+        for f in toAdd:
+            self.mSourceRasterBounds[f] = RasterBounds(f)
+
+        if len(srcFiles) > 0 and self.crs() == None:
+            self.setCrs(self.mSourceRasterBounds[srcFiles[0]].crs)
+
+        elif len(srcFiles) == 0:
+            self.setCrs(None)
+
+
+        if len(toRemove) > 0:
+            self.sigSourceRasterRemoved.emit(toRemove)
+        if len(toAdd) > 0:
+            self.sigSourceRasterAdded.emit(toAdd)
+
+
+    def saveVRT(self, pathVRT, resampleAlg=gdal.GRA_NearestNeighbour, **kwds):
         """
         :param pathVRT: path to VRT that is created
         :param options --- can be be an array of strings, a string or let empty and filled from other keywords..
@@ -248,6 +351,8 @@ class VirtualRasterBuilder(QObject):
         :return: gdal.DataSet(pathVRT)
         """
 
+        assert os.path.splitext(pathVRT)[-1].lower() == '.vrt'
+
         _kwds = dict()
         supported = ['options','resolution','outputBounds','xRes','yRes','targetAlignedPixels','addAlpha','resampleAlg',
         'outputSRS','allowProjectionDifference','srcNodata','VRTNodata','hideNodata','callback', 'callback_data']
@@ -255,26 +360,56 @@ class VirtualRasterBuilder(QObject):
             if k in supported:
                 _kwds[k] = kwds[k]
 
+        if 'resampleAlg' not in _kwds:
+            _kwds['resampleAlg'] = resampleAlg
 
-        dn = os.path.dirname(pathVRT)
-        if not os.path.isdir(dn):
-            os.mkdir(dn)
+        if isinstance(self.mOutputBounds, RasterBounds):
+            bounds = self.mOutputBounds.polygon
+            xmin, ymin,xmax, ymax = bounds
+            _kwds['outputBounds'] = (xmin, ymin,xmax, ymax)
 
-        srcFiles = self.sourceFiles()
+        dirVrt = os.path.dirname(pathVRT)
+        dirWarpedVRT = os.path.join(dirVrt, 'WarpedVRTs')
+        if not os.path.isdir(dirVrt):
+            os.mkdir(dirVrt)
+
+        srcLookup = dict()
         srcNodata = None
-        for src in srcFiles:
-            ds = gdal.Open(src)
-            band = ds.GetRasterBand(1)
+        for i, pathSrc in enumerate(self.sourceRaster()):
+            dsSrc = gdal.Open(pathSrc)
+            assert isinstance(dsSrc, gdal.Dataset)
+            band = dsSrc.GetRasterBand(1)
             noData = band.GetNoDataValue()
             if noData and srcNodata is None:
                 srcNodata = noData
+
+            crs = QgsCoordinateReferenceSystem(dsSrc.GetProjection())
+
+            if crs == self.mCrs:
+                srcLookup[pathSrc] = pathSrc
+            else:
+
+                if not os.path.isdir(dirWarpedVRT):
+                    os.mkdir(dirWarpedVRT)
+                pathVRT2 = os.path.join(dirWarpedVRT, 'warped.{}.vrt'.format(os.path.basename(pathSrc)))
+                wops = gdal.WarpOptions(format='VRT',
+                                        dstSRS=self.mCrs.toWkt())
+                tmp = gdal.Warp(pathVRT2, dsSrc, options=wops)
+                assert isinstance(tmp, gdal.Dataset)
+                tmp = None
+                srcLookup[pathSrc] = pathVRT2
+
+
+
+
+        srcFiles = [srcLookup[src] for src in self.sourceRaster()]
 
         vro = gdal.BuildVRTOptions(separate=True, **_kwds)
         #1. build a temporary VRT that described the spatial shifts of all input sources
         gdal.BuildVRT(pathVRT, srcFiles, options=vro)
         dsVRTDst = gdal.Open(pathVRT)
         assert isinstance(dsVRTDst, gdal.Dataset)
-        assert len(srcFiles) == dsVRTDst.RasterCount
+        assert len(srcLookup) == dsVRTDst.RasterCount
         ns, nl = dsVRTDst.RasterXSize, dsVRTDst.RasterYSize
         gt = dsVRTDst.GetGeoTransform()
         crs = dsVRTDst.GetProjectionRef()
@@ -301,8 +436,8 @@ class VirtualRasterBuilder(QObject):
         dsVRTDst.SetGeoTransform(gt)
 
         #2.2. add virtual bands
-        for i, vBand in enumerate(self.vBands):
-            assert isinstance(vBand, VirtualBand)
+        for i, vBand in enumerate(self.mBands):
+            assert isinstance(vBand, VRTRasterBand)
             assert dsVRTDst.AddBand(eType, options=['subClass=VRTSourcedRasterBand']) == 0
             vrtBandDst = dsVRTDst.GetRasterBand(i+1)
             assert isinstance(vrtBandDst, gdal.Band)
@@ -310,9 +445,9 @@ class VirtualRasterBuilder(QObject):
             md = {}
             #add all input sources for this virtual band
             for iSrc, sourceInfo in enumerate(vBand.sources):
-                assert isinstance(sourceInfo, VirtualBandInputSource)
-                bandIndex = sourceInfo.bandIndex
-                xml = SOURCE_TEMPLATES[sourceInfo.path]
+                assert isinstance(sourceInfo, VRTRasterInputSourceBand)
+                bandIndex = sourceInfo.mBandIndex
+                xml = SOURCE_TEMPLATES[srcLookup[sourceInfo.mPath]]
                 xml = re.sub('<SourceBand>1</SourceBand>','<SourceBand>{}</SourceBand>'.format(bandIndex+1), xml)
                 md['source_{}'.format(iSrc)] = xml
             vrtBandDst.SetMetadata(md,'vrt_sources')
@@ -331,26 +466,115 @@ class VirtualRasterBuilder(QObject):
     def __repr__(self):
 
         info = ['VirtualRasterBuilder: {} bands, {} source files'.format(
-            len(self.vBands), len(self.sourceFiles()))]
-        for vBand in self.vBands:
+            len(self.mBands), len(self.sourceRaster()))]
+        for vBand in self.mBands:
             info.append(str(vBand))
         return '\n'.join(info)
 
     def __len__(self):
-        return len(self.vBands)
+        return len(self.mBands)
 
     def __getitem__(self, slice):
-        return self.vBands[slice]
+        return self.mBands[slice]
 
     def __delitem__(self, slice):
         self.removeVirtualBands(self[slice])
 
     def __contains__(self, item):
-        return item in self.vBands
+        return item in self.mBands
 
     def __iter__(self):
         return iter(self.mClasses)
 
+
+
+
+
+class VRTRasterVectorLayer(QgsVectorLayer):
+
+    def __init__(self, vrtRaster, crs=None):
+        assert isinstance(vrtRaster, VRTRaster)
+        if crs is None:
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+
+        uri = 'Polygon?crs={}'.format(crs.authid())
+        super(VRTRasterVectorLayer, self).__init__(uri, 'VRTRaster', 'memory', False)
+        self.mCrs = crs
+        self.mVRTRaster = vrtRaster
+
+        #initialize fields
+        assert self.startEditing()
+        # standard field names, types, etc.
+        fieldDefs = [('oid', QVariant.Int, 'integer'),
+                     ('type', QVariant.String, 'string'),
+                     ('name', QVariant.String, 'string'),
+                     ('path', QVariant.String, 'string'),
+                     ]
+        # initialize fields
+        for fieldDef in fieldDefs:
+            field = QgsField(fieldDef[0], fieldDef[1], fieldDef[2])
+            self.addAttribute(field)
+        self.commitChanges()
+
+        symbol = QgsFillSymbolV2.createSimple({'style': 'no', 'color': 'red', 'outline_color':'black'})
+        self.rendererV2().setSymbol(symbol)
+        self.label().setFields(self.fields())
+        self.label().setLabelField(3,3)
+        self.mVRTRaster.sigSourceRasterAdded.connect(self.onRasterInserted)
+        self.mVRTRaster.sigSourceRasterRemoved.connect(self.onRasterRemoved)
+        self.onRasterInserted(self.mVRTRaster.sourceRaster())
+
+
+    def onRasterInserted(self, listOfNewFiles):
+        assert isinstance(listOfNewFiles, list)
+        if len(listOfNewFiles) == 0:
+            return
+
+        for f in listOfNewFiles:
+            bounds = self.mVRTRaster.sourceRasterBounds()[f]
+            assert isinstance(bounds, RasterBounds)
+            oid = str(id(bounds))
+            geometry =QgsPolygonV2(bounds.polygon)
+            trans = QgsCoordinateTransform(bounds.crs, self.crs())
+            geometry.transform(trans)
+
+
+
+
+            feature = QgsFeature(self.pendingFields())
+            #feature.setGeometry(QgsGeometry(geometry))
+            feature.setGeometry(QgsGeometry.fromWkt(geometry.asWkt()))
+            #feature.setFeatureId(int(oid))
+            feature.setAttribute('oid', oid)
+            feature.setAttribute('type', 'source file')
+            feature.setAttribute('name', str(os.path.basename(f)))
+            feature.setAttribute('path', str(f))
+            #feature.setValid(True)
+            self.startEditing()
+            assert self.dataProvider().addFeatures([feature])
+            assert self.commitChanges()
+            self.updateExtents()
+
+
+    def onRasterRemoved(self, files):
+
+        self.startEditing()
+        self.selectAll()
+        toRemove = []
+        for f in self.selectedFeatures():
+            if f.attribute('path') in files:
+                toRemove.append(f.id())
+        self.setSelectedFeatures(toRemove)
+        self.deleteSelectedFeatures()
+        self.commitChanges()
+        s = ""
+
+
+    def spectralLibrary(self):
+        return self.mVRTRaster
+
+    def nSpectra(self):
+        return len(self.mVRTRaster)
 
 
 
@@ -409,25 +633,96 @@ def createVirtualBandStack(bandFiles, pathVRT):
 from timeseriesviewer.utils import loadUi
 
 class TreeNode(QObject):
+    sigWillAddChildren = pyqtSignal(QObject, int, int)
+    sigAddedChildren = pyqtSignal(QObject, int, int)
+    sigWillRemoveChildren = pyqtSignal(QObject, int, int)
+    sigRemovedChildren = pyqtSignal(QObject, int, int)
+    sigUpdated = pyqtSignal(QObject)
 
-    def __init__(self, parentNode):
+    def __init__(self, parentNode, name=None):
         super(TreeNode, self).__init__()
         self.mParent = parentNode
-        if isinstance(parentNode, TreeNode):
-            parentNode.mChildren.append(self)
+
         self.mChildren = []
-        self.mName = None
+        self.mName = name
         self.mValues = []
         self.mIcon = None
         self.mToolTip = None
+
+
+        if isinstance(parentNode, TreeNode):
+            parentNode.appendChildNodes(self)
+
+    def detach(self):
+        """
+        Detaches this TreeNode from its parent TreeNode
+        :return:
+        """
+        if isinstance(self.mParent, TreeNode):
+            self.mParent.mChildren.remove(self)
+            self.setParentNode(None)
+
+    def appendChildNodes(self, listOfChildNodes):
+        self.insertChildNodes(len(self.mChildren), listOfChildNodes)
+
+    def insertChildNodes(self, index, listOfChildNodes):
+        assert index <= len(self.mChildren)
+        if isinstance(listOfChildNodes, TreeNode):
+            listOfChildNodes = [listOfChildNodes]
+        assert isinstance(listOfChildNodes, list)
+        l = len(listOfChildNodes)
+        idxLast = index+l-1
+        self.sigWillAddChildren.emit(self, index, idxLast)
+        for i, node in enumerate(listOfChildNodes):
+            assert isinstance(node, TreeNode)
+            node.mParent = self
+            # connect node signals
+            node.sigWillAddChildren.connect(self.sigWillAddChildren)
+            node.sigAddedChildren.connect(self.sigAddedChildren)
+            node.sigWillRemoveChildren.connect(self.sigWillRemoveChildren)
+            node.sigRemovedChildren.connect(self.sigRemovedChildren)
+            node.sigUpdated.connect(self.sigUpdated)
+
+            self.mChildren.insert(index+i, node)
+
+        self.sigAddedChildren.emit(self, index, idxLast)
+
+    def removeChildNode(self, node):
+        assert node in self.mChildren
+        i = self.mChildren.index(node)
+        self.removeChildNodes(i, 1)
+
+    def removeChildNodes(self, row, count):
+
+        if row < 0 or count <= 0:
+            return False
+
+        rowLast = row + count - 1
+
+        if rowLast >= self.childCount():
+            return False
+
+        self.sigWillRemoveChildren.emit(self, row, rowLast)
+        to_remove = self.childNodes()[row:rowLast+1]
+        for n in to_remove:
+            self.mChildren.remove(n)
+            #n.mParent = None
+
+        self.sigRemovedChildren.emit(self, row, rowLast)
+
+
 
     def setToolTip(self, toolTip):
         self.mToolTip = toolTip
     def toolTip(self):
         return self.mToolTip
 
-    def parent(self):
+    def parentNode(self):
         return self.mParent
+
+    def setParentNode(self, treeNode):
+        assert isinstance(treeNode, TreeNode)
+        self.mParent = treeNode
 
     def setIcon(self, icon):
         self.mIcon = icon
@@ -455,6 +750,8 @@ class TreeNode(QObject):
     def childCount(self):
         return len(self.mChildren)
 
+    def childNodes(self):
+        return self.mChildren[:]
 
 class SourceRasterFileNode(TreeNode):
 
@@ -467,54 +764,155 @@ class SourceRasterFileNode(TreeNode):
         #populate metainfo
         ds = gdal.Open(path)
         assert isinstance(ds, gdal.Dataset)
+
+        crsNode = TreeNode(self, name='CRS')
+        crs = osr.SpatialReference()
+        crs.ImportFromWkt(ds.GetProjection())
+
+        authInfo = '{}:{}'.format(crs.GetAttrValue('AUTHORITY',0), crs.GetAttrValue('AUTHORITY',1))
+        crsNode.setValues([authInfo,crs.ExportToWkt()])
+        self.bandNode = TreeNode(None, name='Bands')
         for b in range(ds.RasterCount):
             band = ds.GetRasterBand(b+1)
-            bandNode = SourceRasterBandNode(self, b)
-            bandNode.setName('Band {}'.format(b+1))
-            bandNode.setValues([band.GetDescription()])
 
+            inputSource = VRTRasterInputSourceBand(path, b)
+            inputSource.mBandName = band.GetDescription()
+            if inputSource.mBandName in [None,'']:
+                inputSource.mBandName = '{}'.format(b + 1)
+            inputSource.mNoData = band.GetNoDataValue()
+
+            SourceRasterBandNode(self.bandNode, inputSource)
+        self.bandNode.setParentNode(self)
+        self.appendChildNodes(self.bandNode)
+
+    def sourceBands(self):
+        return [n.mSrcBand for n in self.bandNode.mChildren if isinstance(n, SourceRasterBandNode)]
 
 class SourceRasterBandNode(TreeNode):
-    def __init__(self, parentNode, bandIndex):
-        assert isinstance(parentNode, SourceRasterFileNode)
+    def __init__(self, parentNode, vrtRasterInputSourceBand):
+        assert isinstance(vrtRasterInputSourceBand, VRTRasterInputSourceBand)
         super(SourceRasterBandNode, self).__init__(parentNode)
 
-        self.mBandIndex = bandIndex
+        self.mSrcBand = vrtRasterInputSourceBand
+        self.setName(self.mSrcBand.mBandName)
+        #self.setValues([self.mSrcBand.mPath])
+        self.setToolTip('band {}:{}'.format(self.mSrcBand.mBandIndex+1, self.mSrcBand.mPath))
 
-class VirtualBandNode(TreeNode):
+class VRTRasterNode(TreeNode):
+    def __init__(self, parentNode, vrtRaster):
+        assert isinstance(vrtRaster, VRTRaster)
+
+        super(VRTRasterNode, self).__init__(parentNode)
+        self.mVRTRaster = vrtRaster
+        self.mVRTRaster.sigBandInserted.connect(self.onBandInserted)
+        self.mVRTRaster.sigBandRemoved.connect(self.onBandRemoved)
+
+    def onBandInserted(self, index, vrtRasterBand):
+        assert isinstance(vrtRasterBand, VRTRasterBand)
+        i = vrtRasterBand.bandIndex()
+        assert i == index
+        node = VRTRasterBandNode(None, vrtRasterBand)
+        self.insertChildNodes(i, [node])
+
+    def onBandRemoved(self, removedIdx):
+        self.removeChildNodes(removedIdx, 1)
+
+
+class VRTRasterBandNode(TreeNode):
     def __init__(self, parentNode, virtualBand):
-        assert isinstance(virtualBand, VirtualBand)
-        assert isinstance(parentNode, TreeNode) and parentNode.parent() == None
-        super(VirtualBandNode, self).__init__(parentNode)
+        assert isinstance(virtualBand, VRTRasterBand)
+
+        super(VRTRasterBandNode, self).__init__(parentNode)
         self.mVirtualBand = virtualBand
 
         self.setName(virtualBand.name())
 
-
-
+        #self.nodeBands = TreeNode(self, name='Input Bands')
+        #self.nodeBands.setToolTip('Source bands contributing to this virtual raster band')
+        self.nodeBands = self
         virtualBand.sigNameChanged.connect(self.setName)
+        virtualBand.sigSourceInserted.connect(lambda _, src: self.onSourceInserted(src))
+        virtualBand.sigSourceRemoved.connect(self.onSourceRemoved)
+        for src in self.mVirtualBand.sources:
+            self.onSourceInserted(src)
 
-    def onSourceAdded(self, inputSource):
-        assert isinstance(inputSource, VirtualBandInputSource)
+
+    def onSourceInserted(self, inputSource):
+        assert isinstance(inputSource, VRTRasterInputSourceBand)
         assert inputSource.virtualBand() == self.mVirtualBand
         i = self.mVirtualBand.sources.index(inputSource)
-        node = TreeNode(None)
-        node.setName(os.path.basename(inputSource.path))
-        node.setValues([inputSource.path])
-        self.mChildren.insert(i, node)
 
-    def onSourceRemoved(self, inputSource):
-        to_remove = [n for n in self.mChildren if inputSource.path in n.values()]
-        for n in to_remove:
-            self.mChildren.remove(n)
+        node = VRTRasterInputSourceBandNode(None, inputSource)
+        self.nodeBands.insertChildNodes(i, node)
+
+    def onSourceRemoved(self, row, inputSource):
+        assert isinstance(inputSource, VRTRasterInputSourceBand)
+
+        node = self.nodeBands.childNodes()[row]
+        if  node.mSrc != inputSource:
+            s = ""
+        self.nodeBands.removeChildNode(node)
 
 
-class TreeModelBase(QAbstractItemModel):
-    def __init__(self, parent=None):
-        super(TreeModelBase, self).__init__(parent)
+
+
+class VRTRasterInputSourceBandNode(TreeNode):
+    def __init__(self, parentNode, vrtRasterInputSourceBand):
+        assert isinstance(vrtRasterInputSourceBand, VRTRasterInputSourceBand)
+        super(VRTRasterInputSourceBandNode, self).__init__(parentNode)
+
+        self.mSrc = vrtRasterInputSourceBand
+        name = '{}:{}'.format(self.mSrc.mBandIndex+1, os.path.basename(self.mSrc.mPath))
+        self.setName(name)
+        #self.setValues([self.mSrc.mPath, self.mSrc.mBandIndex])
+
+    def sourceBand(self):
+        return self.mSrc
+
+class TreeView(QTreeView):
+
+    def __init__(self, *args, **kwds):
+        super(TreeView, self).__init__(*args, **kwds)
+
+class TreeModel(QAbstractItemModel):
+    def __init__(self, parent=None, rootNode = None):
+        super(TreeModel, self).__init__(parent)
 
         self.mColumnNames = ['Node','Value']
-        self.mRootNode = TreeNode(None)
+        self.mRootNode = rootNode if isinstance(rootNode, TreeNode) else TreeNode(None)
+        self.mRootNode.sigWillAddChildren.connect(self.nodeWillAddChildren)
+        self.mRootNode.sigAddedChildren.connect(self.nodeAddedChildren)
+        self.mRootNode.sigWillRemoveChildren.connect(self.nodeWillRemoveChildren)
+        self.mRootNode.sigRemovedChildren.connect(self.nodeRemovedChildren)
+        self.mRootNode.sigUpdated.connect(self.nodeUpdated)
+
+        self.mTreeView = None
+        if isinstance(parent, QTreeView):
+            self.connectTreeView(parent)
+
+    def nodeWillAddChildren(self, node, idx1, idxL):
+        idxNode = self.node2idx(node)
+        self.beginInsertRows(idxNode, idx1, idxL)
+
+
+    def nodeAddedChildren(self, node, idx1, idxL):
+        self.endInsertRows()
+        #for i in range(idx1, idxL+1):
+        for n in node.childNodes():
+            self.setColumnSpan(node)
+
+    def nodeWillRemoveChildren(self, node, idx1, idxL):
+        idxNode = self.node2idx(node)
+        self.beginRemoveRows(idxNode, idx1, idxL)
+
+    def nodeRemovedChildren(self, node, idx1, idxL):
+        self.endRemoveRows()
+
+
+    def nodeUpdated(self, node):
+        idxNode = self.node2idx(node)
+        self.dataChanged.emit(idxNode, idxNode)
+        self.setColumnSpan(node)
 
     def headerData(self, section, orientation, role):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -530,13 +928,20 @@ class TreeModelBase(QAbstractItemModel):
     def parent(self, index):
         if not index.isValid():
             return QModelIndex()
-        node = index.internalPointer()
-        parentNode = node.parent()
-        if parentNode is None:
+        node = self.idx2node(index)
+        if not isinstance(node, TreeNode):
             return QModelIndex()
-        else:
-            row = parentNode.mChildren.index(node)
-            return self.createIndex(row, 0, parentNode)
+
+        parentNode = node.parentNode()
+        if not isinstance(parentNode, TreeNode):
+            return QModelIndex()
+
+        return self.node2idx(parentNode)
+
+        if node not in parentNode.mChildren:
+            return QModelIndex
+        row = parentNode.mChildren.index(node)
+        return self.createIndex(row, 0, parentNode)
 
     def rowCount(self, index):
 
@@ -554,19 +959,57 @@ class TreeModelBase(QAbstractItemModel):
 
         return len(self.mColumnNames)
 
+    def connectTreeView(self, treeView):
+        self.mTreeView = treeView
+
+    def setColumnSpan(self, node):
+        if isinstance(self.mTreeView, QTreeView) \
+                and isinstance(node, TreeNode) \
+                and isinstance(node.parentNode(), TreeNode) :
+            idxNode = self.node2idx(node)
+            idxParent = self.node2idx(node.parentNode())
+            span = len(node.values()) == 0
+            self.mTreeView.setFirstColumnSpanned(idxNode.row(), idxParent, span)
+            for n in node.childNodes():
+                self.setColumnSpan(n)
+
 
     def index(self, row, column, parentIndex=None):
+
+
 
         if parentIndex is None:
             parentNode = self.mRootNode
         else:
             parentNode = self.idx2node(parentIndex)
+
+        if row < 0 or row >= parentNode.childCount():
+            return QModelIndex()
+        if column < 0 or column >= len(self.mColumnNames):
+            return QModelIndex()
+
         if isinstance(parentNode, TreeNode) and row < len(parentNode.mChildren):
             return self.createIndex(row,column,parentNode.mChildren[row])
         else:
             return QModelIndex()
 
+    def findParentNode(self, node, parentNodeType):
+        assert isinstance(node, TreeNode)
+        while True:
+            if isinstance(node, parentNodeType):
+                return node
+            if not isinstance(node.parentNode(), TreeNode):
+                return None
+            node = node.parentNode()
 
+    def indexes2nodes(self, indexes):
+        assert isinstance(indexes, list)
+        nodes = []
+        for idx in indexes:
+            n = self.idx2node(idx)
+            if n not in nodes:
+                nodes.append(n)
+        return nodes
 
     def idx2node(self, index):
         if not index.isValid():
@@ -579,8 +1022,10 @@ class TreeModelBase(QAbstractItemModel):
         if node == self.mRootNode:
             return QModelIndex()
         else:
-            parentNode = node.parent()
+            parentNode = node.parentNode()
             assert isinstance(parentNode, TreeNode)
+            if node not in parentNode.mChildren:
+                return QModelIndex()
             r = parentNode.mChildren.index(node)
             return self.createIndex(r,0,node)
 
@@ -610,34 +1055,90 @@ class TreeModelBase(QAbstractItemModel):
         node = self.idx2node(index)
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
-class VRTRasterSourceModel(TreeModelBase):
-    def __init__(self, parent=None):
-        super(VRTRasterSourceModel, self).__init__(parent)
 
-        self.mFiles = []
+class RasterBounds(object):
+    def __init__(self, path):
+        self.path = None
+        self.polygon = None
+
+        self.crs = None
+
+        if path is not None:
+            self.fromImage(path)
+
+    def fromRectangle(self, crs, rectangle):
+        assert isinstance(rectangle, QgsRectangle)
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        self.crs = crs
+        self.path = ''
+        s = ""
+
+
+    def fromImage(self, path):
+        self.path = path
+        ds = gdal.Open(path)
+        assert isinstance(ds, gdal.Dataset)
+        gt = ds.GetGeoTransform()
+        bounds = [px2geo(QPoint(0, 0), gt),
+                  px2geo(QPoint(ds.RasterXSize, 0), gt),
+                  px2geo(QPoint(ds.RasterXSize, ds.RasterYSize), gt),
+                  px2geo(QPoint(0, ds.RasterYSize), gt)]
+        crs = QgsCoordinateReferenceSystem(ds.GetProjection())
+        ring = ogr.Geometry(ogr.wkbLinearRing)
+        for p in bounds:
+            assert isinstance(p, QgsPoint)
+            ring.AddPoint(p.x(), p.y())
+        polygon = ogr.Geometry(ogr.wkbPolygon)
+        polygon.AddGeometry(ring)
+        self.polygon = QgsPolygonV2()
+        self.polygon.fromWkt(polygon.ExportToWkt())
+        self.polygon.exteriorRing().close()
+        assert self.polygon.exteriorRing().isClosed()
+
+        self.crs = crs
+
+    def __repr__(self):
+        return self.polygon.ExportToWkt()
+
+class SourceRasterModel(TreeModel):
+    def __init__(self, parent=None):
+        super(SourceRasterModel, self).__init__(parent)
+
         self.mColumnNames = ['File', 'Value']
+
+
+    def files(self):
+        return [n.mPath for n in self.mRootNode.childNodes() if isinstance(n, SourceRasterFileNode)]
 
     def addFile(self, file):
         self.addFiles([file])
 
 
-    def addFiles(self, listOfFiles):
-        assert isinstance(listOfFiles, list)
-        listOfFiles = [os.path.normpath(f) for f in listOfFiles]
-        listOfFiles = [f for f in listOfFiles if f not in self.mFiles and isinstance(gdal.Open(f), gdal.Dataset)]
-        if len(listOfFiles) > 0:
-            rootNode = self.mRootNode
-            rootIndex = self.node2idx(rootNode)
-            r0 = rootNode.childCount()
-
-            self.beginInsertRows(rootIndex, r0,  r0+len(listOfFiles) )
-            for f in listOfFiles:
+    def addFiles(self, newFiles):
+        assert isinstance(newFiles, list)
+        existingFiles = self.files()
+        newFiles = [os.path.normpath(f) for f in newFiles]
+        newFiles = [f for f in newFiles if f not in existingFiles and isinstance(gdal.Open(f), gdal.Dataset)]
+        if len(newFiles) > 0:
+            for f in newFiles:
                 SourceRasterFileNode(self.mRootNode, f)
-            self.endInsertRows()
 
+
+    def file2node(self, file):
+        for node in self.mRootNode.childNodes():
+            if isinstance(node, SourceRasterFileNode) and node.mPath == file:
+                return node
+        return None
 
     def removeFiles(self, listOfFiles):
         assert isinstance(listOfFiles, list)
+
+        toRemove = [n for n in self.mRootNode.childNodes() \
+            if isinstance(n, SourceRasterFileNode) and n.mPath in listOfFiles]
+
+        for n in toRemove:
+            n.parentNode().removeChildNode(n)
+
 
     def flags(self, index):
         if not index.isValid():
@@ -645,12 +1146,16 @@ class VRTRasterSourceModel(TreeModelBase):
 
         node = self.idx2node(index)
 
-        flags = super(VRTRasterSourceModel, self).flags(index)
+        flags = super(SourceRasterModel, self).flags(index)
         #return flags
         if isinstance(node, SourceRasterFileNode) or \
             isinstance(node, SourceRasterBandNode):
             flags |= Qt.ItemIsDragEnabled
         return flags
+
+    def contextMenu(self):
+
+        return None
 
     def mimeTypes(self):
         # specifies the mime types handled by this model
@@ -670,109 +1175,93 @@ class VRTRasterSourceModel(TreeModelBase):
                 nodes.append(n)
 
 
-        bandNodes = []
+        sourceBands = []
 
         for node in nodes:
             if isinstance(node, SourceRasterFileNode):
-                for n in [n for n in node.mChildren if isinstance(n, SourceRasterBandNode)]:
-                    if n not in bandNodes:
-                        bandNodes.append(n)
+                sourceBands.extend(node.sourceBands())
             if isinstance(node, SourceRasterBandNode):
-                if node not in bandNodes:
-                    bandNodes.append(node)
+                sourceBands.append(node.mSrcBand)
 
-        fileNodes = []
-        for n in bandNodes:
-            fileNode = n.parent()
-            assert isinstance(fileNode, SourceRasterFileNode)
-            if fileNode not in fileNodes:
-                fileNodes.append(fileNode)
-
-        uriList = [n.mPath for n in fileNodes]
-        bandList = [(n.parent().mPath, n.mBandIndex) for n in bandNodes]
+        sourceBands = list(OrderedDict.fromkeys(sourceBands))
+        uriList = [sourceBand.mPath for sourceBand in sourceBands]
+        uriList = list(OrderedDict.fromkeys(uriList))
 
         mimeData = QMimeData()
 
-        if len(bandList) > 0:
-            mimeData.setData('hub.vrtbuilder/bandlist', pickle.dumps(bandList))
+        if len(sourceBands) > 0:
+            mimeData.setData('hub.vrtbuilder/bandlist', pickle.dumps(sourceBands))
 
         # set text/uri-list
         if len(uriList) > 0:
             mimeData.setUrls([QUrl(p) for p in uriList])
-            mimeData.setText('\n'.join(uriList))
+            #mimeData.setText('\n'.join(uriList))
         return mimeData
 
 
 
-class VRTModel(TreeModelBase):
-    def __init__(self, parent=None, vrtBuilder=None):
-        super(VRTModel, self).__init__(parent)
+class VRTRasterTreeModel(TreeModel):
+    def __init__(self, parent=None, vrtRaster=None):
 
-        if vrtBuilder is None:
-            vrtBuilder = VirtualRasterBuilder()
+        vrtRaster = vrtRaster if isinstance(vrtRaster, VRTRaster) else VRTRaster()
+        rootNode = VRTRasterNode(None, vrtRaster)
+        super(VRTRasterTreeModel, self).__init__(parent, rootNode=rootNode)
+        self.mVRTRaster = vrtRaster
+        self.mColumnNames = ['Virtual Raster']
+
+    def setData(self, index, value, role):
+        node = self.idx2node(index)
+        col = index.column()
+
+        if role == Qt.EditRole:
+            if isinstance(node, VRTRasterBandNode) and col == 0:
+                if len(value) > 0:
+                    node.setName(value)
+                    return True
+
+
+        return False
+
+    def removeNodes(self, nodes):
+
+        for vBandNode in [n for n in nodes if isinstance(n, VRTRasterBandNode)]:
+            self.mVRTRaster.removeVirtualBand(vBandNode.mVirtualBand)
+
+        for vBandSrcNode in [n for n in nodes if isinstance(n, VRTRasterInputSourceBandNode)]:
+            assert isinstance(vBandSrcNode, VRTRasterInputSourceBandNode)
+            srcBand = vBandSrcNode.mSrc
+
+            srcBand.virtualBand().removeSource(srcBand)
+
+
+    def removeRows(self, row, count, parent):
+        parentNode = self.idx2node(parent)
+
+
+        if isinstance(parentNode, VRTRasterBandNode):
+            #self.beginRemoveRows(parent, row, row+count-1)
+            vBand = parentNode.mVirtualBand
+            for n in parentNode.childNodes()[row:row+count]:
+                vBand.removeSource(n.mSrc)
+            #self.endRemoveRows()
+            return True
         else:
-            assert isinstance(vrtBuilder, VirtualRasterBuilder)
-        self.mVRTBuilder = vrtBuilder
-        self.mVRTBuilder.sigBandAdded.connect(self.onBandAdded)
-        self.mVRTBuilder.sigSourceAdded.connect(self.onSourceAdded)
-
-
-    def vBand2vBandNode(self, virtualBand):
-        assert isinstance(virtualBand, VirtualBand)
-        row = self.mVRTBuilder.vBands.index(virtualBand)
-        return self.mRootNode.mChildren[row]
-
-    def onSourceAdded(self, virtualBand, inputSource):
-        assert isinstance(virtualBand, VirtualBand)
-        assert isinstance(inputSource, VirtualBandInputSource)
-        vBandNode = self.vBand2vBandNode(virtualBand)
-        assert isinstance(vBandNode, VirtualBandNode)
-        idx = self.node2idx(vBandNode)
-        row = virtualBand.bandIndex()
-        self.beginInsertRows(idx, row, row)
-        node = TreeNode(None)
-        node.setName(os.path.basename(inputSource.path))
-        node.setValues([inputSource.path])
-        vBandNode.mChildren.insert(row, node)
-        self.endInsertRows()
-
-    def onBandAdded(self, virtualBand):
-        assert isinstance(virtualBand, VirtualBand)
-
-        i = virtualBand.bandIndex()
-        rootNode = self.mRootNode
-        rootIdx = self.node2idx(self.mRootNode)
-        self.beginInsertRows(rootIdx, i, i)
-        vBandNode = VirtualBandNode(self.mRootNode, virtualBand)
-
-        #self.mRootNode.mChildren.insert(i, vBandNode)
-        self.endInsertRows()
-
-        virtualBand.sigSourceBandInserted.connect(self.onSourceBandInserted)
-        for inputSource in virtualBand.sources:
-            self.onSourceBandInserted(inputSource)
-
-    def onSourceBandInserted(self, sourceBand):
-        assert isinstance(sourceBand, VirtualBandInputSource)
-
-        vBand = sourceBand.virtualBand()
-        assert isinstance(vBand, VirtualBand)
-        VRT = vBand.mVRT
-        assert isinstance(VRT, VirtualRasterBuilder)
-
-        i = vBand.sources.index(sourceBand)
-
-        idxParent = self.createIndex(VRT.vBands.index(vBand), 0, vBand)
-        sNode = VirtualBandInputSource
+            return False
 
 
     def flags(self, index):
         if not index.isValid():
-            return Qt.NoItemFlags
+            return Qt.ItemIsDropEnabled
 
+        node = self.idx2node(index)
+        flags = super(VRTRasterTreeModel, self).flags(index)
 
-        flags = super(VRTModel, self).flags(index)
-        flags |= Qt.ItemIsDropEnabled | Qt.ItemIsEditable
+        if isinstance(node, VRTRasterBandNode):
+            flags |= Qt.ItemIsDropEnabled
+            flags |= Qt.ItemIsEditable
+        if isinstance(node, VRTRasterInputSourceBandNode):
+            flags |= Qt.ItemIsDropEnabled
+            flags |= Qt.ItemIsDragEnabled
         return flags
 
     def dragEnterEvent(self, event):
@@ -788,6 +1277,7 @@ class VRTModel(TreeModelBase):
 
     def dropEvent(self, event):
         assert isinstance(event, QDropEvent)
+
         if event.mimeData().hasFormat(u'hub.vrtbuilder/bandlist'):
             parent = self.mRootNode
             p = self.node2idx(parent)
@@ -806,25 +1296,87 @@ class VRTModel(TreeModelBase):
         types.append('hub.vrtbuilder/bandlist')
         return types
 
+
+    def mimeData(self, indexes):
+        indexes = sorted(indexes)
+        nodes = [self.idx2node(i) for i in indexes]
+
+        sourceBands = []
+
+        for node in nodes:
+            if isinstance(node, VRTRasterInputSourceBandNode):
+                sourceBand = node.sourceBand()
+                assert isinstance(sourceBand, VRTRasterInputSourceBand)
+                sourceBands.append(sourceBand)
+
+        sourceBands = list(OrderedDict.fromkeys(sourceBands))
+        uriList = [sourceBand.mPath for sourceBand in sourceBands]
+        uriList = list(OrderedDict.fromkeys(uriList))
+
+        mimeData = QMimeData()
+
+        if len(sourceBands) > 0:
+            mimeData.setData('hub.vrtbuilder/bandlist', pickle.dumps(sourceBands))
+
+        # set text/uri-list
+        if len(uriList) > 0:
+            mimeData.setUrls([QUrl(p) for p in uriList])
+            mimeData.setText('\n'.join(uriList))
+
+        return mimeData
+
+
+
     def dropMimeData(self, mimeData, action, row, column, parentIndex):
+        if action == Qt.IgnoreAction:
+            return True
+
         assert isinstance(mimeData, QMimeData)
         #assert isinstance(action, QDropEvent)
-        bands = []
+        sourceBands = []
 
         if u'hub.vrtbuilder/bandlist' in mimeData.formats():
             dump = mimeData.data(u'hub.vrtbuilder/bandlist')
-            bands = pickle.loads(dump)
+            sourceBands = pickle.loads(dump)
 
-        parentNode = self.idx2node(parentIndex)
-        if parentNode == self.mRootNode:
-            #add VRT band per band
-            for band in bands:
-                path, bandIndex = band
-                vBand = VirtualBand()
-                vBand.addSourceBand(path, bandIndex)
-                self.mVRTBuilder.addVirtualBand(vBand)
+        if u'hub.vrtbuilder/vrt.indices' in mimeData.formats():
+            dump = mimeData.data(u'hub.vrtbuilder/vrt.indices')
+            indices = pickle.loads(dump)
             s = ""
-        s = ""
+
+            if action == Qt.MoveAction:
+                s = ""
+
+        if len(sourceBands) == 0:
+            return False
+        parentNode = self.idx2node(parentIndex)
+        if isinstance(parentNode,VRTRasterNode):
+            #add VRT band per band
+            for sourceBand in sourceBands:
+                assert isinstance(sourceBand, VRTRasterInputSourceBand)
+                vBand = VRTRasterBand()
+                vBand.addSource(sourceBand)
+                self.mVRTRaster.addVirtualBand(vBand)
+            return True
+
+        if isinstance(parentNode, VRTRasterInputSourceBandNode):
+            #insert after this node
+            row = parentNode.parentNode().mChildren.index(parentNode)+1
+            parentNode = parentNode.parentNode()
+
+        if isinstance(parentNode, VRTRasterBandNode):
+            vBand = parentNode.mVirtualBand
+            assert isinstance(vBand, VRTRasterBand)
+            if row < 0:
+                row = 0
+            for sourceBand in sourceBands:
+                vBand.insertSource(row, sourceBand)
+                row += 1
+            return True
+
+
+            s = ""
+        return False
 
     def supportedDragActions(self):
         return Qt.CopyAction | Qt.MoveAction
@@ -832,20 +1384,147 @@ class VRTModel(TreeModelBase):
     def supportedDropActions(self):
         return Qt.CopyAction | Qt.MoveAction
 
-class VirtualRasterBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
+class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
 
     def __init__(self, parent=None):
-        super(VirtualRasterBuilderWidget, self).__init__(parent)
+        super(VRTBuilderWidget, self).__init__(parent)
         self.setupUi(self)
-        self.sourceFileModel = VRTRasterSourceModel()
-        self.treeViewSourceFiles.setModel(self.sourceFileModel)
+        self.sourceFileModel = SourceRasterModel(parent=self.treeViewSourceFiles)
 
-        self.vrtBuilder = VirtualRasterBuilder()
-        self.vrtBuilderModel = VRTModel(parent=self, vrtBuilder=self.vrtBuilder)
+        self.treeViewSourceFiles.setModel(self.sourceFileModel)
+        self.treeViewSourceFiles.selectionModel().selectionChanged.connect(self.onSrcModelSelectionChanged)
+
+        self.mCrsManuallySet = False
+        self.mBoundsManuallySet = False
+
+        self.tbNoData.setValidator(QDoubleValidator())
+
+        self.tbOutputPath.textChanged.connect(self.onOutputPathChanged)
+
+        filter='GDAL Virtual Raster (*.vrt);;GeoTIFF (*.tiff *.tif);;ENVI (*.bsq *.bil *.bip)'
+        self.btnSelectVRTPath.clicked.connect(lambda :
+                                              self.tbOutputPath.setText(
+                                                  QFileDialog.getSaveFileName(self,
+                                                                              directory=self.tbOutputPath.text(),
+                                                                              caption='Select output image',
+                                                                              filter=filter)
+                                              ))
+        self.buttonBox.button(QDialogButtonBox.Ok).clicked.connect(self.saveFile)
+        self.vrtRaster = VRTRaster()
+        self.vrtRasterLayer = VRTRasterVectorLayer(self.vrtRaster)
+        QgsMapLayerRegistry.instance().addMapLayer(self.vrtRasterLayer)
+
+        assert isinstance(self.previewMap, QgsMapCanvas)
+        self.previewMap.setLayerSet([QgsMapCanvasLayer(self.vrtRasterLayer)])
+        self.previewMap.contextMenuEvent = self.mapCanvasContextMenuEvent
+        self.vrtRaster.sigCrsChanged.connect(self.updateSummary)
+        self.vrtRaster.sigSourceBandInserted.connect(self.updateSummary)
+        self.vrtRaster.sigSourceBandRemoved.connect(self.updateSummary)
+
+        self.vrtRaster.sigBandInserted.connect(self.updateSummary)
+        self.vrtRaster.sigBandRemoved.connect(self.updateSummary)
+
+        self.vrtRaster.sigSourceRasterAdded.connect(self.mapRefresh)
+        self.vrtBuilderModel = VRTRasterTreeModel(parent=self.treeViewVRT, vrtRaster=self.vrtRaster)
         self.treeViewVRT.setModel(self.vrtBuilderModel)
-        self.treeViewVRT.dragEnterEvent = self.vrtBuilderModel.dragEnterEvent
-        self.treeViewVRT.dragMoveEvent = self.vrtBuilderModel.dragMoveEvent
-        self.treeViewVRT.dropEvent = self.vrtBuilderModel.dropEvent
+        self.treeViewVRT.selectionModel().selectionChanged.connect(self.onVRTModelSelectionChanged)
+        #self.vrtBuilderModel.redirectDropEvent(self.treeViewVRT)
+        #self.treeViewVRT.dragEnterEvent = self.vrtBuilderModel.dragEnterEvent
+        #self.treeViewVRT.dragMoveEvent = self.vrtBuilderModel.dragMoveEvent
+
+
+
+        self.treeViewVRT.setAutoExpandDelay(50)
+        self.treeViewVRT.setDragEnabled(True)
+        self.treeViewVRT.contextMenuEvent = self.vrtTreeViewContextMenuEvent
+
+
+        self.btnExpandAllVRT.clicked.connect(lambda :self.expandNodes(self.treeViewVRT, True))
+        self.btnCollapseAllVRT.clicked.connect(lambda: self.expandNodes(self.treeViewVRT, False))
+
+        self.btnExpandAllSrc.clicked.connect(lambda :self.expandNodes(self.treeViewSourceFiles, True))
+        self.btnCollapseAllSrc.clicked.connect(lambda: self.expandNodes(self.treeViewSourceFiles, False))
+
+        self.btnAddVirtualBand.clicked.connect(lambda : self.vrtRaster.addVirtualBand(VRTRasterBand(name='Band {}'.format(len(self.vrtRaster)+1))))
+        self.btnRemoveVirtualBands.clicked.connect(lambda : self.vrtBuilderModel.removeNodes(
+                                                   self.vrtBuilderModel.indexes2nodes(self.treeViewVRT.selectedIndexes())
+                                                    )
+                                                   )
+        self.btnAddFromRegistry.clicked.connect(self.loadSrcFromMapLayerRegistry)
+        self.btnAddSrcFiles.clicked.connect(lambda :
+                                            self.sourceFileModel.addFiles(
+                                                QFileDialog.getOpenFileNames(self, "Open raster images",
+                                                                            directory='')
+                                            ))
+
+        self.btnRemoveSrcFiles.clicked.connect(lambda : self.sourceFileModel.removeFiles(
+            [n.mPath for n in self.selectedSourceFileNodes()]
+        ))
+
+        self.mQgsProjectionSelectionWidget.dialog().setMessage('Set VRT CRS')
+        self.mQgsProjectionSelectionWidget.crsChanged.connect(self.vrtRaster.setCrs)
+
+
+
+    def loadSrcFromMapLayerRegistry(self):
+
+        reg = QgsMapLayerRegistry.instance()
+        for lyr in reg.mapLayers().values():
+            if isinstance(lyr, QgsRasterLayer):
+                self.sourceFileModel.addFile(lyr.source())
+
+
+    def expandNodes(self, treeView, expand):
+        assert isinstance(treeView, QTreeView)
+
+        indices = treeView.selectedIndexes()
+        if len(indices) == 0:
+            treeView.selectAll()
+            indices += treeView.selectedIndexes()
+            treeView.clearSelection()
+        for idx in indices:
+            treeView.setExpanded(idx, expand)
+
+
+    def onVRTModelSelectionChanged(self, selected, deselected):
+
+        self.btnRemoveVirtualBands.setEnabled(selected.count() > 0)
+
+    def selectedSourceFileNodes(self):
+
+        indexes =  self.treeViewSourceFiles.selectionModel().selectedIndexes()
+        selectedFileNodes = [self.sourceFileModel.idx2node(idx) for idx in indexes]
+        return [n for n in selectedFileNodes if isinstance(n, SourceRasterFileNode)]
+
+
+    def saveFile(self):
+        path = self.tbOutputPath.text()
+        ext = os.path.splitext(path)[-1]
+
+        saveBinary = ext != '.vrt'
+        if saveBinary:
+            pathVrt = path+'.vrt'
+        else:
+            pathVrt = path
+
+
+        self.vrtRaster.saveVRT(pathVrt)
+
+
+    def onOutputPathChanged(self, path):
+        assert isinstance(self.buttonBox, QDialogButtonBox)
+        isEnabled = False
+        if len(path) > 0:
+            ext = os.path.splitext(path)[-1].lower()
+            isEnabled = ext in ['.vrt', '.bsq', '.tif', '.tiff']
+
+        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(isEnabled)
+
+
+    def onSrcModelSelectionChanged(self, selected, deselected):
+
+        self.btnRemoveSrcFiles.setEnabled(len(self.selectedSourceFileNodes()) > 0)
+        s = ""
 
 
     def addSourceFiles(self, files):
@@ -855,21 +1534,85 @@ class VirtualRasterBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         """
         self.sourceFileModel.addFiles(files)
 
+    def updateSummary(self):
+
+
+        self.tbSourceFileCount.setText('{}'.format(len(self.vrtRaster.sourceRaster())))
+        self.tbVRTBandCount.setText('{}'.format(len(self.vrtRaster)))
+
+        crs = self.vrtRaster.crs()
+        if isinstance(crs, QgsCoordinateReferenceSystem):
+            self.previewMap.setDestinationCrs(crs)
+            if crs != self.mQgsProjectionSelectionWidget.crs():
+                self.mQgsProjectionSelectionWidget.setCrs(crs)
+        self.mapRefresh()
+
+    def mapCanvasContextMenuEvent(self, event):
+        menu = QMenu()
+        action = menu.addAction('Refresh')
+        action.triggered.connect(self.previewMap.refresh)
+
+        action = menu.addAction('Reset')
+        action.triggered.connect(self.mapRefresh)
+
+        menu.exec_(event.globalPos())
+
+
+    def vrtTreeViewContextMenuEvent(self, event):
+
+        idx = self.treeViewVRT.indexAt(event.pos())
+        if not idx.isValid():
+            pass
+
+        nodes = self.vrtBuilderModel.indexes2nodes(self.treeViewVRT.selectedIndexes())
+        menu = QMenu(self.treeViewVRT)
+        a = menu.addAction('Remove')
+        a.triggered.connect(lambda: self.vrtBuilderModel.removeNodes(nodes))
+
+        a = menu.addAction('Move map to')
+
+        menu.exec_(self.treeViewVRT.viewport().mapToGlobal(event.pos()))
+        """
+        if (menu & & menu->actions().count() != 0 )
+        menu->exec (mapToGlobal(event->pos() ) );
+        delete
+        menu;
+        """
+
+    def mapRefresh(self):
+        extent = self.vrtRasterLayer.extent()
+        if isinstance(extent, QgsRectangle):
+            extent.scale(1.05)
+            self.previewMap.setExtent(extent)
+            self.previewMap.refresh()
+
+
+        s = ""
 if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import utils
+    from timeseriesviewer import utils, DIR_EXAMPLES
     qgsApp = utils.initQgisApplication()
 
-    from example.Images import Img_2014_03_20_LC82270652014079LGN00_BOA, Img_2014_04_29_LE72270652014119CUB00_BOA
+    from example.Images import Img_2014_03_20_LC82270652014079LGN00_BOA, re_2014_08_17
 
-    w = VirtualRasterBuilderWidget()
-    w.addSourceFiles([Img_2014_03_20_LC82270652014079LGN00_BOA, Img_2014_04_29_LE72270652014119CUB00_BOA])
+    #r = VRTRaster()
+    #r.addFilesAsStack([Img_2014_03_20_LC82270652014079LGN00_BOA, Img_2014_04_29_LE72270652014119CUB00_BOA])
+    #print(r.sourceRasterBounds())
 
-    w.vrtBuilder.addVirtualBand(VirtualBand(name='Band 1'))
+
+    w = VRTBuilderWidget()
+    p1 = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
+    p2 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/re_2014-06-25.tif'
+    p3 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/2014-08-27_LC82270652014239LGN00_BOA.tif'
+    w.addSourceFiles([p1, p2, p3])
+    w.vrtRaster.addFilesAsStack([p1, p2, p3])
 
     w.show()
+    pathTmp = os.path.join(DIR_EXAMPLES, 'test.vrt')
+    w.vrtRaster.saveVRT(pathTmp)
+    # w.vrtBuilder.addVirtualBand(VRTRasterBand(name='Band 1'))
 
     qgsApp.exec_()
     qgsApp.exitQgis()
