@@ -36,8 +36,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 
-DIR_REPO = os.path.normpath(os.path.split(inspect.getfile(inspect.currentframe()))[0])
-DIR_SITE_PACKAGES = None
+
 class TimeSeriesViewerPlugin:
 
     def __init__(self, iface):
@@ -50,14 +49,11 @@ class TimeSeriesViewerPlugin:
 
     def initGui(self):
         self.toolbarActions = []
-        syspaths = [os.path.normpath(p) for p in sys.path]
-        if DIR_REPO not in syspaths: sys.path.append(DIR_REPO)
 
-        #import timeseriesviewer.ui.resources_py2
-        #timeseriesviewer.ui.resources_py2.qInitResources()
-        # add platform independent site-packages
-        if DIR_SITE_PACKAGES:
-            site.addsitedir(DIR_SITE_PACKAGES)
+        dir_repo = os.path.dirname(__file__)
+        site.addsitedir(dir_repo)
+        site.addsitedir(os.path.join(dir_repo, 'site-packages'))
+
 
         import timeseriesviewer
         # init main UI

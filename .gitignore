@@ -2,6 +2,7 @@
 .idea/
 .idea/*
 deploy/
+deploy/*
 temp/
 
 example/*.aux.xml
