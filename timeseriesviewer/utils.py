@@ -705,8 +705,6 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         return QgsApplication.instance()
     else:
 
-
-
         if PATH_QGIS is None:
             # find QGIS Path
             if sys.platform == 'darwin':
@@ -736,11 +734,10 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         return qgsApp
 
 
-
 if __name__ == '__main__':
     #nice predecessors
     from timeseriesviewer.sandbox import initQgisEnvironment
-    qgsApp = initQgisEnvironment()
+    qgsApp = initQgisApplication()
     se = SpatialExtent.world()
     assert nicePredecessor(26) == 25
     assert nicePredecessor(25) == 25

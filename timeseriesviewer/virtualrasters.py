@@ -497,7 +497,7 @@ class VRTRasterVectorLayer(QgsVectorLayer):
         if crs is None:
             crs = QgsCoordinateReferenceSystem('EPSG:4326')
 
-        uri = 'Polygon?crs={}'.format(crs.authid())
+        uri = 'Linestring?crs={}'.format(crs.authid())
         super(VRTRasterVectorLayer, self).__init__(uri, 'VRTRaster', 'memory', False)
         self.mCrs = crs
         self.mVRTRaster = vrtRaster
@@ -535,6 +535,7 @@ class VRTRasterVectorLayer(QgsVectorLayer):
             assert isinstance(bounds, RasterBounds)
             oid = str(id(bounds))
             geometry =QgsPolygonV2(bounds.polygon)
+            #geometry = QgsCircularStringV2(bounds.curve)
             trans = QgsCoordinateTransform(bounds.crs, self.crs())
             geometry.transform(trans)
 
@@ -1060,7 +1061,7 @@ class RasterBounds(object):
     def __init__(self, path):
         self.path = None
         self.polygon = None
-
+        self.curve = None
         self.crs = None
 
         if path is not None:
@@ -1088,6 +1089,12 @@ class RasterBounds(object):
         for p in bounds:
             assert isinstance(p, QgsPoint)
             ring.AddPoint(p.x(), p.y())
+
+        curve = ogr.Geometry(ogr.wkbLinearRing)
+        curve.AddGeometry(ring)
+        self.curve = QgsCircularStringV2()
+        self.curve.fromWkt(curve.ExportToWkt())
+
         polygon = ogr.Geometry(ogr.wkbPolygon)
         polygon.AddGeometry(ring)
         self.polygon = QgsPolygonV2()
@@ -1417,6 +1424,12 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         assert isinstance(self.previewMap, QgsMapCanvas)
         self.previewMap.setLayerSet([QgsMapCanvasLayer(self.vrtRasterLayer)])
         self.previewMap.contextMenuEvent = self.mapCanvasContextMenuEvent
+
+        self.previewMapTool = QgsMapToolEmitPoint(self.previewMap)
+        self.previewMapTool.canvasClicked.connect(self.onMapFeatureIdentified)
+
+        self.previewMap.setMapTool(self.previewMapTool)
+
         self.vrtRaster.sigCrsChanged.connect(self.updateSummary)
         self.vrtRaster.sigSourceBandInserted.connect(self.updateSummary)
         self.vrtRaster.sigSourceBandRemoved.connect(self.updateSummary)
@@ -1464,7 +1477,27 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         self.mQgsProjectionSelectionWidget.dialog().setMessage('Set VRT CRS')
         self.mQgsProjectionSelectionWidget.crsChanged.connect(self.vrtRaster.setCrs)
 
+    @pyqtSlot(QgsFeature)
+    def onMapFeatureIdentified(self, point, button):
+        assert isinstance(point, QgsPoint)
+        if self.sender() == self.previewMapTool:
+            searchRadius = (QgsTolerance.toleranceInMapUnits(5, self.vrtRasterLayer,
+                                    self.previewMap.mapRenderer(), QgsTolerance.Pixels))
+            if button == Qt.LeftButton:
+                rect = QgsRectangle()
+                lyr = self.vrtRasterLayer
+                lyr.setSelectedFeatures([])
+                rect.setXMinimum(point.x() - searchRadius);
+                rect.setXMaximum(point.x() + searchRadius);
+                rect.setYMinimum(point.y() - searchRadius);
+                rect.setYMaximum(point.y() + searchRadius);
+                lyr.select(rect, True)
+                #for feature in lyr.selectedFeatures():
+            # do something with the feature
 
+            #id = qgsFeature.id()
+           # self.vrtRasterLayer.setSelectedFeatures([id])
+        f = ""
 
     def loadSrcFromMapLayerRegistry(self):
 
@@ -1490,12 +1523,17 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
 
         self.btnRemoveVirtualBands.setEnabled(selected.count() > 0)
 
+        self.vrtRasterLayer.setSelectedFeatures([])
+
     def selectedSourceFileNodes(self):
 
         indexes =  self.treeViewSourceFiles.selectionModel().selectedIndexes()
         selectedFileNodes = [self.sourceFileModel.idx2node(idx) for idx in indexes]
         return [n for n in selectedFileNodes if isinstance(n, SourceRasterFileNode)]
 
+    def setSelectedSourceFiles(self, sourceFiles):
+
+        pass
 
     def saveFile(self):
         path = self.tbOutputPath.text()
@@ -1553,7 +1591,7 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         action.triggered.connect(self.previewMap.refresh)
 
         action = menu.addAction('Reset')
-        action.triggered.connect(self.mapRefresh)
+        action.triggered.connect(self.mapReset)
 
         menu.exec_(event.globalPos())
 
@@ -1579,6 +1617,11 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         menu;
         """
 
+    def mapReset(self):
+
+        self.mapRefresh()
+        self.vrtRasterLayer.setSelectedFeatures([])
+
     def mapRefresh(self):
         extent = self.vrtRasterLayer.extent()
         if isinstance(extent, QgsRectangle):
@@ -1600,7 +1643,31 @@ if __name__ == '__main__':
     #r = VRTRaster()
     #r.addFilesAsStack([Img_2014_03_20_LC82270652014079LGN00_BOA, Img_2014_04_29_LE72270652014119CUB00_BOA])
     #print(r.sourceRasterBounds())
+    if False:
+        drv = gdal.GetDriverByName('MEM')
+        ds = drv.Create('', 50, 100, 0, gdal.GDT_Byte)
+        from osgeo import gdal_array
+        assert isinstance(ds, gdal.Dataset)
 
+        import numpy as np
+        data = np.ones((100,50), dtype=np.byte)
+        dPt = data.__array_interface__['data']
+
+        ns, nl, nb = ds.RasterXSize, ds.RasterYSize, ds.RasterCount
+        #path = 'MEM:::DATAPOINTER={dPt},PIXELS={ns},LINES={nl},BANDS={nb},DATATYPE={dt},PIXELOFFSET=1,LINEOFFSET=300,BANDOFFSET=1'.format(
+        #    dPt=dPt, ns=ns, nl=nl, nb=nb, dt=dt)
+        ds.AddBand(gdal.GDT_Byte)
+        band = ds.GetRasterBand(1)
+        band.WriteArray(data)
+
+        arr2 = band.ReadAsArray()
+        dPt2 = arr2.__array_interface__['data']
+
+        s = ""
+        #ds2= gdal.Open(path, gdal.GA_ReadOnly)
+        band2 = ds2.GetRasterBand(1)
+        data = band2.ReadAsArray()
+        s = ""
 
     w = VRTBuilderWidget()
     p1 = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'

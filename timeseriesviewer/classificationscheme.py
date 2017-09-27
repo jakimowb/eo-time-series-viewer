@@ -318,7 +318,7 @@ class ClassificationWidgetDelegates(QStyledItemDelegate):
     def onDoubleClick(self, idx):
         model = self.tableView.model()
         classInfo = model.getClassInfoFromIndex(idx)
-        if idx.column() == model.columnNames.index(model.cCOLOR):
+        if idx.column() == model.variableNames.index(model.cCOLOR):
 
             w1 = QColorDialog(classInfo.mColor, self.tableView)
             w1.exec_()
@@ -331,7 +331,7 @@ class ClassificationWidgetDelegates(QStyledItemDelegate):
     def getColumnName(self, index):
         assert index.isValid()
         assert isinstance(index.model(), ClassificationSchemeTableModel)
-        return index.model().columnNames[index.column()]
+        return index.model().variableNames[index.column()]
 
     def createEditor(self, parent, option, index):
         cname = self.getColumnName(index)
@@ -405,7 +405,7 @@ class ClassificationSchemeWidget(QWidget, loadUi('classificationscheme.ui')):
     def onTableDoubleClick(self, idx):
         model = self.tableClassificationScheme.model()
         classInfo = model.getClassInfoFromIndex(idx)
-        if idx.column() == model.columnNames.index(model.cCOLOR):
+        if idx.column() == model.variableNames.index(model.cCOLOR):
 
             c = QColorDialog.getColor(classInfo.mColor, self.tableClassificationScheme, \
                                       'Set class color')

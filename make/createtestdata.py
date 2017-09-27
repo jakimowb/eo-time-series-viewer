@@ -14,7 +14,7 @@ from timeseriesviewer import *
 from timeseriesviewer.utils import *
 from timeseriesviewer import file_search
 from timeseriesviewer.timeseries import *
-from timeseriesviewer.virtualrasters import VirtualBandInputSource, VirtualBand, VirtualRasterBuilder
+from timeseriesviewer.virtualrasters import VRTRasterInputSourceBand, VRTRasterBand, VRTRaster
 
 def groupCBERS(dirIn, dirOut, pattern='CBERS*.tif'):
     files = file_search(dirIn, pattern, recursive=True)
@@ -45,13 +45,13 @@ def groupCBERS(dirIn, dirOut, pattern='CBERS*.tif'):
 
         pathVRT = id + '.vrt'
         pathVRT = os.path.join(dirOut, pathVRT)
-        V = VirtualRasterBuilder()
+        V = VRTRaster()
 
         #vrt = createVirtualBandStack(bandSources, pathVRT)
         #add bands in sorted order
         for bandName in sorted(bandSources.keys()):
             vBandSources = bandSources[bandName]
-            VB = VirtualBand(name=bandName)
+            VB = VRTRasterBand(name=bandName)
             for path in vBandSources:
                 VB.addSourceBand(path, 0) #it's always one band only
 
@@ -107,13 +107,13 @@ def groupLandsat(dirIn, dirOut, pattern='L*_sr_band*.img'):
 
         pathVRT = id + '.vrt'
         pathVRT = os.path.join(dirOut, pathVRT)
-        V = VirtualRasterBuilder()
+        V = VRTRaster()
 
         #vrt = createVirtualBandStack(bandSources, pathVRT)
         #add bands in sorted order
         for bandName in sorted(bandSources.keys()):
             vBandSources = bandSources[bandName]
-            VB = VirtualBand(name=bandName)
+            VB = VRTRasterBand(name=bandName)
             for path in vBandSources:
                 VB.addSourceBand(path, 0) #it's always one band only
 
