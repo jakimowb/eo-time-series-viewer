@@ -30,7 +30,7 @@ ABOUT = """
 The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
 """
 
-import os, sys, fnmatch, site
+import os, sys, fnmatch, site, re
 import six, logging
 from qgis.core import *
 from qgis.gui import *
@@ -111,22 +111,29 @@ def icon():
 
 
 
-def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
-    assert rootdir is not None
-    if not os.path.isdir(rootdir):
-        six.print_("Path is not a directory:{}".format(rootdir), file=sys.stderr)
-
+def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
+    assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
+    regType = type(re.compile('.*'))
     results = []
 
     for root, dirs, files in os.walk(rootdir):
         for file in files:
-            if (ignoreCase and fnmatch.fnmatch(file.lower(), wildcard.lower())) \
-                    or fnmatch.fnmatch(file, wildcard):
-                results.append(os.path.join(root, file))
+            if isinstance(pattern, regType):
+                if pattern.search(file):
+                    path = os.path.join(root, file)
+                    results.append(path)
+
+            elif (ignoreCase and fnmatch.fnmatch(file.lower(), pattern.lower())) \
+                    or fnmatch.fnmatch(file, pattern):
+
+                path = os.path.join(root, file)
+                results.append(path)
         if not recursive:
             break
             pass
+
     return results
+
 
 
 
