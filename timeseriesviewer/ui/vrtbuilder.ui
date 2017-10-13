@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>804</width>
+    <width>605</width>
     <height>434</height>
    </rect>
   </property>
@@ -82,6 +82,10 @@
             <property name="text">
              <string>n+</string>
             </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</iconset>
+            </property>
            </widget>
           </item>
           <item>
@@ -91,6 +95,10 @@
             </property>
             <property name="text">
              <string>n-</string>
+            </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</iconset>
             </property>
            </widget>
           </item>
@@ -104,7 +112,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionAdd.png</normaloff>:/timeseriesviewer/icons/mActionAdd.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.png</normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.png</iconset>
             </property>
            </widget>
           </item>
@@ -114,14 +122,14 @@
              <bool>false</bool>
             </property>
             <property name="toolTip">
-             <string>Add virtual band</string>
+             <string>Remove virtual band</string>
             </property>
             <property name="text">
              <string>+</string>
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionRemove.png</normaloff>:/timeseriesviewer/icons/mActionRemove.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.png</normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.png</iconset>
             </property>
            </widget>
           </item>
@@ -275,7 +283,7 @@
            <number>2</number>
           </property>
           <item>
-           <widget class="QgsMapCanvas" name="previewMap">
+           <widget class="VRTRasterPreviewMapCanvas" name="previewMap">
             <property name="interactive">
              <bool>false</bool>
             </property>
@@ -306,6 +314,9 @@
            </property>
            <item>
             <layout class="QHBoxLayout" name="btnBarSrcFiles">
+             <property name="spacing">
+              <number>2</number>
+             </property>
              <item>
               <widget class="QLabel" name="label_9">
                <property name="text">
@@ -334,6 +345,10 @@
                <property name="text">
                 <string>n+</string>
                </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</iconset>
+               </property>
               </widget>
              </item>
              <item>
@@ -343,6 +358,10 @@
                </property>
                <property name="text">
                 <string>n-</string>
+               </property>
+               <property name="icon">
+                <iconset resource="resources.qrc">
+                 <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</iconset>
                </property>
               </widget>
              </item>
@@ -463,12 +482,12 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>494</width>
+                <width>357</width>
                 <height>384</height>
                </rect>
               </property>
               <layout class="QGridLayout" name="gridLayout_2">
-               <item row="7" column="1">
+               <item row="6" column="1">
                 <layout class="QHBoxLayout" name="horizontalLayout_4">
                  <property name="spacing">
                   <number>2</number>
@@ -502,32 +521,6 @@
                    </property>
                   </spacer>
                  </item>
-                 <item>
-                  <widget class="QToolButton" name="btnBoundsFromMap">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                   <property name="toolTip">
-                    <string>Select bounds from map canvas</string>
-                   </property>
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnBoundsFromFile">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                   <property name="toolTip">
-                    <string>Select bounds from spatial file or layer</string>
-                   </property>
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                  </widget>
-                 </item>
                 </layout>
                </item>
                <item row="3" column="1">
@@ -540,18 +533,14 @@
                  </property>
                  <item>
                   <widget class="QCheckBox" name="cbCRSFromInputData">
+                   <property name="toolTip">
+                    <string>Uses the CRS of the first input source for the entire new raster.</string>
+                   </property>
                    <property name="text">
-                    <string>from source files</string>
+                    <string>take from source files</string>
                    </property>
                    <property name="checked">
                     <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QCheckBox" name="cbAllowProjectionDifferences">
-                   <property name="text">
-                    <string>allow projection differences</string>
                    </property>
                   </widget>
                  </item>
@@ -570,7 +559,7 @@
                  </item>
                 </layout>
                </item>
-               <item row="13" column="1">
+               <item row="12" column="1">
                 <widget class="QComboBox" name="comboBox">
                  <item>
                   <property name="text">
@@ -624,14 +613,14 @@
                  </item>
                 </layout>
                </item>
-               <item row="15" column="0">
+               <item row="14" column="0">
                 <widget class="QLabel" name="label_7">
                  <property name="text">
                   <string>Resampling</string>
                  </property>
                 </widget>
                </item>
-               <item row="14" column="1">
+               <item row="13" column="1">
                 <layout class="QHBoxLayout" name="horizontalLayout_3">
                  <property name="bottomMargin">
                   <number>0</number>
@@ -682,14 +671,14 @@
                  </property>
                 </widget>
                </item>
-               <item row="7" column="0">
+               <item row="6" column="0">
                 <widget class="QLabel" name="label_17">
                  <property name="text">
                   <string>Bounds</string>
                  </property>
                 </widget>
                </item>
-               <item row="15" column="1">
+               <item row="14" column="1">
                 <widget class="QComboBox" name="comboBox_2">
                  <item>
                   <property name="text">
@@ -728,7 +717,7 @@
                  </item>
                 </widget>
                </item>
-               <item row="13" column="0">
+               <item row="12" column="0">
                 <widget class="QLabel" name="label_3">
                  <property name="text">
                   <string>Resolution</string>
@@ -742,7 +731,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="16" column="0">
+               <item row="15" column="0">
                 <spacer name="verticalSpacer">
                  <property name="orientation">
                   <enum>Qt::Vertical</enum>
@@ -762,7 +751,7 @@
                  </property>
                 </widget>
                </item>
-               <item row="19" column="1">
+               <item row="18" column="1">
                 <widget class="QDialogButtonBox" name="buttonBox">
                  <property name="standardButtons">
                   <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
@@ -772,11 +761,11 @@
                <item row="5" column="1">
                 <widget class="QgsProjectionSelectionWidget" name="mQgsProjectionSelectionWidget">
                  <property name="enabled">
-                  <bool>true</bool>
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
-               <item row="8" column="1">
+               <item row="7" column="1">
                 <widget class="QFrame" name="gridFrame">
                  <property name="enabled">
                   <bool>false</bool>
@@ -822,28 +811,34 @@
                     </property>
                    </widget>
                   </item>
+                  <item row="1" column="0">
+                   <widget class="QToolButton" name="btnBoundsFromMap">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="toolTip">
+                     <string>Select bounds from map canvas</string>
+                    </property>
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0">
+                   <widget class="QToolButton" name="btnBoundsFromFile">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="toolTip">
+                     <string>Select bounds from spatial file or layer</string>
+                    </property>
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                   </widget>
+                  </item>
                  </layout>
                 </widget>
-               </item>
-               <item row="6" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_7">
-                 <property name="topMargin">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <widget class="QCheckBox" name="cbWarpSrcFiles">
-                   <property name="toolTip">
-                    <string>Warp coordinate reference systems in case of differing input file coordinate systems</string>
-                   </property>
-                   <property name="text">
-                    <string>warp source files if necessary</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
                </item>
               </layout>
              </widget>
@@ -873,9 +868,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QgsMapCanvas</class>
+   <class>VRTRasterPreviewMapCanvas</class>
    <extends>QGraphicsView</extends>
-   <header>qgis.core</header>
+   <header>timeseriesviewer.virtualrasters</header>
   </customwidget>
  </customwidgets>
  <resources>
