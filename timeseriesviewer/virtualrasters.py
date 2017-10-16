@@ -45,6 +45,7 @@ class VRTRasterInputSourceBand(object):
         self.mVirtualBand = None
 
 
+
     def isEqual(self, other):
         if isinstance(other, VRTRasterInputSourceBand):
             return self.mPath == other.mPath and self.mBandIndex == other.mBandIndex
@@ -282,10 +283,15 @@ class VRTRaster(QObject):
             self.sigBandRemoved.emit(index, virtualBand)
 
 
+    def removeInputSource(self, path):
+        assert path in self.sourceRaster()
+        for vBand in self.mBands:
+            assert isinstance(vBand, VRTRasterBand)
+            if path in vBand.sources():
+                vBand.removeSource(path)
 
     def removeVirtualBand(self, bandOrIndex):
         self.removeVirtualBands([bandOrIndex])
-
 
     def addFilesAsMosaic(self, files):
         """
@@ -315,7 +321,7 @@ class VRTRaster(QObject):
         """
         for file in files:
             ds = gdal.Open(file)
-            assert isinstance(ds, gdal.Dataset)
+            assert isinstance(ds, gdal.Dataset), 'Can not open {}'.format(file)
             nb = ds.RasterCount
             ds = None
             for b in range(nb):
@@ -323,6 +329,8 @@ class VRTRaster(QObject):
                 vBand = self.addVirtualBand(VRTRasterBand())
                 assert isinstance(vBand, VRTRasterBand)
                 vBand.addSource(VRTRasterInputSourceBand(file, b))
+
+
         return self
 
     def sourceRaster(self):
@@ -1280,6 +1288,10 @@ class VRTRasterTreeModel(TreeModel):
         srcFileNodes = self.mRootNode.findChildNodes(VRTRasterInputSourceBandNode, recursive=True)
         return self.nodes2indexes(srcFileNodes)
 
+    def removeSources(self, sources):
+        assert isinstance(sources, list)
+        for source in sources:
+            self.mVRTRaster.removeInputSource(source)
 
     def removeNodes(self, nodes):
 
@@ -1631,7 +1643,7 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
 
         self.btnRemoveVirtualBands.setEnabled(selected.count() > 0)
 
-        nodes = [self.vrtBuilderModel.idx2node(idx) for idx in selected]
+        nodes = [self.vrtBuilderModel.idx2node(idx) for idx in selected.indexes()]
         sourceFiles = self.selectedSourceFiles()
         self.setSelectSourceFileLayers(sourceFiles)
 
@@ -1702,12 +1714,21 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         if not idx.isValid():
             pass
 
-        nodes = self.vrtBuilderModel.indexes2nodes(self.treeViewVRT.selectedIndexes())
+        selectedNodes = self.vrtBuilderModel.indexes2nodes(self.treeViewVRT.selectedIndexes())
         menu = QMenu(self.treeViewVRT)
-        a = menu.addAction('Remove')
-        a.triggered.connect(lambda: self.vrtBuilderModel.removeNodes(nodes))
+        a = menu.addAction('Remove bands')
+        a.setToolTip('Remove selected nodes')
+        a.triggered.connect(lambda: self.vrtBuilderModel.removeNodes(selectedNodes))
 
-        a = menu.addAction('Move map to')
+        srcFiles = set()
+        for n in selectedNodes:
+            if isinstance(n, VRTRasterInputSourceBandNode):
+                srcFiles.add(n.sourceBand().mPath)
+
+        if len(srcFiles) > 0:
+            a = menu.addAction('Remove sources')
+            a.setToolTip('Remove all bands from selected source files.')
+            a.triggered.connect(lambda : self.vrtBuilderModel.removeSources(srcFiles))
 
         menu.exec_(self.treeViewVRT.viewport().mapToGlobal(event.pos()))
         """
@@ -1764,9 +1785,21 @@ if __name__ == '__main__':
         s = ""
 
     w = VRTBuilderWidget()
-    p1 = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
-    p2 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/re_2014-06-25.tif'
-    p3 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/2014-08-27_LC82270652014239LGN00_BOA.tif'
+
+    import sys
+
+    if sys.platform == 'darwin':
+
+        p1 = r'/Users/Shared/Multitemp2017/01_Data/RapidEye/re_2012-07-25.vrt'
+        p2 = r'/Users/Shared/Multitemp2017/01_Data/Landsat/LC82270652014207LGN00.vrt'
+        p3 = r'/Users/Shared/Multitemp2017/01_Data/CBERS/CBERS_4_MUX_20150820.vrt'
+
+    else:
+
+        p1 = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
+        p2 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/re_2014-06-25.tif'
+        p3 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/2014-08-27_LC82270652014239LGN00_BOA.tif'
+
     w.addSourceFiles([p1, p2, p3])
     w.vrtRaster.addFilesAsStack([p1, p2, p3])
 

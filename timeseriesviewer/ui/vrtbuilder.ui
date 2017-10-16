@@ -27,7 +27,7 @@
      </property>
      <widget class="QFrame" name="frame">
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
        <enum>QFrame::Raised</enum>
@@ -36,13 +36,22 @@
        <property name="spacing">
         <number>2</number>
        </property>
-       <property name="margin">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
         <number>0</number>
        </property>
        <item>
         <widget class="QFrame" name="btnBarVRT">
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::NoFrame</enum>
          </property>
          <property name="frameShadow">
           <enum>QFrame::Raised</enum>
@@ -51,7 +60,16 @@
           <property name="spacing">
            <number>2</number>
           </property>
-          <property name="margin">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
           <item>
@@ -148,6 +166,9 @@
        </item>
        <item>
         <widget class="QTreeView" name="treeViewVRT">
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
          <property name="dragEnabled">
           <bool>true</bool>
          </property>
@@ -284,6 +305,9 @@
           </property>
           <item>
            <widget class="VRTRasterPreviewMapCanvas" name="previewMap">
+            <property name="frameShape">
+             <enum>QFrame::NoFrame</enum>
+            </property>
             <property name="interactive">
              <bool>false</bool>
             </property>
@@ -299,7 +323,7 @@
        <item>
         <widget class="QTabWidget" name="tabWidgetSettings">
          <property name="currentIndex">
-          <number>3</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="tabSrcFiles">
           <attribute name="title">
@@ -309,7 +333,16 @@
            <property name="spacing">
             <number>2</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
@@ -410,6 +443,9 @@
            </item>
            <item>
             <widget class="QTreeView" name="treeViewSourceFiles">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
              <property name="dragEnabled">
               <bool>true</bool>
              </property>
@@ -434,11 +470,24 @@
            <property name="spacing">
             <number>2</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
-            <widget class="QTextBrowser" name="tbPythonCode"/>
+            <widget class="QTextBrowser" name="tbPythonCode">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -450,11 +499,24 @@
            <property name="spacing">
             <number>2</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
-            <widget class="QTextBrowser" name="tbXMLCode"/>
+            <widget class="QTextBrowser" name="tbXMLCode">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -466,11 +528,23 @@
            <property name="spacing">
             <number>2</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
             <widget class="QScrollArea" name="scrollArea">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
              <property name="horizontalScrollBarPolicy">
               <enum>Qt::ScrollBarAlwaysOff</enum>
              </property>
@@ -482,8 +556,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>357</width>
-                <height>384</height>
+                <width>323</width>
+                <height>405</height>
                </rect>
               </property>
               <layout class="QGridLayout" name="gridLayout_2">
@@ -759,7 +833,7 @@
                 </widget>
                </item>
                <item row="5" column="1">
-                <widget class="QgsProjectionSelectionWidget" name="mQgsProjectionSelectionWidget">
+                <widget class="QgsProjectionSelectionWidget" name="mQgsProjectionSelectionWidget" native="true">
                  <property name="enabled">
                   <bool>false</bool>
                  </property>
