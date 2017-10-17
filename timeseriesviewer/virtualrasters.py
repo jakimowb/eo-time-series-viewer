@@ -396,6 +396,10 @@ class VRTRaster(QObject):
         :return: gdal.DataSet(pathVRT)
         """
 
+        if len(self.mBands) == 0:
+            print('No VRT Inputs defined.')
+            return None
+
         assert os.path.splitext(pathVRT)[-1].lower() == '.vrt'
 
         _kwds = dict()
@@ -693,6 +697,23 @@ class TreeNode(QObject):
 
         if isinstance(parentNode, TreeNode):
             parentNode.appendChildNodes(self)
+
+    def nodeIndex(self):
+        return self.mParent.mChildren.index(self)
+
+    def next(self):
+        i = self.nodeIndex()
+        if i < len(self.mChildren.mChildren):
+            return self.mParent.mChildren[i+1]
+        else:
+            return None
+
+    def previous(self):
+        i = self.nodeIndex()
+        if i > 0:
+            return self.mParent.mChildren[i - 1]
+        else:
+            return None
 
     def detach(self):
         """
@@ -1420,33 +1441,72 @@ class VRTRasterTreeModel(TreeModel):
 
         if len(sourceBands) == 0:
             return False
+
+        #re-order source bands by
+        #1. source file band index
+        #2. source file
+        #create a list like [[file 1 band1, file 2 band1, file 3 band 92],
+        #                    [file 1 band2, file 2 band2, file 3 band 93]
+        #                        . . .
+        #                   ]
+        sourceImages = {}
+        for b in sourceBands:
+            assert isinstance(b, VRTRasterInputSourceBand)
+            if not b.mPath in sourceImages.keys():
+                sourceImages[b.mPath] = []
+            sourceImages[b.mPath].append(b)
+        for p in sourceImages.keys():
+            sourceImages[p] = sorted(sourceImages[p], key=lambda b: b.mBandIndex)
+
+        if len(sourceImages) == 0:
+            return True
+        sourceBands = []
+        while len(sourceImages) > 0:
+            sourceBands.append([])
+            for k in sourceImages.keys():
+                sourceBands[-1].append(sourceImages[k].pop(0))
+                if len(sourceImages[k]) == 0:
+                    del sourceImages[k]
+
+
+        #ensure that we start with a VRTRasterBandNode
         parentNode = self.idx2node(parentIndex)
-        if isinstance(parentNode,VRTRasterNode):
-            #add VRT band per band
-            for sourceBand in sourceBands:
-                assert isinstance(sourceBand, VRTRasterInputSourceBand)
-                vBand = VRTRasterBand()
-                vBand.addSource(sourceBand)
-                self.mVRTRaster.addVirtualBand(vBand)
-            return True
-
         if isinstance(parentNode, VRTRasterInputSourceBandNode):
-            #insert after this node
-            row = parentNode.parentNode().mChildren.index(parentNode)+1
             parentNode = parentNode.parentNode()
+        elif isinstance(parentNode,VRTRasterNode):
+            #1. set first VirtualBand as first input node
+            vBand = VRTRasterBand()
+            self.mVRTRaster.addVirtualBand(vBand)
+            parentNode = self.mRootNode.findChildNodes(VRTRasterBandNode, recursive=False)[0]
 
-        if isinstance(parentNode, VRTRasterBandNode):
-            vBand = parentNode.mVirtualBand
-            assert isinstance(vBand, VRTRasterBand)
-            if row < 0:
-                row = 0
-            for sourceBand in sourceBands:
-                vBand.insertSource(row, sourceBand)
-                row += 1
-            return True
+        assert isinstance(parentNode, VRTRasterBandNode)
+
+        #this is the first virtual band to insert sources in
+        vBand = parentNode.mVirtualBand
+        assert isinstance(vBand, VRTRasterBand)
+        if row < 0:
+            row = 0
+
+        for bands in sourceBands:
+            iSrc = row
+            for src in bands:
+                vBand.insertSource(iSrc, src)
+                iSrc += 1
 
 
-            s = ""
+
+            if bands != sourceBands[-1]:
+                # switch add a new virtual band if the recent vBand is the last one
+                if vBand == self.mVRTRaster.mBands[-1]:
+                    self.mVRTRaster.addVirtualBand(VRTRasterBand())
+
+                # switch to next virtual band
+                vBand = self.mVRTRaster.mBands[self.mVRTRaster.mBands.index(vBand)+1]
+
+        return True
+
+
+        s = ""
         return False
 
     def supportedDragActions(self):
@@ -1492,6 +1552,7 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
 
 
         self.previewMapTool = QgsMapToolEmitPoint(self.previewMap)
+        self.previewMapTool.setCursor(Qt.ArrowCursor)
         self.previewMapTool.canvasClicked.connect(self.onMapFeatureIdentified)
         self.previewMap.setMapTool(self.previewMapTool)
 
@@ -1559,7 +1620,21 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
                 rect.setYMinimum(point.y() - searchRadius);
                 rect.setYMaximum(point.y() + searchRadius);
                 lyr.select(rect, True)
-                newSelection = set([f.id() for f in lyr.selectedFeatures()])
+
+                #select the feature closet to the point
+
+                if True:
+                    geoms = {}
+
+                    for f in lyr.selectedFeatures():
+                        #geoms[f.geometry().convertToType(QGis.Line).distance(QgsGeometry.fromRect(rect))] = f
+                        geoms[f.geometry().area()] = f
+                    if len(geoms) > 0:
+                        newSelection = [geoms[min(geoms.keys())].id()]
+                    else:
+                        newSelection = []
+                else:
+                    newSelection = set([f.id() for f in lyr.selectedFeatures()])
 
                 modifiers = QApplication.keyboardModifiers()
                 if modifiers & Qt.ControlModifier:
@@ -1575,8 +1650,12 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
                     for feature in lyr.dataProvider().getFeatures(featureRequest):
                         files.add(str(feature.attribute('path')))
                     self.setSelectSourceFileNodes(files)
+
                 else:
                     self.setSelectSourceFileNodes(None)
+
+                lyr.setSelectedFeatures(newSelection)
+
 
 
 
@@ -1643,8 +1722,8 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
 
         self.btnRemoveVirtualBands.setEnabled(selected.count() > 0)
 
-        nodes = [self.vrtBuilderModel.idx2node(idx) for idx in selected.indexes()]
         sourceFiles = self.selectedSourceFiles()
+        print(sourceFiles)
         self.setSelectSourceFileLayers(sourceFiles)
 
     def selectedSourceFileNodes(self):
@@ -1654,7 +1733,7 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
         return [n for n in selectedFileNodes if isinstance(n, SourceRasterFileNode)]
 
     def selectedSourceFiles(self):
-        return set(n.mSrc.mPath for n in self.selectedSourceFileNodes())
+        return set(n.mPath for n in self.selectedSourceFileNodes())
 
 
     def saveFile(self):
@@ -1789,19 +1868,21 @@ if __name__ == '__main__':
     import sys
 
     if sys.platform == 'darwin':
-
-        p1 = r'/Users/Shared/Multitemp2017/01_Data/RapidEye/re_2012-07-25.vrt'
-        p2 = r'/Users/Shared/Multitemp2017/01_Data/Landsat/LC82270652014207LGN00.vrt'
-        p3 = r'/Users/Shared/Multitemp2017/01_Data/CBERS/CBERS_4_MUX_20150820.vrt'
+        files = [
+        r'/Users/Shared/Multitemp2017/01_Data/RapidEye/re_2012-07-25.vrt'
+        #p2 = r'/Users/Shared/Multitemp2017/01_Data/Landsat/LC82270652014207LGN00.vrt'
+        ,r'/Users/Shared/Multitemp2017/01_Data/CBERS/CBERS_4_MUX_20150820.vrt'
+        ]
 
     else:
+        files = [
+        r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
+        #,r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/re_2014-06-25.tif'
+        ,r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/2014-08-27_LC82270652014239LGN00_BOA.tif'
+        ]
 
-        p1 = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
-        p2 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/re_2014-06-25.tif'
-        p3 = r'D:/Repositories/QGIS_Plugins/hub-timeseriesviewer/example/Images/2014-08-27_LC82270652014239LGN00_BOA.tif'
-
-    w.addSourceFiles([p1, p2, p3])
-    w.vrtRaster.addFilesAsStack([p1, p2, p3])
+    w.addSourceFiles(files)
+    #w.vrtRaster.addFilesAsStack([p1, p2, p3])
 
     w.show()
     pathTmp = os.path.join(DIR_EXAMPLES, 'test.vrt')
