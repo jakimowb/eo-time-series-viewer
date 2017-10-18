@@ -83,6 +83,8 @@ SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 #print('BASE INIT SITE-packages')
 site.addsitedir(DIR_SITE_PACKAGES)
+import timeseriesviewer.ui.resources
+timeseriesviewer.ui.resources.qInitResources()
 
 OPENGL_AVAILABLE = False
 

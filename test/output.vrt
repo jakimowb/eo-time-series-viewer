@@ -1,0 +1,70 @@
+<VRTDataset rasterXSize="72" rasterYSize="24">
+  <SRS>PROJCS["WGS 84 / UTM zone 21N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-57],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32621"]]</SRS>
+  <GeoTransform>  6.8113989555974805e+05,  3.0000000000000000e+01,  0.0000000000000000e+00, -7.5178171791329700e+05,  0.0000000000000000e+00, -3.0000000000000000e+01</GeoTransform>
+  <VRTRasterBand dataType="Int16" band="1">
+    <Description>BAND ONE</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="2">
+    <Description>Band 2</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="3">
+    <Description>Band 3</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>3</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="4">
+    <Description>Band 4</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>4</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="5">
+    <Description>Band 5</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>5</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="6">
+    <Description>Band 6</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="0" shared="0">D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2014-08-27_LC82270652014239LGN00_BOA.tif</SourceFilename>
+      <SourceBand>6</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="9" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+</VRTDataset>
