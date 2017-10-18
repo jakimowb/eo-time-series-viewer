@@ -823,6 +823,7 @@ class SpatialTemporalVisualization(QObject):
 
 
         self.dockMapViews = self.ui.dockMapViews
+        self.dockMapViewsV2 = self.ui.dockMapViewsV2
         self.MVC = MapViewCollection(self)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
@@ -1196,6 +1197,7 @@ class MapViewCollection(QObject):
         self.STV.TS.sigSensorAdded.connect(self.addSensor)
         self.STV.TS.sigSensorRemoved.connect(self.removeSensor)
         self.ui = spatialTemporalVisualization.dockMapViews
+        self.uiV2 = spatialTemporalVisualization.dockMapViewsV2
         self.btnList = spatialTemporalVisualization.dockMapViews.BVButtonList
         self.scrollArea = spatialTemporalVisualization.dockMapViews.scrollAreaMapViews
         self.scrollAreaContent = spatialTemporalVisualization.dockMapViews.scrollAreaMapsViewDockContent
@@ -1392,6 +1394,32 @@ class MapViewDefinitionUI(QGroupBox, loadUi('mapviewdefinition.ui')):
     def visibility(self):
         return self.actionToggleVisibility.isChecked()
 
+class MapViewDockUIV2(TsvDockWidgetBase, loadUi('mapviewdockV2.ui')):
+
+    def __init__(self, parent=None):
+        super(MapViewDockUIV2, self).__init__(parent)
+        self.setupUi(self)
+        self.baseTitle = self.windowTitle()
+        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
+
+        self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
+        self.btnToggleVisibility.setDefaultAction(self.actionToggleVisibility)
+        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
+        self.btnToggleVectorOverlay.setDefaultAction(self.actionToggleVectorVisibility)
+        self.btnToggleCrosshair.setDefaultAction(self.actionShowCrosshair)
+
+
+    def recentMapView(self):
+
+        pass
+
+
+    def connectMapView(self, mapViewDefinition):
+        self.mMapViewDefinition = mapViewDefinition
+
+    def connectTimeSeries(self, timeseries):
+        pass
+
 
 class MapViewDockUI(TsvDockWidgetBase, loadUi('mapviewdock.ui')):
     def __init__(self, parent=None):
@@ -1402,6 +1430,8 @@ class MapViewDockUI(TsvDockWidgetBase, loadUi('mapviewdock.ui')):
         self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
 
         #self.dockLocationChanged.connect(self.adjustLayouts)
+
+
 
     def toggleLayout(self, p):
         newLayout = None
