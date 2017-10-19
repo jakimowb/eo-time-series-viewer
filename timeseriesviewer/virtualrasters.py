@@ -380,6 +380,36 @@ class VRTRaster(QObject):
         if len(toAdd) > 0:
             self.sigSourceRasterAdded.emit(toAdd)
 
+    def loadVRT(self, pathVRT, bandIndex = None):
+        """
+        Load the VRT definition in pathVRT and appends it to this VRT
+        :param pathVRT:
+        """
+        if pathVRT in [None,'']:
+            return
+
+        if bandIndex is None:
+            bandIndex = len(self.mBands)
+
+        ds = gdal.Open(pathVRT)
+        assert isinstance(ds, gdal.Dataset)
+        assert ds.GetDriver().GetDescription() == 'VRT'
+        from xml.etree import ElementTree
+        for b in range(ds.RasterCount):
+            srcBand = ds.GetRasterBand(b+1)
+            vrtBand = VRTRasterBand(name=srcBand.GetDescription())
+            for key, xml in srcBand.GetMetadata('vrt_sources').items():
+
+                tree = ElementTree.fromstring(xml)
+                srcPath = os.path.normpath(tree.find('SourceFilename').text)
+                srcBandIndex = int(tree.find('SourceBand').text)
+                vrtBand.addSource(VRTRasterInputSourceBand(srcPath, srcBandIndex))
+
+            self.insertVirtualBand(bandIndex, vrtBand)
+            bandIndex += 1
+
+
+
 
     def saveVRT(self, pathVRT, resampleAlg=gdal.GRA_NearestNeighbour, **kwds):
         """
@@ -1707,7 +1737,7 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
                                                                               caption='Select output image',
                                                                               filter=filter)
                                               ))
-        self.buttonBox.button(QDialogButtonBox.Ok).clicked.connect(self.saveFile)
+        self.buttonBox.button(QDialogButtonBox.Save).clicked.connect(self.saveFile)
         self.vrtRaster = VRTRaster()
         self.vrtRasterLayer = VRTRasterVectorLayer(self.vrtRaster)
         self.vrtRasterLayer.dataChanged.connect(self.resetMap)
@@ -1767,6 +1797,13 @@ class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
                                                    self.vrtBuilderModel.indexes2nodes(self.treeViewVRT.selectedIndexes())
                                                     )
                                                    )
+        self.btnLoadVRT.clicked.connect(lambda:
+            self.vrtRaster.loadVRT(
+                str(QFileDialog.getOpenFileName(self, "Open VRT file",
+                                             filter='GDAL Virtual Raster (*.vrt)',
+                                             directory=''))
+            )
+        )
         self.btnAddFromRegistry.clicked.connect(self.loadSrcFromMapLayerRegistry)
         self.btnAddSrcFiles.clicked.connect(lambda :
                                             self.sourceFileModel.addFiles(
@@ -1930,6 +1967,13 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication()
 
     from example.Images import Img_2014_03_20_LC82270652014079LGN00_BOA, re_2014_08_17
+
+    if False:
+        r = VRTRaster()
+        p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\test\output.vrt'
+        r.loadVRT(p)
+
+        exit(0)
 
     #r = VRTRaster()
     #r.addFilesAsStack([Img_2014_03_20_LC82270652014079LGN00_BOA, Img_2014_04_29_LE72270652014119CUB00_BOA])
