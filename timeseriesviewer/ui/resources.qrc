@@ -14,6 +14,7 @@
   <file>icons/mActionAddRasterLayer.png</file>
   <file>icons/mActionAddTS.png</file>
   <file>icons/mActionAddVirtualRaster.png</file>
+  <file>icons/mActionAddVirtualRasterV.png</file>
   <file>icons/mActionAtlasFirst.png</file>
   <file>icons/mActionAtlasLast.png</file>
   <file>icons/mActionAtlasNext.png</file>
@@ -26,6 +27,7 @@
   <file>icons/mActionFileSave.png</file>
   <file>icons/mActionFileSaveAs.png</file>
   <file>icons/mActionIdentify.png</file>
+  <file>icons/mActionImportVirtualRaster.png</file>
   <file>icons/mActionOpenTable.png</file>
   <file>icons/mActionPan.png</file>
   <file>icons/mActionRefresh.png</file>
@@ -34,6 +36,7 @@
   <file>icons/mActionRemoveTS.png</file>
   <file>icons/mActionRemoveTSD.png</file>
   <file>icons/mActionRemoveVirtualRaster.png</file>
+  <file>icons/mActionRemoveVirtualRasterV.png</file>
   <file>icons/mActionSaveTS.png</file>
   <file>icons/mActionShowAllLayers.png</file>
   <file>icons/mActionZoomActual.png</file>
@@ -54,6 +57,8 @@
   <file>icons/mIconRasterMask.png</file>
   <file>icons/mIconRasterRegression.png</file>
   <file>icons/mIconVirtualRaster.png</file>
+  <file>icons/mIconVirtualRaster2.png</file>
+  <file>icons/mIconVirtualRasterV.png</file>
   <file>icons/mapview.png</file>
   <file>icons/mapviewHidden.png</file>
   <file>icons/metadata.png</file>
