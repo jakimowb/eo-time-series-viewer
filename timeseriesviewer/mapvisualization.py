@@ -57,21 +57,23 @@ class MapView(QObject):
         self.mapViewCollection = mapViewCollection
         self.sensorViews = collections.OrderedDict()
         self.spatTempVis = mapViewCollection.STV
-        self.ui = MapViewDefinitionUI(self, parent=parent)
-        self.ui.create()
+        self.ui = None
+        #self.ui = MapViewDefinitionUI(self, parent=parent)
+        #self.ui.create()
 
-        self.setVisibility(True)
+        #self.setVisibility(True)
 
         self.mVectorLayer = None
         self.setVectorLayer(None)
 
         #forward actions with reference to this band view
-        self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
-        self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
-        self.ui.actionShowCrosshair.toggled.connect(self.setShowCrosshair)
-        self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
-        self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
-        self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
+
+        #self.ui.actionRemoveMapView.triggered.connect(lambda: self.sigRemoveMapView.emit(self))
+        #self.ui.actionApplyStyles.triggered.connect(self.applyStyles)
+        #self.ui.actionShowCrosshair.toggled.connect(self.setShowCrosshair)
+        #self.ui.sigShowMapView.connect(lambda: self.sigMapViewVisibility.emit(True))
+        #self.ui.sigHideMapView.connect(lambda: self.sigMapViewVisibility.emit(False))
+        #self.ui.sigVectorVisibility.connect(self.sigVectorVisibility.emit)
 
 
 
@@ -121,11 +123,11 @@ class MapView(QObject):
         s = ""
 
 
-    def setVisibility(self, isVisible):
-        self.ui.setVisibility(isVisible)
+    #def setVisibility(self, isVisible):
+    #    self.ui.setVisibility(isVisible)
 
-    def visibility(self):
-        return self.ui.visibility()
+    #def visibility(self):
+    #    return self.ui.visibility()
 
     def visibleVectorOverlay(self):
         return isinstance(self.mVectorLayer, QgsVectorLayer) and \
@@ -821,10 +823,10 @@ class SpatialTemporalVisualization(QObject):
 
 
 
+        #self.MVC = MapViewCollection(self)
+        #self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
-        self.dockMapViews = self.ui.dockMapViews
-        self.dockMapViewsV2 = self.ui.dockMapViewsV2
-        self.MVC = MapViewCollection(self)
+        self.MVC = self.ui.dockMapViewsV2
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
         self.vectorOverlay = None
@@ -1182,7 +1184,7 @@ class DateViewCollection(QObject):
     def __delitem__(self, slice):
         self.removeDates(self.views[slice])
 
-class MapViewCollection(QObject):
+class DEPR_MapViewCollection(QObject):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
@@ -1347,6 +1349,18 @@ class MapViewCollection(QObject):
 
 
 
+class MapViewDefinitionUIV2(QFrame):
+
+
+    def __init__(self, mapView, parent=None):
+        assert isinstance(mapView, MapView)
+        super(MapViewDefinitionUIV2, self).__init__(parent)
+
+        self.setLayout(QVBoxLayout())
+        self.mMapView = mapView
+
+
+
 class MapViewDefinitionUI(QGroupBox, loadUi('mapviewdefinition.ui')):
 
     sigHideMapView = pyqtSignal()
@@ -1394,10 +1408,15 @@ class MapViewDefinitionUI(QGroupBox, loadUi('mapviewdefinition.ui')):
     def visibility(self):
         return self.actionToggleVisibility.isChecked()
 
-class MapViewDockUIV2(TsvDockWidgetBase, loadUi('mapviewdockV2.ui')):
+class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
+
+    sigMapViewAdded = pyqtSignal(MapView)
+    sigMapViewRemoved = pyqtSignal(MapView)
+    sigSetMapViewVisibility = pyqtSignal(MapView, bool)
+    sigShowProfiles = pyqtSignal(SpatialPoint)
 
     def __init__(self, parent=None):
-        super(MapViewDockUIV2, self).__init__(parent)
+        super(MapViewCollectionDock, self).__init__(parent)
         self.setupUi(self)
         self.baseTitle = self.windowTitle()
         self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
@@ -1408,10 +1427,124 @@ class MapViewDockUIV2(TsvDockWidgetBase, loadUi('mapviewdockV2.ui')):
         self.btnToggleVectorOverlay.setDefaultAction(self.actionToggleVectorVisibility)
         self.btnToggleCrosshair.setDefaultAction(self.actionShowCrosshair)
 
+        self.mRecentMapView = None
+        self.mMapViews = []
 
-    def recentMapView(self):
+
+    def createMapView(self):
+
+        #btn = QToolButton(self.btnList)
+        #self.btnList.layout().insertWidget(self.btnList.layout().count() - 1, btn)
+        #todo: add entry to combobox + stacked widget
+
+
+
+        mapView = MapView(self, parent=self.scrollArea)
+        mapView.sigRemoveMapView.connect(self.removeMapView)
+        mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
+        mapView.setTitle('Map View {}'.format(len(self.mMapViews)))
+
+        mapViewUI = MapViewDefinitionUIV2(mapView, self.stackedWidget)
+        mapViewUI.create()
+        mapView.ui = mapViewUI
+
+        self.stackedWidget.addWidget(mapViewUI)
+        self.cbMapView.addItem(mapView.title())
+
+
+
+        for sensor in self.STV.TS.Sensors:
+            mapView.addSensor(sensor)
+
+        #self.mapViewButtons[mapView] = btn
+        #self.mapViewsDefinitions.append(mapView)
+
+
+        #btn.clicked.connect(lambda : self.showMapViewDefinition(mapView))
+        self.refreshMapViewTitles()
+        if len(self) == 1:
+            self.showMapViewDefinition(mapView)
+        self.sigMapViewAdded.emit(mapView)
+        #self.adjustScrollArea()
+
+    def removeMapView(self, mapView):
+        assert isinstance(mapView, MapView)
+        assert mapView in self.mMapViews
+
+        i = self.mMapViews.index(mapView)
+        assert i == self.stackedWidget.indexOf(mapView.ui)
+
+        self.mMapViews.remove(mapView)
+        mapView.ui.setVisible(False)
+        #todo: remove combobox entry
+        self.cbMapView.removeItem(i)
+        self.stackedWidget.removeWidget(mapView.ui)
+
+        mapView.ui.close()
+        self.refreshMapViewTitles()
+        self.sigMapViewRemoved.emit(mapView)
+
+    def __len__(self):
+        return len(self.mMapViews)
+
+    def refreshMapViewTitles(self):
+
+        for i, mapView in enumerate(self.mapViewsDefinitions):
+            number = i+1
+            title = '#{}'.format(number)
+            mapView.setTitle(title)
+            btn = self.mapViewButtons[mapView]
+            btn.setText('{}'.format(number))
+            btn.setToolTip('Show definition for map view {}'.format(number))
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+
+
+    def index(self, mapView):
+        assert isinstance(mapView, MapView)
+        return self.mMapViews.index(mapView)
+
+    def setVectorLayer(self, lyr):
+        for mapView in self.mMapViews:
+            assert isinstance(mapView, MapView)
+            mapView.setVectorLayer(lyr)
+
+    def addSensor(self, sensor):
+        for mapView in self.mMapViews:
+            mapView.addSensor(sensor)
+        self.adjustScrollArea()
+
+    def removeSensor(self, sensor):
+        for mapView in self.mMapViews:
+            mapView.removeSensor(sensor)
+
+    def applyStyles(self):
+        for mapView in self.mMapViews:
+            mapView.applyStyles()
+
+    def setCrosshairStyle(self, crosshairStyle):
+        for mapView in self.mMapViews:
+            mapView.setCrosshairStyle(crosshairStyle)
+
+    def setShowCrosshair(self, b):
+        for mapView in self.mMapViews:
+            mapView.setShowCrosshair(b)
+
+    def index(self, mapView):
+        assert isinstance(mapView, MapView)
+        return self.mapViewsDefinitions.index(mapView)
+
+
+    def connectMapViewCollection(self, mapViewCollection):
+        assert isinstance(mapViewCollection, MapViewCollection)
+        self.mMapViewCollection = mapViewCollection
+
+    def setRecentMapView(self, mapView):
 
         pass
+
+    def recentMapView(self):
+        return self.mRecentMapView
 
 
     def connectMapView(self, mapViewDefinition):

@@ -287,17 +287,22 @@ class TimeSeriesViewerUI(QMainWindow,
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
+
+        from timeseriesviewer.mapvisualization import MapViewCollectionDock
+        self.dockMapViewsV2 = addDockWidget(MapViewCollectionDock(self))
+
         self.tabifyDockWidget(self.dockSensors, self.dockRendering)
+        self.tabifyDockWidget(self.dockMapViewsV2, self.dockRendering)
 
 
         area = Qt.BottomDockWidgetArea
-        from timeseriesviewer.mapvisualization import MapViewDockUI
-        self.dockMapViews = addDockWidget(MapViewDockUI(self))
+        #from timeseriesviewer.mapvisualization import MapViewDockUI
+        #self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
+        #self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
 
         area = Qt.RightDockWidgetArea
@@ -316,7 +321,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockTimeSeries.raise_()
 
-        self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
+        #self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
         self.restoreSettings()
 

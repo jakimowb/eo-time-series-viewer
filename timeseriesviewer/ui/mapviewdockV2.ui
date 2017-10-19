@@ -241,75 +241,12 @@
      </widget>
     </item>
     <item>
-     <widget class="QScrollArea" name="scrollAreaMapViewSensors">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>2</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>100</width>
-        <height>100</height>
-       </size>
-      </property>
-      <property name="autoFillBackground">
-       <bool>true</bool>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="lineWidth">
-       <number>1</number>
-      </property>
-      <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-      <property name="horizontalScrollBarPolicy">
-       <enum>Qt::ScrollBarAlwaysOff</enum>
-      </property>
-      <property name="sizeAdjustPolicy">
-       <enum>QAbstractScrollArea::AdjustToContents</enum>
-      </property>
-      <property name="widgetResizable">
-       <bool>true</bool>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-      </property>
-      <widget class="QWidget" name="scrollAreaMapViewSensorsContent">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>382</width>
-         <height>460</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>100</width>
-         <height>100</height>
-        </size>
-       </property>
-       <property name="styleSheet">
-        <string notr="true"/>
-       </property>
-      </widget>
+     <widget class="QStackedWidget" name="stackedWidget">
+      <widget class="QWidget" name="page"/>
+      <widget class="QWidget" name="page_2"/>
      </widget>
     </item>
    </layout>
-   <zorder>scrollAreaMapViewSensors</zorder>
-   <zorder>btnApplyStyles</zorder>
-   <zorder>btnAddMapView</zorder>
-   <zorder>BVButtonList</zorder>
   </widget>
   <action name="actionApplyStyles">
    <property name="icon">
@@ -323,9 +260,106 @@
     <string>Apply Render Styles</string>
    </property>
   </action>
+  <action name="actionRemoveMapView">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
+   </property>
+   <property name="text">
+    <string>Remove view</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove view</string>
+   </property>
+  </action>
+  <action name="actionToggleVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
+     <normalon>:/timeseriesviewer/icons/mapview.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+   </property>
+   <property name="text">
+    <string>Toogle visibility</string>
+   </property>
+  </action>
+  <action name="actionApplyStyles_2">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
+   </property>
+   <property name="text">
+    <string>ApplyStyles</string>
+   </property>
+   <property name="toolTip">
+    <string>Apply Render Styles</string>
+   </property>
+  </action>
+  <action name="actionToggleVectorVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
+     <normalon>:/timeseriesviewer/icons/mapview.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+   </property>
+   <property name="text">
+    <string>Toogle vector overlay visibility</string>
+   </property>
+   <property name="toolTip">
+    <string>Toogle visibility of overlayed vector file</string>
+   </property>
+  </action>
+  <action name="actionShowCrosshair">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show Crosshair</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>cbMapView</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>stackedWidget</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>110</x>
+     <y>62</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>128</x>
+     <y>154</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

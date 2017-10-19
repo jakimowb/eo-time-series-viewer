@@ -23,8 +23,8 @@ class run():
 
     # add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer.sandbox import initQgisEnvironment
-    qgsApp = initQgisEnvironment()
+    from timeseriesviewer.sandbox import initQgisApplication
+    qgsApp = initQgisApplication()
     from timeseriesviewer.main import TimeSeriesViewer
     S = TimeSeriesViewer(None)
     S.ui.show()
@@ -35,5 +35,5 @@ class run():
     qgsApp.exitQgis()
 
 if __name__ == '__main__':
-    from timeseriesviewer.main import __main__
-    __main__()
+    from timeseriesviewer.main import main
+    main()

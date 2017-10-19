@@ -1974,14 +1974,13 @@ if __name__ == '__main__':
 
     w.addSourceFiles(files)
     #w.vrtRaster.addFilesAsStack([p1, p2, p3])
-    p = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
-    bLyr = QgsRasterLayer(p, 'backgroud', 'gdal', True)
-    QgsMapLayerRegistry.instance().addMapLayer(bLyr)
-
-    w.setBackgroundLayer(bLyr)
+    #p = r'S:/temp/temp_ar/4benjamin/05_CBERS/CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif'
+    #bLyr = QgsRasterLayer(p, 'backgroud', 'gdal', True)
+    #QgsMapLayerRegistry.instance().addMapLayer(bLyr)
+    #w.setBackgroundLayer(bLyr)
     w.show()
     pathTmp = os.path.join(DIR_EXAMPLES, 'test.vrt')
-    w.vrtRaster.saveVRT(pathTmp)
+    #w.vrtRaster.saveVRT(pathTmp)
     # w.vrtBuilder.addVirtualBand(VRTRasterBand(name='Band 1'))
 
     qgsApp.exec_()
