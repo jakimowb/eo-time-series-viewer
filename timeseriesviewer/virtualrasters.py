@@ -150,6 +150,9 @@ class VRTRasterPreviewMapCanvas(QgsMapCanvas):
         super(VRTRasterPreviewMapCanvas, self).__init__(parent, *args, **kwds)
         self.setCrsTransformEnabled(True)
 
+    def crs(self):
+        return self.mapSettings().destinationCrs()
+
     def contextMenuEvent(self,  event):
         menu = QMenu()
         action = menu.addAction('Refresh')
@@ -1333,8 +1336,6 @@ class VRTSelectionModel(QItemSelectionModel):
     def onMapFeatureIdentified(self, point, button):
         assert isinstance(point, QgsPoint)
 
-        oldSelection = self.selectedSourceFiles()
-
         if self.sender() == self.previewMapTool:
             searchRadius = QgsTolerance.toleranceInMapUnits( \
                 1, self.mLyr,self.mCanvas.mapRenderer(), QgsTolerance.Pixels)
@@ -1343,6 +1344,11 @@ class VRTSelectionModel(QItemSelectionModel):
             searchRect.setXMaximum(point.x() + searchRadius);
             searchRect.setYMinimum(point.y() - searchRadius);
             searchRect.setYMaximum(point.y() + searchRadius);
+
+            crs = self.previewMapTool.canvas().crs()
+            trans = QgsCoordinateTransform(crs, self.mLyr.crs())
+            oldSelection = self.selectedSourceFiles()
+            searchRect = trans.transform(searchRect)
 
             if button == Qt.LeftButton:
                 """
@@ -1978,7 +1984,7 @@ if __name__ == '__main__':
     bLyr = QgsRasterLayer(p, 'backgroud', 'gdal', True)
     QgsMapLayerRegistry.instance().addMapLayer(bLyr)
 
-    w.setBackgroundLayer(bLyr)
+    #w.setBackgroundLayer(bLyr)
     w.show()
     pathTmp = os.path.join(DIR_EXAMPLES, 'test.vrt')
     w.vrtRaster.saveVRT(pathTmp)
