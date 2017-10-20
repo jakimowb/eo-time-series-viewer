@@ -7,4 +7,4 @@ Please visit [Wiki](https://bitbucket.org/jakimowb/hub-timeseriesviewer/wiki/Hom
 
 ## Licence and Use ##
 
-The HUB TimeSeriesViewer is licenced under the [GPL-3 Licence](GPL-3.0.txt).
+The HUB TimeSeriesViewer is licenced under the [GPL-3 Licence](LICENSE.txt).
