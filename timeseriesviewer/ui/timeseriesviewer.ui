@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>809</width>
-    <height>379</height>
+    <width>539</width>
+    <height>289</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -46,9 +46,28 @@
     <property name="spacing">
      <number>1</number>
     </property>
-    <property name="margin">
+    <property name="leftMargin">
      <number>0</number>
     </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QgsMessageBar" name="messageBar">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+     </widget>
+    </item>
     <item>
      <widget class="TsvScrollArea" name="scrollAreaSubsets">
       <property name="sizePolicy">
@@ -80,8 +99,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>807</width>
-         <height>302</height>
+         <width>537</width>
+         <height>189</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -103,7 +122,16 @@
         <property name="sizeConstraint">
          <enum>QLayout::SetNoConstraint</enum>
         </property>
-        <property name="margin">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
          <number>0</number>
         </property>
         <item>
@@ -128,8 +156,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>809</width>
-     <height>21</height>
+     <width>539</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
@@ -568,6 +596,12 @@
    <class>TsvScrollArea</class>
    <extends>QScrollArea</extends>
    <header>timeseriesviewer.ui.widgets.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsMessageBar</class>
+   <extends>QFrame</extends>
+   <header>qgis.gui</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

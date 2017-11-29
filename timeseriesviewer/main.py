@@ -36,6 +36,9 @@ DEBUG = True
 import numpy as np
 import multiprocessing
 #abbreviations
+import site
+
+
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
@@ -292,7 +295,8 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockMapViewsV2 = addDockWidget(MapViewCollectionDock(self))
 
         self.tabifyDockWidget(self.dockSensors, self.dockRendering)
-        self.tabifyDockWidget(self.dockMapViewsV2, self.dockRendering)
+        self.tabifyDockWidget(self.dockSensors, self.dockMapViewsV2)
+
 
 
         area = Qt.BottomDockWidgetArea
@@ -377,7 +381,27 @@ class TimeSeriesViewerUI(QMainWindow,
 
 _iface = None
 
-class TimeSeriesViewer:
+class TimeSeriesViewerQgisInterface(QgisInterface):
+
+    def __init__(self, timeSeriesViewer):
+        QgisInterface.__init__(self)
+
+        self.mTimeSeriesViewer = timeSeriesViewer
+
+    def messageBar(self):
+        return self.mTimeSeriesViewer.ui.messageBar
+
+LUT_MESSAGELOGLEVEL = {
+                QgsMessageLog.INFO:'INFO',
+                QgsMessageLog.CRITICAL:'INFO',
+                QgsMessageLog.WARNING:'WARNING'}
+LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
+                    QgsMessageLog.CRITICAL:QgsMessageBar.WARNING,
+                    QgsMessageLog.WARNING:QgsMessageBar.WARNING,
+                    }
+
+
+class TimeSeriesViewer(QObject):
 
     def __init__(self, iface):
         """Constructor.
@@ -387,11 +411,20 @@ class TimeSeriesViewer:
             application at run time.
         :type iface: QgsInterface
         """
-        # Save reference to the QGIS interface
-        self.iface = iface
-        _iface = iface
+
         # initialize GUI
         self.ui = TimeSeriesViewerUI()
+
+        msgLog = QgsMessageLog.instance()
+        #msgLog.messageReceived.connect(self.logMessage)
+
+
+        # Save reference to the QGIS interface
+        self.iface = iface
+        self.pseudoIface = TimeSeriesViewerQgisInterface(self)
+        if not isinstance(self.iface, QgisInterface):
+            #qgis.utils.iface = self.pseudoIface
+            pass
 
         #initialize QgisTsvBridge
         self.mQgisBridge = QgisTsvBridge.instance()
@@ -424,6 +457,7 @@ class TimeSeriesViewer:
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
         self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
+
 
         D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('moveCenter'))
         #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
@@ -486,6 +520,8 @@ class TimeSeriesViewer:
             self.TS.loadFromFile(path, n_max=n_max)
             M.endResetModel()
 
+    def createMapView(self):
+        self.spatialTemporalVis.createMapView()
 
     def zoomTo(self, key):
         if key == 'zoomMaxExtent':
@@ -514,6 +550,30 @@ class TimeSeriesViewer:
 
     def icon(self):
         return TimeSeriesViewer.icon()
+
+
+    def logMessage(self, message, tag, level):
+        m = message.split('\n')
+        if '' in message.split('\n'):
+            m = m[0:m.index('')]
+        m = '\n'.join(m)
+
+        if re.search('timeseriesviewer', m):
+            return
+
+        if level in [QgsMessageLog.CRITICAL, QgsMessageLog.WARNING]:
+            widget = self.ui.messageBar.createMessage(tag, message)
+            button = QPushButton(widget)
+            button.setText("Show")
+            from enmapbox.gui.utils import showMessage
+            button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
+            widget.layout().addWidget(button)
+            self.ui.messageBar.pushWidget(widget,
+                              LUT_MSGLOG2MSGBAR.get(level, QgsMessageBar.INFO),
+                              SETTINGS.value('MESSAGE_TIMEOUT', 0))
+
+            #print on normal console
+            print(u'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 
@@ -660,10 +720,14 @@ def disconnect_signal(signal):
 def main():
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
+    import os
+
     qgsApp = initQgisApplication()
+
     ts = TimeSeriesViewer(None)
     ts.run()
     ts.loadExampleTimeSeries()
+    ts.createMapView()
     # close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()

@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 import os, collections
 from qgis.core import *
 from qgis.gui import *
@@ -228,7 +228,9 @@ class AboutDialogUI(QDialog,
 
 
 class TimeSeriesDatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
-
+    """
+    Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
+    """
     def __init__(self, title='<#>', parent=None):
         super(TimeSeriesDatumViewUI, self).__init__(parent)
         self.setupUi(self)

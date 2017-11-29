@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 import sys, os, re
 from qgis.core import *
 from collections import OrderedDict
@@ -190,7 +190,7 @@ class DataLoadingModel(QAbstractTableModel):
             self.mLoadingTimes = OrderedDict()
 
         def addTimeDelta(self, name, timedelta):
-            assert isinstance(name, str)
+            assert isinstance(name, unicode)
             assert isinstance(timedelta, np.timedelta64)
             #if timedelta.astype(float) > 0:
             #print(timedelta)

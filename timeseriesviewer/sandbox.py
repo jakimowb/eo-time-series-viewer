@@ -1,4 +1,25 @@
-from __future__ import absolute_import
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import, unicode_literals
 import six, sys, os, gc, re, collections, site, inspect
 import logging, io
 logger = logging.getLogger(__name__)
@@ -266,9 +287,12 @@ def sandboxTestdata():
     S.run()
 
     S.spatialTemporalVis.MVC.createMapView()
+    #import example.Images
+    #searchDir = jp(DIR_EXAMPLES, 'Images')
+    #imgs = file_search(searchDir, '*.tif', recursive=True)#[0:1]  # [0:5]
     import example.Images
-    searchDir = jp(DIR_EXAMPLES, 'Images')
-    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:1]  # [0:5]
+    imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
+            example.Images.re_2014_08_20]
 
     S.addTimeSeriesImages(imgs)
 
@@ -280,10 +304,10 @@ if __name__ == '__main__':
 
     #run tests
     if False: gdal_qgis_benchmark()
-    if True: sandboxQgisBridge()
+    if False: sandboxQgisBridge()
     if False: sandboxGui()
 
-    if False: sandboxTestdata()
+    if True: sandboxTestdata()
 
     #close QGIS
     qgsApp.exec_()

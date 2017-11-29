@@ -78,6 +78,10 @@ PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 DEBUG = True
 
+import site
+site.addsitedir(DIR_SITE_PACKAGES)
+
+
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 

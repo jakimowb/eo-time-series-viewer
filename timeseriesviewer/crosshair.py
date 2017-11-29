@@ -438,6 +438,9 @@ class CrosshairWidget(QWidget, loadUi('crosshairwidget.ui')):
         style.setShowDistanceMarker(self.cbShowDistanceMarker.isChecked())
         return style
 
+def getCrosshairStyle(*args, **kwds):
+    return CrosshairDialog.getCrosshairStyle(*args, **kwds)
+
 class CrosshairDialog(QgsDialog):
 
     @staticmethod
