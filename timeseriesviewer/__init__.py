@@ -22,7 +22,7 @@
 from __future__ import absolute_import
 VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
-TITLE = 'HUB TimeSeriesViewer'
+TITLE = 'HUB Time Series Viewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
 WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 REPOSITORY = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
@@ -112,9 +112,7 @@ def initSettings():
 initSettings()
 
 def icon():
-
-
-    return QIcon(os.path.join(os.path.dirname(__file__), *['ui','icons','icon.png']))
+    return QIcon(':/timeseriesviewer/icons/IconTimeSeries.svg')
 
 
 

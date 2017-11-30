@@ -29,12 +29,23 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import numpy as np
 from timeseriesviewer.utils import *
-from timeseriesviewer.main import TimeSeriesViewer
+
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
+
+class MapViewScrollArea(QScrollArea):
+
+    sigResized = pyqtSignal()
+    def __init__(self, *args, **kwds):
+        super(MapViewScrollArea, self).__init__(*args, **kwds)
+
+    def resizeEvent(self, event):
+        super(MapViewScrollArea, self).resizeEvent(event)
+        self.sigResized.emit()
+
 
 class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
 
@@ -892,9 +903,9 @@ class SpatialTemporalVisualization(QObject):
         self.mMapCanvases = []
         self.ui = timeSeriesViewer.ui
 
-        from timeseriesviewer.ui.widgets import TsvScrollArea
+
         self.scrollArea = self.ui.scrollAreaSubsets
-        assert isinstance(self.scrollArea, TsvScrollArea)
+        assert isinstance(self.scrollArea, MapViewScrollArea)
 
 
         self.mRefreshTimer = QTimer(self)
@@ -1613,7 +1624,7 @@ class MapViewListModel(QAbstractListModel):
             value = mapView
         return value
 
-class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
+class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)

@@ -33,15 +33,6 @@ import PyQt4.QtWebKit
 import sys, re, os, six
 
 #widgets defined without UI file
-class TsvScrollArea(QScrollArea):
-
-    sigResized = pyqtSignal()
-    def __init__(self, *args, **kwds):
-        super(TsvScrollArea, self).__init__(*args, **kwds)
-
-    def resizeEvent(self, event):
-        super(TsvScrollArea, self).resizeEvent(event)
-        self.sigResized.emit()
 
 
 class VerticalLabel(QLabel):

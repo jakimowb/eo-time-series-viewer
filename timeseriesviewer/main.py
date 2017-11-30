@@ -414,7 +414,6 @@ class TimeSeriesViewer(QObject):
 
         # initialize GUI
         self.ui = TimeSeriesViewerUI()
-
         msgLog = QgsMessageLog.instance()
         #msgLog.messageReceived.connect(self.logMessage)
 

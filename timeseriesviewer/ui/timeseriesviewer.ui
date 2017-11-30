@@ -60,7 +60,7 @@
      </widget>
     </item>
     <item>
-     <widget class="TsvScrollArea" name="scrollAreaSubsets">
+     <widget class="MapViewScrollArea" name="scrollAreaSubsets">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>1</horstretch>
@@ -599,9 +599,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>TsvScrollArea</class>
+   <class>MapViewScrollArea</class>
    <extends>QScrollArea</extends>
-   <header>timeseriesviewer.ui.widgets.h</header>
+   <header>timeseriesviewer.mapvisualization.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
