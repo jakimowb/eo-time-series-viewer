@@ -190,6 +190,11 @@ class MapView(QObject):
     def title(self):
         return self.ui.tbName.text()
 
+    def refreshMapView(self, *args):
+        for mapCanvas in self.mapCanvases():
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.refresh()
+
     def setCrosshairStyle(self, crosshairStyle):
         assert isinstance(crosshairStyle, CrosshairStyle)
         old = self.mCrosshairStyle
@@ -695,10 +700,9 @@ class DatumView(QObject):
         self.ui = TimeSeriesDatumViewUI(parent=parent)
         self.ui.create()
         self.showLoading(False)
-        self.L = self.ui.layout()
-        self.wOffset = self.L.count()-1
+        self.wOffset = self.ui.layout().count()-1
         self.minHeight = self.ui.height()
-        self.minWidth = 50
+        #self.minWidth = 50
         self.renderProgress = dict()
 
         assert isinstance(stv, SpatialTemporalVisualization)
@@ -748,24 +752,28 @@ class DatumView(QObject):
 
         if not self.ui.isVisible():
             return QSize(0,0)
+        else:
+            #return self.ui.sizeHint()
 
+            size = self.ui.sizeHint()
+            s = self.ui.layout().spacing()
+            m = self.ui.layout().contentsMargins()
+            dx = m.left() + m.right() + s
+            dy = self.ui.layout().spacing()
 
-        size = self.ui.sizeHint()
-        m = self.ui.layout().contentsMargins()
-        dx = m.left() + m.right()
-        dy = self.ui.layout().spacing()
-
-        n = len(self.mapCanvases)
-        if n > 0:
-            baseSize = self.mapCanvases.values()[0].size()
-            size = QSize(baseSize.width()+ dx, \
-                         size.height()+ n*dy)
-        return size
+            n = len(self.mapCanvases)
+            if n > 0:
+                baseSize = self.mapCanvases.values()[0].size()
+                size = QSize(baseSize.width()+ dx, \
+                             size.height()+ (n+1)*(dy+2*s))
+            else:
+                s = ""
+            return size
 
 
     def removeMapView(self, mapView):
         canvas = self.mapCanvases.pop(mapView)
-        self.L.removeWidget(canvas)
+        self.ui.layout().removeWidget(canvas)
         canvas.close()
         #self.adjustBaseMinSize()
 
@@ -829,7 +837,7 @@ class DatumView(QObject):
         self.mapCanvases[mapView] = mapCanvas
         mapCanvas.setLazyRasterSources([self.TSD.pathImg])
         #mapCanvas.setLayers([QgsRasterLayer(self.TSD.pathImg)])
-        self.L.insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
+        self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.update()
 
         #register signals handled on (this) DV level
@@ -994,20 +1002,31 @@ class SpatialTemporalVisualization(QObject):
 
         s = QSize()
         r = None
-        for TSDView in [v for v in self.DVC if v.ui.isVisible()]:
-            s = s + TSDView.sizeHint()
-            if r is None:
-                r = TSDView.sizeHint()
-        if r:
-            if isinstance(self.targetLayout, QHBoxLayout):
+        tsdViews = [v for v in self.DVC if v.ui.isVisible()]
+        n = len(tsdViews)
 
-                s = QSize(s.width(), r.height())
-            else:
-                s = QSize(r.width(), s.height())
-
-            s = s + QSize(m.left() + m.right(), m.top() + m.bottom())
+        spacing = self.targetLayout.spacing()
+        margins = self.targetLayout.contentsMargins()
+        if n > 0:
+            s = tsdViews[0].sizeHint()
+            s = QSize(n * (s.width() + spacing) + margins.left() + margins.right(),
+                      s.height() + margins.top() + margins.bottom())
             self.targetLayout.parentWidget().setFixedSize(s)
 
+            """
+            if r is None:
+                r = TSDView.sizeHint()
+            if r:
+
+                if isinstance(self.targetLayout, QHBoxLayout):
+
+                    s = QSize(s.width(), r.height()+spacing)
+                else:
+                    s = QSize(r.width(), s.height()+spacing)
+
+                s = s + QSize(m.left() + m.right(), m.top() + m.bottom())
+                self.targetLayout.parentWidget().setFixedSize(s)
+            """
 
 
 
@@ -1601,6 +1620,12 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
     sigSetMapViewVisibility = pyqtSignal(MapView, bool)
     sigShowProfiles = pyqtSignal(SpatialPoint)
 
+    def connectTimeSeries(self, timeSeries):
+        assert isinstance(timeSeries, TimeSeries)
+        self.TS = timeSeries
+        self.TS.sigSensorAdded.connect(self.addSensor)
+        self.TS.sigSensorRemoved.connect(self.removeSensor)
+
     def __init__(self, parent=None):
         super(MapViewCollectionDock, self).__init__(parent)
         self.setupUi(self)
@@ -1614,22 +1639,19 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()))
         self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True))
-
+        self.actionApplyStyles.triggered.connect(lambda : self.currentMapView().refreshMapView())
         self.mMapViews = MapViewListModel()
         self.mMapViews.sigMapViewsRemoved.connect(self.onMapViewsRemoved)
         self.mMapViews.sigMapViewsAdded.connect(self.onMapViewsAdded)
+        self.mMapViews.sigMapViewsAdded.connect(self.updateButtons)
+        self.mMapViews.sigMapViewsRemoved.connect(self.updateButtons)
         self.cbMapView.setModel(self.mMapViews)
-        self.cbMapView.currentIndexChanged[int].connect(lambda i : self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
+        self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i <= 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
 
         self.TS = None
 
-    def connectTimeSeries(self, timeSeries):
-        assert isinstance(timeSeries, TimeSeries)
-        self.TS = timeSeries
-        self.TS.sigSensorAdded.connect(self.addSensor)
-        self.TS.sigSensorRemoved.connect(self.removeSensor)
-
     def onMapViewsRemoved(self, mapViews):
+
         for mapView in mapViews:
             idx = self.stackedWidget.indexOf(mapView.ui)
             if idx >= 0:
@@ -1637,6 +1659,9 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
                 mapView.ui.close()
             else:
                 s = ""
+
+
+        self.actionRemoveMapView.setEnabled(len(self.mMapViews) > 0)
 
     def onMapViewsAdded(self, mapViews):
         nextShown = None
@@ -1647,6 +1672,13 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
 
         if isinstance(nextShown, MapView):
             self.setCurrentMapView(nextShown)
+
+    def updateButtons(self, *args):
+        b = len(self.mMapViews) > 0
+        self.actionRemoveMapView.setEnabled(b)
+        self.actionApplyStyles.setEnabled(b)
+        self.actionHighlightMapView.setEnabled(b)
+
 
     def createMapView(self):
 

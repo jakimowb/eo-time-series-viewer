@@ -202,7 +202,7 @@
     <string>?</string>
    </property>
    <property name="toolTip">
-    <string>Click to highlight maps of this map view</string>
+    <string>Click to highlight this map view</string>
    </property>
   </action>
  </widget>

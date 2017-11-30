@@ -44,6 +44,7 @@ class MapCanvas(QgsMapCanvas):
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
     sigDataLoadingFinished = pyqtSignal(np.timedelta64)
+
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
         from timeseriesviewer.mapvisualization import DatumView, MapView, SpatialTemporalVisualization

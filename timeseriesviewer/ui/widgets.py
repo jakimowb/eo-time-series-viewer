@@ -206,18 +206,31 @@ class TimeSeriesDatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
         super(TimeSeriesDatumViewUI, self).__init__(parent)
         self.setupUi(self)
 
+
+
+
     def sizeHint(self):
         m = self.layout().contentsMargins()
 
         s = QSize(0, 0)
 
+        map = None
+
         for w in [self.layout().itemAt(i).widget() for i in range(self.layout().count())]:
             if w:
                 s = s + w.size()
+            if isinstance(w, QgsMapCanvas):
+                map = w
 
         if isinstance(self.layout(), QVBoxLayout):
+
             s = QSize(self.progressBar.width() + m.left() + m.right(),
                       s.height() + m.top() + m.bottom())
+
+            if isinstance(map, QgsMapCanvas):
+                m = map.contentsMargins()
+                #s.setWidth(s.width() + m.left() + m.right())
+                s.setWidth(s.width() + 25)
         else:
             s = QSize(self.progressBar.heigth() + m.top() + m.bottom(),
                       s.width() + m.left() + m.right())

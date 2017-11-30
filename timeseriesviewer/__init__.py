@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
-VERSION = '0.3'
+VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
 TITLE = 'HUB TimeSeriesViewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
