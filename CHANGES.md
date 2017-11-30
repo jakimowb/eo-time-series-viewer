@@ -4,15 +4,21 @@
 the data might cause system crashes
 
 
-
 ## Change History ##
-## August 2017
+### November 2017
+- Map Visualization
+    - re-design of Map View Settings dock, which is now has a vertical layout
+    - map views can be named with own titles, like "True Color" and "Short Wave Infrared"
+    - added "identify map view" button, which will highlight the respective map canvas for 1 second
+
+
+### August 2017
 - Temporal Profile Visualization:
     - sensor/product plot settings like the band/spectral index, plot symbol and colors are restored after restart
     - profile loading speed increased by loading required bands only
     - profile values are loaded in a parallel process
 
-## July 2017
+### July 2017
 - Map Visualization: progress bars indicate if map data is loaded in background
 - Sensor/product names are restored after restart
 - Pixel profiles are now loaded in a parallel process that will not block the UI (required because of python GIL.)
