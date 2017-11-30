@@ -267,11 +267,29 @@ def fileNeedsUpdate(file1, file2):
             return os.path.getmtime(file1) > os.path.getmtime(file2)
 
 
-def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
+def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
+    """
+    Converts SVG files into PNG raster images
+    :param pathDir:
+    :param overwrite:
+    :param mode:
+    :return:
+    """
     assert mode in ['INKSCAPE', 'WEBKIT', 'SVG']
     from PyQt4.QtWebKit import QWebPage
 
     svgs = file_search(pathDir, '*.svg')
+    if filterFile is not None:
+        print('use file filter')
+        lines = open(filterFile).readlines()
+        lines = [l.strip() for l in lines]
+        lines = [l for l in lines if not l.startswith('#') or len(l) == 0]
+        svgs = [f for f in svgs if
+                f in lines or os.path.basename(f) in lines]
+
+    if len(svgs) == 0:
+        print('No SVGs to convert')
+        return
     app = QApplication([], True)
     buggySvg = []
 
@@ -351,40 +369,42 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE'):
     s = ""
 
 
-def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
+def file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png'):
     pathQrc = os.path.abspath(pathQrc)
     dirQrc = os.path.dirname(pathQrc)
     app = QApplication([])
     assert os.path.exists(pathQrc)
+
+    #create the new RCC
     doc = QDomDocument('RCC')
     doc.setContent(QFile(pathQrc))
     if str(doc.toString()) == '':
         doc.appendChild(doc.createElement('RCC'))
     root = doc.documentElement()
-    pngFiles = set()
+    fileOfInterest = set()
     fileAttributes = {}
-    #add files already included in QRC
 
+    #add files that are already included in the QRC file
     fileNodes = doc.elementsByTagName('file')
     for i in range(fileNodes.count()):
         fileNode = fileNodes.item(i).toElement()
 
         file = str(fileNode.childNodes().item(0).nodeValue())
-        if file.lower().endswith('.png'):
-            pngFiles.add(file)
-            if fileNode.hasAttributes():
-                attributes = {}
-                for i in range(fileNode.attributes().count()):
-                    attr = fileNode.attributes().item(i).toAttr()
-                    attributes[str(attr.name())] = str(attr.value())
-                fileAttributes[file] = attributes
+        #if file.lower().endswith(fileExtension):
+        fileOfInterest.add(file)
+        if fileNode.hasAttributes():
+            attributes = {}
+            for i in range(fileNode.attributes().count()):
+                attr = fileNode.attributes().item(i).toAttr()
+                attributes[str(attr.name())] = str(attr.value())
+            fileAttributes[file] = attributes
 
-    #add new pngs in icondir
-    for f in  file_search(icondir, '*.png'):
+    #add new files from the icondir
+    for f in  file_search(icondir, '*'+fileExtension):
         file = os.path.relpath(f, dirQrc).replace('\\','/')
-        pngFiles.add(file)
+        fileOfInterest.add(file)
 
-    pngFiles = sorted(list(pngFiles))
+    fileOfInterest = sorted(list(fileOfInterest))
 
     def elementsByTagAndProperties(elementName, attributeProperties, rootNode=None):
         assert isinstance(elementName, str)
@@ -406,12 +426,12 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
         return nodeList
 
 
-    resourceNodes = elementsByTagAndProperties('qresource', {'prefix':pngprefix})
+    resourceNodes = elementsByTagAndProperties('qresource', {'prefix':qrcPrefix})
 
     if len(resourceNodes) == 0:
         resourceNode = doc.createElement('qresource')
         root.appendChild(resourceNode)
-        resourceNode.setAttribute('prefix', pngprefix)
+        resourceNode.setAttribute('prefix', qrcPrefix)
     elif len(resourceNodes) == 1:
         resourceNode = resourceNodes[0]
     else:
@@ -424,30 +444,28 @@ def png2qrc(icondir, pathQrc, pngprefix='timeseriesviewer'):
         node.parentNode().removeChild(node)
 
     #insert new childs
-    for pngFile in pngFiles:
+    for file in fileOfInterest:
 
         node = doc.createElement('file')
-        attributes = fileAttributes.get(pngFile)
+        attributes = fileAttributes.get(file)
         if attributes:
             for k, v in attributes.items():
                 node.setAttribute(k,v)
             s = 2
-        node.appendChild(doc.createTextNode(pngFile))
+        node.appendChild(doc.createTextNode(file))
         resourceNode.appendChild(node)
-        print(pngFile)
+        print(file)
 
     f = open(pathQrc, "w")
     f.write(doc.toString())
     f.close()
 
 
-def createCreditsHTML():
-    import site, os, sys, codecs
-    from timeseriesviewer import DIR_SITE_PACKAGES, DIR_DOCS, DIR_REPO
-    site.addsitedir(DIR_SITE_PACKAGES)
-    import markdown
-    import pyqtgraph
 
+def updateInfoHTML():
+    import markdown, urllib
+    import timeseriesviewer
+    from timeseriesviewer import DIR_REPO, PATH_LICENSE, PATH_CHANGELOG
     """
     Keyword arguments:
 
@@ -456,33 +474,32 @@ def createCreditsHTML():
     * encoding: Encoding of input and output.
     * Any arguments accepted by the Markdown class.
     """
-    import urllib
+
+    markdownExtension = [
+        'markdown.extensions.toc',
+        'markdown.extensions.tables',
+        'markdown.extensions.extra'
+    ]
 
     def readUrlTxt(url):
         req = urllib.urlopen(url)
         enc = req.headers['content-type'].split('charset=')[-1]
         txt = req.read()
         req.close()
+        if enc == 'text/plain':
+            return unicode(txt)
         return unicode(txt, enc)
 
-    txtQGISreadme = readUrlTxt("https://raw.githubusercontent.com/qgis/QGIS/master/README.md")
-    txtPyQtreadme = readUrlTxt("https://raw.githubusercontent.com/pyqtgraph/pyqtgraph/master/README.md")
+    paths = [jp(DIR_REPO, *['LICENSE.md']),
+             jp(DIR_REPO, *['CHANGES.md'])]
 
+    for pathSrc in paths:
+        pathDst = pathSrc.replace('.md','.html')
 
-    pathDst = jp(DIR_DOCS, 'README_QGIS.html')
-    html = markdown.markdown(txtQGISreadme, output_format='html5')
-    open(pathDst, 'w').write(html.encode('UTF-8'))
+        markdown.markdownFromFile(input=pathSrc,
+                                  extensions=markdownExtension,
+                                  output=pathDst, output_format='html5')
 
-    pathDst = jp(DIR_DOCS, 'README_PyQtGraph.html')
-    html = markdown.markdown(txtPyQtreadme, output_format='html5')
-    open(pathDst, 'w').write(html.encode('UTF-8'))
-
-    pathSrc = jp(DIR_REPO, 'CHANGES.md')
-    pathDst = jp(DIR_DOCS, 'CHANGES.html')
-    markdown.markdownFromFile(input=pathSrc, output=pathDst, output_format='html5')
-
-    s = ""
-    pass
 
 def updateMetadataTxt():
     #see http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/plugins.html#plugin-metadata
@@ -583,18 +600,20 @@ if __name__ == '__main__':
         #d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
-    if False:
-        createCreditsHTML()
+    if True:
+        updateInfoHTML()
 
     if False:
         updateMetadataTxt()
 
-    if True:
-        #convert SVG to PNG and link them into the resource file
-        svg2png(icondir, overwrite=False)
+    if False:
+        # convert SVG to PNG
+        svg2png(icondir, overwrite=False,
+                filterFile=os.path.join(os.path.dirname(__file__), 'svg2png.txt'))
     if True:
         #add png icons to qrc file
-        png2qrc(icondir, pathQrc)
+        #file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png')
+        file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.svg')
     if True:
         compile_rc_files(DIR_UI)
     print('Done')
