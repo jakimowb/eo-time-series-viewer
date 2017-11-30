@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/timeseriesviewer/icons/icon.png</normaloff>:/timeseriesviewer/icons/icon.png</iconset>
+    <normaloff>:/timeseriesviewer/icons/icon.svg</normaloff>:/timeseriesviewer/icons/icon.svg</iconset>
   </property>
   <property name="documentMode">
    <bool>false</bool>
@@ -46,16 +46,7 @@
     <property name="spacing">
      <number>1</number>
     </property>
-    <property name="leftMargin">
-     <number>0</number>
-    </property>
-    <property name="topMargin">
-     <number>0</number>
-    </property>
-    <property name="rightMargin">
-     <number>0</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>0</number>
     </property>
     <item>
@@ -100,7 +91,7 @@
          <x>0</x>
          <y>0</y>
          <width>537</width>
-         <height>189</height>
+         <height>201</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -122,16 +113,7 @@
         <property name="sizeConstraint">
          <enum>QLayout::SetNoConstraint</enum>
         </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>0</number>
         </property>
         <item>
@@ -157,7 +139,7 @@
      <x>0</x>
      <y>0</y>
      <width>539</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
@@ -180,7 +162,7 @@
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
-     <string>Views</string>
+     <string>View</string>
     </property>
     <widget class="QMenu" name="menuPanels">
      <property name="title">
@@ -189,8 +171,11 @@
     </widget>
     <addaction name="actionRefresh"/>
     <addaction name="actionAddMapView"/>
+    <addaction name="separator"/>
+    <addaction name="actionSelectProfiles"/>
+    <addaction name="actionIdentifyTimeSeries"/>
+    <addaction name="separator"/>
     <addaction name="menuPanels"/>
-    <addaction name="actionShowCrosshair"/>
    </widget>
    <widget class="QMenu" name="menuNavigation">
     <property name="title">
@@ -231,15 +216,17 @@
    <addaction name="actionZoomMaxExtent"/>
    <addaction name="actionZoomPixelScale"/>
    <addaction name="actionPan"/>
+   <addaction name="separator"/>
    <addaction name="actionIdentifyMapLayers"/>
    <addaction name="actionIdentifyTimeSeries"/>
+   <addaction name="actionSelectProfiles"/>
    <addaction name="separator"/>
    <addaction name="actionAbout"/>
   </widget>
   <action name="actionMoveCenter">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomPoint.png</normaloff>:/timeseriesviewer/icons/mActionZoomPoint.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</iconset>
    </property>
    <property name="text">
     <string>SelectCenter</string>
@@ -251,7 +238,7 @@
   <action name="actionSelectCRS">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/CRS.png</normaloff>:/timeseriesviewer/icons/CRS.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/CRS.svg</normaloff>:/timeseriesviewer/icons/CRS.svg</iconset>
    </property>
    <property name="text">
     <string>Select CRS</string>
@@ -263,7 +250,7 @@
   <action name="actionNextTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasNext.png</normaloff>:/timeseriesviewer/icons/mActionAtlasNext.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</iconset>
    </property>
    <property name="text">
     <string>nextTSD</string>
@@ -275,7 +262,7 @@
   <action name="actionPreviousTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.png</normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</iconset>
    </property>
    <property name="text">
     <string>previousTSD</string>
@@ -287,7 +274,7 @@
   <action name="actionFirstTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.png</normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</iconset>
    </property>
    <property name="text">
     <string>first TSD</string>
@@ -299,7 +286,7 @@
   <action name="actionLastTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasLast.png</normaloff>:/timeseriesviewer/icons/mActionAtlasLast.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</iconset>
    </property>
    <property name="text">
     <string>lastTSD</string>
@@ -311,7 +298,7 @@
   <action name="actionLoadTS">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddTS.png</normaloff>:/timeseriesviewer/icons/mActionAddTS.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
    </property>
    <property name="text">
     <string>Load time series</string>
@@ -323,7 +310,7 @@
   <action name="actionAddTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.png</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Add image</string>
@@ -335,7 +322,7 @@
   <action name="actionRemoveTSD">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.png</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
    </property>
    <property name="text">
     <string>Remove image</string>
@@ -347,7 +334,7 @@
   <action name="actionSaveTS">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionSaveTS.png</normaloff>:/timeseriesviewer/icons/mActionSaveTS.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</iconset>
    </property>
    <property name="text">
     <string>Save time serie</string>
@@ -359,7 +346,7 @@
   <action name="actionAddMapView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Add Map View</string>
@@ -371,7 +358,7 @@
   <action name="actionRemoveMapView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Remove Map View</string>
@@ -383,7 +370,7 @@
   <action name="actionAddTSExample">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddTS.png</normaloff>:/timeseriesviewer/icons/mActionAddTS.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
    </property>
    <property name="text">
     <string>Add example</string>
@@ -395,7 +382,7 @@
   <action name="actionAbout">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/metadata.png</normaloff>:/timeseriesviewer/icons/metadata.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
    </property>
    <property name="text">
     <string>About</string>
@@ -412,7 +399,7 @@
   <action name="actionClearTS">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveTS.png</normaloff>:/timeseriesviewer/icons/mActionRemoveTS.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</iconset>
    </property>
    <property name="text">
     <string>Clear Time Series</string>
@@ -429,7 +416,7 @@
   <action name="actionZoomIn">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomIn.png</normaloff>:/timeseriesviewer/icons/mActionZoomIn.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom in</string>
@@ -441,7 +428,7 @@
   <action name="actionZoomOut">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomOut.png</normaloff>:/timeseriesviewer/icons/mActionZoomOut.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom out</string>
@@ -453,7 +440,7 @@
   <action name="actionZoomMaxExtent">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.png</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
     <string>Max. Extent</string>
@@ -465,7 +452,7 @@
   <action name="actionZoomPixelScale">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomActual.png</normaloff>:/timeseriesviewer/icons/mActionZoomActual.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</iconset>
    </property>
    <property name="text">
     <string>Pixel Scale</string>
@@ -477,7 +464,7 @@
   <action name="actionPan">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionPan.png</normaloff>:/timeseriesviewer/icons/mActionPan.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionPan.svg</normaloff>:/timeseriesviewer/icons/mActionPan.svg</iconset>
    </property>
    <property name="text">
     <string>Pan Map</string>
@@ -494,7 +481,7 @@
   <action name="actionIdentifyMapLayers">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionIdentify.png</normaloff>:/timeseriesviewer/icons/mActionIdentify.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Identify</string>
@@ -506,7 +493,7 @@
   <action name="actionClearLabelList">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconClose.png</normaloff>:/timeseriesviewer/icons/mIconClose.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mIconClose.svg</normaloff>:/timeseriesviewer/icons/mIconClose.svg</iconset>
    </property>
    <property name="text">
     <string>Clear labels</string>
@@ -518,7 +505,7 @@
   <action name="actionCopyLabelList">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
    </property>
    <property name="text">
     <string>Copy labels</string>
@@ -530,7 +517,7 @@
   <action name="actionSettings">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/system.png</normaloff>:/timeseriesviewer/icons/system.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/system.svg</normaloff>:/timeseriesviewer/icons/system.svg</iconset>
    </property>
    <property name="text">
     <string>Settings</string>
@@ -539,7 +526,7 @@
   <action name="actionCollectLabels">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionIdentify.png</normaloff>:/timeseriesviewer/icons/mActionIdentify.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Collect Labels</string>
@@ -551,10 +538,10 @@
   <action name="actionIdentifyTimeSeries">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.png</normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.svg</normaloff>:/timeseriesviewer/icons/ActionIdentifyTimeSeries.svg</iconset>
    </property>
    <property name="text">
-    <string>IdentifyTimeSeries</string>
+    <string>Temporal profile</string>
    </property>
    <property name="toolTip">
     <string>Identify pixel time series for specific coordinate</string>
@@ -566,7 +553,7 @@
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string>Refresh maps</string>
    </property>
    <property name="toolTip">
     <string>Refresh maps (F5)</string>
@@ -584,24 +571,37 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
     <string>Show Crosshair</string>
    </property>
   </action>
+  <action name="actionSelectProfiles">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/pickrasterspectrum.svg</normaloff>
+     <normalon>:/enmapbox/png/icons/mActionIdentify.png</normalon>:/timeseriesviewer/icons/pickrasterspectrum.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Pixel profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Select pixel profiles from map</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>TsvScrollArea</class>
-   <extends>QScrollArea</extends>
-   <header>timeseriesviewer.ui.widgets.h</header>
-   <container>1</container>
-  </customwidget>
   <customwidget>
    <class>QgsMessageBar</class>
    <extends>QFrame</extends>
    <header>qgis.gui</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>TsvScrollArea</class>
+   <extends>QScrollArea</extends>
+   <header>timeseriesviewer.ui.widgets.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

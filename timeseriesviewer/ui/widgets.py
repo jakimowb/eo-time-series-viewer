@@ -170,50 +170,21 @@ class AboutDialogUI(QDialog,
         self.setAboutTitle()
 
         # page About
-        from timeseriesviewer import PATH_LICENSE, VERSION, DIR_DOCS, DESCRIPTION, WEBSITE, REPOSITORY
-        import pyqtgraph
-        self.labelAboutText.setText(
-            """
-            <html><head/><body>
-            <p align="center">Version {version}
-            </p>
-            <p align="center">{description}
-            </p>
-            <p align="center">Website<br/>
-            <a href="{website}"><span style=" text-decoration: underline; color:#0000ff;">{website}</span></a>
-            </p>
-            <p align="center">Repository<br/>
-            <a href="{repo}"><span style=" text-decoration: underline; color:#0000ff;">{repo}</span></a>
-            </p>
-            
-            <p align="center">Licenced under the GNU General Public Licence<br/>
-            <a href="http://www.gnu.org/licenses/">
-            <span style=" text-decoration: underline; color:#0000ff;">http://www.gnu.org/licenses/</span></a>
-            </p>
-            
-            </body></html>
-            """.format(description=DESCRIPTION, version=VERSION, website=WEBSITE, repo=REPOSITORY)
-        )
+        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG
+        self.labelVersion.setText('{}'.format(VERSION))
 
-        lf = lambda p: str(open(p).read())
+
         # page Changed
-        self.tbChanges.setText(lf(jp(DIR_DOCS, 'CHANGES.html')))
+        if os.path.isfile(PATH_CHANGELOG):
+            import codecs
+            txt = ''.join(codecs.open(PATH_CHANGELOG, encoding='utf-8').readlines())
+            self.tbChanges.setText(txt)
 
-        # page Credits
-        self.CREDITS = dict()
-        self.CREDITS['QGIS'] = lf(jp(DIR_DOCS, 'README_QGIS.html'))
-        self.CREDITS['PYQTGRAPH'] = lf(jp(DIR_DOCS, 'README_PyQtGraph.html'))
-        self.webViewCredits.setHtml(self.CREDITS['QGIS'])
-        self.btnPyQtGraph.clicked.connect(lambda: self.showCredits('PYQTGRAPH'))
-        self.btnQGIS.clicked.connect(lambda: self.showCredits('QGIS'))
-
-        # page License
-        self.tbLicense.setText(lf(PATH_LICENSE))
-
-
-    def showCredits(self, key):
-        self.webViewCredits.setHtml(self.CREDITS[key])
-        self.setAboutTitle(key)
+        # page Licence
+        if os.path.isfile(PATH_LICENSE):
+            import codecs
+            txt = ''.join(codecs.open(PATH_LICENSE, encoding='utf-8').readlines())
+            self.tbLicense.setText(txt)
 
     def setAboutTitle(self, suffix=None):
         item = self.listWidget.currentItem()
@@ -291,7 +262,7 @@ if __name__ == '__main__':
     d = AboutDialogUI()
     d.show()
 
-    d = PropertyDialogUI()
+    #d = PropertyDialogUI()
     d.exec_()
     #close QGIS
     qgsApp.exec_()

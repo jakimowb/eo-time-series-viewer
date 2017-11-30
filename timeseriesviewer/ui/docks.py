@@ -72,9 +72,6 @@ class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
         self.progressBar.setVisible(False)
         self.enableQgisInteraction(False)
 
-        self.gbQgsVectorLayer.clicked.connect(self.onVectorOverlayerChanged)
-        self.cbQgsVectorLayer.currentIndexChanged.connect(self.onVectorOverlayerChanged)
-
         self.btnSetQGISCenter.clicked.connect(lambda : self.sigQgisInteractionRequest.emit('tsvCenter2qgsCenter'))
         self.btnSetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('tsvExtent2qgsExtent'))
         self.btnGetQGISCenter.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisCenter2tsvCenter'))
@@ -100,7 +97,7 @@ class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
         else:
             self.gbSyncQgs.setTitle('QGIS (not available)')
 
-        self.gbQgsVectorLayer.setEnabled(b)
+
 
 
     def setCrs(self, crs):

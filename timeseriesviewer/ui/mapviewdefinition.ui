@@ -23,16 +23,7 @@
    <property name="spacing">
     <number>2</number>
    </property>
-   <property name="leftMargin">
-    <number>2</number>
-   </property>
-   <property name="topMargin">
-    <number>2</number>
-   </property>
-   <property name="rightMargin">
-    <number>2</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>2</number>
    </property>
    <item>
@@ -59,16 +50,7 @@
        <property name="spacing">
         <number>2</number>
        </property>
-       <property name="leftMargin">
-        <number>2</number>
-       </property>
-       <property name="topMargin">
-        <number>2</number>
-       </property>
-       <property name="rightMargin">
-        <number>2</number>
-       </property>
-       <property name="bottomMargin">
+       <property name="margin">
         <number>2</number>
        </property>
        <item>
@@ -83,16 +65,7 @@
           <property name="spacing">
            <number>2</number>
           </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
+          <property name="margin">
            <number>0</number>
           </property>
           <item>
@@ -137,7 +110,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -175,7 +148,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -238,7 +211,7 @@
            </property>
            <property name="icon">
             <iconset resource="resources.qrc">
-             <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.png</normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.png</iconset>
+             <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</iconset>
            </property>
            <property name="checkable">
             <bool>true</bool>
@@ -284,25 +257,31 @@
           <property name="spacing">
            <number>1</number>
           </property>
-          <property name="leftMargin">
+          <property name="margin">
            <number>2</number>
           </property>
-          <property name="topMargin">
-           <number>2</number>
-          </property>
-          <property name="rightMargin">
-           <number>2</number>
-          </property>
-          <property name="bottomMargin">
-           <number>2</number>
-          </property>
+          <item>
+           <layout class="QVBoxLayout" name="renderSettingsLayout">
+            <item>
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
          </layout>
         </widget>
        </item>
       </layout>
       <zorder>gbRasterRendering</zorder>
-      <zorder>cbQgsVectorLayer</zorder>
-      <zorder>horizontalLayoutWidget</zorder>
       <zorder>btnBar</zorder>
      </widget>
     </widget>
@@ -320,8 +299,8 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
-     <normalon>:/timeseriesviewer/icons/mapviewHidden.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>
+     <normalon>:/timeseriesviewer/icons/mapviewHidden.svg</normalon>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
    </property>
    <property name="text">
     <string>Toogle visibility</string>
@@ -342,8 +321,8 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.png</normaloff>
-     <normalon>:/timeseriesviewer/icons/mIconPolygonLayer.png</normalon>:/timeseriesviewer/icons/mIconPolygonLayer.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normaloff>
+     <normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Toogle vector overlay visibility</string>
@@ -361,7 +340,7 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
     <string>Show/hide Crosshair</string>
@@ -373,7 +352,7 @@
   <action name="actionSetCrosshairStyle">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/symbology.png</normaloff>:/timeseriesviewer/icons/symbology.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/symbology.svg</normaloff>:/timeseriesviewer/icons/symbology.svg</iconset>
    </property>
    <property name="text">
     <string>Set crosshair style</string>

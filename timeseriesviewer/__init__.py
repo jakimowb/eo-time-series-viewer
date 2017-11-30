@@ -75,7 +75,8 @@ DIR_UI = jp(DIR,*['ui'])
 DIR_DOCS = jp(DIR,'docs')
 DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
-PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
+PATH_LICENSE = jp(DIR_REPO, 'LICENSE.html')
+PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.html')
 DEBUG = True
 
 import site

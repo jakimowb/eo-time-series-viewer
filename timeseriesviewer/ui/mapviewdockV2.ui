@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>406</width>
+    <width>218</width>
     <height>272</height>
    </rect>
   </property>
@@ -24,16 +24,7 @@
     <property name="spacing">
      <number>2</number>
     </property>
-    <property name="leftMargin">
-     <number>2</number>
-    </property>
-    <property name="topMargin">
-     <number>2</number>
-    </property>
-    <property name="rightMargin">
-     <number>2</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>2</number>
     </property>
     <item>
@@ -66,16 +57,7 @@
        <property name="spacing">
         <number>2</number>
        </property>
-       <property name="leftMargin">
-        <number>0</number>
-       </property>
-       <property name="topMargin">
-        <number>0</number>
-       </property>
-       <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
+       <property name="margin">
         <number>0</number>
        </property>
        <item>
@@ -91,7 +73,7 @@
          </property>
          <property name="icon">
           <iconset resource="resources.qrc">
-           <normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</iconset>
+           <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
          </property>
          <property name="autoRaise">
           <bool>true</bool>
@@ -114,7 +96,7 @@
          </property>
          <property name="icon">
           <iconset resource="resources.qrc">
-           <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
+           <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
          </property>
          <property name="autoRaise">
           <bool>true</bool>
@@ -145,6 +127,16 @@
            <horstretch>1</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="btnHighlightMapView">
+         <property name="text">
+          <string>?</string>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -184,7 +176,7 @@
   <action name="actionRemoveMapView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Remove view</string>
@@ -196,13 +188,21 @@
   <action name="actionAddMapView">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</normaloff>:/timeseriesviewer/icons/mActionAddMapView.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
     <string>ApplyStyles</string>
    </property>
    <property name="toolTip">
     <string>Create a new map view</string>
+   </property>
+  </action>
+  <action name="actionHighlightMapView">
+   <property name="text">
+    <string>?</string>
+   </property>
+   <property name="toolTip">
+    <string>Click to highlight maps of this map view</string>
    </property>
   </action>
  </widget>

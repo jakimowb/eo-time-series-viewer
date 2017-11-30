@@ -59,10 +59,12 @@ class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
         assert isinstance(sensor, SensorInstrument)
 
         w = MapViewSensorSettings(sensor)
-        l = self.gbRasterRendering.layout()
+        #sizePolicy = QSizePolicy(QSize)
+        #w.ui.
+        l = self.renderSettingsLayout
         assert sensor not in self.mSensors.keys()
 
-        lastWidgetIndex = l.count()
+        lastWidgetIndex = l.count()-1
         l.insertWidget(lastWidgetIndex, w.ui)
         self.mSensors[sensor] = w
         #self.resize(self.sizeHint())
@@ -76,7 +78,7 @@ class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
         sensorSettings = self.mSensors.pop(sensor)
         assert isinstance(sensorSettings, MapViewSensorSettings)
 
-        l = self.scrollAreaWidgetContents.layout()
+        l = self.renderSettingsLayout
         l.removeWidget(sensorSettings.ui)
         sensorSettings.ui.close()
         #self.resize(self.sizeHint())
@@ -195,6 +197,22 @@ class MapView(QObject):
         if old != self.mCrosshairStyle:
             self.sigCrosshairStyleChanged.emit(self.mCrosshairStyle)
 
+    def setHighlighted(self, b=True, timeout=1000):
+        styleOn = """.MapCanvas {
+                    border: 4px solid red;
+                    border-radius: 4px;
+                }"""
+        styleOff = """"""
+        if b is True:
+            for mapCanvas in self.mapCanvases():
+                mapCanvas.setStyleSheet(styleOn)
+            if timeout > 0:
+                QTimer.singleShot(timeout, lambda : self.setHighlighted(False))
+        else:
+            for mapCanvas in self.mapCanvases():
+                mapCanvas.setStyleSheet(styleOff)
+
+
     def setShowCrosshair(self, b):
         assert isinstance(b, bool)
         self.mShowCrosshair = b
@@ -263,7 +281,7 @@ class MapView(QObject):
 
 
 
-class MapViewRenderSettingsUI(QGroupBox, loadUi('mapviewrendersettings.ui')):
+class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUi('mapviewrendersettings.ui')):
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -459,8 +477,8 @@ class MapViewSensorSettings(QObject):
 
 
     def onSensorNameChanged(self, newName):
-        self.sensor.sigNameChanged.connect(self.ui.labelTitle.setText)
-        self.ui.labelTitle.setText(self.sensor.name())
+
+        self.ui.setTitle(self.sensor.name())
         self.ui.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.sensor.name()))
 
     def pasteStyleFromClipboard(self):
@@ -518,16 +536,16 @@ class MapViewSensorSettings(QObject):
         cw = self.ui.stackedWidget.currentWidget()
         text = ''
         if cw == self.ui.pageMultiBand:
-            text = 'RGB {} {} {}'.format(
+            text = 'Multiband({} {} {})'.format(
                 self.ui.sliderRed.value(),
                 self.ui.sliderGreen.value(),
                 self.ui.sliderBlue.value()
             )
         elif cw == self.ui.pageSingleBand:
-            text = 'Band {}'.format(self.ui.sliderSingleBand.value())
+            text = 'Singleband({})'.format(self.ui.sliderSingleBand.value())
 
-
-        self.ui.labelSummary.setText(text)
+        text = '{} - {}'.format(self.sensor.name(), text)
+        self.ui.setTitle(text)
 
 
     def setLayerRenderer(self, renderer):
@@ -708,6 +726,19 @@ class DatumView(QObject):
     def setVisibility(self, b):
         self.ui.setVisible(b)
         self.sigVisibilityChanged.emit(b)
+
+    def setHighlighted(self, b=True, timeout=1000):
+        styleOn = """.QFrame {
+                    border: 4px solid red;
+                    border-radius: 4px;
+                }"""
+        styleOff = """"""
+        if b is True:
+            self.ui.setStyleSheet(styleOn)
+            if timeout > 0:
+                QTimer.singleShot(timeout, lambda : self.setHighlighted(b=False))
+        else:
+            self.ui.setStyleSheet(styleOff)
 
 
     def setMapViewVisibility(self, bandView, isVisible):
@@ -1145,6 +1176,16 @@ class DateViewCollection(QObject):
         self.sigResizeRequired.emit()
 
 
+    def highlightDate(self, tsd):
+        """
+        Highlights a time series data for a specific time our
+        :param tsd:
+        :return:
+        """
+        tsdView = self.tsdView(tsd)
+        if isinstance(tsdView, DatumView):
+            tsdView.setHighlight(True)
+
     def setFocusView(self, tsd):
         self.focusView = tsd
 
@@ -1568,9 +1609,11 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdockV2.ui')):
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
         self.btnRefresh.setDefaultAction(self.actionApplyStyles)
+        self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
 
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()))
+        self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True))
 
         self.mMapViews = MapViewListModel()
         self.mMapViews.sigMapViewsRemoved.connect(self.onMapViewsRemoved)

@@ -53,7 +53,7 @@
            </property>
            <property name="icon">
             <iconset resource="resources.qrc">
-             <normaloff>:/timeseriesviewer/icons/mActionFileSave.png</normaloff>:/timeseriesviewer/icons/mActionFileSave.png</iconset>
+             <normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</iconset>
            </property>
           </widget>
          </item>
@@ -67,7 +67,7 @@
            </property>
            <property name="icon">
             <iconset resource="resources.qrc">
-             <normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</normaloff>:/timeseriesviewer/icons/mActionEditCopy.png</iconset>
+             <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
            </property>
           </widget>
          </item>
@@ -81,7 +81,7 @@
            </property>
            <property name="icon">
             <iconset resource="resources.qrc">
-             <normaloff>:/timeseriesviewer/icons/mIconClearText.png</normaloff>:/timeseriesviewer/icons/mIconClearText.png</iconset>
+             <normaloff>:/timeseriesviewer/icons/mIconClearText.svg</normaloff>:/timeseriesviewer/icons/mIconClearText.svg</iconset>
            </property>
           </widget>
          </item>

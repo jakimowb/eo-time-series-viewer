@@ -292,7 +292,7 @@ def sandboxTestdata():
     #imgs = file_search(searchDir, '*.tif', recursive=True)#[0:1]  # [0:5]
     import example.Images
     imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
-            example.Images.re_2014_08_20]
+            example.Images.re_2014_08_26]
 
     S.addTimeSeriesImages(imgs)
 

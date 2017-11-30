@@ -102,7 +102,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionExpandTree.svg</normaloff>:/timeseriesviewer/icons/mActionExpandTree.svg</iconset>
             </property>
            </widget>
           </item>
@@ -116,7 +116,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.svg</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.svg</iconset>
             </property>
            </widget>
           </item>
@@ -130,7 +130,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.png</normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.svg</normaloff>:/timeseriesviewer/icons/mActionAddVirtualRaster.svg</iconset>
             </property>
            </widget>
           </item>
@@ -147,7 +147,7 @@
             </property>
             <property name="icon">
              <iconset resource="resources.qrc">
-              <normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.png</normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.png</iconset>
+              <normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveVirtualRaster.svg</iconset>
             </property>
            </widget>
           </item>
@@ -380,7 +380,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</normaloff>:/timeseriesviewer/icons/mActionExpandTree.png</iconset>
+                 <normaloff>:/timeseriesviewer/icons/mActionExpandTree.svg</normaloff>:/timeseriesviewer/icons/mActionExpandTree.svg</iconset>
                </property>
               </widget>
              </item>
@@ -394,7 +394,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.png</iconset>
+                 <normaloff>:/timeseriesviewer/icons/mActionCollapseTree.svg</normaloff>:/timeseriesviewer/icons/mActionCollapseTree.svg</iconset>
                </property>
               </widget>
              </item>
@@ -418,7 +418,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.png</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.png</iconset>
+                 <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
                </property>
               </widget>
              </item>
@@ -435,7 +435,7 @@
                </property>
                <property name="icon">
                 <iconset resource="resources.qrc">
-                 <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.png</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.png</iconset>
+                 <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
                </property>
               </widget>
              </item>
