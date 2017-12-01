@@ -395,6 +395,7 @@ LUT_MESSAGELOGLEVEL = {
                 QgsMessageLog.INFO:'INFO',
                 QgsMessageLog.CRITICAL:'INFO',
                 QgsMessageLog.WARNING:'WARNING'}
+
 LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
                     QgsMessageLog.CRITICAL:QgsMessageBar.WARNING,
                     QgsMessageLog.WARNING:QgsMessageBar.WARNING,
@@ -415,7 +416,7 @@ class TimeSeriesViewer(QObject):
         # initialize GUI
         self.ui = TimeSeriesViewerUI()
         msgLog = QgsMessageLog.instance()
-        #msgLog.messageReceived.connect(self.logMessage)
+        msgLog.messageReceived.connect(self.logMessage)
 
 
         # Save reference to the QGIS interface
