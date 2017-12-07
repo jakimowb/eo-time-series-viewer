@@ -139,17 +139,25 @@ class MapView(QObject):
 
         self.ui.actionToggleVectorVisibility.toggled.connect(self.setShowVectorOverlay)
         self.ui.actionToggleCrosshairVisibility.toggled.connect(self.setShowCrosshair)
-        self.ui.actionToggleMapViewVisibility.toggled.connect(self.setIsVisible)
+        self.ui.actionToggleMapViewVisibility.toggled.connect(lambda b: self.setIsVisible(not b))
 
         self.setTitle(name)
         #forward actions with reference to this band view
 
     def setIsVisible(self, b):
         assert isinstance(b, bool)
-        self.mIsVisible = b
-        self.sigMapViewVisibility.emit(b)
+        changed = b != self.mIsVisible
 
-    def isVisible(self, b):
+        self.mIsVisible = b
+
+        for mapCanvas in self.mapCanvases():
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.setVisible(b)
+        if changed:
+            self.sigMapViewVisibility.emit(b)
+
+
+    def isVisible(self):
         return self.mIsVisible
 
     def mapCanvases(self):
@@ -735,6 +743,77 @@ class MapViewSensorSettings(QObject):
         return r
 
 
+
+class DatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
+    """
+    Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
+    """
+    def __init__(self, title='<#>', parent=None):
+        super(DatumViewUI, self).__init__(parent)
+        self.setupUi(self)
+
+    def sizeHint(self):
+        m = self.layout().contentsMargins()
+
+        s = QSize(0, 0)
+
+        map = None
+        widgets = [self.layout().itemAt(i).widget() for i in range(self.layout().count())]
+        widgets = [w for w in widgets if isinstance(w, QWidget)]
+
+        maps = [w for w in widgets if isinstance(w, MapCanvas)]
+        others = [w for w in widgets if not isinstance(w, MapCanvas)]
+
+        s = self.layout().spacing()
+        m = self.layout().contentsMargins()
+
+        def totalHeight(widgetList):
+            total = QSize(0,0)
+            for w in widgetList:
+                ws = w.size()
+                if ws.width() == 0:
+                    ws = w.sizeHint()
+                total.setWidth(max([total.width(), ws.width()]))
+                total.setHeight(total.height() +  ws.height())
+            return total
+
+        baseSize = totalHeight(widgets)
+        if baseSize.width() == 0:
+            for o in others:
+                baseSize.setWidth(9999)
+        s = QSize(baseSize.width() + m.left() + m.right(),
+                  baseSize.height() + m.top() + m.bottom())
+        print(s)
+        return s
+
+"""
+    def sizeHint(self):
+
+        if not self.ui.isVisible():
+            return QSize(0,0)
+        else:
+            #return self.ui.sizeHint()
+
+            size = self.ui.sizeHint()
+            s = self.ui.layout().spacing()
+            m = self.ui.layout().contentsMargins()
+            dx = m.left() + m.right() + s
+            dy = self.ui.layout().spacing()
+
+            n = len([m for m in self.mapCanvases.keys() if m.isVisible()])
+            if n > 0:
+                baseSize = self.mapCanvases.values()[0].size()
+                size = QSize(baseSize.width()+ dx, \
+                             size.height()+ (n+1)*(dy+2*s))
+            else:
+                s = ""
+            return size
+
+
+"""
+
+
+
 class DatumView(QObject):
 
     sigRenderProgress = pyqtSignal(int,int)
@@ -748,8 +827,7 @@ class DatumView(QObject):
 
 
         super(DatumView, self).__init__()
-        from timeseriesviewer.ui.widgets import TimeSeriesDatumViewUI
-        self.ui = TimeSeriesDatumViewUI(parent=parent)
+        self.ui = DatumViewUI(parent=parent)
         self.ui.create()
         self.showLoading(False)
         self.wOffset = self.ui.layout().count()-1
@@ -799,28 +877,6 @@ class DatumView(QObject):
 
     def setMapViewVisibility(self, bandView, isVisible):
         self.mapCanvases[bandView].setVisible(isVisible)
-
-    def sizeHint(self):
-
-        if not self.ui.isVisible():
-            return QSize(0,0)
-        else:
-            #return self.ui.sizeHint()
-
-            size = self.ui.sizeHint()
-            s = self.ui.layout().spacing()
-            m = self.ui.layout().contentsMargins()
-            dx = m.left() + m.right() + s
-            dy = self.ui.layout().spacing()
-
-            n = len(self.mapCanvases)
-            if n > 0:
-                baseSize = self.mapCanvases.values()[0].size()
-                size = QSize(baseSize.width()+ dx, \
-                             size.height()+ (n+1)*(dy+2*s))
-            else:
-                s = ""
-            return size
 
 
     def removeMapView(self, mapView):
@@ -968,6 +1024,7 @@ class SpatialTemporalVisualization(QObject):
         #self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
         self.MVC = self.ui.dockMapViewsV2
+        assert isinstance(self.MVC, MapViewCollectionDock)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
         self.vectorOverlay = None
@@ -1017,8 +1074,6 @@ class SpatialTemporalVisualization(QObject):
     def setVectorLayer(self, lyr):
         self.MVC.setVectorLayer(lyr)
 
-    def createMapView(self):
-        self.MVC.createMapView()
 
     def activateMapTool(self, key):
         from timeseriesviewer.mapcanvas import MapCanvas
@@ -1060,9 +1115,10 @@ class SpatialTemporalVisualization(QObject):
         spacing = self.targetLayout.spacing()
         margins = self.targetLayout.contentsMargins()
         if n > 0:
-            s = tsdViews[0].sizeHint()
+            s = tsdViews[0].ui.sizeHint()
             s = QSize(n * (s.width() + spacing) + margins.left() + margins.right(),
                       s.height() + margins.top() + margins.bottom())
+            print('ADJ {}'.format(s))
             self.targetLayout.parentWidget().setFixedSize(s)
 
             """
@@ -1176,16 +1232,6 @@ class SpatialTemporalVisualization(QObject):
         self.scrollArea.ensureWidgetVisible(tsdv.ui)
 
 
-
-
-    def setMapViewVisibility(self, bandView, isVisible):
-        assert isinstance(bandView, MapView)
-        assert isinstance(isVisible, bool)
-
-        for tsdv in self.TSDViews:
-            tsdv.setMapViewVisibility(bandView, isVisible)
-
-
 class DateViewCollection(QObject):
 
     sigResizeRequired = pyqtSignal()
@@ -1237,7 +1283,9 @@ class DateViewCollection(QObject):
             tsdv.ui.setUpdatesEnabled(True)
 
         #mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
+        mapView.sigMapViewVisibility.connect(lambda: self.sigResizeRequired.emit())
         w.setUpdatesEnabled(True)
+
         self.sigResizeRequired.emit()
 
     def removeMapView(self, mapView):
@@ -1669,7 +1717,6 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
-    sigSetMapViewVisibility = pyqtSignal(MapView, bool)
     sigShowProfiles = pyqtSignal(SpatialPoint)
 
     def connectTimeSeries(self, timeSeries):
@@ -1698,7 +1745,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
         self.mMapViews.sigMapViewsAdded.connect(self.updateButtons)
         self.mMapViews.sigMapViewsRemoved.connect(self.updateButtons)
         self.cbMapView.setModel(self.mMapViews)
-        self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i <= 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
+        self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i < 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
 
         self.TS = None
 
@@ -1747,8 +1794,10 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
         for sensor in self.TS.Sensors:
             mapView.addSensor(sensor)
 
+
         self.mMapViews.addMapView(mapView)
         self.sigMapViewAdded.emit(mapView)
+        return mapView
 
     def updateFromMapView(self, mapView):
         assert isinstance(mapView, MapView)

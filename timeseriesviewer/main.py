@@ -468,7 +468,7 @@ class TimeSeriesViewer(QObject):
         D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
         D.actionIdentifyTimeSeries.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyProfile'))
         D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
-        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.createMapView)
+        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
         D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
