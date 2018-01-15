@@ -291,10 +291,17 @@ def sandboxTestdata():
     #searchDir = jp(DIR_EXAMPLES, 'Images')
     #imgs = file_search(searchDir, '*.tif', recursive=True)#[0:1]  # [0:5]
     import example.Images
+
     imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
             example.Images.re_2014_08_26]
 
+    from example import exampleEvents
+
     S.addTimeSeriesImages(imgs)
+
+    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr', True)
+    QgsMapLayerRegistry.instance().addMapLayer(ml)
+
 
 if __name__ == '__main__':
     import site, sys, pyqtgraph

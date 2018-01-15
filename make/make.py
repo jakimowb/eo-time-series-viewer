@@ -197,7 +197,7 @@ def compile_rc_files(ROOT):
             attr = getDOMAttributes(includeNodes.item(i).toElement())
             if 'location' in attr.keys():
                 print((ui_file, str(attr['location'])))
-                qrcs.add((pathDir, str(attr['location'])))
+                qrcs.add((pathDir, str(attr['location']), ui_file))
 
     #compile Qt resource files
     #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
@@ -211,10 +211,11 @@ def compile_rc_files(ROOT):
 
 
 
-    for root_dir, f in resourcefiles:
+    for root_dir, f, ui_file in resourcefiles:
         #dn = os.path.dirname(f)
         pathQrc = os.path.normpath(jp(root_dir, f))
-        assert os.path.exists(pathQrc), pathQrc
+        if not os.path.exists(pathQrc):
+            raise Exception('Missing: {} \n used in {}'.format(pathQrc, ui_file))
         bn = os.path.basename(f)
         bn = os.path.splitext(bn)[0]
         pathPy2 = os.path.join(DIR_UI, bn+'.py' )

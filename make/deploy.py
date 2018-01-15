@@ -133,4 +133,19 @@ if __name__ == "__main__":
     zipdir(dirPlugin, pathZip)
     #os.chdir(dirPlugin)
     #shutil.make_archive(pathZip, 'zip', '..', dirPlugin)
+
+    # 6. copy to local QGIS user DIR
+    if True:
+        import shutil
+
+        from os.path import expanduser
+
+        pathQGIS = os.path.join(expanduser("~"), *['.qgis2', 'python', 'plugins'])
+
+        assert os.path.isdir(pathQGIS)
+        pathDst = os.path.join(pathQGIS, os.path.basename(dirPlugin))
+        rm(pathDst)
+        shutil.copytree(dirPlugin, pathDst)
+        s = ""
+
     print('Finished')

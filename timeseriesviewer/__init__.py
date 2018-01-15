@@ -22,13 +22,14 @@
 from __future__ import absolute_import
 VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
-TITLE = 'HUB Time Series Viewer'
+TITLE = 'HUB TimeSeriesViewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
 WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 REPOSITORY = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 ABOUT = """
 The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
 """
+DEBUG = True
 
 import os, sys, fnmatch, site, re
 import six, logging
@@ -42,7 +43,7 @@ from PyQt4.QtGui import QIcon
 
 
 
-DEBUG = True
+
 
 #initiate loggers for all pyfiles
 import pkgutil
@@ -77,7 +78,7 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.html')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.html')
-DEBUG = True
+
 
 import site
 site.addsitedir(DIR_SITE_PACKAGES)

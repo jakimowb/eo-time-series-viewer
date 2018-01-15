@@ -33,18 +33,9 @@ from timeseriesviewer.utils import *
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
 from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
+from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
-
-class MapViewScrollArea(QScrollArea):
-
-    sigResized = pyqtSignal()
-    def __init__(self, *args, **kwds):
-        super(MapViewScrollArea, self).__init__(*args, **kwds)
-
-    def resizeEvent(self, event):
-        super(MapViewScrollArea, self).resizeEvent(event)
-        self.sigResized.emit()
 
 
 class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
@@ -61,9 +52,9 @@ class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
 
         self.btnToggleCrosshair.setMenu(m)
 
-
-        self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewVisibility)
-        self.btnToggleVectorOverlay.setDefaultAction(self.actionToggleVectorVisibility)
+        self.gbVectorRendering.toggled.connect(self.actionToggleMapViewVisibility.toggle)
+        #self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewVisibility)
+        #self.btnToggleVectorOverlay.setDefaultAction(self.actionToggleVectorVisibility)
         self.btnToggleCrosshair.setDefaultAction(self.actionToggleCrosshairVisibility)
 
     def addSensor(self, sensor):
@@ -783,7 +774,6 @@ class DatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
                 baseSize.setWidth(9999)
         s = QSize(baseSize.width() + m.left() + m.right(),
                   baseSize.height() + m.top() + m.bottom())
-        print(s)
         return s
 
 """
@@ -932,7 +922,7 @@ class DatumView(QObject):
     def onRendering(self, *args):
         renderFlags = [m.renderFlag() for m in self.mapCanvases.values()]
         drawFlags = [m.isDrawing() for m in self.mapCanvases.values()]
-        print((renderFlags, drawFlags))
+#        print((renderFlags, drawFlags))
         isLoading = any(renderFlags)
 
         self.showLoading(isLoading)
@@ -1042,6 +1032,8 @@ class SpatialTemporalVisualization(QObject):
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
 
+    def createMapView(self):
+        self.MVC.createMapView()
 
     def registerMapCanvas(self, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
@@ -1118,7 +1110,7 @@ class SpatialTemporalVisualization(QObject):
             s = tsdViews[0].ui.sizeHint()
             s = QSize(n * (s.width() + spacing) + margins.left() + margins.right(),
                       s.height() + margins.top() + margins.bottom())
-            print('ADJ {}'.format(s))
+
             self.targetLayout.parentWidget().setFixedSize(s)
 
             """

@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>633</width>
+    <width>550</width>
     <height>300</height>
    </rect>
   </property>
@@ -21,7 +21,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>0</width>
+    <width>550</width>
     <height>300</height>
    </size>
   </property>
@@ -174,6 +174,9 @@
            </property>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout">
+             <property name="spacing">
+              <number>2</number>
+             </property>
              <property name="topMargin">
               <number>0</number>
              </property>
@@ -187,14 +190,14 @@
                </property>
                <property name="minimumSize">
                 <size>
-                 <width>100</width>
-                 <height>100</height>
+                 <width>75</width>
+                 <height>75</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>100</width>
-                 <height>100</height>
+                 <width>75</width>
+                 <height>75</height>
                 </size>
                </property>
                <property name="text">
@@ -237,7 +240,7 @@
                   <property name="font">
                    <font>
                     <family>Verdana</family>
-                    <pointsize>18</pointsize>
+                    <pointsize>12</pointsize>
                     <weight>75</weight>
                     <bold>true</bold>
                    </font>
@@ -246,8 +249,7 @@
                    <string notr="true">background-color: rgb(255, 255, 255,0);</string>
                   </property>
                   <property name="text">
-                   <string>HUB 
-Time Series Viewer</string>
+                   <string>HUB Time Series Viewer</string>
                   </property>
                   <property name="textFormat">
                    <enum>Qt::PlainText</enum>
@@ -286,14 +288,14 @@ Time Series Viewer</string>
                </property>
                <property name="minimumSize">
                 <size>
-                 <width>100</width>
-                 <height>100</height>
+                 <width>75</width>
+                 <height>75</height>
                 </size>
                </property>
                <property name="maximumSize">
                 <size>
-                 <width>100</width>
-                 <height>100</height>
+                 <width>75</width>
+                 <height>75</height>
                 </size>
                </property>
                <property name="text">
@@ -314,6 +316,9 @@ Time Series Viewer</string>
            </item>
            <item>
             <widget class="QLabel" name="labelAboutText">
+             <property name="lineWidth">
+              <number>0</number>
+             </property>
              <property name="text">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;Website, Source Code and more&lt;br/&gt;&lt;a href=&quot;https://bitbucket.org/jakimowb/hub-timeseriesviewer&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;https://bitbucket.org/jakimowb/hub-timeseriesviewe&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p align=&quot;center&quot;&gt;Licenced under the GNU General Public Licence Version 2&lt;br/&gt;&lt;a href=&quot;http://www.gnu.org/licenses/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;http://www.gnu.org/licenses/&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p align=&quot;center&quot;&gt;
 The HUB Time Series Viewer is developed at Humboldt-Universit&amp;auml;t zu Berlin (HUB). Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (&lt;a href=&quot;http://www.enmap.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;http://www.enmap.org&lt;/span&gt;&lt;/a&gt;), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
@@ -396,7 +401,6 @@ The HUB Time Series Viewer is developed at Humboldt-Universit&amp;auml;t zu Berl
  </widget>
  <resources>
   <include location="resources.qrc"/>
-  <include location="C:/Users/geo_beja/.designer/backup/resources.qrc"/>
  </resources>
  <connections>
   <connection>

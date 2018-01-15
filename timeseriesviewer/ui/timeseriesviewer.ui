@@ -601,7 +601,7 @@
   <customwidget>
    <class>MapViewScrollArea</class>
    <extends>QScrollArea</extends>
-   <header>timeseriesviewer.mapvisualization.h</header>
+   <header>timeseriesviewer.ui.mapviewscrollarea</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -31,7 +31,7 @@ from timeseriesviewer.utils import *
 
 
 
-DEBUG = True
+DEBUG = False
 
 import numpy as np
 import multiprocessing
@@ -184,16 +184,15 @@ class QgisTsvBridge(QObject):
             assert isinstance(self.ui.dockRendering, RenderingDockUI)
 
             self.ui.dockRendering.sigQgisInteractionRequest.connect(self.onQgisInteractionRequest)
-            self.ui.dockRendering.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
             self.ui.dockRendering.enableQgisInteraction(True)
 
-            self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
-            self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
+            #self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
+            #self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
 
             self.qgsMapCanvas = self.iface.mapCanvas()
             assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
-            assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
-            assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
+            #assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
+            #assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
             return True
         else:
             return False
@@ -402,6 +401,17 @@ LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
                     }
 
 
+def showMessage(message, title, level):
+    v = QgsMessageViewer()
+    v.setTitle(title)
+    #print('DEBUG MSG: {}'.format(message))
+    v.setMessage(message, QgsMessageOutput.MessageHtml \
+        if message.startswith('<html>')
+    else QgsMessageOutput.MessageText)
+    v.showMessage(True)
+
+
+
 class TimeSeriesViewer(QObject):
 
     def __init__(self, iface):
@@ -558,22 +568,21 @@ class TimeSeriesViewer(QObject):
             m = m[0:m.index('')]
         m = '\n'.join(m)
 
-        if re.search('timeseriesviewer', m):
+        if not re.search('timeseriesviewer', m):
             return
 
         if level in [QgsMessageLog.CRITICAL, QgsMessageLog.WARNING]:
             widget = self.ui.messageBar.createMessage(tag, message)
             button = QPushButton(widget)
             button.setText("Show")
-            from enmapbox.gui.utils import showMessage
             button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
             widget.layout().addWidget(button)
             self.ui.messageBar.pushWidget(widget,
                               LUT_MSGLOG2MSGBAR.get(level, QgsMessageBar.INFO),
-                              SETTINGS.value('MESSAGE_TIMEOUT', 0))
+                              SETTINGS.value('MESSAGE_TIMEOUT', 10))
 
             #print on normal console
-            print(u'{}({}): {}'.format(tag, level, message))
+            #print(u'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 
@@ -634,7 +643,7 @@ class TimeSeriesViewer(QObject):
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('EnMAPBox', message)
+        return QCoreApplication.translate('HUBTSV', message)
 
 
 
@@ -727,7 +736,7 @@ def main():
     ts = TimeSeriesViewer(None)
     ts.run()
     ts.loadExampleTimeSeries()
-    ts.createMapView()
+    # ts.createMapView()
     # close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
