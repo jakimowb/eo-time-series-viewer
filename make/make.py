@@ -181,7 +181,7 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
 
 
 
-def compile_rc_files(ROOT):
+def compile_rc_files(ROOT, removeTimeStamp=True):
     #find ui files
     ui_files = file_search(ROOT, '*.ui', recursive=True)
     qrcs = set()
@@ -221,42 +221,15 @@ def compile_rc_files(ROOT):
         pathPy2 = os.path.join(DIR_UI, bn+'.py' )
         subprocess.call(['pyrcc4', '-py2', '-o', pathPy2, pathQrc])
 
+        if removeTimeStamp:
 
-def depr_make(ROOT):
-    #find ui files
-    ui_files = file_search(ROOT, '*.ui', recursive=True)
-    qrcs = set()
+            lines = open(pathPy2).readlines()
+            lines = re.sub('# Created: .*\n', "# Created <timestamp removed>\n", ''.join(lines))
+            f = open(pathPy2, 'w')
+            f.write(lines)
+            f.flush()
+            f.close()
 
-    doc = QDomDocument()
-    reg = re.compile('(?<=resource=")[^"]+\.qrc(?=")')
-
-    for ui_file in ui_files:
-        pathDir = os.path.dirname(ui_file)
-        doc.setContent(QFile(ui_file))
-        includeNodes = doc.elementsByTagName('include')
-        for i in range(includeNodes.count()):
-            attr = getDOMAttributes(includeNodes.item(i).toElement())
-            if 'location' in attr.keys():
-                print((ui_file, str(attr['location'])))
-                qrcs.add((pathDir, str(attr['location'])))
-
-    #compile Qt resource files
-    #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
-    resourcefiles = list(qrcs)
-
-    assert len(resourcefiles) > 0
-    for root_dir, f in resourcefiles:
-        #dn = os.path.dirname(f)
-        pathQrc = os.path.normpath(jp(root_dir, f))
-        assert os.path.exists(pathQrc), pathQrc
-        bn = os.path.basename(f)
-        bn = os.path.splitext(bn)[0]
-        pathPy2 = jp(DIR_UI, bn+'_rc.py' )
-        #pathPy3 = jp(DIR_UI, bn+'_py3.py' )
-        #print('Make {}'.format(pathPy2))
-        subprocess.call(['pyrcc4','-py2','-o',pathPy2, pathQrc])
-        #print('Make {}'.format(pathPy3))
-        #subprocess.call(['pyrcc4','-py3','-o',pathPy3, pathQrc])
 
 def fileNeedsUpdate(file1, file2):
     if not os.path.exists(file2):
@@ -601,7 +574,7 @@ if __name__ == '__main__':
         #d = pathDirTestData = DIR_EXAMPLES
         createFilePackage(d, recursive=False)
 
-    if True:
+    if False:
         updateInfoHTML()
 
     if False:
@@ -611,7 +584,7 @@ if __name__ == '__main__':
         # convert SVG to PNG
         svg2png(icondir, overwrite=False,
                 filterFile=os.path.join(os.path.dirname(__file__), 'svg2png.txt'))
-    if True:
+    if False:
         #add png icons to qrc file
         #file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png')
         file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.svg')

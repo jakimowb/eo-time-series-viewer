@@ -15,8 +15,8 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 from qgis import *
 from PyQt4.QtGui import QIcon
-from utilities import get_qgis_app
-QGIS_APP = get_qgis_app()
+from timeseriesviewer.utils import initQgisApplication
+QGIS_APP = initQgisApplication()
 
 
 class testclassDialogTest(unittest.TestCase):

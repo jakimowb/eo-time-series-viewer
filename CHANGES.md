@@ -7,7 +7,7 @@ the data might cause system crashes
 ## Change History ##
 ### November 2017
 - Map Visualization
-    - re-design of Map View Settings dock, which is now has a vertical layout
+    - re-design of Map View Settings pane, which now has a vertical layout
     - map views can be named with own titles, like "True Color" and "Short Wave Infrared"
     - added "identify map view" button, which will highlight the respective map canvas for 1 second
 

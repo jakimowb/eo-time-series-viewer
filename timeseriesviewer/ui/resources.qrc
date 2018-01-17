@@ -1,6 +1,5 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
-    <file>icons/logo_hub.svg</file>
     <file>icons/ActionIdentifyTimeSeries.svg</file>
     <file>icons/CRS.svg</file>
     <file>icons/IconTimeSeries.svg</file>
@@ -10,6 +9,7 @@
     <file>icons/icon.svg</file>
     <file>icons/locked.svg</file>
     <file>icons/lockedGray.svg</file>
+    <file>icons/logo_hub.svg</file>
     <file>icons/mActionAdd.svg</file>
     <file>icons/mActionAddMapView.svg</file>
     <file>icons/mActionAddRasterLayer.svg</file>
@@ -57,7 +57,6 @@
     <file>icons/mIconRasterImage.svg</file>
     <file>icons/mIconRasterMask.svg</file>
     <file>icons/mIconRasterRegression.svg</file>
-    <file>icons/mIconVirtualRaster.svg</file>
     <file>icons/mIconVirtualRaster2.svg</file>
     <file>icons/mapview.svg</file>
     <file>icons/mapviewHidden.svg</file>
