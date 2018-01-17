@@ -7,6 +7,10 @@ temp/
 
 example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
+.*
+!/.gitignore
+!/.gitattributes
+
 # Untrack compiled files
 *.aux.xml
 *.pyc
