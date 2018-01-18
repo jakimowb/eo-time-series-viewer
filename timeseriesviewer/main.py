@@ -736,9 +736,9 @@ def main():
 
     ts = TimeSeriesViewer(None)
     ts.run()
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
     ts.createMapView()
-    ts.addTimeSeriesImages([Img_2014_01_15_LC82270652014015LGN00_BOA])
+    ts.addTimeSeriesImages([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
     #ts.loadExampleTimeSeries()
 
     if False:

@@ -343,7 +343,9 @@ class MapView(QObject):
         s  =""
 
     def onSensorRenderingChanged(self, renderer):
-        for mapCanvas in self.mapCanvases():
+        sensorSettings = self.sender()
+        assert isinstance(sensorSettings, MapViewSensorSettings)
+        for mapCanvas in sensorSettings.mapCanvases():
             mapCanvas.setRenderer(renderer)
             #mapCanvas.refresh()
 
