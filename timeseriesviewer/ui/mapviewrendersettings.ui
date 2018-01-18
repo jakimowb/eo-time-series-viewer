@@ -6,26 +6,26 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>300</width>
+    <width>150</width>
     <height>250</height>
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+   <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
-    <width>260</width>
+    <width>150</width>
     <height>0</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>300</width>
-    <height>250</height>
+    <width>16000</width>
+    <height>16000</height>
    </size>
   </property>
   <property name="font">
@@ -51,6 +51,9 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
     <number>2</number>
+   </property>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetDefaultConstraint</enum>
    </property>
    <property name="leftMargin">
     <number>2</number>
@@ -187,7 +190,7 @@
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>0</height>
+       <height>130</height>
       </size>
      </property>
      <property name="frameShape">
@@ -297,7 +300,7 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>50</width>
+           <width>0</width>
            <height>0</height>
           </size>
          </property>
@@ -525,7 +528,7 @@
          </property>
          <property name="minimumSize">
           <size>
-           <width>50</width>
+           <width>0</width>
            <height>0</height>
           </size>
          </property>
@@ -932,14 +935,14 @@
        <item row="3" column="0" colspan="2">
         <widget class="QSlider" name="sliderSingleBand">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
          <property name="minimumSize">
           <size>
-           <width>75</width>
+           <width>0</width>
            <height>0</height>
           </size>
          </property>
