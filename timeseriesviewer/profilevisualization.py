@@ -438,7 +438,9 @@ class PixelCollection(QObject):
         mem = self.sensorData(sensor)
         dp = mem.dataProvider()
         exp = QgsExpression(expression)
-        exp.prepare(dp.fields())
+        context = QgsExpressionContext()
+        context.setFields(dp.fields())
+        scope = QgsExpressionContextScope()
 
         possibleTsds = self.TS.getTSDs(sensorOfInterest=sensor)
 
@@ -450,7 +452,10 @@ class PixelCollection(QObject):
             mem.selectAll()
             for feature in mem.selectedFeatures():
                 date = np.datetime64(feature.attribute('date'))
-                y = exp.evaluatePrepared(feature)
+                scope.setFeature(feature)
+                context.appendScope(scope)
+                y = exp.evaluate(context)
+
                 if y is not None:
                     tsd = next(tsd for tsd in possibleTsds if tsd.date == date)
                     tsds.append(tsd)
