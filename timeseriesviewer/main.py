@@ -45,8 +45,6 @@ from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 
 
 
-#I don't know why, but this is required to run this in QGIS
-#todo: still required?
 path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
@@ -533,6 +531,9 @@ class TimeSeriesViewer(QObject):
     def createMapView(self):
         self.spatialTemporalVis.createMapView()
 
+    def mapViews(self):
+        return self.spatialTemporalVis.MVC[:]
+
     def zoomTo(self, key):
         if key == 'zoomMaxExtent':
             ext = self.TS.getMaxSpatialExtent(self.ui.dockRendering.crs())
@@ -735,7 +736,23 @@ def main():
 
     ts = TimeSeriesViewer(None)
     ts.run()
-    ts.loadExampleTimeSeries()
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
+    ts.createMapView()
+    ts.addTimeSeriesImages([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
+    #ts.loadExampleTimeSeries()
+
+    if False:
+        from example import exampleEvents
+        lyr = QgsVectorLayer(exampleEvents, 'Events', 'ogr', True)
+        lyr2 = QgsVectorLayer(exampleEvents, 'Events2', 'ogr', True)
+        QgsMapLayerRegistry.instance().addMapLayers([lyr, lyr2])
+        mapView = ts.mapViews()[0]
+        from timeseriesviewer.mapvisualization import MapView
+        assert isinstance(mapView, MapView)
+        #mapView.setVectorLayer(lyr)
+
+
+
     # ts.createMapView()
     # close QGIS
     qgsApp.exec_()

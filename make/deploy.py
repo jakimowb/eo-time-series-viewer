@@ -94,7 +94,7 @@ if __name__ == "__main__":
     cfg = pb_tool.get_config(config=pathCfg)
 
     if True:
-        #1. clean an existing directory = the enmapboxplugin folder
+        #1. clean an existing directory = the timeseriesviewer folder
         pb_tool.clean_deployment(ask_first=False, config=pathCfg)
 
         #2. Compile. Basically call pyrcc to create the resources.rc file
@@ -102,7 +102,6 @@ if __name__ == "__main__":
         if True:
             import subprocess
             import make
-
 
             os.chdir(DIR_REPO)
             subprocess.call(['pb_tool', 'compile'])

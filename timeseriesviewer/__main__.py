@@ -20,8 +20,9 @@ from __future__ import absolute_import
 import sys
 
 class run():
-
-    # add site-packages to sys.path as done by enmapboxplugin.py
+    """
+    Starts the HUB TimeSeriesViewer
+    """
 
     from timeseriesviewer.sandbox import initQgisApplication
     qgsApp = initQgisApplication()

@@ -6,9 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>232</width>
-    <height>380</height>
+    <width>286</width>
+    <height>339</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>290</width>
+    <height>16777215</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Frame</string>
@@ -23,13 +35,25 @@
    <property name="spacing">
     <number>2</number>
    </property>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetMinAndMaxSize</enum>
+   </property>
    <property name="margin">
     <number>2</number>
    </property>
    <item>
     <widget class="QScrollArea" name="scrollArea">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOn</enum>
      </property>
      <property name="horizontalScrollBarPolicy">
       <enum>Qt::ScrollBarAlwaysOff</enum>
@@ -42,13 +66,28 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>226</width>
-        <height>374</height>
+        <width>263</width>
+        <height>333</height>
        </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>2</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>0</height>
+       </size>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <property name="spacing">
         <number>2</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetFixedSize</enum>
        </property>
        <property name="margin">
         <number>2</number>
@@ -170,10 +209,16 @@
        </item>
        <item>
         <widget class="QgsCollapsibleGroupBox" name="gbVectorRendering">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>50</height>
+           <height>0</height>
           </size>
          </property>
          <property name="title">
@@ -183,10 +228,13 @@
           <bool>true</bool>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_2">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMinAndMaxSize</enum>
+          </property>
           <item>
            <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -205,23 +253,29 @@
           <item>
            <widget class="QLabel" name="label_3">
             <property name="text">
-             <string>(add and modify vector layers in QGIS)</string>
+             <string>(modify vector layers in QGIS)</string>
             </property>
            </widget>
           </item>
          </layout>
          <zorder>cbQgsVectorLayer</zorder>
-         <zorder></zorder>
+         <zorder>collapseButton</zorder>
          <zorder>label_3</zorder>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="gbRasterRendering">
+        <widget class="QgsCollapsibleGroupBox" name="gbRasterRendering">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
-           <verstretch>2</verstretch>
+           <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>50</height>
+          </size>
          </property>
          <property name="title">
           <string>Raster Rendering</string>
@@ -229,37 +283,43 @@
          <property name="checkable">
           <bool>true</bool>
          </property>
+         <property name="collapsed">
+          <bool>false</bool>
+         </property>
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <property name="spacing">
-           <number>1</number>
+           <number>0</number>
           </property>
           <property name="margin">
-           <number>2</number>
+           <number>0</number>
           </property>
           <item>
            <layout class="QVBoxLayout" name="renderSettingsLayout">
-            <item>
-             <spacer name="verticalSpacer">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>0</width>
-                <height>0</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
+            <property name="sizeConstraint">
+             <enum>QLayout::SetMinAndMaxSize</enum>
+            </property>
+            <property name="margin">
+             <number>9</number>
+            </property>
            </layout>
           </item>
          </layout>
         </widget>
        </item>
+       <item>
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
       </layout>
-      <zorder>gbRasterRendering</zorder>
-      <zorder>btnBar</zorder>
-      <zorder>gbVectorRendering</zorder>
      </widget>
     </widget>
    </item>
@@ -284,28 +344,6 @@
    </property>
    <property name="toolTip">
     <string>Toogle visibility of this map view</string>
-   </property>
-  </action>
-  <action name="actionToggleVectorVisibility">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="checked">
-    <bool>false</bool>
-   </property>
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normaloff>
-     <normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Toogle vector overlay visibility</string>
-   </property>
-   <property name="toolTip">
-    <string>Toogle the visibility of the overlayed vector file</string>
    </property>
   </action>
   <action name="actionToggleCrosshairVisibility">
@@ -333,6 +371,36 @@
    </property>
    <property name="text">
     <string>Set crosshair style</string>
+   </property>
+  </action>
+  <action name="actionToggleVectorVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normaloff>
+     <normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Toogle vector overlay visibility</string>
+   </property>
+   <property name="toolTip">
+    <string>Toogle the visibility of the overlayed vector file</string>
+   </property>
+  </action>
+  <action name="actionToggleRasterVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>toggleRasterVisibility</string>
    </property>
   </action>
  </widget>

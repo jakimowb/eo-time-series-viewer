@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>218</width>
-    <height>272</height>
+    <width>299</width>
+    <height>369</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -160,7 +160,14 @@
      </widget>
     </item>
     <item>
-     <widget class="QStackedWidget" name="stackedWidget"/>
+     <widget class="QStackedWidget" name="stackedWidget">
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
