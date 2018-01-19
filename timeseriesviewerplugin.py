@@ -76,9 +76,7 @@ class TimeSeriesViewerPlugin:
     def unload(self):
         from timeseriesviewer.main import TimeSeriesViewer
 
-        #print('Unload plugin')
         for action in self.toolbarActions:
-            print(action)
             self.iface.removeToolBarIcon(action)
 
         if isinstance(self.tsv, TimeSeriesViewer):
