@@ -4,7 +4,8 @@
 deploy/
 deploy/*
 temp/
-
+doc/build/
+doc/build/*
 example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
 .*
