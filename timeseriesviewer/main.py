@@ -45,10 +45,10 @@ from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 
 
 
-#path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
-#if os.path.exists(path):
-#    multiprocessing.set_executable(path)
-#    sys.argv = [ None ]
+path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
+if os.path.exists(path):
+    multiprocessing.set_executable(path)
+    sys.argv = [ None ]
 
 #ensure that required non-standard modules are available
 

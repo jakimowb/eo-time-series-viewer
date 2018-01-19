@@ -20,8 +20,9 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
-import os, pickle
-import sys
+import os, sys, pickle
+import multiprocessing as mp
+
 import datetime
 from qgis.gui import *
 from qgis.core import *
@@ -29,9 +30,6 @@ from PyQt4.QtCore import *
 import numpy as np
 from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
-import multiprocessing as mp
-
-#mp.freeze_support()
 
 DEBUG = False
 
