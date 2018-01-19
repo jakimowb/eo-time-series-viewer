@@ -210,7 +210,7 @@ class MapView(QObject):
             #remove vector layers
             self.mVectorLayer = None
             for mapCanvas in self.mapCanvases():
-                mapCanvas.layerModel().setVectorLayers([])
+                mapCanvas.layerModel().setVectorLayerSources([])
                 #mapCanvas.setLayers([l for l in mapCanvas.mLayers if not isinstance(l, QgsVectorLayer)])
                 mapCanvas.refresh()
 
