@@ -24,8 +24,11 @@ Its major aims are:
     :local:
 
 
+
 News
 ----
+2018-01-19: Re-written dialog to configure map visualizations ("Map Views"), Vector & Raster layers can be hidden
+
 2018-01-19: Re-written dialog to configure map visualizations ("Map Views"), Vector & Raster layers can be hidden
 
 2017-06-27: `Poster <https://bitbucket.org/jakimowb/hub-timeseriesviewer/downloads/Jakimow.et.al.TimeSeriesViewer.pdf>`_ & demonstration at `Multitemp 2017, Brugges, Belgium <https://multitemp2017.vito.be>`_.
