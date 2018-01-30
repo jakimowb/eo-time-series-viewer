@@ -6,6 +6,8 @@ Installation
 
 .. warning:: Time Series Viewer requires QGIS Version 2.18.xx
 
+.. note:: If you have not installed QGIS yet, you can get it `here <https://www.qgis.org/en/site/forusers/download.html>`_
+
 A. Standard QGIS Plugin Installation
 ------------------------------------
 
@@ -24,6 +26,10 @@ A. Standard QGIS Plugin Installation
 .. image:: img/settings_plugin_enable.png
     :width: 80%
     :align: center
+
+4. You can now access the Plugin via the |icon| button in your QGIS Toolbar
+
+.. |icon| image:: img/icons/icon.svg
 
 B. Developers
 -------------
