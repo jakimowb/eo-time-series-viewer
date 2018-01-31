@@ -47,6 +47,10 @@ class TimeSeriesViewerPlugin:
             CONSOLE._console = CONSOLE.PythonConsole(iface.mainWindow())
             QTimer.singleShot(0, CONSOLE._console.activate)
 
+
+        #run a dependency check
+        self.initialDependencyCheck()
+
     def initGui(self):
         self.toolbarActions = []
 
@@ -68,6 +72,44 @@ class TimeSeriesViewerPlugin:
         for action in self.toolbarActions:
             self.iface.addToolBarIcon(action)
             self.iface.addPluginToRasterMenu(TITLE, action)
+
+
+    def initialDependencyCheck(self):
+        """
+        Runs a check for availability of package dependencies and give an readible error message
+        :return:
+        """
+
+        pluginDir = os.path.dirname(__file__)
+        missing = []
+        from timeseriesviewer import DEPENDENCIES, messageLog
+        for package in DEPENDENCIES:
+            try:
+                __import__(package)
+
+            except Exception as ex:
+                missing.append(package)
+        if len(missing) > 0:
+
+            n = len(missing)
+
+            longText = ['Unable to import the following package(s):']
+            longText.append('<b>{}</b>'.format(', '.join(missing)))
+            longText.append('<p>Please run your local package manager(s) with root rights to install them.')
+            #longText.append('More information is available under:')
+            #longText.append('<a href="http://enmap-box.readthedocs.io/en/latest/Installation.html">http://enmap-box.readthedocs.io/en/latest/Installation.html</a> </p>')
+
+            longText.append('This Python:')
+            longText.append('Executable: {}'.format(sys.executable))
+            longText.append('ENVIRON:')
+            for k in sorted(os.environ.keys()):
+                longText.append('\t{} ={}'.format(k, os.environ[k]))
+
+            longText = '<br/>\n'.join(longText)
+            messageLog(longText)
+            raise Exception(longText)
+
+
 
     def run(self):
         from timeseriesviewer.main import TimeSeriesViewer

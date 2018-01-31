@@ -80,6 +80,21 @@ PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
 
 
+DEPENDENCIES = ['pyqtgraph']
+
+import sys, os
+
+def messageLog(msg, level=None):
+    """
+    Writes a log message to the QGIS log related to the EnMAP-Box
+    :param msg: log message string
+    :param level: QgsMessageLog::MessageLevel with MessageLevel =[INFO |  ALL | WARNING | CRITICAL | NONE]
+    """
+    from qgis.core import QgsMessageLog
+    if level is None:
+        level = QgsMessageLog.WARNING
+    QgsMessageLog.instance().logMessage(msg, 'EnMAP-Box', level)
+
 import site
 site.addsitedir(DIR_SITE_PACKAGES)
 
