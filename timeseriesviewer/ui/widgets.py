@@ -102,7 +102,7 @@ class VerticalLabel(QLabel):
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUi
-from timeseriesviewer.main import SpatialExtent, QgisTsvBridge, TsvMimeDataUtils
+from timeseriesviewer.main import SpatialExtent, TsvMimeDataUtils
 
 
 def maxWidgetSizes(layout, onHint=True):

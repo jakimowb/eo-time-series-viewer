@@ -190,7 +190,8 @@ class DataLoadingModel(QAbstractTableModel):
             self.mLoadingTimes = OrderedDict()
 
         def addTimeDelta(self, name, timedelta):
-            assert isinstance(name, unicode)
+            if type(name) not in [str, unicode]:
+                s = ""
             assert isinstance(timedelta, np.timedelta64)
             #if timedelta.astype(float) > 0:
             #print(timedelta)

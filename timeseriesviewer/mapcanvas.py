@@ -32,6 +32,198 @@ from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 
 
+
+class MapTools(object):
+    """
+    Static class to support handling of nQgsMapTools.
+    """
+    def __init__(self):
+        raise Exception('This class is not for any instantiation')
+    ZoomIn = 'ZOOM_IN'
+    ZoomOut = 'ZOOM_OUT'
+    ZoomFull = 'ZOOM_FULL'
+    Pan = 'PAN'
+    ZoomPixelScale = 'ZOOM_PIXEL_SCALE'
+    CursorLocation = 'CURSOR_LOCATION'
+    SpectralProfile = 'SPECTRAL_PROFILE'
+    TemporalProfile = 'TEMPORAL_PROFILE'
+    MoveToCenter = 'MOVE_CENTER'
+
+    @staticmethod
+    def copy(mapTool):
+        assert isinstance(mapTool, QgsMapTool)
+        s = ""
+
+    @staticmethod
+    def create(mapToolKey, canvas, *args, **kwds):
+        assert mapToolKey in MapTools.mapToolKeys()
+
+        assert isinstance(canvas, QgsMapCanvas)
+
+        if mapToolKey == MapTools.ZoomIn:
+            return QgsMapToolZoom(canvas, False)
+        if mapToolKey == MapTools.ZoomOut:
+            return QgsMapToolZoom(canvas, True)
+        if mapToolKey == MapTools.Pan:
+            return QgsMapToolPan(canvas)
+        if mapToolKey == MapTools.ZoomPixelScale:
+            return PixelScaleExtentMapTool(canvas)
+        if mapToolKey == MapTools.ZoomFull:
+            return FullExtentMapTool(canvas)
+        if mapToolKey == MapTools.CursorLocation:
+            return CursorLocationMapTool(canvas, *args, **kwds)
+        if mapToolKey == MapTools.MoveToCenter:
+            tool = CursorLocationMapTool(canvas, *args, **kwds)
+            tool.sigLocationRequest.connect(canvas.setCenter)
+            return tool
+        if mapToolKey == MapTools.SpectralProfile:
+            return SpectralProfileMapTool(canvas, *args, **kwds)
+        if mapToolKey == MapTools.TemporalProfile:
+            return TemporalProfileMapTool(canvas, *args, **kwds)
+
+        raise Exception('Unknown mapToolKey {}'.format(mapToolKey))
+
+
+    @staticmethod
+    def mapToolKeys():
+        return [MapTools.__dict__[k] for k in MapTools.__dict__.keys() if not k.startswith('_')]
+
+
+
+class CursorLocationMapTool(QgsMapToolEmitPoint):
+
+    sigLocationRequest = pyqtSignal([SpatialPoint],[SpatialPoint, QgsMapCanvas])
+
+    def __init__(self, canvas, showCrosshair=True, purpose=None):
+        self.mShowCrosshair = showCrosshair
+        self.mCanvas = canvas
+        self.mPurpose = purpose
+        QgsMapToolEmitPoint.__init__(self, self.mCanvas)
+
+        self.mMarker = QgsVertexMarker(self.mCanvas)
+        self.mRubberband = QgsRubberBand(self.mCanvas, QGis.Polygon)
+
+        color = QColor('red')
+
+        self.mRubberband.setLineStyle(Qt.SolidLine)
+        self.mRubberband.setColor(color)
+        self.mRubberband.setWidth(2)
+
+        self.mMarker.setColor(color)
+        self.mMarker.setPenWidth(3)
+        self.mMarker.setIconSize(5)
+        self.mMarker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
+
+    def canvasPressEvent(self, e):
+        geoPoint = self.toMapCoordinates(e.pos())
+        self.mMarker.setCenter(geoPoint)
+
+    def setStyle(self, color=None, brushStyle=None, fillColor=None, lineStyle=None):
+        if color:
+            self.mRubberband.setColor(color)
+        if brushStyle:
+            self.mRubberband.setBrushStyle(brushStyle)
+        if fillColor:
+            self.mRubberband.setFillColor(fillColor)
+        if lineStyle:
+            self.mRubberband.setLineStyle(lineStyle)
+
+    def canvasReleaseEvent(self, e):
+
+
+        pixelPoint = e.pixelPoint()
+
+        crs = self.mCanvas.mapSettings().destinationCrs()
+        self.mMarker.hide()
+        geoPoint = self.toMapCoordinates(pixelPoint)
+        if self.mShowCrosshair:
+            #show a temporary crosshair
+            ext = SpatialExtent.fromMapCanvas(self.mCanvas)
+            cen = geoPoint
+            geom = QgsGeometry()
+            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
+                          QGis.Line)
+            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
+                          QGis.Line)
+            self.mRubberband.addGeometry(geom, None)
+            self.mRubberband.show()
+            #remove crosshair after 0.25 sec
+            QTimer.singleShot(250, self.hideRubberband)
+
+        pt = SpatialPoint(crs, geoPoint)
+        self.sigLocationRequest[SpatialPoint].emit(pt)
+        self.sigLocationRequest[SpatialPoint, QgsMapCanvas].emit(pt, self.canvas())
+
+    def hideRubberband(self):
+        self.mRubberband.reset()
+
+
+class SpectralProfileMapTool(CursorLocationMapTool):
+
+    def __init__(self, *args, **kwds):
+        super(SpectralProfileMapTool, self).__init__(*args, **kwds)
+
+
+class TemporalProfileMapTool(CursorLocationMapTool):
+
+    def __init__(self, *args, **kwds):
+        super(TemporalProfileMapTool, self).__init__(*args, **kwds)
+
+
+class FullExtentMapTool(QgsMapTool):
+    def __init__(self, canvas):
+        super(FullExtentMapTool, self).__init__(canvas)
+        self.canvas = canvas
+
+    def canvasReleaseEvent(self, mouseEvent):
+        self.canvas.zoomToFullExtent()
+
+    def flags(self):
+        return QgsMapTool.Transient
+
+
+class PixelScaleExtentMapTool(QgsMapTool):
+    def __init__(self, canvas):
+        super(PixelScaleExtentMapTool, self).__init__(canvas)
+        self.canvas = canvas
+
+    def flags(self):
+        return QgsMapTool.Transient
+
+
+    def canvasReleaseEvent(self, mouseEvent):
+        layers = self.canvas.layers()
+
+        unitsPxX = []
+        unitsPxY = []
+        for lyr in self.canvas.layers():
+            if isinstance(lyr, QgsRasterLayer):
+                unitsPxX.append(lyr.rasterUnitsPerPixelX())
+                unitsPxY.append(lyr.rasterUnitsPerPixelY())
+
+        if len(unitsPxX) > 0:
+            unitsPxX = np.asarray(unitsPxX)
+            unitsPxY = np.asarray(unitsPxY)
+            if True:
+                # zoom to largest pixel size
+                i = np.nanargmax(unitsPxX)
+            else:
+                # zoom to smallest pixel size
+                i = np.nanargmin(unitsPxX)
+            unitsPxX = unitsPxX[i]
+            unitsPxY = unitsPxY[i]
+            f = 0.2
+            width = f * self.canvas.size().width() * unitsPxX #width in map units
+            height = f * self.canvas.size().height() * unitsPxY #height in map units
+
+
+            center = SpatialPoint.fromMapCanvasCenter(self.canvas)
+            extent = SpatialExtent(center.crs(), 0, 0, width, height)
+            extent.setCenter(center, center.crs())
+            self.canvas.setExtent(extent)
+        s = ""
+
+
 class MapLayerInfo(object):
     """
     A minimum description of a QgsMapLayer source.
@@ -203,7 +395,7 @@ class MapCanvas(QgsMapCanvas):
 
     from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
-    sigShowProfiles = pyqtSignal(SpatialPoint)
+    sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
@@ -271,8 +463,19 @@ class MapCanvas(QgsMapCanvas):
 
         from timeseriesviewer.maptools import CursorLocationMapTool
         mt = CursorLocationMapTool(self)
-        mt.sigLocationRequest.connect(self.sigShowProfiles.emit)
-        self.mMapTools['identifyProfile'] = mt
+        mt.sigLocationRequest.connect(lambda c: self.sigShowProfiles.emit(c, 'identifyTemporalProfile'))
+        self.mMapTools['identifyTemporalProfile'] = mt
+
+        mt = CursorLocationMapTool(self)
+        mt.sigLocationRequest.connect(lambda c : self.sigShowProfiles.emit(c, 'identifySpectralProfile'))
+        self.mMapTools['identifySpectralProfile'] = mt
+
+        mt = CursorLocationMapTool(self)
+        #mt.sigLocationRequest.connect(self.sigShowProfiles.emit)
+        mt.sigLocationRequest.connect(lambda c: self.sigShowProfiles.emit(c, 'identifyCursorLocationValues'))
+        self.mMapTools['identifyCursorLocationValues'] = mt
+
+
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
@@ -526,15 +729,15 @@ class MapCanvas(QgsMapCanvas):
         from timeseriesviewer.main import QgisTsvBridge
 
         menu.addSeparator()
-        action = menu.addAction('Add raster to QGIS')
-        from PyQt4.QtCore import QThread
 
         import qgis.utils
-        if qgis.utils is not None:
-            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+        if isinstance(qgis.utils.iface, QgisInterface):
+            action = menu.addAction('Add raster layers(s) to QGIS')
+            #action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+            action = menu.addAction('Add vector layer to QGIS')
+            # action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
         else:
             action.setEnabled(False)
-
         menu.addSeparator()
 
         action = menu.addAction('Hide date')

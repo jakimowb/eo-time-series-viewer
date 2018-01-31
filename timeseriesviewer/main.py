@@ -116,11 +116,9 @@ class TsvMimeDataUtils(QObject):
         return style
 
 
-
+"""
 class QgisTsvBridge(QObject):
-    """
-    Class to control interactions between TSV and the running QGIS instance
-    """
+    #Class to control interactions between TSV and the running QGIS instance
     _instance = None
 
     @staticmethod
@@ -239,6 +237,7 @@ class QgisTsvBridge(QObject):
                 if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
                     self.TSV.spectralTemporalVis.loadCoordinate(extent.spatialCenter())
 
+"""
 
 class TimeSeriesViewerUI(QMainWindow,
                          loadUi('timeseriesviewer.ui')):
@@ -289,10 +288,10 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockSensors = addDockWidget(SensorDockUI(self))
 
         from timeseriesviewer.mapvisualization import MapViewCollectionDock
-        self.dockMapViewsV2 = addDockWidget(MapViewCollectionDock(self))
+        self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
         self.tabifyDockWidget(self.dockSensors, self.dockRendering)
-        self.tabifyDockWidget(self.dockSensors, self.dockMapViewsV2)
+        self.tabifyDockWidget(self.dockSensors, self.dockMapViews)
 
 
 
@@ -376,17 +375,6 @@ class TimeSeriesViewerUI(QMainWindow,
         self.progressBar.setValue(value)
 
 
-_iface = None
-
-class TimeSeriesViewerQgisInterface(QgisInterface):
-
-    def __init__(self, timeSeriesViewer):
-        QgisInterface.__init__(self)
-
-        self.mTimeSeriesViewer = timeSeriesViewer
-
-    def messageBar(self):
-        return self.mTimeSeriesViewer.ui.messageBar
 
 LUT_MESSAGELOGLEVEL = {
                 QgsMessageLog.INFO:'INFO',
@@ -410,7 +398,15 @@ def showMessage(message, title, level):
 
 
 
-class TimeSeriesViewer(QObject):
+class TimeSeriesViewer(QgisInterface, QObject):
+
+    _instance = None
+
+    @staticmethod
+    def instance():
+        return TimeSeriesViewer._instance
+
+
 
     def __init__(self, iface):
         """Constructor.
@@ -421,21 +417,21 @@ class TimeSeriesViewer(QObject):
         :type iface: QgsInterface
         """
 
-        # initialize GUI
+        assert TimeSeriesViewer.instance() is None
+
+        QObject.__init__(self)
+        QgisInterface.__init__(self)
+        QApplication.processEvents()
+
         self.ui = TimeSeriesViewerUI()
         msgLog = QgsMessageLog.instance()
         msgLog.messageReceived.connect(self.logMessage)
 
-
         # Save reference to the QGIS interface
-        self.iface = iface
-        self.pseudoIface = TimeSeriesViewerQgisInterface(self)
-        if not isinstance(self.iface, QgisInterface):
-            #qgis.utils.iface = self.pseudoIface
-            pass
-
-        #initialize QgisTsvBridge
-        self.mQgisBridge = QgisTsvBridge.instance()
+        if isinstance(iface, QgisInterface):
+            self.iface = iface
+        else:
+            self.iface = self
 
         #init empty time series
         self.TS = TimeSeries()
@@ -463,19 +459,23 @@ class TimeSeriesViewer(QObject):
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
         self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+        #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+        self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
 
+        from timeseriesviewer.mapcanvas import MapTools
 
-        D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('moveCenter'))
+        D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))
         #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
-        D.actionZoomMaxExtent.triggered.connect(lambda : self.zoomTo('zoomMaxExtent'))
-        D.actionZoomPixelScale.triggered.connect(lambda: self.zoomTo('zoomPixelScale'))
-        D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomIn'))
-        D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('zoomOut'))
-        D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
-        D.actionIdentifyTimeSeries.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyProfile'))
-        D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
+        D.actionZoomMaxExtent.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.ZoomFull))
+        D.actionZoomPixelScale.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomPixelScale))
+        D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomIn))
+        D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomOut))
+        D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.Pan))
+        D.actionIdentifyTemporalProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.TemporalProfile))
+        D.actionIdentifySpectralProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.SpectralProfile))
+        D.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
+        #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
         D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
@@ -504,9 +504,25 @@ class TimeSeriesViewer(QObject):
         self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
 
-        if isinstance(iface, QgisInterface):
-            self.mQgisBridge.connect(self)
+    def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
+        #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+        assert isinstance(spatialPoint, SpatialPoint)
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        from timeseriesviewer.mapcanvas import MapTools
+        assert mapToolKey in MapTools.mapToolKeys()
 
+        if mapToolKey == MapTools.TemporalProfile:
+            self.spectralTemporalVis.loadCoordinate(spatialPoint)
+        elif mapToolKey == MapTools.SpectralProfile:
+            pass
+        elif mapToolKey == MapTools.CursorLocation:
+            pass
+        else:
+            s = ""
+        pass
+
+    def messageBar(self):
+        return self.ui.messageBar
 
     def loadImageFiles(self, files):
         assert isinstance(files, list)
@@ -604,7 +620,6 @@ class TimeSeriesViewer(QObject):
 
         if len(self.TS.data) == 0:
             self.mSpatialMapExtentInitialized = False
-
 
 
     def saveTimeSeriesDefinition(self):
