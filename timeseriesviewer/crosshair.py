@@ -503,7 +503,7 @@ class CrosshairDialog(QgsDialog):
         canvas.setCenter(mapCanvas.center())
         canvas.setCanvasColor(mapCanvas.canvasColor())
         canvas.refresh()
-        canvas.updateMap()
+        #canvas.updateMap()
         canvas.refreshAllLayers()
 
 if __name__ == '__main__':
