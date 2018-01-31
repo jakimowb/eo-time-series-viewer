@@ -234,11 +234,11 @@ class MapView(QObject):
             mapCanvas.refresh()
 
     def setCrosshairStyle(self, crosshairStyle):
-        assert isinstance(crosshairStyle, CrosshairStyle)
-        old = self.mCrosshairStyle
-        self.mCrosshairStyle = crosshairStyle
-        if old != self.mCrosshairStyle:
-            self.sigCrosshairStyleChanged.emit(self.mCrosshairStyle)
+        if isinstance(crosshairStyle, CrosshairStyle):
+            old = self.mCrosshairStyle
+            self.mCrosshairStyle = crosshairStyle
+            if old != self.mCrosshairStyle:
+                self.sigCrosshairStyleChanged.emit(self.mCrosshairStyle)
 
     def setHighlighted(self, b=True, timeout=1000):
         styleOn = """.MapCanvas {
