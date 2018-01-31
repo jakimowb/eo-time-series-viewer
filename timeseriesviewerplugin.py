@@ -54,6 +54,7 @@ class TimeSeriesViewerPlugin:
         site.addsitedir(dir_repo)
         site.addsitedir(os.path.join(dir_repo, 'site-packages'))
 
+        assert isinstance(self.iface, QgisInterface)
 
         import timeseriesviewer
         # init main UI
@@ -66,6 +67,7 @@ class TimeSeriesViewerPlugin:
 
         for action in self.toolbarActions:
             self.iface.addToolBarIcon(action)
+            self.iface.addPluginToRasterMenu(TITLE, action)
 
     def run(self):
         from timeseriesviewer.main import TimeSeriesViewer
