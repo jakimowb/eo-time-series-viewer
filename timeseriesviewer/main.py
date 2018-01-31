@@ -18,30 +18,33 @@
  *                                                                         *
  ***************************************************************************/
 """
-
-# Import the code for the dialog
+# noinspection PyPep8Naming
+from __future__ import absolute_import
+from qgis.core import *
 import os, sys, re, fnmatch, collections, copy, traceback, six
 import logging
 logger = logging.getLogger(__name__)
-from qgis.core import *
+
+
 import qgis.utils
 from timeseriesviewer.utils import *
 
 
 
-DEBUG = True
+DEBUG = False
 
 import numpy as np
 import multiprocessing
 #abbreviations
+import site
+
+
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
 from timeseriesviewer.timeseries import *
+from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 
 
 
-
-#I don't know why, but this is required to run this in QGIS
-#todo: still required?
 path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
@@ -154,11 +157,12 @@ class QgisTsvBridge(QObject):
 
     sigQgisProjectClosed = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, parent=None):
         assert QgisTsvBridge._instance is None, 'Can not instantiate QgsTsvBridge twice'
+        super(QgisTsvBridge, self).__init__(parent)
         self.TSV = None
-
-
+        self.ui = None
+        self.SpatTempVis = None
     def isValid(self):
         return isinstance(self.iface, QgisInterface) and isinstance(self.TSV, TimeSeriesViewer)
 
@@ -172,22 +176,21 @@ class QgisTsvBridge(QObject):
             self.SpatTempVis = self
 
 
-            from main import TimeSeriesViewerUI
+
             from timeseriesviewer.ui.docks import RenderingDockUI
             assert isinstance(self.ui, TimeSeriesViewerUI)
             assert isinstance(self.ui.dockRendering, RenderingDockUI)
 
             self.ui.dockRendering.sigQgisInteractionRequest.connect(self.onQgisInteractionRequest)
-            self.ui.dockRendering.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
             self.ui.dockRendering.enableQgisInteraction(True)
 
-            self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
-            self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
+            #self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
+            #self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
 
             self.qgsMapCanvas = self.iface.mapCanvas()
             assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
-            assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
-            assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
+            #assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
+            #assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
             return True
         else:
             return False
@@ -220,7 +223,8 @@ class QgisTsvBridge(QObject):
             center = center.toCrs(extTsv.crs())
             if center:
                 self.TSV.spatialTemporalVis.setSpatialCenter(center)
-
+                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
+                    self.TSV.spectralTemporalVis.loadCoordinate(center)
 
         if request == 'tsvExtent2qgsExtent':
             extent = extTsv.toCrs(extQgs.crs())
@@ -232,6 +236,8 @@ class QgisTsvBridge(QObject):
             extent = extQgs.toCrs(extTsv.crs())
             if extent:
                 self.TSV.spatialTemporalVis.setSpatialExtent(extent)
+                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
+                    self.TSV.spectralTemporalVis.loadCoordinate(extent.spatialCenter())
 
 
 class TimeSeriesViewerUI(QMainWindow,
@@ -281,17 +287,29 @@ class TimeSeriesViewerUI(QMainWindow,
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
+
+        from timeseriesviewer.mapvisualization import MapViewCollectionDock
+        self.dockMapViewsV2 = addDockWidget(MapViewCollectionDock(self))
+
         self.tabifyDockWidget(self.dockSensors, self.dockRendering)
+        self.tabifyDockWidget(self.dockSensors, self.dockMapViewsV2)
+
+
 
         area = Qt.BottomDockWidgetArea
-        from timeseriesviewer.mapvisualization import MapViewDockUI
-        self.dockMapViews = addDockWidget(MapViewDockUI(self))
+        #from timeseriesviewer.mapvisualization import MapViewDockUI
+        #self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
+        #self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+
+        area = Qt.RightDockWidgetArea
+        from timeseriesviewer.systeminfo import SystemInfoDock
+        self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
+        self.dockSystemInfo.setVisible(False)
 
 
         for dock in self.findChildren(QDockWidget):
@@ -304,7 +322,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockTimeSeries.raise_()
 
-        self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
+        #self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
         self.restoreSettings()
 
@@ -335,7 +353,7 @@ class TimeSeriesViewerUI(QMainWindow,
     sigSubsetSizeChanged = pyqtSignal(QSize)
     def setSubsetSize(self, size, blockSignal=False):
         old = self.subsetSize()
-
+        w = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
         if blockSignal:
             states = self._blockSignals(w, True)
 
@@ -360,7 +378,39 @@ class TimeSeriesViewerUI(QMainWindow,
 
 _iface = None
 
-class TimeSeriesViewer:
+class TimeSeriesViewerQgisInterface(QgisInterface):
+
+    def __init__(self, timeSeriesViewer):
+        QgisInterface.__init__(self)
+
+        self.mTimeSeriesViewer = timeSeriesViewer
+
+    def messageBar(self):
+        return self.mTimeSeriesViewer.ui.messageBar
+
+LUT_MESSAGELOGLEVEL = {
+                QgsMessageLog.INFO:'INFO',
+                QgsMessageLog.CRITICAL:'INFO',
+                QgsMessageLog.WARNING:'WARNING'}
+
+LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
+                    QgsMessageLog.CRITICAL:QgsMessageBar.WARNING,
+                    QgsMessageLog.WARNING:QgsMessageBar.WARNING,
+                    }
+
+
+def showMessage(message, title, level):
+    v = QgsMessageViewer()
+    v.setTitle(title)
+    #print('DEBUG MSG: {}'.format(message))
+    v.setMessage(message, QgsMessageOutput.MessageHtml \
+        if message.startswith('<html>')
+    else QgsMessageOutput.MessageText)
+    v.showMessage(True)
+
+
+
+class TimeSeriesViewer(QObject):
 
     def __init__(self, iface):
         """Constructor.
@@ -370,11 +420,19 @@ class TimeSeriesViewer:
             application at run time.
         :type iface: QgsInterface
         """
-        # Save reference to the QGIS interface
-        self.iface = iface
-        _iface = iface
+
         # initialize GUI
         self.ui = TimeSeriesViewerUI()
+        msgLog = QgsMessageLog.instance()
+        msgLog.messageReceived.connect(self.logMessage)
+
+
+        # Save reference to the QGIS interface
+        self.iface = iface
+        self.pseudoIface = TimeSeriesViewerQgisInterface(self)
+        if not isinstance(self.iface, QgisInterface):
+            #qgis.utils.iface = self.pseudoIface
+            pass
 
         #initialize QgisTsvBridge
         self.mQgisBridge = QgisTsvBridge.instance()
@@ -394,9 +452,11 @@ class TimeSeriesViewer:
         D.dockTimeSeries.connectTimeSeries(self.TS)
         D.dockSensors.connectTimeSeries(self.TS)
 
-        from profilevisualization import SpectralTemporalVisualization
+
         self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
         self.spectralTemporalVis.connectTimeSeries(self.TS)
+        self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
+            lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
 
         from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
@@ -405,6 +465,7 @@ class TimeSeriesViewer:
         self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
         self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
+
 
         D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('moveCenter'))
         #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
@@ -415,7 +476,7 @@ class TimeSeriesViewer:
         D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('pan'))
         D.actionIdentifyTimeSeries.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyProfile'))
         D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
-        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.createMapView)
+        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
         D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
@@ -467,6 +528,11 @@ class TimeSeriesViewer:
             self.TS.loadFromFile(path, n_max=n_max)
             M.endResetModel()
 
+    def createMapView(self):
+        self.spatialTemporalVis.createMapView()
+
+    def mapViews(self):
+        return self.spatialTemporalVis.MVC[:]
 
     def zoomTo(self, key):
         if key == 'zoomMaxExtent':
@@ -495,6 +561,29 @@ class TimeSeriesViewer:
 
     def icon(self):
         return TimeSeriesViewer.icon()
+
+
+    def logMessage(self, message, tag, level):
+        m = message.split('\n')
+        if '' in message.split('\n'):
+            m = m[0:m.index('')]
+        m = '\n'.join(m)
+
+        if not re.search('timeseriesviewer', m):
+            return
+
+        if level in [QgsMessageLog.CRITICAL, QgsMessageLog.WARNING]:
+            widget = self.ui.messageBar.createMessage(tag, message)
+            button = QPushButton(widget)
+            button.setText("Show")
+            button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
+            widget.layout().addWidget(button)
+            self.ui.messageBar.pushWidget(widget,
+                              LUT_MSGLOG2MSGBAR.get(level, QgsMessageBar.INFO),
+                              SETTINGS.value('MESSAGE_TIMEOUT', 10))
+
+            #print on normal console
+            #print(u'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 
@@ -525,9 +614,10 @@ class TimeSeriesViewer:
             defFile = os.path.dirname(defFile)
         path = QFileDialog.getSaveFileName(caption='Save Time Series definition',
                                            directory=defFile)
+        path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
-            self.TS.saveToFile(path)
+
 
 
     def loadExampleTimeSeries(self):
@@ -554,7 +644,7 @@ class TimeSeriesViewer:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('EnMAPBox', message)
+        return QCoreApplication.translate('HUBTSV', message)
 
 
 
@@ -563,6 +653,7 @@ class TimeSeriesViewer:
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
+        QApplication.processEvents()
         self.ui.show()
 
 
@@ -604,7 +695,13 @@ class TimeSeriesViewer:
         if files is None:
             s = settings()
             defDir = s.value('DIR_FILESEARCH')
-            files = QFileDialog.getOpenFileNames(directory=defDir)
+
+            filters = "ENVI Images (*.bsq *.bil *.bip);;"+ \
+                      "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
+                      "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
+                      "All files (*.*)"
+
+            files = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])
@@ -636,15 +733,37 @@ def disconnect_signal(signal):
             break
 
 
+def main():
+    # add site-packages to sys.path as done by enmapboxplugin.py
+    from timeseriesviewer.utils import initQgisApplication
+    import os
+
+    qgsApp = initQgisApplication()
+
+    ts = TimeSeriesViewer(None)
+    ts.run()
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
+    ts.createMapView()
+    ts.addTimeSeriesImages([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
+    #ts.loadExampleTimeSeries()
+
+    if False:
+        from example import exampleEvents
+        lyr = QgsVectorLayer(exampleEvents, 'Events', 'ogr', True)
+        lyr2 = QgsVectorLayer(exampleEvents, 'Events2', 'ogr', True)
+        QgsMapLayerRegistry.instance().addMapLayers([lyr, lyr2])
+        mapView = ts.mapViews()[0]
+        from timeseriesviewer.mapvisualization import MapView
+        assert isinstance(mapView, MapView)
+        #mapView.setVectorLayer(lyr)
+
+
+
+    # ts.createMapView()
+    # close QGIS
+    qgsApp.exec_()
+    qgsApp.exitQgis()
 
 if __name__ == '__main__':
 
-    # add site-packages to sys.path as done by enmapboxplugin.py
-    from sandbox import initQgisEnvironment, sandboxGui
-    qgsApp = initQgisEnvironment()
-
-    sandboxGui()
-
-    #close QGIS
-    qgsApp.exec_()
-    qgsApp.exitQgis()
+    main()

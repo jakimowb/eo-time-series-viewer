@@ -1,15 +1,36 @@
 # -*- coding: utf-8 -*-
-import os, pickle
-import sys
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
+import os, sys, pickle
+import multiprocessing as mp
+
 import datetime
 from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
 import numpy as np
-from utils import SpatialPoint, SpatialExtent, geo2px, px2geo
+from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
-import multiprocessing as mp
-from timeseriesviewer.sandbox import initQgisEnvironment
+
 DEBUG = False
 
 def isOutOfImage(ds, px):
@@ -193,7 +214,7 @@ class PixelLoader(QObject):
 
     sigPixelLoaded = pyqtSignal(int, int, PixelLoaderResult)
     sigLoadingStarted = pyqtSignal(list)
-    sigLoadingFinished = pyqtSignal()
+    sigLoadingFinished = pyqtSignal(np.timedelta64)
     sigLoadingCanceled = pyqtSignal()
     _sigStartThreadWorkers = pyqtSignal(str)
     _sigTerminateThreadWorkers = pyqtSignal()
@@ -206,7 +227,7 @@ class PixelLoader(QObject):
         self.nMax = 0
         self.nFailed = 0
         self.threadsAndWorkers = []
-
+        self.mLoadingStartTime = np.datetime64('now','ms')
         self.queueChecker = QTimer()
         self.queueChecker.setInterval(3000)
         self.queueChecker.timeout.connect(self.checkQueue)
@@ -230,7 +251,8 @@ class PixelLoader(QObject):
             self.sigPixelLoaded.emit(self.nMax - len(self.filesList), self.nMax, data)
 
             if len(self.filesList) == 0:
-                self.sigLoadingFinished.emit()
+                dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
+                self.sigLoadingFinished.emit(dt)
 
 
     def setNumberOfProcesses(self, nProcesses):
@@ -245,7 +267,7 @@ class PixelLoader(QObject):
             bandIndices = [None for _ in paths]
 
         assert type(theGeometry) in [SpatialPoint, SpatialExtent]
-
+        self.mLoadingStartTime = np.datetime64('now', 'ms')
         self.jobid += 1
         self.sigLoadingStarted.emit(paths[:])
         self.filesList.extend(paths)
@@ -308,7 +330,8 @@ class PixelLoader(QObject):
             del self.mAsyncResults[:]
             self.pool = None
             if not self.cancelEvent.is_set():
-                self.sigLoadingFinished.emit()
+                pass
+
         elif self.cancelEvent.is_set():
             self.queueChecker.stop()
             self.sigLoadingCanceled.emit()
@@ -317,7 +340,7 @@ class PixelLoader(QObject):
 
 if __name__ == '__main__':
 
-    from sandbox import initQgisEnvironment
+    from timeseriesviewer.sandbox import initQgisEnvironment
     qgsApp = initQgisEnvironment()
     from PyQt4.QtGui import *
     gb = QGroupBox()

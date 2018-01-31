@@ -12,7 +12,7 @@ icon=timeseriesviewer/ui/icons/icon.png
 homepage=bitbucket.org/jakimowb/hub-timeseriesviewer
 tracker=bitbucket.org/jakimowb/hub-timeseriesviewer/issues
 repository=bitbucket.org/jakimowb/hub-timeseriesviewer
-experimental=True
+experimental=False
 deprecated=False
 
 # Tags are comma separated with spaces allowed

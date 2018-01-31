@@ -1,15 +1,37 @@
 # -*- coding: utf-8 -*-
-VERSION = '0.2'
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
+VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
 TITLE = 'HUB TimeSeriesViewer'
-DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote sensing time-series data.'
+DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
 WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 REPOSITORY = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 ABOUT = """
 The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
 """
+DEBUG = True
 
-import os, sys, fnmatch, site
+import os, sys, fnmatch, site, re
 import six, logging
 from qgis.core import *
 from qgis.gui import *
@@ -21,7 +43,7 @@ from PyQt4.QtGui import QIcon
 
 
 
-DEBUG = True
+
 
 #initiate loggers for all pyfiles
 import pkgutil
@@ -55,13 +77,20 @@ DIR_DOCS = jp(DIR,'docs')
 DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
-DEBUG = True
+PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
+
+
+import site
+site.addsitedir(DIR_SITE_PACKAGES)
+
 
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 
 #print('BASE INIT SITE-packages')
 site.addsitedir(DIR_SITE_PACKAGES)
+import timeseriesviewer.ui.resources
+timeseriesviewer.ui.resources.qInitResources()
 
 OPENGL_AVAILABLE = False
 
@@ -84,28 +113,33 @@ def initSettings():
 initSettings()
 
 def icon():
-
-
-    return QIcon(os.path.join(os.path.dirname(__file__), *['ui','icons','icon.png']))
+    return QIcon(':/timeseriesviewer/icons/IconTimeSeries.svg')
 
 
 
-def file_search(rootdir, wildcard, recursive=False, ignoreCase=False):
-    assert rootdir is not None
-    if not os.path.isdir(rootdir):
-        six.print_("Path is not a directory:{}".format(rootdir), file=sys.stderr)
-
+def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
+    assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
+    regType = type(re.compile('.*'))
     results = []
 
     for root, dirs, files in os.walk(rootdir):
         for file in files:
-            if (ignoreCase and fnmatch.fnmatch(file.lower(), wildcard.lower())) \
-                    or fnmatch.fnmatch(file, wildcard):
-                results.append(os.path.join(root, file))
+            if isinstance(pattern, regType):
+                if pattern.search(file):
+                    path = os.path.join(root, file)
+                    results.append(path)
+
+            elif (ignoreCase and fnmatch.fnmatch(file.lower(), pattern.lower())) \
+                    or fnmatch.fnmatch(file, pattern):
+
+                path = os.path.join(root, file)
+                results.append(path)
         if not recursive:
             break
             pass
+
     return results
+
 
 
 

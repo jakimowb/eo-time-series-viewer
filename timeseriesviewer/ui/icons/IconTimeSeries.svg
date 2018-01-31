@@ -7,11 +7,11 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   height="24"
-   width="24"
+   height="300"
+   width="300"
    id="svg2"
    version="1.1"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
    sodipodi:docname="IconTimeSeries.svg">
   <metadata
      id="metadata10">
@@ -21,7 +21,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -86,92 +86,92 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1276"
-     inkscape:window-height="755"
+     inkscape:window-width="1280"
+     inkscape:window-height="920"
      id="namedview6"
      showgrid="false"
-     inkscape:zoom="28.35897"
-     inkscape:cx="9.7500016"
-     inkscape:cy="14.249998"
-     inkscape:window-x="4"
-     inkscape:window-y="1"
+     inkscape:zoom="1.2533013"
+     inkscape:cx="135.06425"
+     inkscape:cy="155.86559"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" />
   <rect
-     style="fill:none;stroke:none"
+     style="fill:none;stroke:none;stroke-width:15.36206722"
      id="rect6554"
-     width="19.499998"
-     height="19.499998"
-     x="1.8530272e-07"
-     y="1.8530272e-07" />
+     width="299.5603"
+     height="299.5603"
+     x="2.5279801e-006"
+     y="-0.070840955" />
   <rect
-     style="fill:#6e97c4;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="fill:#6e97c4;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419"
-     width="6.499999"
-     height="6.499999"
-     x="6.5"
-     y="1.8530272e-07" />
+     width="99.853424"
+     height="99.853424"
+     x="99.853439"
+     y="-0.070840955" />
   <rect
-     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-6"
-     width="6.499999"
-     height="6.499999"
-     x="13.000004"
-     y="1.8530272e-07" />
+     width="99.853424"
+     height="99.853424"
+     x="199.70692"
+     y="-0.070840955" />
   <rect
-     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-6-9"
-     width="6.499999"
-     height="6.499999"
-     x="6.5"
-     y="6.5"
-     inkscape:transform-center-x="-3.2499991"
-     inkscape:transform-center-y="-4.3333322" />
+     width="99.853424"
+     height="99.853424"
+     x="99.853439"
+     y="99.782593"
+     inkscape:transform-center-x="-49.926706"
+     inkscape:transform-center-y="-66.568948" />
   <rect
-     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-0"
-     width="6.499999"
-     height="6.499999"
-     x="13.000004"
-     y="6.5" />
+     width="99.853424"
+     height="99.853424"
+     x="199.70692"
+     y="99.782593" />
   <rect
-     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-6-7"
-     width="6.499999"
-     height="6.499999"
-     x="1.8530272e-07"
-     y="1.8530272e-07" />
+     width="99.853424"
+     height="99.853424"
+     x="2.5279801e-006"
+     y="-0.070840955" />
   <rect
-     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-3"
-     width="6.499999"
-     height="6.499999"
-     x="1.8530272e-07"
-     y="6.5" />
+     width="99.853424"
+     height="99.853424"
+     x="2.5279801e-006"
+     y="99.782593" />
   <rect
-     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#6d97c4;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-5"
-     width="6.499999"
-     height="6.499999"
-     x="6.5"
-     y="13.000004" />
+     width="99.853424"
+     height="99.853424"
+     x="99.853439"
+     y="199.63603" />
   <rect
-     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none"
+     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722"
      id="rect6419-6-6"
-     width="6.499999"
-     height="6.499999"
-     x="1.8530272e-07"
-     y="13.000004" />
+     width="99.853424"
+     height="99.853424"
+     x="2.5279801e-006"
+     y="199.63603" />
   <rect
-     y="13.000004"
-     x="13.000004"
-     height="6.499999"
-     width="6.499999"
+     y="199.63603"
+     x="199.70692"
+     height="99.853424"
+     width="99.853424"
      id="rect8225"
-     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none" />
+     style="display:inline;fill:#253e5b;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:15.36206722" />
   <g
      id="g5821"
-     transform="translate(-1.7154722,-1.9227262)">
+     transform="matrix(15.362068,0,0,15.362068,-26.3532,-29.607949)">
     <ellipse
        ry="6.8272738"
        rx="7.0345278"
@@ -183,7 +183,7 @@
        sodipodi:nodetypes="ccc"
        inkscape:connector-curvature="0"
        id="path8235"
-       d="m 12.364602,11.360681 -2.331606,0 -2.901555,-3.212435"
+       d="M 12.364602,11.360681 H 10.032996 L 7.131441,8.148246"
        style="fill:none;fill-rule:evenodd;stroke:#ffffff;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
   </g>
 </svg>

@@ -1,3 +1,24 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
 from __future__ import absolute_import
 import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy
 import logging
@@ -501,7 +522,7 @@ class TimeSeries(QObject):
 
     def saveToFile(self, path):
         if path is None or len(path) == 0:
-            return
+            return None
 
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
@@ -516,7 +537,7 @@ class TimeSeries(QObject):
         print('Write {}'.format(path))
         with open(path, 'w') as f:
             f.writelines(lines)
-
+        return path
     def getPixelSizes(self):
 
         r = []

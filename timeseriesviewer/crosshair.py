@@ -1,6 +1,26 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
 
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import os
-
 from qgis.core import *
 from qgis.gui import *
 from PyQt4.QtCore import *
@@ -12,7 +32,7 @@ from timeseriesviewer.utils import *
 class CrosshairStyle(object):
     def __init__(self, **kwds):
 
-        self.mColor = QColor.fromRgb(255,0,0, 125)
+        self.mColor = QColor.fromRgb(255,0,0, 255)
         self.mThickness = 1 #in px
         self.mSize = 1.0 #normalized
         self.mGap = 0.05 #normalized
@@ -417,6 +437,9 @@ class CrosshairWidget(QWidget, loadUi('crosshairwidget.ui')):
         style.setShowPixelBorder(self.cbShowPixelBoundaries.isChecked())
         style.setShowDistanceMarker(self.cbShowDistanceMarker.isChecked())
         return style
+
+def getCrosshairStyle(*args, **kwds):
+    return CrosshairDialog.getCrosshairStyle(*args, **kwds)
 
 class CrosshairDialog(QgsDialog):
 

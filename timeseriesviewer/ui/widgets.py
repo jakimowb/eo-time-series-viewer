@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'imagechipviewsettings_widget_base.ui'
-#
-# Created: Mon Oct 26 16:10:40 2015
-#      by: PyQt4 UI code generator 4.10.2
-#
-# WARNING! All changes made in this file will be lost!
-
-'''
+"""
 /***************************************************************************
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
  ***************************************************************************/
-'''
 
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import, unicode_literals
 import os, collections
 from qgis.core import *
 from qgis.gui import *
@@ -31,15 +33,6 @@ import PyQt4.QtWebKit
 import sys, re, os, six
 
 #widgets defined without UI file
-class TsvScrollArea(QScrollArea):
-
-    sigResized = pyqtSignal()
-    def __init__(self, *args, **kwds):
-        super(TsvScrollArea, self).__init__(*args, **kwds)
-
-    def resizeEvent(self, event):
-        super(TsvScrollArea, self).resizeEvent(event)
-        self.sigResized.emit()
 
 
 class VerticalLabel(QLabel):
@@ -168,50 +161,21 @@ class AboutDialogUI(QDialog,
         self.setAboutTitle()
 
         # page About
-        from timeseriesviewer import PATH_LICENSE, VERSION, DIR_DOCS, DESCRIPTION, WEBSITE, REPOSITORY
-        import pyqtgraph
-        self.labelAboutText.setText(
-            """
-            <html><head/><body>
-            <p align="center">Version {version}
-            </p>
-            <p align="center">{description}
-            </p>
-            <p align="center">Website<br/>
-            <a href="{website}"><span style=" text-decoration: underline; color:#0000ff;">{website}</span></a>
-            </p>
-            <p align="center">Repository<br/>
-            <a href="{repo}"><span style=" text-decoration: underline; color:#0000ff;">{repo}</span></a>
-            </p>
-            
-            <p align="center">Licenced under the GNU General Public Licence<br/>
-            <a href="http://www.gnu.org/licenses/">
-            <span style=" text-decoration: underline; color:#0000ff;">http://www.gnu.org/licenses/</span></a>
-            </p>
-            
-            </body></html>
-            """.format(description=DESCRIPTION, version=VERSION, website=WEBSITE, repo=REPOSITORY)
-        )
+        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG
+        self.labelVersion.setText('{}'.format(VERSION))
 
-        lf = lambda p: str(open(p).read())
+
         # page Changed
-        self.tbChanges.setText(lf(jp(DIR_DOCS, 'CHANGES.html')))
+        if os.path.isfile(PATH_CHANGELOG):
+            import codecs
+            txt = ''.join(codecs.open(PATH_CHANGELOG, encoding='utf-8').readlines())
+            self.tbChanges.setText(txt)
 
-        # page Credits
-        self.CREDITS = dict()
-        self.CREDITS['QGIS'] = lf(jp(DIR_DOCS, 'README_QGIS.html'))
-        self.CREDITS['PYQTGRAPH'] = lf(jp(DIR_DOCS, 'README_PyQtGraph.html'))
-        self.webViewCredits.setHtml(self.CREDITS['QGIS'])
-        self.btnPyQtGraph.clicked.connect(lambda: self.showCredits('PYQTGRAPH'))
-        self.btnQGIS.clicked.connect(lambda: self.showCredits('QGIS'))
-
-        # page License
-        self.tbLicense.setText(lf(PATH_LICENSE))
-
-
-    def showCredits(self, key):
-        self.webViewCredits.setHtml(self.CREDITS[key])
-        self.setAboutTitle(key)
+        # page Licence
+        if os.path.isfile(PATH_LICENSE):
+            import codecs
+            txt = ''.join(codecs.open(PATH_LICENSE, encoding='utf-8').readlines())
+            self.tbLicense.setText(txt)
 
     def setAboutTitle(self, suffix=None):
         item = self.listWidget.currentItem()
@@ -223,33 +187,6 @@ class AboutDialogUI(QDialog,
         if suffix:
             title += ' ' + suffix
         self.setWindowTitle(title)
-
-
-class TimeSeriesDatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
-
-    def __init__(self, title='<#>', parent=None):
-        super(TimeSeriesDatumViewUI, self).__init__(parent)
-        self.setupUi(self)
-
-    def sizeHint(self):
-        m = self.layout().contentsMargins()
-
-        s = QSize(0, 0)
-
-        for w in [self.layout().itemAt(i).widget() for i in range(self.layout().count())]:
-            if w:
-                s = s + w.size()
-
-        if isinstance(self.layout(), QVBoxLayout):
-            s = QSize(self.progressBar.width() + m.left() + m.right(),
-                      s.height() + m.top() + m.bottom())
-        else:
-            s = QSize(self.progressBar.heigth() + m.top() + m.bottom(),
-                      s.width() + m.left() + m.right())
-
-        return s
-
-
 
 
 
@@ -287,7 +224,7 @@ if __name__ == '__main__':
     d = AboutDialogUI()
     d.show()
 
-    d = PropertyDialogUI()
+    #d = PropertyDialogUI()
     d.exec_()
     #close QGIS
     qgsApp.exec_()

@@ -1,4 +1,25 @@
 # -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import inspect
 import os
 import six
@@ -15,8 +36,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 
-DIR_REPO = os.path.normpath(os.path.split(inspect.getfile(inspect.currentframe()))[0])
-DIR_SITE_PACKAGES = None
+
 class TimeSeriesViewerPlugin:
 
     def __init__(self, iface):
@@ -29,14 +49,12 @@ class TimeSeriesViewerPlugin:
 
     def initGui(self):
         self.toolbarActions = []
-        syspaths = [os.path.normpath(p) for p in sys.path]
-        if DIR_REPO not in syspaths: sys.path.append(DIR_REPO)
 
-        #import timeseriesviewer.ui.resources_py2
-        #timeseriesviewer.ui.resources_py2.qInitResources()
-        # add platform independent site-packages
-        if DIR_SITE_PACKAGES:
-            site.addsitedir(DIR_SITE_PACKAGES)
+        dir_repo = os.path.dirname(__file__)
+        site.addsitedir(dir_repo)
+        site.addsitedir(os.path.join(dir_repo, 'site-packages'))
+
+        assert isinstance(self.iface, QgisInterface)
 
         import timeseriesviewer
         # init main UI
@@ -49,6 +67,7 @@ class TimeSeriesViewerPlugin:
 
         for action in self.toolbarActions:
             self.iface.addToolBarIcon(action)
+            self.iface.addPluginToRasterMenu(TITLE, action)
 
     def run(self):
         from timeseriesviewer.main import TimeSeriesViewer
@@ -59,9 +78,7 @@ class TimeSeriesViewerPlugin:
     def unload(self):
         from timeseriesviewer.main import TimeSeriesViewer
 
-        #print('Unload plugin')
         for action in self.toolbarActions:
-            print(action)
             self.iface.removeToolBarIcon(action)
 
         if isinstance(self.tsv, TimeSeriesViewer):

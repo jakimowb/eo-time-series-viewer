@@ -1,4 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
 
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 import os, sys, math, StringIO, re
 
 import logging
@@ -401,6 +422,24 @@ class SpatialExtent(QgsRectangle):
 
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
+def value2str(value, sep=' '):
+    """
+    Converts a value into a string
+    :param value:
+    :param sep:
+    :return:
+    """
+    if isinstance(value, list):
+        value = sep.join([str(v) for v in value])
+    elif isinstance(value, np.array):
+        value = value2str(value.astype(list), sep=sep)
+    elif value is None:
+        value = ''
+    else:
+        value = str(value)
+    return value
+
+
 # works in Python 2 & 3
 class _Singleton(type):
     """ A metaclass that creates a Singleton base class when called. """
@@ -556,7 +595,7 @@ loadIcon = lambda p: jp(DIR_UI, *['icons',p])
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
 
-def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
+def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
     """
     Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
     Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
@@ -632,10 +671,100 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix='_rc'):
     return FORM_CLASSES[pathUi]
 
 
+def zipdir(pathDir, pathZip):
+    """
+    :param pathDir: directory to compress
+    :param pathZip: path to new zipfile
+    """
+    #thx to https://stackoverflow.com/questions/1855095/how-to-create-a-zip-archive-of-a-directory
+    """
+    import zipfile
+    assert os.path.isdir(pathDir)
+    zipf = zipfile.ZipFile(pathZip, 'w', zipfile.ZIP_DEFLATED)
+    for root, dirs, files in os.walk(pathDir):
+        for file in files:
+            zipf.write(os.path.join(root, file))
+    zipf.close()
+    """
+    import zipfile
+    relroot = os.path.abspath(os.path.join(pathDir, os.pardir))
+    with zipfile.ZipFile(pathZip, "w", zipfile.ZIP_DEFLATED) as zip:
+        for root, dirs, files in os.walk(pathDir):
+            # add directory (needed for empty dirs)
+            zip.write(root, os.path.relpath(root, relroot))
+            for file in files:
+                filename = os.path.join(root, file)
+                if os.path.isfile(filename):  # regular files only
+                    arcname = os.path.join(os.path.relpath(root, relroot), file)
+                    zip.write(filename, arcname)
+
+def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
+    """
+    Initializes the QGIS Environment
+    :return: QgsApplication instance of local QGIS installation
+    """
+    import site
+    if pythonPlugins is None:
+        pythonPlugins = []
+    assert isinstance(pythonPlugins, list)
+
+    from timeseriesviewer import DIR_REPO
+    #pythonPlugins.append(os.path.dirname(DIR_REPO))
+    PLUGIN_DIR = os.path.dirname(DIR_REPO)
+
+    if os.path.isdir(PLUGIN_DIR):
+        for subDir in os.listdir(PLUGIN_DIR):
+            if not subDir.startswith('.'):
+                pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
+
+    envVar = os.environ.get('QGIS_PLUGINPATH', None)
+    if isinstance(envVar, list):
+        pythonPlugins.extend(re.split('[;:]', envVar))
+
+    #make plugin paths available to QGIS and Python
+    os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
+    os.environ['QGIS_DEBUG'] = '1' if qgisDebug else '0'
+    for p in pythonPlugins:
+        sys.path.append(p)
+
+    if isinstance(QgsApplication.instance(), QgsApplication):
+        #alread started
+        return QgsApplication.instance()
+    else:
+
+        if PATH_QGIS is None:
+            # find QGIS Path
+            if sys.platform == 'darwin':
+                #search for the QGIS.app
+                import qgis, re
+                assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
+                PATH_QGIS_APP = re.split('\.app[\/]', qgis.__file__)[0]+ '.app'
+                PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents','MacOS'])
+
+                if not 'GDAL_DATA' in os.environ.keys():
+                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
+
+                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
+                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns','qgis']))
+
+
+            else:
+                # assume OSGeo4W startup
+                PATH_QGIS = os.environ['QGIS_PREFIX_PATH']
+
+        assert os.path.exists(PATH_QGIS)
+
+        QgsApplication.setGraphicsSystem("raster")
+        qgsApp = QgsApplication([], True)
+        qgsApp.setPrefixPath(PATH_QGIS, True)
+        qgsApp.initQgis()
+        return qgsApp
+
+
 if __name__ == '__main__':
     #nice predecessors
-    from sandbox import initQgisEnvironment
-    qgsApp = initQgisEnvironment()
+    from timeseriesviewer.sandbox import initQgisEnvironment
+    qgsApp = initQgisApplication()
     se = SpatialExtent.world()
     assert nicePredecessor(26) == 25
     assert nicePredecessor(25) == 25

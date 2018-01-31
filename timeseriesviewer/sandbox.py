@@ -1,4 +1,25 @@
-from __future__ import absolute_import
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2015-08-20
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import, unicode_literals
 import six, sys, os, gc, re, collections, site, inspect
 import logging, io
 logger = logging.getLogger(__name__)
@@ -257,31 +278,6 @@ class SignalPrinter(object):
             info += ' {}'.format(str(kwds))
         print(info)
 
-def initQgisEnvironment():
-
-    if isinstance(QgsApplication.instance(), QgsApplication):
-        #alread started
-        return QgsApplication.instance()
-
-    from timeseriesviewer import DIR_SITE_PACKAGES
-    site.addsitedir(DIR_SITE_PACKAGES)
-    # prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-    return qgsApp
-
 def sandboxTestdata():
     from timeseriesviewer.main import TimeSeriesViewer
 
@@ -291,23 +287,34 @@ def sandboxTestdata():
     S.run()
 
     S.spatialTemporalVis.MVC.createMapView()
+    #import example.Images
+    #searchDir = jp(DIR_EXAMPLES, 'Images')
+    #imgs = file_search(searchDir, '*.tif', recursive=True)#[0:1]  # [0:5]
     import example.Images
-    searchDir = jp(DIR_EXAMPLES, 'Images')
-    imgs = file_search(searchDir, '*.bsq', recursive=True)#[0:1]  # [0:5]
+
+    imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
+            example.Images.re_2014_08_26]
+
+    from example import exampleEvents
 
     S.addTimeSeriesImages(imgs)
+
+    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr', True)
+    QgsMapLayerRegistry.instance().addMapLayer(ml)
+
 
 if __name__ == '__main__':
     import site, sys, pyqtgraph
     # add site-packages to sys.path as done by enmapboxplugin.py
-
-    qgsApp = initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
 
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if True: sandboxGui()
-    if False: sandboxTestdata()
+    if False: sandboxGui()
+
+    if True: sandboxTestdata()
 
     #close QGIS
     qgsApp.exec_()

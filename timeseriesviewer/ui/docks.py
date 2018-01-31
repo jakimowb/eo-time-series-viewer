@@ -1,3 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+                              HUB TimeSeriesViewer
+                              -------------------
+        begin                : 2017-08-04
+        git sha              : $Format:%H$
+        copyright            : (C) 2017 by HU-Berlin
+        email                : benjamin.jakimow@geo.hu-berlin.de
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+# noinspection PyPep8Naming
+from __future__ import absolute_import
 from qgis.core import *
 from qgis.gui import QgsDockWidget
 from PyQt4.QtCore import *
@@ -50,9 +72,6 @@ class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
         self.progressBar.setVisible(False)
         self.enableQgisInteraction(False)
 
-        self.gbQgsVectorLayer.clicked.connect(self.onVectorOverlayerChanged)
-        self.cbQgsVectorLayer.currentIndexChanged.connect(self.onVectorOverlayerChanged)
-
         self.btnSetQGISCenter.clicked.connect(lambda : self.sigQgisInteractionRequest.emit('tsvCenter2qgsCenter'))
         self.btnSetQGISExtent.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('tsvExtent2qgsExtent'))
         self.btnGetQGISCenter.clicked.connect(lambda: self.sigQgisInteractionRequest.emit('qgisCenter2tsvCenter'))
@@ -78,7 +97,7 @@ class RenderingDockUI(TsvDockWidgetBase, loadUi('renderingdock.ui')):
         else:
             self.gbSyncQgs.setTitle('QGIS (not available)')
 
-        self.gbQgsVectorLayer.setEnabled(b)
+
 
 
     def setCrs(self, crs):

@@ -1,0 +1,130 @@
+<VRTDataset rasterXSize="8006" rasterYSize="7627">
+  <SRS>PROJCS["WGS 84 / UTM zone 21S",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",-57],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",10000000],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32721"]]</SRS>
+  <GeoTransform>  6.7608000000000000e+05,  1.8333333333332849e+01,  0.0000000000000000e+00,  9.3778000000000000e+06,  0.0000000000000000e+00, -1.8333333333332849e+01</GeoTransform>
+  <VRTRasterBand dataType="Int16" band="1">
+    <Description>Band 1</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="0">S:\temp\temp_ar\4benjamin\05_CBERS\CBERS_4_MUX_20150603_167_107_L4_BAND5_GRID_SURFACE.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="7339" RasterYSize="6991" DataType="Byte" BlockXSize="7339" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="7339" ySize="6991" />
+      <DstRect xOff="0" yOff="0" xSize="8006.18181818203" ySize="7626.54545454566" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="2">
+    <Description>Band 2</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="1">Images\re_2014-06-25.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="432" RasterYSize="148" DataType="UInt16" BlockXSize="432" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="432" ySize="148" />
+      <DstRect xOff="275.994303258992" yOff="7068.09370436199" xSize="117.818181818185" ySize="40.3636363636374" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="3">
+    <Description>Band 3</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="1">Images\re_2014-06-25.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="432" RasterYSize="148" DataType="UInt16" BlockXSize="432" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="432" ySize="148" />
+      <DstRect xOff="275.994303258992" yOff="7068.09370436199" xSize="117.818181818185" ySize="40.3636363636374" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="4">
+    <Description>Band 4</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="1">Images\re_2014-06-25.tif</SourceFilename>
+      <SourceBand>3</SourceBand>
+      <SourceProperties RasterXSize="432" RasterYSize="148" DataType="UInt16" BlockXSize="432" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="432" ySize="148" />
+      <DstRect xOff="275.994303258992" yOff="7068.09370436199" xSize="117.818181818185" ySize="40.3636363636374" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="5">
+    <Description>Band 5</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="1">Images\re_2014-06-25.tif</SourceFilename>
+      <SourceBand>4</SourceBand>
+      <SourceProperties RasterXSize="432" RasterYSize="148" DataType="UInt16" BlockXSize="432" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="432" ySize="148" />
+      <DstRect xOff="275.994303258992" yOff="7068.09370436199" xSize="117.818181818185" ySize="40.3636363636374" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="6">
+    <Description>Band 6</Description>
+    <SimpleSource resampling="near">
+      <SourceFilename relativeToVRT="1">Images\re_2014-06-25.tif</SourceFilename>
+      <SourceBand>5</SourceBand>
+      <SourceProperties RasterXSize="432" RasterYSize="148" DataType="UInt16" BlockXSize="432" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="432" ySize="148" />
+      <DstRect xOff="275.994303258992" yOff="7068.09370436199" xSize="117.818181818185" ySize="40.3636363636374" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="7">
+    <Description>Band 7</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="8">
+    <Description>Band 8</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="9">
+    <Description>Band 9</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>3</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="10">
+    <Description>Band 10</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>4</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="11">
+    <Description>Band 11</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>5</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Int16" band="12">
+    <Description>Band 12</Description>
+    <ComplexSource resampling="near">
+      <SourceFilename relativeToVRT="1">WarpedVRTs\warped.2014-08-27_LC82270652014239LGN00_BOA.tif.vrt</SourceFilename>
+      <SourceBand>6</SourceBand>
+      <SourceProperties RasterXSize="72" RasterYSize="24" DataType="Int16" BlockXSize="72" BlockYSize="24" />
+      <SrcRect xOff="0" yOff="0" xSize="72" ySize="24" />
+      <DstRect xOff="275.994303258973" yOff="7068.09370436179" xSize="117.818181818179" ySize="39.2727272727264" />
+      <NODATA>-9999</NODATA>
+    </ComplexSource>
+  </VRTRasterBand>
+</VRTDataset>

@@ -1,244 +1,330 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>gbMapView</class>
- <widget class="QGroupBox" name="gbMapView">
+ <class>Frame</class>
+ <widget class="QFrame" name="Frame">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>325</width>
-    <height>136</height>
+    <width>286</width>
+    <height>339</height>
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="maximumSize">
+   <size>
+    <width>290</width>
+    <height>16777215</height>
+   </size>
+  </property>
   <property name="windowTitle">
-   <string/>
+   <string>Frame</string>
   </property>
-  <property name="title">
-   <string/>
+  <property name="frameShape">
+   <enum>QFrame::StyledPanel</enum>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout">
-   <property name="leftMargin">
-    <number>1</number>
+  <property name="frameShadow">
+   <enum>QFrame::Raised</enum>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>2</number>
    </property>
-   <property name="topMargin">
-    <number>1</number>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetMinAndMaxSize</enum>
    </property>
-   <property name="rightMargin">
-    <number>1</number>
-   </property>
-   <property name="bottomMargin">
-    <number>6</number>
+   <property name="margin">
+    <number>2</number>
    </property>
    <item>
-    <widget class="QFrame" name="buttonList">
+    <widget class="QScrollArea" name="scrollArea">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>25</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>25</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>10</pointsize>
-      </font>
-     </property>
-     <property name="autoFillBackground">
-      <bool>true</bool>
-     </property>
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Plain</enum>
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOn</enum>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <property name="spacing">
-       <number>1</number>
-      </property>
-      <property name="margin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QToolButton" name="btnRemoveMapView">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="autoFillBackground">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnApplyStyles">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnMapViewVisibility">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mapview.png</normaloff>:/timeseriesviewer/icons/mapview.png</iconset>
-        </property>
-        <property name="checkable">
-         <bool>false</bool>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-        <property name="autoRaise">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnShowCrosshair">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QToolButton" name="btnVectorOverlayVisibility">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mapview.png</normaloff>:/timeseriesviewer/icons/mapview.png</iconset>
-        </property>
-        <property name="checkable">
-         <bool>false</bool>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-        <property name="autoRaise">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="verticalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QFrame" name="sensorList">
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+     <property name="widgetResizable">
+      <bool>true</bool>
      </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <property name="spacing">
-       <number>2</number>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>263</width>
+        <height>333</height>
+       </rect>
       </property>
-      <property name="margin">
-       <number>0</number>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>2</verstretch>
+       </sizepolicy>
       </property>
-      <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>267</width>
-          <height>50</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>0</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="spacing">
+        <number>2</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetFixedSize</enum>
+       </property>
+       <property name="margin">
+        <number>2</number>
+       </property>
+       <item>
+        <widget class="QFrame" name="btnBar">
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="margin">
+           <number>0</number>
+          </property>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QToolButton" name="btnToggleMapViewVisibility">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Toggle map view visibility</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+           <property name="popupMode">
+            <enum>QToolButton::DelayedPopup</enum>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnToggleCrosshair">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Show/hide crosshair</string>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="icon">
+            <iconset resource="resources.qrc">
+             <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="popupMode">
+            <enum>QToolButton::MenuButtonPopup</enum>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Name</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="tbName">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="frame">
+            <bool>true</bool>
+           </property>
+           <property name="placeholderText">
+            <string>Map View Title</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QgsCollapsibleGroupBox" name="gbVectorRendering">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="title">
+          <string>Vector Rendering</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMinAndMaxSize</enum>
+          </property>
+          <item>
+           <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>(modify vector layers in QGIS)</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+         <zorder>cbQgsVectorLayer</zorder>
+         <zorder>collapseButton</zorder>
+         <zorder>label_3</zorder>
+        </widget>
+       </item>
+       <item>
+        <widget class="QgsCollapsibleGroupBox" name="gbRasterRendering">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>50</height>
+          </size>
+         </property>
+         <property name="title">
+          <string>Raster Rendering</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="collapsed">
+          <bool>false</bool>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_4">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="margin">
+           <number>0</number>
+          </property>
+          <item>
+           <layout class="QVBoxLayout" name="renderSettingsLayout">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetMinAndMaxSize</enum>
+            </property>
+            <property name="margin">
+             <number>9</number>
+            </property>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>25</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
-  <action name="actionRemoveMapView">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.png</iconset>
-   </property>
-   <property name="text">
-    <string>Remove view</string>
-   </property>
-   <property name="toolTip">
-    <string>Remove view</string>
-   </property>
-  </action>
-  <action name="actionToggleVisibility">
+  <action name="actionToggleMapViewVisibility">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -250,23 +336,41 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
-     <normalon>:/timeseriesviewer/icons/mapview.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>
+     <normalon>:/timeseriesviewer/icons/mapviewHidden.svg</normalon>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
    </property>
    <property name="text">
     <string>Toogle visibility</string>
    </property>
+   <property name="toolTip">
+    <string>Toogle visibility of this map view</string>
+   </property>
   </action>
-  <action name="actionApplyStyles">
+  <action name="actionToggleCrosshairVisibility">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
-    <string>ApplyStyles</string>
+    <string>Show/hide Crosshair</string>
    </property>
    <property name="toolTip">
-    <string>Apply Render Styles</string>
+    <string>Show/hide a crosshair</string>
+   </property>
+  </action>
+  <action name="actionSetCrosshairStyle">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/symbology.svg</normaloff>:/timeseriesviewer/icons/symbology.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set crosshair style</string>
    </property>
   </action>
   <action name="actionToggleVectorVisibility">
@@ -281,32 +385,38 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapviewHidden.png</normaloff>
-     <normalon>:/timeseriesviewer/icons/mapview.png</normalon>:/timeseriesviewer/icons/mapviewHidden.png</iconset>
+     <normaloff>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normaloff>
+     <normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</normalon>:/timeseriesviewer/icons/mIconPolygonLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Toogle vector overlay visibility</string>
    </property>
    <property name="toolTip">
-    <string>Toogle visibility of overlayed vector file</string>
+    <string>Toogle the visibility of the overlayed vector file</string>
    </property>
   </action>
-  <action name="actionShowCrosshair">
+  <action name="actionToggleRasterVisibility">
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="checked">
-    <bool>false</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/crosshair.png</normaloff>:/timeseriesviewer/icons/crosshair.png</iconset>
-   </property>
    <property name="text">
-    <string>Show Crosshair</string>
+    <string>toggleRasterVisibility</string>
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsCollapsibleGroupBox</class>
+   <extends>QGroupBox</extends>
+   <header>qgscollapsiblegroupbox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsMapLayerComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsmaplayercombobox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="resources.qrc"/>
  </resources>

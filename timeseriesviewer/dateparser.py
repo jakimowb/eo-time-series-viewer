@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os, re, logging
 from osgeo import gdal
 import numpy as np
@@ -104,7 +105,7 @@ class ImageDateReaderDefault(ImageDateReader):
                     try:
                         dtg = np.datetime64(value)
                         return dtg
-                    except:
+                    except Exception as ex:
                         pass
 
         # search for ISO date in basename
