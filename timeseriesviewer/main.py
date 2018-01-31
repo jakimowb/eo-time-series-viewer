@@ -695,7 +695,13 @@ class TimeSeriesViewer(QObject):
         if files is None:
             s = settings()
             defDir = s.value('DIR_FILESEARCH')
-            files = QFileDialog.getOpenFileNames(directory=defDir)
+
+            filters = "ENVI Images (*.bsq *.bil *.bip);;"+ \
+                      "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
+                      "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
+                      "All files (*.*)"
+
+            files = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])

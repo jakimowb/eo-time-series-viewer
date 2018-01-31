@@ -1,0 +1,21 @@
+
+
+2018-01-31
+    added file filters for OpenFileDialog
+
+2018-01-19
+    initialized Sphinx-based documentation
+    improved map visualization + map settings
+
+2017-05-21:
+    many changes, done in development branch "develop",
+    e.g: QGIS MapCanvases for interactive maps, temporal profiles, ...
+
+
+2017-02-14:
+    first setup for test users in the recent development branch qgis_apo
+
+2016-12-02:
+    Work on this project continued. During the last months I focused on the EnMAP-Box where I gained a lot of
+    experience in using Qt and QGIS API.
+    Referring to this, I created the qgis_api which contains the most recent developments.
