@@ -395,8 +395,8 @@ class TimeSeriesTableView(QTableView):
 
 
 from timeseriesviewer.ui.docks import TsvDockWidgetBase
-from timeseriesviewer.utils import loadUi
-class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
+from timeseriesviewer.utils import loadUI
+class TimeSeriesDockUI(TsvDockWidgetBase, loadUI('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
         self.setupUi(self)

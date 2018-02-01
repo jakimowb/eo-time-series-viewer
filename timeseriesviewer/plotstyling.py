@@ -147,7 +147,7 @@ class PlotStyle(QObject):
 
         self.__dict__.update(state)
 
-class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
+class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
     def __init__(self, title='<#>', parent=None):

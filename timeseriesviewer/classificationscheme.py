@@ -369,7 +369,7 @@ class ClassificationWidgetDelegates(QStyledItemDelegate):
             if index.data() != w.color():
                 model.setData(index, w.color(), Qt.EditRole)
 
-class ClassificationSchemeWidget(QWidget, loadUi('classificationscheme.ui')):
+class ClassificationSchemeWidget(QWidget, loadUI('classificationscheme.ui')):
 
 
 

@@ -101,7 +101,7 @@ class VerticalLabel(QLabel):
 
 
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.utils import loadUi
+from timeseriesviewer.utils import loadUI
 from timeseriesviewer.main import SpatialExtent, TsvMimeDataUtils
 
 
@@ -142,7 +142,7 @@ def maxWidgetSizes(layout, onHint=True):
 
 
 class AboutDialogUI(QDialog,
-                    loadUi('aboutdialog.ui')):
+                    loadUI('aboutdialog.ui')):
     def __init__(self, parent=None):
         """Constructor."""
         super(AboutDialogUI, self).__init__(parent)
@@ -190,7 +190,7 @@ class AboutDialogUI(QDialog,
 
 
 
-class PropertyDialogUI(QDialog, loadUi('settingsdialog.ui')):
+class PropertyDialogUI(QDialog, loadUI('settingsdialog.ui')):
 
     def __init__(self, parent=None):
         super(PropertyDialogUI, self).__init__(parent)

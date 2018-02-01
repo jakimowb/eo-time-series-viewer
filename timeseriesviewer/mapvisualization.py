@@ -31,14 +31,14 @@ import numpy as np
 from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
 from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
 
 
-class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
+class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
 
     def __init__(self, parent=None):
@@ -355,7 +355,7 @@ class MapView(QObject):
 
 
 
-class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUi('mapviewrendersettings.ui')):
+class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -794,7 +794,7 @@ class MapViewSensorSettings(QObject):
 
 
 
-class DatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
+class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
     """
     Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
     """
@@ -989,6 +989,7 @@ class DatumView(QObject):
         s = ""
 
     def registerMapCanvas(self, mapView, mapCanvas):
+
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         self.mapCanvases[mapView] = mapCanvas
@@ -1101,6 +1102,7 @@ class SpatialTemporalVisualization(QObject):
     def registerMapCanvas(self, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
+
 
         self.mMapCanvases.append(mapCanvas)
 
@@ -1335,6 +1337,13 @@ class DateViewCollection(QObject):
         self.setFocusView(None)
 
 
+    def tsdFromMapCanvas(self, mapCanvas):
+        assert isinstance(mapCanvas, MapCanvas)
+        for view in self.views:
+            assert isinstance(view, DatumView)
+            if mapCanvas in view.mapCanvases.values():
+                return view.TSD
+        return None
 
     def tsdView(self, tsd):
         r = [v for v in self.views if v.TSD == tsd]
@@ -1576,7 +1585,7 @@ class MapViewListModel(QAbstractListModel):
             value = mapView
         return value
 
-class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
+class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)

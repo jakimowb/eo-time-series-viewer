@@ -726,7 +726,6 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
-        from timeseriesviewer.main import QgisTsvBridge
 
         menu.addSeparator()
 

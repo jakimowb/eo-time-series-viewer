@@ -31,7 +31,7 @@ from PyQt4.QtGui import *
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderResult
 import pyqtgraph as pg
@@ -840,7 +840,7 @@ class PlotSettingsModel(QAbstractTableModel):
 
 
 
-class ProfileViewDockUI(TsvDockWidgetBase, loadUi('profileviewdock.ui')):
+class ProfileViewDockUI(TsvDockWidgetBase, loadUI('profileviewdock.ui')):
 
 
     def __init__(self, parent=None):

@@ -30,9 +30,9 @@ import pyqtgraph as pg
 from timeseriesviewer.ui.widgets import *
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 
-from timeseriesviewer.ui.docks import loadUi, TsvDockWidgetBase
+from timeseriesviewer.ui.docks import loadUI, TsvDockWidgetBase
 
-class SensorDockUI(TsvDockWidgetBase, loadUi('sensordock.ui')):
+class SensorDockUI(TsvDockWidgetBase, loadUI('sensordock.ui')):
     def __init__(self, parent=None):
         super(SensorDockUI, self).__init__(parent)
         self.setupUi(self)

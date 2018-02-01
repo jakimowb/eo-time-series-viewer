@@ -24,7 +24,7 @@ class run():
     Starts the HUB TimeSeriesViewer
     """
 
-    from timeseriesviewer.sandbox import initQgisApplication
+    from timeseriesviewer.utils import initQgisApplication
     qgsApp = initQgisApplication()
     from timeseriesviewer.main import TimeSeriesViewer
     S = TimeSeriesViewer(None)

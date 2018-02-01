@@ -240,7 +240,7 @@ class QgisTsvBridge(QObject):
 """
 
 class TimeSeriesViewerUI(QMainWindow,
-                         loadUi('timeseriesviewer.ui')):
+                         loadUI('timeseriesviewer.ui')):
 
     sigQgsSyncChanged = pyqtSignal(bool, bool, bool)
 
@@ -290,9 +290,11 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.mapvisualization import MapViewCollectionDock
         self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
-        self.tabifyDockWidget(self.dockSensors, self.dockRendering)
-        self.tabifyDockWidget(self.dockSensors, self.dockMapViews)
+        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoDock
+        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
+        self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
+        self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
 
         area = Qt.BottomDockWidgetArea
@@ -302,8 +304,13 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
-        #self.tabifyDockWidget(self.dockTimeSeries, self.dockMapViews)
+
+        from timeseriesviewer.spectrallibraries import SpectralLibraryPanel
+        self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
+
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+
 
         area = Qt.RightDockWidgetArea
         from timeseriesviewer.systeminfo import SystemInfoDock
@@ -472,9 +479,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomIn))
         D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomOut))
         D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.Pan))
+
         D.actionIdentifyTemporalProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.TemporalProfile))
         D.actionIdentifySpectralProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.SpectralProfile))
+
         D.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
+        D.dockCursorLocation.sigLocationRequest.connect(D.actionIdentifyCursorLocationValues.trigger)
+
+        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoModel
+        D.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
@@ -514,9 +527,26 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if mapToolKey == MapTools.TemporalProfile:
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
         elif mapToolKey == MapTools.SpectralProfile:
-            pass
+            from timeseriesviewer.spectrallibraries import SpectralProfile
+            tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
+
+            profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
+
+            #add metadata
+            if isinstance(tsd, TimeSeriesDatum):
+                for p in profiles:
+                    assert isinstance(p, SpectralProfile)
+
+                    p.setMetadata(u'date', u'{}'.format(tsd.date))
+                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()))
+                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()))
+
+            self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
+
         elif mapToolKey == MapTools.CursorLocation:
-            pass
+
+            self.ui.dockCursorLocation.loadCursorLocation(spatialPoint, mapCanvas)
+
         else:
             s = ""
         pass

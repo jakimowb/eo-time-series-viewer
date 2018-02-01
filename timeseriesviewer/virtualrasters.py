@@ -697,7 +697,7 @@ def createVirtualBandStack(bandFiles, pathVRT):
     return vrtDS
 
 
-from timeseriesviewer.utils import loadUi
+from timeseriesviewer.utils import loadUI
 
 class TreeNode(QObject):
     sigWillAddChildren = pyqtSignal(QObject, int, int)
@@ -1676,7 +1676,7 @@ class VRTRasterTreeModel(TreeModel):
     def supportedDropActions(self):
         return Qt.CopyAction | Qt.MoveAction
 
-class VRTBuilderWidget(QFrame, loadUi('vrtbuilder.ui')):
+class VRTBuilderWidget(QFrame, loadUI('vrtbuilder.ui')):
 
     def __init__(self, parent=None):
         super(VRTBuilderWidget, self).__init__(parent)
