@@ -287,18 +287,20 @@ def sandboxTestdata():
     S.run()
 
     S.spatialTemporalVis.MVC.createMapView()
-    #import example.Images
-    #searchDir = jp(DIR_EXAMPLES, 'Images')
-    #imgs = file_search(searchDir, '*.tif', recursive=True)#[0:1]  # [0:5]
-    import example.Images
+    S.spatialTemporalVis.MVC.createMapView()
 
-    imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
-            example.Images.re_2014_08_26]
+    import example.Images
+    if True:
+        S.loadExampleTimeSeries()
+    else:
+        imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
+                example.Images.re_2014_08_26]
+
+
+
+        S.addTimeSeriesImages(imgs)
 
     from example import exampleEvents
-
-    S.addTimeSeriesImages(imgs)
-
     ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr', True)
     QgsMapLayerRegistry.instance().addMapLayer(ml)
 

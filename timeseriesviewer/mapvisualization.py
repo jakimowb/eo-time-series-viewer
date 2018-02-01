@@ -338,17 +338,18 @@ class MapView(QObject):
 
         #w.showSensorName(False)
         w = self.ui.addSensor(sensor)
-        w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
+        #w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
         self.sensorViews[sensor] = w
         s  =""
 
+    """
     def onSensorRenderingChanged(self, renderer):
         sensorSettings = self.sender()
         assert isinstance(sensorSettings, MapViewSensorSettings)
         for mapCanvas in sensorSettings.mapCanvases():
             mapCanvas.setRenderer(renderer)
             #mapCanvas.refresh()
-
+    """
     def getSensorWidget(self, sensor):
         assert type(sensor) is SensorInstrument
         return self.sensorViews[sensor]
@@ -574,7 +575,8 @@ class MapViewSensorSettings(QObject):
         r = self.rasterLayerRenderer()
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.setRenderer(r)
+            mapCanvas.layerModel().setRenderer(r)
+            mapCanvas.refresh()
 
     def onClipboardChange(self):
         utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
@@ -1365,7 +1367,7 @@ class DateViewCollection(QObject):
         for tsdv in self.views:
             tsdv.ui.setUpdatesEnabled(True)
 
-        mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
+        #mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
         mapView.sigMapViewVisibility.connect(lambda: self.sigResizeRequired.emit())
         mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
         w.setUpdatesEnabled(True)

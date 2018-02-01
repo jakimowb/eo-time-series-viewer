@@ -32,7 +32,6 @@ from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 
 
-
 class MapTools(object):
     """
     Static class to support handling of nQgsMapTools.
@@ -229,18 +228,25 @@ class MapLayerInfo(object):
     A minimum description of a QgsMapLayer source.
     """
 
-    def __init__(self, mapLayer, isVisible, provider='gdal'):
+    def __init__(self, srcOrMapLayer, isVisible, provider='gdal', renderer=None):
 
         self.mSrc = ''
         self.mLayer = None
-        self.mProvider = provider
-
-        if isinstance(mapLayer, QgsMapLayer):
-            self.mSrc = mapLayer.source()
-            self.mProvider = mapLayer.providerType()
-            self.mLayer = mapLayer
+        self.mProvider = None
+        self.mRenderer = None
+        self.setRenderer(renderer)
+        if isinstance(srcOrMapLayer, QgsMapLayer):
+            self.mSrc = srcOrMapLayer.source()
+            self.mProvider = srcOrMapLayer.providerType()
+            self.mLayer = srcOrMapLayer
+            if isinstance(srcOrMapLayer, QgsVectorLayer):
+                self.mRenderer = srcOrMapLayer.rendererV2()
+            elif isinstance(srcOrMapLayer, QgsRasterLayer):
+                self.mRenderer = srcOrMapLayer.renderer()
         else:
-            self.mSrc = mapLayer
+            self.mSrc = srcOrMapLayer
+            assert provider in ['ogr','gdal']
+            self.mProvider = provider
 
 
         self.mIsVisible = isVisible
@@ -257,6 +263,16 @@ class MapLayerInfo(object):
         elif self.mProvider == 'ogr':
             self.mLayer = QgsVectorLayer(self.mSrc,os.path.basename(self.mSrc), 'ogr', True)
 
+        self.setRenderer(self.mRenderer)
+
+    def setRenderer(self, renderer):
+        self.mRenderer = renderer
+        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRendererV2) or \
+           self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
+            self.mRenderer = renderer
+            if self.isInitialized():
+                copyRenderer(self.mRenderer, self.mLayer)
+                #self.mLayer.repaintRequested.emit()
 
     def setIsVisible(self, b):
         self.mIsVisible = b
@@ -279,6 +295,7 @@ class MapLayerInfo(object):
         if not self.isInitialized():
             return None
         ref = QgsMapLayerRegistry.instance().mapLayer(self.mLayer.layerId())
+
         return isinstance(ref, QgsMapLayer)
 
 
@@ -294,6 +311,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
         self.mColumnNames = ['layerID', 'isVisible', '']
         self.mLayerInfos = []
 
+
     def __len__(self):
         return len(self.mLayerInfos)
 
@@ -308,14 +326,13 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return info
 
     def setRenderer(self, renderer):
-        from timeseriesviewer.utils import copyRenderer
-        #do we need to set a reference on the renderer????
-        return [copyRenderer(renderer, li.mLayer) for li in self.mLayerInfos if isinstance(li.mLayer, QgsMapLayer)]
+        for li in self.mLayerInfos:
+            assert isinstance(li, MapLayerInfo)
+            li.setRenderer(renderer)
 
-
-    def setVectorLayerSources(self, rasterSources, isVisible=True):
+    def setVectorLayerSources(self, vectorSources, **kwds):
         self.removeLayerInfos(self.vectorLayerInfos())
-        self.insertLayerInfos(0, rasterSources, isVisible=isVisible, provider='ogr')
+        self.insertLayerInfos(0, vectorSources, provider='ogr', **kwds)
 
     def setVectorLayerVisibility(self, b):
         for li in self.vectorLayerInfos():
@@ -326,9 +343,9 @@ class MapCanvasLayerModel(QAbstractTableModel):
             li.setIsVisible(b)
 
 
-    def setRasterLayerSources(self, rasterSources, isVisible=True):
+    def setRasterLayerSources(self, rasterSources, **kwds):
         self.removeLayerInfos(self.rasterLayerInfos())
-        self.addLayerInfos(rasterSources, isVisible=isVisible, provider='gdal')
+        self.addLayerInfos(rasterSources, provider='gdal', **kwds)
 
     def vectorLayerInfos(self):
         return [li for li in self.mLayerInfos if li.mProvider == 'ogr']
@@ -337,14 +354,14 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return [li for li in self.mLayerInfos if li.mProvider == 'gdal']
 
 
-    def addLayerInfo(self, mapLayer, isVisible=True, provider='gdal'):
-        self.addLayerInfos([mapLayer], isVisible=isVisible, provider=provider)
+    def addLayerInfo(self, mapLayer, **kwds):
+        self.addLayerInfos([mapLayer], **kwds)
 
-    def addLayerInfos(self, mapLayers, isVisible=True, provider='gdal'):
-        self.insertLayerInfos(len(self), mapLayers, isVisible=isVisible, provider=provider)
+    def addLayerInfos(self, mapLayers, **kwds):
+        self.insertLayerInfos(len(self), mapLayers, **kwds)
 
-    def insertLayerInfo(self, i, mapLayer, isVisible=True, provider='gdal'):
-        self.insertLayerInfo(i, [mapLayer], isVisible=isVisible, provider=provider)
+    def insertLayerInfo(self, i, mapLayer, **kwds):
+        self.insertLayerInfo(i, [mapLayer], **kwds)
 
     def insertLayerInfos(self, i, mapLayers, isVisible=True, provider='gdal'):
         for mapLayer in mapLayers:
@@ -843,8 +860,8 @@ class MapCanvas(QgsMapCanvas):
     def setRenderer(self, renderer, refresh=True):
 
         success = self.layerModel().setRenderer(renderer)
-        if refresh and any(success):
-            self.refresh()
+        self.setRenderFlag(True)
+        #self.refresh()
 
 
     def setSpatialExtent(self, spatialExtent):
