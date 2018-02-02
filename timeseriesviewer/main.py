@@ -21,34 +21,53 @@
 # noinspection PyPep8Naming
 from __future__ import absolute_import
 from qgis.core import *
-import os, sys, re, fnmatch, collections, copy, traceback, six
-import logging
-logger = logging.getLogger(__name__)
+import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
 
+
+
+
+"""
+File "D:\Programs\OSGeo4W\apps\Python27\lib\multiprocessing\managers.py", line
+528, in start
+self._address = reader.recv()
+EOFError
+
+see https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
+see https://github.com/CleanCut/green/issues/103 
+"""
+
+path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+if os.path.exists(path):
+    multiprocessing.set_executable(path)
+    sys.argv = [ None ]
+
+"""
+pathList = [os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe')),
+            os.path.join(sys.exec_prefix, 'pythonw.exe')]
+if False:
+    for p in reversed(pathList):
+        if os.path.isfile(p):
+            print(p)
+            #multiprocessing.set_executable(p)
+            #multiprocessing.freeze_support()
+            #multiprocessing.Manager()
+
+            break
+"""
 
 import qgis.utils
 from timeseriesviewer.utils import *
 
-
-
 DEBUG = False
-
 import numpy as np
-import multiprocessing
-#abbreviations
-import site
 
 
-from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search
+from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 
 
 
-path = os.path.abspath(jp(sys.exec_prefix, '../../bin/pythonw.exe'))
-if os.path.exists(path):
-    multiprocessing.set_executable(path)
-    sys.argv = [ None ]
 
 #ensure that required non-standard modules are available
 
@@ -439,6 +458,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.iface = iface
         else:
             self.iface = self
+            qgis.utils.iface = self
 
         #init empty time series
         self.TS = TimeSeries()
@@ -614,7 +634,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if '' in message.split('\n'):
             m = m[0:m.index('')]
         m = '\n'.join(m)
-
+        if DEBUG: print(message)
         if not re.search('timeseriesviewer', m):
             return
 
@@ -698,7 +718,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.iface.removeToolBarIcon(self.action)
 
     def run(self):
-        QApplication.processEvents()
+        #QApplication.processEvents()
         self.ui.show()
 
 
@@ -787,9 +807,6 @@ def main():
 
     ts = TimeSeriesViewer(None)
     ts.run()
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
-    ts.createMapView()
-    ts.addTimeSeriesImages([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
     #ts.loadExampleTimeSeries()
 
     if False:
@@ -811,4 +828,5 @@ def main():
 
 if __name__ == '__main__':
 
-    main()
+    import timeseriesviewer.__main__ as m
+    m.run()

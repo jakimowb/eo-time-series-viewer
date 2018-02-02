@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 from __future__ import absolute_import
 import os, sys, pickle
-import multiprocessing as mp
+import multiprocessing
 
 import datetime
 from qgis.gui import *
@@ -233,7 +233,8 @@ class PixelLoader(QObject):
         self.queueChecker.timeout.connect(self.checkQueue)
 
         self.pool = None
-        self.MGR = mp.Manager()
+
+        self.MGR = multiprocessing.Manager()
         self.mAsyncResults = []
         self.resultQueue = self.MGR.Queue()
         self.cancelEvent = self.MGR.Event()

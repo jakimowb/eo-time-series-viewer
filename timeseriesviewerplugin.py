@@ -20,16 +20,7 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
-import inspect
-import os
-import six
-import traceback
-import sys
-import importlib
-import re
-import site
-import logging
-logger = logging.getLogger(__name__)
+import os, sys, site
 from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
@@ -47,6 +38,9 @@ class TimeSeriesViewerPlugin:
             CONSOLE._console = CONSOLE.PythonConsole(iface.mainWindow())
             QTimer.singleShot(0, CONSOLE._console.activate)
 
+
+        dirPlugin = os.path.dirname(__file__)
+        site.addsitedir(dirPlugin)
 
         #run a dependency check
         self.initialDependencyCheck()
@@ -80,7 +74,6 @@ class TimeSeriesViewerPlugin:
         :return:
         """
 
-        pluginDir = os.path.dirname(__file__)
         missing = []
         from timeseriesviewer import DEPENDENCIES, messageLog
         for package in DEPENDENCIES:

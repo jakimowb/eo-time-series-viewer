@@ -17,24 +17,19 @@
 ***************************************************************************
 """
 from __future__ import absolute_import
-import sys
+import sys, os
 
-class run():
-    """
-    Starts the HUB TimeSeriesViewer
-    """
 
-    from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
-    from timeseriesviewer.main import TimeSeriesViewer
-    S = TimeSeriesViewer(None)
-    S.ui.show()
-    S.run()
-
-    #close QGIS
-    qgsApp.exec_()
-    qgsApp.exitQgis()
+def run():
+    pkg = os.path.dirname(__file__)
+    repo = os.path.dirname(pkg)
+    if repo not in sys.path:
+        if __name__ == '__main__':
+            sys.path.append(repo)
+    #for p in sorted(sys.path): print(p)
+    import timeseriesviewer.main
+    timeseriesviewer.main.DEBUG = True
+    timeseriesviewer.main.main()
 
 if __name__ == '__main__':
-    from timeseriesviewer.main import main
-    main()
+    run()
