@@ -38,6 +38,8 @@ import pyqtgraph as pg
 from osgeo import gdal, gdal_array
 import numpy as np
 
+DEBUG = False
+
 def getTextColorWithContrast(c):
     assert isinstance(c, QColor)
     if c.lightness() < 0.5:
@@ -238,7 +240,6 @@ class SensorPixelDataMemoryLayer(QgsVectorLayer):
         assert isinstance(sensor, SensorInstrument)
         if crs is None:
             crs = QgsCoordinateReferenceSystem('EPSG:4862')
-
         uri = 'Point?crs={}'.format(crs.authid())
         super(SensorPixelDataMemoryLayer, self).__init__(uri, 'Pixels_sensor_' + sensor.name(), 'memory', False)
         self.mSensor = sensor
@@ -286,12 +287,8 @@ class PixelCollection(QObject):
     sigPixelAdded = pyqtSignal()
     sigPixelRemoved = pyqtSignal()
 
-
-
     def __init__(self, ):
         super(PixelCollection, self).__init__()
-
-
         self.sensorPxLayers = dict()
         self.memLyrCrs = QgsCoordinateReferenceSystem('EPSG:4326')
 
@@ -304,7 +301,6 @@ class PixelCollection(QObject):
                 self.addSensor(sensor)
             self.TS.sigSensorAdded.connect(self.addSensor)
             self.TS.sigSensorRemoved.connect(self.removeSensor)
-
         else:
             self.TS = None
 
@@ -342,7 +338,7 @@ class PixelCollection(QObject):
     def addSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
         assert sensor not in self.sensorPxLayers.keys()
-
+        print('Add {}'.format(sensor))
         mem = SensorPixelDataMemoryLayer(sensor, crs=self.memLyrCrs)
         self.sensorPxLayers[sensor] = mem
         self.sigSensorAdded.emit(sensor)
@@ -357,8 +353,11 @@ class PixelCollection(QObject):
             del self.sensorPxLayers[sensor]
 
     def addPixel(self, d):
+
         assert isinstance(d, PixelLoaderResult)
         if d.success():
+            if DEBUG:
+                print('add {} to {}'.format(d, self))
             tsd = self.TS.getTSD(d.source)
             values = d.pxData
             nodata = np.asarray(d.noDataValue)
@@ -410,7 +409,7 @@ class PixelCollection(QObject):
                     assert mem.commitChanges()
 
             #each pixel is a new feature
-            self.sigPixelAdded.emit()
+            #self.sigPixelAdded.emit()
 
         pass
 
@@ -988,16 +987,18 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(d, PixelLoaderResult)
 
 
-        QgsApplication.processEvents()
+
         bn = os.path.basename(d.source)
         if d.success():
-
             t = 'Last loaded from {}.'.format(bn)
             self.pxCollection.addPixel(d)
         else:
             t = 'Failed loading from {}.'.format(bn)
             if d.info and d.info != '':
                 t += '({})'.format(d.info)
+        if DEBUG:
+            print(t)
+        # QgsApplication.processEvents()
         self.ui.progressInfo.setText(t)
 
     def requestUpdate(self, *args):
@@ -1038,9 +1039,8 @@ class SpectralTemporalVisualization(QObject):
     def onObservationClicked(self, plotDataItem, points):
         for p in points:
             tsd = p.data()
+            #print(tsd)
 
-            print(tsd)
-        s =""
 
     def clear(self):
         #first remove from pixelCollection
@@ -1057,7 +1057,7 @@ class SpectralTemporalVisualization(QObject):
             rng = [self.TS[0].date, self.TS[-1].date]
             rng = [date2num(d) for d in rng]
             self.plot2D.getPlotItem().setRange(xRange=rng)
-        QApplication.processEvents()
+        #QApplication.processEvents()
         if self.plot3D:
             pass
 
@@ -1087,7 +1087,7 @@ class SpectralTemporalVisualization(QObject):
         self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
         self.pixelLoader.startLoading(paths, spatialPoint, bandIndices=bandIndices)
 
-        self.ui.setWindowTitle('{} | {} {}'.format(self.ui.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
+        #self.ui.setWindowTitle('{} | {} {}'.format(self.ui.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
 
 
     def setVisibility(self, sensorPlotStyle):

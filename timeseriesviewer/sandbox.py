@@ -289,6 +289,8 @@ def sandboxTestdata():
     S.spatialTemporalVis.MVC.createMapView()
     S.spatialTemporalVis.MVC.createMapView()
 
+    import timeseriesviewer.profilevisualization
+    timeseriesviewer.profilevisualization.DEBUG = True
     import example.Images
     if True:
         S.loadExampleTimeSeries()
