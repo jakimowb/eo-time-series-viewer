@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 from __future__ import absolute_import
 import os, sys, pickle, datetime
-
+from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
 from PyQt4.QtCore import *
@@ -284,13 +284,25 @@ class PixelCollection(QObject):
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
-    sigPixelAdded = pyqtSignal()
-    sigPixelRemoved = pyqtSignal()
+    #sigPixelAdded = pyqtSignal()
+    #sigPixelRemoved = pyqtSignal()
 
     def __init__(self, ):
         super(PixelCollection, self).__init__()
         self.sensorPxLayers = dict()
         self.memLyrCrs = QgsCoordinateReferenceSystem('EPSG:4326')
+        self.newDataFlag = False
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4862')
+        uri = 'Point?crs={}'.format(crs.authid())
+
+        self.TS = None
+        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory', False)
+        self.mTemporalProfiles = OrderedDict()
+        self.mCurrentTPID = 0
+
+
+
 
     def connectTimeSeries(self, timeSeries):
         self.clear()
@@ -303,6 +315,8 @@ class PixelCollection(QObject):
             self.TS.sigSensorRemoved.connect(self.removeSensor)
         else:
             self.TS = None
+
+
 
 
     def getFieldDefn(self, name, values):
@@ -355,11 +369,16 @@ class PixelCollection(QObject):
     def addPixel(self, d):
 
         assert isinstance(d, PixelLoaderResult)
-        if d.success():
+        if d.success() and d.profileID in self.mTemporalProfiles.keys():
+            TP = self.mTemporalProfiles[d.profileID]
+
             if DEBUG:
                 print('add {} to {}'.format(d, self))
             tsd = self.TS.getTSD(d.source)
             values = d.pxData
+
+
+
             nodata = np.asarray(d.noDataValue)
 
             nb, nl, ns = values.shape
@@ -367,7 +386,9 @@ class PixelCollection(QObject):
 
             assert isinstance(tsd, TimeSeriesDatum)
 
-            mem = self.sensorData(tsd.sensor)
+
+
+            #mem = self.sensorData(tsd.sensor)
 
             #insert each single pixel, line by line
             indicesY, indicesX = d.imagePixelIndices()
@@ -407,6 +428,7 @@ class PixelCollection(QObject):
                     mem.startEditing()
                     assert mem.addFeature(feature)
                     assert mem.commitChanges()
+                    self.newDataFlag = True
 
             #each pixel is a new feature
             #self.sigPixelAdded.emit()
@@ -898,6 +920,35 @@ def num2date(n):
     d = datetime.date.fromordinal(n)
     return np.datetime64(d, 'D')
 
+
+class TemporalProfile(QObject):
+
+    def __init__(self, spatialPoint):
+        super(TemporalProfile, self).__init__()
+        assert isinstance(spatialPoint, SpatialPoint)
+
+        self.mCoordinate = spatialPoint
+
+        self.mData = {}
+
+    def addData(self, tsd, values):
+        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(values, dict)
+
+        if tsd not in self.mData.keys():
+            self.mData[tsd] = {}
+
+        self.mData[tsd].update(values)
+
+    def hasData(self,tsd):
+        assert isinstance(tsd, TimeSeriesDatum)
+        return tsd in self.mData.keys()
+
+    def __repr__(self):
+        return 'TemporalProfile {}'.format(self.mCoordinate)
+
+
+
 class SpectralTemporalVisualization(QObject):
 
     sigShowPixel = pyqtSignal(TimeSeriesDatum, QgsPoint, QgsCoordinateReferenceSystem)
@@ -918,6 +969,11 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
         self.ui = ui
 
+        if DEBUG:
+            import timeseriesviewer.pixelloader
+            timeseriesviewer.pixelloader.DEBUG = True
+
+
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
         self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
@@ -931,8 +987,8 @@ class SpectralTemporalVisualization(QObject):
 
         self.plot3D = ui.plotWidget3D
         self.pxCollection = PixelCollection()
-        self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
-        self.pxCollection.sigPixelRemoved.connect(self.clear)
+        #self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
+        #self.pxCollection.sigPixelRemoved.connect(self.clear)
 
         self.plotSettingsModel = None
 
@@ -947,7 +1003,7 @@ class SpectralTemporalVisualization(QObject):
         self.updateRequested = True
         self.updateTimer = QTimer(self)
         self.updateTimer.timeout.connect(self.updatePlot)
-        self.updateTimer.start(2000)
+        self.updateTimer.start(5000)
 
         self.sigMoveToDate.connect(self.onMoveToDate)
 
@@ -992,6 +1048,7 @@ class SpectralTemporalVisualization(QObject):
         if d.success():
             t = 'Last loaded from {}.'.format(bn)
             self.pxCollection.addPixel(d)
+            self.updateRequested = True
         else:
             t = 'Failed loading from {}.'.format(bn)
             if d.info and d.info != '':
@@ -1083,9 +1140,14 @@ class SpectralTemporalVisualization(QObject):
                 paths.append(tsd.pathImg)
                 bandIndices.append(LUT_bandIndices[tsd.sensor])
 
+
         aGoodDefault = 2 if len(self.TS) > 25 else 1
+
+        profileID = '{}'.format(self.pixelLoader.jobid + 1)
+        profile = TemporalProfile(spatialPoint)
+        self.pxCollection.mTemporalProfiles[profileID] = profile
         self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
-        self.pixelLoader.startLoading(paths, spatialPoint, bandIndices=bandIndices)
+        self.pixelLoader.startLoading(paths, spatialPoint, bandIndices=bandIndices, profileID=profileID)
 
         #self.ui.setWindowTitle('{} | {} {}'.format(self.ui.baseTitle, str(spatialPoint.toString()), spatialPoint.crs().authid()))
 
@@ -1121,7 +1183,9 @@ class SpectralTemporalVisualization(QObject):
 
     @QtCore.pyqtSlot()
     def updatePlot(self):
-        if isinstance(self.plotSettingsModel, PlotSettingsModel) and self.updateRequested:
+        if isinstance(self.plotSettingsModel, PlotSettingsModel):
+            if DEBUG:
+                print('Update plot')
             self.setData()
             self.updateRequested = False
 
@@ -1129,6 +1193,7 @@ class SpectralTemporalVisualization(QObject):
         self.updateLock = True
         if sensorView is None:
             for sv in self.plotSettingsModel.mSensorPlotSettings:
+                assert isinstance(sv, SensorPlotStyle)
                 self.setData(sv)
         else:
             assert isinstance(sensorView, SensorPlotStyle)
@@ -1175,8 +1240,8 @@ class SpectralTemporalVisualization(QObject):
             i = np.argsort(dates)
             plotDataItem.appendData()
             plotDataItem.setData(x=dates[i], y=values[i], data=tsds[i])
-
-            self.setVisibility2D(sensorView)
+            #QApplication.processEvents()
+            #self.setVisibility2D(sensorView)
             s = ""
 
 
@@ -1271,8 +1336,8 @@ def examplePixelLoader():
 
 if __name__ == '__main__':
     import site, sys
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
+    from timeseriesviewer import utils
+    qgsApp = utils.initQgisApplication()
 
     d1 = np.datetime64('2012-05-23')
     d2 = np.datetime64('2012-05-24')
@@ -1284,14 +1349,16 @@ if __name__ == '__main__':
 
     ui = ProfileViewDockUI()
     ui.show()
-
+    DEBUG = True
     if True:
         TS = TimeSeries()
         SViz = SpectralTemporalVisualization(ui)
         SViz.connectTimeSeries(TS)
 
-        from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-        TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA])
+        import example.Images
+        from timeseriesviewer import file_search
+        files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
+        TS.addFiles(files)
         ext = TS.getMaxSpatialExtent()
         cp = SpatialPoint(ext.crs(),ext.center())
         SViz.loadCoordinate(cp)

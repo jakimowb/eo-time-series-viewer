@@ -44,7 +44,7 @@ class PixelLoaderResult(object):
     """
     An object to store the results of an loading from a single raster source.
     """
-    def __init__(self, jobId, processId, geometry, source):
+    def __init__(self, jobId, processId, geometry, source ,**kwargs):
         assert jobId is not None
         assert processId is not None
         assert type(geometry) in [SpatialExtent, SpatialPoint]
@@ -61,6 +61,9 @@ class PixelLoaderResult(object):
         self.noDataValue = None
         self.exception = None
         self.info = None
+        for k in kwargs.keys():
+            if not k in self.__dict__.keys():
+                self.__dict__[k] = kwargs[k]
 
     def setValues(self, values, bandIndices = None, noDataValue=None):
         self.pxData = values
@@ -106,7 +109,7 @@ LOADING_FINISHED = 'finished'
 LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
 
-def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent):
+def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent, **kwargs):
     assert type(geom) in [SpatialPoint, SpatialExtent]
 
     #this routine might run in a parallel thread.
@@ -131,7 +134,7 @@ def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent):
         if cancelEvent.is_set():
             return LOADING_CANCELED
 
-        R = PixelLoaderResult(jobid, poolWorker, geom, path)
+        R = PixelLoaderResult(jobid, poolWorker, geom, path, **kwargs)
 
         try:
             ds = gdal.Open(path, gdal.GA_ReadOnly)
@@ -260,7 +263,7 @@ class PixelLoader(QObject):
         assert nProcesses >= 1
         self.nProcesses = nProcesses
 
-    def startLoading(self, paths, theGeometry, bandIndices=None):
+    def startLoading(self, paths, theGeometry, bandIndices=None, profileID=''):
         assert isinstance(paths, list)
         if bandIndices is not None:
             assert len(bandIndices) == len(paths)
@@ -301,10 +304,11 @@ class PixelLoader(QObject):
         #print('theGeometryWKT: '+theGeometry.crs().toWkt())
         for i, workPackage in enumerate(workPackages):
             args = (workPackage, self.jobid, i, theGeometry, self.resultQueue, self.cancelEvent)
+            kwds = {'profileID':profileID}
             if DEBUG:
-                self.checkQueue(loadProfiles(*args))
+                self.checkQueue(loadProfiles(*args, **kwds))
             else:
-                r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue)
+                r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue, **kwds)
                 self.mAsyncResults.append(r)
 
         if not DEBUG:
