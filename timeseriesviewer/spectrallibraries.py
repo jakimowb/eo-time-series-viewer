@@ -32,9 +32,10 @@ from PyQt4.QtGui import *
 import numpy as np
 from osgeo import gdal, gdal_array
 
-from timeseriesviewer.utils import geo2px, px2geo, SpatialExtent, SpatialPoint, loadUI
+from timeseriesviewer.utils import geo2px, px2geo, SpatialExtent, SpatialPoint, loadUI, settings
+from timeseriesviewer.virtualrasters import describeRawFile
 
-
+FILTERS = 'ENVI Spectral Library (*.esl *.sli);;CSV Table (*.csv)'
 
 def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
     """
@@ -860,7 +861,7 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
         if pathVrt is None:
             pathVrt = tempfile.mktemp(prefix='tmpESLVrt', suffix='.esl.vrt')
 
-        from enmapbox.gui.virtualrasters import describeRawFile
+
         ds = describeRawFile(pathESL, pathVrt, xSize, ySize, bands=bands, eType=eType, byteOrder=byteOrder)
         for key, value in hdr.items():
             if isinstance(value, list):
@@ -1052,25 +1053,23 @@ class SpectralLibrary(QObject):
         :param parent:
         :return:
         """
-        from enmapbox.gui.utils import settings, DIR_TESTDATA
+
         SETTINGS = settings()
-        lastDataSourceDir = SETTINGS.value('_lastSpecLibSourceDir', None)
+        lastDataSourceDir = SETTINGS.value('_lastSpecLibSourceDir', '')
 
-        if lastDataSourceDir is None:
-            lastDataSourceDir = DIR_TESTDATA
-
-        if not os.path.exists(lastDataSourceDir):
+        if not QFileInfo(lastDataSourceDir).isDir():
             lastDataSourceDir = None
 
-        uris = QFileDialog.getOpenFileNames(parent, "Open spectral library", lastDataSourceDir)
+        uris = QFileDialog.getOpenFileNames(parent, "Open spectral library", lastDataSourceDir, filter=FILTERS + ';;All files (*.*)', )
         if len(uris) > 0:
             SETTINGS.setValue('_lastSpecLibSourceDir', os.path.dirname(uris[-1]))
 
-        uris = [u for u in uris if os.path.isfile(u)]
+        uris = [u for u in uris if QFileInfo(u).isFile()]
         speclib = SpectralLibrary()
         for u in uris:
             sl = SpectralLibrary.readFrom(unicode(u))
-            speclib.addSpeclib(sl)
+            if isinstance(sl, SpectralLibrary):
+                speclib.addSpeclib(sl)
         return speclib
 
     @staticmethod
@@ -1177,8 +1176,8 @@ class SpectralLibrary(QObject):
     def exportProfiles(self, path=None):
 
         if path is None:
-            filters = 'ENVI Spectral Library (*.esl *.sli);;CSV Table (*.csv)'
-            path = QFileDialog.getSaveFileName(parent=None, caption="Save Spectral Library", filter=filters)
+
+            path = QFileDialog.getSaveFileName(parent=None, caption="Save Spectral Library", filter=FILTERS)
 
         if len(path) > 0:
             ext = os.path.splitext(path)[-1].lower()
