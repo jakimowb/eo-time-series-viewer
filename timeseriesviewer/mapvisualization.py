@@ -1271,6 +1271,10 @@ class SpatialTemporalVisualization(QObject):
     def setBackgroundColor(self, color):
         assert isinstance(color, QColor)
         self.mColor = color
+        for mapCanvas in self.mMapCanvases:
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.setCanvasColor(color)
+            mapCanvas.refresh()
 
     def backgroundColor(self):
         return self.mColor
