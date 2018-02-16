@@ -495,6 +495,8 @@ class TimeSeries(QObject):
 
     _sep = ';'
 
+    def sensors(self):
+        return self.Sensors.values()
 
     def loadFromFile(self, path, n_max=None):
 
@@ -856,6 +858,8 @@ class TimeSeriesTableModel(QAbstractTableModel):
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
+
+
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
 

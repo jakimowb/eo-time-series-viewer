@@ -1071,7 +1071,7 @@ class SpatialTemporalVisualization(QObject):
 
         self.TSV = timeSeriesViewer
         self.TS = timeSeriesViewer.TS
-        self.ui.dockMapViews.connectTimeSeries(self.TS)
+        self.ui.dockMapViews.setTimeSeries(self.TS)
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
 
 
@@ -1727,12 +1727,12 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     def addSensor(self, sensor):
         for mapView in self.mMapViews:
-            mapView.addSensor(sensor)
+            mapView.addPlotStyle(sensor)
         #self.adjustScrollArea()
 
     def removeSensor(self, sensor):
         for mapView in self.mMapViews:
-            mapView.removeSensor(sensor)
+            mapView.removePlotItem(sensor)
 
     def applyStyles(self):
         for mapView in self.mMapViews:

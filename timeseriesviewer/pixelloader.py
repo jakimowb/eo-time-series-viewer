@@ -61,6 +61,8 @@ class PixelLoaderTask(object):
         :param source: file path to raster image.
         :param kwargs: additional stuff returned, e.g. to identify somethin
         """
+
+
         assert isinstance(geometries, list)
         for geometry in geometries:
             assert type(geometry) in [SpatialExtent, SpatialPoint]
@@ -92,6 +94,8 @@ class PixelLoaderTask(object):
             assert not k.startswith('_')
             if not k in self.__dict__.keys():
                 self.__dict__[k] = kwargs[k]
+
+
 
     def imageCrs(self):
         return QgsCoordinateReferenceSystem(self.resCrsWkt)

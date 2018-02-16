@@ -61,6 +61,8 @@ class PlotStyle(QObject):
         if plotStyle: kwds.pop('plotStyle')
         super(PlotStyle,self).__init__(**kwds)
 
+
+
         if plotStyle:
             self.copyFrom(plotStyle)
         else:
@@ -80,6 +82,16 @@ class PlotStyle(QObject):
             self.linePen.setStyle(Qt.NoPen)
             self.linePen.setColor(QColor(74,75,75))
 
+            self.mIsVisible = True
+
+
+    def setVisibility(self, b):
+        assert isinstance(b, bool)
+        self.mIsVisible = b
+
+    def isVisible(self):
+        return self.mIsVisible
+
     def copyFrom(self, plotStyle):
         assert isinstance(plotStyle, PlotStyle)
 
@@ -89,6 +101,7 @@ class PlotStyle(QObject):
         self.markerSize = plotStyle.markerSize
         self.backgroundColor = QColor(plotStyle.backgroundColor)
         self.linePen = QPen(plotStyle.linePen)
+
         s = ""
     def createIcon(self, size=None):
 
@@ -288,8 +301,8 @@ class PlotStyleButton(QPushButton):
 
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
-    def __init__(self, *args):
-        super(PlotStyleButton, self).__init__(*args)
+    def __init__(self, *args, **kwds):
+        super(PlotStyleButton, self).__init__(*args, **kwds)
         self.mPlotStyle = PlotStyle()
         self.mInitialButtonSize = None
         self.setStyleSheet('* { padding: 0px; }')

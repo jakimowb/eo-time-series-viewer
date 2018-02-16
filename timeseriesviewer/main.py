@@ -472,12 +472,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         #D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         #self.BVP = self.ui.scrollAreaMapViews.layout()
         #D.dockNavigation.connectTimeSeries(self.TS)
-        D.dockTimeSeries.connectTimeSeries(self.TS)
-        D.dockSensors.connectTimeSeries(self.TS)
+        D.dockTimeSeries.setTimeSeries(self.TS)
+        D.dockSensors.setTimeSeries(self.TS)
 
 
         self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
-        self.spectralTemporalVis.connectTimeSeries(self.TS)
+        self.spectralTemporalVis.setTimeSeries(self.TS)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
             lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
