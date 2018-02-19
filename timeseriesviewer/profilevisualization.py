@@ -55,6 +55,18 @@ def getTextColorWithContrast(c):
     else:
         return QColor('black')
 
+def bandIndex2bandKey(i):
+    assert isinstance(i, int)
+    assert i >= 0
+    return 'b{}'.format(i + 1)
+
+def bandKey2bandIndex(key):
+    match = PlotSettingsModel.regBandKeyExact.search(key)
+    assert match
+    idx = int(match.group()[1:]) - 1
+    return idx
+
+
 class DateTimeAxis(pg.AxisItem):
 
     def __init__(self, *args, **kwds):
@@ -160,7 +172,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         assert isinstance(plotStyle, TemporalProfilePlotStyle)
 
 
-        super(TemporalProfilePlotDataItem, self).__init__([], [], parent=parent)
+        super(TemporalProfilePlotDataItem, self).__init__([1,2,3], [2,3,4], parent=parent)
         self.mPlotStyle = plotStyle
         self.mPlotStyle.sigUpdated.connect(self.updateStyle)
         self.setClickable(True)
@@ -175,7 +187,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
             if len(y) > 0:
                 self.setData(x=x, y=y)
             else:
-                self.setData(x=None, y=None)
+                self.setData(x=[1,2,3], y=[1,2,3]) #dummy
             self.update()
 
     def updateStyle(self):
@@ -184,7 +196,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         """
         self.setVisible(self.mPlotStyle.isVisible())
         self.setPen(self.mPlotStyle.linePen)
-        self.setBrush(self.mPlotStyle.markerBrush)
+        #self.setBrush(self.mPlotStyle.markerBrush)
 
         #self.setFillBrush(self.mPlotStyle.)
 
@@ -820,20 +832,22 @@ class TemporalProfileCollection(QAbstractTableModel):
 
                 if isinstance(TP, TemporalProfile):
                     profileData = d.resProfiles[i]
+                    if not isinstance(profileData, tuple):
+                        s = ""
                     vMean, vStd = profileData
 
                     values = {}
+                    validValues = not isinstance(vMean, str)
                     #1. add the pixel values per returned band
+
                     for iBand, bandIndex in enumerate(d.bandIndices):
                         key = 'b{}'.format(bandIndex + 1)
-                        values[key] = vMean[iBand]
+                        values[key] = vMean[iBand] if validValues else None
                         key = 'std{}'.format(bandIndex + 1)
-                        values[key] = vStd[iBand]
-
+                        values[key] = vStd[iBand] if validValues else None
                     #indicesY, indicesX = d.imagePixelIndices()
                     #values['px_x'] = indicesX
                     #values['px_y'] = indicesY
-
                     TP.updateData(tsd, values)
 
     def clear(self):
@@ -948,7 +962,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         """
         super(DateTimePlotWidget, self).__init__(parent, viewBox=DateTimeViewBox())
         self.plotItem = pg.PlotItem(
-            axisItems={'bottom':DateTimeAxis(orientation='bottom')},
+            #axisItems={'bottom':DateTimeAxis(orientation='bottom')},
             viewBox=DateTimeViewBox()
         )
         self.setCentralItem(self.plotItem)
@@ -1023,18 +1037,7 @@ class PlotSettingsModel(QAbstractTableModel):
                 self.sigDataChanged.emit(plotStyle)
 
 
-    @staticmethod
-    def bandIndex2bandKey(i):
-        assert isinstance(i, int)
-        assert i >= 0
-        return 'b{}'.format(i+1)
 
-    @staticmethod
-    def bandKey2bandIndex(key):
-        match = PlotSettingsModel.regBandKeyExact.search(key)
-        assert match
-        idx = int(match.group()[1:])-1
-        return idx
 
     def requiredBandsIndices(self, sensor):
         """
@@ -1050,7 +1053,7 @@ class PlotSettingsModel(QAbstractTableModel):
             expression = p.expression()
             #remove leading & tailing "
             bandKeys = PlotSettingsModel.regBandKey.findall(expression)
-            for bandIndex in [self.bandKey2bandIndex(key) for key in bandKeys]:
+            for bandIndex in [bandKey2bandIndex(key) for key in bandKeys]:
                 bandIndices.add(bandIndex)
 
         return bandIndices
@@ -1381,6 +1384,7 @@ class TemporalProfile(QObject):
             assert isinstance(tsd, TimeSeriesDatum)
             meta = {'doy':tsd.doy,
                     'date':str(tsd.date)}
+
             self.updateData(tsd, meta)
 
     sigNameChanged = pyqtSignal(str)
@@ -1391,6 +1395,24 @@ class TemporalProfile(QObject):
 
     def name(self):
         return self.mName
+
+
+    def plot(self):
+
+        import pyqtgraph as pg
+
+        for sensor in self.mTimeSeries.sensors():
+            assert isinstance(sensor, SensorInstrument)
+
+            plotStyle = TemporalProfilePlotStyle(self)
+            plotStyle.setSensor(sensor)
+
+            pi = TemporalProfilePlotDataItem(plotStyle)
+            pi.setClickable(True)
+            pw = pg.plot(title=self.name())
+            pw.getPlotItem().addItem(pi)
+            pi.setColor('green')
+            pg.QAPP.exec_()
 
     def updateData(self, tsd, values):
         assert isinstance(tsd, TimeSeriesDatum)
@@ -1444,14 +1466,15 @@ class TemporalProfile(QObject):
                 f.setAttribute(k,v)
 
             value = expression.evaluate(f)
-            if value is not None:
+            if value not in [None, NULL]:
                 if dateType == 'date':
                     x.append(date2num(tsd.date))
                 elif dateType == 'doy':
                     x.append(tsd.doy)
                 y.append(value)
 
-        return np.asarray(x), np.asarray(y)
+        #return np.asarray(x), np.asarray(y)
+        return x, y
 
     def data(self, tsd):
         assert isinstance(tsd, TimeSeriesDatum)
@@ -1760,7 +1783,7 @@ class SpectralTemporalVisualization(QObject):
             for TP in TPs:
                 assert isinstance(TP, TemporalProfile)
                 existingBandKeys = [k for k in TP.data(tsd).keys() if PlotSettingsModel.regBandKeyExact.search(k)]
-                existingBandIndices = set([PlotSettingsModel.bandKey2bandIndex(k) for k in existingBandKeys])
+                existingBandIndices = set([bandKey2bandIndex(k) for k in existingBandKeys])
                 need2load = requiredIndices.difference(existingBandIndices)
                 missingIndices = missingIndices.union(need2load)
 
@@ -1822,6 +1845,8 @@ class SpectralTemporalVisualization(QObject):
                     assert isinstance(pdi, TemporalProfilePlotDataItem)
                     pdi.updateStyle()
                     pdi.updateData()
+                    assert pdi in piDataItems
+                    pi.addItem(pdi)
 
 
 
@@ -1945,13 +1970,20 @@ if __name__ == '__main__':
         TS.addFiles(files)
         ext = TS.getMaxSpatialExtent()
         cp1 = SpatialPoint(ext.crs(),ext.center())
-        cp2 = SpatialPoint(ext.crs(), ext.center())
-        cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
+        cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)
+        #cp2 = SpatialPoint(ext.crs(), ext.center())
+        #cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
 
-        STVis.loadCoordinate(cp1)
-        STVis.loadCoordinate(cp2)
-        STVis.loadCoordinate(cp3)
+        STVis.loadCoordinate(cpND)
+        #STVis.loadCoordinate(cp2)
+        #STVis.loadCoordinate(cp3)
         STVis.createNewPlotStyle()
+
+        for tp in STVis.tpCollection:
+            assert isinstance(tp, TemporalProfile)
+            tp.plot()
+
+
     qgsApp.exec_()
     qgsApp.exitQgis()
 
