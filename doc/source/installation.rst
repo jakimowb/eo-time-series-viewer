@@ -12,22 +12,21 @@ A. Standard QGIS Plugin Installation
 ------------------------------------
 
 1. Download the most recent zip archive of the HUB TimeSeriesViewer QGIS Plugin from https://bitbucket.org/jakimowb/hub-timeseriesviewer/downloads
-2. Extract the ``timeseriesviewerplugin`` folder and copy it to the user' QGIS python plugin directory
-``~/.qgis2/python/plugins/timeseriesviewerplugin``
+2. Extract the ``timeseriesviewerplugin`` folder and copy it to the user' QGIS python plugin directory ``~/.qgis2/python/plugins/timeseriesviewerplugin``
 
     Alternatively, you can choose any other folder ``my/qgis/plugins/timeseriesviewerplugin`` if your ensure that it is known to the QGIS_PLUGINPATH:
 
-    * In QGIS, go to Settings >> Options >> System.
+    * In QGIS, go to *Settings* >> *Options* >> *System*.
     * Enable the Environment group box.
     * Create a new entry that append ``my/qgis/plugins`` to the variable ``QGIS_PLUGINPATH``.
 
-3. Finally restart QGIS, open the Plugin Manager and enable the HUB-TimeSeriesViewer.
+3. Finally restart QGIS, open the *Plugin Manager* and enable the HUB-TimeSeriesViewer.
 
 .. image:: img/settings_plugin_enable.png
     :width: 80%
     :align: center
 
-4. You can now access the Plugin via the |icon| button in your QGIS Toolbar
+4. You can now access the Plugin via the |icon| button in your QGIS Toolbar or via the *Raster* dropdown menu
 
 .. |icon| image:: img/icons/icon.svg
 
@@ -38,7 +37,7 @@ You really want to use `git <https://en.wikipedia.org/wiki/Git_%28software%29>`_
 
 If git is not available in your shell, you can download it from `<https://git-scm.com/downloads>`_. You can install git without admin rights.
 
-Larger binary files, e.g. for exemplary data, will are distributed via the Git Large File Storage (lfs) extension `<https://git-lfs.github.com>`_.
+Larger binary files, e.g. for exemplary data, are distributed via the Git Large File Storage (lfs) extension `<https://git-lfs.github.com>`_.
 
 
 1. Open your shell and clone the repository into a local QGIS Python Plugin Folder::

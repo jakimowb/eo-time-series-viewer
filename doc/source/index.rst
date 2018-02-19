@@ -57,7 +57,7 @@ or send me an email `benjamin.jakimow@geo.hu-berlin.de <benjamin.jakimow@geo.hu-
 License and Use
 ---------------
 
-This program is free software; you can redistribute it and/or modify it under the terms of the `GNU General Public License Version 3 (GNU GPL-3) <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ , as published by the Free Software Foundation. See also `section <LICENSE.html>`_ on License.
+This program is free software; you can redistribute it and/or modify it under the terms of the `GNU General Public License Version 3 (GNU GPL-3) <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ , as published by the Free Software Foundation. See also :ref:`License`.
 
 
 ..  toctree::
