@@ -128,9 +128,14 @@ class PixelLoaderTask(object):
 
     def success(self):
         """
+        Returns True if the PixelLoaderTask has been finished well without exceptions.
+        :return: True | False
+        """
+        """
         :return:
         """
-        return self._done and self.exception is None
+        result = self._done and self.exception is None
+        return result
 
     def __repr__(self):
         info = ['PixelLoaderTask:']
@@ -144,8 +149,8 @@ class PixelLoaderTask(object):
                 for i, p in enumerate(self.resProfiles):
                     g = self.geometries[i]
                     d = self.resProfiles[i]
-                    if d == INFO_OUT_OF_IMAGE:
-                        info.append('\t{}: {}:{}'.format(i + 1, g, INFO_OUT_OF_IMAGE))
+                    if d in [INFO_OUT_OF_IMAGE, NO_DATA]:
+                        info.append('\t{}: {}:{}'.format(i + 1, g, d))
                     else:
                         vData = d[0]
                         vStd = d[1]
@@ -156,6 +161,7 @@ class PixelLoaderTask(object):
 LOADING_FINISHED = 'finished'
 LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
+NO_DATA = 'no data values'
 
 #def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent, **kwargs):
 
@@ -224,11 +230,25 @@ def doLoaderTask(task):
         bUL = isOutOfImage(ds, pxUL)
         bLR = isOutOfImage(ds, pxLR)
 
-
-        if (bUL or bLR) and not (bUL and bLR):
-            #at least one point is inside the raster image:
+        if all([bUL, bLR]):
             PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
             continue
+
+
+        def shiftIntoImageBounds(pt, xMax, yMax):
+            assert isinstance(pt, QPoint)
+            if pt.x() < 0:
+                pt.setX(0)
+            elif pt.x() > xMax:
+                pt.setX(xMax)
+            if pt.y() < 0:
+                pt.setY(0)
+            elif pt.y() > yMax:
+                pt.setY(yMax)
+
+
+        shiftIntoImageBounds(pxUL, ds.RasterXSize, ds.RasterYSize)
+        shiftIntoImageBounds(pxLR, ds.RasterXSize, ds.RasterYSize)
 
         if pxUL == pxLR:
             size_x = size_y = 1
@@ -246,14 +266,21 @@ def doLoaderTask(task):
     if bandIndices == range(ds.RasterCount):
         #we have to extract all bands
         #in this case we use gdal.Dataset.ReadAsArray()
-
+        noData = ds.GetRasterBand(1).GetNoDataValue()
         for px in PX_SUBSETS:
             if px == INFO_OUT_OF_IMAGE:
                 PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
                 continue
 
             pxUL, pxUL, size_x, size_y = px
-            PROFILE_DATA.append(ds.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y))
+
+            bandData = ds.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).reshape((nb, size_x*size_y))
+            if noData:
+                isValid = np.ones(bandData.shape[1], dtype=np.bool)
+                for b in range(bandData.shape[0]):
+                    isValid *= bandData[b,:] != ds.GetRasterBand(b+1).GetNoDataValue()
+                bandData = bandData[:, np.where(isValid)[0]]
+            PROFILE_DATA.append(bandData)
     else:
         # access band values band-by-band
         # in this case we use gdal.Band.ReadAsArray()
@@ -270,13 +297,16 @@ def doLoaderTask(task):
 
         for bandIndex in bandIndices:
             band = ds.GetRasterBand(bandIndex+1)
+            noData = band.GetNoDataValue()
             assert isinstance(band, gdal.Band)
 
             for i, px in enumerate(PX_SUBSETS):
                 if px == INFO_OUT_OF_IMAGE:
                     continue
                 pxUL, pxUL, size_x, size_y = px
-                bandData = band.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y)
+                bandData = band.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).flatten()
+                if noData:
+                    bandData = bandData[np.where(bandData != noData)[0]]
                 PROFILE_DATA[i].append(bandData)
 
         for i in range(len(PX_SUBSETS)):
@@ -284,7 +314,8 @@ def doLoaderTask(task):
             if len(pd) == 0:
                 PROFILE_DATA[i] = INFO_OUT_OF_IMAGE
             else:
-                PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
+                #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
+                PROFILE_DATA[i] = np.vstack(pd)
 
 
 
@@ -292,18 +323,22 @@ def doLoaderTask(task):
     for i in range(len(PROFILE_DATA)):
         d = PROFILE_DATA[i]
         if d != INFO_OUT_OF_IMAGE:
-            _, _, size_x, size_y = PX_SUBSETS[i]
-            b, y, x = d.shape
-            assert size_y == y
-            assert size_x == x
+            assert d.ndim == 2
+            b, yx = d.shape
             assert b == len(bandIndices)
-            d = d.reshape((b, y*x))
 
+            _, _, size_x, size_y = PX_SUBSETS[i]
+            if yx > 0:
+                d = d.reshape((b, yx))
+                vMean = d.mean(axis=1)
+                vStd = d.std(axis=1)
 
-            vMean = d.mean(axis=1)
-            vStd = d.std(axis=1)
+                assert len(vMean) == len(bandIndices)
+                assert len(vStd) == len(bandIndices)
+            else:
+                vMean = vStd = NO_DATA
             PROFILE_DATA[i] = (vMean, vStd)
-
+            s = ""
     task.resProfiles = PROFILE_DATA
     task._done = True
     return task
@@ -474,14 +509,17 @@ if __name__ == '__main__':
     dir = os.path.dirname(example.Images.__file__)
     #files = file_search(dir, '*.tif')
     files = [example.Images.Img_2014_05_07_LC82270652014127LGN00_BOA]
+    files.append(example.Images.Img_2014_04_29_LE72270652014119CUB00_BOA)
     files.extend(file_search(dir, 're_*.tif'))
+    for f in files: print(f)
     ext = SpatialExtent.fromRasterSource(files[0])
 
     from qgis.core import QgsPoint
     x,y = ext.center()
 
-
-    geoms = [SpatialExtent(ext.crs(),x,y,x+250, y+70 ),
+    geoms = [#SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
+             SpatialExtent(ext.crs(),x+10000,y,x+12000, y+70 ), #out of image
+             SpatialExtent(ext.crs(),x,y,x+10000, y+70 ),
              SpatialPoint(ext.crs(), x,y),
              SpatialPoint(ext.crs(), x+250, y+70)]
 
@@ -496,7 +534,6 @@ if __name__ == '__main__':
     def onDummy(*args):
         print(('dummy',args))
 
-        s  =""
     def onTimer(*args):
         print(('TIMER',PL))
         pass
