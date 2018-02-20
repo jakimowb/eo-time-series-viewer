@@ -222,9 +222,59 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
 
         super(TemporalProfilePlotDataItem, self).__init__([], [], parent=parent)
+        self.menu = None
+        #self.setFlags(QGraphicsItem.ItemIsSelectable)
         self.mPlotStyle = plotStyle
+        self.setAcceptedMouseButtons(Qt.LeftButton | Qt.RightButton)
         self.mPlotStyle.sigUpdated.connect(self.updateDataAndStyle)
         self.updateStyle()
+
+    # On right-click, raise the context menu
+    def mouseClickEvent(self, ev):
+        if ev.button() == QtCore.Qt.RightButton:
+            if self.raiseContextMenu(ev):
+                ev.accept()
+
+    def raiseContextMenu(self, ev):
+        menu = self.getContextMenus()
+
+        # Let the scene add on to the end of our context menu
+        # (this is optional)
+        menu = self.scene().addParentContextMenus(self, menu, ev)
+
+        pos = ev.screenPos()
+        menu.popup(QtCore.QPoint(pos.x(), pos.y()))
+        return True
+
+    # This method will be called when this item's _children_ want to raise
+    # a context menu that includes their parents' menus.
+    def getContextMenus(self, event=None):
+        if self.menu is None:
+            self.menu = QMenu()
+            self.menu.setTitle(self.name + " options..")
+
+            green = QAction("Turn green", self.menu)
+            green.triggered.connect(self.setGreen)
+            self.menu.addAction(green)
+            self.menu.green = green
+
+            blue = QAction("Turn blue", self.menu)
+            blue.triggered.connect(self.setBlue)
+            self.menu.addAction(blue)
+            self.menu.green = blue
+
+            alpha = QWidgetAction(self.menu)
+            alphaSlider = QSlider()
+            alphaSlider.setOrientation(QtCore.Qt.Horizontal)
+            alphaSlider.setMaximum(255)
+            alphaSlider.setValue(255)
+            alphaSlider.valueChanged.connect(self.setAlpha)
+            alpha.setDefaultWidget(alphaSlider)
+            self.menu.addAction(alpha)
+            self.menu.alpha = alpha
+            self.menu.alphaSlider = alphaSlider
+        return self.menu
+
 
     def updateDataAndStyle(self):
 
@@ -283,53 +333,6 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
     def color(self):
         return self.pen().color()
 
-        # On right-click, raise the context menu
-
-    def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.RightButton:
-            if self.raiseContextMenu(ev):
-                ev.accept()
-
-    def raiseContextMenu(self, ev):
-        menu = self.getContextMenus()
-
-        # Let the scene add on to the end of our context menu
-        # (this is optional)
-        menu = self.scene().addParentContextMenus(self, menu, ev)
-
-        pos = ev.screenPos()
-        menu.popup(QtCore.QPoint(pos.x(), pos.y()))
-        return True
-
-        # This method will be called when this item's _children_ want to raise
-        # a context menu that includes their parents' menus.
-
-    def getContextMenus(self, event=None):
-        if self.menu is None:
-            self.menu = QMenu()
-            self.menu.setTitle(self.name + " options..")
-
-            green = QAction("Turn green", self.menu)
-            green.triggered.connect(self.setGreen)
-            self.menu.addAction(green)
-            self.menu.green = green
-
-            blue = QAction("Turn blue", self.menu)
-            blue.triggered.connect(self.setBlue)
-            self.menu.addAction(blue)
-            self.menu.green = blue
-
-            alpha = QWidgetAction(self.menu)
-            alphaSlider = QSlider()
-            alphaSlider.setOrientation(QtCore.Qt.Horizontal)
-            alphaSlider.setMaximum(255)
-            alphaSlider.setValue(255)
-            alphaSlider.valueChanged.connect(self.setAlpha)
-            alpha.setDefaultWidget(alphaSlider)
-            self.menu.addAction(alpha)
-            self.menu.alpha = alpha
-            self.menu.alphaSlider = alphaSlider
-        return self.menu
 
     def setLineWidth(self, width):
         pen = pg.mkPen(self.opts['pen'])
@@ -1708,10 +1711,20 @@ class SpectralTemporalVisualization(QObject):
         self.TV = ui.tableView2DProfiles
         self.TV.setSortingEnabled(False)
         self.plot2D = ui.plotWidget2D
-        self.plot2D.getPlotItem().getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
-        self.plot2D.getPlotItem().getAxis('bottom').setLabel(LABEL_TIME)
-        self.plot2D.getPlotItem().getAxis('left').setLabel(LABEL_DN)
+        pi = self.plot2D.getPlotItem()
+        pi.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
+        pi.getAxis('bottom').setLabel(LABEL_TIME)
+        pi.getAxis('left').setLabel(LABEL_DN)
+        self.plot2Dvline = pg.InfiniteLine(angle=90, movable=False)
+        self.plot2Dhline = pg.InfiniteLine(angle=0, movable=False)
+        #self.plot2DLabel = pg.TextItem(text='LABEL')
+        self.plot2DLabel = pg.LabelItem(justify='right')
+        #pi.setContentsMargins(0.1, 0.1, 0.1, 0.1)
+        pi.addItem(self.plot2Dvline, ignoreBounds=True)
+        pi.addItem(self.plot2Dhline, ignoreBounds=True)
+        self.plot2D.addItem(self.plot2DLabel, ignoreBounds=True)
 
+        self.proxy2D = pg.SignalProxy(self.plot2D.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
         self.plot3D = ui.plotWidget3D
         self.plot3D.setCameraPosition(distance=50)
 
@@ -1751,6 +1764,46 @@ class SpectralTemporalVisualization(QObject):
 
         self.initActions()
 
+
+    def onMouseMoved2D(self, evt):
+        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
+
+        plotItem = self.plot2D.getPlotItem()
+        if plotItem.sceneBoundingRect().contains(pos):
+            mousePoint = plotItem.vb.mapSceneToView(pos)
+            x = mousePoint.x()
+            y = mousePoint.y()
+
+            index = int(mousePoint.x())
+            self.plot2DLabel.setText('Refreshed {}'.format(mousePoint.x(), mousePoint.y()))
+            #if index > 0 and index < len(data1):
+            #    label.setText(
+            #        "<span style='font-size: 12pt'>x=%0.1f,   <span style='color: red'>y1=%0.1f</span>,   <span style='color: green'>y2=%0.1f</span>" % (
+            #        mousePoint.x(), data1[index], data2[index]))
+            self.plot2Dvline.setPos(mousePoint.x())
+            self.plot2Dhline.setPos(mousePoint.y())
+
+
+        return
+        vb = plotItem.vb
+
+
+        if plotItem.sceneBoundingRect().contains(pos):
+            mousePoint = vb.mapSceneToView(pos)
+
+            self.vLine.setPos(mousePoint.x())
+            self.hLine.setPos(mousePoint.y())
+
+            info = '{:0.2f}, {:0.2f}'.format(mousePoint.x(), mousePoint.y())
+            self.tbCursorLocationValue.setText(info)
+            """
+            self.mlabel.setText(
+                    "<span style='font-size: 12pt'>{}</span>".format(info)
+            """
+        else:
+            self.tbCursorLocationValue.setText('')
+            self.mlabel.setText('')
+
     def createNewPlotStyle(self):
         l = len(self.tpCollection)
         if l > 0:
@@ -1764,7 +1817,8 @@ class SpectralTemporalVisualization(QObject):
             pdi = plotStyle.createPlotItem(self.plot2D)
 
             assert isinstance(pdi, TemporalProfilePlotDataItem)
-
+            pdi.sigClicked.connect(self.onProfileClicked2D)
+            pdi.sigPointsClicked.connect(self.onPointsClicked2D)
             self.plot2D.getPlotItem().addItem(pdi)
             #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
             #plotItem.addDataItem(pdi)
@@ -1772,6 +1826,33 @@ class SpectralTemporalVisualization(QObject):
             self.updatePlot2D()
 
 
+    def onProfileClicked2D(self, pdi):
+        if isinstance(pdi, TemporalProfilePlotDataItem):
+            sensor = pdi.mPlotStyle.sensor()
+            tp = pdi.mPlotStyle.temporalProfile()
+            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
+                info = ['Sensor:{}'.format(sensor.name()),
+                        'Coordinate:{}, {}'.format(tp.mCoordinate.x(), tp.mCoordinate.y())]
+                self.ui.tbInfo2D.setPlainText('\n'.join(info))
+
+
+    def onPointsClicked2D(self, pdi, spottedItems):
+        if isinstance(pdi, TemporalProfilePlotDataItem) and isinstance(spottedItems, list):
+            sensor = pdi.mPlotStyle.sensor()
+            tp = pdi.mPlotStyle.temporalProfile()
+            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
+
+                info = ['Sensor: {}'.format(sensor.name()),
+                        'Coordinate: {}, {}'.format(tp.mCoordinate.x(), tp.mCoordinate.y())]
+
+                for item in spottedItems:
+                    pos = item.pos()
+                    x = pos.x()
+                    y = pos.y()
+                    date = num2date(x)
+                    info.append('Date: {}\nValue: {}'.format(date, y))
+
+                self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
     def initActions(self):
 
