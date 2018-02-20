@@ -48,6 +48,18 @@ import numpy as np
 
 DEBUG = False
 
+LABEL_DN = 'DN or Index'
+LABEL_TIME = 'Date'
+
+
+OPENGL_AVAILABLE = False
+
+try:
+    import OpenGL
+    OPENGL_AVAILABLE = True
+except:
+    pass
+
 def getTextColorWithContrast(c):
     assert isinstance(c, QColor)
     if c.lightness() < 0.5:
@@ -113,10 +125,10 @@ class _SensorPoints(pg.PlotDataItem):
         self.menu = None
 
     def boundingRect(self):
-        return super(SensorPoints,self).boundingRect()
+        return super(_SensorPoints,self).boundingRect()
 
     def paint(self, p, *args):
-        super(SensorPoints, self).paint(p, *args)
+        super(_SensorPoints, self).paint(p, *args)
 
 
     # On right-click, raise the context menu
@@ -172,33 +184,51 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         assert isinstance(plotStyle, TemporalProfilePlotStyle)
 
 
-        super(TemporalProfilePlotDataItem, self).__init__([1,2,3], [2,3,4], parent=parent)
+        super(TemporalProfilePlotDataItem, self).__init__([], [], parent=parent)
         self.mPlotStyle = plotStyle
-        self.mPlotStyle.sigUpdated.connect(self.updateStyle)
-        self.setClickable(True)
-        self.updateData()
+        self.mPlotStyle.sigUpdated.connect(self.updateDataAndStyle)
         self.updateStyle()
 
-    def updateData(self):
+    def updateDataAndStyle(self):
+
         TP = self.mPlotStyle.temporalProfile()
         sensor = self.mPlotStyle.sensor()
+
         if isinstance(TP, TemporalProfile) and isinstance(sensor, SensorInstrument):
             x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression())
+            x =  np.asarray(x, dtype=np.float)
+            y = np.asarray(y, dtype=np.float)
             if len(y) > 0:
                 self.setData(x=x, y=y)
             else:
-                self.setData(x=[1,2,3], y=[1,2,3]) #dummy
-            self.update()
+                self.setData(x=[], y=[]) #dummy
+        self.updateStyle()
 
     def updateStyle(self):
         """
         Updates visibility properties
         """
-        self.setVisible(self.mPlotStyle.isVisible())
-        self.setPen(self.mPlotStyle.linePen)
-        #self.setBrush(self.mPlotStyle.markerBrush)
 
-        #self.setFillBrush(self.mPlotStyle.)
+        if DEBUG:
+            print('{} updateStyle'.format(self))
+        from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+#        path = drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
+    #                    #painter, symbol, size, pen, brush
+        self.setVisible(self.mPlotStyle.isVisible())
+        self.setSymbol(self.mPlotStyle.markerSymbol)
+        self.setSymbolSize(self.mPlotStyle.markerSize)
+        self.setSymbolBrush(self.mPlotStyle.markerBrush)
+        self.setSymbolPen(self.mPlotStyle.markerPen)
+        self.setPen(self.mPlotStyle.linePen)
+        self.update()
+
+        #self.setPen(fn.mkPen(self.mPlotStyle.linePen))
+        #self.setFillBrush(fn.mkBrush(self.mPlotStyle.mExpression))
+        #self.setSymbolBrush(fn.mkBrush(self.mPlotStyle.markerBrush))
+
+        # self.setFillBrush(self.mPlotStyle.)
+
+        #self.update()
 
     def setClickable(self, b, width=None):
         assert isinstance(b, bool)
@@ -211,7 +241,6 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         self.setPen(color)
 
     def pen(self):
-
         return fn.mkPen(self.opts['pen'])
 
     def color(self):
@@ -290,7 +319,7 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
         model = tableView.model()
 
         assert isinstance(model, PlotSettingsModel)
-        for c in [model.cnSensor, model.cnExpression, model.cnStyle,model.cnTemporalProfile]:
+        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
             i = model.columNames.index(c)
             tableView.setItemDelegateForColumn(i, self)
 
@@ -322,7 +351,7 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
 
                     #todo: w.setLayer(sv.memLyr)
                     w.setExpressionDialogTitle('Values')
-                    w.setToolTip('Set an expression to calculate the plot y-values.')
+                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
                     w.fieldChanged.connect(lambda : self.checkData(w, w.expression()))
 
                 elif cname == model.cnStyle:
@@ -410,7 +439,7 @@ class PlotSettingsWidgetDelegate(QStyledItemDelegate):
 
             elif cname == model.cnStyle:
                 assert isinstance(w, PlotStyleButton)
-                model.setData(index, w.plotStyle(), Qt.UserRole)
+                model.setData(index, w.plotStyle(), Qt.EditRole)
 
             elif cname == model.cnSensor:
                 assert isinstance(w, QComboBox)
@@ -860,7 +889,7 @@ class TemporalProfileCollection(QAbstractTableModel):
 
 class TemporalProfilePlotStyle(PlotStyle):
 
-    sigUpdated = pyqtSignal()
+    sigExpressionUpdated = pyqtSignal()
 
     def __init__(self, temporalProfile):
         super(TemporalProfilePlotStyle, self).__init__()
@@ -885,13 +914,22 @@ class TemporalProfilePlotStyle(PlotStyle):
         assert isinstance(temporalPofile, TemporalProfile)
         b = temporalPofile != self.mTP
         self.mTP = temporalPofile
-        if b: self.sigUpdated.emit()
+        if b: self.update()
 
     def setSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
         b = sensor != self.mSensor
         self.mSensor = sensor
-        if b: self.sigUpdated.emit()
+        if b: self.update()
+
+
+    def update(self):
+        super(TemporalProfilePlotStyle, self).update()
+
+        for pdi in self.mPlotItems:
+            assert isinstance(pdi, TemporalProfilePlotDataItem)
+            pdi.updateStyle()
+            #pdi.updateItems()
 
 
 
@@ -903,7 +941,9 @@ class TemporalProfilePlotStyle(PlotStyle):
         assert isinstance(exp, unicode)
         b = self.mExpression != exp
         self.mExpression = exp
-        if b: self.sigUpdated.emit()
+        if b:
+            self.update()
+            self.sigExpressionUpdated.emit()
 
     def expression(self):
         return self.mExpression
@@ -937,6 +977,7 @@ class DateTimeViewBox(pg.ViewBox):
         #self.menu = None
 
 
+    """
     def raiseContextMenu(self, ev):
 
         pt = self.mapDeviceToView(ev.pos())
@@ -948,7 +989,7 @@ class DateTimeViewBox(pg.ViewBox):
         a.triggered.connect(lambda : self.sigMoveToDate.emit(date))
         self.scene().addParentContextMenus(self, menu, ev)
         menu.exec_(ev.screenPos().toPoint())
-
+    """
 
 
 
@@ -962,10 +1003,11 @@ class DateTimePlotWidget(pg.PlotWidget):
         """
         super(DateTimePlotWidget, self).__init__(parent, viewBox=DateTimeViewBox())
         self.plotItem = pg.PlotItem(
-            #axisItems={'bottom':DateTimeAxis(orientation='bottom')},
+            axisItems={'bottom':DateTimeAxis(orientation='bottom')},
             viewBox=DateTimeViewBox()
         )
         self.setCentralItem(self.plotItem)
+        self.xAxisInitialized = False
 
 
 
@@ -987,7 +1029,7 @@ class PlotSettingsModel(QAbstractTableModel):
 
         self.cnID = 'ID'
         self.cnSensor = 'sensor'
-        self.cnExpression = 'y-value'
+        self.cnExpression = LABEL_DN
         self.cnStyle = 'style'
         self.cnTemporalProfile = 'px'
         self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
@@ -1207,13 +1249,13 @@ class PlotSettingsModel(QAbstractTableModel):
         result = False
         plotStyle = self.idx2plotStyle(index)
         if isinstance(plotStyle, TemporalProfilePlotStyle):
-            if role in [Qt.DisplayRole, Qt.EditRole]:
+            if role in [Qt.DisplayRole]:
                 if columnName == self.cnExpression:
                     plotStyle.setExpression(value)
                     result = True
                 elif columnName == self.cnStyle:
                     if isinstance(value, PlotStyle):
-                        plotStyle.plotStyle.copyFrom(value)
+                        plotStyle.copyFrom(value)
                         result = True
 
             if role == Qt.CheckStateRole:
@@ -1301,22 +1343,19 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
     def __init__(self, parent=None):
         super(ProfileViewDockUI, self).__init__(parent)
         self.setupUi(self)
-        from timeseriesviewer import OPENGL_AVAILABLE, SETTINGS
 
         #TBD.
         #self.line.setVisible(False)
         #self.listWidget.setVisible(False)
         self.stackedWidget.setCurrentWidget(self.page2D)
-
+        self.plotWidget3D = None
         if OPENGL_AVAILABLE:
-            l = self.page3D.layout()
+            l = self.labelDummy3D.parentWidget().layout()
             l.removeWidget(self.labelDummy3D)
             self.labelDummy3D.setVisible(False)
             from pyqtgraph.opengl import GLViewWidget
             self.plotWidget3D = GLViewWidget(parent=self.page3D)
             l.addWidget(self.plotWidget3D)
-        else:
-            self.plotWidget3D = None
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -1337,7 +1376,62 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.tableViewTemporalProfiles.setSortingEnabled(True)
 
+
+def date2sse(date):  # returns seconds since epoch
+    if isinstance(date, np.datetime64):
+        date = date.astype(datetime.datetime)
+    return time.mktime(date.timetuple())
+
+def sse2date(secondsSinceEpoch):
+    return time.localtime(secondsSinceEpoch)
+
+
+def dateDOY(date):
+    if isinstance(date, np.datetime64):
+        date = date.astype(datetime.date)
+    return date.timetuple().tm_yday
+
+def daysPerYear(year):
+    if isinstance(year, np.datetime64):
+        year = year.astype(datetime.date)
+    if isinstance(year, datetime.date):
+        year = year.timetuple().tm_year
+
+    return dateDOY(datetime.date(year=year, month=12, day=31))
+
 def date2num(d):
+    #kindly taken from https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
+    if isinstance(d, np.datetime64):
+        d = d.astype(datetime.datetime)
+    assert isinstance(d, datetime.date)
+
+    yearDuration = daysPerYear(d)
+    yearElapsed = d.timetuple().tm_yday
+    fraction = float(yearElapsed) / float(yearDuration)
+    return float(d.year) + fraction
+
+def num2date(n, dt64=True):
+    n = float(n)
+
+    year = int(n)
+    fraction = n - year
+    yearDuration = daysPerYear(year)
+    yearElapsed = fraction * yearDuration
+
+    import math
+    doy = round(yearElapsed)
+    date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
+    if dt64:
+        return np.datetime64(date)
+    else:
+        date
+
+
+
+    #return np.datetime64('{:04}-01-01'.format(year), 'D') + np.timedelta64(int(yearElapsed), 'D')
+
+
+def depr_date2num(d):
     d2 = d.astype(datetime.datetime)
     o = d2.toordinal()
 
@@ -1345,7 +1439,7 @@ def date2num(d):
 
     return o
 
-def num2date(n):
+def depr_num2date(n):
     n = int(np.round(n))
     if n < 1:
         n = 1
@@ -1425,10 +1519,15 @@ class TemporalProfile(QObject):
         self.updateLoadingStatus()
         self.mUpdated = True
 
+    def resetUpdated(self):
+        self.mUpdated = False
+
+    def updated(self):
+        return self.mUpdated
 
     def qgsFieldFromKeyValue(self, key, value):
         t = type(value)
-        if t in [int, float]:
+        if t in [int, float] or np.isreal(value):
 
             fLen  = 0
             fPrec = 0
@@ -1443,30 +1542,53 @@ class TemporalProfile(QObject):
         assert dateType in ['date','doy']
         x = []
         y = []
+
+
         if not isinstance(expression, QgsExpression):
             expression = QgsExpression(expression)
         assert isinstance(expression, QgsExpression)
 
+        expression = QgsExpression(expression)
+
+
+
         fields = QgsFields()
-        f = QgsFeature()
-        for i, tsd in enumerate(sorted([tsd for tsd in self.mData.keys() if tsd.sensor == sensor])):
+        sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor == sensor])
+        for tsd in sensorTSDs:
+            data = self.mData[tsd]
+            for k, v in data.items():
+                if v is not None and fields.fieldNameIndex(k) == -1:
+                    fields.append(self.qgsFieldFromKeyValue(k, v))
+
+        for i, tsd in enumerate(sensorTSDs):
             assert isinstance(tsd, TimeSeriesDatum)
             data = self.mData[tsd]
-
-
-            if i == 0:
-                #initialize the fields
-                for k in data.keys():
-                    field = self.qgsFieldFromKeyValue(k, data[k])
-                    fields.append(field)
-
-                f.setFields(fields)
-
+            context = QgsExpressionContext()
+            scope = QgsExpressionContextScope()
+            f = QgsFeature()
+            f.setFields(fields)
+            f.setValid(True)
             for k, v in data.items():
+                if v is None:
+                    continue
+                idx = f.fieldNameIndex(k)
+                field = f.fields().field(idx)
+                if field.typeName() == 'text':
+                    v = str(v)
+                else:
+                    v = float(v)
+
                 f.setAttribute(k,v)
 
-            value = expression.evaluate(f)
-            if value not in [None, NULL]:
+            scope.setFeature(f)
+            context.appendScope(scope)
+            #value = expression.evaluatePrepared(f)
+            value = expression.evaluate(context)
+
+
+            if value in [None, NULL]:
+                s = ""
+            else:
                 if dateType == 'date':
                     x.append(date2num(tsd.date))
                 elif dateType == 'doy':
@@ -1474,6 +1596,7 @@ class TemporalProfile(QObject):
                 y.append(value)
 
         #return np.asarray(x), np.asarray(y)
+        assert len(x) == len(y)
         return x, y
 
     def data(self, tsd):
@@ -1529,10 +1652,6 @@ class SpectralTemporalVisualization(QObject):
 
     def __init__(self, ui):
         super(SpectralTemporalVisualization, self).__init__()
-        #assert isinstance(timeSeries, TimeSeries)
-
-        if not isinstance(ui, ProfileViewDockUI):
-            print('UI : {}'.format(ui))
 
         assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
         self.ui = ui
@@ -1551,8 +1670,22 @@ class SpectralTemporalVisualization(QObject):
         self.TV = ui.tableView2DProfiles
         self.TV.setSortingEnabled(False)
         self.plot2D = ui.plotWidget2D
-        self.plot2D.plotItem.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
+        self.plot2D.getPlotItem().getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
+        self.plot2D.getPlotItem().getAxis('bottom').setLabel(LABEL_TIME)
+        self.plot2D.getPlotItem().getAxis('left').setLabel(LABEL_DN)
+
         self.plot3D = ui.plotWidget3D
+        self.plot3D.setCameraPosition(distance=50)
+
+        ## Add a grid to the view
+        if OPENGL_AVAILABLE:
+            import pyqtgraph.opengl as gl
+            self.glGridItem = gl.GLGridItem()
+            self.glGridItem.scale(2, 2, 1)
+            self.glGridItem.setDepthValue(10)  # draw grid after surfaces since they may be translucent
+            self.glPlotDataItem = []
+            self.plot3D.addItem(self.glGridItem)
+
         self.tpCollection = TemporalProfileCollection()
         self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
 
@@ -1563,7 +1696,6 @@ class SpectralTemporalVisualization(QObject):
         #self.pxCollection.sigPixelRemoved.connect(self.clear)
 
         self.plotSettingsModel = None
-
         self.pixelLoader.sigLoadingStarted.connect(self.clear)
         self.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
 
@@ -1574,7 +1706,7 @@ class SpectralTemporalVisualization(QObject):
 
         self.updateRequested = True
         self.updateTimer = QTimer(self)
-        self.updateTimer.timeout.connect(self.updatePlot)
+        self.updateTimer.timeout.connect(self.onDataUpdate)
         self.updateTimer.start(5000)
 
         self.sigMoveToDate.connect(self.onMoveToDate)
@@ -1584,29 +1716,33 @@ class SpectralTemporalVisualization(QObject):
     def createNewPlotStyle(self):
         l = len(self.tpCollection)
         if l > 0:
-            TP = self.tpCollection[0]
-            PS = TemporalProfilePlotStyle(TP)
+            temporalProfile = self.tpCollection[0]
+            plotStyle = TemporalProfilePlotStyle(temporalProfile)
+            plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
             sensors = self.TS.Sensors.keys()
             if len(sensors) > 0:
-                PS.setSensor(sensors[0])
-            self.plotSettingsModel.insertPlotStyles([PS])
-            pdi = PS.createPlotItem(self.plot2D)
-            plotItem = self.plot2D.getPlotItem()
-            assert isinstance(plotItem, pg.PlotItem)
-            plotItem.addItem(pdi)
-            plotItem.update()
+                plotStyle.setSensor(sensors[0])
+            self.plotSettingsModel.insertPlotStyles([plotStyle])
+            pdi = plotStyle.createPlotItem(self.plot2D)
+
+            assert isinstance(pdi, TemporalProfilePlotDataItem)
+
+            self.plot2D.getPlotItem().addItem(pdi)
+            #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
             #plotItem.addDataItem(pdi)
-            plotItem.plot().sigPlotChanged.emit(plotItem)
-            self.updatePlot()
+            #plotItem.plot().sigPlotChanged.emit(plotItem)
+            self.updatePlot2D()
+
 
 
     def initActions(self):
 
         self.ui.btnAddView.setDefaultAction(self.ui.actionAddView)
         self.ui.btnRemoveView.setDefaultAction(self.ui.actionRemoveView)
-        self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh)
-        self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh)
-        self.ui.actionRefresh.triggered.connect(self.updatePlot)
+        self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh2D)
+        self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh3D)
+        self.ui.actionRefresh2D.triggered.connect(self.updatePlot2D)
+        self.ui.actionRefresh3D.triggered.connect(self.updatePlot3D)
         self.ui.actionAddView.triggered.connect(self.createNewPlotStyle)
         #todo: self.ui.actionRemoveView.triggered.connect(self.plotSettingsModel.createPlotStyle)
 
@@ -1723,7 +1859,7 @@ class SpectralTemporalVisualization(QObject):
             pass
 
 
-    def loadCoordinate(self, spatialPoints=None):
+    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None):
         """
         Loads a temporal profile for a single or multiple geometries.
         :param spatialPoints: SpatialPoint | [list-of-SpatialPoints]
@@ -1741,12 +1877,17 @@ class SpectralTemporalVisualization(QObject):
         tasks = []
         TPs = []
         theGeometries = []
-        LUT_bandIndices = dict()
+
 
         # Define a which (new) bands need to be loaded for each sensor
-        for sensor in self.TS.Sensors:
-            LUT_bandIndices[sensor] = self.plotSettingsModel.requiredBandsIndices(sensor)
+        if LUT_bandIndices is None:
+            LUT_bandIndices = dict()
+            for sensor in self.TS.Sensors:
+                LUT_bandIndices[sensor] = self.plotSettingsModel.requiredBandsIndices(sensor)
 
+        assert isinstance(LUT_bandIndices, dict)
+        for sensor in self.TS.Sensors:
+            assert sensor in LUT_bandIndices.keys()
 
         #update new / existing points
         if isinstance(spatialPoints, SpatialPoint):
@@ -1828,31 +1969,129 @@ class SpectralTemporalVisualization(QObject):
             self.setData2D(sensorView)
 
     @QtCore.pyqtSlot()
-    def updatePlot(self):
+    def onDataUpdate(self):
+
+
+        for plotSetting in self.plotSettingsModel:
+            assert isinstance(plotSetting, TemporalProfilePlotStyle)
+            if plotSetting.temporalProfile().updated():
+                for pdi in plotSetting.mPlotItems:
+                    assert isinstance(pdi, TemporalProfilePlotDataItem)
+                    pdi.updateDataAndStyle()
+                plotSetting.temporalProfile().resetUpdated()
+
+        for i in self.plot2D.getPlotItem().dataItems:
+            i.updateItems()
+
+
+        if not self.plot2D.xAxisInitialized:
+            x0 = x1 = None
+            for plotSetting in self.plotSettingsModel:
+                assert isinstance(plotSetting, TemporalProfilePlotStyle)
+                for pdi in plotSetting.mPlotItems:
+                    assert isinstance(pdi, TemporalProfilePlotDataItem)
+                    if x0 is None:
+                        x0 = pdi.xData.min()
+                        x1 = pdi.xData.max()
+                    else:
+                        x0 = min(pdi.xData.min(), x0)
+                        x1 = max(pdi.xData.max(), x1)
+
+            if x0 is not None:
+                self.plot2D.getPlotItem().setXRange(x0, x1)
+                self.plot2D.xAxisInitialized = True
+
+    @QtCore.pyqtSlot()
+    def updatePlot3D(self):
+        if OPENGL_AVAILABLE:
+            from pyqtgraph.opengl import GLViewWidget
+            import pyqtgraph.opengl as gl
+            assert isinstance(self.plot3D, GLViewWidget)
+            w = self.plot3D
+
+            #we need the data from all bands
+
+
+
+            del self.glPlotDataItem[:]
+            idx = self.ui.cbTemporalProfile3D.currentIndex()
+            if idx >= 0:
+                self.ui.cbTemporalProfile3D.currentIndex()
+                tp = self.ui.cbTemporalProfile3D.itemData(idx, role=Qt.UserRole)
+                assert isinstance(tp, TemporalProfile)
+
+                #1. ensure that data from all bands will be loaded
+                LUT_bandIndices = dict()
+                for sensor in self.TS.sensors():
+                    assert isinstance(sensor, SensorInstrument)
+                    LUT_bandIndices[sensor] = list(range(sensor.nb))
+
+                self.loadCoordinate(tp.mCoordinate, LUT_bandIndices=LUT_bandIndices)
+
+                #2. visualize already loaded data
+                profileData = {}
+
+                #x =
+                #y =
+
+                for sensor in tp.mTimeSeries.sensors():
+                    profileData[sensor] = {'x':[],'y':[],'z':[]}
+                for tsd in tp.mTimeSeries:
+                    data = tp.data(tsd)
+                    bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None], key=lambda k: bandKey2bandIndex(k))
+
+                    t = date2num(tsd.date)
+                    return
+
+                    n = len(bandKeys)
+
+                    pos = np.ones((n,3), dtype=np.float)
+
+                    pos = 2
+                    #pos = (N,3) array of floats specifying point locations.
+
+                    plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i, n * 1.3)), width=(i + 1) / 10.,
+                                            antialias=True)
+                    w.addItem(plt)
+                """
+                for sensor, values in data.items():
+                    if len(values['z']) > 0:
+                        x = values['x']
+                        y = values['y']
+                        z = values['z']
+                        
+                        p2 = gl.GLSurfacePlotItem(x=x, y=y, z=z, shader='normalColor')
+                        p2.translate(-10, -10, 0)
+                        w.addItem(p2)
+                """
+
+    @QtCore.pyqtSlot()
+    def updatePlot2D(self):
         if isinstance(self.plotSettingsModel, PlotSettingsModel):
             if DEBUG:
                 print('Update plot...')
 
-
-
             pi = self.plot2D.getPlotItem()
             piDataItems = pi.listDataItems()
+
             locations = set()
             for plotSetting in self.plotSettingsModel:
                 assert isinstance(plotSetting, TemporalProfilePlotStyle)
                 locations.add(plotSetting.temporalProfile().mCoordinate)
+
                 for pdi in plotSetting.mPlotItems:
                     assert isinstance(pdi, TemporalProfilePlotDataItem)
-                    pdi.updateStyle()
-                    pdi.updateData()
-                    assert pdi in piDataItems
-                    pi.addItem(pdi)
+                    pdi.updateDataAndStyle()
 
 
 
+
+            #for i in pi.dataItems:
+            #    i.updateItems()
+
+            #self.plot2D.update()
             #2. load pixel data
             self.loadCoordinate(list(locations))
-
 
             # https://github.com/pyqtgraph/pyqtgraph/blob/5195d9dd6308caee87e043e859e7e553b9887453/examples/customPlot.py
             return
@@ -1948,7 +2187,7 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication()
     DEBUG = True
 
-    for date in ['2012-01-01', '2017-12-23']:
+    for date in ['2012-01-01', '2017-12-23', '2017-12-31']:
         dt1 = np.datetime64(date)
 
         n = date2num(dt1)
@@ -1979,9 +2218,10 @@ if __name__ == '__main__':
         #STVis.loadCoordinate(cp3)
         STVis.createNewPlotStyle()
 
-        for tp in STVis.tpCollection:
-            assert isinstance(tp, TemporalProfile)
-            tp.plot()
+        if False:
+            for tp in STVis.tpCollection:
+                assert isinstance(tp, TemporalProfile)
+                tp.plot()
 
 
     qgsApp.exec_()
