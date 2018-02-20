@@ -1446,10 +1446,11 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             self.plotWidget3D = GLViewWidget(parent=self.page3D)
             self.plotWidget3D.setObjectName('plotWidget3D')
             size = self.labelDummy3D.size()
-            l.removeWidget(self.labelDummy3D)
             l.addWidget(self.plotWidget3D)
-            #self.plotWidget3D.setSize(size)
             self.labelDummy3D.setVisible(False)
+            l.removeWidget(self.labelDummy3D)
+            #self.plotWidget3D.setSize(size)
+
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -1790,9 +1791,8 @@ class SpectralTemporalVisualization(QObject):
         if OPENGL_AVAILABLE:
             import pyqtgraph.opengl as gl
             self.glGridItem = gl.GLGridItem()
-            self.glGridItem.scale(2, 2, 1)
             self.glGridItem.setDepthValue(10)  # draw grid after surfaces since they may be translucent
-            self.glPlotDataItem = []
+            self.glPlotDataItems = []
             self.plot3D.addItem(self.glGridItem)
 
         self.tpCollection = TemporalProfileCollection()
@@ -2240,7 +2240,7 @@ class SpectralTemporalVisualization(QObject):
 
 
 
-            del self.glPlotDataItem[:]
+            del self.glPlotDataItems[:]
             for i in w.items:
                 w.removeItem(i)
 
@@ -2269,9 +2269,13 @@ class SpectralTemporalVisualization(QObject):
                     profileData[sensor] = {'x':[],'y':[],'z':[]}
 
 
-                for tsd in tp.mTimeSeries:
+                dataPos = []
+                x0 = x1 = y0 = y1 = z0 = z1 = 0
+                for iDate, tsd in enumerate(tp.mTimeSeries):
                     data = tp.data(tsd)
                     bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None], key=lambda k: bandKey2bandIndex(k))
+                    if len(bandKeys) < 2:
+                        continue
 
                     t = date2num(tsd.date)
 
@@ -2283,34 +2287,46 @@ class SpectralTemporalVisualization(QObject):
                         x.append(i)
                         y.append(t)
                         z.append(data[k])
+                    x = np.asarray(x)
+                    y = np.asarray(y)
+                    z = np.asarray(z)
+                    if iDate == 0:
+                        x0, x1 = (x.min(), x.max())
+                        y0, y1 = (y.min(), y.max())
+                        z0, z1 = (z.min(), z.max())
+                    else:
+                        x0, x1 = (min(x.min(), x0), max(x.max(), x1))
+                        y0, y1 = (min(y.min(), y0), max(y.max(), y1))
+                        z0, z1 = (min(z.min(), z0), max(z.max(), z1))
+                    dataPos.append((x,y,z))
 
-                    pos = np.asarray((x,y,z), dtype=np.float32).transpose()
+                xyz = [(x0,x1),(y0,y1),(z0,z1)]
+                l = len(dataPos)
+                for iPos, pos in enumerate(dataPos):
+                    x,y,z = pos
 
-                    plt = gl.GLLinePlotItem(pos=pos,
+                    arr = np.asarray(pos, dtype=np.float64).transpose()
+                    for i, m in enumerate(xyz):
+                        m0,m1 = m
+                        arr[:, i] = (arr[:,i] - m0)/(m1-m0)
+
+                    plt = gl.GLLinePlotItem(pos=arr,
                                             #color=pg.glColor((i, n * 1.3)),
-                                            color=pg.glColor(124,123,123),
-                                            width=5.0,
+                                            #color=pg.glColor(255,123,123,125),
+                                            color=pg.glColor((iPos, l * 1.3)),
+                                            width=1.0,
                                             antialias=True)
 
-                    self.glPlotDataItem.append(plt)
+                    self.glPlotDataItems.append(plt)
 
 
-                x0 = x1 = y0 = y1 = z0 = z1 = 0
-                for i, item in enumerate(self.glPlotDataItem):
-                    if item.pos.shape[0] > 1:
-                        if i == 0:
-                            x0, x1 = item.pos[:,0].min(), item.pos[:,0].max()
-                            y0, y1 = item.pos[:, 1].min(), item.pos[:, 1].max()
-                            z0, z1 = item.pos[:, 2].min(), item.pos[:, 2].max()
-                        else:
-                            x0, x1 = (min(x0, item.pos[:, 0].min()), max(x1, item.pos[:, 0].max()))
-                            y0, y1 = (min(y0, item.pos[:, 1].min()), max(y1, item.pos[:, 1].max()))
-                            z0, z1 = (min(z0, item.pos[:, 2].min()), max(z1, item.pos[:, 2].max()))
-                        w.addItem(item)
-                self.glGridItem.scale(1,0.1,0.1*(z1-z0))
+
+                for i, item in enumerate(self.glPlotDataItems):
+                   w.addItem(item)
+                self.glGridItem.scale(0.1,0.1,0.1, local=False)
 
                 #w.setBackgroundColor(QColor('black'))
-                w.setCameraPosition((x0, y0, z0))
+                w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
                 w.addItem(self.glGridItem)
                 w.update()
                 """
