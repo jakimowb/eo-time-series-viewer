@@ -78,6 +78,19 @@ def bandKey2bandIndex(key):
     idx = int(match.group()[1:]) - 1
     return idx
 
+def selectedModelIndices(tableView):
+    assert isinstance(tableView, QTableView)
+    result = {}
+
+    sm = tableView.selectionModel()
+    m = tableView.model()
+    if isinstance(sm, QItemSelectionModel) and isinstance(m, QAbstractItemModel):
+        for idx in sm.selectedIndexes():
+            assert isinstance(idx, QModelIndex)
+            if idx.row() not in result.keys():
+                result[idx.row()] = idx
+    return result.values()
+
 
 class DateTimeAxis(pg.AxisItem):
 
@@ -550,8 +563,9 @@ class TemporalProfileCollectionListModel(QAbstractListModel):
         self.mTPColl = temporalProfileCollection
         self.mTPColl.rowsAboutToBeInserted.connect(self.rowsAboutToBeInserted)
         self.mTPColl.rowsInserted.connect(self.rowsInserted.emit)
-        self.mTPColl.rowsAboutToBeRemoved.connect(self.rowsAboutToBeRemoved)
-        self.mTPColl.rowsRemoved.connect(self.rowsRemoved.emit)
+        #self.mTPColl.rowsAboutToBeRemoved.connect(self.rowsAboutToBeRemoved)
+        self.mTPColl.rowsRemoved.connect(lambda : self.modelReset.emit())
+
 
     def idx2tp(self, *args, **kwds):
         return self.mTPColl.idx2tp(*args, **kwds)
@@ -574,7 +588,9 @@ class TemporalProfileCollectionListModel(QAbstractListModel):
         if role is None or not index.isValid():
             return None
 
-        TP = self.mTPColl.data(index, role=Qt.UserRole)
+
+
+        TP = self.mTPColl.idx2tp(index)
         value = None
         if isinstance(TP, TemporalProfile):
             if role == Qt.DisplayRole:
@@ -596,6 +612,9 @@ class TemporalProfileCollection(QAbstractTableModel):
     #sigPixelAdded = pyqtSignal()
     #sigPixelRemoved = pyqtSignal()
 
+    sigTemporalProfilesAdded = pyqtSignal(list)
+    sigTemporalProfilesRemoved = pyqtSignal(list)
+    sigMaxProfilesChanged = pyqtSignal(int)
     def __init__(self, ):
         super(TemporalProfileCollection, self).__init__()
         #self.sensorPxLayers = dict()
@@ -640,16 +659,18 @@ class TemporalProfileCollection(QAbstractTableModel):
         return len(self.mColumNames)
 
     def idx2tp(self, index):
-        if index.isValid():
+        if index.isValid() and index.row() < len(self.mTemporalProfiles) :
             return self.mTemporalProfiles[index.row()]
         return None
 
     def tp2idx(self, temporalProfile):
         assert isinstance(temporalProfile, TemporalProfile)
-        idx = self.createIndex(None, -1, 0)
+
         if temporalProfile in self.mTemporalProfiles:
-            idx.setRow(self.mTemporalProfiles.index(temporalProfile))
-        return idx
+            row = self.mTemporalProfiles.index(temporalProfile)
+            return self.createIndex(row, 0)
+        else:
+            return QModelIndex()
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
@@ -740,17 +761,21 @@ class TemporalProfileCollection(QAbstractTableModel):
         if i is None:
             i = len(self.mTemporalProfiles)
 
-        self.beginInsertRows(QModelIndex(), i, i + len(temporalProfiles) - 1)
-        for temporalProfile in temporalProfiles:
-            assert isinstance(temporalProfile, TemporalProfile)
-            id = self.nextID
-            self.nextID += 1
-            temporalProfile.mID = id
-            self.mTemporalProfiles.insert(i, temporalProfile)
-            self.mTPLookupID[id] = temporalProfile
-            self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
-            i += 1
-        self.endInsertRows()
+        if len(temporalProfiles) > 0:
+            self.beginInsertRows(QModelIndex(), i, i + len(temporalProfiles) - 1)
+            for temporalProfile in temporalProfiles:
+                assert isinstance(temporalProfile, TemporalProfile)
+                id = self.nextID
+                self.nextID += 1
+                temporalProfile.mID = id
+                self.mTemporalProfiles.insert(i, temporalProfile)
+                self.mTPLookupID[id] = temporalProfile
+                self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
+                i += 1
+            self.endInsertRows()
+
+            self.sigTemporalProfilesAdded.emit(temporalProfiles)
+
 
     def temporalProfileFromGeometry(self, geometry):
         if geometry in self.mTPLookupSpatialPoint.keys():
@@ -798,17 +823,29 @@ class TemporalProfileCollection(QAbstractTableModel):
             temporalProfiles = [temporalProfiles]
         assert isinstance(temporalProfiles, list)
 
-        for temporalProfile in temporalProfiles:
-            assert isinstance(p, TemporalProfile)
-            if temporalProfile in self.mTemporalProfiles:
+        temporalProfiles = [tp for tp in temporalProfiles if isinstance(tp, TemporalProfile) and tp in self.mTemporalProfiles]
 
+        if len(temporalProfiles) > 0:
+
+            def deleteFromDict(d, value):
+                assert isinstance(d, dict)
+                if value in d.values():
+                    key = d.keys()[d.values().index(value)]
+                    d.pop(key)
+
+            for temporalProfile in temporalProfiles:
+                assert isinstance(temporalProfile, TemporalProfile)
                 idx = self.tp2idx(temporalProfile)
                 row = idx.row()
                 self.beginRemoveRows(QModelIndex(), row, row)
                 self.mTemporalProfiles.remove(temporalProfile)
-                self.mTPLookupSpatialPoint.__delitem__(temporalProfile)
-                self.mTPLookupID.__delitem__(temporalProfile)
+
+                deleteFromDict(self.mTPLookupID, temporalProfile)
+                deleteFromDict(self.mTPLookupSpatialPoint,  temporalProfile)
+
                 self.endRemoveRows()
+            self.sigTemporalProfilesRemoved.emit(temporalProfiles)
+
 
     def connectTimeSeries(self, timeSeries):
         self.clear()
@@ -827,10 +864,15 @@ class TemporalProfileCollection(QAbstractTableModel):
         Sets the maximum number of temporal profiles to be stored in this container.
         :param n: number of profiles, must be >= 1
         """
-        assert n >= 1
-        self.mMaxProfiles = n
+        old = self.mMaxProfiles
 
-        self.prune()
+        assert n >= 1
+        if old != n:
+            self.mMaxProfiles = n
+
+            self.prune()
+            self.sigMaxProfilesChanged.emit(self.mMaxProfiles)
+
 
     def prune(self):
         """
@@ -1056,6 +1098,8 @@ class PlotSettingsModel(QAbstractTableModel):
     #sigSensorAdded = pyqtSignal(SensorPlotSettings)
     sigVisibilityChanged = pyqtSignal(TemporalProfilePlotStyle)
     sigDataChanged = pyqtSignal(TemporalProfilePlotStyle)
+    sigPlotStylesAdded = pyqtSignal(list)
+    sigPlotStylesRemoved = pyqtSignal(list)
 
     regBandKey = re.compile("(?<!\w)b\d+(?!\w)", re.IGNORECASE)
     regBandKeyExact = re.compile('^' + regBandKey.pattern + '$', re.IGNORECASE)
@@ -1075,13 +1119,12 @@ class PlotSettingsModel(QAbstractTableModel):
         self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
 
         self.mPlotSettings = []
-        self.mPlotDataItems = []
         #assert isinstance(plotWidget, DateTimePlotWidget)
         self.mPlotWidget = plotWidget
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
         self.tpCollection = temporalProfileCollection
-
+        #self.tpCollection.sigTemporalProfilesRemoved.connect(lambda removedTPs : self.removePlotStyles([p for p in self.mPlotSettings if p.temporalProfile() in removedTPs]))
         assert isinstance(self.tpCollection.TS, TimeSeries)
         #self.tpCollection.TS.sigSensorAdded.connect(self.addPlotItem)
         #self.tpCollection.TS.sigSensorRemoved.connect(self.removeSensor)
@@ -1156,12 +1199,13 @@ class PlotSettingsModel(QAbstractTableModel):
         if i is None:
             i = len(self.mPlotSettings)
 
-        self.beginInsertRows(QModelIndex(), i, i + len(plotStyles)-1)
-        for j, plotStyle in enumerate(plotStyles):
-            assert isinstance(plotStyle, TemporalProfilePlotStyle)
-
-            self.mPlotSettings.insert(i+j, plotStyle)
-        self.endInsertRows()
+        if len(plotStyles) > 0:
+            self.beginInsertRows(QModelIndex(), i, i + len(plotStyles)-1)
+            for j, plotStyle in enumerate(plotStyles):
+                assert isinstance(plotStyle, TemporalProfilePlotStyle)
+                self.mPlotSettings.insert(i+j, plotStyle)
+            self.endInsertRows()
+            self.sigPlotStylesAdded.emit(plotStyles)
 
     def removePlotStyles(self, plotStyles):
         """
@@ -1171,13 +1215,19 @@ class PlotSettingsModel(QAbstractTableModel):
         if isinstance(plotStyles, PlotStyle):
             plotStyles = [plotStyles]
         assert isinstance(plotStyles, list)
-        for plotStyle in plotStyles:
-            assert isinstance(plotStyle, PlotStyle)
-            if plotStyle in self.mPlotSettings:
-                idx = self.plotStyle2idx(plotStyle)
-                self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
-                self.mPlotSettings.remove(plotStyle)
-                self.endRemoveRows()
+
+        if len(plotStyles) > 0:
+            for plotStyle in plotStyles:
+                assert isinstance(plotStyle, PlotStyle)
+                if plotStyle in self.mPlotSettings:
+                    idx = self.plotStyle2idx(plotStyle)
+                    self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
+                    self.mPlotSettings.remove(plotStyle)
+                    self.endRemoveRows()
+                if isinstance(plotStyle, TemporalProfilePlotStyle):
+                    for pi in plotStyle.mPlotItems:
+                        self.mPlotWidget.getPlotItem().removeItem(pi)
+            self.sigPlotStylesRemoved.emit(plotStyles)
 
     def sort(self, col, order):
         if self.rowCount() == 0:
@@ -1390,12 +1440,16 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.stackedWidget.setCurrentWidget(self.page2D)
         self.plotWidget3D = None
         if OPENGL_AVAILABLE:
-            l = self.labelDummy3D.parentWidget().layout()
-            l.removeWidget(self.labelDummy3D)
-            self.labelDummy3D.setVisible(False)
+            l = self.layout3DPlotWidget
+
             from pyqtgraph.opengl import GLViewWidget
             self.plotWidget3D = GLViewWidget(parent=self.page3D)
+            self.plotWidget3D.setObjectName('plotWidget3D')
+            size = self.labelDummy3D.size()
+            l.removeWidget(self.labelDummy3D)
             l.addWidget(self.plotWidget3D)
+            #self.plotWidget3D.setSize(size)
+            self.labelDummy3D.setVisible(False)
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -1708,8 +1762,12 @@ class SpectralTemporalVisualization(QObject):
 
 
         self.plot_initialized = False
-        self.TV = ui.tableView2DProfiles
-        self.TV.setSortingEnabled(False)
+        self.tableView2DProfiles = ui.tableView2DProfiles
+        self.tableView2DProfiles.setSortingEnabled(False)
+
+
+        # self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
+
         self.plot2D = ui.plotWidget2D
         pi = self.plot2D.getPlotItem()
         pi.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
@@ -1741,6 +1799,7 @@ class SpectralTemporalVisualization(QObject):
         self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
 
         self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
+        self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
 
         self.ui.cbTemporalProfile3D.setModel(self.tpCollectionListModel)
         #self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
@@ -1804,6 +1863,33 @@ class SpectralTemporalVisualization(QObject):
             self.tbCursorLocationValue.setText('')
             self.mlabel.setText('')
 
+
+
+    def selected2DPlotStyles(self):
+        result = []
+
+        m = self.ui.tableView2DProfiles.model()
+        for idx in selectedModelIndices(self.ui.tableView2DProfiles):
+            result.append(m.idx2plotStyle(idx))
+        return result
+
+    def selectedTemporalProfiles(self):
+        result = []
+        m = self.ui.tableViewTemporalProfiles.model()
+        for idx in selectedModelIndices(self.ui.tableViewTemporalProfiles):
+            result.append(m.idx2tp(idx))
+        return result
+
+    def removePlotStyles(self, plotStyles):
+        m = self.ui.tableView2DProfiles.model()
+        if isinstance(m, PlotSettingsModel):
+            m.removePlotStyles(plotStyles)
+
+    def removeTemporalProfiles(self, temporalProfiles):
+        m = self.ui.tableViewTemporalProfiles.model()
+        if isinstance(m, TemporalProfileCollection):
+            m.removeTemporalProfiles(temporalProfiles)
+
     def createNewPlotStyle(self):
         l = len(self.tpCollection)
         if l > 0:
@@ -1854,15 +1940,33 @@ class SpectralTemporalVisualization(QObject):
 
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
+    def onTemporalProfileSelectionChanged(self, selected, deselected):
+        self.ui.actionRemoveTemporalProfile.setEnabled(len(selected) > 0)
+
+    def onPlot2DSelectionChanged(self, selected, deselected):
+
+        self.ui.actionRemoveView.setEnabled(len(selected) > 0)
+
     def initActions(self):
+
+        self.ui.actionRemoveView.setEnabled(False)
+        self.ui.actionRemoveTemporalProfile.setEnabled(False)
 
         self.ui.btnAddView.setDefaultAction(self.ui.actionAddView)
         self.ui.btnRemoveView.setDefaultAction(self.ui.actionRemoveView)
         self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh2D)
         self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh3D)
+        self.ui.btnRemoveTemporalProfile.setDefaultAction(self.ui.actionRemoveTemporalProfile)
         self.ui.actionRefresh2D.triggered.connect(self.updatePlot2D)
         self.ui.actionRefresh3D.triggered.connect(self.updatePlot3D)
+
         self.ui.actionAddView.triggered.connect(self.createNewPlotStyle)
+        self.ui.actionRemoveView.triggered.connect(lambda:self.removePlotStyles(self.selected2DPlotStyles()))
+        self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.selectedTemporalProfiles()))
+
+        self.tpCollection.sigMaxProfilesChanged.connect(self.ui.sbMaxTP.setValue)
+        self.ui.sbMaxTP.valueChanged.connect(self.tpCollection.setMaxProfiles)
+
         #todo: self.ui.actionRemoveView.triggered.connect(self.plotSettingsModel.createPlotStyle)
 
 
@@ -1879,10 +1983,15 @@ class SpectralTemporalVisualization(QObject):
         self.plotSettingsModel.sigVisibilityChanged.connect(self.setVisibility)
         self.plotSettingsModel.sigDataChanged.connect(self.requestUpdate)
         self.plotSettingsModel.rowsInserted.connect(self.onRowsInserted)
+
         # self.plotSettingsModel.modelReset.connect(self.updatePersistantWidgets)
-        self.TV.setModel(self.plotSettingsModel)
-        self.delegate = PlotSettingsWidgetDelegate(self.TV, self.TS, self.tpCollectionListModel)
-        self.delegate.setItemDelegates(self.TV)
+        self.tableView2DProfiles.setModel(self.plotSettingsModel)
+        #self.tableView2DProfilesSelectionModel = QItemSelectionModel(self.mModel)
+        self.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
+        #self.tableView2DProfilesSelectionModel.selectionChanged.connect(self.onPlot2DSelectionChanged)
+        #self.tableView2DProfilesSelectionModel.setSelectionModel(self.mSelectionModel)
+        self.delegate = PlotSettingsWidgetDelegate(self.tableView2DProfiles, self.TS, self.tpCollectionListModel)
+        self.delegate.setItemDelegates(self.tableView2DProfiles)
 
 
     sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
@@ -1908,8 +2017,7 @@ class SpectralTemporalVisualization(QObject):
             t = 'Failed loading from {}.'.format(bn)
             if d.info and d.info != '':
                 t += '({})'.format(d.info)
-        if DEBUG:
-            print(t)
+
         # QgsApplication.processEvents()
         self.ui.progressInfo.setText(t)
 
@@ -1918,7 +2026,7 @@ class SpectralTemporalVisualization(QObject):
         #next time
 
     def updatePersistentWidgets(self):
-        model = self.TV.model()
+        model = self.tableView2DProfiles.model()
         if isinstance(model, PlotSettingsModel):
             colExpression = model.columnIndex(model.cnExpression)
             colStyle = model.columnIndex(model.cnStyle)
@@ -1935,15 +2043,15 @@ class SpectralTemporalVisualization(QObject):
 
 
     def onRowsInserted(self, parent, start, end):
-        model = self.TV.model()
+        model = self.tableView2DProfiles.model()
         if isinstance(model, PlotSettingsModel):
             colExpression = model.columnIndex(model.cnExpression)
             colStyle = model.columnIndex(model.cnStyle)
             while start <= end:
                 idxExpr = model.createIndex(start, colExpression)
                 idxStyle = model.createIndex(start, colStyle)
-                self.TV.openPersistentEditor(idxExpr)
-                self.TV.openPersistentEditor(idxStyle)
+                self.tableView2DProfiles.openPersistentEditor(idxExpr)
+                self.tableView2DProfiles.openPersistentEditor(idxStyle)
                 start += 1
                 #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
             s = ""
@@ -2017,7 +2125,7 @@ class SpectralTemporalVisualization(QObject):
             TP = self.tpCollection.fromSpatialPoint(spatialPoint)
             if not isinstance(TP, TemporalProfile):
                 TP = TemporalProfile(self.TS, spatialPoint)
-                self.tpCollection.insertTemporalProfiles(TP)
+                self.tpCollection.insertTemporalProfiles(TP, i=0)
             TPs.append(TP)
             theGeometries.append(TP.mCoordinate)
 
@@ -2133,9 +2241,11 @@ class SpectralTemporalVisualization(QObject):
 
 
             del self.glPlotDataItem[:]
+            for i in w.items:
+                w.removeItem(i)
+
             idx = self.ui.cbTemporalProfile3D.currentIndex()
             if idx >= 0:
-                self.ui.cbTemporalProfile3D.currentIndex()
                 tp = self.ui.cbTemporalProfile3D.itemData(idx, role=Qt.UserRole)
                 assert isinstance(tp, TemporalProfile)
 
@@ -2153,25 +2263,56 @@ class SpectralTemporalVisualization(QObject):
                 #x =
                 #y =
 
+
+
                 for sensor in tp.mTimeSeries.sensors():
                     profileData[sensor] = {'x':[],'y':[],'z':[]}
+
+
                 for tsd in tp.mTimeSeries:
                     data = tp.data(tsd)
                     bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None], key=lambda k: bandKey2bandIndex(k))
 
                     t = date2num(tsd.date)
-                    return
 
-                    n = len(bandKeys)
+                    x = []
+                    y = []
+                    z = []
 
-                    pos = np.ones((n,3), dtype=np.float)
+                    for i, k in enumerate(bandKeys):
+                        x.append(i)
+                        y.append(t)
+                        z.append(data[k])
 
-                    pos = 2
-                    #pos = (N,3) array of floats specifying point locations.
+                    pos = np.asarray((x,y,z), dtype=np.float32).transpose()
 
-                    plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i, n * 1.3)), width=(i + 1) / 10.,
+                    plt = gl.GLLinePlotItem(pos=pos,
+                                            #color=pg.glColor((i, n * 1.3)),
+                                            color=pg.glColor(124,123,123),
+                                            width=5.0,
                                             antialias=True)
-                    w.addItem(plt)
+
+                    self.glPlotDataItem.append(plt)
+
+
+                x0 = x1 = y0 = y1 = z0 = z1 = 0
+                for i, item in enumerate(self.glPlotDataItem):
+                    if item.pos.shape[0] > 1:
+                        if i == 0:
+                            x0, x1 = item.pos[:,0].min(), item.pos[:,0].max()
+                            y0, y1 = item.pos[:, 1].min(), item.pos[:, 1].max()
+                            z0, z1 = item.pos[:, 2].min(), item.pos[:, 2].max()
+                        else:
+                            x0, x1 = (min(x0, item.pos[:, 0].min()), max(x1, item.pos[:, 0].max()))
+                            y0, y1 = (min(y0, item.pos[:, 1].min()), max(y1, item.pos[:, 1].max()))
+                            z0, z1 = (min(z0, item.pos[:, 2].min()), max(z1, item.pos[:, 2].max()))
+                        w.addItem(item)
+                self.glGridItem.scale(1,0.1,0.1*(z1-z0))
+
+                #w.setBackgroundColor(QColor('black'))
+                w.setCameraPosition((x0, y0, z0))
+                w.addItem(self.glGridItem)
+                w.update()
                 """
                 for sensor, values in data.items():
                     if len(values['z']) > 0:
@@ -2334,12 +2475,12 @@ if __name__ == '__main__':
         ext = TS.getMaxSpatialExtent()
         cp1 = SpatialPoint(ext.crs(),ext.center())
         cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)
-        #cp2 = SpatialPoint(ext.crs(), ext.center())
-        #cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
+        cp2 = SpatialPoint(ext.crs(), ext.center())
+        cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
 
         STVis.loadCoordinate(cpND)
-        #STVis.loadCoordinate(cp2)
-        #STVis.loadCoordinate(cp3)
+        STVis.loadCoordinate(cp2)
+        STVis.loadCoordinate(cp3)
         STVis.createNewPlotStyle()
 
         if False:
