@@ -83,7 +83,9 @@ class DateTimeAxis(pg.AxisItem):
 
     def __init__(self, *args, **kwds):
         super(DateTimeAxis, self).__init__(*args, **kwds)
-
+        self.setRange(1,3000)
+        self.enableAutoSIPrefix(False)
+        self.labelAngle = 0
     def logTickStrings(self, values, scale, spacing):
         s = ""
 
@@ -94,7 +96,8 @@ class DateTimeAxis(pg.AxisItem):
         if len(values) == 0:
             return []
         #assert isinstance(values[0],
-        values = [num2date(v) for v in values]
+
+        values = [num2date(v) if v > 0 else num2date(1) for v in values]
         rng = max(values)-min(values)
         ndays = rng.astype(int)
 
@@ -114,7 +117,41 @@ class DateTimeAxis(pg.AxisItem):
         return d
 
 
+    def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
 
+
+        p.setRenderHint(p.Antialiasing, False)
+        p.setRenderHint(p.TextAntialiasing, True)
+
+        ## draw long line along axis
+        pen, p1, p2 = axisSpec
+        p.setPen(pen)
+        p.drawLine(p1, p2)
+        p.translate(0.5, 0)  ## resolves some damn pixel ambiguity
+
+        ## draw ticks
+        for pen, p1, p2 in tickSpecs:
+            p.setPen(pen)
+            p.drawLine(p1, p2)
+
+
+        ## Draw all text
+        if self.tickFont is not None:
+            p.setFont(self.tickFont)
+        p.setPen(self.pen())
+
+        #for rect, flags, text in textSpecs:
+        #    p.drawText(rect, flags, text)
+        #    # p.drawRect(rect)
+
+        #see https://github.com/pyqtgraph/pyqtgraph/issues/322
+        for rect, flags, text in textSpecs:
+            p.save()  # save the painter state
+            p.translate(rect.center())   # move coordinate system to center of text rect
+            p.rotate(self.labelAngle)  # rotate text
+            p.translate(-rect.center())  # revert coordinate system
+            p.drawText(rect, flags, text)
+            p.restore()  # restore the painter state
 
 
 class _SensorPoints(pg.PlotDataItem):
@@ -1377,21 +1414,13 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.tableViewTemporalProfiles.setSortingEnabled(True)
 
 
-def date2sse(date):  # returns seconds since epoch
-    if isinstance(date, np.datetime64):
-        date = date.astype(datetime.datetime)
-    return time.mktime(date.timetuple())
-
-def sse2date(secondsSinceEpoch):
-    return time.localtime(secondsSinceEpoch)
-
-
 def dateDOY(date):
     if isinstance(date, np.datetime64):
         date = date.astype(datetime.date)
     return date.timetuple().tm_yday
 
 def daysPerYear(year):
+
     if isinstance(year, np.datetime64):
         year = year.astype(datetime.date)
     if isinstance(year, datetime.date):
@@ -1408,10 +1437,14 @@ def date2num(d):
     yearDuration = daysPerYear(d)
     yearElapsed = d.timetuple().tm_yday
     fraction = float(yearElapsed) / float(yearDuration)
+    if fraction == 1.0:
+        fraction = 0.9999999
     return float(d.year) + fraction
 
 def num2date(n, dt64=True):
     n = float(n)
+    if n < 1:
+        n += 1
 
     year = int(n)
     fraction = n - year
@@ -1420,11 +1453,16 @@ def num2date(n, dt64=True):
 
     import math
     doy = round(yearElapsed)
-    date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
+    if doy < 1:
+        doy = 1
+    try:
+        date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
+    except:
+        s = ""
     if dt64:
         return np.datetime64(date)
     else:
-        date
+        return date
 
 
 
@@ -2187,13 +2225,18 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication()
     DEBUG = True
 
-    for date in ['2012-01-01', '2017-12-23', '2017-12-31']:
-        dt1 = np.datetime64(date)
+    if False: #the ultimative test for floating point division correctness, at least on a DOY-level
+        date1 = np.datetime64('1960-12-31','D')
+        assert date1 == num2date(date2num(date1))
+        #1960 - 12 - 31
+        for year in  range(1960, 2057):
+            for doy in range(1, daysPerYear(year)+1):
+                dt = datetime.timedelta(days=doy - 1)
+                date1 = np.datetime64('{}-01-01'.format(year)) + np.timedelta64(doy-1,'D')
+                date2 = datetime.date(year=year, month=1, day=1) + datetime.timedelta(days=doy-1)
 
-        n = date2num(dt1)
-        dt2 = num2date(n)
-
-        assert dt1 == dt2
+                assert date1 == num2date(date2num(date1), dt64=True), 'date1: {}'.format(date1)
+                assert date2 == num2date(date2num(date2), dt64=False), 'date2: {}'.format(date1)
 
     ui = ProfileViewDockUI()
     ui.show()
