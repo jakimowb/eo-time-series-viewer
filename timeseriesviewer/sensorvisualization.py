@@ -23,7 +23,7 @@ from __future__ import absolute_import
 import sys, os
 from qgis.core import *
 from PyQt4.QtCore import *
-from timeseriesviewer import *
+from PyQt4.QtGui import *
 
 
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
@@ -36,7 +36,7 @@ class SensorDockUI(TsvDockWidgetBase, loadUI('sensordock.ui')):
 
         self.TS = None
 
-    def connectTimeSeries(self, timeSeries):
+    def setTimeSeries(self, timeSeries):
         from timeseriesviewer.timeseries import TimeSeries
         from timeseriesviewer.sensorvisualization import SensorTableModel
         assert isinstance(timeSeries, TimeSeries)

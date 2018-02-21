@@ -412,7 +412,7 @@ class TimeSeriesDockUI(TsvDockWidgetBase, loadUI('timeseriesdock.ui')):
         self.progressInfo.setText(None)
         self.frameFilters.setVisible(False)
 
-        self.connectTimeSeries(None)
+        self.setTimeSeries(None)
 
     def setStatus(self):
         from timeseriesviewer.timeseries import TimeSeries
@@ -441,7 +441,7 @@ class TimeSeriesDockUI(TsvDockWidgetBase, loadUI('timeseriesdock.ui')):
             return [self.TSM.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
         return []
 
-    def connectTimeSeries(self, TS):
+    def setTimeSeries(self, TS):
         from timeseriesviewer.timeseries import TimeSeries
         self.TS = TS
         self.TSM = None

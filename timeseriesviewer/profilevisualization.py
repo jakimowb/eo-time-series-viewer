@@ -70,8 +70,8 @@ try:
 
         def renderAnnotations(self):
 
-            #self.renderText(0.8, 0.8, 0.8, 'text')
-            self.renderText(5, 10, 'text')
+            self.renderText(0.8, 0.8, 0.8, 'text 3D')
+            self.renderText(5, 10, 'text 2D fixed')
     """
     class TemporalProfileGLLinePlotItem(gl.GLLinePlotItem):
 

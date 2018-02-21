@@ -129,7 +129,7 @@ class MapView(QObject):
         )
 
         self.mapViewCollection = mapViewCollection
-        self.sensorViews = collections.OrderedDict()
+        self.mSensorViews = collections.OrderedDict()
 
         self.mVectorLayer = None
         self.setVectorLayer(None)
@@ -155,6 +155,10 @@ class MapView(QObject):
         self.ui.actionToggleVectorVisibility.setChecked(True)
         self.ui.actionToggleRasterVisibility.setChecked(True)
 
+
+        for sensor in self.mapViewCollection.TS.Sensors:
+            self.addSensor(sensor)
+
         self.setTitle(name)
         #forward actions with reference to this band view
     def dummy(self, *args):
@@ -177,7 +181,7 @@ class MapView(QObject):
 
     def mapCanvases(self):
         m = []
-        for sensor, sensorView in self.sensorViews.items():
+        for sensor, sensorView in self.mSensorViews.items():
             m.extend(sensorView.mapCanvases())
         return m
 
@@ -217,7 +221,7 @@ class MapView(QObject):
         self.sigVectorLayerChanged.emit()
 
     def applyStyles(self):
-        for sensorView in self.sensorViews.values():
+        for sensorView in self.mSensorViews.values():
             sensorView.applyStyle()
 
     def setTitle(self, title):
@@ -296,21 +300,21 @@ class MapView(QObject):
                 mapCanvas.refresh()
 
     def removeSensor(self, sensor):
-        assert sensor in self.sensorViews.keys()
-        self.sensorViews.pop(sensor)
+        assert sensor in self.mSensorViews.keys()
+        self.mSensorViews.pop(sensor)
         self.ui.removeSensor(sensor)
         return True
 
     def hasSensor(self, sensor):
         assert type(sensor) is SensorInstrument
-        return sensor in self.sensorViews.keys()
+        return sensor in self.mSensorViews.keys()
 
     def registerMapCanvas(self, sensor, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         assert isinstance(sensor, SensorInstrument)
 
-        sensorView = self.sensorViews[sensor]
+        sensorView = self.mSensorViews[sensor]
         assert isinstance(sensorView, MapViewSensorSettings)
         sensorView.registerMapCanvas(mapCanvas)
 
@@ -333,14 +337,13 @@ class MapView(QObject):
         :param sensor:
         :return:
         """
-        assert type(sensor) is SensorInstrument
-        assert sensor not in self.sensorViews.keys()
+        if isinstance(sensor, SensorInstrument) and sensor not in self.mSensorViews.keys():
 
-        #w.showSensorName(False)
-        w = self.ui.addSensor(sensor)
-        #w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
-        self.sensorViews[sensor] = w
-        s  =""
+            #w.showSensorName(False)
+            w = self.ui.addSensor(sensor)
+            #w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
+            self.mSensorViews[sensor] = w
+            s  =""
 
     """
     def onSensorRenderingChanged(self, renderer):
@@ -352,7 +355,7 @@ class MapView(QObject):
     """
     def getSensorWidget(self, sensor):
         assert type(sensor) is SensorInstrument
-        return self.sensorViews[sensor]
+        return self.mSensorViews[sensor]
 
 
 
@@ -891,8 +894,8 @@ class DatumView(QObject):
 
         self.TSD = timeSeriesDatum
         self.scrollArea = stv.scrollArea
-        self.Sensor = self.TSD.sensor
-        self.Sensor.sigNameChanged.connect(lambda :self.setColumnInfo())
+        self.mSensor = self.TSD.sensor
+        self.mSensor.sigNameChanged.connect(lambda :self.setColumnInfo())
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
         self.setColumnInfo()
         self.MVC = stv.MVC
@@ -953,7 +956,7 @@ class DatumView(QObject):
         self.registerMapCanvas(mapView, mapCanvas)
 
         # register MapCanvas on MV level
-        mapView.registerMapCanvas(self.Sensor, mapCanvas)
+        mapView.registerMapCanvas(self.mSensor, mapCanvas)
         # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
 
@@ -962,7 +965,7 @@ class DatumView(QObject):
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
 
         mapCanvas.sigDataLoadingFinished.connect(
-            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.Sensor.name()), dt))
+            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.mSensor.name()), dt))
         mapCanvas.sigDataLoadingFinished.connect(
             lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('All Sensors', dt))
 
@@ -1597,7 +1600,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     sigMapViewRemoved = pyqtSignal(MapView)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
-    def connectTimeSeries(self, timeSeries):
+    def setTimeSeries(self, timeSeries):
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
         self.TS.sigSensorAdded.connect(self.addSensor)
@@ -1678,8 +1681,6 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             title = 'Map View {}'.format(n)
         mapView.setTitle(title)
 
-        for sensor in self.TS.Sensors:
-            mapView.addSensor(sensor)
 
         mapView.sigShowProfiles.connect(self.sigShowProfiles)
         self.mMapViews.addMapView(mapView)
@@ -1727,12 +1728,12 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     def addSensor(self, sensor):
         for mapView in self.mMapViews:
-            mapView.addPlotStyle(sensor)
-        #self.adjustScrollArea()
+            mapView.addSensor(sensor)
+
 
     def removeSensor(self, sensor):
         for mapView in self.mMapViews:
-            mapView.removePlotItem(sensor)
+            mapView.removeSensor(sensor)
 
     def applyStyles(self):
         for mapView in self.mMapViews:
