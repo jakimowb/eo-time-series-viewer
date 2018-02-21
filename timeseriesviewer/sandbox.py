@@ -312,7 +312,8 @@ if __name__ == '__main__':
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
     qgsApp = initQgisApplication()
-
+    import timeseriesviewer
+    timeseriesviewer.DEBUG = True
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()

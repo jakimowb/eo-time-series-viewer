@@ -1398,9 +1398,6 @@ class PlotSettingsModel3D(QAbstractTableModel):
                     self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
                     self.mPlotSettings.remove(plotStyle)
                     self.endRemoveRows()
-                if isinstance(plotStyle, TemporalProfile3DPlotStyle):
-                    for pi in plotStyle.mPlotItems:
-                        self.mPlotWidget.getPlotItem().removeItem(pi)
             self.sigPlotStylesRemoved.emit(plotStyles)
 
     def sort(self, col, order):
@@ -2820,8 +2817,9 @@ class SpectralTemporalVisualization(QObject):
                     if not style.isVisible():
                         continue
                     arr = np.asarray((x,y,z), dtype=np.float64).transpose()
+
                     for i, m in enumerate(xyz):
-                        m0,m1 = m
+                        m0, m1 = m
                         arr[:, i] = (arr[:,i] - m0)/(m1-m0)
 
                     plt = gl.GLLinePlotItem(pos=arr,
