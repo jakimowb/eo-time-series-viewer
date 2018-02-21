@@ -198,6 +198,9 @@ def doLoaderTask(task):
 
     bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
 
+    #ensure to load valid indices only
+    bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
+
     gt = ds.GetGeoTransform()
     result.resGeoTransformation = gt
     result.resCrsWkt = ds.GetProjection()
@@ -322,7 +325,7 @@ def doLoaderTask(task):
     #finally, ensure that there is on 2D array only
     for i in range(len(PROFILE_DATA)):
         d = PROFILE_DATA[i]
-        if d != INFO_OUT_OF_IMAGE:
+        if isinstance(d, np.ndarray):
             assert d.ndim == 2
             b, yx = d.shape
             assert b == len(bandIndices)

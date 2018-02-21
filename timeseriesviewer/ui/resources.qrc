@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mIconTemporalProfile2D.svg</file>
+    <file>icons/mIconTemporalProfile3D.svg</file>
     <file>icons/add_class.svg</file>
     <file>icons/mIconTemporalProfile.svg</file>
     <file>icons/ActionIdentifyTimeSeries.svg</file>

@@ -62,26 +62,28 @@ class PlotStyle(QObject):
         if plotStyle: kwds.pop('plotStyle')
         super(PlotStyle,self).__init__(**kwds)
 
-        self.markerSymbol = MARKERSYMBOLS[0][0]
-        self.markerSize = 10
-        self.markerBrush = QBrush()
-        self.markerBrush.setColor(Qt.green)
-        self.markerBrush.setStyle(Qt.SolidPattern)
 
-        self.backgroundColor = Qt.black
-
-        self.markerPen = QPen()
-        self.markerPen.setStyle(Qt.SolidLine)
-        self.markerPen.setColor(Qt.white)
-
-        self.linePen = QPen()
-        self.linePen.setStyle(Qt.NoPen)
-        self.linePen.setColor(QColor(74, 75, 75))
-
-        self.mIsVisible = True
 
         if plotStyle:
             self.copyFrom(plotStyle)
+        else:
+            self.markerSymbol = MARKERSYMBOLS[0][0]
+            self.markerSize = 10
+            self.markerBrush = QBrush()
+            self.markerBrush.setColor(Qt.green)
+            self.markerBrush.setStyle(Qt.SolidPattern)
+
+            self.backgroundColor = Qt.black
+
+            self.markerPen = QPen()
+            self.markerPen.setStyle(Qt.SolidLine)
+            self.markerPen.setColor(Qt.white)
+
+            self.linePen = QPen()
+            self.linePen.setStyle(Qt.NoPen)
+            self.linePen.setColor(QColor(74,75,75))
+
+            self.mIsVisible = True
 
 
     def setVisibility(self, b):
@@ -109,9 +111,8 @@ class PlotStyle(QObject):
         self.markerSize = plotStyle.markerSize
         self.backgroundColor = QColor(plotStyle.backgroundColor)
         self.linePen = QPen(plotStyle.linePen)
-        self.setVisibility(plotStyle.isVisible())
-        self.update()
 
+        self.setVisibility(plotStyle.isVisible())
         s = ""
     def createIcon(self, size=None):
 
