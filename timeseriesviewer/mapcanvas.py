@@ -879,7 +879,7 @@ class MapCanvas(QgsMapCanvas):
     def spatialExtentHint(self):
         crs = self.crs()
         ext = SpatialExtent.world()
-        for lyr in self.mLayerModel + self.layers():
+        for lyr in self.mLayerModel.layers()+ self.layers():
             ext = SpatialExtent.fromLayer(lyr).toCrs(crs)
             break
         return ext
