@@ -243,6 +243,7 @@ class MapLayerInfo(object):
                 self.mRenderer = srcOrMapLayer.rendererV2()
             elif isinstance(srcOrMapLayer, QgsRasterLayer):
                 self.mRenderer = srcOrMapLayer.renderer()
+
         else:
             self.mSrc = srcOrMapLayer
             assert provider in ['ogr','gdal']
@@ -365,11 +366,16 @@ class MapCanvasLayerModel(QAbstractTableModel):
 
     def insertLayerInfos(self, i, mapLayers, isVisible=True, provider='gdal'):
         for mapLayer in mapLayers:
+            li = None
             if isinstance(mapLayer, QgsRasterLayer) and provider != 'gdal':
                 continue
             if isinstance(mapLayer, QgsVectorLayer) and provider != 'ogr':
                 continue
-            li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
+            if isinstance(mapLayer, QgsMapLayer):
+                li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
+            else:
+                li = mapLayer
+
             self.mLayerInfos.insert(i, li)
             i += 1
 
@@ -460,7 +466,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.mWasVisible = False
         self.mMapSummary = self.mapSummary()
-
+        self.mSaveFileName = ''
         #self.mapView = mapView
         #self.spatTempVis = mapView.spatTempVis
         #assert isinstance(self.spatTempVis, SpatialTemporalVisualization)
@@ -496,6 +502,12 @@ class MapCanvas(QgsMapCanvas):
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
+
+    def setSaveFileName(self, name):
+        self.mSaveFileName = name
+
+    def saveFileName(self):
+        return self.mSaveFileName
 
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
@@ -849,8 +861,8 @@ class MapCanvas(QgsMapCanvas):
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
-        path = jp(lastDir, '{}.{}.{}'.format(self.tsdView.TSD.date, self.mapView.title(), fileType.lower()))
 
+        path = jp(lastDir, '{}.{}'.format(self.saveFileName(), fileType.lower()))
         path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
@@ -1044,8 +1056,8 @@ if __name__ == '__main__':
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
     lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr', True)
 
-    c.layerModel().addLayerInfo(lyr2, True)
-    c.layerModel().addLayerInfo(lyr1, True)
+    c.layerModel().addLayerInfo(MapLayerInfo(lyr2, True))
+    c.layerModel().addLayerInfo(MapLayerInfo(lyr1, True))
 
     for l in c.layerModel().visibleLayers():
         print(l)

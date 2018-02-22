@@ -229,6 +229,7 @@ class MapView(QObject):
         if old != title:
             self.ui.tbName.setText(title)
 
+
     def title(self):
         return self.ui.tbName.text()
 
@@ -321,6 +322,7 @@ class MapView(QObject):
         #register signals sensor specific signals
         mapCanvas.setRenderer(sensorView.rasterLayerRenderer())
         mapCanvas.setRenderer(self.vectorLayerRenderer())
+
 
         #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
@@ -953,6 +955,7 @@ class DatumView(QObject):
         mapCanvas = MapCanvas(self.ui)
         mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
         mapCanvas.blockSignals(True)
+
         self.registerMapCanvas(mapView, mapCanvas)
 
         # register MapCanvas on MV level
@@ -997,8 +1000,12 @@ class DatumView(QObject):
 
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
+        assert isinstance(mapView, MapView)
         self.mapCanvases[mapView] = mapCanvas
 
+
+
+        mapView.sigTitleChanged[unicode].connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
         mapCanvas.layerModel().setRasterLayerSources([self.TSD.pathImg])
 
         self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
@@ -1009,6 +1016,7 @@ class DatumView(QObject):
         mapCanvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
         mapCanvas.sigShowProfiles.connect(lambda c, t : mapView.sigShowProfiles.emit(c,mapCanvas, t))
         mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
+
 
 
     def onMapCanvasRequest(self, mapCanvas, key):
