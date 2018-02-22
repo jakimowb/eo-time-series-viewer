@@ -1277,11 +1277,11 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         w = self.stackedWidget.currentWidget()
         title = self.baseTitle
         if w == self.page2D:
-            title = '{} | 2D Profiles'.format(title)
+            title = '{} | 2D'.format(title)
         elif w == self.page3D:
-            title = '{} | 3D Profiles/Surfaces'.format(title)
+            title = '{} | 3D'.format(title)
         elif w == self.pagePixel:
-            title = '{} | Profile Coordinates'.format(title)
+            title = '{} | Coordinates'.format(title)
         self.setWindowTitle(title)
 
 NEXT_COLOR_HUE_DELTA_CON = 10

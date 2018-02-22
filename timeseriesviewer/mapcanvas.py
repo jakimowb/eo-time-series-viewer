@@ -371,11 +371,11 @@ class MapCanvasLayerModel(QAbstractTableModel):
                 continue
             if isinstance(mapLayer, QgsVectorLayer) and provider != 'ogr':
                 continue
-            if isinstance(mapLayer, QgsMapLayer):
+            if isinstance(mapLayer, QgsMapLayer) or type(mapLayer) in [str, unicode]:
                 li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
-            else:
-                li = mapLayer
 
+
+            assert isinstance(li, MapLayerInfo)
             self.mLayerInfos.insert(i, li)
             i += 1
 
@@ -760,10 +760,14 @@ class MapCanvas(QgsMapCanvas):
 
         import qgis.utils
         if isinstance(qgis.utils.iface, QgisInterface):
-            action = menu.addAction('Add raster layers(s) to QGIS')
+            from timeseriesviewer.main import TimeSeriesViewer
+            if qgis.utils.iface != TimeSeriesViewer.instance():
+
+            #action = menu.addAction('Add raster layers(s) to QGIS')
             #action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-            action = menu.addAction('Add vector layer to QGIS')
-            # action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
+            #action = menu.addAction('Add vector layer to QGIS')
+            #action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
+
         else:
             action.setEnabled(False)
         menu.addSeparator()

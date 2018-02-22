@@ -136,6 +136,49 @@ def num2date(n, dt64=True):
     #return np.datetime64('{:04}-01-01'.format(year), 'D') + np.timedelta64(int(yearElapsed), 'D')
 
 
+def saveTemporalProfiles(profiles, path, mode='all', sep=','):
+    if path is None or len(path) == 0:
+        return
+
+    assert mode in ['coordinate','all']
+    ext = os.path.splitext(path)
+
+    assert ext in ['shp','csv']
+    for p in profiles:
+        assert isinstance(p, TemporalProfile)
+        p.loadMissingData()
+
+    def tsdValueList(tp, tsd, toString=False):
+        assert isinstance(tp, TemporalProfile)
+        assert isinstance(tsd, TimeSeriesDatum)
+
+        d = collections.OrderedDict()
+
+        return d
+
+    if ext == 'csv':
+        lines = ['Temporal Profiles']
+        for p in profiles:
+            assert isinstance(p, TemporalProfile)
+            lines.append('Profile {} "{}": {}'.format(p.mID, p.name(), p.mCoordinate))
+            assert isinstance(p, TemporalProfile)
+            for i, tsd in enumerate(p.mTimeSeries):
+                assert isinstance(tsd, TimeSeriesDatum)
+                continue
+
+                #todo:
+                values = tsdValueList(p, tsd, toString=True)
+                if i == 0:
+                    lines.append(sep.join(values.keys()))
+                lines.append(sep.join(values.values()))
+
+        open(path, 'w').writelines(lines)
+    if ext == 'shp':
+        pass
+
+
+
+
 def depr_date2num(d):
     d2 = d.astype(datetime.datetime)
     o = d2.toordinal()
@@ -330,6 +373,67 @@ class TemporalProfile(QObject):
 
             self.updateData(tsd, meta)
 
+    def pullDataUpdate(self, d):
+        assert isinstance(d, PixelLoaderTask)
+        if d.success() and self.mID in d.temporalProfileIDs:
+            i = d.temporalProfileIDs.index(self.mID)
+            tsd = self.mTimeSeries.getTSD(d.sourcePath)
+            assert isinstance(tsd, TimeSeriesDatum)
+            profileData = d.resProfiles[i]
+            if not isinstance(profileData, tuple):
+                s = ""
+            try:
+                vMean, vStd = profileData
+            except Exception as ex:
+                s = ""
+            values = {}
+            validValues = not isinstance(vMean, str)
+            # 1. add the pixel values per returned band
+
+            for iBand, bandIndex in enumerate(d.bandIndices):
+                key = 'b{}'.format(bandIndex + 1)
+                values[key] = vMean[iBand] if validValues else None
+                key = 'std{}'.format(bandIndex + 1)
+                values[key] = vStd[iBand] if validValues else None
+            self.updateData(tsd, values)
+
+
+    def loadMissingData(self, showGUI=False):
+        """
+        Loads the missing data
+        :return:
+        """
+        tasks = []
+        for tsd in self.mTimeSeries:
+            missingIndices = self.missingBandIndices(tsd)
+
+            if len(missingIndices) > 0:
+                task = PixelLoaderTask(tsd.pathImg, [self.mCoordinate],
+                                       bandIndices=missingIndices,
+                                       temporalProfileIDs=[self.mID])
+                tasks.append(task)
+
+        if len(tasks) > 0:
+
+            px = PixelLoader()
+            px.setNumberOfProcesses(0)
+            px.sigPixelLoaded.connect(self.pullDataUpdate)
+            self.pixelLoader.startLoading(tasks)
+
+    def missingBandIndices(self, tsd, requiredIndices=None):
+        """
+        Returns the band indices [0, sensor.nb) that have not been loaded yet.
+        :param tsd: TimeSeriesDatum of interest
+        :param requiredIndices: optional subset of possible band-indices to return the missing ones from.
+        :return: [list-of-indices]
+        """
+        assert isinstance(tsd, TimeSeriesDatum)
+        if requiredIndices is None:
+            requiredIndices = list(range(tsd.sensor.nb))
+        requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.sensor.nb]
+        existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
+        return [i for i in requiredIndices if i not in existingBandIndices]
+
     sigNameChanged = pyqtSignal(str)
     def setName(self, name):
         if name != self.mName:
@@ -368,7 +472,7 @@ class TemporalProfile(QObject):
         self.updateLoadingStatus()
         self.mUpdated = True
 
-    def resetUpdated(self):
+    def resetUpdatedFlag(self):
         self.mUpdated = False
 
     def updated(self):
@@ -764,8 +868,15 @@ class TemporalProfileCollection(QAbstractTableModel):
         if i is None:
             i = len(self.mTemporalProfiles)
 
-        if len(temporalProfiles) > 0:
-            self.beginInsertRows(QModelIndex(), i, i + len(temporalProfiles) - 1)
+        temporalProfiles = [t for t in temporalProfiles if t not in self]
+        l = len(temporalProfiles)
+
+        if l > 0:
+
+            #remove older profiles
+            self.prune(nMax=self.mMaxProfiles - l)
+
+            self.beginInsertRows(QModelIndex(), i, i + l - 1)
             for temporalProfile in temporalProfiles:
                 assert isinstance(temporalProfile, TemporalProfile)
                 id = self.nextID
@@ -877,11 +988,22 @@ class TemporalProfileCollection(QAbstractTableModel):
             self.sigMaxProfilesChanged.emit(self.mMaxProfiles)
 
 
-    def prune(self):
+    def prune(self, nMax=None):
         """
         Reduces the number of temporal profile to the value n defined with .setMaxProfiles(n)
         :return: [list-of-removed-TemporalProfiles]
         """
+        if nMax is None:
+            nMax = self.mMaxProfiles
+
+        nMax = max(nMax, 0)
+
+        toRemove = len(self) - nMax
+        if toRemove > 0:
+            toRemove = sorted(self[:], key=lambda p:p.mID)[0:toRemove]
+            self.removeTemporalProfiles(toRemove)
+
+
 
 
 
@@ -937,34 +1059,10 @@ class TemporalProfileCollection(QAbstractTableModel):
     def addPixelLoaderResult(self, d):
         assert isinstance(d, PixelLoaderTask)
         if d.success():
-
-            for i, TPid in enumerate(d.temporalProfileIDs):
-
+            for TPid in d.temporalProfileIDs:
                 TP = self.temporalProfileFromID(TPid)
-                tsd = self.TS.getTSD(d.sourcePath)
-                assert isinstance(tsd, TimeSeriesDatum)
-
-                if isinstance(TP, TemporalProfile):
-                    profileData = d.resProfiles[i]
-                    if not isinstance(profileData, tuple):
-                        s = ""
-                    try:
-                        vMean, vStd = profileData
-                    except Exception as ex:
-                        s = ""
-                    values = {}
-                    validValues = not isinstance(vMean, str)
-                    #1. add the pixel values per returned band
-
-                    for iBand, bandIndex in enumerate(d.bandIndices):
-                        key = 'b{}'.format(bandIndex + 1)
-                        values[key] = vMean[iBand] if validValues else None
-                        key = 'std{}'.format(bandIndex + 1)
-                        values[key] = vStd[iBand] if validValues else None
-                    #indicesY, indicesX = d.imagePixelIndices()
-                    #values['px_x'] = indicesX
-                    #values['px_y'] = indicesY
-                    TP.updateData(tsd, values)
+                assert isinstance(TP, TemporalProfile)
+                TP.pullDataUpdate(d)
 
     def clear(self):
         #todo: remove TS Profiles
