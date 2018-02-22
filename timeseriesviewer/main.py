@@ -490,6 +490,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
 
+        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(D.actionIdentifyTemporalProfile.trigger)
         from timeseriesviewer.mapcanvas import MapTools
 
         D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))

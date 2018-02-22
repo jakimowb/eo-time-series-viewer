@@ -615,10 +615,10 @@ class PlotSettingsModel3D(QAbstractTableModel):
 
         super(PlotSettingsModel3D, self).__init__(parent=parent)
         self.mTimeSeries = None
-        self.cnSensor = 'sensor'
+        self.cnSensor = 'Sensor'
         self.cnScale = 'Scale'
         self.cnOffset = 'Offset'
-        self.cnStyle = 'style'
+        self.cnStyle = 'Style'
 
         self.columNames = [self.cnSensor, self.cnScale, self.cnOffset, self.cnStyle]
 
@@ -902,9 +902,9 @@ class PlotSettingsModel2D(QAbstractTableModel):
         assert isinstance(temporalProfileCollection, TemporalProfileCollection)
 
         self.cnID = 'ID'
-        self.cnSensor = 'sensor'
+        self.cnSensor = 'Sensor'
         self.cnExpression = LABEL_DN
-        self.cnStyle = 'style'
+        self.cnStyle = 'Style'
         self.cnTemporalProfile = 'Coordinate'
         self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
 
@@ -1227,7 +1227,10 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         #TBD.
         #self.line.setVisible(False)
         #self.listWidget.setVisible(False)
+        self.baseTitle = self.windowTitle()
+        self.stackedWidget.currentChanged.connect(self.onStackPageChanged)
         self.stackedWidget.setCurrentWidget(self.page2D)
+
         self.plotWidget3D = None
         if OPENGL_AVAILABLE:
             l = self.frame3DPlot.layout()
@@ -1249,7 +1252,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         #ax = DateAxis(orientation='bottom', showValues=True)
         #pi.layout.addItem(ax, 3,2)
 
-        self.baseTitle = self.windowTitle()
+
         self.TS = None
 
         self.progressBar.setMinimum(0)
@@ -1264,8 +1267,22 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.tableViewTemporalProfiles.setSortingEnabled(True)
 
+        self.menuTPSaveOptions = QMenu()
+        self.menuTPSaveOptions.addAction(self.actionSaveTPCoordinates)
+        self.menuTPSaveOptions.addAction(self.actionSaveTPCSV)
+        self.menuTPSaveOptions.addAction(self.actionSaveTPVector)
+        self.btnSaveTemporalProfiles.setMenu(self.menuTPSaveOptions)
 
-
+    def onStackPageChanged(self, i):
+        w = self.stackedWidget.currentWidget()
+        title = self.baseTitle
+        if w == self.page2D:
+            title = '{} | 2D Profiles'.format(title)
+        elif w == self.page3D:
+            title = '{} | 3D Profiles/Surfaces'.format(title)
+        elif w == self.pagePixel:
+            title = '{} | Profile Coordinates'.format(title)
+        self.setWindowTitle(title)
 
 NEXT_COLOR_HUE_DELTA_CON = 10
 NEXT_COLOR_HUE_DELTA_CAT = 100
@@ -1338,6 +1355,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles)
         self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
+
         # self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
 
         self.plot2D = ui.plotWidget2D
@@ -1522,7 +1540,9 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
     def onTemporalProfileSelectionChanged(self, selected, deselected):
-        self.ui.actionRemoveTemporalProfile.setEnabled(len(selected) > 0)
+        nSelected = len(selected)
+        self.ui.actionRemoveTemporalProfile.setEnabled(nSelected > 0)
+        self.ui.btnSaveTemporalProfiles.setEnabled(nSelected > 0)
 
     def onPlot2DSelectionChanged(self, selected, deselected):
 
@@ -1543,6 +1563,11 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionRefresh2D.triggered.connect(self.updatePlot2D)
         self.ui.actionRefresh3D.triggered.connect(self.updatePlot3D)
 
+        self.ui.btnLoadProfile1.setDefaultAction(self.ui.actionLoadProfileRequest)
+        self.ui.btnLoadProfile2.setDefaultAction(self.ui.actionLoadProfileRequest)
+        self.ui.btnLoadProfile3.setDefaultAction(self.ui.actionLoadProfileRequest)
+
+
         self.ui.actionAddView.triggered.connect(self.createNewPlotStyle)
         self.ui.actionRemoveView.triggered.connect(lambda:self.removePlotStyles(self.selected2DPlotStyles()))
         self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.selectedTemporalProfiles()))
@@ -1550,6 +1575,39 @@ class SpectralTemporalVisualization(QObject):
         self.tpCollection.sigMaxProfilesChanged.connect(self.ui.sbMaxTP.setValue)
         self.ui.sbMaxTP.valueChanged.connect(self.tpCollection.setMaxProfiles)
 
+
+        from timeseriesviewer.temporalprofiles import saveTemporalProfiles
+        DEF_PATH = None
+
+        self.ui.actionSaveTPCoordinates.triggered.connect(
+            lambda: saveTemporalProfiles(self.tpCollection[:],
+                    QFileDialog.getSaveFileName(
+                        self.ui, 'Save Temporal Profile Coordinates',
+                        DEF_PATH, 'ESRI Shapefile (*.shp);;Geopackage (*.gpkg);;Textfile (*.csv *.txt)'
+                    ), mode='coordinate'
+            )
+        )
+
+        self.ui.actionSaveTPCSV.triggered.connect(
+            lambda: saveTemporalProfiles(self.tpCollection[:],
+                                         QFileDialog.getSaveFileName(
+                                             self.ui, 'Save Temporal Profiles to Text File.',
+                                             DEF_PATH,
+                                             'Textfile (*.csv *.txt)'
+                                         ), mode ='all'
+                                         )
+        )
+
+
+        self.ui.actionSaveTPVector.triggered.connect(
+            lambda: saveTemporalProfiles(self.tpCollection[:],
+                                         QFileDialog.getSaveFileName(
+                                             self.ui, 'Save Temporal Profiles to Vector File.',
+                                             DEF_PATH,
+                                             'ESRI Shapefile (*.shp);;Geopackage (*.gpkg)'
+                                         ), mode = 'all'
+                                         )
+        )
         #todo: self.ui.actionRemoveView.triggered.connect(self.plotSettingsModel.createPlotStyle)
 
     def reset3DCamera(self, *args):
@@ -1740,9 +1798,7 @@ class SpectralTemporalVisualization(QObject):
 
             for TP in TPs:
                 assert isinstance(TP, TemporalProfile)
-                existingBandKeys = [k for k in TP.data(tsd).keys() if regBandKeyExact.search(k)]
-                existingBandIndices = set([bandKey2bandIndex(k) for k in existingBandKeys])
-                need2load = requiredIndices.difference(existingBandIndices)
+                need2load = TP.missingBandIndices(tsd, requiredIndices=requiredIndices)
                 missingIndices = missingIndices.union(need2load)
 
             missingIndices = sorted(list(missingIndices))
@@ -1795,7 +1851,7 @@ class SpectralTemporalVisualization(QObject):
                 for pdi in plotSetting.mPlotItems:
                     assert isinstance(pdi, TemporalProfilePlotDataItem)
                     pdi.updateDataAndStyle()
-                plotSetting.temporalProfile().resetUpdated()
+                plotSetting.temporalProfile().resetUpdatedFlag()
 
         for i in self.plot2D.getPlotItem().dataItems:
             i.updateItems()
