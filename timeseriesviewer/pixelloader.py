@@ -434,7 +434,7 @@ class PixelLoader(QObject):
 
         from multiprocessing.pool import Pool
 
-        if not DEBUG:
+        if not DEBUG and self.nProcesses > 0:
             if isinstance(self.pool, Pool):
                 self.pool.terminate()
                 self.pool = None
@@ -457,7 +457,7 @@ class PixelLoader(QObject):
             args = (workPackage, self.resultQueue, self.cancelEvent)
             kwds = {}
 
-            if DEBUG:
+            if DEBUG or self.nProcesses < 1:
                 self.checkQueue(loadProfiles(*args, **kwds))
             else:
                 r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue, **kwds)
