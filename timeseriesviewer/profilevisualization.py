@@ -566,21 +566,70 @@ class DateTimeViewBox(pg.ViewBox):
         #self.menu = None # Override pyqtgraph ViewBoxMenu
         #self.menu = self.getMenu() # Create the menu
         #self.menu = None
+        self.mCurrentDate = np.datetime64('today')
+
+        xAction = [a for a in self.menu.actions() if a.text() == 'X Axis'][0]
+        yAction = [a for a in self.menu.actions() if a.text() == 'Y Axis'][0]
+
+        menuXAxis = self.menu.addMenu('X Axis')
+
+        def addQDateEdit(name):
+            frame = QFrame()
+            frame.setLayout(QHBoxLayout())
+            label = QLabel(name)
+            dateEdit = QDateEdit()
+            dateEdit.setDisplayFormat('yyyy-MM-dd')
+            dateEdit.setCalendarPopup(True)
+            dateEdit.dateChanged.connect(self.updateXRange)
+            frame.layout().addWidget(label)
+            frame.layout().addWidget(dateEdit)
+            frame.layout().setMargin(1)
+            wa = QWidgetAction(menuXAxis)
+            wa.setText(name)
+            wa.setDefaultWidget(frame)
+            menuXAxis.addAction(wa)
+
+            return wa, dateEdit
+
+        self.mWActionDateT0, self.mDateEditT0 = addQDateEdit('Begin')
+        self.mWActionDateT1, self.mDateEditT1 = addQDateEdit('End  ')
+
+        newXAction = self.menu.insertMenu(xAction, menuXAxis)
+
+        #self.menu.removeAction(xAction)
+
+        self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
 
 
-    """
+        self.mActionMoveToDate.triggered.connect(lambda : self.sigMoveToDate.emit(self.mCurrentDate))
+
+    def updateXRange(self, *args):
+        self.setXRange(date2num(self.mDateEditT0.date()),
+                       date2num(self.mDateEditT1.date())
+                       )
+
+    def updateCurrentDate(self, date):
+        if isinstance(date, np.datetime64):
+            self.mCurrentDate = date
+            self.mActionMoveToDate.setData(date)
+
+        xRange, yRange = self.viewRange()
+
+        t0 = num2date(xRange[0], qDate=True)
+        t1 = num2date(xRange[1], qDate=True)
+        self.mDateEditT0.setDate(t0)
+        self.mDateEditT1.setDate(t1)
+
+
     def raiseContextMenu(self, ev):
 
         pt = self.mapDeviceToView(ev.pos())
-        print(pt.x(), pt.y())
-        date = num2date(pt.x())
-        menu = QMenu(None)
-        a = menu.addAction('Move to {}'.format(date))
-        a.setData(date)
-        a.triggered.connect(lambda : self.sigMoveToDate.emit(date))
+        self.updateCurrentDate(num2date(pt.x(), dt64=True))
+
+        menu = self.getMenu(ev)
         self.scene().addParentContextMenus(self, menu, ev)
         menu.exec_(ev.screenPos().toPoint())
-    """
+
 
 
 
@@ -598,7 +647,7 @@ class DateTimePlotWidget(pg.PlotWidget):
             viewBox=DateTimeViewBox()
         )
         self.setCentralItem(self.plotItem)
-        self.xAxisInitialized = False
+        #self.xAxisInitialized = False
 
 
 
@@ -1857,7 +1906,8 @@ class SpectralTemporalVisualization(QObject):
             i.updateItems()
 
 
-        if not self.plot2D.xAxisInitialized:
+        notInit = [0, 1] == self.plot2D.getPlotItem().getAxis('bottom').range
+        if notInit:
             x0 = x1 = None
             for plotSetting in self.plotSettingsModel2D:
                 assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
@@ -1874,7 +1924,7 @@ class SpectralTemporalVisualization(QObject):
 
             if x0 is not None:
                 self.plot2D.getPlotItem().setXRange(x0, x1)
-                self.plot2D.xAxisInitialized = True
+                #self.plot2D.xAxisInitialized = True
 
     @QtCore.pyqtSlot()
     def updatePlot3D(self):

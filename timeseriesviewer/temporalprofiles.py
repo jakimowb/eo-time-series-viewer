@@ -28,7 +28,7 @@ from qgis.core import QgsCoordinateReferenceSystem, \
     QgsField, QgsFields, QgsFeature, \
     QgsExpression, QgsExpressionContext, QgsExpressionContextScope
 
-from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant
+from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate
 from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
 from PyQt4.QtXml import *
 from PyQt4.QtGui import *
@@ -99,6 +99,10 @@ def date2num(d):
     #kindly taken from https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
     if isinstance(d, np.datetime64):
         d = d.astype(datetime.datetime)
+
+    if isinstance(d, QDate):
+        d = datetime.date(d.year(), d.month(), d.day())
+
     assert isinstance(d, datetime.date)
 
     yearDuration = daysPerYear(d)
@@ -108,7 +112,7 @@ def date2num(d):
         fraction = 0.9999999
     return float(d.year) + fraction
 
-def num2date(n, dt64=True):
+def num2date(n, dt64=True, qDate=False):
     n = float(n)
     if n < 1:
         n += 1
@@ -126,6 +130,8 @@ def num2date(n, dt64=True):
         date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
     except:
         s = ""
+    if qDate:
+        return QDate(date.year, date.month, date.day)
     if dt64:
         return np.datetime64(date)
     else:
