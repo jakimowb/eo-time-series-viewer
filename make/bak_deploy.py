@@ -21,8 +21,8 @@
 
 from __future__ import absolute_import
 import os, sys, re, shutil, zipfile, datetime
-from pb_tool import pb_tool
 import numpy as np
+from pb_tool import pb_tool
 from timeseriesviewer import DIR_REPO, jp, file_search
 import timeseriesviewer
 DIR_BUILD = jp(DIR_REPO, 'build')
@@ -84,7 +84,7 @@ def patch_pb_tool(DIR_DEPLOY):
     #required to choose andy DIR_DEPLOY of choice
     #issue tracker: https://github.com/g-sherman/plugin_build_tool/issues/4
     pb_tool.get_plugin_directory = lambda : DIR_DEPLOY
-    pb_tool.cli.command = lambda f:f
+   #pb_tool.cli.command = lambda f:f
     #Issue 1.: set pb_tool.cfg directly and do not expect current WDir
     def config():
         import ConfigParser
@@ -162,19 +162,18 @@ if __name__ == "__main__":
     DIR_DEPLOY = jp(DIR_REPO, 'deploy')
     mkDir(DIR_DEPLOY)
 
+    import pb_tool
 
     # DIR_DEPLOY = r'E:\_EnMAP\temp\temp_bj\enmapbox_deploys\most_recent_version'
 
-    #patch_pb_tool(DIR_DEPLOY)
+    patch_pb_tool(DIR_DEPLOY)
     pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
-    cfg = pb_tool.get_config(pathCfg)
-    cdir = os.path.dirname(pathCfg)
+    cfg = pb_tool.config()
     pluginname = cfg.get('plugin', 'name')
-    dirPlugin = jp(DIR_DEPLOY, pluginname)
+
 
     if True:
         #1. clean an existing directory = the timeseriesviewer folder
-        os.chdir(cdir)
         pb_tool.clean_deployment(ask_first=False)
 
         #2. Compile. Basically call pyrcc to create the resources.rc file
@@ -188,12 +187,12 @@ if __name__ == "__main__":
             make.compile_rc_files(DIR_REPO)
 
         else:
-            pb_tool.compile_files(cfg)
+            pb_tool.compile_files()
 
 
         #3. Deploy = write the data to the new enmapboxplugin folder
-
-        pb_tool.deploy_files(pathCfg,dirPlugin, quick=True, confirm=False)
+        os.chdir(os.path.dirname(pathCfg))
+        pb_tool.deploy()
 
         #4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
         # we need to remove them afterwards.
@@ -209,7 +208,7 @@ if __name__ == "__main__":
 
 
     pathZip = jp(DIR_DEPLOY, '{}.{}.zip'.format(pluginname,timestamp))
-
+    dirPlugin = jp(DIR_DEPLOY, pluginname)
     zipdir(dirPlugin, pathZip)
     #os.chdir(dirPlugin)
     #shutil.make_archive(pathZip, 'zip', '..', dirPlugin)
