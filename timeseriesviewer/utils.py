@@ -422,6 +422,34 @@ class SpatialExtent(QgsRectangle):
 
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
+
+def qgisInstance():
+    """
+    If existent, returns a QGIS Instance.
+    :return: QgisInterface | None
+    """
+    import qgis.utils
+    from timeseriesviewer.main import TimeSeriesViewer
+    if isinstance(qgis.utils.iface, QgisInterface) and \
+        not isinstance(qgis.utils.iface, TimeSeriesViewer):
+        return qgis.utils.iface
+    else:
+        return None
+
+def saveFilePath(text):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    see https://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename
+    :return: path
+    """
+    import unicodedata
+    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
+    text = unicode(re.sub('[^\w\s.-]', '', text).strip().lower())
+    text = unicode(re.sub('[-\s]+', '_', text))
+    return re.sub('[ ]+]','',text)
+
+
 def value2str(value, sep=' '):
     """
     Converts a value into a string
@@ -590,7 +618,7 @@ def nicePredecessor(l):
 
 
 
-loadUi = lambda p : loadUIFormClass(jp(DIR_UI, p))
+loadUI = lambda p : loadUIFormClass(jp(DIR_UI, p))
 loadIcon = lambda p: jp(DIR_UI, *['icons',p])
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()

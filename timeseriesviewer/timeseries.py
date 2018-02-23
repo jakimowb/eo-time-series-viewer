@@ -395,8 +395,8 @@ class TimeSeriesTableView(QTableView):
 
 
 from timeseriesviewer.ui.docks import TsvDockWidgetBase
-from timeseriesviewer.utils import loadUi
-class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
+from timeseriesviewer.utils import loadUI
+class TimeSeriesDockUI(TsvDockWidgetBase, loadUI('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
         self.setupUi(self)
@@ -412,7 +412,7 @@ class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
         self.progressInfo.setText(None)
         self.frameFilters.setVisible(False)
 
-        self.connectTimeSeries(None)
+        self.setTimeSeries(None)
 
     def setStatus(self):
         from timeseriesviewer.timeseries import TimeSeries
@@ -441,7 +441,7 @@ class TimeSeriesDockUI(TsvDockWidgetBase, loadUi('timeseriesdock.ui')):
             return [self.TSM.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
         return []
 
-    def connectTimeSeries(self, TS):
+    def setTimeSeries(self, TS):
         from timeseriesviewer.timeseries import TimeSeries
         self.TS = TS
         self.TSM = None
@@ -495,6 +495,8 @@ class TimeSeries(QObject):
 
     _sep = ';'
 
+    def sensors(self):
+        return self.Sensors.keys()
 
     def loadFromFile(self, path, n_max=None):
 
@@ -856,6 +858,8 @@ class TimeSeriesTableModel(QAbstractTableModel):
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
+
+
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
 

@@ -19,17 +19,229 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
+
 from __future__ import absolute_import, unicode_literals
 import os, logging
 
 logger = logging.getLogger(__name__)
 
-from qgis.core import *
-from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.core import QGis, \
+    QgsMapLayerRegistry, QgsGeometry, QgsPoint, \
+    QgsCoordinateReferenceSystem, \
+    QgsMapLayer, QgsVectorLayer, QgsRasterLayer, \
+    QgsRasterDataProvider, \
+    QgsField, QgsFields, QgsFeature, \
+    QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
+    QgsRasterRenderer, QgsMultiBandColorRenderer, QgsContrastEnhancement, QgsSingleBandPseudoColorRenderer, \
+    QgsPolygonV2, QgsMultiPolygonV2, QgsFeatureRendererV2, \
+    QgsRasterBandStats
+
+from qgis.gui import QgisInterface, QgsMapCanvas, \
+    QgsMapTool, QgsMapToolZoom, QgsMapToolEmitPoint, QgsMapToolPan, \
+    QgsRubberBand, QgsMapCanvasLayer, QgsGeometryRubberBand, \
+    QgsProjectionSelectionWidget, QgsVertexMarker
+
+from PyQt4.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
+from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
+
+from PyQt4.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
+from PyQt4.QtXml import QDomDocument
+
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
+from timeseriesviewer.timeseries import TimeSeriesDatum
+from timeseriesviewer.crosshair import CrosshairDialog
+
+
+class MapTools(object):
+    """
+    Static class to support handling of nQgsMapTools.
+    """
+    def __init__(self):
+        raise Exception('This class is not for any instantiation')
+    ZoomIn = 'ZOOM_IN'
+    ZoomOut = 'ZOOM_OUT'
+    ZoomFull = 'ZOOM_FULL'
+    Pan = 'PAN'
+    ZoomPixelScale = 'ZOOM_PIXEL_SCALE'
+    CursorLocation = 'CURSOR_LOCATION'
+    SpectralProfile = 'SPECTRAL_PROFILE'
+    TemporalProfile = 'TEMPORAL_PROFILE'
+    MoveToCenter = 'MOVE_CENTER'
+
+    @staticmethod
+    def copy(mapTool):
+        assert isinstance(mapTool, QgsMapTool)
+        s = ""
+
+    @staticmethod
+    def create(mapToolKey, canvas, *args, **kwds):
+        assert mapToolKey in MapTools.mapToolKeys()
+
+        assert isinstance(canvas, QgsMapCanvas)
+
+        if mapToolKey == MapTools.ZoomIn:
+            return QgsMapToolZoom(canvas, False)
+        if mapToolKey == MapTools.ZoomOut:
+            return QgsMapToolZoom(canvas, True)
+        if mapToolKey == MapTools.Pan:
+            return QgsMapToolPan(canvas)
+        if mapToolKey == MapTools.ZoomPixelScale:
+            return PixelScaleExtentMapTool(canvas)
+        if mapToolKey == MapTools.ZoomFull:
+            return FullExtentMapTool(canvas)
+        if mapToolKey == MapTools.CursorLocation:
+            return CursorLocationMapTool(canvas, *args, **kwds)
+        if mapToolKey == MapTools.MoveToCenter:
+            tool = CursorLocationMapTool(canvas, *args, **kwds)
+            tool.sigLocationRequest.connect(canvas.setCenter)
+            return tool
+        if mapToolKey == MapTools.SpectralProfile:
+            return SpectralProfileMapTool(canvas, *args, **kwds)
+        if mapToolKey == MapTools.TemporalProfile:
+            return TemporalProfileMapTool(canvas, *args, **kwds)
+
+        raise Exception('Unknown mapToolKey {}'.format(mapToolKey))
+
+
+    @staticmethod
+    def mapToolKeys():
+        return [MapTools.__dict__[k] for k in MapTools.__dict__.keys() if not k.startswith('_')]
+
+
+
+class CursorLocationMapTool(QgsMapToolEmitPoint):
+
+    sigLocationRequest = pyqtSignal([SpatialPoint],[SpatialPoint, QgsMapCanvas])
+
+    def __init__(self, canvas, showCrosshair=True, purpose=None):
+        self.mShowCrosshair = showCrosshair
+        self.mCanvas = canvas
+        self.mPurpose = purpose
+        QgsMapToolEmitPoint.__init__(self, self.mCanvas)
+
+        self.mMarker = QgsVertexMarker(self.mCanvas)
+        self.mRubberband = QgsRubberBand(self.mCanvas, QGis.Polygon)
+
+        color = QColor('red')
+
+        self.mRubberband.setLineStyle(Qt.SolidLine)
+        self.mRubberband.setColor(color)
+        self.mRubberband.setWidth(2)
+
+        self.mMarker.setColor(color)
+        self.mMarker.setPenWidth(3)
+        self.mMarker.setIconSize(5)
+        self.mMarker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
+
+    def canvasPressEvent(self, e):
+        geoPoint = self.toMapCoordinates(e.pos())
+        self.mMarker.setCenter(geoPoint)
+
+    def setStyle(self, color=None, brushStyle=None, fillColor=None, lineStyle=None):
+        if color:
+            self.mRubberband.setColor(color)
+        if brushStyle:
+            self.mRubberband.setBrushStyle(brushStyle)
+        if fillColor:
+            self.mRubberband.setFillColor(fillColor)
+        if lineStyle:
+            self.mRubberband.setLineStyle(lineStyle)
+
+    def canvasReleaseEvent(self, e):
+
+
+        pixelPoint = e.pixelPoint()
+
+        crs = self.mCanvas.mapSettings().destinationCrs()
+        self.mMarker.hide()
+        geoPoint = self.toMapCoordinates(pixelPoint)
+        if self.mShowCrosshair:
+            #show a temporary crosshair
+            ext = SpatialExtent.fromMapCanvas(self.mCanvas)
+            cen = geoPoint
+            geom = QgsGeometry()
+            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
+                          QGis.Line)
+            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
+                          QGis.Line)
+            self.mRubberband.addGeometry(geom, None)
+            self.mRubberband.show()
+            #remove crosshair after 0.25 sec
+            QTimer.singleShot(250, self.hideRubberband)
+
+        pt = SpatialPoint(crs, geoPoint)
+        self.sigLocationRequest[SpatialPoint].emit(pt)
+        self.sigLocationRequest[SpatialPoint, QgsMapCanvas].emit(pt, self.canvas())
+
+    def hideRubberband(self):
+        self.mRubberband.reset()
+
+
+class SpectralProfileMapTool(CursorLocationMapTool):
+
+    def __init__(self, *args, **kwds):
+        super(SpectralProfileMapTool, self).__init__(*args, **kwds)
+
+
+class TemporalProfileMapTool(CursorLocationMapTool):
+
+    def __init__(self, *args, **kwds):
+        super(TemporalProfileMapTool, self).__init__(*args, **kwds)
+
+
+class FullExtentMapTool(QgsMapTool):
+    def __init__(self, canvas):
+        super(FullExtentMapTool, self).__init__(canvas)
+        self.canvas = canvas
+
+    def canvasReleaseEvent(self, mouseEvent):
+        self.canvas.zoomToFullExtent()
+
+    def flags(self):
+        return QgsMapTool.Transient
+
+
+class PixelScaleExtentMapTool(QgsMapTool):
+    def __init__(self, canvas):
+        super(PixelScaleExtentMapTool, self).__init__(canvas)
+        self.canvas = canvas
+
+    def flags(self):
+        return QgsMapTool.Transient
+
+
+    def canvasReleaseEvent(self, mouseEvent):
+        layers = self.canvas.layers()
+
+        unitsPxX = []
+        unitsPxY = []
+        for lyr in self.canvas.layers():
+            if isinstance(lyr, QgsRasterLayer):
+                unitsPxX.append(lyr.rasterUnitsPerPixelX())
+                unitsPxY.append(lyr.rasterUnitsPerPixelY())
+
+        if len(unitsPxX) > 0:
+            unitsPxX = np.asarray(unitsPxX)
+            unitsPxY = np.asarray(unitsPxY)
+            if True:
+                # zoom to largest pixel size
+                i = np.nanargmax(unitsPxX)
+            else:
+                # zoom to smallest pixel size
+                i = np.nanargmin(unitsPxX)
+            unitsPxX = unitsPxX[i]
+            unitsPxY = unitsPxY[i]
+            f = 0.2
+            width = f * self.canvas.size().width() * unitsPxX #width in map units
+            height = f * self.canvas.size().height() * unitsPxY #height in map units
+
+
+            center = SpatialPoint.fromMapCanvasCenter(self.canvas)
+            extent = SpatialExtent(center.crs(), 0, 0, width, height)
+            extent.setCenter(center, center.crs())
+            self.canvas.setExtent(extent)
+        s = ""
 
 
 class MapLayerInfo(object):
@@ -37,18 +249,26 @@ class MapLayerInfo(object):
     A minimum description of a QgsMapLayer source.
     """
 
-    def __init__(self, mapLayer, isVisible, provider='gdal'):
+    def __init__(self, srcOrMapLayer, isVisible, provider='gdal', renderer=None):
 
         self.mSrc = ''
         self.mLayer = None
-        self.mProvider = provider
+        self.mProvider = None
+        self.mRenderer = None
+        self.setRenderer(renderer)
+        if isinstance(srcOrMapLayer, QgsMapLayer):
+            self.mSrc = srcOrMapLayer.source()
+            self.mProvider = srcOrMapLayer.providerType()
+            self.mLayer = srcOrMapLayer
+            if isinstance(srcOrMapLayer, QgsVectorLayer):
+                self.mRenderer = srcOrMapLayer.rendererV2()
+            elif isinstance(srcOrMapLayer, QgsRasterLayer):
+                self.mRenderer = srcOrMapLayer.renderer()
 
-        if isinstance(mapLayer, QgsMapLayer):
-            self.mSrc = mapLayer.source()
-            self.mProvider = mapLayer.providerType()
-            self.mLayer = mapLayer
         else:
-            self.mSrc = mapLayer
+            self.mSrc = srcOrMapLayer
+            assert provider in ['ogr','gdal']
+            self.mProvider = provider
 
 
         self.mIsVisible = isVisible
@@ -65,6 +285,16 @@ class MapLayerInfo(object):
         elif self.mProvider == 'ogr':
             self.mLayer = QgsVectorLayer(self.mSrc,os.path.basename(self.mSrc), 'ogr', True)
 
+        self.setRenderer(self.mRenderer)
+
+    def setRenderer(self, renderer):
+        self.mRenderer = renderer
+        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRendererV2) or \
+           self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
+            self.mRenderer = renderer
+            if self.isInitialized():
+                copyRenderer(self.mRenderer, self.mLayer)
+                #self.mLayer.repaintRequested.emit()
 
     def setIsVisible(self, b):
         self.mIsVisible = b
@@ -87,6 +317,7 @@ class MapLayerInfo(object):
         if not self.isInitialized():
             return None
         ref = QgsMapLayerRegistry.instance().mapLayer(self.mLayer.layerId())
+
         return isinstance(ref, QgsMapLayer)
 
 
@@ -102,6 +333,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
         self.mColumnNames = ['layerID', 'isVisible', '']
         self.mLayerInfos = []
 
+
     def __len__(self):
         return len(self.mLayerInfos)
 
@@ -116,14 +348,13 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return info
 
     def setRenderer(self, renderer):
-        from timeseriesviewer.utils import copyRenderer
-        #do we need to set a reference on the renderer????
-        return [copyRenderer(renderer, li.mLayer) for li in self.mLayerInfos if isinstance(li.mLayer, QgsMapLayer)]
+        for li in self.mLayerInfos:
+            assert isinstance(li, MapLayerInfo)
+            li.setRenderer(renderer)
 
-
-    def setVectorLayerSources(self, rasterSources, isVisible=True):
+    def setVectorLayerSources(self, vectorSources, **kwds):
         self.removeLayerInfos(self.vectorLayerInfos())
-        self.insertLayerInfos(0, rasterSources, isVisible=isVisible, provider='ogr')
+        self.insertLayerInfos(0, vectorSources, provider='ogr', **kwds)
 
     def setVectorLayerVisibility(self, b):
         for li in self.vectorLayerInfos():
@@ -134,9 +365,9 @@ class MapCanvasLayerModel(QAbstractTableModel):
             li.setIsVisible(b)
 
 
-    def setRasterLayerSources(self, rasterSources, isVisible=True):
+    def setRasterLayerSources(self, rasterSources, **kwds):
         self.removeLayerInfos(self.rasterLayerInfos())
-        self.addLayerInfos(rasterSources, isVisible=isVisible, provider='gdal')
+        self.addLayerInfos(rasterSources, provider='gdal', **kwds)
 
     def vectorLayerInfos(self):
         return [li for li in self.mLayerInfos if li.mProvider == 'ogr']
@@ -145,22 +376,26 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return [li for li in self.mLayerInfos if li.mProvider == 'gdal']
 
 
-    def addLayerInfo(self, mapLayer, isVisible=True, provider='gdal'):
-        self.addLayerInfos([mapLayer], isVisible=isVisible, provider=provider)
+    def addLayerInfo(self, mapLayer, **kwds):
+        self.addLayerInfos([mapLayer], **kwds)
 
-    def addLayerInfos(self, mapLayers, isVisible=True, provider='gdal'):
-        self.insertLayerInfos(len(self), mapLayers, isVisible=isVisible, provider=provider)
+    def addLayerInfos(self, mapLayers, **kwds):
+        self.insertLayerInfos(len(self), mapLayers, **kwds)
 
-    def insertLayerInfo(self, i, mapLayer, isVisible=True, provider='gdal'):
-        self.insertLayerInfo(i, [mapLayer], isVisible=isVisible, provider=provider)
+    def insertLayerInfo(self, i, mapLayer, **kwds):
+        self.insertLayerInfo(i, [mapLayer], **kwds)
 
     def insertLayerInfos(self, i, mapLayers, isVisible=True, provider='gdal'):
         for mapLayer in mapLayers:
+            li = None
             if isinstance(mapLayer, QgsRasterLayer) and provider != 'gdal':
                 continue
             if isinstance(mapLayer, QgsVectorLayer) and provider != 'ogr':
                 continue
-            li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
+            if isinstance(mapLayer, QgsMapLayer) or type(mapLayer) in [str, unicode]:
+                li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
+
+            assert isinstance(li, MapLayerInfo)
             self.mLayerInfos.insert(i, li)
             i += 1
 
@@ -203,7 +438,7 @@ class MapCanvas(QgsMapCanvas):
 
     from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
-    sigShowProfiles = pyqtSignal(SpatialPoint)
+    sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
@@ -212,10 +447,9 @@ class MapCanvas(QgsMapCanvas):
 
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
-        from timeseriesviewer.mapvisualization import DatumView, MapView, SpatialTemporalVisualization
 
         self.mLayerModel = MapCanvasLayerModel(parent=self)
-
+        self.mTSD = self.mMapView = None
         #the canvas
         self.mRefreshScheduled = False
 
@@ -245,24 +479,11 @@ class MapCanvas(QgsMapCanvas):
         self.mRendererVector = None
 
 
-
-        #self.tsdView = tsdView
-        #self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
-
         self.mWasVisible = False
         self.mMapSummary = self.mapSummary()
 
-        #self.mapView = mapView
-        #self.spatTempVis = mapView.spatTempVis
-        #assert isinstance(self.spatTempVis, SpatialTemporalVisualization)
-        #self.sigSpatialExtentChanged.connect(self.spatTempVis.setSpatialExtent)
-
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
         self.crosshairItem = CrosshairMapCanvasItem(self)
-
-
-
-
 
         self.mMapTools = dict()
         self.mMapTools['zoomOut'] = QgsMapToolZoom(self, True)
@@ -271,11 +492,36 @@ class MapCanvas(QgsMapCanvas):
 
         from timeseriesviewer.maptools import CursorLocationMapTool
         mt = CursorLocationMapTool(self)
-        mt.sigLocationRequest.connect(self.sigShowProfiles.emit)
-        self.mMapTools['identifyProfile'] = mt
+        mt.sigLocationRequest.connect(lambda c: self.sigShowProfiles.emit(c, 'identifyTemporalProfile'))
+        self.mMapTools['identifyTemporalProfile'] = mt
+
+        mt = CursorLocationMapTool(self)
+        mt.sigLocationRequest.connect(lambda c : self.sigShowProfiles.emit(c, 'identifySpectralProfile'))
+        self.mMapTools['identifySpectralProfile'] = mt
+
+        mt = CursorLocationMapTool(self)
+        #mt.sigLocationRequest.connect(self.sigShowProfiles.emit)
+        mt.sigLocationRequest.connect(lambda c: self.sigShowProfiles.emit(c, 'identifyCursorLocationValues'))
+        self.mMapTools['identifyCursorLocationValues'] = mt
+
+
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
+
+
+    def setMapView(self, mapView):
+        from timeseriesviewer.mapvisualization import MapView
+
+        assert isinstance(mapView, MapView)
+        self.mMapView = mapView
+
+    def setTSD(self, tsd):
+        from timeseriesviewer.timeseries import TimeSeriesDatum
+
+        assert isinstance(tsd, TimeSeriesDatum)
+        self.mTSD = tsd
+
 
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
@@ -331,7 +577,6 @@ class MapCanvas(QgsMapCanvas):
     #        self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
 
     def mapSummary(self):
-        from PyQt4.QtXml import QDomDocument
         dom = QDomDocument()
         root = dom.createElement('renderer')
         dom.appendChild(root)
@@ -464,7 +709,7 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         action = menu.addAction('Change crosshair style')
-        from timeseriesviewer.crosshair import CrosshairDialog
+
         action.triggered.connect(lambda : self.setCrosshairStyle(
                 CrosshairDialog.getCrosshairStyle(parent=self,
                                                   mapCanvas=self,
@@ -523,18 +768,28 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
-        from timeseriesviewer.main import QgisTsvBridge
 
         menu.addSeparator()
-        action = menu.addAction('Add raster to QGIS')
-        from PyQt4.QtCore import QThread
 
-        import qgis.utils
-        if qgis.utils is not None:
-            action.triggered.connect(lambda: QgisTsvBridge.addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-        else:
-            action.setEnabled(False)
+        from timeseriesviewer.utils import qgisInstance
+        actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
+        actionAddRaster2QGIS.triggered.connect(lambda :
+            QgsMapLayerRegistry.instance().addMapLayers(
+                [l for l in self.layers() if isinstance(l, QgsRasterLayer)], True
+            )
+        )
+        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+        actionAddVector2QGIS = menu.addAction('Add vector layer to QGIS')
+        actionAddRaster2QGIS.triggered.connect(lambda :
+            QgsMapLayerRegistry.instance().addMapLayers(
+                [l for l in self.layers() if isinstance(l, QgsVectorLayer)], True
+            )
+        )
+        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
 
+        b = isinstance(qgisInstance(), QgisInterface)
+        for a in [actionAddRaster2QGIS, actionAddVector2QGIS]:
+            a.setEnabled(b)
         menu.addSeparator()
 
         action = menu.addAction('Hide date')
@@ -630,8 +885,13 @@ class MapCanvas(QgsMapCanvas):
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
-        path = jp(lastDir, '{}.{}.{}'.format(self.tsdView.TSD.date, self.mapView.title(), fileType.lower()))
-
+        from timeseriesviewer.utils import saveFilePath
+        from timeseriesviewer.mapvisualization import MapView
+        if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
+            path = saveFilePath('{}.{}'.format(self.mTSD.date, self.mMapView.title()))
+        else:
+            path = 'mapcanvas'
+        path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))
         path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
@@ -641,8 +901,8 @@ class MapCanvas(QgsMapCanvas):
     def setRenderer(self, renderer, refresh=True):
 
         success = self.layerModel().setRenderer(renderer)
-        if refresh and any(success):
-            self.refresh()
+        self.setRenderFlag(True)
+        #self.refresh()
 
 
     def setSpatialExtent(self, spatialExtent):
@@ -660,7 +920,7 @@ class MapCanvas(QgsMapCanvas):
     def spatialExtentHint(self):
         crs = self.crs()
         ext = SpatialExtent.world()
-        for lyr in self.mLayerModel + self.layers():
+        for lyr in self.mLayerModel.layers()+ self.layers():
             ext = SpatialExtent.fromLayer(lyr).toCrs(crs)
             break
         return ext
@@ -825,8 +1085,8 @@ if __name__ == '__main__':
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
     lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr', True)
 
-    c.layerModel().addLayerInfo(lyr2, True)
-    c.layerModel().addLayerInfo(lyr1, True)
+    c.layerModel().addLayerInfo(lyr2)
+    c.layerModel().addLayerInfo(lyr1)
 
     for l in c.layerModel().visibleLayers():
         print(l)

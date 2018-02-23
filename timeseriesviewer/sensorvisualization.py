@@ -23,23 +23,20 @@ from __future__ import absolute_import
 import sys, os
 from qgis.core import *
 from PyQt4.QtCore import *
-from timeseriesviewer import *
+from PyQt4.QtGui import *
 
-import numpy as np
-import pyqtgraph as pg
-from timeseriesviewer.ui.widgets import *
+
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
+from timeseriesviewer.ui.docks import loadUI, TsvDockWidgetBase
 
-from timeseriesviewer.ui.docks import loadUi, TsvDockWidgetBase
-
-class SensorDockUI(TsvDockWidgetBase, loadUi('sensordock.ui')):
+class SensorDockUI(TsvDockWidgetBase, loadUI('sensordock.ui')):
     def __init__(self, parent=None):
         super(SensorDockUI, self).__init__(parent)
         self.setupUi(self)
 
         self.TS = None
 
-    def connectTimeSeries(self, timeSeries):
+    def setTimeSeries(self, timeSeries):
         from timeseriesviewer.timeseries import TimeSeries
         from timeseriesviewer.sensorvisualization import SensorTableModel
         assert isinstance(timeSeries, TimeSeries)
@@ -48,6 +45,7 @@ class SensorDockUI(TsvDockWidgetBase, loadUi('sensordock.ui')):
         self.sensorView.setModel(model)
         self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         s = ""
+
 
 
 class SensorTableModel(QAbstractTableModel):
@@ -188,3 +186,102 @@ class SensorTableModel(QAbstractTableModel):
             return col
         return None
 
+
+class SensorListModel(QAbstractListModel):
+
+
+    def __init__(self, TS, parent=None, *args):
+
+        super(SensorListModel, self).__init__()
+        assert isinstance(TS, TimeSeries)
+        self.TS = TS
+        self.TS.sigSensorAdded.connect(self.insertSensor)
+        self.TS.sigSensorRemoved.connect(self.removeSensor)
+
+        self.mSensors = []
+        self.sortColumnIndex = 0
+        self.sortOrder = Qt.AscendingOrder
+        for s in self.TS.Sensors:
+            self.insertSensor(s)
+
+
+
+    def insertSensor(self, sensor, i=None):
+        assert isinstance(sensor, SensorInstrument)
+
+        if i is None:
+            i = len(self.mSensors)
+
+            self.beginInsertRows(QModelIndex(), i, i)
+            self.mSensors.insert(i, sensor)
+            self.endInsertRows()
+
+    def removeSensor(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+        if sensor in self.mSensors:
+            i = self.mSensors.index(sensor)
+            self.beginRemoveRows(QModelIndex(), i, i)
+            self.mSensors.remove(sensor)
+            self.endRemoveRows()
+
+    def sort(self, col, order):
+        if self.rowCount() == 0:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        r = order != Qt.AscendingOrder
+        self.mSensors.sort(key = lambda s:s.name(), reverse=r)
+        self.layoutChanged.emit()
+
+
+    def rowCount(self, parent = QModelIndex()):
+        return len(self.mSensors)
+
+
+    def removeRows(self, row, count , parent=QModelIndex()):
+        self.beginRemoveRows(parent, row, row+count-1)
+        toRemove = self.mSensors[row:row + count]
+        for tsd in toRemove:
+            self.mSensors.remove(tsd)
+        self.endRemoveRows()
+
+    def sensor2idx(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+        return self.createIndex(self.mSensors.index(sensor), 0)
+
+    def idx2sensor(self, index):
+        assert isinstance(index, QModelIndex)
+        if index.isValid():
+            return self.mSensors[index.row()]
+        return None
+
+    def data(self, index, role = Qt.DisplayRole):
+        if role is None or not index.isValid():
+            return None
+
+        value = None
+        sensor = self.idx2sensor(index)
+        assert isinstance(sensor, SensorInstrument)
+
+        if role == Qt.DisplayRole:
+            value = sensor.name()
+        elif role == Qt.UserRole:
+            value = sensor
+        return value
+
+
+    def flags(self, index):
+        if index.isValid():
+            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+            return flags
+            #return item.qt_flags(index.column())
+        return None
+
+    def headerData(self, col, orientation, role):
+        if Qt is None:
+            return None
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.columnames[col]
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            return col
+        return None

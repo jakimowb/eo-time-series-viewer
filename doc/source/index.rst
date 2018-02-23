@@ -3,12 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+======================
 HUB Time Series Viewer
-================================================
+======================
+
+**Welcome to the HUB Time Series Viewer Documentation!**
+
+
 
 About
 -----
-The Humboldt-Universität zu Berlin (HUB) Time Series Viewer is a QGIS Plugin to visualize raster based earth observation time series data.
+
+The Humboldt-Universität zu Berlin (HUB) Time Series Viewer (TSV) is a QGIS Plugin to visualize raster based earth observation time series data.
 
 Its major aims are:
 
@@ -18,35 +24,18 @@ Its major aims are:
 
 .. image:: img/screenshot1.png
 
-..  toctree::
-    :maxdepth: 2
-    :caption: Contents:
-    :local:
-
-
-News
-----
-2018-01-19: Re-written dialog to configure map visualizations ("Map Views"), Vector & Raster layers can be hidden
-
-2017-06-27: `Poster <https://bitbucket.org/jakimowb/hub-timeseriesviewer/downloads/Jakimow.et.al.TimeSeriesViewer.pdf>`_ & demonstration at `Multitemp 2017, Brugges, Belgium <https://multitemp2017.vito.be>`_.
-
-2017-05-21: many changes, done in development branch "develop", e.g. QGIS MapCanvases for interactive maps, temporal profiles and more.
-
-2017-02-14: first setup for test users in the recent development branch qgis_apo
-
-2016-12-02: Work on this project continued. During the last months I focused on the `EnMAP-Box <https://bitbucket.org/hu-geomatics/enmap-box>`_ where I gained a lot of experience in using Qt and QGIS API.
-
 
 
 Features
 --------
 
 * Raster images can be added to the time series without homogenisation of spatial extent or coordinate reference system. Time stamps are extracted automatically from (i) image meta data ("acquisition date"), (ii) the file name or (iii) the file directory path.
-* Raster IO uses the `Geospatial Data Abstraction Library (GDAL) <http://www.gdal.org>`_, which supports up to 142 `raster image formats <http://www.gdal.org/formats_list.html>`_ different raster formats.
+* Raster IO uses the `Geospatial Data Abstraction Library (GDAL) <http://www.gdal.org>`_, which supports up to 142 `different raster formats <http://www.gdal.org/formats_list.html>`_.
 * Distinguished sensors by pixel size and number of bands and, if available, band wavelength information and sensor name.
 * Spatial-temporal ("maps") visualisation allows to show multiples band combinations in parallel, e.g. True Color and coloured infrared.
 * Color stretches are applied to all raster images of same sensor and band combination. This helps to optimise color stretches for multiple images in a minimum of time.
 * Spectral-temporal ("time profile") visualisation shows raw or scaled, sensor specific band values.
+
 
 Missing Features / Outlook
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,7 +46,10 @@ Missing Features / Outlook
 * export spectral libraries
 * show location of selected spectra
 
-Your feedback (wishes, comments, bugs, ...) is always welcome. Add it to the `issue section <https://bitbucket.org/jakimowb/sensecarbontsviewer/issues>`_
+Feedback
+~~~~~~~~
+
+Your feedback (wishes, comments, bugs, ...) is always welcome. Add it to the `issue section <https://bitbucket.org/jakimowb/hub-timeseriesviewer/issues?status=new&status=open>`_
 or send me an email `benjamin.jakimow@geo.hu-berlin.de <benjamin.jakimow@geo.hu-berlin.de>`_.
 
 
@@ -65,7 +57,18 @@ or send me an email `benjamin.jakimow@geo.hu-berlin.de <benjamin.jakimow@geo.hu-
 License and Use
 ---------------
 
-This program is free software; you can redistribute it and/or modify it under the terms of the `GNU General Public License Version 3 (GNU GPL-3) <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ , as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify it under the terms of the `GNU General Public License Version 3 (GNU GPL-3) <https://www.gnu.org/licenses/gpl-3.0.en.html>`_ , as published by the Free Software Foundation. See also :ref:`License`.
+
+
+..  toctree::
+    :maxdepth: 3
+    :caption: Contents:
+
+    news.rst
+    installation.rst
+    User Guide <user_guide.rst>
+    gallery.rst
+    License <LICENSE.md>
 
 
 Indices and tables

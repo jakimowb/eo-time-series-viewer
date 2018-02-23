@@ -28,7 +28,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import numpy as np
 from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.utils import loadUi, SpatialExtent, value2str
+from timeseriesviewer.utils import loadUI, SpatialExtent, value2str
 
 PSUTIL_AVAILABLE = False
 try:
@@ -190,7 +190,8 @@ class DataLoadingModel(QAbstractTableModel):
             self.mLoadingTimes = OrderedDict()
 
         def addTimeDelta(self, name, timedelta):
-            assert isinstance(name, unicode)
+            if type(name) not in [str, unicode]:
+                s = ""
             assert isinstance(timedelta, np.timedelta64)
             #if timedelta.astype(float) > 0:
             #print(timedelta)
@@ -295,7 +296,7 @@ class DataLoadingModel(QAbstractTableModel):
 
 
 
-class SystemInfoDock(QgsDockWidget, loadUi('systeminfo.ui')):
+class SystemInfoDock(QgsDockWidget, loadUI('systeminfo.ui')):
 
 
     def __init__(self, parent=None):

@@ -31,14 +31,14 @@ import numpy as np
 from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUi
-from timeseriesviewer.ui.widgets import TsvMimeDataUtils, maxWidgetSizes
+from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
 
 
-class MapViewUI(QFrame, loadUi('mapviewdefinition.ui')):
+class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
 
     def __init__(self, parent=None):
@@ -110,7 +110,7 @@ class MapView(QObject):
     sigShowCrosshair = pyqtSignal(bool)
     sigVectorLayerChanged = pyqtSignal()
 
-    sigShowProfiles = pyqtSignal(SpatialPoint)
+    sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
     def __init__(self, mapViewCollection, name='Map View', recommended_bands=None, parent=None):
         super(MapView, self).__init__()
@@ -129,7 +129,7 @@ class MapView(QObject):
         )
 
         self.mapViewCollection = mapViewCollection
-        self.sensorViews = collections.OrderedDict()
+        self.mSensorViews = collections.OrderedDict()
 
         self.mVectorLayer = None
         self.setVectorLayer(None)
@@ -155,6 +155,10 @@ class MapView(QObject):
         self.ui.actionToggleVectorVisibility.setChecked(True)
         self.ui.actionToggleRasterVisibility.setChecked(True)
 
+
+        for sensor in self.mapViewCollection.TS.Sensors:
+            self.addSensor(sensor)
+
         self.setTitle(name)
         #forward actions with reference to this band view
     def dummy(self, *args):
@@ -177,7 +181,7 @@ class MapView(QObject):
 
     def mapCanvases(self):
         m = []
-        for sensor, sensorView in self.sensorViews.items():
+        for sensor, sensorView in self.mSensorViews.items():
             m.extend(sensorView.mapCanvases())
         return m
 
@@ -217,13 +221,14 @@ class MapView(QObject):
         self.sigVectorLayerChanged.emit()
 
     def applyStyles(self):
-        for sensorView in self.sensorViews.values():
+        for sensorView in self.mSensorViews.values():
             sensorView.applyStyle()
 
     def setTitle(self, title):
         old = self.title()
         if old != title:
             self.ui.tbName.setText(title)
+
 
     def title(self):
         return self.ui.tbName.text()
@@ -296,27 +301,28 @@ class MapView(QObject):
                 mapCanvas.refresh()
 
     def removeSensor(self, sensor):
-        assert sensor in self.sensorViews.keys()
-        self.sensorViews.pop(sensor)
+        assert sensor in self.mSensorViews.keys()
+        self.mSensorViews.pop(sensor)
         self.ui.removeSensor(sensor)
         return True
 
     def hasSensor(self, sensor):
         assert type(sensor) is SensorInstrument
-        return sensor in self.sensorViews.keys()
+        return sensor in self.mSensorViews.keys()
 
     def registerMapCanvas(self, sensor, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         assert isinstance(sensor, SensorInstrument)
 
-        sensorView = self.sensorViews[sensor]
+        sensorView = self.mSensorViews[sensor]
         assert isinstance(sensorView, MapViewSensorSettings)
         sensorView.registerMapCanvas(mapCanvas)
 
         #register signals sensor specific signals
         mapCanvas.setRenderer(sensorView.rasterLayerRenderer())
         mapCanvas.setRenderer(self.vectorLayerRenderer())
+
 
         #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
@@ -333,29 +339,29 @@ class MapView(QObject):
         :param sensor:
         :return:
         """
-        assert type(sensor) is SensorInstrument
-        assert sensor not in self.sensorViews.keys()
+        if isinstance(sensor, SensorInstrument) and sensor not in self.mSensorViews.keys():
 
-        #w.showSensorName(False)
-        w = self.ui.addSensor(sensor)
-        w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
-        self.sensorViews[sensor] = w
-        s  =""
+            #w.showSensorName(False)
+            w = self.ui.addSensor(sensor)
+            #w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
+            self.mSensorViews[sensor] = w
+            s  =""
 
+    """
     def onSensorRenderingChanged(self, renderer):
         sensorSettings = self.sender()
         assert isinstance(sensorSettings, MapViewSensorSettings)
         for mapCanvas in sensorSettings.mapCanvases():
             mapCanvas.setRenderer(renderer)
             #mapCanvas.refresh()
-
+    """
     def getSensorWidget(self, sensor):
         assert type(sensor) is SensorInstrument
-        return self.sensorViews[sensor]
+        return self.mSensorViews[sensor]
 
 
 
-class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUi('mapviewrendersettings.ui')):
+class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
 
     def __init__(self, parent=None):
         """Constructor."""
@@ -574,7 +580,8 @@ class MapViewSensorSettings(QObject):
         r = self.rasterLayerRenderer()
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.setRenderer(r)
+            mapCanvas.layerModel().setRenderer(r)
+            mapCanvas.refresh()
 
     def onClipboardChange(self):
         utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
@@ -794,7 +801,7 @@ class MapViewSensorSettings(QObject):
 
 
 
-class DatumViewUI(QFrame, loadUi('timeseriesdatumview.ui')):
+class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
     """
     Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
     """
@@ -889,8 +896,8 @@ class DatumView(QObject):
 
         self.TSD = timeSeriesDatum
         self.scrollArea = stv.scrollArea
-        self.Sensor = self.TSD.sensor
-        self.Sensor.sigNameChanged.connect(lambda :self.setColumnInfo())
+        self.mSensor = self.TSD.sensor
+        self.mSensor.sigNameChanged.connect(lambda :self.setColumnInfo())
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
         self.setColumnInfo()
         self.MVC = stv.MVC
@@ -948,10 +955,12 @@ class DatumView(QObject):
         mapCanvas = MapCanvas(self.ui)
         mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
         mapCanvas.blockSignals(True)
+        mapCanvas.setMapView(mapView)
+        mapCanvas.setTSD(self.TSD)
         self.registerMapCanvas(mapView, mapCanvas)
 
         # register MapCanvas on MV level
-        mapView.registerMapCanvas(self.Sensor, mapCanvas)
+        mapView.registerMapCanvas(self.mSensor, mapCanvas)
         # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
 
@@ -960,7 +969,7 @@ class DatumView(QObject):
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
 
         mapCanvas.sigDataLoadingFinished.connect(
-            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.Sensor.name()), dt))
+            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.mSensor.name()), dt))
         mapCanvas.sigDataLoadingFinished.connect(
             lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('All Sensors', dt))
 
@@ -989,10 +998,15 @@ class DatumView(QObject):
         s = ""
 
     def registerMapCanvas(self, mapView, mapCanvas):
+
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
+        assert isinstance(mapView, MapView)
         self.mapCanvases[mapView] = mapCanvas
 
+
+
+        mapView.sigTitleChanged[unicode].connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
         mapCanvas.layerModel().setRasterLayerSources([self.TSD.pathImg])
 
         self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
@@ -1001,8 +1015,9 @@ class DatumView(QObject):
         #register signals handled on (this) DV level
         mapCanvas.renderStarting.connect(lambda: self.sigLoadingStarted.emit(mapView, self.TSD))
         mapCanvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
-        mapCanvas.sigShowProfiles.connect(mapView.sigShowProfiles.emit)
+        mapCanvas.sigShowProfiles.connect(lambda c, t : mapView.sigShowProfiles.emit(c,mapCanvas, t))
         mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
+
 
 
     def onMapCanvasRequest(self, mapCanvas, key):
@@ -1030,7 +1045,7 @@ class SpatialTemporalVisualization(QObject):
     """
     sigLoadingStarted = pyqtSignal(DatumView, MapView)
     sigLoadingFinished = pyqtSignal(DatumView, MapView)
-    sigShowProfiles = pyqtSignal(SpatialPoint)
+    sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
     sigShowMapLayerInfo = pyqtSignal(dict)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigMapSizeChanged = pyqtSignal(QSize)
@@ -1050,6 +1065,9 @@ class SpatialTemporalVisualization(QObject):
         self.mMapCanvases = []
         self.ui = timeSeriesViewer.ui
 
+        #map-tool handling
+        self.mMapToolActivator = None
+        self.mMapTools = []
 
         self.scrollArea = self.ui.scrollAreaSubsets
         assert isinstance(self.scrollArea, MapViewScrollArea)
@@ -1065,7 +1083,7 @@ class SpatialTemporalVisualization(QObject):
 
         self.TSV = timeSeriesViewer
         self.TS = timeSeriesViewer.TS
-        self.ui.dockMapViewsV2.connectTimeSeries(self.TS)
+        self.ui.dockMapViews.setTimeSeries(self.TS)
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
 
 
@@ -1073,7 +1091,7 @@ class SpatialTemporalVisualization(QObject):
         #self.MVC = MapViewCollection(self)
         #self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
-        self.MVC = self.ui.dockMapViewsV2
+        self.MVC = self.ui.dockMapViews
         assert isinstance(self.MVC, MapViewCollectionDock)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
 
@@ -1098,6 +1116,7 @@ class SpatialTemporalVisualization(QObject):
     def registerMapCanvas(self, mapCanvas):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
+
 
         self.mMapCanvases.append(mapCanvas)
 
@@ -1127,11 +1146,6 @@ class SpatialTemporalVisualization(QObject):
         self.MVC.setVectorLayer(lyr)
 
 
-    def activateMapTool(self, key):
-        from timeseriesviewer.mapcanvas import MapCanvas
-        for mapCanvas in self.mMapCanvases:
-            assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.activateMapTool(key)
 
     def setMapSize(self, size):
         assert isinstance(size, QSize)
@@ -1188,6 +1202,29 @@ class SpatialTemporalVisualization(QObject):
 
         self.targetLayout.parentWidget().setFixedSize(QSize(sizeX, sizeY))
 
+    def setMapTool(self, mapToolKey, *args, **kwds):
+        # filter map tools
+        self.mMapToolActivator = self.sender()
+        del self.mMapTools[:]
+
+        from timeseriesviewer.mapcanvas import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
+        for canvas in self.mMapCanvases:
+            mt = None
+            if mapToolKey in MapTools.mapToolKeys():
+                mt = MapTools.create(mapToolKey, canvas, *args, **kwds)
+
+            if isinstance(mapToolKey, QgsMapTool):
+                mt = MapTools.copy(mapToolKey, canvas, *args, **kwds)
+
+            if isinstance(mt, QgsMapTool):
+                canvas.setMapTool(mt)
+                self.mMapTools.append(mt)
+
+                #if required, link map-tool with specific EnMAP-Box slots
+                if isinstance(mt, CursorLocationMapTool):
+                    mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(lambda c, m : self.sigShowProfiles.emit(c,m, mapToolKey))
+
+        return self.mMapTools
 
 
 
@@ -1246,6 +1283,10 @@ class SpatialTemporalVisualization(QObject):
     def setBackgroundColor(self, color):
         assert isinstance(color, QColor)
         self.mColor = color
+        for mapCanvas in self.mMapCanvases:
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.setCanvasColor(color)
+            mapCanvas.refresh()
 
     def backgroundColor(self):
         return self.mColor
@@ -1314,6 +1355,13 @@ class DateViewCollection(QObject):
         self.setFocusView(None)
 
 
+    def tsdFromMapCanvas(self, mapCanvas):
+        assert isinstance(mapCanvas, MapCanvas)
+        for view in self.views:
+            assert isinstance(view, DatumView)
+            if mapCanvas in view.mapCanvases.values():
+                return view.TSD
+        return None
 
     def tsdView(self, tsd):
         r = [v for v in self.views if v.TSD == tsd]
@@ -1335,8 +1383,9 @@ class DateViewCollection(QObject):
         for tsdv in self.views:
             tsdv.ui.setUpdatesEnabled(True)
 
-        mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
+        #mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
         mapView.sigMapViewVisibility.connect(lambda: self.sigResizeRequired.emit())
+        mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
         w.setUpdatesEnabled(True)
 
         self.sigResizeRequired.emit()
@@ -1554,13 +1603,13 @@ class MapViewListModel(QAbstractListModel):
             value = mapView
         return value
 
-class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
+class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
-    sigShowProfiles = pyqtSignal(SpatialPoint)
+    sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
-    def connectTimeSeries(self, timeSeries):
+    def setTimeSeries(self, timeSeries):
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
         self.TS.sigSensorAdded.connect(self.addSensor)
@@ -1641,10 +1690,8 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
             title = 'Map View {}'.format(n)
         mapView.setTitle(title)
 
-        for sensor in self.TS.Sensors:
-            mapView.addSensor(sensor)
 
-
+        mapView.sigShowProfiles.connect(self.sigShowProfiles)
         self.mMapViews.addMapView(mapView)
         self.sigMapViewAdded.emit(mapView)
         return mapView
@@ -1691,7 +1738,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUi('mapviewdock.ui')):
     def addSensor(self, sensor):
         for mapView in self.mMapViews:
             mapView.addSensor(sensor)
-        #self.adjustScrollArea()
+
 
     def removeSensor(self, sensor):
         for mapView in self.mMapViews:
