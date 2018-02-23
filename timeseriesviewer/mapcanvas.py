@@ -19,17 +19,38 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
+
 from __future__ import absolute_import, unicode_literals
 import os, logging
 
 logger = logging.getLogger(__name__)
 
-from qgis.core import *
-from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.core import QGis, \
+    QgsMapLayerRegistry, QgsGeometry, QgsPoint, \
+    QgsCoordinateReferenceSystem, \
+    QgsMapLayer, QgsVectorLayer, QgsRasterLayer, \
+    QgsRasterDataProvider, \
+    QgsField, QgsFields, QgsFeature, \
+    QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
+    QgsRasterRenderer, QgsMultiBandColorRenderer, QgsContrastEnhancement, QgsSingleBandPseudoColorRenderer, \
+    QgsPolygonV2, QgsMultiPolygonV2, QgsFeatureRendererV2, \
+    QgsRasterBandStats
+
+from qgis.gui import QgisInterface, QgsMapCanvas, \
+    QgsMapTool, QgsMapToolZoom, QgsMapToolEmitPoint, QgsMapToolPan, \
+    QgsRubberBand, QgsMapCanvasLayer, QgsGeometryRubberBand, \
+    QgsProjectionSelectionWidget, QgsVertexMarker
+
+from PyQt4.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
+from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
+
+from PyQt4.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
+from PyQt4.QtXml import QDomDocument
+
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
+from timeseriesviewer.timeseries import TimeSeriesDatum
+from timeseriesviewer.crosshair import CrosshairDialog
 
 
 class MapTools(object):
@@ -374,7 +395,6 @@ class MapCanvasLayerModel(QAbstractTableModel):
             if isinstance(mapLayer, QgsMapLayer) or type(mapLayer) in [str, unicode]:
                 li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
 
-
             assert isinstance(li, MapLayerInfo)
             self.mLayerInfos.insert(i, li)
             i += 1
@@ -427,10 +447,9 @@ class MapCanvas(QgsMapCanvas):
 
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
-        from timeseriesviewer.mapvisualization import DatumView, MapView, SpatialTemporalVisualization
 
         self.mLayerModel = MapCanvasLayerModel(parent=self)
-
+        self.mTSD = self.mMapView = None
         #the canvas
         self.mRefreshScheduled = False
 
@@ -460,24 +479,11 @@ class MapCanvas(QgsMapCanvas):
         self.mRendererVector = None
 
 
-
-        #self.tsdView = tsdView
-        #self.referenceLayer = QgsRasterLayer(self.tsdView.timeSeriesDatum.pathImg)
-
         self.mWasVisible = False
         self.mMapSummary = self.mapSummary()
-        self.mSaveFileName = ''
-        #self.mapView = mapView
-        #self.spatTempVis = mapView.spatTempVis
-        #assert isinstance(self.spatTempVis, SpatialTemporalVisualization)
-        #self.sigSpatialExtentChanged.connect(self.spatTempVis.setSpatialExtent)
 
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
         self.crosshairItem = CrosshairMapCanvasItem(self)
-
-
-
-
 
         self.mMapTools = dict()
         self.mMapTools['zoomOut'] = QgsMapToolZoom(self, True)
@@ -503,11 +509,19 @@ class MapCanvas(QgsMapCanvas):
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
 
-    def setSaveFileName(self, name):
-        self.mSaveFileName = name
 
-    def saveFileName(self):
-        return self.mSaveFileName
+    def setMapView(self, mapView):
+        from timeseriesviewer.mapvisualization import MapView
+
+        assert isinstance(mapView, MapView)
+        self.mMapView = mapView
+
+    def setTSD(self, tsd):
+        from timeseriesviewer.timeseries import TimeSeriesDatum
+
+        assert isinstance(tsd, TimeSeriesDatum)
+        self.mTSD = tsd
+
 
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
@@ -563,7 +577,6 @@ class MapCanvas(QgsMapCanvas):
     #        self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
 
     def mapSummary(self):
-        from PyQt4.QtXml import QDomDocument
         dom = QDomDocument()
         root = dom.createElement('renderer')
         dom.appendChild(root)
@@ -696,7 +709,7 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         action = menu.addAction('Change crosshair style')
-        from timeseriesviewer.crosshair import CrosshairDialog
+
         action.triggered.connect(lambda : self.setCrosshairStyle(
                 CrosshairDialog.getCrosshairStyle(parent=self,
                                                   mapCanvas=self,
@@ -758,18 +771,25 @@ class MapCanvas(QgsMapCanvas):
 
         menu.addSeparator()
 
-        import qgis.utils
-        if isinstance(qgis.utils.iface, QgisInterface):
-            from timeseriesviewer.main import TimeSeriesViewer
-            if qgis.utils.iface != TimeSeriesViewer.instance():
+        from timeseriesviewer.utils import qgisInstance
+        actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
+        actionAddRaster2QGIS.triggered.connect(lambda :
+            QgsMapLayerRegistry.instance().addMapLayers(
+                [l for l in self.layers() if isinstance(l, QgsRasterLayer)], True
+            )
+        )
+        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+        actionAddVector2QGIS = menu.addAction('Add vector layer to QGIS')
+        actionAddRaster2QGIS.triggered.connect(lambda :
+            QgsMapLayerRegistry.instance().addMapLayers(
+                [l for l in self.layers() if isinstance(l, QgsVectorLayer)], True
+            )
+        )
+        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
 
-            #action = menu.addAction('Add raster layers(s) to QGIS')
-            #action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-            #action = menu.addAction('Add vector layer to QGIS')
-            #action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
-
-        else:
-            action.setEnabled(False)
+        b = isinstance(qgisInstance(), QgisInterface)
+        for a in [actionAddRaster2QGIS, actionAddVector2QGIS]:
+            a.setEnabled(b)
         menu.addSeparator()
 
         action = menu.addAction('Hide date')
@@ -865,8 +885,13 @@ class MapCanvas(QgsMapCanvas):
 
     def saveMapImageDialog(self, fileType):
         lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
-
-        path = jp(lastDir, '{}.{}'.format(self.saveFileName(), fileType.lower()))
+        from timeseriesviewer.utils import saveFilePath
+        from timeseriesviewer.mapvisualization import MapView
+        if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
+            path = saveFilePath('{}.{}'.format(self.mTSD.date, self.mMapView.title()))
+        else:
+            path = 'mapcanvas'
+        path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))
         path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
@@ -1060,8 +1085,8 @@ if __name__ == '__main__':
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
     lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr', True)
 
-    c.layerModel().addLayerInfo(MapLayerInfo(lyr2, True))
-    c.layerModel().addLayerInfo(MapLayerInfo(lyr1, True))
+    c.layerModel().addLayerInfo(lyr2)
+    c.layerModel().addLayerInfo(lyr1)
 
     for l in c.layerModel().visibleLayers():
         print(l)

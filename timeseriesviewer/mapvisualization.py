@@ -955,7 +955,8 @@ class DatumView(QObject):
         mapCanvas = MapCanvas(self.ui)
         mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
         mapCanvas.blockSignals(True)
-
+        mapCanvas.setMapView(mapView)
+        mapCanvas.setTSD(self.TSD)
         self.registerMapCanvas(mapView, mapCanvas)
 
         # register MapCanvas on MV level
