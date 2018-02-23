@@ -1,4 +1,6 @@
-
+2018-02-11
+    merged updates to temporal profile visualization, e.g.
+     save temporal profiles, compare 2D profiles between different location, experimental 3D visualization
 
 2018-01-31
     added file filters for OpenFileDialog

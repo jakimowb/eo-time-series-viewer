@@ -22,16 +22,7 @@
     <property name="spacing">
      <number>2</number>
     </property>
-    <property name="leftMargin">
-     <number>2</number>
-    </property>
-    <property name="topMargin">
-     <number>2</number>
-    </property>
-    <property name="rightMargin">
-     <number>2</number>
-    </property>
-    <property name="bottomMargin">
+    <property name="margin">
      <number>2</number>
     </property>
     <item>
@@ -51,6 +42,9 @@
          <iconset resource="resources.qrc">
           <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
         </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
@@ -65,10 +59,13 @@
          <iconset resource="resources.qrc">
           <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
         </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
       <item>
-       <widget class="QgsProjectionSelectionWidget" name="btnCrs" native="true">
+       <widget class="QgsProjectionSelectionWidget" name="btnCrs">
         <property name="maximumSize">
          <size>
           <width>22</width>
@@ -87,6 +84,9 @@
         </property>
         <property name="toolTip">
          <string/>
+        </property>
+        <property name="frame">
+         <bool>true</bool>
         </property>
         <item>
          <property name="text">
@@ -115,16 +115,7 @@
       <property name="spacing">
        <number>2</number>
       </property>
-      <property name="leftMargin">
-       <number>2</number>
-      </property>
-      <property name="topMargin">
-       <number>2</number>
-      </property>
-      <property name="rightMargin">
-       <number>2</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>2</number>
       </property>
       <item>
@@ -182,16 +173,7 @@
       <property name="spacing">
        <number>2</number>
       </property>
-      <property name="leftMargin">
-       <number>2</number>
-      </property>
-      <property name="topMargin">
-       <number>2</number>
-      </property>
-      <property name="rightMargin">
-       <number>2</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>2</number>
       </property>
       <item>

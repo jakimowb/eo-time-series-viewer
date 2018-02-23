@@ -1618,6 +1618,8 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     def __init__(self, parent=None):
         super(MapViewCollectionDock, self).__init__(parent)
         self.setupUi(self)
+
+        self.mMapViews = MapViewListModel()
         self.baseTitle = self.windowTitle()
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
@@ -1625,11 +1627,13 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.btnRefresh.setDefaultAction(self.actionApplyStyles)
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
 
+
         self.actionAddMapView.triggered.connect(self.createMapView)
-        self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()))
-        self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True))
-        self.actionApplyStyles.triggered.connect(lambda : self.currentMapView().refreshMapView())
-        self.mMapViews = MapViewListModel()
+        self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
+        self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True) if self.currentMapView() else None)
+        self.actionApplyStyles.triggered.connect(self.refreshCurrentMapView)
+        #self.actionApplyStyles.triggered.connect(self.dummySlot)
+
         self.mMapViews.sigMapViewsRemoved.connect(self.onMapViewsRemoved)
         self.mMapViews.sigMapViewsAdded.connect(self.onMapViewsAdded)
         self.mMapViews.sigMapViewsAdded.connect(self.updateButtons)
@@ -1638,6 +1642,16 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i < 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
 
         self.TS = None
+
+
+    def refreshCurrentMapView(self, *args):
+        mv = self.currentMapView()
+        if isinstance(mv, MapView):
+            mv.refreshMapView()
+        else:
+            s  =""
+    def dummySlot(self):
+        s  =""
 
     def onMapViewsRemoved(self, mapViews):
 
@@ -1701,18 +1715,18 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.btnToggleMapViewVisibility.setChecked(mapView)
 
     def removeMapView(self, mapView):
-        assert isinstance(mapView, MapView)
-        assert mapView in self.mMapViews
+        if isinstance(mapView, MapView):
+            assert mapView in self.mMapViews
 
-        i = self.mMapViews.mapView2idx(mapView)
-        if not i == self.stackedWidget.indexOf(mapView.ui):
-            s = ""
+            i = self.mMapViews.mapView2idx(mapView)
+            if not i == self.stackedWidget.indexOf(mapView.ui):
+                s = ""
 
-        self.mMapViews.removeMapView(mapView)
+            self.mMapViews.removeMapView(mapView)
 
-        mapView.ui.close()
+            mapView.ui.close()
 
-        self.sigMapViewRemoved.emit(mapView)
+            self.sigMapViewRemoved.emit(mapView)
 
     def __len__(self):
         return len(self.mMapViews)
@@ -1770,11 +1784,14 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
 
     def currentMapView(self):
-        if len(self.mMapViews) == None:
+        if len(self.mMapViews) == 0:
             return None
         else:
             i = self.cbMapView.currentIndex()
-            return self.mMapViews.idx2MapView(i)
+            if i >= 0:
+                return self.mMapViews.idx2MapView(i)
+            else:
+                return None
 
 
 """
