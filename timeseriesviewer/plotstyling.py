@@ -29,56 +29,78 @@ from PyQt4.QtGui import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
-
+from timeseriesviewer.models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
 import pyqtgraph as pg
 
 
-MARKERSYMBOLS = [('o', u'Circle'),
-                 ('t',u'Triangle Down'),
-                 ('t1',u'Triangle Up'),
-                 ('t2',u'Triangle Right'),
-                 ('t3', u'Triangle Left'),
-                 ('p',u'Pentagon'),
-                 ('h', u'Hexagon'),
-                 ('s',u'Star'),
-                 ('+',u'Plus'),
-                 ('d',u'Diamond'),
-                 (None, u'No Symbol')
+MARKERSYMBOLS = [Option('o', u'Circle'),
+                 Option('t',u'Triangle Down'),
+                 Option('t1',u'Triangle Up'),
+                 Option('t2',u'Triangle Right'),
+                 Option('t3', u'Triangle Left'),
+                 Option('p',u'Pentagon'),
+                 Option('h', u'Hexagon'),
+                 Option('s',u'Star'),
+                 Option('+',u'Plus'),
+                 Option('d',u'Diamond'),
+                 Option(None, u'No Symbol')
                  ]
 
-PENSTYLES = [(Qt.SolidLine, '___'),
-             (Qt.DashLine, '_ _ _'),
-             (Qt.DotLine, '. . .'),
-             (Qt.DashDotLine, '_ .'),
-             (Qt.DashDotDotLine, '_ . .'),
-             (Qt.NoPen, 'No Pen')]
+PENSTYLES = [Option(Qt.SolidLine, '___'),
+             Option(Qt.DashLine, '_ _ _'),
+             Option(Qt.DotLine, '. . .'),
+             Option(Qt.DashDotLine, '_ .'),
+             Option(Qt.DashDotDotLine, '_ . .'),
+             Option(Qt.NoPen, 'No Pen')]
 
 
 
 class PlotStyle(QObject):
+    sigUpdated = pyqtSignal()
     def __init__(self, **kwds):
         plotStyle = kwds.get('plotStyle')
         if plotStyle: kwds.pop('plotStyle')
         super(PlotStyle,self).__init__(**kwds)
 
+        self.markerSymbol = MARKERSYMBOLS[0].mValue
+        self.markerSize = 10
+        self.markerBrush = QBrush()
+        self.markerBrush.setColor(Qt.green)
+        self.markerBrush.setStyle(Qt.SolidPattern)
+
+        self.backgroundColor = Qt.black
+
+        self.markerPen = QPen()
+        self.markerPen.setStyle(Qt.SolidLine)
+        self.markerPen.setColor(Qt.white)
+
+        self.linePen = QPen()
+        self.linePen.setStyle(Qt.NoPen)
+        self.linePen.setColor(QColor(74, 75, 75))
+
+        self.mIsVisible = True
+
         if plotStyle:
             self.copyFrom(plotStyle)
-        else:
-            self.markerSymbol = MARKERSYMBOLS[0][0]
-            self.markerSize = 10
-            self.markerBrush = QBrush()
-            self.markerBrush.setColor(Qt.green)
-            self.markerBrush.setStyle(Qt.SolidPattern)
 
-            self.backgroundColor = Qt.black
 
-            self.markerPen = QPen()
-            self.markerPen.setStyle(Qt.SolidLine)
-            self.markerPen.setColor(Qt.white)
 
-            self.linePen = QPen()
-            self.linePen.setStyle(Qt.NoPen)
-            self.linePen.setColor(QColor(74,75,75))
+
+    def setVisibility(self, b):
+        assert isinstance(b, bool)
+        old = self.mIsVisible
+        self.mIsVisible = b
+
+        if b != old:
+            self.update()
+
+
+    def update(self):
+        self.sigUpdated.emit()
+
+
+    def isVisible(self):
+        return self.mIsVisible
 
     def copyFrom(self, plotStyle):
         assert isinstance(plotStyle, PlotStyle)
@@ -89,7 +111,9 @@ class PlotStyle(QObject):
         self.markerSize = plotStyle.markerSize
         self.backgroundColor = QColor(plotStyle.backgroundColor)
         self.linePen = QPen(plotStyle.linePen)
-        s = ""
+
+        self.setVisibility(plotStyle.isVisible())
+
     def createIcon(self, size=None):
 
         if size is None:
@@ -147,7 +171,7 @@ class PlotStyle(QObject):
 
         self.__dict__.update(state)
 
-class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
+class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
     def __init__(self, title='<#>', parent=None):
@@ -171,11 +195,11 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
         self.legend.setParentItem(self.plotDataItem.topLevelItem())   # Note we do NOT call plt.addItem in this case
         self.legend.hide()
 
-        for t in MARKERSYMBOLS:
-            self.cbMarkerSymbol.addItem(t[1], t[0])
-        for t in PENSTYLES:
-            self.cbMarkerPenStyle.addItem(t[1], t[0])
-            self.cbLinePenStyle.addItem(t[1], t[0])
+        self.mMarkerSymbolModel = OptionListModel(options=MARKERSYMBOLS)
+        self.cbMarkerSymbol.setModel(self.mMarkerSymbolModel)
+        self.mPenAndLineStyleModel = OptionListModel(options=PENSTYLES)
+        self.cbMarkerPenStyle.setModel(self.mPenAndLineStyleModel)
+        self.cbLinePenStyle.setModel(self.mPenAndLineStyleModel)
 
         #connect signals
         self.btnMarkerBrushColor.colorChanged.connect(self.refreshPreview)
@@ -228,8 +252,8 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
 
         self.mBlockUpdates = True
         self.sbMarkerSize.setValue(style.markerSize)
-        self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
-
+        #self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
+        setCurrentComboBoxValue(self.cbMarkerSymbol, style.markerSymbol)
 
         assert isinstance(style.markerPen, QPen)
         assert isinstance(style.markerBrush, QBrush)
@@ -237,13 +261,14 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
 
 
         self.btnMarkerPenColor.setColor(style.markerPen.color())
-        self._setComboBoxToValue(self.cbMarkerPenStyle, style.markerPen.style())
+        #self._setComboBoxToValue(self.cbMarkerPenStyle, style.markerPen.style())
+        setCurrentComboBoxValue(self.cbMarkerPenStyle, style.markerPen.style())
         self.sbMarkerPenWidth.setValue(style.markerPen.width())
         self.btnMarkerBrushColor.setColor(style.markerBrush.color())
 
         self.btnLinePenColor.setColor(style.linePen.color())
-        self._setComboBoxToValue(self.cbLinePenStyle, style.linePen.style())
-
+        #self._setComboBoxToValue(self.cbLinePenStyle, style.linePen.style())
+        setCurrentComboBoxValue(self.cbLinePenStyle, style.linePen.style())
         self.sbLinePenWidth.setValue(style.linePen.width())
 
         self.mBlockUpdates = False
@@ -260,7 +285,7 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
         style = PlotStyle()
         #read plotstyle values from widgets
         style.markerSize = self.sbMarkerSize.value()
-        symbol = self.cbMarkerSymbol.itemData(self.cbMarkerSymbol.currentIndex())
+        symbol = currentComboBoxValue(self.cbMarkerSymbol).mValue
         if isinstance(symbol, unicode):
             symbol = str(symbol)
         style.markerSymbol = symbol
@@ -270,7 +295,7 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
 
         style.markerPen = pg.mkPen(color=self.btnMarkerPenColor.color(),
                                    width=self.sbMarkerPenWidth.value(),
-                                   style=self.cbMarkerPenStyle.itemData(self.cbMarkerPenStyle.currentIndex()))
+                                   style=currentComboBoxValue(self.cbMarkerPenStyle).mValue)
 
 
         style.markerBrush.setColor(self.btnMarkerBrushColor.color())
@@ -278,7 +303,7 @@ class PlotStyleWidget(QWidget, loadUi('plotstylewidget.ui')):
 
         style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
                                  width=self.sbLinePenWidth.value(),
-                                 style=self.cbLinePenStyle.itemData(self.cbLinePenStyle.currentIndex()))
+                                 style=currentComboBoxValue(self.cbLinePenStyle).mValue)
 
         return style
 
@@ -288,8 +313,8 @@ class PlotStyleButton(QPushButton):
 
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
-    def __init__(self, *args):
-        super(PlotStyleButton, self).__init__(*args)
+    def __init__(self, *args, **kwds):
+        super(PlotStyleButton, self).__init__(*args, **kwds)
         self.mPlotStyle = PlotStyle()
         self.mInitialButtonSize = None
         self.setStyleSheet('* { padding: 0px; }')
@@ -387,8 +412,8 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
 
     import pickle
     s1 = PlotStyle()

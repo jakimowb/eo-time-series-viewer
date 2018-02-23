@@ -20,6 +20,9 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
+import os, sys, fnmatch, site, re, site
+
+
 VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
 TITLE = 'HUB TimeSeriesViewer'
@@ -31,43 +34,18 @@ The HUB TimeSeriesViewer is developed at Humboldt-Universität zu Berlin. Born i
 """
 DEBUG = True
 
-import os, sys, fnmatch, site, re
-import six, logging
+DEPENDENCIES = ['pyqtgraph']
+
+
 from qgis.core import *
 from qgis.gui import *
-
-logger = logging.getLogger(__name__)
 
 from PyQt4.QtCore import QSettings
 from PyQt4.QtGui import QIcon
 
-
-
-
-
-#initiate loggers for all pyfiles
-import pkgutil
-DIR = os.path.dirname(__file__)
-names = []
-for m, name, ispkg in pkgutil.walk_packages(path=__file__, prefix='timeseriesviewer.'):
-    if name not in names:
-        names.append(name)
-
-for name in names:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    fh = logging.StreamHandler()
-    fh_formatter = logging.Formatter('%(levelname)s %(lineno)d:%(filename)s%(module)s %(funcName)s \n\t%(message)s')
-    fh.setFormatter(fh_formatter)
-    fh.addFilter(logging.Filter(name))
-    logger.addHandler(fh)
-
-
 jp = os.path.join
 dn = os.path.dirname
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
-
-
 
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
@@ -78,20 +56,11 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
-
-
-import site
-site.addsitedir(DIR_SITE_PACKAGES)
-
-
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 
-#print('BASE INIT SITE-packages')
-site.addsitedir(DIR_SITE_PACKAGES)
-import timeseriesviewer.ui.resources
-timeseriesviewer.ui.resources.qInitResources()
 
+site.addsitedir(DIR_SITE_PACKAGES)
 OPENGL_AVAILABLE = False
 
 try:
@@ -99,6 +68,21 @@ try:
     OPENGL_AVAILABLE = True
 except:
     pass
+
+def messageLog(msg, level=None):
+    """
+    Writes a log message to the QGIS HUB TimeSeriesViewer log
+    :param msg: log message string
+    :param level: QgsMessageLog::MessageLevel with MessageLevel =[INFO |  ALL | WARNING | CRITICAL | NONE]
+    """
+    from qgis.core import QgsMessageLog
+    if level is None:
+        level = QgsMessageLog.WARNING
+    QgsMessageLog.instance().logMessage(msg, 'HUB TSV', level)
+
+
+import timeseriesviewer.ui.resources
+timeseriesviewer.ui.resources.qInitResources()
 
 
 def initSettings():
@@ -114,7 +98,6 @@ initSettings()
 
 def icon():
     return QIcon(':/timeseriesviewer/icons/IconTimeSeries.svg')
-
 
 
 def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
@@ -142,7 +125,6 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
 
 
 
-
 def getFileAndAttributes(file):
     """
     splits a GDAL valid file path into
@@ -153,3 +135,5 @@ def getFileAndAttributes(file):
     bn = os.path.basename(file)
     bnSplit = bn.split(':')
     return os.path.join(dn,bnSplit[0]), ':'.join(bnSplit[1:])
+
+

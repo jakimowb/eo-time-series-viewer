@@ -1,6 +1,15 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mIconTemporalProfile2D.svg</file>
+    <file>icons/mIconTemporalProfile3D.svg</file>
+    <file>icons/add_class.svg</file>
+    <file>icons/mIconTemporalProfile.svg</file>
     <file>icons/ActionIdentifyTimeSeries.svg</file>
+    <file>icons/remove_class.svg</file>
+    <file>icons/speclib_add.svg</file>
+    <file>icons/speclib_save.svg</file>
+    <file>icons/speclib.svg</file>
+    <file>icons/spectralprofile.svg</file>
     <file>icons/CRS.svg</file>
     <file>icons/IconTimeSeries.svg</file>
     <file>icons/copyright_label.svg</file>

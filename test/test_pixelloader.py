@@ -74,15 +74,15 @@ class PixelLoaderTest(unittest.TestCase):
         result = loadProfiles([(img1, None)],42,23,ptUL,resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_FINISHED)
         qresult = resultQueue.get()
-        self.assertIsInstance(qresult, PixelLoaderResult)
-        self.assertEqual(qresult.source, img1)
-        self.assertIsInstance(qresult.pxData, np.ndarray)
+        self.assertIsInstance(qresult, PixelLoaderTask)
+        self.assertEqual(qresult.sourcePath, img1)
+        self.assertIsInstance(qresult.resProfiles, np.ndarray)
         pxIndices = qresult.imagePixelIndices()
         self.assertIsInstance(pxIndices, tuple)
         self.assertIsInstance(pxIndices[0], np.ndarray)
         self.assertEqual(pxIndices[0][0], 0)
         self.assertEqual(pxIndices[1][0], 0)
-        self.assertTrue(np.array_equal(qresult.pxData, self.img1ProfileUL))
+        self.assertTrue(np.array_equal(qresult.resProfiles, self.img1ProfileUL))
 
         #test lower-left coordinate
         result = loadProfiles([(img1, None)], 42, 23, ptLR, resultQueue, cancelationEvent)
@@ -97,8 +97,8 @@ class PixelLoaderTest(unittest.TestCase):
         result = loadProfiles([(img1, None)], 42, 23, ptOutOfImage, resultQueue, cancelationEvent)
         self.assertEqual(result, LOADING_FINISHED)
         qresult = resultQueue.get()
-        self.assertIsInstance(qresult, PixelLoaderResult)
-        self.assertTrue(qresult.pxData is None)
+        self.assertIsInstance(qresult, PixelLoaderTask)
+        self.assertTrue(qresult.resProfiles is None)
         self.assertEqual(result, LOADING_FINISHED)
 
 

@@ -363,7 +363,7 @@ def nicePredecessor(l):
         return 0.0
 
 
-class CrosshairWidget(QWidget, loadUi('crosshairwidget.ui')):
+class CrosshairWidget(QWidget, loadUI('crosshairwidget.ui')):
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, title='<#>', parent=None):
@@ -503,7 +503,7 @@ class CrosshairDialog(QgsDialog):
         canvas.setCenter(mapCanvas.center())
         canvas.setCanvasColor(mapCanvas.canvasColor())
         canvas.refresh()
-        canvas.updateMap()
+        #canvas.updateMap()
         canvas.refreshAllLayers()
 
 if __name__ == '__main__':
