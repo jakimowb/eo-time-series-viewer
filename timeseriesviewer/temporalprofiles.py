@@ -28,7 +28,7 @@ from qgis.core import QgsCoordinateReferenceSystem, \
     QgsField, QgsFields, QgsFeature, \
     QgsExpression, QgsExpressionContext, QgsExpressionContextScope
 
-from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate
+from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate, QPoint, QPointF
 from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
 from PyQt4.QtXml import *
 from PyQt4.QtGui import *
@@ -42,7 +42,8 @@ from timeseriesviewer.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint
 
-
+LABEL_DN = 'DN or Index'
+LABEL_TIME = 'Date'
 DEBUG = False
 
 def qgsFieldFromKeyValue(fieldName, value):
@@ -216,6 +217,233 @@ def bandKey2bandIndex(key):
     assert match
     idx = int(match.group()[1:]) - 1
     return idx
+
+
+
+class DateTimePlotWidget(pg.PlotWidget):
+    """
+    Subclass of PlotWidget
+    """
+    def __init__(self, parent=None):
+        """
+        Constructor of the widget
+        """
+        super(DateTimePlotWidget, self).__init__(parent)
+        self.plotItem = pg.PlotItem(
+            axisItems={'bottom':DateTimeAxis(orientation='bottom')}
+            ,viewBox=DateTimeViewBox()
+        )
+        self.setCentralItem(self.plotItem)
+        #self.xAxisInitialized = False
+
+        pi = self.getPlotItem()
+        pi.getAxis('bottom').setLabel(LABEL_TIME)
+        pi.getAxis('left').setLabel(LABEL_DN)
+
+        self.mInfoColor = QColor('yellow')
+        self.mCrosshairLineV = pg.InfiniteLine(angle=90, movable=False)
+        self.mCrosshairLineH = pg.InfiniteLine(angle=0, movable=False)
+        self.mInfoLabelCursor = pg.TextItem(text='<cursor position>', anchor=(1.0, 0.0))
+        self.mInfoLabelCursor.setColor(QColor('yellow'))
+
+        self.scene().addItem(self.mInfoLabelCursor)
+        self.mInfoLabelCursor.setParentItem(self.getPlotItem())
+        #self.plot2DLabel.setAnchor()
+        #self.plot2DLabel.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 0))
+        pi.addItem(self.mCrosshairLineV, ignoreBounds=True)
+        pi.addItem(self.mCrosshairLineH, ignoreBounds=True)
+
+        self.proxy2D = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
+
+
+    def onMouseMoved2D(self, evt):
+        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
+
+        plotItem = self.getPlotItem()
+        if plotItem.sceneBoundingRect().contains(pos):
+            mousePoint = plotItem.vb.mapSceneToView(pos)
+            x = mousePoint.x()
+            y = mousePoint.y()
+            date = num2date(x)
+
+            plotItem.vb.updateCurrentDate(num2date(x, dt64=True))
+            self.mInfoLabelCursor.setText('x {}\ny {:0.2f}'.format(
+                                          date, mousePoint.y()),
+                                          color=self.mInfoColor)
+
+            s = self.size()
+            pos = QPointF(s.width(), 0)
+            self.mInfoLabelCursor.setPos(pos)
+            self.mCrosshairLineH.pen.setColor(self.mInfoColor)
+            self.mCrosshairLineV.pen.setColor(self.mInfoColor)
+            self.mCrosshairLineV.setPos(mousePoint.x())
+            self.mCrosshairLineH.setPos(mousePoint.y())
+
+
+class DateTimeAxis(pg.AxisItem):
+
+    def __init__(self, *args, **kwds):
+        super(DateTimeAxis, self).__init__(*args, **kwds)
+        self.setRange(1,3000)
+        self.enableAutoSIPrefix(False)
+        self.labelAngle = 0
+
+    def logTickStrings(self, values, scale, spacing):
+        s = ""
+
+
+    def tickStrings(self, values, scale, spacing):
+        strns = []
+
+        if len(values) == 0:
+            return []
+        #assert isinstance(values[0],
+
+        values = [num2date(v) if v > 0 else num2date(1) for v in values]
+        rng = max(values)-min(values)
+        ndays = rng.astype(int)
+
+        strns = []
+
+        for v in values:
+            if ndays == 0:
+                strns.append(v.astype(str))
+            else:
+                strns.append(v.astype(str))
+
+        return strns
+
+    def tickValues(self, minVal, maxVal, size):
+        d = super(DateTimeAxis, self).tickValues(minVal, maxVal, size)
+
+        return d
+
+
+    def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
+
+
+        p.setRenderHint(p.Antialiasing, False)
+        p.setRenderHint(p.TextAntialiasing, True)
+
+        ## draw long line along axis
+        pen, p1, p2 = axisSpec
+        p.setPen(pen)
+        p.drawLine(p1, p2)
+        p.translate(0.5, 0)  ## resolves some damn pixel ambiguity
+
+        ## draw ticks
+        for pen, p1, p2 in tickSpecs:
+            p.setPen(pen)
+            p.drawLine(p1, p2)
+
+
+        ## Draw all text
+        if self.tickFont is not None:
+            p.setFont(self.tickFont)
+        p.setPen(self.pen())
+
+        #for rect, flags, text in textSpecs:
+        #    p.drawText(rect, flags, text)
+        #    # p.drawRect(rect)
+
+        #see https://github.com/pyqtgraph/pyqtgraph/issues/322
+        for rect, flags, text in textSpecs:
+            p.save()  # save the painter state
+            p.translate(rect.center())   # move coordinate system to center of text rect
+            p.rotate(self.labelAngle)  # rotate text
+            p.translate(-rect.center())  # revert coordinate system
+            p.drawText(rect, flags, text)
+            p.restore()  # restore the painter state
+
+
+
+class DateTimeViewBox(pg.ViewBox):
+    """
+    Subclass of ViewBox
+    """
+    sigMoveToDate = pyqtSignal(np.datetime64)
+    def __init__(self, parent=None):
+        """
+        Constructor of the CustomViewBox
+        """
+        super(DateTimeViewBox, self).__init__(parent)
+        #self.menu = None # Override pyqtgraph ViewBoxMenu
+        #self.menu = self.getMenu() # Create the menu
+        #self.menu = None
+        self.mCurrentDate = np.datetime64('today')
+
+        xAction = [a for a in self.menu.actions() if a.text() == 'X Axis'][0]
+        yAction = [a for a in self.menu.actions() if a.text() == 'Y Axis'][0]
+
+        menuXAxis = self.menu.addMenu('X Axis')
+        #define the widget to set X-Axis options
+        frame = QFrame()
+        l = QGridLayout()
+        frame.setLayout(l)
+        #l.addWidget(self, QWidget, int, int, alignment: Qt.Alignment = 0): not enough arguments
+        self.rbXAutoRange = QRadioButton('Auto Range')
+        self.rbXAutoRange.setChecked(True)
+        self.rbXAutoRange.clicked.connect(self.updateXRange)
+        self.rbXManualRange = QRadioButton('Manual Range')
+        self.dateEditX0 = QDateEdit()
+        self.dateEditX0.setDisplayFormat('yyyy-MM-dd')
+        self.dateEditX0.setToolTip('Start time')
+        self.dateEditX0.setCalendarPopup(True)
+        self.dateEditX0.dateChanged.connect(self.updateXRange)
+        self.dateEditX1 = QDateEdit()
+        self.dateEditX1.setDisplayFormat('yyyy-MM-dd')
+        self.dateEditX0.setToolTip('End time')
+        self.dateEditX1.setCalendarPopup(True)
+        self.dateEditX1.dateChanged.connect(self.updateXRange)
+        l.addWidget(self.rbXAutoRange,0,0,0,2)
+        l.addWidget(self.rbXManualRange, 1,0,1,2)
+        l.addWidget(self.dateEditX0, 2,1,1,1)
+        l.addWidget(self.dateEditX1, 3,1,1,1)
+
+        l.setMargin(1)
+        l.setSpacing(1)
+        frame.setMinimumSize(l.sizeHint())
+        wa = QWidgetAction(menuXAxis)
+        wa.setDefaultWidget(frame)
+        menuXAxis.addAction(wa)
+
+        self.menu.insertMenu(xAction, menuXAxis)
+        self.menu.removeAction(xAction)
+
+        self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
+        self.mActionMoveToDate.triggered.connect(lambda : self.sigMoveToDate.emit(self.mCurrentDate))
+
+    def updateXRange(self, *args):
+        isAutoRange = self.rbXAutoRange.isChecked()
+        self.enableAutoRange('x', isAutoRange)
+        if not isAutoRange:
+            self.setXRange(date2num(self.dateEditX0.date()),
+                           date2num(self.dateEditX1.date())
+                           )
+
+    def updateCurrentDate(self, date):
+        if isinstance(date, np.datetime64):
+            self.mCurrentDate = date
+            self.mActionMoveToDate.setData(date)
+            self.mActionMoveToDate.setText('Move maps to {}'.format(date))
+
+        xRange, yRange = self.viewRange()
+
+        t0 = num2date(xRange[0], qDate=True)
+        t1 = num2date(xRange[1], qDate=True)
+        self.dateEditX0.setDate(t0)
+        self.dateEditX1.setDate(t1)
+
+
+    def raiseContextMenu(self, ev):
+
+        pt = self.mapDeviceToView(ev.pos())
+        self.updateCurrentDate(num2date(pt.x(), dt64=True))
+
+        menu = self.getMenu(ev)
+        self.scene().addParentContextMenus(self, menu, ev)
+        menu.exec_(ev.screenPos().toPoint())
+
 
 
 class TemporalProfile2DPlotStyle(PlotStyle):
