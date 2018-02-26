@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 import os, sys, re, shutil, zipfile, datetime
 import numpy as np
+from pb_tool import pb_tool
 from timeseriesviewer import DIR_REPO, jp, file_search
 import timeseriesviewer
 DIR_BUILD = jp(DIR_REPO, 'build')
@@ -161,13 +162,15 @@ if __name__ == "__main__":
     DIR_DEPLOY = jp(DIR_REPO, 'deploy')
     mkDir(DIR_DEPLOY)
 
-    import pb_tool
+
 
     # DIR_DEPLOY = r'E:\_EnMAP\temp\temp_bj\enmapbox_deploys\most_recent_version'
 
-    patch_pb_tool(DIR_DEPLOY)
+    #patch_pb_tool(DIR_DEPLOY)
+
+    os.chdir(DIR_REPO)
     pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
-    cfg = pb_tool.config()
+    cfg = pb_tool.get_config(pathCfg)
     pluginname = cfg.get('plugin', 'name')
 
 
@@ -186,12 +189,12 @@ if __name__ == "__main__":
             make.compile_rc_files(DIR_REPO)
 
         else:
-            pb_tool.compile_files()
+            pb_tool.compile_files(cfg)
 
 
         #3. Deploy = write the data to the new enmapboxplugin folder
-        os.chdir(os.path.dirname(pathCfg))
-        pb_tool.deploy()
+        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, confirm=False, quick=True)
+        #pb_tool.deploy()
 
         #4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
         # we need to remove them afterwards.
