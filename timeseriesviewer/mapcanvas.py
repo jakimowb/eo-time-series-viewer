@@ -773,16 +773,15 @@ class MapCanvas(QgsMapCanvas):
 
         from timeseriesviewer.utils import qgisInstance
         actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
-        actionAddRaster2QGIS.triggered.connect(lambda :
-            QgsMapLayerRegistry.instance().addMapLayers(
-                [l for l in self.layers() if isinstance(l, QgsRasterLayer)], True
+        actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
+                [l for l in self.layers() if isinstance(l, QgsRasterLayer)]
             )
         )
         # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-        actionAddVector2QGIS = menu.addAction('Add vector layer to QGIS')
-        actionAddRaster2QGIS.triggered.connect(lambda :
-            QgsMapLayerRegistry.instance().addMapLayers(
-                [l for l in self.layers() if isinstance(l, QgsVectorLayer)], True
+        actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
+        actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
+            #QgsMapLayerRegistry.instance().addMapLayers(
+                [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
             )
         )
         # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
@@ -803,6 +802,24 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
 
         menu.exec_(event.globalPos())
+
+    def addLayers2QGIS(self, mapLayers):
+        from timeseriesviewer.utils import qgisInstance
+        iface = qgisInstance()
+        if isinstance(iface, QgisInterface):
+            grpNode= iface.layerTreeView().currentGroupNode()
+            assert isinstance(grpNode, QgsLayerTreeGroup)
+            for l in mapLayers:
+                if isinstance(l, QgsRasterLayer):
+                    lqgis = iface.addRasterLayer(l.source(), l.name())
+                    #lqgis = QgsRasterLayer(l.source(), l.name(), l.providerType(), False)
+                    lqgis.setRenderer(l.renderer().clone())
+                    #grpNode.addLayer(lqgis)
+                if isinstance(l, QgsVectorLayer):
+                    lqgis = iface.addVectorLayer(l.source(), l.name())
+                    #lqgis = QgsVectorLayer(l.source(), l.name(), 'ogr', False)
+                    lqgis.setRendererV2(l.rendererV2().clone())
+                    #grpNode.addLayer(lqgis)
 
     def stretchToCurrentExtent(self):
 
