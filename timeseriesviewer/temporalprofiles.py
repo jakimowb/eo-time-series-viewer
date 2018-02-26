@@ -263,21 +263,22 @@ class DateTimePlotWidget(pg.PlotWidget):
         if plotItem.sceneBoundingRect().contains(pos):
             mousePoint = plotItem.vb.mapSceneToView(pos)
             x = mousePoint.x()
-            y = mousePoint.y()
-            date = num2date(x)
+            if x >= 0:
+                y = mousePoint.y()
+                date = num2date(x)
+                doy = dateDOY(date)
+                plotItem.vb.updateCurrentDate(num2date(x, dt64=True))
+                self.mInfoLabelCursor.setText('DN {:0.2f}\nDate {}\nDOY {}'.format(
+                                              mousePoint.y(), date, doy),
+                                              color=self.mInfoColor)
 
-            plotItem.vb.updateCurrentDate(num2date(x, dt64=True))
-            self.mInfoLabelCursor.setText('x {}\ny {:0.2f}'.format(
-                                          date, mousePoint.y()),
-                                          color=self.mInfoColor)
-
-            s = self.size()
-            pos = QPointF(s.width(), 0)
-            self.mInfoLabelCursor.setPos(pos)
-            self.mCrosshairLineH.pen.setColor(self.mInfoColor)
-            self.mCrosshairLineV.pen.setColor(self.mInfoColor)
-            self.mCrosshairLineV.setPos(mousePoint.x())
-            self.mCrosshairLineH.setPos(mousePoint.y())
+                s = self.size()
+                pos = QPointF(s.width(), 0)
+                self.mInfoLabelCursor.setPos(pos)
+                self.mCrosshairLineH.pen.setColor(self.mInfoColor)
+                self.mCrosshairLineV.pen.setColor(self.mInfoColor)
+                self.mCrosshairLineV.setPos(mousePoint.x())
+                self.mCrosshairLineH.setPos(mousePoint.y())
 
 
 class DateTimeAxis(pg.AxisItem):
@@ -371,7 +372,7 @@ class DateTimeViewBox(pg.ViewBox):
         #self.menu = self.getMenu() # Create the menu
         #self.menu = None
         self.mCurrentDate = np.datetime64('today')
-
+        self.mXAxisUnit = 'date'
         xAction = [a for a in self.menu.actions() if a.text() == 'X Axis'][0]
         yAction = [a for a in self.menu.actions() if a.text() == 'Y Axis'][0]
 
@@ -379,12 +380,10 @@ class DateTimeViewBox(pg.ViewBox):
         #define the widget to set X-Axis options
         frame = QFrame()
         l = QGridLayout()
+
         frame.setLayout(l)
         #l.addWidget(self, QWidget, int, int, alignment: Qt.Alignment = 0): not enough arguments
-        self.rbXAutoRange = QRadioButton('Auto Range')
-        self.rbXAutoRange.setChecked(True)
-        self.rbXAutoRange.clicked.connect(self.updateXRange)
-        self.rbXManualRange = QRadioButton('Manual Range')
+        self.rbXManualRange = QRadioButton('Manual')
         self.dateEditX0 = QDateEdit()
         self.dateEditX0.setDisplayFormat('yyyy-MM-dd')
         self.dateEditX0.setToolTip('Start time')
@@ -395,10 +394,16 @@ class DateTimeViewBox(pg.ViewBox):
         self.dateEditX0.setToolTip('End time')
         self.dateEditX1.setCalendarPopup(True)
         self.dateEditX1.dateChanged.connect(self.updateXRange)
-        l.addWidget(self.rbXAutoRange,0,0,0,2)
-        l.addWidget(self.rbXManualRange, 1,0,1,2)
-        l.addWidget(self.dateEditX0, 2,1,1,1)
-        l.addWidget(self.dateEditX1, 3,1,1,1)
+
+        self.rbXAutoRange = QRadioButton('Auto')
+        self.rbXAutoRange.setChecked(True)
+        self.rbXAutoRange.toggled.connect(self.updateXRange)
+
+
+        l.addWidget(self.rbXManualRange, 0,0)
+        l.addWidget(self.dateEditX0, 0,1)
+        l.addWidget(self.dateEditX1, 0,2)
+        l.addWidget(self.rbXAutoRange, 1, 0)
 
         l.setMargin(1)
         l.setSpacing(1)
@@ -406,6 +411,8 @@ class DateTimeViewBox(pg.ViewBox):
         wa = QWidgetAction(menuXAxis)
         wa.setDefaultWidget(frame)
         menuXAxis.addAction(wa)
+        menuXAxis.addSeparator()
+
 
         self.menu.insertMenu(xAction, menuXAxis)
         self.menu.removeAction(xAction)
@@ -413,13 +420,31 @@ class DateTimeViewBox(pg.ViewBox):
         self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
         self.mActionMoveToDate.triggered.connect(lambda : self.sigMoveToDate.emit(self.mCurrentDate))
 
+    sigXAxisUnitChanged = pyqtSignal(str)
+    def setXAxisUnit(self, unit):
+        assert unit in ['date', 'doy']
+        old = self.mXAxisUnit
+        self.mXAxisUnit = unit
+        if old != self.mXAxisUnit:
+            self.sigXAxisUnitChanged.emit(self.mXAxisUnit)
+
+    def xAxisUnit(self):
+        return self.mXAxisUnit
+
     def updateXRange(self, *args):
         isAutoRange = self.rbXAutoRange.isChecked()
         self.enableAutoRange('x', isAutoRange)
+
+        self.dateEditX0.setEnabled(not isAutoRange)
+        self.dateEditX1.setEnabled(not isAutoRange)
+
         if not isAutoRange:
-            self.setXRange(date2num(self.dateEditX0.date()),
-                           date2num(self.dateEditX1.date())
-                           )
+            t0 = date2num(self.dateEditX0.date())
+            t1 = date2num(self.dateEditX1.date())
+            t0 = min(t0, t1)
+            t1 = max(t0, t1)
+
+            self.setXRange(t0, t1)
 
     def updateCurrentDate(self, date):
         if isinstance(date, np.datetime64):
@@ -427,18 +452,18 @@ class DateTimeViewBox(pg.ViewBox):
             self.mActionMoveToDate.setData(date)
             self.mActionMoveToDate.setText('Move maps to {}'.format(date))
 
-        xRange, yRange = self.viewRange()
-
-        t0 = num2date(xRange[0], qDate=True)
-        t1 = num2date(xRange[1], qDate=True)
-        self.dateEditX0.setDate(t0)
-        self.dateEditX1.setDate(t1)
 
 
     def raiseContextMenu(self, ev):
 
         pt = self.mapDeviceToView(ev.pos())
         self.updateCurrentDate(num2date(pt.x(), dt64=True))
+
+        xRange, yRange = self.viewRange()
+        t0 = num2date(xRange[0], qDate=True)
+        t1 = num2date(xRange[1], qDate=True)
+        self.dateEditX0.setDate(t0)
+        self.dateEditX1.setDate(t1)
 
         menu = self.getMenu(ev)
         self.scene().addParentContextMenus(self, menu, ev)
