@@ -261,7 +261,9 @@ class DateTimePlotWidget(pg.PlotWidget):
 
         plotItem = self.getPlotItem()
         if plotItem.sceneBoundingRect().contains(pos):
-            mousePoint = plotItem.vb.mapSceneToView(pos)
+            vb = plotItem.vb
+            assert isinstance(vb, DateTimeViewBox)
+            mousePoint = vb.mapSceneToView(pos)
             x = mousePoint.x()
             if x >= 0:
                 y = mousePoint.y()
@@ -274,7 +276,12 @@ class DateTimePlotWidget(pg.PlotWidget):
 
                 s = self.size()
                 pos = QPointF(s.width(), 0)
+                self.mInfoLabelCursor.setVisible(vb.mActionShowCursorValues.isChecked())
                 self.mInfoLabelCursor.setPos(pos)
+
+                b = vb.mActionShowCrosshair.isChecked()
+                self.mCrosshairLineH.setVisible(b)
+                self.mCrosshairLineV.setVisible(b)
                 self.mCrosshairLineH.pen.setColor(self.mInfoColor)
                 self.mCrosshairLineV.pen.setColor(self.mInfoColor)
                 self.mCrosshairLineV.setPos(mousePoint.x())
@@ -411,7 +418,6 @@ class DateTimeViewBox(pg.ViewBox):
         wa = QWidgetAction(menuXAxis)
         wa.setDefaultWidget(frame)
         menuXAxis.addAction(wa)
-        menuXAxis.addSeparator()
 
 
         self.menu.insertMenu(xAction, menuXAxis)
@@ -419,6 +425,12 @@ class DateTimeViewBox(pg.ViewBox):
 
         self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
         self.mActionMoveToDate.triggered.connect(lambda : self.sigMoveToDate.emit(self.mCurrentDate))
+        self.mActionShowCrosshair = self.menu.addAction('Show Crosshair')
+        self.mActionShowCrosshair.setCheckable(True)
+        self.mActionShowCrosshair.setChecked(True)
+        self.mActionShowCursorValues = self.menu.addAction('Show Mouse values')
+        self.mActionShowCursorValues.setCheckable(True)
+        self.mActionShowCursorValues.setChecked(True)
 
     sigXAxisUnitChanged = pyqtSignal(str)
     def setXAxisUnit(self, unit):
