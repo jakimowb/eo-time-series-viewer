@@ -49,8 +49,7 @@ import numpy as np
 
 DEBUG = False
 
-LABEL_DN = 'DN or Index'
-LABEL_TIME = 'Date'
+
 
 
 OPENGL_AVAILABLE = False
@@ -106,80 +105,6 @@ def selectedModelIndices(tableView):
                 result[idx.row()] = idx
     return result.values()
 
-
-class DateTimeAxis(pg.AxisItem):
-
-    def __init__(self, *args, **kwds):
-        super(DateTimeAxis, self).__init__(*args, **kwds)
-        self.setRange(1,3000)
-        self.enableAutoSIPrefix(False)
-        self.labelAngle = 0
-    def logTickStrings(self, values, scale, spacing):
-        s = ""
-
-
-    def tickStrings(self, values, scale, spacing):
-        strns = []
-
-        if len(values) == 0:
-            return []
-        #assert isinstance(values[0],
-
-        values = [num2date(v) if v > 0 else num2date(1) for v in values]
-        rng = max(values)-min(values)
-        ndays = rng.astype(int)
-
-        strns = []
-
-        for v in values:
-            if ndays == 0:
-                strns.append(v.astype(str))
-            else:
-                strns.append(v.astype(str))
-
-        return strns
-
-    def tickValues(self, minVal, maxVal, size):
-        d = super(DateTimeAxis, self).tickValues(minVal, maxVal, size)
-
-        return d
-
-
-    def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
-
-
-        p.setRenderHint(p.Antialiasing, False)
-        p.setRenderHint(p.TextAntialiasing, True)
-
-        ## draw long line along axis
-        pen, p1, p2 = axisSpec
-        p.setPen(pen)
-        p.drawLine(p1, p2)
-        p.translate(0.5, 0)  ## resolves some damn pixel ambiguity
-
-        ## draw ticks
-        for pen, p1, p2 in tickSpecs:
-            p.setPen(pen)
-            p.drawLine(p1, p2)
-
-
-        ## Draw all text
-        if self.tickFont is not None:
-            p.setFont(self.tickFont)
-        p.setPen(self.pen())
-
-        #for rect, flags, text in textSpecs:
-        #    p.drawText(rect, flags, text)
-        #    # p.drawRect(rect)
-
-        #see https://github.com/pyqtgraph/pyqtgraph/issues/322
-        for rect, flags, text in textSpecs:
-            p.save()  # save the painter state
-            p.translate(rect.center())   # move coordinate system to center of text rect
-            p.rotate(self.labelAngle)  # rotate text
-            p.translate(-rect.center())  # revert coordinate system
-            p.drawText(rect, flags, text)
-            p.restore()  # restore the painter state
 
 
 class _SensorPoints(pg.PlotDataItem):
@@ -553,52 +478,6 @@ class SensorPixelDataMemoryLayer(QgsVectorLayer):
     def dates(self):
         raise NotImplementedError()
 
-class DateTimeViewBox(pg.ViewBox):
-    """
-    Subclass of ViewBox
-    """
-    sigMoveToDate = pyqtSignal(np.datetime64)
-    def __init__(self, parent=None):
-        """
-        Constructor of the CustomViewBox
-        """
-        super(DateTimeViewBox, self).__init__(parent)
-        #self.menu = None # Override pyqtgraph ViewBoxMenu
-        #self.menu = self.getMenu() # Create the menu
-        #self.menu = None
-
-
-    """
-    def raiseContextMenu(self, ev):
-
-        pt = self.mapDeviceToView(ev.pos())
-        print(pt.x(), pt.y())
-        date = num2date(pt.x())
-        menu = QMenu(None)
-        a = menu.addAction('Move to {}'.format(date))
-        a.setData(date)
-        a.triggered.connect(lambda : self.sigMoveToDate.emit(date))
-        self.scene().addParentContextMenus(self, menu, ev)
-        menu.exec_(ev.screenPos().toPoint())
-    """
-
-
-
-class DateTimePlotWidget(pg.PlotWidget):
-    """
-    Subclass of PlotWidget
-    """
-    def __init__(self, parent=None):
-        """
-        Constructor of the widget
-        """
-        super(DateTimePlotWidget, self).__init__(parent, viewBox=DateTimeViewBox())
-        self.plotItem = pg.PlotItem(
-            axisItems={'bottom':DateTimeAxis(orientation='bottom')},
-            viewBox=DateTimeViewBox()
-        )
-        self.setCentralItem(self.plotItem)
-        self.xAxisInitialized = False
 
 
 
@@ -1359,20 +1238,7 @@ class SpectralTemporalVisualization(QObject):
         # self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
 
         self.plot2D = ui.plotWidget2D
-        pi = self.plot2D.getPlotItem()
-        pi.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
-        pi.getAxis('bottom').setLabel(LABEL_TIME)
-        pi.getAxis('left').setLabel(LABEL_DN)
-        self.plot2Dvline = pg.InfiniteLine(angle=90, movable=False)
-        self.plot2Dhline = pg.InfiniteLine(angle=0, movable=False)
-        #self.plot2DLabel = pg.TextItem(text='LABEL')
-        self.plot2DLabel = pg.LabelItem(justify='right')
-        #pi.setContentsMargins(0.1, 0.1, 0.1, 0.1)
-        pi.addItem(self.plot2Dvline, ignoreBounds=True)
-        pi.addItem(self.plot2Dhline, ignoreBounds=True)
-        self.plot2D.addItem(self.plot2DLabel, ignoreBounds=True)
-
-        self.proxy2D = pg.SignalProxy(self.plot2D.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
+        self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
         self.plot3D = ui.plotWidget3D
         self.reset3DCamera()
 
@@ -1412,45 +1278,6 @@ class SpectralTemporalVisualization(QObject):
 
         self.initActions()
 
-
-    def onMouseMoved2D(self, evt):
-        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
-
-        plotItem = self.plot2D.getPlotItem()
-        if plotItem.sceneBoundingRect().contains(pos):
-            mousePoint = plotItem.vb.mapSceneToView(pos)
-            x = mousePoint.x()
-            y = mousePoint.y()
-
-            index = int(mousePoint.x())
-            self.plot2DLabel.setText('Refreshed {}'.format(mousePoint.x(), mousePoint.y()))
-            #if index > 0 and index < len(data1):
-            #    label.setText(
-            #        "<span style='font-size: 12pt'>x=%0.1f,   <span style='color: red'>y1=%0.1f</span>,   <span style='color: green'>y2=%0.1f</span>" % (
-            #        mousePoint.x(), data1[index], data2[index]))
-            self.plot2Dvline.setPos(mousePoint.x())
-            self.plot2Dhline.setPos(mousePoint.y())
-
-
-        return
-        vb = plotItem.vb
-
-
-        if plotItem.sceneBoundingRect().contains(pos):
-            mousePoint = vb.mapSceneToView(pos)
-
-            self.vLine.setPos(mousePoint.x())
-            self.hLine.setPos(mousePoint.y())
-
-            info = '{:0.2f}, {:0.2f}'.format(mousePoint.x(), mousePoint.y())
-            self.tbCursorLocationValue.setText(info)
-            """
-            self.mlabel.setText(
-                    "<span style='font-size: 12pt'>{}</span>".format(info)
-            """
-        else:
-            self.tbCursorLocationValue.setText('')
-            self.mlabel.setText('')
 
 
 
@@ -1857,7 +1684,8 @@ class SpectralTemporalVisualization(QObject):
             i.updateItems()
 
 
-        if not self.plot2D.xAxisInitialized:
+        notInit = [0, 1] == self.plot2D.getPlotItem().getAxis('bottom').range
+        if notInit:
             x0 = x1 = None
             for plotSetting in self.plotSettingsModel2D:
                 assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
@@ -1874,7 +1702,7 @@ class SpectralTemporalVisualization(QObject):
 
             if x0 is not None:
                 self.plot2D.getPlotItem().setXRange(x0, x1)
-                self.plot2D.xAxisInitialized = True
+                #self.plot2D.xAxisInitialized = True
 
     @QtCore.pyqtSlot()
     def updatePlot3D(self):

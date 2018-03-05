@@ -53,19 +53,21 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         self.btnToggleCrosshair.setMenu(m)
 
         #connect the QActions with the QgsCollapsibleGroupBoxes
-        self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.toggle)
-        self.gbRasterRendering.toggled.connect(self.actionToggleRasterVisibility.toggle)
+        self.connectActionWithGroupBox(self.actionToggleVectorVisibility, self.gbVectorRendering)
+        self.connectActionWithGroupBox(self.actionToggleRasterVisibility, self.gbRasterRendering)
 
-        self.actionToggleVectorVisibility.toggled.connect(self.gbVectorRendering.setChecked)
-        self.actionToggleRasterVisibility.toggled.connect(self.gbRasterRendering.setChecked)
-        #self.actionToggleRasterVisibility.toggled.connect(self.dummy)
+        #self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.toggle)
+        #self.gbRasterRendering.toggled.connect(self.actionToggleRasterVisibility.toggle)
+        #self.actionToggleVectorVisibility.toggled.connect(self.gbVectorRendering.setChecked)
+        #self.actionToggleRasterVisibility.toggled.connect(self.gbRasterRendering.setChecked)
 
         self.btnToggleCrosshair.setDefaultAction(self.actionToggleCrosshairVisibility)
-        self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewVisibility)
+        self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewHidden)
 
-    def dummy(self, *args):
-        print((self.sender(), args))
-        print(args)
+    def connectActionWithGroupBox(self,action, groupBox):
+        assert isinstance(action, QAction)
+        assert isinstance(groupBox, QGroupBox)
+
 
     def addSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
@@ -138,21 +140,13 @@ class MapView(QObject):
         self.mShowCrosshair = True
 
         self.mIsVisible = True
-        self.mVectorsVisible = True
-        self.mRastersVisible = True
 
-        self.ui.actionToggleVectorVisibility.setChecked(True)
         self.ui.actionToggleVectorVisibility.toggled.connect(self.setVectorVisibility)
-
-        self.ui.actionToggleRasterVisibility.setChecked(True)
         self.ui.actionToggleRasterVisibility.toggled.connect(self.setRasterVisibility)
-
         self.ui.actionToggleCrosshairVisibility.toggled.connect(self.setShowCrosshair)
-        self.ui.actionToggleMapViewVisibility.toggled.connect(lambda b: self.setIsVisible(not b))
+        self.ui.actionToggleMapViewHidden.toggled.connect(lambda b: self.setIsVisible(not b))
 
-
-
-        self.ui.actionToggleVectorVisibility.setChecked(True)
+        self.ui.actionToggleVectorVisibility.setChecked(False)
         self.ui.actionToggleRasterVisibility.setChecked(True)
 
 
@@ -165,19 +159,23 @@ class MapView(QObject):
         print(args)
     def setIsVisible(self, b):
         assert isinstance(b, bool)
-        changed = b != self.mIsVisible
 
-        self.mIsVisible = b
+        changed = b != self.isVisible()
 
         for mapCanvas in self.mapCanvases():
             assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.setVisible(b)
+            if not mapCanvas.isVisible() == b:
+                mapCanvas.setVisible(b)
+
+        if self.ui.actionToggleMapViewHidden.isChecked() == b:
+            self.ui.actionToggleMapViewHidden.setChecked(not b)
+
         if changed:
             self.sigMapViewVisibility.emit(b)
 
 
     def isVisible(self):
-        return self.mIsVisible
+        return self.ui.actionToggleMapViewHidden.isChecked()
 
     def mapCanvases(self):
         m = []
@@ -271,10 +269,10 @@ class MapView(QObject):
 
 
     def rasterVisibility(self):
-        return self.mRastersVisible
+        return self.ui.actionToggleRasterVisibility.isChecked()
 
     def vectorVisibility(self):
-        return self.mVectorsVisible
+        return self.ui.actionToggleVectorVisibility.isChecked()
 
     def setRasterVisibility(self, b):
         assert isinstance(b, bool)

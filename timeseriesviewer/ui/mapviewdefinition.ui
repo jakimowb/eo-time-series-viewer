@@ -227,6 +227,9 @@
          <property name="checkable">
           <bool>true</bool>
          </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
          <layout class="QVBoxLayout" name="verticalLayout_2">
           <property name="sizeConstraint">
            <enum>QLayout::SetMinAndMaxSize</enum>
@@ -234,7 +237,7 @@
           <item>
            <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
             <property name="enabled">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -324,7 +327,7 @@
     </widget>
    </item>
   </layout>
-  <action name="actionToggleMapViewVisibility">
+  <action name="actionToggleMapViewHidden">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -336,14 +339,13 @@
    </property>
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>
-     <normalon>:/timeseriesviewer/icons/mapviewHidden.svg</normalon>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
+     <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
    </property>
    <property name="text">
-    <string>Toogle visibility</string>
+    <string>Hide Map View</string>
    </property>
    <property name="toolTip">
-    <string>Toogle visibility of this map view</string>
+    <string>Hide this map view</string>
    </property>
   </action>
   <action name="actionToggleCrosshairVisibility">
