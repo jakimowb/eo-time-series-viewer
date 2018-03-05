@@ -24,9 +24,9 @@ import os, sys, re, fnmatch, collections, copy, traceback, six, bisect
 import logging
 logger = logging.getLogger(__name__)
 from qgis.core import *
-from PyQt4.QtXml import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtXml import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer.utils import *
 

@@ -22,7 +22,7 @@
 from __future__ import absolute_import
 import sys, os
 from qgis.core import *
-from PyQt4.QtCore import *
+from PyQt5.QtCore import *
 from timeseriesviewer import *
 
 import numpy as np

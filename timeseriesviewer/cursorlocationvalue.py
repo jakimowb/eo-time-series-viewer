@@ -23,8 +23,8 @@ import os, collections
 import numpy as np
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from timeseriesviewer.utils import loadUI, SpatialExtent, SpatialPoint
 from timeseriesviewer.trees import *

@@ -24,8 +24,8 @@ import os
 
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *

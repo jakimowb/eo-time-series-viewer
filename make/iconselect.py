@@ -1,7 +1,7 @@
 import sys
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-#from PyQt4.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+#from PyQt5.QtWidgets import *
 
 
 class AvailableIcons(QWidget):
@@ -106,7 +106,7 @@ class AvailableIcons(QWidget):
             count += 1
 
         self.setLayout(layout)
-from PyQt4.QtCore import *
+from PyQt5.QtCore import *
 i = QDirIterator(":/timeseriesviewer", QDirIterator.Subdirectories)
 while i.hasNext(): print(i.next())
 

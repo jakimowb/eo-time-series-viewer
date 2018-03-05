@@ -4,14 +4,14 @@ import os, sys, fnmatch, six, subprocess, re
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
-from PyQt4.QtSvg import *
-from PyQt4.QtXml import *
-from PyQt4.QtXmlPatterns import *
+from PyQt5.QtSvg import *
+from PyQt5.QtXml import *
+from PyQt5.QtXmlPatterns import *
 
-from PyQt4.uic.Compiler.qtproxies import QtGui
+from PyQt5.uic.Compiler.qtproxies import QtGui
 
 import gdal
 
@@ -250,7 +250,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
     :return:
     """
     assert mode in ['INKSCAPE', 'WEBKIT', 'SVG']
-    from PyQt4.QtWebKit import QWebPage
+    from PyQt5.QtWebKit import QWebPage
 
     svgs = file_search(pathDir, '*.svg')
     if filterFile is not None:

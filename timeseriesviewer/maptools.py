@@ -23,10 +23,10 @@ from __future__ import absolute_import
 from qgis.core import *
 from qgis.gui import *
 import qgis
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtXml import *
-from PyQt4.QtXmlPatterns import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtXml import *
+from PyQt5.QtXmlPatterns import *
 import six
 import xml.etree
 from qgis.core import *

@@ -7,8 +7,8 @@ from osgeo import gdal, ogr, gdal_array
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 from timeseriesviewer import *
 from timeseriesviewer.utils import *

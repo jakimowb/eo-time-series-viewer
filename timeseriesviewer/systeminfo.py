@@ -24,8 +24,8 @@ import sys, os, re
 from qgis.core import *
 from collections import OrderedDict
 from qgis.gui import QgsDockWidget
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI, SpatialExtent, value2str

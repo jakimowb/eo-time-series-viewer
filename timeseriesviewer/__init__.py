@@ -40,8 +40,8 @@ DEPENDENCIES = ['pyqtgraph']
 from qgis.core import *
 from qgis.gui import *
 
-from PyQt4.QtCore import QSettings
-from PyQt4.QtGui import QIcon
+from PyQt5.QtCore import QSettings
+from PyQt5.QtGui import QIcon
 
 jp = os.path.join
 dn = os.path.dirname
@@ -80,10 +80,11 @@ def messageLog(msg, level=None):
         level = QgsMessageLog.WARNING
     QgsMessageLog.instance().logMessage(msg, 'HUB TSV', level)
 
-
-import timeseriesviewer.ui.resources
-timeseriesviewer.ui.resources.qInitResources()
-
+try:
+    import timeseriesviewer.ui.resources
+    timeseriesviewer.ui.resources.qInitResources()
+except:
+    pass
 
 def initSettings():
     def setIfNone(key, value):

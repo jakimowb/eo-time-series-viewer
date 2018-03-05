@@ -41,11 +41,11 @@ from qgis.gui import QgisInterface, QgsMapCanvas, \
     QgsRubberBand, QgsMapCanvasLayer, QgsGeometryRubberBand, \
     QgsProjectionSelectionWidget, QgsVertexMarker
 
-from PyQt4.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
-from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
+from PyQt5.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
+from PyQt5.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
 
-from PyQt4.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
-from PyQt4.QtXml import QDomDocument
+from PyQt5.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
+from PyQt5.QtXml import QDomDocument
 
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *

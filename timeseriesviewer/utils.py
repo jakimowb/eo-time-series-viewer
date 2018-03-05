@@ -20,18 +20,18 @@
 """
 # noinspection PyPep8Naming
 from __future__ import absolute_import
-import os, sys, math, StringIO, re
-
+import os, sys, math, re
+from io import StringIO
 import logging
 logger = logging.getLogger(__name__)
 
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtXml import QDomDocument
-from PyQt4 import uic
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtXml import QDomDocument
+from PyQt5 import uic
 from osgeo import gdal
 
 import weakref
@@ -626,7 +626,7 @@ FORM_CLASSES = dict()
 def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
     """
     Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
-    Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
+    Uses PyQt5.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt5/designer.html#the-uic-module)
     :param pathUi: *.ui file path
     :param from_imports:  is optionally set to use import statements that are relative to '.'. At the moment this only applies to the import of resource modules.
     :param resourceSuffix: is the suffix appended to the basename of any resource file specified in the .ui file to create the name of the Python module generated from the resource file by pyrcc4. The default is '_rc', i.e. if the .ui file specified a resource file called foo.qrc then the corresponding Python module is foo_rc.

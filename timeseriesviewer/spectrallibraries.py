@@ -27,8 +27,8 @@ from qgis.core import *
 from qgis.gui import *
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from osgeo import gdal, gdal_array
 

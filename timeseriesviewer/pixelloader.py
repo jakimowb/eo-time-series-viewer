@@ -26,7 +26,7 @@ import multiprocessing
 import datetime
 from qgis.gui import *
 from qgis.core import *
-from PyQt4.QtCore import *
+from PyQt5.QtCore import *
 import numpy as np
 from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
@@ -500,7 +500,7 @@ if __name__ == '__main__':
 
     from timeseriesviewer.utils import initQgisApplication
     qgsApp = initQgisApplication()
-    from PyQt4.QtGui import *
+    from PyQt5.QtGui import *
     gb = QGroupBox()
     gb.setTitle('Sandbox')
     DEBUG = True

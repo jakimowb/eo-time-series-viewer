@@ -20,8 +20,8 @@
 from __future__ import absolute_import
 
 from timeseriesviewer.utils import initQgisApplication
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 from timeseriesviewer.mapcanvas import MapCanvas
 
 app = initQgisApplication()

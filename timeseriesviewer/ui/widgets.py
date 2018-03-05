@@ -23,11 +23,11 @@ from __future__ import absolute_import, unicode_literals
 import os, collections
 from qgis.core import *
 from qgis.gui import *
-from PyQt4 import uic
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtXml import *
-import PyQt4.QtWebKit
+from PyQt5 import uic
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtXml import *
+import PyQt5.QtWebKit
 
 
 import sys, re, os, six

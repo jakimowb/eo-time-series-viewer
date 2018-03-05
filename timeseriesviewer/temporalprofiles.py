@@ -28,10 +28,10 @@ from qgis.core import QgsCoordinateReferenceSystem, \
     QgsField, QgsFields, QgsFeature, \
     QgsExpression, QgsExpressionContext, QgsExpressionContextScope
 
-from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate, QPoint, QPointF
-from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
-from PyQt4.QtXml import *
-from PyQt4.QtGui import *
+from PyQt5.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate, QPoint, QPointF
+from PyQt5.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
+from PyQt5.QtXml import *
+from PyQt5.QtGui import *
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
