@@ -76,85 +76,6 @@ def mkDir(d, delete=False):
     if not os.path.isdir(d):
         os.makedirs(d)
 
-def patch_pb_tool(DIR_DEPLOY):
-
-    #local pb_tool configuration file.
-    pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
-
-    #required to choose andy DIR_DEPLOY of choice
-    #issue tracker: https://github.com/g-sherman/plugin_build_tool/issues/4
-    pb_tool.get_plugin_directory = lambda : DIR_DEPLOY
-    pb_tool.cli.command = lambda f:f
-    #Issue 1.: set pb_tool.cfg directly and do not expect current WDir
-    def config():
-        import ConfigParser
-        cfg = ConfigParser.ConfigParser()
-        cfg.read(pathCfg)
-        return cfg
-    pb_tool.config = config
-
-    #issue 2: do not expect compiled resource files to end on '_rc.py'
-    def compiled_resource():
-        return []
-        import ConfigParser
-        cfg = config()
-        try:
-            res_files = cfg.get('files', 'resource_files').split()
-            compiled = []
-            for res in res_files:
-                (base, ext) = os.path.splitext(res)
-
-                #CHANGED!!!! no '_rc.py'
-                compiled.append('{}.py'.format(base))
-            # print "Compiled resource files: {}".format(compiled)
-            return compiled
-        except ConfigParser.NoSectionError as oops:
-            print oops.message
-            sys.exit(1)
-    pb_tool.compiled_resource = compiled_resource
-
-    #Issues:
-    #def compiled_ui():
-    #    return []
-    #    files = file_search(jp(DIR_REPO,'timeseriesviewer'), '*.ui', recursive=True)
-    #    return files
-    #pb_tool.compiled_ui = compiled_ui
-
-    #Issues:
-    _deployOld = pb_tool.deploy
-    def deploy():
-        #create target directories
-        plugin_dir = os.path.join(pb_tool.get_plugin_directory(), pb_tool.config().get('plugin', 'name'))
-        install_files = pb_tool.get_install_files()
-
-        for file in install_files:
-            d = os.path.dirname(jp(plugin_dir,file))
-            if not os.path.exists(d):
-                os.makedirs(d)
-        _deployOld()
-    pb_tool.deploy = deploy
-
-
-    #Issue: my 'help' dir is called 'doc'
-    def build_docs():
-        """ Build the docs using sphinx"""
-        import subprocess
-        helpDir = jp(DIR_REPO, 'doc')
-        #if os.path.exists('help'):
-
-        if os.path.exists(helpDir):
-            if sys.platform == 'win32':
-                makeprg = 'make.bat'
-            else:
-                makeprg = 'make'
-            cwd = os.getcwd()
-            os.chdir(helpDir)
-            subprocess.check_call([makeprg, 'html'])
-            os.chdir(cwd)
-        else:
-            print "No help directory exists in the current directory"
-    pb_tool.build_docs = build_docs
-
 if __name__ == "__main__":
 
 
@@ -171,24 +92,15 @@ if __name__ == "__main__":
     cdir = os.path.dirname(pathCfg)
     pluginname = cfg.get('plugin', 'name')
     dirPlugin = jp(DIR_DEPLOY, pluginname)
-
+    os.chdir(cdir)
     if True:
         #1. clean an existing directory = the timeseriesviewer folder
-        os.chdir(cdir)
+
         pb_tool.clean_deployment(ask_first=False)
 
         #2. Compile. Basically call pyrcc to create the resources.rc file
         #I don't know how to call this from pure python
-        if False:
-            import subprocess
-            import make
-
-            os.chdir(DIR_REPO)
-            subprocess.call(['pb_tool', 'compile'])
-            make.compile_rc_files(DIR_REPO)
-
-        else:
-            pb_tool.compile_files(cfg)
+        pb_tool.compile_files(cfg)
 
 
         #3. Deploy = write the data to the new enmapboxplugin folder
