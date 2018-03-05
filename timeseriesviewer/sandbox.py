@@ -281,7 +281,6 @@ class SignalPrinter(object):
 def sandboxTestdata():
     from timeseriesviewer.main import TimeSeriesViewer
 
-    from timeseriesviewer import PATH_EXAMPLE_TIMESERIES
     S = TimeSeriesViewer(None)
     S.ui.show()
     S.run()
@@ -292,15 +291,7 @@ def sandboxTestdata():
     import timeseriesviewer.profilevisualization
     timeseriesviewer.profilevisualization.DEBUG = True
     import example.Images
-    if True:
-        S.loadExampleTimeSeries()
-    else:
-        imgs = [example.Images.Img_2014_08_11_LC82270652014223LGN00_BOA,
-                example.Images.re_2014_08_26]
-
-
-
-        S.addTimeSeriesImages(imgs)
+    S.loadExampleTimeSeries()
 
     from example import exampleEvents
     ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr', True)
@@ -308,7 +299,6 @@ def sandboxTestdata():
 
 
 if __name__ == '__main__':
-    import site, sys, pyqtgraph
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
     qgsApp = initQgisApplication()
