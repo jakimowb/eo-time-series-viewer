@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os, sys, fnmatch, site, re, site
 
 
@@ -75,10 +75,11 @@ def messageLog(msg, level=None):
     :param msg: log message string
     :param level: QgsMessageLog::MessageLevel with MessageLevel =[INFO |  ALL | WARNING | CRITICAL | NONE]
     """
-    from qgis.core import QgsMessageLog
+
     if level is None:
-        level = QgsMessageLog.WARNING
-    QgsMessageLog.instance().logMessage(msg, 'HUB TSV', level)
+        level = Qgis.Warning
+
+        QgsApplication.instance().messageLog().logMessage(msg, 'HUB TSV', level)
 
 try:
     import timeseriesviewer.ui.resources

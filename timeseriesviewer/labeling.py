@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 from qgis.core import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *

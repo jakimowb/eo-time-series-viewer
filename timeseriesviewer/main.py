@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 from qgis.core import *
 import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
 
@@ -34,6 +34,7 @@ EOFError
 
 see https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
 see https://github.com/CleanCut/green/issues/103 
+
 """
 
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
@@ -100,7 +101,7 @@ class TsvMimeDataUtils(QObject):
 
         elem = self.xmlRoot.elementsByTagName('rasterrenderer').item(0).toElement()
         type = str(elem.attribute('type'))
-        from qgis.core import QGis, QgsContrastEnhancement
+        from qgis.core import QgsContrastEnhancement
 
         def bandSettings(colorName):
             band = int(elem.attribute(colorName + 'Band'))
@@ -403,14 +404,11 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
 LUT_MESSAGELOGLEVEL = {
-                QgsMessageLog.INFO:'INFO',
-                QgsMessageLog.CRITICAL:'INFO',
-                QgsMessageLog.WARNING:'WARNING'}
-
-LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
-                    QgsMessageLog.CRITICAL:QgsMessageBar.WARNING,
-                    QgsMessageLog.WARNING:QgsMessageBar.WARNING,
-                    }
+                Qgis.Info:'INFO',
+                Qgis.Critical:'INFO',
+                Qgis.Warning:'WARNING',
+                Qgis.Success:'SUCCESS',
+                }
 
 
 def showMessage(message, title, level):
@@ -639,15 +637,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if not re.search('timeseriesviewer', m):
             return
 
-        if level in [QgsMessageLog.CRITICAL, QgsMessageLog.WARNING]:
+        if level in [Qgis.CRITICAL, Qgis.WARNING]:
             widget = self.ui.messageBar.createMessage(tag, message)
             button = QPushButton(widget)
             button.setText("Show")
             button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
             widget.layout().addWidget(button)
-            self.ui.messageBar.pushWidget(widget,
-                              LUT_MSGLOG2MSGBAR.get(level, QgsMessageBar.INFO),
-                              SETTINGS.value('MESSAGE_TIMEOUT', 10))
+            self.ui.messageBar.pushWidget(widget, level, SETTINGS.value('MESSAGE_TIMEOUT', 10))
 
             #print on normal console
             #print(u'{}({}): {}'.format(tag, level, message))

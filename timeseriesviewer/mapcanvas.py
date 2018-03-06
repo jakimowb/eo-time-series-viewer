@@ -20,38 +20,21 @@
 """
 # noinspection PyPep8Naming
 
-from __future__ import absolute_import, unicode_literals
-import os, logging
 
-logger = logging.getLogger(__name__)
+import os
+from qgis.core import *
+from qgis.gui import *
 
-from qgis.core import QGis, \
-    QgsMapLayerRegistry, QgsGeometry, QgsPoint, \
-    QgsCoordinateReferenceSystem, \
-    QgsMapLayer, QgsVectorLayer, QgsRasterLayer, \
-    QgsRasterDataProvider, \
-    QgsField, QgsFields, QgsFeature, \
-    QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
-    QgsRasterRenderer, QgsMultiBandColorRenderer, QgsContrastEnhancement, QgsSingleBandPseudoColorRenderer, \
-    QgsPolygonV2, QgsMultiPolygonV2, QgsFeatureRendererV2, \
-    QgsRasterBandStats
-
-from qgis.gui import QgisInterface, QgsMapCanvas, \
-    QgsMapTool, QgsMapToolZoom, QgsMapToolEmitPoint, QgsMapToolPan, \
-    QgsRubberBand, QgsMapCanvasLayer, QgsGeometryRubberBand, \
-    QgsProjectionSelectionWidget, QgsVertexMarker
-
-from PyQt5.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
-from PyQt5.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
-
-from PyQt5.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
+from PyQt5.Qt import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 from PyQt5.QtXml import QDomDocument
 
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 from timeseriesviewer.timeseries import TimeSeriesDatum
 from timeseriesviewer.crosshair import CrosshairDialog
-
 
 class MapTools(object):
     """
@@ -121,7 +104,7 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         QgsMapToolEmitPoint.__init__(self, self.mCanvas)
 
         self.mMarker = QgsVertexMarker(self.mCanvas)
-        self.mRubberband = QgsRubberBand(self.mCanvas, QGis.Polygon)
+        self.mRubberband = QgsRubberBand(self.mCanvas, QgsWkbTypes.PolygonGeometry)
 
         color = QColor('red')
 
@@ -162,9 +145,9 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
             cen = geoPoint
             geom = QgsGeometry()
             geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
-                          QGis.Line)
+                          Qgis.Line)
             geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
-                          QGis.Line)
+                          Qgis.Line)
             self.mRubberband.addGeometry(geom, None)
             self.mRubberband.show()
             #remove crosshair after 0.25 sec
@@ -436,7 +419,6 @@ class MapCanvasLayerModel(QAbstractTableModel):
 
 class MapCanvas(QgsMapCanvas):
 
-    from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
@@ -463,7 +445,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.renderStarting.connect(resetRenderStartTime)
         self.renderComplete.connect(emitRenderTimeDelta)
-        self.setCrsTransformEnabled(True)
+
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
@@ -600,10 +582,10 @@ class MapCanvas(QgsMapCanvas):
         newLayers = [l for l in mapLayers if l not in oldLayers]
 
         if len(newLayers) > 0:
-            reg = QgsMapLayerRegistry.instance()
+            reg = QgsProject.instance()
             reg.addMapLayers(newLayers, False)
 
-        super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in mapLayers])
+        super(MapCanvas, self).setLayers(mapLayers)
 
         #self.refresh()
 
@@ -1068,7 +1050,7 @@ def exampleSyncedCanvases():
 
         #mapCanvas = QgsMapCanvas(w)
         mapCanvas = MapCanvas(w)
-        mapCanvas.setCrsTransformEnabled(True)
+
         registerMapCanvas(mapCanvas)
         hl2.addWidget(mapCanvas)
         #mapCanvas.setLayers([QgsMapCanvasLayer(ml)])
@@ -1100,7 +1082,7 @@ if __name__ == '__main__':
     c.sigDataLoadingFinished.connect(printTimeDelta)
     c.show()
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
-    lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr', True)
+    lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr')
 
     c.layerModel().addLayerInfo(lyr2)
     c.layerModel().addLayerInfo(lyr1)
