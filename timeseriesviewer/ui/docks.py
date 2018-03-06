@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 from qgis.core import *
 from qgis.gui import QgsDockWidget
 from PyQt5.QtCore import *

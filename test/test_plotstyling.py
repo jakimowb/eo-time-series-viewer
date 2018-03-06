@@ -7,7 +7,7 @@
      (at your option) any later version.
 
 """
-from __future__ import absolute_import
+
 from utilities import get_qgis_app
 
 __author__ = 'ismailsunni@yahoo.co.id'
@@ -16,8 +16,8 @@ __copyright__ = ('Copyright 2012, Australia Indonesia Facility for '
                  'Disaster Reduction')
 import unittest
 import os
-
-QGIS_APP = get_qgis_app()
+from timeseriesviewer.utils import initQgisApplication
+QGIS_APP = initQgisApplication()
 
 from timeseriesviewer.plotstyling import *
 
@@ -32,7 +32,7 @@ class TestPlotStyling(unittest.TestCase):
 
         self.assertEqual(s1,s2)
         s2.markerSize = 3
-        self.assertNotEquals(s1,s2)
+        self.assertNotEqual(s1,s2)
 
 
         #test if we can pickle a plot style
@@ -41,9 +41,5 @@ class TestPlotStyling(unittest.TestCase):
         s2 = pickle.loads(pickle.dumps(s1))
         self.assertEqual(s1,s2)
 
-
-
 if __name__ == "__main__":
-    suite = unittest.makeSuite(TestPlotStyling)
-    runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(suite)
+    unittest.main()

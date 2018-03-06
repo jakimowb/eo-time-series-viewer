@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import sys, os
 from qgis.core import *
 from PyQt5.QtCore import *

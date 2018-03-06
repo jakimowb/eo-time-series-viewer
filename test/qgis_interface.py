@@ -13,7 +13,7 @@
      Copyright (c) 2014 Tim Sutton, tim@linfiniti.com
 
 """
-from __future__ import absolute_import
+
 __author__ = 'tim@linfiniti.com'
 __revision__ = '$Format:%H$'
 __date__ = '10/01/2011'

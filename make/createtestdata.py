@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import sys, re, os, collections
 from os.path import join as jp
 

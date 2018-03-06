@@ -7,16 +7,16 @@
      (at your option) any later version.
 
 """
-from __future__ import absolute_import
+
 from utilities import get_qgis_app
 from timeseriesviewer.pixelloader import *
 __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 
 import unittest
 import os, sys, pickle
-from test.utilities import get_qgis_app
 
-QGIS_APP = get_qgis_app()
+from timeseriesviewer.utils import initQgisApplication
+QGIS_APP = initQgisApplication()
 
 
 class PixelLoaderTest(unittest.TestCase):
@@ -114,6 +114,5 @@ class PixelLoaderTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    suite = unittest.makeSuite(PixelLoaderTest)
-    runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(suite)
+    unittest.main()
+

@@ -17,7 +17,7 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QScrollArea

@@ -8,7 +8,7 @@
      (at your option) any later version.
 
 """
-from __future__ import absolute_import
+
 
 __author__ = 'tim@linfiniti.com'
 __date__ = '20/01/2011'
@@ -20,13 +20,9 @@ import unittest
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from qgis.core import (
-    QgsProviderRegistry,
-    QgsCoordinateReferenceSystem,
-    QgsRasterLayer)
 
-from utilities import get_qgis_app
-QGIS_APP = get_qgis_app()
+from timeseriesviewer.utils import initQgisApplication
+QGIS_APP = initQgisApplication()
 
 
 class QGISTest(unittest.TestCase):
@@ -61,7 +57,7 @@ class QGISTest(unittest.TestCase):
         title = 'TestRaster'
         layer = QgsRasterLayer(path, title)
         auth_id = layer.crs().authid()
-        self.assertEqual(auth_id, expected_auth_id)
+        self.assertEqual(auth_id, 'EPSG:32621')
 
 if __name__ == '__main__':
     unittest.main()

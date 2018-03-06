@@ -19,7 +19,7 @@
  *                                                                         *
  ***************************************************************************/
 """
-from __future__ import absolute_import, unicode_literals
+
 import os, sys, re, pickle, tempfile, unicodedata
 from collections import OrderedDict
 import tempfile

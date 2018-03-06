@@ -19,16 +19,15 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
-import os, sys, math, re
-from io import StringIO
-import logging
-logger = logging.getLogger(__name__)
+
+import os, sys, math, re, io
+
 
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtXml import QDomDocument
 from PyQt5 import uic
@@ -40,7 +39,7 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
-from timeseriesviewer import DIR_UI
+from timeseriesviewer import DIR_UI, DIR_REPO
 
 
 def appendItemsToMenu(menu, itemsToAdd):
@@ -248,6 +247,28 @@ def geo2pxF(geo, gt):
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
     return QPointF(px,py)
 
+def createGeoTransform(gsd, ul_x, ul_y):
+    """
+    Create a GDAL Affine GeoTransform vector for north-up images.
+    See http://www.gdal.org/gdal_datamodel.html for details
+    :param gsd: ground-sampling-distance / pixel-size
+    :param ul_x: upper-left X
+    :param ul_y: upper-left Y
+    :return: (tuple)
+    """
+    if isinstance(gsd, tuple) or isinstance(gsd, list):
+        gt1 = gsd[0] #pixel width
+        gt5 = gsd[1] #pixel height
+    else:
+        gsd = float(gsd)
+        gt1 = gt5 = gsd #pixel width == pixel height
+
+    gt0 = ul_x
+    gt3 = ul_y
+
+    gt2 = gt4 = 0
+
+    return (gt0, gt1, gt2, gt3, gt4, gt5)
 def geo2px(geo, gt):
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
@@ -261,6 +282,12 @@ def geo2px(geo, gt):
 
 
 def px2geo(px, gt):
+    """
+    Converts a pixel coordinate into a geo-coordinate
+    :param px:
+    :param gt:
+    :return:
+    """
     #see http://www.gdal.org/gdal_datamodel.html
     gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
     gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
@@ -445,9 +472,9 @@ def saveFilePath(text):
     """
     import unicodedata
     text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
-    text = unicode(re.sub('[^\w\s.-]', '', text).strip().lower())
-    text = unicode(re.sub('[-\s]+', '_', text))
-    return re.sub('[ ]+]','',text)
+    text = re.sub(r'[^\w\s.-]', '', text).strip().lower()
+    text = re.sub(r'[-\s]+', '_', text)
+    return re.sub(r'[ ]+]','',text)
 
 
 def value2str(value, sep=' '):
@@ -623,10 +650,11 @@ loadIcon = lambda p: jp(DIR_UI, *['icons',p])
 #dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
 
+
 def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
     """
     Loads Qt UI files (*.ui) while taking care on QgsCustomWidgets.
-    Uses PyQt5.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt5/designer.html#the-uic-module)
+    Uses PyQt4.uic.loadUiType (see http://pyqt.sourceforge.net/Docs/PyQt4/designer.html#the-uic-module)
     :param pathUi: *.ui file path
     :param from_imports:  is optionally set to use import statements that are relative to '.'. At the moment this only applies to the import of resource modules.
     :param resourceSuffix: is the suffix appended to the basename of any resource file specified in the .ui file to create the name of the Python module generated from the resource file by pyrcc4. The default is '_rc', i.e. if the .ui file specified a resource file called foo.qrc then the corresponding Python module is foo_rc.
@@ -636,14 +664,16 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
     RC_SUFFIX =  resourceSuffix
     assert os.path.exists(pathUi), '*.ui file does not exist: {}'.format(pathUi)
 
-    buffer = StringIO.StringIO() #buffer to store modified XML
+
     if pathUi not in FORM_CLASSES.keys():
         #parse *.ui xml and replace *.h by qgis.gui
         doc = QDomDocument()
 
         #remove new-lines. this prevents uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         #to mess up the *.ui xml
-        txt = ''.join(open(pathUi).readlines())
+        f = open(pathUi, 'r')
+        txt = ''.join(f.readlines())
+        f.close()
         doc.setContent(txt)
 
         # Replace *.h file references in <customwidget> with <class>Qgs...</class>, e.g.
@@ -669,6 +699,7 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
 
 
         #logger.debug('Load UI file: {}'.format(pathUi))
+        buffer = io.StringIO()  # buffer to store modified XML
         buffer.write(doc.toString())
         buffer.flush()
         buffer.seek(0)
@@ -687,9 +718,9 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
         try:
             FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         except SyntaxError as ex:
-            logger.info('{}\n{}:"{}"\ncall instead uic.loadUiType(path,...) directly'.format(pathUi, ex, ex.text))
             FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
 
+        buffer.close()
         FORM_CLASSES[pathUi] = FORM_CLASS
 
         #remove temporary added directories from python path
@@ -726,6 +757,7 @@ def zipdir(pathDir, pathZip):
                     arcname = os.path.join(os.path.relpath(root, relroot), file)
                     zip.write(filename, arcname)
 
+
 def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
     """
     Initializes the QGIS Environment
@@ -736,44 +768,53 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         pythonPlugins = []
     assert isinstance(pythonPlugins, list)
 
-    from timeseriesviewer import DIR_REPO
-    #pythonPlugins.append(os.path.dirname(DIR_REPO))
-    PLUGIN_DIR = os.path.dirname(DIR_REPO)
+    # pythonPlugins.append(os.path.dirname(DIR_REPO))
 
-    if os.path.isdir(PLUGIN_DIR):
+
+    if os.path.isdir(DIR_REPO):
+        pass
+        """
         for subDir in os.listdir(PLUGIN_DIR):
             if not subDir.startswith('.'):
-                pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
+                pathMetadata = jp(  PLUGIN_DIR, *[subDir,'metadata.txt'])
+                if os.path.exists(pathMetadata):
+                    md = open(pathMetadata,'r').readlines()
+                    md = [m.strip() for m in md]
+                    md = [m.split('=') for m in md if m.startswith('qgisMinimumVersion')]
+
+                    pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
+        """
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
         pythonPlugins.extend(re.split('[;:]', envVar))
 
-    #make plugin paths available to QGIS and Python
+    # make plugin paths available to QGIS and Python
     os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
     os.environ['QGIS_DEBUG'] = '1' if qgisDebug else '0'
     for p in pythonPlugins:
         sys.path.append(p)
 
     if isinstance(QgsApplication.instance(), QgsApplication):
-        #alread started
+
         return QgsApplication.instance()
+
     else:
 
         if PATH_QGIS is None:
             # find QGIS Path
             if sys.platform == 'darwin':
-                #search for the QGIS.app
+                # search for the QGIS.app
                 import qgis, re
                 assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
-                PATH_QGIS_APP = re.split('\.app[\/]', qgis.__file__)[0]+ '.app'
-                PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents','MacOS'])
+                PATH_QGIS_APP = re.split(r'\.app[\/]', qgis.__file__)[0] + '.app'
+                PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS'])
 
                 if not 'GDAL_DATA' in os.environ.keys():
                     os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
 
                 QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
-                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns','qgis']))
+                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
 
 
             else:
@@ -782,16 +823,22 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
 
         assert os.path.exists(PATH_QGIS)
 
-        QgsApplication.setGraphicsSystem("raster")
         qgsApp = QgsApplication([], True)
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
+
+        def printQgisLog(tb, error, level):
+
+            print(tb)
+
+        QgsApplication.instance().messageLog().messageReceived.connect(printQgisLog)
+
         return qgsApp
 
 
 if __name__ == '__main__':
     #nice predecessors
-    from timeseriesviewer.sandbox import initQgisEnvironment
+
     qgsApp = initQgisApplication()
     se = SpatialExtent.world()
     assert nicePredecessor(26) == 25

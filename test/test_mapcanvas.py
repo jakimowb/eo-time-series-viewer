@@ -17,26 +17,37 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
 
 from timeseriesviewer.utils import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from timeseriesviewer.mapcanvas import MapCanvas
+import unittest
+from timeseriesviewer.mapcanvas import *
 
-app = initQgisApplication()
+QGIS_APP = initQgisApplication()
 
-frame = QFrame()
-frame.setLayout(QVBoxLayout())
-frame.layout().addWidget(QProgressBar())
-frame.layout().addWidget(QLabel('Info text'))
-for i in range(2):
-    m = MapCanvas(frame)
-    m.setFixedSize(QSize(100,100))
-    frame.layout().addWidget(m)
-frame.sizeHint = lambda : m.size()
-frame.show()
 
-s = ""
+class testclassDialogTest(unittest.TestCase):
+    """Test rerources work."""
 
+    def setUp(self):
+        """Runs before each test."""
+        pass
+
+    def tearDown(self):
+        """Runs after each test."""
+        pass
+
+
+    def test_mapcanvas(self):
+        m = MapCanvas()
+        self.assertIsInstance(m, QgsMapCanvas)
+        m.show()
+
+
+
+
+
+if __name__ == "__main__":
+    unittest.main()
 app.exec_()

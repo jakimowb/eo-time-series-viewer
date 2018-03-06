@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/timeseriesviewer/icons/icon.svg</normaloff>:/timeseriesviewer/icons/icon.svg</iconset>
+    <normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</iconset>
   </property>
   <property name="documentMode">
    <bool>false</bool>
@@ -100,7 +100,7 @@
          <x>0</x>
          <y>0</y>
          <width>878</width>
-         <height>190</height>
+         <height>202</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -157,7 +157,7 @@
      <x>0</x>
      <y>0</y>
      <width>880</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">

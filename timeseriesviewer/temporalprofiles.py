@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os, sys, pickle, datetime, re, collections
 from collections import OrderedDict
 from qgis.gui import *
@@ -203,8 +203,8 @@ def depr_num2date(n):
 
     return np.datetime64('{:04}-{:02}-{:02}'.format(d.year,d.month,d.day), 'D')
 
-regBandKey = re.compile("(?<!\w)b\d+(?!\w)", re.IGNORECASE)
-regBandKeyExact = re.compile('^' + regBandKey.pattern + '$', re.IGNORECASE)
+regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
+regBandKeyExact = re.compile(r'^' + regBandKey.pattern + '$', re.IGNORECASE)
 
 
 def bandIndex2bandKey(i):
@@ -1009,7 +1009,7 @@ class TemporalProfileCollection(QAbstractTableModel):
         uri = 'Point?crs={}'.format(crs.authid())
 
         self.TS = None
-        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory', False)
+        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
         self.mTemporalProfiles = []
         self.mTPLookupSpatialPoint = {}
         self.mTPLookupID = {}

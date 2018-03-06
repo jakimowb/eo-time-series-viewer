@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os, sys, pickle, datetime
 from collections import OrderedDict
 from qgis.gui import *
@@ -1967,7 +1967,7 @@ if __name__ == '__main__':
         import example.Images
         from timeseriesviewer import file_search
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
-        TS.addFiles(files)
+        TS.addFiles([files[0]])
         ext = TS.getMaxSpatialExtent()
         cp1 = SpatialPoint(ext.crs(),ext.center())
         cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)

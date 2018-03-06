@@ -18,7 +18,7 @@
 *                                                                         *
 ***************************************************************************
 """
-from __future__ import absolute_import, unicode_literals
+
 #see http://python-future.org/unicode_literals.html for unicode issue discussion
 from future.utils import text_to_native_str
 import os, re, tempfile, pickle, copy, shutil, unicodedata,six
@@ -228,7 +228,7 @@ class SpectralProfileMapTool(QgsMapToolEmitPoint):
         self.mCanvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.mCanvas)
         self.marker = QgsVertexMarker(self.mCanvas)
-        self.rubberband = QgsRubberBand(self.mCanvas, QGis.Polygon)
+        self.rubberband = QgsRubberBand(self.mCanvas, QgsWkbTypes.PolygonGeometry)
 
         color = QColor('red')
 
@@ -269,9 +269,9 @@ class SpectralProfileMapTool(QgsMapToolEmitPoint):
             cen = geoPoint
             geom = QgsGeometry()
             geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
-                          QGis.Line)
+                          Qgis.Line)
             geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
-                          QGis.Line)
+                          Qgis.Line)
             self.rubberband.addGeometry(geom, None)
             self.rubberband.show()
             #remove crosshair after 0.1 sec

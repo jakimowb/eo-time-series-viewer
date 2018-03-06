@@ -19,10 +19,11 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
+from qgis import *
 from qgis.core import *
 from qgis.gui import *
-import qgis
+
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtXml import *
@@ -45,7 +46,7 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
         self.marker = QgsVertexMarker(self.canvas)
-        self.rubberband = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.rubberband = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
 
         color = QColor('red')
         self.mButtons = [Qt.LeftButton]
@@ -94,9 +95,9 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
                 cen = geoPoint
                 geom = QgsGeometry()
                 geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
-                              QGis.Line)
+                              Qgis.Line)
                 geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
-                              QGis.Line)
+                              Qgis.Line)
                 self.rubberband.addGeometry(geom, None)
                 self.rubberband.show()
                 #remove crosshair after 0.25 sec
@@ -123,7 +124,7 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
     def __init__(self, canvas):
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.rubberBand = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
         self.setStyle(Qt.red, 1)
         self.reset()
 
@@ -134,7 +135,7 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
     def reset(self):
         self.startPoint = self.endPoint = None
         self.isEmittingPoint = False
-        self.rubberBand.reset(QGis.Polygon)
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
 
     def canvasPressEvent(self, e):
         self.startPoint = self.toMapCoordinates(e.pos())
@@ -164,7 +165,7 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
         self.showRect(self.startPoint, self.endPoint)
 
     def showRect(self, startPoint, endPoint):
-        self.rubberBand.reset(QGis.Polygon)
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
         if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
             return
 
@@ -201,7 +202,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
     def __init__(self, canvas):
         self.canvas = canvas
         QgsMapToolEmitPoint.__init__(self, self.canvas)
-        self.rubberBand = QgsRubberBand(self.canvas, QGis.Polygon)
+        self.rubberBand = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
         self.rubberBand.setColor(Qt.red)
         self.rubberBand.setWidth(1)
         self.reset()
@@ -209,7 +210,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
     def reset(self):
         self.startPoint = self.endPoint = None
         self.isEmittingPoint = False
-        self.rubberBand.reset(QGis.Polygon)
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
 
     def canvasPressEvent(self, e):
         self.startPoint = self.toMapCoordinates(e.pos())
@@ -238,7 +239,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.showRect(self.startPoint, self.endPoint)
 
     def showRect(self, startPoint, endPoint):
-        self.rubberBand.reset(QGis.Polygon)
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
         if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
             return
 

@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import, unicode_literals
+
 import sys, os, re
 from qgis.core import *
 from collections import OrderedDict

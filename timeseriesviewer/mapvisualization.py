@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import, unicode_literals
+
 import os, sys, re, fnmatch, collections, copy, traceback, six, bisect
 import logging
 logger = logging.getLogger(__name__)

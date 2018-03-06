@@ -16,11 +16,10 @@ import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
 from timeseriesviewer import file_search
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewer.utils import *
 QGIS_APP = initQgisApplication()
 
-
-class testclassDialogTest(unittest.TestCase):
+class testclassUtilityTests(unittest.TestCase):
     """Test rerources work."""
 
     def setUp(self):
@@ -32,18 +31,18 @@ class testclassDialogTest(unittest.TestCase):
         pass
 
 
-    def test_icon(self):
+    def test_spatialObjection(self):
         """Test we can click OK."""
-        from timeseriesviewer import icon, DIR_UI
-        self.assertFalse(icon().isNull())
+        import example
+        pathRE = file_search(os.path.dirname(example.__file__), 're*', recursive=True)[0]
 
-        iconSVGs = file_search(os.path.join(DIR_UI, 'icons'), '*.svg')
-        #:/timeseriesviewer/icons/IconTimeSeries.svg
-        iconSVGs = [s.replace(DIR_UI,':').replace('\\','/') for s in iconSVGs]
-        for resource in iconSVGs:
-            icon = QIcon(resource)
-            self.assertFalse(icon.isNull())
+        from example.inmemorydatasets import createInMemoryRaster
+        dsMEM = createInMemoryRaster()
+        se = SpatialExtent.fromRasterSource(dsMEM)
+        self.assertIsInstance(se, SpatialExtent)
 
+        pt1 = SpatialPoint.fromSpatialExtent(se)
+        self.assertIsInstance(pt1, SpatialPoint)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import, unicode_literals
+
 import six, sys, os, gc, re, collections, site, inspect
 import logging, io
 logger = logging.getLogger(__name__)
@@ -84,7 +84,6 @@ class QgisFake(QgisInterface):
         self.canvas = QgsMapCanvas()
         self.canvas.blockSignals(False)
         print(self.canvas)
-        self.canvas.setCrsTransformEnabled(True)
         self.canvas.setCanvasColor(Qt.black)
         self.canvas.extentsChanged.connect(self.testSlot)
         self.layerTreeView = QgsLayerTreeView()
