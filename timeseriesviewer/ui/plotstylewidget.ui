@@ -14,77 +14,36 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_14">
+   <item row="3" column="3">
+    <widget class="QSpinBox" name="sbLinePenWidth">
      <property name="enabled">
       <bool>true</bool>
      </property>
-     <property name="text">
-      <string>Maker Outline</string>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="suffix">
+      <string> pt</string>
+     </property>
+     <property name="minimum">
+      <number>0</number>
+     </property>
+     <property name="maximum">
+      <number>10</number>
+     </property>
+     <property name="singleStep">
+      <number>1</number>
+     </property>
+     <property name="value">
+      <number>0</number>
      </property>
     </widget>
    </item>
-   <item row="2" column="1">
-    <widget class="QComboBox" name="cbMarkerPenStyle"/>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="label_15">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="text">
-      <string>Marker Symbol</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <widget class="QComboBox" name="cbLinePenStyle"/>
-   </item>
-   <item row="2" column="2">
-    <widget class="QgsColorButton" name="btnMarkerPenColor">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>50</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="colorDialogTitle" stdset="0">
-      <string>Select Map Canvas Background Color</string>
-     </property>
-     <property name="color" stdset="0">
-      <color>
-       <red>255</red>
-       <green>0</green>
-       <blue>0</blue>
-      </color>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="2">
-    <widget class="QgsColorButton" name="btnMarkerBrushColor">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>50</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="colorDialogTitle" stdset="0">
-      <string>Select Map Canvas Background Color</string>
-     </property>
-     <property name="color" stdset="0">
-      <color>
-       <red>255</red>
-       <green>0</green>
-       <blue>0</blue>
-      </color>
-     </property>
-    </widget>
+   <item row="4" column="0" rowspan="4" colspan="4">
+    <widget class="PlotWidget" name="plotWidget"/>
    </item>
    <item row="1" column="3">
     <widget class="QSpinBox" name="sbMarkerSize">
@@ -119,50 +78,6 @@
       <number>8</number>
      </property>
     </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QComboBox" name="cbMarkerSymbol"/>
-   </item>
-   <item row="3" column="3">
-    <widget class="QSpinBox" name="sbLinePenWidth">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="suffix">
-      <string> pt</string>
-     </property>
-     <property name="minimum">
-      <number>0</number>
-     </property>
-     <property name="maximum">
-      <number>10</number>
-     </property>
-     <property name="singleStep">
-      <number>1</number>
-     </property>
-     <property name="value">
-      <number>0</number>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="label_16">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="text">
-      <string>Line</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0" rowspan="4" colspan="4">
-    <widget class="PlotWidget" name="plotWidget"/>
    </item>
    <item row="2" column="3">
     <widget class="QSpinBox" name="sbMarkerPenWidth">
@@ -209,10 +124,10 @@
        <height>16777215</height>
       </size>
      </property>
-     <property name="colorDialogTitle" stdset="0">
+     <property name="colorDialogTitle">
       <string>Select Map Canvas Background Color</string>
      </property>
-     <property name="color" stdset="0">
+     <property name="color">
       <color>
        <red>255</red>
        <green>0</green>
@@ -221,12 +136,103 @@
      </property>
     </widget>
    </item>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="cbMarkerSymbol"/>
+   </item>
+   <item row="3" column="1">
+    <widget class="QComboBox" name="cbLinePenStyle"/>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_16">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Line</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QgsColorButton" name="btnMarkerBrushColor">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>50</width>
+       <height>16</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>50</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="colorDialogTitle">
+      <string>Select Map Canvas Background Color</string>
+     </property>
+     <property name="color">
+      <color>
+       <red>255</red>
+       <green>0</green>
+       <blue>0</blue>
+      </color>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="QgsColorButton" name="btnMarkerPenColor">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>50</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="colorDialogTitle">
+      <string>Select Map Canvas Background Color</string>
+     </property>
+     <property name="color">
+      <color>
+       <red>255</red>
+       <green>0</green>
+       <blue>0</blue>
+      </color>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QComboBox" name="cbMarkerPenStyle"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label_15">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Marker Symbol</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="label_14">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Maker Outline</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QgsColorButton</class>
-   <extends>QPushButton</extends>
+   <extends>QToolButton</extends>
    <header>qgscolorbutton.h</header>
   </customwidget>
   <customwidget>

@@ -40,6 +40,7 @@ def createInMemoryRaster(x=200,y=100,b=7, gsd=30, ulx=200, uly=300, nodata=-9999
 
 
 
+
 if __name__ == '__main__':
     ds = createInMemoryRaster()
     print(ds)
