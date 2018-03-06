@@ -55,9 +55,9 @@ class MapLayerRegistryModel(QAbstractTableModel):
             self.cType= 'Type'
 
             self.mLayers = list()
-            self.REG = QgsMapLayerRegistry.instance()
+            self.REG = QgsProject.instance()
             self.REG.layersAdded.connect(self.addLayers)
-            self.REG.layersWillBeRemoved .connect(self.removeLayers)
+            self.REG.layersWillBeRemoved.connect(self.removeLayers)
             self.addLayers(self.REG.mapLayers().values())
 
 
@@ -67,7 +67,7 @@ class MapLayerRegistryModel(QAbstractTableModel):
             self.mLayers.extend(lyrs)
             self.layoutChanged.emit()
 
-        @pyqtSlot(list)
+        #@pyqtSlot(list)
         def removeLayers(self, lyrNames):
             to_remove = [self.REG.mapLayer(name) for name in lyrNames]
 
@@ -151,7 +151,7 @@ class MapLayerRegistryModel(QAbstractTableModel):
                 if columnName == self.cPID:
                     value = id(lyr)
                 elif columnName == self.cID:
-                    value = self.REG.mapLayers().values().index(lyr)
+                    value = list(self.REG.mapLayers().values()).index(lyr)
                 elif columnName == self.cName:
                     value = lyr.name()
                 elif columnName == self.cSrc:
@@ -254,7 +254,7 @@ class DataLoadingModel(QAbstractTableModel):
             assert isinstance(index, QModelIndex)
             if not index.isValid():
                 return None
-            return self.mLoadingTimes.keys()[index.row()]
+            return list(self.mLoadingTimes.keys())[index.row()]
 
         def data(self, index, role=Qt.DisplayRole):
             if role is None or not index.isValid():

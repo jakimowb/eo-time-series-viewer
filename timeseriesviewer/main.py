@@ -448,7 +448,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QApplication.processEvents()
 
         self.ui = TimeSeriesViewerUI()
-        msgLog = QgsMessageLog.instance()
+        msgLog = QgsApplication.instance().messageLog()
         msgLog.messageReceived.connect(self.logMessage)
 
         # Save reference to the QGIS interface
@@ -810,7 +810,7 @@ def main():
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents, 'Events', 'ogr', True)
         lyr2 = QgsVectorLayer(exampleEvents, 'Events2', 'ogr', True)
-        QgsMapLayerRegistry.instance().addMapLayers([lyr, lyr2])
+        QgsProject.instance().addMapLayers([lyr, lyr2])
         mapView = ts.mapViews()[0]
         from timeseriesviewer.mapvisualization import MapView
         assert isinstance(mapView, MapView)

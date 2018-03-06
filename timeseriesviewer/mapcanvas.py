@@ -299,7 +299,7 @@ class MapLayerInfo(object):
     def isRegistered(self):
         if not self.isInitialized():
             return None
-        ref = QgsMapLayerRegistry.instance().mapLayer(self.mLayer.layerId())
+        ref = QgsProject.instance().mapLayer(self.mLayer.layerId())
 
         return isinstance(ref, QgsMapLayer)
 
@@ -527,7 +527,7 @@ class MapCanvas(QgsMapCanvas):
         
         if len(self.mLazyRasterSources) > 0:
             mls = [QgsRasterLayer(src) for src in self.mLazyRasterSources]
-            QgsMapLayerRegistry.instance().addMapLayers(mls, False)
+            QgsProject.instance().addMapLayers(mls, False)
             del self.mLazyRasterSources[:]
             self.mLayerModel.extend(mls)
             self.setRenderer(self.mRendererRaster, refresh=False)
@@ -762,7 +762,7 @@ class MapCanvas(QgsMapCanvas):
         # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
         actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
         actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-            #QgsMapLayerRegistry.instance().addMapLayers(
+            #QgsProject.instance().addMapLayers(
                 [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
             )
         )
@@ -1045,7 +1045,7 @@ def exampleSyncedCanvases():
 
     for i, f in enumerate(files):
         ml = QgsRasterLayer(f)
-        #QgsMapLayerRegistry.instance().addMapLayer(ml)
+        #QgsProject.instance().addMapLayer(ml)
         lyrs.append(ml)
 
         #mapCanvas = QgsMapCanvas(w)

@@ -281,7 +281,7 @@ if __name__ == '__main__':
     lyr2 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
     lyr3 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
 
-    QgsMapLayerRegistry.instance().addMapLayers([lyr1, lyr2, lyr3])
+    QgsProject.instance().addMapLayers([lyr1, lyr2, lyr3])
 
     w = QWidget()
     l = QHBoxLayout()

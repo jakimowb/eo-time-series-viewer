@@ -383,7 +383,7 @@ class ClassificationSchemeWidget(QWidget, loadUI('classificationscheme.ui')):
             self.setClassificationScheme(classificationScheme)
         self.schemeModel = ClassificationSchemeTableModel(self.mScheme, self)
 
-        self.tableClassificationScheme.verticalHeader().setMovable(True)
+        #self.tableClassificationScheme.verticalHeader().setMovable(True)
         self.tableClassificationScheme.verticalHeader().setDragEnabled(True)
         self.tableClassificationScheme.verticalHeader().setDragDropMode(QAbstractItemView.InternalMove)
         self.tableClassificationScheme.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)

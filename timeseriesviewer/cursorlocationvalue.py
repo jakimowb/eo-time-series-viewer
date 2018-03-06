@@ -583,7 +583,7 @@ if __name__ == '__main__':
     canvas = QgsMapCanvas()
     lyr = QgsRasterLayer(enmap)
     shp = QgsVectorLayer(landcover, 'lc', 'ogr')
-    QgsMapLayerRegistry.instance().addMapLayers([lyr,shp])
+    QgsProject.instance().addMapLayers([lyr,shp])
     canvas.setLayerSet([QgsMapCanvasLayer(shp), QgsMapCanvasLayer(lyr)])
     canvas.setDestinationCrs(lyr.crs())
     canvas.setExtent(lyr.extent())

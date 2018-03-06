@@ -455,10 +455,11 @@ class MapViewSensorSettings(QObject):
             cb.setCurrentIndex(0)
 
         populateCombobox(self.ui.comboBoxContrastEnhancement, self.ceAlgs)
-        populateCombobox(self.ui.cbSingleBandColorRampType, self.colorRampType)
+        #populateCombobox(self.ui.cbSingleBandColorRampType, self.colorRampType)
         populateCombobox(self.ui.cbSingleBandMode, self.colorRampClassificationMode)
 
-        self.ui.cbSingleBandColorRamp.populate(QgsStyleV2.defaultStyle())
+        #self.ui.cbSingleBandColorRamp.populate(QgsStyleV2.defaultStyle())
+        self.ui.btnSingleBandColorRamp.set
 
 
         nb = self.sensor.nb
@@ -485,8 +486,8 @@ class MapViewSensorSettings(QObject):
 
         self.defaultSB = QgsSingleBandPseudoColorRenderer(lyr.dataProvider(), 0, None)
 
-        colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
-
+        #colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
+        colorRamp = self.ui.btnSingleBandColorRamp.colorRamp()
         #fix: QGIS 3.0 constructor
         shaderFunc = QgsColorRampShader(bandStats[0].Min, bandStats[0].Max)
         shaderFunc.setColorRampType(QgsColorRampShader.INTERPOLATED)
@@ -701,7 +702,8 @@ class MapViewSensorSettings(QObject):
             self.ui.tbSingleBandMax.setText(str(cmax))
 
             shaderFunc = shader.rasterShaderFunction()
-            self.ui.cbSingleBandColorRampType.setCurrentIndex(shaderFunc.colorRampType())
+            #self.ui.cbSingleBandColorRampType.setCurrentIndex(shaderFunc.colorRampType())
+            self.ui.btnSingleBandColorRamp.setColorRamp(shaderFunc.colorRampType())
             updated = True
 
         self.updateUi()
@@ -776,7 +778,8 @@ class MapViewSensorSettings(QObject):
         cmax = max(minmax)
         r.setClassificationMin(cmin)
         r.setClassificationMax(cmax)
-        colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
+        #colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
+        colorRamp = self.ui.btnSingleBandColorRamp.colorRamp()
         # fix: QGIS 3.0 constructor
         shaderFunc = QgsColorRampShader(cmin, cmax)
         shaderFunc.setColorRampType(self.currentComboBoxItem(ui.cbSingleBandColorRampType))
@@ -1471,7 +1474,7 @@ class DateViewCollection(QObject):
                 mapCanvas.setLayers([])
                 toRemove = [l for l in toRemove if isinstance(l, QgsRasterLayer)]
                 if len(toRemove) > 0:
-                    QgsMapLayerRegistry.instance().removeMapLayers(toRemove)
+                    QgsProject.instance().removeMapLayers(toRemove)
 
             DV.ui.parent().layout().removeWidget(DV.ui)
             DV.ui.hide()
@@ -1793,7 +1796,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
 
 """
-class MapViewDockUI(TsvDockWidgetBase, loadUi('mapviewdock.ui')):
+class MapViewDockUI(QgsDockWidget, loadUi('mapviewdock.ui')):
     def __init__(self, parent=None):
         super(MapViewDockUI, self).__init__(parent)
         self.setupUi(self)

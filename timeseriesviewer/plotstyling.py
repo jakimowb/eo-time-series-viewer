@@ -235,16 +235,6 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
             self.plotWidget.update()
             self.sigPlotStyleChanged.emit(style)
 
-    def _setComboBoxToValue(self, cb, value):
-        assert isinstance(cb, QComboBox)
-        for i in range(cb.count()):
-            v = cb.itemData(i)
-            if type(value) in [str, unicode]:
-                v = str(v)
-            if v == value:
-                cb.setCurrentIndex(i)
-                break
-        s = ""
 
     def setPlotStyle(self, style):
         assert isinstance(style, PlotStyle)
@@ -285,9 +275,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         style = PlotStyle()
         #read plotstyle values from widgets
         style.markerSize = self.sbMarkerSize.value()
-        symbol = currentComboBoxValue(self.cbMarkerSymbol).mValue
-        if isinstance(symbol, unicode):
-            symbol = str(symbol)
+        symbol = currentComboBoxValue(self.cbMarkerSymbol)
         style.markerSymbol = symbol
         assert isinstance(style.markerPen, QPen)
         assert isinstance(style.markerBrush, QBrush)
@@ -295,7 +283,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
 
         style.markerPen = pg.mkPen(color=self.btnMarkerPenColor.color(),
                                    width=self.sbMarkerPenWidth.value(),
-                                   style=currentComboBoxValue(self.cbMarkerPenStyle).mValue)
+                                   style=currentComboBoxValue(self.cbMarkerPenStyle))
 
 
         style.markerBrush.setColor(self.btnMarkerBrushColor.color())
@@ -303,7 +291,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
 
         style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
                                  width=self.sbLinePenWidth.value(),
-                                 style=currentComboBoxValue(self.cbLinePenStyle).mValue)
+                                 style=currentComboBoxValue(self.cbLinePenStyle))
 
         return style
 
@@ -419,6 +407,10 @@ if __name__ == '__main__':
     s1 = PlotStyle()
     s2 = pickle.loads(pickle.dumps(s1))
     assert isinstance(s2, PlotStyle)
+    #btn = QgsSymbolButton()
+
+    d  = PlotStyleDialog()
+    d.exec_()
 
     btn = PlotStyleButton()
     btn.show()
