@@ -4,10 +4,21 @@
 import os
 import unittest
 import example
+import example.Images
 from osgeo import gdal
 from timeseriesviewer import file_search
 from timeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDatum
+
 class TestInit(unittest.TestCase):
+
+    def test_timeseriesdatum(self):
+
+        file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
+
+        tsd = TimeSeriesDatum.createFromPath(file)
+        self.assertIsInstance(tsd, TimeSeriesDatum)
+        self.assertEqual(tsd.nb, 6)
+
     def test_timeseries(self):
 
         files = file_search(os.path.dirname(example.__file__), '*.tiff', recursive=True)
