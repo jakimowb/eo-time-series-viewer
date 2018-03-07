@@ -116,7 +116,7 @@ class RenderingDockUI(QgsDockWidget, loadUI('renderingdock.ui')):
         width = QgsVector(self.spinBoxExtentWidth.value(), 0.0)
         height = QgsVector(0.0, self.spinBoxExtentHeight.value())
 
-        Center = QgsPoint(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
+        Center = QgsPointXY(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
         UL = Center - (width * 0.5) + (height * 0.5)
         LR = Center + (width * 0.5) - (height * 0.5)
 

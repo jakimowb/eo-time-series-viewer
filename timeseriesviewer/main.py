@@ -26,7 +26,7 @@ import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
 
 
 
-"""
+r"""
 File "D:\Programs\OSGeo4W\apps\Python27\lib\multiprocessing\managers.py", line
 528, in start
 self._address = reader.recv()

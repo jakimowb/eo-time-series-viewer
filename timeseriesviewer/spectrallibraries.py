@@ -271,9 +271,9 @@ class SpectralProfileMapTool(QgsMapToolEmitPoint):
             ext = SpatialExtent.fromMapCanvas(self.mCanvas)
             cen = geoPoint
             geom = QgsGeometry()
-            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
+            geom.addPart([QgsPointXY(ext.upperLeftPt().x(),cen.y()), QgsPointXY(ext.lowerRightPt().x(), cen.y())],
                           Qgis.Line)
-            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
+            geom.addPart([QgsPointXY(cen.x(), ext.upperLeftPt().y()), QgsPointXY(cen.x(), ext.lowerRightPt().y())],
                           Qgis.Line)
             self.rubberband.addGeometry(geom, None)
             self.rubberband.show()
@@ -1007,7 +1007,7 @@ class SpectralLibraryVectorLayer(QgsVectorLayer):
                 continue
             geo = p.geoCoordinate().toCrs(self.mCrs)
             if isinstance(geo, SpatialPoint):
-                geometry = QgsPoint(geo.x(), geo.y())
+                geometry = QgsPointXY(geo.x(), geo.y())
                 feature = QgsFeature(self.fields())
                 feature.setGeometry(QgsGeometry(geometry))
                 feature.setAttribute('oid', oid)
@@ -1305,7 +1305,6 @@ class SpectralLibraryTableViewModel(QAbstractTableModel):
 
 
         self.mSpecLib = SpectralLibrary()
-
         self.mProfileWrappers = OrderedDict()
 
     def addAttribute(self, name, i = None):
@@ -1662,15 +1661,16 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.tableViewSpeclib.setAcceptDrops(True)
         self.tableViewSpeclib.setDropIndicatorShown(True)
 
+        self.mModel = SpectralLibraryTableViewModel()
+        self.mSpeclib = self.mModel.mSpecLib
 
-        self.mSpeclib = SpectralLibrary()
         self.mSpeclib.sigProfilesAdded.connect(self.onProfilesAdded)
         self.mSpeclib.sigProfilesRemoved.connect(self.onProfilesRemoved)
         self.mPlotDataItems = dict()
 
-        self.mModel = SpectralLibraryTableViewModel(self.mSpeclib)
-        self.mModel.sigAttributeAdded.connect(self.onAttributesChanged)
-        self.mModel.sigAttributeRemoved.connect(self.onAttributesChanged)
+
+        #self.mModel.sigAttributeAdded.connect(self.onAttributesChanged)
+        #self.mModel.sigAttributeRemoved.connect(self.onAttributesChanged)
 
         self.tableViewSpeclib.setModel(self.mModel)
         self.mSelectionModel = QItemSelectionModel(self.mModel)
@@ -1805,11 +1805,12 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
     def addSpeclib(self, speclib):
         if isinstance(speclib, SpectralLibrary):
-
-            self.mSpeclib.addProfiles([copy.copy(p) for p in speclib])
+            self.mModel.insertProfiles([p.clone() for p in speclib])
+            #self.mSpeclib.addProfiles([copy.copy(p) for p in speclib])
 
     def addCurrentSpectraToSpeclib(self, *args):
-        self.mSpeclib.addProfiles([p.clone() for p in self.mCurrentSpectra])
+        self.mModel.insertProfiles([p.clone() for p in self.mCurrentSpectra])
+        #self.mSpeclib.addProfiles([p.clone() for p in self.mCurrentSpectra])
 
     sigCurrentSpectraChanged = pyqtSignal(list)
     def setCurrentSpectra(self, listOfSpectra):
@@ -1948,7 +1949,7 @@ if __name__ == "__main__":
 
     spec0 = sl[0]
 
-    m = SpectralLibraryTableViewModel(sl)
+    m = SpectralLibraryTableViewModel()
     m.insertProfiles(spec0)
     m.insertProfiles(sl)
 
@@ -1956,6 +1957,9 @@ if __name__ == "__main__":
     view.show()
     view.setModel(m)
     #view.show()
+    W = SpectralLibraryWidget()
+    W.show()
+    W.addSpeclib(sl)
     #m.mSpecLib.addProfile(spec0)
 
     if False:

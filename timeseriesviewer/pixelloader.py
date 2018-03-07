@@ -183,7 +183,7 @@ def loadProfiles(taskList, queue, cancelEvent, **kwargs):
 
 def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
-    return geo2px(QgsPoint(x, y), gt)
+    return geo2px(QgsPointXY(x, y), gt)
 
 def doLoaderTask(task):
 
@@ -219,11 +219,11 @@ def doLoaderTask(task):
         trans = osr.CoordinateTransformation(crsRequest, crsSrc)
 
         if isinstance(geom, QgsPoint):
-            ptUL = ptLR = QgsPoint(geom)
+            ptUL = ptLR = QgsPointXY(geom)
         elif isinstance(geom, QgsRectangle):
             TYPE = 'RECTANGLE'
-            ptUL = QgsPoint(geom.xMinimum(), geom.yMaximum())
-            ptLR = QgsPoint(geom.xMaximum(), geom.yMinimum())
+            ptUL = QgsPointXY(geom.xMinimum(), geom.yMaximum())
+            ptLR = QgsPointXY(geom.xMaximum(), geom.yMinimum())
         else:
             PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
 

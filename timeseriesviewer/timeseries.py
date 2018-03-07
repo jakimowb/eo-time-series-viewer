@@ -297,8 +297,8 @@ class TimeSeriesDatum(QObject):
 
         gt = ds.GetGeoTransform()
 
-        UL = QgsPoint(*pixel2coord(gt, 0, 0))
-        LR = QgsPoint(*pixel2coord(gt, self.ns, self.nl))
+        UL = QgsPointXY(*pixel2coord(gt, 0, 0))
+        LR = QgsPointXY(*pixel2coord(gt, self.ns, self.nl))
         from timeseriesviewer.main import SpatialExtent
         self._spatialExtent = SpatialExtent(self.crs, UL, LR)
 

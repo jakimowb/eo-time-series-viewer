@@ -144,9 +144,9 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
             ext = SpatialExtent.fromMapCanvas(self.mCanvas)
             cen = geoPoint
             geom = QgsGeometry()
-            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
+            geom.addPart([QgsPointXY(ext.upperLeftPt().x(),cen.y()), QgsPointXY(ext.lowerRightPt().x(), cen.y())],
                           Qgis.Line)
-            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
+            geom.addPart([QgsPointXY(cen.x(), ext.upperLeftPt().y()), QgsPointXY(cen.x(), ext.lowerRightPt().y())],
                           Qgis.Line)
             self.mRubberband.addGeometry(geom, None)
             self.mRubberband.show()

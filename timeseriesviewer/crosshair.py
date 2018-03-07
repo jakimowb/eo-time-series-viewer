@@ -206,7 +206,7 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                 #md = 10**exp #marker distance = distance to crosshair center
 
 
-                pt = m2p.transform(QgsPoint(centerGeo.x()- pred, centerGeo.y()))
+                pt = m2p.transform(QgsPointXY(centerGeo.x()- pred, centerGeo.y()))
 
                 line = QLineF((pt + QgsVector(0, ml)).toQPointF(),
                               (pt - QgsVector(0, ml)).toQPointF())
@@ -287,7 +287,7 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                     def px2LayerGeo(x, y):
                         x2 = ex.xMinimum() + (x * xres)
                         y2 = ex.yMaximum() - (y * yres)
-                        return QgsPoint(x2,y2)
+                        return QgsPointXY(x2,y2)
                     lyrCoord2CanvasPx = lambda x, y, : self.toCanvasCoordinates(
                         ms.layerToMapCoordinates(lyr,
                                                  px2LayerGeo(x, y)))

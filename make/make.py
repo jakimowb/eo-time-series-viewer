@@ -132,9 +132,9 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
 
         ox, oy = random_offset()
 
-        UL = QgsPoint(subsetRectangle.xMinimum() + ox,
+        UL = QgsPointXY(subsetRectangle.xMinimum() + ox,
                       subsetRectangle.yMaximum() + oy)
-        LR = QgsPoint(subsetRectangle.xMaximum() + ox,
+        LR = QgsPointXY(subsetRectangle.xMaximum() + ox,
                       subsetRectangle.yMinimum() + oy)
         UL = transformGeometry(UL, crs, TSD.crs)
         LR = transformGeometry(LR, crs, TSD.crs)
@@ -557,8 +557,8 @@ if __name__ == '__main__':
         pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
         pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
         from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
-        subset = QgsRectangle(QgsPoint(-55.36091,-6.79851), #UL
-                              QgsPoint(-55.34132,-6.80514)) #LR
+        subset = QgsRectangle(QgsPointXY(-55.36091,-6.79851), #UL
+                              QgsPointXY(-55.34132,-6.80514)) #LR
 
         crs = QgsCoordinateReferenceSystem('EPSG:4326') # lat lon coordinates
 

@@ -65,7 +65,7 @@ def px2geo(px, gt):
     #see http://www.gdal.org/gdal_datamodel.html
     gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
     gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
-    return QgsPoint(gx,gy)
+    return QgsPointXY(gx,gy)
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,
