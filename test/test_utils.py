@@ -31,7 +31,8 @@ class testclassUtilityTests(unittest.TestCase):
         pass
 
 
-    def test_spatialObjection(self):
+
+    def test_spatialObjects(self):
         """Test we can click OK."""
         import example
         pathRE = file_search(os.path.dirname(example.__file__), 're*', recursive=True)[0]
@@ -43,6 +44,14 @@ class testclassUtilityTests(unittest.TestCase):
 
         pt1 = SpatialPoint.fromSpatialExtent(se)
         self.assertIsInstance(pt1, SpatialPoint)
+
+
+        d = {}
+        for t in [pt1, se]:
+            try:
+                d[t] = '{}'.format(t)
+            except:
+                self.fail('Unable to use {} as dictionary key.'.format(type(t)))
 
 
 if __name__ == "__main__":

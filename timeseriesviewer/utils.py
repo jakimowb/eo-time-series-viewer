@@ -99,7 +99,7 @@ def scaledUnitString(num, infix=' ', suffix='B', div=1000):
     return "{:.1f}{}{}{}".format(num, infix, unit, suffix)
 
 
-class SpatialPoint(QgsPoint):
+class SpatialPoint(QgsPointXY):
     """
     Object to keep QgsPoint and QgsCoordinateReferenceSystem together
     """
@@ -122,6 +122,9 @@ class SpatialPoint(QgsPoint):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         super(SpatialPoint, self).__init__(*args)
         self.mCrs = crs
+
+    def __hash__(self):
+        return hash(str(self))
 
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -155,7 +158,7 @@ class SpatialPoint(QgsPoint):
 
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
-        pt = QgsPoint(self)
+        pt = QgsPointXY(self)
 
         if self.mCrs != crs:
             pt = saveTransform(pt, self.mCrs, crs)
@@ -291,7 +294,7 @@ def px2geo(px, gt):
     #see http://www.gdal.org/gdal_datamodel.html
     gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
     gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
-    return QgsPoint(gx,gy)
+    return QgsPointXY(gx,gy)
 
 
 class SpatialExtent(QgsRectangle):
@@ -400,16 +403,16 @@ class SpatialExtent(QgsRectangle):
         s = ""
 
     def upperRightPt(self):
-        return QgsPoint(*self.upperRight())
+        return QgsPointXY(*self.upperRight())
 
     def upperLeftPt(self):
-        return QgsPoint(*self.upperLeft())
+        return QgsPointXY(*self.upperLeft())
 
     def lowerRightPt(self):
-        return QgsPoint(*self.lowerRight())
+        return QgsPointXY(*self.lowerRight())
 
     def lowerLeftPt(self):
-        return QgsPoint(*self.lowerLeft())
+        return QgsPointXY(*self.lowerLeft())
 
 
     def upperRight(self):
@@ -442,6 +445,11 @@ class SpatialExtent(QgsRectangle):
                                 self.xMinimum(), self.yMinimum(),
                                 self.xMaximum(), self.yMaximum()
                                 ), {}
+
+
+    def __hash__(self):
+        return hash(str(self))
+
     def __str__(self):
         return self.__repr__()
 
