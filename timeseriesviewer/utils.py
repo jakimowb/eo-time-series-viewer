@@ -40,6 +40,8 @@ jp = os.path.join
 dn = os.path.dirname
 
 from timeseriesviewer import DIR_UI, DIR_REPO
+from timeseriesviewer import messageLog
+
 
 
 def appendItemsToMenu(menu, itemsToAdd):
@@ -205,22 +207,26 @@ def saveTransform(geom, crs1, crs2):
             return None
 
 
-        transform = QgsCoordinateTransform(crs1, crs2);
+        transform = QgsCoordinateTransform()
+        transform.setSourceCrs(crs1)
+        transform.setDestinationCrs(crs2)
         try:
             rect = transform.transformBoundingBox(geom);
             result = SpatialExtent(crs2, rect)
         except:
-            logger.debug('Can not transform from {} to {} on rectangle {}'.format( \
+            messageLog('Can not transform from {} to {} on rectangle {}'.format( \
                 crs1.description(), crs2.description(), str(geom)))
 
-    elif isinstance(geom, QgsPoint):
+    elif isinstance(geom, QgsPointXY):
 
-        transform = QgsCoordinateTransform(crs1, crs2);
+        transform = QgsCoordinateTransform();
+        transform.setSourceCrs(crs1)
+        transform.setDestinationCrs(crs2)
         try:
             pt = transform.transform(geom);
             result = SpatialPoint(crs2, pt)
         except:
-            logger.debug('Can not transform from {} to {} on QgsPoint {}'.format( \
+            messageLog('Can not transform from {} to {} on QgsPointXY {}'.format( \
                 crs1.description(), crs2.description(), str(geom)))
     return result
 
@@ -244,7 +250,7 @@ def geo2pxF(geo, gt):
     :param gt: GDAL Geo-Transformation tuple, as described in http://www.gdal.org/gdal_datamodel.html
     :return: pixel position as QPointF
     """
-    assert isinstance(geo, QgsPoint)
+    assert isinstance(geo, QgsPointXY)
     # see http://www.gdal.org/gdal_datamodel.html
     px = (geo.x() - gt[0]) / gt[1]  # x pixel
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
@@ -276,7 +282,7 @@ def geo2px(geo, gt):
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
     Floating-point coordinate are casted to integer coordinate, e.g. the pixel coordinate (0.815, 23.42) is returned as (0,23)
-    :param geo: Geo-Coordinate as QgsPoint
+    :param geo: Geo-Coordinate as QgsPointXY
     :param gt: GDAL Geo-Transformation tuple, as described in http://www.gdal.org/gdal_datamodel.html
     :return: pixel position as QPpint
     """
@@ -587,7 +593,7 @@ def copyRenderer(renderer, targetLayer):
             r.setClassificationMax(cmax)
             targetLayer.setRenderer(r)
             return True
-    elif isinstance(targetLayer, QgsVectorLayer) and isinstance(renderer, QgsFeatureRendererV2):
+    elif isinstance(targetLayer, QgsVectorLayer) and isinstance(renderer, QgsFeatureRenderer):
         #todo: add render-specific switches
         targetLayer.setRenderer(renderer)
         return True
@@ -706,7 +712,6 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
 
 
 
-        #logger.debug('Load UI file: {}'.format(pathUi))
         buffer = io.StringIO()  # buffer to store modified XML
         buffer.write(doc.toString())
         buffer.flush()

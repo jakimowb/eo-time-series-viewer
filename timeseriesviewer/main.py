@@ -637,7 +637,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if not re.search('timeseriesviewer', m):
             return
 
-        if level in [Qgis.CRITICAL, Qgis.WARNING]:
+        if level in [Qgis.Critical, Qgis.Warning]:
             widget = self.ui.messageBar.createMessage(tag, message)
             button = QPushButton(widget)
             button.setText("Show")

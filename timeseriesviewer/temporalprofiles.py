@@ -769,7 +769,7 @@ class TemporalProfile(QObject):
         for tsd in sensorTSDs:
             data = self.mData[tsd]
             for k, v in data.items():
-                if v is not None and fields.fieldNameIndex(k) == -1:
+                if v is not None and fields.indexFromName(k) == -1:
                     fields.append(qgsFieldFromKeyValue(k, v))
 
         for i, tsd in enumerate(sensorTSDs):
@@ -783,7 +783,7 @@ class TemporalProfile(QObject):
             for k, v in data.items():
                 if v is None:
                     continue
-                idx = f.fieldNameIndex(k)
+                idx = f.fields().indexFromName(k)
                 field = f.fields().field(idx)
                 if field.typeName() == 'text':
                     v = str(v)
@@ -1187,13 +1187,13 @@ class TemporalProfileCollection(QAbstractTableModel):
         return None
 
     def fromID(self, id):
-        if self.mTPLookupID.has_key(id):
+        if id in self.mTPLookupID:
             return self.mTPLookupID[id]
         else:
             return None
 
     def fromSpatialPoint(self, spatialPoint):
-        if self.mTPLookupSpatialPoint.has_key(spatialPoint):
+        if spatialPoint in self.mTPLookupSpatialPoint:
             return self.mTPLookupSpatialPoint[spatialPoint]
         else:
             return None
@@ -1296,7 +1296,7 @@ class TemporalProfileCollection(QAbstractTableModel):
     def setFeatureAttribute(self, feature, name, value):
         assert isinstance(feature, QgsFeature)
         assert isinstance(name, str)
-        i = feature.fieldNameIndex(name)
+        i = feature.indexFromName(name)
         assert i >= 0, 'Field "{}" does not exist'.format(name)
         field = feature.fields()[i]
         if field.isNumeric():

@@ -214,7 +214,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
 
             crs = QgsCoordinateReferenceSystem('EPSG:4862')
             uri = 'Point?crs={}'.format(crs.authid())
-            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory', False)
+            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
             f = sensorExampleQgsFeature(sensor)
             assert isinstance(f, QgsFeature)
             assert lyr.startEditing()
@@ -1208,8 +1208,8 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
         self.ui = ui
 
-        if DEBUG:
-            import timeseriesviewer.pixelloader
+        import timeseriesviewer.pixelloader
+        if True or DEBUG:
             timeseriesviewer.pixelloader.DEBUG = True
 
         self.TS = None
@@ -1316,7 +1316,7 @@ class SpectralTemporalVisualization(QObject):
             plotStyle = TemporalProfile2DPlotStyle(temporalProfile)
 
             plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
-            sensors = self.TS.Sensors.keys()
+            sensors = list(self.TS.Sensors.keys())
             if len(sensors) > 0:
                 plotStyle.setSensor(sensors[0])
 

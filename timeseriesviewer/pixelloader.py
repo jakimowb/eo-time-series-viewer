@@ -521,7 +521,7 @@ class PixelLoader(QObject):
 
     def isReadyToLoad(self):
 
-        return self.mTaskQueue is not None and self.mTaskQueue.is_empty() and self.mResultQueue.is_empty()
+        return self.mTaskQueue is None or (self.mTaskQueue.empty() and self.mResultQueue.empty())
 
 
     def checkTaskResults(self, *args):
