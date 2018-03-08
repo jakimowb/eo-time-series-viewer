@@ -63,6 +63,7 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         self.btnToggleCrosshair.setDefaultAction(self.actionToggleCrosshairVisibility)
         self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewHidden)
+        self.btnSetVectorStyle.setDefaultAction(self.actionSetVectorStyle)
 
     def connectActionWithGroupBox(self,action, groupBox):
         assert isinstance(action, QAction)
@@ -114,11 +115,11 @@ class MapView(QObject):
 
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
-    def __init__(self, mapViewCollection, name='Map View', recommended_bands=None, parent=None):
+    def __init__(self, mapViewCollectionDock, name='Map View', recommended_bands=None, parent=None):
         super(MapView, self).__init__()
-        assert isinstance(mapViewCollection, MapViewCollectionDock)
+        assert isinstance(mapViewCollectionDock, MapViewCollectionDock)
 
-        self.ui = MapViewUI(mapViewCollection.stackedWidget)
+        self.ui = MapViewUI(mapViewCollectionDock.stackedWidget)
         self.ui.show()
         self.ui.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.ui.cbQgsVectorLayer.layerChanged.connect(self.setVectorLayer)
@@ -130,7 +131,7 @@ class MapView(QObject):
                 crosshairStyle=self.mCrosshairStyle))
         )
 
-        self.mapViewCollection = mapViewCollection
+        self.mapViewCollection = mapViewCollectionDock
         self.mSensorViews = collections.OrderedDict()
 
         self.mVectorLayer = None
@@ -149,6 +150,7 @@ class MapView(QObject):
         self.ui.actionToggleVectorVisibility.setChecked(False)
         self.ui.actionToggleRasterVisibility.setChecked(True)
 
+        self.ui.actionSetVectorStyle.triggered.connect(self.setVectorLayerStyle)
 
         for sensor in self.mapViewCollection.TS.Sensors:
             self.addSensor(sensor)
@@ -183,13 +185,23 @@ class MapView(QObject):
             m.extend(sensorView.mapCanvases())
         return m
 
+
+
+
+    def setVectorLayerStyle(self, *args):
+        if isinstance(self.mVectorLayer, QgsVectorLayer):
+            d = QgsRendererPropertiesDialog(self.mVectorLayer, QgsStyle.defaultStyle())
+            d.exec_()
+
+
     def vectorLayerRenderer(self):
         if isinstance(self.mVectorLayer, QgsVectorLayer):
-            return self.mVectorLayer.rendererV2()
+            return self.mVectorLayer.renderer()
         return None
 
+
     def setVectorLayerRenderer(self, renderer):
-        if isinstance(renderer, QgsFeatureRendererV2) and \
+        if isinstance(renderer, QgsFeatureRenderer) and \
             isinstance(self.mVectorLayer, QgsVectorLayer):
             self.mVectorLayer.setRendererV2(renderer)
 
@@ -440,9 +452,9 @@ class MapViewSensorSettings(QObject):
         self.ceAlgs["Clip to MinMax"] = QgsContrastEnhancement.ClipToMinimumMaximum
 
         self.colorRampType = collections.OrderedDict()
-        self.colorRampType['Interpolated'] = QgsColorRampShader.INTERPOLATED
-        self.colorRampType['Discrete'] = QgsColorRampShader.DISCRETE
-        self.colorRampType['Exact'] = QgsColorRampShader.EXACT
+        self.colorRampType['Interpolated'] = QgsColorRampShader.Interpolated
+        self.colorRampType['Discrete'] = QgsColorRampShader.Discrete
+        self.colorRampType['Exact'] = QgsColorRampShader.Exact
 
         self.colorRampClassificationMode = collections.OrderedDict()
         self.colorRampClassificationMode['Continuous'] = 1
@@ -459,7 +471,7 @@ class MapViewSensorSettings(QObject):
         populateCombobox(self.ui.cbSingleBandMode, self.colorRampClassificationMode)
 
         #self.ui.cbSingleBandColorRamp.populate(QgsStyleV2.defaultStyle())
-        self.ui.btnSingleBandColorRamp.set
+        self.ui.btnSingleBandColorRamp.setColorRamp(QgsStyle.defaultStyle().colorRamp('Greens'))
 
 
         nb = self.sensor.nb
@@ -490,7 +502,7 @@ class MapViewSensorSettings(QObject):
         colorRamp = self.ui.btnSingleBandColorRamp.colorRamp()
         #fix: QGIS 3.0 constructor
         shaderFunc = QgsColorRampShader(bandStats[0].Min, bandStats[0].Max)
-        shaderFunc.setColorRampType(QgsColorRampShader.INTERPOLATED)
+        shaderFunc.setColorRampType(QgsColorRampShader.Interpolated)
         shaderFunc.setClip(True)
         nSteps = 5
         colorRampItems = []
@@ -684,7 +696,7 @@ class MapViewSensorSettings(QObject):
                 self.multiBandMinValues[i].setText(niceNumberString(vMin))
                 self.multiBandMaxValues[i].setText(niceNumberString(vMax))
 
-            idx = self.ceAlgs.values().index(ceRed.contrastEnhancementAlgorithm())
+            idx = list(self.ceAlgs.values()).index(ceRed.contrastEnhancementAlgorithm())
             ui.comboBoxContrastEnhancement.setCurrentIndex(idx)
 
 
@@ -703,7 +715,9 @@ class MapViewSensorSettings(QObject):
 
             shaderFunc = shader.rasterShaderFunction()
             #self.ui.cbSingleBandColorRampType.setCurrentIndex(shaderFunc.colorRampType())
-            self.ui.btnSingleBandColorRamp.setColorRamp(shaderFunc.colorRampType())
+            colorRamp = shaderFunc.sourceColorRamp()
+            if isinstance(colorRamp, QgsColorRamp):
+                self.ui.btnSingleBandColorRamp.setColorRamp(colorRamp)
             updated = True
 
         self.updateUi()
@@ -1795,55 +1809,32 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
                 return None
 
 
-"""
-class MapViewDockUI(QgsDockWidget, loadUi('mapviewdock.ui')):
-    def __init__(self, parent=None):
-        super(MapViewDockUI, self).__init__(parent)
-        self.setupUi(self)
-
-        self.baseTitle = self.windowTitle()
-        self.btnApplyStyles.setDefaultAction(self.actionApplyStyles)
-
-        #self.dockLocationChanged.connect(self.adjustLayouts)
+if __name__ == '__main__':
+    from timeseriesviewer import utils
+    from timeseriesviewer.mapcanvas import MapCanvas
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
 
 
+    from example import  exampleEvents
+    qgsApp = utils.initQgisApplication()
 
-    def toggleLayout(self, p):
-        newLayout = None
-        l = p.layout()
-        print('toggle layout {}'.format(str(p.objectName())))
-        tmp = QWidget()
-        tmp.setLayout(l)
-        sMax = p.maximumSize()
-        sMax.transpose()
-        sMin = p.minimumSize()
-        sMin.transpose()
-        p.setMaximumSize(sMax)
-        p.setMinimumSize(sMin)
-        if isinstance(l, QVBoxLayout):
-            newLayout = QHBoxLayout()
-        else:
-            newLayout = QVBoxLayout()
-        print(l, '->', newLayout)
+    TS= TimeSeries()
+    dock  = MapViewCollectionDock()
+    dock.setTimeSeries(TS)
+    dock.show()
+    mv1 = dock.createMapView()
+    mv2 = dock.createMapView()
+    dock.setCurrentMapView(mv1)
+    assert dock.currentMapView() == mv1
+    dock.setCurrentMapView(mv2)
+    assert dock.currentMapView() == mv2
 
-        while l.count() > 0:
-            item = l.itemAt(0)
-            l.removeItem(item)
+    vl = QgsVectorLayer(exampleEvents, 'ogr')
+    QgsProject.instance().addMapLayer(vl)
+    #d = QgsRendererPropertiesDialog(vl, QgsStyle.defaultStyle())
+    #d.show()
 
-            newLayout.addItem(item)
+    TS.addFiles(Img_2014_01_15_LC82270652014015LGN00_BOA)
 
 
-        p.setLayout(newLayout)
-        return newLayout
-
-    def adjustLayouts(self, area):
-        return
-        lOld = self.scrollAreaMapsViewDockContent.layout()
-        if area in [Qt.LeftDockWidgetArea, Qt.RightDockWidgetArea] \
-            and isinstance(lOld, QVBoxLayout) or \
-        area in [Qt.TopDockWidgetArea, Qt.BottomDockWidgetArea] \
-                        and isinstance(lOld, QHBoxLayout):
-
-            #self.toogleLayout(self.scrollAreaMapsViewDockContent)
-            self.toggleLayout(self.BVButtonList)
-"""
+    qgsApp.exec_()
