@@ -144,10 +144,11 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
             ext = SpatialExtent.fromMapCanvas(self.mCanvas)
             cen = geoPoint
             geom = QgsGeometry()
-            geom.addPart([QgsPointXY(ext.upperLeftPt().x(),cen.y()), QgsPointXY(ext.lowerRightPt().x(), cen.y())],
-                          Qgis.Line)
-            geom.addPart([QgsPointXY(cen.x(), ext.upperLeftPt().y()), QgsPointXY(cen.x(), ext.lowerRightPt().y())],
-                          Qgis.Line)
+
+            lineV = QgsLineString([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())])
+            lineH = QgsLineString([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())])
+            geom.addPart(lineV, QgsWkbTypes.LineGeometry)
+            geom.addPart(lineH, QgsWkbTypes.LineGeometry)
             self.mRubberband.addGeometry(geom, None)
             self.mRubberband.show()
             #remove crosshair after 0.25 sec
@@ -244,7 +245,7 @@ class MapLayerInfo(object):
             self.mProvider = srcOrMapLayer.providerType()
             self.mLayer = srcOrMapLayer
             if isinstance(srcOrMapLayer, QgsVectorLayer):
-                self.mRenderer = srcOrMapLayer.rendererV2()
+                self.mRenderer = srcOrMapLayer.renderer()
             elif isinstance(srcOrMapLayer, QgsRasterLayer):
                 self.mRenderer = srcOrMapLayer.renderer()
 
@@ -272,7 +273,7 @@ class MapLayerInfo(object):
 
     def setRenderer(self, renderer):
         self.mRenderer = renderer
-        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRendererV2) or \
+        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRenderer) or \
            self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
             self.mRenderer = renderer
             if self.isInitialized():
@@ -800,7 +801,7 @@ class MapCanvas(QgsMapCanvas):
                 if isinstance(l, QgsVectorLayer):
                     lqgis = iface.addVectorLayer(l.source(), l.name())
                     #lqgis = QgsVectorLayer(l.source(), l.name(), 'ogr', False)
-                    lqgis.setRendererV2(l.rendererV2().clone())
+                    lqgis.setRendererV2(l.renderer().clone())
                     #grpNode.addLayer(lqgis)
 
     def stretchToCurrentExtent(self):
@@ -1079,6 +1080,11 @@ if __name__ == '__main__':
     def printTimeDelta(dt):
         print(dt)
     c = MapCanvas()
+    #c.activateMapTool('identifySpectralProfile')
+    #c.activateMapTool('identifyTemporalProfile')
+    #c.activateMapTool('identifyCursorLocationValues')
+    c.activateMapTool('moveCenter')
+
     c.sigDataLoadingFinished.connect(printTimeDelta)
     c.show()
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)

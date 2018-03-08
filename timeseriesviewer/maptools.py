@@ -94,10 +94,11 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
                 ext = SpatialExtent.fromMapCanvas(self.canvas)
                 cen = geoPoint
                 geom = QgsGeometry()
-                geom.addPart([QgsPointXY(ext.upperLeftPt().x(),cen.y()), QgsPointXY(ext.lowerRightPt().x(), cen.y())],
-                              Qgis.Line)
-                geom.addPart([QgsPointXY(cen.x(), ext.upperLeftPt().y()), QgsPointXY(cen.x(), ext.lowerRightPt().y())],
-                              Qgis.Line)
+                lineH = QgsLineString([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())])
+                lineV = QgsLineString([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())])
+
+                geom.addPart(lineH, QgsWkbTypes.LineGeometry)
+                geom.addPart(lineV, QgsWkbTypes.LineGeometry)
                 self.rubberband.addGeometry(geom, None)
                 self.rubberband.show()
                 #remove crosshair after 0.25 sec
