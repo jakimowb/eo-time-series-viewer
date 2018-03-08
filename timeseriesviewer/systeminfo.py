@@ -64,20 +64,30 @@ class MapLayerRegistryModel(QAbstractTableModel):
             s = ""
 
         def addLayers(self, lyrs):
-            self.mLayers.extend(lyrs)
-            self.layoutChanged.emit()
+
+            lyrs = [l for l in lyrs if isinstance(l, QgsMapLayer)]
+
+            l = len(lyrs)
+
+            if l > 0:
+                i = len(self.mLayers)
+                self.beginInsertRows(QModelIndex(),i, i+l)
+                self.mLayers.extend(lyrs)
+                self.endInsertRows()
 
         #@pyqtSlot(list)
         def removeLayers(self, lyrNames):
+
+
             to_remove = [self.REG.mapLayer(name) for name in lyrNames]
 
             for l in to_remove:
                 if l in self.mLayers:
                     i = self.mLayers.index(l)
-                    #self.beginRemoveRows(self.createIndex(0,0),i,i)
+                    self.beginRemoveRows(QModelIndex(),i,i)
                     self.mLayers.remove(l)
-                    #self.endRemoveRows()
-            self.reset()
+                    self.endRemoveRows()
+            #self.reset()
 
         def columnNames(self):
             return [self.cID, self.cPID, self.cName, self.cType, self.cSrc]
