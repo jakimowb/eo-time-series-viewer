@@ -44,7 +44,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertIsInstance(m, QgsMapCanvas)
         m.show()
 
-        self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
 
 
 
