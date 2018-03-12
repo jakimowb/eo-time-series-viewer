@@ -162,11 +162,12 @@ class MapView(QObject):
     def setIsVisible(self, b):
         assert isinstance(b, bool)
 
-        changed = b != self.isVisible()
+        changed = False
 
         for mapCanvas in self.mapCanvases():
             assert isinstance(mapCanvas, MapCanvas)
             if not mapCanvas.isVisible() == b:
+                changed = True
                 mapCanvas.setVisible(b)
 
         if self.ui.actionToggleMapViewHidden.isChecked() == b:
@@ -177,7 +178,7 @@ class MapView(QObject):
 
 
     def isVisible(self):
-        return self.ui.actionToggleMapViewHidden.isChecked()
+        return not self.ui.actionToggleMapViewHidden.isChecked()
 
     def mapCanvases(self):
         m = []
@@ -845,8 +846,9 @@ class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
                 ws = w.size()
                 if ws.width() == 0:
                     ws = w.sizeHint()
-                total.setWidth(max([total.width(), ws.width()]))
-                total.setHeight(total.height() +  ws.height())
+                if w.isVisible():
+                    total.setWidth(max([total.width(), ws.width()]))
+                    total.setHeight(total.height() +  ws.height())
             return total
 
         baseSize = totalHeight(widgets)
@@ -855,6 +857,7 @@ class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
                 baseSize.setWidth(9999)
         s = QSize(baseSize.width() + m.left() + m.right(),
                   baseSize.height() + m.top() + m.bottom())
+        #print(s)
         return s
 
 """
@@ -945,11 +948,6 @@ class DatumView(QObject):
         else:
             self.ui.setStyleSheet(styleOff)
 
-
-    def setMapViewVisibility(self, bandView, isVisible):
-        self.mapCanvases[bandView].setVisible(isVisible)
-
-
     def removeMapView(self, mapView):
         canvas = self.mapCanvases.pop(mapView)
         self.ui.layout().removeWidget(canvas)
@@ -1021,7 +1019,7 @@ class DatumView(QObject):
 
 
 
-        mapView.sigTitleChanged[unicode].connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
+        #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
         mapCanvas.layerModel().setRasterLayerSources([self.TSD.pathImg])
 
         self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
@@ -1203,18 +1201,16 @@ class SpatialTemporalVisualization(QObject):
             s = tsdViews[0].ui.sizeHint().width()
             s = nX * (s + spacing) + margins.left() + margins.right()
             sizeX = s
-        if nY > 0:
-            if nX > 0:
+        if nY > 0 and nX > 0:
                 s = tsdViews[0].ui.sizeHint().height()
                 s = s + margins.top() + margins.bottom()
-            else:
-                s = 50
-            sizeY = s
+                sizeY = s
 
             #s = tsdViews[0].ui.sizeHint()
             #s = QSize(nX * (s.width() + spacing) + margins.left() + margins.right(),
             #          s.height() + margins.top() + margins.bottom())
 
+        #print(sizeX, sizeY)
         self.targetLayout.parentWidget().setFixedSize(QSize(sizeX, sizeY))
 
     def setMapTool(self, mapToolKey, *args, **kwds):
@@ -1525,6 +1521,7 @@ class MapViewListModel(QAbstractListModel):
         self.mMapViewList = []
 
 
+
     def addMapView(self, mapView):
         i = len(self.mMapViewList)
         self.insertMapView(i, mapView)
@@ -1684,6 +1681,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     def onMapViewsAdded(self, mapViews):
         nextShown = None
         for mapView in mapViews:
+            mapView.sigTitleChanged.connect(self.updateTitle)
             self.stackedWidget.addWidget(mapView.ui)
             if nextShown is None:
                 nextShown = mapView
@@ -1725,9 +1723,6 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.sigMapViewAdded.emit(mapView)
         return mapView
 
-    def updateFromMapView(self, mapView):
-        assert isinstance(mapView, MapView)
-        self.btnToggleMapViewVisibility.setChecked(mapView)
 
     def removeMapView(self, mapView):
         if isinstance(mapView, MapView):
@@ -1742,6 +1737,9 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             mapView.ui.close()
 
             self.sigMapViewRemoved.emit(mapView)
+
+
+
 
     def __len__(self):
         return len(self.mMapViews)
@@ -1797,6 +1795,19 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             self.stackedWidget.setCurrentIndex(idx)
             self.cbMapView.setCurrentIndex(self.mMapViews.mapView2idx(mapView).row())
 
+        self.updateTitle()
+
+    def updateTitle(self, *args):
+        # self.btnToggleMapViewVisibility.setChecked(mapView)
+        mapView = self.currentMapView()
+        if isinstance(mapView, MapView):
+            if mapView in self.mMapViews:
+                i = str(self.mMapViews.mapView2idx(mapView).row()+1)
+            else:
+                i = ''
+            #title = '{} | {} "{}"'.format(self.baseTitle, i, mapView.title())
+            title = '{} | {}'.format(self.baseTitle, i)
+            self.setWindowTitle(title)
 
     def currentMapView(self):
         if len(self.mMapViews) == 0:
