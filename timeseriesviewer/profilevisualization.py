@@ -1560,8 +1560,8 @@ class SpectralTemporalVisualization(QObject):
         if not isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
             return False
 
-        if not self.pixelLoader.isReadyToLoad():
-            return False
+        #if not self.pixelLoader.isReadyToLoad():
+        #    return False
 
         assert isinstance(self.TS, TimeSeries)
 
@@ -1639,7 +1639,7 @@ class SpectralTemporalVisualization(QObject):
         if len(tasks) > 0:
             aGoodDefault = 2 if len(self.TS) > 25 else 1
 
-            self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
+            #self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
             if DEBUG:
                 print('Start loading for {} geometries from {} sources...'.format(
                     len(theGeometries), len(tasks)

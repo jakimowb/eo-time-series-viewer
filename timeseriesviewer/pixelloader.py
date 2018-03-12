@@ -95,6 +95,18 @@ class PixelLoaderTask(object):
                 self.__dict__[k] = kwargs[k]
 
 
+    def validPixelValues(self, i):
+        if not self.success():
+            return False
+        if i >= len(self.resProfiles):
+            return False
+
+        profileData = self.resProfiles[i]
+        if profileData in [INFO_OUT_OF_IMAGE, INFO_NO_DATA]:
+            return False
+        else:
+            return True
+
 
     def imageCrs(self):
         return QgsCoordinateReferenceSystem(self.resCrsWkt)
@@ -365,23 +377,30 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
     assert isinstance(finishedEvent, Event)
 
 
-    while not cancelEvent.is_set():
-
-        if not inputQueue.empty():
-            print('Taskloop {} '.format(time.time()))
-            task = inputQueue.get()
-            if not isinstance(task, str):
-                try:
-                    task = doLoaderTask(task)
-                    print('Taskloop put {} '.format(task))
-                    resultQueue.put(task)
-                except Exception as ex:
-                    resultQueue.put(ex)
-            elif task.startswith('LAST'):
-                resultQueue.put('FINISHED')
-                finishedEvent.set()
-            else:
-                print('Unhandled {}'.format(task))
+    while not inputQueue.empty():
+        if cancelEvent.is_set():
+            print('Taskloop put CANCELED')
+            break
+        #if not inputQueue.empty():
+        print('Taskloop {} '.format(time.time()))
+        task = inputQueue.get()
+        if not isinstance(task, str):
+            try:
+                print('Taskloop do {} '.format(task))
+                task = doLoaderTask(task)
+                print('Taskloop put {} '.format(task))
+                resultQueue.put(task)
+            except Exception as ex:
+                resultQueue.put(ex)
+        elif task.startswith('LAST'):
+            print('Taskloop put FINISHED')
+            resultQueue.put('FINISHED')
+            finishedEvent.set()
+            print('Taskloop FINISHED set')
+        else:
+            print('Taskloop put UNHANDLED')
+            print('Unhandled {}'.format(task))
+            break
 
     resultQueue.put('CANCELED')
 
@@ -451,19 +470,28 @@ class PixelLoader(QObject):
         self.mWorkerProcess = None
 
         self.queueCheckTimer = QTimer()  #
-        #self.queueCheckTimer.setInterval(1000)
+        #self.queueCheckTimer.setInterval(200)
         self.queueCheckTimer.timeout.connect(self.checkTaskResults)
-        self.queueCheckTimer.start(200)
+        self.queueCheckTimer.timeout.connect(self.dummySlot)
+        self.queueCheckTimer.start(1000)
+
+    def dummySlot(self, *args):
+        print('dummy slot triggered')
+
 
     def initWorkerProcess(self):
 
-        if not isinstance(self.mWorkerProcess, multiprocessing.Process) or not self.mWorkerProcess.is_alive():
+        if not isinstance(self.mWorkerProcess, multiprocessing.Process) :
             self.mWorkerProcess = multiprocessing.Process(name='PixelLoaderWorkingProcess',
                                                           target=pixelLoadingLoop,
                                                           args=(self.mTaskQueue, self.mResultQueue, self.mCancelEvent, self.mKillEvent,))
 
             self.mWorkerProcess.daemon = False
             self.mWorkerProcess.start()
+
+        else:
+            if not self.mWorkerProcess.is_alive():
+                self.mWorkerProcess.run()
 
 
 
@@ -506,13 +534,13 @@ class PixelLoader(QObject):
 
         self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
         self.sigLoadingStarted.emit(paths[:])
-
+        self.mKillEvent.clear()
         self.initWorkerProcess()
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
             t.mJobId = self.jobId
             self.mTaskQueue.put(t)
-        self.mKillEvent.clear()
+
         self.mTaskQueue.put('LAST_{}'.format(jobId))
 
     def cancelLoading(self):
@@ -526,34 +554,35 @@ class PixelLoader(QObject):
 
     def checkTaskResults(self, *args):
         dataList = []
-
+        print('CHECK TASK RESULTS')
         finished = False
         canceled = False
 
-        while not self.mResultQueue.empty():
-            data = self.mResultQueue.get()
-            if isinstance(data, PixelLoaderTask):
-                dataList.append(data)
-                print('result pulled')
-            elif isinstance(data, str):
-                if data == 'FINISHED':
-                    finished = True
-                elif data == 'CANCELED':
-                    canceled = True
+        if isinstance(self.mWorkerProcess, multiprocessing.Process):
+            while not self.mResultQueue.empty():
+                data = self.mResultQueue.get()
+                if isinstance(data, PixelLoaderTask):
+                    dataList.append(data)
+                    print('result pulled')
+                elif isinstance(data, str):
+                    if data == 'FINISHED':
+                        finished = True
+                    elif data == 'CANCELED':
+                        canceled = True
+                    else:
+                        s = ""
                 else:
-                    s = ""
-            else:
-                raise Exception('Unhandle type returned {}'.format(data))
-        if len(dataList) > 0:
-             self.onPixelLoaded(dataList)
+                    raise Exception('Unhandled type returned {}'.format(data))
+            if len(dataList) > 0:
+                 self.onPixelLoaded(dataList)
 
-        if finished:
-            dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
-            self.sigLoadingFinished.emit(dt)
+            if finished:
+                dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
+                self.sigLoadingFinished.emit(dt)
 
-            if self.mTaskQueue.empty() and self.mResultQueue.empty():
-                self.mWorkerProcess.terminate()
-                self.mWorkerProcess.join()
+                if self.mTaskQueue.empty() and self.mResultQueue.empty():
+                    self.mWorkerProcess.terminate()
+                    self.mWorkerProcess.join()
 
 
 

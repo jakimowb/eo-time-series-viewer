@@ -22,6 +22,10 @@ from timeseriesviewer import file_search
 QGIS_APP = initQgisApplication()
 
 
+def onDummy(*args):
+    print(('dummy', args))
+
+
 class PixelLoaderTest(unittest.TestCase):
     """Test translations work."""
 
@@ -141,12 +145,14 @@ class PixelLoaderTest(unittest.TestCase):
         ext = SpatialExtent.fromRasterSource(files[0])
         x, y = ext.center()
 
-        geoms = [
+        geoms1 = [
             # SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
             SpatialExtent(ext.crs(), x + 10000, y, x + 12000, y + 70),  # out of image
             SpatialExtent(ext.crs(), x, y, x + 10000, y + 70),
-            SpatialPoint(ext.crs(), x, y),
-            SpatialPoint(ext.crs(), x + 250, y + 70)]
+            ]
+
+        geoms2 = [SpatialPoint(ext.crs(), x, y),
+                  SpatialPoint(ext.crs(), x + 250, y + 70)]
 
         from multiprocessing import Pool
 
@@ -157,8 +163,6 @@ class PixelLoaderTest(unittest.TestCase):
 
         PL = PixelLoader()
 
-        def onDummy(*args):
-            print(('dummy', args))
 
         def onTimer(*args):
             print(('TIMER', PL))
@@ -170,12 +174,21 @@ class PixelLoaderTest(unittest.TestCase):
         PL.sigLoadingStarted.connect(lambda: onDummy('started'))
         PL.sigPixelLoaded.connect(lambda: onDummy('px loaded'))
 
-        tasks = []
+        tasks1 = []
         for i, f in enumerate(files):
             kwargs = {'myid': 'myID{}'.format(i)}
-            tasks.append(PixelLoaderTask(f, geoms, bandIndices=None, **kwargs))
+            tasks1.append(PixelLoaderTask(f, geoms1, bandIndices=None, **kwargs))
 
-        PL.startLoading(tasks)
+        tasks2 = []
+        for i, f in enumerate(files):
+            kwargs = {'myid': 'myID{}'.format(i)}
+            tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
+
+        PL.startLoading(tasks1)
+        PL.startLoading(tasks2)
+
+        print('DONE')
+
 
 
 

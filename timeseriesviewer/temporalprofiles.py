@@ -650,23 +650,22 @@ class TemporalProfile(QObject):
             i = d.temporalProfileIDs.index(self.mID)
             tsd = self.mTimeSeries.getTSD(d.sourcePath)
             assert isinstance(tsd, TimeSeriesDatum)
-            profileData = d.resProfiles[i]
-            if not isinstance(profileData, tuple):
-                s = ""
-            try:
-                vMean, vStd = profileData
-            except Exception as ex:
-                s = ""
-            values = {}
-            validValues = not isinstance(vMean, str)
-            # 1. add the pixel values per returned band
 
-            for iBand, bandIndex in enumerate(d.bandIndices):
-                key = 'b{}'.format(bandIndex + 1)
-                values[key] = vMean[iBand] if validValues else None
-                key = 'std{}'.format(bandIndex + 1)
-                values[key] = vStd[iBand] if validValues else None
-            self.updateData(tsd, values)
+            if d.validPixelValues(i):
+
+                profileData = d.resProfiles[i]
+
+                vMean, vStd = profileData
+                values = {}
+                validValues = not isinstance(vMean, str)
+                # 1. add the pixel values per returned band
+
+                for iBand, bandIndex in enumerate(d.bandIndices):
+                    key = 'b{}'.format(bandIndex + 1)
+                    values[key] = vMean[iBand] if validValues else None
+                    key = 'std{}'.format(bandIndex + 1)
+                    values[key] = vStd[iBand] if validValues else None
+                self.updateData(tsd, values)
 
 
     def loadMissingData(self, showGUI=False):

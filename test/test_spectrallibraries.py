@@ -17,7 +17,7 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-import os, sys, unittest
+import os, sys, unittest, tempfile
 from timeseriesviewer.utils import initQgisApplication
 qapp = initQgisApplication()
 
@@ -45,11 +45,44 @@ class TestInit(unittest.TestCase):
         self.SP = spec1
 
     def test_spectralLibrary(self):
-        sl = SpectralLibrary()
-        sl.addProfile(self.SP)
 
-        self.assertEqual(len(sl),1)
-        self.assertEqual(sl[0], self.SP)
+        spec1 = SpectralProfile()
+        spec1.setValues([0, 4, 3, 2, 1], ['-'], [450, 500, 750, 1000, 1500], 'nm')
+
+        spec2 = SpectralProfile()
+        spec2.setValues([3, 2, 1, 0, 1], ['-'], [450, 500, 750, 1000, 1500], 'nm')
+
+        sl = SpectralLibrary()
+        sl.addProfiles([spec1, spec2])
+        self.assertEqual(len(sl),2)
+        self.assertEqual(sl[0], spec1)
+
+
+        tempDir = tempfile.gettempdir()
+        pathESL = tempfile.mktemp(prefix='speclib.', suffix='.esl')
+        pathCSV = tempfile.mktemp(prefix='speclib.', suffix='.csv')
+        try:
+            sl.exportProfiles(pathESL)
+        except Exception as ex:
+            self.fail('Unable to write ESL. {}'.format(ex))
+
+        try:
+            sl2 = SpectralLibrary.readFrom(pathESL)
+        except Exception as ex:
+            self.fail('Unable to read ESL. {}'.format(ex))
+
+
+        try:
+            sl.exportProfiles(pathCSV)
+        except Exception as ex:
+            self.fail('Unable to write CSV. {}'.format(ex))
+
+        try:
+            sl2 = SpectralLibrary.readFrom(pathCSV)
+        except Exception as ex:
+            self.fail('Unable to read CSV. {}'.format(ex))
+
+
 
 
         self.SPECLIB = sl
