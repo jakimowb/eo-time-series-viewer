@@ -680,7 +680,10 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
             assert os.path.isfile(pathTmpHdr)
 
             import codecs
-            hdr = codecs.open(pathTmpHdr, encoding='utf-8').readlines()
+            file = codecs.open(pathTmpHdr, encoding='utf-8')
+            hdr = file.readlines()
+            file.close()
+
             for iLine in range(len(hdr)):
                 if re.search('file type =', hdr[iLine]):
                     hdr[iLine] = 'file type = ENVI Standard\n'
@@ -826,11 +829,15 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
             ds = None
 
             # last step: change ENVI Hdr
-            hdr = open(pathHdr).readlines()
+            file = open(pathHdr)
+            hdr = file.readlines()
+            file.close()
+
             for iLine in range(len(hdr)):
                 if re.search('file type =', hdr[iLine]):
                     hdr[iLine] = 'file type = ENVI Spectral Library\n'
                     break
+
             file = open(pathHdr, 'w')
             file.writelines(hdr)
             file.flush()
@@ -893,7 +900,10 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
 
         import codecs
         #hdr = open(pathHdr).readlines()
-        hdr = codecs.open(pathHdr, encoding='utf-8').readlines()
+        file = codecs.open(pathHdr, encoding='utf-8')
+        hdr = file.readlines()
+        file.close()
+
         i = 0
         while i < len(hdr):
             if '{' in hdr[i]:
@@ -1065,6 +1075,9 @@ class SpectralLibrary(QObject):
             lastDataSourceDir = None
 
         uris = QFileDialog.getOpenFileNames(parent, "Open spectral library", lastDataSourceDir, filter=FILTERS + ';;All files (*.*)', )
+        if isinstance(uris, tuple):
+            uris = uris[0]
+
         if len(uris) > 0:
             SETTINGS.setValue('_lastSpecLibSourceDir', os.path.dirname(uris[-1]))
 
@@ -1182,6 +1195,8 @@ class SpectralLibrary(QObject):
         if path is None:
 
             path = QFileDialog.getSaveFileName(parent=None, caption="Save Spectral Library", filter=FILTERS)
+            if isinstance(path, tuple):
+                path = path[0]
 
         if len(path) > 0:
             ext = os.path.splitext(path)[-1].lower()

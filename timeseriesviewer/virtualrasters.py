@@ -19,7 +19,6 @@
  *                                                                         *
  ***************************************************************************/
 """
-
 import os, sys, re, pickle, tempfile, unicodedata
 from collections import OrderedDict
 import tempfile
@@ -28,7 +27,9 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
+from timeseriesviewer.models import Option, OptionListModel
 #lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte:1,
                 gdal.GDT_UInt16:2,
@@ -54,18 +55,33 @@ LUT_GDT_NAME = {gdal.GDT_Byte:'Byte',
                 gdal.GDT_CFloat32:'Float32',
                 gdal.GDT_CFloat64:'Float64'}
 
-def u2s(s):
-    if isinstance(s, unicode):
-        #s = s.encode(s, 'utf-8')
-        s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore')
-        #s = s.encode('utf-8', 'ignore')
-    return str(s)
+
+
+RESAMPLE_ALGS = OptionListModel()
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_NearestNeighbour, 'nearest',
+                               tooltip='nearest neighbour resampling (default, fastest algorithm, worst interpolation quality).'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_Bilinear, 'bilinear', tooltip='bilinear resampling.'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_Lanczos, 'lanczos', tooltip='lanczos windowed sinc resampling.'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_Average, 'average', tooltip='average resampling, computes the average of all non-NODATA contributing pixels.'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_Cubic, 'cubic', tooltip='cubic resampling.'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_CubicSpline, 'cubic_spline', tooltip='cubic spline resampling.'))
+RESAMPLE_ALGS.addOption(Option(gdal.GRA_Mode, 'mode', tooltip='mode resampling, selects the value which appears most often of all the sampled points'))
+
+if int(gdal.VersionInfo()) >= 2020300:
+    #respect that older GDAL version do not have python binding to GRA_Max, GRA_Min, GRA_Med, GRA_Q1 and GRA_Q3
+    #see https://trac.osgeo.org/gdal/wiki/Release/2.2.3-News
+    #https://trac.osgeo.org/gdal/ticket/7153
+    RESAMPLE_ALGS.addOption(Option(gdal.GRA_Max, 'max', tooltip='maximum resampling, selects the maximum value from all non-NODATA contributing pixels'))
+    RESAMPLE_ALGS.addOption(Option(gdal.GRA_Min, 'min', tooltip='minimum resampling, selects the minimum value from all non-NODATA contributing pixels.'))
+    RESAMPLE_ALGS.addOption(Option(gdal.GRA_Med, 'med', tooltip='median resampling, selects the median value of all non-NODATA contributing pixels.'))
+    RESAMPLE_ALGS.addOption(Option(gdal.GRA_Q1, 'Q1', tooltip='first quartile resampling, selects the first quartile value of all non-NODATA contributing pixels. '))
+    RESAMPLE_ALGS.addOption(Option(gdal.GRA_Q3, 'Q2', tooltip='third quartile resampling, selects the third quartile value of all non-NODATA contributing pixels'))
 
 def px2geo(px, gt):
     #see http://www.gdal.org/gdal_datamodel.html
     gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
     gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
-    return QgsPointXY(gx,gy)
+    return QgsPoint(gx,gy)
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,
@@ -134,7 +150,11 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
         vrt.append('  </VRTRasterBand>')
     vrt.append('</VRTDataset>')
     vrt = '\n'.join(vrt)
-    open(pathVrt, 'w').write(vrt)
+
+    file = open(pathVrt, 'w')
+    file.write(vrt)
+    file.flush()
+    file.close()
 
     ds = gdal.Open(pathVrt)
     return ds
@@ -202,9 +222,6 @@ class VRTRasterBand(QObject):
 
     def setName(self, name):
 
-        #if isinstance(name, unicode):
-       #     name = name.encode('utf-8')
-        #name = u2s(name)
         if isinstance(name, str):
             name = unicode(name)
         oldName = self.mName
@@ -264,15 +281,6 @@ class VRTRasterBand(QObject):
             infos.append('\t{} SourceFileName {} SourceBand {}'.format(i + 1, info.mPath, info.mBandIndex))
         return '\n'.join(infos)
 
-LUT_ResampleAlgs = OrderedDict()
-LUT_ResampleAlgs['nearest'] = gdal.GRA_NearestNeighbour
-LUT_ResampleAlgs['bilinear'] = gdal.GRA_Bilinear
-LUT_ResampleAlgs['mode'] = gdal.GRA_Mode
-LUT_ResampleAlgs['lanczos'] = gdal.GRA_Lanczos
-LUT_ResampleAlgs['average'] = gdal.GRA_Average
-LUT_ResampleAlgs['cubic'] = gdal.GRA_Cubic
-LUT_ResampleAlgs['cubic_spline'] = gdal.GRA_CubicSpline
-
 
 class VRTRaster(QObject):
 
@@ -284,7 +292,7 @@ class VRTRaster(QObject):
     sigBandRemoved = pyqtSignal(int, VRTRasterBand)
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigResolutionChanged = pyqtSignal()
-    sigResamplingAlgChanged = pyqtSignal(str)
+    sigResamplingAlgChanged = pyqtSignal([str],[int])
     sigExtentChanged = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -311,15 +319,21 @@ class VRTRaster(QObject):
             - None (will set the default value to 'nearest'
         """
         last = self.mResamplingAlg
+
+        possibleNames = RESAMPLE_ALGS.optionNames()
+        possibleValues = RESAMPLE_ALGS.optionValues()
+
         if value is None:
             self.mResamplingAlg = gdal.GRA_NearestNeighbour
-        elif value in LUT_ResampleAlgs.keys():
-            self.mResamplingAlg = LUT_ResampleAlgs[value]
-        else:
-            assert value in LUT_ResampleAlgs.values()
+        elif value in possibleNames:
+            self.mResamplingAlg = possibleValues[possibleNames.index(value)]
+        elif value in possibleValues:
             self.mResamplingAlg = value
+        else:
+            raise Exception('Unknown value "{}"'.format(value))
         if last != self.mResamplingAlg:
-            self.sigResamplingAlgChanged.emit(self.resamplingAlg(asString=True))
+            self.sigResamplingAlgChanged[str].emit(self.resamplingAlg(asString=True))
+            self.sigResamplingAlgChanged[int].emit(self.resamplingAlg())
 
 
     def resamplingAlg(self, asString=False):
@@ -329,9 +343,11 @@ class VRTRaster(QObject):
         :return:  gdal.GRA* constant or descriptive string.
         """
         if asString:
-            return LUT_ResampleAlgs.keys()[LUT_ResampleAlgs.values().index(self.mResamplingAlg)]
+            i = RESAMPLE_ALGS.optionValues().index(self.mResamplingAlg)
+
+            return RESAMPLE_ALGS.optionNames()[i]
         else:
-            self.mResamplingAlg
+            return self.mResamplingAlg
 
     def setExtent(self, rectangle, crs=None):
         last = self.mExtent
@@ -340,7 +356,9 @@ class VRTRaster(QObject):
             self.mExtent = None
         else:
             if isinstance(crs, QgsCoordinateReferenceSystem) and isinstance(self.mCrs, QgsCoordinateReferenceSystem):
-                trans = QgsCoordinateTransform(crs, self.mCrs)
+                trans = QgsCoordinateTransform()
+                trans.setSourceCrs(crs)
+                trans.setDestinationCrs(self.mCrs)
                 rectangle = trans.transform(rectangle)
 
             assert isinstance(rectangle, QgsRectangle)
@@ -369,9 +387,7 @@ class VRTRaster(QObject):
                 assert xy.width() > 0
                 assert xy.height() > 0
                 self.mResolution = QSizeF(xy)
-            else:
-                assert type(xy) in [str, unicode]
-                xy = str(xy)
+            elif isinstance(xy, str):
                 assert xy in ['average','highest','lowest']
                 self.mResolution = xy
 
@@ -664,7 +680,7 @@ class VRTRaster(QObject):
         for i, srcFile in enumerate(srcFiles):
             vrt_sources = dsVRTDst.GetRasterBand(i+1).GetMetadata(str('vrt_sources'))
             assert len(vrt_sources) == 1
-            srcXML = vrt_sources.values()[0]
+            srcXML = vrt_sources['source_0']
             assert os.path.basename(srcFile)+'</SourceFilename>' in srcXML
             assert '<SourceBand>1</SourceBand>' in srcXML
             SOURCE_TEMPLATES[srcFile] = srcXML
@@ -687,7 +703,7 @@ class VRTRaster(QObject):
             assert dsVRTDst.AddBand(eType, options=['subClass=VRTSourcedRasterBand']) == 0
             vrtBandDst = dsVRTDst.GetRasterBand(i+1)
             assert isinstance(vrtBandDst, gdal.Band)
-            vrtBandDst.SetDescription(vBand.name().encode('utf-8'))
+            vrtBandDst.SetDescription(vBand.name())
             md = {}
             #add all input sources for this virtual band
             for iSrc, sourceInfo in enumerate(vBand.sources):
@@ -817,12 +833,12 @@ class RasterBounds(object):
 
         curve = ogr.Geometry(ogr.wkbLinearRing)
         curve.AddGeometry(ring)
-        self.curve = QgsCircularStringV2()
+        self.curve = QgsCircularString()
         self.curve.fromWkt(curve.ExportToWkt())
 
         polygon = ogr.Geometry(ogr.wkbPolygon)
         polygon.AddGeometry(ring)
-        self.polygon = QgsPolygonV2()
+        self.polygon = QgsPolygon()
         self.polygon.fromWkt(polygon.ExportToWkt())
         self.polygon.exteriorRing().close()
         assert self.polygon.exteriorRing().isClosed()
