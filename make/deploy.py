@@ -99,6 +99,7 @@ if __name__ == "__main__":
     if True:
         #1. clean an existing directory = the timeseriesviewer folder
 
+
         pb_tool.clean_deployment(ask_first=False)
 
         #2. Compile. Basically call pyrcc to create the resources.rc file
@@ -107,7 +108,6 @@ if __name__ == "__main__":
 
 
         #3. Deploy = write the data to the new enmapboxplugin folder
-
         pb_tool.deploy_files(pathCfg,DIR_DEPLOY, quick=True, confirm=False)
 
         #4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
