@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 import os, re, logging
 from osgeo import gdal
 import numpy as np
@@ -16,7 +16,7 @@ regISODate2 = re.compile(r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([1
 #https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
 
 regYYYYMMDD = re.compile(r'(?P<year>(19|20)\d\d)(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
-regMissingHypen = re.compile('^\d{8}')
+regMissingHypen = re.compile(r'^\d{8}')
 regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
 regYYYYDOY = re.compile(r'(?P<year>(19|20)\d\d)-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 
@@ -50,7 +50,7 @@ def extractDateTimeGroup(text):
     return None
 
 def datetime64FromYYYYMMDD(yyyymmdd):
-    if re.search('^\d{8}$', yyyymmdd):
+    if re.search(r'^\d{8}$', yyyymmdd):
         #insert hyphens
         yyyymmdd = '{}-{}-{}'.format(yyyymmdd[0:4],yyyymmdd[4:6],yyyymmdd[6:8])
     return np.datetime64(yyyymmdd)

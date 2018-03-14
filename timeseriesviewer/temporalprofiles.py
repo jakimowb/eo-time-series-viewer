@@ -19,19 +19,16 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os, sys, pickle, datetime, re, collections
 from collections import OrderedDict
 from qgis.gui import *
-from qgis.core import QgsCoordinateReferenceSystem, \
-    QgsVectorLayer, QgsRasterLayer, \
-    QgsField, QgsFields, QgsFeature, \
-    QgsExpression, QgsExpressionContext, QgsExpressionContextScope
+from qgis.core import *
+from PyQt5.Qt import *
+from PyQt5.QtCore import *
+from PyQt5.QtXml import *
+from PyQt5.QtGui import *
 
-from PyQt4.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate, QPoint, QPointF
-from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
-from PyQt4.QtXml import *
-from PyQt4.QtGui import *
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
@@ -203,8 +200,8 @@ def depr_num2date(n):
 
     return np.datetime64('{:04}-{:02}-{:02}'.format(d.year,d.month,d.day), 'D')
 
-regBandKey = re.compile("(?<!\w)b\d+(?!\w)", re.IGNORECASE)
-regBandKeyExact = re.compile('^' + regBandKey.pattern + '$', re.IGNORECASE)
+regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
+regBandKeyExact = re.compile(r'^' + regBandKey.pattern + '$', re.IGNORECASE)
 
 
 def bandIndex2bandKey(i):
@@ -650,23 +647,22 @@ class TemporalProfile(QObject):
             i = d.temporalProfileIDs.index(self.mID)
             tsd = self.mTimeSeries.getTSD(d.sourcePath)
             assert isinstance(tsd, TimeSeriesDatum)
-            profileData = d.resProfiles[i]
-            if not isinstance(profileData, tuple):
-                s = ""
-            try:
-                vMean, vStd = profileData
-            except Exception as ex:
-                s = ""
-            values = {}
-            validValues = not isinstance(vMean, str)
-            # 1. add the pixel values per returned band
 
-            for iBand, bandIndex in enumerate(d.bandIndices):
-                key = 'b{}'.format(bandIndex + 1)
-                values[key] = vMean[iBand] if validValues else None
-                key = 'std{}'.format(bandIndex + 1)
-                values[key] = vStd[iBand] if validValues else None
-            self.updateData(tsd, values)
+            if d.validPixelValues(i):
+
+                profileData = d.resProfiles[i]
+
+                vMean, vStd = profileData
+                values = {}
+                validValues = not isinstance(vMean, str)
+                # 1. add the pixel values per returned band
+
+                for iBand, bandIndex in enumerate(d.bandIndices):
+                    key = 'b{}'.format(bandIndex + 1)
+                    values[key] = vMean[iBand] if validValues else None
+                    key = 'std{}'.format(bandIndex + 1)
+                    values[key] = vStd[iBand] if validValues else None
+                self.updateData(tsd, values)
 
 
     def loadMissingData(self, showGUI=False):
@@ -769,7 +765,7 @@ class TemporalProfile(QObject):
         for tsd in sensorTSDs:
             data = self.mData[tsd]
             for k, v in data.items():
-                if v is not None and fields.fieldNameIndex(k) == -1:
+                if v is not None and fields.indexFromName(k) == -1:
                     fields.append(qgsFieldFromKeyValue(k, v))
 
         for i, tsd in enumerate(sensorTSDs):
@@ -783,7 +779,7 @@ class TemporalProfile(QObject):
             for k, v in data.items():
                 if v is None:
                     continue
-                idx = f.fieldNameIndex(k)
+                idx = f.fields().indexFromName(k)
                 field = f.fields().field(idx)
                 if field.typeName() == 'text':
                     v = str(v)
@@ -1009,7 +1005,7 @@ class TemporalProfileCollection(QAbstractTableModel):
         uri = 'Point?crs={}'.format(crs.authid())
 
         self.TS = None
-        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory', False)
+        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
         self.mTemporalProfiles = []
         self.mTPLookupSpatialPoint = {}
         self.mTPLookupID = {}
@@ -1187,13 +1183,13 @@ class TemporalProfileCollection(QAbstractTableModel):
         return None
 
     def fromID(self, id):
-        if self.mTPLookupID.has_key(id):
+        if id in self.mTPLookupID:
             return self.mTPLookupID[id]
         else:
             return None
 
     def fromSpatialPoint(self, spatialPoint):
-        if self.mTPLookupSpatialPoint.has_key(spatialPoint):
+        if spatialPoint in self.mTPLookupSpatialPoint:
             return self.mTPLookupSpatialPoint[spatialPoint]
         else:
             return None
@@ -1215,7 +1211,7 @@ class TemporalProfileCollection(QAbstractTableModel):
             def deleteFromDict(d, value):
                 assert isinstance(d, dict)
                 if value in d.values():
-                    key = d.keys()[d.values().index(value)]
+                    key = list(d.keys())[list(d.values()).index(value)]
                     d.pop(key)
 
             for temporalProfile in temporalProfiles:
@@ -1296,7 +1292,7 @@ class TemporalProfileCollection(QAbstractTableModel):
     def setFeatureAttribute(self, feature, name, value):
         assert isinstance(feature, QgsFeature)
         assert isinstance(name, str)
-        i = feature.fieldNameIndex(name)
+        i = feature.indexFromName(name)
         assert i >= 0, 'Field "{}" does not exist'.format(name)
         field = feature.fields()[i]
         if field.isNumeric():
@@ -1317,13 +1313,13 @@ class TemporalProfileCollection(QAbstractTableModel):
         r = order != Qt.AscendingOrder
 
         if colName == self.mcnName:
-            self.items.sort(key = lambda TP:TP.name(), reverse=r)
+            self.mTemporalProfiles.sort(key = lambda TP:TP.name(), reverse=r)
         elif colName == self.mcnCoordinate:
-            self.items.sort(key=lambda TP: str(TP.mCoordinate), reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: str(TP.mCoordinate), reverse=r)
         elif colName == self.mcnID:
-            self.items.sort(key=lambda TP: TP.mID, reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: TP.mID, reverse=r)
         elif colName == self.mcnLoaded:
-            self.items.sort(key=lambda TP: TP.loadingStatus(), reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: TP.loadingStatus(), reverse=r)
         self.layoutChanged.emit()
 
 
@@ -1332,8 +1328,12 @@ class TemporalProfileCollection(QAbstractTableModel):
         if d.success():
             for TPid in d.temporalProfileIDs:
                 TP = self.temporalProfileFromID(TPid)
-                assert isinstance(TP, TemporalProfile)
-                TP.pullDataUpdate(d)
+                if isinstance(TP, TemporalProfile):
+                    TP.pullDataUpdate(d)
+                else:
+                    if DEBUG:
+                        print('got result for missing TPid {}'.format(TPid))
+                    s = ""
 
     def clear(self):
         #todo: remove TS Profiles

@@ -19,19 +19,25 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
-import os, sys, pickle
-import multiprocessing
 
+import os, sys
+import pickle
+import multiprocessing
+from multiprocessing import Pool
 import datetime
 from qgis.gui import *
 from qgis.core import *
-from PyQt4.QtCore import *
+from PyQt5.QtCore import *
 import numpy as np
 from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 
 DEBUG = False
+
+
+def dprint(msg):
+    if DEBUG:
+        print('PixelLoader: {}'.format(msg))
 
 def isOutOfImage(ds, px):
     """
@@ -52,6 +58,11 @@ class PixelLoaderTask(object):
     """
     An object to store the results of an loading from a single raster source.
     """
+
+    @staticmethod
+    def fromDump(byte_object):
+        return pickle.loads(byte_object)
+
     def __init__(self, source, geometries, bandIndices=None, **kwargs):
         """
 
@@ -62,7 +73,8 @@ class PixelLoaderTask(object):
         :param kwargs: additional stuff returned, e.g. to identify somethin
         """
 
-
+        if not isinstance(geometries, list):
+            geometries = [geometries]
         assert isinstance(geometries, list)
         for geometry in geometries:
             assert type(geometry) in [SpatialExtent, SpatialPoint]
@@ -76,9 +88,7 @@ class PixelLoaderTask(object):
         self.bandIndices = bandIndices
 
         #for internal use only
-        self._jobId = None
-        self._processId = None
-        self._done = False
+        self.mIsDone = False
 
         #for returned data
         self.resCrsWkt = None
@@ -90,11 +100,25 @@ class PixelLoaderTask(object):
 
         #other, free keywords
         for k in kwargs.keys():
-            assert type(k) in [str, unicode]
+            assert isinstance(k, str)
             assert not k.startswith('_')
             if not k in self.__dict__.keys():
                 self.__dict__[k] = kwargs[k]
 
+    def toDump(self):
+        return pickle.dumps(self)
+
+    def validPixelValues(self, i):
+        if not self.success():
+            return False
+        if i >= len(self.resProfiles):
+            return False
+
+        profileData = self.resProfiles[i]
+        if profileData in [INFO_OUT_OF_IMAGE, INFO_NO_DATA]:
+            return False
+        else:
+            return True
 
 
     def imageCrs(self):
@@ -134,12 +158,12 @@ class PixelLoaderTask(object):
         """
         :return:
         """
-        result = self._done and self.exception is None
+        result = self.mIsDone and self.exception is None
         return result
 
     def __repr__(self):
         info = ['PixelLoaderTask:']
-        if not self._done:
+        if not self.mIsDone:
             info.append('not started...')
         else:
             if self.bandIndices:
@@ -149,45 +173,33 @@ class PixelLoaderTask(object):
                 for i, p in enumerate(self.resProfiles):
                     g = self.geometries[i]
                     d = self.resProfiles[i]
-                    if d in [INFO_OUT_OF_IMAGE, NO_DATA]:
+                    if d in [INFO_OUT_OF_IMAGE, INFO_NO_DATA]:
                         info.append('\t{}: {}:{}'.format(i + 1, g, d))
                     else:
                         vData = d[0]
                         vStd = d[1]
-                        info.append('\t{}: {}:{} : {}'.format(i+1, g, vData.shape, vData))
+                        try:
+                            info.append('\t{}: {}:{} : {}'.format(i+1, g, vData.shape, vData))
+                        except:
+                            s  =""
 
         return '\n'.join(info)
 
 LOADING_FINISHED = 'finished'
 LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
-NO_DATA = 'no data values'
+INFO_NO_DATA = 'no data values'
 
 #def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent, **kwargs):
 
 
-def loadProfiles(taskList, queue, cancelEvent, **kwargs):
-
-    for task in taskList:
-        assert isinstance(task, PixelLoaderTask)
-        if cancelEvent.is_set():
-            return LOADING_CANCELED
-
-        result = doLoaderTask(task)
-
-        assert isinstance(result, PixelLoaderTask)
-
-        queue.put(result)
-
-    return LOADING_FINISHED
-
 def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
-    return geo2px(QgsPoint(x, y), gt)
+    return geo2px(QgsPointXY(x, y), gt)
 
 def doLoaderTask(task):
 
-    assert isinstance(task, PixelLoaderTask)
+    #assert isinstance(task, PixelLoaderTask), '{}\n{}'.format(type(task), task)
 
     result = task
 
@@ -197,9 +209,10 @@ def doLoaderTask(task):
 
 
     bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
-
     #ensure to load valid indices only
     bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
+
+    task.bandIndices = bandIndices
 
     gt = ds.GetGeoTransform()
     result.resGeoTransformation = gt
@@ -213,19 +226,18 @@ def doLoaderTask(task):
 
 
     for geom in task.geometries:
-
         crsRequest = osr.SpatialReference()
         crsRequest.ImportFromWkt(geom.crs().toWkt())
         trans = osr.CoordinateTransformation(crsRequest, crsSrc)
 
-        if isinstance(geom, QgsPoint):
-            ptUL = ptLR = QgsPoint(geom)
+        if isinstance(geom, QgsPointXY):
+            ptUL = ptLR = QgsPointXY(geom)
         elif isinstance(geom, QgsRectangle):
             TYPE = 'RECTANGLE'
-            ptUL = QgsPoint(geom.xMinimum(), geom.yMaximum())
-            ptLR = QgsPoint(geom.xMaximum(), geom.yMinimum())
+            ptUL = QgsPointXY(geom.xMinimum(), geom.yMaximum())
+            ptLR = QgsPointXY(geom.xMaximum(), geom.yMinimum())
         else:
-            PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
+            raise NotImplementedError('Unsupported geometry {} {}'.format(type(geom), str(geom)))
 
         pxUL = transformPoint2Px(trans, ptUL, gt)
         pxLR = transformPoint2Px(trans, ptLR, gt)
@@ -314,11 +326,12 @@ def doLoaderTask(task):
 
         for i in range(len(PX_SUBSETS)):
             pd = PROFILE_DATA[i]
-            if len(pd) == 0:
-                PROFILE_DATA[i] = INFO_OUT_OF_IMAGE
-            else:
-                #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
-                PROFILE_DATA[i] = np.vstack(pd)
+            if isinstance(pd, list):
+                if len(pd) == 0:
+                    PROFILE_DATA[i] = INFO_OUT_OF_IMAGE
+                else:
+                    #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
+                    PROFILE_DATA[i] = np.vstack(pd)
 
 
 
@@ -331,6 +344,7 @@ def doLoaderTask(task):
             assert b == len(bandIndices)
 
             _, _, size_x, size_y = PX_SUBSETS[i]
+
             if yx > 0:
                 d = d.reshape((b, yx))
                 vMean = d.mean(axis=1)
@@ -338,14 +352,86 @@ def doLoaderTask(task):
 
                 assert len(vMean) == len(bandIndices)
                 assert len(vStd) == len(bandIndices)
+                PROFILE_DATA[i] = (vMean, vStd)
             else:
-                vMean = vStd = NO_DATA
-            PROFILE_DATA[i] = (vMean, vStd)
+                PROFILE_DATA[i] = INFO_NO_DATA
+
             s = ""
     task.resProfiles = PROFILE_DATA
-    task._done = True
+    task.mIsDone = True
     return task
 
+
+
+def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
+    import time
+    from multiprocessing.queues import Queue
+    from multiprocessing.synchronize import Event
+    assert isinstance(inputQueue, Queue)
+    assert isinstance(resultQueue, Queue)
+    assert isinstance(cancelEvent, Event)
+    assert isinstance(finishedEvent, Event)
+
+
+    while not inputQueue.empty():
+        if cancelEvent.is_set():
+            dprint('Taskloop put CANCELED')
+            break
+        #if not inputQueue.empty():
+
+        queueObj = inputQueue.get()
+        if isinstance(queueObj, bytes):
+            task = PixelLoaderTask.fromDump(queueObj)
+            try:
+                dprint('Taskloop {} doLoaderTask'.format(task.mJobId))
+                task = doLoaderTask(task)
+                dprint('Taskloop {} put task result back to queue'.format(task.mJobId))
+                resultQueue.put(task.toDump())
+            except Exception as ex:
+                dprint('Taskloop {} EXCEPTION {} '.format(task.mJobId, ex))
+                resultQueue.put(ex)
+        elif isinstance(queueObj, str):
+            if queueObj.startswith('LAST'):
+                dprint('Taskloop put FINISHED')
+                resultQueue.put('FINISHED')
+                #finishedEvent.set()
+                dprint('Taskloop FINISHED set')
+        else:
+            dprint('Taskloop put UNHANDLED')
+            dprint('Unhandled {} {}'.format(str(queueObj), type(queueObj)))
+            continue
+
+    resultQueue.put('CANCELED')
+
+class LoadingProgress(object):
+
+    def __init__(self, id, nFiles):
+        assert isinstance(nFiles, int)
+        assert isinstance(id, int)
+        self.mID = id
+        self.mSuccess = 0
+        self.mTotal = nFiles
+        self.mFailed = 0
+
+    def addResult(self, success=True):
+        assert self.done() <= self.mTotal
+        if success:
+            self.mSuccess += 1
+        else:
+            self.mFailed += 1
+
+    def id(self):
+        return self.mID
+
+    def failed(self):
+        return self.mFailed
+
+
+    def done(self):
+        return self.mSuccess + self.mFailed
+
+    def total(self):
+        return self.mTotal
 
 
 
@@ -354,49 +440,74 @@ class PixelLoader(QObject):
     Loads pixel from raster images
     """
 
-    sigPixelLoaded = pyqtSignal(int, int, PixelLoaderTask)
+    sigPixelLoaded = pyqtSignal(int, int, object)
     sigLoadingStarted = pyqtSignal(list)
     sigLoadingFinished = pyqtSignal(np.timedelta64)
     sigLoadingCanceled = pyqtSignal()
-    _sigStartThreadWorkers = pyqtSignal(str)
-    _sigTerminateThreadWorkers = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
-        self.filesList = []
-        self.jobid = -1
+        #self.filesList = []
+        self.jobId = -1
+        self.jobProgress = {}
         self.nProcesses = 2
         self.nMax = 0
         self.nFailed = 0
         self.threadsAndWorkers = []
         self.mLoadingStartTime = np.datetime64('now','ms')
-        self.queueChecker = QTimer()
-        self.queueChecker.setInterval(3000)
-        self.queueChecker.timeout.connect(self.checkQueue)
 
-        self.pool = None
+        #see https://gis.stackexchange.com/questions/35279/multiprocessing-error-in-qgis-with-python-on-windows
+        #path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+        #assert os.path.exists(path)
+        #multiprocessing.set_executable(path)
+        sys.argv = [__file__]
 
-        self.MGR = multiprocessing.Manager()
-        self.mAsyncResults = []
-        self.resultQueue = self.MGR.Queue()
-        self.cancelEvent = self.MGR.Event()
+        self.mResultQueue = multiprocessing.Queue(maxsize=0)
+        self.mTaskQueue = multiprocessing.Queue(maxsize=0)
+        self.mCancelEvent = multiprocessing.Event()
+        self.mKillEvent = multiprocessing.Event()
+        self.mWorkerProcess = None
+
+        self.queueCheckTimer = QTimer()  #
+        #self.queueCheckTimer.setInterval(200)
+        self.queueCheckTimer.timeout.connect(self.checkTaskResults)
+        #self.queueCheckTimer.timeout.connect(self.dummySlot)
+        self.queueCheckTimer.start(250)
+
+    def initWorkerProcess(self):
+
+        if not isinstance(self.mWorkerProcess, multiprocessing.Process) :
+            self.mWorkerProcess = multiprocessing.Process(name='PixelLoaderWorkingProcess',
+                                                          target=pixelLoadingLoop,
+                                                          args=(self.mTaskQueue, self.mResultQueue, self.mCancelEvent, self.mKillEvent,))
+
+            self.mWorkerProcess.daemon = False
+            self.mWorkerProcess.start()
+
+        else:
+            if not self.mWorkerProcess.is_alive():
+                self.mWorkerProcess.run()
+
+
 
 
     @QtCore.pyqtSlot(PixelLoaderTask)
-    def onPixelLoaded(self, data):
-        assert isinstance(data, PixelLoaderTask)
-        if data._jobId != self.jobid:
-            #do not return results from previous jobs...
-            #print('got thread results from {} but need {}...'.format(jobid, self.jobid))
-            return
-        else:
-            self.filesList.remove(data.sourcePath)
-            self.sigPixelLoaded.emit(self.nMax - len(self.filesList), self.nMax, data)
+    def onPixelLoaded(self, dataList):
+        assert isinstance(dataList, list)
+        for data in dataList:
+            assert isinstance(data, PixelLoaderTask)
 
-            if len(self.filesList) == 0:
-                dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
-                self.sigLoadingFinished.emit(dt)
+            if data.mJobId not in self.jobProgress.keys():
+                return
+            else:
+                progressInfo = self.jobProgress[data.mJobId]
 
+                assert isinstance(progressInfo, LoadingProgress)
+                progressInfo.addResult(data.success())
+                if progressInfo.done() == progressInfo.total():
+                    self.jobProgress.pop(data.mJobId)
+
+                self.sigPixelLoaded.emit(progressInfo.done(), progressInfo.total(), data)
 
     def setNumberOfProcesses(self, nProcesses):
         assert nProcesses >= 1
@@ -412,100 +523,82 @@ class PixelLoader(QObject):
             paths.append(t.sourcePath)
 
         self.mLoadingStartTime = np.datetime64('now', 'ms')
-        self.jobid += 1
+
+        self.jobId += 1
+        jobId = self.jobId
+
+        self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
         self.sigLoadingStarted.emit(paths[:])
-        self.filesList.extend(paths)
-
-        l = len(paths)
-        self.nMax = l
-        self.nFailed = 0
-
-        #split tasks into workpackages to be solve per parallel process
-        workPackages = list()
-        i = 0
-        _tasks = tasks[:]
-        while(len(_tasks)) > 0:
-            if len(workPackages) <= i:
-                workPackages.append([])
-            task = _tasks.pop(0)
-            task._jobId = self.jobid
-            workPackages[i].append(task)
-            i = i + 1 if i < self.nProcesses - 1 else 0
-
-        from multiprocessing.pool import Pool
-
-        if not DEBUG and self.nProcesses > 0:
-            if isinstance(self.pool, Pool):
-                self.pool.terminate()
-                self.pool = None
-
-            self.pool = Pool(self.nProcesses)
-            del self.mAsyncResults[:]
-            self.queueChecker.start()
-
-        #print('theGeometryWKT: '+theGeometry.crs().toWkt())
-        for i, workPackage in enumerate(workPackages):
-            #args = (workPackage, self.jobid, i, theGeometries, self.resultQueue, self.cancelEvent)
-            # kwds = {'profileID':profileID}
-
-            #set workpackage / thread-specific internal metdata
-            for t in workPackage:
-                assert isinstance(t, PixelLoaderTask)
-                t.__processId = i
-
-
-            args = (workPackage, self.resultQueue, self.cancelEvent)
-            kwds = {}
-
-            if DEBUG or self.nProcesses < 1:
-                self.checkQueue(loadProfiles(*args, **kwds))
-            else:
-                r = self.pool.apply_async(loadProfiles, args=args, callback=self.checkQueue, **kwds)
-                self.mAsyncResults.append(r)
-
-
-        if not DEBUG:
-            self.pool.close()
+        #self.mKillEvent.clear()
+        self.initWorkerProcess()
+        for t in tasks:
+            assert isinstance(t, PixelLoaderTask)
+            t.mJobId = self.jobId
+            self.mTaskQueue.put(t.toDump())
+        self.mTaskQueue.put('LAST_{}'.format(jobId))
 
     def cancelLoading(self):
-        self.cancelEvent.set()
+        self.mCancelEvent.set()
 
 
     def isReadyToLoad(self):
-        return len(self.mAsyncResults) == 0 and self.pool is None
 
-    def checkQueue(self, *args):
-
-        while not self.resultQueue.empty():
-            md = self.resultQueue.get()
-            self.onPixelLoaded(md)
-
-        if all([w.ready() for w in self.mAsyncResults]):
-            #print('All done')
+        return self.mTaskQueue is None or (self.mTaskQueue.empty() and self.mResultQueue.empty())
 
 
-            self.queueChecker.stop()
-            del self.mAsyncResults[:]
-            self.pool = None
-            if not self.cancelEvent.is_set():
-                pass
+    def checkTaskResults(self, *args):
+        dataList = []
+        finished = False
+        canceled = False
 
-        elif self.cancelEvent.is_set():
-            self.queueChecker.stop()
-            self.sigLoadingCanceled.emit()
+        if isinstance(self.mWorkerProcess, multiprocessing.Process):
+            while not self.mResultQueue.empty():
+                data = self.mResultQueue.get()
+                if isinstance(data, bytes):
+                    task = PixelLoaderTask.fromDump(data)
+                    dataList.append(task)
+                    dprint('PixelLoader result pulled')
+                elif isinstance(data, str):
+                    if data == 'FINISHED':
+                        finished = True
+                    elif data == 'CANCELED':
+                        canceled = True
+                    else:
+                        s = ""
+                else:
+                    raise Exception('Unhandled type returned {}'.format(data))
+            if len(dataList) > 0:
+                 self.onPixelLoaded(dataList)
+
+            if finished:
+                dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
+                self.sigLoadingFinished.emit(dt)
+
+
+                if self.mTaskQueue.empty() and self.mResultQueue.empty():
+                    pass
+                    #self.mWorkerProcess.terminate()
+                    #self.mWorkerProcess.join()
+
+
+
 
 
 
 if __name__ == '__main__':
 
     from timeseriesviewer.utils import initQgisApplication
+    import example.Images
     qgsApp = initQgisApplication()
-    from PyQt4.QtGui import *
+    from PyQt5.QtGui import *
+    from PyQt5.QtWidgets import *
+
+    from timeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask
+
+
     gb = QGroupBox()
     gb.setTitle('Sandbox')
-    DEBUG = True
-    PL = PixelLoader()
-    PL.setNumberOfProcesses(1)
+    DEBUG = False
 
     import example.Images
     from timeseriesviewer import file_search
@@ -526,11 +619,11 @@ if __name__ == '__main__':
              SpatialPoint(ext.crs(), x,y),
              SpatialPoint(ext.crs(), x+250, y+70)]
 
-    from multiprocessing import Pool
 
     def onPxLoaded(*args):
         n, nmax, task = args
         assert isinstance(task, PixelLoaderTask)
+        print('Task {} Loaded'.format(task.mJobId))
         print(task)
 
     PL = PixelLoader()
@@ -540,8 +633,10 @@ if __name__ == '__main__':
     def onTimer(*args):
         print(('TIMER',PL))
         pass
+
     PL.sigPixelLoaded.connect(onPxLoaded)
     PL.sigLoadingFinished.connect(lambda: onDummy('finished'))
+    #PL.sigLoadingFinished.connect(qgsApp.quit)
     PL.sigLoadingCanceled.connect(lambda: onDummy('canceled'))
     PL.sigLoadingStarted.connect(lambda: onDummy('started'))
     PL.sigPixelLoaded.connect(lambda : onDummy('px loaded'))
@@ -551,6 +646,7 @@ if __name__ == '__main__':
         kwargs = {'myid':'myID{}'.format(i)}
         tasks.append(PixelLoaderTask(f, geoms, bandIndices=None, **kwargs))
 
+    PL.startLoading(tasks)
     PL.startLoading(tasks)
 
     #QTimer.singleShot(2000, lambda : PL.cancelLoading())

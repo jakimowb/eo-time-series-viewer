@@ -1,21 +1,24 @@
-# coding=utf-8
-"""Tests QGIS plugin init."""
-from __future__ import absolute_import
+# -*- coding: utf-8 -*-
 
-__author__ = 'Tim Sutton <tim@linfiniti.com>'
-__revision__ = '$Format:%H$'
-__date__ = '17/10/2010'
-__license__ = "GPL"
-__copyright__ = 'Copyright 2012, Australia Indonesia Facility for '
-__copyright__ += 'Disaster Reduction'
+"""
+***************************************************************************
 
-import os
-import unittest
-import logging
-import ConfigParser
+    ---------------------
+    Date                 : 30.11.2017
+    Copyright            : (C) 2017 by Benjamin Jakimow
+    Email                : benjamin jakimow at geo dot hu-berlin dot de
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************
+"""
+# noinspection PyPep8Naming
 
-LOGGER = logging.getLogger('QGIS')
-
+import os, sys, unittest, configparser
 
 class TestInit(unittest.TestCase):
     """Test that the plugin init is usable for QGIS.
@@ -45,9 +48,9 @@ class TestInit(unittest.TestCase):
         file_path = os.path.abspath(os.path.join(
             os.path.dirname(__file__), os.pardir,
             'metadata.txt'))
-        LOGGER.info(file_path)
+
         metadata = []
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.optionxform = str
         parser.read(file_path)
         message = 'Cannot find a section named "general" in %s' % file_path

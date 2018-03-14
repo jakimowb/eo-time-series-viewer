@@ -19,11 +19,11 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 from qgis.core import *
 from qgis.gui import QgsDockWidget
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI, SpatialExtent
@@ -31,7 +31,7 @@ from timeseriesviewer.utils import loadUI, SpatialExtent
 class TsvDockWidgetBase(QgsDockWidget):
 
     def __init__(self, parent):
-        super(TsvDockWidgetBase, self).__init__(parent)
+        super(QgsDockWidget, self).__init__(parent)
         self.setupUi(self)
 
     def _blockSignals(self, widgets, block=True):
@@ -46,7 +46,7 @@ class TsvDockWidgetBase(QgsDockWidget):
 
 
 
-class RenderingDockUI(TsvDockWidgetBase, loadUI('renderingdock.ui')):
+class RenderingDockUI(QgsDockWidget, loadUI('renderingdock.ui')):
     from timeseriesviewer.crosshair import CrosshairStyle
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)
@@ -116,7 +116,7 @@ class RenderingDockUI(TsvDockWidgetBase, loadUI('renderingdock.ui')):
         width = QgsVector(self.spinBoxExtentWidth.value(), 0.0)
         height = QgsVector(0.0, self.spinBoxExtentHeight.value())
 
-        Center = QgsPoint(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
+        Center = QgsPointXY(self.spinBoxExtentCenterX.value(), self.spinBoxExtentCenterY.value())
         UL = Center - (width * 0.5) + (height * 0.5)
         LR = Center + (width * 0.5) - (height * 0.5)
 

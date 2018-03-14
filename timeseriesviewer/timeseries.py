@@ -19,19 +19,20 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
-import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy
-import logging
-logger = logging.getLogger(__name__)
+
+import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy, io
+
+
 import bisect, datetime
 from osgeo import gdal, ogr
 
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtXml import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtXml import *
 
 from osgeo import gdal, ogr, gdal_array
 
@@ -39,7 +40,7 @@ gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not chang
 
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp, SETTINGS
+from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp, SETTINGS, messageLog
 from timeseriesviewer.dateparser import parseDateFromDataSet
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
@@ -213,16 +214,16 @@ class SensorInstrument(QObject):
 
 
 def verifyInputImage(path, vrtInspection=''):
-    if path is None or not type(path) in [str, unicode]:
+    if path is None or not isinstance(path, str):
         return None
     ds = gdal.Open(path)
 
     if not ds:
-        logger.error('{}GDAL unable to open: '.format(vrtInspection, path))
+        #logger.error('{}GDAL unable to open: '.format(vrtInspection, path))
         return False
 
     if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
-        logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
+        #logger.error('Can not open container {}.\nPlease specify a subdataset'.format(path))
         return False
 
     if ds.GetDriver().ShortName == 'VRT':
@@ -296,8 +297,8 @@ class TimeSeriesDatum(QObject):
 
         gt = ds.GetGeoTransform()
 
-        UL = QgsPoint(*pixel2coord(gt, 0, 0))
-        LR = QgsPoint(*pixel2coord(gt, self.ns, self.nl))
+        UL = QgsPointXY(*pixel2coord(gt, 0, 0))
+        LR = QgsPointXY(*pixel2coord(gt, self.ns, self.nl))
         from timeseriesviewer.main import SpatialExtent
         self._spatialExtent = SpatialExtent(self.crs, UL, LR)
 
@@ -396,7 +397,7 @@ class TimeSeriesTableView(QTableView):
 
 from timeseriesviewer.ui.docks import TsvDockWidgetBase
 from timeseriesviewer.utils import loadUI
-class TimeSeriesDockUI(TsvDockWidgetBase, loadUI('timeseriesdock.ui')):
+class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)
         self.setupUi(self)
@@ -634,7 +635,7 @@ class TimeSeries(QObject):
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exception(exc_type, exc_value, exc_traceback, limit=2)
-                six.print_('Unable to add {}'.format(file), file=sys.stderr)
+
                 pass
 
         if len(added) > 0:
@@ -642,6 +643,8 @@ class TimeSeries(QObject):
 
 
     def addFiles(self, files):
+        if isinstance(files, str):
+            files = [files]
         assert isinstance(files, list)
         files = [f for f in files if f is not None]
 
@@ -654,7 +657,7 @@ class TimeSeries(QObject):
             tsd = TimeSeriesDatum.createFromPath(file)
             if tsd is None:
                 msg = 'Unable to add: {}'.format(os.path.basename(file))
-                logger.error(msg)
+                messageLog(msg)
             else:
                 self.addTimeSeriesDates([tsd])
                 msg = 'Added {}'.format(os.path.basename(file))
@@ -926,9 +929,9 @@ def parseWavelength(lyr):
         key, value = kv
         key = key.lower()
         if key == 'center wavelength':
-            tmp = re.findall('\d*\.\d+|\d+', value) #find floats
+            tmp = re.findall(r'\d*\.\d+|\d+', value) #find floats
             if len(tmp) == 0:
-                tmp = re.findall('\d+', value) #find integers
+                tmp = re.findall(r'\d+', value) #find integers
             if len(tmp) == lyr.bandCount():
                 wl = [float(w) for w in tmp]
 
@@ -952,5 +955,5 @@ if __name__ == '__main__':
     p.show()
     q.exec_()
 
-    print convertMetricUnit(100, 'cm', 'm')
-    print convertMetricUnit(1, 'm', 'um')
+    print(convertMetricUnit(100, 'cm', 'm'))
+    print(convertMetricUnit(1, 'm', 'um'))

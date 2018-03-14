@@ -4,14 +4,14 @@ import os, sys, fnmatch, six, subprocess, re
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
-from PyQt4.QtSvg import *
-from PyQt4.QtXml import *
-from PyQt4.QtXmlPatterns import *
+from PyQt5.QtSvg import *
+from PyQt5.QtXml import *
+from PyQt5.QtXmlPatterns import *
 
-from PyQt4.uic.Compiler.qtproxies import QtGui
+from PyQt5.uic.Compiler.qtproxies import QtGui
 
 import gdal
 
@@ -132,9 +132,9 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
 
         ox, oy = random_offset()
 
-        UL = QgsPoint(subsetRectangle.xMinimum() + ox,
+        UL = QgsPointXY(subsetRectangle.xMinimum() + ox,
                       subsetRectangle.yMaximum() + oy)
-        LR = QgsPoint(subsetRectangle.xMaximum() + ox,
+        LR = QgsPointXY(subsetRectangle.xMaximum() + ox,
                       subsetRectangle.yMinimum() + oy)
         UL = transformGeometry(UL, crs, TSD.crs)
         LR = transformGeometry(LR, crs, TSD.crs)
@@ -250,7 +250,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
     :return:
     """
     assert mode in ['INKSCAPE', 'WEBKIT', 'SVG']
-    from PyQt4.QtWebKit import QWebPage
+    from PyQt5.QtWebKit import QWebPage
 
     svgs = file_search(pathDir, '*.svg')
     if filterFile is not None:
@@ -480,9 +480,9 @@ def updateMetadataTxt():
     #for required metatags
     pathDst = jp(DIR_REPO, 'metadata.txt')
     assert os.path.exists(pathDst)
-    import timeseriesviewer.sandbox
+    import timeseriesviewer.utils
     #required to use QIcons
-    qgis = timeseriesviewer.sandbox.initQgisEnvironment()
+    qgis = timeseriesviewer.utils.initQgisApplication()
 
     import timeseriesviewer, collections
     md = collections.OrderedDict()
@@ -493,7 +493,7 @@ def updateMetadataTxt():
 
     #update/set new metadata
     md['name'] = timeseriesviewer.TITLE
-    md['qgisMinimumVersion'] = "2.18"
+    md['qgisMinimumVersion'] = "3.0"
     #md['qgisMaximumVersion'] =
     md['description'] = timeseriesviewer.DESCRIPTION.strip()
     md['about'] = timeseriesviewer.ABOUT.strip()
@@ -507,15 +507,16 @@ def updateMetadataTxt():
     md['homepage'] = timeseriesviewer.WEBSITE
     md['repository'] = timeseriesviewer.WEBSITE
     md['tracker'] = timeseriesviewer.WEBSITE+'/issues'
-    md['icon'] = r'timeseriesviewer/ui/icons/icon.png'
+    md['icon'] = r'timeseriesviewer/icon.png'
     md['category'] = 'Raster'
 
     lines = ['[general]']
     for k, line in md.items():
         lines.append('{}={}'.format(k, line))
-    open(pathDst, 'w').writelines('\n'.join(lines))
-    s = ""
-
+    f = open(pathDst, 'w', encoding='utf-8')
+    f.writelines('\n'.join(lines))
+    f.flush()
+    f.close()
 
 
 def make_pb_tool_cfg():
@@ -557,8 +558,8 @@ if __name__ == '__main__':
         pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
         pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
         from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
-        subset = QgsRectangle(QgsPoint(-55.36091,-6.79851), #UL
-                              QgsPoint(-55.34132,-6.80514)) #LR
+        subset = QgsRectangle(QgsPointXY(-55.36091,-6.79851), #UL
+                              QgsPointXY(-55.34132,-6.80514)) #LR
 
         crs = QgsCoordinateReferenceSystem('EPSG:4326') # lat lon coordinates
 
@@ -577,7 +578,7 @@ if __name__ == '__main__':
     if False:
         updateInfoHTML()
 
-    if False:
+    if True:
         updateMetadataTxt()
 
     if False:

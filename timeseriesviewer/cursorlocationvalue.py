@@ -16,15 +16,15 @@
 *                                                                         *
 ***************************************************************************
 """
-from __future__ import absolute_import, unicode_literals
+
 
 import os, collections
 
 import numpy as np
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 from timeseriesviewer.utils import loadUI, SpatialExtent, SpatialPoint
 from timeseriesviewer.trees import *
@@ -583,7 +583,7 @@ if __name__ == '__main__':
     canvas = QgsMapCanvas()
     lyr = QgsRasterLayer(enmap)
     shp = QgsVectorLayer(landcover, 'lc', 'ogr')
-    QgsMapLayerRegistry.instance().addMapLayers([lyr,shp])
+    QgsProject.instance().addMapLayers([lyr,shp])
     canvas.setLayerSet([QgsMapCanvasLayer(shp), QgsMapCanvasLayer(lyr)])
     canvas.setDestinationCrs(lyr.crs())
     canvas.setExtent(lyr.extent())

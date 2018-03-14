@@ -19,17 +19,18 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import sys, os
 from qgis.core import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.gui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
 
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 from timeseriesviewer.ui.docks import loadUI, TsvDockWidgetBase
 
-class SensorDockUI(TsvDockWidgetBase, loadUI('sensordock.ui')):
+class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
     def __init__(self, parent=None):
         super(SensorDockUI, self).__init__(parent)
         self.setupUi(self)

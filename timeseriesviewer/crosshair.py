@@ -19,12 +19,12 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
@@ -206,7 +206,7 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                 #md = 10**exp #marker distance = distance to crosshair center
 
 
-                pt = m2p.transform(QgsPoint(centerGeo.x()- pred, centerGeo.y()))
+                pt = m2p.transform(QgsPointXY(centerGeo.x()- pred, centerGeo.y()))
 
                 line = QLineF((pt + QgsVector(0, ml)).toQPointF(),
                               (pt - QgsVector(0, ml)).toQPointF())
@@ -287,7 +287,7 @@ class CrosshairMapCanvasItem(QgsMapCanvasItem):
                     def px2LayerGeo(x, y):
                         x2 = ex.xMinimum() + (x * xres)
                         y2 = ex.yMaximum() - (y * yres)
-                        return QgsPoint(x2,y2)
+                        return QgsPointXY(x2,y2)
                     lyrCoord2CanvasPx = lambda x, y, : self.toCanvasCoordinates(
                         ms.layerToMapCoordinates(lyr,
                                                  px2LayerGeo(x, y)))
@@ -374,7 +374,7 @@ class CrosshairWidget(QWidget, loadUI('crosshairwidget.ui')):
         #self.crossHairReferenceLayer.connectCanvas(self.crossHairCanvas)
 
         self.mapCanvas.setExtent(QgsRectangle(0, 0, 1, 1))  #
-        #QgsMapLayerRegistry.instance().addMapLayer(self.crossHairReferenceLayer)
+        #QgsProject.instance().addMapLayer(self.crossHairReferenceLayer)
         #self.crossHairCanvas.setLayerSet([QgsMapCanvasLayer(self.crossHairReferenceLayer)])
 
         #crs = QgsCoordinateReferenceSystem('EPSG:25832')
@@ -526,7 +526,7 @@ if __name__ == '__main__':
 
     import example.Images
     lyr = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
-    QgsMapLayerRegistry.instance().addMapLayer(lyr)
+    QgsProject.instance().addMapLayer(lyr)
     refCanvas = QgsMapCanvas()
     refCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
     refCanvas.setExtent(lyr.extent())

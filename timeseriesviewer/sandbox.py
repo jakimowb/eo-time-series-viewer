@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import, unicode_literals
+
 import six, sys, os, gc, re, collections, site, inspect
 import logging, io
 logger = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ from osgeo import gdal, ogr
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
@@ -84,7 +84,6 @@ class QgisFake(QgisInterface):
         self.canvas = QgsMapCanvas()
         self.canvas.blockSignals(False)
         print(self.canvas)
-        self.canvas.setCrsTransformEnabled(True)
         self.canvas.setCanvasColor(Qt.black)
         self.canvas.extentsChanged.connect(self.testSlot)
         self.layerTreeView = QgsLayerTreeView()
@@ -119,7 +118,7 @@ class QgisFake(QgisInterface):
             providerkey = 'ogr'
         l = QgsVectorLayer(path, basename, providerkey)
         assert l.isValid()
-        QgsMapLayerRegistry.instance().addMapLayer(l, True)
+        QgsProject.instance().addMapLayer(l, True)
         self.rootNode.addLayer(l)
         self.bridge.setCanvasLayers()
         s = ""
@@ -129,7 +128,7 @@ class QgisFake(QgisInterface):
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
         self.lyrs.append(l)
-        QgsMapLayerRegistry.instance().addMapLayer(l, True)
+        QgsProject.instance().addMapLayer(l, True)
         self.rootNode.addLayer(l)
         self.bridge.setCanvasLayers()
         return
@@ -289,13 +288,15 @@ def sandboxTestdata():
     S.spatialTemporalVis.MVC.createMapView()
 
     import timeseriesviewer.profilevisualization
+    import timeseriesviewer.temporalprofiles
     timeseriesviewer.profilevisualization.DEBUG = True
+    timeseriesviewer.temporalprofiles.DEBUG = True
     import example.Images
     S.loadExampleTimeSeries()
 
     from example import exampleEvents
-    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr', True)
-    QgsMapLayerRegistry.instance().addMapLayer(ml)
+    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
+    QgsProject.instance().addMapLayer(ml)
 
 
 if __name__ == '__main__':

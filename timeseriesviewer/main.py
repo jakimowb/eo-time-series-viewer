@@ -19,14 +19,14 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 from qgis.core import *
 import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
 
 
 
 
-"""
+r"""
 File "D:\Programs\OSGeo4W\apps\Python27\lib\multiprocessing\managers.py", line
 528, in start
 self._address = reader.recv()
@@ -34,6 +34,7 @@ EOFError
 
 see https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
 see https://github.com/CleanCut/green/issues/103 
+
 """
 
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
@@ -100,7 +101,7 @@ class TsvMimeDataUtils(QObject):
 
         elem = self.xmlRoot.elementsByTagName('rasterrenderer').item(0).toElement()
         type = str(elem.attribute('type'))
-        from qgis.core import QGis, QgsContrastEnhancement
+        from qgis.core import QgsContrastEnhancement
 
         def bandSettings(colorName):
             band = int(elem.attribute(colorName + 'Band'))
@@ -403,14 +404,11 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
 LUT_MESSAGELOGLEVEL = {
-                QgsMessageLog.INFO:'INFO',
-                QgsMessageLog.CRITICAL:'INFO',
-                QgsMessageLog.WARNING:'WARNING'}
-
-LUT_MSGLOG2MSGBAR ={QgsMessageLog.INFO:QgsMessageBar.INFO,
-                    QgsMessageLog.CRITICAL:QgsMessageBar.WARNING,
-                    QgsMessageLog.WARNING:QgsMessageBar.WARNING,
-                    }
+                Qgis.Info:'INFO',
+                Qgis.Critical:'INFO',
+                Qgis.Warning:'WARNING',
+                Qgis.Success:'SUCCESS',
+                }
 
 
 def showMessage(message, title, level):
@@ -450,7 +448,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QApplication.processEvents()
 
         self.ui = TimeSeriesViewerUI()
-        msgLog = QgsMessageLog.instance()
+        msgLog = QgsApplication.instance().messageLog()
         msgLog.messageReceived.connect(self.logMessage)
 
         # Save reference to the QGIS interface
@@ -639,18 +637,22 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if not re.search('timeseriesviewer', m):
             return
 
-        if level in [QgsMessageLog.CRITICAL, QgsMessageLog.WARNING]:
-            widget = self.ui.messageBar.createMessage(tag, message)
-            button = QPushButton(widget)
-            button.setText("Show")
-            button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
-            widget.layout().addWidget(button)
-            self.ui.messageBar.pushWidget(widget,
-                              LUT_MSGLOG2MSGBAR.get(level, QgsMessageBar.INFO),
-                              SETTINGS.value('MESSAGE_TIMEOUT', 10))
+        if level in [Qgis.Critical, Qgis.Warning]:
 
+
+            if False:
+                widget = self.ui.messageBar.createMessage(tag, message)
+                button = QPushButton(widget)
+                button.setText("Show")
+                button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
+                widget.layout().addWidget(button)
+
+
+                self.ui.messageBar.pushWidget(widget, level, SETTINGS.value('MESSAGE_TIMEOUT', 10))
+            else:
+                self.ui.messageBar.pushMessage(tag, message, level=level)
             #print on normal console
-            #print(u'{}({}): {}'.format(tag, level, message))
+            print(u'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 
@@ -814,7 +816,7 @@ def main():
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents, 'Events', 'ogr', True)
         lyr2 = QgsVectorLayer(exampleEvents, 'Events2', 'ogr', True)
-        QgsMapLayerRegistry.instance().addMapLayers([lyr, lyr2])
+        QgsProject.instance().addMapLayers([lyr, lyr2])
         mapView = ts.mapViews()[0]
         from timeseriesviewer.mapvisualization import MapView
         assert isinstance(mapView, MapView)

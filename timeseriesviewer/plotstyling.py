@@ -19,13 +19,13 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os
 
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
@@ -63,7 +63,7 @@ class PlotStyle(QObject):
         super(PlotStyle,self).__init__(**kwds)
 
         self.markerSymbol = MARKERSYMBOLS[0].mValue
-        self.markerSize = 10
+        self.markerSize = 5
         self.markerBrush = QBrush()
         self.markerBrush.setColor(Qt.green)
         self.markerBrush.setStyle(Qt.SolidPattern)
@@ -71,11 +71,13 @@ class PlotStyle(QObject):
         self.backgroundColor = Qt.black
 
         self.markerPen = QPen()
-        self.markerPen.setStyle(Qt.SolidLine)
+        self.markerPen.setStyle(Qt.NoPen)
         self.markerPen.setColor(Qt.white)
+
 
         self.linePen = QPen()
         self.linePen.setStyle(Qt.NoPen)
+        self.linePen.setWidth(0)
         self.linePen.setColor(QColor(74, 75, 75))
 
         self.mIsVisible = True
@@ -213,7 +215,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         self.sbMarkerSize.valueChanged.connect(self.refreshPreview)
         self.sbMarkerPenWidth.valueChanged.connect(self.refreshPreview)
         self.sbLinePenWidth.valueChanged.connect(self.refreshPreview)
-
+        self.mLastPlotStyle = None
 
         self.setPlotStyle(PlotStyle())
         self.refreshPreview()
@@ -235,21 +237,11 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
             self.plotWidget.update()
             self.sigPlotStyleChanged.emit(style)
 
-    def _setComboBoxToValue(self, cb, value):
-        assert isinstance(cb, QComboBox)
-        for i in range(cb.count()):
-            v = cb.itemData(i)
-            if type(value) in [str, unicode]:
-                v = str(v)
-            if v == value:
-                cb.setCurrentIndex(i)
-                break
-        s = ""
 
     def setPlotStyle(self, style):
         assert isinstance(style, PlotStyle)
         #set widget values
-
+        self.mLastPlotStyle = style
         self.mBlockUpdates = True
         self.sbMarkerSize.setValue(style.markerSize)
         #self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
@@ -282,28 +274,29 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         return icon
 
     def plotStyle(self):
-        style = PlotStyle()
+        style = PlotStyle(plotStyle=self.mLastPlotStyle)
+
         #read plotstyle values from widgets
         style.markerSize = self.sbMarkerSize.value()
-        symbol = currentComboBoxValue(self.cbMarkerSymbol).mValue
-        if isinstance(symbol, unicode):
-            symbol = str(symbol)
+        symbol = currentComboBoxValue(self.cbMarkerSymbol)
         style.markerSymbol = symbol
         assert isinstance(style.markerPen, QPen)
         assert isinstance(style.markerBrush, QBrush)
         assert isinstance(style.linePen, QPen)
 
-        style.markerPen = pg.mkPen(color=self.btnMarkerPenColor.color(),
-                                   width=self.sbMarkerPenWidth.value(),
-                                   style=currentComboBoxValue(self.cbMarkerPenStyle).mValue)
-
+        style.markerPen.setColor(self.btnMarkerPenColor.color())
+        style.markerPen.setWidth(self.sbMarkerPenWidth.value())
+        style.markerPen.setStyle(currentComboBoxValue(self.cbMarkerPenStyle))
 
         style.markerBrush.setColor(self.btnMarkerBrushColor.color())
-        style.markerBrush.setColor(self.btnMarkerBrushColor.color())
 
-        style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
-                                 width=self.sbLinePenWidth.value(),
-                                 style=currentComboBoxValue(self.cbLinePenStyle).mValue)
+
+        #style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
+        #                         width=self.sbLinePenWidth.value(),
+        #                         style=currentComboBoxValue(self.cbLinePenStyle))
+        style.linePen.setColor(self.btnLinePenColor.color())
+        style.linePen.setWidth(self.sbLinePenWidth.value())
+        style.linePen.setStyle(currentComboBoxValue(self.cbLinePenStyle))
 
         return style
 
@@ -391,11 +384,11 @@ class PlotStyleDialog(QgsDialog):
         buttonBar = QHBoxLayout()
         #buttonBar.addWidget(self.btCancel)
         #buttonBar.addWidget(self.btOk)
-        if plotStyle:
-            self.setPlotStyle(plotStyle)
         l = self.layout()
         l.addWidget(self.w)
         l.addLayout(buttonBar)
+        if isinstance(plotStyle, PlotStyle):
+            self.setPlotStyle(plotStyle)
         #self.setLayout(l)
 
 
@@ -419,8 +412,14 @@ if __name__ == '__main__':
     s1 = PlotStyle()
     s2 = pickle.loads(pickle.dumps(s1))
     assert isinstance(s2, PlotStyle)
+    #btn = QgsSymbolButton()
 
-    btn = PlotStyleButton()
-    btn.show()
+    #btn = QgsSymbolButton()
+    #btn.show()
+    d  = PlotStyleDialog()
+    d.exec_()
+
+    #btn = PlotStyleButton()
+    #btn.show()
     qgsApp.exec_()
     qgsApp.exitQgis()

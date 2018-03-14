@@ -17,14 +17,13 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
 import os
 from timeseriesviewer.utils import initQgisApplication
 
 from qgis.core import QgsApplication
 from qgis.gui import QgsCollapsibleGroupBox
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 
 

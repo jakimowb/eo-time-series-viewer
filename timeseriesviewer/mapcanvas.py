@@ -20,38 +20,21 @@
 """
 # noinspection PyPep8Naming
 
-from __future__ import absolute_import, unicode_literals
-import os, logging
 
-logger = logging.getLogger(__name__)
+import os
+from qgis.core import *
+from qgis.gui import *
 
-from qgis.core import QGis, \
-    QgsMapLayerRegistry, QgsGeometry, QgsPoint, \
-    QgsCoordinateReferenceSystem, \
-    QgsMapLayer, QgsVectorLayer, QgsRasterLayer, \
-    QgsRasterDataProvider, \
-    QgsField, QgsFields, QgsFeature, \
-    QgsExpression, QgsExpressionContext, QgsExpressionContextScope, \
-    QgsRasterRenderer, QgsMultiBandColorRenderer, QgsContrastEnhancement, QgsSingleBandPseudoColorRenderer, \
-    QgsPolygonV2, QgsMultiPolygonV2, QgsFeatureRendererV2, \
-    QgsRasterBandStats
-
-from qgis.gui import QgisInterface, QgsMapCanvas, \
-    QgsMapTool, QgsMapToolZoom, QgsMapToolEmitPoint, QgsMapToolPan, \
-    QgsRubberBand, QgsMapCanvasLayer, QgsGeometryRubberBand, \
-    QgsProjectionSelectionWidget, QgsVertexMarker
-
-from PyQt4.Qt import pyqtSignal,Qt,QSize, QObject, QColor, QVariant, QApplication, QSizePolicy
-from PyQt4.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex, QTimer
-
-from PyQt4.QtGui import QPixmap, QFont, QPushButton, QMenu, QWidget, QHBoxLayout, QVBoxLayout, QFileDialog
-from PyQt4.QtXml import QDomDocument
+from PyQt5.Qt import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtXml import QDomDocument
 
 from timeseriesviewer import SETTINGS
 from timeseriesviewer.utils import *
 from timeseriesviewer.timeseries import TimeSeriesDatum
 from timeseriesviewer.crosshair import CrosshairDialog
-
 
 class MapTools(object):
     """
@@ -121,7 +104,7 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         QgsMapToolEmitPoint.__init__(self, self.mCanvas)
 
         self.mMarker = QgsVertexMarker(self.mCanvas)
-        self.mRubberband = QgsRubberBand(self.mCanvas, QGis.Polygon)
+        self.mRubberband = QgsRubberBand(self.mCanvas, QgsWkbTypes.PolygonGeometry)
 
         color = QColor('red')
 
@@ -161,10 +144,11 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
             ext = SpatialExtent.fromMapCanvas(self.mCanvas)
             cen = geoPoint
             geom = QgsGeometry()
-            geom.addPart([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())],
-                          QGis.Line)
-            geom.addPart([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())],
-                          QGis.Line)
+
+            lineV = QgsLineString([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())])
+            lineH = QgsLineString([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())])
+            geom.addPart(lineV, QgsWkbTypes.LineGeometry)
+            geom.addPart(lineH, QgsWkbTypes.LineGeometry)
             self.mRubberband.addGeometry(geom, None)
             self.mRubberband.show()
             #remove crosshair after 0.25 sec
@@ -261,7 +245,7 @@ class MapLayerInfo(object):
             self.mProvider = srcOrMapLayer.providerType()
             self.mLayer = srcOrMapLayer
             if isinstance(srcOrMapLayer, QgsVectorLayer):
-                self.mRenderer = srcOrMapLayer.rendererV2()
+                self.mRenderer = srcOrMapLayer.renderer()
             elif isinstance(srcOrMapLayer, QgsRasterLayer):
                 self.mRenderer = srcOrMapLayer.renderer()
 
@@ -289,7 +273,7 @@ class MapLayerInfo(object):
 
     def setRenderer(self, renderer):
         self.mRenderer = renderer
-        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRendererV2) or \
+        if self.mProvider == 'ogr' and isinstance(renderer, QgsFeatureRenderer) or \
            self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
             self.mRenderer = renderer
             if self.isInitialized():
@@ -316,7 +300,7 @@ class MapLayerInfo(object):
     def isRegistered(self):
         if not self.isInitialized():
             return None
-        ref = QgsMapLayerRegistry.instance().mapLayer(self.mLayer.layerId())
+        ref = QgsProject.instance().mapLayer(self.mLayer.layerId())
 
         return isinstance(ref, QgsMapLayer)
 
@@ -436,7 +420,6 @@ class MapCanvasLayerModel(QAbstractTableModel):
 
 class MapCanvas(QgsMapCanvas):
 
-    from timeseriesviewer.main import SpatialExtent, SpatialPoint
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
@@ -463,7 +446,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.renderStarting.connect(resetRenderStartTime)
         self.renderComplete.connect(emitRenderTimeDelta)
-        self.setCrsTransformEnabled(True)
+
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
@@ -545,7 +528,7 @@ class MapCanvas(QgsMapCanvas):
         
         if len(self.mLazyRasterSources) > 0:
             mls = [QgsRasterLayer(src) for src in self.mLazyRasterSources]
-            QgsMapLayerRegistry.instance().addMapLayers(mls, False)
+            QgsProject.instance().addMapLayers(mls, False)
             del self.mLazyRasterSources[:]
             self.mLayerModel.extend(mls)
             self.setRenderer(self.mRendererRaster, refresh=False)
@@ -600,10 +583,10 @@ class MapCanvas(QgsMapCanvas):
         newLayers = [l for l in mapLayers if l not in oldLayers]
 
         if len(newLayers) > 0:
-            reg = QgsMapLayerRegistry.instance()
+            reg = QgsProject.instance()
             reg.addMapLayers(newLayers, False)
 
-        super(MapCanvas, self).setLayerSet([QgsMapCanvasLayer(l) for l in mapLayers])
+        super(MapCanvas, self).setLayers(mapLayers)
 
         #self.refresh()
 
@@ -780,7 +763,7 @@ class MapCanvas(QgsMapCanvas):
         # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
         actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
         actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-            #QgsMapLayerRegistry.instance().addMapLayers(
+            #QgsProject.instance().addMapLayers(
                 [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
             )
         )
@@ -818,7 +801,7 @@ class MapCanvas(QgsMapCanvas):
                 if isinstance(l, QgsVectorLayer):
                     lqgis = iface.addVectorLayer(l.source(), l.name())
                     #lqgis = QgsVectorLayer(l.source(), l.name(), 'ogr', False)
-                    lqgis.setRendererV2(l.rendererV2().clone())
+                    lqgis.setRendererV2(l.renderer().clone())
                     #grpNode.addLayer(lqgis)
 
     def stretchToCurrentExtent(self):
@@ -1063,12 +1046,12 @@ def exampleSyncedCanvases():
 
     for i, f in enumerate(files):
         ml = QgsRasterLayer(f)
-        #QgsMapLayerRegistry.instance().addMapLayer(ml)
+        #QgsProject.instance().addMapLayer(ml)
         lyrs.append(ml)
 
         #mapCanvas = QgsMapCanvas(w)
         mapCanvas = MapCanvas(w)
-        mapCanvas.setCrsTransformEnabled(True)
+
         registerMapCanvas(mapCanvas)
         hl2.addWidget(mapCanvas)
         #mapCanvas.setLayers([QgsMapCanvasLayer(ml)])
@@ -1097,10 +1080,15 @@ if __name__ == '__main__':
     def printTimeDelta(dt):
         print(dt)
     c = MapCanvas()
+    #c.activateMapTool('identifySpectralProfile')
+    #c.activateMapTool('identifyTemporalProfile')
+    #c.activateMapTool('identifyCursorLocationValues')
+    c.activateMapTool('moveCenter')
+
     c.sigDataLoadingFinished.connect(printTimeDelta)
     c.show()
     lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
-    lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr', True)
+    lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr')
 
     c.layerModel().addLayerInfo(lyr2)
     c.layerModel().addLayerInfo(lyr1)

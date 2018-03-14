@@ -19,15 +19,15 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 import os, sys, pickle, datetime
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
 from qgis.core import QgsExpression
-from PyQt4.QtCore import *
-from PyQt4.QtXml import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtXml import *
+from PyQt5.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
@@ -214,7 +214,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
 
             crs = QgsCoordinateReferenceSystem('EPSG:4862')
             uri = 'Point?crs={}'.format(crs.authid())
-            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory', False)
+            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
             f = sensorExampleQgsFeature(sensor)
             assert isinstance(f, QgsFeature)
             assert lyr.startEditing()
@@ -1208,8 +1208,8 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
         self.ui = ui
 
-        if DEBUG:
-            import timeseriesviewer.pixelloader
+        import timeseriesviewer.pixelloader
+        if True or DEBUG:
             timeseriesviewer.pixelloader.DEBUG = True
 
         self.TS = None
@@ -1316,7 +1316,7 @@ class SpectralTemporalVisualization(QObject):
             plotStyle = TemporalProfile2DPlotStyle(temporalProfile)
 
             plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
-            sensors = self.TS.Sensors.keys()
+            sensors = list(self.TS.Sensors.keys())
             if len(sensors) > 0:
                 plotStyle.setSensor(sensors[0])
 
@@ -1560,8 +1560,8 @@ class SpectralTemporalVisualization(QObject):
         if not isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
             return False
 
-        if not self.pixelLoader.isReadyToLoad():
-            return False
+        #if not self.pixelLoader.isReadyToLoad():
+        #    return False
 
         assert isinstance(self.TS, TimeSeries)
 
@@ -1639,7 +1639,7 @@ class SpectralTemporalVisualization(QObject):
         if len(tasks) > 0:
             aGoodDefault = 2 if len(self.TS) > 25 else 1
 
-            self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
+            #self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
             if DEBUG:
                 print('Start loading for {} geometries from {} sources...'.format(
                     len(theGeometries), len(tasks)
@@ -1967,7 +1967,7 @@ if __name__ == '__main__':
         import example.Images
         from timeseriesviewer import file_search
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
-        TS.addFiles(files)
+        TS.addFiles([files[0]])
         ext = TS.getMaxSpatialExtent()
         cp1 = SpatialPoint(ext.crs(),ext.center())
         cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)

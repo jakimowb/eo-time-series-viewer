@@ -1,23 +1,28 @@
-# coding=utf-8
-"""Safe Translations Test.
-
-.. note:: This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation; either version 2 of the License, or
-     (at your option) any later version.
+# -*- coding: utf-8 -*-
 
 """
-from __future__ import absolute_import
-from utilities import get_qgis_app
+***************************************************************************
 
-__author__ = 'ismailsunni@yahoo.co.id'
-__date__ = '12/10/2011'
-__copyright__ = ('Copyright 2012, Australia Indonesia Facility for '
-                 'Disaster Reduction')
-import unittest
-import os
+    ---------------------
+    Date                 : 30.11.2017
+    Copyright            : (C) 2017 by Benjamin Jakimow
+    Email                : benjamin jakimow at geo dot hu-berlin dot de
+***************************************************************************
+*                                                                         *
+*   This program is free software; you can redistribute it and/or modify  *
+*   it under the terms of the GNU General Public License as published by  *
+*   the Free Software Foundation; either version 2 of the License, or     *
+*   (at your option) any later version.                                   *
+*                                                                         *
+***************************************************************************
+"""
+# noinspection PyPep8Naming
 
-QGIS_APP = get_qgis_app()
+
+
+import os, unittest
+from timeseriesviewer.utils import initQgisApplication
+QGIS_APP = initQgisApplication()
 
 from timeseriesviewer.plotstyling import *
 
@@ -32,7 +37,7 @@ class TestPlotStyling(unittest.TestCase):
 
         self.assertEqual(s1,s2)
         s2.markerSize = 3
-        self.assertNotEquals(s1,s2)
+        self.assertNotEqual(s1,s2)
 
 
         #test if we can pickle a plot style
@@ -42,8 +47,35 @@ class TestPlotStyling(unittest.TestCase):
         self.assertEqual(s1,s2)
 
 
+    def test_dialogs(self):
+
+        s1 = PlotStyle()
+
+        s1.markerPen.setColor(QColor('yellow'))
+
+        s2 = PlotStyle(plotStyle=s1)
+        self.assertEqual(s1,s2)
+
+
+
+        d = PlotStyleDialog()
+        self.assertIsInstance(d, PlotStyleDialog)
+
+        try:
+            d.show()
+            d.setPlotStyle(s1)
+        except Exception:
+            self.fail('Unable to initialize PlotStyleDialog')
+        s2 = d.plotStyle()
+        self.assertIsInstance(s2, PlotStyle)
+        self.assertEqual(s1, s2)
+
+        try:
+            btn = PlotStyleButton()
+            btn.show()
+        except Exception:
+            self.fail('Unable to initialize PlotStyleButton')
+
 
 if __name__ == "__main__":
-    suite = unittest.makeSuite(TestPlotStyling)
-    runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(suite)
+    unittest.main()

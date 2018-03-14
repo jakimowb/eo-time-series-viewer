@@ -1,11 +1,11 @@
 # noinspection PyPep8Naming
-from __future__ import absolute_import
+
 
 import os
 from qgis.core import *
 from qgis.gui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 import numpy as np
 
 from timeseriesviewer import *
@@ -383,7 +383,7 @@ class ClassificationSchemeWidget(QWidget, loadUI('classificationscheme.ui')):
             self.setClassificationScheme(classificationScheme)
         self.schemeModel = ClassificationSchemeTableModel(self.mScheme, self)
 
-        self.tableClassificationScheme.verticalHeader().setMovable(True)
+        #self.tableClassificationScheme.verticalHeader().setMovable(True)
         self.tableClassificationScheme.verticalHeader().setDragEnabled(True)
         self.tableClassificationScheme.verticalHeader().setDragDropMode(QAbstractItemView.InternalMove)
         self.tableClassificationScheme.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)

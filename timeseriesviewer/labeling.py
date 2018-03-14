@@ -1,7 +1,8 @@
-from __future__ import absolute_import
+
 from qgis.core import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qgis.gui import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 from osgeo import gdal
 
 from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
@@ -29,7 +30,7 @@ class LabelShortcutButton(QPushButton):
 
         self.setStyleSheet(style)
 
-class LabelingDockUI(TsvDockWidgetBase, loadUI('labelingdock.ui')):
+class LabelingDockUI(QgsDockWidget, loadUI('labelingdock.ui')):
     def __init__(self, parent=None):
         super(LabelingDockUI, self).__init__(parent)
         self.setupUi(self)
