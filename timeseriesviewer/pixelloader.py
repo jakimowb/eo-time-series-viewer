@@ -20,7 +20,8 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, pickle
+import os, sys
+import pickle
 import multiprocessing
 from multiprocessing import Pool
 import datetime
@@ -31,7 +32,7 @@ import numpy as np
 from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 
-DEBUG = True
+DEBUG = False
 
 def isOutOfImage(ds, px):
     """
@@ -52,6 +53,11 @@ class PixelLoaderTask(object):
     """
     An object to store the results of an loading from a single raster source.
     """
+
+    @staticmethod
+    def fromDump(byte_object):
+        return pickle.loads(byte_object)
+
     def __init__(self, source, geometries, bandIndices=None, **kwargs):
         """
 
@@ -94,6 +100,8 @@ class PixelLoaderTask(object):
             if not k in self.__dict__.keys():
                 self.__dict__[k] = kwargs[k]
 
+    def toDump(self):
+        return pickle.dumps(self)
 
     def validPixelValues(self, i):
         if not self.success():
@@ -179,23 +187,6 @@ INFO_NO_DATA = 'no data values'
 
 #def loadProfiles(pathsAndBandIndices, jobid, poolWorker, geom, q, cancelEvent, **kwargs):
 
-
-
-
-def loadProfiles(taskList, resultQueue, cancelEvent, **kwargs):
-
-    for task in taskList:
-        assert isinstance(task, PixelLoaderTask)
-        if cancelEvent.is_set():
-            return LOADING_CANCELED
-
-        result = doLoaderTask(task)
-
-        assert isinstance(result, PixelLoaderTask)
-
-        resultQueue.put(result)
-
-    return LOADING_FINISHED
 
 def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
@@ -382,25 +373,28 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
             print('Taskloop put CANCELED')
             break
         #if not inputQueue.empty():
-        print('Taskloop {} '.format(time.time()))
-        task = inputQueue.get()
-        if not isinstance(task, str):
+
+        queueObj = inputQueue.get()
+        if isinstance(queueObj, bytes):
+            task = PixelLoaderTask.fromDump(queueObj)
             try:
-                print('Taskloop do {} '.format(task))
+                print('Taskloop {} doLoaderTask'.format(task.mJobId))
                 task = doLoaderTask(task)
-                print('Taskloop put {} '.format(task))
-                resultQueue.put(task)
+                print('Taskloop {} put task result back to queue'.format(task.mJobId))
+                resultQueue.put(task.toDump())
             except Exception as ex:
+                print('Taskloop {} EXCEPTION {} '.format(task.mJobId, ex))
                 resultQueue.put(ex)
-        elif task.startswith('LAST'):
-            print('Taskloop put FINISHED')
-            resultQueue.put('FINISHED')
-            finishedEvent.set()
-            print('Taskloop FINISHED set')
+        elif isinstance(queueObj, str):
+            if queueObj.startswith('LAST'):
+                print('Taskloop put FINISHED')
+                resultQueue.put('FINISHED')
+                #finishedEvent.set()
+                print('Taskloop FINISHED set')
         else:
             print('Taskloop put UNHANDLED')
-            print('Unhandled {}'.format(task))
-            break
+            print('Unhandled {} {}'.format(str(queueObj), type(queueObj)))
+            continue
 
     resultQueue.put('CANCELED')
 
@@ -472,8 +466,8 @@ class PixelLoader(QObject):
         self.queueCheckTimer = QTimer()  #
         #self.queueCheckTimer.setInterval(200)
         self.queueCheckTimer.timeout.connect(self.checkTaskResults)
-        self.queueCheckTimer.timeout.connect(self.dummySlot)
-        self.queueCheckTimer.start(1000)
+        #self.queueCheckTimer.timeout.connect(self.dummySlot)
+        self.queueCheckTimer.start(250)
 
     def dummySlot(self, *args):
         print('dummy slot triggered')
@@ -534,13 +528,12 @@ class PixelLoader(QObject):
 
         self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
         self.sigLoadingStarted.emit(paths[:])
-        self.mKillEvent.clear()
+        #self.mKillEvent.clear()
         self.initWorkerProcess()
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
             t.mJobId = self.jobId
-            self.mTaskQueue.put(t)
-
+            self.mTaskQueue.put(t.toDump())
         self.mTaskQueue.put('LAST_{}'.format(jobId))
 
     def cancelLoading(self):
@@ -554,15 +547,15 @@ class PixelLoader(QObject):
 
     def checkTaskResults(self, *args):
         dataList = []
-        print('CHECK TASK RESULTS')
         finished = False
         canceled = False
 
         if isinstance(self.mWorkerProcess, multiprocessing.Process):
             while not self.mResultQueue.empty():
                 data = self.mResultQueue.get()
-                if isinstance(data, PixelLoaderTask):
-                    dataList.append(data)
+                if isinstance(data, bytes):
+                    task = PixelLoaderTask.fromDump(data)
+                    dataList.append(task)
                     print('result pulled')
                 elif isinstance(data, str):
                     if data == 'FINISHED':
@@ -580,9 +573,11 @@ class PixelLoader(QObject):
                 dt = np.datetime64('now', 'ms') - self.mLoadingStartTime
                 self.sigLoadingFinished.emit(dt)
 
+
                 if self.mTaskQueue.empty() and self.mResultQueue.empty():
-                    self.mWorkerProcess.terminate()
-                    self.mWorkerProcess.join()
+                    pass
+                    #self.mWorkerProcess.terminate()
+                    #self.mWorkerProcess.join()
 
 
 
@@ -627,7 +622,7 @@ if __name__ == '__main__':
     def onPxLoaded(*args):
         n, nmax, task = args
         assert isinstance(task, PixelLoaderTask)
-        print('Task Loaded')
+        print('Task {} Loaded'.format(task.mJobId))
         print(task)
 
     PL = PixelLoader()
@@ -650,6 +645,7 @@ if __name__ == '__main__':
         kwargs = {'myid':'myID{}'.format(i)}
         tasks.append(PixelLoaderTask(f, geoms, bandIndices=None, **kwargs))
 
+    PL.startLoading(tasks)
     PL.startLoading(tasks)
 
     #QTimer.singleShot(2000, lambda : PL.cancelLoading())

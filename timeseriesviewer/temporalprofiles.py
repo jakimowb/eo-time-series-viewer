@@ -1214,7 +1214,7 @@ class TemporalProfileCollection(QAbstractTableModel):
             def deleteFromDict(d, value):
                 assert isinstance(d, dict)
                 if value in d.values():
-                    key = d.keys()[d.values().index(value)]
+                    key = list(d.keys())[list(d.values()).index(value)]
                     d.pop(key)
 
             for temporalProfile in temporalProfiles:
@@ -1316,13 +1316,13 @@ class TemporalProfileCollection(QAbstractTableModel):
         r = order != Qt.AscendingOrder
 
         if colName == self.mcnName:
-            self.items.sort(key = lambda TP:TP.name(), reverse=r)
+            self.mTemporalProfiles.sort(key = lambda TP:TP.name(), reverse=r)
         elif colName == self.mcnCoordinate:
-            self.items.sort(key=lambda TP: str(TP.mCoordinate), reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: str(TP.mCoordinate), reverse=r)
         elif colName == self.mcnID:
-            self.items.sort(key=lambda TP: TP.mID, reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: TP.mID, reverse=r)
         elif colName == self.mcnLoaded:
-            self.items.sort(key=lambda TP: TP.loadingStatus(), reverse=r)
+            self.mTemporalProfiles.sort(key=lambda TP: TP.loadingStatus(), reverse=r)
         self.layoutChanged.emit()
 
 
@@ -1331,8 +1331,12 @@ class TemporalProfileCollection(QAbstractTableModel):
         if d.success():
             for TPid in d.temporalProfileIDs:
                 TP = self.temporalProfileFromID(TPid)
-                assert isinstance(TP, TemporalProfile)
-                TP.pullDataUpdate(d)
+                if isinstance(TP, TemporalProfile):
+                    TP.pullDataUpdate(d)
+                else:
+                    if DEBUG:
+                        print('got result for missing TPid {}'.format(TPid))
+                    s = ""
 
     def clear(self):
         #todo: remove TS Profiles

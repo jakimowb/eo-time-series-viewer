@@ -638,15 +638,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
             return
 
         if level in [Qgis.Critical, Qgis.Warning]:
-            widget = self.ui.messageBar.createMessage(tag, message)
-            button = QPushButton(widget)
-            button.setText("Show")
-            button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
-            widget.layout().addWidget(button)
-            self.ui.messageBar.pushWidget(widget, level, SETTINGS.value('MESSAGE_TIMEOUT', 10))
 
+
+            if False:
+                widget = self.ui.messageBar.createMessage(tag, message)
+                button = QPushButton(widget)
+                button.setText("Show")
+                button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
+                widget.layout().addWidget(button)
+
+
+                self.ui.messageBar.pushWidget(widget, level, SETTINGS.value('MESSAGE_TIMEOUT', 10))
+            else:
+                self.ui.messageBar.pushMessage(tag, message, level=level)
             #print on normal console
-            #print(u'{}({}): {}'.format(tag, level, message))
+            print(u'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 
