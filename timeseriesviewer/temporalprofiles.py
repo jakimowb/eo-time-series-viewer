@@ -23,15 +23,12 @@
 import os, sys, pickle, datetime, re, collections
 from collections import OrderedDict
 from qgis.gui import *
-from qgis.core import QgsCoordinateReferenceSystem, \
-    QgsVectorLayer, QgsRasterLayer, \
-    QgsField, QgsFields, QgsFeature, \
-    QgsExpression, QgsExpressionContext, QgsExpressionContextScope
-
-from PyQt5.Qt import pyqtSignal,Qt, QObject, QColor, QVariant, QDate, QPoint, QPointF
-from PyQt5.QtCore import QAbstractTableModel, QAbstractListModel, QModelIndex
+from qgis.core import *
+from PyQt5.Qt import *
+from PyQt5.QtCore import *
 from PyQt5.QtXml import *
 from PyQt5.QtGui import *
+
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn

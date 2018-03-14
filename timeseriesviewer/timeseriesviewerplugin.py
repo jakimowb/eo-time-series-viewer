@@ -25,6 +25,7 @@ from qgis.gui import *
 from qgis.core import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 
 
@@ -50,7 +51,7 @@ class TimeSeriesViewerPlugin:
 
         dir_repo = os.path.dirname(__file__)
         site.addsitedir(dir_repo)
-        site.addsitedir(os.path.join(dir_repo, 'site-packages'))
+        #site.addsitedir(os.path.join(dir_repo, 'site-packages'))
 
         assert isinstance(self.iface, QgisInterface)
 

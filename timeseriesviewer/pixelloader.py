@@ -34,6 +34,11 @@ from osgeo import gdal, gdal_array, osr
 
 DEBUG = False
 
+
+def dprint(msg):
+    if DEBUG:
+        print('PixelLoader: {}'.format(msg))
+
 def isOutOfImage(ds, px):
     """
     Evaluates if a pixel is inside and image or onot
@@ -370,7 +375,7 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
 
     while not inputQueue.empty():
         if cancelEvent.is_set():
-            print('Taskloop put CANCELED')
+            dprint('Taskloop put CANCELED')
             break
         #if not inputQueue.empty():
 
@@ -378,22 +383,22 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
         if isinstance(queueObj, bytes):
             task = PixelLoaderTask.fromDump(queueObj)
             try:
-                print('Taskloop {} doLoaderTask'.format(task.mJobId))
+                dprint('Taskloop {} doLoaderTask'.format(task.mJobId))
                 task = doLoaderTask(task)
-                print('Taskloop {} put task result back to queue'.format(task.mJobId))
+                dprint('Taskloop {} put task result back to queue'.format(task.mJobId))
                 resultQueue.put(task.toDump())
             except Exception as ex:
-                print('Taskloop {} EXCEPTION {} '.format(task.mJobId, ex))
+                dprint('Taskloop {} EXCEPTION {} '.format(task.mJobId, ex))
                 resultQueue.put(ex)
         elif isinstance(queueObj, str):
             if queueObj.startswith('LAST'):
-                print('Taskloop put FINISHED')
+                dprint('Taskloop put FINISHED')
                 resultQueue.put('FINISHED')
                 #finishedEvent.set()
-                print('Taskloop FINISHED set')
+                dprint('Taskloop FINISHED set')
         else:
-            print('Taskloop put UNHANDLED')
-            print('Unhandled {} {}'.format(str(queueObj), type(queueObj)))
+            dprint('Taskloop put UNHANDLED')
+            dprint('Unhandled {} {}'.format(str(queueObj), type(queueObj)))
             continue
 
     resultQueue.put('CANCELED')
@@ -468,10 +473,6 @@ class PixelLoader(QObject):
         self.queueCheckTimer.timeout.connect(self.checkTaskResults)
         #self.queueCheckTimer.timeout.connect(self.dummySlot)
         self.queueCheckTimer.start(250)
-
-    def dummySlot(self, *args):
-        print('dummy slot triggered')
-
 
     def initWorkerProcess(self):
 
@@ -556,7 +557,7 @@ class PixelLoader(QObject):
                 if isinstance(data, bytes):
                     task = PixelLoaderTask.fromDump(data)
                     dataList.append(task)
-                    print('result pulled')
+                    dprint('PixelLoader result pulled')
                 elif isinstance(data, str):
                     if data == 'FINISHED':
                         finished = True
