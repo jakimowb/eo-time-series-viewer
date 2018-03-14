@@ -86,6 +86,9 @@ if __name__ == "__main__":
 
     # DIR_DEPLOY = r'E:\_EnMAP\temp\temp_bj\enmapbox_deploys\most_recent_version'
 
+    import make
+    make.updateMetadataTxt()
+
     #patch_pb_tool(DIR_DEPLOY)
     pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
     cfg = pb_tool.get_config(pathCfg)

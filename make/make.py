@@ -507,7 +507,7 @@ def updateMetadataTxt():
     md['homepage'] = timeseriesviewer.WEBSITE
     md['repository'] = timeseriesviewer.WEBSITE
     md['tracker'] = timeseriesviewer.WEBSITE+'/issues'
-    md['icon'] = r'timeseriesviewer/ui/icons/icon.png'
+    md['icon'] = r'timeseriesviewer/icon.png'
     md['category'] = 'Raster'
 
     lines = ['[general]']
