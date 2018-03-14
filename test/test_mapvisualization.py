@@ -50,4 +50,3 @@ class testclassDialogTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-app.exec_()

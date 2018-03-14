@@ -54,7 +54,6 @@ class TestPlotStyling(unittest.TestCase):
         s1.markerPen.setColor(QColor('yellow'))
 
         s2 = PlotStyle(plotStyle=s1)
-
         self.assertEqual(s1,s2)
 
 
@@ -67,8 +66,9 @@ class TestPlotStyling(unittest.TestCase):
             d.setPlotStyle(s1)
         except Exception:
             self.fail('Unable to initialize PlotStyleDialog')
-
-        self.assertEqual(s1, d.plotStyle())
+        s2 = d.plotStyle()
+        self.assertIsInstance(s2, PlotStyle)
+        self.assertEqual(s1, s2)
 
         try:
             btn = PlotStyleButton()

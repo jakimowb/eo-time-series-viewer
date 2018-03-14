@@ -685,6 +685,7 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
 
         #remove new-lines. this prevents uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         #to mess up the *.ui xml
+
         f = open(pathUi, 'r')
         txt = ''.join(f.readlines())
         f.close()
@@ -734,6 +735,7 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
             FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
 
         buffer.close()
+        buffer = None
         FORM_CLASSES[pathUi] = FORM_CLASS
 
         #remove temporary added directories from python path
