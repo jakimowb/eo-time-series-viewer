@@ -6,32 +6,42 @@ Installation
 
 .. warning:: Time Series Viewer requires QGIS Version 2.18.xx
 
-.. note:: If you have not installed QGIS yet, you can get it `here <https://www.qgis.org/en/site/forusers/download.html>`_
+.. note:: If you have not installed QGIS yet, you can get it `here <https://www.qgis.org/en/site/forusers/download.html>`_.
 
-A. Standard QGIS Plugin Installation
-------------------------------------
+
+
+Windows
+-------
+
+.. tip:: On windows we recommend to use the **OSGeo4W Network Installer**!
+
+Standard QGIS Plugin Installation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Download the most recent zip archive of the HUB TimeSeriesViewer QGIS Plugin from https://bitbucket.org/jakimowb/hub-timeseriesviewer/downloads
 2. Extract the ``timeseriesviewerplugin`` folder and copy it to the user' QGIS python plugin directory ``~/.qgis2/python/plugins/timeseriesviewerplugin``
 
-    Alternatively, you can choose any other folder ``my/qgis/plugins/timeseriesviewerplugin`` if your ensure that it is known to the QGIS_PLUGINPATH:
+    Alternatively, you can choose any other folder ``my/qgis/plugins/timeseriesviewerplugin`` if you ensure that it is known to the QGIS_PLUGINPATH:
 
-    * In QGIS, go to *Settings* >> *Options* >> *System*.
+    * In QGIS, go to :menuselection:`Settings --> Options --> System`.
     * Enable the Environment group box.
     * Create a new entry that append ``my/qgis/plugins`` to the variable ``QGIS_PLUGINPATH``.
 
-3. Finally restart QGIS, open the *Plugin Manager* and enable the HUB-TimeSeriesViewer.
+3. The TimeSeriesViewer requires `pyqtgraph <http://pyqtgraph.org/>`_. It's best to install it via the **OSGeo4W Shell**. Open it and type::
+
+        pip install pyqtgraph
+4. Finally restart QGIS, go to :menuselection:`Plugins --> Manage and Install Plugins` and enable the HUB-TimeSeriesViewer.
 
 .. image:: img/settings_plugin_enable.png
     :width: 80%
     :align: center
 
-4. You can now access the Plugin via the |icon| button in your QGIS Toolbar or via the *Raster* dropdown menu
+5. You can now access the Plugin via the |icon| button in your QGIS Toolbar or via the dropdown menu: :menuselection:`Raster --> HUB TimeSeriesViewer`
 
 .. |icon| image:: img/icons/icon.svg
 
-B. Developers
--------------
+Developers
+~~~~~~~~~~
 
 You really want to use `git <https://en.wikipedia.org/wiki/Git_%28software%29>`_ to install and update the viewer.
 
@@ -50,9 +60,21 @@ Larger binary files, e.g. for exemplary data, are distributed via the Git Large 
         git checkout development
         git lfs checkout
 
-3. Start QGIS, go to Plugins -> Manage and Install and enable the "HUB TimeSeriesViewer" Plugin
+3. Start QGIS, go to :menuselection:`Plugins --> Manage and Install Plugins` and enable the "HUB TimeSeriesViewer" Plugin.
 4. Download updates if available::
 
         cd %USERPROFILE%\.qgis2\python\plugins\hub-timeseriesviewer
         git pull
+
+Linux
+-----
+
+tbd
+
+Mac
+---
+
+tbd
+
+
 

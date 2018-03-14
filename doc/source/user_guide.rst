@@ -9,7 +9,8 @@ The Interface
 
     This is what the Time Series Viewer's interface looks like when opening it.
 
-.. note:: Just like in QGIS, many parts of the GUI are adjustable panels. Therefore you can arrange them either tabbed or in separate windows. Activate/Deactivate panels under *View* >> *Panels*
+.. note:: Just like in QGIS, many parts of the GUI are adjustable panels. Therefore you can arrange them either tabbed or in separate windows.
+          Activate/Deactivate panels under :menuselection:`View --> Panels`
 
 
 
@@ -72,6 +73,7 @@ Map Views Main Window
 
 
 |
+|
 
 Map Views
 ^^^^^^^^^
@@ -84,13 +86,14 @@ where you can adjust settings (e.g. display style) for every Map View individual
 * Access the settings for individual Map Views via the dropdown menu |mapviewdropdown|
 * You can use the |questionmark| button to *highlight the current Map View* selected in the dropdown menu (respective image chips will show red margin for a few seconds).
 
+
 Now, for every Map View you can alter the following settings:
 
 .. image:: img/mapviewsettings.png
 
 * *Hide/Unhide* the Map View via the |hidemapview| :superscript:`Toggle visibility of this map view` button.
-* *Activate/Deactivate Crosshair* via the |crosshair| :superscript:`Show/hide a crosshair` button. Press the arrow button next to it to enter the *Crosshair specifications* |symbology|, where you can
-  customize e.g. color, opacity, thickness, size and further options.
+* *Activate/Deactivate Crosshair* via the |crosshair| :superscript:`Show/hide a crosshair` button. Press the arrow button next to it to enter
+  the *Crosshair specifications* |symbology| , where you can customize e.g. color, opacity, thickness, size and further options.
 * You may rename the Map View by altering the text in the ``Name`` field.
 * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
   in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
@@ -98,6 +101,8 @@ Now, for every Map View you can alter the following settings:
   rendering option section (since band specifications differ among sensors). The handling is very similar to the QGIS style options.
         * Multiband (RGB) as well as singleband rendering is supported. Select the desired mode in the dropdown menu.
         * Select the desired band(s) for display using the slider. In the dropdown menu at the bottom you can specify the contrast enhancement to be used for the value stretch.
+          In case TSV has sufficient wavelength information for the bands, you can choose several presets: *True* (True Color; red-green-blue),
+          *CIR1* (colored infrared; swir-red-green) and *CIR2* (colored infrared; swIR-mwIR-red)
         * You can copy and paste styles using the |copy| :superscript:`Copy style to clipboard` and |paste| :superscript:`Paste style from clipboard` buttons (also between QGIS and TSV)
         * Once you specified your rendering settings, press |refresh| to apply them.
 
@@ -121,6 +126,7 @@ Now, for every Map View you can alter the following settings:
 
 
 |
+|
 
 Sensors / Products
 ^^^^^^^^^^^^^^^^^^
@@ -139,20 +145,22 @@ name nb n images wl id
   i.e. you can change the name by double clicking into the field. The here defined name will be also displayed in the Map View and the Time Series table.
 * ``nb``: number of bands
 * ``n images``: number of images within the time series attributed to the according sensor
-* ``wl``:
-* ``id``:
+* ``wl``: comma separated string of the (center) wavelength of every band and [unit]
+* ``id``: string identifying number of bands, geometric resolution and wavelengths (primary for internal use)
 
+|
 |
 
 Cursor Location Values
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Similar to the Identify tool in QGIS, you can retrieve the pixel information for the images in your time series. First click on the |identify| button and then on a desired pixel in the Map Views.
+Similar to the Identify tool in QGIS, you can retrieve the pixel information for the images in your time series. First click on the
+|identify| :superscript:`Select cursor location` button and then on a desired pixel in the Map Views.
 In case the Map View contains (additional) vector data, location information will also be retrieved for those features.
 
 .. image:: img/cursorlocationvalues.png
 
-* Coordinates of the selected pixel are shown in the **x** and **y** fields. You may change the coordinate system of the displayed coordinates via the |crs| button.
+* Coordinates of the selected pixel are shown in the ``x`` and ``y`` fields. You may change the coordinate system of the displayed coordinates via the |crs| :superscript:`Select CRS` button.
 
 .. |identify| image:: img/icons/mActionIdentify.svg
     :width: 25px
@@ -162,6 +170,7 @@ In case the Map View contains (additional) vector data, location information wil
 
 
 |
+|
 
 Map Rendering
 ^^^^^^^^^^^^^
@@ -170,24 +179,31 @@ In the Map Rendering options you can specify **Width** and **Height**, as well a
 
 .. image:: img/maprendering.png
 
-* ``Set Center`` center the QGIS Map View to the same coordinate as the TSV Map View
-* ``Get Center`` center the TSV Map View to the same coordinate as the QGIS Map View
-* ``Set Extent`` zoom the QGIS Map View to the same extent as the TSV Map View
-* ``Get Extent`` zoom the TSV Map View to the same extent as the QGIS Map View
-* ``Load center profile`` when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
+* :guilabel:`Set Center` center the QGIS Map View to the same coordinate as the TSV Map View
+* :guilabel:`Get Center` center the TSV Map View to the same coordinate as the QGIS Map View
+* :guilabel:`Set Extent` zoom the QGIS Map View to the same extent as the TSV Map View
+* :guilabel:`Get Extent` zoom the TSV Map View to the same extent as the QGIS Map View
+* ``Load center profile``, when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
 
 
 
+
+|
 |
 
 Profile View
 ~~~~~~~~~~~~
 
 
+
+|
+|
+
 Spectral Library
 ~~~~~~~~~~~~~~~~
 
 
+|
 |
 
 Time Series Tab
@@ -211,13 +227,18 @@ where
 * ``nb``: number of bands
 * ``image``: path to the raster file
 
-You can *add new rasters* to the time series by clicking |ad_ra| . Remove them by selecting the desired rows in the table (click on the row number) and pressing the |re_ra| button.
+You can *add new rasters* to the time series by clicking |ad_ra| :superscript:`Add image to time series`.
+Remove them by selecting the desired rows in the table (click on the row number) and pressing the |re_ra| :superscript:`Remove image from time series` button.
 
 
 .. |cbc| image:: img/checkbox_checked.PNG
 .. |cbu| image:: img/checkbox_unchecked.PNG
 .. |ad_ra| image:: img/icons/mActionAddRasterLayer.svg
 .. |re_ra| image:: img/icons/mActionRemoveTSD.svg
+
+|
+|
+
 
 Getting Started
 ---------------
