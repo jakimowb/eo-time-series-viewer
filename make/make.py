@@ -480,9 +480,9 @@ def updateMetadataTxt():
     #for required metatags
     pathDst = jp(DIR_REPO, 'metadata.txt')
     assert os.path.exists(pathDst)
-    import timeseriesviewer.sandbox
+    import timeseriesviewer.utils
     #required to use QIcons
-    qgis = timeseriesviewer.sandbox.initQgisEnvironment()
+    qgis = timeseriesviewer.utils.initQgisApplication()
 
     import timeseriesviewer, collections
     md = collections.OrderedDict()
@@ -493,7 +493,7 @@ def updateMetadataTxt():
 
     #update/set new metadata
     md['name'] = timeseriesviewer.TITLE
-    md['qgisMinimumVersion'] = "2.18"
+    md['qgisMinimumVersion'] = "3.0"
     #md['qgisMaximumVersion'] =
     md['description'] = timeseriesviewer.DESCRIPTION.strip()
     md['about'] = timeseriesviewer.ABOUT.strip()
@@ -513,9 +513,10 @@ def updateMetadataTxt():
     lines = ['[general]']
     for k, line in md.items():
         lines.append('{}={}'.format(k, line))
-    open(pathDst, 'w').writelines('\n'.join(lines))
-    s = ""
-
+    f = open(pathDst, 'w', encoding='utf-8')
+    f.writelines('\n'.join(lines))
+    f.flush()
+    f.close()
 
 
 def make_pb_tool_cfg():
@@ -577,7 +578,7 @@ if __name__ == '__main__':
     if False:
         updateInfoHTML()
 
-    if False:
+    if True:
         updateMetadataTxt()
 
     if False:

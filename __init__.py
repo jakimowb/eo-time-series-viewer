@@ -29,6 +29,10 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-    #
-    from  timeseriesviewerplugin import TimeSeriesViewerPlugin
+    import os, sys
+    d = os.path.dirname(__file__)
+    if not d in sys.path:
+        sys.path.append(d)
+
+    from timeseriesviewer.timeseriesviewerplugin import TimeSeriesViewerPlugin
     return TimeSeriesViewerPlugin(iface)
