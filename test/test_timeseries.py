@@ -21,12 +21,12 @@ class TestInit(unittest.TestCase):
 
     def test_timeseries(self):
 
-        files = file_search(os.path.dirname(example.__file__), '*.tiff', recursive=True)
+        files = file_search(os.path.dirname(example.__file__), '*.tif', recursive=True)
 
         addedDates = []
 
         TS = TimeSeries()
-        TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.append(dates))
+        TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
         TS.sigTimeSeriesDatesRemoved.connect(lambda dates: [addedDates.remove(d) for d in dates])
 
         for file in files:
