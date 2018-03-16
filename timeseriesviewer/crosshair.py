@@ -497,7 +497,7 @@ class CrosshairDialog(QgsDialog):
         for lyr in mapCanvas.layers():
             s = ""
         lyrs = mapCanvas.layers()
-        canvas.setLayerSet([QgsMapCanvasLayer(l) for l in lyrs])
+        canvas.setLayers(lyrs)
         canvas.setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
         canvas.setExtent(mapCanvas.extent())
         canvas.setCenter(mapCanvas.center())
@@ -510,8 +510,9 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    import example.Images
+    qgsApp = initQgisApplication()
 
     if False:
         c = QgsMapCanvas()
@@ -525,10 +526,10 @@ if __name__ == '__main__':
 
 
     import example.Images
-    lyr = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
+    lyr = QgsRasterLayer(example.Images.Img_2014_05_31_LE72270652014151CUB00_BOA)
     QgsProject.instance().addMapLayer(lyr)
     refCanvas = QgsMapCanvas()
-    refCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
+    refCanvas.setLayers([lyr])
     refCanvas.setExtent(lyr.extent())
     refCanvas.setDestinationCrs(lyr.crs())
     refCanvas.show()

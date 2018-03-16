@@ -278,6 +278,7 @@ def createGeoTransform(gsd, ul_x, ul_y):
     gt2 = gt4 = 0
 
     return (gt0, gt1, gt2, gt3, gt4, gt5)
+
 def geo2px(geo, gt):
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
