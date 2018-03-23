@@ -41,31 +41,17 @@ path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
-
-"""
-pathList = [os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe')),
-            os.path.join(sys.exec_prefix, 'pythonw.exe')]
-if False:
-    for p in reversed(pathList):
-        if os.path.isfile(p):
-            print(p)
-            #multiprocessing.set_executable(p)
-            #multiprocessing.freeze_support()
-            #multiprocessing.Manager()
-
-            break
-"""
-
 import qgis.utils
 from timeseriesviewer.utils import *
-
-DEBUG = False
-import numpy as np
-
-
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
+import numpy as np
+
+
+DEBUG = False
+
+
 
 
 

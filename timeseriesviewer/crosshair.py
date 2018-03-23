@@ -25,11 +25,14 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
+
 class CrosshairStyle(object):
+
     def __init__(self, **kwds):
 
         self.mColor = QColor.fromRgb(255,0,0, 255)
@@ -93,37 +96,6 @@ class CrosshairStyle(object):
     def setShow(self, b):
         assert isinstance(b, bool)
         self.mShow = b
-
-    def rendererV2(self):
-        """
-        Returns the vector layer renderer
-        :return:
-        """
-        registry = QgsSymbolLayerV2Registry.instance()
-        lineMeta = registry.symbolLayerMetadata("SimpleLine")
-        lineLayer = lineMeta.createSymbolLayer({})
-        lineLayer.setColor(self.mColor)
-        lineLayer.setPenStyle(Qt.SolidLine)
-
-        lineLayer.setWidth(self.mThickness)
-        lineLayer.setWidthUnit(2) #pixel
-        #lineLayer.setWidth(self.mThickness)
-
-        """
-        lineLayer = lineMeta.createSymbolLayer(
-            {'width': '0.26',
-             'color': self.mColor,
-             'offset': '0',
-             'penstyle': 'solid',
-             'use_custom_dash': '0'})
-        """
-
-        # Replace the default layer with our custom layer
-
-        symbol = QgsLineSymbolV2([])
-        symbol.deleteSymbolLayer(0)
-        symbol.appendSymbolLayer(lineLayer)
-        return QgsSingleSymbolRendererV2(symbol)
 
 class CrosshairMapCanvasItem(QgsMapCanvasItem):
 

@@ -53,14 +53,12 @@ PENSTYLES = [Option(Qt.SolidLine, '___'),
              Option(Qt.DashDotDotLine, '_ . .'),
              Option(Qt.NoPen, 'No Pen')]
 
-
-
 class PlotStyle(QObject):
     sigUpdated = pyqtSignal()
     def __init__(self, **kwds):
         plotStyle = kwds.get('plotStyle')
         if plotStyle: kwds.pop('plotStyle')
-        super(PlotStyle,self).__init__(**kwds)
+        super(PlotStyle,self).__init__()
 
         self.markerSymbol = MARKERSYMBOLS[0].mValue
         self.markerSize = 5
@@ -130,7 +128,7 @@ class PlotStyle(QObject):
         p.drawLine(2, pm.height()-2, pm.width()-2, 2)
         p.translate(pm.width() / 2, pm.height() / 2)
         from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
-        path = drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
+        drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
         p.end()
         return QIcon(pm)
 
@@ -398,7 +396,6 @@ class PlotStyleDialog(QgsDialog):
     def setPlotStyle(self, plotStyle):
         assert isinstance(plotStyle, PlotStyle)
         self.w.setPlotStyle(plotStyle)
-
 
 
 if __name__ == '__main__':

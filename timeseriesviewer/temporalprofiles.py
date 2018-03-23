@@ -28,7 +28,7 @@ from PyQt5.Qt import *
 from PyQt5.QtCore import *
 from PyQt5.QtXml import *
 from PyQt5.QtGui import *
-
+from PyQt5.QtWidgets import *
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
@@ -37,11 +37,21 @@ from pyqtgraph import AxisItem
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 from timeseriesviewer.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
-from timeseriesviewer.utils import SpatialExtent, SpatialPoint
-
-LABEL_DN = 'DN or Index'
+from timeseriesviewer.utils import *
+from timeseriesviewer.models import OptionListModel, Option
+LABEL_EXPRESSION_2D = 'DN or Index'
+LABEL_EXPRESSION_3D = 'Scaling'
 LABEL_TIME = 'Date'
 DEBUG = False
+OPENGL_AVAILABLE = False
+
+try:
+    import OpenGL
+    import pyqtgraph.opengl as gl
+    OPENGL_AVAILABLE = True
+except:
+    pass
+
 
 def qgsFieldFromKeyValue(fieldName, value):
     t = type(value)
@@ -56,13 +66,16 @@ def qgsFieldFromKeyValue(fieldName, value):
         f = QgsField(fieldName, QVariant.String, 'text', 40, 5)
     return f
 
-def sensorExampleQgsFeature(sensor):
+def sensorExampleQgsFeature(sensor, singleBandOnly=False):
     assert isinstance(sensor, SensorInstrument)
     #populate with exemplary band values (generally stored as floats)
     fieldValues = collections.OrderedDict()
-    for b in range(sensor.nb):
-        fn = bandIndex2bandKey(b)
-        fieldValues[fn] = 1.0
+    if singleBandOnly:
+        fieldValues['b'] = 1.0
+    else:
+        for b in range(sensor.nb):
+            fn = bandIndex2bandKey(b)
+            fieldValues[fn] = 1.0
 
     date = datetime.date.today()
     doy = dateDOY(date)
@@ -235,7 +248,7 @@ class DateTimePlotWidget(pg.PlotWidget):
 
         pi = self.getPlotItem()
         pi.getAxis('bottom').setLabel(LABEL_TIME)
-        pi.getAxis('left').setLabel(LABEL_DN)
+        pi.getAxis('left').setLabel(LABEL_EXPRESSION_2D)
 
         self.mInfoColor = QColor('yellow')
         self.mCrosshairLineV = pg.InfiniteLine(angle=90, movable=False)
@@ -479,62 +492,55 @@ class DateTimeViewBox(pg.ViewBox):
         menu.exec_(ev.screenPos().toPoint())
 
 
-
-class TemporalProfile2DPlotStyle(PlotStyle):
-
+class TemporalProfilePlotStyleBase(PlotStyle):
     sigExpressionUpdated = pyqtSignal()
     sigSensorChanged = pyqtSignal(SensorInstrument)
 
-    def __init__(self, temporalProfile):
-        super(TemporalProfile2DPlotStyle, self).__init__()
-        assert isinstance(temporalProfile, TemporalProfile)
+    def __init__(self, parent=None, temporalProfile=None):
+        super(TemporalProfilePlotStyleBase, self).__init__()
         self.mSensor = None
-        self.mTP = temporalProfile
-        self.mExpression = u'"b1"'
+        self.mTP = None
+        self.mExpression = 'b1'
         self.mPlotItems = []
+        self.mIsVisible = True
 
         if isinstance(temporalProfile, TemporalProfile):
             self.setTemporalProfile(temporalProfile)
 
-    def createPlotItem(self, plotWidget):
-        pdi = TemporalProfilePlotDataItem(self)
-        self.mPlotItems.append(pdi)
-        return pdi
+    def createPlotItem(self):
+        raise NotImplementedError()
 
     def temporalProfile(self):
         return self.mTP
 
     def setTemporalProfile(self, temporalPofile):
-        assert isinstance(temporalPofile, TemporalProfile)
+
         b = temporalPofile != self.mTP
         self.mTP = temporalPofile
-        if b: self.update()
+        if temporalPofile is None:
+            s  =""
+        else:
+            assert isinstance(temporalPofile, TemporalProfile)
+        if b:
+            self.update()
 
     def setSensor(self, sensor):
-        assert isinstance(sensor, SensorInstrument)
+        assert sensor is None or isinstance(sensor, SensorInstrument)
         b = sensor != self.mSensor
         self.mSensor = sensor
         if b:
             self.update()
             self.sigSensorChanged.emit(sensor)
 
-
-    def update(self):
-        super(TemporalProfile2DPlotStyle, self).update()
-
-        for pdi in self.mPlotItems:
-            assert isinstance(pdi, TemporalProfilePlotDataItem)
-            pdi.updateStyle()
-            #pdi.updateItems()
-
-
-
     def sensor(self):
         return self.mSensor
 
 
+    def update(self):
+        raise NotImplementedError()
+
     def setExpression(self, exp):
-        assert isinstance(exp, unicode)
+        assert isinstance(exp, str)
         b = self.mExpression != exp
         self.mExpression = exp
         if b:
@@ -555,57 +561,308 @@ class TemporalProfile2DPlotStyle(PlotStyle):
 
         return result
 
+    def isVisible(self):
+        return self.mIsVisible
+
+    def setVisibility(self, b):
+        assert isinstance(b, bool)
+        old = self.isVisible()
+        self.mIsVisible = b
+
+        if b != old:
+            self.update()
+
+    def copyFrom(self, plotStyle):
+        super(TemporalProfilePlotStyleBase, self).copyFrom(plotStyle)
+        assert isinstance(plotStyle, TemporalProfilePlotStyleBase)
+        self.setExpression(plotStyle.expression())
+        self.setSensor(plotStyle.sensor())
+        self.setTemporalProfile(plotStyle.temporalProfile())
 
 
-class TemporalProfile3DPlotStyle(PlotStyle):
+class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
 
 
-    def __init__(self,sensor):
-        super(TemporalProfile3DPlotStyle, self).__init__()
+    def __init__(self, temporalProfile=None):
+        super(TemporalProfile2DPlotStyle, self).__init__(temporalProfile=temporalProfile)
+        #PlotStyle.__init__(self)
+       #TemporalProfilePlotStyleBase.__init__(self, temporalProfile=temporalProfile)
+
+    def createPlotItem(self, plotWidget):
+        pdi = TemporalProfilePlotDataItem(self)
+        self.mPlotItems.append(pdi)
+        return pdi
+
+
+    def update(self):
+
+        for pdi in self.mPlotItems:
+            assert isinstance(pdi, TemporalProfilePlotDataItem)
+            pdi.updateStyle()
+            #pdi.updateItems()
+
+
+
+
+
+
+class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
+
+    ITEM_TYPES = OptionListModel()
+    ITEM_TYPES.addOption(Option('GLLinePlotItem', name= '3D Lines'))
+    ITEM_TYPES.addOption(Option('GLMeshItem', name='3D Mesh'))
+
+    sigUpdated = pyqtSignal()
+    sigExpressionUpdated = pyqtSignal()
+    sigSensorChanged = pyqtSignal(SensorInstrument)
+
+    def __init__(self, temporalProfile=None):
+        super(TemporalProfile3DPlotStyle, self).__init__(temporalProfile=temporalProfile)
         #assert isinstance(temporalProfile, TemporalProfile)
-        assert isinstance(sensor, SensorInstrument)
-        self.mSensor = sensor
-        #self.mTP = temporalProfile
-        self.mScale = 1.0
-        self.mOffset = 0.0
-        self.mColor = QColor('green')
 
-        #self.setTemporalProfile(temporalProfile)
+        #TemporalProfilePlotStyleBase.__init__(self, None)
 
-    def setColor(self, color):
-        assert isinstance(color, QColor)
-        old = self.mColor
-        self.mColor = color
-        if old != color:
-            self.update()
+        self.setExpression('b')
+        self.mItemType = 'GLLinePlotItem'
+        self.mIsVisible = True
+        self.mGLItemKWDS = {}
 
-    def color(self):
-        return self.mColor
+    def setGLItemKwds(self, kwds):
+        self.mGLItemKWDS = kwds
 
-    def setScaling(self, scale, offset):
-        scale = float(scale)
-        offset = float(offset)
-        x,y =self.mScale, self.mOffset
-        self.mScale = scale
-        self.mOffset = offset
-
-        if x != scale or y != offset:
-            self.update()
-
-    def sensor(self):
-        return self.mSensor
-
-    def __reduce_ex__(self, protocol):
-        return self.__class__, (), self.__getstate__()
-
-    def __getstate__(self):
-        result = super(TemporalProfile3DPlotStyle, self).__getstate__()
-        #remove
-        del result['mSensor']
-
-        return result
+    def glItemKwds(self):
+        return self.mGLItemKWDS.copy()
 
 
+    def setItemType(self, itemType):
+        assert itemType in TemporalProfile3DPlotStyle.ITEM_TYPES.optionValues()
+        self.mItemType = itemType
+
+    def itemType(self):
+        return self.mItemType
+
+
+
+    def copyFrom(self, plotStyle):
+        super(TemporalProfile3DPlotStyle, self).copyFrom(plotStyle)
+        assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
+        self.setItemType(plotStyle.itemType())
+        self.setGLItemKwds(plotStyle.glItemKwds())
+
+
+    def update(self):
+
+        for pdi in self.mPlotItems:
+            assert isinstance(pdi, TemporalProfilePlotDataItem)
+            pdi.updateStyle()
+
+    def createIcon(self, size=None):
+
+        if size is None:
+            size = QSize(100,60)
+
+        pm = QPixmap(size)
+        pm.fill(self.backgroundColor)
+        p = QPainter(pm)
+
+        kwds = self.mGLItemKWDS
+
+        text = '3D'
+
+
+        #brush = self.canvas.backgroundBrush()
+        #c = brush.color()
+        #c.setAlpha(170)
+        #brush.setColor(c)
+        #painter.setBrush(brush)
+        #painter.setPen(Qt.NoPen)
+        font = p.font()
+        fm = QFontMetrics(font)
+        backGroundSize = QSizeF(fm.size(Qt.TextSingleLine, text))
+        backGroundSize = QSizeF(backGroundSize.width() + 3, -1 * (backGroundSize.height() + 3))
+        #backGroundPos = QPointF(ptLabel.x() - 3, ptLabel.y() + 3)
+        #background = QPolygonF(QRectF(backGroundPos, backGroundSize))
+        #painter.drawPolygon(background)
+        color = kwds.get('color')
+        if color is None:
+            color = QColor('green')
+        if self.mItemType == 'GLLinePlotItem':
+            text = 'Lines'
+        elif self.mItemType == 'GLMeshItem':
+            text = 'Mesh'
+        textPen = QPen(Qt.SolidLine)
+        textPen.setWidth(1)
+        textPen.setColor(color)
+        textPos = QPoint(0, int(pm.size().height() * 0.7))
+        p.setPen(textPen)
+        p.drawText(textPos, text)
+
+        p.end()
+        icon = QIcon(pm)
+
+        return icon
+
+    def createPlotItem(self, plotWidget):
+        if not OPENGL_AVAILABLE:
+            return None
+
+        import pyqtgraph.opengl as gl
+        sensor = self.sensor()
+        tp = self.temporalProfile()
+        if not isinstance(sensor, SensorInstrument) or not isinstance(tp, TemporalProfile):
+            return None
+
+        dataPos = []
+        x0 = x1 = y0 = y1 = z0 = z1 = 0
+        for iDate, tsd in enumerate(tp.mTimeSeries):
+            data = tp.data(tsd)
+            bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None],
+                              key=lambda k: bandKey2bandIndex(k))
+            if len(bandKeys) < 2:
+                continue
+
+            t = date2num(tsd.date)
+
+            x = []
+            y = []
+            z = []
+
+            for i, k in enumerate(bandKeys):
+                x.append(i)
+                y.append(t)
+                z.append(data[k])
+            x = np.asarray(x)
+            y = np.asarray(y)
+            z = np.asarray(z)
+            if iDate == 0:
+                x0, x1 = (x.min(), x.max())
+                y0, y1 = (y.min(), y.max())
+                z0, z1 = (z.min(), z.max())
+            else:
+                x0, x1 = (min(x.min(), x0), max(x.max(), x1))
+                y0, y1 = (min(y.min(), y0), max(y.max(), y1))
+                z0, z1 = (min(z.min(), z0), max(z.max(), z1))
+            dataPos.append((x, y, z))
+
+        xyz = [(x0, x1), (y0, y1), (z0, z1)]
+        l = len(dataPos)
+        for iPos, pos in enumerate(dataPos):
+            x, y, z = pos
+            arr = np.asarray((x, y, z), dtype=np.float64).transpose()
+
+            for i, m in enumerate(xyz):
+                m0, m1 = m
+                arr[:, i] = (arr[:, i] - m0) / (m1 - m0)
+
+            plt = gl.GLLinePlotItem(pos=arr,
+                                    # color=pg.glColor((i, n * 1.3)),
+                                    # color=pg.glColor(255,123,123,125),
+                                    # color=pg.glColor((iPos, l * 1.3)),
+                                    color=pg.glColor(self.markerSymbol.mColor()),
+                                    width=1.0,
+                                    antialias=True)
+
+            return plt
+
+
+class TemporalProfile3DPlotStyleButton(QPushButton):
+
+    sigPlotStyleChanged = pyqtSignal(PlotStyle)
+
+    def __init__(self, *args, **kwds):
+        super(TemporalProfile3DPlotStyleButton, self).__init__(*args, **kwds)
+        self.mPlotStyle = TemporalProfile3DPlotStyle()
+        self.mInitialButtonSize = None
+        self.setStyleSheet('* { padding: 0px; }')
+        self.clicked.connect(self.showDialog)
+        self.setPlotStyle(PlotStyle())
+
+
+    def plotStyle(self):
+        return self.mPlotStyle
+
+    def setPlotStyle(self, plotStyle):
+        if isinstance(plotStyle, TemporalProfile3DPlotStyle):
+            self.mPlotStyle.copyFrom(plotStyle)
+            self._updateIcon()
+            self.sigPlotStyleChanged.emit(self.mPlotStyle)
+        else:
+            s = ""
+
+
+    def showDialog(self):
+        #print(('A',self.mPlotStyle))
+        style = TemporalProfile3DPlotStyleDialog.getPlotStyle(plotStyle=self.mPlotStyle)
+
+        if style:
+            self.setPlotStyle(style)
+            s = ""
+        #print(('B',self.mPlotStyle))
+    def resizeEvent(self, arg):
+        self._updateIcon()
+
+    def _updateIcon(self):
+        if self.mInitialButtonSize is None:
+            self.mInitialButtonSize = self.sizeHint()
+            self.setIconSize(self.mInitialButtonSize)
+
+        if self.mPlotStyle != None:
+            s = self.mInitialButtonSize
+            s = self.sizeHint()
+            #s = QSize()
+            icon = self.mPlotStyle.createIcon(self.mInitialButtonSize)
+            self.setIcon(icon)
+        self.update()
+
+
+
+
+        pass
+
+
+class TemporalProfile3DPlotStyleDialog(QgsDialog):
+
+    @staticmethod
+    def getPlotStyle(*args, **kwds):
+        """
+        Opens a CrosshairDialog.
+        :param args:
+        :param kwds:
+        :return: specified CrosshairStyle if accepted, else None
+        """
+        d = TemporalProfile3DPlotStyleDialog(*args, **kwds)
+        d.exec_()
+
+        if d.result() == QDialog.Accepted:
+            return d.plotStyle()
+        else:
+
+            return None
+
+    def __init__(self, parent=None, plotStyle=None, title='Specify 3D Plot Style'):
+        super(QgsDialog, self).__init__(parent=parent , \
+            buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.w = TemporalProfilePlotStyle3DWidget(parent=self)
+        self.setWindowTitle(title)
+        self.btOk = QPushButton('Ok')
+        self.btCancel = QPushButton('Cancel')
+        buttonBar = QHBoxLayout()
+        #buttonBar.addWidget(self.btCancel)
+        #buttonBar.addWidget(self.btOk)
+        l = self.layout()
+        l.addWidget(self.w)
+        l.addLayout(buttonBar)
+        if isinstance(plotStyle, PlotStyle):
+            self.setPlotStyle(plotStyle)
+        #self.setLayout(l)
+
+
+    def plotStyle(self):
+        return self.w.plotStyle()
+
+    def setPlotStyle(self, plotStyle):
+        assert isinstance(plotStyle, PlotStyle)
+        self.w.setPlotStyle(plotStyle)
 
 
 class TemporalProfile(QObject):
@@ -847,6 +1104,87 @@ class TemporalProfile(QObject):
         return 'TemporalProfile {}'.format(self.mCoordinate)
 
 
+class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
+    sigPlotStyleChanged = pyqtSignal(PlotStyle)
+
+    def __init__(self, title='<#>', parent=None):
+        super(TemporalProfilePlotStyle3DWidget, self).__init__(parent)
+        self.setupUi(self)
+        if OPENGL_AVAILABLE:
+            from pyqtgraph.opengl import GLViewWidget
+            #todo assert isinstance(self.plotWidget, GLViewWidget)
+
+        self.mBlockUpdates = False
+
+        self.cbGLItemType.setModel(TemporalProfile3DPlotStyle.ITEM_TYPES)
+
+        #connect signals
+
+        #color buttons
+        self.btnGLLinePlotItemColor.colorChanged.connect(self.refreshPreview)
+        self.btnGLScatterPlotItemColor.colorChanged.connect(self.refreshPreview)
+
+        #checkboxes
+        self.cbGLItemType.currentIndexChanged.connect(self.refreshPreview)
+        self.cbGLLinePlotItemMode.currentIndexChanged.connect(self.refreshPreview)
+
+        #spin boxes
+        self.sbGLLinePlotItemWidth.valueChanged.connect(self.refreshPreview)
+        self.sbGLScatterPlotItemSize.valueChanged.connect(self.refreshPreview)
+
+        self.setPlotStyle(TemporalProfile3DPlotStyle())
+        self.refreshPreview()
+
+    def refreshPreview(self, *args):
+        if not self.mBlockUpdates:
+            #print('DEBUG: REFRESH NOW')
+            style = self.plotStyle()
+
+            #todo: set style to style preview
+            pi = self.plotDataItem
+            pi.setSymbol(style.markerSymbol)
+            pi.setSymbolSize(style.markerSize)
+            pi.setSymbolBrush(style.markerBrush)
+            pi.setSymbolPen(style.markerPen)
+            pi.setPen(style.linePen)
+
+            pi.update()
+            self.plotWidget.update()
+            self.sigPlotStyleChanged.emit(style)
+
+
+    def setPlotStyle(self, style):
+        assert isinstance(style, TemporalProfile3DPlotStyle)
+        #set widget values
+        self.mLastPlotStyle = style
+        self.mBlockUpdates = True
+
+        self.refreshPreview()
+
+
+    def plotStyleIcon(self):
+        icon = QIcon()
+        #todo: get plot preview as 60x60 icon
+        return icon
+
+    def plotStyle(self):
+
+        itemType = self.cbGLItemType.currentData(role=Qt.UserRole).value()
+        style = TemporalProfile3DPlotStyle()
+        style.setTemporalProfile(self.mLastPlotStyle.temporalProfile())
+        style.setItemType(itemType)
+        kwds = {'antialias':self.cbAntialias.isChecked()}
+
+        if itemType == 'GLLinePlotItem':
+            kwds['color'] = self.btnGLLinePlotItemColor.color()
+            kwds['width'] = self.sbGLLinePlotItemWidth.value(),
+            kwds['mode'] = self.cbGLLinePlotItemMode.currentData(role=Qt.DisplayRole)
+        elif itemType == 'GLScatterPlotItem':
+            kwds['color'] = self.btnGLScatterPlotItemColor.color()
+            kwds['size'] = self.sbGLScatterPlotItemSize.value(),
+            kwds['pxMode'] = self.cbGLScatterPlotItemPxMode.currentData(role=Qt.DisplayRole)
+        style.setGLItemKwds(kwds)
+        return style
 
 
 class TemporalProfilePlotDataItem(pg.PlotDataItem):
@@ -917,12 +1255,14 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
         if isinstance(TP, TemporalProfile) and isinstance(sensor, SensorInstrument):
             x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression())
-            x =  np.asarray(x, dtype=np.float)
+            x = np.asarray(x, dtype=np.float)
             y = np.asarray(y, dtype=np.float)
             if len(y) > 0:
                 self.setData(x=x, y=y)
             else:
-                self.setData(x=[], y=[]) #dummy
+                self.setData(x=[], y=[]) # dummy
+        else:
+            self.setData(x=[], y=[])  # dummy for empty data
         self.updateStyle()
 
     def updateStyle(self):
@@ -1390,6 +1730,25 @@ class TemporalProfileCollectionListModel(QAbstractListModel):
                 value = '#{} "{}" {}'.format(TP.mID, TP.name(), TP.mCoordinate)
             elif role == Qt.UserRole:
                 value = TP
-
+        else:
+            if role == Qt.DisplayRole:
+                value = 'undefined'
+            elif role == Qt.ToolTipRole:
+                value = 'Please select a location to read the temporal profile from'
         return value
 
+
+if __name__ == '__main__':
+    import site, sys
+    from timeseriesviewer import utils
+    qgsApp = utils.initQgisApplication()
+    DEBUG = False
+
+    w = TemporalProfilePlotStyle3DWidget()
+    w.show()
+    print(w.plotStyle())
+
+    #btn = TemporalProfile3DPlotStyleButton()
+    #btn.show()
+    qgsApp.exec_()
+    qgsApp.exitQgis()

@@ -49,9 +49,6 @@ import numpy as np
 
 DEBUG = False
 
-
-
-
 OPENGL_AVAILABLE = False
 
 try:
@@ -284,7 +281,6 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
 
         w = None
         if index.isValid() and isinstance(model, PlotSettingsModel2D):
-
             cname = self.getColumnName(index)
             if cname == model.cnExpression:
                 lastExpr = index.model().data(index, Qt.DisplayRole)
@@ -342,7 +338,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
             elif cname == model.cnTemporalProfile:
                 assert isinstance(w, QComboBox)
                 TP = w.itemData(w.currentIndex(), role=Qt.UserRole)
-                assert isinstance(TP, TemporalProfile)
+                #assert isinstance(TP, TemporalProfile)
                 model.setData(index, TP, Qt.EditRole)
 
             else:
@@ -354,20 +350,21 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
     """
 
     """
-    def __init__(self, tableView, parent=None):
+    def __init__(self, tableView, timeSeries, temporalProfileListModel, parent=None):
 
         super(PlotSettingsModel3DWidgetDelegate, self).__init__(parent=parent)
         self._preferedSize = QgsFieldExpressionWidget().sizeHint()
         self.mTableView = tableView
-
-
+        self.mTimeSeries = timeSeries
+        self.mTemporalProfileListModel = temporalProfileListModel
+        self.mSensorLayers = {}
 
     def setItemDelegates(self, tableView):
         assert isinstance(tableView, QTableView)
         model = tableView.model()
 
         assert isinstance(model, PlotSettingsModel3D)
-        for c in [model.cnStyle]:
+        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
             i = model.columNames.index(c)
             tableView.setItemDelegateForColumn(i, self)
 
@@ -393,13 +390,51 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
         if index.isValid() and isinstance(model, PlotSettingsModel3D):
             plotStyle = model.idx2plotStyle(index)
             if isinstance(plotStyle, TemporalProfile3DPlotStyle):
-                if cname == model.cnStyle:
-                    w = QgsColorButton(parent=parent)
-                    w.setColor(plotStyle.color())
-                    w.setToolTip('Set line color')
-                    w.colorChanged.connect(lambda: self.checkData(index, w))
+                if cname == model.cnExpression:
+                    w = QgsFieldExpressionWidget(parent=parent)
+                    w.setExpression(plotStyle.expression())
+                    w.setLayer(self.exampleLyr(plotStyle.sensor()))
+                    plotStyle.sigSensorChanged.connect(lambda s : w.setLayer(self.exampleLyr(s)))
+                    w.setExpressionDialogTitle('Values')
+                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
+                    w.fieldChanged[str,bool].connect(lambda n, b : self.checkData(index, w, w.expression()))
 
+                elif cname == model.cnStyle:
+                    w = TemporalProfile3DPlotStyleButton(parent=parent)
+                    w.setPlotStyle(plotStyle)
+                    w.setToolTip('Set plot style')
+                    #w.sigPlotStyleChanged.connect(lambda: self.checkData(index, w))
+
+                elif cname == model.cnSensor:
+                    w = QComboBox(parent=parent)
+                    m = SensorListModel(self.mTimeSeries)
+                    w.setModel(m)
+
+                elif cname == model.cnTemporalProfile:
+                    w = QComboBox(parent=parent)
+                    w.setModel(self.mTemporalProfileListModel)
+                else:
+                    raise NotImplementedError()
         return w
+
+    def exampleLyr(self, sensor):
+        assert isinstance(sensor, SensorInstrument)
+
+
+        if sensor not in self.mSensorLayers.keys():
+
+            crs = QgsCoordinateReferenceSystem('EPSG:4862')
+            uri = 'Point?crs={}'.format(crs.authid())
+            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
+            f = sensorExampleQgsFeature(sensor, singleBandOnly=True)
+            assert isinstance(f, QgsFeature)
+            assert lyr.startEditing()
+            for field in f.fields():
+                lyr.addAttribute(field)
+            lyr.addFeature(f)
+            lyr.commitChanges()
+            self.mSensorLayers[sensor] = lyr
+        return self.mSensorLayers[sensor]
 
     def checkData(self, index, w):
         assert isinstance(index, QModelIndex)
@@ -407,7 +442,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
         if index.isValid() and isinstance(model, PlotSettingsModel3D):
             plotStyle = model.idx2plotStyle(index)
             assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
-            if isinstance(w, QgsColorButton):
+            if isinstance(w, TemporalProfile3DPlotStyleButton):
                 self.commitData.emit(w)
 
     def setEditorData(self, editor, index):
@@ -416,12 +451,35 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
 
         w = None
         if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            style = model.idx2plotStyle(index)
-            assert isinstance(style, TemporalProfile3DPlotStyle)
             cname = self.getColumnName(index)
-            if cname == model.cnStyle:
-                assert isinstance(editor, QgsColorButton)
-                editor.setColor(style.color())
+            style = model.idx2plotStyle(index)
+
+            if cname == model.cnExpression:
+                lastExpr = index.model().data(index, Qt.DisplayRole)
+                assert isinstance(editor, QgsFieldExpressionWidget)
+                editor.setProperty('lastexpr', lastExpr)
+                editor.setField(lastExpr)
+
+            elif cname == model.cnStyle:
+                assert isinstance(editor, TemporalProfile3DPlotStyleButton)
+                editor.setPlotStyle(style)
+
+            elif cname == model.cnSensor:
+                assert isinstance(editor, QComboBox)
+                m = editor.model()
+                assert isinstance(m, SensorListModel)
+                sensor = index.data(role=Qt.UserRole)
+                if isinstance(sensor, SensorInstrument):
+                    idx = m.sensor2idx(sensor)
+                    editor.setCurrentIndex(idx.row())
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(editor, QComboBox)
+                m = editor.model()
+                assert isinstance(m, TemporalProfileCollectionListModel)
+                TP = index.data(role=Qt.UserRole)
+                if isinstance(TP, TemporalProfile):
+                    idx = m.tp2idx(TP)
+                    editor.setCurrentIndex(idx)
             else:
                 raise NotImplementedError()
 
@@ -430,11 +488,33 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
         model = self.mTableView.model()
 
         if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            if cname == model.cnStyle:
-                assert isinstance(w, QgsColorButton)
-                model.setData(index, w.color(), Qt.EditRole)
+            if cname == model.cnExpression:
+                assert isinstance(w, QgsFieldExpressionWidget)
+                expr = w.asExpression()
+                exprLast = model.data(index, Qt.DisplayRole)
+
+                if w.isValidExpression() and expr != exprLast:
+                    model.setData(index, w.asExpression(), Qt.EditRole)
+
+            elif cname == model.cnStyle:
+                assert isinstance(w, TemporalProfile3DPlotStyleButton)
+                model.setData(index, w.plotStyle(), Qt.EditRole)
+
+            elif cname == model.cnSensor:
+                assert isinstance(w, QComboBox)
+                sensor = w.itemData(w.currentIndex(), role=Qt.UserRole)
+                assert isinstance(sensor, SensorInstrument)
+                model.setData(index, sensor, Qt.EditRole)
+
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(w, QComboBox)
+                TP = w.itemData(w.currentIndex(), role=Qt.UserRole)
+                #assert isinstance(TP, TemporalProfile)
+                model.setData(index, TP, Qt.EditRole)
+
             else:
                 raise NotImplementedError()
+
 
 
 class SensorPixelDataMemoryLayer(QgsVectorLayer):
@@ -494,12 +574,12 @@ class PlotSettingsModel3D(QAbstractTableModel):
 
         super(PlotSettingsModel3D, self).__init__(parent=parent)
         self.mTimeSeries = None
-        self.cnSensor = 'Sensor'
-        self.cnScale = 'Scale'
-        self.cnOffset = 'Offset'
+        self.cnID = 'ID'
+        self.cnExpression = LABEL_EXPRESSION_3D
+        self.cnTemporalProfile = 'Coordinate'
         self.cnStyle = 'Style'
-
-        self.columNames = [self.cnSensor, self.cnScale, self.cnOffset, self.cnStyle]
+        self.cnSensor = 'Sensor'
+        self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
 
         self.mPlotSettings = []
         #assert isinstance(plotWidget, DateTimePlotWidget)
@@ -531,8 +611,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
 
     def createStyle(self, sensor):
         if not self.hasStyleForSensor(sensor):
-
-            s = TemporalProfile3DPlotStyle(sensor)
+            s = TemporalProfile3DPlotStyle()
             #use another color for the new sensor
             if len(self) > 0:
                 color = self[-1].color()
@@ -667,18 +746,21 @@ class PlotSettingsModel3D(QAbstractTableModel):
                         value = sensor.name()
                     else:
                         value = '<Select Sensor>'
-                elif columnName == self.cnScale:
-                    value = plotStyle.mScale
-                elif columnName == self.cnOffset:
-                    value = plotStyle.mOffset
-            if role == Qt.EditRole:
-                if columnName == self.cnScale:
-                    value = plotStyle.mScale
-                elif columnName == self.cnOffset:
-                    value = plotStyle.mOffset
+                elif columnName == self.cnExpression:
+                    value = plotStyle.expression()
+                elif columnName == self.cnTemporalProfile:
+                    tp = plotStyle.temporalProfile()
+                    if isinstance(tp, TemporalProfile):
+                        value = tp.name()
+                    else:
+                        value = 'undefined'
+
+            elif role == Qt.EditRole:
+                if columnName == self.cnExpression:
+                    value = plotStyle.expression()
 
             elif role == Qt.CheckStateRole:
-                if columnName == self.cnSensor:
+                if columnName == self.cnTemporalProfile:
                     value = Qt.Checked if plotStyle.isVisible() else Qt.Unchecked
 
             elif role == Qt.UserRole:
@@ -705,39 +787,32 @@ class PlotSettingsModel3D(QAbstractTableModel):
         plotStyle = self.idx2plotStyle(index)
         if isinstance(plotStyle, TemporalProfile3DPlotStyle):
             if role in [Qt.DisplayRole]:
-                if columnName == self.cnScale and isinstance(value, float):
-                    plotStyle.setScaling(value, plotStyle.mOffset)
-                    result = True
-                elif columnName == self.cnOffset and isinstance(value, float):
-                    plotStyle.setScaling(plotStyle.mScale, value)
+                if columnName == self.cnExpression and isinstance(value, str):
+                    plotStyle.setExpression(value)
                     result = True
                 elif columnName == self.cnStyle:
                     if isinstance(value, PlotStyle):
                         plotStyle.copyFrom(value)
                         result = True
-                    elif isinstance(value, QColor):
-                        plotStyle.setColor(value)
-                        result = True
 
             if role == Qt.CheckStateRole:
-                if columnName == self.cnSensor:
+                if columnName == self.cnTemporalProfile:
                     plotStyle.setVisibility(value == Qt.Checked)
                     result = True
 
             if role == Qt.EditRole:
-                if columnName == self.cnScale:
-                    plotStyle.setScaling(value, plotStyle.mOffset)
+                if columnName == self.cnSensor:
+                    plotStyle.setSensor(value)
                     result = True
-                elif columnName == self.cnOffset:
-                    plotStyle.setScaling(plotStyle.mScale, value)
+                elif columnName == self.cnExpression:
+                    plotStyle.setExpression(value)
+                    result = True
+                elif columnName == self.cnTemporalProfile:
+                    plotStyle.setTemporalProfile(value)
                     result = True
                 elif columnName == self.cnStyle:
-                    if isinstance(value, QColor):
-                        plotStyle.setColor(value)
-                        result = True
-                    if isinstance(value, TemporalProfile3DPlotStyle):
-                        plotStyle.copyFrom(value)
-                        result = True
+                    plotStyle.copyFrom(value)
+                    result = True
 
         return result
 
@@ -746,9 +821,9 @@ class PlotSettingsModel3D(QAbstractTableModel):
         if index.isValid():
             columnName = self.columNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName in [self.cnSensor]:
+            if columnName in [self.cnTemporalProfile]:
                 flags = flags | Qt.ItemIsUserCheckable
-            if columnName in [self.cnScale, self.cnOffset, self.cnStyle]: #allow check state
+            if columnName in [self.cnExpression, self.cnSensor, self.cnStyle]: #allow check state
                 flags = flags | Qt.ItemIsEditable
             return flags
             #return item.qt_flags(index.column())
@@ -782,7 +857,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
         self.cnID = 'ID'
         self.cnSensor = 'Sensor'
-        self.cnExpression = LABEL_DN
+        self.cnExpression = LABEL_EXPRESSION_2D
         self.cnStyle = 'Style'
         self.cnTemporalProfile = 'Coordinate'
         self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
@@ -793,13 +868,24 @@ class PlotSettingsModel2D(QAbstractTableModel):
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
         self.tpCollection = temporalProfileCollection
-        #self.tpCollection.sigTemporalProfilesRemoved.connect(lambda removedTPs : self.removePlotStyles([p for p in self.mPlotSettings if p.temporalProfile() in removedTPs]))
+        self.tpCollection.sigTemporalProfilesRemoved.connect(self.onTemporalProfilesRemoved)
         assert isinstance(self.tpCollection.TS, TimeSeries)
         #self.tpCollection.TS.sigSensorAdded.connect(self.addPlotItem)
         #self.tpCollection.TS.sigSensorRemoved.connect(self.removeSensor)
 
         self.sort(0, Qt.AscendingOrder)
         self.dataChanged.connect(self.signaler)
+
+    def onTemporalProfilesRemoved(self, profiles):
+        s = ""
+        #lambda removedTPs: self.removePlotStyles(
+        affectedStyles = [p for p in self.mPlotSettings if p.temporalProfile() in profiles]
+        to_replace = self.tpCollection[-1] if len(self.tpCollection) > 0 else None
+        for s in affectedStyles:
+            assert isinstance(s, TemporalProfile2DPlotStyle)
+            idx = self.plotStyle2idx(s)
+            idx = self.createIndex(idx.row(), self.columNames.index(self.cnTemporalProfile))
+            self.setData(idx, to_replace, Qt.EditRole)
 
     def __len__(self):
         return len(self.mPlotSettings)
@@ -969,7 +1055,11 @@ class PlotSettingsModel2D(QAbstractTableModel):
                 elif columnName == self.cnExpression:
                     value = plotStyle.expression()
                 elif columnName == self.cnTemporalProfile:
-                    value = plotStyle.temporalProfile().name()
+                    tp = plotStyle.temporalProfile()
+                    if isinstance(tp, TemporalProfile):
+                        value = tp.name()
+                    else:
+                        value = 'undefined'
 
             #elif role == Qt.DecorationRole:
             #    if columnName == self.cnStyle:
@@ -1002,8 +1092,6 @@ class PlotSettingsModel2D(QAbstractTableModel):
         #print(('Set data', index.row(), index.column(), value, role))
         columnName = self.columNames[index.column()]
 
-        if value is None:
-            return False
 
         result = False
         plotStyle = self.idx2plotStyle(index)
@@ -1219,21 +1307,12 @@ class SpectralTemporalVisualization(QObject):
 
 
         self.plot_initialized = False
-        self.tableView2DProfiles = ui.tableView2DProfiles
 
-        self.tableView2DProfiles.setSortingEnabled(False)
 
-        self.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        self.ui.tableView2DProfiles.setSortingEnabled(False)
+        self.ui.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
-        self.plotSettingsModel3D = PlotSettingsModel3D()
-        #self.plotSettingsModel3D.sigPlotStylesRemoved.connect(self.updatePlot3D)
-        #self.plotSettingsModel3D.sigPlotStylesAdded.connect(self.updatePlot3D)
-        #self.plotSettingsModel3D.sigPlotStylesAdded.connect(self.updatePlot3D)
-        self.plotSettingsModel3D.rowsInserted.connect(self.onRowsInserted3D)
-        self.ui.tableView3DProfiles.setModel(self.plotSettingsModel3D)
-        self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles)
-        self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
+
 
         # self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
 
@@ -1256,7 +1335,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
         self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        self.ui.cbTemporalProfile3D.setModel(self.tpCollectionListModel)
+        #self.ui.cbTemporalProfile3D.setModel(self.tpCollectionListModel)
         #self.pxCollection.sigPixelAdded.connect(self.requestUpdate)
         #self.pxCollection.sigPixelRemoved.connect(self.clear)
 
@@ -1272,7 +1351,7 @@ class SpectralTemporalVisualization(QObject):
         self.updateRequested = True
         self.updateTimer = QTimer(self)
         self.updateTimer.timeout.connect(self.onDataUpdate)
-        self.updateTimer.start(5000)
+        self.updateTimer.start(2000)
 
         self.sigMoveToDate.connect(self.onMoveToDate)
 
@@ -1306,37 +1385,44 @@ class SpectralTemporalVisualization(QObject):
         if isinstance(m, TemporalProfileCollection):
             m.removeTemporalProfiles(temporalProfiles)
 
-    def createNewPlotStyle(self):
+    def createNewPlotStyle2D(self):
         l = len(self.tpCollection)
+        if l == 0:
+            return
+
+        plotStyle = TemporalProfile2DPlotStyle(self.tpCollection[0])
+
+        plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
+        sensors = list(self.TS.Sensors.keys())
+        if len(sensors) > 0:
+            plotStyle.setSensor(sensors[0])
+
+        if len(self.plotSettingsModel2D) > 0:
+            lastStyle = self.plotSettingsModel2D[-1]
+            assert isinstance(lastStyle, TemporalProfile2DPlotStyle)
+            markerColor = nextColor(lastStyle.markerBrush.color())
+            plotStyle.markerBrush.setColor(markerColor)
+        self.plotSettingsModel2D.insertPlotStyles([plotStyle])
+        pdi = plotStyle.createPlotItem(self.plot2D)
+
+        assert isinstance(pdi, TemporalProfilePlotDataItem)
+        pdi.sigClicked.connect(self.onProfileClicked2D)
+        pdi.sigPointsClicked.connect(self.onPointsClicked2D)
+        self.plot2D.getPlotItem().addItem(pdi)
+        #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
+        #plotItem.addDataItem(pdi)
+        #plotItem.plot().sigPlotChanged.emit(plotItem)
+        self.updatePlot2D()
+
+
+    def createNewPlotStyle3D(self):
+        l = len(self.tpCollection)
+        plotStyle = TemporalProfile3DPlotStyle()
         if l > 0:
             temporalProfile = self.tpCollection[0]
-
-
-
-            plotStyle = TemporalProfile2DPlotStyle(temporalProfile)
-
-            plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
-            sensors = list(self.TS.Sensors.keys())
-            if len(sensors) > 0:
-                plotStyle.setSensor(sensors[0])
-
-            if len(self.plotSettingsModel2D) > 0:
-                lastStyle = self.plotSettingsModel2D[-1]
-                assert isinstance(lastStyle, TemporalProfile2DPlotStyle)
-                markerColor = nextColor(lastStyle.markerBrush.color())
-                plotStyle.markerBrush.setColor(markerColor)
-            self.plotSettingsModel2D.insertPlotStyles([plotStyle])
-            pdi = plotStyle.createPlotItem(self.plot2D)
-
-            assert isinstance(pdi, TemporalProfilePlotDataItem)
-            pdi.sigClicked.connect(self.onProfileClicked2D)
-            pdi.sigPointsClicked.connect(self.onPointsClicked2D)
-            self.plot2D.getPlotItem().addItem(pdi)
-            #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
-            #plotItem.addDataItem(pdi)
-            #plotItem.plot().sigPlotChanged.emit(plotItem)
-            self.updatePlot2D()
-
+            plotStyle.setTemporalProfile(temporalProfile)
+        self.plotSettingsModel3D.insertPlotStyles([plotStyle])
+        self.updatePlot3D()
 
     def onProfileClicked2D(self, pdi):
         if isinstance(pdi, TemporalProfilePlotDataItem):
@@ -1373,15 +1459,23 @@ class SpectralTemporalVisualization(QObject):
 
     def onPlot2DSelectionChanged(self, selected, deselected):
 
-        self.ui.actionRemoveView.setEnabled(len(selected) > 0)
+        self.ui.actionRemoveStyle2D.setEnabled(len(selected) > 0)
 
     def initActions(self):
 
-        self.ui.actionRemoveView.setEnabled(False)
+        self.ui.actionRemoveStyle2D.setEnabled(False)
         self.ui.actionRemoveTemporalProfile.setEnabled(False)
 
-        self.ui.btnAddView.setDefaultAction(self.ui.actionAddView)
-        self.ui.btnRemoveView.setDefaultAction(self.ui.actionRemoveView)
+        self.ui.btnAddStyle2D.setDefaultAction(self.ui.actionAddStyle2D)
+        self.ui.btnRemoveStyle2D.setDefaultAction(self.ui.actionRemoveStyle2D)
+
+
+        self.ui.btnAddStyle3D.setDefaultAction(self.ui.actionAddStyle3D)
+        self.ui.btnRemoveStyle3D.setDefaultAction(self.ui.actionRemoveStyle3D)
+
+        self.ui.actionAddStyle2D.triggered.connect(self.createNewPlotStyle2D)
+        self.ui.actionAddStyle3D.triggered.connect(self.createNewPlotStyle3D)
+
         self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh2D)
         self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh3D)
         self.ui.btnRemoveTemporalProfile.setDefaultAction(self.ui.actionRemoveTemporalProfile)
@@ -1395,8 +1489,8 @@ class SpectralTemporalVisualization(QObject):
         self.ui.btnLoadProfile3.setDefaultAction(self.ui.actionLoadProfileRequest)
 
 
-        self.ui.actionAddView.triggered.connect(self.createNewPlotStyle)
-        self.ui.actionRemoveView.triggered.connect(lambda:self.removePlotStyles(self.selected2DPlotStyles()))
+
+        self.ui.actionRemoveStyle2D.triggered.connect(lambda:self.removePlotStyles(self.selected2DPlotStyles()))
         self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.selectedTemporalProfiles()))
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
         self.tpCollection.sigMaxProfilesChanged.connect(self.ui.sbMaxTP.setValue)
@@ -1435,7 +1529,7 @@ class SpectralTemporalVisualization(QObject):
                                          ), mode = 'all'
                                          )
         )
-        #todo: self.ui.actionRemoveView.triggered.connect(self.plotSettingsModel.createPlotStyle)
+        #todo: self.ui.actionRemoveStyle2D.triggered.connect(self.plotSettingsModel.createPlotStyle)
 
     def reset3DCamera(self, *args):
 
@@ -1456,15 +1550,25 @@ class SpectralTemporalVisualization(QObject):
         self.plotSettingsModel2D.sigDataChanged.connect(self.requestUpdate)
         self.plotSettingsModel2D.rowsInserted.connect(self.onRowsInserted2D)
 
-        self.plotSettingsModel3D.connectTimeSeries(self.TS)
+
         # self.plotSettingsModel.modelReset.connect(self.updatePersistantWidgets)
-        self.tableView2DProfiles.setModel(self.plotSettingsModel2D)
-        #self.tableView2DProfilesSelectionModel = QItemSelectionModel(self.mModel)
-        self.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
+        self.ui.tableView2DProfiles.setModel(self.plotSettingsModel2D)
+        self.ui.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
+        self.delegateTableView2D = PlotSettingsModel2DWidgetDelegate(self.ui.tableView2DProfiles, self.TS, self.tpCollectionListModel)
+        self.delegateTableView2D.setItemDelegates(self.ui.tableView2DProfiles)
+
+        self.plotSettingsModel3D = PlotSettingsModel3D()
+        self.plotSettingsModel3D.connectTimeSeries(self.TS)
+        self.plotSettingsModel3D.rowsInserted.connect(self.onRowsInserted3D)
+        self.ui.tableView3DProfiles.setModel(self.plotSettingsModel3D)
+        self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+
         #self.tableView2DProfilesSelectionModel.selectionChanged.connect(self.onPlot2DSelectionChanged)
         #self.tableView2DProfilesSelectionModel.setSelectionModel(self.mSelectionModel)
-        self.delegateTableView2D = PlotSettingsModel2DWidgetDelegate(self.tableView2DProfiles, self.TS, self.tpCollectionListModel)
-        self.delegateTableView2D.setItemDelegates(self.tableView2DProfiles)
+
+
+        self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles, self.TS, self.tpCollectionListModel)
+        self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
 
 
 
@@ -1500,15 +1604,15 @@ class SpectralTemporalVisualization(QObject):
         #next time
 
     def onRowsInserted2D(self, parent, start, end):
-        model = self.tableView2DProfiles.model()
+        model = self.ui.tableView2DProfiles.model()
         if isinstance(model, PlotSettingsModel2D):
             colExpression = model.columnIndex(model.cnExpression)
             colStyle = model.columnIndex(model.cnStyle)
             while start <= end:
                 idxExpr = model.createIndex(start, colExpression)
                 idxStyle = model.createIndex(start, colStyle)
-                self.tableView2DProfiles.openPersistentEditor(idxExpr)
-                self.tableView2DProfiles.openPersistentEditor(idxStyle)
+                self.ui.tableView2DProfiles.openPersistentEditor(idxExpr)
+                self.ui.tableView2DProfiles.openPersistentEditor(idxStyle)
                 start += 1
                 #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
             s = ""
@@ -1595,7 +1699,7 @@ class SpectralTemporalVisualization(QObject):
 
                 if len(self.tpCollection) == 1:
                     if len(self.plotSettingsModel2D) == 0:
-                        self.createNewPlotStyle()
+                        self.createNewPlotStyle2D()
 
                     if len(self.plotSettingsModel3D) == 0:
                         #todo: individual 3D style
@@ -1674,11 +1778,13 @@ class SpectralTemporalVisualization(QObject):
 
         for plotSetting in self.plotSettingsModel2D:
             assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
-            if plotSetting.temporalProfile().updated():
-                for pdi in plotSetting.mPlotItems:
-                    assert isinstance(pdi, TemporalProfilePlotDataItem)
-                    pdi.updateDataAndStyle()
+            tp = plotSetting.temporalProfile()
+            for pdi in plotSetting.mPlotItems:
+                assert isinstance(pdi, TemporalProfilePlotDataItem)
+                pdi.updateDataAndStyle()
+            if isinstance(tp, TemporalProfile) and plotSetting.temporalProfile().updated():
                 plotSetting.temporalProfile().resetUpdatedFlag()
+
 
         for i in self.plot2D.getPlotItem().dataItems:
             i.updateItems()
@@ -1708,118 +1814,49 @@ class SpectralTemporalVisualization(QObject):
     def updatePlot3D(self):
         if OPENGL_AVAILABLE:
             from pyqtgraph.opengl import GLViewWidget
+            from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
             import pyqtgraph.opengl as gl
             assert isinstance(self.plot3D, GLViewWidget)
-            w = self.plot3D
-
-            #we need the data from all bands
 
 
 
-            del self.glPlotDataItems[:]
-            for i in w.items:
-                w.removeItem(i)
+            # 1. ensure that data from all bands will be loaded
+            LUT_bandIndices = dict()
+            for sensor in self.TS.sensors():
+                assert isinstance(sensor, SensorInstrument)
+                LUT_bandIndices[sensor] = list(range(sensor.nb))
 
-            idx = self.ui.cbTemporalProfile3D.currentIndex()
-            if idx >= 0:
-                tp = self.ui.cbTemporalProfile3D.itemData(idx, role=Qt.UserRole)
-                assert isinstance(tp, TemporalProfile)
+            coordinates = []
+            for plotStyle3D in self.plotSettingsModel3D:
+                assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
+                tp = plotStyle3D.temporalProfile()
+                if isinstance(tp, TemporalProfile):
+                    coordinates.append(tp.mCoordinate)
+            if len(coordinates) > 0:
+                self.loadCoordinate(coordinates, LUT_bandIndices=LUT_bandIndices)
 
-                #1. ensure that data from all bands will be loaded
-                LUT_bandIndices = dict()
-                for sensor in self.TS.sensors():
-                    assert isinstance(sensor, SensorInstrument)
-                    LUT_bandIndices[sensor] = list(range(sensor.nb))
+            # 2. remove old plot items
+            for gli in self.glPlotDataItems:
+                if gli in self.plot3D.items:
+                    self.plot3D.removeItem(gli)
+                del self.glPlotDataItems[:]
 
-                self.loadCoordinate(tp.mCoordinate, LUT_bandIndices=LUT_bandIndices)
+            # 3 add new plot items
+            for plotStyle3D in self.plotSettingsModel3D:
+                assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
+                gli = plotStyle3D.createPlotItem(None)
 
-                #2. visualize already loaded data
-                LUTStyle = {}
-                for style in self.plotSettingsModel3D:
-                    assert isinstance(style, TemporalProfile3DPlotStyle)
-                    LUTStyle[style.sensor()] = style
+                if isinstance(gli, GLGraphicsItem):
+                    self.glPlotDataItems.append(gli)
 
-                dataPos = []
-                x0 = x1 = y0 = y1 = z0 = z1 = 0
-                for iDate, tsd in enumerate(tp.mTimeSeries):
-                    data = tp.data(tsd)
+            for i, item in enumerate(self.glPlotDataItems):
+                self.plot3D.addItem(item)
+            # self.glGridItem.scale(0.1,0.1,0.1, local=False)
+            # w.setBackgroundColor(QColor('black'))
+            # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
+            self.plot3D.addItem(self.glGridItem)
+            self.plot3D.update()
 
-
-                    bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None], key=lambda k: bandKey2bandIndex(k))
-                    if len(bandKeys) < 2:
-                        continue
-
-                    t = date2num(tsd.date)
-
-                    x = []
-                    y = []
-                    z = []
-
-                    for i, k in enumerate(bandKeys):
-                        x.append(i)
-                        y.append(t)
-                        z.append(data[k])
-                    x = np.asarray(x)
-                    y = np.asarray(y)
-                    z = np.asarray(z)
-                    if iDate == 0:
-                        x0, x1 = (x.min(), x.max())
-                        y0, y1 = (y.min(), y.max())
-                        z0, z1 = (z.min(), z.max())
-                    else:
-                        x0, x1 = (min(x.min(), x0), max(x.max(), x1))
-                        y0, y1 = (min(y.min(), y0), max(y.max(), y1))
-                        z0, z1 = (min(z.min(), z0), max(z.max(), z1))
-                    if tsd.sensor in LUTStyle.keys():
-                        style = LUTStyle[tsd.sensor]
-                    else:
-                        style = TemporalProfile3DPlotStyle(tsd.sensor)
-                    dataPos.append((x,y,z, style))
-
-                xyz = [(x0,x1),(y0,y1),(z0,z1)]
-                l = len(dataPos)
-                for iPos, pos in enumerate(dataPos):
-                    x,y,z, style = pos
-                    assert isinstance(style, TemporalProfile3DPlotStyle)
-                    if not style.isVisible():
-                        continue
-                    arr = np.asarray((x,y,z), dtype=np.float64).transpose()
-
-                    for i, m in enumerate(xyz):
-                        m0, m1 = m
-                        arr[:, i] = (arr[:,i] - m0)/(m1-m0)
-
-                    plt = gl.GLLinePlotItem(pos=arr,
-                                            #color=pg.glColor((i, n * 1.3)),
-                                            #color=pg.glColor(255,123,123,125),
-                                            #color=pg.glColor((iPos, l * 1.3)),
-                                            color=pg.glColor(style.color()),
-                                            width=1.0,
-                                            antialias=True)
-
-                    self.glPlotDataItems.append(plt)
-
-
-
-                for i, item in enumerate(self.glPlotDataItems):
-                   w.addItem(item)
-                #self.glGridItem.scale(0.1,0.1,0.1, local=False)
-
-                #w.setBackgroundColor(QColor('black'))
-                #w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
-                w.addItem(self.glGridItem)
-                w.update()
-                """
-                for sensor, values in data.items():
-                    if len(values['z']) > 0:
-                        x = values['x']
-                        y = values['y']
-                        z = values['z']
-                        
-                        p2 = gl.GLSurfacePlotItem(x=x, y=y, z=z, shader='normalColor')
-                        p2.translate(-10, -10, 0)
-                        w.addItem(p2)
-                """
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):
@@ -1977,14 +2014,14 @@ if __name__ == '__main__':
         STVis.loadCoordinate(cpND)
         STVis.loadCoordinate(cp2)
         STVis.loadCoordinate(cp3)
-        STVis.createNewPlotStyle()
+        STVis.createNewPlotStyle2D()
 
         if False:
             for tp in STVis.tpCollection:
                 assert isinstance(tp, TemporalProfile)
                 tp.plot()
-
-
+        STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
+        STVis.createNewPlotStyle3D()
     qgsApp.exec_()
     qgsApp.exitQgis()
 

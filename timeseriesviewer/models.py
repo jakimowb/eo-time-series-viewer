@@ -71,7 +71,7 @@ def setCurrentComboBoxValue(comboBox, value):
 
 class Option(object):
 
-    def __init__(self, value, name=None, tooltip=None, icon=None):
+    def __init__(self, value, name=None, tooltip='', icon=QIcon()):
 
         self.mValue = value
         if name is None:
@@ -79,6 +79,18 @@ class Option(object):
         self.mName = name
         self.mTooltip = tooltip
         self.mIcon = None
+
+    def value(self):
+        return self.mValue
+
+    def name(self):
+        return self.mName
+
+    def tooltip(self):
+        return self.mTooltip
+
+    def icon(self):
+        return self.mIcon
 
     def __eq__(self, other):
         if not isinstance(other, Option):
@@ -95,6 +107,11 @@ class OptionListModel(QAbstractListModel):
 
         self.insertOptions(options)
 
+    def __iter__(self):
+        return iter(self.mOptions)
+
+    def containsValue(self, value):
+        return value in self.optionValues()
 
     def addOption(self, option):
         self.insertOptions([option])
