@@ -60,23 +60,136 @@ try:
 
     class ViewWidget3D(GLViewWidget):
 
+        def __init__(self, parent=None):
+            super(ViewWidget3D, self).__init__(parent)
+            self.mousePos = QPoint(-1,-1)
+            self.setBackgroundColor(QColor('black'))
+            self.setMouseTracking(True)
+
+
+
+            self.glAxes = gl.GLAxisItem()
+            self.glAxes.setSize(1,1,1)
+            self.glAxesNames = ['X','Y','Z']
+
+            self.glGridItemXY = gl.GLGridItem()
+            self.glGridItemXZ = gl.GLGridItem()
+            self.glGridItemYZ = gl.GLGridItem()
+
+            x, y, z = self.glAxes.size()
+
+            self.glGridItemXZ.rotate(90, 0, 1, 0)
+            self.glGridItemYZ.rotate(90, 1, 0, 0)
+
+            #self.glGridItemXY.setSpacing(x/10., y/10., 1)
+            #self.glGridItemXZ.setSpacing(x / 10., z / 10., 1)
+            #self.glGridItemYZ.setSpacing(y / 10., z / 10., 1)
+
+            self.glGridItemXY.scale(x/10,y/10, 1)
+            self.glGridItemXZ.scale(x/10,z/10, 1)
+            self.glGridItemYZ.scale(y/10,z/10, 1)
+
+            self.mBasicItems = [self.glGridItemXY, self.glGridItemXZ, self.glGridItemYZ, self.glAxes]
+            for item in self.mBasicItems:
+                item.setDepthValue(-10)
+
+                self.addItem(item) # draw grid/axis after surfaces since they may be translucent
+
+
+        def clearItems(self):
+            for item in self.items:
+                if item not in self.mBasicItems:
+                    self.removeItem()
+
         def paintGL(self, *args, **kwds):
             GLViewWidget.paintGL(self, *args, **kwds)
             self.qglColor(Qt.white)
             self.renderAnnotations()
 
+        def update(self):
+            super(ViewWidget3D, self).update()
+
+        def mouseMoveEvent(self, ev):
+            assert isinstance(ev, QMouseEvent)
+            """ Allow Shift to Move and Ctrl to Pan.
+            Example taken from https://gist.github.com/blink1073/7406607
+            """
+            shift = ev.modifiers() & QtCore.Qt.ShiftModifier
+            ctrl = ev.modifiers() & QtCore.Qt.ControlModifier
+            if shift:
+                y = ev.pos().y()
+                if not hasattr(self, '_prev_zoom_pos') or not self._prev_zoom_pos:
+                    self._prev_zoom_pos = y
+                    return
+                dy = y - self._prev_zoom_pos
+
+                def delta():
+                    return -dy * 5
+
+                ev.delta = delta
+                self._prev_zoom_pos = y
+                self.wheelEvent(ev)
+            elif ctrl:
+                pos = ev.pos().x(), ev.pos().y()
+                if not hasattr(self, '_prev_pan_pos') or not self._prev_pan_pos:
+                    self._prev_pan_pos = pos
+                    return
+                dx = pos[0] - self._prev_pan_pos[0]
+                dy = pos[1] - self._prev_pan_pos[1]
+                self.pan(dx, dy, 0, relative=True)
+                self._prev_pan_pos = pos
+            else:
+                super(ViewWidget3D, self).mouseMoveEvent(ev)
+
+            #items = self.itemsAt((pos.x(), pos.y(), 3, 3))
+
+
+        def mousePressEvent(self, event):
+            super(ViewWidget3D, self).mousePressEvent(event)
+            self.mousePos = event.pos()
+            if event.button() == 2:
+                self.select = True
+            else:
+                self.select = False
+            print(self.itemsAt((self.mousePos.x(), self.mousePos.y(), 3, 3)))
+
+
         def renderAnnotations(self):
+
+            if self.glAxes.visible():
+                x, y, z = self.glAxes.size()
+                self.renderText(x, 0, 0, self.glAxesNames[0])
+                self.renderText(0, y, 0, self.glAxesNames[1])
+                self.renderText(0, 0, z, self.glAxesNames[2])
+
 
             self.renderText(0.8, 0.8, 0.8, 'text 3D')
             self.renderText(5, 10, 'text 2D fixed')
-    """
-    class TemporalProfileGLLinePlotItem(gl.GLLinePlotItem):
 
-        def __init__(self, plotStyle, *args, **kwds):
-            assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
+        def contextMenuEvent(self, event):
+            assert isinstance(event, QContextMenuEvent)
+            menu = QMenu()
 
-        gl.GLLinePlotItem
-    """
+
+
+            m = menu.addMenu('Grids')
+            a = m.addAction('XY')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemXY.visible())
+            a.toggled.connect(self.glGridItemXY.setVisible)
+
+            a = m.addAction('XZ')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemXY.visible())
+            a.toggled.connect(self.glGridItemXZ.setVisible)
+
+            a = m.addAction('YZ')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemXY.visible())
+            a.toggled.connect(self.glGridItemYZ.setVisible)
+
+            menu.exec_(self.mapToGlobal(event.pos()))
+
 except:
     if DEBUG:
         print('unable to import package OpenGL')
@@ -1321,13 +1434,6 @@ class SpectralTemporalVisualization(QObject):
         self.plot3D = ui.plotWidget3D
         self.reset3DCamera()
 
-        ## Add a grid to the view
-        if OPENGL_AVAILABLE:
-            import pyqtgraph.opengl as gl
-            self.glGridItem = gl.GLGridItem()
-            self.glGridItem.setDepthValue(10)  # draw grid after surfaces since they may be translucent
-            self.glPlotDataItems = [self.glGridItem]
-            self.plot3D.addItem(self.glGridItem)
 
         self.tpCollection = TemporalProfileCollection()
         self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
@@ -1836,10 +1942,7 @@ class SpectralTemporalVisualization(QObject):
                 self.loadCoordinate(coordinates, LUT_bandIndices=LUT_bandIndices)
 
             # 2. remove old plot items
-            for gli in self.glPlotDataItems:
-                if gli in self.plot3D.items:
-                    self.plot3D.removeItem(gli)
-                del self.glPlotDataItems[:]
+            self.ui.plotWidget3D.clearItems()
 
             # 3 add new plot items
             for plotStyle3D in self.plotSettingsModel3D:
@@ -1847,14 +1950,11 @@ class SpectralTemporalVisualization(QObject):
                 gli = plotStyle3D.createPlotItem(None)
 
                 if isinstance(gli, GLGraphicsItem):
-                    self.glPlotDataItems.append(gli)
+                    self.ui.plotWidget3D.addItem(gli)
 
-            for i, item in enumerate(self.glPlotDataItems):
-                self.plot3D.addItem(item)
-            # self.glGridItem.scale(0.1,0.1,0.1, local=False)
             # w.setBackgroundColor(QColor('black'))
             # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
-            self.plot3D.addItem(self.glGridItem)
+            #self.plot3D.addItem(self.ui.plotWidget3D.glGridItem)
             self.plot3D.update()
 
 
@@ -2022,6 +2122,7 @@ if __name__ == '__main__':
                 tp.plot()
         STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
         STVis.createNewPlotStyle3D()
+        STVis.ui.listWidget.setCurrentRow(1)
     qgsApp.exec_()
     qgsApp.exitQgis()
 

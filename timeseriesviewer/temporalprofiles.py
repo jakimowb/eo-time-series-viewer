@@ -754,13 +754,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
                 m0, m1 = m
                 arr[:, i] = (arr[:, i] - m0) / (m1 - m0)
 
-            plt = gl.GLLinePlotItem(pos=arr,
-                                    # color=pg.glColor((i, n * 1.3)),
-                                    # color=pg.glColor(255,123,123,125),
-                                    # color=pg.glColor((iPos, l * 1.3)),
-                                    color=pg.glColor(self.markerSymbol.mColor()),
-                                    width=1.0,
-                                    antialias=True)
+            plt = gl.GLLinePlotItem(pos=arr, **self.mGLItemKWDS)
 
             return plt
 
