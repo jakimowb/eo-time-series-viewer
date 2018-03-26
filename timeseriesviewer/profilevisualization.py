@@ -55,8 +55,126 @@ try:
     import OpenGL
     OPENGL_AVAILABLE = True
 
-    from pyqtgraph.opengl import GLViewWidget
+    from pyqtgraph.opengl import *
+    from OpenGL.GL import *
 
+    class AxisGrid3D(GLGridItem):
+        def __init__(self, *args, **kwds):
+            super(AxisGrid3D, self).__init__(*args, **kwds)
+
+            self.mXYRange = np.asarray([[0, 1], [0, 1]])
+            self.mColor = QColor('grey')
+
+        def setColor(self, color):
+            self.mColor = QColor(color)
+
+        def setXRange(self, x0, x1):
+            self.mXYRange[0, 0] = x0
+            self.mXYRange[0, 1] = x1
+
+        def setYRange(self, y0, y1):
+            self.mXYRange[1, 0] = y0
+            self.mXYRange[1, 1] = y1
+
+        def paint(self):
+            self.setupGLState()
+
+            if self.antialias:
+                glEnable(GL_LINE_SMOOTH)
+                glEnable(GL_BLEND)
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+
+            glBegin(GL_LINES)
+
+            x0, x1 = self.mXYRange[0, :]
+            y0, y1 = self.mXYRange[1, :]
+            xs, ys, zs = self.spacing()
+            rx = x1-x0
+            ry = y1-y0
+            xvals = np.arange(x0, x1, rx/10)
+            yvals = np.arange(y0, y1, ry/10)
+            #todo: nice line breaks
+            #yvals = np.arange(-y / 2., y / 2. + ys * 0.001, ys)
+            c = fn.glColor(self.mColor)
+            glColor4f(*c)
+            for x in xvals:
+                glVertex3f(x, yvals[0], 0)
+                glVertex3f(x, yvals[-1], 0)
+            for y in yvals:
+                glVertex3f(xvals[0], y, 0)
+                glVertex3f(xvals[-1], y, 0)
+
+            glEnd()
+
+    class Axis3D(GLAxisItem):
+
+        def __init__(self, *args, **kwds):
+            super(Axis3D, self).__init__(*args, **kwds)
+
+            self.mRanges = np.asarray([[0,1],[0,1],[0,1]])
+            self.mColors = [QColor('white'),QColor('white'),QColor('white')]
+            self.mVisibility = [True, True, True]
+            self.mLabels = ['X','Y','Z']
+
+        def rangeMinima(self):
+            return self.mRanges[:,0]
+
+        def rangeMaxima(self):
+            return self.mRanges[:,1]
+
+        def _set(self, ax, vMin=None, vMax=None, label=None, color=None, visible=None):
+            i = ['x','y','z'].index(ax.lower())
+            if vMin is not None:
+                self.mRanges[i][0] = vMin
+            if vMax is not None:
+                self.mRanges[i][1] = vMax
+            if color is not None:
+                self.mColors[i] = color
+            if label is not None:
+                self.mLabels[i] = label
+            if visible is not None:
+                self.mVisibility[i] = visible
+
+
+        def setX(self, **kwds):
+            self._set('x', **kwds)
+
+        def setY(self, **kwds):
+            self._set('y', **kwds)
+
+        def setZ(self, **kwds):
+            self._set('z', **kwds)
+
+        def paint(self):
+            # glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            # glEnable( GL_BLEND )
+            # glEnable( GL_ALPHA_TEST )
+            self.setupGLState()
+
+            if self.antialias:
+                glEnable(GL_LINE_SMOOTH)
+                glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+
+            x0, y0, z0 = self.rangeMinima()
+            x1, y1, z1 = self.rangeMaxima()
+            glLineWidth(2.0)
+            glBegin(GL_LINES)
+            glColor4f(*fn.glColor(self.mColors[2]))
+
+            glVertex3f(0, 0, z0)
+            glVertex3f(0, 0, z1)
+
+            glColor4f(*fn.glColor(self.mColors[1]))
+            glVertex3f(0, y0, 0)
+            glVertex3f(0, y1, 0)
+
+            glColor4f(*fn.glColor(self.mColors[0]))
+            glVertex3f(x0, 0, 0)
+            glVertex3f(x1, 0, 0)
+
+            glEnd()
+            glLineWidth(1.0)
 
     class ViewWidget3D(GLViewWidget):
 
@@ -67,27 +185,28 @@ try:
             self.setMouseTracking(True)
 
 
+            self.mDataMinRanges = [0, 0, 0]
+            self.mDataMaxRanges = [1, 1, 1]
+            self.mDataN = 0
 
-            self.glAxes = gl.GLAxisItem()
-            self.glAxes.setSize(1,1,1)
-            self.glAxesNames = ['X','Y','Z']
 
-            self.glGridItemXY = gl.GLGridItem()
-            self.glGridItemXZ = gl.GLGridItem()
-            self.glGridItemYZ = gl.GLGridItem()
+            self.glAxes = Axis3D()
+
+            self.glGridItemXY = AxisGrid3D()
+            self.glGridItemXZ = AxisGrid3D()
+            self.glGridItemYZ = AxisGrid3D()
+
+            self.glGridItemXZ.setVisible(False)
+            self.glGridItemYZ.setVisible(False)
 
             x, y, z = self.glAxes.size()
 
-            self.glGridItemXZ.rotate(90, 0, 1, 0)
-            self.glGridItemYZ.rotate(90, 1, 0, 0)
+            self.glGridItemYZ.rotate(-90, 0, 1, 0)
+            self.glGridItemXZ.rotate(90, 1, 0, 0)
 
-            #self.glGridItemXY.setSpacing(x/10., y/10., 1)
-            #self.glGridItemXZ.setSpacing(x / 10., z / 10., 1)
-            #self.glGridItemYZ.setSpacing(y / 10., z / 10., 1)
-
-            self.glGridItemXY.scale(x/10,y/10, 1)
-            self.glGridItemXZ.scale(x/10,z/10, 1)
-            self.glGridItemYZ.scale(y/10,z/10, 1)
+            #self.glGridItemXY.scale(x/10,y/10, 1)
+            #self.glGridItemXZ.scale(x/10,z/10, 1)
+            #self.glGridItemYZ.scale(y/10,z/10, 1)
 
             self.mBasicItems = [self.glGridItemXY, self.glGridItemXZ, self.glGridItemYZ, self.glAxes]
             for item in self.mBasicItems:
@@ -95,19 +214,146 @@ try:
 
                 self.addItem(item) # draw grid/axis after surfaces since they may be translucent
 
+            self.initContextMenu()
+        """
+        def setDataRangeX(self, x0, x1):
+            assert x0 < x1
+            self.mDataMinRanges[0] = x0
+            self.mDataMaxRanges[0] = x1
+
+        def setDataRangeY(self, y0, y1):
+            assert y0 < y1
+            self.mDataMinRanges[0] = y0
+            self.mDataMaxRanges[0] = y1
+
+        def setDataRangeZ(self, z0, z1):
+            assert z0 < z1
+            self.mDataMinRanges[0] = z0
+            self.mDataMaxRanges[0] = z1
+        """
+
+        def initContextMenu(self):
+
+            menu = QMenu()
+
+            #define grid options
+            m = menu.addMenu('Grids')
+
+
+            def visibilityAll(b):
+                self.glGridItemXY.setVisible(b)
+                self.glGridItemXZ.setVisible(b)
+                self.glGridItemYZ.setVisible(b)
+
+            a = m.addAction('Show All')
+            a.setCheckable(False)
+            a.triggered.connect(lambda : visibilityAll(True))
+
+            a = m.addAction('Hide All')
+            a.setCheckable(False)
+            a.triggered.connect(lambda: visibilityAll(False))
+            m.addSeparator()
+
+            a = m.addAction('XY')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemXY.visible())
+            a.toggled.connect(self.glGridItemXY.setVisible)
+
+
+            a = m.addAction('XZ')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemXZ.visible())
+            a.toggled.connect(self.glGridItemXZ.setVisible)
+
+            a = m.addAction('YZ')
+            a.setCheckable(True)
+            a.setChecked(self.glGridItemYZ.visible())
+            a.toggled.connect(self.glGridItemYZ.setVisible)
+
+            m = menu.addMenu('Axes')
+
+            frame = QFrame()
+            l = QHBoxLayout()
+            frame.setLayout(l)
+            l.addWidget(QLabel('Color'))
+            wa = QWidgetAction(menu)
+            wa.setDefaultWidget(frame)
+            menu.addAction(wa)
+            menu.insertMenu(wa, menu)
+
+            self.btnAxisColor  = QgsColorButton()
+
+            a = m.addAction('X')
+            a.setCheckable(True)
+            a.setChecked(self.glAxes.mVisibility[0])
+            a.toggled.connect(lambda b: self.glAxes.setX(visible=b))
+
+            a = m.addAction('Y')
+            a.setCheckable(True)
+            a.setChecked(self.glAxes.mVisibility[1])
+            a.toggled.connect(lambda b: self.glAxes.setX(visible=b))
+
+            a = m.addAction('Z')
+            a.setCheckable(True)
+            a.setChecked(self.glAxes.mVisibility[2])
+            a.toggled.connect(lambda b: self.glAxes.setX(visible=b))
+
+
+
+            self.mMenu = menu
+
+        def resetCamera(self):
+
+           # self.mDataMinRanges
+            self.setCameraPosition(self.mDataMinRanges, distance=5, elevation=10)
 
         def clearItems(self):
             for item in self.items:
                 if item not in self.mBasicItems:
-                    self.removeItem()
+                    self.removeItem(item)
 
         def paintGL(self, *args, **kwds):
             GLViewWidget.paintGL(self, *args, **kwds)
             self.qglColor(Qt.white)
             self.renderAnnotations()
 
-        def update(self):
-            super(ViewWidget3D, self).update()
+        def zoomToFull(self):
+
+            for item in self.items:
+                if item not in self.mBasicItems:
+                    s = ""
+            s = ""
+
+        def updateDataRanges(self):
+            x0 = x1 = y0 = y1 = z0 = z1 = n = None
+
+            if hasattr(self, 'items'):
+                for item in self.items:
+                    if item not in self.mBasicItems and hasattr(item, 'pos'):
+                        pos = item.pos
+                        if x0 is None:
+                            n = pos.shape[0]
+                            x0 = pos[:, 0].min()
+                            y0 = pos[:, 1].min()
+                            z0 = pos[:, 2].min()
+                            x1 = pos[:, 0].max()
+                            y1 = pos[:, 1].max()
+                            z1 = pos[:, 2].max()
+                        else:
+                            n  = max(n, pos.shape[0])
+                            x0 = min(x0, pos[:, 0].min())
+                            y0 = min(y0, pos[:, 1].min())
+                            z0 = min(z0, pos[:, 2].min())
+                            x1 = max(x1, pos[:, 0].max())
+                            y1 = max(y1, pos[:, 1].max())
+                            z1 = max(z1, pos[:, 2].max())
+                if x1 is not None:
+                    self.mDataMinRanges = (x0, y0, z0)
+                    self.mDataMaxRanges = (x1, y1, z1)
+                    self.mDataN = n
+                    self.glAxes.setSize(x1, y1, z1)
+                    self.glGridItemXZ.setSize()
+
 
         def mouseMoveEvent(self, ev):
             assert isinstance(ev, QMouseEvent)
@@ -151,44 +397,31 @@ try:
                 self.select = True
             else:
                 self.select = False
-            print(self.itemsAt((self.mousePos.x(), self.mousePos.y(), 3, 3)))
 
+            try:
+                print(self.itemsAt((self.mousePos.x(), self.mousePos.y(), 3, 3)))
+            except:
+                pass
 
         def renderAnnotations(self):
 
             if self.glAxes.visible():
-                x, y, z = self.glAxes.size()
-                self.renderText(x, 0, 0, self.glAxesNames[0])
-                self.renderText(0, y, 0, self.glAxesNames[1])
-                self.renderText(0, 0, z, self.glAxesNames[2])
+                x, y, z = self.glAxes.rangeMaxima()
+
+                if x is not None:
+                    self.renderText(x, 0, 0, self.glAxes.mLabels[0])
+                    self.renderText(0, y, 0, self.glAxes.mLabels[1])
+                    self.renderText(0, 0, z, self.glAxes.mLabels[2])
 
 
-            self.renderText(0.8, 0.8, 0.8, 'text 3D')
+            #self.renderText(0.8, 0.8, 0.8, 'text 3D')
             self.renderText(5, 10, 'text 2D fixed')
+
+
 
         def contextMenuEvent(self, event):
             assert isinstance(event, QContextMenuEvent)
-            menu = QMenu()
-
-
-
-            m = menu.addMenu('Grids')
-            a = m.addAction('XY')
-            a.setCheckable(True)
-            a.setChecked(self.glGridItemXY.visible())
-            a.toggled.connect(self.glGridItemXY.setVisible)
-
-            a = m.addAction('XZ')
-            a.setCheckable(True)
-            a.setChecked(self.glGridItemXY.visible())
-            a.toggled.connect(self.glGridItemXZ.setVisible)
-
-            a = m.addAction('YZ')
-            a.setCheckable(True)
-            a.setChecked(self.glGridItemXY.visible())
-            a.toggled.connect(self.glGridItemYZ.setVisible)
-
-            menu.exec_(self.mapToGlobal(event.pos()))
+            self.mMenu.exec_(self.mapToGlobal(event.pos()))
 
 except:
     if DEBUG:
@@ -510,7 +743,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                     plotStyle.sigSensorChanged.connect(lambda s : w.setLayer(self.exampleLyr(s)))
                     w.setExpressionDialogTitle('Values')
                     w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
-                    w.fieldChanged[str,bool].connect(lambda n, b : self.checkData(index, w, w.expression()))
+                    w.fieldChanged[str,bool].connect(lambda n, b : self.checkData(index, w.expression()))
 
                 elif cname == model.cnStyle:
                     w = TemporalProfile3DPlotStyleButton(parent=parent)
@@ -936,7 +1169,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             if columnName in [self.cnTemporalProfile]:
                 flags = flags | Qt.ItemIsUserCheckable
-            if columnName in [self.cnExpression, self.cnSensor, self.cnStyle]: #allow check state
+            if columnName in [self.cnTemporalProfile, self.cnExpression, self.cnSensor, self.cnStyle]: #allow check state
                 flags = flags | Qt.ItemIsEditable
             return flags
             #return item.qt_flags(index.column())
@@ -1640,7 +1873,8 @@ class SpectralTemporalVisualization(QObject):
     def reset3DCamera(self, *args):
 
         if OPENGL_AVAILABLE:
-            self.plot3D.setCameraPosition((0,0,0), distance=10, elevation=10)
+            self.plot3D.resetCamera()
+
 
     def setTimeSeries(self, TS):
 
@@ -1955,8 +2189,9 @@ class SpectralTemporalVisualization(QObject):
             # w.setBackgroundColor(QColor('black'))
             # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
             #self.plot3D.addItem(self.ui.plotWidget3D.glGridItem)
+            self.plot3D.updateDataRanges()
             self.plot3D.update()
-
+            self.plot3D.zoomToFull()
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):

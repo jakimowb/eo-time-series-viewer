@@ -750,11 +750,15 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             x, y, z = pos
             arr = np.asarray((x, y, z), dtype=np.float64).transpose()
 
-            for i, m in enumerate(xyz):
-                m0, m1 = m
-                arr[:, i] = (arr[:, i] - m0) / (m1 - m0)
+            #for i, m in enumerate(xyz):
+            #    m0, m1 = m
+            #    arr[:, i] = (arr[:, i] - m0) / (m1 - m0)
 
-            plt = gl.GLLinePlotItem(pos=arr, **self.mGLItemKWDS)
+            if self.mItemType == 'GLLinePlotItem':
+                plt = gl.GLLinePlotItem(pos=arr, **self.mGLItemKWDS)
+
+            else:
+                raise NotImplementedError(self.mItemType)
 
             return plt
 
