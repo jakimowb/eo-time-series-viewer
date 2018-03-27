@@ -731,12 +731,11 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
 
         #load form class
         try:
+
             FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         except SyntaxError as ex:
             FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
-
         buffer.close()
-        buffer = None
         FORM_CLASSES[pathUi] = FORM_CLASS
 
         #remove temporary added directories from python path

@@ -92,7 +92,7 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="pageGLLinePlotItem">
       <layout class="QGridLayout" name="gridLayout">
@@ -114,7 +114,7 @@
           </size>
          </property>
          <property name="colorDialogTitle">
-          <string>Select Map Canvas Background Color</string>
+          <string>Set line color</string>
          </property>
          <property name="color">
           <color>
@@ -201,6 +201,9 @@
            <height>16</height>
           </size>
          </property>
+         <property name="colorDialogTitle">
+          <string>Set point color</string>
+         </property>
          <property name="color">
           <color>
            <red>0</red>
@@ -239,6 +242,89 @@
           <string>Point size</string>
          </property>
         </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="pageGLMeshItem">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QgsColorButton" name="btnGLMeshItemColor">
+         <property name="colorDialogTitle">
+          <string>Select mesh color</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QgsColorButton" name="btnGLMeshItemEdgeColor">
+         <property name="colorDialogTitle">
+          <string>Set edge color</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbGLMeshItemDrawEdges">
+         <property name="text">
+          <string>Edges</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbGLMeshItemDrawFaces">
+         <property name="text">
+          <string>Faces</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbGLMeshItemSmooth">
+         <property name="text">
+          <string>Smooth</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cbGLMeshItemNormals">
+         <property name="text">
+          <string>Normals</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
