@@ -483,10 +483,13 @@ class PixelLoader(QObject):
 
             self.mWorkerProcess.daemon = False
             self.mWorkerProcess.start()
-
+            return True
         else:
             if not self.mWorkerProcess.is_alive():
-                self.mWorkerProcess.run()
+                self.mWorkerProcess.join(250)
+                return False
+                #self.initWorkerProcess()
+                #self.mWorkerProcess.run()
 
 
 
@@ -530,7 +533,10 @@ class PixelLoader(QObject):
         self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
         self.sigLoadingStarted.emit(paths[:])
         #self.mKillEvent.clear()
-        self.initWorkerProcess()
+        t = 0
+        while not self.initWorkerProcess() and t < 10:
+            t += 1
+
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
             t.mJobId = self.jobId

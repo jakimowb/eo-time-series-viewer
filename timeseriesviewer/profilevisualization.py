@@ -574,8 +574,9 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
         w = None
         if index.isValid() and isinstance(model, PlotSettingsModel2D):
             plotStyle = model.idx2plotStyle(index)
+
             if isinstance(plotStyle, TemporalProfile2DPlotStyle):
-                if cname == model.cnExpression:
+                if cname == model.cnExpression and isinstance(plotStyle.sensor(), SensorInstrument):
                     w = QgsFieldExpressionWidget(parent=parent)
                     w.setExpression(plotStyle.expression())
                     w.setLayer(self.exampleLyr(plotStyle.sensor()))
@@ -739,7 +740,9 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                 if cname == model.cnExpression:
                     w = QgsFieldExpressionWidget(parent=parent)
                     w.setExpression(plotStyle.expression())
-                    w.setLayer(self.exampleLyr(plotStyle.sensor()))
+                    sensor = plotStyle.sensor()
+                    if isinstance(sensor, SensorInstrument):
+                        w.setLayer(self.exampleLyr(sensor))
                     plotStyle.sigSensorChanged.connect(lambda s : w.setLayer(self.exampleLyr(s)))
                     w.setExpressionDialogTitle('Values')
                     w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
@@ -766,9 +769,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
     def exampleLyr(self, sensor):
         assert isinstance(sensor, SensorInstrument)
 
-
         if sensor not in self.mSensorLayers.keys():
-
             crs = QgsCoordinateReferenceSystem('EPSG:4862')
             uri = 'Point?crs={}'.format(crs.authid())
             lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
@@ -1656,9 +1657,10 @@ class SpectralTemporalVisualization(QObject):
 
 
         self.ui.tableView2DProfiles.setSortingEnabled(False)
+        self.ui.tableView3DProfiles.setSortingEnabled(False)
+
         self.ui.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-
-
+        self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
         # self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
 
@@ -1901,7 +1903,6 @@ class SpectralTemporalVisualization(QObject):
         self.plotSettingsModel3D.connectTimeSeries(self.TS)
         self.plotSettingsModel3D.rowsInserted.connect(self.onRowsInserted3D)
         self.ui.tableView3DProfiles.setModel(self.plotSettingsModel3D)
-        self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
         #self.tableView2DProfilesSelectionModel.selectionChanged.connect(self.onPlot2DSelectionChanged)
         #self.tableView2DProfilesSelectionModel.setSelectionModel(self.mSelectionModel)
@@ -1960,10 +1961,13 @@ class SpectralTemporalVisualization(QObject):
     def onRowsInserted3D(self, parent, start, end):
         model = self.ui.tableView3DProfiles.model()
         if isinstance(model, PlotSettingsModel3D):
+            colExpression = model.columnIndex(model.cnExpression)
             colStyle = model.columnIndex(model.cnStyle)
             while start <= end:
                 idxStyle = model.createIndex(start, colStyle)
+                idxExpr = model.createIndex(start, colExpression)
                 self.ui.tableView3DProfiles.openPersistentEditor(idxStyle)
+                self.ui.tableView3DProfiles.openPersistentEditor(idxExpr)
                 start += 1
 
     def onObservationClicked(self, plotDataItem, points):
@@ -2312,7 +2316,7 @@ def examplePixelLoader():
 if __name__ == '__main__':
     import site, sys
     from timeseriesviewer import utils
-    qgsApp = utils.initQgisApplication()
+    qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
 
     if False: #the ultimative test for floating point division correctness, at least on a DOY-level
