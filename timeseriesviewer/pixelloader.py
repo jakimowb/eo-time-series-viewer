@@ -448,12 +448,9 @@ class PixelLoader(QObject):
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
         #self.filesList = []
-        self.jobId = -1
-        self.jobProgress = {}
-        self.nProcesses = 2
-        self.nMax = 0
-        self.nFailed = 0
-        self.threadsAndWorkers = []
+        self.mJobId = -1
+        self.mJobProgress = {}
+        self.mNumberOfProcesses = 2
         self.mLoadingStartTime = np.datetime64('now','ms')
 
         #see https://gis.stackexchange.com/questions/35279/multiprocessing-error-in-qgis-with-python-on-windows
@@ -487,6 +484,7 @@ class PixelLoader(QObject):
         else:
             if not self.mWorkerProcess.is_alive():
                 self.mWorkerProcess.join(250)
+                self.mWorkerProcess = None
                 return False
                 #self.initWorkerProcess()
                 #self.mWorkerProcess.run()
@@ -500,21 +498,24 @@ class PixelLoader(QObject):
         for data in dataList:
             assert isinstance(data, PixelLoaderTask)
 
-            if data.mJobId not in self.jobProgress.keys():
+            if data.mJobId not in self.mJobProgress.keys():
                 return
             else:
-                progressInfo = self.jobProgress[data.mJobId]
+                progressInfo = self.mJobProgress[data.mJobId]
 
                 assert isinstance(progressInfo, LoadingProgress)
+                if not data.success():
+                    s = ""
+
                 progressInfo.addResult(data.success())
                 if progressInfo.done() == progressInfo.total():
-                    self.jobProgress.pop(data.mJobId)
+                    self.mJobProgress.pop(data.mJobId)
 
                 self.sigPixelLoaded.emit(progressInfo.done(), progressInfo.total(), data)
 
     def setNumberOfProcesses(self, nProcesses):
         assert nProcesses >= 1
-        self.nProcesses = nProcesses
+        self.mNumberOfProcesses = nProcesses
 
     def startLoading(self, tasks):
 
@@ -527,10 +528,10 @@ class PixelLoader(QObject):
 
         self.mLoadingStartTime = np.datetime64('now', 'ms')
 
-        self.jobId += 1
-        jobId = self.jobId
+        self.mJobId += 1
+        jobId = self.mJobId
 
-        self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
+        self.mJobProgress[jobId] = LoadingProgress(jobId, len(tasks))
         self.sigLoadingStarted.emit(paths[:])
         #self.mKillEvent.clear()
         t = 0
@@ -539,7 +540,7 @@ class PixelLoader(QObject):
 
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
-            t.mJobId = self.jobId
+            t.mJobId = self.mJobId
             self.mTaskQueue.put(t.toDump())
         self.mTaskQueue.put('LAST_{}'.format(jobId))
 
@@ -619,11 +620,14 @@ if __name__ == '__main__':
     from qgis.core import QgsPoint
     x,y = ext.center()
 
-    geoms = [#SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
+    geoms1 = [#SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
              SpatialExtent(ext.crs(),x+10000,y,x+12000, y+70 ), #out of image
              SpatialExtent(ext.crs(),x,y,x+10000, y+70 ),
              SpatialPoint(ext.crs(), x,y),
              SpatialPoint(ext.crs(), x+250, y+70)]
+    geoms2 = [  # SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
+        SpatialPoint(ext.crs(), x - 100, y),
+        SpatialPoint(ext.crs(), x + 50, y + 70)]
 
 
     def onPxLoaded(*args):
@@ -647,13 +651,15 @@ if __name__ == '__main__':
     PL.sigLoadingStarted.connect(lambda: onDummy('started'))
     PL.sigPixelLoaded.connect(lambda : onDummy('px loaded'))
 
-    tasks = []
+    tasks1 = []
+    tasks2 = []
     for i, f in enumerate(files):
         kwargs = {'myid':'myID{}'.format(i)}
-        tasks.append(PixelLoaderTask(f, geoms, bandIndices=None, **kwargs))
+        tasks1.append(PixelLoaderTask(f, geoms1, bandIndices=None, **kwargs))
+        tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
-    PL.startLoading(tasks)
-    PL.startLoading(tasks)
+    PL.startLoading(tasks1)
+    PL.startLoading(tasks2)
 
     #QTimer.singleShot(2000, lambda : PL.cancelLoading())
 

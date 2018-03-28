@@ -1638,12 +1638,14 @@ class SpectralTemporalVisualization(QObject):
         return
 
 
-
-    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None):
+    LOADING_MODES = ['missing','reload','all']
+    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing'):
         """
         Loads a temporal profile for a single or multiple geometries.
         :param spatialPoints: SpatialPoint | [list-of-SpatialPoints]
         """
+        assert mode in SpectralTemporalVisualization.LOADING_MODES
+
         if not isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
             return False
 
@@ -1659,11 +1661,14 @@ class SpectralTemporalVisualization(QObject):
         theGeometries = []
 
 
-        # Define a which (new) bands need to be loaded for each sensor
+        # Define which (new) bands need to be loaded for each sensor
         if LUT_bandIndices is None:
             LUT_bandIndices = dict()
             for sensor in self.TS.Sensors:
-                LUT_bandIndices[sensor] = self.plotSettingsModel2D.requiredBandsIndices(sensor)
+                if mode == 'all':
+                    LUT_bandIndices[sensor] = list(range(sensor.nb))
+                else:
+                    LUT_bandIndices[sensor] = self.plotSettingsModel2D.requiredBandsIndices(sensor)
 
         assert isinstance(LUT_bandIndices, dict)
         for sensor in self.TS.Sensors:
@@ -1676,8 +1681,14 @@ class SpectralTemporalVisualization(QObject):
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)
             TP = self.tpCollection.fromSpatialPoint(spatialPoint)
+
+
+            #if not TP exists for this point, create an empty one
             if not isinstance(TP, TemporalProfile):
+
                 TP = TemporalProfile(self.TS, spatialPoint)
+
+                #LIFO - last TP is the first
                 self.tpCollection.insertTemporalProfiles(TP, i=0)
 
                 if len(self.tpCollection) == 1:
@@ -1685,8 +1696,7 @@ class SpectralTemporalVisualization(QObject):
                         self.createNewPlotStyle2D()
 
                     if len(self.plotSettingsModel3D) == 0:
-                        #todo: individual 3D style
-                        pass
+                        self.createNewPlotStyle3D()
 
             TPs.append(TP)
             theGeometries.append(TP.mCoordinate)
@@ -1694,6 +1704,7 @@ class SpectralTemporalVisualization(QObject):
 
         TP_ids = [TP.mID for TP in TPs]
         #each TSD is a Task
+        s = ""
         #a Task defines which bands are to be loaded
         for tsd in self.TS:
 
@@ -1705,17 +1716,18 @@ class SpectralTemporalVisualization(QObject):
             requiredIndices = set(LUT_bandIndices[tsd.sensor])
             if len(requiredIndices) == 0:
                 continue
+
+            if mode == 'missing':
+                missingIndices = set()
+
+                for TP in TPs:
+                    assert isinstance(TP, TemporalProfile)
+                    need2load = TP.missingBandIndices(tsd, requiredIndices=requiredIndices)
+                    missingIndices = missingIndices.union(need2load)
+
+                missingIndices = sorted(list(missingIndices))
             else:
-                s = ""
-
-            missingIndices = set()
-
-            for TP in TPs:
-                assert isinstance(TP, TemporalProfile)
-                need2load = TP.missingBandIndices(tsd, requiredIndices=requiredIndices)
-                missingIndices = missingIndices.union(need2load)
-
-            missingIndices = sorted(list(missingIndices))
+                missingIndices = requiredIndices
 
             if len(missingIndices) > 0:
                 task = PixelLoaderTask(tsd.pathImg, theGeometries,
@@ -1740,7 +1752,6 @@ class SpectralTemporalVisualization(QObject):
 
 
     def addData(self, sensorView = None):
-
         if sensorView is None:
             for sv in self.plotSettingsModel2D.items:
                 self.setData(sv)
@@ -1748,10 +1759,9 @@ class SpectralTemporalVisualization(QObject):
             assert isinstance(sensorView, TemporalProfile2DPlotStyle)
             self.setData2D(sensorView)
 
+
     @QtCore.pyqtSlot()
     def onDataUpdate(self):
-
-
         for plotSetting in self.plotSettingsModel2D:
             assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
             tp = plotSetting.temporalProfile()
@@ -1797,11 +1807,6 @@ class SpectralTemporalVisualization(QObject):
 
 
             # 1. ensure that data from all bands will be loaded
-            LUT_bandIndices = dict()
-            for sensor in self.TS.sensors():
-                assert isinstance(sensor, SensorInstrument)
-                LUT_bandIndices[sensor] = list(range(sensor.nb))
-
             coordinates = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
@@ -1809,7 +1814,7 @@ class SpectralTemporalVisualization(QObject):
                 if isinstance(tp, TemporalProfile):
                     coordinates.append(tp.mCoordinate)
             if len(coordinates) > 0:
-                self.loadCoordinate(coordinates, LUT_bandIndices=LUT_bandIndices)
+                self.loadCoordinate(coordinates, mode='all')
 
             # 2. remove old plot items
             self.ui.plotWidget3D.clearItems()
@@ -2005,7 +2010,7 @@ if __name__ == '__main__':
             for tp in STVis.tpCollection:
                 assert isinstance(tp, TemporalProfile)
                 tp.plot()
-        STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
+        #STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
         STVis.createNewPlotStyle3D()
         STVis.ui.listWidget.setCurrentRow(1)
     qgsApp.exec_()
