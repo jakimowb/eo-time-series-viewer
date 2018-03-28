@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>HUB Time Series Viewer</string>
+   <string>EO Time Series Viewer</string>
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">

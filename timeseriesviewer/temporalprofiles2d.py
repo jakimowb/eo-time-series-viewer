@@ -480,6 +480,7 @@ class DateTimeViewBox(pg.ViewBox):
 
 
 class TemporalProfilePlotStyleBase(PlotStyle):
+
     sigExpressionUpdated = pyqtSignal()
     sigSensorChanged = pyqtSignal(SensorInstrument)
 
@@ -493,6 +494,9 @@ class TemporalProfilePlotStyleBase(PlotStyle):
 
         if isinstance(temporalProfile, TemporalProfile):
             self.setTemporalProfile(temporalProfile)
+
+    def isPlotable(self):
+        return self.isVisible() and isinstance(self.temporalProfile(), TemporalProfile) and isinstance(self.sensor(), SensorInstrument)
 
     def createPlotItem(self):
         raise NotImplementedError()
@@ -811,20 +815,21 @@ class TemporalProfile(QObject):
 
     def updateLoadingStatus(self):
         """
-        Calculates and the loading status in terms of single pixel values.
+        Calculates the loading status in terms of single pixel values.
         nMax is the sum of all bands over each TimeSeriesDatum and Sensors
         """
 
-        self.mLoaded = self.mLoadedMax
+        self.mLoaded = 0
+        self.mLoadedMax = 0
 
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDatum)
             self.mLoadedMax += tsd.sensor.nb
             if self.hasData(tsd):
-                self.mLoaded += len([k for k in self.mData[tsd].keys() if k.startswith('b')])
+                self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
 
 
-    def hasData(self,tsd):
+    def hasData(self, tsd):
         assert isinstance(tsd, TimeSeriesDatum)
         return tsd in self.mData.keys()
 

@@ -626,17 +626,6 @@ class PlotSettingsModel3D(QAbstractTableModel):
         self.removePlotStyles([s for s in self.mPlotSettings if s.sensor() == sensor])
 
 
-    def onTemporalProfilesRemoved(self, profiles):
-        s = ""
-        #lambda removedTPs: self.removePlotStyles(
-        affectedStyles = [p for p in self.mPlotSettings if p.temporalProfile() in profiles]
-        to_replace = self.tpCollection[-1] if len(self.tpCollection) > 0 else None
-        for s in affectedStyles:
-            assert isinstance(s, TemporalProfile3DPlotStyle)
-            idx = self.plotStyle2idx(s)
-            idx = self.createIndex(idx.row(), self.columnNames.index(self.cnTemporalProfile))
-            self.setData(idx, to_replace, Qt.EditRole)
-
 
     def __len__(self):
         return len(self.mPlotSettings)
@@ -891,17 +880,6 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
         self.sort(0, Qt.AscendingOrder)
         self.dataChanged.connect(self.signaler)
-
-    def onTemporalProfilesRemoved(self, profiles):
-        s = ""
-        #lambda removedTPs: self.removePlotStyles(
-        affectedStyles = [p for p in self.mPlotSettings if p.temporalProfile() in profiles]
-        to_replace = self.tpCollection[-1] if len(self.tpCollection) > 0 else None
-        for s in affectedStyles:
-            assert isinstance(s, TemporalProfile2DPlotStyle)
-            idx = self.plotStyle2idx(s)
-            idx = self.createIndex(idx.row(), self.columnNames.index(self.cnTemporalProfile))
-            self.setData(idx, to_replace, Qt.EditRole)
 
     def __len__(self):
         return len(self.mPlotSettings)
@@ -1335,7 +1313,7 @@ class SpectralTemporalVisualization(QObject):
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
         self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
-        self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
+        #self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
         self.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
 
         #set the plot models for 2D
@@ -1358,6 +1336,28 @@ class SpectralTemporalVisualization(QObject):
         self.delegateTableView3D = None #will be set with connecting the TimeSeries
 
         self.reset3DCamera()
+
+        def onTemporalProfilesRemoved(removedProfiles):
+            #set to valid temporal profile
+
+            affectedStyles2D = [p for p in self.plotSettingsModel2D if p.temporalProfile() in removedProfiles]
+            affectedStyles3D = [p for p in self.plotSettingsModel3D if p.temporalProfile() in removedProfiles]
+            alternativeProfile = self.tpCollection[-1] if len(self.tpCollection) > 0 else None
+            for s in affectedStyles2D:
+                assert isinstance(s, TemporalProfile2DPlotStyle)
+                m = self.plotSettingsModel2D
+                idx = m.plotStyle2idx(s)
+                idx = m.createIndex(idx.row(), m.columnNames.index(m.cnTemporalProfile))
+                m.setData(idx, alternativeProfile, Qt.EditRole)
+
+            for s in affectedStyles3D:
+                assert isinstance(s, TemporalProfile3DPlotStyle)
+                m = self.plotSettingsModel3D
+                idx = m.plotStyle2idx(s)
+                idx = m.createIndex(idx.row(), m.columnNames.index(m.cnTemporalProfile))
+                m.setData(idx, alternativeProfile, Qt.EditRole)
+
+        self.tpCollection.sigTemporalProfilesRemoved.connect(onTemporalProfilesRemoved)
 
         # remove / add plot style
         def on2DPlotStyleRemoved(plotStyles):
@@ -1432,19 +1432,24 @@ class SpectralTemporalVisualization(QObject):
         if l == 0:
             return
 
-        plotStyle = TemporalProfile2DPlotStyle(self.tpCollection[0])
-
+        plotStyle = TemporalProfile2DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
+
         sensors = list(self.TS.Sensors.keys())
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
 
+        if len(self.tpCollection) > 0:
+            temporalProfile = self.tpCollection[0]
+            plotStyle.setTemporalProfile(temporalProfile)
+
+
         if len(self.plotSettingsModel2D) > 0:
-            lastStyle = self.plotSettingsModel2D[-1]
+            lastStyle = self.plotSettingsModel2D[0] #top style in list is the most-recent
             assert isinstance(lastStyle, TemporalProfile2DPlotStyle)
             markerColor = nextColor(lastStyle.markerBrush.color())
             plotStyle.markerBrush.setColor(markerColor)
-        self.plotSettingsModel2D.insertPlotStyles([plotStyle])
+        self.plotSettingsModel2D.insertPlotStyles([plotStyle], i=0)
         pdi = plotStyle.createPlotItem(self.plot2D)
 
         assert isinstance(pdi, TemporalProfilePlotDataItem)
@@ -1458,12 +1463,19 @@ class SpectralTemporalVisualization(QObject):
 
 
     def createNewPlotStyle3D(self):
-        l = len(self.tpCollection)
+
         plotStyle = TemporalProfile3DPlotStyle()
-        if l > 0:
+        plotStyle.sigExpressionUpdated.connect(self.updatePlot3D)
+
+        if len(self.tpCollection) > 0:
             temporalProfile = self.tpCollection[0]
             plotStyle.setTemporalProfile(temporalProfile)
-        self.plotSettingsModel3D.insertPlotStyles([plotStyle])
+
+        sensors = list(self.TS.Sensors.keys())
+        if len(sensors) > 0:
+            plotStyle.setSensor(sensors[0])
+
+        self.plotSettingsModel3D.insertPlotStyles([plotStyle], i=0) # latest to the top
         self.updatePlot3D()
 
     def onProfileClicked2D(self, pdi):
@@ -1600,7 +1612,8 @@ class SpectralTemporalVisualization(QObject):
 
         bn = os.path.basename(d.sourcePath)
         if d.success():
-            t = 'Last loaded from {}.'.format(bn)
+
+            t = 'Loaded {} pixel from {}.'.format(len(d.resProfiles), bn)
             self.tpCollection.addPixelLoaderResult(d)
             self.updateRequested = True
         else:
@@ -1816,15 +1829,13 @@ class SpectralTemporalVisualization(QObject):
             import pyqtgraph.opengl as gl
             assert isinstance(self.plot3D, GLViewWidget)
 
-
-
             # 1. ensure that data from all bands will be loaded
             coordinates = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
-                tp = plotStyle3D.temporalProfile()
-                if isinstance(tp, TemporalProfile):
-                    coordinates.append(tp.mCoordinate)
+                if plotStyle3D.isPlotable():
+                    coordinates.append(plotStyle3D.temporalProfile().mCoordinate)
+
             if len(coordinates) > 0:
                 self.loadCoordinate(coordinates, mode='all')
 
@@ -1832,19 +1843,50 @@ class SpectralTemporalVisualization(QObject):
             self.ui.plotWidget3D.clearItems()
 
             # 3 add new plot items
+            plotItems = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
-                gli = plotStyle3D.createPlotItem(None)
+                if plotStyle3D.isPlotable():
+                    plotItems.extend(plotStyle3D.createPlotItem(None))
+            # 4 normalize plot item space
 
-                if isinstance(gli, GLGraphicsItem):
-                    self.ui.plotWidget3D.addItem(gli)
+            vMin = None
+            vMax = None
+
+            for gli in plotItems:
+                assert isinstance(gli, GLGraphicsItem)
+                if vMin is None:
+                    vMin = gli.pos.min(axis=0)
+                    vMax = gli.pos.max(axis=0)
+                else:
+
+                    vMin = np.stack((vMin, gli.pos.min(axis=0))).min(axis=0)
+                    vMax = np.stack((vMax, gli.pos.max(axis=0))).max(axis=0)
+
+            for gli in plotItems:
+                assert isinstance(gli, GLGraphicsItem)
+
+                pos = gli.pos
+
+                if isinstance(gli, GLLinePlotItem):
+
+                    pos2 = pos - vMin
+                    pos2 /= (vMax - vMin)
+
+                    pos2 = np.nan_to_num(pos2)
+                    gli.setData(pos=pos2, color=fn.glColor(QColor('green')), width=5)
+
+                #gli.setGLOptions()
+                #normalize data to 0-1?
+
+                self.plot3D.addItem(gli)
 
             # w.setBackgroundColor(QColor('black'))
             # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
             #self.plot3D.addItem(self.ui.plotWidget3D.glGridItem)
-            self.plot3D.updateDataRanges()
-            self.plot3D.update()
-            self.plot3D.zoomToFull()
+  #          self.plot3D.updateDataRanges()
+   #         self.plot3D.update()
+   #         self.plot3D.zoomToFull()
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):
@@ -1856,21 +1898,15 @@ class SpectralTemporalVisualization(QObject):
             piDataItems = pi.listDataItems()
 
             locations = set()
-            for plotSetting in self.plotSettingsModel2D:
-                assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
-                locations.add(plotSetting.temporalProfile().mCoordinate)
+            for plotStyle in self.plotSettingsModel2D:
+                assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
+                if plotStyle.isPlotable():
+                    locations.add(plotStyle.temporalProfile().mCoordinate)
 
-                for pdi in plotSetting.mPlotItems:
-                    assert isinstance(pdi, TemporalProfilePlotDataItem)
-                    pdi.updateDataAndStyle()
+                    for pdi in plotStyle.mPlotItems:
+                        assert isinstance(pdi, TemporalProfilePlotDataItem)
+                        pdi.updateDataAndStyle()
 
-
-
-
-            #for i in pi.dataItems:
-            #    i.updateItems()
-
-            #self.plot2D.update()
             #2. load pixel data
             self.loadCoordinate(list(locations))
 
