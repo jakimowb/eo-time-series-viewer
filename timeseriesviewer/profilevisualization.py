@@ -343,13 +343,25 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
         self.mTableView = tableView
         self.mTimeSeries = timeSeries
         self.mTemporalProfileListModel = temporalProfileListModel
-        self.mSensorListModel = SensorListModel(self.mTimeSeries)
         self.mSensorLayers = {}
+
+        self.mTemporalProfileListModel.dataChanged.connect(self.updateComboBoxes)
+        self.mTimeSeries.sigSensorRemoved.connect(self.updateComboBoxes)
+
+
+
+    def updateComboBoxes(self):
+
+        # assert isinstance(cb, QComboBox)
+
+        s = ""
+
+
+
 
     def setItemDelegates(self, tableView):
         assert isinstance(tableView, QTableView)
         model = tableView.model()
-
         assert isinstance(model, PlotSettingsModel3D)
         for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
             i = model.columNames.index(c)
@@ -397,7 +409,8 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
 
                 elif cname == model.cnSensor:
                     w = QComboBox(parent=parent)
-                    w.setModel(self.mSensorListModel)
+                    m = SensorListModel(self.mTimeSeries)
+                    w.setModel(m)
 
                 elif cname == model.cnTemporalProfile:
                     w = QComboBox(parent=parent)
@@ -1309,20 +1322,21 @@ class SpectralTemporalVisualization(QObject):
         self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
         self.plot3D = ui.plotWidget3D
 
+        # temporal profile collection to store loaded values
+        self.tpCollection = TemporalProfileCollection()
+        self.tpCollection.setMaxProfiles(self.ui.sbMaxTP.value())
+        self.tpCollection.sigTemporalProfilesAdded.connect(lambda : self.tpCollection.prune)
+        self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
+        self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
+        self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
+        self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
         # pixel loader to load pixel values in parallel
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
         self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
-        self.pixelLoader.sigLoadingStarted.connect(self.clear)
+        self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
         self.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
-
-        # temporal profile collection to store loaded values
-        self.tpCollection = TemporalProfileCollection()
-        self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
-        self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
-        self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
-        self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
 
         #set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
@@ -1612,8 +1626,6 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tableView2DProfiles.openPersistentEditor(idxExpr)
                 self.ui.tableView2DProfiles.openPersistentEditor(idxStyle)
                 start += 1
-                #self.TV.openPersistentEditor(model.createIndex(start, colStyle))
-            s = ""
 
     def onRowsInserted3D(self, parent, start, end):
         model = self.ui.tableView3DProfiles.model()
@@ -1633,9 +1645,6 @@ class SpectralTemporalVisualization(QObject):
             #print(tsd)
 
 
-    def clear(self):
-        self.tpCollection.prune()
-        return
 
 
     LOADING_MODES = ['missing','reload','all']
@@ -1749,7 +1758,7 @@ class SpectralTemporalVisualization(QObject):
             if DEBUG:
                 print('Data for geometries already loaded')
 
-
+        s  =""
 
     def addData(self, sensorView = None):
         if sensorView is None:
@@ -1762,6 +1771,9 @@ class SpectralTemporalVisualization(QObject):
 
     @QtCore.pyqtSlot()
     def onDataUpdate(self):
+
+        self.tpCollection.prune()
+
         for plotSetting in self.plotSettingsModel2D:
             assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
             tp = plotSetting.temporalProfile()
@@ -1987,9 +1999,6 @@ if __name__ == '__main__':
         cp2 = SpatialPoint(ext.crs(), ext.center())
         cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
 
-        STVis.loadCoordinate(cpND)
-        STVis.loadCoordinate(cp2)
-        STVis.loadCoordinate(cp3)
         STVis.createNewPlotStyle2D()
 
         def addProfile():
@@ -2013,6 +2022,11 @@ if __name__ == '__main__':
         #STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
         STVis.createNewPlotStyle3D()
         STVis.ui.listWidget.setCurrentRow(1)
+
+        STVis.loadCoordinate(cpND)
+        # STVis.loadCoordinate(cp2)
+        # STVis.loadCoordinate(cp3)
+
     qgsApp.exec_()
     qgsApp.exitQgis()
 
