@@ -184,7 +184,12 @@ class SpatialPoint(QgsPointXY):
         return self.__repr__()
 
     def __repr__(self):
-        return '{} {} {}'.format(self.x(), self.y(), self.crs().authid())
+
+        if self.crs().mapUnits() == QgsUnitTypes.DistanceDegrees:
+            return '{:.1f} {:.1f} {}'.format(self.x(), self.y(), self.crs().authid())
+        else:
+            return '{:.5f} {:.5f} {:}'.format(self.x(), self.y(), self.crs().authid())
+
 
 
 def findParent(qObject, parentType, checkInstance = False):
@@ -731,7 +736,6 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
 
         #load form class
         try:
-
             FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         except SyntaxError as ex:
             FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
