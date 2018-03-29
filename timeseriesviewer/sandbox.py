@@ -295,7 +295,7 @@ def sandboxTestdata():
     S.loadExampleTimeSeries()
 
     from example import exampleEvents
-    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
+    ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
     QgsProject.instance().addMapLayer(ml)
 
 
