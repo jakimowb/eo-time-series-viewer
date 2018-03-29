@@ -25,7 +25,7 @@ import os, sys, fnmatch, site, re, site
 
 VERSION = '0.4'
 LICENSE = 'GNU GPL-3'
-TITLE = 'HUB TimeSeriesViewer'
+TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
 WEBSITE = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
 REPOSITORY = 'bitbucket.org/jakimowb/hub-timeseriesviewer'
@@ -59,6 +59,7 @@ PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
 SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
 
 
+DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
 
 site.addsitedir(DIR_SITE_PACKAGES)
 OPENGL_AVAILABLE = False
@@ -71,7 +72,7 @@ except:
 
 def messageLog(msg, level=None):
     """
-    Writes a log message to the QGIS HUB TimeSeriesViewer log
+    Writes a log message to the QGIS EO TimeSeriesViewer log
     :param msg: log message string
     :param level: QgsMessageLog::MessageLevel with MessageLevel =[INFO |  ALL | WARNING | CRITICAL | NONE]
     """
@@ -79,7 +80,7 @@ def messageLog(msg, level=None):
     if level is None:
         level = Qgis.Warning
 
-        QgsApplication.instance().messageLog().logMessage(msg, 'HUB TSV', level)
+        QgsApplication.instance().messageLog().logMessage(msg, 'EO TSV', level)
 
 try:
     import timeseriesviewer.ui.resources

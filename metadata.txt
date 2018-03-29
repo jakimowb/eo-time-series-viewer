@@ -1,5 +1,5 @@
 [general]
-name=HUB TimeSeriesViewer
+name=EO Time Series Viewer
 description=A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.
 version=0.4
 qgisMinimumVersion=3.0

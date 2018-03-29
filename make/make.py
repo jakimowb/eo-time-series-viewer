@@ -180,8 +180,7 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
             drvDst.CreateCopy(pathDst, dsDst)
 
 
-
-def compile_rc_files(ROOT, removeTimeStamp=True):
+def compile_rc_files(ROOT, targetDir=None):
     #find ui files
     ui_files = file_search(ROOT, '*.ui', recursive=True)
     qrcs = set()
@@ -197,7 +196,7 @@ def compile_rc_files(ROOT, removeTimeStamp=True):
             attr = getDOMAttributes(includeNodes.item(i).toElement())
             if 'location' in attr.keys():
                 print((ui_file, str(attr['location'])))
-                qrcs.add((pathDir, str(attr['location']), ui_file))
+                qrcs.add((pathDir, str(attr['location'])))
 
     #compile Qt resource files
     #resourcefiles = file_search(ROOT, '*.qrc', recursive=True)
@@ -211,24 +210,21 @@ def compile_rc_files(ROOT, removeTimeStamp=True):
 
 
 
-    for root_dir, f, ui_file in resourcefiles:
+    for root_dir, f in resourcefiles:
         #dn = os.path.dirname(f)
         pathQrc = os.path.normpath(jp(root_dir, f))
-        if not os.path.exists(pathQrc):
-            raise Exception('Missing: {} \n used in {}'.format(pathQrc, ui_file))
-        bn = os.path.basename(f)
+        assert os.path.exists(pathQrc), pathQrc
+        bn = os.path.basename(pathQrc)
+
+        if isinstance(targetDir, str):
+            dn = targetDir
+        else:
+            dn = os.path.dirname(pathQrc)
+
         bn = os.path.splitext(bn)[0]
-        pathPy2 = os.path.join(DIR_UI, bn+'.py' )
-        subprocess.call(['pyrcc4', '-py2', '-o', pathPy2, pathQrc])
+        pathPy = os.path.join(dn, bn+'.py' )
+        subprocess.call(['pyrcc5', '-o', pathPy, pathQrc])
 
-        if removeTimeStamp:
-
-            lines = open(pathPy2).readlines()
-            lines = re.sub('# Created: .*\n', "# Created <timestamp removed>\n", ''.join(lines))
-            f = open(pathPy2, 'w')
-            f.write(lines)
-            f.flush()
-            f.close()
 
 
 def fileNeedsUpdate(file1, file2):
@@ -527,6 +523,24 @@ def make_pb_tool_cfg():
     #main_dialog:
 
 
+def copyQGISRessourceFile():
+
+    pathQGISRepo = r'C:\Users\geo_beja\Repositories\QGIS'
+    assert os.path.isdir(pathQGISRepo)
+    dirTarget = os.path.join(DIR_REPO, *['qgisresources'])
+    os.makedirs(dirTarget, exist_ok=True)
+    compile_rc_files(pathQGISRepo, targetDir=dirTarget)
+
+
+    #qrcFiles = file_search(pathQGISRepo, '*.qrc')
+
+    #for qrcFile in qrcFiles:
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -567,6 +581,9 @@ if __name__ == '__main__':
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
 
+    if True:
+        copyQGISRessourceFile()
+        s = ""
 
     if False:
 
