@@ -1,3 +1,8 @@
+2018-03-29
+    improved definition of individual 2D / 3D charts per sensor & pixel-location
+    added based OpenGL based 3D plot features (axis, grids, labels)
+    changed name to "EO Time Series Viewer"
+
 2018-02-11
     merged updates to temporal profile visualization, e.g.
      save temporal profiles, compare 2D profiles between different location, experimental 3D visualization
