@@ -429,8 +429,7 @@ class CrosshairDialog(QgsDialog):
         if d.result() == QDialog.Accepted:
             return d.crosshairStyle()
         else:
-
-            return None
+            return kwds.get('crosshairStyle')
 
     def __init__(self, parent=None, crosshairStyle=None, mapCanvas=None, title='Specify Crosshair'):
         super(CrosshairDialog, self).__init__(parent=parent , \
