@@ -302,7 +302,14 @@ def sandboxTestdata():
 if __name__ == '__main__':
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
+    resDir = jp(DIR_REPO, 'qgisresources')
+    qgsApp = initQgisApplication(qgisResourceDir=resDir)
+
+
+
+    #import qgisresources.images
+    #qgisresources.images.qInitResources()
+
     import timeseriesviewer
     timeseriesviewer.DEBUG = True
     #run tests

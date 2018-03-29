@@ -777,7 +777,7 @@ def zipdir(pathDir, pathZip):
                     zip.write(filename, arcname)
 
 
-def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
+def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
     """
     Initializes the QGIS Environment
     :return: QgsApplication instance of local QGIS installation
@@ -787,22 +787,15 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         pythonPlugins = []
     assert isinstance(pythonPlugins, list)
 
-    # pythonPlugins.append(os.path.dirname(DIR_REPO))
-
-
-    if os.path.isdir(DIR_REPO):
-        pass
-        """
-        for subDir in os.listdir(PLUGIN_DIR):
-            if not subDir.startswith('.'):
-                pathMetadata = jp(  PLUGIN_DIR, *[subDir,'metadata.txt'])
-                if os.path.exists(pathMetadata):
-                    md = open(pathMetadata,'r').readlines()
-                    md = [m.strip() for m in md]
-                    md = [m.split('=') for m in md if m.startswith('qgisMinimumVersion')]
-
-                    pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
-        """
+    if isinstance(qgisResourceDir, str):
+        assert os.path.isdir(qgisResourceDir)
+        import importlib, re
+        modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
+        modules = [m[0:-3] for m in modules]
+        for m in modules:
+            mod = importlib.import_module('qgisresources.{}'.format(m))
+            if "qInitResources" in dir(mod):
+                mod.qInitResources()
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
