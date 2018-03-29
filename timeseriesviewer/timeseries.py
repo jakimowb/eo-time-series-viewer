@@ -529,7 +529,7 @@ class TimeSeries(QObject):
 
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
-        lines.append('#<image path>[;<mask path>]')
+        lines.append('#<image path>')
         for TSD in self.data:
 
             line = TSD.pathImg
@@ -537,9 +537,11 @@ class TimeSeries(QObject):
 
         lines = [l+'\n' for l in lines]
 
-        print('Write {}'.format(path))
+
         with open(path, 'w') as f:
             f.writelines(lines)
+            messageLog('Time series source images written to {}'.format(path))
+
         return path
     def getPixelSizes(self):
 
@@ -699,10 +701,14 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
         super(TimeSeriesTableModel, self).__init__()
         assert isinstance(TS, TimeSeries)
+
+
+
         self.TS = TS
         self.sensors = set()
         self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
         self.TS.sigTimeSeriesDatesAdded.connect(self.addTSDs)
+
 
         self.items = []
         self.sortColumnIndex = 0
@@ -726,6 +732,12 @@ class TimeSeriesTableModel(QAbstractTableModel):
         idx = self.getIndexFromDate(tsd)
         self.dataChanged.emit(idx, idx)
 
+    def sensorsChanged(self, sensor):
+        i = self.columnames.index('sensor')
+        idx0 = self.createIndex(0, i)
+        idx1 = self.createIndex(self.rowCount(), i)
+        self.dataChanged.emit(idx0, idx1)
+
     def addTSDs(self, tsds):
         self.items.extend(tsds)
         self.sort(self.sortColumnIndex, self.sortOrder)
@@ -737,7 +749,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         for sensor in set([tsd.sensor for tsd in tsds]):
             if sensor not in self.sensors:
                 self.sensors.add(sensor)
-                sensor.sigNameChanged.connect(lambda: self.reset())
+                sensor.sigNameChanged.connect(self.sensorsChanged)
 
 
 

@@ -564,8 +564,8 @@ class TemporalProfilePlotStyleBase(PlotStyle):
             self.update()
 
     def copyFrom(self, plotStyle):
-        super(TemporalProfilePlotStyleBase, self).copyFrom(plotStyle)
         assert isinstance(plotStyle, TemporalProfilePlotStyleBase)
+        super(TemporalProfilePlotStyleBase, self).copyFrom(plotStyle)
         self.setExpression(plotStyle.expression())
         self.setSensor(plotStyle.sensor())
         self.setTemporalProfile(plotStyle.temporalProfile())

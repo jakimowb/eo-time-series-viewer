@@ -32,7 +32,7 @@ import numpy as np
 from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     logger = multiprocessing.log_to_stderr()

@@ -27,8 +27,9 @@ from PyQt5.QtGui import *
 
 import pyqtgraph.opengl as gl
 from pyqtgraph import functions as fn
-from pyqtgraph.opengl import *
 from OpenGL.GL import *
+from pyqtgraph.opengl import *
+
 
 from timeseriesviewer.temporalprofiles2d import *
 
@@ -108,7 +109,7 @@ class ViewWidget3D(GLViewWidget):
         x, y, z = self.glAxes.size()
 
         self.glGridItemYZ.rotate(-90, 0, 1, 0)
-         self.glGridItemXZ.rotate( 90, 1, 0, 0)
+        self.glGridItemXZ.rotate( 90, 1, 0, 0)
 
         # self.glGridItemXY.scale(x/10,y/10, 1)
         # self.glGridItemXZ.scale(x/10,z/10, 1)

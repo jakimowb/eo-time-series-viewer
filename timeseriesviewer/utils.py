@@ -848,6 +848,14 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         return qgsApp
 
 
+def createCRSTransform(src, dst):
+    assert isinstance(src, QgsCoordinateReferenceSystem)
+    assert isinstance(dst, QgsCoordinateReferenceSystem)
+    t = QgsCoordinateTransform()
+    t.setSourceCrs(src)
+    t.setDestinationCrs(dst)
+    return t
+
 if __name__ == '__main__':
     #nice predecessors
 

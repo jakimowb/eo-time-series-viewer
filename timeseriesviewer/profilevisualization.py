@@ -24,7 +24,6 @@ import os, sys, pickle, datetime
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
-from qgis.core import QgsExpression
 from PyQt5.QtCore import *
 from PyQt5.QtXml import *
 from PyQt5.QtGui import *
@@ -55,13 +54,15 @@ try:
     import OpenGL
     OPENGL_AVAILABLE = True
     from timeseriesviewer.temporalprofiles3d import *
+    #t = ViewWidget3D()
+    #del t
 
 
+except Exception as ex:
 
-except:
-    if DEBUG:
-        print('unable to import package OpenGL')
-    pass
+    print('unable to import OpenGL based packages:\n{}'.format(ex))
+
+
 
 def getTextColorWithContrast(c):
     assert isinstance(c, QColor)
@@ -364,14 +365,14 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
         model = tableView.model()
         assert isinstance(model, PlotSettingsModel3D)
         for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
-            i = model.columNames.index(c)
+            i = model.columnNames.index(c)
             tableView.setItemDelegateForColumn(i, self)
 
     def getColumnName(self, index):
         assert index.isValid()
         model = index.model()
         assert isinstance(model, PlotSettingsModel3D)
-        return model.columNames[index.column()]
+        return model.columnNames[index.column()]
     """
     def sizeHint(self, options, index):
         s = super(ExpressionDelegate, self).sizeHint(options, index)
@@ -592,7 +593,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
         self.cnTemporalProfile = 'Coordinate'
         self.cnStyle = 'Style'
         self.cnSensor = 'Sensor'
-        self.columNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
+        self.columnNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
 
         self.mPlotSettings = []
         #assert isinstance(plotWidget, DateTimePlotWidget)
@@ -641,7 +642,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
 
 
     def columnIndex(self, name):
-        return self.columNames.index(name)
+        return self.columnNames.index(name)
 
 
     def insertPlotStyles(self, plotStyles, i=None):
@@ -732,14 +733,14 @@ class PlotSettingsModel3D(QAbstractTableModel):
         return None
 
     def columnCount(self, parent = QModelIndex()):
-        return len(self.columNames)
+        return len(self.columnNames)
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
         value = None
-        columnName = self.columNames[index.column()]
+        columnName = self.columnNames[index.column()]
         plotStyle = self.idx2plotStyle(index)
         if isinstance(plotStyle, TemporalProfile3DPlotStyle):
             sensor = plotStyle.sensor()
@@ -782,7 +783,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
         if role is None or not index.isValid():
             return False
         #print(('Set data', index.row(), index.column(), value, role))
-        columnName = self.columNames[index.column()]
+        columnName = self.columnNames[index.column()]
 
         if value is None:
             return False
@@ -826,7 +827,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
     def flags(self, index):
         if index.isValid():
             stype = self.idx2plotStyle(index)
-            columnName = self.columNames[index.column()]
+            columnName = self.columnNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             if columnName in [self.cnTemporalProfile]:
                 flags = flags | Qt.ItemIsUserCheckable
@@ -840,7 +841,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
         if Qt is None:
             return None
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.columNames[col]
+            return self.columnNames[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
@@ -1195,7 +1196,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
 
             #from pyqtgraph.opengl import GLViewWidget
             #self.plotWidget3D = GLViewWidget(parent=self.page3D)
-
+            from timeseriesviewer.temporalprofiles3d import ViewWidget3D
             self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
             self.plotWidget3D.setObjectName('plotWidget3D')
 
@@ -1289,7 +1290,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui = ui
 
         import timeseriesviewer.pixelloader
-        if True or DEBUG:
+        if DEBUG:
             timeseriesviewer.pixelloader.DEBUG = True
 
         #the timeseries. will be set later
@@ -1369,9 +1370,8 @@ class SpectralTemporalVisualization(QObject):
         def on3DPlotStyleRemoved(plotStyles):
             for plotStyle in plotStyles:
                 assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
-                pass
-                # for pi in plotStyle.mPlotItems:
-                #    self.plot2D.getPlotItem().removeItem(pi)
+                for pi in plotStyle.mPlotItems:
+                    self.plot3D.removeItem(pi)
 
         self.plotSettingsModel2D.sigPlotStylesRemoved.connect(on2DPlotStyleRemoved)
 
@@ -2018,6 +2018,9 @@ if __name__ == '__main__':
     from timeseriesviewer import utils
     qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
+
+    import qgisresources.images
+    qgisresources.images.qInitResources()
 
     if False: #the ultimative test for floating point division correctness, at least on a DOY-level
         date1 = np.datetime64('1960-12-31','D')

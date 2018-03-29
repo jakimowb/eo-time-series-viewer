@@ -962,7 +962,7 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
 
 
 class SpectralLibraryPanel(QgsDockWidget):
-    sigLoadFromMapRequest = None
+
     def __init__(self, parent=None):
         super(SpectralLibraryPanel, self).__init__(parent)
         self.setWindowTitle('Spectral Library')

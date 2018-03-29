@@ -38,9 +38,11 @@ see https://github.com/CleanCut/green/issues/103
 """
 
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
+
 import qgis.utils
 from timeseriesviewer.utils import *
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, messageLog
@@ -434,8 +436,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QApplication.processEvents()
 
         self.ui = TimeSeriesViewerUI()
-        msgLog = QgsApplication.instance().messageLog()
-        msgLog.messageReceived.connect(self.logMessage)
 
         # Save reference to the QGIS interface
         if isinstance(iface, QgisInterface):
@@ -669,8 +669,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         defFile = s.value('FILE_TS_DEFINITION')
         if defFile is not None:
             defFile = os.path.dirname(defFile)
-        path = QFileDialog.getSaveFileName(caption='Save Time Series definition',
-                                           directory=defFile)
+
+        filters = "CSV (*.csv *.txt);;" + \
+                  "All files (*.*)"
+        path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters, directory=defFile)
         path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
