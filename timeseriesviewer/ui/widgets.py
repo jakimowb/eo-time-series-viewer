@@ -164,18 +164,19 @@ class AboutDialogUI(QDialog,
         from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG
         self.labelVersion.setText('{}'.format(VERSION))
 
+        def readTextFile(path):
+            if os.path.isfile(path):
+                f = open(path, encoding='utf-8')
+                txt = f.read()
+                f.close()
+            else:
+                txt = 'unable to read {}'.format(path)
+            return txt
 
         # page Changed
-        if os.path.isfile(PATH_CHANGELOG):
-            import codecs
-            txt = ''.join(codecs.open(PATH_CHANGELOG, encoding='utf-8').readlines())
-            self.tbChanges.setText(txt)
+        self.tbChanges.setText(readTextFile(PATH_CHANGELOG))
+        self.tbLicense.setText(readTextFile(PATH_LICENSE))
 
-        # page Licence
-        if os.path.isfile(PATH_LICENSE):
-            import codecs
-            txt = ''.join(codecs.open(PATH_LICENSE, encoding='utf-8').readlines())
-            self.tbLicense.setText(txt)
 
     def setAboutTitle(self, suffix=None):
         item = self.listWidget.currentItem()
