@@ -521,6 +521,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
         self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
+        D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
