@@ -331,10 +331,10 @@
      <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
-    <string>Add image</string>
+    <string>Add images</string>
    </property>
    <property name="toolTip">
-    <string>Add image to time series</string>
+    <string>Add images to the time series</string>
    </property>
   </action>
   <action name="actionRemoveTSD">
@@ -343,10 +343,10 @@
      <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
    </property>
    <property name="text">
-    <string>Remove image</string>
+    <string>Remove images</string>
    </property>
    <property name="toolTip">
-    <string>Remove image from time series</string>
+    <string>Remove images from this time series</string>
    </property>
   </action>
   <action name="actionSaveTS">
