@@ -616,7 +616,7 @@ class TemporalProfile(QObject):
         self.mID = TemporalProfile.nextID()
         self.mData = {}
         self.mUpdated = False
-        self.mName = '#{}'.format(self.mID)
+        self.mName = 'Location {}'.format(self.mID)
 
         self.mLoaded = self.mLoadedMax = 0
         self.initMetadata()
@@ -734,7 +734,6 @@ class TemporalProfile(QObject):
     def updated(self):
         return self.mUpdated
 
-
     def dataFromExpression(self, sensor, expression, dateType='date'):
         assert dateType in ['date','doy']
         x = []
@@ -744,10 +743,7 @@ class TemporalProfile(QObject):
         if not isinstance(expression, QgsExpression):
             expression = QgsExpression(expression)
         assert isinstance(expression, QgsExpression)
-
         expression = QgsExpression(expression)
-
-
 
         fields = QgsFields()
         sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor == sensor])

@@ -108,7 +108,7 @@ class ViewWidget3D(GLViewWidget):
         x, y, z = self.glAxes.size()
 
         self.glGridItemYZ.rotate(-90, 0, 1, 0)
-        self.glGridItemXZ.rotate(90, 1, 0, 0)
+         self.glGridItemXZ.rotate( 90, 1, 0, 0)
 
         # self.glGridItemXY.scale(x/10,y/10, 1)
         # self.glGridItemXZ.scale(x/10,z/10, 1)
@@ -148,9 +148,13 @@ class ViewWidget3D(GLViewWidget):
         self.setCameraPosition(self.mDataMinRanges, distance=5, elevation=10)
 
     def clearItems(self):
-        for item in self.items:
-            if item not in self.mBasicItems:
-                self.removeItem(item)
+        to_remove = [i for i in self.items if i not in self.mBasicItems]
+
+        for i in to_remove:
+            self.items.remove(i)
+            i._setView(None)
+        self.update()
+
 
     def paintGL(self, *args, **kwds):
         GLViewWidget.paintGL(self, *args, **kwds)
@@ -244,19 +248,29 @@ class ViewWidget3D(GLViewWidget):
         except:
             pass
 
+
     def renderAnnotations(self):
 
         if self.glAxes.visible():
-            x, y, z = self.glAxes.rangeMaxima()
+            x0, y0, z0 = self.glAxes.rangeMinima()
+            x1, y1, z1 = self.glAxes.rangeMaxima()
             dx, dy, dz = self.glAxes.rangeSpan()
 
             d = 0.1
-            if x is not None:
-                self.renderText(x + d*dx, 0, 0, self.glAxes.mLabels[0])
-            if y is not None:
-                self.renderText(0, y + d*dy, 0, self.glAxes.mLabels[1])
-            if z is not None:
-                self.renderText(0, 0, z + d*dz, self.glAxes.mLabels[2])
+            if x1 is not None:
+                #self.renderText(x1 + d*dx, 0, 0, self.glAxes.mLabels[0])
+                self.renderText(1, 0, 0, self.glAxes.mLabels[0])
+            if y1 is not None:
+                #self.renderText(0, y1 + d*dy, 0, self.glAxes.mLabels[1])
+                self.renderText(0, 1, 0, self.glAxes.mLabels[1])
+            if z1 is not None:
+                #self.renderText(0, 0, z1 + d*dz, self.glAxes.mLabels[2])
+                self.renderText(0, 0, 1, self.glAxes.mLabels[2])
+
+            if True: #set axes origin
+                l = '{} {} {}'.format(x0,y0,z0)
+                self.renderText(0, 0, 0, l)
+
 
         # self.renderText(0.8, 0.8, 0.8, 'text 3D')
         # self.renderText(5, 10, 'text 2D fixed')
@@ -269,18 +283,21 @@ class ViewWidget3D(GLViewWidget):
         # define grid options
         m = menu.addMenu('Grids')
 
-        def visibilityAll(b):
+        def gridVisibility(b):
             self.glGridItemXY.setVisible(b)
             self.glGridItemXZ.setVisible(b)
             self.glGridItemYZ.setVisible(b)
 
+
+
         a = m.addAction('Show All')
         a.setCheckable(False)
-        a.triggered.connect(lambda: visibilityAll(True))
+        a.triggered.connect(lambda: gridVisibility(True))
 
         a = m.addAction('Hide All')
         a.setCheckable(False)
-        a.triggered.connect(lambda: visibilityAll(False))
+        a.triggered.connect(lambda: gridVisibility(False))
+
         m.addSeparator()
 
         a = m.addAction('XY')
@@ -298,7 +315,6 @@ class ViewWidget3D(GLViewWidget):
         a.setChecked(self.glGridItemYZ.visible())
         a.toggled.connect(self.glGridItemYZ.setVisible)
 
-        m = menu.addMenu('Axes')
 
         """
         frame = QFrame()
@@ -311,6 +327,19 @@ class ViewWidget3D(GLViewWidget):
         menu.insertMenu(wa, menu)
         self.btnAxisColor = QgsColorButton()
         """
+
+
+        m = menu.addMenu('Axes')
+
+        a = m.addAction('Show All')
+        a.setCheckable(False)
+        a.triggered.connect(lambda : self.glAxes.setAxes('xyz', visible=True))
+
+        a = m.addAction('Hide All')
+        a.setCheckable(False)
+        a.triggered.connect(lambda: self.glAxes.setAxes('xyz', visible=False))
+
+        m.addSeparator()
 
         a = m.addAction('X')
         a.setCheckable(True)
@@ -355,27 +384,31 @@ class Axis3D(GLAxisItem):
         return self.mRanges[:,1] - self.mRanges[:,0]
 
 
-    def _set(self, ax, vMin=None, vMax=None, label=None, color=None, visible=None):
-        i = ['x', 'y', 'z'].index(ax.lower())
-        if vMin is not None:
-            self.mRanges[i][0] = vMin
-        if vMax is not None:
-            self.mRanges[i][1] = vMax
-        if color is not None:
-            self.mColors[i] = color
-        if label is not None:
-            self.mLabels[i] = label
-        if visible is not None:
-            self.mVisibility[i] = visible
+    def setAxes(self, ax, vMin=None, vMax=None, label=None, color=None, visible=None):
+
+        for c in ax:
+            i = ['x', 'y', 'z'].index(c.lower())
+            if vMin is not None:
+                self.mRanges[i][0] = vMin
+            if vMax is not None:
+                self.mRanges[i][1] = vMax
+            if color is not None:
+                self.mColors[i] = color
+            if label is not None:
+                self.mLabels[i] = label
+            if visible is not None:
+                self.mVisibility[i] = visible
+
         self.update()
+
     def setX(self, **kwds):
-        self._set('x', **kwds)
+        self.setAxes('x', **kwds)
 
     def setY(self, **kwds):
-        self._set('y', **kwds)
+        self.setAxes('y', **kwds)
 
     def setZ(self, **kwds):
-        self._set('z', **kwds)
+        self.setAxes('z', **kwds)
 
     def paint(self):
         # glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

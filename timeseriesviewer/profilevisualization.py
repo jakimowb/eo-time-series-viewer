@@ -1303,7 +1303,7 @@ class SpectralTemporalVisualization(QObject):
         # temporal profile collection to store loaded values
         self.tpCollection = TemporalProfileCollection()
         self.tpCollection.setMaxProfiles(self.ui.sbMaxTP.value())
-        self.tpCollection.sigTemporalProfilesAdded.connect(lambda : self.tpCollection.prune)
+        self.tpCollection.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
         self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
         self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
         self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
@@ -1505,6 +1505,16 @@ class SpectralTemporalVisualization(QObject):
                     info.append('Date: {}\nValue: {}'.format(date, y))
 
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
+
+    def onTemporalProfilesAdded(self, profiles):
+        self.tpCollection.prune()
+        for plotStyle in self.plotSettingsModel3D:
+            assert isinstance(plotStyle, TemporalProfilePlotStyleBase)
+            if not isinstance(plotStyle.temporalProfile(), TemporalProfile):
+                r = self.plotSettingsModel3D.plotStyle2idx(plotStyle).row()
+                c = self.plotSettingsModel3D.columnIndex(self.plotSettingsModel3D.cnTemporalProfile)
+                idx = self.plotSettingsModel3D.createIndex(r,c)
+                self.plotSettingsModel3D.setData(idx, self.tpCollection[0])
 
     def onTemporalProfileSelectionChanged(self, selected, deselected):
         nSelected = len(selected)
@@ -1830,6 +1840,7 @@ class SpectralTemporalVisualization(QObject):
             assert isinstance(self.plot3D, GLViewWidget)
 
             # 1. ensure that data from all bands will be loaded
+            #    new loaded values will be shown in the next updatePlot3D call
             coordinates = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
@@ -1839,8 +1850,10 @@ class SpectralTemporalVisualization(QObject):
             if len(coordinates) > 0:
                 self.loadCoordinate(coordinates, mode='all')
 
+            # 2. remove plot-items that are not part of the 3D plot settings any more
+
             # 2. remove old plot items
-            self.ui.plotWidget3D.clearItems()
+            self.plot3D.clearItems()
 
             # 3 add new plot items
             plotItems = []
@@ -1870,11 +1883,14 @@ class SpectralTemporalVisualization(QObject):
 
                 if isinstance(gli, GLLinePlotItem):
 
-                    pos2 = pos - vMin
-                    pos2 /= (vMax - vMin)
+                    normalized = pos - vMin
+                    normalized /= (vMax - vMin)
 
-                    pos2 = np.nan_to_num(pos2)
-                    gli.setData(pos=pos2, color=fn.glColor(QColor('green')), width=5)
+                    normalized = np.nan_to_num(normalized)
+                    gli.setData(pos=normalized
+                                #color=fn.glColor(QColor('green')),
+                                #width=2
+                                )
 
                 #gli.setGLOptions()
                 #normalize data to 0-1?
@@ -1895,7 +1911,6 @@ class SpectralTemporalVisualization(QObject):
                 print('Update plot...')
 
             pi = self.plot2D.getPlotItem()
-            piDataItems = pi.listDataItems()
 
             locations = set()
             for plotStyle in self.plotSettingsModel2D:
