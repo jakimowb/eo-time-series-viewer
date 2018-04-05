@@ -559,7 +559,9 @@ class TimeSeries(QObject):
         if len(self.data) > 1:
             for TSD in self.data[1:]:
                 extent.combineExtentWith(TSD.spatialExtent())
-
+                x, y = extent.upperRight()
+                if y > 0:
+                    s =""
         return extent
 
 
@@ -695,15 +697,22 @@ class TimeSeries(QObject):
 
 
 class TimeSeriesTableModel(QAbstractTableModel):
-    columnames = ['date', 'sensor', 'ns', 'nl', 'nb', 'image']
 
     def __init__(self, TS, parent=None, *args):
 
         super(TimeSeriesTableModel, self).__init__()
         assert isinstance(TS, TimeSeries)
 
-
-
+        self.cnDate = 'Date'
+        self.cnSensor = 'Sensor'
+        self.cnNS = 'ns'
+        self.cnNL = 'nl'
+        self.cnNB = 'nb'
+        self.cnCRS = 'CRS'
+        self.cnImage = 'Image'
+        self.mColumnNames = [self.cnDate, self.cnSensor, \
+                            self.cnNS, self.cnNL, self.cnNB, \
+                            self.cnCRS, self.cnImage]
         self.TS = TS
         self.sensors = set()
         self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
@@ -733,7 +742,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.dataChanged.emit(idx, idx)
 
     def sensorsChanged(self, sensor):
-        i = self.columnames.index('sensor')
+        i = self.mColumNames.index('sensor')
         idx0 = self.createIndex(0, i)
         idx1 = self.createIndex(self.rowCount(), i)
         self.dataChanged.emit(idx0, idx1)
@@ -758,7 +767,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
             return
 
         self.layoutAboutToBeChanged.emit()
-        colName = self.columnames[col]
+        colName = self.mColumNames[col]
         r = order != Qt.AscendingOrder
 
         if colName in ['date','ns','nl','sensor']:
@@ -796,31 +805,36 @@ class TimeSeriesTableModel(QAbstractTableModel):
         return None
 
     def columnCount(self, parent = QModelIndex()):
-        return len(self.columnames)
+        return len(self.mColumNames)
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
         value = None
-        columnName = self.columnames[index.column()]
+        columnName = self.mColumNames[index.column()]
 
         TSD = self.getTimeSeriesDatumFromIndex(index)
+        assert isinstance(TSD, TimeSeriesDatum)
         keys = list(TSD.__dict__.keys())
 
 
         if role == Qt.DisplayRole or role == Qt.ToolTipRole:
-            if columnName == 'name':
+            if columnName == self.cnImage:
                 value = os.path.basename(TSD.pathImg)
-            elif columnName == 'sensor':
+            elif columnName == self.cnSensor:
                 if role == Qt.ToolTipRole:
                     value = TSD.sensor.getDescription()
                 else:
                     value = TSD.sensor.name()
-            elif columnName == 'date':
+            elif columnName == self.cnDate:
                 value = '{}'.format(TSD.date)
-            elif columnName == 'image':
+            elif columnName == self.cnImage:
                 value = TSD.pathImg
+            elif columnName == self.cnCRS:
+                crs = TSD.crs
+                assert isinstance(crs, QgsCoordinateReferenceSystem)
+                value = crs.description()
             elif columnName in keys:
                 value = TSD.__dict__[columnName]
             else:
@@ -843,10 +857,10 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
             s = ""
 
-        columnName = self.columnames[index.column()]
+        columnName = self.mColumNames[index.column()]
 
         TSD = self.getTimeSeriesDatumFromIndex(index)
-        if columnName == 'date' and role == Qt.CheckStateRole:
+        if columnName == self.cnDate and role == Qt.CheckStateRole:
             TSD.setVisibility(value != Qt.Unchecked)
             return True
         else:
@@ -856,9 +870,9 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
     def flags(self, index):
         if index.isValid():
-            columnName = self.columnames[index.column()]
+            columnName = self.mColumNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName == 'date': #allow check state
+            if columnName == self.cnDate: #allow check state
                 flags = flags | Qt.ItemIsUserCheckable
 
             return flags
@@ -869,7 +883,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if Qt is None:
             return None
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.columnames[col]
+            return self.mColumNames[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None

@@ -9,9 +9,7 @@ from PyQt5.QtCore import *
 
 from PyQt5.QtSvg import *
 from PyQt5.QtXml import *
-from PyQt5.QtXmlPatterns import *
 
-from PyQt5.uic.Compiler.qtproxies import QtGui
 
 import gdal
 
@@ -223,8 +221,10 @@ def compile_rc_files(ROOT, targetDir=None):
 
         bn = os.path.splitext(bn)[0]
         pathPy = os.path.join(dn, bn+'.py' )
-        subprocess.call(['pyrcc5', '-o', pathPy, pathQrc])
-
+        try:
+            subprocess.call(['pyrcc5', '-o', pathPy, pathQrc])
+        except Exception as ex:
+            print('Failed to call: pyrcc5 -o {} {}'.format(pathPy, pathQrc))
 
 
 def fileNeedsUpdate(file1, file2):
@@ -524,8 +524,11 @@ def make_pb_tool_cfg():
 
 
 def copyQGISRessourceFile():
+    if sys.platform == 'darwin':
+        pathQGISRepo = r'/Users/benjamin.jakimow/Repositories/QGIS'
+    else:
+        pathQGISRepo = r'C:\Users\geo_beja\Repositories\QGIS'
 
-    pathQGISRepo = r'C:\Users\geo_beja\Repositories\QGIS'
     assert os.path.isdir(pathQGISRepo)
     dirTarget = os.path.join(DIR_REPO, *['qgisresources'])
     os.makedirs(dirTarget, exist_ok=True)

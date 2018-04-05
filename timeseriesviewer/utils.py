@@ -389,7 +389,8 @@ class SpatialExtent(QgsRectangle):
         if args is None:
             return
         elif isinstance(args[0], SpatialExtent):
-            extent2 = args[0].toCrs(self.crs())
+            ext = args[0]
+            extent2 = ext.toCrs(self.crs())
             self.combineExtentWith(QgsRectangle(extent2))
         else:
             super(SpatialExtent, self).combineExtentWith(*args)
@@ -787,8 +788,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         pythonPlugins = []
     assert isinstance(pythonPlugins, list)
 
-    if isinstance(qgisResourceDir, str):
-        assert os.path.isdir(qgisResourceDir)
+    if isinstance(qgisResourceDir, str) and os.path.isdir(qgisResourceDir):
         import importlib, re
         modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
         modules = [m[0:-3] for m in modules]
@@ -796,6 +796,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             mod = importlib.import_module('qgisresources.{}'.format(m))
             if "qInitResources" in dir(mod):
                 mod.qInitResources()
+
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
@@ -840,8 +841,8 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         qgsApp.initQgis()
 
         def printQgisLog(tb, error, level):
-
-            print(tb)
+            if error not in ['Python warning']:
+                print(tb)
 
         QgsApplication.instance().messageLog().messageReceived.connect(printQgisLog)
 

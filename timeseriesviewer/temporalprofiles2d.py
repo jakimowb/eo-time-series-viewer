@@ -606,6 +606,9 @@ class TemporalProfile(QObject):
         TemporalProfile._mNextID += 1
         return n
 
+    sigNameChanged = pyqtSignal(str)
+    sigDataChanged = pyqtSignal()
+
     def __init__(self, timeSeries, spatialPoint):
         super(TemporalProfile, self).__init__()
         assert isinstance(timeSeries, TimeSeries)
@@ -618,15 +621,29 @@ class TemporalProfile(QObject):
         self.mUpdated = False
         self.mName = 'Location {}'.format(self.mID)
 
-        self.mLoaded = self.mLoadedMax = 0
+        self.mLoaded = self.mLoadedMax = self.mNoData = 0
         self.initMetadata()
         self.updateLoadingStatus()
+
+
+    def coordinate(self):
+        return self.mCoordinate
+
+    def id(self):
+        return self.mID
+
+    def data(self):
+        return self.mData
+
+    def timeSeries(self):
+        return self.mTimeSeries
 
     def initMetadata(self):
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDatum)
             meta = {'doy':tsd.doy,
-                    'date':str(tsd.date)}
+                    'date':str(tsd.date),
+                    'nodata':False}
 
             self.updateData(tsd, meta)
 
@@ -637,12 +654,12 @@ class TemporalProfile(QObject):
             tsd = self.mTimeSeries.getTSD(d.sourcePath)
             assert isinstance(tsd, TimeSeriesDatum)
 
+            values = {}
             if d.validPixelValues(i):
-
                 profileData = d.resProfiles[i]
 
                 vMean, vStd = profileData
-                values = {}
+
                 validValues = not isinstance(vMean, str)
                 # 1. add the pixel values per returned band
 
@@ -651,7 +668,10 @@ class TemporalProfile(QObject):
                     values[key] = vMean[iBand] if validValues else None
                     key = 'std{}'.format(bandIndex + 1)
                     values[key] = vStd[iBand] if validValues else None
-                self.updateData(tsd, values)
+            else:
+                values['nodata'] = True
+
+            self.updateData(tsd, values)
 
 
     def loadMissingData(self, showGUI=False):
@@ -690,7 +710,7 @@ class TemporalProfile(QObject):
         existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
         return [i for i in requiredIndices if i not in existingBandIndices]
 
-    sigNameChanged = pyqtSignal(str)
+
     def setName(self, name):
         if name != self.mName:
             self.mName = name
@@ -727,6 +747,7 @@ class TemporalProfile(QObject):
         self.mData[tsd].update(values)
         self.updateLoadingStatus()
         self.mUpdated = True
+        self.sigDataChanged.emit()
 
     def resetUpdatedFlag(self):
         self.mUpdated = False
@@ -807,7 +828,7 @@ class TemporalProfile(QObject):
         nLoadedMax = potential maximum of band values that might be loaded
         :return: (nLoaded, nLoadedMax)
         """
-        return self.mLoaded, self.mLoadedMax
+        return self.mLoaded, self.mNoData, self.mLoadedMax
 
     def updateLoadingStatus(self):
         """
@@ -817,13 +838,22 @@ class TemporalProfile(QObject):
 
         self.mLoaded = 0
         self.mLoadedMax = 0
+        self.mNoData = 0
 
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDatum)
-            self.mLoadedMax += tsd.sensor.nb
-            if self.hasData(tsd):
-                self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
+            nb = tsd.sensor.nb
 
+            self.mLoadedMax += nb
+            if self.hasData(tsd):
+                if self.isNoData(tsd):
+                    self.mNoData += nb
+                else:
+                    self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
+
+    def isNoData(self, tsd):
+        assert isinstance(tsd, TimeSeriesDatum)
+        return self.mData[tsd]['nodata']
 
     def hasData(self, tsd):
         assert isinstance(tsd, TimeSeriesDatum)
@@ -1050,9 +1080,9 @@ class TemporalProfileCollection(QAbstractTableModel):
             elif columnName == self.mcnCoordinate:
                 value = '{}'.format(TP.mCoordinate)
             elif columnName == self.mcnLoaded:
-                nIs, nMax = TP.loadingStatus()
+                nIs, nNoData, nMax = TP.loadingStatus()
                 if nMax > 0:
-                    value = '{}/{} ({:0.2f} %)'.format(nIs, nMax, float(nIs) / nMax * 100)
+                    value = '{}/{}/{} ({:0.2f} %)'.format(nIs, nNoData, nMax, float(nIs+nNoData) / nMax * 100)
         elif role == Qt.EditRole:
             if columnName == self.mcnName:
                 value = TP.name()
@@ -1062,10 +1092,10 @@ class TemporalProfileCollection(QAbstractTableModel):
             elif columnName == self.mcnName:
                 value = TP.name()
             elif columnName == self.mcnCoordinate:
-                value = '{}'.format(TP.mCoordinate)
+                value = 'Coordinate: {}'.format(TP.mCoordinate)
             elif columnName == self.mcnLoaded:
-                nIs, nMax = TP.loadingStatus()
-                value = '{}'.format(TP.mCoordinate)
+                nIs, nNoData, nMax = TP.loadingStatus()
+                value = 'Band-pixels: {} loaded, {} no-data, {} total'.format(nIs, nNoData, nMax)
         elif role == Qt.UserRole:
             value = TP
 
@@ -1099,6 +1129,7 @@ class TemporalProfileCollection(QAbstractTableModel):
                 return True
 
         return False
+
 
     def headerData(self, col, orientation, role):
         if Qt is None:
@@ -1138,6 +1169,8 @@ class TemporalProfileCollection(QAbstractTableModel):
                 self.mTemporalProfiles.insert(i, temporalProfile)
                 self.mTPLookupID[id] = temporalProfile
                 self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
+                temporalProfile.sigDataChanged.connect(lambda: self.onUpdate(temporalProfile))
+                temporalProfile.sigNameChanged.connect(lambda: self.onUpdate(temporalProfile))
                 i += 1
             self.endInsertRows()
 
@@ -1275,20 +1308,13 @@ class TemporalProfileCollection(QAbstractTableModel):
 
         return QgsField(name, fType, fTypeName)
 
-    def setFeatureAttribute(self, feature, name, value):
-        assert isinstance(feature, QgsFeature)
-        assert isinstance(name, str)
-        i = feature.indexFromName(name)
-        assert i >= 0, 'Field "{}" does not exist'.format(name)
-        field = feature.fields()[i]
-        if field.isNumeric():
-            if field.type() == QVariant.Int:
-                value = int(value)
-            elif field.type() == QVariant.Double:
-                value = float(value)
-            else:
-                raise NotImplementedError()
-        feature.setAttribute(i, value)
+    def onUpdate(self, tp):
+        assert isinstance(tp, TemporalProfile)
+
+        if tp in self.mTemporalProfiles:
+            idx0 = self.tp2idx(tp)
+            idx1 = self.createIndex(idx0.row(), self.rowCount())
+            self.dataChanged.emit(idx0, idx1, [Qt.DisplayRole])
 
     def sort(self, col, order):
         if self.rowCount() == 0:
@@ -1342,6 +1368,19 @@ class TemporalProfileCollectionListModel(QAbstractListModel):
         self.mTPColl.rowsInserted.connect(self.rowsInserted.emit)
         #self.mTPColl.rowsAboutToBeRemoved.connect(self.rowsAboutToBeRemoved)
         self.mTPColl.rowsRemoved.connect(lambda : self.modelReset.emit())
+        self.mTPColl.dataChanged.connect(self.onDataChanged)
+
+    def onDataChanged(self, idx0, idx1, roles):
+        idx0r = self.createIndex(idx0.row(), idx0.column())
+        idx1r = self.createIndex(idx1.row(), idx1.column())
+
+        tp = self.idx2tp(idx0r)
+        assert isinstance(tp, TemporalProfile)
+        print(tp.loadingStatus())
+        s = ""
+        self.dataChanged.emit(idx0r, idx1r, roles)
+        #self.layoutAboutToBeChanged.emit()
+        #self.layoutChanged.emit()
 
 
     def idx2tp(self, *args, **kwds):

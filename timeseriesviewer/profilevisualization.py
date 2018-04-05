@@ -1309,7 +1309,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
         self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-
+        self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
         # pixel loader to load pixel values in parallel
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
@@ -1386,6 +1386,30 @@ class SpectralTemporalVisualization(QObject):
 
         self.initActions()
 
+
+    def onTemporalProfilesContextMenu(self, event):
+        assert isinstance(event, QContextMenuEvent)
+        tableView = self.ui.tableViewTemporalProfiles
+        idx = self.ui.tableViewTemporalProfiles.indexAt(event.pos())
+        model = self.ui.tableViewTemporalProfiles.model()
+        assert isinstance(model, TemporalProfileCollection)
+        tp = model.idx2tp(idx)
+        assert isinstance(tp, TemporalProfile)
+
+
+        menu = QMenu()
+
+        a = menu.addAction('Load missing')
+        a.setToolTip('Loads missing band-pixels.')
+        a.triggered.connect(lambda : self.loadCoordinate(spatialPoints=tp.coordinate(), mode='all'))
+        s = ""
+
+        a = menu.addAction('Reload')
+        a.setToolTip('Reloads all band-pixels.')
+        a.triggered.connect(lambda: self.loadCoordinate(spatialPoints=tp.coordinate(), mode='reload'))
+
+        menu.popup(tableView.viewport().mapToGlobal(event.pos()))
+        self.menu = menu
 
     def setTimeSeries(self, TS):
 
@@ -1673,6 +1697,12 @@ class SpectralTemporalVisualization(QObject):
     LOADING_MODES = ['missing','reload','all']
     def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing'):
         """
+        :param spatialPoints: [list-of-geometries] to load pixel values from
+        :param LUT_bandIndices: dictionary {sensor:[indices]} with band indices to be loaded per sensor
+        :param mode:
+        :return:
+        """
+        """
         Loads a temporal profile for a single or multiple geometries.
         :param spatialPoints: SpatialPoint | [list-of-SpatialPoints]
         """
@@ -1697,7 +1727,7 @@ class SpectralTemporalVisualization(QObject):
         if LUT_bandIndices is None:
             LUT_bandIndices = dict()
             for sensor in self.TS.Sensors:
-                if mode == 'all':
+                if mode in ['all','reload']:
                     LUT_bandIndices[sensor] = list(range(sensor.nb))
                 else:
                     LUT_bandIndices[sensor] = self.plotSettingsModel2D.requiredBandsIndices(sensor)
@@ -2019,8 +2049,6 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
 
-    import qgisresources.images
-    qgisresources.images.qInitResources()
 
     if False: #the ultimative test for floating point division correctness, at least on a DOY-level
         date1 = np.datetime64('1960-12-31','D')
@@ -2048,6 +2076,10 @@ if __name__ == '__main__':
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
         TS.addFiles(files)
         ext = TS.getMaxSpatialExtent()
+        for tsd in TS:
+            ext = tsd.spatialExtent()
+            if ext.crs().description() != '':
+                break
         cp1 = SpatialPoint(ext.crs(),ext.center())
         cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)
         cp2 = SpatialPoint(ext.crs(), ext.center())
@@ -2062,7 +2094,7 @@ if __name__ == '__main__':
             x = x0 + (x1 - x0) * np.random.sample()
             y = y0 + (y1 - y0) * np.random.sample()
             pt = SpatialPoint(ext.crs(), x, y)
-            STVis.loadCoordinate(pt)
+                STVis.loadCoordinate(pt)
 
 
         btn = QPushButton('Add Profile')
