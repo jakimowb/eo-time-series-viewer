@@ -400,6 +400,8 @@ class Axis3D(GLAxisItem):
             if visible is not None:
                 self.mVisibility[i] = visible
 
+
+
         self.update()
 
     def setX(self, **kwds):

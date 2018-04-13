@@ -1912,15 +1912,19 @@ class SpectralTemporalVisualization(QObject):
                 pos = gli.pos
 
                 if isinstance(gli, GLLinePlotItem):
+                    if True:
+                        sx, sy, sz = 1. / (vMax - vMin)
+                        gli.scale(sx, sy, sz)
+                        s = ""
+                    else:
+                        normalized = pos - vMin
+                        normalized /= (vMax - vMin)
 
-                    normalized = pos - vMin
-                    normalized /= (vMax - vMin)
-
-                    normalized = np.nan_to_num(normalized)
-                    gli.setData(pos=normalized
-                                #color=fn.glColor(QColor('green')),
-                                #width=2
-                                )
+                        normalized = np.nan_to_num(normalized)
+                        gli.setData(pos=normalized
+                                    #color=fn.glColor(QColor('green')),
+                                    #width=2
+                                    )
 
                 #gli.setGLOptions()
                 #normalize data to 0-1?
@@ -2094,7 +2098,7 @@ if __name__ == '__main__':
             x = x0 + (x1 - x0) * np.random.sample()
             y = y0 + (y1 - y0) * np.random.sample()
             pt = SpatialPoint(ext.crs(), x, y)
-                STVis.loadCoordinate(pt)
+            STVis.loadCoordinate(pt)
 
 
         btn = QPushButton('Add Profile')

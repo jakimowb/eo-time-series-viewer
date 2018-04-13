@@ -1376,11 +1376,7 @@ class TemporalProfileCollectionListModel(QAbstractListModel):
 
         tp = self.idx2tp(idx0r)
         assert isinstance(tp, TemporalProfile)
-        print(tp.loadingStatus())
-        s = ""
         self.dataChanged.emit(idx0r, idx1r, roles)
-        #self.layoutAboutToBeChanged.emit()
-        #self.layoutChanged.emit()
 
 
     def idx2tp(self, *args, **kwds):
