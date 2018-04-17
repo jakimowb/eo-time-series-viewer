@@ -10,6 +10,7 @@ HUB Time Series Viewer
 **Welcome to the HUB Time Series Viewer Documentation!**
 
 
+.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at HUB
 
 About
 -----
