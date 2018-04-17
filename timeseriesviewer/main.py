@@ -287,7 +287,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         area = Qt.LeftDockWidgetArea
 
-        self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
+        #self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
         from timeseriesviewer.labeling import LabelingDockUI
         self.dockLabeling = addDockWidget(LabelingDockUI(self))
@@ -301,7 +301,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
-        self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
+        #self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
 
@@ -438,11 +438,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui = TimeSeriesViewerUI()
 
         # Save reference to the QGIS interface
+
         if isinstance(iface, QgisInterface):
             self.iface = iface
         else:
-            self.iface = self
-            qgis.utils.iface = self
+            self.initQGISInterface()
+
+
+
 
         #init empty time series
         self.TS = TimeSeries()
@@ -468,10 +471,16 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
-        self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
+        #self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        #self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
+        self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
+        self.ui.dockMapViews.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
+        self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
+        self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
+        self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(D.actionIdentifyTemporalProfile.trigger)
@@ -497,6 +506,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
         D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
+        D.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
         D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         D.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         D.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
@@ -511,17 +521,22 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
 
-        D.dockRendering.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
-        D.dockRendering.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
-        D.dockRendering.sigShowVectorOverlay.connect(self.spatialTemporalVis.setVectorLayer)
-        D.dockRendering.sigRemoveVectorOverlay.connect(lambda: self.spatialTemporalVis.setVectorLayer(None))
-
-        self.spatialTemporalVis.sigCRSChanged.connect(D.dockRendering.setCrs)
-        D.dockRendering.sigSpatialExtentChanged.connect(self.spatialTemporalVis.setSpatialExtent)
-        D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
-        self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
+
+    def initQGISInterface(self):
+        """
+        Initialize the QGIS Interface in case the EO TSV was not started from a QGIS GUI Instance
+        """
+        self.iface = self
+        qgis.utils.iface = self
+
+        #disable buttons specific to QGIS - EO-TSV interaction
+        self.ui.actionImportExtent.setEnabled(False)
+        self.ui.actionExportExtent.setEnabled(False)
+        self.ui.actionImportCenter.setEnabled(False)
+        self.ui.actionExportCenter.setEnabled(False)
+
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
@@ -750,16 +765,39 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
+    def addVectorData(self, files=None):
+        if files is None:
+            s = settings()
+            defDir = s.value('DIR_FILESEARCH')
+            filters = QgsProviderRegistry.instance().fileVectorFilters()
+            files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
+
+            if len(files) > 0 and os.path.exists(files[0]):
+                dn = os.path.dirname(files[0])
+                s.setValue('DIR_FILESEARCH', dn)
+
+        if files:
+            vectorLayers = []
+            for f in files:
+                try:
+                    l = QgsVectorLayer(f, os.path.basename(f))
+                    vectorLayers.append(l)
+                except Exception as ex:
+                    pass
+            QgsProject.instance().addMapLayers(vectorLayers)
+
+
     def addTimeSeriesImages(self, files=None):
         if files is None:
             s = settings()
             defDir = s.value('DIR_FILESEARCH')
-
+            """
             filters = "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
                       "ENVI Images (*.bsq *.bil *.bip);;" + \
                       "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
                       "All files (*.*)"
-
+            """
+            filter = QgsProviderRegistry.instance().fileRasterFilters()
             files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
