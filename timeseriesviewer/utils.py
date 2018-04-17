@@ -26,6 +26,7 @@ import os, sys, math, re, io
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
+import qgis.utils
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -42,6 +43,19 @@ dn = os.path.dirname
 from timeseriesviewer import DIR_UI, DIR_REPO
 from timeseriesviewer import messageLog
 
+
+def qgisInstance():
+    """
+    If existent, returns the QGIS Instance.
+    :return: QgisInterface | None
+    """
+
+    from timeseriesviewer.main import TimeSeriesViewer
+    if isinstance(qgis.utils.iface, QgisInterface) and \
+        not isinstance(qgis.utils.iface, TimeSeriesViewer):
+        return qgis.utils.iface
+    else:
+        return None
 
 
 def appendItemsToMenu(menu, itemsToAdd):
@@ -471,18 +485,7 @@ class SpatialExtent(QgsRectangle):
         return '{} {} {}'.format(self.upperLeft(), self.lowerRight(), self.crs().authid())
 
 
-def qgisInstance():
-    """
-    If existent, returns a QGIS Instance.
-    :return: QgisInterface | None
-    """
-    import qgis.utils
-    from timeseriesviewer.main import TimeSeriesViewer
-    if isinstance(qgis.utils.iface, QgisInterface) and \
-        not isinstance(qgis.utils.iface, TimeSeriesViewer):
-        return qgis.utils.iface
-    else:
-        return None
+
 
 def saveFilePath(text):
     """
