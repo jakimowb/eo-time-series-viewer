@@ -614,6 +614,7 @@ class TimeSeries(QObject):
         assert isinstance(timeSeriesDates, list)
         added = list()
         for TSD in timeSeriesDates:
+            assert isinstance(TSD, TimeSeriesDatum)
             try:
                 sensorAdded = False
                 existingSensors = list(self.Sensors.keys())
@@ -624,7 +625,7 @@ class TimeSeries(QObject):
                     TSD.sensor = existingSensors[existingSensors.index(TSD.sensor)]
 
                 if TSD in self.data:
-                    six.print_('Time series date-time already added ({} {}). \nPlease use VRTs to mosaic images with same acquisition date-time.'.format(str(TSD), TSD.pathImg), file=sys.stderr)
+                    print('Time series date-time already added ({} {}). \nPlease use VRTs to mosaic images with same acquisition date-time.'.format(str(TSD), TSD.pathImg), file=sys.stderr)
                 else:
                     self.Sensors[TSD.sensor].append(TSD)
                     #insert sorted
@@ -742,14 +743,21 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.dataChanged.emit(idx, idx)
 
     def sensorsChanged(self, sensor):
-        i = self.mColumNames.index('sensor')
+        i = self.mColumnNames.index('sensor')
         idx0 = self.createIndex(0, i)
         idx1 = self.createIndex(self.rowCount(), i)
         self.dataChanged.emit(idx0, idx1)
 
     def addTSDs(self, tsds):
-        self.items.extend(tsds)
-        self.sort(self.sortColumnIndex, self.sortOrder)
+
+        for tsd in tsds:
+            assert isinstance(tsd, TimeSeriesDatum)
+            row = bisect.bisect_left(self.items, tsd)
+            self.beginInsertRows(QModelIndex(), row, row)
+            self.items.insert(row, tsd)
+            self.endInsertRows()
+
+            #self.sort(self.sortColumnIndex, self.sortOrder)
 
         for tsd in tsds:
             assert isinstance(tsd, TimeSeriesDatum)
@@ -767,7 +775,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
             return
 
         self.layoutAboutToBeChanged.emit()
-        colName = self.mColumNames[col]
+        colName = self.mColumnNames[col]
         r = order != Qt.AscendingOrder
 
         if colName in ['date','ns','nl','sensor']:
@@ -805,14 +813,14 @@ class TimeSeriesTableModel(QAbstractTableModel):
         return None
 
     def columnCount(self, parent = QModelIndex()):
-        return len(self.mColumNames)
+        return len(self.mColumnNames)
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
         value = None
-        columnName = self.mColumNames[index.column()]
+        columnName = self.mColumnNames[index.column()]
 
         TSD = self.getTimeSeriesDatumFromIndex(index)
         assert isinstance(TSD, TimeSeriesDatum)
@@ -840,8 +848,9 @@ class TimeSeriesTableModel(QAbstractTableModel):
             else:
                 s = ""
         elif role == Qt.CheckStateRole:
-            if columnName == 'date':
+            if columnName == self.cnDate:
                 value = Qt.Checked if TSD.isVisible() else Qt.Unchecked
+
         elif role == Qt.BackgroundColorRole:
             value = None
         elif role == Qt.UserRole:
@@ -857,7 +866,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
             s = ""
 
-        columnName = self.mColumNames[index.column()]
+        columnName = self.mColumnNames[index.column()]
 
         TSD = self.getTimeSeriesDatumFromIndex(index)
         if columnName == self.cnDate and role == Qt.CheckStateRole:
@@ -870,7 +879,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
     def flags(self, index):
         if index.isValid():
-            columnName = self.mColumNames[index.column()]
+            columnName = self.mColumnNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             if columnName == self.cnDate: #allow check state
                 flags = flags | Qt.ItemIsUserCheckable
@@ -883,7 +892,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if Qt is None:
             return None
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.mColumNames[col]
+            return self.mColumnNames[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
