@@ -14,7 +14,7 @@
    height="24"
    id="svg5692"
    version="1.1"
-   inkscape:version="0.91 r13725"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
    sodipodi:docname="mActionZoomPoint.svg"
    inkscape:export-filename="/media/home1/robert/svn/graphics/trunk/toolbar-icons/24x24/zoom-1to1.png"
    inkscape:export-xdpi="90"
@@ -418,10 +418,10 @@
      inkscape:grid-bbox="true"
      inkscape:document-units="px"
      borderlayer="false"
-     inkscape:window-width="1276"
-     inkscape:window-height="755"
-     inkscape:window-x="4"
-     inkscape:window-y="1"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -436,8 +436,10 @@
        enabled="true"
        snapvisiblegridlinesonly="true"
        dotted="true"
-       originx="2.5px"
-       originy="2.5px" />
+       originx="2.5"
+       originy="2.5"
+       spacingx="1"
+       spacingy="1" />
   </sodipodi:namedview>
   <metadata
      id="metadata5697">

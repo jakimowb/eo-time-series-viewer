@@ -255,9 +255,9 @@
           <bool>true</bool>
          </property>
          <property name="checked">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
+         <layout class="QHBoxLayout" name="horizontalLayout">
           <property name="sizeConstraint">
            <enum>QLayout::SetDefaultConstraint</enum>
           </property>
@@ -274,52 +274,47 @@
            <number>0</number>
           </property>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <property name="spacing">
-             <number>2</number>
+           <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
+            <property name="enabled">
+             <bool>true</bool>
             </property>
-            <property name="topMargin">
-             <number>0</number>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-            <item>
-             <widget class="QgsMapLayerComboBox" name="cbQgsVectorLayer">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>1</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>0</height>
-               </size>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QToolButton" name="btnSetVectorStyle">
-              <property name="text">
-               <string>...</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="allowEmptyLayer">
+             <bool>true</bool>
+            </property>
+           </widget>
           </item>
           <item>
-           <widget class="QLabel" name="label_3">
+           <widget class="QToolButton" name="btnSetVectorStyle">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
-             <string>(modify vector layers in QGIS)</string>
+             <string>...</string>
             </property>
            </widget>
           </item>
          </layout>
          <zorder>collapseButton</zorder>
-         <zorder>label_3</zorder>
-         <zorder>horizontalLayoutWidget</zorder>
+         <zorder>cbQgsVectorLayer</zorder>
+         <zorder>btnSetVectorStyle</zorder>
         </widget>
        </item>
        <item>

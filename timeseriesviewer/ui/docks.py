@@ -46,7 +46,7 @@ class TsvDockWidgetBase(QgsDockWidget):
 
 
 
-class RenderingDockUI(QgsDockWidget, loadUI('renderingdock.ui')):
+class DEPR_RenderingDockUI(QgsDockWidget, loadUI('renderingdock.ui')):
     from timeseriesviewer.crosshair import CrosshairStyle
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)

@@ -279,7 +279,6 @@ class SignalPrinter(object):
 
 def sandboxTestdata():
     from timeseriesviewer.main import TimeSeriesViewer
-
     S = TimeSeriesViewer(None)
     S.ui.show()
     S.run()
@@ -293,6 +292,47 @@ def sandboxTestdata():
     timeseriesviewer.temporalprofiles2d.DEBUG = True
     import example.Images
     S.loadExampleTimeSeries()
+
+    from example import exampleEvents
+    S.addVectorData([exampleEvents])
+
+    #ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
+    #QgsProject.instance().addMapLayer(ml)
+
+
+def sandboxDemo():
+    from timeseriesviewer.main import TimeSeriesViewer
+    S = TimeSeriesViewer(None)
+    S.ui.show()
+    S.run()
+
+    S.spatialTemporalVis.MVC.createMapView()
+    S.spatialTemporalVis.MVC.createMapView()
+
+    import timeseriesviewer.profilevisualization
+    import timeseriesviewer.temporalprofiles2d
+    timeseriesviewer.profilevisualization.DEBUG = True
+    timeseriesviewer.temporalprofiles2d.DEBUG = True
+    import example.Images
+
+    #load Landsat
+    p = r'F:\TSData'
+    files = file_search(p, re.compile('.*BOA\.tif$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load RapidEye
+    files = file_search(p, re.compile('re.*\.tif$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load Pleiades
+    p = r'Y:\Pleiades'
+    files = file_search(p,re.compile('IMG_.*JP2$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load CBERS
+    p = 'Y:\CBERS\VRTs'
+    files = file_search(p, re.compile('CBERS_*.vrt$'), recursive=True)
+    S.addTimeSeriesImages(files)
 
     from example import exampleEvents
     ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
@@ -318,7 +358,7 @@ if __name__ == '__main__':
     if False: sandboxGui()
 
     if True: sandboxTestdata()
-
+    if False: sandboxDemo()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()

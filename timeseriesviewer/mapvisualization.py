@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# noinspection PyPep8Naming
 """
 /***************************************************************************
                               HUB TimeSeriesViewer
@@ -18,12 +19,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
 
-import os, sys, re, fnmatch, collections, copy, traceback, six, bisect
+
+import os, sys, re, fnmatch, collections, copy, traceback, bisect
 import logging
 logger = logging.getLogger(__name__)
 from qgis.core import *
+from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader,  QgsProject, QgsCoordinateReferenceSystem, \
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
+
+from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool
 from PyQt5.QtXml import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -31,7 +36,7 @@ import numpy as np
 from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.ui.docks import loadUI
 from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
@@ -193,6 +198,7 @@ class MapView(QObject):
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             d = QgsRendererPropertiesDialog(self.mVectorLayer, QgsStyle.defaultStyle())
             d.exec_()
+            s = ""
 
 
     def vectorLayerRenderer(self):
