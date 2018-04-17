@@ -41,7 +41,7 @@ ADD_TESTDATA = True
 PLAIN_COPY_SUBDIRS = ['site-packages']
 
 ########## End of config section
-timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1])
+timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
 buildID = '{}.{}'.format(timeseriesviewer.VERSION, timestamp)
 dirBuildPlugin = jp(DIR_BUILD, 'timeseriesviewerplugin')
 
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     from timeseriesviewer.utils import zipdir
 
 
-    pathZip = jp(DIR_DEPLOY, '{}.{}.QGIS3.zip'.format(pluginname,timestamp))
+    pathZip = jp(DIR_DEPLOY, '{}.{}.QGIS3.zip'.format(pluginname,buildID))
     zipdir(dirPlugin, pathZip)
 
     #os.chdir(dirPlugin)

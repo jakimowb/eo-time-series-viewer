@@ -209,11 +209,6 @@
      <addaction name="actionExportExtent"/>
      <addaction name="actionExportCenter"/>
     </widget>
-    <widget class="QMenu" name="menuGeben_Sie_Text_ein">
-     <property name="title">
-      <string>Geben Sie Text ein</string>
-     </property>
-    </widget>
     <addaction name="actionPan"/>
     <addaction name="actionZoomIn"/>
     <addaction name="actionZoomOut"/>
@@ -222,7 +217,6 @@
     <addaction name="actionMoveCenter"/>
     <addaction name="separator"/>
     <addaction name="menuQGIS_map_canvas"/>
-    <addaction name="menuGeben_Sie_Text_ein"/>
    </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuView"/>

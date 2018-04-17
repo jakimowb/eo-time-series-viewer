@@ -494,7 +494,7 @@ def updateMetadataTxt():
     md['description'] = timeseriesviewer.DESCRIPTION.strip()
     md['about'] = timeseriesviewer.ABOUT.strip()
     md['version'] = timeseriesviewer.VERSION.strip()
-    md['author'] = "Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
+    md['author'] = r"Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
     md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
     #md['changelog'] =
     md['experimental'] = "False"
