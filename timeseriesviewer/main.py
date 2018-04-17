@@ -441,10 +441,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if isinstance(iface, QgisInterface):
             self.iface = iface
+            self.initQGISConnection()
         else:
             self.initQGISInterface()
 
 
+        #
 
 
         #init empty time series
@@ -524,18 +526,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
 
+
+    def initQGISConnection(self):
+
+        self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
+        self.ui.actionExportExtent.triggered.connect(lambda: self.iface.mapCanvas().setExtent(self.spatialTemporalVis.spatialExtent().toCrs(self.iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionExportCenter.triggered.connect(lambda: self.iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
+        self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(self.iface.mapCanvas())))
+
     def initQGISInterface(self):
         """
         Initialize the QGIS Interface in case the EO TSV was not started from a QGIS GUI Instance
         """
         self.iface = self
         qgis.utils.iface = self
-
-        #disable buttons specific to QGIS - EO-TSV interaction
-        self.ui.actionImportExtent.setEnabled(False)
-        self.ui.actionExportExtent.setEnabled(False)
-        self.ui.actionImportCenter.setEnabled(False)
-        self.ui.actionExportCenter.setEnabled(False)
 
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):

@@ -87,7 +87,7 @@ class QgisFake(QgisInterface):
         self.canvas.setCanvasColor(Qt.black)
         self.canvas.extentsChanged.connect(self.testSlot)
         self.layerTreeView = QgsLayerTreeView()
-        self.rootNode =QgsLayerTreeGroup()
+        self.rootNode =QgsLayerTree()
         self.treeModel = QgsLayerTreeModel(self.rootNode)
         self.layerTreeView.setModel(self.treeModel)
         self.bridge = QgsLayerTreeMapCanvasBridge(self.rootNode, self.canvas)
@@ -125,8 +125,9 @@ class QgisFake(QgisInterface):
 
     def legendInterface(self):
         QgsLegendInterface
+
     def addRasterLayer(self, path, baseName=''):
-        l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
+        l = QgsRasterLayer(path, os.path.basename(path))
         self.lyrs.append(l)
         QgsProject.instance().addMapLayer(l, True)
         self.rootNode.addLayer(l)
@@ -178,7 +179,6 @@ def sandboxQgisBridge():
 
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
     S.ui.resize(600,600)
-    S.ui.dockRendering.gbQgsVectorLayer.setChecked(True)
 
     s = ""
 
@@ -354,10 +354,10 @@ if __name__ == '__main__':
     timeseriesviewer.DEBUG = True
     #run tests
     if False: gdal_qgis_benchmark()
-    if False: sandboxQgisBridge()
+    if True: sandboxQgisBridge()
     if False: sandboxGui()
 
-    if True: sandboxTestdata()
+    if False: sandboxTestdata()
     if False: sandboxDemo()
     #close QGIS
     qgsApp.exec_()

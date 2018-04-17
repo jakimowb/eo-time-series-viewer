@@ -1268,6 +1268,28 @@ class SpatialTemporalVisualization(QObject):
         self.sigSpatialExtentChanged.emit(self.mSpatialExtent)
 
 
+    def setSpatialCenter(self, center, mapCanvas0=None):
+        if self.mBlockCanvasSignals:
+            return True
+
+        assert isinstance(center, SpatialPoint)
+        center = center.toCrs(self.mCRS)
+        if not isinstance(center, SpatialPoint):
+            return None
+
+        self.mBlockCanvasSignals = True
+
+        for mapCanvas in self.mMapCanvases:
+            if mapCanvas != mapCanvas0:
+                oldState = mapCanvas.blockSignals(True)
+                mapCanvas.setCenter(center)
+                mapCanvas.blockSignals(oldState)
+
+        self.mBlockCanvasSignals = False
+        #for mapCanvas in self.mMapCanvases:
+        #    mapCanvas.refresh()
+        self.mRefreshTimer.start()
+
     def setSpatialExtent(self, extent, mapCanvas0=None):
         if self.mBlockCanvasSignals:
             return True
