@@ -1,7 +1,15 @@
+2018-04-17
+    increased version to 0.5
+    ported to QGIS 3, Qt5 and Python 3.6
+    improvements in temporal profile visualization
+    removed several bug
+    visibility of vector and raster layers can be toggled per map view
+    improved interaction between QGIS and EOTSV (Buttons to import/export spatial extent of map canvas or center)
+
 2018-03-29
     improved definition of individual 2D / 3D charts per sensor & pixel-location
     added based OpenGL based 3D plot features (axis, grids, labels)
-    changed name to "EO Time Series Viewer"
+    changed name to "EO Time Series Viewer" (EOTSV)
 
 2018-02-11
     merged updates to temporal profile visualization, e.g.
