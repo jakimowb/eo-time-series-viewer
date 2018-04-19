@@ -38,34 +38,22 @@ see https://github.com/CleanCut/green/issues/103
 """
 
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
+
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
 
-"""
-pathList = [os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe')),
-            os.path.join(sys.exec_prefix, 'pythonw.exe')]
-if False:
-    for p in reversed(pathList):
-        if os.path.isfile(p):
-            print(p)
-            #multiprocessing.set_executable(p)
-            #multiprocessing.freeze_support()
-            #multiprocessing.Manager()
-
-            break
-"""
-
 import qgis.utils
 from timeseriesviewer.utils import *
-
-DEBUG = False
-import numpy as np
-
-
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
+import numpy as np
+
+
+DEBUG = False
+
+
 
 
 
@@ -448,8 +436,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QApplication.processEvents()
 
         self.ui = TimeSeriesViewerUI()
-        msgLog = QgsApplication.instance().messageLog()
-        msgLog.messageReceived.connect(self.logMessage)
 
         # Save reference to the QGIS interface
         if isinstance(iface, QgisInterface):
@@ -535,6 +521,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.dockRendering.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
         self.spatialTemporalVis.setMapSize(D.dockRendering.mapSize())
 
+        D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
@@ -583,8 +570,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         defFile = s.value('FILE_TS_DEFINITION')
         if defFile is not None:
             defFile = os.path.dirname(defFile)
-        path = QFileDialog.getOpenFileName(caption='Load Time Series definition',
-                                           directory=defFile)
+
+        filters = "CSV (*.csv *.txt);;" + \
+                  "All files (*.*)"
+        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defFile, filters=filters)
         if path is not None and os.path.exists(path):
             s.setValue('FILE_TS_DEFINITION', path)
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
@@ -680,8 +669,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         defFile = s.value('FILE_TS_DEFINITION')
         if defFile is not None:
             defFile = os.path.dirname(defFile)
-        path = QFileDialog.getSaveFileName(caption='Save Time Series definition',
-                                           directory=defFile)
+
+        filters = "CSV (*.csv *.txt);;" + \
+                  "All files (*.*)"
+        path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters, directory=defFile)
         path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
@@ -764,12 +755,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
             s = settings()
             defDir = s.value('DIR_FILESEARCH')
 
-            filters = "ENVI Images (*.bsq *.bil *.bip);;"+ \
-                      "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
+            filters = "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
+                      "ENVI Images (*.bsq *.bil *.bip);;" + \
                       "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
                       "All files (*.*)"
 
-            files = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
+            files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>590</width>
-    <height>315</height>
+    <width>885</width>
+    <height>331</height>
    </rect>
   </property>
   <property name="features">
@@ -140,7 +140,7 @@
           </sizepolicy>
          </property>
          <property name="currentIndex">
-          <number>1</number>
+          <number>2</number>
          </property>
          <widget class="QWidget" name="page2D">
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -236,7 +236,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QToolButton" name="btnAddView">
+                  <widget class="QToolButton" name="btnAddStyle2D">
                    <property name="text">
                     <string>...</string>
                    </property>
@@ -250,7 +250,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QToolButton" name="btnRemoveView">
+                  <widget class="QToolButton" name="btnRemoveStyle2D">
                    <property name="enabled">
                     <bool>false</bool>
                    </property>
@@ -516,22 +516,30 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLabel" name="label">
+                  <widget class="QToolButton" name="btnAddStyle3D">
                    <property name="text">
-                    <string>Coordinate</string>
+                    <string>...</string>
+                   </property>
+                   <property name="icon">
+                    <iconset resource="resources.qrc">
+                     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
+                   </property>
+                   <property name="autoRaise">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QComboBox" name="cbTemporalProfile3D">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
+                  <widget class="QToolButton" name="btnRemoveStyle3D">
+                   <property name="text">
+                    <string>...</string>
                    </property>
-                   <property name="toolTip">
-                    <string>Selects the coordinate for which to show the profile data</string>
+                   <property name="icon">
+                    <iconset resource="resources.qrc">
+                     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+                   </property>
+                   <property name="autoRaise">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
@@ -561,6 +569,18 @@
                  <property name="frameShape">
                   <enum>QFrame::NoFrame</enum>
                  </property>
+                 <attribute name="horizontalHeaderCascadingSectionResizes">
+                  <bool>true</bool>
+                 </attribute>
+                 <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                  <bool>true</bool>
+                 </attribute>
+                 <attribute name="horizontalHeaderStretchLastSection">
+                  <bool>true</bool>
+                 </attribute>
+                 <attribute name="verticalHeaderShowSortIndicator" stdset="0">
+                  <bool>true</bool>
+                 </attribute>
                 </widget>
                </item>
               </layout>
@@ -734,7 +754,7 @@ Please ensure that PyOpenGL is installed
                    <number>256</number>
                   </property>
                   <property name="value">
-                   <number>64</number>
+                   <number>3</number>
                   </property>
                  </widget>
                 </item>
@@ -853,7 +873,7 @@ Please ensure that PyOpenGL is installed
          </property>
          <property name="maximumSize">
           <size>
-           <width>300</width>
+           <width>16777215</width>
            <height>16777215</height>
           </size>
          </property>
@@ -875,7 +895,7 @@ Please ensure that PyOpenGL is installed
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>247</width>
+           <width>0</width>
            <height>0</height>
           </size>
          </property>
@@ -901,25 +921,28 @@ Please ensure that PyOpenGL is installed
     <string>F5</string>
    </property>
   </action>
-  <action name="actionAddView">
+  <action name="actionAddStyle2D">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
-    <string>Add View</string>
+    <string>Add a 2D profile visualization</string>
+   </property>
+   <property name="toolTip">
+    <string>Adds a new 2D profile visualization</string>
    </property>
   </action>
-  <action name="actionRemoveView">
+  <action name="actionRemoveStyle2D">
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
    </property>
    <property name="text">
-    <string>RemoveView</string>
+    <string>Remove 2D profiles</string>
    </property>
    <property name="toolTip">
-    <string>Removes selected profiles</string>
+    <string>Removes selected 2D profiles</string>
    </property>
   </action>
   <action name="actionLoadProfileRequest">
@@ -989,6 +1012,30 @@ Please ensure that PyOpenGL is installed
    </property>
    <property name="toolTip">
     <string>Save the temporal profile coordinates.</string>
+   </property>
+  </action>
+  <action name="actionAddStyle3D">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add 3D visualization</string>
+   </property>
+   <property name="toolTip">
+    <string>Add a new 3D visualization</string>
+   </property>
+  </action>
+  <action name="actionRemoveStyle3D">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Remove 3D visualization</string>
+   </property>
+   <property name="toolTip">
+    <string>Removes selected 3D visualization</string>
    </property>
   </action>
  </widget>

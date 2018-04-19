@@ -1484,7 +1484,7 @@ class DateViewCollection(QObject):
                 mapCanvas.setLayers([])
                 toRemove = [l for l in toRemove if isinstance(l, QgsRasterLayer)]
                 if len(toRemove) > 0:
-                    QgsProject.instance().removeMapLayers(toRemove)
+                    QgsProject.instance().removeMapLayers([l.id() for l in toRemove])
 
             DV.ui.parent().layout().removeWidget(DV.ui)
             DV.ui.hide()

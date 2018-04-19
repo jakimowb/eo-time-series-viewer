@@ -6,6 +6,8 @@ deploy/*
 temp/
 doc/build/
 doc/build/*
+qgisresources/
+qgisresources/*
 example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
 .*
@@ -19,3 +21,4 @@ timeseriesviewer/ui/tmp.ui
 *.iml
 __pycache__/
 
+/qgisresources/

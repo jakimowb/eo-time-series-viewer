@@ -25,8 +25,9 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
-from timeseriesviewer.utils import loadUI, SpatialExtent, SpatialPoint
+from timeseriesviewer.utils import loadUI, SpatialExtent, SpatialPoint, createCRSTransform, geo2px
 from timeseriesviewer.trees import *
 
 
@@ -64,7 +65,7 @@ class LoadWorker(QObject):
 
 class SourceValueSet(object):
     def __init__(self, source, crs, geoCoordinate):
-        assert isinstance(geoCoordinate, QgsPoint)
+        assert isinstance(geoCoordinate, QgsPointXY)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         self.source = source
         self.point = geoCoordinate
@@ -84,7 +85,7 @@ class RasterValueSet(SourceValueSet):
             if bandValue is not None:
                 assert type(bandValue) in [float, int]
             if bandName is not None:
-                assert type(bandName) in [str, unicode]
+                assert isinstance(bandName, str)
 
             self.bandIndex = bandIndex
             self.bandValue = bandValue
@@ -207,7 +208,7 @@ class CursorLocationInfoModel(TreeModel):
             self.setColumnSpan(root, True)
             refFeature = sourceValueSet.features[0]
             assert isinstance(refFeature, QgsFeature)
-            typeName = refFeature.geometry().geometry().wktTypeStr().lower()
+            typeName = QgsWkbTypes.displayString(refFeature.geometry().wkbType()).lower()
             if 'polygon' in typeName: path = ':/enmapbox/icons/mIconPolygonLayer.png'
             if 'line' in typeName: path = ':/enmapbox/icons/mIconLineLayer.png'
             if 'point' in typeName: path = ':/enmapbox/icons/mIconLineLayer.png'
@@ -405,7 +406,7 @@ class CursorLocationInfoDock(QDockWidget,
 
 
 
-        info2World = QgsCoordinateTransform(crsInfo, crsWorld)
+        info2World = createCRSTransform(crsInfo, crsWorld)
         pointWorld = info2World.transform(ptInfo)
 
         self.mLocationInfoModel.setExpandedNodeRemainder()
@@ -414,8 +415,8 @@ class CursorLocationInfoDock(QDockWidget,
 
         for l in lyrs:
             assert isinstance(l, QgsMapLayer)
-            lyr2World = QgsCoordinateTransform(l.crs(), crsWorld)
-            world2lyr = QgsCoordinateTransform(crsWorld, l.crs())
+            lyr2World = createCRSTransform(l.crs(), crsWorld)
+            world2lyr = createCRSTransform(crsWorld, l.crs())
 
             #check in GCS WGS-84 if the point-of-interest intersects with layer
             lyrExt = lyr2World.transformBoundingBox(l.extent())
@@ -426,7 +427,7 @@ class CursorLocationInfoDock(QDockWidget,
             #transform relquested location into layer CRS coordinates
             pointLyr = world2lyr.transform(pointWorld)
 
-            from enmapbox.gui.utils import geo2px
+
             if isinstance(l, QgsRasterLayer):
                 renderer = l.renderer()
                 ds = gdal.Open(l.source())
@@ -498,7 +499,7 @@ class CursorLocationInfoDock(QDockWidget,
         :param point:
         :return:
         """
-        assert isinstance(point, QgsPoint)
+        assert isinstance(point, QgsPointXY)
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         self.mLocationHistory.insert(0, (crs, point))
         if len(self.mLocationHistory) > self.mMaxPoints:
@@ -513,7 +514,7 @@ class CursorLocationInfoDock(QDockWidget,
     def setCursorLocationInfo(self):
         # transform this point to targeted CRS
         crs, pt = self.cursorLocation()
-        if isinstance(pt, QgsPoint):
+        if isinstance(pt, QgsPointXY):
             if crs != self.mCrs:
                 trans = QgsCoordinateTransform(crs, self.mCrs)
                 pt = trans.transform(pt)
@@ -575,16 +576,18 @@ class Resulthandler(QObject):
 
 R = Resulthandler()
 if __name__ == '__main__':
-    from enmapbox.gui.utils import initQgisApplication
-    qgsApp = initQgisApplication()
+    from timeseriesviewer.utils import initQgisApplication
+    from timeseriesviewer import DIR_QGIS_RESOURCES
+    qgsApp = initQgisApplication(qgisResourceDir=DIR_QGIS_RESOURCES)
 
-    from enmapboxtestdata import enmap, landcover
+    from example.Images import Img_2014_05_31_LE72270652014151CUB00_BOA
+    from example import exampleEvents
 
     canvas = QgsMapCanvas()
-    lyr = QgsRasterLayer(enmap)
-    shp = QgsVectorLayer(landcover, 'lc', 'ogr')
+    lyr = QgsRasterLayer(Img_2014_05_31_LE72270652014151CUB00_BOA)
+    shp = QgsVectorLayer(exampleEvents, 'events')
     QgsProject.instance().addMapLayers([lyr,shp])
-    canvas.setLayerSet([QgsMapCanvasLayer(shp), QgsMapCanvasLayer(lyr)])
+    canvas.setLayers([shp, lyr])
     canvas.setDestinationCrs(lyr.crs())
     canvas.setExtent(lyr.extent())
     canvas.show()

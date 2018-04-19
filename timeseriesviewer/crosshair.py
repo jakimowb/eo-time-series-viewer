@@ -25,11 +25,14 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import numpy as np
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
 
+
 class CrosshairStyle(object):
+
     def __init__(self, **kwds):
 
         self.mColor = QColor.fromRgb(255,0,0, 255)
@@ -93,37 +96,6 @@ class CrosshairStyle(object):
     def setShow(self, b):
         assert isinstance(b, bool)
         self.mShow = b
-
-    def rendererV2(self):
-        """
-        Returns the vector layer renderer
-        :return:
-        """
-        registry = QgsSymbolLayerV2Registry.instance()
-        lineMeta = registry.symbolLayerMetadata("SimpleLine")
-        lineLayer = lineMeta.createSymbolLayer({})
-        lineLayer.setColor(self.mColor)
-        lineLayer.setPenStyle(Qt.SolidLine)
-
-        lineLayer.setWidth(self.mThickness)
-        lineLayer.setWidthUnit(2) #pixel
-        #lineLayer.setWidth(self.mThickness)
-
-        """
-        lineLayer = lineMeta.createSymbolLayer(
-            {'width': '0.26',
-             'color': self.mColor,
-             'offset': '0',
-             'penstyle': 'solid',
-             'use_custom_dash': '0'})
-        """
-
-        # Replace the default layer with our custom layer
-
-        symbol = QgsLineSymbolV2([])
-        symbol.deleteSymbolLayer(0)
-        symbol.appendSymbolLayer(lineLayer)
-        return QgsSingleSymbolRendererV2(symbol)
 
 class CrosshairMapCanvasItem(QgsMapCanvasItem):
 
@@ -457,8 +429,7 @@ class CrosshairDialog(QgsDialog):
         if d.result() == QDialog.Accepted:
             return d.crosshairStyle()
         else:
-
-            return None
+            return kwds.get('crosshairStyle')
 
     def __init__(self, parent=None, crosshairStyle=None, mapCanvas=None, title='Specify Crosshair'):
         super(CrosshairDialog, self).__init__(parent=parent , \
@@ -497,7 +468,7 @@ class CrosshairDialog(QgsDialog):
         for lyr in mapCanvas.layers():
             s = ""
         lyrs = mapCanvas.layers()
-        canvas.setLayerSet([QgsMapCanvasLayer(l) for l in lyrs])
+        canvas.setLayers(lyrs)
         canvas.setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
         canvas.setExtent(mapCanvas.extent())
         canvas.setCenter(mapCanvas.center())
@@ -510,8 +481,9 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    import example.Images
+    qgsApp = initQgisApplication()
 
     if False:
         c = QgsMapCanvas()
@@ -525,10 +497,10 @@ if __name__ == '__main__':
 
 
     import example.Images
-    lyr = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
+    lyr = QgsRasterLayer(example.Images.Img_2014_05_31_LE72270652014151CUB00_BOA)
     QgsProject.instance().addMapLayer(lyr)
     refCanvas = QgsMapCanvas()
-    refCanvas.setLayerSet([QgsMapCanvasLayer(lyr)])
+    refCanvas.setLayers([lyr])
     refCanvas.setExtent(lyr.extent())
     refCanvas.setDestinationCrs(lyr.crs())
     refCanvas.show()

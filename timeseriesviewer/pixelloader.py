@@ -22,8 +22,8 @@
 
 import os, sys
 import pickle
-import multiprocessing
-from multiprocessing import Pool
+import multiprocessing, logging
+
 import datetime
 from qgis.gui import *
 from qgis.core import *
@@ -33,6 +33,10 @@ from timeseriesviewer.utils import SpatialPoint, SpatialExtent, geo2px, px2geo
 from osgeo import gdal, gdal_array, osr
 
 DEBUG = False
+
+if DEBUG:
+    logger = multiprocessing.log_to_stderr()
+    logger.setLevel(multiprocessing.SUBDEBUG)
 
 
 def dprint(msg):
@@ -123,18 +127,6 @@ class PixelLoaderTask(object):
 
     def imageCrs(self):
         return QgsCoordinateReferenceSystem(self.resCrsWkt)
-
-    def depr_imagePixelIndices(self):
-        """
-        Returns the image pixel indices related to the extracted value subset
-        :return: (numpy array y, numpy array x)
-        """
-        if self.pxUL is None:
-            return None
-
-        pxIdxX = np.arange(0, self.pxSubsetSize.width()) + self.pxUL.x()
-        pxIdxY = np.arange(0, self.pxSubsetSize.height()) + self.pxUL.y()
-        return (pxIdxY,pxIdxX)
 
     def pixelResolution(self):
         """
@@ -372,11 +364,13 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
     assert isinstance(cancelEvent, Event)
     assert isinstance(finishedEvent, Event)
 
-
-    while not inputQueue.empty():
+    dprint('Pixel Loading Loop Started')
+    #while not inputQueue.empty():
+    while True:
         if cancelEvent.is_set():
             dprint('Taskloop put CANCELED')
-            break
+            #resultQueue.put('CANCELED', True)
+            resultQueue.put('CANCELED')
         #if not inputQueue.empty():
 
         queueObj = inputQueue.get()
@@ -386,22 +380,26 @@ def pixelLoadingLoop(inputQueue, resultQueue, cancelEvent, finishedEvent):
                 dprint('Taskloop {} doLoaderTask'.format(task.mJobId))
                 task = doLoaderTask(task)
                 dprint('Taskloop {} put task result back to queue'.format(task.mJobId))
+                #resultQueue.put(task.toDump(), True, 2)
                 resultQueue.put(task.toDump())
             except Exception as ex:
                 dprint('Taskloop {} EXCEPTION {} '.format(task.mJobId, ex))
+                #resultQueue.put(ex, True)
                 resultQueue.put(ex)
         elif isinstance(queueObj, str):
             if queueObj.startswith('LAST'):
                 dprint('Taskloop put FINISHED')
+                #resultQueue.put('FINISHED', True, 2)
                 resultQueue.put('FINISHED')
                 #finishedEvent.set()
                 dprint('Taskloop FINISHED set')
         else:
             dprint('Taskloop put UNHANDLED')
             dprint('Unhandled {} {}'.format(str(queueObj), type(queueObj)))
-            continue
 
-    resultQueue.put('CANCELED')
+
+
+
 
 class LoadingProgress(object):
 
@@ -441,25 +439,23 @@ class PixelLoader(QObject):
     """
 
     sigPixelLoaded = pyqtSignal(int, int, object)
-    sigLoadingStarted = pyqtSignal(list)
+    sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal(np.timedelta64)
     sigLoadingCanceled = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
         #self.filesList = []
-        self.jobId = -1
-        self.jobProgress = {}
-        self.nProcesses = 2
-        self.nMax = 0
-        self.nFailed = 0
-        self.threadsAndWorkers = []
+        self.mJobId = -1
+        self.mJobProgress = {}
+        #self.mNumberOfProcesses = 2
         self.mLoadingStartTime = np.datetime64('now','ms')
 
         #see https://gis.stackexchange.com/questions/35279/multiprocessing-error-in-qgis-with-python-on-windows
         #path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
         #assert os.path.exists(path)
-        #multiprocessing.set_executable(path)
+
+        multiprocessing.set_executable(os.path.join(sys.exec_prefix, 'pythonw.exe'))
         sys.argv = [__file__]
 
         self.mResultQueue = multiprocessing.Queue(maxsize=0)
@@ -474,20 +470,34 @@ class PixelLoader(QObject):
         #self.queueCheckTimer.timeout.connect(self.dummySlot)
         self.queueCheckTimer.start(250)
 
-    def initWorkerProcess(self):
+    def initWorkerProcess(self, id):
 
-        if not isinstance(self.mWorkerProcess, multiprocessing.Process) :
-            self.mWorkerProcess = multiprocessing.Process(name='PixelLoaderWorkingProcess',
+        if not isinstance(self.mWorkerProcess, multiprocessing.Process):
+            multiprocessing.set_executable(os.path.join(sys.exec_prefix, 'pythonw.exe'))
+            sys.argv = [__file__]
+
+            self.mWorkerProcess = multiprocessing.Process(name='PixelLoaderWorkingProcess_{}'.format(id),
                                                           target=pixelLoadingLoop,
-                                                          args=(self.mTaskQueue, self.mResultQueue, self.mCancelEvent, self.mKillEvent,))
+                                                          args=(self.mTaskQueue, self.mResultQueue, self.mCancelEvent, self.mKillEvent))
 
-            self.mWorkerProcess.daemon = False
+            self.mWorkerProcess.daemon = True
             self.mWorkerProcess.start()
-
+            return True
         else:
             if not self.mWorkerProcess.is_alive():
-                self.mWorkerProcess.run()
+                dprint('WorkerProcess exit code {}'.format(self.mWorkerProcess.exitcode))
 
+                #self.mWorkerProcess.join(2)
+                self.mWorkerProcess = None
+
+                #code = self.mWorkerProcess.exitcode
+
+                #self.mWorkerProcess = None
+                return False
+                #self.initWorkerProcess()
+                #self.mWorkerProcess.run()
+            else:
+                return True
 
 
 
@@ -497,26 +507,29 @@ class PixelLoader(QObject):
         for data in dataList:
             assert isinstance(data, PixelLoaderTask)
 
-            if data.mJobId not in self.jobProgress.keys():
+            if data.mJobId not in self.mJobProgress.keys():
                 return
             else:
-                progressInfo = self.jobProgress[data.mJobId]
+                progressInfo = self.mJobProgress[data.mJobId]
 
                 assert isinstance(progressInfo, LoadingProgress)
+                if not data.success():
+                    s = ""
+
                 progressInfo.addResult(data.success())
                 if progressInfo.done() == progressInfo.total():
-                    self.jobProgress.pop(data.mJobId)
+                    self.mJobProgress.pop(data.mJobId)
 
                 self.sigPixelLoaded.emit(progressInfo.done(), progressInfo.total(), data)
 
-    def setNumberOfProcesses(self, nProcesses):
-        assert nProcesses >= 1
-        self.nProcesses = nProcesses
+    #def setNumberOfProcesses(self, nProcesses):
+    #    assert nProcesses >= 1
+    #    self.mNumberOfProcesses = nProcesses
 
     def startLoading(self, tasks):
 
         assert isinstance(tasks, list)
-
+        self.sigLoadingStarted.emit()
         paths = []
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
@@ -524,16 +537,19 @@ class PixelLoader(QObject):
 
         self.mLoadingStartTime = np.datetime64('now', 'ms')
 
-        self.jobId += 1
-        jobId = self.jobId
+        self.mJobId += 1
+        jobId = self.mJobId
 
-        self.jobProgress[jobId] = LoadingProgress(jobId, len(tasks))
-        self.sigLoadingStarted.emit(paths[:])
+        self.mJobProgress[jobId] = LoadingProgress(jobId, len(tasks))
+
         #self.mKillEvent.clear()
-        self.initWorkerProcess()
+        t = 0
+        while not self.initWorkerProcess('{}.{}'.format(self.mJobId, t)) and t < 10:
+            t += 1
+
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
-            t.mJobId = self.jobId
+            t.mJobId = self.mJobId
             self.mTaskQueue.put(t.toDump())
         self.mTaskQueue.put('LAST_{}'.format(jobId))
 
@@ -550,10 +566,17 @@ class PixelLoader(QObject):
         dataList = []
         finished = False
         canceled = False
-
+        #print('check task results')
         if isinstance(self.mWorkerProcess, multiprocessing.Process):
             while not self.mResultQueue.empty():
-                data = self.mResultQueue.get()
+                import queue
+                try:
+                    #data = self.mResultQueue.get(True, 2)
+                    data = self.mResultQueue.get()
+                    s = ""
+                except queue.Empty:
+                    break
+
                 if isinstance(data, bytes):
                     task = PixelLoaderTask.fromDump(data)
                     dataList.append(task)
@@ -613,11 +636,14 @@ if __name__ == '__main__':
     from qgis.core import QgsPoint
     x,y = ext.center()
 
-    geoms = [#SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
+    geoms1 = [#SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
              SpatialExtent(ext.crs(),x+10000,y,x+12000, y+70 ), #out of image
              SpatialExtent(ext.crs(),x,y,x+10000, y+70 ),
              SpatialPoint(ext.crs(), x,y),
              SpatialPoint(ext.crs(), x+250, y+70)]
+    geoms2 = [  # SpatialPoint(ext.crs(), 681151.214,-752388.476), #nodata in Img_2014_04_29_LE72270652014119CUB00_BOA
+        SpatialPoint(ext.crs(), x - 100, y),
+        SpatialPoint(ext.crs(), x + 50, y + 70)]
 
 
     def onPxLoaded(*args):
@@ -641,15 +667,34 @@ if __name__ == '__main__':
     PL.sigLoadingStarted.connect(lambda: onDummy('started'))
     PL.sigPixelLoaded.connect(lambda : onDummy('px loaded'))
 
-    tasks = []
+    tasks1 = []
+    tasks2 = []
     for i, f in enumerate(files):
         kwargs = {'myid':'myID{}'.format(i)}
-        tasks.append(PixelLoaderTask(f, geoms, bandIndices=None, **kwargs))
+        tasks1.append(PixelLoaderTask(f, geoms1, bandIndices=None, **kwargs))
+        tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
-    PL.startLoading(tasks)
-    PL.startLoading(tasks)
+    PL.startLoading(tasks1)
+    PL.startLoading(tasks2)
 
     #QTimer.singleShot(2000, lambda : PL.cancelLoading())
+
+    def addProfile():
+        x0, y1 = ext.upperLeftPt()
+        x1, y0 = ext.lowerRightPt()
+
+        x = x0 + (x1 - x0) * np.random.sample()
+        y = y0 + (y1 - y0) * np.random.sample()
+        pt = SpatialPoint(ext.crs(), x, y)
+        tasks = []
+        for i, f in enumerate(files):
+            tasks.append(PixelLoaderTask(f, [pt], bandIndices=[0,1,3], **kwargs))
+        PL.startLoading(tasks)
+
+
+    btn = QPushButton('Add Profile')
+    btn.clicked.connect(addProfile)
+    btn.show()
 
     qgsApp.exec_()
     s = ""

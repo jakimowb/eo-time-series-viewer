@@ -184,7 +184,12 @@ class SpatialPoint(QgsPointXY):
         return self.__repr__()
 
     def __repr__(self):
-        return '{} {} {}'.format(self.x(), self.y(), self.crs().authid())
+
+        if self.crs().mapUnits() == QgsUnitTypes.DistanceDegrees:
+            return '{:.1f} {:.1f} {}'.format(self.x(), self.y(), self.crs().authid())
+        else:
+            return '{:.5f} {:.5f} {:}'.format(self.x(), self.y(), self.crs().authid())
+
 
 
 def findParent(qObject, parentType, checkInstance = False):
@@ -278,6 +283,7 @@ def createGeoTransform(gsd, ul_x, ul_y):
     gt2 = gt4 = 0
 
     return (gt0, gt1, gt2, gt3, gt4, gt5)
+
 def geo2px(geo, gt):
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
@@ -383,7 +389,8 @@ class SpatialExtent(QgsRectangle):
         if args is None:
             return
         elif isinstance(args[0], SpatialExtent):
-            extent2 = args[0].toCrs(self.crs())
+            ext = args[0]
+            extent2 = ext.toCrs(self.crs())
             self.combineExtentWith(QgsRectangle(extent2))
         else:
             super(SpatialExtent, self).combineExtentWith(*args)
@@ -733,9 +740,7 @@ def loadUIFormClass(pathUi, from_imports=False, resourceSuffix=''):
             FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         except SyntaxError as ex:
             FORM_CLASS, _ = uic.loadUiType(pathUi, resource_suffix=RC_SUFFIX)
-
         buffer.close()
-        buffer = None
         FORM_CLASSES[pathUi] = FORM_CLASS
 
         #remove temporary added directories from python path
@@ -773,7 +778,7 @@ def zipdir(pathDir, pathZip):
                     zip.write(filename, arcname)
 
 
-def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
+def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
     """
     Initializes the QGIS Environment
     :return: QgsApplication instance of local QGIS installation
@@ -783,22 +788,15 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         pythonPlugins = []
     assert isinstance(pythonPlugins, list)
 
-    # pythonPlugins.append(os.path.dirname(DIR_REPO))
+    if isinstance(qgisResourceDir, str) and os.path.isdir(qgisResourceDir):
+        import importlib, re
+        modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
+        modules = [m[0:-3] for m in modules]
+        for m in modules:
+            mod = importlib.import_module('qgisresources.{}'.format(m))
+            if "qInitResources" in dir(mod):
+                mod.qInitResources()
 
-
-    if os.path.isdir(DIR_REPO):
-        pass
-        """
-        for subDir in os.listdir(PLUGIN_DIR):
-            if not subDir.startswith('.'):
-                pathMetadata = jp(  PLUGIN_DIR, *[subDir,'metadata.txt'])
-                if os.path.exists(pathMetadata):
-                    md = open(pathMetadata,'r').readlines()
-                    md = [m.strip() for m in md]
-                    md = [m.split('=') for m in md if m.startswith('qgisMinimumVersion')]
-
-                    pythonPlugins.append(os.path.join(PLUGIN_DIR, subDir))
-        """
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
@@ -826,7 +824,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
                 PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS'])
 
                 if not 'GDAL_DATA' in os.environ.keys():
-                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/2.1/Resources/gdal'
+                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/Current/Resources/gdal'
 
                 QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
                 QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
@@ -843,13 +841,21 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False):
         qgsApp.initQgis()
 
         def printQgisLog(tb, error, level):
-
-            print(tb)
+            if error not in ['Python warning']:
+                print(tb)
 
         QgsApplication.instance().messageLog().messageReceived.connect(printQgisLog)
 
         return qgsApp
 
+
+def createCRSTransform(src, dst):
+    assert isinstance(src, QgsCoordinateReferenceSystem)
+    assert isinstance(dst, QgsCoordinateReferenceSystem)
+    t = QgsCoordinateTransform()
+    t.setSourceCrs(src)
+    t.setDestinationCrs(dst)
+    return t
 
 if __name__ == '__main__':
     #nice predecessors

@@ -962,7 +962,7 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
 
 
 class SpectralLibraryPanel(QgsDockWidget):
-    sigLoadFromMapRequest = None
+
     def __init__(self, parent=None):
         super(SpectralLibraryPanel, self).__init__(parent)
         self.setWindowTitle('Spectral Library')
@@ -1317,8 +1317,6 @@ class SpectralLibraryTableViewModel(QAbstractTableModel):
 
 
         self.mAttributeColumns = []
-
-
         self.mSpecLib = SpectralLibrary()
         self.mProfileWrappers = OrderedDict()
 
@@ -1439,9 +1437,9 @@ class SpectralLibraryTableViewModel(QAbstractTableModel):
         assert isinstance(profile, SpectralProfile)
         #return self.createIndex(self.mSpecLib.index(profile), 0)
         #pw = self.mProfileWrappers[profile]
-        if not profile in self.mProfileWrappers.keys():
+        if not self.mProfileWrappers.__contains__(profile):
             return None
-        return self.createIndex(self.mProfileWrappers.keys().index(profile), 0)
+        return self.createIndex(list(self.mProfileWrappers.keys()).index(profile), 0)
 
 
 
@@ -1956,7 +1954,7 @@ if __name__ == "__main__":
     app.messageLog().messageReceived.connect(lambda args: print(args) )
 
 
-    sl = SpectralLibrary.readFrom(r'D:\Temp\myspeclibPX.sli')
+    sl = SpectralLibrary.readFrom(r'C:\Users\geo_beja\Repositories\QGIS_Plugins\enmap-box\enmapboxtestdata\SpecLib_BerlinUrbanGradient.sli')
 
     cb = QComboBox()
     m = UnitComboBoxItemModel()

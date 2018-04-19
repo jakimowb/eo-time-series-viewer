@@ -123,9 +123,9 @@ if __name__ == "__main__":
     from timeseriesviewer.utils import zipdir
 
 
-    pathZip = jp(DIR_DEPLOY, '{}.{}.zip'.format(pluginname,timestamp))
-
+    pathZip = jp(DIR_DEPLOY, '{}.{}.QGIS3.zip'.format(pluginname,timestamp))
     zipdir(dirPlugin, pathZip)
+
     #os.chdir(dirPlugin)
     #shutil.make_archive(pathZip, 'zip', '..', dirPlugin)
 

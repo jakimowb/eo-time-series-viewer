@@ -288,21 +288,28 @@ def sandboxTestdata():
     S.spatialTemporalVis.MVC.createMapView()
 
     import timeseriesviewer.profilevisualization
-    import timeseriesviewer.temporalprofiles
+    import timeseriesviewer.temporalprofiles2d
     timeseriesviewer.profilevisualization.DEBUG = True
-    timeseriesviewer.temporalprofiles.DEBUG = True
+    timeseriesviewer.temporalprofiles2d.DEBUG = True
     import example.Images
     S.loadExampleTimeSeries()
 
     from example import exampleEvents
-    ml  = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
+    ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
     QgsProject.instance().addMapLayer(ml)
 
 
 if __name__ == '__main__':
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
+    resDir = jp(DIR_REPO, 'qgisresources')
+    qgsApp = initQgisApplication(qgisResourceDir=resDir)
+
+
+
+    #import qgisresources.images
+    #qgisresources.images.qInitResources()
+
     import timeseriesviewer
     timeseriesviewer.DEBUG = True
     #run tests
