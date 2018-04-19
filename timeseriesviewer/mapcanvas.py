@@ -395,7 +395,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
             else:
                 sourcesToRemove.append(ml)
 
-        toRemove = [li for li in self.mLayerInfos if li.mSrc in sourcesToRemove]
+        toRemove = [li for li in self.mLayerInfos if li in sourcesToRemove]
 
         for li in toRemove:
             self.mLayerInfos.remove(li)
@@ -908,9 +908,15 @@ class MapCanvas(QgsMapCanvas):
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
+            b =  self.crs() != spatialExtent.crs()
             spatialExtent = spatialExtent.toCrs(self.crs())
             if spatialExtent:
-                self.setExtent(spatialExtent)
+                ext = QgsRectangle(spatialExtent)
+                if b:
+                    s = ""
+                self.setCenter(ext.center())
+                self.setExtent(ext)
+                s = ""
 
 
 
@@ -1098,5 +1104,7 @@ if __name__ == '__main__':
 
     c.setDestinationCrs(lyr1.crs())
     c.setExtent(lyr1.extent())
+    c.setCrs(QgsCoordinateReferenceSystem('EPSG:32632'))
+    c.setExtent(c.spatialExtentHint())
     c.refresh()
     qgsApp.exec_()

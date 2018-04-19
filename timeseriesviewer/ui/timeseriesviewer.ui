@@ -165,6 +165,7 @@
      <string>Files</string>
     </property>
     <addaction name="actionAddTSD"/>
+    <addaction name="actionAddVectorData"/>
     <addaction name="actionLoadTS"/>
     <addaction name="actionSaveTS"/>
     <addaction name="actionClearTS"/>
@@ -199,12 +200,29 @@
     <property name="title">
      <string>Navigation</string>
     </property>
+    <widget class="QMenu" name="menuQGIS_map_canvas">
+     <property name="title">
+      <string>QGIS map canvas</string>
+     </property>
+     <addaction name="actionImportExtent"/>
+     <addaction name="actionImportCenter"/>
+     <addaction name="actionExportExtent"/>
+     <addaction name="actionExportCenter"/>
+    </widget>
+    <widget class="QMenu" name="menuGeben_Sie_Text_ein">
+     <property name="title">
+      <string>Geben Sie Text ein</string>
+     </property>
+    </widget>
     <addaction name="actionPan"/>
     <addaction name="actionZoomIn"/>
     <addaction name="actionZoomOut"/>
     <addaction name="actionZoomMaxExtent"/>
     <addaction name="actionZoomPixelScale"/>
     <addaction name="actionMoveCenter"/>
+    <addaction name="separator"/>
+    <addaction name="menuQGIS_map_canvas"/>
+    <addaction name="menuGeben_Sie_Text_ein"/>
    </widget>
    <addaction name="menuFiles"/>
    <addaction name="menuView"/>
@@ -234,6 +252,11 @@
    <addaction name="actionZoomMaxExtent"/>
    <addaction name="actionZoomPixelScale"/>
    <addaction name="actionPan"/>
+   <addaction name="separator"/>
+   <addaction name="actionImportExtent"/>
+   <addaction name="actionImportCenter"/>
+   <addaction name="actionExportExtent"/>
+   <addaction name="actionExportCenter"/>
    <addaction name="separator"/>
    <addaction name="actionIdentifyCursorLocationValues"/>
    <addaction name="actionIdentifyTemporalProfile"/>
@@ -606,6 +629,66 @@
    </property>
    <property name="toolTip">
     <string>Select pixel profiles from map</string>
+   </property>
+  </action>
+  <action name="actionImportExtent">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import extent</string>
+   </property>
+   <property name="toolTip">
+    <string>Set spatial map extent from QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionExportExtent">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set extent</string>
+   </property>
+   <property name="toolTip">
+    <string>Set map extent to QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionImportCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import center</string>
+   </property>
+   <property name="toolTip">
+    <string>Set spatial map center from QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionExportCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set center</string>
+   </property>
+   <property name="toolTip">
+    <string>Set map center to QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionAddVectorData">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add vector data</string>
+   </property>
+   <property name="toolTip">
+    <string>Loads a vector data file</string>
    </property>
   </action>
  </widget>

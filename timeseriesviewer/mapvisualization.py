@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# noinspection PyPep8Naming
 """
 /***************************************************************************
                               HUB TimeSeriesViewer
@@ -18,12 +19,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
 
-import os, sys, re, fnmatch, collections, copy, traceback, six, bisect
+
+import os, sys, re, fnmatch, collections, copy, traceback, bisect
 import logging
 logger = logging.getLogger(__name__)
 from qgis.core import *
+from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader,  QgsProject, QgsCoordinateReferenceSystem, \
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
+
+from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool
 from PyQt5.QtXml import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -31,7 +36,7 @@ import numpy as np
 from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.ui.docks import loadUI
 from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
@@ -53,8 +58,11 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         self.btnToggleCrosshair.setMenu(m)
 
         #connect the QActions with the QgsCollapsibleGroupBoxes
-        self.connectActionWithGroupBox(self.actionToggleVectorVisibility, self.gbVectorRendering)
-        self.connectActionWithGroupBox(self.actionToggleRasterVisibility, self.gbRasterRendering)
+        self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.setChecked)
+        self.gbRasterRendering.toggled.connect(self.actionToggleRasterVisibility.setChecked)
+
+        #self.connectActionWithGroupBox(self.actionToggleVectorVisibility, self.gbVectorRendering)
+        #self.connectActionWithGroupBox(self.actionToggleRasterVisibility, self.gbRasterRendering)
 
         #self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.toggle)
         #self.gbRasterRendering.toggled.connect(self.actionToggleRasterVisibility.toggle)
@@ -65,9 +73,6 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewHidden)
         self.btnSetVectorStyle.setDefaultAction(self.actionSetVectorStyle)
 
-    def connectActionWithGroupBox(self,action, groupBox):
-        assert isinstance(action, QAction)
-        assert isinstance(groupBox, QGroupBox)
 
 
     def addSensor(self, sensor):
@@ -193,6 +198,7 @@ class MapView(QObject):
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             d = QgsRendererPropertiesDialog(self.mVectorLayer, QgsStyle.defaultStyle())
             d.exec_()
+            s = ""
 
 
     def vectorLayerRenderer(self):
@@ -208,7 +214,7 @@ class MapView(QObject):
 
     def setVectorLayer(self, lyr):
 
-        if isinstance(lyr, QgsVectorLayer):
+        if isinstance(lyr, QgsVectorLayer) and self.ui.gbVectorRendering.isChecked():
 
             #add vector layer
             self.mVectorLayer = lyr
@@ -289,27 +295,25 @@ class MapView(QObject):
 
     def setRasterVisibility(self, b):
         assert isinstance(b, bool)
-        if self.rasterVisibility() != b:
-            self.mRastersVisible = b
-            self.ui.actionToggleRasterVisibility.setChecked(b)
 
-            for mapCanvas in self.mapCanvases():
-                assert isinstance(mapCanvas, MapCanvas)
-                mapCanvas.layerModel().setRasterLayerVisibility(b)
-                mapCanvas.refresh()
+        self.mRastersVisible = b
+        self.ui.actionToggleRasterVisibility.setChecked(b)
 
-            #self.sigRasterVisibility.emit(b)
+        for mapCanvas in self.mapCanvases():
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.layerModel().setRasterLayerVisibility(b)
+            mapCanvas.refresh()
+
 
     def setVectorVisibility(self, b):
         assert isinstance(b, bool)
-        if self.vectorVisibility() != b:
-            self.mVectorsVisible = b
-            self.ui.actionToggleVectorVisibility.setChecked(b)
+        self.mVectorsVisible = b
+        self.ui.actionToggleVectorVisibility.setChecked(b)
 
-            for mapCanvas in self.mapCanvases():
-                assert isinstance(mapCanvas, MapCanvas)
-                mapCanvas.layerModel().setVectorLayerVisibility(b)
-                mapCanvas.refresh()
+        for mapCanvas in self.mapCanvases():
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.layerModel().setVectorLayerVisibility(self.mVectorsVisible)
+            mapCanvas.refresh()
 
     def removeSensor(self, sensor):
         assert sensor in self.mSensorViews.keys()
@@ -1112,8 +1116,8 @@ class SpatialTemporalVisualization(QObject):
 
         self.DVC = DateViewCollection(self)
         self.DVC.sigResizeRequired.connect(self.adjustScrollArea)
-        self.DVC.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        self.DVC.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
+        #self.DVC.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        #self.DVC.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
         #self.timeSeriesDateViewCollection.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         self.TS.sigTimeSeriesDatesAdded.connect(self.DVC.addDates)
         self.TS.sigTimeSeriesDatesRemoved.connect(self.DVC.removeDates)
@@ -1263,6 +1267,28 @@ class SpatialTemporalVisualization(QObject):
 
         self.sigSpatialExtentChanged.emit(self.mSpatialExtent)
 
+
+    def setSpatialCenter(self, center, mapCanvas0=None):
+        if self.mBlockCanvasSignals:
+            return True
+
+        assert isinstance(center, SpatialPoint)
+        center = center.toCrs(self.mCRS)
+        if not isinstance(center, SpatialPoint):
+            return None
+
+        self.mBlockCanvasSignals = True
+
+        for mapCanvas in self.mMapCanvases:
+            if mapCanvas != mapCanvas0:
+                oldState = mapCanvas.blockSignals(True)
+                mapCanvas.setCenter(center)
+                mapCanvas.blockSignals(oldState)
+
+        self.mBlockCanvasSignals = False
+        #for mapCanvas in self.mMapCanvases:
+        #    mapCanvas.refresh()
+        self.mRefreshTimer.start()
 
     def setSpatialExtent(self, extent, mapCanvas0=None):
         if self.mBlockCanvasSignals:
@@ -1621,6 +1647,11 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     sigMapViewRemoved = pyqtSignal(MapView)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
+    sigMapCanvasColorChanged = pyqtSignal(QColor)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigMapSizeChanged = pyqtSignal(QSize)
+
     def setTimeSeries(self, timeSeries):
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
@@ -1639,6 +1670,9 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.btnRefresh.setDefaultAction(self.actionApplyStyles)
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
 
+        self.btnCrs.crsChanged.connect(self.sigCrsChanged)
+        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
+        self.btnApplySizeChanges.clicked.connect(lambda : self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(),self.spinBoxMapSizeY.value())))
 
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
@@ -1653,7 +1687,64 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.cbMapView.setModel(self.mMapViews)
         self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i < 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
 
+
+        self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
+        self.spinBoxMapSizeY.valueChanged.connect(lambda: self.onMapSizeChanged('Y'))
+        self.mLastMapSize = self.mapSize()
+        #self.mapSize() #inits mLastMapSize
         self.TS = None
+
+    def setCrs(self, crs):
+        assert isinstance(crs, QgsCoordinateReferenceSystem)
+        self.btnCrs.setCrs(crs)
+        self.btnCrs.setLayerCrs(crs)
+
+
+    def setMapSize(self, size):
+        assert isinstance(size, QSize)
+        ws = [self.spinBoxMapSizeX, self.spinBoxMapSizeY]
+        oldSize = self.mapSize()
+        b = oldSize != size
+        for w in ws:
+            w.blockSignals(True)
+
+        self.spinBoxMapSizeX.setValue(size.width()),
+        self.spinBoxMapSizeY.setValue(size.height())
+        self.mLastMapSize = QSize(size)
+        for w in ws:
+            w.blockSignals(False)
+        self.mLastMapSize = QSize(size)
+        if b:
+            self.sigMapSizeChanged.emit(size)
+
+    def onMapSizeChanged(self, dim):
+        newSize = self.mapSize()
+        #1. set size of other dimension accordingly
+        if dim is not None:
+            if self.checkBoxKeepSubsetAspectRatio.isChecked():
+                if dim == 'X':
+                    vOld = self.mLastMapSize.width()
+                    vNew = newSize.width()
+                    targetSpinBox = self.spinBoxMapSizeY
+                elif dim == 'Y':
+                    vOld = self.mLastMapSize.height()
+                    vNew = newSize.height()
+                    targetSpinBox = self.spinBoxMapSizeX
+
+                oldState = targetSpinBox.blockSignals(True)
+                targetSpinBox.setValue(int(round(float(vNew) / vOld * targetSpinBox.value())))
+                targetSpinBox.blockSignals(oldState)
+                newSize = self.mapSize()
+            if newSize != self.mLastMapSize:
+                self.btnApplySizeChanges.setEnabled(True)
+        else:
+            self.sigMapSizeChanged.emit(self.mapSize())
+            self.btnApplySizeChanges.setEnabled(False)
+        self.setMapSize(newSize)
+
+    def mapSize(self):
+        return QSize(self.spinBoxMapSizeX.value(),
+                     self.spinBoxMapSizeY.value())
 
 
     def refreshCurrentMapView(self, *args):

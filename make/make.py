@@ -598,7 +598,7 @@ if __name__ == '__main__':
     if False:
         updateInfoHTML()
 
-    if True:
+    if False:
         updateMetadataTxt()
 
     if False:

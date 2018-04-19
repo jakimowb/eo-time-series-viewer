@@ -87,7 +87,7 @@ class QgisFake(QgisInterface):
         self.canvas.setCanvasColor(Qt.black)
         self.canvas.extentsChanged.connect(self.testSlot)
         self.layerTreeView = QgsLayerTreeView()
-        self.rootNode =QgsLayerTreeGroup()
+        self.rootNode =QgsLayerTree()
         self.treeModel = QgsLayerTreeModel(self.rootNode)
         self.layerTreeView.setModel(self.treeModel)
         self.bridge = QgsLayerTreeMapCanvasBridge(self.rootNode, self.canvas)
@@ -125,8 +125,9 @@ class QgisFake(QgisInterface):
 
     def legendInterface(self):
         QgsLegendInterface
+
     def addRasterLayer(self, path, baseName=''):
-        l = QgsRasterLayer(path, loadDefaultStyleFlag=True)
+        l = QgsRasterLayer(path, os.path.basename(path))
         self.lyrs.append(l)
         QgsProject.instance().addMapLayer(l, True)
         self.rootNode.addLayer(l)
@@ -178,7 +179,6 @@ def sandboxQgisBridge():
 
     S.loadImageFiles([example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA])
     S.ui.resize(600,600)
-    S.ui.dockRendering.gbQgsVectorLayer.setChecked(True)
 
     s = ""
 
@@ -279,7 +279,6 @@ class SignalPrinter(object):
 
 def sandboxTestdata():
     from timeseriesviewer.main import TimeSeriesViewer
-
     S = TimeSeriesViewer(None)
     S.ui.show()
     S.run()
@@ -293,6 +292,47 @@ def sandboxTestdata():
     timeseriesviewer.temporalprofiles2d.DEBUG = True
     import example.Images
     S.loadExampleTimeSeries()
+
+    from example import exampleEvents
+    S.addVectorData([exampleEvents])
+
+    #ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
+    #QgsProject.instance().addMapLayer(ml)
+
+
+def sandboxDemo():
+    from timeseriesviewer.main import TimeSeriesViewer
+    S = TimeSeriesViewer(None)
+    S.ui.show()
+    S.run()
+
+    S.spatialTemporalVis.MVC.createMapView()
+    S.spatialTemporalVis.MVC.createMapView()
+
+    import timeseriesviewer.profilevisualization
+    import timeseriesviewer.temporalprofiles2d
+    timeseriesviewer.profilevisualization.DEBUG = True
+    timeseriesviewer.temporalprofiles2d.DEBUG = True
+    import example.Images
+
+    #load Landsat
+    p = r'F:\TSData'
+    files = file_search(p, re.compile('.*BOA\.tif$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load RapidEye
+    files = file_search(p, re.compile('re.*\.tif$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load Pleiades
+    p = r'Y:\Pleiades'
+    files = file_search(p,re.compile('IMG_.*JP2$'), recursive=True)
+    S.addTimeSeriesImages(files)
+
+    #load CBERS
+    p = 'Y:\CBERS\VRTs'
+    files = file_search(p, re.compile('CBERS_*.vrt$'), recursive=True)
+    S.addTimeSeriesImages(files)
 
     from example import exampleEvents
     ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
@@ -314,11 +354,11 @@ if __name__ == '__main__':
     timeseriesviewer.DEBUG = True
     #run tests
     if False: gdal_qgis_benchmark()
-    if False: sandboxQgisBridge()
+    if True: sandboxQgisBridge()
     if False: sandboxGui()
 
-    if True: sandboxTestdata()
-
+    if False: sandboxTestdata()
+    if False: sandboxDemo()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()

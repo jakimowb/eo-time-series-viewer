@@ -14,7 +14,9 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
 from qgis import *
+from qgis.gui import *
 from PyQt5.QtGui import QIcon
+from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from timeseriesviewer import file_search
 from timeseriesviewer.utils import *
 QGIS_APP = initQgisApplication()
@@ -31,27 +33,22 @@ class testclassUtilityTests(unittest.TestCase):
         pass
 
 
+    def test_spatialExtent(self):
+        canvas = QgsMapCanvas()
 
-    def test_spatialObjects(self):
-        """Test we can click OK."""
-        import example
-        pathRE = file_search(os.path.dirname(example.__file__), 're*', recursive=True)[0]
+        l = QgsRasterLayer(Img_2014_04_21_LC82270652014111LGN00_BOA)
+        QgsProject.instance().addMapLayer(l)
+        canvas.setLayers([l])
+        canvas.setExtent(l.extent())
 
-        from example.inmemorydatasets import createInMemoryRaster
-        dsMEM = createInMemoryRaster()
-        se = SpatialExtent.fromRasterSource(dsMEM)
-        self.assertIsInstance(se, SpatialExtent)
+        ext = SpatialExtent.fromMapCanvas(canvas)
+        self.assertIsInstance(ext, SpatialExtent)
+        self.assertIsInstance(ext, QgsRectangle)
 
-        pt1 = SpatialPoint.fromSpatialExtent(se)
-        self.assertIsInstance(pt1, SpatialPoint)
+        center = SpatialPoint.fromMapCanvasCenter(canvas)
+        self.assertIsInstance(center, SpatialPoint)
+        self.assertEqual(ext.spatialCenter(), center)
 
-
-        d = {}
-        for t in [pt1, se]:
-            try:
-                d[t] = '{}'.format(t)
-            except:
-                self.fail('Unable to use {} as dictionary key.'.format(type(t)))
 
 
 if __name__ == "__main__":
