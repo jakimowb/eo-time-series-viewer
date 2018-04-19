@@ -52,13 +52,15 @@ OPENGL_AVAILABLE = False
 MATPLOTLIB_AVAILABLE = False
 try:
     import matplotlib
+
+    matplotlib.use('Qt5Agg')
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as  FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as ToolbarQt
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    #ax = fig.add_subplot(111, projection='3d')
     c = FigureCanvas(fig)
     c.show()
     MATPLOTLIB_AVAILABLE = True
