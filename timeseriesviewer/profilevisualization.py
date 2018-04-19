@@ -49,17 +49,37 @@ import numpy as np
 DEBUG = False
 
 OPENGL_AVAILABLE = False
+MATPLOTLIB_AVAILABLE = False
+try:
+    import matplotlib
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as  FigureCanvas
+    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as ToolbarQt
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    c = FigureCanvas(fig)
+    c.show()
+    MATPLOTLIB_AVAILABLE = True
+except Exception as ex:
+    s =""
+
+
 
 try:
+
+
     import OpenGL
     OPENGL_AVAILABLE = True
     from timeseriesviewer.temporalprofiles3d import *
+    from timeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
     #t = ViewWidget3D()
     #del t
 
 
 except Exception as ex:
-
+    LABEL_EXPRESSION_3D = 'Scaling'
     print('unable to import OpenGL based packages:\n{}'.format(ex))
 
 
@@ -1248,9 +1268,10 @@ NEXT_COLOR_HUE_DELTA_CON = 10
 NEXT_COLOR_HUE_DELTA_CAT = 100
 def nextColor(color, mode='cat'):
     """
-    Reuturns another color
-    :param color:
-    :param mode:
+    Returns another color
+    :param color: the previous color
+    :param mode: 'cat' - for categorical color jump (next color looks pretty different to previous)
+                 'con' - for continuous color jump (next color looks similar to previous)
     :return:
     """
     assert mode in ['cat','con']
@@ -1487,6 +1508,8 @@ class SpectralTemporalVisualization(QObject):
 
 
     def createNewPlotStyle3D(self):
+        if not OPENGL_AVAILABLE:
+            return
 
         plotStyle = TemporalProfile3DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot3D)
