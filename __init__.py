@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- HUB Time Series Viewer
-                                 A QGIS plugin
+ EO Time Series Viewer
+
 
                              -------------------
         begin                : 2015-08-20
@@ -24,7 +24,7 @@
 
 # noinspection PyPep8Naming
 def classFactory(iface):  # pylint: disable=invalid-name
-    """Load SenseCarbon_TSV class from file sensecarbon_tsv.py.
+    """Load the EO Time Series Viewer Plugin.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface

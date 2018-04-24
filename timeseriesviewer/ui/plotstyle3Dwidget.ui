@@ -92,7 +92,7 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>2</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="page3DLinePlotItem">
       <layout class="QGridLayout" name="gridLayout">
@@ -113,10 +113,10 @@
            <height>16777215</height>
           </size>
          </property>
-         <property name="colorDialogTitle" stdset="0">
+         <property name="colorDialogTitle">
           <string>Set line color</string>
          </property>
-         <property name="color" stdset="0">
+         <property name="color">
           <color>
            <red>255</red>
            <green>0</green>
@@ -201,10 +201,10 @@
            <height>16</height>
           </size>
          </property>
-         <property name="colorDialogTitle" stdset="0">
+         <property name="colorDialogTitle">
           <string>Set point color</string>
          </property>
-         <property name="color" stdset="0">
+         <property name="color">
           <color>
            <red>0</red>
            <green>170</green>
@@ -264,15 +264,29 @@
        </property>
        <item>
         <widget class="QgsColorButton" name="btn3DMeshItemColor">
-         <property name="colorDialogTitle" stdset="0">
+         <property name="colorDialogTitle">
           <string>Select mesh color</string>
+         </property>
+         <property name="color">
+          <color>
+           <red>85</red>
+           <green>170</green>
+           <blue>0</blue>
+          </color>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QgsColorButton" name="btn3DMeshItemEdgeColor">
-         <property name="colorDialogTitle" stdset="0">
+         <property name="colorDialogTitle">
           <string>Set edge color</string>
+         </property>
+         <property name="color">
+          <color>
+           <red>255</red>
+           <green>170</green>
+           <blue>0</blue>
+          </color>
          </property>
         </widget>
        </item>

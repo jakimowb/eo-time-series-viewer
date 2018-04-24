@@ -1901,7 +1901,8 @@ class SpectralTemporalVisualization(QObject):
             from pyqtgraph.opengl import GLViewWidget
             from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
             import pyqtgraph.opengl as gl
-            assert isinstance(self.plot3D, GLViewWidget)
+            from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
+            assert isinstance(self.plot3D, ViewWidget3D)
 
             # 1. ensure that data from all bands will be loaded
             #    new loaded values will be shown in the next updatePlot3D call
@@ -1925,16 +1926,13 @@ class SpectralTemporalVisualization(QObject):
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
                 if plotStyle3D.isPlotable():
-                    plotItems.extend(plotStyle3D.createPlotItem(None))
+                    items = plotStyle3D.createPlotItem(None)
+                    plotItems.extend(items)
 
             self.plot3D.addItems(plotItems)
-
-            # w.setBackgroundColor(QColor('black'))
-            # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
-            #self.plot3D.addItem(self.ui.plotWidget3D.glGridItem)
-  #          self.plot3D.updateDataRanges()
-   #         self.plot3D.update()
-   #         self.plot3D.zoomToFull()
+            self.plot3D.updateDataRanges()
+            self.plot3D.resetScaling()
+            #self.plot3D.resetCamera()
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):

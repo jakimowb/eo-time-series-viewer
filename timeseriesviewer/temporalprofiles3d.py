@@ -107,8 +107,7 @@ class TemporalProfile3DPlotStyleDialog(QgsDialog):
             return None
 
     def __init__(self, parent=None, plotStyle=None, title='Specify 3D Plot Style'):
-        super(QgsDialog, self).__init__(parent=parent , \
-            buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        super(QgsDialog, self).__init__(parent=parent , buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.w = TemporalProfilePlotStyle3DWidget(parent=self)
         self.setWindowTitle(title)
         self.btOk = QPushButton('Ok')
@@ -154,25 +153,16 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         self.mItemType = 'LinePlotItem'
         self.mIsVisible = True
 
-        if OPENGL_AVAILABLE:
-            from pyqtgraph.opengl import GLLinePlotItem
-            pi = GLLinePlotItem()
-            self.mGLItemKWDS = {'color': QColor(*[c*255 for c in pi.color]),
-                                'width': pi.width,
-                                'mode':  pi.mode,
-                                'antialias':pi.antialias}
-        else:
+        self.m3DItemKWDS = {'color': QColor('green'),
+                            'width': 2.0,
+                            'mode':'line_strip',
+                            'antialias':True}
 
-            self.mGLItemKWDS = {'color': QColor('green'),
-                                'width': 2.0,
-                                'mode':'lines',
-                                'antialias':True}
+    def setItemKwds(self, kwds):
+        self.m3DItemKWDS = kwds
 
-    def setGLItemKwds(self, kwds):
-        self.mGLItemKWDS = kwds
-
-    def glItemKwds(self):
-        return self.mGLItemKWDS.copy()
+    def itemKwds(self):
+        return self.m3DItemKWDS.copy()
 
 
     def setItemType(self, itemType):
@@ -188,7 +178,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         super(TemporalProfile3DPlotStyle, self).copyFrom(plotStyle)
         assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
         self.setItemType(plotStyle.itemType())
-        self.setGLItemKwds(plotStyle.glItemKwds())
+        self.setItemKwds(plotStyle.itemKwds())
         s = ""
 
 
@@ -207,7 +197,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         pm.fill(self.backgroundColor)
         p = QPainter(pm)
 
-        kwds = self.mGLItemKWDS
+        kwds = self.m3DItemKWDS
 
         text = '3D'
 
@@ -257,14 +247,39 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             return None
 
         import pyqtgraph.opengl as gl
+
+        plotItems = []
+
         sensor = self.sensor()
         tp = self.temporalProfile()
-        if not isinstance(sensor, SensorInstrument) or not isinstance(tp, TemporalProfile):
-            return None
+        expression = QgsExpression(self.expression())
+        if not isinstance(sensor, SensorInstrument) \
+                or not isinstance(tp, TemporalProfile) \
+                or not expression.isValid():
+            return plotItems
+
+        context = QgsExpressionContext()
+        scope = QgsExpressionContextScope()
+        f = QgsFeature()
+        fields = QgsFields()
+        fields.append(QgsField('b', QVariant.Double, 'double', 40, 5))
+        f.setFields(fields)
+        f.setValid(True)
+
+        scope.setFeature(f)
+        context.appendScope(scope)
+        # value = expression.evaluatePrepared(f)
+
+
+
 
         dataPos = []
         x0 = x1 = y0 = y1 = z0 = z1 = 0
         for iDate, tsd in enumerate(tp.mTimeSeries):
+            assert isinstance(tsd, TimeSeriesDatum)
+            if tsd.sensor != sensor:
+                continue
+
             data = tp.data(tsd)
             bandKeys = sorted([k for k in data.keys() if k.startswith('b') and data[k] != None],
                               key=lambda k: bandKey2bandIndex(k))
@@ -280,7 +295,13 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             for i, k in enumerate(bandKeys):
                 x.append(i)
                 y.append(t)
-                z.append(data[k])
+                value = data[k]
+
+                f.setAttribute('b', value)
+                scope.setFeature(f)
+                context.appendScope(scope)
+                value = expression.evaluate(context)
+                z.append(value)
             x = np.asarray(x)
             y = np.asarray(y)
             z = np.asarray(z)
@@ -297,7 +318,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         xyz = [(x0, x1), (y0, y1), (z0, z1)]
         l = len(dataPos)
 
-        plotItems = []
+
 
         if self.mItemType == 'LinePlotItem':
             for iPos, pos in enumerate(dataPos):
@@ -310,7 +331,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
 
                 # degug pyqtgraph
                 import copy
-                kwds = copy.copy(self.mGLItemKWDS)
+                kwds = copy.copy(self.m3DItemKWDS)
 
                 for k, v in list(kwds.items()):
                     if isinstance(v, QColor):
@@ -385,7 +406,7 @@ class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
         assert isinstance(model, OptionListModel)
         setCurrentComboBoxValue(self.cb3DItemType, itemType)
 
-        kwds = style.glItemKwds()
+        kwds = style.itemKwds()
 
         def d(k, default):
             return kwds[k] if k in kwds.keys() else default
@@ -401,14 +422,14 @@ class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
         elif itemType == 'ScatterPlotItem':
             self.btn3DScatterPlotItemColor.setColor(d('color', DEF_COLOR))
             self.sb3DScatterPlotItemSize.setValue(d('size', 2.0))
-            setCurrentComboBoxValue(self.cb3DScatterPlotItemPxMode, d('pxMode', True))
+            self.cb3DScatterPlotItemPxMode.setChecked(d('pxMode', True))
         elif itemType == 'MeshItem':
             self.btn3DMeshItemColor.setColor(d('color', DEF_COLOR))
             self.btn3DMeshItemEdgeColor.setColor(d('edgeColor', DEF_COLOR))
             self.cb3DMeshItemDrawEdges.setChecked(d('drawEdges', False))
             self.cb3DMeshItemDrawFaces.setChecked(d('drawFaces', True))
             self.cb3DMeshItemSmooth.setChecked(d('smooth', True))
-            self.cb3DMeshItemNormals.setChecked('normals', True)
+            self.cb3DMeshItemNormals.setChecked(d('normals', True))
         else:
 
             raise NotImplementedError()
@@ -436,7 +457,7 @@ class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
         elif itemType == 'ScatterPlotItem':
             kwds['color'] = self.btn3DScatterPlotItemColor.color()
             kwds['size'] = self.sb3DScatterPlotItemSize.value()
-            kwds['pxMode'] = self.cb3DScatterPlotItemPxMode.currentData(role=Qt.DisplayRole)
+            kwds['pxMode'] = self.cb3DScatterPlotItemPxMode.isChecked()
         elif itemType == 'MeshItem':
             kwds['color'] = self.btn3DMeshItemColor.color()
             kwds['edgeColor'] = self.btn3DMeshItemEdgeColor.color()
@@ -448,6 +469,6 @@ class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
 
             raise NotImplementedError()
 
-        style.setGLItemKwds(kwds)
+        style.setItemKwds(kwds)
         return style
 

@@ -36,14 +36,15 @@ from timeseriesviewer.temporalprofiles2d import *
 
 
 
+DT_SELECTION = 200
 class AxisGrid3D(GLGraphicsItem):
 
     def __init__(self, *args, **kwds):
         super(AxisGrid3D, self).__init__(*args, **kwds)
         self.antialias = True
-        self.mRangesMin = np.asarray([0,0,0])
-        self.mRangesMax = np.asarray([1,1,1])
-        self.mSteps = np.asarray([10,10,10])
+        self.mRangesMin = np.asarray([0,0,0], dtype=np.float64)
+        self.mRangesMax = np.asarray([1,1,1], dtype=np.float64)
+        self.mSteps = np.asarray([10,10,10], dtype=np.int)
         self.mVisibility = np.ones((3), dtype=np.bool)
         self.mColor = QColor('grey')
         self.mDims = ['xy', 'xz', 'yz']
@@ -169,7 +170,8 @@ class ViewWidget3D(GLViewWidget):
         self.mDataN = 0
 
         self.glAxes = Axis3D()
-
+        from pyqtgraph.Transform3D import Transform3D
+        self.mItemTransformation = Transform3D()
         #self.glGridItemXY = AxisGrid3D()
         #self.glGridItemXZ = AxisGrid3D()
         #self.glGridItemYZ = AxisGrid3D()
@@ -215,7 +217,7 @@ class ViewWidget3D(GLViewWidget):
     """
 
     def setCameraPosition(self, pos=None, distance=None, elevation=None, azimuth=None):
-        #todo: handle POS
+
         if distance is not None:
             self.opts['distance'] = distance
         if elevation is not None:
@@ -232,7 +234,11 @@ class ViewWidget3D(GLViewWidget):
         # self.mDataMinRanges
         self.updateDataRanges()
         self.resetScaling()
-        self.setCameraPosition(self.mDataMinRanges + 0.5 * self.mDataSpan, distance=5, elevation=10)
+        x,y,z = self.mDataMaxRanges
+        self.setCameraPosition([1.,0.5,0.5], distance=10, elevation=10, azimuth=10)
+        self.update()
+
+
 
     def clearItems(self):
         to_remove = [i for i in self.items if i not in self.mBasicItems]
@@ -285,26 +291,40 @@ class ViewWidget3D(GLViewWidget):
                 self.mDataMinRanges = np.asarray([x0, y0, z0])
                 self.mDataMaxRanges = np.asarray([x1, y1, z1])
                 self.mDataSpan = self.mDataMaxRanges - self.mDataMinRanges
+                #avoid division by zero and provide a minimum range of 1/10000
+                self.mDataSpan = np.where(self.mDataSpan == 0, np.ones((3), dtype=np.float64)/10000., self.mDataSpan)
+                self.mDataMaxRanges = self.mDataMinRanges + self.mDataSpan
                 self.mDataN = n
+
                 self.glAxes.setMinRanges(self.mDataMinRanges)
-                self.glAxes.setMaxRanges(self.mDataMaxRanges*1.1)
+                self.glAxes.setMaxRanges(self.mDataMaxRanges)
                 self.glGridItem.setMinRanges(self.mDataMinRanges)
                 self.glGridItem.setMaxRanges(self.mDataMaxRanges)
 
 
     def resetScaling(self):
         t = pg.Transform3D()
-        scale = np.asarray([0.9, 2.0, 0.8]) / np.asarray(self.mDataSpan)  # scale to 0-1
+        scale = np.asarray([0.9, 1.0, 0.8]) / np.asarray(self.mDataSpan)  # scale to 0-1
         t.scale(*scale)
         t.translate(*(-1 * np.asarray(self.mDataMinRanges)))  # set axis origin to 0:0:0
-        for item in self.items:
-            item.setTransform(t)
-            s = ""
-        pos = (self.mDataMinRanges+self.mDataMaxRanges)*0.5
+
+
+        vMin = t*Vector(self.mDataMinRanges)
+        vMax = t*Vector(self.mDataMaxRanges)
+        #pos = (self.mDataMinRanges+self.mDataMaxRanges)*0.5
         #self.setCameraPosition(pos=Vector(*pos)*t)
         #self.setCameraPosition(pos=t*Vector(*pos))
         #self.setCameraPosition(pos=Vector(*pos))
-        self.setCameraPosition(pos=Vector(0.5,0.5,0.5)
+        self.setItemTransform(t)
+        #self.setCameraPosition(pos=Vector(0.5,0.5,0.5))
+
+    def setItemTransform(self, transform):
+        assert isinstance(transform, pg.Transform3D)
+        self.mItemTransformation = transform
+        for item in self.items:
+            item.setTransform(transform)
+    def itemTransformation(self):
+        return self.mItemTransformation
 
     def addItems(self, items):
         """Adds a list of items to this plot"""
@@ -360,12 +380,21 @@ class ViewWidget3D(GLViewWidget):
         self.mousePos = event.pos()
         if event.button() == Qt.RightButton:
             self.select = True
-            print('show context menu')
+
         else:
             self.select = False
 
         try:
-            print(self.itemsAt((self.mousePos.x(), self.mousePos.y(), 3, 3)))
+            glColorSelected = fn.glColor(QColor('red'))
+            for item in self.itemsAt((self.mousePos.x(), self.mousePos.y(), 3, 3)):
+
+
+
+                if isinstance(item, GLLinePlotItem):
+                    c = item.color
+                    item.setData(color=glColorSelected)
+                    QTimer.singleShot(DT_SELECTION, lambda item=item, c=c: item.setData(color=c))
+
         except:
             pass
 
@@ -382,24 +411,30 @@ class ViewWidget3D(GLViewWidget):
 
             #transform
             d = 0.1
-            sx, sy, sz = self.mScale
-            V= T*Vector(*self.glAxes.rangeMaxima())
-            sx = V.x()
-            sy = V.y()
-            sz = V.z()
+
+            V0 = T * Vector(*self.glAxes.rangeMinima())
+            V1 = T * Vector(*self.glAxes.rangeMaxima())
+
+            dx = V1.x() - V0.x()
+            dy = V1.y() - V0.y()
+            dz = V1.z() - V0.z()
+
+            sx = V1.x() + 0.1*dx
+            sy = V1.y() + 0.1*dy
+            sz = V1.z() + 0.1*dz
             if x1 is not None:
                 #self.renderText(x1 + d*dx, 0, 0, self.glAxes.mLabels[0])
-                self.renderText(1*sx, 0, 0, self.glAxes.mLabels[0])
+                self.renderText(sx, 0, 0, self.glAxes.mLabels[0])
             if y1 is not None:
                 #self.renderText(0, y1 + d*dy, 0, self.glAxes.mLabels[1])
-                self.renderText(0, 1*sy, 0, self.glAxes.mLabels[1])
+                self.renderText(0, sy, 0, self.glAxes.mLabels[1])
             if z1 is not None:
                 #self.renderText(0, 0, z1 + d*dz, self.glAxes.mLabels[2])
-                self.renderText(0, 0, 1*sz, self.glAxes.mLabels[2])
+                self.renderText(0, 0, sz, self.glAxes.mLabels[2])
 
             if True: #set axes origin
                 l = '{} {} {}'.format(x0,y0,z0)
-                self.renderText(0, 0, 0, l)
+                self.renderText(V0.x()-0.1*dx,V0.y()-0.1*dy, V0.z()-0.1*dz, l)
 
 
         # self.renderText(0.8, 0.8, 0.8, 'text 3D')
@@ -410,6 +445,11 @@ class ViewWidget3D(GLViewWidget):
 
         menu = QMenu()
 
+        a = menu.addAction('Reset Camera')
+        a.triggered.connect(self.resetCamera)
+
+        menu.addSeparator()
+
         # define grid options
         m = menu.addMenu('Grids')
 
@@ -417,6 +457,7 @@ class ViewWidget3D(GLViewWidget):
             for d in ['XY','XZ','YZ']:
                 self.glGridItem.set(d, visible=b)
             self.glGridItem.update()
+
 
 
         a = m.addAction('Show All')
@@ -465,11 +506,61 @@ class ViewWidget3D(GLViewWidget):
         a.toggled.connect(lambda b: self.glAxes.setZ(visible=b))
 
 
+        menuLabels = menu.addMenu('Labels')
 
+        frame = QFrame()
+        layout = QGridLayout()
+        frame.setLayout(layout)
+
+        names = ['X','Y','Z']
+        for i, label in enumerate(self.glAxes.labels()):
+            dim = names[i]
+            layout.addWidget(QLabel(dim), i,0)
+            tb = QLineEdit()
+            tb.setText(label)
+            tb.textChanged.connect(lambda t, dim=dim : self.glAxes.setAxes(dim, label=t))
+            layout.addWidget(tb,i,1)
+        layout.setSpacing(1)
+        layout.setMargin(1)
+        frame.setMinimumSize(layout.sizeHint())
+        wa = QWidgetAction(menuLabels)
+        wa.setDefaultWidget(frame)
+        menuLabels.addAction(wa)
 
 
         menu.exec_(self.mapToGlobal(event.pos()))
 
+class GLTextItem(GLGraphicsItem):
+    def __init__(self, X=None, Y=None, Z=None, text=None):
+        GLGraphicsItem.__init__(self)
+
+        self.text = text
+        self.X = X
+        self.Y = Y
+        self.Z = Z
+
+    def setGLViewWidget(self, GLViewWidget):
+        self.GLViewWidget = GLViewWidget
+
+    def setText(self, text):
+        self.text = text
+        self.update()
+
+    def setX(self, X):
+        self.X = X
+        self.update()
+
+    def setY(self, Y):
+        self.Y = Y
+        self.update()
+
+    def setZ(self, Z):
+        self.Z = Z
+        self.update()
+
+    def paint(self):
+        self.GLViewWidget.qglColor(Qt.white)
+        self.GLViewWidget.renderText(self.X, self.Y, self.Z, self.text)
 
 class Axis3D(GLAxisItem):
 
@@ -517,6 +608,9 @@ class Axis3D(GLAxisItem):
 
     def setLabels(self, x,y,z):
         self.mLabels = [x,y,z]
+
+    def labels(self):
+        return self.mLabels[:]
 
     def setX(self, **kwds):
         self.setAxes('x', **kwds)
@@ -579,8 +673,9 @@ if __name__ == '__main__':
 
     w = ViewWidget3D()
     w.show()
+    w.glAxes.setLabels('Time','Wavelength/Band','DN')
 
-    profiles = TestObjects.spectralProfiles(5)
+    profiles = TestObjects.spectralProfiles(50)
     for i, profile in enumerate(profiles):
         n = len(profile)
         pos = np.ones((n,3), dtype=np.float)
@@ -600,7 +695,8 @@ if __name__ == '__main__':
     #w.resetCamera()
     #create a Transformation to set the data items into 0:1 range
     w.resetScaling()
-
+    w.resetCamera()
+    s = ""
     """
     t = pg.Transform3D()
     scale = np.asarray([0.9,2.0,0.8]) / np.asarray(w.mDataSpan) #scale to 0-1
