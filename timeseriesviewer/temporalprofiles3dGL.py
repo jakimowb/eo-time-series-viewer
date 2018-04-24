@@ -108,11 +108,17 @@ class AxisGrid3D(GLGraphicsItem):
         #max extent of axis values
         valMax = Vector(*self.mRangesMax)
         valRange = valMax - valMin
+        if valRange.x() <= 0:
+            valRange.setX(1)
+        if valRange.y() <= 0:
+            valRange.setY(1)
+        if valRange.z() <= 0:
+            valRange.setZ(1)
         stepSize = valRange / Vector(self.mSteps)
 
-        valuesX = np.arange(valMin.x(), valMax.x()+stepSize.x(), stepSize.x())
-        valuesY = np.arange(valMin.y(), valMax.y()+stepSize.y(), stepSize.y())
-        valuesZ = np.arange(valMin.z(), valMax.z()+stepSize.z(), stepSize.z())
+        valuesX = np.arange(valMin.x(), valMax.x()+1.00001*stepSize.x(), stepSize.x())
+        valuesY = np.arange(valMin.y(), valMax.y()+1.00001*stepSize.y(), stepSize.y())
+        valuesZ = np.arange(valMin.z(), valMax.z()+1.00001*stepSize.z(), stepSize.z())
 
 
         c = fn.glColor(self.mColor)
@@ -224,6 +230,8 @@ class ViewWidget3D(GLViewWidget):
     def resetCamera(self):
 
         # self.mDataMinRanges
+        self.updateDataRanges()
+        self.resetScaling()
         self.setCameraPosition(self.mDataMinRanges + 0.5 * self.mDataSpan, distance=5, elevation=10)
 
     def clearItems(self):
@@ -286,12 +294,32 @@ class ViewWidget3D(GLViewWidget):
 
     def resetScaling(self):
         t = pg.Transform3D()
-        scale = np.asarray([0.9, 2.0, 0.8]) / np.asarray(w.mDataSpan)  # scale to 0-1
+        scale = np.asarray([0.9, 2.0, 0.8]) / np.asarray(self.mDataSpan)  # scale to 0-1
         t.scale(*scale)
-        t.translate(*(-1 * np.asarray(w.mDataMinRanges)))  # set axis origin to 0:0:0
-        for item in w.items:
+        t.translate(*(-1 * np.asarray(self.mDataMinRanges)))  # set axis origin to 0:0:0
+        for item in self.items:
             item.setTransform(t)
-        self.setCameraPosition(pos=t * Vector(0.5, 0.5, 0.5))
+            s = ""
+        pos = (self.mDataMinRanges+self.mDataMaxRanges)*0.5
+        #self.setCameraPosition(pos=Vector(*pos)*t)
+        #self.setCameraPosition(pos=t*Vector(*pos))
+        #self.setCameraPosition(pos=Vector(*pos))
+        self.setCameraPosition(pos=Vector(0.5,0.5,0.5)
+
+    def addItems(self, items):
+        """Adds a list of items to this plot"""
+        for item in items:
+            assert isinstance(item, GLGraphicsItem)
+            if hasattr(item, 'initializeGL'):
+                self.makeCurrent()
+                try:
+                    item.initializeGL()
+                except:
+                    self.checkOpenGLVersion('Error while adding item %s to GLViewWidget.' % str(item))
+            item._setView(self)
+        self.items.extend(items)
+        self.updateDataRanges()
+        self.update()
 
     def mouseMoveEvent(self, ev):
         assert isinstance(ev, QMouseEvent)

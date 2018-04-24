@@ -36,6 +36,8 @@ from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
 from timeseriesviewer.temporalprofiles2d import *
+from timeseriesviewer.temporalprofiles3d import *
+from timeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
@@ -47,41 +49,26 @@ from osgeo import gdal, gdal_array
 import numpy as np
 
 DEBUG = False
-
 OPENGL_AVAILABLE = False
 MATPLOTLIB_AVAILABLE = False
 try:
-    import matplotlib
-
-    matplotlib.use('Qt5Agg')
-    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as  FigureCanvas
-    from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as ToolbarQt
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-
-    fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
-    c = FigureCanvas(fig)
-    c.show()
+    import timeseriesviewer.temporalprofiles3dMPL
     MATPLOTLIB_AVAILABLE = True
+
 except Exception as ex:
-    s =""
-
-
+    print('unable to import matlotlib based 3d plotting:\n{}'.format(ex))
 
 try:
 
-
-    import OpenGL
+    #import OpenGL
     OPENGL_AVAILABLE = True
     from timeseriesviewer.temporalprofiles3d import *
-    from timeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
+
     #t = ViewWidget3D()
     #del t
 
 
 except Exception as ex:
-    LABEL_EXPRESSION_3D = 'Scaling'
     print('unable to import OpenGL based packages:\n{}'.format(ex))
 
 
@@ -1213,22 +1200,14 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.stackedWidget.setCurrentWidget(self.page2D)
 
         self.plotWidget3D = None
+        self.plotWidget3DMPL = None
+
+        mode = 'No3D'
         if OPENGL_AVAILABLE:
-            l = self.frame3DPlot.layout()
+            self.init3DWidgets('gl')
+        elif MATPLOTLIB_AVAILABLE:
+            self.init3DWidgets('mpl')
 
-            #from pyqtgraph.opengl import GLViewWidget
-            #self.plotWidget3D = GLViewWidget(parent=self.page3D)
-            from timeseriesviewer.temporalprofiles3d import ViewWidget3D
-            self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
-            self.plotWidget3D.setObjectName('plotWidget3D')
-
-            size = self.labelDummy3D.size()
-            l.addWidget(self.plotWidget3D)
-            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
-            self.labelDummy3D.setVisible(False)
-            l.removeWidget(self.labelDummy3D)
-            self.plotWidget3D.setBaseSize(size)
-            self.splitter3D.setSizes([100, 100])
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -1254,6 +1233,36 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.menuTPSaveOptions.addAction(self.actionSaveTPCSV)
         self.menuTPSaveOptions.addAction(self.actionSaveTPVector)
         self.btnSaveTemporalProfiles.setMenu(self.menuTPSaveOptions)
+
+    def init3DWidgets(self, mode):
+        assert mode in ['gl','mpl']
+        l = self.frame3DPlot.layout()
+
+        if True and OPENGL_AVAILABLE and mode == 'gl':
+
+            from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
+            self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
+            self.plotWidget3D.setObjectName('plotWidget3D')
+
+            size = self.labelDummy3D.size()
+            l.addWidget(self.plotWidget3D)
+            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
+            self.labelDummy3D.setVisible(False)
+            l.removeWidget(self.labelDummy3D)
+            self.plotWidget3D.setBaseSize(size)
+            self.splitter3D.setSizes([100, 100])
+
+        elif MATPLOTLIB_AVAILABLE and mode == 'mpl':
+            from timeseriesviewer.temporalprofiles3dMPL import MyMplCanvas3D
+            self.plotWidget3DMPL = MyMplCanvas3D()
+            self.plotWidget3DMPL.setObjectName('plotWidget3DMPL')
+            size = self.labelDummy3D.size()
+            l.addWidget(self.plotWidget3D)
+            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
+            self.labelDummy3D.setVisible(False)
+            l.removeWidget(self.labelDummy3D)
+            self.plotWidget3D.setBaseSize(size)
+            self.splitter3D.setSizes([100, 100])
 
     def onStackPageChanged(self, i):
         w = self.stackedWidget.currentWidget()
@@ -1906,6 +1915,7 @@ class SpectralTemporalVisualization(QObject):
                 self.loadCoordinate(coordinates, mode='all')
 
             # 2. remove plot-items that are not part of the 3D plot settings any more
+            #todo:
 
             # 2. remove old plot items
             self.plot3D.clearItems()
@@ -1916,45 +1926,8 @@ class SpectralTemporalVisualization(QObject):
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
                 if plotStyle3D.isPlotable():
                     plotItems.extend(plotStyle3D.createPlotItem(None))
-            # 4 normalize plot item space
 
-            vMin = None
-            vMax = None
-
-            for gli in plotItems:
-                assert isinstance(gli, GLGraphicsItem)
-                if vMin is None:
-                    vMin = gli.pos.min(axis=0)
-                    vMax = gli.pos.max(axis=0)
-                else:
-
-                    vMin = np.stack((vMin, gli.pos.min(axis=0))).min(axis=0)
-                    vMax = np.stack((vMax, gli.pos.max(axis=0))).max(axis=0)
-
-            for gli in plotItems:
-                assert isinstance(gli, GLGraphicsItem)
-
-                pos = gli.pos
-
-                if isinstance(gli, GLLinePlotItem):
-                    if True:
-                        sx, sy, sz = 1. / (vMax - vMin)
-                        gli.scale(sx, sy, sz)
-                        s = ""
-                    else:
-                        normalized = pos - vMin
-                        normalized /= (vMax - vMin)
-
-                        normalized = np.nan_to_num(normalized)
-                        gli.setData(pos=normalized
-                                    #color=fn.glColor(QColor('green')),
-                                    #width=2
-                                    )
-
-                #gli.setGLOptions()
-                #normalize data to 0-1?
-
-                self.plot3D.addItem(gli)
+            self.plot3D.addItems(plotItems)
 
             # w.setBackgroundColor(QColor('black'))
             # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)

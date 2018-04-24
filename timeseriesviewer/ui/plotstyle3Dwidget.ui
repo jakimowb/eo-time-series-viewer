@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>447</width>
+    <width>453</width>
     <height>275</height>
    </rect>
   </property>
@@ -33,7 +33,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="cbGLItemType">
+      <widget class="QComboBox" name="cb3DItemType">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -48,12 +48,12 @@
        </property>
        <item>
         <property name="text">
-         <string>GLLinePlotItem</string>
+         <string>LinePlotItem</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>GLScatterPlotItem</string>
+         <string>ScatterPlotItem</string>
         </property>
        </item>
       </widget>
@@ -92,12 +92,12 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>2</number>
      </property>
-     <widget class="QWidget" name="pageGLLinePlotItem">
+     <widget class="QWidget" name="page3DLinePlotItem">
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="1">
-        <widget class="QgsColorButton" name="btnGLLinePlotItemColor">
+        <widget class="QgsColorButton" name="btn3DLinePlotItemColor">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -113,10 +113,10 @@
            <height>16777215</height>
           </size>
          </property>
-         <property name="colorDialogTitle">
+         <property name="colorDialogTitle" stdset="0">
           <string>Set line color</string>
          </property>
-         <property name="color">
+         <property name="color" stdset="0">
           <color>
            <red>255</red>
            <green>0</green>
@@ -126,7 +126,7 @@
         </widget>
        </item>
        <item row="0" column="5">
-        <widget class="QComboBox" name="cbGLLinePlotItemMode">
+        <widget class="QComboBox" name="cb3DLinePlotItemMode">
          <item>
           <property name="text">
            <string>lines</string>
@@ -157,7 +157,7 @@
         </widget>
        </item>
        <item row="0" column="3">
-        <widget class="QDoubleSpinBox" name="sbGLLinePlotItemWidth"/>
+        <widget class="QDoubleSpinBox" name="sb3DLinePlotItemWidth"/>
        </item>
        <item row="0" column="2">
         <widget class="QLabel" name="label">
@@ -181,10 +181,10 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="pageGLScatterPlotItem">
+     <widget class="QWidget" name="page3DScatterPlotItem">
       <layout class="QGridLayout" name="gridLayout_2">
        <item row="0" column="3">
-        <widget class="QDoubleSpinBox" name="sbGLScatterPlotItemSize"/>
+        <widget class="QDoubleSpinBox" name="sb3DScatterPlotItemSize"/>
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_3">
@@ -194,17 +194,17 @@
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QgsColorButton" name="btnGLScatterPlotItemColor">
+        <widget class="QgsColorButton" name="btn3DScatterPlotItemColor">
          <property name="minimumSize">
           <size>
            <width>50</width>
            <height>16</height>
           </size>
          </property>
-         <property name="colorDialogTitle">
+         <property name="colorDialogTitle" stdset="0">
           <string>Set point color</string>
          </property>
-         <property name="color">
+         <property name="color" stdset="0">
           <color>
            <red>0</red>
            <green>170</green>
@@ -227,7 +227,7 @@
         </spacer>
        </item>
        <item row="0" column="4">
-        <widget class="QCheckBox" name="cbGLScatterPlotItemPxMode">
+        <widget class="QCheckBox" name="cb3DScatterPlotItemPxMode">
          <property name="text">
           <string>size as pixels</string>
          </property>
@@ -245,7 +245,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="pageGLMeshItem">
+     <widget class="QWidget" name="page3DMeshItem">
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <property name="spacing">
         <number>6</number>
@@ -263,28 +263,28 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QgsColorButton" name="btnGLMeshItemColor">
-         <property name="colorDialogTitle">
+        <widget class="QgsColorButton" name="btn3DMeshItemColor">
+         <property name="colorDialogTitle" stdset="0">
           <string>Select mesh color</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QgsColorButton" name="btnGLMeshItemEdgeColor">
-         <property name="colorDialogTitle">
+        <widget class="QgsColorButton" name="btn3DMeshItemEdgeColor">
+         <property name="colorDialogTitle" stdset="0">
           <string>Set edge color</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="cbGLMeshItemDrawEdges">
+        <widget class="QCheckBox" name="cb3DMeshItemDrawEdges">
          <property name="text">
           <string>Edges</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="cbGLMeshItemDrawFaces">
+        <widget class="QCheckBox" name="cb3DMeshItemDrawFaces">
          <property name="text">
           <string>Faces</string>
          </property>
@@ -294,7 +294,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="cbGLMeshItemSmooth">
+        <widget class="QCheckBox" name="cb3DMeshItemSmooth">
          <property name="text">
           <string>Smooth</string>
          </property>
@@ -304,7 +304,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="cbGLMeshItemNormals">
+        <widget class="QCheckBox" name="cb3DMeshItemNormals">
          <property name="text">
           <string>Normals</string>
          </property>
@@ -352,7 +352,7 @@
  <resources/>
  <connections>
   <connection>
-   <sender>cbGLItemType</sender>
+   <sender>cb3DItemType</sender>
    <signal>currentIndexChanged(int)</signal>
    <receiver>stackedWidget</receiver>
    <slot>setCurrentIndex(int)</slot>
