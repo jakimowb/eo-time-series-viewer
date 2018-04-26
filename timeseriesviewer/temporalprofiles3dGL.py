@@ -28,6 +28,7 @@ from PyQt5.QtGui import *
 import pyqtgraph.opengl as gl
 from pyqtgraph import functions as fn
 from OpenGL.GL import *
+import OpenGL.GLUT
 from pyqtgraph.opengl import *
 from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
 from pyqtgraph.Vector import Vector
@@ -153,6 +154,67 @@ class AxisGrid3D(GLGraphicsItem):
 
         glEnd()
 
+
+class Label3D(GLGraphicsItem):
+
+    def __init__(self, label='', *args, **kwds):
+        super(Label3D, self).__init__(*args, **kwds)
+        self.mLabel = label
+        self.mIsVisible = True
+
+        self.mPos =np.asarray([0,0,0], dtype=np.float)
+
+    def setPos(self, x,y,z):
+        self.mPos[0] = x
+        self.mPos[1] = y
+        self.mPos[2] = z
+
+
+    def setText(self, text):
+        assert isinstance(text, str)
+        self.mLabel = text
+    def text(self):
+        return self.mLabel
+
+    def setVisible(self, b):
+        assert isinstance(b, bool)
+        self.mIsVisible = b
+        self.update()
+
+    def isVisible(self):
+        return self.mIsVisible
+
+    def paint(self):
+        self.setupGLState()
+
+        #glBegin(GL_LINES)
+        glEnable(GL_LINE_SMOOTH)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+
+        #glBegin(GL_LINES)
+
+        glPushMatrix()
+        x,y,z= self.mPos
+        glTranslatef(1,0,0)
+        #glScale()
+        from OpenGL.GLUT import glutStrokeCharacter,glutStrokeWidth, GLUT_STROKE_ROMAN
+        w = 0
+        text = self.mLabel.encode('utf-8')
+        for c in text:
+            w += glutStrokeWidth(GLUT_STROKE_ROMAN, c)
+        glRotate(1,0,1,0)
+        glScale(0.1,0.1,0.1)
+        glTranslatef(-w / 2., -w/5., -w/2.)
+        for c in text:
+            glutStrokeCharacter(GLUT_STROKE_ROMAN, c)
+
+        glPopMatrix()
+
+
+        #glEnd()
+
 class ViewWidget3D(GLViewWidget):
 
     def __init__(self, parent=None):
@@ -265,6 +327,10 @@ class ViewWidget3D(GLViewWidget):
         s = ""
 
     def updateDataRanges(self):
+        """
+        Re-calcuates the data ranges of the added plot items.
+        Calls this before re-scaling the transformation matrix.
+        """
         x0 = x1 = y0 = y1 = z0 = z1 = n = None
 
         if hasattr(self, 'items'):
@@ -658,8 +724,6 @@ class Axis3D(GLAxisItem):
             glVertex3f(x0, y0, z0)
             glVertex3f(x0, y0, z1)
 
-
-
         glEnd()
         glLineWidth(1.0)
 
@@ -673,41 +737,36 @@ if __name__ == '__main__':
 
     w = ViewWidget3D()
     w.show()
-    w.glAxes.setLabels('Time','Wavelength/Band','DN')
+    label = Label3D()
+    label.setText('My Text')
+    label.setPos(0.5,0.5,0.5)
+    w.items.append(label)
 
-    profiles = TestObjects.spectralProfiles(50)
-    for i, profile in enumerate(profiles):
-        n = len(profile)
-        pos = np.ones((n,3), dtype=np.float)
-        pos[:,0] = np.arange(n)
-        pos[:,1] = i*5
-        pos[:,2] = np.asarray(profile)
-        # (N,3) array of floats specifying point locations.
-        line = gl.GLLinePlotItem(pos=pos, width=2.0, color=fn.glColor(QColor('green')))
-        w.addItem(line)
-    # third line
+    if False:
+        w.glAxes.setLabels('Time','Wavelength/Band','DN')
 
-    #sp1 = gl.GLScatterPlotItem(pos=pos, size=size, color=color, pxMode=False)
-    #sp1 = gl.GLScatterPlotItem(pos=pos, size=size, color=color, pxMode=False)
-    #w.addItem(sp1)
+        profiles = TestObjects.spectralProfiles(50)
+        for i, profile in enumerate(profiles):
+            n = len(profile)
+            pos = np.ones((n,3), dtype=np.float)
+            pos[:,0] = np.arange(n)
+            pos[:,1] = i*5
+            pos[:,2] = np.asarray(profile)
+            # (N,3) array of floats specifying point locations.
+            line = gl.GLLinePlotItem(pos=pos, width=2.0, color=fn.glColor(QColor('green')))
+            w.addItem(line)
+        # third line
 
-    w.updateDataRanges()
-    #w.resetCamera()
-    #create a Transformation to set the data items into 0:1 range
-    w.resetScaling()
-    w.resetCamera()
-    s = ""
-    """
-    t = pg.Transform3D()
-    scale = np.asarray([0.9,2.0,0.8]) / np.asarray(w.mDataSpan) #scale to 0-1
-    t.scale(*scale)
-    t.translate(*(-1 * np.asarray(w.mDataMinRanges)))  # set axis origin to 0:0:0
-    for item in w.items:
-        item.setTransform(t)
-    w.setCameraPosition(pos=t * Vector(0.5,0.5,0.5))
-    #w.resetCamera()
-    #set transformation to
-    """
+        #sp1 = gl.GLScatterPlotItem(pos=pos, size=size, color=color, pxMode=False)
+        #sp1 = gl.GLScatterPlotItem(pos=pos, size=size, color=color, pxMode=False)
+        #w.addItem(sp1)
+
+        w.updateDataRanges()
+        #w.resetCamera()
+        #create a Transformation to set the data items into 0:1 range
+        w.resetScaling()
+        w.resetCamera()
+        s = ""
 
 
     #w.setAxisScale(*list(scale))
