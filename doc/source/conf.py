@@ -28,6 +28,20 @@ sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('../../'))
 
+
+# enable readthedocs to load git-lfs files
+# see https://github.com/rtfd/readthedocs.org/issues/1846
+#     https://github.com/InfinniPlatform/InfinniPlatform.readthedocs.org.en/blob/master/docs/source/conf.py#L18-L31
+# If runs on ReadTheDocs environment
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+if on_rtd:
+    print('Fetching files with git_lfs')
+    from git_lfs import fetch
+    from timeseriesviewer import DIR_REPO
+    fetch(DIR_REPO)
+
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
