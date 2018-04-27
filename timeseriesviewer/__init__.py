@@ -38,7 +38,6 @@ DEPENDENCIES = ['pyqtgraph']
 
 
 from qgis.core import QgsApplication, Qgis
-
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtGui import QIcon
 
