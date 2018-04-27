@@ -184,36 +184,40 @@ class Label3D(GLGraphicsItem):
     def isVisible(self):
         return self.mIsVisible
 
-    def paint(self):
-        self.setupGLState()
+    def paint(self, *args, **kwds):
 
-        #glBegin(GL_LINES)
-        glEnable(GL_LINE_SMOOTH)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+        s = ""
 
-        #glBegin(GL_LINES)
+        if False:
+            self.setupGLState()
 
-        glPushMatrix()
-        x,y,z= self.mPos
-        glTranslatef(1,0,0)
-        #glScale()
-        from OpenGL.GLUT import glutStrokeCharacter,glutStrokeWidth, GLUT_STROKE_ROMAN
-        w = 0
-        text = self.mLabel.encode('utf-8')
-        for c in text:
-            w += glutStrokeWidth(GLUT_STROKE_ROMAN, c)
-        glRotate(1,0,1,0)
-        glScale(0.1,0.1,0.1)
-        glTranslatef(-w / 2., -w/5., -w/2.)
-        for c in text:
-            glutStrokeCharacter(GLUT_STROKE_ROMAN, c)
+            #glBegin(GL_LINES)
+            glEnable(GL_LINE_SMOOTH)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
 
-        glPopMatrix()
+            #glBegin(GL_LINES)
+
+            glPushMatrix()
+            x,y,z= self.mPos
+            glTranslatef(1,0,0)
+            #glScale()
+            from OpenGL.GLUT import glutStrokeCharacter,glutStrokeWidth, GLUT_STROKE_ROMAN
+            w = 0
+            text = self.mLabel.encode('utf-8')
+            for c in text:
+                w += glutStrokeWidth(GLUT_STROKE_ROMAN, c)
+            glRotate(1,0,1,0)
+            glScale(0.1,0.1,0.1)
+            glTranslatef(-w / 2., -w/5., -w/2.)
+            for c in text:
+                glutStrokeCharacter(GLUT_STROKE_ROMAN, c)
+
+            glPopMatrix()
 
 
-        #glEnd()
+            #glEnd()
 
 class ViewWidget3D(GLViewWidget):
 
