@@ -258,17 +258,11 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
                 or not expression.isValid():
             return plotItems
 
-        context = QgsExpressionContext()
-        scope = QgsExpressionContextScope()
-        f = QgsFeature()
+        feature = QgsFeature()
         fields = QgsFields()
-        fields.append(QgsField('b', QVariant.Double, 'double', 40, 5))
-        f.setFields(fields)
-        f.setValid(True)
-
-        scope.setFeature(f)
-        context.appendScope(scope)
-        # value = expression.evaluatePrepared(f)
+        field = QgsField('b', QVariant.Double, 'double', 40, 5)
+        fields.append(field)
+        feature.setFields(fields)
 
 
 
@@ -293,15 +287,16 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             z = []
 
             for i, k in enumerate(bandKeys):
-                x.append(i)
-                y.append(t)
                 value = data[k]
-
-                f.setAttribute('b', value)
-                scope.setFeature(f)
-                context.appendScope(scope)
-                value = expression.evaluate(context)
-                z.append(value)
+                feature.setAttribute('b', float(value))
+                context = QgsExpressionContextUtils.createFeatureBasedContext(feature, feature.fields())
+                zValue = expression.evaluate(context)
+                if zValue is not None:
+                    x.append(i)
+                    y.append(t)
+                    z.append(zValue)
+                else:
+                    s = ""
             x = np.asarray(x)
             y = np.asarray(y)
             z = np.asarray(z)

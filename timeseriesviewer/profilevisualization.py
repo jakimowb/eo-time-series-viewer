@@ -1915,13 +1915,10 @@ class SpectralTemporalVisualization(QObject):
             if len(coordinates) > 0:
                 self.loadCoordinate(coordinates, mode='all')
 
-            # 2. remove plot-items that are not part of the 3D plot settings any more
-            #todo:
-
             # 2. remove old plot items
             self.plot3D.clearItems()
 
-            # 3 add new plot items
+            # 3. add new plot items
             plotItems = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
@@ -2048,6 +2045,23 @@ if __name__ == '__main__':
     from timeseriesviewer import utils
     qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
+
+    if False:
+        f = QgsFeature()
+
+        fields = QgsFields()
+        field = QgsField('b', QVariant.Double, 'double', 40, 5)
+        fields.append(field)
+        f.setFields(fields)
+
+        expr = QgsExpression('b')
+
+        for n in [23, 42.24, None]:
+            f.setAttribute('b', n)
+            context = QgsExpressionContextUtils.createFeatureBasedContext(f, f.fields())
+            r = expr.evaluate(context)
+            print((n,r))
+        s = ""
 
 
     if False: #the ultimative test for floating point division correctness, at least on a DOY-level
