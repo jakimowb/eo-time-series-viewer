@@ -37,11 +37,10 @@ DEBUG = True
 DEPENDENCIES = ['pyqtgraph']
 
 
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsApplication, Qgis
 
-from PyQt5.QtCore import QSettings
-from PyQt5.QtGui import QIcon
+from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtGui import QIcon
 
 jp = os.path.join
 dn = os.path.dirname
