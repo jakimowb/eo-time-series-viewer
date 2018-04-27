@@ -29,22 +29,24 @@ sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('../../'))
 
 
-# enable readthedocs to load git-lfs files
-# see https://github.com/rtfd/readthedocs.org/issues/1846
-#     https://github.com/InfinniPlatform/InfinniPlatform.readthedocs.org.en/blob/master/docs/source/conf.py#L18-L31
-# If runs on ReadTheDocs environment
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+try:
+    # enable readthedocs to load git-lfs files
+    # see https://github.com/rtfd/readthedocs.org/issues/1846
+    #     https://github.com/InfinniPlatform/InfinniPlatform.readthedocs.org.en/blob/master/docs/source/conf.py#L18-L31
+    # If runs on ReadTheDocs environment
+    on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
-if on_rtd:
-    print('Fetching files with git_lfs')
-    DOC_SOURCES_DIR = os.path.dirname(os.path.abspath(__file__))
-    PROJECT_ROOT_DIR = os.path.dirname(os.path.dirname(DOC_SOURCES_DIR))
-    sys.path.insert(0, DOC_SOURCES_DIR)
-    print('PROJECT_ROOT_DIR', PROJECT_ROOT_DIR)
+    if True or on_rtd:
+        print('Fetching files with git_lfs')
+        DOC_SOURCES_DIR = os.path.dirname(os.path.abspath(__file__))
+        PROJECT_ROOT_DIR = os.path.dirname(os.path.dirname(DOC_SOURCES_DIR))
+        sys.path.insert(0, DOC_SOURCES_DIR)
+        print('PROJECT_ROOT_DIR', PROJECT_ROOT_DIR)
 
-    from git_lfs import fetch
-    fetch(PROJECT_ROOT_DIR)
-
+        from git_lfs import fetch
+        fetch(PROJECT_ROOT_DIR)
+except Exception as ex:
+    print(ex)
 
 # -- General configuration ------------------------------------------------
 
