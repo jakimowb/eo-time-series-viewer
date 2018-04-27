@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# HUB TimeSeriesViewer documentation build configuration file, created by
+# EO TimeSeriesViewer documentation build configuration file, created by
 # sphinx-quickstart on Fri Jan 19 11:57:19 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -48,18 +48,22 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 #
-source_suffix = ['.rst', '.md']
-#source_suffix = '.rst'
+# The suffix(es) of source filenames.
+# You can specify multiple suffix as a list of string:
+#
 source_parsers = {
    '.md': 'recommonmark.parser.CommonMarkParser',
 }
-# The master toctree document.
+
+source_suffix = ['.rst', '.md']
+
+
 master_doc = 'index'
 
 # General information about the project.
-project = u'HUB TimeSeriesViewer'
-copyright = u'2018, Benjamin Jakimow, Sebastian van der Linden, Patrick Hostert'
-author = u'Benjamin Jakimow'
+project = 'EO Time Series Viewer'
+copyright = '2018, Benjamin Jakimow, Sebastian van der Linden, Fabian Thiel, Patrick Hostert'
+author = 'Benjamin Jakimow, Fabian Thiel'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -148,7 +152,7 @@ html_sidebars = {
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'HUBTimeSeriesViewerDoc'
+htmlhelp_basename = 'EOTimeSeriesViewerDoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -175,8 +179,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'HUBTimeSeriesViewer.tex', u'HUB TimeSeriesViewer Documentation',
-     u'Benjamin Jakimow', 'manual'),
+    (master_doc, 'EOTimeSeriesViewer.tex', 'EO Time Series Viewer Documentation',
+     'Benjamin Jakimow', 'manual'),
 ]
 
 
@@ -185,7 +189,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'hubtimeseriesviewer', u'HUB TimeSeriesViewer Documentation',
+    (master_doc, 'eotimeseriesviewer', u'EO Time Series Viewer Documentation',
      [author], 1)
 ]
 
@@ -196,8 +200,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'HUBTimeSeriesViewer', u'HUB TimeSeriesViewer Documentation',
-     author, 'HUBTimeSeriesViewer', 'One line description of project.',
+    (master_doc, 'EOTimeSeriesViewer', u'EO Time Series Viewer Documentation',
+     author, 'EOTimeSeriesViewer', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -206,5 +210,5 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None,
-                       'python':('https://docs.python.org/2.7', None),
+                       'python':('https://docs.python.org/3.6', None),
                        'http://www.pyqtgraph.org/documentation':None}

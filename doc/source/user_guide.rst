@@ -7,7 +7,7 @@ The Interface
 
 .. figure:: img/interface.png
 
-    This is what the Time Series Viewer's interface looks like when opening it.
+    This is what the EO Time Series Viewer's interface looks like when opening it.
 
 .. note:: Just like in QGIS, many parts of the GUI are adjustable panels. Therefore you can arrange them either tabbed or in separate windows.
           Activate/Deactivate panels under :menuselection:`View --> Panels`
@@ -92,18 +92,26 @@ Now, for every Map View you can alter the following settings:
 .. image:: img/mapviewsettings.png
 
 * *Hide/Unhide* the Map View via the |hidemapview| :superscript:`Toggle visibility of this map view` button.
+
 * *Activate/Deactivate Crosshair* via the |crosshair| :superscript:`Show/hide a crosshair` button. Press the arrow button next to it to enter
   the *Crosshair specifications* |symbology| , where you can customize e.g. color, opacity, thickness, size and further options.
+
 * You may rename the Map View by altering the text in the ``Name`` field.
+
 * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
   in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
+
 * Under **Raster Rendering** you can adjust the visualisation of the raster layers. Every sensor, as specified in the :ref:`Sensors / Products` tab, has its separate
   rendering option section (since band specifications differ among sensors). The handling is very similar to the QGIS style options.
+
         * Multiband (RGB) as well as singleband rendering is supported. Select the desired mode in the dropdown menu.
+
         * Select the desired band(s) for display using the slider. In the dropdown menu at the bottom you can specify the contrast enhancement to be used for the value stretch.
           In case TSV has sufficient wavelength information for the bands, you can choose several presets: *True* (True Color; red-green-blue),
           *CIR1* (colored infrared; swir-red-green) and *CIR2* (colored infrared; swIR-mwIR-red)
+
         * You can copy and paste styles using the |copy| :superscript:`Copy style to clipboard` and |paste| :superscript:`Paste style from clipboard` buttons (also between QGIS and TSV)
+
         * Once you specified your rendering settings, press |refresh| to apply them.
 
 

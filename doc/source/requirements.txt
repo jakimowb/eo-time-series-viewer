@@ -4,3 +4,4 @@
 ###### Requirements to build documentation with sphinx ######
 sphinx>=1.7.2
 sphinx_rtd_theme>=0.3.0
+recommonmark

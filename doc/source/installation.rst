@@ -1,10 +1,15 @@
 
+.. |icon| image:: img/logo.png
+   :width: 30px
+   :height: 30px
+
+
 ============
 Installation
 ============
 
 
-.. warning:: Time Series Viewer requires QGIS Version 2.18.xx
+.. warning:: EO Time Series Viewer requires QGIS Version 3.0 +
 
 .. note:: If you have not installed QGIS yet, you can get it `here <https://www.qgis.org/en/site/forusers/download.html>`_.
 
@@ -15,30 +20,16 @@ Windows
 
 .. tip:: On windows we recommend to use the **OSGeo4W Network Installer**!
 
-Standard QGIS Plugin Installation
+Standard QGIS 3 Plugin Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Download the most recent zip archive of the HUB TimeSeriesViewer QGIS Plugin from https://bitbucket.org/jakimowb/hub-timeseriesviewer/downloads
-2. Extract the ``timeseriesviewerplugin`` folder and copy it to the user' QGIS python plugin directory ``~/.qgis2/python/plugins/timeseriesviewerplugin``
+1. Download the most recent zip archive of the EO Time Series Viewer QGIS Plugin from https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads
 
-    Alternatively, you can choose any other folder ``my/qgis/plugins/timeseriesviewerplugin`` if you ensure that it is known to the QGIS_PLUGINPATH:
+2. Start QGIS 3 and open *Plugins* > *Manage and Install Plugins* > *Install from ZIP*.
 
-    * In QGIS, go to :menuselection:`Settings --> Options --> System`.
-    * Enable the Environment group box.
-    * Create a new entry that append ``my/qgis/plugins`` to the variable ``QGIS_PLUGINPATH``.
+3. Select the downloaded *timeseriesviewerplugin.0.5.YYYYMMDDTHHMM.QGIS3.zip* and start *Install plugin*.
 
-3. The TimeSeriesViewer requires `pyqtgraph <http://pyqtgraph.org/>`_. It's best to install it via the **OSGeo4W Shell**. Open it and type::
-
-        pip install pyqtgraph
-4. Finally restart QGIS, go to :menuselection:`Plugins --> Manage and Install Plugins` and enable the HUB-TimeSeriesViewer.
-
-.. image:: img/settings_plugin_enable.png
-    :width: 80%
-    :align: center
-
-5. You can now access the Plugin via the |icon| button in your QGIS Toolbar or via the dropdown menu: :menuselection:`Raster --> HUB TimeSeriesViewer`
-
-.. |icon| image:: img/icons/icon.svg
+4. Start the EO Time Series Viewer via the |icon| icon. In case of missing requirements you should see an error message. Please install the requested packages.
 
 Developers
 ~~~~~~~~~~
@@ -60,21 +51,5 @@ Larger binary files, e.g. for exemplary data, are distributed via the Git Large 
         git checkout development
         git lfs checkout
 
-3. Start QGIS, go to :menuselection:`Plugins --> Manage and Install Plugins` and enable the "HUB TimeSeriesViewer" Plugin.
-4. Download updates if available::
 
-        cd %USERPROFILE%\.qgis2\python\plugins\hub-timeseriesviewer
-        git pull
-
-Linux
------
-
-tbd
-
-Mac
----
-
-tbd
-
-
-
+.. todo:: add detailed description hot to setup an IDE to run the EO Time Series Viewer without QGIS

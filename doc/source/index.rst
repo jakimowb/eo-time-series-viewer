@@ -4,18 +4,18 @@
    contain the root `toctree` directive.
 
 ======================
-HUB Time Series Viewer
+EO Time Series Viewer
 ======================
 
-**Welcome to the HUB Time Series Viewer Documentation!**
+**Welcome to the EO Time Series Viewer Documentation!**
 
 
-.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at HUB
+.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at Humboldt-Universität zu Berlin
 
 About
 -----
 
-The Humboldt-Universität zu Berlin (HUB) Time Series Viewer (TSV) is a QGIS Plugin to visualize raster based earth observation time series data.
+The Earth Observation (EO) Time Series Viewer is a QGIS Plugin to visualize raster based earth observation time series data.
 
 Its major aims are:
 
@@ -75,6 +75,6 @@ This program is free software; you can redistribute it and/or modify it under th
 Indices and tables
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    * :ref:`genindex`
+    * :ref:`modindex`
+    * :ref:`search`
