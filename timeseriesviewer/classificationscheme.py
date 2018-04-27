@@ -4,8 +4,10 @@
 import os
 from qgis.core import *
 from qgis.gui import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtGui import *
+
 import numpy as np
 
 from timeseriesviewer import *
@@ -495,21 +497,3 @@ class ClassificationSchemeDialog(QgsDialog):
         assert isinstance(classificationScheme, ClassificationScheme)
         self.w.setClassificationScheme(classificationScheme)
 
-
-if __name__ == '__main__':
-    import site, sys
-    #add site-packages to sys.path as done by enmapboxplugin.py
-
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
-
-    pathClassImg = r'D:\Repositories\QGIS_Plugins\enmap-box\enmapbox\testdata\HymapBerlinA\HymapBerlinA_test.img'
-    pathShp = r''
-
-
-    w = ClassificationSchemeWidget()
-    w.setClassificationScheme(ClassificationScheme.fromRasterImage(pathClassImg))
-    w.show()
-
-    qgsApp.exec_()
-    qgsApp.exitQgis()

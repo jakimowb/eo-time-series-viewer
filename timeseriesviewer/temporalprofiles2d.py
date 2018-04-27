@@ -49,7 +49,6 @@ try:
 
     OPENGL_AVAILABLE = True
 
-
 except:
     pass
 

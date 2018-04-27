@@ -38,8 +38,36 @@ class TestObjects():
         TS.addFiles(files)
         return TS
 
+    @staticmethod
+    def spectralProfiles(n):
+        """
+        Returns n random spectral profiles from the test data
+        :return: lost of (N,3) array of floats specifying point locations.
+        """
+        from timeseriesviewer import DIR_EXAMPLES, file_search
+        files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
+        results = []
+        import random
+        for file in random.choices(files, k=n):
+            ds = gdal.Open(file)
+            assert isinstance(ds, gdal.Dataset)
+            b1 = ds.GetRasterBand(1)
+            noData = b1.GetNoDataValue()
+            assert isinstance(b1, gdal.Band)
+            x = None
+            y = None
+            while x is None:
+                x = random.randint(0, ds.RasterXSize-1)
+                y = random.randint(0, ds.RasterYSize-1)
 
+                if noData is not None:
+                    v = b1.ReadAsArray(x,y,1,1)
+                    if v == noData:
+                        x = None
+            profile = ds.ReadAsArray(x,y,1,1).flatten()
+            results.append(profile)
 
+        return results
 
 class TestFileFormatLoading(TestCase):
 

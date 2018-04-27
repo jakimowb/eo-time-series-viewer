@@ -36,6 +36,8 @@ from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
 from timeseriesviewer.temporalprofiles2d import *
+from timeseriesviewer.temporalprofiles3d import *
+from timeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
@@ -47,19 +49,26 @@ from osgeo import gdal, gdal_array
 import numpy as np
 
 DEBUG = False
-
 OPENGL_AVAILABLE = False
+MATPLOTLIB_AVAILABLE = False
+try:
+    import timeseriesviewer.temporalprofiles3dMPL
+    MATPLOTLIB_AVAILABLE = True
+
+except Exception as ex:
+    print('unable to import matlotlib based 3d plotting:\n{}'.format(ex))
 
 try:
-    import OpenGL
+
+    #import OpenGL
     OPENGL_AVAILABLE = True
     from timeseriesviewer.temporalprofiles3d import *
+
     #t = ViewWidget3D()
     #del t
 
 
 except Exception as ex:
-
     print('unable to import OpenGL based packages:\n{}'.format(ex))
 
 
@@ -1191,22 +1200,14 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.stackedWidget.setCurrentWidget(self.page2D)
 
         self.plotWidget3D = None
+        self.plotWidget3DMPL = None
+
+        mode = 'No3D'
         if OPENGL_AVAILABLE:
-            l = self.frame3DPlot.layout()
+            self.init3DWidgets('gl')
+        elif MATPLOTLIB_AVAILABLE:
+            self.init3DWidgets('mpl')
 
-            #from pyqtgraph.opengl import GLViewWidget
-            #self.plotWidget3D = GLViewWidget(parent=self.page3D)
-            from timeseriesviewer.temporalprofiles3d import ViewWidget3D
-            self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
-            self.plotWidget3D.setObjectName('plotWidget3D')
-
-            size = self.labelDummy3D.size()
-            l.addWidget(self.plotWidget3D)
-            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
-            self.labelDummy3D.setVisible(False)
-            l.removeWidget(self.labelDummy3D)
-            self.plotWidget3D.setBaseSize(size)
-            self.splitter3D.setSizes([100, 100])
 
         #pi = self.plotWidget2D.plotItem
         #ax = DateAxis(orientation='bottom', showValues=True)
@@ -1233,6 +1234,36 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.menuTPSaveOptions.addAction(self.actionSaveTPVector)
         self.btnSaveTemporalProfiles.setMenu(self.menuTPSaveOptions)
 
+    def init3DWidgets(self, mode):
+        assert mode in ['gl','mpl']
+        l = self.frame3DPlot.layout()
+
+        if True and OPENGL_AVAILABLE and mode == 'gl':
+
+            from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
+            self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
+            self.plotWidget3D.setObjectName('plotWidget3D')
+
+            size = self.labelDummy3D.size()
+            l.addWidget(self.plotWidget3D)
+            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
+            self.labelDummy3D.setVisible(False)
+            l.removeWidget(self.labelDummy3D)
+            self.plotWidget3D.setBaseSize(size)
+            self.splitter3D.setSizes([100, 100])
+
+        elif MATPLOTLIB_AVAILABLE and mode == 'mpl':
+            from timeseriesviewer.temporalprofiles3dMPL import MyMplCanvas3D
+            self.plotWidget3DMPL = MyMplCanvas3D()
+            self.plotWidget3DMPL.setObjectName('plotWidget3DMPL')
+            size = self.labelDummy3D.size()
+            l.addWidget(self.plotWidget3D)
+            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
+            self.labelDummy3D.setVisible(False)
+            l.removeWidget(self.labelDummy3D)
+            self.plotWidget3D.setBaseSize(size)
+            self.splitter3D.setSizes([100, 100])
+
     def onStackPageChanged(self, i):
         w = self.stackedWidget.currentWidget()
         title = self.baseTitle
@@ -1248,9 +1279,10 @@ NEXT_COLOR_HUE_DELTA_CON = 10
 NEXT_COLOR_HUE_DELTA_CAT = 100
 def nextColor(color, mode='cat'):
     """
-    Reuturns another color
-    :param color:
-    :param mode:
+    Returns another color
+    :param color: the previous color
+    :param mode: 'cat' - for categorical color jump (next color looks pretty different to previous)
+                 'con' - for continuous color jump (next color looks similar to previous)
     :return:
     """
     assert mode in ['cat','con']
@@ -1487,6 +1519,8 @@ class SpectralTemporalVisualization(QObject):
 
 
     def createNewPlotStyle3D(self):
+        if not OPENGL_AVAILABLE:
+            return
 
         plotStyle = TemporalProfile3DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot3D)
@@ -1867,7 +1901,8 @@ class SpectralTemporalVisualization(QObject):
             from pyqtgraph.opengl import GLViewWidget
             from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
             import pyqtgraph.opengl as gl
-            assert isinstance(self.plot3D, GLViewWidget)
+            from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
+            assert isinstance(self.plot3D, ViewWidget3D)
 
             # 1. ensure that data from all bands will be loaded
             #    new loaded values will be shown in the next updatePlot3D call
@@ -1880,63 +1915,21 @@ class SpectralTemporalVisualization(QObject):
             if len(coordinates) > 0:
                 self.loadCoordinate(coordinates, mode='all')
 
-            # 2. remove plot-items that are not part of the 3D plot settings any more
-
             # 2. remove old plot items
             self.plot3D.clearItems()
 
-            # 3 add new plot items
+            # 3. add new plot items
             plotItems = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
                 if plotStyle3D.isPlotable():
-                    plotItems.extend(plotStyle3D.createPlotItem(None))
-            # 4 normalize plot item space
+                    items = plotStyle3D.createPlotItem(None)
+                    plotItems.extend(items)
 
-            vMin = None
-            vMax = None
-
-            for gli in plotItems:
-                assert isinstance(gli, GLGraphicsItem)
-                if vMin is None:
-                    vMin = gli.pos.min(axis=0)
-                    vMax = gli.pos.max(axis=0)
-                else:
-
-                    vMin = np.stack((vMin, gli.pos.min(axis=0))).min(axis=0)
-                    vMax = np.stack((vMax, gli.pos.max(axis=0))).max(axis=0)
-
-            for gli in plotItems:
-                assert isinstance(gli, GLGraphicsItem)
-
-                pos = gli.pos
-
-                if isinstance(gli, GLLinePlotItem):
-                    if True:
-                        sx, sy, sz = 1. / (vMax - vMin)
-                        gli.scale(sx, sy, sz)
-                        s = ""
-                    else:
-                        normalized = pos - vMin
-                        normalized /= (vMax - vMin)
-
-                        normalized = np.nan_to_num(normalized)
-                        gli.setData(pos=normalized
-                                    #color=fn.glColor(QColor('green')),
-                                    #width=2
-                                    )
-
-                #gli.setGLOptions()
-                #normalize data to 0-1?
-
-                self.plot3D.addItem(gli)
-
-            # w.setBackgroundColor(QColor('black'))
-            # w.setCameraPosition(pos=(0.0, 0.0, 0.0), distance=1.)
-            #self.plot3D.addItem(self.ui.plotWidget3D.glGridItem)
-  #          self.plot3D.updateDataRanges()
-   #         self.plot3D.update()
-   #         self.plot3D.zoomToFull()
+            self.plot3D.addItems(plotItems)
+            self.plot3D.updateDataRanges()
+            self.plot3D.resetScaling()
+            #self.plot3D.resetCamera()
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):
@@ -2052,6 +2045,23 @@ if __name__ == '__main__':
     from timeseriesviewer import utils
     qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
+
+    if False:
+        f = QgsFeature()
+
+        fields = QgsFields()
+        field = QgsField('b', QVariant.Double, 'double', 40, 5)
+        fields.append(field)
+        f.setFields(fields)
+
+        expr = QgsExpression('b')
+
+        for n in [23, 42.24, None]:
+            f.setAttribute('b', n)
+            context = QgsExpressionContextUtils.createFeatureBasedContext(f, f.fields())
+            r = expr.evaluate(context)
+            print((n,r))
+        s = ""
 
 
     if False: #the ultimative test for floating point division correctness, at least on a DOY-level
