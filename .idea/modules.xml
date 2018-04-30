@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" filepath="$PROJECT_DIR$/.idea/hub-timeseriesviewer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/eo-time-series-viewer.iml" filepath="$PROJECT_DIR$/.idea/eo-time-series-viewer.iml" />
     </modules>
   </component>
 </project>
