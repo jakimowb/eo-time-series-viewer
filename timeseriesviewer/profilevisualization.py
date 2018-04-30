@@ -1422,23 +1422,35 @@ class SpectralTemporalVisualization(QObject):
     def onTemporalProfilesContextMenu(self, event):
         assert isinstance(event, QContextMenuEvent)
         tableView = self.ui.tableViewTemporalProfiles
+        selectionModel = self.ui.tableViewTemporalProfiles.selectionModel()
+        assert isinstance(selectionModel, QItemSelectionModel)
         idx = self.ui.tableViewTemporalProfiles.indexAt(event.pos())
+
         model = self.ui.tableViewTemporalProfiles.model()
         assert isinstance(model, TemporalProfileCollection)
-        tp = model.idx2tp(idx)
-        assert isinstance(tp, TemporalProfile)
+
+        spatialPoints = []
+        if idx.isValid():
+            tp = model.idx2tp(idx)
+            assert isinstance(tp, TemporalProfile)
+            spatialPoints.append(tp.coordinate())
+        else:
+            #load for all
+            for tp in model:
+                assert isinstance(tp, TemporalProfile)
+                spatialPoints.append(tp.coordinate())
 
 
         menu = QMenu()
 
         a = menu.addAction('Load missing')
         a.setToolTip('Loads missing band-pixels.')
-        a.triggered.connect(lambda : self.loadCoordinate(spatialPoints=tp.coordinate(), mode='all'))
+        a.triggered.connect(lambda : self.loadCoordinate(spatialPoints=spatialPoints, mode='all'))
         s = ""
 
         a = menu.addAction('Reload')
         a.setToolTip('Reloads all band-pixels.')
-        a.triggered.connect(lambda: self.loadCoordinate(spatialPoints=tp.coordinate(), mode='reload'))
+        a.triggered.connect(lambda: self.loadCoordinate(spatialPoints=spatialPoints, mode='reload'))
 
         menu.popup(tableView.viewport().mapToGlobal(event.pos()))
         self.menu = menu
