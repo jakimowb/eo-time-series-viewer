@@ -21,6 +21,7 @@
 # noinspection PyPep8Naming
 
 import os, sys, pickle, datetime, re, collections
+
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
@@ -33,7 +34,7 @@ import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
-
+from osgeo import ogr, osr, gdal
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
 from timeseriesviewer.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
@@ -158,44 +159,127 @@ def num2date(n, dt64=True, qDate=False):
     #return np.datetime64('{:04}-01-01'.format(year), 'D') + np.timedelta64(int(yearElapsed), 'D')
 
 
-def saveTemporalProfiles(profiles, path, mode='all', sep=','):
+def saveTemporalProfiles(profiles, path, mode='all', sep=',', loadMissingValues=False):
     if path is None or len(path) == 0:
         return
 
     assert mode in ['coordinate','all']
-    ext = os.path.splitext(path)
 
-    assert ext in ['shp','csv']
-    for p in profiles:
-        assert isinstance(p, TemporalProfile)
-        p.loadMissingData()
+    nbMax = 0
+    for sensor in profiles[0].timeSeries().sensors():
+        assert isinstance(sensor, SensorInstrument)
+        nbMax = max(nbMax, sensor.nb)
 
-    def tsdValueList(tp, tsd, toString=False):
-        assert isinstance(tp, TemporalProfile)
-        assert isinstance(tsd, TimeSeriesDatum)
+    ext = os.path.splitext(path)[1].lower()
 
-        d = collections.OrderedDict()
+    assert isinstance(ext, str)
+    if ext.startswith('.'):
+        ext = ext[1:]
 
-        return d
+    if loadMissingValues:
+        for p in profiles:
+            assert isinstance(p, TemporalProfile)
+            p.loadMissingData()
+
 
     if ext == 'csv':
+        #write a flat list of profiles
         lines = ['Temporal Profiles']
-        for p in profiles:
+        lines.append(sep.join(['pid', 'name', 'date', 'img', 'location', 'band values']))
+
+        for nP, p in enumerate(profiles):
             assert isinstance(p, TemporalProfile)
             lines.append('Profile {} "{}": {}'.format(p.mID, p.name(), p.mCoordinate))
             assert isinstance(p, TemporalProfile)
+            c = p.coordinate()
             for i, tsd in enumerate(p.mTimeSeries):
                 assert isinstance(tsd, TimeSeriesDatum)
-                continue
 
-                #todo:
-                values = tsdValueList(p, tsd, toString=True)
-                if i == 0:
-                    lines.append(sep.join(values.keys()))
-                lines.append(sep.join(values.values()))
+                data = p.data(tsd)
+                line = [p.id(), p.name(), data['date'], tsd.pathImg, c.asWkt()]
+                for b in range(tsd.sensor.nb):
+                    key = 'b{}'.format(b+1)
+                    if key in data.keys():
+                        line.append(data[key])
+                    else:
+                        line.append('')
 
-        open(path, 'w').writelines(lines)
-    if ext == 'shp':
+                line = sep.join([str(l) for l in line])
+                lines.append(line)
+        file = open(path, 'w', encoding='utf8')
+        file.writelines('\n'.join(lines))
+        file.flush()
+        file.close()
+
+    else:
+
+        drv = None
+        for i in range(ogr.GetDriverCount()):
+            d = ogr.GetDriver(i)
+            driverExtensions = d.GetMetadataItem('DMD_EXTENSIONS')
+            if driverExtensions is not None and ext in driverExtensions:
+                drv = d
+                break
+
+        if not isinstance(drv, ogr.Driver):
+            raise Exception('Unable to find a OGR driver to write {}'.format(path))
+
+
+        drvMEM = ogr.GetDriverByName('Memory')
+        assert isinstance(drvMEM, ogr.Driver)
+        dsMEM = drvMEM.CreateDataSource('')
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        assert isinstance(dsMEM, ogr.DataSource)
+        #lines.append(sep.join(['pid', 'name', 'date', 'img', 'location', 'band values']))
+        lyr = dsMEM.CreateLayer(os.path.basename(path), srs, ogr.wkbPoint)
+        lyr.CreateField(ogr.FieldDefn('pid', ogr.OFTInteger64))
+        lyr.CreateField(ogr.FieldDefn('name', ogr.OFTString))
+        lyr.CreateField(ogr.FieldDefn('date', ogr.OFTDateTime))
+        lyr.CreateField(ogr.FieldDefn('doy', ogr.OFTInteger))
+        lyr.CreateField(ogr.FieldDefn('img', ogr.OFTString))
+        lyr.CreateField(ogr.FieldDefn('lat', ogr.OFTReal))
+        lyr.CreateField(ogr.FieldDefn('lon', ogr.OFTReal))
+        lyr.CreateField(ogr.FieldDefn('nodata', ogr.OFTBinary))
+
+        for b in range(nbMax):
+            lyr.CreateField(ogr.FieldDefn('b{}'.format(b+1), ogr.OFTReal))
+
+
+        for iP, p in enumerate(profiles):
+            assert isinstance(p, TemporalProfile)
+
+            c = p.coordinate().toCrs(crs)
+            assert isinstance(c, SpatialPoint)
+
+            for iT, tsd in enumerate(p.timeSeries()):
+                feature = ogr.Feature(lyr.GetLayerDefn())
+                assert isinstance(feature, ogr.Feature)
+                data = p.data(tsd)
+                assert isinstance(tsd, TimeSeriesDatum)
+                feature.SetField('pid', p.id())
+                feature.SetField('name', p.name())
+                feature.SetField('date', str(tsd.date))
+                feature.SetField('doy', tsd.doy)
+
+                feature.SetField('img', tsd.pathImg)
+                feature.SetField('lon', c.x())
+                feature.SetField('lat', c.y())
+
+                point = ogr.CreateGeometryFromWkt(c.asWkt())
+                feature.SetGeometry(point)
+
+                if 'nodata' in data.keys():
+                    feature.SetField('nodata', data['nodata'])
+
+                for b in range(tsd.sensor.nb):
+                    key = 'b{}'.format(b+1)
+                    if key in data.keys():
+                        feature.SetField(key, data[key])
+                lyr.CreateFeature(feature)
+        drv.CopyDataSource(dsMEM, path)
+
         pass
 
 
@@ -690,6 +774,7 @@ class TemporalProfile(QObject):
         Loads the missing data
         :return:
         """
+        from timeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
         tasks = []
         for tsd in self.mTimeSeries:
             missingIndices = self.missingBandIndices(tsd)
@@ -700,12 +785,11 @@ class TemporalProfile(QObject):
                                        temporalProfileIDs=[self.mID])
                 tasks.append(task)
 
-        if len(tasks) > 0:
 
-            px = PixelLoader()
-            px.setNumberOfProcesses(0)
-            px.sigPixelLoaded.connect(self.pullDataUpdate)
-            self.pixelLoader.startLoading(tasks)
+        for task in tasks:
+            result = doLoaderTask(task)
+            assert isinstance(result, PixelLoaderTask)
+            self.pullDataUpdate(result)
 
     def missingBandIndices(self, tsd, requiredIndices=None):
         """

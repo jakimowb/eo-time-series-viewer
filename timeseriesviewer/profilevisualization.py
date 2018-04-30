@@ -1655,7 +1655,7 @@ class SpectralTemporalVisualization(QObject):
                     QFileDialog.getSaveFileName(
                         self.ui, 'Save Temporal Profile Coordinates',
                         DEF_PATH, 'ESRI Shapefile (*.shp);;Geopackage (*.gpkg);;Textfile (*.csv *.txt)'
-                    ), mode='coordinate'
+                    )[0], mode='coordinate'
             )
         )
 
@@ -1665,7 +1665,7 @@ class SpectralTemporalVisualization(QObject):
                                              self.ui, 'Save Temporal Profiles to Text File.',
                                              DEF_PATH,
                                              'Textfile (*.csv *.txt)'
-                                         ), mode ='all'
+                                         )[0], mode ='all'
                                          )
         )
 
@@ -1676,7 +1676,7 @@ class SpectralTemporalVisualization(QObject):
                                              self.ui, 'Save Temporal Profiles to Vector File.',
                                              DEF_PATH,
                                              'ESRI Shapefile (*.shp);;Geopackage (*.gpkg)'
-                                         ), mode = 'all'
+                                         )[0], mode = 'all'
                                          )
         )
         #todo: self.ui.actionRemoveStyle2D.triggered.connect(self.plotSettingsModel.createPlotStyle)

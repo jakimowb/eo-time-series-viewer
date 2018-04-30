@@ -542,6 +542,51 @@ def copyQGISRessourceFile():
 
 
 
+def checkFileHeader():
+
+
+    hdr = """
+    # -*- coding: utf-8 -*-
+    \"\"\"
+    /***************************************************************************
+                                  EO Time Series Viewer
+                                  -------------------
+            begin                : 2017-08-04
+            git sha              : $Format:%H$
+            copyright            : (C) 2017 by HU-Berlin
+            email                : benjamin.jakimow@geo.hu-berlin.de
+     ***************************************************************************/
+
+    /***************************************************************************
+     *                                                                         *
+     *   This program is free software; you can redistribute it and/or modify  *
+     *   it under the terms of the GNU General Public License as published by  *
+     *   the Free Software Foundation; either version 2 of the License, or     *
+     *   (at your option) any later version.                                   *
+     *                                                                         *
+     ***************************************************************************/
+    \"\"\"
+    """
+    # noinspection PyPep8Naming
+
+    root = jp(DIR_REPO, 'timeseriesviewer')
+    pyFiles = file_search(root, '*.py')
+
+    for path in pyFiles:
+        file = open(path, 'r', encoding='utf8')
+        lines = file.readlines()
+        file.close()
+
+        lineFirstImport = None
+        for i in range(len(lines)):
+            if re.search('^[ ]*import ', lines[i]):
+                lineFirstImport = i
+                break
+
+        if isinstance(lineFirstImport, int) and lineFirstImport < 50:
+            pass
+
+
 
 
 
@@ -584,7 +629,7 @@ if __name__ == '__main__':
         createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
         exit(0)
 
-    if True:
+    if False:
         copyQGISRessourceFile()
         s = ""
 
@@ -609,6 +654,11 @@ if __name__ == '__main__':
         #add png icons to qrc file
         #file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png')
         file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.svg')
+
+    if True:
+        checkFileHeader()
+        exit()
+
     if True:
         compile_rc_files(DIR_UI)
     print('Done')
