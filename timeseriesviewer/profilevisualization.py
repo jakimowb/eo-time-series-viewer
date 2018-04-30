@@ -1335,6 +1335,7 @@ class SpectralTemporalVisualization(QObject):
         self.tpCollection.setMaxProfiles(self.ui.sbMaxTP.value())
         self.tpCollection.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
         self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
+
         self.ui.tableViewTemporalProfiles.setModel(self.tpCollection)
         self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
@@ -1401,6 +1402,16 @@ class SpectralTemporalVisualization(QObject):
                 assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
                 for pi in plotStyle.mPlotItems:
                     self.plot3D.removeItem(pi)
+
+        def onMaxProfilesChanged(n):
+            v = self.ui.sbMaxTP.value()
+            if v != n:
+                self.ui.sbMaxTP.setValue(n)
+
+        self.tpCollection.sigMaxProfilesChanged.connect(onMaxProfilesChanged)
+        self.tpCollection.setMaxProfiles(SETTINGS.value('max_temporalprofiles',64))
+
+
 
         self.plotSettingsModel2D.sigPlotStylesRemoved.connect(on2DPlotStyleRemoved)
 
@@ -1681,8 +1692,9 @@ class SpectralTemporalVisualization(QObject):
             ds = QgsVectorLayer(path)
 
             extent = self.TS.getMaxSpatialExtent(ds.crs())
+            ds.removeSelection()
             ds.selectByRect(extent)
-
+            n = ds.selectedFeatureCount()
             newProfiles = []
             for feature in ds.selectedFeatures():
                 assert isinstance(feature, QgsFeature)
@@ -1692,12 +1704,13 @@ class SpectralTemporalVisualization(QObject):
                     TP = TemporalProfile(self.TS, SpatialPoint(ds.crs(), point))
                     name = ' '.join([str(a) for a in feature.attributes()])
                     TP.setName(name)
-                    newProfiles.append(TP)
+                    if not TP in self.tpCollection:
+                        newProfiles.append(TP)
 
-            if True:
+            if True and len(newProfiles) > 0:
                 self.tpCollection.setMaxProfiles(len(self.tpCollection) + len(newProfiles))
 
-            self.tpCollection.insertTemporalProfiles(newProfiles)
+                self.tpCollection.insertTemporalProfiles(newProfiles)
 
 
 
@@ -2094,6 +2107,20 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication(qgisDebug=True)
     DEBUG = False
 
+    import itertools
+
+    lot = list(itertools.product([1,2,3,4,5,6,7], [87,88,89]))
+    arr = np.asanyarray(lot, dtype=tuple)
+
+    lot = [(1,2),(2,3)]
+
+
+    t1 =(1,2)
+    t2 =(2,3,3,4,5)
+
+    arr[0,0] = t1
+    arr[1,1] = t2
+
     if False:
         f = QgsFeature()
 
@@ -2128,6 +2155,8 @@ if __name__ == '__main__':
     ui = ProfileViewDockUI()
     ui.show()
 
+
+    s =""
     if True:
         TS = TimeSeries()
         STVis = SpectralTemporalVisualization(ui)

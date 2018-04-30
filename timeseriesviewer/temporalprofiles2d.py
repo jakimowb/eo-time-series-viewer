@@ -625,6 +625,17 @@ class TemporalProfile(QObject):
         self.initMetadata()
         self.updateLoadingStatus()
 
+    def __eq__(self, other):
+        """
+        Two temporal profiles are equal if they point to the same geometry
+        :param other:
+        :return:
+        """
+
+        if not isinstance(other, TemporalProfile):
+            return False
+
+        return other.mCoordinate == self.mCoordinate
 
     def coordinate(self):
         return self.mCoordinate

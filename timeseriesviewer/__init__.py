@@ -93,12 +93,18 @@ def initSettings():
 
     setIfNone('n_processes', 3)
     setIfNone('n_timer', 500)
+    setIfNone('max_temporalprofiles', 64)
 
-    pass
+    import pathlib
+
+    setIfNone('dir_datasources', str(pathlib.Path.home()))
+    setIfNone('file_ts_definition', os.path.join(DIR_EXAMPLES, 'ExampleTimeSeries.csv'))
+
 initSettings()
 
 def icon():
-    return QIcon(':/timeseriesviewer/icons/IconTimeSeries.svg')
+    path = os.path.join(os.path.dirname(__file__), 'icon.png')
+    return QIcon(path)
 
 
 def file_search(rootdir, pattern, recursive=False, ignoreCase=False):

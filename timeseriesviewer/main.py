@@ -586,15 +586,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     def loadTimeSeriesDefinition(self, path=None, n_max=None):
         s = settings()
-        defFile = s.value('FILE_TS_DEFINITION')
+        defFile = s.value('file_ts_definition')
+        defDir = None
         if defFile is not None:
-            defFile = os.path.dirname(defFile)
+            defDir = os.path.dirname(defFile)
 
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
-        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defFile, filters=filters)
+
+        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filters=filters)
         if path is not None and os.path.exists(path):
-            s.setValue('FILE_TS_DEFINITION', path)
+            s.setValue('file_ts_definition', path)
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
             M.beginResetModel()
             self.clearTimeSeries()
@@ -794,7 +796,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def addTimeSeriesImages(self, files=None):
         if files is None:
             s = settings()
-            defDir = s.value('DIR_FILESEARCH')
+            defDir = s.value('dir_datasources')
             """
             filters = "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
                       "ENVI Images (*.bsq *.bil *.bip);;" + \
@@ -806,7 +808,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])
-                s.setValue('DIR_FILESEARCH', dn)
+                s.setValue('dir_datasources', dn)
 
 
         if files:
