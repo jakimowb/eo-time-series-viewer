@@ -1,6 +1,7 @@
 # Untracked directories
 .idea/
 .idea/*
+.idea/*.*
 deploy/
 deploy/*
 temp/
