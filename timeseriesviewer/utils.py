@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$
@@ -628,7 +628,7 @@ def getSubLayerEndings(files):
 
 
 def settings():
-    return QSettings('HU-Berlin', 'HUB TimeSeriesViewer')
+    return QSettings('HU-Berlin', 'EO Time Series Viewer')
 
 def niceNumberString(number):
     if isinstance(number, int):

@@ -146,7 +146,7 @@
           </sizepolicy>
          </property>
          <property name="currentIndex">
-          <number>1</number>
+          <number>2</number>
          </property>
          <widget class="QWidget" name="page2D">
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -338,7 +338,7 @@
                  <property name="title">
                   <string>Data Value(s)</string>
                  </property>
-                 <property name="collapsed" stdset="0">
+                 <property name="collapsed">
                   <bool>false</bool>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_8">
@@ -711,6 +711,20 @@ Please ensure that PyOpenGL is installed
                  </widget>
                 </item>
                 <item>
+                 <widget class="QToolButton" name="btnLoadTPFromOgr">
+                  <property name="text">
+                   <string>...</string>
+                  </property>
+                  <property name="icon">
+                   <iconset resource="resources.qrc">
+                    <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
+                  </property>
+                  <property name="autoRaise">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item>
                  <widget class="QToolButton" name="btnRemoveTemporalProfile">
                   <property name="text">
                    <string>...</string>
@@ -1042,6 +1056,21 @@ Please ensure that PyOpenGL is installed
    </property>
    <property name="toolTip">
     <string>Removes selected 3D visualization</string>
+   </property>
+  </action>
+  <action name="actionLoadTPFromOgr">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Load Coordinates</string>
+   </property>
+   <property name="toolTip">
+    <string>Loads the coordinate from a vector file</string>
+   </property>
+   <property name="shortcut">
+    <string>Backspace</string>
    </property>
   </action>
  </widget>

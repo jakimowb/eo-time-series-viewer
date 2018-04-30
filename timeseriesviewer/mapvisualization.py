@@ -2,7 +2,7 @@
 # noinspection PyPep8Naming
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$

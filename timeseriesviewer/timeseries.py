@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$
@@ -20,27 +20,27 @@
 """
 # noinspection PyPep8Naming
 
-import six, sys, os, gc, re, collections, site, inspect, time, traceback, copy, io
+import sys, re, collections, traceback
 
 
-import bisect, datetime
-from osgeo import gdal, ogr
+import bisect
 
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtXml import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtCore import *
 
-from osgeo import gdal, ogr, gdal_array
+
+from osgeo import gdal
+from timeseriesviewer.utils import SpatialExtent
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
 import numpy as np
 
-from timeseriesviewer import DIR_REPO, DIR_EXAMPLES, jp, SETTINGS, messageLog
+from timeseriesviewer import SETTINGS, messageLog
 from timeseriesviewer.dateparser import parseDateFromDataSet
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
@@ -299,7 +299,6 @@ class TimeSeriesDatum(QObject):
 
         UL = QgsPointXY(*pixel2coord(gt, 0, 0))
         LR = QgsPointXY(*pixel2coord(gt, self.ns, self.nl))
-        from timeseriesviewer.main import SpatialExtent
         self._spatialExtent = SpatialExtent(self.crs, UL, LR)
 
         self.srs_wkt = str(self.crs.toWkt())
@@ -556,12 +555,15 @@ class TimeSeries(QObject):
             return None
 
         extent = self.data[0].spatialExtent()
+        assert isinstance(extent, SpatialExtent)
         if len(self.data) > 1:
             for TSD in self.data[1:]:
                 extent.combineExtentWith(TSD.spatialExtent())
                 x, y = extent.upperRight()
                 if y > 0:
                     s =""
+        if isinstance(crs, QgsCoordinateReferenceSystem):
+            extent = extent.toCrs(crs)
         return extent
 
 

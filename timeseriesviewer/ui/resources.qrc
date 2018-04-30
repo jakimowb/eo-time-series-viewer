@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mActionAddOgrLayer.svg</file>
     <file>icons/mapCenterExport.svg</file>
     <file>icons/mapCenterImport.svg</file>
     <file>icons/mapExtentExport.svg</file>

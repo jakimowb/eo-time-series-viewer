@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2017-08-04
         git sha              : $Format:%H$
@@ -1026,7 +1026,7 @@ class TemporalProfileCollection(QAbstractTableModel):
         self.mTPLookupSpatialPoint = {}
         self.mTPLookupID = {}
         self.mCurrentTPID = 0
-        self.mMaxProfiles = 10
+        self.mMaxProfiles = 64
 
         self.nextID = 0
 
@@ -1272,6 +1272,9 @@ class TemporalProfileCollection(QAbstractTableModel):
 
             self.prune()
             self.sigMaxProfilesChanged.emit(self.mMaxProfiles)
+
+    def maxProfiles(self):
+        return self.mMaxProfiles
 
 
     def prune(self, nMax=None):

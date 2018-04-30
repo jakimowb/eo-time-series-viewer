@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2017-08-04
         git sha              : $Format:%H$
@@ -24,9 +24,9 @@ import os, sys, pickle, datetime
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
-from PyQt5.QtCore import *
-from PyQt5.QtXml import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtXml import *
+from qgis.PyQt.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
@@ -43,9 +43,6 @@ from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
 
 
-import datetime
-
-from osgeo import gdal, gdal_array
 import numpy as np
 
 DEBUG = False
@@ -1424,21 +1421,21 @@ class SpectralTemporalVisualization(QObject):
         tableView = self.ui.tableViewTemporalProfiles
         selectionModel = self.ui.tableViewTemporalProfiles.selectionModel()
         assert isinstance(selectionModel, QItemSelectionModel)
-        idx = self.ui.tableViewTemporalProfiles.indexAt(event.pos())
 
         model = self.ui.tableViewTemporalProfiles.model()
         assert isinstance(model, TemporalProfileCollection)
 
-        spatialPoints = []
-        if idx.isValid():
-            tp = model.idx2tp(idx)
-            assert isinstance(tp, TemporalProfile)
-            spatialPoints.append(tp.coordinate())
+        temporalProfiles = []
+
+        if len(selectionModel.selectedIndexes()) > 0:
+            for idx in selectionModel.selectedIndexes():
+                tp = model.idx2tp(idx)
+                if isinstance(tp, TemporalProfile) and not tp in temporalProfiles:
+                    temporalProfiles.append(tp)
         else:
-            #load for all
-            for tp in model:
-                assert isinstance(tp, TemporalProfile)
-                spatialPoints.append(tp.coordinate())
+            temporalProfiles = model[:]
+
+        spatialPoints = [tp.coordinate() for tp in temporalProfiles]
 
 
         menu = QMenu()
@@ -1604,15 +1601,18 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionRemoveStyle2D.setEnabled(False)
         self.ui.actionRemoveTemporalProfile.setEnabled(False)
 
+
         self.ui.btnAddStyle2D.setDefaultAction(self.ui.actionAddStyle2D)
         self.ui.btnRemoveStyle2D.setDefaultAction(self.ui.actionRemoveStyle2D)
 
+        self.ui.btnLoadTPFromOgr.setDefaultAction(self.ui.actionLoadTPFromOgr)
 
         self.ui.btnAddStyle3D.setDefaultAction(self.ui.actionAddStyle3D)
         self.ui.btnRemoveStyle3D.setDefaultAction(self.ui.actionRemoveStyle3D)
 
         self.ui.actionAddStyle2D.triggered.connect(self.createNewPlotStyle2D)
         self.ui.actionAddStyle3D.triggered.connect(self.createNewPlotStyle3D)
+
 
         self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh2D)
         self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh3D)
@@ -1634,6 +1634,7 @@ class SpectralTemporalVisualization(QObject):
         self.tpCollection.sigMaxProfilesChanged.connect(self.ui.sbMaxTP.setValue)
         self.ui.sbMaxTP.valueChanged.connect(self.tpCollection.setMaxProfiles)
 
+        self.ui.actionLoadTPFromOgr.triggered.connect(lambda : self.loadCoordinatesFromOgr(None))
 
         from timeseriesviewer.temporalprofiles2d import saveTemporalProfiles
         DEF_PATH = None
@@ -1668,6 +1669,41 @@ class SpectralTemporalVisualization(QObject):
                                          )
         )
         #todo: self.ui.actionRemoveStyle2D.triggered.connect(self.plotSettingsModel.createPlotStyle)
+
+    def loadCoordinatesFromOgr(self, path):
+        if path is None:
+
+            filters = QgsProviderRegistry.instance().fileVectorFilters()
+            defDir = None
+            path, filter = QFileDialog.getOpenFileName(directory=defDir, filter=filters)
+
+        if isinstance(path, str) and len(path) > 0:
+            ds = QgsVectorLayer(path)
+
+            extent = self.TS.getMaxSpatialExtent(ds.crs())
+            ds.selectByRect(extent)
+
+            newProfiles = []
+            for feature in ds.selectedFeatures():
+                assert isinstance(feature, QgsFeature)
+                geom = feature.geometry()
+                if isinstance(geom, QgsGeometry):
+                    point = geom.centroid().constGet()
+                    TP = TemporalProfile(self.TS, SpatialPoint(ds.crs(), point))
+                    name = ' '.join([str(a) for a in feature.attributes()])
+                    TP.setName(name)
+                    newProfiles.append(TP)
+
+            if True:
+                self.tpCollection.setMaxProfiles(len(self.tpCollection) + len(newProfiles))
+
+            self.tpCollection.insertTemporalProfiles(newProfiles)
+
+
+
+
+
+
 
     def reset3DCamera(self, *args):
 
@@ -2136,6 +2172,9 @@ if __name__ == '__main__':
         STVis.ui.listWidget.setCurrentRow(1)
 
         STVis.loadCoordinate(cpND)
+
+        from example import  exampleEvents
+        #STVis.loadCoordinatesFromOgr(exampleEvents)
         # STVis.loadCoordinate(cp2)
         # STVis.loadCoordinate(cp3)
 

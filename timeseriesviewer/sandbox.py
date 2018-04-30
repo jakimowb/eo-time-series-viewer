@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-                              HUB TimeSeriesViewer
+                              EO Time Series Viewer
                               -------------------
         begin                : 2015-08-20
         git sha              : $Format:%H$
@@ -21,8 +21,6 @@
 # noinspection PyPep8Naming
 
 import six, sys, os, gc, re, collections, site, inspect
-import logging, io
-logger = logging.getLogger(__name__)
 from osgeo import gdal, ogr
 from qgis import *
 from qgis.core import *

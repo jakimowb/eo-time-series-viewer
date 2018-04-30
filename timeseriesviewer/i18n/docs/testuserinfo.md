@@ -1,4 +1,4 @@
-# Notes for test users of HUB TimeSeriesViewer (TSV)
+# Notes for test users of EO Time Series Viewer (TSV)
 
 1.  Ensure that git is installed on your system. If necessary, download it
 from [https://git-scm.com/download](https://git-scm.com/download)
