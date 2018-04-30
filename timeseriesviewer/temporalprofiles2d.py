@@ -596,7 +596,7 @@ class TemporalProfilePlotStyleBase(PlotStyle):
         else:
             assert isinstance(temporalPofile, TemporalProfile)
         if b:
-            self.update()
+            self.updateDataProperties()
 
     def setSensor(self, sensor):
         assert sensor is None or isinstance(sensor, SensorInstrument)
@@ -609,16 +609,22 @@ class TemporalProfilePlotStyleBase(PlotStyle):
     def sensor(self):
         return self.mSensor
 
+    def updateStyleProperties(self):
+        raise NotImplementedError()
+
+    def updateDataProperties(self):
+        raise NotImplementedError()
 
     def update(self):
-        raise NotImplementedError()
+        self.updateDataProperties()
 
     def setExpression(self, exp):
         assert isinstance(exp, str)
         b = self.mExpression != exp
         self.mExpression = exp
+        self.updateDataProperties()
         if b:
-            self.update()
+            self
             self.sigExpressionUpdated.emit()
 
     def expression(self):
@@ -644,16 +650,22 @@ class TemporalProfilePlotStyleBase(PlotStyle):
         self.mIsVisible = b
 
         if b != old:
-            self.update()
+            self.updateStyleProperties()
+            #self.update()
 
     def copyFrom(self, plotStyle):
-        if isinstance(plotStyle, TemporalProfilePlotStyleBase):
+        if isinstance(plotStyle, PlotStyle):
             super(TemporalProfilePlotStyleBase, self).copyFrom(plotStyle)
+            self.updateStyleProperties()
+
+        if isinstance(plotStyle, TemporalProfilePlotStyleBase):
             self.setExpression(plotStyle.expression())
             self.setSensor(plotStyle.sensor())
             self.setTemporalProfile(plotStyle.temporalProfile())
-        else:
-            s = ""
+            self.updateDataProperties()
+
+
+
 
 class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
 
@@ -668,13 +680,16 @@ class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
         self.mPlotItems.append(pdi)
         return pdi
 
-
-    def update(self):
-
+    def updateStyleProperties(self):
         for pdi in self.mPlotItems:
             assert isinstance(pdi, TemporalProfilePlotDataItem)
             pdi.updateStyle()
-            #pdi.updateItems()
+
+    def updateDataProperties(self):
+        for pdi in self.mPlotItems:
+            assert isinstance(pdi, TemporalProfilePlotDataItem)
+            pdi.updateDataAndStyle()
+
 
 
 
@@ -1035,6 +1050,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         else:
             self.setData(x=[], y=[])  # dummy for empty data
         self.updateStyle()
+
 
     def updateStyle(self):
         """

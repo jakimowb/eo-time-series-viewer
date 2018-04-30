@@ -1097,10 +1097,12 @@ class PlotSettingsModel2D(QAbstractTableModel):
             if role in [Qt.DisplayRole]:
                 if columnName == self.cnExpression:
                     plotStyle.setExpression(value)
+                    plotStyle.updateDataProperties()
                     result = True
                 elif columnName == self.cnStyle:
                     if isinstance(value, PlotStyle):
                         plotStyle.copyFrom(value)
+                        plotStyle.updateStyleProperties()
                         result = True
 
             if role == Qt.CheckStateRole:
@@ -1111,6 +1113,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
             if role == Qt.EditRole:
                 if columnName == self.cnExpression:
                     plotStyle.setExpression(value)
+
                     result = True
                 elif columnName == self.cnStyle:
                     plotStyle.copyFrom(value)
@@ -1355,6 +1358,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.delegateTableView2D = None #wil be set with connecting the TimeSeries
         self.plotSettingsModel2D.sigDataChanged.connect(self.requestUpdate)
+
         self.plotSettingsModel2D.rowsInserted.connect(self.onRowsInserted2D)
 
         # set the plot models for 3D

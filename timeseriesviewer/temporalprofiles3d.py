@@ -165,6 +165,16 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         return self.m3DItemKWDS.copy()
 
 
+    def updateStyleProperties(self):
+        for pdi in self.mPlotItems:
+            s = ""
+
+
+    def updateDataProperties(self):
+        for pdi in self.mPlotItems:
+            s  = ""
+
+
     def setItemType(self, itemType):
         assert itemType in TemporalProfile3DPlotStyle.ITEM_TYPES.optionValues()
         self.mItemType = itemType
