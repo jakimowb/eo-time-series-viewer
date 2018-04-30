@@ -801,7 +801,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                       "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
                       "All files (*.*)"
             """
-            filter = QgsProviderRegistry.instance().fileRasterFilters()
+            filters = QgsProviderRegistry.instance().fileRasterFilters()
             files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
             if len(files) > 0 and os.path.exists(files[0]):
