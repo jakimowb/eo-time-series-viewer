@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
 
         #3. Deploy = write the data to the new enmapboxplugin folder
-        pb_tool.deploy_files(pathCfg,DIR_DEPLOY, quick=True, confirm=False)
+        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
 
         #4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
         # we need to remove them afterwards.

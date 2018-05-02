@@ -500,9 +500,9 @@ def updateMetadataTxt():
     md['experimental'] = "False"
     md['deprecated'] = "False"
     md['tags'] = "remote sensing, raster, time series"
-    md['homepage'] = timeseriesviewer.WEBSITE
-    md['repository'] = timeseriesviewer.WEBSITE
-    md['tracker'] = timeseriesviewer.WEBSITE+'/issues'
+    md['homepage'] = timeseriesviewer.URL_WEBSITE
+    md['repository'] = timeseriesviewer.URL_WEBSITE
+    md['tracker'] = timeseriesviewer.URL_WEBSITE + '/issues'
     md['icon'] = r'timeseriesviewer/icon.png'
     md['category'] = 'Raster'
 
