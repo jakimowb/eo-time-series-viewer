@@ -799,7 +799,7 @@ class MapCanvas(QgsMapCanvas):
                     lqgis.setRenderer(l.renderer().clone())
                     #grpNode.addLayer(lqgis)
                 if isinstance(l, QgsVectorLayer):
-                    lqgis = iface.addVectorLayer(l.source(), l.name())
+                    lqgis = iface.addVectorLayer(l.source(), l.name(), 'ogr')
                     #lqgis = QgsVectorLayer(l.source(), l.name(), 'ogr', False)
                     lqgis.setRendererV2(l.renderer().clone())
                     #grpNode.addLayer(lqgis)
