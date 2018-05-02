@@ -1619,6 +1619,8 @@ class SpectralTemporalVisualization(QObject):
         self.ui.btnRefresh2D.setDefaultAction(self.ui.actionRefresh2D)
         self.ui.btnRefresh3D.setDefaultAction(self.ui.actionRefresh3D)
         self.ui.btnRemoveTemporalProfile.setDefaultAction(self.ui.actionRemoveTemporalProfile)
+
+        self.ui.btnReset2DPlot.setDefaultAction(self.ui.actionReset2DPlot)
         self.ui.btnReset3DCamera.setDefaultAction(self.ui.actionReset3DCamera)
 
         self.ui.actionRefresh2D.triggered.connect(self.updatePlot2D)
@@ -1632,7 +1634,11 @@ class SpectralTemporalVisualization(QObject):
 
         self.ui.actionRemoveStyle2D.triggered.connect(lambda:self.removePlotStyles2D(self.selected2DPlotStyles()))
         self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.selectedTemporalProfiles()))
+
+        self.ui.actionReset2DPlot.triggered.connect(self.plot2D.resetViewBox)
+        self.plot2D.resetTransform()
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
+
         self.tpCollection.sigMaxProfilesChanged.connect(self.ui.sbMaxTP.setValue)
         self.ui.sbMaxTP.valueChanged.connect(self.tpCollection.setMaxProfiles)
 

@@ -335,6 +335,9 @@ class DateTimePlotWidget(pg.PlotWidget):
 
         self.proxy2D = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
 
+    def resetViewBox(self):
+        self.plotItem.getViewBox().autoRange()
+
 
     def onMouseMoved2D(self, evt):
         pos = evt[0]  ## using signal proxy turns original arguments into a tuple

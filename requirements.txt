@@ -1,4 +1,4 @@
-# this file lists packages that are required to run the HUB TimeSeriesViewer
+# this file lists packages that are required to run the EO Time Series Viewer
 # see https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format
 
 ###### Requirements without Version Specifiers ######
