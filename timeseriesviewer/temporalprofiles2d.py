@@ -564,6 +564,8 @@ class DateTimeViewBox(pg.ViewBox):
 
 class TemporalProfilePlotStyleBase(PlotStyle):
 
+    sigStyleUpdated = pyqtSignal()
+    sigDataUpdated = pyqtSignal()
     sigExpressionUpdated = pyqtSignal()
     sigSensorChanged = pyqtSignal(SensorInstrument)
 

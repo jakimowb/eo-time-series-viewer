@@ -47,13 +47,6 @@ import numpy as np
 
 DEBUG = False
 OPENGL_AVAILABLE = False
-MATPLOTLIB_AVAILABLE = False
-try:
-    import timeseriesviewer.temporalprofiles3dMPL
-    MATPLOTLIB_AVAILABLE = True
-
-except Exception as ex:
-    print('unable to import matlotlib based 3d plotting:\n{}'.format(ex))
 
 try:
 
@@ -459,7 +452,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                 else:
                     s = ""
                     #print(('Delegate commit failed',w.asExpression()))
-            if isinstance(w, PlotStyleButton):
+            if isinstance(w, TemporalProfile3DPlotStyleButton):
 
                 self.commitData.emit(w)
 
@@ -600,7 +593,6 @@ class PlotSettingsModel3D(QAbstractTableModel):
         self.cnStyle = 'Style'
         self.cnSensor = 'Sensor'
         self.columnNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
-
         self.mPlotSettings = []
         #assert isinstance(plotWidget, DateTimePlotWidget)
 
@@ -619,14 +611,6 @@ class PlotSettingsModel3D(QAbstractTableModel):
         return False
 
 
-    def createStyle(self, sensor):
-        if not self.hasStyleForSensor(sensor):
-            s = TemporalProfile3DPlotStyle()
-            #use another color for the new sensor
-            if len(self) > 0:
-                color = self[-1].color()
-                s.setColor(nextColor(color))
-            self.insertPlotStyles([s])
 
     def onSensorRemoved(self, sensor):
         assert isinstance(sensor, SensorInstrument)
@@ -824,7 +808,17 @@ class PlotSettingsModel3D(QAbstractTableModel):
                     plotStyle.setTemporalProfile(value)
                     result = True
                 elif columnName == self.cnStyle:
+                    #set the style and trigger an update
+                    lastItemType = plotStyle.itemType()
+                    lastExpression = plotStyle.expression()
                     plotStyle.copyFrom(value)
+
+                    if lastItemType != plotStyle.itemType() or \
+                        lastExpression != plotStyle.expression():
+                        plotStyle.updateDataProperties()
+                    else:
+                        plotStyle.updateStyleProperties()
+
                     result = True
 
         return result
@@ -1205,8 +1199,6 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         mode = 'No3D'
         if OPENGL_AVAILABLE:
             self.init3DWidgets('gl')
-        elif MATPLOTLIB_AVAILABLE:
-            self.init3DWidgets('mpl')
 
 
         #pi = self.plotWidget2D.plotItem
@@ -1252,17 +1244,6 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             self.plotWidget3D.setBaseSize(size)
             self.splitter3D.setSizes([100, 100])
 
-        elif MATPLOTLIB_AVAILABLE and mode == 'mpl':
-            from timeseriesviewer.temporalprofiles3dMPL import MyMplCanvas3D
-            self.plotWidget3DMPL = MyMplCanvas3D()
-            self.plotWidget3DMPL.setObjectName('plotWidget3DMPL')
-            size = self.labelDummy3D.size()
-            l.addWidget(self.plotWidget3D)
-            self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
-            self.labelDummy3D.setVisible(False)
-            l.removeWidget(self.labelDummy3D)
-            self.plotWidget3D.setBaseSize(size)
-            self.splitter3D.setSizes([100, 100])
 
     def onStackPageChanged(self, i):
         w = self.stackedWidget.currentWidget()
@@ -1402,10 +1383,12 @@ class SpectralTemporalVisualization(QObject):
                     self.plot2D.getPlotItem().removeItem(pi)
 
         def on3DPlotStyleRemoved(plotStyles):
+            toRemove = []
             for plotStyle in plotStyles:
                 assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
-                for pi in plotStyle.mPlotItems:
-                    self.plot3D.removeItem(pi)
+                toRemove.append(plotStyle.mPlotItems)
+            self.plot3D.removeItems(toRemove)
+
 
         def onMaxProfilesChanged(n):
             v = self.ui.sbMaxTP.value()
@@ -1418,7 +1401,7 @@ class SpectralTemporalVisualization(QObject):
 
 
         self.plotSettingsModel2D.sigPlotStylesRemoved.connect(on2DPlotStyleRemoved)
-
+        self.plotSettingsModel3D.sigPlotStylesRemoved.connect(on3DPlotStyleRemoved)
 
         #initialize the update loop
         self.updateRequested = True
@@ -1546,19 +1529,24 @@ class SpectralTemporalVisualization(QObject):
         if not OPENGL_AVAILABLE:
             return
 
+
         plotStyle = TemporalProfile3DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot3D)
 
         if len(self.tpCollection) > 0:
             temporalProfile = self.tpCollection[0]
             plotStyle.setTemporalProfile(temporalProfile)
+            color = self.plotSettingsModel3D[-1].color()
+            plotStyle.setColor(nextColor(color))
 
         sensors = list(self.TS.Sensors.keys())
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
 
         self.plotSettingsModel3D.insertPlotStyles([plotStyle], i=0) # latest to the top
-        self.updatePlot3D()
+        plotItems = plotStyle.createPlotItem()
+        self.plot3D.addItems(plotItems)
+        #self.updatePlot3D()
 
     def onProfileClicked2D(self, pdi):
         if isinstance(pdi, TemporalProfilePlotDataItem):
@@ -1972,6 +1960,7 @@ class SpectralTemporalVisualization(QObject):
             # 1. ensure that data from all bands will be loaded
             #    new loaded values will be shown in the next updatePlot3D call
             coordinates = []
+            allPlotItems = []
             for plotStyle3D in self.plotSettingsModel3D:
                 assert isinstance(plotStyle3D, TemporalProfile3DPlotStyle)
                 if plotStyle3D.isPlotable():
@@ -1980,9 +1969,13 @@ class SpectralTemporalVisualization(QObject):
             if len(coordinates) > 0:
                 self.loadCoordinate(coordinates, mode='all')
 
-            # 2. remove old plot items
-            self.plot3D.clearItems()
+            toRemove = [item for item in self.plot3D.items if item not in allPlotItems]
+            self.plot3D.removeItems(toRemove)
+            toAdd = [item for item in allPlotItems if item not in self.plot3D.items]
+            self.plot3D.addItems(toAdd)
 
+
+            """
             # 3. add new plot items
             plotItems = []
             for plotStyle3D in self.plotSettingsModel3D:
@@ -1994,15 +1987,11 @@ class SpectralTemporalVisualization(QObject):
             self.plot3D.addItems(plotItems)
             self.plot3D.updateDataRanges()
             self.plot3D.resetScaling()
-            #self.plot3D.resetCamera()
+            """
 
     @QtCore.pyqtSlot()
     def updatePlot2D(self):
         if isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
-            if DEBUG:
-                print('Update plot...')
-
-            pi = self.plot2D.getPlotItem()
 
             locations = set()
             for plotStyle in self.plotSettingsModel2D:

@@ -411,6 +411,16 @@ class ViewWidget3D(GLViewWidget):
         self.updateDataRanges()
         self.update()
 
+    def removeItems(self, items):
+
+        for item in items:
+            if item in self.items:
+                self.items.remove(item)
+                item._setView(None)
+        self.updateDataRanges()
+        self.update()
+
+
     def mouseMoveEvent(self, ev):
         assert isinstance(ev, QMouseEvent)
         """ Allow Shift to Move and Ctrl to Pan.

@@ -17,7 +17,7 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-import sys, os, re, collections
+import sys, os, re, collections, copy
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
@@ -138,6 +138,8 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
     ITEM_TYPES.addOption(Option('ScatterPlotItem', name='3D Scatter Plot'))
     ITEM_TYPES.addOption(Option('MeshItem', name='3D Mesh'))
 
+
+    sigStyleUpdated = pyqtSignal()
     sigUpdated = pyqtSignal()
     sigExpressionUpdated = pyqtSignal()
     sigSensorChanged = pyqtSignal(SensorInstrument)
@@ -145,8 +147,6 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
     def __init__(self, temporalProfile=None):
         super(TemporalProfile3DPlotStyle, self).__init__(temporalProfile=temporalProfile)
         #assert isinstance(temporalProfile, TemporalProfile)
-
-        #TemporalProfilePlotStyleBase.__init__(self, None)
 
         # get some good defaults
         self.setExpression('b')
@@ -160,17 +160,27 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
 
     def setItemKwds(self, kwds):
         self.m3DItemKWDS = kwds
+        #self.updateStyleProperties()
 
     def itemKwds(self):
         return self.m3DItemKWDS.copy()
 
 
     def updateStyleProperties(self):
+        """
+        Updates changes in coloring and visibility
+        :return:
+        """
         for pdi in self.mPlotItems:
+
             s = ""
 
 
     def updateDataProperties(self):
+        """
+        Updates changes in the underlying data or item type
+        """
+        plotDataItems = self.mPlotItems[:]
         for pdi in self.mPlotItems:
             s  = ""
 
@@ -178,6 +188,8 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
     def setItemType(self, itemType):
         assert itemType in TemporalProfile3DPlotStyle.ITEM_TYPES.optionValues()
         self.mItemType = itemType
+        self.sigDataUpdated.emit()
+        #self.updateDataProperties()
 
     def itemType(self):
         return self.mItemType
@@ -189,8 +201,6 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
         self.setItemType(plotStyle.itemType())
         self.setItemKwds(plotStyle.itemKwds())
-        s = ""
-
 
     def update(self):
 
@@ -247,11 +257,10 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
 
         return icon
 
-    def createPlotItem(self, plotWidget):
+    def createPlotItem(self):
         """
-        Returns the PlotItem
-        :param plotWidget:
-        :return:
+        Returns the list of PlotItem related to the current settings
+        :return: [list-of plotitems]
         """
         if not OPENGL_AVAILABLE:
             return None
@@ -335,9 +344,8 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
                 #    arr[:, i] = (arr[:, i] - m0) / (m1 - m0)
 
                 # degug pyqtgraph
-                import copy
-                kwds = copy.copy(self.m3DItemKWDS)
 
+                kwds = copy.copy(self.m3DItemKWDS)
                 for k, v in list(kwds.items()):
                     if isinstance(v, QColor):
                         kwds[k] = fn.glColor(v)
@@ -349,6 +357,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             raise NotImplementedError(self.mItemType)
 
 
+        self.mPlotItems.append(plotItems)
 
         return plotItems
 
