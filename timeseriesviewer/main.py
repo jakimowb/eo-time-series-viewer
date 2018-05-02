@@ -522,7 +522,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
         D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
         D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
-
+        import webbrowser
+        from timeseriesviewer import URL_DOCUMENTATION
+        D.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(URL_DOCUMENTATION))
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
 

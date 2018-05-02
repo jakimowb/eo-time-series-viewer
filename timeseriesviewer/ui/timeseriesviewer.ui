@@ -178,6 +178,7 @@
     </property>
     <addaction name="actionAbout"/>
     <addaction name="actionSettings"/>
+    <addaction name="actionShowOnlineHelp"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -417,7 +418,7 @@
   <action name="actionAbout">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+     <normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</iconset>
    </property>
    <property name="text">
     <string>About</string>
@@ -683,6 +684,18 @@
    </property>
    <property name="toolTip">
     <string>Loads a vector data file</string>
+   </property>
+  </action>
+  <action name="actionShowOnlineHelp">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Help (online)</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens the online documentation</string>
    </property>
   </action>
  </widget>

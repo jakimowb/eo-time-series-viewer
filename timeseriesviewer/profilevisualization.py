@@ -35,9 +35,9 @@ from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
-from timeseriesviewer.temporalprofiles2d import *
-from timeseriesviewer.temporalprofiles3d import *
+from timeseriesviewer.temporalprofiles2d import LABEL_EXPRESSION_2D
 from timeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
+
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
@@ -1196,9 +1196,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.plotWidget3D = None
         self.plotWidget3DMPL = None
 
-        mode = 'No3D'
-        if OPENGL_AVAILABLE:
-            self.init3DWidgets('gl')
+        self.init3DWidgets('gl')
 
 
         #pi = self.plotWidget2D.plotItem
@@ -1227,10 +1225,10 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.btnSaveTemporalProfiles.setMenu(self.menuTPSaveOptions)
 
     def init3DWidgets(self, mode):
-        assert mode in ['gl','mpl']
+        assert mode in ['gl']
         l = self.frame3DPlot.layout()
 
-        if True and OPENGL_AVAILABLE and mode == 'gl':
+        if OPENGL_AVAILABLE and mode == 'gl':
 
             from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
             self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
@@ -1243,7 +1241,8 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             l.removeWidget(self.labelDummy3D)
             self.plotWidget3D.setBaseSize(size)
             self.splitter3D.setSizes([100, 100])
-
+        else:
+            self.frameSettings3D.setEnabled(False)
 
     def onStackPageChanged(self, i):
         w = self.stackedWidget.currentWidget()
