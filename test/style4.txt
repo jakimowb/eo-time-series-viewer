@@ -1,0 +1,257 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis simplifyDrawingTol="1" labelsEnabled="0" simplifyAlgorithm="0" maxScale="0" readOnly="0" version="3.0.2-Girona" minScale="1e+8" simplifyMaxScale="1" simplifyLocal="1" simplifyDrawingHints="1" hasScaleBasedVisibilityFlag="0">
+ <renderer-v2 attr="class_name" enableorderby="0" type="categorizedSymbol" symbollevels="0" forceraster="0">
+  <categories>
+   <category render="true" value="burnt and tilled pasture" label="burnt and tilled pasture" symbol="0"/>
+   <category render="true" value="burnt pasture" label="burnt pasture" symbol="1"/>
+   <category render="true" value="burnt secondary regrowth" label="burnt secondary regrowth" symbol="2"/>
+   <category render="true" value="tilled pasture" label="tilled pasture" symbol="3"/>
+   <category render="true" value="" label="" symbol="4"/>
+  </categories>
+  <symbols>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="0">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="228,86,159,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="1">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="102,210,219,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="2">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="102,53,225,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="3">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="129,201,118,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="4">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="232,165,31,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+  </symbols>
+  <source-symbol>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="0">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="168,123,178,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+  </source-symbol>
+  <colorramp type="randomcolors" name="[source]"/>
+  <rotation/>
+  <sizescale/>
+ </renderer-v2>
+ <customproperties>
+  <property key="embeddedWidgets/count" value="0"/>
+  <property key="variableNames"/>
+  <property key="variableValues"/>
+ </customproperties>
+ <blendMode>0</blendMode>
+ <featureBlendMode>0</featureBlendMode>
+ <layerOpacity>1</layerOpacity>
+ <SingleCategoryDiagramRenderer diagramType="Histogram" attributeLegend="1">
+  <DiagramCategory barWidth="5" opacity="1" width="15" enabled="0" penColor="#000000" penAlpha="255" backgroundAlpha="255" backgroundColor="#ffffff" rotationOffset="270" scaleBasedVisibility="0" lineSizeScale="3x:0,0,0,0,0,0" height="15" minimumSize="0" maxScaleDenominator="1e+8" sizeScale="3x:0,0,0,0,0,0" penWidth="0" lineSizeType="MM" sizeType="MM" minScaleDenominator="0" labelPlacementMethod="XHeight" scaleDependency="Area" diagramOrientation="Up">
+   <fontProperties style="" description="MS Shell Dlg 2,8.25,-1,5,50,0,0,0,0,0"/>
+  </DiagramCategory>
+ </SingleCategoryDiagramRenderer>
+ <DiagramLayerSettings linePlacementFlags="18" priority="0" placement="0" zIndex="0" obstacle="0" dist="0" showAll="1">
+  <properties>
+   <Option type="Map">
+    <Option value="" type="QString" name="name"/>
+    <Option name="properties"/>
+    <Option value="collection" type="QString" name="type"/>
+   </Option>
+  </properties>
+ </DiagramLayerSettings>
+ <fieldConfiguration>
+  <field name="DN">
+   <editWidget type="TextEdit">
+    <config>
+     <Option/>
+    </config>
+   </editWidget>
+  </field>
+  <field name="class_name">
+   <editWidget type="TextEdit">
+    <config>
+     <Option/>
+    </config>
+   </editWidget>
+  </field>
+ </fieldConfiguration>
+ <aliases>
+  <alias field="DN" index="0" name=""/>
+  <alias field="class_name" index="1" name=""/>
+ </aliases>
+ <excludeAttributesWMS/>
+ <excludeAttributesWFS/>
+ <defaults>
+  <default expression="" field="DN" applyOnUpdate="0"/>
+  <default expression="" field="class_name" applyOnUpdate="0"/>
+ </defaults>
+ <constraints>
+  <constraint unique_strength="0" exp_strength="0" field="DN" notnull_strength="0" constraints="0"/>
+  <constraint unique_strength="0" exp_strength="0" field="class_name" notnull_strength="0" constraints="0"/>
+ </constraints>
+ <constraintExpressions>
+  <constraint field="DN" exp="" desc=""/>
+  <constraint field="class_name" exp="" desc=""/>
+ </constraintExpressions>
+ <attributeactions>
+  <defaultAction key="Canvas" value="{00000000-0000-0000-0000-000000000000}"/>
+ </attributeactions>
+ <attributetableconfig sortExpression="" sortOrder="0" actionWidgetStyle="dropDown">
+  <columns>
+   <column hidden="0" type="field" name="DN" width="-1"/>
+   <column hidden="0" type="field" name="class_name" width="-1"/>
+   <column hidden="1" type="actions" width="-1"/>
+  </columns>
+ </attributetableconfig>
+ <editform></editform>
+ <editforminit/>
+ <editforminitcodesource>0</editforminitcodesource>
+ <editforminitfilepath></editforminitfilepath>
+ <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
+"""
+QGIS forms can have a Python function that is called when the form is
+opened.
+
+Use this function to add extra logic to your forms.
+
+Enter the name of the function in the "Python Init function"
+field.
+An example follows:
+"""
+from qgis.PyQt.QtWidgets import QWidget
+
+def my_form_open(dialog, layer, feature):
+	geom = feature.geometry()
+	control = dialog.findChild(QWidget, "MyLineEdit")
+]]></editforminitcode>
+ <featformsuppress>0</featformsuppress>
+ <editorlayout>generatedlayout</editorlayout>
+ <editable>
+  <field name="DN" editable="1"/>
+  <field name="class_name" editable="1"/>
+ </editable>
+ <labelOnTop>
+  <field labelOnTop="0" name="DN"/>
+  <field labelOnTop="0" name="class_name"/>
+ </labelOnTop>
+ <widgets/>
+ <conditionalstyles>
+  <rowstyles/>
+  <fieldstyles/>
+ </conditionalstyles>
+ <expressionfields/>
+ <previewExpression>class_name</previewExpression>
+ <mapTip></mapTip>
+ <layerGeometryType>2</layerGeometryType>
+</qgis>
