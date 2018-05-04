@@ -107,30 +107,8 @@ def icon():
     path = os.path.join(os.path.dirname(__file__), 'icon.png')
     return QIcon(path)
 
-
-def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
-    assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
-    regType = type(re.compile('.*'))
-    results = []
-
-    for root, dirs, files in os.walk(rootdir):
-        for file in files:
-            if isinstance(pattern, regType):
-                if pattern.search(file):
-                    path = os.path.join(root, file)
-                    results.append(path)
-
-            elif (ignoreCase and fnmatch.fnmatch(file.lower(), pattern.lower())) \
-                    or fnmatch.fnmatch(file, pattern):
-
-                path = os.path.join(root, file)
-                results.append(path)
-        if not recursive:
-            break
-            pass
-
-    return results
-
+import timeseriesviewer.utils
+file_search = timeseriesviewer.utils.file_search
 
 
 def getFileAndAttributes(file):

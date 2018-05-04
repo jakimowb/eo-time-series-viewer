@@ -496,7 +496,7 @@ class TimeSeries(QObject):
     _sep = ';'
 
     def sensors(self):
-        return self.Sensors.keys()
+        return list(self.Sensors.keys())
 
     def loadFromFile(self, path, n_max=None):
 

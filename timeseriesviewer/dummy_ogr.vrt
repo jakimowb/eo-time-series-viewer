@@ -1,0 +1,4 @@
+<OGRVRTDataSource>
+    <OGRVRTLayer name="dummy_layer1">
+    </OGRVRTLayer>
+</OGRVRTDataSource>

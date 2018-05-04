@@ -22,8 +22,6 @@
 
 
 import os, sys, re, fnmatch, collections, copy, traceback, bisect
-import logging
-logger = logging.getLogger(__name__)
 from qgis.core import *
 from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader,  QgsProject, QgsCoordinateReferenceSystem, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
@@ -41,6 +39,15 @@ from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
+
+
+
+#dummyPath = os.path.abspath(os.path.join(os.path.dirname(__file__), 'dummy_gdal.vrt'))
+#assert os.path.isfile(dummyPath)
+#lyr = QgsRasterLayer(dummyPath)
+#assert lyr.isValid()
+DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
+
 
 
 class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
@@ -78,14 +85,19 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
     def addSensor(self, sensor):
         assert isinstance(sensor, SensorInstrument)
 
-        w = MapViewSensorSettings(sensor)
+        #w = MapViewSensorSettings(sensor)
+        w = MapViewRenderSettingsV2(sensor)
         #sizePolicy = QSizePolicy(QSize)
         #w.ui.
-        l = self.renderSettingsLayout
+        #l = self.renderSettingsLayout
+        l = self.gbRasterRendering.layout()
         assert sensor not in self.mSensors.keys()
 
         lastWidgetIndex = l.count()-1
-        l.insertWidget(lastWidgetIndex, w.ui)
+
+
+        #lastWidgetIndex = l.count()-1
+        l.insertWidget(lastWidgetIndex, w)
         self.mSensors[sensor] = w
         #self.resize(self.sizeHint())
 
@@ -96,12 +108,883 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         assert isinstance(sensor, SensorInstrument)
         sensorSettings = self.mSensors.pop(sensor)
-        assert isinstance(sensorSettings, MapViewSensorSettings)
+        assert isinstance(sensorSettings, MapViewRenderSettingsV2)
 
-        l = self.renderSettingsLayout
+        #l = self.renderSettingsLayout
+        l = self.gbRasterRendering.layout()
         l.removeWidget(sensorSettings.ui)
         sensorSettings.ui.close()
         #self.resize(self.sizeHint())
+
+
+
+class RendererWidgetModifications(object):
+
+
+    def __init__(self):
+        self.mBandComboBoxes = []
+
+    def modifyGridLayout(self):
+        gridLayoutOld = self.layout().children()[0]
+        self.gridLayout = QGridLayout()
+        while gridLayoutOld.count() > 0:
+            w = gridLayoutOld.takeAt(0)
+            w = w.widget()
+            gridLayoutOld.removeWidget(w)
+            w.setVisible(False)
+            setattr(self, w.objectName(), w)
+        self.layout().removeItem(gridLayoutOld)
+        self.layout().insertItem(0, self.gridLayout)
+        self.gridLayout.setSpacing(2)
+        self.layout().addStretch()
+
+    def connectSliderWithBandComboBox(self, slider, combobox):
+        """
+        Connects a band-selection slider with a band-selection combobox
+        :param widget: QgsRasterRendererWidget
+        :param slider: QSlider to show the band number
+        :param combobox: QComboBox to show the band name
+        :return:
+        """
+        assert isinstance(self, QgsRasterRendererWidget)
+        assert isinstance(slider, QSlider)
+        assert isinstance(combobox, QComboBox)
+
+        # init the slider
+        nb = self.rasterLayer().dataProvider().bandCount()
+        slider.setTickPosition(QSlider.TicksAbove)
+        slider.valueChanged.connect(combobox.setCurrentIndex)
+        slider.setMinimum(1)
+        slider.setMaximum(nb)
+        intervals = [1, 2, 5, 10, 25, 50]
+        for interval in intervals:
+            if nb / interval < 10:
+                break
+        slider.setTickInterval(interval)
+        slider.setPageStep(interval)
+
+        def onBandValueChanged(self, idx, slider):
+            assert isinstance(self, QgsRasterRendererWidget)
+            assert isinstance(idx, int)
+            assert isinstance(slider, QSlider)
+
+            # i = slider.value()
+            slider.blockSignals(True)
+            slider.setValue(idx)
+            slider.blockSignals(False)
+
+            # self.minMaxWidget().setBands(myBands)
+            # self.widgetChanged.emit()
+
+        if self.comboBoxWithNotSetItem(combobox):
+            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx, slider))
+        else:
+            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx + 1, slider))
+
+    def comboBoxWithNotSetItem(self, cb):
+        assert isinstance(cb, QComboBox)
+        return cb.itemData(0, role=Qt.DisplayRole) == 'not set'
+
+    def setLayoutItemVisibility(self, grid, isVisible):
+        assert isinstance(self, QgsRasterRendererWidget)
+        for i in range(grid.count()):
+            item = grid.itemAt(i)
+            if isinstance(item, QLayout):
+                s = ""
+            elif isinstance(item, QWidgetItem):
+                item.widget().setVisible(isVisible)
+                item.widget().setParent(self)
+            else:
+                s = ""
+
+    def setBandSelection(self, key):
+        if key == 'default':
+            bands = defaultBands(self.rasterLayer())
+        else:
+            colors = re.split('[ ,;:]', key)
+
+            bands = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
+
+        n = min(len(bands), len(self.mBandComboBoxes))
+        for i in range(n):
+            cb = self.mBandComboBoxes[i]
+            bandIndex = bands[i]
+            if self.comboBoxWithNotSetItem(cb):
+                cb.setCurrentIndex(bandIndex+1)
+            else:
+                cb.setCurrentIndex(bandIndex)
+
+
+    def fixBandNames(self, comboBox):
+        """
+        Changes the QGIS default bandnames ("Band 001") to more meaning ful information including gdal.Dataset.Descriptions.
+        :param widget:
+        :param comboBox:
+        """
+        assert isinstance(self, QgsRasterRendererWidget)
+        if type(comboBox) is QComboBox:
+            bandNames = displayBandNames(self.rasterLayer())
+            for i in range(comboBox.count()):
+                # text = cb.itemText(i)
+                if i > 0:
+                    comboBox.setItemText(i, bandNames[i - 1])
+        else:
+            raise NotImplementedError()
+
+
+def displayBandNames(provider_or_dataset, bands=None):
+    results = None
+    if isinstance(provider_or_dataset, QgsRasterLayer):
+        return displayBandNames(provider_or_dataset.dataProvider())
+    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
+        if provider_or_dataset.name() == 'gdal':
+            ds = gdal.Open(provider_or_dataset.dataSourceUri())
+            results = displayBandNames(ds, bands=bands)
+        else:
+            # same as in QgsRasterRendererWidget::displayBandName
+            results = []
+            if bands is None:
+                bands = range(1, provider_or_dataset.bandCount() + 1)
+            for band in bands:
+                result = provider_or_dataset.generateBandName(band)
+                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
+                if colorInterp != 'Undefined':
+                    result += '({})'.format(colorInterp)
+                results.append(result)
+
+    elif isinstance(provider_or_dataset, gdal.Dataset):
+        results = []
+        if bands is None:
+            bands = range(1, provider_or_dataset.RasterCount+1)
+        for band in bands:
+            b = provider_or_dataset.GetRasterBand(band)
+            descr = b.GetDescription()
+            if len(descr) == 0:
+                descr = 'Band {}'.format(band)
+            results.append(descr)
+
+    return results
+
+class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return SingleBandGrayRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(SingleBandGrayRendererWidget, self).__init__(layer, extent)
+
+        self.modifyGridLayout()
+        self.mGrayBandSlider = QSlider(Qt.Horizontal)
+        self.mBandComboBoxes.append(self.mGrayBandComboBox)
+        self.fixBandNames(self.mGrayBandComboBox)
+        self.connectSliderWithBandComboBox(self.mGrayBandSlider, self.mGrayBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.initActionButtons()
+
+        self.gridLayout.addWidget(self.mGrayBandLabel, 0, 0)
+        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 4, Qt.AlignLeft)
+
+        self.gridLayout.addWidget(self.mGrayBandSlider, 1, 1, 1, 2)
+        self.gridLayout.addWidget(self.mGrayBandComboBox, 1, 3,1,2)
+
+        self.gridLayout.addWidget(self.label, 2, 0)
+        self.gridLayout.addWidget(self.mGradientComboBox, 2, 1, 1, 4)
+
+        self.gridLayout.addWidget(self.mMinLabel, 3, 1)
+        self.gridLayout.addWidget(self.mMinLineEdit, 3, 2)
+        self.gridLayout.addWidget(self.mMaxLabel, 3, 3)
+        self.gridLayout.addWidget(self.mMaxLineEdit, 3, 4)
+
+        self.gridLayout.addWidget(self.mContrastEnhancementLabel, 4, 0)
+        self.gridLayout.addWidget(self.mContrastEnhancementComboBox, 4, 1, 1 ,4)
+        self.gridLayout.setSpacing(2)
+
+        self.setLayoutItemVisibility(self.gridLayout, True)
+
+        self.mDefaultRenderer = layer.renderer()
+
+
+    def initActionButtons(self):
+            from enmapbox.gui.utils import parseWavelength
+            wl, wlu = parseWavelength(self.rasterLayer())
+            self.wavelengths = wl
+            self.wavelengthUnit = wlu
+
+            self.mBtnBar.setLayout(QHBoxLayout())
+            self.mBtnBar.layout().addStretch()
+            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+            self.mBtnBar.layout().setSpacing(2)
+
+            self.actionSetDefault = QAction('Default')
+            self.actionSetRed = QAction('R')
+            self.actionSetGreen = QAction('G')
+            self.actionSetBlue = QAction('B')
+            self.actionSetNIR = QAction('nIR')
+            self.actionSetSWIR = QAction('swIR')
+
+            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
+            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
+            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
+            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
+            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
+
+
+            def addBtnAction(action):
+                btn = QToolButton()
+                btn.setDefaultAction(action)
+                self.mBtnBar.layout().addWidget(btn)
+                self.insertAction(None, action)
+                return btn
+
+            self.btnDefault = addBtnAction(self.actionSetDefault)
+            self.btnRed = addBtnAction(self.actionSetRed)
+            self.btnGreen = addBtnAction(self.actionSetGreen)
+            self.btnBlue = addBtnAction(self.actionSetRed)
+            self.btnNIR = addBtnAction(self.actionSetNIR)
+            self.btnSWIR = addBtnAction(self.actionSetSWIR)
+
+            b = self.wavelengths is not None
+            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
+                a.setEnabled(b)
+
+
+
+class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return SingleBandPseudoColorRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
+
+        self.gridLayout = self.layout()
+        assert isinstance(self.gridLayout, QGridLayout)
+        for i in range(self.gridLayout.count()):
+            w = self.gridLayout.itemAt(i)
+            w = w.widget()
+            if isinstance(w, QWidget):
+                setattr(self, w.objectName(), w)
+
+        toReplace = [self.mBandComboBox,self.mMinLabel,self.mMaxLabel, self.mMinLineEdit, self.mMaxLineEdit ]
+        for w in toReplace:
+            self.gridLayout.removeWidget(w)
+            w.setVisible(False)
+        self.mBandSlider = QSlider(Qt.Horizontal)
+        self.mBandComboBoxes.append(self.mBandComboBox)
+        self.fixBandNames(self.mBandComboBox)
+        self.connectSliderWithBandComboBox(self.mBandSlider, self.mBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.initActionButtons()
+        grid = QGridLayout()
+        grid.addWidget(self.mBtnBar,0,0,1,4, Qt.AlignLeft)
+        grid.addWidget(self.mBandSlider, 1,0, 1,2)
+        grid.addWidget(self.mBandComboBox, 1,2, 1,2)
+        grid.addWidget(self.mMinLabel, 2, 0)
+        grid.addWidget(self.mMinLineEdit, 2, 1)
+        grid.addWidget(self.mMaxLabel, 2, 2)
+        grid.addWidget(self.mMaxLineEdit, 2, 3)
+        #grid.setContentsMargins(2, 2, 2, 2, )
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 2)
+        grid.setColumnStretch(2, 0)
+        grid.setColumnStretch(3, 2)
+        grid.setSpacing(2)
+        self.gridLayout.addItem(grid, 0,1,2,4)
+        self.gridLayout.setSpacing(2)
+        self.setLayoutItemVisibility(grid, True)
+
+
+    def initActionButtons(self):
+            from enmapbox.gui.utils import parseWavelength
+            wl, wlu = parseWavelength(self.rasterLayer())
+            self.wavelengths = wl
+            self.wavelengthUnit = wlu
+
+            self.mBtnBar.setLayout(QHBoxLayout())
+            self.mBtnBar.layout().addStretch()
+            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+            self.mBtnBar.layout().setSpacing(2)
+
+            self.actionSetDefault = QAction('Default')
+            self.actionSetRed = QAction('R')
+            self.actionSetGreen = QAction('G')
+            self.actionSetBlue = QAction('B')
+            self.actionSetNIR = QAction('nIR')
+            self.actionSetSWIR = QAction('swIR')
+
+            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
+            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
+            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
+            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
+            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
+
+
+            def addBtnAction(action):
+                btn = QToolButton()
+                btn.setDefaultAction(action)
+                self.mBtnBar.layout().addWidget(btn)
+                self.insertAction(None, action)
+                return btn
+
+            self.btnDefault = addBtnAction(self.actionSetDefault)
+            self.btnRed = addBtnAction(self.actionSetRed)
+            self.btnGreen = addBtnAction(self.actionSetGreen)
+            self.btnBlue = addBtnAction(self.actionSetRed)
+            self.btnNIR = addBtnAction(self.actionSetNIR)
+            self.btnSWIR = addBtnAction(self.actionSetSWIR)
+
+            b = self.wavelengths is not None
+            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
+                a.setEnabled(b)
+
+
+
+
+class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return MultiBandColorRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(MultiBandColorRendererWidget, self).__init__(layer, extent)
+
+        self.modifyGridLayout()
+
+        self.mRedBandSlider = QSlider(Qt.Horizontal)
+        self.mGreenBandSlider = QSlider(Qt.Horizontal)
+        self.mBlueBandSlider = QSlider(Qt.Horizontal)
+
+        self.mBandComboBoxes.extend([self.mRedBandComboBox, self.mGreenBandComboBox, self.mBlueBandComboBox])
+        self.mSliders = [self.mRedBandSlider, self.mGreenBandSlider, self.mBlueBandSlider]
+        nb = self.rasterLayer().dataProvider().bandCount()
+        for cbox, slider in zip(self.mBandComboBoxes, self.mSliders):
+            self.connectSliderWithBandComboBox(slider, cbox)
+
+
+        self.fixBandNames(self.mRedBandComboBox)
+        self.fixBandNames(self.mGreenBandComboBox)
+        self.fixBandNames(self.mBlueBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.mBtnBar.setLayout(QHBoxLayout())
+        self.initActionButtons()
+        self.mBtnBar.layout().addStretch()
+        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+        self.mBtnBar.layout().setSpacing(2)
+
+        #self.gridLayout.deleteLater()
+#        self.gridLayout = newGrid
+        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 3)
+        self.gridLayout.addWidget(self.mRedBandLabel, 1, 0)
+        self.gridLayout.addWidget(self.mRedBandSlider, 1, 1)
+        self.gridLayout.addWidget(self.mRedBandComboBox, 1, 2)
+        self.gridLayout.addWidget(self.mRedMinLineEdit, 1, 3)
+        self.gridLayout.addWidget(self.mRedMaxLineEdit, 1, 4)
+
+        self.gridLayout.addWidget(self.mGreenBandLabel, 2, 0)
+        self.gridLayout.addWidget(self.mGreenBandSlider, 2, 1)
+        self.gridLayout.addWidget(self.mGreenBandComboBox, 2, 2)
+        self.gridLayout.addWidget(self.mGreenMinLineEdit, 2, 3)
+        self.gridLayout.addWidget(self.mGreenMaxLineEdit, 2, 4)
+
+        self.gridLayout.addWidget(self.mBlueBandLabel, 3, 0)
+        self.gridLayout.addWidget(self.mBlueBandSlider, 3, 1)
+        self.gridLayout.addWidget(self.mBlueBandComboBox, 3, 2)
+        self.gridLayout.addWidget(self.mBlueMinLineEdit, 3, 3)
+        self.gridLayout.addWidget(self.mBlueMaxLineEdit, 3, 4)
+
+        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmLabel, 4, 0, 1, 2)
+        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmComboBox, 4, 2, 1, 3)
+
+        self.setLayoutItemVisibility(self.gridLayout, True)
+
+
+        self.mRedBandLabel.setText('R')
+        self.mGreenBandLabel.setText('G')
+        self.mBlueBandLabel.setText('B')
+
+        self.mDefaultRenderer = layer.renderer()
+
+
+
+    def initActionButtons(self):
+
+        from enmapbox.gui.utils import parseWavelength
+        wl, wlu = parseWavelength(self.rasterLayer())
+        self.wavelengths = wl
+        self.wavelengthUnit = wlu
+
+        self.actionSetDefault = QAction('Default')
+        self.actionSetTrueColor = QAction('RGB')
+        self.actionSetCIR = QAction('nIR')
+        self.actionSet453 = QAction('swIR')
+
+        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+        self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
+        self.actionSetCIR.triggered.connect(lambda: self.setBandSelection('nIR,R,G'))
+        self.actionSet453.triggered.connect(lambda: self.setBandSelection('nIR,swIR,R'))
+
+
+        def addBtnAction(action):
+            btn = QToolButton()
+            btn.setDefaultAction(action)
+            self.mBtnBar.layout().addWidget(btn)
+            self.insertAction(None, action)
+            return btn
+
+        self.btnDefault = addBtnAction(self.actionSetDefault)
+        self.btnTrueColor = addBtnAction(self.actionSetTrueColor)
+        self.btnCIR = addBtnAction(self.actionSetCIR)
+        self.btn453 = addBtnAction(self.actionSet453)
+
+        b = self.wavelengths is not None
+        for a in [self.actionSetCIR, self.actionSet453, self.actionSetTrueColor]:
+            a.setEnabled(b)
+
+class RendererWidgetModifications(object):
+
+    def __init__(self):
+        self.mBandComboBoxes = []
+
+    def modifyGridLayout(self):
+
+
+        gridLayoutOld = self.layout().children()[0]
+        self.gridLayout = QGridLayout()
+        while gridLayoutOld.count() > 0:
+            w = gridLayoutOld.takeAt(0)
+            w = w.widget()
+            gridLayoutOld.removeWidget(w)
+            w.setVisible(False)
+            setattr(self, w.objectName(), w)
+        self.layout().removeItem(gridLayoutOld)
+        self.layout().insertItem(0, self.gridLayout)
+        self.gridLayout.setSpacing(2)
+        self.layout().addStretch()
+
+
+        l = self.layout()
+        item = l.itemAt(l.count()-1)
+        if isinstance(item, QSpacerItem):
+            #l.removeItem(item)
+            s =""
+        self.minMaxWidget().layout().itemAt(0).widget().collapsedStateChanged.connect(self.onCollapsed)
+
+
+    def onCollapsed(self, b):
+        hint = self.sizeHint()
+        self.parent().adjustSize()
+        self.parent().set(hint)
+        self.parent().parent().adjustSize()
+
+    def connectSliderWithBandComboBox(self, slider, combobox):
+        """
+        Connects a band-selection slider with a band-selection combobox
+        :param widget: QgsRasterRendererWidget
+        :param slider: QSlider to show the band number
+        :param combobox: QComboBox to show the band name
+        :return:
+        """
+        assert isinstance(self, QgsRasterRendererWidget)
+        assert isinstance(slider, QSlider)
+        assert isinstance(combobox, QComboBox)
+
+        # init the slider
+        nb = self.rasterLayer().dataProvider().bandCount()
+        slider.setTickPosition(QSlider.TicksAbove)
+        slider.valueChanged.connect(combobox.setCurrentIndex)
+        slider.setMinimum(1)
+        slider.setMaximum(nb)
+        intervals = [1, 2, 5, 10, 25, 50]
+        for interval in intervals:
+            if nb / interval < 10:
+                break
+        slider.setTickInterval(interval)
+        slider.setPageStep(interval)
+
+        def onBandValueChanged(self, idx, slider):
+            assert isinstance(self, QgsRasterRendererWidget)
+            assert isinstance(idx, int)
+            assert isinstance(slider, QSlider)
+
+            # i = slider.value()
+            slider.blockSignals(True)
+            slider.setValue(idx)
+            slider.blockSignals(False)
+
+            # self.minMaxWidget().setBands(myBands)
+            # self.widgetChanged.emit()
+
+        if self.comboBoxWithNotSetItem(combobox):
+            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx, slider))
+        else:
+            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx + 1, slider))
+
+    def comboBoxWithNotSetItem(self, cb):
+        assert isinstance(cb, QComboBox)
+        return cb.itemData(0, role=Qt.DisplayRole) == 'not set'
+
+    def setLayoutItemVisibility(self, grid, isVisible):
+        assert isinstance(self, QgsRasterRendererWidget)
+        for i in range(grid.count()):
+            item = grid.itemAt(i)
+            if isinstance(item, QLayout):
+                s = ""
+            elif isinstance(item, QWidgetItem):
+                item.widget().setVisible(isVisible)
+                item.widget().setParent(self)
+            else:
+                s = ""
+
+    def setBandSelection(self, key):
+        if key == 'default':
+            bands = defaultBands(self.rasterLayer())
+        else:
+            colors = re.split('[ ,;:]', key)
+
+            bands = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
+
+        n = min(len(bands), len(self.mBandComboBoxes))
+        for i in range(n):
+            cb = self.mBandComboBoxes[i]
+            bandIndex = bands[i]
+            if self.comboBoxWithNotSetItem(cb):
+                cb.setCurrentIndex(bandIndex+1)
+            else:
+                cb.setCurrentIndex(bandIndex)
+
+
+    def fixBandNames(self, comboBox):
+        """
+        Changes the QGIS default bandnames ("Band 001") to more meaning ful information including gdal.Dataset.Descriptions.
+        :param widget:
+        :param comboBox:
+        """
+        assert isinstance(self, QgsRasterRendererWidget)
+        if type(comboBox) is QComboBox:
+            bandNames = displayBandNames(self.rasterLayer())
+            for i in range(comboBox.count()):
+                # text = cb.itemText(i)
+                if i > 0:
+                    comboBox.setItemText(i, bandNames[i - 1])
+        else:
+            raise NotImplementedError()
+
+
+def displayBandNames(provider_or_dataset, bands=None):
+    results = None
+    if isinstance(provider_or_dataset, QgsRasterLayer):
+        return displayBandNames(provider_or_dataset.dataProvider())
+    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
+        if provider_or_dataset.name() == 'gdal':
+            ds = gdal.Open(provider_or_dataset.dataSourceUri())
+            results = displayBandNames(ds, bands=bands)
+        else:
+            # same as in QgsRasterRendererWidget::displayBandName
+            results = []
+            if bands is None:
+                bands = range(1, provider_or_dataset.bandCount() + 1)
+            for band in bands:
+                result = provider_or_dataset.generateBandName(band)
+                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
+                if colorInterp != 'Undefined':
+                    result += '({})'.format(colorInterp)
+                results.append(result)
+
+    elif isinstance(provider_or_dataset, gdal.Dataset):
+        results = []
+        if bands is None:
+            bands = range(1, provider_or_dataset.RasterCount+1)
+        for band in bands:
+            b = provider_or_dataset.GetRasterBand(band)
+            descr = b.GetDescription()
+            if len(descr) == 0:
+                descr = 'Band {}'.format(band)
+            results.append(descr)
+
+    return results
+
+class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return SingleBandGrayRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(SingleBandGrayRendererWidget, self).__init__(layer, extent)
+
+        self.modifyGridLayout()
+        self.mGrayBandSlider = QSlider(Qt.Horizontal)
+        self.mBandComboBoxes.append(self.mGrayBandComboBox)
+        self.fixBandNames(self.mGrayBandComboBox)
+        self.connectSliderWithBandComboBox(self.mGrayBandSlider, self.mGrayBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.initActionButtons()
+
+        self.gridLayout.addWidget(self.mGrayBandLabel, 0, 0)
+        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 4, Qt.AlignLeft)
+
+        self.gridLayout.addWidget(self.mGrayBandSlider, 1, 1, 1, 2)
+        self.gridLayout.addWidget(self.mGrayBandComboBox, 1, 3,1,2)
+
+        self.gridLayout.addWidget(self.label, 2, 0)
+        self.gridLayout.addWidget(self.mGradientComboBox, 2, 1, 1, 4)
+
+        self.gridLayout.addWidget(self.mMinLabel, 3, 1)
+        self.gridLayout.addWidget(self.mMinLineEdit, 3, 2)
+        self.gridLayout.addWidget(self.mMaxLabel, 3, 3)
+        self.gridLayout.addWidget(self.mMaxLineEdit, 3, 4)
+
+        self.gridLayout.addWidget(self.mContrastEnhancementLabel, 4, 0)
+        self.gridLayout.addWidget(self.mContrastEnhancementComboBox, 4, 1, 1 ,4)
+        self.gridLayout.setSpacing(2)
+
+        self.setLayoutItemVisibility(self.gridLayout, True)
+
+        self.mDefaultRenderer = layer.renderer()
+
+
+    def initActionButtons(self):
+
+        wl, wlu = parseWavelength(self.rasterLayer())
+        self.wavelengths = wl
+        self.wavelengthUnit = wlu
+
+        self.mBtnBar.setLayout(QHBoxLayout())
+        self.mBtnBar.layout().addStretch()
+        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+        self.mBtnBar.layout().setSpacing(2)
+
+        self.actionSetDefault = QAction('Default')
+        self.actionSetRed = QAction('R')
+        self.actionSetGreen = QAction('G')
+        self.actionSetBlue = QAction('B')
+        self.actionSetNIR = QAction('nIR')
+        self.actionSetSWIR = QAction('swIR')
+
+        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+        self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
+        self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
+        self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
+        self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
+        self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
+
+
+        def addBtnAction(action):
+            btn = QToolButton()
+            btn.setDefaultAction(action)
+            self.mBtnBar.layout().addWidget(btn)
+            self.insertAction(None, action)
+            return btn
+
+        self.btnDefault = addBtnAction(self.actionSetDefault)
+        self.btnRed = addBtnAction(self.actionSetRed)
+        self.btnGreen = addBtnAction(self.actionSetGreen)
+        self.btnBlue = addBtnAction(self.actionSetRed)
+        self.btnNIR = addBtnAction(self.actionSetNIR)
+        self.btnSWIR = addBtnAction(self.actionSetSWIR)
+
+        b = self.wavelengths is not None
+        for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
+            a.setEnabled(b)
+
+
+
+class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return SingleBandPseudoColorRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
+
+        self.gridLayout = self.layout()
+        assert isinstance(self.gridLayout, QGridLayout)
+        for i in range(self.gridLayout.count()):
+            w = self.gridLayout.itemAt(i)
+            w = w.widget()
+            if isinstance(w, QWidget):
+                setattr(self, w.objectName(), w)
+
+        toReplace = [self.mBandComboBox,self.mMinLabel,self.mMaxLabel, self.mMinLineEdit, self.mMaxLineEdit ]
+        for w in toReplace:
+            self.gridLayout.removeWidget(w)
+            w.setVisible(False)
+        self.mBandSlider = QSlider(Qt.Horizontal)
+        self.mBandComboBoxes.append(self.mBandComboBox)
+        self.fixBandNames(self.mBandComboBox)
+        self.connectSliderWithBandComboBox(self.mBandSlider, self.mBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.initActionButtons()
+        grid = QGridLayout()
+        grid.addWidget(self.mBtnBar,0,0,1,4, Qt.AlignLeft)
+        grid.addWidget(self.mBandSlider, 1,0, 1,2)
+        grid.addWidget(self.mBandComboBox, 1,2, 1,2)
+        grid.addWidget(self.mMinLabel, 2, 0)
+        grid.addWidget(self.mMinLineEdit, 2, 1)
+        grid.addWidget(self.mMaxLabel, 2, 2)
+        grid.addWidget(self.mMaxLineEdit, 2, 3)
+        #grid.setContentsMargins(2, 2, 2, 2, )
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 2)
+        grid.setColumnStretch(2, 0)
+        grid.setColumnStretch(3, 2)
+        grid.setSpacing(2)
+        self.gridLayout.addItem(grid, 0,1,2,4)
+        self.gridLayout.setSpacing(2)
+        self.setLayoutItemVisibility(grid, True)
+
+
+    def initActionButtons(self):
+            wl, wlu = parseWavelength(self.rasterLayer())
+            self.wavelengths = wl
+            self.wavelengthUnit = wlu
+
+            self.mBtnBar.setLayout(QHBoxLayout())
+            self.mBtnBar.layout().addStretch()
+            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+            self.mBtnBar.layout().setSpacing(2)
+
+            self.actionSetDefault = QAction('Default')
+            self.actionSetRed = QAction('R')
+            self.actionSetGreen = QAction('G')
+            self.actionSetBlue = QAction('B')
+            self.actionSetNIR = QAction('nIR')
+            self.actionSetSWIR = QAction('swIR')
+
+            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
+            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
+            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
+            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
+            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
+
+
+            def addBtnAction(action):
+                btn = QToolButton()
+                btn.setDefaultAction(action)
+                self.mBtnBar.layout().addWidget(btn)
+                self.insertAction(None, action)
+                return btn
+
+            self.btnDefault = addBtnAction(self.actionSetDefault)
+            self.btnRed = addBtnAction(self.actionSetRed)
+            self.btnGreen = addBtnAction(self.actionSetGreen)
+            self.btnBlue = addBtnAction(self.actionSetRed)
+            self.btnNIR = addBtnAction(self.actionSetNIR)
+            self.btnSWIR = addBtnAction(self.actionSetSWIR)
+
+            b = self.wavelengths is not None
+            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
+                a.setEnabled(b)
+
+
+
+
+class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return MultiBandColorRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(MultiBandColorRendererWidget, self).__init__(layer, extent)
+
+        self.modifyGridLayout()
+
+        self.mRedBandSlider = QSlider(Qt.Horizontal)
+        self.mGreenBandSlider = QSlider(Qt.Horizontal)
+        self.mBlueBandSlider = QSlider(Qt.Horizontal)
+
+        self.mBandComboBoxes.extend([self.mRedBandComboBox, self.mGreenBandComboBox, self.mBlueBandComboBox])
+        self.mSliders = [self.mRedBandSlider, self.mGreenBandSlider, self.mBlueBandSlider]
+        nb = self.rasterLayer().dataProvider().bandCount()
+        for cbox, slider in zip(self.mBandComboBoxes, self.mSliders):
+            self.connectSliderWithBandComboBox(slider, cbox)
+
+
+        self.fixBandNames(self.mRedBandComboBox)
+        self.fixBandNames(self.mGreenBandComboBox)
+        self.fixBandNames(self.mBlueBandComboBox)
+
+        self.mBtnBar = QFrame()
+        self.mBtnBar.setLayout(QHBoxLayout())
+        self.initActionButtons()
+        self.mBtnBar.layout().addStretch()
+        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
+        self.mBtnBar.layout().setSpacing(2)
+
+        #self.gridLayout.deleteLater()
+#        self.gridLayout = newGrid
+        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 3)
+        self.gridLayout.addWidget(self.mRedBandLabel, 1, 0)
+        self.gridLayout.addWidget(self.mRedBandSlider, 1, 1)
+        self.gridLayout.addWidget(self.mRedBandComboBox, 1, 2)
+        self.gridLayout.addWidget(self.mRedMinLineEdit, 1, 3)
+        self.gridLayout.addWidget(self.mRedMaxLineEdit, 1, 4)
+
+        self.gridLayout.addWidget(self.mGreenBandLabel, 2, 0)
+        self.gridLayout.addWidget(self.mGreenBandSlider, 2, 1)
+        self.gridLayout.addWidget(self.mGreenBandComboBox, 2, 2)
+        self.gridLayout.addWidget(self.mGreenMinLineEdit, 2, 3)
+        self.gridLayout.addWidget(self.mGreenMaxLineEdit, 2, 4)
+
+        self.gridLayout.addWidget(self.mBlueBandLabel, 3, 0)
+        self.gridLayout.addWidget(self.mBlueBandSlider, 3, 1)
+        self.gridLayout.addWidget(self.mBlueBandComboBox, 3, 2)
+        self.gridLayout.addWidget(self.mBlueMinLineEdit, 3, 3)
+        self.gridLayout.addWidget(self.mBlueMaxLineEdit, 3, 4)
+
+        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmLabel, 4, 0, 1, 2)
+        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmComboBox, 4, 2, 1, 3)
+
+        self.setLayoutItemVisibility(self.gridLayout, True)
+
+
+        self.mRedBandLabel.setText('R')
+        self.mGreenBandLabel.setText('G')
+        self.mBlueBandLabel.setText('B')
+
+        self.mDefaultRenderer = layer.renderer()
+
+
+
+    def initActionButtons(self):
+
+        wl, wlu = parseWavelength(self.rasterLayer())
+        self.wavelengths = wl
+        self.wavelengthUnit = wlu
+
+        self.actionSetDefault = QAction('Default')
+        self.actionSetTrueColor = QAction('RGB')
+        self.actionSetCIR = QAction('nIR')
+        self.actionSet453 = QAction('swIR')
+
+        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
+        self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
+        self.actionSetCIR.triggered.connect(lambda: self.setBandSelection('nIR,R,G'))
+        self.actionSet453.triggered.connect(lambda: self.setBandSelection('nIR,swIR,R'))
+
+
+        def addBtnAction(action):
+            btn = QToolButton()
+            btn.setDefaultAction(action)
+            self.mBtnBar.layout().addWidget(btn)
+            self.insertAction(None, action)
+            return btn
+
+        self.btnDefault = addBtnAction(self.actionSetDefault)
+        self.btnTrueColor = addBtnAction(self.actionSetTrueColor)
+        self.btnCIR = addBtnAction(self.actionSetCIR)
+        self.btn453 = addBtnAction(self.actionSet453)
+
+        b = self.wavelengths is not None
+        for a in [self.actionSetCIR, self.actionSet453, self.actionSetTrueColor]:
+            a.setEnabled(b)
 
 
 class MapView(QObject):
@@ -331,7 +1214,7 @@ class MapView(QObject):
         assert isinstance(sensor, SensorInstrument)
 
         sensorView = self.mSensorViews[sensor]
-        assert isinstance(sensorView, MapViewSensorSettings)
+        assert isinstance(sensorView, MapViewRenderSettingsV2s)
         sensorView.registerMapCanvas(mapCanvas)
 
         #register signals sensor specific signals
@@ -374,13 +1257,233 @@ class MapView(QObject):
         assert type(sensor) is SensorInstrument
         return self.mSensorViews[sensor]
 
+def displayBandNames(provider_or_dataset, bands=None):
+    results = None
+    if isinstance(provider_or_dataset, QgsRasterLayer):
+        return displayBandNames(provider_or_dataset.dataProvider())
+    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
+        if provider_or_dataset.name() == 'gdal':
+            ds = gdal.Open(provider_or_dataset.dataSourceUri())
+            results = displayBandNames(ds, bands=bands)
+        else:
+            # same as in QgsRasterRendererWidget::displayBandName
+            results = []
+            if bands is None:
+                bands = range(1, provider_or_dataset.bandCount() + 1)
+            for band in bands:
+                result = provider_or_dataset.generateBandName(band)
+                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
+                if colorInterp != 'Undefined':
+                    result += '({})'.format(colorInterp)
+                results.append(result)
+
+    elif isinstance(provider_or_dataset, gdal.Dataset):
+        results = []
+        if bands is None:
+            bands = range(1, provider_or_dataset.RasterCount+1)
+        for band in bands:
+            b = provider_or_dataset.GetRasterBand(band)
+            descr = b.GetDescription()
+            if len(descr) == 0:
+                descr = 'Band {}'.format(band)
+            results.append(descr)
+
+    return results
 
 
-class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
+class RasterDataProviderMockup(QgsRasterDataProvider):
+
+    def __init__(self):
+        super(RasterDataProviderMockup, self).__init__('')
+
+
+
+
+class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersettingsV2.ui')):
+
+
+    LUT_RENDERER = {QgsMultiBandColorRenderer:QgsMultiBandColorRendererWidget,
+                    QgsSingleBandGrayRenderer:QgsSingleBandGrayRendererWidget,
+                    QgsSingleBandPseudoColorRenderer:QgsSingleBandPseudoColorRendererWidget,
+                    QgsPalettedRasterRenderer:QgsPalettedRendererWidget}
+    LUT_RENDERER[QgsMultiBandColorRenderer]=MultiBandColorRendererWidget
+    LUT_RENDERER[QgsSingleBandPseudoColorRenderer]=SingleBandPseudoColorRendererWidget
+    LUT_RENDERER[QgsSingleBandGrayRenderer]=SingleBandGrayRendererWidget
+
+    def __init__(self, sensor, parent=None):
+        """Constructor."""
+        super(MapViewRenderSettingsV2, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+
+        self.setupUi(self)
+
+        QApplication.clipboard().dataChanged.connect(self.onClipboardChanged)
+
+        assert isinstance(sensor, SensorInstrument)
+        self.mSensor = sensor
+        self.mSensor.sigNameChanged.connect(self.onSensorNameChanged)
+        self.setTitle(self.mSensor.name())
+
+        from timeseriesviewer.models import OptionListModel, Option
+        rasterRendererModel = OptionListModel()
+        #rasterRendererModel.addOption(Option(QgsMultiBandColorRendererWidget, name='multibandcolor (QGIS)', mRenderType = QgsMultiBandColorRenderer))
+        #rasterRendererModel.addOption(Option(QgsPalettedRendererWidget, name='paletted (QGIS)', mRenderType = QgsPalettedRasterRenderer))
+        #rasterRendererModel.addOption(Option(QgsSingleBandGrayRendererWidget, name='singlegray (QGIS)', mRenderType = QgsSingleBandGrayRenderer))
+        #rasterRendererModel.addOption(Option(QgsSingleBandPseudoColorRendererWidget, name='singlebandpseudocolor (QGIS)', mRenderType = QgsSingleBandPseudoColorRenderer))
+
+        rasterRendererModel.addOption(Option(MultiBandColorRendererWidget, name='multibandcolor', mRenderType=QgsMultiBandColorRenderer))
+        rasterRendererModel.addOption(Option(SingleBandGrayRendererWidget, name='singlegray', mRenderType=QgsSingleBandGrayRenderer))
+        rasterRendererModel.addOption(Option(SingleBandPseudoColorRendererWidget, name='singlebandpseudocolor', mRenderType=QgsSingleBandPseudoColorRenderer))
+        rasterRendererModel.addOption(Option(QgsPalettedRendererWidget, name='paletted', mRenderType=QgsPalettedRasterRenderer))
+        self.mRasterRendererModel = rasterRendererModel
+
+        self.cbRenderType.setModel(self.mRasterRendererModel)
+        assert isinstance(self.stackedWidget, QStackedWidget)
+
+        self.mMockupCanvas = QgsMapCanvas()
+        self.mMockupRasterLayer = QgsRasterLayer(self.mSensor.pathImg)
+        self.mMockupCanvas.setLayers([self.mMockupRasterLayer])
+        for func in rasterRendererModel.optionValues():
+
+            #extent = self.canvas.extent()
+            #w = func.create(self.mMockupRasterLayer, self.mMockupRasterLayer.extent())
+            w = func(self.mMockupRasterLayer, self.mMockupRasterLayer.extent())
+            #w = func(QgsRasterLayer(), QgsRectangle())
+
+            w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+            #w.sizeHint = lambda : QSize(300, 50)
+            w.setMapCanvas(self.mMockupCanvas)
+
+            self.stackedWidget.addWidget(w)
+
+        self.initActions()
+
+    def initActions(self):
+
+
+        self.btnPasteStyle.setDefaultAction(self.actionPasteStyle)
+        self.btnCopyStyle.setDefaultAction(self.actionCopyStyle)
+        self.btnApplyStyle.setDefaultAction(self.actionApplyStyle)
+
+        clipboardRenderer = rendererFromXml(QApplication.clipboard().mimeData())
+        self.actionPasteStyle.setEnabled(isinstance(clipboardRenderer, QgsRasterRenderer))
+        self.actionPasteStyle.triggered.connect(self.pasteStyleFromClipboard)
+        self.actionCopyStyle.triggered.connect(self.pasteStyleToClipboard)
+        self.actionApplyStyle.triggered.connect(self.apply)
+
+    def mapCanvases(self):
+        return self.mMapCanvases[:]
+
+    def registerMapCanvas(self, mapCanvas):
+
+        assert isinstance(mapCanvas, MapCanvas)
+        self.mMapCanvases.append(mapCanvas)
+        mapCanvas.sigChangeSVRequest.connect(self.onMapCanvasRendererChangeRequest)
+
+    def onSensorNameChanged(self, newName):
+        self.setTitle(self.sensor.name())
+        self.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.sensor.name()))
+
+
+    def currentRenderWidget(self):
+        """
+        Returns the current QgsRasterRendererWidget
+        :return: QgsRasterRendererWidget
+        """
+        return self.stackedWidget.currentWidget()
+
+
+    def setRasterRenderer(self, renderer):
+        assert isinstance(renderer, QgsRasterRenderer)
+        assert isinstance(self.stackedWidget, QStackedWidget)
+
+        self.mMockupRasterLayer.setRenderer(renderer)
+
+        #find the widget class that fits
+        cls = None
+
+        for option in self.mRasterRendererModel:
+            if type(renderer) == option.mRenderType:
+                cls = option.value()
+                break
+        if cls == None:
+            return
+
+        widgets = []
+        for i in range(self.stackedWidget.count()):
+            w = self.stackedWidget.widget(i)
+            if isinstance(w, cls):
+                widgets.append(w)
+
+        if len(widgets) > 0:
+            for w in widgets:
+                assert isinstance(w, QgsRasterRendererWidget)
+                w.setRasterLayer(self.mMockupRasterLayer)
+                w.setFromRenderer(cloneRenderer(renderer))
+                w.doComputations()
+
+            w = widgets[0]
+            self.stackedWidget.setCurrentWidget(w)
+
+            self.cbRenderType.setCurrentIndex(self.stackedWidget.currentIndex())
+
+
+    def rasterRenderer(self):
+
+        return self.stackedWidget.currentWidget().renderer()
+
+
+    def apply(self):
+
+        mRendererWidget = self.currentRenderWidget()
+        mRendererWidget.doComputations()
+
+    def onClipboardChanged(self):
+        mimeData = QApplication.clipboard().mimeData()
+        renderer = rendererFromXml(mimeData)
+        b = isinstance(renderer, QgsRasterRenderer)
+        #if b == False:
+        #    print(mimeData.formats())
+        #    s = ""
+        self.actionPasteStyle.setEnabled(b)
+
+
+
+    def pasteStyleFromClipboard(self):
+        mimeData = QApplication.clipboard().mimeData()
+        renderer = rendererFromXml(mimeData)
+        if isinstance(renderer, QgsRasterRenderer):
+            self.setRasterRenderer(renderer)
+
+    def pasteStyleToClipboard(self):
+        xml = rendererToXml(self.rasterRenderer())
+        assert isinstance(xml, QDomDocument)
+        md = QMimeData()
+        #['application/qgis.style', 'text/plain']
+
+        md.setData('application/qgis.style', xml.toByteArray())
+        md.setData('text/plain', xml.toByteArray())
+        QApplication.clipboard().setMimeData(md)
+    def applyStyle(self, *args):
+        r = self.rasterLayerRenderer()
+        for mapCanvas in self.mMapCanvases:
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.layerModel().setRenderer(r)
+            mapCanvas.refresh()
+
+
+
+
+
+class DEPR_MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
 
     def __init__(self, parent=None):
         """Constructor."""
-        super(MapViewRenderSettingsUI, self).__init__(parent)
+        super(DEPR_MapViewRenderSettingsUI, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
         # self.<objectname>, and you can use autoconnect slots - see
@@ -407,7 +1510,92 @@ class MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
 
 
 
-class MapViewSensorSettings(QObject):
+RENDER_CLASSES = {}
+RENDER_CLASSES['rasterrenderer'] = {
+    'singlebandpseudocolor':QgsSingleBandPseudoColorRenderer,
+    'singlebandgray': QgsSingleBandGrayRenderer,
+    'paletted':QgsPalettedRasterRenderer,
+    'multibandcolor': QgsMultiBandColorRenderer,
+    'hillshade': QgsHillshadeRenderer
+}
+RENDER_CLASSES['renderer-v2'] = {
+    'categorizedSymbol':QgsCategorizedSymbolRenderer,
+    'singleSymbol':QgsSingleSymbolRenderer
+}
+
+def cloneRenderer(renderer):
+    assert isinstance(renderer, QgsRasterRenderer)
+    cloned = renderer.clone()
+
+    #handle specific issues if cloning is not exactly the same
+    if isinstance(cloned, QgsSingleBandPseudoColorRenderer):
+        cloned.setClassificationMin(renderer.classificationMin())
+        cloned.setClassificationMax(renderer.classificationMax())
+
+    return cloned
+
+def rendererToXml(renderer):
+    doc = QDomDocument()
+    if isinstance(renderer, QgsRasterRenderer):
+        path = os.path.join(os.path.dirname(__file__), 'dummy_gdal.vrt')
+        lyr = QgsRasterLayer(path)
+        lyr.setRenderer(renderer.clone())
+
+    elif isinstance(renderer, QgsFeatureRenderer):
+        #todo: distinguish vector type from requested renderer
+        lyr = QgsVectorLayer('Point?crs=epsg:4326&field=id:integer', 'dummy', 'memory')
+        lyr.setRenderer(renderer.clone())
+    else:
+        raise NotImplementedError()
+    err = ''
+    lyr.exportNamedStyle(doc, err)
+    return doc
+
+
+def rendererFromXml(xml):
+    """
+    Reads a string `text` and returns the first QgsRasterRenderer or QgsFeatureRenderer (if defined).
+    :param text:
+    :return:
+    """
+
+    if isinstance(xml, QMimeData):
+        for format in ['application/qgis.style', 'text/plain']:
+            if format in xml.formats():
+                dom  = QDomDocument()
+                dom.setContent(xml.data(format))
+                return rendererFromXml(dom)
+        return None
+
+    elif isinstance(xml, str):
+        dom = QDomDocument()
+        dom.setContent(xml)
+        return rendererFromXml(dom)
+
+    assert isinstance(xml, QDomDocument)
+    root = xml.documentElement()
+    for baseClass, renderClasses in RENDER_CLASSES.items():
+        elements = root.elementsByTagName(baseClass)
+        if elements.count() > 0:
+            elem = elements.item(0).toElement()
+            typeName = elem.attributes().namedItem('type').nodeValue()
+            if typeName in renderClasses.keys():
+                rClass = renderClasses[typeName]
+                if baseClass == 'rasterrenderer':
+
+                    return rClass.create(elem, DUMMY_RASTERINTERFACE)
+                elif baseClass == 'renderer-v2':
+                    context = QgsReadWriteContext()
+                    return rClass.load(elem, context)
+                    #return rClass.create(elem)
+            else:
+                print(typeName)
+                s =""
+    return None
+
+
+
+class DEPR_MapViewSensorSettings(QObject):
     """
     Describes the rendering of images of one Sensor
     """
@@ -416,7 +1604,7 @@ class MapViewSensorSettings(QObject):
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
-        super(MapViewSensorSettings, self).__init__(parent)
+        super(DEPR_MapViewSensorSettings, self).__init__(parent)
         from timeseriesviewer.timeseries import SensorInstrument
         assert isinstance(sensor, SensorInstrument)
         self.sensor = sensor
@@ -729,7 +1917,7 @@ class MapViewSensorSettings(QObject):
         if updated:
             self.mLastRenderer = self.rasterLayerRenderer()
 
-        if updated and MapViewSensorSettings.SignalizeImmediately:
+        if updated:
             self.sigSensorRendererChanged.emit(renderer.clone())
             self.applyStyle()
 
@@ -1914,29 +3102,38 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 if __name__ == '__main__':
     from timeseriesviewer import utils
     from timeseriesviewer.mapcanvas import MapCanvas
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
+    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
 
 
     from example import  exampleEvents
     qgsApp = utils.initQgisApplication()
+    TS = TimeSeries()
+    TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
 
-    TS= TimeSeries()
-    dock  = MapViewCollectionDock()
-    dock.setTimeSeries(TS)
-    dock.show()
-    mv1 = dock.createMapView()
-    mv2 = dock.createMapView()
-    dock.setCurrentMapView(mv1)
-    assert dock.currentMapView() == mv1
-    dock.setCurrentMapView(mv2)
-    assert dock.currentMapView() == mv2
+    if True:
 
-    vl = QgsVectorLayer(exampleEvents, 'ogr')
-    QgsProject.instance().addMapLayer(vl)
-    #d = QgsRendererPropertiesDialog(vl, QgsStyle.defaultStyle())
-    #d.show()
+        dock  = MapViewCollectionDock()
+        dock.setTimeSeries(TS)
+        dock.show()
+        mv1 = dock.createMapView()
+        mv2 = dock.createMapView()
+        dock.setCurrentMapView(mv1)
+        assert dock.currentMapView() == mv1
+        dock.setCurrentMapView(mv2)
+        assert dock.currentMapView() == mv2
 
-    TS.addFiles(Img_2014_01_15_LC82270652014015LGN00_BOA)
+        vl = QgsVectorLayer(exampleEvents, 'ogr')
+        QgsProject.instance().addMapLayer(vl)
+        #d = QgsRendererPropertiesDialog(vl, QgsStyle.defaultStyle())
+        #d.show()
+
+    else:
+
+        w = MapViewRenderSettingsV2(TS.sensors()[0])
+        w.show()
+        w.setRasterRenderer(w.rasterRenderer())
+        #renderer2 = w.rasterRenderer()
+        #print(renderer2)
 
 
     qgsApp.exec_()

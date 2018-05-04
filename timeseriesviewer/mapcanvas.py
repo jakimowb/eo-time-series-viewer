@@ -277,7 +277,9 @@ class MapLayerInfo(object):
            self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
             self.mRenderer = renderer
             if self.isInitialized():
+                from timeseriesviewer.mapvisualization import cloneRenderer
                 copyRenderer(self.mRenderer, self.mLayer)
+
                 #self.mLayer.repaintRequested.emit()
 
     def setIsVisible(self, b):

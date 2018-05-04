@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, math, re, io
+import os, sys, math, re, io, fnmatch
 
 
 from collections import defaultdict
@@ -56,6 +56,30 @@ def qgisInstance():
         return qgis.utils.iface
     else:
         return None
+
+
+def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
+    assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
+    regType = type(re.compile('.*'))
+    results = []
+
+    for root, dirs, files in os.walk(rootdir):
+        for file in files:
+            if isinstance(pattern, regType):
+                if pattern.search(file):
+                    path = os.path.join(root, file)
+                    results.append(path)
+
+            elif (ignoreCase and fnmatch.fnmatch(file.lower(), pattern.lower())) \
+                    or fnmatch.fnmatch(file, pattern):
+
+                path = os.path.join(root, file)
+                results.append(path)
+        if not recursive:
+            break
+            pass
+
+    return results
 
 
 def appendItemsToMenu(menu, itemsToAdd):
@@ -555,6 +579,172 @@ class KeepRefs(object):
 
 
 
+def defaultBands(dataset):
+    """
+    Returns a list of 3 default bands
+    :param dataset:
+    :return:
+    """
+    if isinstance(dataset, str):
+        return defaultBands(gdal.Open(dataset))
+    elif isinstance(dataset, QgsRasterDataProvider):
+        return defaultBands(dataset.dataSourceUri())
+    elif isinstance(dataset, QgsRasterLayer):
+        return defaultBands(dataset.source())
+    elif isinstance(dataset, gdal.Dataset):
+
+        db = dataset.GetMetadataItem(str('default_bands'), str('ENVI'))
+        if db != None:
+            db = [int(n) for n in re.findall('\d+')]
+            return db
+        db = [0, 0, 0]
+        cis = [gdal.GCI_RedBand, gdal.GCI_GreenBand, gdal.GCI_BlueBand]
+        for b in range(dataset.RasterCount):
+            band = dataset.GetRasterBand(b + 1)
+            assert isinstance(band, gdal.Band)
+            ci = band.GetColorInterpretation()
+            if ci in cis:
+                db[cis.index(ci)] = b
+        if db != [0, 0, 0]:
+            return db
+
+        rl = QgsRasterLayer(dataset.GetFileList()[0])
+        defaultRenderer = rl.renderer()
+        if isinstance(defaultRenderer, QgsRasterRenderer):
+            db = defaultRenderer.usesBands()
+            if len(db) == 0:
+                return [0, 1, 2]
+            if len(db) > 3:
+                db = db[0:3]
+            db = [b-1 for b in db]
+        return db
+
+    else:
+        raise Exception()
+
+######### Lookup  tables
+METRIC_EXPONENTS = {
+    "nm": -9, "um": -6, u"µm": -6, "mm": -3, "cm": -2, "dm": -1, "m": 0, "hm": 2, "km": 3
+}
+# add synonyms
+METRIC_EXPONENTS['nanometers'] = METRIC_EXPONENTS['nm']
+METRIC_EXPONENTS['micrometers'] = METRIC_EXPONENTS['um']
+METRIC_EXPONENTS['millimeters'] = METRIC_EXPONENTS['mm']
+METRIC_EXPONENTS['centimeters'] = METRIC_EXPONENTS['cm']
+METRIC_EXPONENTS['decimeters'] = METRIC_EXPONENTS['dm']
+METRIC_EXPONENTS['meters'] = METRIC_EXPONENTS['m']
+METRIC_EXPONENTS['hectometers'] = METRIC_EXPONENTS['hm']
+METRIC_EXPONENTS['kilometers'] = METRIC_EXPONENTS['km']
+
+
+LUT_WAVELENGTH = dict({'B': 480,
+                       'G': 570,
+                       'R': 660,
+                       'NIR': 850,
+                       'SWIR': 1650,
+                       'SWIR1': 1650,
+                       'SWIR2': 2150
+                       })
+
+def convertMetricUnit(value, u1, u2):
+    """converts value, given in unit u1, to u2"""
+    assert u1 in METRIC_EXPONENTS.keys()
+    assert u2 in METRIC_EXPONENTS.keys()
+
+    e1 = METRIC_EXPONENTS[u1]
+    e2 = METRIC_EXPONENTS[u2]
+
+    return value * 10 ** (e1 - e2)
+
+def bandClosestToWavelength(dataset, wl, wl_unit='nm'):
+    """
+    Returns the band index of an image dataset closest to wavelength `wl`.
+    :param dataset: str | gdal.Dataset
+    :param wl: wavelength to search the closed band for
+    :param wl_unit: unit of wavelength. Default = nm
+    :return: band index | 0 of wavelength information is not provided
+    """
+    if isinstance(wl, str):
+        assert wl.upper() in LUT_WAVELENGTH.keys(), wl
+        return bandClosestToWavelength(dataset, LUT_WAVELENGTH[wl.upper()], wl_unit='nm')
+    else:
+        try:
+            wl = float(wl)
+            ds_wl, ds_wlu = parseWavelength(dataset)
+
+            if ds_wl is None or ds_wlu is None:
+                return 0
+
+
+            if ds_wlu != wl_unit:
+                wl = convertMetricUnit(wl, wl_unit, ds_wlu)
+            return int(np.argmin(np.abs(ds_wl - wl)))
+        except:
+            pass
+    return 0
+
+
+def parseWavelength(dataset):
+    """
+    Returns the wavelength + wavelength unit of a dataset
+    :param dataset:
+    :return: (wl, wl_u) or (None, None), if not existing
+    """
+
+    wl = None
+    wlu = None
+
+    if isinstance(dataset, str):
+        return parseWavelength(gdal.Open(dataset))
+    elif isinstance(dataset, QgsRasterDataProvider):
+        return parseWavelength(dataset.dataSourceUri())
+    elif isinstance(dataset, QgsRasterLayer):
+        return parseWavelength(dataset.source())
+    elif isinstance(dataset, gdal.Dataset):
+
+        for domain in dataset.GetMetadataDomainList():
+            # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+
+            mdDict = dataset.GetMetadata_Dict(domain)
+
+            for key, values in mdDict.items():
+                key = key.lower()
+                if re.search('wavelength$', key, re.I):
+                    tmp = re.findall('\d*\.\d+|\d+', values)  # find floats
+                    if len(tmp) != dataset.RasterCount:
+                        tmp = re.findall('\d+', values)  # find integers
+                    if len(tmp) == dataset.RasterCount:
+                        wl = np.asarray([float(w) for w in tmp])
+
+                if re.search(r'wavelength.units?', key):
+                    if re.search('(Micrometers?|um)', values, re.I):
+                        wlu = 'um'  # fix with python 3 UTF
+                    elif re.search('(Nanometers?|nm)', values, re.I):
+                        wlu = 'nm'
+                    elif re.search('(Millimeters?|mm)', values, re.I):
+                        wlu = 'nm'
+                    elif re.search('(Centimeters?|cm)', values, re.I):
+                        wlu = 'nm'
+                    elif re.search('(Meters?|m)', values, re.I):
+                        wlu = 'nm'
+                    elif re.search('Wavenumber', values, re.I):
+                        wlu = '-'
+                    elif re.search('GHz', values, re.I):
+                        wlu = 'GHz'
+                    elif re.search('MHz', values, re.I):
+                        wlu = 'MHz'
+                    elif re.search('Index', values, re.I):
+                        wlu = '-'
+                    else:
+                        wlu = '-'
+
+        if wl is not None and len(wl) > dataset.RasterCount:
+            wl = wl[0:dataset.RasterCount]
+
+    return wl, wlu
+
+
+
 def filterSubLayers(filePaths, subLayerEndings):
     """
     Returns sub layers endings from all gdal Datasets within filePaths
@@ -580,6 +770,7 @@ def filterSubLayers(filePaths, subLayerEndings):
             pass
     return results
 
+
 def copyRenderer(renderer, targetLayer):
     """
     Copies and applies renderer to targetLayer.
@@ -587,25 +778,14 @@ def copyRenderer(renderer, targetLayer):
     :param targetLayer:
     :return: True, if 'renderer' could be copied and applied to 'targetLayer'
     """
+    from timeseriesviewer.mapvisualization import cloneRenderer
     if isinstance(targetLayer, QgsRasterLayer) and isinstance(renderer, QgsRasterRenderer):
-        if isinstance(renderer, QgsMultiBandColorRenderer):
-            r = renderer.clone()
-            r.setInput(targetLayer.dataProvider())
-            targetLayer.setRenderer(r)
-            return True
-        elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-            r = renderer.clone()
-            # r = QgsSingleBandPseudoColorRenderer(None, renderer.band(), None)
-            r.setInput(targetLayer.dataProvider())
-            cmin = renderer.classificationMin()
-            cmax = renderer.classificationMax()
-            r.setClassificationMin(cmin)
-            r.setClassificationMax(cmax)
-            targetLayer.setRenderer(r)
-            return True
+
+        targetLayer.setRenderer(cloneRenderer(renderer))
+        return True
     elif isinstance(targetLayer, QgsVectorLayer) and isinstance(renderer, QgsFeatureRenderer):
-        #todo: add render-specific switches
-        targetLayer.setRenderer(renderer)
+
+        targetLayer.setRenderer(cloneRenderer(renderer))
         return True
 
     return False
