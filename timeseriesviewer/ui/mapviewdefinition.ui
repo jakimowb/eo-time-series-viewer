@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>290</width>
+    <width>234</width>
     <height>241</height>
    </rect>
   </property>
@@ -75,12 +75,12 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>267</width>
+        <width>211</width>
         <height>235</height>
        </rect>
       </property>
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>0</horstretch>
         <verstretch>2</verstretch>
        </sizepolicy>
