@@ -86,7 +86,7 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         assert isinstance(sensor, SensorInstrument)
 
         #w = MapViewSensorSettings(sensor)
-        w = MapViewRenderSettingsV2(sensor)
+        w = MapViewRenderSettings(sensor)
         #sizePolicy = QSizePolicy(QSize)
         #w.ui.
         #l = self.renderSettingsLayout
@@ -107,7 +107,7 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         assert isinstance(sensor, SensorInstrument)
         sensorSettings = self.mSensors.pop(sensor)
-        assert isinstance(sensorSettings, MapViewRenderSettingsV2)
+        assert isinstance(sensorSettings, MapViewRenderSettings)
 
         #l = self.renderSettingsLayout
         l = self.gbRasterRendering.layout()
@@ -198,21 +198,6 @@ class RendererWidgetModifications(object):
 
 
 
-    def fixBandNames(self, comboBox):
-        """
-        Changes the QGIS default bandnames ("Band 001") to more meaning ful information including gdal.Dataset.Descriptions.
-        :param widget:
-        :param comboBox:
-        """
-        assert isinstance(self, QgsRasterRendererWidget)
-        if type(comboBox) is QComboBox:
-            bandNames = displayBandNames(self.rasterLayer())
-            for i in range(comboBox.count()):
-                # text = cb.itemText(i)
-                if i > 0:
-                    comboBox.setItemText(i, bandNames[i - 1])
-        else:
-            raise NotImplementedError()
 
 
 def displayBandNames(provider_or_dataset, bands=None):
@@ -658,9 +643,6 @@ class RendererWidgetModifications(object):
         """
         nb = self.rasterLayer().bandCount()
 
-
-
-
         assert isinstance(self, QgsRasterRendererWidget)
         assert isinstance(comboBox, QComboBox)
         #comboBox.clear()
@@ -674,8 +656,7 @@ class RendererWidgetModifications(object):
             item = m.item(i+b,0)
             assert isinstance(item, QStandardItem)
             item.setData(bandNames[i], Qt.DisplayRole)
-                #m.setData(m.createIndex(i+b,0), bandNames[i], Qt.EditRole)
-
+            item.setData('Band {} "{}"'.format(i+1, bandNames[i]), Qt.ToolTipRole)
 
 
 
@@ -1158,7 +1139,7 @@ class MapView(QObject):
     def refreshMapView(self, *args):
 
         for renderSettings in self.mSensorViews.values():
-            assert isinstance(renderSettings, MapViewRenderSettingsV2)
+            assert isinstance(renderSettings, MapViewRenderSettings)
             renderSettings.applyStyle()
 
         #for mapCanvas in self.mapCanvases():
@@ -1241,7 +1222,7 @@ class MapView(QObject):
         assert isinstance(sensor, SensorInstrument)
 
         mapViewRenderSettings = self.mSensorViews[sensor]
-        assert isinstance(mapViewRenderSettings, MapViewRenderSettingsV2)
+        assert isinstance(mapViewRenderSettings, MapViewRenderSettings)
         mapViewRenderSettings.registerMapCanvas(mapCanvas)
 
         #register signals sensor specific signals
@@ -1326,7 +1307,7 @@ class RasterDataProviderMockup(QgsRasterDataProvider):
 
 
 
-class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersettingsV2.ui')):
+class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
 
 
     LUT_RENDERER = {QgsMultiBandColorRenderer:QgsMultiBandColorRendererWidget,
@@ -1340,7 +1321,7 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
-        super(MapViewRenderSettingsV2, self).__init__(parent)
+        super(MapViewRenderSettings, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
         # self.<objectname>, and you can use autoconnect slots - see
@@ -2713,7 +2694,7 @@ if __name__ == '__main__':
 
     else:
 
-        w = MapViewRenderSettingsV2(TS.sensors()[0])
+        w = MapViewRenderSettings(TS.sensors()[0])
         w.show()
         w.setRasterRenderer(w.rasterRenderer())
         #renderer2 = w.rasterRenderer()

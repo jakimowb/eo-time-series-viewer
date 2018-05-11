@@ -8,5 +8,15 @@
       <MDI key="STATISTICS_STDDEV">0</MDI>
     </Metadata>
     <Description>Band 1</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>0</HistMin>
+        <HistMax>0</HistMax>
+        <BucketCount>1</BucketCount>
+        <IncludeOutOfRange>0</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>0</HistCounts>
+      </HistItem>
+    </Histograms>
   </VRTRasterBand>
 </VRTDataset>
