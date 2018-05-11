@@ -20,7 +20,7 @@ import os
 import sys
 import mock
 
-MOCK_MODULES = ['qgis','qgis.core','qgis.gui', 'qgis.PyQt.QtGui','qgis.PyQt.QtCore', 'gdal', 'numpy', 'scipy', 'pyqtgraph','OpenGL']
+MOCK_MODULES = ['qgis','qgis.core','qgis.gui','qgis.utils','qgis.PyQt.QtGui','qgis.PyQt.QtCore', 'gdal', 'numpy', 'scipy', 'pyqtgraph','OpenGL']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
