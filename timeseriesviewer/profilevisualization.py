@@ -2133,7 +2133,7 @@ if __name__ == '__main__':
             f.setAttribute('b', n)
             context = QgsExpressionContextUtils.createFeatureBasedContext(f, f.fields())
             r = expr.evaluate(context)
-            print((n,r))
+            #print((n,r))
         s = ""
 
 

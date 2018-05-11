@@ -117,6 +117,9 @@ if __name__ == "__main__":
 
         for f in file_search(DIR_DEPLOY, re.compile('(svg|pyc)$'), recursive=True):
             os.remove(f)
+        for d in file_search(DIR_DEPLOY, '__pycache__', recursive=True, directories=True):
+            os.removedirs(d)
+
 
     #5. create a zip
     print('Create zipfile...')

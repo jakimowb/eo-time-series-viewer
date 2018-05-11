@@ -1061,9 +1061,6 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         """
         Updates visibility properties
         """
-
-        if DEBUG:
-            print('{} updateStyle'.format(self))
         from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
 #        path = drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
     #                    #painter, symbol, size, pen, brush
@@ -1462,8 +1459,7 @@ class TemporalProfileCollection(QAbstractTableModel):
                 if isinstance(TP, TemporalProfile):
                     TP.pullDataUpdate(d)
                 else:
-                    if DEBUG:
-                        print('got result for missing TPid {}'.format(TPid))
+                    pass
                     s = ""
 
     def clear(self):
