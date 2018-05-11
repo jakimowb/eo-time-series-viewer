@@ -93,11 +93,10 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         l = self.gbRasterRendering.layout()
         assert sensor not in self.mSensors.keys()
 
-        lastWidgetIndex = l.count()-1
-
-
-        #lastWidgetIndex = l.count()-1
-        l.insertWidget(lastWidgetIndex, w)
+        i = l.count()-1
+        while i > 0 and not isinstance(l.itemAt(i), QWidget):
+            i -= 1
+        l.insertWidget(i, w, stretch=0, alignment=Qt.AlignTop)
         self.mSensors[sensor] = w
         #self.resize(self.sizeHint())
 
@@ -306,7 +305,6 @@ class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidg
 
 
     def initActionButtons(self):
-            from enmapbox.gui.utils import parseWavelength
             wl, wlu = parseWavelength(self.rasterLayer())
             self.wavelengths = wl
             self.wavelengthUnit = wlu
@@ -548,10 +546,10 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
 class RendererWidgetModifications(object):
 
     def __init__(self):
+        self.initWidgetNames()
         self.mBandComboBoxes = []
 
     def modifyGridLayout(self):
-
 
         gridLayoutOld = self.layout().children()[0]
         self.gridLayout = QGridLayout()
@@ -560,25 +558,31 @@ class RendererWidgetModifications(object):
             w = w.widget()
             gridLayoutOld.removeWidget(w)
             w.setVisible(False)
-            setattr(self, w.objectName(), w)
-        self.layout().removeItem(gridLayoutOld)
-        self.layout().insertItem(0, self.gridLayout)
-        self.gridLayout.setSpacing(2)
-        self.layout().addStretch()
 
+        self.gridLayout.setSpacing(2)
 
         l = self.layout()
-        item = l.itemAt(l.count()-1)
-        if isinstance(item, QSpacerItem):
-            #l.removeItem(item)
-            s =""
-        self.minMaxWidget().layout().itemAt(0).widget().collapsedStateChanged.connect(self.onCollapsed)
+        l.removeItem(gridLayoutOld)
+        if isinstance(l, QBoxLayout):
+            l.insertItem(0, self.gridLayout)
+            self.layout().addStretch()
+        elif isinstance(l, QGridLayout):
+            l.addItem(self.gridLayout, 0, 0)
 
+
+        minMaxWidget = self.minMaxWidget()
+        if isinstance(minMaxWidget, QWidget):
+            minMaxWidget.layout().itemAt(0).widget().collapsedStateChanged.connect(self.onCollapsed)
+
+
+    def initWidgetNames(self):
+        for c in self.children():
+            setattr(self, c.objectName(), c)
 
     def onCollapsed(self, b):
         hint = self.sizeHint()
         self.parent().adjustSize()
-        self.parent().set(hint)
+       # self.parent().setFixedSize(hint)
         self.parent().parent().adjustSize()
 
     def connectSliderWithBandComboBox(self, slider, combobox):
@@ -802,6 +806,8 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
     def __init__(self, layer, extent):
         super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
 
+        self.mColormapTreeWidget.setMinimumSize(QSize(1,1))
+
         self.gridLayout = self.layout()
         assert isinstance(self.gridLayout, QGridLayout)
         for i in range(self.gridLayout.count()):
@@ -839,6 +845,7 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
         self.gridLayout.setSpacing(2)
         self.setLayoutItemVisibility(grid, True)
 
+        s = ""
 
     def initActionButtons(self):
             wl, wlu = parseWavelength(self.rasterLayer())
@@ -884,12 +891,26 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
                 a.setEnabled(b)
 
 
+class PalettedRendererWidget(QgsPalettedRendererWidget, RendererWidgetModifications):
+    @staticmethod
+    def create(layer, extent):
+        return PalettedRendererWidget(layer, extent)
+
+    def __init__(self, layer, extent):
+        super(PalettedRendererWidget, self).__init__(layer, extent)
+
+        #self.modifyGridLayout()
+
+        self.mTreeView.setMinimumSize(QSize(10,10))
+        s = ""
+
 
 
 class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidgetModifications):
     @staticmethod
     def create(layer, extent):
         return MultiBandColorRendererWidget(layer, extent)
+
 
     def __init__(self, layer, extent):
         super(MultiBandColorRendererWidget, self).__init__(layer, extent)
@@ -1309,6 +1330,7 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
     LUT_RENDERER[QgsMultiBandColorRenderer]=MultiBandColorRendererWidget
     LUT_RENDERER[QgsSingleBandPseudoColorRenderer]=SingleBandPseudoColorRendererWidget
     LUT_RENDERER[QgsSingleBandGrayRenderer]=SingleBandGrayRendererWidget
+    LUT_RENDERER[QgsPalettedRasterRenderer] = PalettedRendererWidget
 
     def __init__(self, sensor, parent=None):
         """Constructor."""
@@ -1335,10 +1357,10 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         #rasterRendererModel.addOption(Option(QgsSingleBandGrayRendererWidget, name='singlegray (QGIS)', mRenderType = QgsSingleBandGrayRenderer))
         #rasterRendererModel.addOption(Option(QgsSingleBandPseudoColorRendererWidget, name='singlebandpseudocolor (QGIS)', mRenderType = QgsSingleBandPseudoColorRenderer))
 
-        rasterRendererModel.addOption(Option(MultiBandColorRendererWidget, name='multibandcolor', mRenderType=QgsMultiBandColorRenderer))
-        rasterRendererModel.addOption(Option(SingleBandGrayRendererWidget, name='singlegray', mRenderType=QgsSingleBandGrayRenderer))
-        rasterRendererModel.addOption(Option(SingleBandPseudoColorRendererWidget, name='singlebandpseudocolor', mRenderType=QgsSingleBandPseudoColorRenderer))
-        rasterRendererModel.addOption(Option(QgsPalettedRendererWidget, name='paletted', mRenderType=QgsPalettedRasterRenderer))
+        rasterRendererModel.addOption(Option(MultiBandColorRendererWidget, name='Multibandcolor', mRenderType=QgsMultiBandColorRenderer))
+        rasterRendererModel.addOption(Option(SingleBandGrayRendererWidget, name='Singlegray', mRenderType=QgsSingleBandGrayRenderer))
+        rasterRendererModel.addOption(Option(SingleBandPseudoColorRendererWidget, name='Singleband Pseudocolor', mRenderType=QgsSingleBandPseudoColorRenderer))
+        rasterRendererModel.addOption(Option(PalettedRendererWidget, name='Paletted', mRenderType=QgsPalettedRasterRenderer))
         self.mRasterRendererModel = rasterRendererModel
 
         self.cbRenderType.setModel(self.mRasterRendererModel)
@@ -3106,11 +3128,12 @@ if __name__ == '__main__':
 
 
     from example import  exampleEvents
-    qgsApp = utils.initQgisApplication()
+    rDir = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\eo-time-series-viewer\qgisresources'
+    qgsApp = utils.initQgisApplication(qgisResourceDir=rDir)
     TS = TimeSeries()
     TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
 
-    if True:
+    if False:
 
         dock  = MapViewCollectionDock()
         dock.setTimeSeries(TS)

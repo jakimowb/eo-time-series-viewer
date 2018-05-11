@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>150</width>
-    <height>86</height>
+    <width>335</width>
+    <height>135</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -48,12 +48,12 @@
   <property name="checkable">
    <bool>false</bool>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,2,1">
    <property name="spacing">
     <number>2</number>
    </property>
    <property name="sizeConstraint">
-    <enum>QLayout::SetDefaultConstraint</enum>
+    <enum>QLayout::SetNoConstraint</enum>
    </property>
    <property name="leftMargin">
     <number>2</number>
@@ -198,9 +198,12 @@
     </widget>
    </item>
    <item>
-    <spacer name="verticalSpacer">
+    <spacer name="verticalSpacer_2">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::MinimumExpanding</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
