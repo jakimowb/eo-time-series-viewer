@@ -529,9 +529,10 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
 
 class RendererWidgetModifications(object):
 
-    def __init__(self):
+    def __init__(self, *args):
         self.initWidgetNames()
         self.mBandComboBoxes = []
+
 
     def modifyGridLayout(self):
 
@@ -612,6 +613,8 @@ class RendererWidgetModifications(object):
         else:
             combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx + 1, slider))
 
+        s = ""
+
     def comboBoxWithNotSetItem(self, cb):
         assert isinstance(cb, QComboBox)
         return cb.itemData(0, role=Qt.DisplayRole).lower() == 'not set'
@@ -629,7 +632,8 @@ class RendererWidgetModifications(object):
                 s = ""
 
     def setBandSelection(self, key):
-        if key == 'default':
+        key = key.upper()
+        if key == 'DEFAULT':
             bandIndices = defaultBands(self.rasterLayer())
         else:
             colors = re.split('[ ,;:]', key)
@@ -648,19 +652,31 @@ class RendererWidgetModifications(object):
 
     def fixBandNames(self, comboBox):
         """
-        Changes the QGIS default bandnames ("Band 001") to more meaning ful information including gdal.Dataset.Descriptions.
+        Changes the QGIS default bandnames ("Band 001") to more meaningfull information including gdal.Dataset.Descriptions.
         :param widget:
         :param comboBox:
         """
+        nb = self.rasterLayer().bandCount()
+
+
+
+
         assert isinstance(self, QgsRasterRendererWidget)
-        if type(comboBox) is QComboBox:
-            bandNames = displayBandNames(self.rasterLayer())
-            for i in range(comboBox.count()):
-                # text = cb.itemText(i)
-                if i > 0:
-                    comboBox.setItemText(i, bandNames[i - 1])
-        else:
-            raise NotImplementedError()
+        assert isinstance(comboBox, QComboBox)
+        #comboBox.clear()
+        m = comboBox.model()
+        assert isinstance(m, QStandardItemModel)
+        bandNames = displayBandNames(self.rasterLayer())
+
+
+        b = 1 if nb < comboBox.count() else 0
+        for i in range(nb):
+            item = m.item(i+b,0)
+            assert isinstance(item, QStandardItem)
+            item.setData(bandNames[i], Qt.DisplayRole)
+                #m.setData(m.createIndex(i+b,0), bandNames[i], Qt.EditRole)
+
+
 
 
 def displayBandNames(provider_or_dataset, bands=None):
@@ -734,7 +750,7 @@ class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidg
         self.setLayoutItemVisibility(self.gridLayout, True)
 
         self.mDefaultRenderer = layer.renderer()
-
+        self.setFromRenderer(self.mDefaultRenderer)
 
     def initActionButtons(self):
 
@@ -770,9 +786,9 @@ class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidg
             return btn
 
         self.btnDefault = addBtnAction(self.actionSetDefault)
-        self.btnRed = addBtnAction(self.actionSetRed)
+        self.btnBlue = addBtnAction(self.actionSetBlue)
         self.btnGreen = addBtnAction(self.actionSetGreen)
-        self.btnBlue = addBtnAction(self.actionSetRed)
+        self.btnRed = addBtnAction(self.actionSetRed)
         self.btnNIR = addBtnAction(self.actionSetNIR)
         self.btnSWIR = addBtnAction(self.actionSetSWIR)
 
@@ -864,9 +880,9 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
                 return btn
 
             self.btnDefault = addBtnAction(self.actionSetDefault)
-            self.btnRed = addBtnAction(self.actionSetRed)
+            self.btnBlue = addBtnAction(self.actionSetBlue)
             self.btnGreen = addBtnAction(self.actionSetGreen)
-            self.btnBlue = addBtnAction(self.actionSetRed)
+            self.btnRed = addBtnAction(self.actionSetRed)
             self.btnNIR = addBtnAction(self.actionSetNIR)
             self.btnSWIR = addBtnAction(self.actionSetSWIR)
 
@@ -885,6 +901,7 @@ class PalettedRendererWidget(QgsPalettedRendererWidget, RendererWidgetModificati
 
         #self.modifyGridLayout()
 
+        self.fixBandNames(self.mBandComboBox)
         self.mTreeView.setMinimumSize(QSize(10,10))
         s = ""
 
@@ -2677,7 +2694,7 @@ if __name__ == '__main__':
     TS = TimeSeries()
     TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
 
-    if True:
+    if False:
 
         dock  = MapViewCollectionDock()
         dock.setTimeSeries(TS)
