@@ -196,22 +196,6 @@ class RendererWidgetModifications(object):
             else:
                 s = ""
 
-    def setBandSelection(self, key):
-        if key == 'default':
-            bands = defaultBands(self.rasterLayer())
-        else:
-            colors = re.split('[ ,;:]', key)
-
-            bands = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
-
-        n = min(len(bands), len(self.mBandComboBoxes))
-        for i in range(n):
-            cb = self.mBandComboBoxes[i]
-            bandIndex = bands[i]
-            if self.comboBoxWithNotSetItem(cb):
-                cb.setCurrentIndex(bandIndex+1)
-            else:
-                cb.setCurrentIndex(bandIndex)
 
 
     def fixBandNames(self, comboBox):
@@ -630,7 +614,7 @@ class RendererWidgetModifications(object):
 
     def comboBoxWithNotSetItem(self, cb):
         assert isinstance(cb, QComboBox)
-        return cb.itemData(0, role=Qt.DisplayRole) == 'not set'
+        return cb.itemData(0, role=Qt.DisplayRole).lower() == 'not set'
 
     def setLayoutItemVisibility(self, grid, isVisible):
         assert isinstance(self, QgsRasterRendererWidget)
@@ -646,16 +630,16 @@ class RendererWidgetModifications(object):
 
     def setBandSelection(self, key):
         if key == 'default':
-            bands = defaultBands(self.rasterLayer())
+            bandIndices = defaultBands(self.rasterLayer())
         else:
             colors = re.split('[ ,;:]', key)
 
-            bands = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
+            bandIndices = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
 
-        n = min(len(bands), len(self.mBandComboBoxes))
+        n = min(len(bandIndices), len(self.mBandComboBoxes))
         for i in range(n):
             cb = self.mBandComboBoxes[i]
-            bandIndex = bands[i]
+            bandIndex = bandIndices[i]
             if self.comboBoxWithNotSetItem(cb):
                 cb.setCurrentIndex(bandIndex+1)
             else:
@@ -1015,7 +999,7 @@ class MapView(QObject):
     #sigVectorVisibility = pyqtSignal(bool)
     #sigRasterVisibility = pyqtSignal(bool)
 
-    sigTitleChanged = pyqtSignal([str],[unicode])
+    sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
 
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
@@ -1155,9 +1139,14 @@ class MapView(QObject):
         return self.ui.tbName.text()
 
     def refreshMapView(self, *args):
-        for mapCanvas in self.mapCanvases():
-            assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.refresh()
+
+        for renderSettings in self.mSensorViews.values():
+            assert isinstance(renderSettings, MapViewRenderSettingsV2)
+            renderSettings.applyStyle()
+
+        #for mapCanvas in self.mapCanvases():
+        #    assert isinstance(mapCanvas, MapCanvas)
+        #    mapCanvas.refresh()
 
     def setCrosshairStyle(self, crosshairStyle):
         if isinstance(crosshairStyle, CrosshairStyle):
@@ -1234,12 +1223,12 @@ class MapView(QObject):
         assert isinstance(mapCanvas, MapCanvas)
         assert isinstance(sensor, SensorInstrument)
 
-        sensorView = self.mSensorViews[sensor]
-        assert isinstance(sensorView, MapViewRenderSettingsV2s)
-        sensorView.registerMapCanvas(mapCanvas)
+        mapViewRenderSettings = self.mSensorViews[sensor]
+        assert isinstance(mapViewRenderSettings, MapViewRenderSettingsV2)
+        mapViewRenderSettings.registerMapCanvas(mapCanvas)
 
         #register signals sensor specific signals
-        mapCanvas.setRenderer(sensorView.rasterLayerRenderer())
+        mapCanvas.setRenderer(mapViewRenderSettings.rasterRenderer())
         mapCanvas.setRenderer(self.vectorLayerRenderer())
 
 
@@ -1382,6 +1371,7 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
 
             self.stackedWidget.addWidget(w)
 
+        self.mMapCanvases = []
         self.initActions()
 
     def initActions(self):
@@ -1395,7 +1385,7 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         self.actionPasteStyle.setEnabled(isinstance(clipboardRenderer, QgsRasterRenderer))
         self.actionPasteStyle.triggered.connect(self.pasteStyleFromClipboard)
         self.actionCopyStyle.triggered.connect(self.pasteStyleToClipboard)
-        self.actionApplyStyle.triggered.connect(self.apply)
+        self.actionApplyStyle.triggered.connect(self.applyStyle)
 
     def mapCanvases(self):
         return self.mMapCanvases[:]
@@ -1405,6 +1395,10 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         assert isinstance(mapCanvas, MapCanvas)
         self.mMapCanvases.append(mapCanvas)
         mapCanvas.sigChangeSVRequest.connect(self.onMapCanvasRendererChangeRequest)
+
+    def onMapCanvasRendererChangeRequest(self, mapCanvas, renderer):
+        self.setRasterRenderer(renderer)
+        self.applyStyle()
 
     def onSensorNameChanged(self, newName):
         self.setTitle(self.sensor.name())
@@ -1444,9 +1438,11 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         if len(widgets) > 0:
             for w in widgets:
                 assert isinstance(w, QgsRasterRendererWidget)
-                w.setRasterLayer(self.mMockupRasterLayer)
-                w.setFromRenderer(cloneRenderer(renderer))
-                w.doComputations()
+
+                #w.setRasterLayer(self.mMockupRasterLayer)
+                #w.setFromRenderer(cloneRenderer(renderer))
+                w.setFromRenderer(renderer)
+                #w.doComputations()
 
             w = widgets[0]
             self.stackedWidget.setCurrentWidget(w)
@@ -1490,45 +1486,15 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         md.setData('application/qgis.style', xml.toByteArray())
         md.setData('text/plain', xml.toByteArray())
         QApplication.clipboard().setMimeData(md)
+
     def applyStyle(self, *args):
-        r = self.rasterLayerRenderer()
+
+        r = self.rasterRenderer()
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
             mapCanvas.layerModel().setRenderer(r)
             mapCanvas.refresh()
 
-
-
-
-
-class DEPR_MapViewRenderSettingsUI(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
-
-    def __init__(self, parent=None):
-        """Constructor."""
-        super(DEPR_MapViewRenderSettingsUI, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-
-        self.setupUi(self)
-
-        self.btnDefaultMB.setDefaultAction(self.actionSetDefaultMB)
-        self.btnTrueColor.setDefaultAction(self.actionSetTrueColor)
-        self.btnCIR.setDefaultAction(self.actionSetCIR)
-        self.btn453.setDefaultAction(self.actionSet453)
-
-        self.btnSingleBandDef.setDefaultAction(self.actionSetDefaultSB)
-        self.btnSingleBandBlue.setDefaultAction(self.actionSetB)
-        self.btnSingleBandGreen.setDefaultAction(self.actionSetG)
-        self.btnSingleBandRed.setDefaultAction(self.actionSetR)
-        self.btnSingleBandNIR.setDefaultAction(self.actionSetNIR)
-        self.btnSingleBandSWIR.setDefaultAction(self.actionSetSWIR)
-
-        self.btnPasteStyle.setDefaultAction(self.actionPasteStyle)
-        self.btnCopyStyle.setDefaultAction(self.actionCopyStyle)
-        self.btnApplyStyle.setDefaultAction(self.actionApplyStyle)
 
 
 
@@ -1545,16 +1511,6 @@ RENDER_CLASSES['renderer-v2'] = {
     'singleSymbol':QgsSingleSymbolRenderer
 }
 
-def cloneRenderer(renderer):
-    assert isinstance(renderer, QgsRasterRenderer)
-    cloned = renderer.clone()
-
-    #handle specific issues if cloning is not exactly the same
-    if isinstance(cloned, QgsSingleBandPseudoColorRenderer):
-        cloned.setClassificationMin(renderer.classificationMin())
-        cloned.setClassificationMax(renderer.classificationMax())
-
-    return cloned
 
 def rendererToXml(renderer):
     doc = QDomDocument()
@@ -1616,418 +1572,6 @@ def rendererFromXml(xml):
     return None
 
 
-
-class DEPR_MapViewSensorSettings(QObject):
-    """
-    Describes the rendering of images of one Sensor
-    """
-
-    sigSensorRendererChanged = pyqtSignal(QgsRasterRenderer)
-
-    def __init__(self, sensor, parent=None):
-        """Constructor."""
-        super(DEPR_MapViewSensorSettings, self).__init__(parent)
-        from timeseriesviewer.timeseries import SensorInstrument
-        assert isinstance(sensor, SensorInstrument)
-        self.sensor = sensor
-
-        self.ui = MapViewRenderSettingsUI(parent)
-        self.ui.create()
-        self.ui.stackedWidget.currentChanged.connect(self.updateUi)
-        self.sensor.sigNameChanged.connect(self.onSensorNameChanged)
-        self.onSensorNameChanged(self.sensor.name())
-        self.mMapCanvases = []
-        self.ui.bandNames = sensor.bandNames
-
-        self.multiBandMinValues = [self.ui.tbRedMin, self.ui.tbGreenMin, self.ui.tbBlueMin]
-        self.multiBandMaxValues = [self.ui.tbRedMax, self.ui.tbGreenMax, self.ui.tbBlueMax]
-        self.multiBandSliders = [self.ui.sliderRed, self.ui.sliderGreen, self.ui.sliderBlue]
-
-
-
-        for tb in self.multiBandMinValues + self.multiBandMaxValues + [self.ui.tbSingleBandMin, self.ui.tbSingleBandMax]:
-            assert isinstance(tb, QLineEdit)
-
-            tb.setValidator(QDoubleValidator())
-            tb.textChanged.connect(self.onValuesChanged)
-
-        for sl in self.multiBandSliders + [self.ui.sliderSingleBand]:
-            sl.setMinimum(1)
-            sl.setMaximum(sensor.nb)
-            sl.valueChanged.connect(self.updateUi)
-
-
-
-
-        self.ceAlgs = collections.OrderedDict()
-
-        self.ceAlgs["No enhancement"] = QgsContrastEnhancement.NoEnhancement
-        self.ceAlgs["Stretch to MinMax"] = QgsContrastEnhancement.StretchToMinimumMaximum
-        self.ceAlgs["Stretch and clip to MinMax"] = QgsContrastEnhancement.StretchAndClipToMinimumMaximum
-        self.ceAlgs["Clip to MinMax"] = QgsContrastEnhancement.ClipToMinimumMaximum
-
-        self.colorRampType = collections.OrderedDict()
-        self.colorRampType['Interpolated'] = QgsColorRampShader.Interpolated
-        self.colorRampType['Discrete'] = QgsColorRampShader.Discrete
-        self.colorRampType['Exact'] = QgsColorRampShader.Exact
-
-        self.colorRampClassificationMode = collections.OrderedDict()
-        self.colorRampClassificationMode['Continuous'] = 1
-        self.colorRampClassificationMode['Equal Interval'] = 2
-        self.colorRampClassificationMode['Quantile'] = 3
-
-        def populateCombobox(cb, d):
-            for key, value in d.items():
-                cb.addItem(key, value)
-            cb.setCurrentIndex(0)
-
-        populateCombobox(self.ui.comboBoxContrastEnhancement, self.ceAlgs)
-        #populateCombobox(self.ui.cbSingleBandColorRampType, self.colorRampType)
-        populateCombobox(self.ui.cbSingleBandMode, self.colorRampClassificationMode)
-
-        #self.ui.cbSingleBandColorRamp.populate(QgsStyleV2.defaultStyle())
-        self.ui.btnSingleBandColorRamp.setColorRamp(QgsStyle.defaultStyle().colorRamp('Greens'))
-
-
-        nb = self.sensor.nb
-        lyr = QgsRasterLayer(self.sensor.pathImg)
-
-        #define default renderers:
-        bands = [min([b,nb-1]) for b in range(3)]
-        extent = lyr.extent()
-
-        bandStats = [lyr.dataProvider().bandStatistics(b, QgsRasterBandStats.All, extent, 500) for b in range(nb)]
-
-        def createEnhancement(bandIndex):
-            bandIndex = min([nb - 1, bandIndex])
-            e = QgsContrastEnhancement(self.sensor.bandDataType)
-            e.setMinimumValue(bandStats[bandIndex].Min)
-            e.setMaximumValue(bandStats[bandIndex].Max)
-            e.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
-            return e
-
-        self.defaultMB = QgsMultiBandColorRenderer(lyr.dataProvider(), bands[0], bands[1], bands[2])
-        self.defaultMB.setRedContrastEnhancement(createEnhancement(bands[0]))
-        self.defaultMB.setGreenContrastEnhancement(createEnhancement(bands[1]))
-        self.defaultMB.setBlueContrastEnhancement(createEnhancement(bands[2]))
-
-        self.defaultSB = QgsSingleBandPseudoColorRenderer(lyr.dataProvider(), 0, None)
-
-        #colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
-        colorRamp = self.ui.btnSingleBandColorRamp.colorRamp()
-        #fix: QGIS 3.0 constructor
-        shaderFunc = QgsColorRampShader(bandStats[0].Min, bandStats[0].Max)
-        shaderFunc.setColorRampType(QgsColorRampShader.Interpolated)
-        shaderFunc.setClip(True)
-        nSteps = 5
-        colorRampItems = []
-        diff = bandStats[0].Max - bandStats[0].Min
-        for  i in range(nSteps+1):
-            f = float(i) / nSteps
-            color = colorRamp.color(f)
-            value = bandStats[0].Min + diff * f
-            colorRampItems.append(QgsColorRampShader.ColorRampItem(value, color))
-        shaderFunc.setColorRampItemList(colorRampItems)
-        shader = QgsRasterShader()
-        shader.setMaximumValue(bandStats[0].Max)
-        shader.setMinimumValue(bandStats[0].Min)
-        shader.setRasterShaderFunction(shaderFunc)
-        self.defaultSB.setShader(shader)
-        self.defaultSB.setClassificationMin(shader.minimumValue())
-        self.defaultSB.setClassificationMax(shader.maximumValue())
-        #init connect signals
-        self.ui.actionSetDefaultMB.triggered.connect(lambda : self.setBandSelection('defaultMB'))
-        self.ui.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('TrueColor'))
-        self.ui.actionSetCIR.triggered.connect(lambda: self.setBandSelection('CIR'))
-        self.ui.actionSet453.triggered.connect(lambda: self.setBandSelection('453'))
-
-        self.ui.actionSetDefaultSB.triggered.connect(lambda: self.setBandSelection('defaultSB'))
-        self.ui.actionSetB.triggered.connect(lambda: self.setBandSelection('B'))
-        self.ui.actionSetG.triggered.connect(lambda: self.setBandSelection('G'))
-        self.ui.actionSetR.triggered.connect(lambda: self.setBandSelection('R'))
-        self.ui.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
-        self.ui.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
-
-        self.ui.actionApplyStyle.triggered.connect(self.applyStyle)
-        self.ui.actionCopyStyle.triggered.connect(lambda : QApplication.clipboard().setMimeData(self.mimeDataStyle()))
-        self.ui.actionPasteStyle.triggered.connect(lambda : self.pasteStyleFromClipboard())
-
-        #self.ui.stackedWidget
-
-        if not self.sensor.wavelengthsDefined():
-            self.ui.btnTrueColor.setEnabled(False)
-            self.ui.btnCIR.setEnabled(False)
-            self.ui.btn453.setEnabled(False)
-
-            self.ui.btnSingleBandBlue.setEnabled(False)
-            self.ui.btnSingleBandGreen.setEnabled(False)
-            self.ui.btnSingleBandRed.setEnabled(False)
-            self.ui.btnSingleBandNIR.setEnabled(False)
-            self.ui.btnSingleBandSWIR.setEnabled(False)
-
-        #apply recent or default renderer
-        renderer = lyr.renderer()
-
-        #set defaults
-        self.setLayerRenderer(self.defaultSB)
-        self.setLayerRenderer(self.defaultMB)
-
-        self.mLastRenderer = renderer
-        if type(renderer) in [QgsMultiBandColorRenderer, QgsSingleBandPseudoColorRenderer]:
-            self.setLayerRenderer(renderer)
-
-
-        QApplication.clipboard().dataChanged.connect(self.onClipboardChange)
-        self.onClipboardChange()
-
-    def mapCanvases(self):
-        return self.mMapCanvases[:]
-
-    def registerMapCanvas(self, mapCanvas):
-
-        assert isinstance(mapCanvas, MapCanvas)
-        self.mMapCanvases.append(mapCanvas)
-        mapCanvas.sigChangeSVRequest.connect(self.onMapCanvasRendererChangeRequest)
-
-
-    def onSensorNameChanged(self, newName):
-
-        self.ui.setTitle(self.sensor.name())
-        self.ui.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.sensor.name()))
-
-    def pasteStyleFromClipboard(self):
-        utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
-        if utils.hasRasterStyle():
-            renderer = utils.rasterStyle(self.sensor.bandDataType)
-            if renderer is not None:
-                self.setLayerRenderer(renderer)
-
-    def applyStyle(self, *args):
-        r = self.rasterLayerRenderer()
-        for mapCanvas in self.mMapCanvases:
-            assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.layerModel().setRenderer(r)
-            mapCanvas.refresh()
-
-    def onClipboardChange(self):
-        utils = TsvMimeDataUtils(QApplication.clipboard().mimeData())
-        self.ui.btnPasteStyle.setEnabled(utils.hasRasterStyle())
-
-    def onMapCanvasRendererChangeRequest(self, mapCanvas, renderer):
-        self.setLayerRenderer(renderer)
-
-    def setBandSelection(self, key):
-
-
-        if key == 'defaultMB':
-            bands = [self.defaultMB.redBand(), self.defaultMB.greenBand(), self.defaultMB.blueBand()]
-        elif key == 'defaultSB':
-            bands = [self.defaultSB.band()]
-
-        else:
-            if key in ['R','G','B','nIR','swIR']:
-                colors = [key]
-            elif key == 'TrueColor':
-                colors = ['R','G','B']
-            elif key == 'CIR':
-                colors = ['nIR', 'R', 'G']
-            elif key == '453':
-                colors = ['nIR','swIR', 'R']
-            bands = [self.sensor.bandClosestToWavelength(c) for c in colors]
-
-        if len(bands) == 1:
-            self.ui.sliderSingleBand.setValue(bands[0]+1)
-        elif len(bands) == 3:
-            for i, b in enumerate(bands):
-                self.multiBandSliders[i].setValue(b+1)
-
-
-
-
-    SignalizeImmediately = True
-
-    def onValuesChanged(self, text):
-        styleValid = ""
-        styleInValid = """.QLineEdit {border-color:red;
-                           border-style: outset;
-                           border-width: 2px;
-                           background-color: yellow }
-                        """
-        w = self.sender()
-        if isinstance(w, QLineEdit):
-            validator = w.validator()
-            assert isinstance(validator, QDoubleValidator)
-            res = validator.validate(text, 0)
-            if res[0] == QDoubleValidator.Acceptable:
-                w.setStyleSheet(styleValid)
-            else:
-                w.setStyleSheet(styleInValid)
-
-    def updateUi(self, *args):
-
-        cw = self.ui.stackedWidget.currentWidget()
-        text = ''
-        if cw == self.ui.pageMultiBand:
-            text = 'Multiband({} {} {})'.format(
-                self.ui.sliderRed.value(),
-                self.ui.sliderGreen.value(),
-                self.ui.sliderBlue.value()
-            )
-        elif cw == self.ui.pageSingleBand:
-            text = 'Singleband({})'.format(self.ui.sliderSingleBand.value())
-
-        text = '{} - {}'.format(self.sensor.name(), text)
-        self.ui.setTitle(text)
-
-
-    def setLayerRenderer(self, renderer):
-        ui = self.ui
-        assert isinstance(renderer, QgsRasterRenderer)
-        from timeseriesviewer.utils import niceNumberString
-        updated = False
-        if isinstance(renderer, QgsMultiBandColorRenderer):
-            self.ui.cbRenderType.setCurrentIndex(0)
-            #self.ui.stackedWidget.setcurrentWidget(self.ui.pageMultiBand)
-
-            for s in self.multiBandSliders:
-                s.blockSignals(True)
-            ui.sliderRed.setValue(renderer.redBand())
-            ui.sliderGreen.setValue(renderer.greenBand())
-            ui.sliderBlue.setValue(renderer.blueBand())
-            for s in self.multiBandSliders:
-                s.blockSignals(False)
-
-
-            ceRed = renderer.redContrastEnhancement()
-            ceGreen = renderer.greenContrastEnhancement()
-            ceBlue = renderer.blueContrastEnhancement()
-
-            if ceRed is None:
-                ceRed = ceGreen = ceBlue = QgsContrastEnhancement(self.sensor.bandDataType)
-                s = ""
-            for i, ce in enumerate([ceRed, ceGreen, ceBlue]):
-                vMin = ce.minimumValue()
-                vMax = ce.maximumValue()
-                self.multiBandMinValues[i].setText(niceNumberString(vMin))
-                self.multiBandMaxValues[i].setText(niceNumberString(vMax))
-
-            idx = list(self.ceAlgs.values()).index(ceRed.contrastEnhancementAlgorithm())
-            ui.comboBoxContrastEnhancement.setCurrentIndex(idx)
-
-
-            updated = True
-
-        if isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-            self.ui.cbRenderType.setCurrentIndex(1)
-            #self.ui.stackedWidget.setCurrentWidget(self.ui.pageSingleBand)
-
-            self.ui.sliderSingleBand.setValue(renderer.band())
-            shader = renderer.shader()
-            cmin = shader.minimumValue()
-            cmax = shader.maximumValue()
-            self.ui.tbSingleBandMin.setText(str(cmin))
-            self.ui.tbSingleBandMax.setText(str(cmax))
-
-            shaderFunc = shader.rasterShaderFunction()
-            #self.ui.cbSingleBandColorRampType.setCurrentIndex(shaderFunc.colorRampType())
-            colorRamp = shaderFunc.sourceColorRamp()
-            if isinstance(colorRamp, QgsColorRamp):
-                self.ui.btnSingleBandColorRamp.setColorRamp(colorRamp)
-            updated = True
-
-        self.updateUi()
-        if updated:
-            self.mLastRenderer = self.rasterLayerRenderer()
-
-        if updated:
-            self.sigSensorRendererChanged.emit(renderer.clone())
-            self.applyStyle()
-
-    def mimeDataStyle(self):
-        mimeData = QMimeData()
-        r = self.rasterLayerRenderer()
-        if isinstance(r, QgsRasterRenderer):
-            doc = QDomDocument()
-            lyr = QgsRasterLayer(self.sensor.pathImg)
-            lyr.setRenderer(self.rasterLayerRenderer())
-            err = ''
-            lyr.exportNamedStyle(doc, err)
-            if len(err) == 0:
-                mimeData.setData('application/qgis.style', doc.toByteArray())
-                mimeData.setText(doc.toString())
-        return mimeData
-
-
-
-        return mimeData
-
-    def currentComboBoxItem(self, cb):
-        d = cb.itemData(cb.currentIndex(), Qt.UserRole)
-        return d
-
-    def rasterLayerRenderer(self):
-        ui = self.ui
-        r = None
-        if ui.stackedWidget.currentWidget() == ui.pageMultiBand:
-            r = self.rasterRendererMultiBand(ui)
-
-        if ui.stackedWidget.currentWidget() == ui.pageSingleBand:
-            r = self.rasterRendererSingleBand(ui)
-        return r
-
-    def rasterRendererMultiBand(self, ui):
-        r = QgsMultiBandColorRenderer(None,
-                                      ui.sliderRed.value(), ui.sliderGreen.value(), ui.sliderBlue.value())
-        i = self.ui.comboBoxContrastEnhancement.currentIndex()
-        alg = self.ui.comboBoxContrastEnhancement.itemData(i)
-        if alg == QgsContrastEnhancement.NoEnhancement:
-            r.setRedContrastEnhancement(None)
-            r.setGreenContrastEnhancement(None)
-            r.setBlueContrastEnhancement(None)
-        else:
-            rgbEnhancements = []
-            for i in range(3):
-                e = QgsContrastEnhancement(self.sensor.bandDataType)
-                minmax = [float(self.multiBandMinValues[i].text()), float(self.multiBandMaxValues[i].text())]
-                cmin = min(minmax)
-                cmax = max(minmax)
-                e.setMinimumValue(cmin)
-                e.setMaximumValue(cmax)
-                e.setContrastEnhancementAlgorithm(alg)
-                rgbEnhancements.append(e)
-            r.setRedContrastEnhancement(rgbEnhancements[0])
-            r.setGreenContrastEnhancement(rgbEnhancements[1])
-            r.setBlueContrastEnhancement(rgbEnhancements[2])
-        return r
-
-    def rasterRendererSingleBand(self, ui):
-        r = QgsSingleBandPseudoColorRenderer(None, ui.sliderSingleBand.value(), None)
-        minmax = [float(ui.tbSingleBandMin.text()), float(ui.tbSingleBandMax.text())]
-        cmin = min(minmax)
-        cmax = max(minmax)
-        r.setClassificationMin(cmin)
-        r.setClassificationMax(cmax)
-        #colorRamp = self.ui.cbSingleBandColorRamp.currentColorRamp()
-        colorRamp = self.ui.btnSingleBandColorRamp.colorRamp()
-        # fix: QGIS 3.0 constructor
-        shaderFunc = QgsColorRampShader(cmin, cmax)
-        shaderFunc.setColorRampType(self.currentComboBoxItem(ui.cbSingleBandColorRampType))
-        shaderFunc.setClip(True)
-        nSteps = 10
-        colorRampItems = []
-        diff = cmax - cmin
-        for i in range(nSteps + 1):
-            f = float(i) / nSteps
-            color = colorRamp.color(f)
-            value = cmin + diff * f
-            colorRampItems.append(QgsColorRampShader.ColorRampItem(value, color))
-        shaderFunc.setColorRampItemList(colorRampItems)
-        shader = QgsRasterShader()
-        shader.setMaximumValue(cmax)
-        shader.setMinimumValue(cmin)
-        shader.setRasterShaderFunction(shaderFunc)
-        r.setShader(shader)
-        return r
 
 
 
@@ -3133,7 +2677,7 @@ if __name__ == '__main__':
     TS = TimeSeries()
     TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
 
-    if False:
+    if True:
 
         dock  = MapViewCollectionDock()
         dock.setTimeSeries(TS)

@@ -658,7 +658,7 @@ def convertMetricUnit(value, u1, u2):
 
 def bandClosestToWavelength(dataset, wl, wl_unit='nm'):
     """
-    Returns the band index of an image dataset closest to wavelength `wl`.
+    Returns the band index (!) of an image dataset closest to wavelength `wl`.
     :param dataset: str | gdal.Dataset
     :param wl: wavelength to search the closed band for
     :param wl_unit: unit of wavelength. Default = nm
@@ -682,6 +682,18 @@ def bandClosestToWavelength(dataset, wl, wl_unit='nm'):
         except:
             pass
     return 0
+
+def cloneRenderer(renderer):
+
+    assert isinstance(renderer, QgsRasterRenderer)
+    cloned = renderer.clone()
+
+    #handle specific issues if cloning is not exactly the same
+    if isinstance(cloned, QgsSingleBandPseudoColorRenderer):
+        cloned.setClassificationMin(renderer.classificationMin())
+        cloned.setClassificationMax(renderer.classificationMax())
+
+    return cloned
 
 
 def parseWavelength(dataset):
