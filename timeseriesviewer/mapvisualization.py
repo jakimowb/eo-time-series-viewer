@@ -1401,8 +1401,8 @@ class MapViewRenderSettingsV2(QgsCollapsibleGroupBox, loadUI('mapviewrendersetti
         self.applyStyle()
 
     def onSensorNameChanged(self, newName):
-        self.setTitle(self.sensor.name())
-        self.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.sensor.name()))
+        self.setTitle(self.mSensor.name())
+        self.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.mSensor.name()))
 
 
     def currentRenderWidget(self):

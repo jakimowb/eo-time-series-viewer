@@ -745,7 +745,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.dataChanged.emit(idx, idx)
 
     def sensorsChanged(self, sensor):
-        i = self.mColumnNames.index('sensor')
+        i = self.mColumnNames.index(self.cnSensor)
         idx0 = self.createIndex(0, i)
         idx1 = self.createIndex(self.rowCount(), i)
         self.dataChanged.emit(idx0, idx1)
