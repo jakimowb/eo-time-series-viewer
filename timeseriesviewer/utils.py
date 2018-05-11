@@ -58,12 +58,25 @@ def qgisInstance():
         return None
 
 
-def file_search(rootdir, pattern, recursive=False, ignoreCase=False):
+def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories=False):
+    """
+    Searches for files
+    :param rootdir: root directory to search for files.
+    :param pattern: wildcard ("my*files.*") or regular expression to describe the file name.
+    :param recursive: set True to search recursively.
+    :param ignoreCase: set True to ignore character case.
+    :param directories: set True to search for directories instead of files.
+    :return: [list-of-paths]
+    """
     assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
     regType = type(re.compile('.*'))
     results = []
 
     for root, dirs, files in os.walk(rootdir):
+
+        if directories:
+            files = dirs
+
         for file in files:
             if isinstance(pattern, regType):
                 if pattern.search(file):
