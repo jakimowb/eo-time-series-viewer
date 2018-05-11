@@ -85,12 +85,26 @@ class testclassDialogTest(unittest.TestCase):
         m.show()
 
 
+    def test_bandselection(self):
+
+        lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
+
+        wl, wlu = parseWavelength(lyr)
+        self.assertIsInstance(wl, np.ndarray)
+        self.assertIsInstance(wlu, str)
+        self.assertEqual(wlu, 'um')
+        refWL = [0.49,  0.56,  0.66,  0.84,  1.65,  2.2]
+
+        self.assertEqual(len(wl), len(refWL))
+        for wla, wlb in zip(wl, refWL):
+            self.assertAlmostEqual(wla, wlb)
+
+        self.assertEqual(0, bandClosestToWavelength(lyr, 'B'))
+        s = ""
+
     def test_renderer(self):
 
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')
-
-
-
 
         lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
 
@@ -114,7 +128,7 @@ class testclassDialogTest(unittest.TestCase):
         vectorRenderer = []#[QgsSingleSymbolRenderer(QgsLineSymbol()), QgsPointDistanceRenderer()]
 
         for r1 in rasterRenderer + vectorRenderer:
-
+            print('Test {}'.format(r1.__class__.__name__))
             xml1 = rendererToXml(r1)
             self.assertIsInstance(xml1, QDomDocument)
 
@@ -155,7 +169,7 @@ class testclassDialogTest(unittest.TestCase):
             #self.assertTrue(isinstance(renderer, QgsRasterRenderer) or isinstance(renderer, QgsFeatureRenderer), msg='Unable to read style from {}'.format(path))
 
 
-        s = ""
+        print('test_renderer done')
 
     def test_maprendersettings(self):
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
@@ -164,7 +178,7 @@ class testclassDialogTest(unittest.TestCase):
         TS = TimeSeries()
         TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA])
         sensor1 = TS.sensors()[0]
-        w = MapViewRenderSettingsV2(sensor1)
+        w = MapViewRenderSettings(sensor1)
         w.show()
 
 
