@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import six, sys, os, gc, re, collections, site, inspect
+import sys, os, gc, re, collections, site, inspect
 from osgeo import gdal, ogr
 from qgis import *
 from qgis.core import *
@@ -352,10 +352,10 @@ if __name__ == '__main__':
     timeseriesviewer.DEBUG = True
     #run tests
     if False: gdal_qgis_benchmark()
-    if True: sandboxQgisBridge()
+    if False: sandboxQgisBridge()
     if False: sandboxGui()
 
-    if False: sandboxTestdata()
+    if True: sandboxTestdata()
     if False: sandboxDemo()
     #close QGIS
     qgsApp.exec_()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>286</width>
-    <height>339</height>
+    <width>322</width>
+    <height>213</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,7 +18,7 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>290</width>
+    <width>16777215</width>
     <height>16777215</height>
    </size>
   </property>
@@ -75,20 +75,20 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>263</width>
-        <height>333</height>
+        <width>299</width>
+        <height>500</height>
        </rect>
       </property>
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
+        <horstretch>2</horstretch>
         <verstretch>2</verstretch>
        </sizepolicy>
       </property>
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>0</height>
+        <height>500</height>
        </size>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -96,7 +96,7 @@
         <number>2</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetFixedSize</enum>
+        <enum>QLayout::SetNoConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>2</number>
@@ -237,7 +237,7 @@
        <item>
         <widget class="QgsCollapsibleGroupBox" name="gbVectorRendering">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -245,7 +245,7 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>25</height>
+           <height>35</height>
           </size>
          </property>
          <property name="title">
@@ -328,7 +328,7 @@
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>25</height>
+           <height>35</height>
           </size>
          </property>
          <property name="title">
@@ -356,25 +356,6 @@
           <property name="bottomMargin">
            <number>0</number>
           </property>
-          <item>
-           <layout class="QVBoxLayout" name="renderSettingsLayout">
-            <property name="sizeConstraint">
-             <enum>QLayout::SetMinAndMaxSize</enum>
-            </property>
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>9</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>9</number>
-            </property>
-           </layout>
-          </item>
          </layout>
         </widget>
        </item>
@@ -383,10 +364,13 @@
          <property name="orientation">
           <enum>Qt::Vertical</enum>
          </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::MinimumExpanding</enum>
+         </property>
          <property name="sizeHint" stdset="0">
           <size>
            <width>0</width>
-           <height>25</height>
+           <height>0</height>
           </size>
          </property>
         </spacer>

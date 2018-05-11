@@ -277,7 +277,9 @@ class MapLayerInfo(object):
            self.mProvider == 'gdal' and isinstance(renderer, QgsRasterRenderer):
             self.mRenderer = renderer
             if self.isInitialized():
+                from timeseriesviewer.mapvisualization import cloneRenderer
                 copyRenderer(self.mRenderer, self.mLayer)
+
                 #self.mLayer.repaintRequested.emit()
 
     def setIsVisible(self, b):
@@ -852,14 +854,27 @@ class MapCanvas(QgsMapCanvas):
 
                 if isinstance(r, QgsMultiBandColorRenderer):
 
+                    #newRenderer = QgsMultiBandColorRenderer(None, r.redBand(), r.greenBand(), r.blueBand())
+                    newRenderer = cloneRenderer(r)
 
-                    newRenderer = QgsMultiBandColorRenderer(None, r.redBand(), r.greenBand(), r.blueBand())
-                    newRenderer.setRedContrastEnhancement(getCE(r.redBand()))
-                    newRenderer.setGreenContrastEnhancement(getCE(r.greenBand()))
-                    newRenderer.setBlueContrastEnhancement(getCE(r.blueBand()))
+                    ceR = getCE(r.redBand())
+                    ceG = getCE(r.greenBand())
+                    ceB = getCE(r.blueBand())
+
+                    if False:
+                        vMin = min(ceR.minimumValue(), ceG.minimumValue(), ceB.minimumValue())
+                        vMax = max(ceR.maximumValue(), ceG.maximumValue(), ceB.maximumValue())
+                        for ce in [ceR, ceG, ceB]:
+                            assert isinstance(ce, QgsContrastEnhancement)
+                            ce.setMaximumValue(vMax)
+                            ce.setMinimumValue(vMin)
+
+                    newRenderer.setRedContrastEnhancement(ceR)
+                    newRenderer.setGreenContrastEnhancement(ceG)
+                    newRenderer.setBlueContrastEnhancement(ceB)
 
                 elif isinstance(r, QgsSingleBandPseudoColorRenderer):
-                    newRenderer = r.clone()
+                    newRenderer = cloneRenderer(r)
                     ce = getCE(newRenderer.band())
                     #stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
 
@@ -868,7 +883,12 @@ class MapCanvas(QgsMapCanvas):
                     newRenderer.setClassificationMin(ce.minimumValue())
                     shader.setMaximumValue(ce.maximumValue())
                     shader.setMinimumValue(ce.minimumValue())
+                elif isinstance(r, QgsSingleBandGrayRenderer):
+                    newRenderer = cloneRenderer(r)
                     s = ""
+                elif isinstance(r, QgsPalettedRasterRenderer):
+                    s = ""
+                    #newRenderer = cloneRenderer(r)
 
                 if newRenderer is not None:
                     self.sigChangeSVRequest.emit(self, newRenderer)
