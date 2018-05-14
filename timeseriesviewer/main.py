@@ -613,9 +613,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if not self.mSpatialMapExtentInitialized:
             if len(self.TS.data) > 0:
                 if len(self.spatialTemporalVis.MVC) == 0:
-                    # add two empty band-views by default
+                    # add an empty MapView by default
                     self.spatialTemporalVis.createMapView()
-                    self.spatialTemporalVis.createMapView()
+                    #self.spatialTemporalVis.createMapView()
 
                 extent = self.TS.getMaxSpatialExtent()
 
