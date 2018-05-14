@@ -42,8 +42,12 @@ ADD_TESTDATA = True
 PLAIN_COPY_SUBDIRS = ['site-packages']
 
 ########## End of config section
-timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
-buildID = '{}.{}'.format(timeseriesviewer.VERSION, timestamp)
+timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1])
+timestamp = re.sub('[-T]','', timestamp)
+
+v = timeseriesviewer.VERSION.split('.')
+buildID = '{}.{}.{}'.format(v[0], v[1], timestamp)
+timeseriesviewer.VERSION = buildID
 dirBuildPlugin = jp(DIR_BUILD, 'timeseriesviewerplugin')
 
 def rm(p):
@@ -89,6 +93,22 @@ if __name__ == "__main__":
 
     import make
     make.updateMetadataTxt()
+
+    #update version
+    p = timeseriesviewer.__file__
+
+    with open(p,'r') as file:
+        lines = file.readlines()
+    found = False
+    for i, line in enumerate(lines):
+        if re.search(r'VERSION = \'{}\.{}.*'.format(v[0],v[1]), line):
+            lines[i] = 'VERSION = \'{}\'\n'.format(buildID)
+            found = True
+            break
+    assert found
+    with open(p, 'w') as file:
+        file.writelines(lines)
+
 
     #patch_pb_tool(DIR_DEPLOY)
     pathCfg = jp(DIR_REPO, 'pb_tool.cfg')

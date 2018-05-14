@@ -23,11 +23,11 @@
 import os, collections
 from qgis.core import *
 from qgis.gui import *
-from PyQt5 import uic
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtXml import *
-import PyQt5.QtWebKit
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtXml import *
 
 
 import sys, re, os, six
@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
     from timeseriesviewer import DIR_SITE_PACKAGES
     site.addsitedir(DIR_SITE_PACKAGES)
-
+    from timeseriesviewer.utils import initQgisApplication
     #prepare QGIS environment
     if sys.platform == 'darwin':
         PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         PATH_QGS = os.environ['QGIS_PREFIX_PATH']
     assert os.path.exists(PATH_QGS)
 
-    qgsApp = QgsApplication([], True)
+    qgsApp = initQgisApplication()
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
     QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
     qgsApp.setPrefixPath(PATH_QGS, True)

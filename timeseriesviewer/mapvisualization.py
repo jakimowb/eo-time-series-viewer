@@ -26,7 +26,8 @@ from qgis.core import *
 from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader,  QgsProject, QgsCoordinateReferenceSystem, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
 
-from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool
+from qgis.gui import *
+from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox
 from PyQt5.QtXml import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -365,7 +366,7 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
 
 
     def initActionButtons(self):
-            from enmapbox.gui.utils import parseWavelength
+
             wl, wlu = parseWavelength(self.rasterLayer())
             self.wavelengths = wl
             self.wavelengthUnit = wlu
@@ -480,7 +481,6 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
 
     def initActionButtons(self):
 
-        from enmapbox.gui.utils import parseWavelength
         wl, wlu = parseWavelength(self.rasterLayer())
         self.wavelengths = wl
         self.wavelengthUnit = wlu
