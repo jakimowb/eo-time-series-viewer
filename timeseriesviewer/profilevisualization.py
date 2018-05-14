@@ -1535,8 +1535,9 @@ class SpectralTemporalVisualization(QObject):
         if len(self.tpCollection) > 0:
             temporalProfile = self.tpCollection[0]
             plotStyle.setTemporalProfile(temporalProfile)
-            color = self.plotSettingsModel3D[-1].color()
-            plotStyle.setColor(nextColor(color))
+            if len(self.plotSettingsModel3D) > 0:
+                color = self.plotSettingsModel3D[-1].color()
+                plotStyle.setColor(nextColor(color))
 
         sensors = list(self.TS.Sensors.keys())
         if len(sensors) > 0:
