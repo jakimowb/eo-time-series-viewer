@@ -63,67 +63,6 @@ DEBUG = False
 import pyqtgraph as pg
 
 
-class TsvMimeDataUtils(QObject):
-    def __init__(self, mimeData):
-        assert isinstance(mimeData, QMimeData)
-        super(TsvMimeDataUtils, self).__init__()
-
-        self.mimeData = mimeData
-
-        self.xmlDoc = QDomDocument()
-
-        if self.mimeData.hasText():
-            self.xmlDoc.setContent(self.mimeData.text())
-        self.xmlRoot = self.xmlDoc.documentElement()
-        pass
-
-    def hasRasterStyle(self):
-        if self.xmlRoot.tagName() == 'qgis':
-            elem = self.xmlRoot.elementsByTagName('rasterrenderer')
-            return elem.count() != 0
-
-        return False
-
-
-    def rasterStyle(self, qgisDataType):
-
-        elem = self.xmlRoot.elementsByTagName('rasterrenderer').item(0).toElement()
-        type = str(elem.attribute('type'))
-        from qgis.core import QgsContrastEnhancement
-
-        def bandSettings(colorName):
-            band = int(elem.attribute(colorName + 'Band'))
-            ceNode = elem.elementsByTagName(colorName + 'ContrastEnhancement').item(0)
-            vMin = float(ceNode.firstChildElement('minValue').firstChild().nodeValue())
-            vMax = float(ceNode.firstChildElement('maxValue').firstChild().nodeValue())
-            ceName = ceNode.firstChildElement('algorithm').firstChild().nodeValue()
-            ceAlg = QgsContrastEnhancement.contrastEnhancementAlgorithmFromString(ceName)
-            ce = QgsContrastEnhancement(qgisDataType)
-            ce.setContrastEnhancementAlgorithm(ceAlg)
-            ce.setMinimumValue(vMin)
-            ce.setMaximumValue(vMax)
-            return band, ce
-
-        style = None
-        if type == 'multibandcolor':
-                A = int(elem.attribute('alphaBand'))
-                O = int(elem.attribute('opacity'))
-                R, ceR = bandSettings('red')
-                G, ceG = bandSettings('green')
-                B, ceB = bandSettings('blue')
-
-                style = QgsMultiBandColorRenderer(None, R, G, B)
-                style.setRedContrastEnhancement(ceR)
-                style.setGreenContrastEnhancement(ceG)
-                style.setBlueContrastEnhancement(ceB)
-
-        elif type == 'singlebandgrey':
-
-            pass
-
-        return style
-
-
 """
 class QgisTsvBridge(QObject):
     #Class to control interactions between TSV and the running QGIS instance

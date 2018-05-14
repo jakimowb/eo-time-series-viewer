@@ -38,7 +38,6 @@ import sys, re, os, six
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI
-from timeseriesviewer.main import SpatialExtent, TsvMimeDataUtils
 
 
 def maxWidgetSizes(layout, onHint=True):

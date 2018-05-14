@@ -36,7 +36,6 @@ from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
 from timeseriesviewer.ui.docks import loadUI
-from timeseriesviewer.main import TsvMimeDataUtils
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
