@@ -520,6 +520,9 @@ class ViewWidget3D(GLViewWidget):
         # self.renderText(0.8, 0.8, 0.8, 'text 3D')
         # self.renderText(5, 10, 'text 2D fixed')
 
+        self.qglColor(Qt.darkYellow)
+        self.renderText(5, 10, '(3D Mode still experimental)')
+
     def contextMenuEvent(self, event):
         assert isinstance(event, QContextMenuEvent)
 

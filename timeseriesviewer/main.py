@@ -228,8 +228,10 @@ class TimeSeriesViewerUI(QMainWindow,
 
         #self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
-        from timeseriesviewer.labeling import LabelingDockUI
-        self.dockLabeling = addDockWidget(LabelingDockUI(self))
+        if DEBUG:
+            from timeseriesviewer.labeling import LabelingDockUI
+            self.dockLabeling = addDockWidget(LabelingDockUI(self))
+            self.dockLabeling.setHidden(True)
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
@@ -260,6 +262,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
         area = Qt.RightDockWidgetArea
+
         from timeseriesviewer.systeminfo import SystemInfoDock
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
@@ -271,7 +274,7 @@ class TimeSeriesViewerUI(QMainWindow,
             self.menuPanels.addAction(dock.toggleViewAction())
 
 
-        self.dockLabeling.setHidden(True)
+
 
         self.dockTimeSeries.raise_()
 

@@ -456,6 +456,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
 
                 self.commitData.emit(w)
 
+
     def setEditorData(self, editor, index):
         cname = self.getColumnName(index)
         model = self.mTableView.model()
@@ -1250,7 +1251,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         if w == self.page2D:
             title = '{} | 2D'.format(title)
         elif w == self.page3D:
-            title = '{} | 3D'.format(title)
+            title = '{} | 3D (experimental!)'.format(title)
         elif w == self.pagePixel:
             title = '{} | Coordinates'.format(title)
         self.setWindowTitle(title)
