@@ -2161,7 +2161,7 @@ if __name__ == '__main__':
         STVis.setTimeSeries(TS)
 
         import example.Images
-        from timeseriesviewer import file_search
+        from timeseriesviewer.utils import file_search
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
         TS.addFiles(files)
         ext = TS.getMaxSpatialExtent()

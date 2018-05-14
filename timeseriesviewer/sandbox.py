@@ -30,7 +30,6 @@ from qgis.PyQt.QtCore import *
 
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
-from timeseriesviewer import file_search
 from timeseriesviewer.timeseries import *
 
 class SandboxObjects(object):

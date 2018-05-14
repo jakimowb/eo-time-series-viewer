@@ -624,7 +624,7 @@ if __name__ == '__main__':
     DEBUG = False
 
     import example.Images
-    from timeseriesviewer import file_search
+    from timeseriesviewer.utils import file_search
     dir = os.path.dirname(example.Images.__file__)
     #files = file_search(dir, '*.tif')
     files = [example.Images.Img_2014_05_07_LC82270652014127LGN00_BOA]

@@ -17,7 +17,6 @@ from qgis import *
 from qgis.gui import *
 from PyQt5.QtGui import QIcon
 import example.Images
-from timeseriesviewer import file_search
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
 from timeseriesviewer.temporalprofiles2d import TemporalProfile, saveTemporalProfiles
 from timeseriesviewer.utils import *

@@ -26,14 +26,14 @@ import os, re, io
 from unittest import TestCase
 from timeseriesviewer import *
 from timeseriesviewer.timeseries import *
-
+from timeseriesviewer import DIR_EXAMPLES
+from timeseriesviewer.utils import file_search
 class TestObjects():
 
     @staticmethod
     def timeSeries():
 
         TS = TimeSeries()
-        from timeseriesviewer import DIR_EXAMPLES, file_search
         files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
         TS.addFiles(files)
         return TS
@@ -44,7 +44,7 @@ class TestObjects():
         Returns n random spectral profiles from the test data
         :return: lost of (N,3) array of floats specifying point locations.
         """
-        from timeseriesviewer import DIR_EXAMPLES, file_search
+
         files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
         results = []
         import random

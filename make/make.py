@@ -6,15 +6,15 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-
+from PyQt5.Qt import QApplication
 from PyQt5.QtSvg import *
 from PyQt5.QtXml import *
 
 
 import gdal
 
-from timeseriesviewer import DIR_UI, DIR_REPO, file_search
-jp = os.path.join
+from timeseriesviewer import DIR_UI, DIR_REPO
+from timeseriesviewer.utils import file_search, jp
 
 
 def createFilePackage(dirData, recursive=True):
@@ -94,7 +94,7 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
     lines = open(pathTS).readlines()
     import tempfile, random
     from timeseriesviewer.main import TimeSeries, TimeSeriesDatum
-    from qgis.core import QgsRectangle, QgsPoint, QgsPointV2, QgsCoordinateReferenceSystem
+    from qgis.core import QgsRectangle, QgsPoint, QgsPointXY, QgsCoordinateReferenceSystem
 
     max_offset = 0 #in %
 
@@ -246,7 +246,6 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
     :return:
     """
     assert mode in ['INKSCAPE', 'WEBKIT', 'SVG']
-    from PyQt5.QtWebKit import QWebPage
 
     svgs = file_search(pathDir, '*.svg')
     if filterFile is not None:
@@ -260,6 +259,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
     if len(svgs) == 0:
         print('No SVGs to convert')
         return
+    from PyQt5.Qt import QApplication
     app = QApplication([], True)
     buggySvg = []
 
@@ -280,39 +280,41 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
             if overwrite or not os.path.exists(pathPng):
                 img.save(pathPng, quality=100)
             del painter, renderer
-        elif mode == 'WEBKIT':
-            page = QWebPage()
-            frame = page.mainFrame()
-            f = QFile(pathSvg)
-            if f.open(QFile.ReadOnly | QFile.Text):
-                textStream = QTextStream(f)
-                svgData = textStream.readAll()
-                f.close()
-
-            qba = QByteArray(str(svgData))
-            frame.setContent(qba,"image/svg+xml")
-            page.setViewportSize(frame.contentsSize())
-
-            palette = page.palette()
-            background_color = QColor(50,0,0,50)
-            palette.setColor(QPalette.Window, background_color)
-            brush = QBrush(background_color)
-            palette.setBrush(QPalette.Window, brush)
-            page.setPalette(palette)
-
-            img = QImage(page.viewportSize(), QImage.Format_ARGB32)
-            img.fill(background_color) #set transparent background
-            painter = QPainter(img)
-            painter.setBackgroundMode(Qt.OpaqueMode)
-            #print(frame.renderTreeDump())
-            frame.render(painter)
-            painter.end()
-
-            if overwrite or not os.path.exists(pathPng):
-                print('Save {}...'.format(pathPng))
-                img.save(pathPng, quality=100)
-            del painter, frame, img, page
-            s  =""
+            """
+            elif mode == 'WEBKIT':
+                page = QWebPage()
+                frame = page.mainFrame()
+                f = QFile(pathSvg)
+                if f.open(QFile.ReadOnly | QFile.Text):
+                    textStream = QTextStream(f)
+                    svgData = textStream.readAll()
+                    f.close()
+    
+                qba = QByteArray(str(svgData))
+                frame.setContent(qba,"image/svg+xml")
+                page.setViewportSize(frame.contentsSize())
+    
+                palette = page.palette()
+                background_color = QColor(50,0,0,50)
+                palette.setColor(QPalette.Window, background_color)
+                brush = QBrush(background_color)
+                palette.setBrush(QPalette.Window, brush)
+                page.setPalette(palette)
+    
+                img = QImage(page.viewportSize(), QImage.Format_ARGB32)
+                img.fill(background_color) #set transparent background
+                painter = QPainter(img)
+                painter.setBackgroundMode(Qt.OpaqueMode)
+                #print(frame.renderTreeDump())
+                frame.render(painter)
+                painter.end()
+    
+                if overwrite or not os.path.exists(pathPng):
+                    print('Save {}...'.format(pathPng))
+                    img.save(pathPng, quality=100)
+                del painter, frame, img, page
+                s  =""
+            """
         elif mode == 'INKSCAPE':
             if fileNeedsUpdate(pathSvg, pathPng):
                 if sys.platform == 'darwin':
@@ -430,45 +432,6 @@ def file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png
     f.write(doc.toString())
     f.close()
 
-
-
-def updateInfoHTML():
-    import markdown, urllib
-    import timeseriesviewer
-    from timeseriesviewer import DIR_REPO, PATH_LICENSE, PATH_CHANGELOG
-    """
-    Keyword arguments:
-
-    * input: a file name or readable object.
-    * output: a file name or writable object.
-    * encoding: Encoding of input and output.
-    * Any arguments accepted by the Markdown class.
-    """
-
-    markdownExtension = [
-        'markdown.extensions.toc',
-        'markdown.extensions.tables',
-        'markdown.extensions.extra'
-    ]
-
-    def readUrlTxt(url):
-        req = urllib.urlopen(url)
-        enc = req.headers['content-type'].split('charset=')[-1]
-        txt = req.read()
-        req.close()
-        if enc == 'text/plain':
-            return unicode(txt)
-        return unicode(txt, enc)
-
-    paths = [jp(DIR_REPO, *['LICENSE.md']),
-             jp(DIR_REPO, *['CHANGES.md'])]
-
-    for pathSrc in paths:
-        pathDst = pathSrc.replace('.md','.html')
-
-        markdown.markdownFromFile(input=pathSrc,
-                                  extensions=markdownExtension,
-                                  output=pathDst, output_format='html5')
 
 
 def updateMetadataTxt():

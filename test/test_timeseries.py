@@ -6,7 +6,7 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal
-from timeseriesviewer import file_search
+from timeseriesviewer.utils import file_search
 from timeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDatum
 
 class TestInit(unittest.TestCase):

@@ -15,8 +15,7 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
-from timeseriesviewer import file_search
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewer.utils import initQgisApplication, file_search
 QGIS_APP = initQgisApplication()
 
 

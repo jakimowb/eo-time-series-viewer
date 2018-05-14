@@ -107,10 +107,6 @@ def icon():
     path = os.path.join(os.path.dirname(__file__), 'icon.png')
     return QIcon(path)
 
-import timeseriesviewer.utils
-file_search = timeseriesviewer.utils.file_search
-
-
 def getFileAndAttributes(file):
     """
     splits a GDAL valid file path into

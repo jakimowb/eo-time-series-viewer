@@ -45,7 +45,7 @@ if os.path.exists(path):
 
 import qgis.utils
 from timeseriesviewer.utils import *
-from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, file_search, messageLog
+from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 import numpy as np

@@ -12,7 +12,6 @@ from PyQt5.QtCore import *
 
 from timeseriesviewer import *
 from timeseriesviewer.utils import *
-from timeseriesviewer import file_search
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.virtualrasters import VRTRasterInputSourceBand, VRTRasterBand, VRTRaster
 

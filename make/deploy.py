@@ -23,7 +23,8 @@
 import os, sys, re, shutil, zipfile, datetime
 from pb_tool import pb_tool
 import numpy as np
-from timeseriesviewer import DIR_REPO, jp, file_search
+from timeseriesviewer import DIR_REPO
+from timeseriesviewer.utils import file_search, jp
 import timeseriesviewer
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')

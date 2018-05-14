@@ -24,8 +24,15 @@ import os, sys, math, re, io, fnmatch
 
 
 from collections import defaultdict
-from qgis.core import *
-from qgis.gui import *
+
+#from qgis.core import *
+from qgis.core import QgsPointXY, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsApplication, QgsRectangle, \
+    QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsRasterRenderer, QgsFeatureRenderer, QgsRasterDataProvider, QgsUnitTypes, QgsSingleBandPseudoColorRenderer
+
+
+#from qgis.gui import *
+from qgis.gui import QgsMapCanvas, QgisInterface
+
 import qgis.utils
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *

@@ -17,7 +17,7 @@ import os, sys, pickle
 
 from timeseriesviewer.utils import initQgisApplication
 import example.Images
-from timeseriesviewer import file_search
+from timeseriesviewer.utils import file_search
 
 QGIS_APP = initQgisApplication()
 
@@ -31,7 +31,8 @@ class PixelLoaderTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from timeseriesviewer import file_search, DIR_EXAMPLES
+        from timeseriesviewer import DIR_EXAMPLES
+        from timeseriesviewer.utils import file_search
         cls.imgs = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
         cls.img1 = cls.imgs[0]
         ds = gdal.Open(cls.img1)
