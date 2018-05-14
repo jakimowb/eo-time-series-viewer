@@ -24,8 +24,10 @@ import sys, os, re
 from qgis.core import *
 from collections import OrderedDict
 from qgis.gui import QgsDockWidget
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
+
 import numpy as np
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI, SpatialExtent, value2str
@@ -200,8 +202,6 @@ class DataLoadingModel(QAbstractTableModel):
             self.mLoadingTimes = OrderedDict()
 
         def addTimeDelta(self, name, timedelta):
-            if type(name) not in [str, unicode]:
-                s = ""
             assert isinstance(timedelta, np.timedelta64)
             #if timedelta.astype(float) > 0:
             #print(timedelta)

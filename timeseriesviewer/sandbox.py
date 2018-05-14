@@ -120,8 +120,6 @@ class QgisFake(QgisInterface):
         self.bridge.setCanvasLayers()
         s = ""
 
-    def legendInterface(self):
-        QgsLegendInterface
 
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, os.path.basename(path))

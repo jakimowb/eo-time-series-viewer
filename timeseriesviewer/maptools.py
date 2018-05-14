@@ -23,13 +23,9 @@
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtXml import *
-from PyQt5.QtXmlPatterns import *
-import six
-import xml.etree
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 from qgis.core import *
 
 from timeseriesviewer import SETTINGS
@@ -274,8 +270,8 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewer import sandbox
-    qgsApp = sandbox.initQgisEnvironment()
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
 
     import example.Images
     lyr1 = QgsRasterLayer(example.Images.Img_2012_05_09_LE72270652012130EDC00_BOA)
@@ -288,13 +284,13 @@ if __name__ == '__main__':
     l = QHBoxLayout()
     canvas1 = QgsMapCanvas()
     canvas1.setWindowTitle('Canvas1')
-    canvas1.setLayerSet([QgsMapCanvasLayer(lyr1)])
+    canvas1.setLayers([QgsRasterLayer(lyr1)])
     canvas1.setExtent(lyr1.extent())
     mt = CursorLocationMapTool(canvas1)
     canvas1.setMapTool(mt)
     canvas2 = QgsMapCanvas()
     canvas2.setWindowTitle('Canvas2')
-    canvas2.setLayerSet([QgsMapCanvasLayer(lyr2)])
+    canvas2.setLayers([QgsRasterLayer(lyr2)])
     canvas2.setExtent(lyr2.extent())
     canvas3 = QgsMapCanvas()
     canvas3.setWindowTitle('Canvas3')

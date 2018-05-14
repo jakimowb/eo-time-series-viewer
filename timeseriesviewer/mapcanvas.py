@@ -378,7 +378,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
                 continue
             if isinstance(mapLayer, QgsVectorLayer) and provider != 'ogr':
                 continue
-            if isinstance(mapLayer, QgsMapLayer) or type(mapLayer) in [str, unicode]:
+            if isinstance(mapLayer, QgsMapLayer) or isinstance(mapLayer, str):
                 li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
 
             assert isinstance(li, MapLayerInfo)
@@ -982,14 +982,14 @@ class CanvasBoundingBoxItem(QgsGeometryRubberBand):
         ext = SpatialExtent.fromMapCanvas(canvas)
         ext = ext.toCrs(self.canvas.mapSettings().destinationCrs())
 
-        geom = QgsPolygonV2()
+        geom = QgsPolygon()
         assert geom.fromWkt(ext.asWktPolygon())
 
         self.mCanvasExtents[canvas] = (ext, geom)
         self.refreshExtents()
 
     def refreshExtents(self):
-        multi = QgsMultiPolygonV2()
+        multi = QgsPolygon()
         if self.mShow:
             for canvas, t in self.mCanvasExtents.items():
                 ext, geom = t

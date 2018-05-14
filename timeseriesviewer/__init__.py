@@ -23,7 +23,7 @@
 import os, sys, fnmatch, site, re, site
 
 
-VERSION = '0.5.201805141051'
+VERSION = '0.5.201805141058'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
