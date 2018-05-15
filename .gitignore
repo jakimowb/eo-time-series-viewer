@@ -9,6 +9,8 @@ doc/build/
 doc/build/*
 qgisresources/
 qgisresources/*
+screenshots/
+screenshots/*
 example/*.aux.xml
 timeseriesviewer/ui/tmp.ui
 .*

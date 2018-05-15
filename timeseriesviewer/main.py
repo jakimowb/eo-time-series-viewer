@@ -676,6 +676,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
 
+    def show(self):
+        self.ui.show()
+
     def run(self):
         #QApplication.processEvents()
         self.ui.show()
