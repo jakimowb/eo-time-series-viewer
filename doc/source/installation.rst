@@ -9,19 +9,13 @@ Installation
 ============
 
 
-.. warning:: EO Time Series Viewer requires QGIS Version 3.0 +
+.. note:: EO Time Series Viewer requires QGIS Version 3.0 +
 
 .. note:: If you have not installed QGIS yet, you can get it `here <https://www.qgis.org/en/site/forusers/download.html>`_.
 
 
-
-Windows
--------
-
-.. tip:: On windows we recommend to use the **OSGeo4W Network Installer**!
-
 Standard QGIS 3 Plugin Installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 1. Download the most recent zip archive of the EO Time Series Viewer QGIS Plugin from https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads
 
@@ -32,24 +26,27 @@ Standard QGIS 3 Plugin Installation
 4. Start the EO Time Series Viewer via the |icon| icon. In case of missing requirements you should see an error message. Please install the requested packages.
 
 Developers
-~~~~~~~~~~
+----------
 
-You really want to use `git <https://en.wikipedia.org/wiki/Git_%28software%29>`_ to install and update the viewer.
+1. Please follow http://enmap-box.readthedocs.io/en/latest/dev_section/dev_installation.html to set up your IDE for developing a QGIS python application and ensure that git and git-lfs is installed.
 
-If git is not available in your shell, you can download it from `<https://git-scm.com/downloads>`_. You can install git without admin rights.
+2. Clone the eo-time-series-viewer repository and checkout the development branch::
 
-Larger binary files, e.g. for exemplary data, are distributed via the Git Large File Storage (lfs) extension `<https://git-lfs.github.com>`_.
-
-
-1. Open your shell and clone the repository into a local QGIS Python Plugin Folder::
-
-        cd %USERPROFILE%\.qgis2\python\plugins
-        git clone https://bitbucket.org/jakimowb/hub-timeseriesviewer.git
-
-2. Checkout the development branch (this might change with the fist stable master version)::
-
-        git checkout development
+        git clone https://bitbucket.org/jakimowb/eo-time-series-viewer.git
+        git checkout develop
         git lfs checkout
+
+3. Make the repository *eo-time-series-viewer* folder accessible to your python project
+
+4. Call *timeseriesviewer/main.py* or the folliwing code to start the EO Time Series Viewer::
+
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
+    ts = TimeSeriesViewer(None)
+    ts.run()
+    qgsApp.exec_()
+    qgsApp.exitQgis()
+
 
 
 .. todo:: add detailed description hot to setup an IDE to run the EO Time Series Viewer without QGIS

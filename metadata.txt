@@ -1,7 +1,7 @@
 [general]
 name=EO Time Series Viewer
 description=A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.
-version=0.5.201805141058
+version=0.5.201805141436
 qgisMinimumVersion=3.0
 author=Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin
 about=The EO Time Series Viewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).

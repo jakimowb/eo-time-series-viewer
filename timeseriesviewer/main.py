@@ -783,28 +783,9 @@ def disconnect_signal(signal):
 def main():
     # add site-packages to sys.path as done by enmapboxplugin.py
     from timeseriesviewer.utils import initQgisApplication
-    import os
-
     qgsApp = initQgisApplication()
-
     ts = TimeSeriesViewer(None)
     ts.run()
-    #ts.loadExampleTimeSeries()
-
-    if False:
-        from example import exampleEvents
-        lyr = QgsVectorLayer(exampleEvents, 'Events', 'ogr', True)
-        lyr2 = QgsVectorLayer(exampleEvents, 'Events2', 'ogr', True)
-        QgsProject.instance().addMapLayers([lyr, lyr2])
-        mapView = ts.mapViews()[0]
-        from timeseriesviewer.mapvisualization import MapView
-        assert isinstance(mapView, MapView)
-        #mapView.setVectorLayer(lyr)
-
-
-
-    # ts.createMapView()
-    # close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
 

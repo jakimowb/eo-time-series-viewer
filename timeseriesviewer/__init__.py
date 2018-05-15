@@ -23,7 +23,7 @@
 import os, sys, fnmatch, site, re, site
 
 
-VERSION = '0.5.201805141353'
+VERSION = '0.5.201805141436'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
@@ -55,7 +55,7 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
-SETTINGS = QSettings(QSettings.UserScope, 'HU Geomatics', 'TimeSeriesViewer')
+SETTINGS = QSettings(QSettings.UserScope, 'HU-Berlin', 'EO Time Series Viewer')
 
 
 DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')

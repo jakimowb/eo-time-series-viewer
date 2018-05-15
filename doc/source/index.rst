@@ -1,5 +1,4 @@
-.. HUB TimeSeriesViewer documentation master file, created by
-   sphinx-quickstart on Fri Jan 19 11:57:19 2018.
+.. EO Time Series Viewer documentation master file
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
@@ -9,8 +8,6 @@ EO Time Series Viewer
 
 **Welcome to the EO Time Series Viewer Documentation!**
 
-
-.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at Humboldt-Universität zu Berlin
 
 About
 -----
@@ -41,18 +38,18 @@ Features
 Missing Features / Outlook
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* a lot of debugging, making the small errors gone.
+* a lot of debugging, making small errors gone.
 * 3D plotting for spectral-temporal surfaces
 * export temporal profiles
-* export spectral libraries
-* show location of selected spectra
 
 Feedback
 ~~~~~~~~
 
-Your feedback (wishes, comments, bugs, ...) is always welcome. Add it to the `issue section <https://bitbucket.org/jakimowb/hub-timeseriesviewer/issues?status=new&status=open>`_
+Your feedback (wishes, comments, bugs, ...) is always welcome. Add it to the `issue section <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues?status=new&status=open>`_
 or send me an email `benjamin.jakimow@geo.hu-berlin.de <benjamin.jakimow@geo.hu-berlin.de>`_.
 
+
+.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at Humboldt-Universität zu Berlin
 
 
 License and Use
