@@ -34,7 +34,7 @@ from qgis.PyQt.QtCore import *
 
 
 from osgeo import gdal
-from timeseriesviewer.utils import SpatialExtent
+from timeseriesviewer.utils import SpatialExtent, loadUI
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
@@ -394,8 +394,7 @@ class TimeSeriesTableView(QTableView):
         assert isinstance(b, bool)
 
 
-from timeseriesviewer.ui.docks import TsvDockWidgetBase
-from timeseriesviewer.utils import loadUI
+
 class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
     def __init__(self, parent=None):
         super(TimeSeriesDockUI, self).__init__(parent)

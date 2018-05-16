@@ -565,7 +565,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
             extentWMC = extent.toCrs(crsWMC)
             pxSize = max(self.TS.getPixelSizes(), key= lambda s :s.width())
-            canvasSize = self.spatialTemporalVis.subsetSize()
+            canvasSize = self.spatialTemporalVis.mapSize()
             f = 0.05
             width = f * canvasSize.width() * pxSize.width()  # width in map units
             height = f * canvasSize.height() * pxSize.height()

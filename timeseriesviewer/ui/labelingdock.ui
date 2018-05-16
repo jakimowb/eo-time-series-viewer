@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DockWidget</class>
- <widget class="QDockWidget" name="DockWidget">
+ <class>labelingPanel</class>
+ <widget class="QDockWidget" name="labelingPanel">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -121,12 +121,7 @@
         </layout>
        </item>
       </layout>
-      <zorder>btnShowLabelTable</zorder>
-      <zorder>btnSaveOutput</zorder>
-      <zorder>btnCopyLabelList</zorder>
-      <zorder>btnClearLabelList</zorder>
-      <zorder></zorder>
-      <zorder>verticalLayoutWidget</zorder>
+      <zorder>collapseButton</zorder>
       <zorder></zorder>
      </widget>
     </item>

@@ -28,8 +28,8 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
-from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
-from timeseriesviewer.ui.docks import loadUI, TsvDockWidgetBase
+from timeseriesviewer.timeseries import TimeSeries, SensorInstrument
+from timeseriesviewer.utils import loadUI
 
 class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
     def __init__(self, parent=None):

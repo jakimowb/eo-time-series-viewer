@@ -30,8 +30,7 @@ from qgis.PyQt.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
-from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel

@@ -1260,7 +1260,7 @@ class MapView(QObject):
             mapCanvas.setRenderer(renderer)
             #mapCanvas.refresh()
     """
-    def getSensorWidget(self, sensor):
+    def sensorWidget(self, sensor):
         assert type(sensor) is SensorInstrument
         return self.mSensorViews[sensor]
 
@@ -1675,7 +1675,7 @@ class DatumView(QObject):
         self.setColumnInfo()
         self.MVC = stv.MVC
         self.DVC = stv.DVC
-        self.mapCanvases = dict()
+        self.mMapCanvases = dict()
         self.mRenderState = dict()
 
     def setColumnInfo(self):
@@ -1704,7 +1704,7 @@ class DatumView(QObject):
             self.ui.setStyleSheet(styleOff)
 
     def removeMapView(self, mapView):
-        canvas = self.mapCanvases.pop(mapView)
+        canvas = self.mMapCanvases.pop(mapView)
         self.ui.layout().removeWidget(canvas)
         canvas.close()
         #self.adjustBaseMinSize()
@@ -1712,7 +1712,7 @@ class DatumView(QObject):
     def refresh(self):
 
         if self.ui.isVisible():
-            for c in self.mapCanvases.values():
+            for c in self.mMapCanvases.values():
                 if c.isVisible():
                     c.refresh()
 
@@ -1756,8 +1756,8 @@ class DatumView(QObject):
         self.showLoading(any(self.mRenderState.values()))
 
     def onRendering(self, *args):
-        renderFlags = [m.renderFlag() for m in self.mapCanvases.values()]
-        drawFlags = [m.isDrawing() for m in self.mapCanvases.values()]
+        renderFlags = [m.renderFlag() for m in self.mMapCanvases.values()]
+        drawFlags = [m.isDrawing() for m in self.mMapCanvases.values()]
 #        print((renderFlags, drawFlags))
         isLoading = any(renderFlags)
 
@@ -1770,14 +1770,15 @@ class DatumView(QObject):
         from timeseriesviewer.mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
         assert isinstance(mapView, MapView)
-        self.mapCanvases[mapView] = mapCanvas
+        self.mMapCanvases[mapView] = mapCanvas
 
 
 
         #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
         mapCanvas.layerModel().setRasterLayerSources([self.TSD.pathImg])
 
-        self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
+        #self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
+        self.ui.layout().insertWidget(self.ui.layout().count() - 1, mapCanvas)
         self.ui.update()
 
         #register signals handled on (this) DV level
@@ -1862,7 +1863,7 @@ class SpatialTemporalVisualization(QObject):
         self.MVC = self.ui.dockMapViews
         assert isinstance(self.MVC, MapViewCollectionDock)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
-
+        self.MVC.sigMapViewAdded.connect(self.onMapViewAdded)
         self.vectorOverlay = None
 
         self.DVC = DateViewCollection(self)
@@ -1878,6 +1879,9 @@ class SpatialTemporalVisualization(QObject):
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
 
+    def onMapViewAdded(self, *args):
+        self.adjustScrollArea()
+        s = ""
     def createMapView(self):
         self.MVC.createMapView()
 
@@ -1925,7 +1929,7 @@ class SpatialTemporalVisualization(QObject):
         self.sigMapSizeChanged.emit(self.mSize)
         self.adjustScrollArea()
 
-    def subsetSize(self):
+    def mapSize(self):
         return QSize(self.mSize)
 
 
@@ -1986,7 +1990,7 @@ class SpatialTemporalVisualization(QObject):
                 canvas.setMapTool(mt)
                 self.mMapTools.append(mt)
 
-                #if required, link map-tool with specific EnMAP-Box slots
+                #if required, link map-tool with specificslots
                 if isinstance(mt, CursorLocationMapTool):
                     mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(lambda c, m : self.sigShowProfiles.emit(c,m, mapToolKey))
 
@@ -2128,7 +2132,7 @@ class DateViewCollection(QObject):
         #self.tsv = tsv
         #self.timeSeries = tsv.TS
 
-        self.views = list()
+        self.mViews = list()
         self.STV = STViz
         self.ui = self.STV.targetLayout.parentWidget()
         self.scrollArea = self.ui.parentWidget().parentWidget()
@@ -2145,14 +2149,14 @@ class DateViewCollection(QObject):
 
     def tsdFromMapCanvas(self, mapCanvas):
         assert isinstance(mapCanvas, MapCanvas)
-        for view in self.views:
+        for view in self.mViews:
             assert isinstance(view, DatumView)
-            if mapCanvas in view.mapCanvases.values():
+            if mapCanvas in view.mMapCanvases.values():
                 return view.TSD
         return None
 
     def tsdView(self, tsd):
-        r = [v for v in self.views if v.TSD == tsd]
+        r = [v for v in self.mViews if v.TSD == tsd]
         if len(r) == 1:
             return r[0]
         else:
@@ -2161,26 +2165,26 @@ class DateViewCollection(QObject):
     def addMapView(self, mapView):
         assert isinstance(mapView, MapView)
         w = self.ui
-        w.setUpdatesEnabled(False)
-        for tsdv in self.views:
-            tsdv.ui.setUpdatesEnabled(False)
+        #w.setUpdatesEnabled(False)
+        #for tsdv in self.mViews:
+        #    tsdv.ui.setUpdatesEnabled(False)
 
-        for tsdv in self.views:
+        for tsdv in self.mViews:
             tsdv.insertMapView(mapView)
 
-        for tsdv in self.views:
-            tsdv.ui.setUpdatesEnabled(True)
+        #for tsdv in self.mViews:
+        #    tsdv.ui.setUpdatesEnabled(True)
 
         #mapView.sigSensorRendererChanged.connect(lambda *args : self.setRasterRenderer(mapView, *args))
         mapView.sigMapViewVisibility.connect(lambda: self.sigResizeRequired.emit())
         mapView.sigShowProfiles.connect(self.sigShowProfiles.emit)
-        w.setUpdatesEnabled(True)
+        #w.setUpdatesEnabled(True)
 
         self.sigResizeRequired.emit()
 
     def removeMapView(self, mapView):
         assert isinstance(mapView, MapView)
-        for tsdv in self.views:
+        for tsdv in self.mViews:
             tsdv.removeMapView(mapView)
         self.sigResizeRequired.emit()
 
@@ -2202,9 +2206,9 @@ class DateViewCollection(QObject):
         #returns the
         if self.focusView is not None:
             assert isinstance(self.focusView, DatumView)
-            return sorted(self.views,key=lambda v: np.abs(v.TSD.date - self.focusView.TSD.date))
+            return sorted(self.mViews, key=lambda v: np.abs(v.TSD.date - self.focusView.TSD.date))
         else:
-            return self.views
+            return self.mViews
 
     """
     def setSubsetSize(self, size):
@@ -2240,8 +2244,8 @@ class DateViewCollection(QObject):
             for i, mapView in enumerate(self.STV.MVC):
                 DV.insertMapView(mapView)
 
-            bisect.insort(self.views, DV)
-            i = self.views.index(DV)
+            bisect.insort(self.mViews, DV)
+            i = self.mViews.index(DV)
 
             DV.ui.setParent(self.STV.targetLayout.parentWidget())
             self.STV.targetLayout.insertWidget(i, DV.ui)
@@ -2251,10 +2255,10 @@ class DateViewCollection(QObject):
             self.sigResizeRequired.emit()
 
     def removeDates(self, tsdList):
-        toRemove = [v for v in self.views if v.TSD in tsdList]
+        toRemove = [v for v in self.mViews if v.TSD in tsdList]
         removedDates = []
         for DV in toRemove:
-            self.views.remove(DV)
+            self.mViews.remove(DV)
 
             for mapCanvas in DV.mapCanvases.values():
                 toRemove = mapCanvas.layers()
@@ -2273,16 +2277,16 @@ class DateViewCollection(QObject):
             self.sigResizeRequired.emit()
 
     def __len__(self):
-        return len(self.views)
+        return len(self.mViews)
 
     def __iter__(self):
-        return iter(self.views)
+        return iter(self.mViews)
 
     def __getitem__(self, slice):
-        return self.views[slice]
+        return self.mViews[slice]
 
     def __delitem__(self, slice):
-        self.removeDates(self.views[slice])
+        self.removeDates(self.mViews[slice])
 
 
 class MapViewListModel(QAbstractListModel):

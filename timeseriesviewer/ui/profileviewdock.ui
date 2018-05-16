@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DockWidgetProfileView</class>
- <widget class="QDockWidget" name="DockWidgetProfileView">
+ <class>temporalProfilePanel</class>
+ <widget class="QDockWidget" name="temporalProfilePanel">
   <property name="geometry">
    <rect>
     <x>0</x>

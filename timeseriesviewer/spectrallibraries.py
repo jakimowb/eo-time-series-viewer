@@ -966,6 +966,7 @@ class SpectralLibraryPanel(QgsDockWidget):
     sigLoadFromMapRequest = None
     def __init__(self, parent=None):
         super(SpectralLibraryPanel, self).__init__(parent)
+        self.setObjectName('spectralLibraryPanel')
         self.setWindowTitle('Spectral Library')
         self.SLW = SpectralLibraryWidget(self)
         self.setWidget(self.SLW)
