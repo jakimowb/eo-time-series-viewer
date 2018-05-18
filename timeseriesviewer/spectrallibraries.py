@@ -169,11 +169,24 @@ class SpectralLibraryTableView(QTableView):
         return [m.idx2profile(m.createIndex(r, 0)) for r in rows]
 
     def onSetColor(self):
-        c = QColorDialog.getColor()
-        if isinstance(c, QColor):
-            model = self.model()
-            for idx in self.selectedRowsIndexes():
-                model.setData(model.createIndex(idx, 1), c, Qt.BackgroundRole)
+        model = self.model()
+        c0 = None
+        for r in self.selectedRowsIndexes():
+            idx = model.createIndex(r, 1)
+            c0 = model.data(idx, Qt.BackgroundRole)
+            break
+
+        if not isinstance(c0, QColor):
+            c0 = None
+
+        c = QColorDialog(c0, self)
+        c.exec_()
+
+        if c.result() == QDialog.Accepted:
+            c = c.currentColor()
+            if isinstance(c, QColor):
+                for r in self.selectedRowsIndexes():
+                    model.setData(model.createIndex(r, 1), c, Qt.BackgroundRole)
 
     def setCheckState(self, checkState):
         model = self.model()
