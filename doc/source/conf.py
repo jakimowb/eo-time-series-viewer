@@ -150,6 +150,7 @@ html_theme_options = {
     'titles_only': False
 }
 html_logo = 'img/logo.png'
+html_favicon = 'img/logo.png'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

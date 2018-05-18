@@ -3,29 +3,81 @@
 
 .. |cbc| image:: img/checkbox_checked.PNG
 .. |cbu| image:: img/checkbox_unchecked.PNG
-.. |ad_ra| image:: img/icons/mActionAddRasterLayer.svg
-.. |re_ra| image:: img/icons/mActionRemoveTSD.svg
+.. |ad_ra| image:: ../../timeseriesviewer/ui/icons/mActionAddRasterLayer.svg
+    :width: 27px
+.. |re_ra| image:: ../../timeseriesviewer/ui/icons/mActionRemoveTSD.svg
+    :width: 27px
 .. |timeseriesdock| image:: img/timeseriesdock.png
 
-.. |icon_eotsv| image:: img/icons/icon.svg
-    :width: 30px
-.. |icon_zoom_in| image:: img/icons/mActionZoomIn.svg
-    :width: 30px
-.. |icon_zoom_out| image:: img/icons/mActionZoomOut.svg
-    :width: 30px
-.. |icon_zoom_pan| image:: img/icons/mActionPan.svg
-    :width: 30px
-.. |icon_zoom_full| image:: img/icons/mActionZoomFullExtent.svg
-    :width: 30px
-.. |icon_zoom_11| image:: img/icons/mActionZoomActual.svg
-    :width: 30px
-.. |icon_add_map_view| image:: img/icons/mActionAddMapView.svg
-    :width: 30px
-.. |icon_select_ts_profile| image:: img/icons/ActionIdentifyTimeSeries.svg
-    :width: 30px
+.. |icon_eotsv| image:: ../../timeseriesviewer/ui/icons/icon.svg
+    :width: 27px
+.. |icon_zoom_in| image:: ../../timeseriesviewer/ui/icons/mActionZoomIn.svg
+    :width: 27px
+.. |icon_zoom_out| image:: ../../timeseriesviewer/ui/icons/mActionZoomOut.svg
+    :width: 27px
+.. |icon_zoom_pan| image:: ../../timeseriesviewer/ui/icons/mActionPan.svg
+    :width: 27px
+.. |icon_zoom_full| image:: ../../timeseriesviewer/ui/icons/mActionZoomFullExtent.svg
+    :width: 27px
+.. |icon_zoom_11| image:: ../../timeseriesviewer/ui/icons/mActionZoomActual.svg
+    :width: 27px
+.. |icon_add_map_view| image:: ../../timeseriesviewer/ui/icons/mActionAddMapView.svg
+    :width: 27px
+.. |icon_select_ts_profile| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile.svg
+    :width: 27px
+.. |spectral_profile| image:: ../../timeseriesviewer/ui/icons/pickrasterspectrum.svg
+    :width: 27px
+.. |icon_refresh| image:: ../../timeseriesviewer/ui/icons/mActionRefresh.png
+    :width: 27px
+.. |addTS| image:: ../../timeseriesviewer/ui/icons/mActionAddTS.svg
+    :width: 27px
+.. |remTS| image:: ../../timeseriesviewer/ui/icons/mActionRemoveTS.svg
+    :width: 27px
+.. |saveTS| image:: ../../timeseriesviewer/ui/icons/mActionSaveTS.svg
+    :width: 27px
+.. |refresh| image:: ../../timeseriesviewer/ui/icons/mActionRefresh.png
+    :width: 27px
+.. |zoompoint| image:: ../../timeseriesviewer/ui/icons/mActionZoomPoint.svg
+    :width: 27px
+.. |extentimport| image:: ../../timeseriesviewer/ui/icons/mapExtentImport.svg
+    :width: 27px
+.. |centerimport| image:: ../../timeseriesviewer/ui/icons/mapCenterImport.svg
+    :width: 27px
+.. |extentexport| image:: ../../timeseriesviewer/ui/icons/mapExtentExport.svg
+    :width: 27px
+.. |centerexport| image:: ../../timeseriesviewer/ui/icons/mapCenterExport.svg
+    :width: 27px
+.. |identify| image:: ../../timeseriesviewer/ui/icons/mActionIdentify.svg
+    :width: 27px
 
-.. |icon_refresh| image:: img/icons/mActionRefresh.png
-    :width: 30px
+.. |removemapview| image:: ../../timeseriesviewer/ui/icons/mActionRemoveMapView.svg
+.. |mapviewdropdown| image:: img/mapviewdropdown.png
+.. |questionmark| image:: img/questionmark.png
+.. |hidemapview| image:: ../../timeseriesviewer/ui/icons/mapviewHidden.svg
+    :height: 27px
+    :width: 27px
+.. |crosshair| image:: ../../timeseriesviewer/ui/icons/crosshair.svg
+    :height: 27px
+    :width: 27px
+.. |symbology| image:: ../../timeseriesviewer/ui/icons/symbology.svg
+    :height: 27px
+    :width: 27px
+.. |copy| image:: ../../timeseriesviewer/ui/icons/mActionEditCopy.svg
+.. |paste| image:: ../../timeseriesviewer/ui/icons/mActionEditPaste.svg
+
+.. |addspectrum| image:: ../../timeseriesviewer/ui/icons/profile2speclib.svg
+    :width: 27px
+.. |addattribute| image:: ../../timeseriesviewer/ui/icons/add_class.svg
+    :width: 27px
+.. |removeattribute| image:: ../../timeseriesviewer/ui/icons/remove_class.svg
+    :width: 27px
+.. |importspeclib| image:: ../../timeseriesviewer/ui/icons/speclib_add.svg
+    :width: 27px
+.. |exportspeclib| image:: ../../timeseriesviewer/ui/icons/speclib_save.svg
+    :width: 27px
+
+.. || image:: ../../
+    :width: 27px
 
 
 ==========
@@ -54,7 +106,7 @@ Quick Start
 
 .. note:: Use |icon_refresh| to refresh or redraw related maps, spectral profile plots etc.
 
-6. Now we like to Optimize the color stretch. Choose a none-clouded Landsat observation like 2104-06-24 and use the map context menu (right-mouse-click)
+6. Now we like to Optimize the color stretch. Choose a none-clouded Landsat observation like 2014-06-24 and use the map context menu (right-mouse-click)
    to click on :menuselection:`Stretch to current extent ... --> Linear 5%`. Repeat with `Linear` and `Gaussian` stretch as well as for RapidEye images to
    see how this changes the band-specific min/max values in the Map View settings.
 
@@ -77,6 +129,11 @@ Quick Start
    RapidEye (b5-b3)/(b5+b3)
    ======== ================
 
+|
+
+....
+
+|
 
 
 
@@ -131,51 +188,37 @@ and combines identical ones into sensor groups (or products). Those are listed a
 The Toolbar
 ^^^^^^^^^^^
 
-+---------------------------------------------------+--------------------------------------------------+
-| Button                                            |Function                                          |
-+===================================================+==================================================+
-| .. image:: img/icons/mActionAddRasterLayer.svg    |Add Raster Layer                                  |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionAddTS.svg             |Add Time Series from CSV                          |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionRemoveTS.svg          |Remove all images from Time Series                |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionSaveTS.svg            |Save Time Series as CSV file                      |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionAddMapView.svg        |Add maps that show a specified band selection     |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionRefresh.png           |Refresh maps                                      |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionZoomPoint.svg         |Select center coordinate                          |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionZoomIn.svg            |Zoom into map                                     |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionZoomOut.svg           |Zoom out                                          |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionZoomFullExtent.svg    |Zoom to maximum extent of time series             |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionZoomActual.svg        |Zoom to pixel scale                               |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionPan.svg               |Pan map                                           |
-|   :width: 25px                                    |                                                  |
-|   :height: 25px                                   |                                                  |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/mActionIdentify.svg          |Identify map layers                               |
-|   :width: 25px                                    |                                                  |
-|   :height: 25px                                   |                                                  |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/ActionIdentifyTimeSeries.svg |Identify pixel time series for specific coordinate|
-|   :width: 25px                                    |                                                  |
-|   :height: 25px                                   |                                                  |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/pickrasterspectrum.svg       |Select pixel profiles from map                    |
-|   :width: 25px                                    |                                                  |
-|   :height: 25px                                   |                                                  |
-+---------------------------------------------------+--------------------------------------------------+
-| .. image:: img/icons/metadata.svg                 |About                                             |
-|   :width: 25px                                    |                                                  |
-|   :height: 25px                                   |                                                  |
-+---------------------------------------------------+--------------------------------------------------+
+
+============================================ ===========================================================================
+Button                                       Function
+============================================ ===========================================================================
+|ad_ra|                                      Add Raster Layer
+|addTS|                                      Add Time Series from CSV
+|remTS|                                      Remove all images from Time Series
+|saveTS|                                     Save Time Series as CSV file
+|icon_add_map_view|                          Add maps that show a specified band selection
+|refresh|                                    Refresh maps
+|zoompoint|                                  Select center coordinate
+|icon_zoom_in|                               Zoom into map
+|icon_zoom_out|                              Zoom out
+|icon_zoom_full|                             Zoom to maximum extent of time series
+|icon_zoom_11|                               Zoom to pixel scale
+|icon_zoom_pan|                              Pan map
+|extentimport|                               Set spatial map extent from QGIS map canvas
+|centerimport|                               Set spatial map center from QGIS map canvas
+|extentexport|                               Set map extent to QGIS map canvas
+|centerexport|                               Set map center to QGIS map canvas
+|identify|                                   Identify map layers (cursor location info)
+|icon_select_ts_profile|                     Identify pixel time series for specific coordinate
+|spectral_profile|                           Select pixel profiles from map
+|icon_eotsv|                                 About the plugin
+============================================ ===========================================================================
+
+
+
+
+
+
 
 
 
@@ -188,15 +231,18 @@ Map Visualization
 Map Properties
 ..............
 
+
 In the map properties box you can specify **Width** and **Height**, as well as background **Color** and the **CRS** of the single map canvases.
+Click :guilabel:`Apply` to apply changes. By default the **keep ratio** option is |cbc| checked, i.e. height will be the same as width. In case
+you want to have unequally sized views, deactivate this option.
 
-.. image:: img/maprendering.png
+.. .. image:: img/maprendering.png
 
-* :guilabel:`Set Center` center the QGIS Map View to the same coordinate as the TSV Map View
-* :guilabel:`Get Center` center the TSV Map View to the same coordinate as the QGIS Map View
-* :guilabel:`Set Extent` zoom the QGIS Map View to the same extent as the TSV Map View
-* :guilabel:`Get Extent` zoom the TSV Map View to the same extent as the QGIS Map View
-* ``Load center profile``, when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
+.. * :guilabel:`Set Center` center the QGIS Map View to the same coordinate as the TSV Map View
+.. * :guilabel:`Get Center` center the TSV Map View to the same coordinate as the QGIS Map View
+.. * :guilabel:`Set Extent` zoom the QGIS Map View to the same extent as the TSV Map View
+.. * :guilabel:`Get Extent` zoom the TSV Map View to the same extent as the QGIS Map View
+.. * ``Load center profile``, when checked |cbc|, the temporal profile of the center pixel will automatically be displayed and updated in the :ref:`Profile View` tab.
 
 
 Map Views
@@ -206,7 +252,7 @@ A map view is a row of map canvases that show the time series images of differen
 The map view panel allows to add or remove map views and to specifiy how the images of each sensor are to be rendered.
 
 
-* You can *add new Map Views* using the |addmapview| button. This will create a now row of map canvases. Remove a map view via |removemapview|.
+* You can *add new Map Views* using the |icon_add_map_view| button. This will create a now row of map canvases. Remove a map view via |removemapview|.
 * In case the Map View does not refresh correctly, you can 'force' the refresh using the |refresh| button (which will also apply all the render settings).
 * Access the settings for individual Map Views via the dropdown menu |mapviewdropdown|
 * You can use the |questionmark| button to *highlight the current Map View* selected in the dropdown menu (respective image chips will show red margin for a few seconds).
@@ -229,7 +275,7 @@ Now, for every Map View you can alter the following settings:
 
         * Multiband (RGB) as well as singleband rendering is supported. Select the desired mode in the dropdown menu.
 
-        * Select the desired band(s) for display using the slider. In the dropdown menu at the bottom you can specify the contrast enhancement to be used for the value stretch.
+        * Select the desired band(s) for display using the slider or dropdown list. In the dropdown menu at the bottom you can specify the contrast enhancement to be used for the value stretch.
           In case TSV has sufficient wavelength information for the bands, you can choose several presets: *True* (True Color; red-green-blue),
           *CIR1* (colored infrared; swir-red-green) and *CIR2* (colored infrared; swIR-mwIR-red)
 
@@ -238,22 +284,8 @@ Now, for every Map View you can alter the following settings:
         * Once you specified your rendering settings, press |refresh| to apply them.
 
 
-.. |addmapview| image:: img/icons/mActionAddMapView.svg
-.. |removemapview| image:: img/icons/mActionRemoveMapView.svg
-.. |refresh| image:: img/icons/mActionRefresh.png
-.. |mapviewdropdown| image:: img/icons/mapviewdropdown.png
-.. |questionmark| image:: img/icons/questionmark.png
-.. |hidemapview| image:: img/icons/mapviewHidden.svg
-    :height: 25px
-    :width: 25px
-.. |crosshair| image:: img/icons/crosshair.svg
-    :height: 25px
-    :width: 25px
-.. |symbology| image:: img/icons/symbology.svg
-    :height: 25px
-    :width: 25px
-.. |copy| image:: img/icons/mActionEditCopy.svg
-.. |paste| image:: img/icons/mActionEditPaste.svg
+
+
 
 
 
@@ -267,13 +299,10 @@ In case the Map View contains (additional) vector data, location information wil
 
 .. image:: img/cursorlocationvalues.png
 
-* Coordinates of the selected pixel are shown in the ``x`` and ``y`` fields. You may change the coordinate system of the displayed coordinates via the |crs| :superscript:`Select CRS` button.
+* Coordinates of the selected pixel are shown in the ``x`` and ``y`` fields. You may change the coordinate system of the
+  displayed coordinates via the |crs| :superscript:`Select CRS` button.
 
-.. |identify| image:: img/icons/mActionIdentify.svg
-    :width: 25px
-    :height: 25px
-
-.. |crs| image:: img/icons/CRS.svg
+.. |crs| image:: ../../timeseriesviewer/ui/icons/CRS.svg
 
 
 
@@ -283,12 +312,77 @@ In case the Map View contains (additional) vector data, location information wil
 
 Profile Visualization
 ^^^^^^^^^^^^^^^^^^^^^
-|
+
+.. figure:: img/example_2dprofile.png
+
+    Example: Temporal NDSI (Normalized Difference Snow Index) profile for 2 locations using Landsat 7 and 8 images.
+
 |
 
 
 Temporal Profiles
 .................
+
+The Temporal Profiles panel lets you visualize temporal profiles (2D) as well as temporal-spectral profiles (3D; experimental!).
+On the left side you can switch between the different modes, i.e. |temporal2d| :superscript:`2D` and |temporal3d|
+:superscript:`3D`. The coordinates |temporal_coords| page lists the coordinates of the temporal profiles.
+
+**Adding and managing a temporal profile:**
+
+* You can use the |icon_select_ts_profile| button to click on a location on the map an retrieve the temporal profile.
+* Mind how the selected pixel now also appears on the coordinates |temporal_coords| page!
+* If you select further pixels ( |icon_select_ts_profile| ), they will be listed in the coordinates page,
+  but not automatically visualized in the plot.
+    * Use |add| to create an additional plot layer, and double click in the ``Coordinate`` field in order to select the
+      desired location (so e.g. the newly chosen pixel) or just change the location in the current plot layer.
+* Similarly, you can change the sensor to be visualized by double clicking inside the ``Sensor`` field and choosing from
+  the dropdown.
+* Click inside the ``Style`` field to change the visual representation of your time series in the plot.
+* Remove a time series profile by selecting the desired row(s) and click |remove|.
+* The ``DN or Index`` field depicts which values will be plotted.
+
+    * Here you may select single bands (e.g. b1 for the first band)
+    * or you can calculate indices on-the-fly: e.g. for the Landsat images in the example dataset the expression (b4-b3)/(b4+b3)
+      would return the NDVI.
+
+        .. figure:: img/example_temppindex.png
+
+            Example of visualizing the NDVI for the same location for different sensors (example dataset).
+* You can also move the map views to a desired date from the plot directly by :menuselection:`Right-click --> Move maps to ...`
+
+.. note:: The TSV won't extract and load all pixel values into memory by default in order to reduce processing time (only the ones required).
+          You can manually load all the values by selecting the rows on the coordinates |temporal_coords| page :menuselection:`--> Right-click --> Load missing/reload`.
+          See information in the ``Loading`` column.
+
+
+
+**Importing or exporting locations:**
+
+* You can also import locations from a vector file instead of collecting them from the map: Go to the coordinates |temporal_coords| page
+  and add locations via the |addvector| button. The naming of the locations will be based on respective fields in the vector dataset.
+* If you want to save your locations, e.g. as shapefile or CSV, click on |save|.
+
+
+**Spectral-temporal plots (3D):**
+
+.. todo:: This feature is still experimental and under development. Documentation will follow!
+
+
+.. |temporal2d| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile2D.svg
+    :width: 27px
+.. |temporal3d| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile3D.svg
+    :width: 27px
+.. |temporal_coords| image:: ../../timeseriesviewer/ui/icons/mActionOpenTable.svg
+    :width: 27px
+.. |add| image:: ../../timeseriesviewer/ui/icons/mActionAdd.svg
+    :width: 27px
+.. |remove| image:: ../../timeseriesviewer/ui/icons/mActionRemove.svg
+    :width: 27px
+.. |addvector| image:: ../../timeseriesviewer/ui/icons/mActionAddOgrLayer.svg
+    :width: 27px
+.. |save| image:: ../../timeseriesviewer/ui/icons/mActionFileSave.svg
+    :width: 27px
+
 
 |
 |
@@ -297,6 +391,30 @@ Temporal Profiles
 
 Spectral Library
 ................
+
+The spectral library view allows you to visualize, label and export spectral profiles.
+
+.. image:: img/speclib.png
+
+* Use the |spectral_profile| :superscript:`Select a spectrum from a map` button to extract and visualize a pixels profile
+  (by clicking on a pixel on the map)
+* You can add a selected spectrum to your spectral library by clicking on |addspectrum|.
+* When the **Add Profiles** setting is checked |cbc|, the profile will be directly added to the library after clicking on a pixel.
+
+The gathered spectra are listed in the table on the right. For every spectrum additional metadata will be stored:
+The columns and rows (px x, px y), coordinates (x,y), coordinate system (CRS) and the path of the respective file (Source).
+
+* You can add further information by adding attributes via the |addattribute| button (e.g. different class labels).
+  Remove them with |removeattribute|, accordingly.
+* Double-click in the ``Name`` field to label the spectrum
+* You can specify colors for the different spectra: Right-click on the respective row in the table and choose **Set color**.
+* Remove spectra by selecting the desired rows in the table and :menuselection:`Right-click --> Remove`.
+* Export or import a spectral library via the |importspeclib| |exportspeclib| buttons.
+
+.. add further information on spectral library format or import/export. maybe link to enmap box documentation once its there
+
+
+
 
 
 |
