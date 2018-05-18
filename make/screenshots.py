@@ -149,6 +149,7 @@ for dockWidget in TSV.ui.findChildren(QDockWidget):
         dockWidget.reloadCursorLocation()
         dockWidget.resize(QSize(300, 300))
         dockWidget.update()
+        makePNG(dockWidget, name)
 
     if name == 'mapViewPanel':
         dockWidget.setCurrentMapView(mv1)
@@ -159,21 +160,43 @@ for dockWidget in TSV.ui.findChildren(QDockWidget):
         mv1.ui.update()
         dockWidget.resize(QSize(300, 600))
         dockWidget.update()
+        makePNG(dockWidget, name)
 
     if name == 'sensorPanel':
         #dockWidget.setFixedHeight(200)
-        dockWidget.setFixedSize(QSize(550, 100))
+        dockWidget.resize(QSize(330, 125))
+        makePNG(dockWidget, name)
+
     if name == 'systemInfoPanel':
         dockWidget.setFixedHeight(400)
+        makePNG(dockWidget, name)
 
     if name == 'spectralLibraryPanel':
-        dockWidget.setFixedSize(QSize(800, 250))
-    if name == 'temporalProfilePanel':
-        dockWidget.setFixedSize(QSize(800, 250))
-    if name == 'timeseriesPanel':
-        dockWidget.setFixedSize(QSize(800, 250))
+        dockWidget.resize(QSize(800, 250))
+        makePNG(dockWidget, name)
 
-    makePNG(dockWidget, name)
+    if name == 'temporalProfilePanel':
+        dockWidget.resize(QSize(800, 250))
+        for i in range(dockWidget.listWidget.count()):
+            assert isinstance(dockWidget.listWidget, QListWidget)
+            dockWidget.listWidget.setCurrentRow(i)
+            page = dockWidget.stackedWidget.currentWidget()
+            pageName = page.objectName()
+            page.update()
+
+            if i == 0:
+                dockWidget.plotWidget2D.update()
+            elif i == 1:
+                dockWidget.plotWidget3D.update()
+                dockWidget.plotWidget3D.paintGL()
+                #dockWidget.plotWidget3D.repaint()
+            dockWidget.repaint()
+            makePNG(dockWidget, '{}.{}'.format(name, pageName))
+
+    if name == 'timeseriesPanel':
+        dockWidget.resize(QSize(800, 250))
+        makePNG(dockWidget, name)
+
     #dockWidget.setFloating(False)
 
 
