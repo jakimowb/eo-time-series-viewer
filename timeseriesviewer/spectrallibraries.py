@@ -330,8 +330,13 @@ class SpectralProfile(QObject):
         """
         assert isinstance(mapCanvas, QgsMapCanvas)
 
-        layers = [l for l in mapCanvas.layers() if isinstance(l, QgsRasterLayer)]
-        sources = [l.source() for l in layers]
+        from timeseriesviewer.mapcanvas import MapCanvas
+        if isinstance(mapCanvas, MapCanvas):
+            sources = mapCanvas.layerModel().rasterLayerInfos()
+            sources = [s.mSrc for s in sources]
+        else:
+            layers = [l for l in mapCanvas.layers() if isinstance(l, QgsRasterLayer)]
+            sources = [l.source() for l in layers]
         return SpectralProfile.fromRasterSources(sources, position)
 
     @staticmethod
@@ -971,6 +976,8 @@ class SpectralLibraryPanel(QgsDockWidget):
         self.SLW = SpectralLibraryWidget(self)
         self.setWidget(self.SLW)
 
+    def setAddCurrentSpectraToSpeclibMode(self, b: bool):
+        self.SLW.setAddCurrentSpectraToSpeclibMode(b)
 
 class SpectralLibraryVectorLayer(QgsVectorLayer):
 
@@ -1526,7 +1533,8 @@ class SpectralLibraryTableViewModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             if columnName == self.cIndex:
-                value = self.mSpecLib.index(profile)+1
+                #value = self.mSpecLib.index(profile)+1
+                pass
             elif columnName == self.cName:
                 value = profile.name()
             elif columnName == self.cSrc:
@@ -1859,6 +1867,9 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         if isinstance(speclib, SpectralLibrary):
             self.mModel.insertProfiles([p.clone() for p in speclib])
             #self.mSpeclib.addProfiles([copy.copy(p) for p in speclib])
+
+    def setAddCurrentSpectraToSpeclibMode(self, b:bool):
+        self.cbAddCurrentSpectraToSpeclib.setChecked(b)
 
     def addCurrentSpectraToSpeclib(self, *args):
         self.mModel.insertProfiles([p.clone() for p in self.mCurrentSpectra])
