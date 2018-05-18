@@ -2221,7 +2221,9 @@ if __name__ == '__main__':
         STVis.createNewPlotStyle3D()
         STVis.ui.listWidget.setCurrentRow(1)
 
-        STVis.loadCoordinate(cpND)
+        STVis.loadCoordinate(cpND, backgroundProcess=False)
+
+        STVis.tpCollection.mTemporalProfiles[0].setName('My Name')
 
         from example import  exampleEvents
         #STVis.loadCoordinatesFromOgr(exampleEvents)

@@ -1131,10 +1131,16 @@ class TemporalProfileCollection(QAbstractTableModel):
         self.mColumNames = [self.mcnName, self.mcnLoaded, self.mcnCoordinate]
 
         crs = QgsCoordinateReferenceSystem('EPSG:4862')
-        uri = 'Point?crs={}'.format(crs.authid())
+        uri = 'Point?crs={}&field=id:integer&field=name:string(120)'.format(crs.authid())
+        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
+        symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
+        self.mLocations.renderer().setSymbol(symbol)
 
         self.TS = None
-        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
+
+
+
+
         self.mTemporalProfiles = []
         self.mTPLookupSpatialPoint = {}
         self.mTPLookupID = {}
@@ -1274,6 +1280,8 @@ class TemporalProfileCollection(QAbstractTableModel):
             self.prune(nMax=self.mMaxProfiles - l)
 
             self.beginInsertRows(QModelIndex(), i, i + l - 1)
+
+            features = []
             for temporalProfile in temporalProfiles:
                 assert isinstance(temporalProfile, TemporalProfile)
                 id = self.nextID
@@ -1282,9 +1290,21 @@ class TemporalProfileCollection(QAbstractTableModel):
                 self.mTemporalProfiles.insert(i, temporalProfile)
                 self.mTPLookupID[id] = temporalProfile
                 self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
+
+                f = QgsFeature(self.mLocations.fields())
+                f.setFields(self.mLocations.fields())
+                f.setAttribute('id', QVariant(id))
+                f.setAttribute('name', QVariant(temporalProfile.name()))
+                f.setGeometry(QgsGeometry.fromPointXY(temporalProfile.coordinate()))
+                features.append(f)
+
+
                 temporalProfile.sigDataChanged.connect(lambda: self.onUpdate(temporalProfile))
-                temporalProfile.sigNameChanged.connect(lambda: self.onUpdate(temporalProfile))
+                temporalProfile.sigNameChanged.connect(lambda: self.onUpdateName(temporalProfile))
                 i += 1
+            self.mLocations.startEditing()
+            assert self.mLocations.dataProvider().addFeatures(features)
+            assert self.mLocations.commitChanges()
             self.endInsertRows()
 
             self.sigTemporalProfilesAdded.emit(temporalProfiles)
@@ -1301,6 +1321,19 @@ class TemporalProfileCollection(QAbstractTableModel):
             return self.mTPLookupID[id]
         else:
             return None
+
+    def temporalProfileFromFeature(self, feature):
+
+        return None
+
+    def temporalProfileToLocationFeature(self, tp:TemporalProfile):
+
+        self.mLocations.selectByIds([tp.id()])
+        for f in self.mLocations.selectedFeatures():
+            assert isinstance(f, QgsFeature)
+            return f
+
+        return None
 
     def id(self, temporalProfile):
         """
@@ -1429,8 +1462,25 @@ class TemporalProfileCollection(QAbstractTableModel):
 
         if tp in self.mTemporalProfiles:
             idx0 = self.tp2idx(tp)
-            idx1 = self.createIndex(idx0.row(), self.rowCount())
+            idx1 = self.createIndex(idx0.row(), self.columnCount())
             self.dataChanged.emit(idx0, idx1, [Qt.DisplayRole])
+
+
+
+    def onUpdateName(self, tp):
+        assert isinstance(tp, TemporalProfile)
+
+        if tp in self.mTemporalProfiles:
+            idx0 = self.tp2idx(tp)
+            c = self.mColumNames.index(self.mcnName)
+            idx = self.createIndex(idx0.row(), c)
+            self.dataChanged.emit(idx, idx, [Qt.DisplayRole])
+
+            f = self.temporalProfileToLocationFeature(tp)
+
+            if isinstance(f, QgsFeature):
+                f.setAttribute('name', tp.name())
+
 
     def sort(self, col, order):
         if self.rowCount() == 0:
@@ -1540,7 +1590,7 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication()
     DEBUG = False
 
-    w = TemporalProfilePlotStyle3DWidget()
+    w = TemporalProfile2DPlotStyle()
     w.show()
     print(w.plotStyle())
 

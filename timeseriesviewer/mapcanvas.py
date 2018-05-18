@@ -1126,5 +1126,7 @@ if __name__ == '__main__':
     c.setExtent(lyr1.extent())
     c.setCrs(QgsCoordinateReferenceSystem('EPSG:32632'))
     c.setExtent(c.spatialExtentHint())
+
+
     c.refresh()
     qgsApp.exec_()
