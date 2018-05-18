@@ -912,7 +912,7 @@ class MapCanvas(QgsMapCanvas):
         else:
             path = 'mapcanvas'
         path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))
-        path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
+        path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))

@@ -531,15 +531,13 @@ class SpatialExtent(QgsRectangle):
 
 
 
-def saveFilePath(text):
+def saveFilePath(text : str):
     """
     Normalizes string, converts to lowercase, removes non-alpha characters,
     and converts spaces to hyphens.
     see https://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename
     :return: path
     """
-    import unicodedata
-    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
     text = re.sub(r'[^\w\s.-]', '', text).strip().lower()
     text = re.sub(r'[-\s]+', '_', text)
     return re.sub(r'[ ]+]','',text)
