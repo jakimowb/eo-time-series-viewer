@@ -353,7 +353,7 @@
                   <string>Data Value(s)</string>
                  </property>
                  <property name="collapsed">
-                  <bool>false</bool>
+                  <bool>true</bool>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_8">
                   <property name="spacing">

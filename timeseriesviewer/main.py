@@ -499,17 +499,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
             from timeseriesviewer.spectrallibraries import SpectralProfile
             tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
 
-            profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
+            if not hasattr(self, 'cntSpectralProfile'):
+                self.cntSpectralProfile = 0
 
+            profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
             #add metadata
             if isinstance(tsd, TimeSeriesDatum):
                 for p in profiles:
                     assert isinstance(p, SpectralProfile)
-
+                    p.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
                     p.setMetadata(u'date', u'{}'.format(tsd.date))
                     p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()))
                     p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()))
 
+            self.cntSpectralProfile += 1
             self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
 
         elif mapToolKey == MapTools.CursorLocation:
