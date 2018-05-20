@@ -1,6 +1,7 @@
 
 
 #
+import sys, os, itertools
 from qgis.core import *
 from qgis.gui import *
 from qgis.PyQt.QtWidgets import *
@@ -12,6 +13,9 @@ from timeseriesviewer.mapvisualization import *
 from timeseriesviewer.profilevisualization import *
 from timeseriesviewer.timeseries import *
 from timeseriesviewer import DIR_REPO, DIR_QGIS_RESOURCES
+
+
+
 DIR_SCREENSHOTS = jp(DIR_REPO, 'screenshots')
 os.makedirs(DIR_SCREENSHOTS, exist_ok=True)
 
