@@ -1052,6 +1052,8 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         qgsApp = QgsApplication([], True)
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
+        from qgis.gui import QgsGui
+        QgsGui.editorWidgetRegistry().initEditors()
 
         def printQgisLog(tb, error, level):
             if error not in ['Python warning']:

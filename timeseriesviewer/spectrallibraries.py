@@ -303,10 +303,11 @@ class SpectralProfileMapTool(QgsMapToolEmitPoint):
 
 class SpectralProfilePlotDataItem(pg.PlotDataItem):
 
-    def __init__(self, spectralProfle):
-        assert isinstance(spectralProfle, SpectralProfile)
-        super(SpectralProfilePlotDataItem, self).__init__(spectralProfle.xValues(), spectralProfle.yValues())
-        self.mProfile = spectralProfle
+    def __init__(self, spectralProfile):
+        assert isinstance(spectralProfile, SpectralProfile)
+        super(SpectralProfilePlotDataItem, self).__init__()
+        self.mProfile = spectralProfile
+        self.setData(x=spectralProfile.xValues(), y=spectralProfile.yValues())
 
     def setClickable(self, b, width=None):
         assert isinstance(b, bool)
@@ -314,12 +315,10 @@ class SpectralProfilePlotDataItem(pg.PlotDataItem):
 
     def setColor(self, color):
         if not isinstance(color, QColor):
-
             color = QColor(color)
         self.setPen(color)
 
     def pen(self):
-
         return fn.mkPen(self.opts['pen'])
 
     def color(self):
@@ -383,7 +382,7 @@ class SpectralProfile(QgsFeature):
             px = position
         elif isinstance(position, SpatialPoint):
             px = geo2px(position.toCrs(crs), gt)
-        elif isinstance(position, QgsPoint):
+        elif isinstance(position, QgsPointXY):
             px = geo2px(position, ds.GetGeoTransform())
         else:
             raise Exception('Unsupported type of argument "position" {}'.format('{}'.format(position)))
@@ -401,14 +400,18 @@ class SpectralProfile(QgsFeature):
             if nodata and values[b] == nodata:
                 return None
 
-        wl = ds.GetMetadataItem(str('wavelength'),str('ENVI'))
-        wlu = ds.GetMetadataItem(str('wavelength_units'),str('ENVI'))
+        wl = ds.GetMetadataItem(str('wavelength'), str('ENVI'))
+        wlu = ds.GetMetadataItem(str('wavelength_units'), str('ENVI'))
         if wl is not None and len(wl) > 0:
             wl = re.sub(r'[ {}]','', wl).split(',')
             wl = [float(w) for w in wl]
 
         profile = SpectralProfile()
-        profile.setValues(values, valuePositions=wl, valuePositionUnit=wlu)
+        #profile.setValues(values, valuePositions=wl, valuePositionUnit=wlu)
+        profile.setYValues(values)
+        if wl is not None:
+            profile.setXValues(wl, unit=wlu)
+
         profile.setCoordinates(px=px, pt=SpatialPoint(crs, px2geo(px, gt)))
         profile.setSource('{}'.format(ds.GetFileList()[0]))
         return profile
@@ -416,68 +419,90 @@ class SpectralProfile(QgsFeature):
     @staticmethod
     def createQgsField(name : str, exampleValue):
         if isinstance(exampleValue, str):
-            return QgsField(name, QVariant.String, 'varchar', 10)
+            return QgsField(name, QVariant.String, 'varchar')
         elif isinstance(exampleValue, int):
             return QgsField(name, QVariant.String, 'int')
         elif isinstance(exampleValue, float):
             return QgsField(name, QVariant.String, 'float')
+        elif isinstance(exampleValue, np.ndarray):
+            return QgsField(name, QVariant.String, 'varchar')
         else:
             raise NotImplemented()
 
-    def __init__(self, parent=None, fields=None):
+    @staticmethod
+    def standardFields():
+        fields = QgsFields()
 
+        """﻿
+        Parameters
+        name Field name type Field variant type, currently supported: String / Int / Double 
+        typeName Field type (e.g., char, varchar, text, int, serial, double). Field types are usually unique to the source and are stored exactly as returned from the data store. 
+        len Field length 
+        prec Field precision. Usually decimal places but may also be used in conjunction with other fields types (e.g., variable character fields) 
+        comment Comment for the field 
+        subType If the field is a collection, its element's type. When all the elements don't need to have the same type, leave this to QVariant::Invalid. 
+        """
+        fields.append(SpectralProfile.createQgsField('name', ''))
+        fields.append(SpectralProfile.createQgsField('px_x', 0))
+        fields.append(SpectralProfile.createQgsField('px_y', 0))
+        fields.append(SpectralProfile.createQgsField('x_unit', ''))
+        fields.append(SpectralProfile.createQgsField('y_unit', ''))
+        fields.append(SpectralProfile.createQgsField('source', ''))
+        fields.append(SpectralProfile.createQgsField('__serialized__xvalues', ''))
+        fields.append(SpectralProfile.createQgsField('__serialized__yvalues', ''))
+
+
+
+        """
+        fields.append(QgsField('name', QVariant.String,'varchar', 25))
+        fields.append(QgsField('px_x', QVariant.Int, 'int'))
+        fields.append(QgsField('px_y', QVariant.Int, 'int'))
+        fields.append(QgsField('x_unit', QVariant.String, 'varchar', 5))
+        fields.append(QgsField('y_unit', QVariant.String, 'varchar', 5))
+        fields.append(QgsField('source', QVariant.String, 'varchar', 5))
+        """
+        return fields
+
+    @staticmethod
+    def fromSpecLibFeature(feature):
+
+        sp = SpectralProfile(fields=feature.fields())
+        sp.setAttributes(feature.attributes())
+        return sp
+
+    def __init__(self, parent=None, fields=None, xUnit='index', yUnit=None):
 
         if fields is None:
-            fields = QgsFields()
+            fields = SpectralProfile.standardFields()
 
-            """﻿
-            Parameters
-            name Field name type Field variant type, currently supported: String / Int / Double 
-            typeName Field type (e.g., char, varchar, text, int, serial, double). Field types are usually unique to the source and are stored exactly as returned from the data store. 
-            len Field length 
-            prec Field precision. Usually decimal places but may also be used in conjunction with other fields types (e.g., variable character fields) 
-            comment Comment for the field 
-            subType If the field is a collection, its element's type. When all the elements don't need to have the same type, leave this to QVariant::Invalid. 
-            """
-            fields.append(SpectralProfile.createQgsField('name', ''))
-            fields.append(SpectralProfile.createQgsField('px_x', 0))
-            fields.append(SpectralProfile.createQgsField('px_y', 0))
-            fields.append(SpectralProfile.createQgsField('x_unit', ''))
-            fields.append(SpectralProfile.createQgsField('y_unit', ''))
-            fields.append(SpectralProfile.createQgsField('source', ''))
-
-            """
-            fields.append(QgsField('name', QVariant.String,'varchar', 25))
-            fields.append(QgsField('px_x', QVariant.Int, 'int'))
-            fields.append(QgsField('px_y', QVariant.Int, 'int'))
-            fields.append(QgsField('x_unit', QVariant.String, 'varchar', 5))
-            fields.append(QgsField('y_unit', QVariant.String, 'varchar', 5))
-            fields.append(QgsField('source', QVariant.String, 'varchar', 5))
-            """
-
+        #QgsFeature.__init__(self, fields)
+        #QObject.__init__(self)
         super(SpectralProfile, self).__init__(fields)
-
+        #QObject.__init__(self)
         fields = self.fields()
         assert isinstance(fields, QgsFields)
 
-        self.mXValues = []
-        self.mYValues = []
+        self.setXUnit(xUnit)
+        self.setYUnit(yUnit)
+
+    def fieldNames(self):
+        return self.fields().names()
 
 
-    sigNameChanged = pyqtSignal(str)
+
     def setName(self, name:str):
         if name != self.name():
             self.setAttribute('name', name)
-            self.sigNameChanged.emit(name)
+            #self.sigNameChanged.emit(name)
 
     def name(self):
-        return self.attribute('name')
+        return self.metadata('name')
 
     def setSource(self, uri: str):
         self.setAttribute('source', uri)
 
     def source(self):
-        return self.attribute('source')
+        return self.metadata('source')
 
     def setCoordinates(self, px=None, pt=None):
         if isinstance(px, QPoint):
@@ -498,30 +523,70 @@ class SpectralProfile(QgsFeature):
     def isValid(self):
         return len(self.mValues) > 0 and self.mValueUnit is not None
 
-    def setValues(self, xValues=None, yValues=None):
-        if xValues is not None and yValues is not None:
-            assert len(xValues) == len(yValues)
 
+    def setXValues(self, values, unit=None):
+        if isinstance(values, np.ndarray):
+            values = values.tolist()
+        assert isinstance(values, list)
 
-        if yValues is not None:
-            self.mYValues = yValues
+        self.setMetadata('__serialized__xvalues', values)
 
-        if xValues is not None:
-            self.mXValues = xValues
+        if isinstance(unit, str):
+            self.setMetadata('x_unit', unit)
 
-        assert len(self.mXValues) == len(self.mYValues)
+    def setYValues(self, values, unit=None):
+        if isinstance(values, np.ndarray):
+            values = values.tolist()
+        assert isinstance(values, list)
+        self.setMetadata('__serialized__yvalues', values)
+        if isinstance(unit, str):
+            self.setMetadata('y_unit', unit)
 
+        if self.xValues() is None:
+            self.setXValues(list(range(len(values))), unit='index')
 
     def updateMetadata(self, metaData):
-        assert isinstance(metaData, dict)
+        if isinstance(metaData, dict):
+            for key, value in metaData.items():
+                self.setMetadata(key, value)
 
-        s = ""
+    def removeField(self, name):
+        fields = self.fields()
+        values = self.attributes()
+        i = self.fieldNameIndex(name)
+        if i >= 0:
+            fields.remove(i)
+            values.pop(i)
+            self.setFields(fields)
+            self.setAttributes(values)
 
+    def setMetadata(self, key: str, value, addMissingFields=False):
+        """
 
-
-    def setMetadata(self, key: str, value):
+        :param key: Name of metadata field
+        :param value: value to add. Need to be of type None, str, int or float.
+        :param addMissingFields: Set on True to add missing fields (in case value is not None)
+        :return:
+        """
         i = self.fieldNameIndex(key)
+
+        if key.startswith('__serialized__'):
+            if value is not None:
+                value = pickle.dumps(value)
+
         if i < 0:
+            if value is not None and addMissingFields:
+
+                fields = self.fields()
+                values = self.attributes()
+                if key.startswith('__serialized__'):
+                    fields.append(SpectralProfile.createQgsField(key, ''))
+                else:
+                    fields.append(SpectralProfile.createQgsField(key, value))
+                values.append(value)
+                self.setFields(fields)
+                self.setAttributes(values)
+
             return False
         else:
             return self.setAttribute(key, value)
@@ -529,28 +594,40 @@ class SpectralProfile(QgsFeature):
     def metadata(self, key: str, default=None):
 
         assert isinstance(key, str)
-        v = self.mMetadata.get(key)
+        i = self.fieldNameIndex(key)
+        if i < 0:
+            return None
+
+        v = self.attribute(i)
+        if v == QVariant(None):
+            v = None
+
+        if key.startswith('__serialized__') and v != None:
+            v = pickle.loads(v)
+
         return default if v is None else v
 
     def xValues(self):
-        return self.mXValues[:]
+        return self.metadata('__serialized__xvalues')
 
     def yValues(self):
-        return self.mYValues[:]
+        return self.metadata('__serialized__yvalues')
+
+    def setXUnit(self, unit : str='index'):
+        self.setMetadata('x_unit', unit)
 
     def xUnit(self):
         return self.metadata('x_unit', 'index')
 
-    def yUnit(self):
-        return self.metadata('y_unit')
+    def setYUnit(self, unit:str=None):
+        self.setMetadata('y_unit', unit)
 
-    def valueIndexes(self):
-        return np.arange(len(self.yValues()))
+    def yUnit(self):
+        return self.metadata('y_unit', None)
 
     def clone(self):
 
         sp = SpectralProfile(fields=self.fields())
-        sp.setValues(self.xValues(), self.yValues())
         sp.setAttributes(self.attributes())
         return sp
 
@@ -575,25 +652,28 @@ class SpectralProfile(QgsFeature):
         return self.__class__, (), self.__getstate__()
 
     def __getstate__(self):
-        return self.__dict__.copy()
+        r = QVariant(None)
+        attributes = [None if v == r else v for v  in self.attributes()]
+
+        state = (self.__dict__, attributes)
+        return pickle.dumps(state)
 
     def __setstate__(self, state):
-        self.__dict__.update(state)
+        state = pickle.loads(state)
+        d, a = state
+
+        self.__dict__.update(d)
+        self.setAttributes(a)
 
     def __copy__(self):
-        return copy.deepcopy(self)
+        sp = SpectralProfile(fields=self.fields())
+        sp.setAttributes(self.attributes())
+        return sp
 
-    def isEqual(self, other):
+    def __eq__(self, other):
         if not isinstance(other, SpectralProfile):
             return False
-        if len(self.mValues) != len(other.mValues):
-            return False
-        return all(a == b for a, b in zip(self.mValues, other.mValues)) \
-               and self.mValuePositions == other.mValuePositions \
-               and self.mValueUnit == other.mValueUnit \
-               and self.mValuePositionUnit == other.mValuePositionUnit \
-               and self.mGeoCoordinate == other.mGeoCoordinate \
-               and self.mPxCoordinate == other.mPxCoordinate
+        return np.array_equal(self.attributes(), other.attributes())
 
     """
     def __eq__(self, other):
@@ -672,8 +752,9 @@ class CSVSpectralLibraryIO(SpectralLibraryIO):
 
     @staticmethod
     def asTextLines(speclib, separator='\t'):
+        assert isinstance(speclib, SpectralLibrary)
         lines = []
-        attributes = speclib.metadataAttributes()
+        attributes = speclib.fieldNames()
         grouping = speclib.groupBySpectralProperties()
         for profiles in grouping.values():
             wlU = profiles[0].xUnit()
@@ -731,6 +812,7 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
                 to_delete.append(tmpVrt)
             ds = EnviSpectralLibraryIO.esl2vrt(pathESL, tmpVrt)
             data = ds.ReadAsArray()
+           # md = ds.GetMetadata_Dict()
             ds = None
 
             #remove the temporary VRT, as it was created internally only
@@ -738,7 +820,6 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
                 os.remove(file)
 
         except Exception as ex:
-        #if False:
             pathHdr = EnviSpectralLibraryIO.findENVIHeader(pathESL)
 
             pathTmpBin = tempfile.mktemp(prefix='tmpESL', suffix='.esl.bsq')
@@ -765,6 +846,7 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
             hdr = EnviSpectralLibraryIO.readENVIHeader(pathTmpBin)
             ds = gdal.Open(pathTmpBin)
             data = ds.ReadAsArray()
+            #md = ds.GetMetadata_Dict()
             ds = None
 
             try:
@@ -781,12 +863,12 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
 
 
         nSpectra, nbands = data.shape
-        valueUnit = ''
-        valuePositionUnit = md.get('wavelength units')
-        valuePositions = md.get('wavelength')
-        if valuePositions is None:
-            valuePositions = list(range(1, nbands+1))
-            valuePositionUnit = 'Band'
+        yUnit = None
+        xUnit = md.get('wavelength units')
+        xValues = md.get('wavelength')
+        if xValues is None:
+            xValues = list(range(1, nbands + 1))
+            xUnit = 'index'
 
         spectraNames = md.get('spectra names', ['Spectrum {}'.format(i+1) for i in range(nSpectra)])
         listAttributes = [(k, v) for k,v in md.items() \
@@ -797,10 +879,8 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
         profiles = []
         for i, name in enumerate(spectraNames):
             p = SpectralProfile()
-            p.setValues(data[i,:],
-                        valueUnit=valueUnit,
-                        valuePositions=valuePositions,
-                        valuePositionUnit=valuePositionUnit)
+            p.setYValues(data[i,:], unit=yUnit)
+            p.setXValues(xValues, unit=xUnit)
             p.setName(name.strip())
             for listAttribute in listAttributes:
                 p.setMetadata(listAttribute[0], listAttribute[1][i])
@@ -889,8 +969,12 @@ class EnviSpectralLibraryIO(SpectralLibraryIO):
             ds.SetMetadataItem(str('wavelength'), value2hdrString(wl), str('ENVI'))
             ds.SetMetadataItem(str('wavelength units'), str(wlu), str('ENVI'))
 
+            fieldNames = ds.GetMetadata_Dict('ENVI').keys()
+            fieldNames = [n for n in speclib.fields().names() if n not in fieldNames and not n.startswith('__')]
 
-            for a in speclib.metadataAttributes():
+
+
+            for a in fieldNames:
                 v = value2hdrString([p.metadata(a) for p in grp])
                 ds.SetMetadataItem(a, v, str('ENVI'))
 
@@ -1178,54 +1262,45 @@ class SpectralLibrary(QgsVectorLayer):
     sigProfilesRemoved = pyqtSignal([list], [list, list])
     sigNameChanged = pyqtSignal(str)
 
-    def __init__(self, parent=None, profiles=None):
-        super(SpectralLibrary, self).__init__(parent)
+    def __init__(self, name='SpectralLibrary'):
+        crs = SpectralProfile.crs
+        uri = 'Point?crs={}'.format(crs.authid())
+        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+        super(SpectralLibrary, self).__init__(uri, name, 'memory', lyrOptions)
 
-        self.mProfiles = []
-        self.mName = ''
-        if profiles is not None:
-            self.mProfiles.extend(profiles[:])
+        defaultFields = SpectralProfile.standardFields()
 
-    def setName(self, name):
-        if name != self.mName:
-            self.mName = name
-            self.sigNameChanged.emit(name)
+        assert self.startEditing()
+        assert self.dataProvider().addAttributes(defaultFields)
+        assert self.commitChanges()
 
-    def name(self):
-        return self.mName
+
 
     def addSpeclib(self, speclib):
         assert isinstance(speclib, SpectralLibrary)
         self.addProfiles([p for p in speclib])
 
+    def addProfiles(self, profiles, index : QModelIndex=QModelIndex()):
 
-    def addProfile(self, profile):
-        self.addProfiles([profile])
-
-    def addProfiles(self, profiles, index=None):
-        to_add = self.extractProfileList(profiles)
-        to_add = [p for p in to_add if p not in self.mProfiles]
-        if len(to_add) > 0:
-            if index is None:
-                index = len(self.mProfiles)
-            self.mProfiles[index:index] = to_add
-
-            indices = [self.mProfiles.index(p) for p in to_add]
-            self.sigProfilesAdded[list].emit(to_add)
-            self.sigProfilesAdded[list, list].emit(to_add, indices)
-
-
-    def extractProfileList(self, profiles):
         if isinstance(profiles, SpectralProfile):
             profiles = [profiles]
-        if isinstance(profiles, list):
-            profiles = [p for p in profiles if isinstance(p, SpectralProfile)]
         elif isinstance(profiles, SpectralLibrary):
-            profiles = profiles.mProfiles[:]
-        else:
-            raise Exception('Unknown type {}'.format(type(profiles)))
-        return profiles
+            profiles = profiles[:]
 
+        assert isinstance(profiles, list)
+        for p in profiles:
+            assert isinstance(p, SpectralProfile)
+        a = self.startEditing()
+        #b, l = self.dataProvider().addFeatures(profiles)
+        b = self.addFeatures(profiles)
+        if b:
+            c = self.commitChanges()
+        else:
+            c = self.rollBack()
+        s = ""
+
+    def profiles(self):
+        return self[:]
 
     def groupBySpectralProperties(self):
         """
@@ -1235,7 +1310,7 @@ class SpectralLibrary(QgsVectorLayer):
         """
 
         d = dict()
-        for p in self.mProfiles:
+        for p in self.profiles():
             #assert isinstance(p, SpectralProfile)
             id = (str(p.xValues()), str(p.xUnit()), str(p.yUnit()))
             if id not in d.keys():
@@ -1243,21 +1318,6 @@ class SpectralLibrary(QgsVectorLayer):
             d[id].append(p)
         return d
 
-    def metadataAttributes(self):
-        attributes = set()
-        for p in self:
-            for k in p.mMetadata.keys():
-                attributes.add(k)
-        return sorted(list(attributes))
-
-    def renameMetadataAttribute(self,oldName, newName):
-        assert oldName in self.metadataAttributes()
-        assert isinstance(oldName, str)
-        assert isinstance(newName, str)
-
-        for p in self:
-            if oldName in p.mMetadata.keys:
-                p.mMetadata[newName] = p.mMetadata.pop(oldName)
 
     def asTextLines(self, separator='\t'):
         return CSVSpectralLibraryIO.asTextLines(self, separator=separator)
@@ -1276,13 +1336,13 @@ class SpectralLibrary(QgsVectorLayer):
         if len(path) > 0:
             ext = os.path.splitext(path)[-1].lower()
             if ext in ['.sli','.esl']:
-                EnviSpectralLibraryIO.write(self, path)
+                return EnviSpectralLibraryIO.write(self, path)
 
             if ext in ['.csv']:
-                CSVSpectralLibraryIO.write(self, path, separator='\t')
+                return CSVSpectralLibraryIO.write(self, path, separator='\t')
 
-            s = ""
 
+        return []
 
     def removeProfiles(self, profiles):
         """
@@ -1306,9 +1366,10 @@ class SpectralLibrary(QgsVectorLayer):
 
 
     def yRange(self):
-        minY = min([min(p.yValues()) for p in self.mProfiles])
-        maxY = max([max(p.yValues()) for p in self.mProfiles])
-        return  minY, maxY
+        profiles = self.profiles()
+        minY = min([min(p.yValues()) for p in profiles])
+        maxY = max([max(p.yValues()) for p in profiles])
+        return minY, maxY
 
     def plot(self):
         import pyqtgraph as pg
@@ -1335,24 +1396,40 @@ class SpectralLibrary(QgsVectorLayer):
     def index(self, obj):
         return self.mProfiles.index(obj)
 
+    def fieldNames(self):
+        return self.fields().names()
+
     def __reduce_ex__(self, protocol):
         return self.__class__, (), self.__getstate__()
 
     def __getstate__(self):
-        return self.__dict__.copy()
+        profiles = self[:]
+        dump = pickle.dumps((self.name(),profiles))
+        return dump
+        #return self.__dict__.copy()
 
     def __setstate__(self, state):
-        self.__dict__.update(state)
+        name, profiles = pickle.loads(state)
+
+        self.setName(name)
+        self.addProfiles(profiles)
+
 
 
     def __len__(self):
-        return len(self.mProfiles)
+        return self.featureCount()
 
     def __iter__(self):
-        return iter(self.mProfiles)
+        r = QgsFeatureRequest()
+        for f in self.getFeatures(r):
+            yield SpectralProfile.fromSpecLibFeature(f)
 
     def __getitem__(self, slice):
-        return self.mProfiles[slice]
+        features = list(self.getFeatures())[slice]
+        if isinstance(features, list):
+            return [SpectralProfile.fromSpecLibFeature(f) for f in features]
+        else:
+            return SpectralProfile.fromSpecLibFeature(features)
 
     def __delitem__(self, slice):
         profiles = self[slice]
@@ -1366,7 +1443,7 @@ class SpectralLibrary(QgsVectorLayer):
             return False
 
         for p1, p2 in zip(self.__iter__(), other.__iter__()):
-            if not p1.isEqual(p2):
+            if not p1 == p2:
                 return False
         return True
 
@@ -2073,10 +2150,13 @@ if __name__ == "__main__":
 
     sp1b = sp1.clone()
 
+    from example.Images import Img_2014_08_11_LC82270652014223LGN00_BOA
+
+
     sp2 = SpectralProfile()
     sp2.setCoordinates(px=QPoint(10, 30), pt=SpatialPoint(QgsCoordinateReferenceSystem('EPSG:32641'), 30.000, 57.500))
-    sp2.setMetadata('attr1', 42)
-    sp2.setMetadata('attr2', 'bar')
+    sp2.setMetadata('attr1', 42, addMissingFields=True)
+    sp2.setMetadata('attr2', 'bar', addMissingFields=True)
 
     sp3 = SpectralProfile()
     sp3.setCoordinates(px=QPoint(10, 10), pt=SpatialPoint(QgsCoordinateReferenceSystem('EPSG:32641'), 30.000, 57.600))
@@ -2084,19 +2164,35 @@ if __name__ == "__main__":
     sp3.setMetadata('attr2', 23)
 
     sl = SpectralLibrary()
-    sl.addProfile(sp1)
-    sl.addProfile(sp2)
-    sl.addProfile(sp3)
+    sl.addProfiles(sp1)
+    sl.addProfiles(sp2)
+    sl.addProfiles(sp3)
 
     w = QFrame()
     w.setLayout(QHBoxLayout())
 
     cache = QgsVectorLayerCache(sl, 1000)
-    view = QgsAttributeTableView()
+
+
     dmodel = QgsAttributeTableModel(cache)
-    fmodel = QgsAttributeTableFilterModel(QgsMapCanvas(), dmodel)
-    view.setModel(fmodel)
+    dmodel.loadLayer()
+    dmodel.updatedFields()
+
+    dummycanvas = QgsMapCanvas()
+    dummycanvas.setDestinationCrs(SpectralProfile.crs)
+    dummycanvas.setCenter(QgsPointXY(0,0))
+    dummycanvas.setExtent(QgsRectangle(-180, -90,180, 90))
+
+    fmodel = QgsAttributeTableFilterModel(dummycanvas, dmodel)
     fmodel.setSourceModel(dmodel)
+
+    if False:
+        view = QgsAttributeTableView()
+        view.setModel(fmodel)
+    else:
+        view = QTableView()
+        view.setModel(dmodel)
+
     w.layout().addWidget(view)
     w.show()
     w.resize(QSize(300,200))
