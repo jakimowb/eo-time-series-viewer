@@ -21,7 +21,8 @@
 from timeseriesviewer.utils import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import unittest
+import unittest, tempfile
+
 from timeseriesviewer.mapcanvas import *
 
 QGIS_APP = initQgisApplication()
@@ -46,7 +47,7 @@ class testclassDialogTest(unittest.TestCase):
 
         self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
 
-
+        m.saveAsImage()
 
 
 if __name__ == "__main__":

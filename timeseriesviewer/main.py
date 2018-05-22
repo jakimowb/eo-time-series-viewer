@@ -499,17 +499,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
             from timeseriesviewer.spectrallibraries import SpectralProfile
             tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
 
-            profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
+            if not hasattr(self, 'cntSpectralProfile'):
+                self.cntSpectralProfile = 0
 
+            profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
             #add metadata
             if isinstance(tsd, TimeSeriesDatum):
                 for p in profiles:
                     assert isinstance(p, SpectralProfile)
-
+                    p.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
                     p.setMetadata(u'date', u'{}'.format(tsd.date))
                     p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()))
                     p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()))
 
+            self.cntSpectralProfile += 1
             self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
 
         elif mapToolKey == MapTools.CursorLocation:
@@ -538,7 +541,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
 
-        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filters=filters)
+        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filter=filters)
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
@@ -565,7 +568,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
             extentWMC = extent.toCrs(crsWMC)
             pxSize = max(self.TS.getPixelSizes(), key= lambda s :s.width())
-            canvasSize = self.spatialTemporalVis.subsetSize()
+            canvasSize = self.spatialTemporalVis.mapSize()
             f = 0.05
             width = f * canvasSize.width() * pxSize.width()  # width in map units
             height = f * canvasSize.height() * pxSize.height()
@@ -675,6 +678,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def unload(self):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
+
+    def show(self):
+        self.ui.show()
 
     def run(self):
         #QApplication.processEvents()

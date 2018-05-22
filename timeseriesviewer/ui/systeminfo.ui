@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DockWidget</class>
- <widget class="QDockWidget" name="DockWidget">
+ <class>systemInfoPanel</class>
+ <widget class="QDockWidget" name="systemInfoPanel">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -31,6 +31,9 @@
       </property>
       <property name="title">
        <string>Data Loading</string>
+      </property>
+      <property name="flat">
+       <bool>true</bool>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
@@ -84,8 +87,11 @@
       <property name="title">
        <string>Map Layer Registry</string>
       </property>
-      <property name="collapsed">
+      <property name="flat">
        <bool>true</bool>
+      </property>
+      <property name="collapsed">
+       <bool>false</bool>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>

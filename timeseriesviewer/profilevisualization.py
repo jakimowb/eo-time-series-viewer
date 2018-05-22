@@ -30,8 +30,7 @@ from qgis.PyQt.QtGui import *
 
 from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.timeseries import *
-from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
@@ -954,9 +953,19 @@ class PlotSettingsModel2D(QAbstractTableModel):
             self.beginInsertRows(QModelIndex(), i, i + len(plotStyles)-1)
             for j, plotStyle in enumerate(plotStyles):
                 assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
+                plotStyle.sigExpressionUpdated.connect(lambda s = plotStyle: self.onStyleUpdated(s))
                 self.mPlotSettings.insert(i+j, plotStyle)
             self.endInsertRows()
             self.sigPlotStylesAdded.emit(plotStyles)
+
+    def onStyleUpdated(self, style):
+
+        idx = self.plotStyle2idx(style)
+        r = idx.row()
+        self.dataChanged.emit(self.createIndex(r, 0), self.createIndex(r, self.columnCount()))
+
+        s = ""
+
 
     def removePlotStyles(self, plotStyles):
         """
@@ -1492,8 +1501,7 @@ class SpectralTemporalVisualization(QObject):
 
     def createNewPlotStyle2D(self):
         l = len(self.tpCollection)
-        if l == 0:
-            return
+
 
         plotStyle = TemporalProfile2DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
@@ -1523,6 +1531,7 @@ class SpectralTemporalVisualization(QObject):
         #plotItem.addDataItem(pdi)
         #plotItem.plot().sigPlotChanged.emit(plotItem)
         self.updatePlot2D()
+        return plotStyle
 
 
     def createNewPlotStyle3D(self):
@@ -1786,10 +1795,15 @@ class SpectralTemporalVisualization(QObject):
             #print(tsd)
 
 
-
+    def loadMissingData(self, backgroundProcess=True):
+        """
+        Loads all band values of collected locations that have not been loaded until now
+        """
+        spatialPoints = [tp.coordinate() for tp in self.tpCollection]
+        self.loadCoordinate(spatialPoints=spatialPoints, mode='all', backgroundProcess=backgroundProcess)
 
     LOADING_MODES = ['missing','reload','all']
-    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing'):
+    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = True):
         """
         :param spatialPoints: [list-of-geometries] to load pixel values from
         :param LUT_bandIndices: dictionary {sensor:[indices]} with band indices to be loaded per sensor
@@ -1899,7 +1913,14 @@ class SpectralTemporalVisualization(QObject):
                 print('Start loading for {} geometries from {} sources...'.format(
                     len(theGeometries), len(tasks)
                 ))
-            self.pixelLoader.startLoading(tasks)
+            if backgroundProcess:
+                self.pixelLoader.startLoading(tasks)
+            else:
+                import timeseriesviewer.pixelloader
+                tasks = [timeseriesviewer.pixelloader.doLoaderTask(task) for task in tasks]
+                l = len(tasks)
+                for i, task in enumerate(tasks):
+                    self.pixelLoader.sigPixelLoaded.emit(i+1, l, task)
 
         else:
             if DEBUG:
@@ -2200,7 +2221,9 @@ if __name__ == '__main__':
         STVis.createNewPlotStyle3D()
         STVis.ui.listWidget.setCurrentRow(1)
 
-        STVis.loadCoordinate(cpND)
+        STVis.loadCoordinate(cpND, backgroundProcess=False)
+
+        STVis.tpCollection.mTemporalProfiles[0].setName('My Name')
 
         from example import  exampleEvents
         #STVis.loadCoordinatesFromOgr(exampleEvents)

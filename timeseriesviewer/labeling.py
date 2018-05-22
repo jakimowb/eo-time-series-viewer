@@ -6,7 +6,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from osgeo import gdal
 
-from timeseriesviewer.ui.docks import TsvDockWidgetBase, loadUI
+from timeseriesviewer.ui.docks import loadUI
 from timeseriesviewer.classificationscheme import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, getTextColorWithContrast
 
 class LabelShortcutButton(QPushButton):

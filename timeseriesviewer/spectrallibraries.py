@@ -169,11 +169,24 @@ class SpectralLibraryTableView(QTableView):
         return [m.idx2profile(m.createIndex(r, 0)) for r in rows]
 
     def onSetColor(self):
-        c = QColorDialog.getColor()
-        if isinstance(c, QColor):
-            model = self.model()
-            for idx in self.selectedRowsIndexes():
-                model.setData(model.createIndex(idx, 1), c, Qt.BackgroundRole)
+        model = self.model()
+        c0 = None
+        for r in self.selectedRowsIndexes():
+            idx = model.createIndex(r, 1)
+            c0 = model.data(idx, Qt.BackgroundRole)
+            break
+
+        if not isinstance(c0, QColor):
+            c0 = None
+
+        c = QColorDialog(c0, self)
+        c.exec_()
+
+        if c.result() == QDialog.Accepted:
+            c = c.currentColor()
+            if isinstance(c, QColor):
+                for r in self.selectedRowsIndexes():
+                    model.setData(model.createIndex(r, 1), c, Qt.BackgroundRole)
 
     def setCheckState(self, checkState):
         model = self.model()
@@ -332,8 +345,13 @@ class SpectralProfile(QgsFeature):
         """
         assert isinstance(mapCanvas, QgsMapCanvas)
 
-        layers = [l for l in mapCanvas.layers() if isinstance(l, QgsRasterLayer)]
-        sources = [l.source() for l in layers]
+        from timeseriesviewer.mapcanvas import MapCanvas
+        if isinstance(mapCanvas, MapCanvas):
+            sources = mapCanvas.layerModel().rasterLayerInfos()
+            sources = [s.mSrc for s in sources]
+        else:
+            layers = [l for l in mapCanvas.layers() if isinstance(l, QgsRasterLayer)]
+            sources = [l.source() for l in layers]
         return SpectralProfile.fromRasterSources(sources, position)
 
     @staticmethod
@@ -1016,10 +1034,13 @@ class SpectralLibraryPanel(QgsDockWidget):
     sigLoadFromMapRequest = None
     def __init__(self, parent=None):
         super(SpectralLibraryPanel, self).__init__(parent)
+        self.setObjectName('spectralLibraryPanel')
         self.setWindowTitle('Spectral Library')
         self.SLW = SpectralLibraryWidget(self)
         self.setWidget(self.SLW)
 
+    def setAddCurrentSpectraToSpeclibMode(self, b: bool):
+        self.SLW.setAddCurrentSpectraToSpeclibMode(b)
 
 class SpectralLibraryVectorLayer(QgsVectorLayer):
 
@@ -1575,7 +1596,8 @@ class SpectralLibraryTableViewModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             if columnName == self.cIndex:
-                value = self.mSpecLib.index(profile)+1
+                #value = self.mSpecLib.index(profile)+1
+                pass
             elif columnName == self.cName:
                 value = profile.name()
             elif columnName == self.cSrc:
@@ -1908,6 +1930,9 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         if isinstance(speclib, SpectralLibrary):
             self.mModel.insertProfiles([p.clone() for p in speclib])
             #self.mSpeclib.addProfiles([copy.copy(p) for p in speclib])
+
+    def setAddCurrentSpectraToSpeclibMode(self, b:bool):
+        self.cbAddCurrentSpectraToSpeclib.setChecked(b)
 
     def addCurrentSpectraToSpeclib(self, *args):
         self.mModel.insertProfiles([p.clone() for p in self.mCurrentSpectra])
