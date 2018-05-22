@@ -912,7 +912,7 @@ class MapCanvas(QgsMapCanvas):
         else:
             path = 'mapcanvas'
         path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))
-        path = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
+        path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
@@ -1126,5 +1126,7 @@ if __name__ == '__main__':
     c.setExtent(lyr1.extent())
     c.setCrs(QgsCoordinateReferenceSystem('EPSG:32632'))
     c.setExtent(c.spatialExtentHint())
+
+
     c.refresh()
     qgsApp.exec_()

@@ -541,7 +541,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
 
-        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filters=filters)
+        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filter=filters)
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()

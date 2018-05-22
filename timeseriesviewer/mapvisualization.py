@@ -111,8 +111,8 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         #l = self.renderSettingsLayout
         l = self.gbRasterRendering.layout()
-        l.removeWidget(sensorSettings.ui)
-        sensorSettings.ui.close()
+        l.removeWidget(sensorSettings)
+        sensorSettings.close()
         #self.resize(self.sizeHint())
 
 
@@ -2260,7 +2260,7 @@ class DateViewCollection(QObject):
         for DV in toRemove:
             self.mViews.remove(DV)
 
-            for mapCanvas in DV.mapCanvases.values():
+            for mapCanvas in DV.mMapCanvases.values():
                 toRemove = mapCanvas.layers()
                 mapCanvas.setLayers([])
                 toRemove = [l for l in toRemove if isinstance(l, QgsRasterLayer)]
