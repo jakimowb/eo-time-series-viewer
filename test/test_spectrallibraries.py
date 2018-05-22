@@ -32,6 +32,8 @@ class TestInit(unittest.TestCase):
 
     def test_spectralprofile(self):
         spec1 = SpectralProfile()
+
+
         spec1.setValues([0,4,3,2,1],['-'], [450,500,750, 1000, 1500], 'nm')
 
 
