@@ -361,7 +361,7 @@ class PlotStyleDialog(QgsDialog):
         Opens a CrosshairDialog.
         :param args:
         :param kwds:
-        :return: specified CrosshairStyle if accepted, else None
+        :return: specified PlotStyle if accepted, else None
         """
         d = PlotStyleDialog(*args, **kwds)
         d.exec_()

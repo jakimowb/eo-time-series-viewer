@@ -1052,6 +1052,8 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         qgsApp = QgsApplication([], True)
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
+        qgsApp.registerOgrDrivers()
+
         from qgis.gui import QgsGui
         QgsGui.editorWidgetRegistry().initEditors()
 

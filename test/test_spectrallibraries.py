@@ -21,7 +21,8 @@ import os, sys, unittest, tempfile
 from timeseriesviewer.utils import initQgisApplication
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
 qapp = initQgisApplication()
-
+import gdal
+gdal.AllRegister()
 from timeseriesviewer.spectrallibraries import *
 
 class TestInit(unittest.TestCase):
@@ -35,6 +36,31 @@ class TestInit(unittest.TestCase):
         self.layers = [self.lyr1, self.lyr2]
         QgsProject.instance().addMapLayers(self.layers)
 
+
+    def createSpeclib(self):
+        from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
+
+        path = Img_2014_06_16_LE72270652014167CUB00_BOA
+        ext = SpatialExtent.fromRasterSource(path)
+        pos = []
+        center = ext.spatialCenter()
+        for dx in range(-120, 120, 60):
+            for dy in range(-120, 120, 60):
+                pos.append(SpatialPoint(ext.crs(), center.x() + dx, center.y() + dy))
+
+        speclib = SpectralLibrary()
+        p1 = SpectralProfile()
+        p1.setName('No Geometry')
+        p1.setXValues([1, 2, 3, 4, 5])
+        p1.setYValues([0.2, 0.3, 0.2, 0.5, 0.7])
+
+        p2 = SpectralProfile()
+        p2.setName('No Geom/NoData')
+
+        speclib.addProfiles([p1,p2])
+        speclib.addSpeclib(SpectralLibrary.readFromRasterPositions(path, pos))
+        return speclib
+
     def test_spectralprofile(self):
 
         canvas = QgsMapCanvas()
@@ -47,6 +73,10 @@ class TestInit(unittest.TestCase):
         self.assertEqual(len(profiles), 2)
         for p in profiles:
             self.assertIsInstance(p, SpectralProfile)
+
+
+
+
 
         sp1 = SpectralProfile()
         yVal = [0.23, 0.4, 0.3, 0.8, 0.7]
@@ -162,6 +192,23 @@ class TestInit(unittest.TestCase):
 
         #read from image
 
+        if self.lyr1.isValid():
+            center1 = self.lyr1.extent().center()
+            center2 = SpatialPoint.fromSpatialExtent(SpatialExtent.fromLayer(self.lyr1))
+        else:
+            center1 = SpatialExtent.fromRasterSource(self.lyr1.source()).spatialCenter()
+            center2 = SpatialExtent.fromRasterSource(self.lyr1.source()).spatialCenter()
+            s  =""
+        sl1 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,center1)
+        sl2 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,center2)
+
+        sl3 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,[center1, center2])
+
+        for sl in [sl1, sl2]:
+            self.assertIsInstance(sl, SpectralLibrary)
+            self.assertTrue(len(sl) == 1)
+        self.assertTrue(len(sl3) == 2)
+
         #sl1.plot()
 
         tempDir = tempfile.gettempdir()
@@ -199,6 +246,51 @@ class TestInit(unittest.TestCase):
 
 
         self.SPECLIB = sl1
+
+
+
+    def test_mergeSpeclibs(self):
+
+        sp = SpectralProfile()
+        sp.setMetadata('newfield', 'foo', addMissingFields=True)
+        sl1 = SpectralLibrary()
+        sl1.startEditing()
+        sl1.addAttribute(SpectralProfile.createQgsField('newField', ''))
+        sl1.commitChanges()
+        sl1.addProfiles(sp)
+
+        sl2 = SpectralLibrary()
+
+
+    def test_filterModel(self):
+        w = QFrame()
+        speclib = self.createSpeclib()
+        speclib
+        dmodel = SpectralLibraryTableModel(speclib, parent=w)
+        fmodel = SpectralLibraryTableFilterModel(dmodel, parent=w)
+
+        import example
+        layer = QgsVectorLayer(example.exampleEvents)
+        QgsProject.instance().addMapLayer(layer)
+        cache = QgsVectorLayerCache(layer, 1000)
+        table = QgsAttributeTableModel(cache)
+
+
+        dummyCanvas = QgsMapCanvas()
+        dummyCanvas.setDestinationCrs(SpectralProfile.crs)
+        dummyCanvas.setExtent(QgsRectangle(-180,-90,180,90))
+
+        fmodel = QgsAttributeTableFilterModel(dummyCanvas, table)
+        fmodel.sort(0, Qt.DescendingOrder)
+
+        idx0 = fmodel.createIndex(0,0)
+        idx0d = fmodel.mapToSource(idx0)
+        s = ""
+
+    def test_speclibTableView(self):
+
+        v = SpectralLibraryTableView()
+        v.show()
 
     def test_speclibWidget(self):
         p = SpectralLibraryWidget()
