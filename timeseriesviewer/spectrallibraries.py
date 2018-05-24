@@ -747,9 +747,9 @@ class AbstractSpectralLibraryIO(object):
 
     @staticmethod
     def write(speclib, path):
-        """Writes the SpectralLibrary to path, returns a list of written files"""
+        """Writes the SpectralLibrary to path and returns a list of written files that can be used to open the Speclibs with readFrom"""
         assert isinstance(speclib, SpectralLibrary)
-        return None
+        return []
 
 
 class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
@@ -757,6 +757,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
     @staticmethod
     def write(speclib, path, separator='\t'):
 
+        writtenFiles = []
         assert isinstance(speclib, SpectralLibrary)
         lines = ['Spectral Library {}'.format(speclib.name())]
 
@@ -769,6 +770,10 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
             file.write(line+'\n')
         file.flush()
         file.close()
+        writtenFiles.append(path)
+
+        return writtenFiles
+
 
     @staticmethod
     def asTextLines(speclib, separator='\t'):
@@ -1256,11 +1261,13 @@ class SpectralLibrary(QgsVectorLayer):
                 missingFields.append(field)
         if len(missingFields) > 0:
             self.startEditing()
-            self.dataProvider().addAttributes()
+            b = self.dataProvider().addAttributes(missingFields)
             # for field in missingFields:
             #    assert isinstance(field, QgsField)
-
-            self.commitChanges()
+            if b:
+                self.commitChanges()
+            else:
+                self.commitErrors()
             s = ""
 
     def addSpeclib(self, speclib, addMissingFields=True):
@@ -1284,7 +1291,7 @@ class SpectralLibrary(QgsVectorLayer):
             assert isinstance(p, SpectralProfile)
 
         if addMissingFields:
-            self.addMissingFields(profiles[0])
+            self.addMissingFields(profiles[0].fields())
 
         inEditMode = self.isEditable()
         if not inEditMode:

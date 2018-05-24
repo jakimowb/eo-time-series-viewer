@@ -233,14 +233,16 @@ class TestInit(unittest.TestCase):
 
         try:
             writtenFiles = sl1.exportProfiles(pathCSV)
+            self.assertIsInstance(writtenFiles, list)
+            for f in writtenFiles:
+                try:
+                    sl1 = SpectralLibrary.readFrom(f)
+                except Exception as ex:
+                    self.fail('Unable to read CSV. {}'.format(ex))
+
         except Exception as ex:
             self.fail('Unable to write CSV. {}'.format(ex))
 
-        for f in writtenFiles:
-            try:
-                sl1 = SpectralLibrary.readFrom(f)
-            except Exception as ex:
-                self.fail('Unable to read CSV. {}'.format(ex))
 
 
 
@@ -252,15 +254,32 @@ class TestInit(unittest.TestCase):
     def test_mergeSpeclibs(self):
 
         sp = SpectralProfile()
-        sp.setMetadata('newfield', 'foo', addMissingFields=True)
-        sl1 = SpectralLibrary()
-        sl1.startEditing()
-        sl1.addAttribute(SpectralProfile.createQgsField('newField', ''))
-        sl1.commitChanges()
-        sl1.addProfiles(sp)
+        fieldName = 'newField'
+        sp.setMetadata(fieldName, 'foo', addMissingFields=True)
+        sl = SpectralLibrary()
 
-        sl2 = SpectralLibrary()
+        sl.startEditing()
+        sl.addAttribute(SpectralProfile.createQgsField(fieldName, ''))
+        sl.commitChanges()
+        self.assertIn(fieldName, sl.fieldNames())
 
+        sl = SpectralLibrary()
+        sl.addProfiles(sp)
+
+
+        sl = SpectralLibrary()
+        self.assertTrue(fieldName not in sl.fieldNames())
+        sl.addProfiles(sp, addMissingFields=False)
+        self.assertTrue(fieldName not in sl.fieldNames())
+
+
+        sl = SpectralLibrary()
+        self.assertTrue(fieldName not in sl.fieldNames())
+        sl.addProfiles(sp, addMissingFields=True)
+        self.assertTrue(fieldName in sl.fieldNames())
+        p = sl[0]
+        self.assertIsInstance(p, SpectralProfile)
+        self.assertEqual(p.metadata(fieldName), sp.metadata(fieldName))
 
     def test_filterModel(self):
         w = QFrame()
