@@ -155,7 +155,7 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         assert isinstance(index, QModelIndex)
 
         featureIDs = self.mSelectionManager.selectedFeatureIds()
-
+        indices = self.selectedFeatureIndices()
         if not isinstance(featureIDs, list):
             s = ""
 
@@ -837,9 +837,10 @@ class ClipboardIO(AbstractSpectralLibraryIO):
         attributeIndices = [i for i, name in zip(fields.allAttributesList(), fields.names())
                             if not name.startswith(HIDDEN_ATTRIBUTE_PREFIX)]
 
-        skipGeometry = False
+        skipGeometry = mode == ClipboardIO.WritingModes.VALUES
         skipAttributes = mode == ClipboardIO.WritingModes.VALUES
         skipValues = mode == ClipboardIO.WritingModes.ATTRIBUTES
+
         for p in speclib.profiles():
             assert isinstance(p, SpectralProfile)
             line = []
