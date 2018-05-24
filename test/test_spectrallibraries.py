@@ -37,6 +37,8 @@ class TestInit(unittest.TestCase):
         QgsProject.instance().addMapLayers(self.layers)
 
 
+
+
     def createSpeclib(self):
         from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
 
@@ -59,7 +61,23 @@ class TestInit(unittest.TestCase):
 
         speclib.addProfiles([p1,p2])
         speclib.addSpeclib(SpectralLibrary.readFromRasterPositions(path, pos))
+
         return speclib
+
+
+    def test_fields(self):
+
+        f = createQgsField('foo', 9999)
+
+        self.assertEqual(f.name(),'foo')
+        self.assertEqual(f.type(), QVariant.Int)
+        self.assertEqual(f.typeName(), 'int')
+
+        f = createQgsField('bar', 9999.)
+        self.assertEqual(f.type(), QVariant.Double)
+        self.assertEqual(f.typeName(), 'double')
+
+
 
     def test_spectralprofile(self):
 
@@ -73,7 +91,8 @@ class TestInit(unittest.TestCase):
         self.assertEqual(len(profiles), 2)
         for p in profiles:
             self.assertIsInstance(p, SpectralProfile)
-
+            self.assertIsInstance(p.geometry(), QgsGeometry)
+            self.assertTrue(p.hasGeometry())
 
 
 
@@ -157,11 +176,13 @@ class TestInit(unittest.TestCase):
     def test_spectralLibrary(self):
 
         sp1 = SpectralProfile()
+        sp1.setName('Name A')
         sp1.setYValues([0, 4, 3, 2, 1])
         sp1.setXValues([450, 500, 750, 1000, 1500])
 
 
         sp2 = SpectralProfile()
+        sp2.setName('Name B')
         sp2.setYValues([3, 2, 1, 0, 1])
         sp2.setXValues([450, 500, 750, 1000, 1500])
 
@@ -174,10 +195,19 @@ class TestInit(unittest.TestCase):
         sl1.addProfiles([sp1, sp2])
         self.assertEqual(len(sl1),2)
         t = sl1[0:1]
+
+
+
         self.assertIsInstance(sl1[0], SpectralProfile)
         self.assertEqual(sl1[0], sp1)
         self.assertEqual(sl1[1], sp2)
         self.assertNotEqual(sl1[0], sp2)
+
+        sl2 = sl1.speclibFromFeatureIDs(sl1[:][1].id())
+        self.assertIsInstance(sl2, SpectralLibrary)
+        self.assertEqual(len(sl2), 1)
+        self.assertEqual(sl2[0], sl1[1])
+
 
         dump = pickle.dumps(sl1)
 
@@ -201,19 +231,36 @@ class TestInit(unittest.TestCase):
             s  =""
         sl1 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,center1)
         sl2 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,center2)
-
         sl3 = SpectralLibrary.readFromRasterPositions(Img_2014_06_16_LE72270652014167CUB00_BOA,[center1, center2])
 
         for sl in [sl1, sl2]:
             self.assertIsInstance(sl, SpectralLibrary)
             self.assertTrue(len(sl) == 1)
+            self.assertIsInstance(sl[0], SpectralProfile)
+            self.assertTrue(sl[0].hasGeometry())
+
         self.assertTrue(len(sl3) == 2)
+
+
+
 
         #sl1.plot()
 
         tempDir = tempfile.gettempdir()
         pathESL = tempfile.mktemp(prefix='speclib.', suffix='.esl')
         pathCSV = tempfile.mktemp(prefix='speclib.', suffix='.csv')
+
+
+        #test clipboard IO
+        QApplication.clipboard().setMimeData(QMimeData())
+        self.assertFalse(ClipboardIO.canRead())
+        writtenFiles = ClipboardIO.write(sl1)
+        self.assertEqual(len(writtenFiles), 0)
+        self.assertTrue(ClipboardIO.canRead())
+        sl1b = ClipboardIO.readFrom()
+        self.assertIsInstance(sl1b, SpectralLibrary)
+        self.assertEqual(sl1, sl1b)
+
 
         #test ENVI Spectral Library
         try:
@@ -259,7 +306,7 @@ class TestInit(unittest.TestCase):
         sl = SpectralLibrary()
 
         sl.startEditing()
-        sl.addAttribute(SpectralProfile.createQgsField(fieldName, ''))
+        sl.addAttribute(createQgsField(fieldName, ''))
         sl.commitChanges()
         self.assertIn(fieldName, sl.fieldNames())
 
@@ -284,27 +331,23 @@ class TestInit(unittest.TestCase):
     def test_filterModel(self):
         w = QFrame()
         speclib = self.createSpeclib()
-        speclib
         dmodel = SpectralLibraryTableModel(speclib, parent=w)
         fmodel = SpectralLibraryTableFilterModel(dmodel, parent=w)
 
-        import example
-        layer = QgsVectorLayer(example.exampleEvents)
-        QgsProject.instance().addMapLayer(layer)
-        cache = QgsVectorLayerCache(layer, 1000)
-        table = QgsAttributeTableModel(cache)
 
-
-        dummyCanvas = QgsMapCanvas()
-        dummyCanvas.setDestinationCrs(SpectralProfile.crs)
-        dummyCanvas.setExtent(QgsRectangle(-180,-90,180,90))
-
-        fmodel = QgsAttributeTableFilterModel(dummyCanvas, table)
+        #https://stackoverflow.com/questions/671340/qsortfilterproxymodel-maptosource-crashes-no-info-why
+        #!!! use filterModel.index(row, col), NOT filterModel.createIndex(row, col)!
         fmodel.sort(0, Qt.DescendingOrder)
 
-        idx0 = fmodel.createIndex(0,0)
-        idx0d = fmodel.mapToSource(idx0)
-        s = ""
+        idx0f = fmodel.index(0,0)
+        idx0d = fmodel.mapToSource(idx0f)
+
+        self.assertNotEqual(idx0f.row(), idx0d.row())
+
+        namef = fmodel.data(idx0f, Qt.DisplayRole)
+        named = dmodel.data(idx0d, Qt.DisplayRole)
+        self.assertEqual(namef, named)
+
 
     def test_speclibTableView(self):
 

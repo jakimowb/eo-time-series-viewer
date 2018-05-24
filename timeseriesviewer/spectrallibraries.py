@@ -74,6 +74,33 @@ LUT_IDL2GDAL = {1:gdal.GDT_Byte,
                 6:gdal.GDT_CFloat32,
                 9:gdal.GDT_CFloat64}
 
+
+def createQgsField(name : str, exampleValue, comment:str=None):
+    if isinstance(exampleValue, str):
+        return QgsField(name, QVariant.String, 'varchar', comment=None)
+    elif isinstance(exampleValue, int):
+        return QgsField(name, QVariant.Int, 'int', comment=None)
+    elif isinstance(exampleValue, float):
+        return QgsField(name, QVariant.Double, 'double', comment=None)
+    elif isinstance(exampleValue, np.ndarray):
+        return QgsField(name, QVariant.String, 'varchar', comment=None)
+    elif isinstance(exampleValue, list):
+        assert len(exampleValue)> 0, 'need at least one value in provided list'
+        v = exampleValue[0]
+        if isinstance(v, int):
+            subType = QVariant.Int
+            typeName = 'int'
+        elif isinstance(v, float):
+            subType = QVariant.Double
+            typeName = 'double'
+        elif isinstance(v, str):
+            subType = QVariant.String
+            typeName = 'varchar'
+        return QgsField(name, QVariant.List, typeName, comment=None, subType=subType)
+    else:
+        raise NotImplemented()
+
+
 def value2str(value, sep=' '):
     if isinstance(value, list):
         value = sep.join([str(v) for v in value])
@@ -104,97 +131,95 @@ class SpectralLibraryTableView(QgsAttributeTableView):
     def __init__(self, parent=None):
         super(SpectralLibraryTableView, self).__init__(parent)
 
-    def contextMenuEvent(self, event):
 
-        menu = QMenu(self)
+        #self.setSelectionBehavior(QAbstractItemView.SelectItems)
+        #self.setSelectionMode(QAbstractItemView.SingleSelection)
 
-        m = menu.addMenu('Copy...')
-        a = m.addAction("Cell Values")
-        a.triggered.connect(lambda :self.onCopy2Clipboard('CELLVALUES', separator=';'))
-        a = m.addAction("Spectral Values")
-        a.triggered.connect(lambda: self.onCopy2Clipboard('YVALUES', separator=';'))
-        a = m.addAction("Spectral Values + Metadata")
-        a.triggered.connect(lambda: self.onCopy2Clipboard('ALL', separator=';'))
+        self.willShowContextMenu.connect(self.onWillShowContextMenu)
+        #self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
-        a = m.addAction("Spectral Values (Excel)")
-        a.triggered.connect(lambda: self.onCopy2Clipboard('YVALUES', separator='\t'))
-        a = m.addAction("Spectral Values + Metadata (Excel)")
-        a.triggered.connect(lambda: self.onCopy2Clipboard('ALL', separator='\t'))
+        self.mSelectionManager = None
 
-        a = menu.addAction('Save to file')
-        a.triggered.connect(self.onSaveToFile)
+    def setModel(self, filterModel):
 
-        a = menu.addAction('Set Style')
-        a.triggered.connect(self.onSetStyle)
+        super(SpectralLibraryTableView, self).setModel(filterModel)
 
-        m.addSeparator()
 
-        a = menu.addAction('Check')
-        a.triggered.connect(lambda : self.setCheckState(Qt.Checked))
-        a = menu.addAction('Uncheck')
-        a.triggered.connect(lambda: self.setCheckState(Qt.Unchecked))
+        self.mSelectionManager = SpectralLibraryFeatureSelectionManager(self.model().layer())
+        self.setFeatureSelectionManager(self.mSelectionManager)
 
+
+    #def contextMenuEvent(self, event):
+    def onWillShowContextMenu(self, menu, index):
+        assert isinstance(menu, QMenu)
+        assert isinstance(index, QModelIndex)
+
+        featureIDs = self.mSelectionManager.selectedFeatureIds()
+
+        if not isinstance(featureIDs, list):
+            s = ""
+
+        if len(featureIDs) > 0:
+            m = menu.addMenu('Copy ...')
+            a = m.addAction("Values")
+            a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.VALUES: self.onCopy2Clipboard(ids, mode))
+            a = m.addAction("Attributes")
+            a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ATTRIBUTES: self.onCopy2Clipboard(ids, mode))
+            a = m.addAction("Values + Attributes")
+            a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ALL: self.onCopy2Clipboard(ids, mode))
+
+        a = menu.addAction('Save...')
+        a.triggered.connect(lambda b, ids=featureIDs : self.onSaveToFile(ids))
         menu.addSeparator()
+        a = menu.addAction('Style...')
+        a.triggered.connect(lambda b, ids=featureIDs : self.onSetStyle(ids))
+        a = menu.addAction('Show')
+        a.triggered.connect(lambda : self.setCheckState(Qt.Checked))
+        a = menu.addAction('Hide')
+        a.triggered.connect(lambda: self.setCheckState(Qt.Unchecked))
         a = menu.addAction('Remove')
         a.triggered.connect(lambda : self.model().removeProfiles(self.selectedSpectra()))
-        menu.popup(QCursor.pos())
-
-    def onCopy2Clipboard(self, key, separator='\t'):
-        assert key in ['CELLVALUES', 'ALL', 'YVALUES']
-        txt = None
-        if key == 'CELLVALUES':
-            lines = []
-            line = []
-            row = None
-            for idx in self.selectionModel().selectedIndexes():
-                if row is None:
-                    row = idx.row()
-                elif row != idx.row():
-                    lines.append(line)
-                    line = []
-                line.append(self.model().data(idx, role=Qt.DisplayRole))
-            lines.append(line)
-            lines = [value2str(l, sep=separator) for l in lines]
-            QApplication.clipboard().setText('\n'.join(lines))
-        else:
-            sl = SpectralLibrary(profiles=self.selectedSpectra())
-            txt = None
-            if key == 'ALL':
-                lines = CSVSpectralLibraryIO.asTextLines(sl, separator=separator)
-                txt = '\n'.join(lines)
-            elif key == 'YVALUES':
-                lines = []
-                for p in sl:
-                    assert isinstance(p, SpectralProfile)
-                    lines.append(separator.join([str(v) for v in p.yValues()]))
-                txt = '\n'.join(lines)
-            if txt:
-                QApplication.clipboard().setText(txt)
-
-    def onSaveToFile(self, *args):
-        sl = SpectralLibrary(profiles=self.selectedSpectra())
-        sl.exportProfiles()
+        #menu.popup(QCursor.pos())
 
 
+    def spectralLibrary(self):
+        return self.model().layer()
 
 
-    def selectedSpectra(self):
-        rows = self.selectedRowsIndexes()
-        m = self.model()
-        return [m.idx2profile(m.createIndex(r, 0)) for r in rows]
+    def onCopy2Clipboard(self, fids, mode):
+        assert mode in ClipboardIO.WritingModes().modes()
 
-    def onSetStyle(self):
+        speclib = self.spectralLibrary()
+        assert isinstance(speclib, SpectralLibrary)
+        speclib = speclib.speclibFromFeatureIDs(fids)
+        ClipboardIO.write(speclib, mode=mode)
+
+        s = ""
+
+    def onSaveToFile(self, fids):
+        speclib = self.spectralLibrary()
+        assert isinstance(speclib, SpectralLibrary)
+        speclib.getFeatures(fids)
+        speclib.exportProfiles()
+
+
+    def selectedFeatureIndices(self):
+        """
+        Returns the zero-column QModelIndex of all selected features
+        :return: [list-of-QModelIndex]
+        """
+
+        ids = self.mSelectionManager.selectedFeatureIds()
         fmodel = self.model()
-        dmodel = self.model()
-        styleDefault = None
+        indices = [fmodel.fidToIndex(id) for id in ids]
+        return [fmodel.index(idx.row(), 0) for idx in indices]
 
-        indices = self.selectionModel().selectedIndexes()
-        if len(indices) == 0:
-            indices.append(self.selectionModel().currentIndex())
+    def onSetStyle(self, featureIDs):
+        fmodel = self.model()
+        indices = self.selectedFeatureIndices()
 
         if len(indices) > 0:
-            indices = [fmodel.createIndex(idx.row(), 0) for idx in indices]
-            styleDefault = model.data(fmodel.mapToSource(indices[0]), role=Qt.DecorationRole)
+            styleDefault = fmodel.data(indices[0], role=Qt.DecorationRole)
 
             if not isinstance(styleDefault, PlotStyle):
                 styleDefault = None
@@ -202,17 +227,13 @@ class SpectralLibraryTableView(QgsAttributeTableView):
             style = PlotStyleDialog.getPlotStyle(plotStyle=styleDefault)
             if isinstance(style, PlotStyle):
                 for idx in indices:
-                    dmodel.setData(idx, style, Qt.DecorationRole)
+                    fmodel.setData(idx, style, Qt.DecorationRole)
 
     def setCheckState(self, checkState):
-        model = self.model()
+        fmodel = self.model()
 
-        for idx in self.selectedRowsIndexes():
-            model.setData(model.createIndex(idx, 0), checkState, Qt.CheckStateRole)
-
-        selectionModel = self.selectionModel()
-        assert isinstance(selectionModel, QItemSelectionModel)
-        selectionModel.clearSelection()
+        for idx in self.selectedFeatureIndices():
+            fmodel.setData(idx, checkState, Qt.CheckStateRole)
 
 
     def dropEvent(self, event):
@@ -428,18 +449,6 @@ class SpectralProfile(QgsFeature):
         profile.setSource('{}'.format(ds.GetFileList()[0]))
         return profile
 
-    @staticmethod
-    def createQgsField(name : str, exampleValue):
-        if isinstance(exampleValue, str):
-            return QgsField(name, QVariant.String, 'varchar')
-        elif isinstance(exampleValue, int):
-            return QgsField(name, QVariant.Int, 'int')
-        elif isinstance(exampleValue, float):
-            return QgsField(name, QVariant.Double, 'double')
-        elif isinstance(exampleValue, np.ndarray):
-            return QgsField(name, QVariant.String, 'varchar')
-        else:
-            raise NotImplemented()
 
     @staticmethod
     def standardFields():
@@ -454,15 +463,15 @@ class SpectralProfile(QgsFeature):
         comment Comment for the field 
         subType If the field is a collection, its element's type. When all the elements don't need to have the same type, leave this to QVariant::Invalid. 
         """
-        fields.append(SpectralProfile.createQgsField('name', ''))
-        fields.append(SpectralProfile.createQgsField('px_x', 0))
-        fields.append(SpectralProfile.createQgsField('px_y', 0))
-        fields.append(SpectralProfile.createQgsField('x_unit', ''))
-        fields.append(SpectralProfile.createQgsField('y_unit', ''))
-        fields.append(SpectralProfile.createQgsField('source', ''))
-        fields.append(SpectralProfile.createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'xvalues', ''))
-        fields.append(SpectralProfile.createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'yvalues', ''))
-        fields.append(SpectralProfile.createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'style', ''))
+        fields.append(createQgsField('name', ''))
+        fields.append(createQgsField('px_x', 0))
+        fields.append(createQgsField('px_y', 0))
+        fields.append(createQgsField('x_unit', ''))
+        fields.append(createQgsField('y_unit', ''))
+        fields.append(createQgsField('source', ''))
+        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'xvalues', ''))
+        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'yvalues', ''))
+        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'style', ''))
 
 
         """
@@ -477,10 +486,11 @@ class SpectralProfile(QgsFeature):
 
     @staticmethod
     def fromSpecLibFeature(feature):
-
+        assert isinstance(feature, QgsFeature)
         sp = SpectralProfile(fields=feature.fields())
         sp.setId(feature.id())
         sp.setAttributes(feature.attributes())
+        sp.setGeometry(feature.geometry())
         return sp
 
     XVALUES_FIELD = HIDDEN_ATTRIBUTE_PREFIX+'xvalues'
@@ -605,9 +615,9 @@ class SpectralProfile(QgsFeature):
                 fields = self.fields()
                 values = self.attributes()
                 if key.startswith('__serialized__'):
-                    fields.append(SpectralProfile.createQgsField(key, ''))
+                    fields.append(createQgsField(key, ''))
                 else:
-                    fields.append(SpectralProfile.createQgsField(key, value))
+                    fields.append(createQgsField(key, value))
                 values.append(value)
                 self.setFields(fields)
                 self.setAttributes(values)
@@ -751,6 +761,131 @@ class AbstractSpectralLibraryIO(object):
         assert isinstance(speclib, SpectralLibrary)
         return []
 
+MIMEDATA_SPECLIB = 'application/hub-spectrallibrary'
+MIMEDATA_XQT_WINDOWS_CSV = 'application/x-qt-windows-mime;value="Csv"'
+MIMEDATA_TEXT = 'text/html'
+
+class ClipboardIO(AbstractSpectralLibraryIO):
+    """
+    Reads and write SpectralLibrary from/to system clipboard.
+    """
+
+    FORMATS = [MIMEDATA_SPECLIB, MIMEDATA_XQT_WINDOWS_CSV, MIMEDATA_TEXT]
+
+    class WritingModes(object):
+
+        ALL = 'ALL'
+        ATTRIBUTES = 'ATTRIBUTES'
+        VALUES = 'VALUES'
+
+        def modes(self):
+            return [a for a in dir(self) if not callable(getattr(self, a)) and not a.startswith("__")]
+
+    @staticmethod
+    def canRead(path=None):
+        clipboard = QApplication.clipboard()
+        mimeData = clipboard.mimeData()
+        assert isinstance(mimeData, QMimeData)
+        for format in mimeData.formats():
+            if format in ClipboardIO.FORMATS:
+                return True
+        return False
+
+    @staticmethod
+    def readFrom(path=None):
+        clipboard = QApplication.clipboard()
+        mimeData = clipboard.mimeData()
+        assert isinstance(mimeData, QMimeData)
+
+        if MIMEDATA_SPECLIB in mimeData.formats():
+            b = mimeData.data(MIMEDATA_SPECLIB)
+            speclib = pickle.loads(b)
+            assert isinstance(speclib, SpectralLibrary)
+            return speclib
+
+        return SpectralLibrary()
+
+    @staticmethod
+    def write(speclib, path=None, mode=None, sep=None, dec=None, newline=None):
+        if mode is None:
+            mode = ClipboardIO.WritingModes.ALL
+        assert isinstance(speclib, SpectralLibrary)
+
+        mimeData = QMimeData()
+
+        import locale
+        lang, enc = locale.getdefaultlocale()
+
+        if not isinstance(sep, str):
+            if lang.startswith('de_'):
+                sep = '\t'
+            else:
+                sep = ';'
+        if not isinstance(dec, str):
+            if lang.startswith('de_'):
+                dec = ','
+            else:
+                sep = '.'
+
+        if not isinstance(newline, str):
+            newline = '\r\n'
+
+
+        csvlines = []
+        fields = speclib.fields()
+
+        attributeIndices = [i for i, name in zip(fields.allAttributesList(), fields.names())
+                            if not name.startswith(HIDDEN_ATTRIBUTE_PREFIX)]
+
+        skipGeometry = False
+        skipAttributes = mode == ClipboardIO.WritingModes.VALUES
+        skipValues = mode == ClipboardIO.WritingModes.ATTRIBUTES
+        for p in speclib.profiles():
+            assert isinstance(p, SpectralProfile)
+            line = []
+
+            if not skipGeometry:
+                x = ''
+                y = ''
+                if p.hasGeometry():
+                    g = p.geometry().constGet()
+                    if isinstance(g, QgsPoint):
+                        x, y = g.x(), g.y()
+                    else:
+                        x = g.asWkt()
+
+                line.extend([x, y])
+
+            if not skipAttributes:
+                line.extend([p.attributes()[i] for i in attributeIndices])
+
+            if not skipValues:
+                yValues = p.yValues()
+                if isinstance(yValues, list):
+                    line.extend(yValues)
+
+            formatedLine = []
+            excluded = [QVariant(), None]
+            for value in line:
+                if value in excluded:
+                    formatedLine.append('')
+                else:
+                    if not isinstance(value, str):
+                        value = str(value)
+                        value = value.replace('.', dec)
+                    formatedLine.append(value)
+            csvlines.append(sep.join(formatedLine))
+        text = newline.join(csvlines)
+
+        ba = QByteArray()
+        ba.append(text)
+
+        mimeData.setText(text)
+        mimeData.setData(MIMEDATA_XQT_WINDOWS_CSV, ba)
+        mimeData.setData(MIMEDATA_SPECLIB, pickle.dumps(speclib))
+        QApplication.clipboard().setMimeData(mimeData)
+
+        return []
 
 class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
 
@@ -1223,13 +1358,16 @@ class SpectralLibrary(QgsVectorLayer):
     sigProfilesRemoved = pyqtSignal([list], [list, list])
     sigNameChanged = pyqtSignal(str)
 
-    def __init__(self, name='SpectralLibrary'):
+    def __init__(self, name='SpectralLibrary', fields=None):
         crs = SpectralProfile.crs
         uri = 'Point?crs={}'.format(crs.authid())
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
         super(SpectralLibrary, self).__init__(uri, name, 'memory', lyrOptions)
 
-        defaultFields = SpectralProfile.standardFields()
+        if fields is not None:
+            defaultFields = fields
+        else:
+            defaultFields = SpectralProfile.standardFields()
 
 
 
@@ -1300,9 +1438,24 @@ class SpectralLibrary(QgsVectorLayer):
         self.addFeatures(profiles)
         if not inEditMode:
             self.commitChanges()
+        s = ""
 
     def profiles(self):
         return self[:]
+
+    def speclibFromFeatureIDs(self, fids):
+        if not isinstance(fids, list):
+            fids = [fids]
+        for id in fids:
+            assert isinstance(id, int)
+        featureRequest = QgsFeatureRequest()
+        featureRequest.setFilterFids(fids)
+        features = list(self.getFeatures(featureRequest))
+
+        sp = SpectralLibrary(fields=self.fields())
+        profiles = [SpectralProfile.fromSpecLibFeature(f) for f in features]
+        sp.addProfiles(profiles)
+        return sp
 
     def groupBySpectralProperties(self):
         """
@@ -1325,7 +1478,7 @@ class SpectralLibrary(QgsVectorLayer):
         return CSVSpectralLibraryIO.asTextLines(self, separator=separator)
 
     def asPickleDump(self):
-        return pickle.dumps(self, SpectralLibrary.PICKLE_PROTOCOL)
+        return pickle.dumps(self)
 
     def exportProfiles(self, path=None):
 
@@ -1549,10 +1702,10 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
 
             if not b:
                 speclib.startEditing()
-            speclib.updateFeature(profile)
+            result = speclib.updateFeature(profile)
             if not b:
                 speclib.commitChanges()
-            return True
+            return result
 
             #f = self.layer().getFeature(profile.id())
             #i = f.fieldNameIndex(SpectralProfile.STYLE_FIELD)
@@ -1613,7 +1766,7 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
             if columnName.startswith(HIDDEN_ATTRIBUTE_PREFIX):
                 return Qt.NoItemFlags
             else:
-                flags = super(SpectralLibraryTableModel, self).flags(index)
+                flags = super(SpectralLibraryTableModel, self).flags(index) | Qt.ItemIsSelectable
                 if index.column() == 0:
                     flags = flags | Qt.ItemIsUserCheckable
                 return flags
@@ -1951,8 +2104,32 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
 
 
+class SpectralLibraryFeatureSelectionManager(QgsIFeatureSelectionManager):
 
 
+    def __init__(self, layer, parent=None):
+        s =""
+        super(SpectralLibraryFeatureSelectionManager, self).__init__(parent)
+        assert isinstance(layer, QgsVectorLayer)
+        self.mLayer = layer
+
+    def layer(self):
+        return self.mLayer
+
+    def deselect(self, ids):
+        self.mLayer.deselect(ids)
+
+    def select(self, ids):
+        self.mLayer.select(ids)
+
+    def selectedFeatureCount(self):
+        return self.mLayer.selectedFeatureCount()
+
+    def selectedFeatureIds(self):
+        return self.mLayer.selectedFeatureIds()
+
+    def setSelectedFeatures(self, ids):
+        self.mLayer.selectByIds(ids)
 
 if __name__ == "__main__":
 
@@ -1989,9 +2166,15 @@ if __name__ == "__main__":
     model = SpectralLibraryTableModel(speclib=speclib, parent=w)
     fmodel = SpectralLibraryTableFilterModel(model)
     view = SpectralLibraryTableView(parent=w)
-    #view = QTableView()
+    #view = QgsAttributeTableView(parent=w)
+    # view = QTableView()
+    # from qgis.gui import QgsVectorLayerSelectionManager
+    # featureSelectionManager = QgsVectorLayerSelectionManager(speclib)
+
     view.setModel(fmodel)
 
+
+    # view.setFeatureSelectionManager(featureSelectionManager)
     config = QgsAttributeTableConfig()
     config.update(speclib.fields())
 
@@ -2004,39 +2187,13 @@ if __name__ == "__main__":
     fmodel.setAttributeTableConfig(config)
     view.setAttributeTableConfig(config)
 
+    #view.setSelectionBehavior(QAbstractItemView.SelectItems)
+    #view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
     w.layout().addWidget(view)
     w.show()
-    w.resize(QSize(800,200))
-
-    if False:
-
-        sl = SpectralLibrary.readFrom(r'C:\Users\geo_beja\Repositories\QGIS_Plugins\enmap-box\enmapboxtestdata\SpecLib_BerlinUrbanGradient.sli')
-
-        cb = QComboBox()
-        m = UnitComboBoxItemModel()
-        cb.setModel(m)
-
-        spec0 = sl[0]
-
-        m = SpectralLibraryTableViewModel()
-        m.insertProfiles(spec0)
-        m.insertProfiles(sl)
-
-        view = QTableView()
-        view.show()
-        view.setModel(m)
-
-        W = SpectralLibraryWidget()
-        W.show()
-        W.addSpeclib(sl)
-        m.mSpecLib.addProfile(spec0)
-
-        if False:
-            w =SpectralLibraryTableView()
-            #w = SpectralLibraryWidget()
-            w.mSpeclib.addProfile(spec0)
-            #w.addSpeclib(sl)
-            w.show()
+    w.resize(QSize(800, 200))
 
     app.exec_()
+    print('Finished')
 
