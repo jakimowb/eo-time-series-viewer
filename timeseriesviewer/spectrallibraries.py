@@ -116,6 +116,152 @@ def value2str(value, sep=' '):
         value = str(value)
     return value
 
+
+class AddAttributeDialog(QDialog):
+
+    def __init__(self, layer, parent=None):
+        assert isinstance(layer, QgsVectorLayer)
+        super(AddAttributeDialog, self).__init__(parent)
+
+        assert isinstance(layer, QgsVectorLayer)
+        self.mLayer = layer
+
+        self.setWindowTitle('Add Field')
+        l = QGridLayout()
+
+        self.tbName = QLineEdit('Name')
+        self.tbName.setPlaceholderText('Name')
+        self.tbName.textChanged.connect(self.validate)
+
+        l.addWidget(QLabel('Name'), 0,0)
+        l.addWidget(self.tbName, 0, 1)
+
+        self.tbComment = QLineEdit()
+        self.tbComment.setPlaceholderText('Comment')
+        l.addWidget(QLabel('Comment'), 1, 0)
+        l.addWidget(self.tbComment, 1, 1)
+
+        self.cbType = QComboBox()
+        self.typeModel = OptionListModel()
+
+        for ntype in self.mLayer.dataProvider().nativeTypes():
+            assert isinstance(ntype, QgsVectorDataProvider.NativeType)
+            o = Option(ntype,name=ntype.mTypeName, tooltip=ntype.mTypeDesc)
+            self.typeModel.addOption(o)
+        self.cbType.setModel(self.typeModel)
+        self.cbType.currentIndexChanged.connect(self.onTypeChanged)
+        l.addWidget(QLabel('Type'), 2, 0)
+        l.addWidget(self.cbType, 2, 1)
+
+        self.sbLength = QSpinBox()
+        self.sbLength.setRange(0, 99)
+        self.sbLength.valueChanged.connect(lambda : self.setPrecisionMinMax())
+        self.lengthLabel = QLabel('Length')
+        l.addWidget(self.lengthLabel, 3, 0)
+        l.addWidget(self.sbLength, 3, 1)
+
+        self.sbPrecision = QSpinBox()
+        self.sbPrecision.setRange(0, 99)
+        self.precisionLabel = QLabel('Precision')
+        l.addWidget(self.precisionLabel, 4, 0)
+        l.addWidget(self.sbPrecision, 4, 1)
+
+        self.tbValidationInfo = QLabel()
+        self.tbValidationInfo.setStyleSheet("QLabel { color : red}")
+        l.addWidget(self.tbValidationInfo, 5, 0, 1, 2)
+
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttons.button(QDialogButtonBox.Ok).clicked.connect(self.accept)
+        self.buttons.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+        l.addWidget(self.buttons, 6, 1)
+        self.setLayout(l)
+
+        self.mLayer = layer
+
+        self.onTypeChanged()
+
+    def accept(self):
+
+        msg = self.validate()
+
+        if len(msg) > 0:
+            QMessageBox.warning(self, "Add Field", msg)
+        else:
+            super(AddAttributeDialog, self).accept()
+
+    def field(self):
+        """
+        Returns the new QgsField
+        :return:
+        """
+        ntype = self.currentNativeType()
+        return QgsField(name=self.tbName.text(),
+                        type=QVariant(ntype.mType).type(),
+                        typeName=ntype.mTypeName,
+                        len=self.sbLength.value(),
+                        prec=self.sbPrecision.value(),
+                        comment=self.tbComment.text())
+
+
+
+
+    def currentNativeType(self):
+        return self.cbType.currentData().value()
+
+    def onTypeChanged(self, *args):
+        ntype = self.currentNativeType()
+        vMin , vMax = ntype.mMinLen, ntype.mMaxLen
+        assert isinstance(ntype, QgsVectorDataProvider.NativeType)
+
+        isVisible = vMin < vMax
+        self.sbLength.setVisible(isVisible)
+        self.lengthLabel.setVisible(isVisible)
+        self.setSpinBoxMinMax(self.sbLength, vMin , vMax)
+        self.setPrecisionMinMax()
+
+    def setPrecisionMinMax(self):
+        ntype = self.currentNativeType()
+        vMin, vMax = ntype.mMinPrec, ntype.mMaxPrec
+        isVisible = vMin < vMax
+        self.sbPrecision.setVisible(isVisible)
+        self.precisionLabel.setVisible(isVisible)
+
+        vMax = max(ntype.mMinPrec, min(ntype.mMaxPrec, self.sbLength.value()))
+        self.setSpinBoxMinMax(self.sbPrecision, vMin, vMax)
+
+    def setSpinBoxMinMax(self, sb, vMin, vMax):
+        assert isinstance(sb, QSpinBox)
+        value = sb.value()
+        sb.setRange(vMin, vMax)
+
+        if value > vMax:
+            sb.setValue(vMax)
+        elif value < vMin:
+            sb.setValue(vMin)
+
+
+    def validate(self):
+
+        msg = []
+        name = self.tbName.text()
+        if name in self.mLayer.fields().names():
+            msg.append('Field name "{}" already exists.'.format(name))
+        elif name == '':
+            msg.append('Missing field name')
+        elif name == 'shape':
+            msg.append('Field name "{}" already reserved.'.format(name))
+
+        msg = '\n'.join(msg)
+        self.buttons.button(QDialogButtonBox.Ok).setEnabled(len(msg) == 0)
+
+        self.tbValidationInfo.setText(msg)
+
+        return msg
+
+
+
+
 class SpectralLibraryTableFilterModel(QgsAttributeTableFilterModel):
 
     def __init__(self, sourceModel, parent=None):
@@ -136,11 +282,12 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         super(SpectralLibraryTableView, self).__init__(parent)
 
 
-        #self.setSelectionBehavior(QAbstractItemView.SelectItems)
+        #self.setSelectionBehavior(QAbstractItemView.SelectRows)
         #self.setSelectionMode(QAbstractItemView.SingleSelection)
 
         self.willShowContextMenu.connect(self.onWillShowContextMenu)
         #self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
 
         self.mSelectionManager = None
 
@@ -151,8 +298,11 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         self.mSelectionManager = SpectralLibraryFeatureSelectionManager(self.model().layer())
         self.setFeatureSelectionManager(self.mSelectionManager)
+        self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
 
-
+    def onSelectionChanged(self, selected, deselected):
+        s = ""
+        r = ""
     #def contextMenuEvent(self, event):
     def onWillShowContextMenu(self, menu, index):
         assert isinstance(menu, QMenu)
@@ -163,8 +313,10 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         if not isinstance(featureIDs, list):
             s = ""
 
+
+
         if len(featureIDs) > 0:
-            m = menu.addMenu('Copy ...')
+            m = menu.addMenu('Copy...')
             a = m.addAction("Values")
             a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.VALUES: self.onCopy2Clipboard(ids, mode))
             a = m.addAction("Attributes")
@@ -172,17 +324,26 @@ class SpectralLibraryTableView(QgsAttributeTableView):
             a = m.addAction("Values + Attributes")
             a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ALL: self.onCopy2Clipboard(ids, mode))
 
-        a = menu.addAction('Save...')
+        a = menu.addAction('Save as...')
         a.triggered.connect(lambda b, ids=featureIDs : self.onSaveToFile(ids))
         menu.addSeparator()
-        a = menu.addAction('Style...')
+        a = menu.addAction('Set Style')
         a.triggered.connect(lambda b, ids=featureIDs : self.onSetStyle(ids))
-        a = menu.addAction('Show profiles')
-        a.triggered.connect(lambda : self.setCheckState(featureIndices, Qt.Checked))
-        a = menu.addAction('Hide profiles')
-        a.triggered.connect(lambda: self.setCheckState(featureIndices, Qt.Unchecked))
-        a = menu.addAction('Remove profiles')
+        a = menu.addAction('Check')
+        a.triggered.connect(lambda : self.setCheckState(featureIDs, Qt.Checked))
+        a = menu.addAction('Uncheck')
+        a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
+        menu.addSeparator()
+        a = menu.addAction('Remove')
         a.triggered.connect(lambda : self.onRemoveFIDs(featureIDs))
+
+        if self.spectralLibrary().isEditable():
+            a = menu.addAction('Save edits')
+            a.triggered.connect(lambda : self.spectralLibrary().commitChanges())
+        else:
+            a = menu.addAction('Start editing..')
+            a.triggered.connect(lambda: self.spectralLibrary().startEditing())
+
 
 
     def spectralLibrary(self):
@@ -223,35 +384,75 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         speclib = self.spectralLibrary()
         assert isinstance(speclib, SpectralLibrary)
-        b = speclib.isEditable()
-        if not b:
-            speclib.startEditing()
+        wasEditable = speclib.isEditable()
+        speclib.startEditing()
 
         speclib.deleteFeatures(fids)
-        if not b:
+        speclib.commitChanges()
+        if wasEditable:
+            speclib.startEditing()
+
+    def onSetStyle(self, ids):
+
+        if len(ids) == 0:
+            return
+
+        speclib = self.spectralLibrary()
+        assert isinstance(speclib, SpectralLibrary)
+
+        profiles = speclib.profiles(ids)
+        refProfile = profiles[0]
+        styleDefault = refProfile.style()
+        refStyle = PlotStyleDialog.getPlotStyle(plotStyle=styleDefault)
+        refProfile.setStyle(refStyle)
+
+        iStyle = speclib.fields().indexFromName(HIDDEN_ATTRIBUTE_PREFIX+'style')
+        assert iStyle >= 0
+
+
+        if isinstance(refStyle, PlotStyle):
+
+            wasEditable = speclib.isEditable()
+            speclib.startEditing()
+            for f in profiles:
+                assert isinstance(f, SpectralProfile)
+                oldStyle = f.style()
+                refStyle.setVisibility(oldStyle.isVisible())
+                speclib.changeAttributeValue(f.id(), iStyle, pickle.dumps(refStyle), f.attributes()[iStyle])
             speclib.commitChanges()
+            if wasEditable:
+                speclib.editingStarted()
 
 
-    def onSetStyle(self, featureIDs):
-        fmodel = self.model()
-        indices = self.selectedFeatureIndices()
 
-        if len(indices) > 0:
-            styleDefault = fmodel.data(indices[0], role=Qt.DecorationRole)
 
-            if not isinstance(styleDefault, PlotStyle):
-                styleDefault = None
+    def setCheckState(self, fids, checkState):
 
-            style = PlotStyleDialog.getPlotStyle(plotStyle=styleDefault)
-            if isinstance(style, PlotStyle):
-                for idx in indices:
-                    fmodel.setData(idx, style, Qt.DecorationRole)
+        speclib = self.spectralLibrary()
+        speclib.startEditing()
 
-    def setCheckState(self, indices, checkState):
-        fmodel = self.model()
+        profiles = speclib.profiles(fids)
 
-        for idx in indices:
-            fmodel.setData(idx, checkState, Qt.CheckStateRole)
+        wasEditable = speclib.isEditable()
+
+        speclib.startEditing()
+        iStyle = speclib.fields().indexFromName(HIDDEN_ATTRIBUTE_PREFIX + 'style')
+
+        setVisible = checkState == Qt.Checked
+        for p in profiles:
+            assert isinstance(p, SpectralProfile)
+            oldStyle = p.style()
+            assert isinstance(oldStyle, PlotStyle)
+
+            if oldStyle.isVisible() != setVisible:
+                newStyle = p.style()
+                newStyle.setVisibility(setVisible)
+                p.setStyle(newStyle)
+                speclib.changeAttributeValue(p.id(), iStyle, p.attributes()[iStyle], oldStyle)
+        speclib.commitChanges()
+
+        if wasEditable:
+            speclib.editingStarted()
 
 
     def dropEvent(self, event):
@@ -1482,21 +1683,36 @@ class SpectralLibrary(QgsVectorLayer):
         if not inEditMode:
             self.commitChanges()
 
-    def profiles(self):
-        return self[:]
+
+    def features(self, fids=None):
+        """
+        Returns the QgsFeatures stored in this QgsVectorLayer
+        :param fids: optional, [int-list-of-feature-ids] to return
+        :return: [List-of-QgsFeatures]
+        """
+        featureRequest = QgsFeatureRequest()
+        if fids is not None:
+            if not isinstance(fids, list):
+                fids = list(fids)
+            featureRequest.setFilterFids(fids)
+        # features = [f for f in self.features() if f.id() in fids]
+        return list(self.getFeatures(featureRequest))
+
+
+    def profiles(self, fids=None):
+        """
+        Like features(fids=None), but converts each returned QgsFeature into a SpectralProfile
+        :param fids: optional, [int-list-of-feature-ids] to return
+        :return: [List-of-SpectralProfiles]
+        """
+        return [SpectralProfile.fromSpecLibFeature(f) for f in self.features(fids=fids)]
+
+
+
 
     def speclibFromFeatureIDs(self, fids):
-        if not isinstance(fids, list):
-            fids = [fids]
-        for id in fids:
-            assert isinstance(id, int)
-        featureRequest = QgsFeatureRequest()
-        featureRequest.setFilterFids(fids)
-        features = list(self.getFeatures(featureRequest))
-
         sp = SpectralLibrary(fields=self.fields())
-        profiles = [SpectralProfile.fromSpecLibFeature(f) for f in features]
-        sp.addProfiles(profiles)
+        sp.addProfiles(self.profiles(fids))
         return sp
 
     def groupBySpectralProperties(self):
@@ -1602,7 +1818,7 @@ class SpectralLibrary(QgsVectorLayer):
             yield SpectralProfile.fromSpecLibFeature(f)
 
     def __getitem__(self, slice):
-        features = list(self.getFeatures())[slice]
+        features = self.features()[slice]
         if isinstance(features, list):
             return [SpectralProfile.fromSpecLibFeature(f) for f in features]
         else:
@@ -1679,15 +1895,27 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
         return SpectralProfile.fromSpecLibFeature(feature)
 
     def data(self, index, role=Qt.DisplayRole):
+        """
+        Returns Spectral Library data
+        Use column = 0 and Qt.CheckStateRole to return PlotStyle visibility
+        Use column = 0 and Qt.DecorationRole to return QIcon with PlotStyle preview
+        Use column = 0 and Qt.UserRole to return entire PlotStyle
+        :param index: QModelIndex
+        :param role: enum Qt.ItemDataRole
+        :return: value
+        """
         if role is None or not index.isValid():
             return None
 
         result = super(SpectralLibraryTableModel,self).data(index, role=role)
 
-        if index.column() == 0 and role in [Qt.CheckStateRole, Qt.DecorationRole]:
+        if index.column() == 0 and role in [Qt.CheckStateRole, Qt.DecorationRole, Qt.UserRole]:
             profile = self.spectralProfile(index)
             style = profile.style()
             assert isinstance(style, PlotStyle)
+            if role == Qt.UserRole:
+                result = style
+
             if role == Qt.CheckStateRole:
                 result = Qt.Checked if style.isVisible() else Qt.Unchecked
 
@@ -1705,27 +1933,41 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
 
 
     def setData(self, index, value, role=None):
+        """
+        Sets the Speclib data
+        use column 0 and Qt.CheckStateRole to PlotStyle visibility
+        use column 0 and Qt.UserRole to set PlotStyle
+
+        :param index: QModelIndex()
+        :param value: value to set
+        :param role: role
+        :return: True | False
+        """
         if role is None or not index.isValid():
             return False
 
         result = False
         speclib = self.layer()
         assert isinstance(speclib, SpectralLibrary)
-        if index.column() == 0 and role in [Qt.CheckStateRole, Qt.DecorationRole]:
+        if index.column() == 0 and role in [Qt.CheckStateRole, Qt.UserRole]:
             profile = self.spectralProfile(index)
-            style = profile.style()
+
             b = speclib.isEditable()
 
-            assert isinstance(style, PlotStyle)
+
             if role == Qt.CheckStateRole:
+                style = profile.style()
                 style.setVisibility(value == Qt.Checked)
                 profile.setStyle(style)
-            if role == Qt.DecorationRole and isinstance(value, PlotStyle):
+
+            if role == Qt.UserRole and isinstance(value, PlotStyle):
                 profile.setStyle(value)
 
             if not b:
+
                 speclib.startEditing()
             result = speclib.updateFeature(profile)
+
             if not b:
                 speclib.commitChanges()
 
@@ -1839,11 +2081,77 @@ class SpectralLibraryPlotWidget(PlotWidget):
     def setModel(self, model):
         assert isinstance(model, SpectralLibraryTableModel)
         self.mModel = model
-        self.mModel.rowsAboutToBeRemoved.connect(self.onRowsAboutToBeRemoved)
-        self.mModel.rowsInserted.connect(self.onRowsInserted)
-        self.mModel.dataChanged.connect(self.onDataChanged)
-        if self.mModel.rowCount() > 0:
-            self.onRowsInserted(self.mModel.index(0,0), 0, self.mModel.rowCount())
+        speclib = self.speclib()
+        assert isinstance(speclib, SpectralLibrary)
+        speclib.committedFeaturesAdded.connect(self.onProfilesAdded)
+        speclib.committedFeaturesRemoved.connect(self.onProfilesRemoved)
+        speclib.committedAttributeValuesChanges.connect(self.onProfileDataChanged)
+
+        self.onProfilesAdded(speclib.id(), speclib.allFeatureIds())
+
+        #self.mModel.rowsAboutToBeRemoved.connect(self.onRowsAboutToBeRemoved)
+        #self.mModel.rowsInserted.connect(self.onRowsInserted)
+        #self.mModel.dataChanged.connect(self.onDataChanged)
+        #if self.mModel.rowCount() > 0:
+        #    self.onRowsInserted(self.mModel.index(0,0), 0, self.mModel.rowCount())
+
+
+    def speclib(self):
+        if not isinstance(self.mModel, SpectralLibraryTableModel):
+            return None
+        return self.mModel.speclib()
+
+    def onProfileDataChanged(self, layerID, changeMap):
+
+
+        fieldNames = self.speclib().fieldNames()
+        iStyle = fieldNames.index(HIDDEN_ATTRIBUTE_PREFIX+'style')
+
+        fids = list(changeMap.keys())
+        for fid in fids:
+            style = changeMap[fid].get(iStyle)
+            style = pickle.loads(style)
+
+            pdi = self.mPlotItems.get(fid)
+            if isinstance(pdi, SpectralProfilePlotDataItem):
+                pdi.setStyle(style)
+
+
+        s = ""
+
+    def onProfilesAdded(self, layerID, features):
+
+        if len(features) == 0:
+            return
+
+        speclib = self.speclib()
+        assert isinstance(speclib, SpectralLibrary)
+
+        fids = [f.id() for f in features]
+        #remove if existent
+        self.onProfilesRemoved(layerID, fids)
+
+        pdis = []
+        for feature in features:
+            profile = SpectralProfile.fromSpecLibFeature(feature)
+            assert isinstance(profile, SpectralProfile)
+            pdi = SpectralProfilePlotDataItem(profile)
+            self.mPlotItems[pdi.mProfile.id()] = pdi
+            pdis.append(pdi)
+
+        for pdi in pdis:
+            self.plotItem.addItem(pdi)
+
+
+    def onProfilesRemoved(self, layerID, fids):
+
+        if len(fids) == 0:
+            return
+        fids = [fid for fid in fids if fid in list(self.mPlotItems.keys())]
+        pdis = [self.mPlotItems.pop(fid) for fid in fids]
+        pdis = [pdi for pdi in pdis if isinstance(pdi, SpectralProfilePlotDataItem)]
+        for pdi in pdis:
+            self.removeItem(pdi)
 
     def onDataChanged(self, topLeft, bottomRight, roles):
 
@@ -1903,26 +2211,6 @@ class SpectralLibraryPlotWidget(PlotWidget):
             self.mSpeclib.addSpeclib(speclib)
             event.accept()
 
-    def onProfilesAdded(self, profiles):
-        # todo: remove some PDIs from plot if there are too many
-        pi = self.getPlotItem()
-        if True:
-            to_remove = max(0, len(pi.listDataItems()) - self.m_plot_max)
-            if to_remove > 0:
-                for pdi in pi.listDataItems()[0:to_remove]:
-                    pi.removeItem(pdi)
-
-        for p in profiles:
-            self.mPlotXUnitModel.addOption(Option(p.xUnit()))
-            pi.addItem(self.createPDI(p))
-
-        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
-
-    def onProfilesRemoved(self, profiles):
-        for p in profiles:
-            self.removePDI(p)
-        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
-
 
 class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
     sigLoadFromMapRequest = pyqtSignal()
@@ -1979,25 +2267,35 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
         pi.dropEvent = self.dropEvent
 
-        self.btnLoadFromFile.clicked.connect(lambda : self.addSpeclib(SpectralLibrary.readFromSourceDialog(self)))
-        self.btnExportSpeclib.clicked.connect(self.onExportSpectra)
+        self.initActions()
+        self.setMapInteraction(False)
 
-        self.btnAddCurrentToSpeclib.clicked.connect(self.addCurrentSpectraToSpeclib)
+    def initActions(self):
 
-        self.btnLoadfromMap.clicked.connect(self.sigLoadFromMapRequest.emit)
+        self.actionSelectProfilesFromMap.triggered.connect(self.sigLoadFromMapRequest.emit)
+        self.actionSaveCurrentProfiles
+        self.actionImportSpeclib
+        self.actionSaveSpeclib
 
-        self.btnAddAttribute.clicked.connect(
-            lambda :self.mModel.addAttribute(
-                QInputDialog.getText(self, 'Add Attribute', 'Attribute', text='New Attribute')[0])
-        )
+        self.actionReload
+        self.actionToggleEditing
+        self.actionSaveEdits
+        self.actionDeleteSelected
+        self.actionCutSelectedRows.setVisible(False)
+        self.actionCopySelectedRows
+        self.actionPasteFeatures.setVisible(False)
 
-        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib) > 0)
-        self.btnRemoveAttribute.clicked.connect(
-            lambda : self.mModel.removeAttribute(
-                QInputDialog.getItem(self, 'Delete Attribute', 'Attributes',
-                                     self.mModel.mAttributeColumns, editable=False)[0]
-            )
-        )
+        self.actionSelectAll
+        self.actionInvertSelection
+        self.actionRemoveSelection
+
+        #to hide
+        self.actionPanMapToSelectedRows.setVisible(False)
+        self.actionZoomMapToSelectedRows.setVisible(False)
+
+
+        self.actionAddAttribute.triggered.connect()
+        self.actionRemoveAttribute.triggered.connect()
 
 
     def updateTableConfig(self):
@@ -2016,11 +2314,16 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.mFilterModel.setAttributeTableConfig(self.mTableConfig)
         #self.tableViewSpeclib.setAttributeTableConfig(self.mTableConfig)
 
-    def setMapInteraction(self, b):
-        assert isinstance(b, bool)
-        if b is None or b is False:
+    def setMapInteraction(self, b : bool):
+
+        if b == False:
             self.setCurrentSpectra(None)
-        self.btnBoxMapInteraction.setEnabled(b)
+
+        self.actionSelectProfilesFromMap.setVisible(b)
+        self.actionSaveCurrentProfiles.setVisible(b)
+        self.actionPanMapToSelectedRows.setVisbible(b)
+        self.actionZoomMapToSelectedRows.setVisbible(b)
+
 
     def mapInteraction(self):
         return self.btnBoxMapInteraction.isEnabled()
@@ -2214,11 +2517,20 @@ class SpectralLibraryFeatureSelectionManager(QgsIFeatureSelectionManager):
         return self.mLayer
 
     def deselect(self, ids):
-        self.mLayer.deselect(ids)
+
+        if len(ids) > 0:
+            selected = [id for id in self.selectedFeatureIds() if id not in ids]
+            self.mLayer.deselect(ids)
+
+            self.selectionChanged.emit(selected, ids, True)
 
     def select(self, ids):
         self.mLayer.select(ids)
 
+    def selectFeatures(self, selection, command):
+
+        super(SpectralLibraryFeatureSelectionManager, self).selectF
+        s = ""
     def selectedFeatureCount(self):
         return self.mLayer.selectedFeatureCount()
 

@@ -78,6 +78,19 @@ class TestInit(unittest.TestCase):
         self.assertEqual(f.typeName(), 'double')
 
 
+    def test_AttributeDialog(self):
+
+        speclib = self.createSpeclib()
+
+        d = AddAttributeDialog(speclib)
+        d.exec_()
+
+        if d.result() == QDialog.Accepted:
+            field = d.field()
+            self.assertIsInstance(field, QgsField)
+            s = ""
+        s = ""
+
 
     def test_spectralprofile(self):
 
