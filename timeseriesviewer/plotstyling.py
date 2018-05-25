@@ -168,7 +168,7 @@ class PlotStyle(QObject):
         state['linePen'] = s.readQVariant()
         state['markerPen'] = s.readQVariant()
         state['markerBrush'] = s.readQVariant()
-
+        state.pop('__pickleStateQByteArray__')
         self.__dict__.update(state)
 
 class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
