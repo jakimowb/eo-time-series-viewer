@@ -370,6 +370,9 @@
    </property>
   </action>
   <action name="actionSaveCurrentProfiles">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/profile2speclib.svg</normaloff>:/timeseriesviewer/icons/profile2speclib.svg</iconset>

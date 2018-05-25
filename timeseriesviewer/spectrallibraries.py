@@ -31,6 +31,7 @@ from qgis.core import QgsField, QgsFields, QgsFeature, QgsMapLayer, QgsVectorLay
 from qgis.gui import QgsMapCanvas, QgsDockWidget
 from pyqtgraph.widgets.PlotWidget import PlotWidget
 from pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
+from pyqtgraph.graphicsItems.PlotItem import PlotItem
 import pyqtgraph.functions as fn
 import numpy as np
 from osgeo import gdal, gdal_array
@@ -104,6 +105,39 @@ def createQgsField(name : str, exampleValue, comment:str=None):
     else:
         raise NotImplemented()
 
+
+def createStandardFields():
+    fields = QgsFields()
+
+    """﻿
+    Parameters
+    name Field name type Field variant type, currently supported: String / Int / Double 
+    typeName Field type (e.g., char, varchar, text, int, serial, double). Field types are usually unique to the source and are stored exactly as returned from the data store. 
+    len Field length 
+    prec Field precision. Usually decimal places but may also be used in conjunction with other fields types (e.g., variable character fields) 
+    comment Comment for the field 
+    subType If the field is a collection, its element's type. When all the elements don't need to have the same type, leave this to QVariant::Invalid. 
+    """
+    fields.append(createQgsField('name', ''))
+    fields.append(createQgsField('px_x', 0))
+    fields.append(createQgsField('px_y', 0))
+    fields.append(createQgsField('x_unit', ''))
+    fields.append(createQgsField('y_unit', ''))
+    fields.append(createQgsField('source', ''))
+    fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'xvalues', ''))
+    fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'yvalues', ''))
+    fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'style', ''))
+
+
+    """
+    fields.append(QgsField('name', QVariant.String,'varchar', 25))
+    fields.append(QgsField('px_x', QVariant.Int, 'int'))
+    fields.append(QgsField('px_y', QVariant.Int, 'int'))
+    fields.append(QgsField('x_unit', QVariant.String, 'varchar', 5))
+    fields.append(QgsField('y_unit', QVariant.String, 'varchar', 5))
+    fields.append(QgsField('source', QVariant.String, 'varchar', 5))
+    """
+    return fields
 
 def value2str(value, sep=' '):
     if isinstance(value, list):
@@ -284,7 +318,7 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         #self.setSelectionBehavior(QAbstractItemView.SelectRows)
         #self.setSelectionMode(QAbstractItemView.SingleSelection)
-
+        self.horizontalHeader().setSectionsMovable(True)
         self.willShowContextMenu.connect(self.onWillShowContextMenu)
         #self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
@@ -298,11 +332,9 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         self.mSelectionManager = SpectralLibraryFeatureSelectionManager(self.model().layer())
         self.setFeatureSelectionManager(self.mSelectionManager)
-        self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+        #self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
 
-    def onSelectionChanged(self, selected, deselected):
-        s = ""
-        r = ""
+
     #def contextMenuEvent(self, event):
     def onWillShowContextMenu(self, menu, index):
         assert isinstance(menu, QMenu)
@@ -333,18 +365,6 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         a.triggered.connect(lambda : self.setCheckState(featureIDs, Qt.Checked))
         a = menu.addAction('Uncheck')
         a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
-        menu.addSeparator()
-        a = menu.addAction('Remove')
-        a.triggered.connect(lambda : self.onRemoveFIDs(featureIDs))
-
-        if self.spectralLibrary().isEditable():
-            a = menu.addAction('Save edits')
-            a.triggered.connect(lambda : self.spectralLibrary().commitChanges())
-        else:
-            a = menu.addAction('Start editing..')
-            a.triggered.connect(lambda: self.spectralLibrary().startEditing())
-
-
 
     def spectralLibrary(self):
         return self.model().layer()
@@ -384,13 +404,10 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         speclib = self.spectralLibrary()
         assert isinstance(speclib, SpectralLibrary)
-        wasEditable = speclib.isEditable()
+        b = speclib.isEditable()
         speclib.startEditing()
-
         speclib.deleteFeatures(fids)
-        speclib.commitChanges()
-        if wasEditable:
-            speclib.startEditing()
+        saveEdits(speclib, leaveEditable=b)
 
     def onSetStyle(self, ids):
 
@@ -412,16 +429,14 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         if isinstance(refStyle, PlotStyle):
 
-            wasEditable = speclib.isEditable()
+            b = speclib.isEditable()
             speclib.startEditing()
             for f in profiles:
                 assert isinstance(f, SpectralProfile)
                 oldStyle = f.style()
                 refStyle.setVisibility(oldStyle.isVisible())
                 speclib.changeAttributeValue(f.id(), iStyle, pickle.dumps(refStyle), f.attributes()[iStyle])
-            speclib.commitChanges()
-            if wasEditable:
-                speclib.editingStarted()
+            saveEdits(speclib, leaveEditable=b)
 
 
 
@@ -433,12 +448,13 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
         profiles = speclib.profiles(fids)
 
-        wasEditable = speclib.isEditable()
 
-        speclib.startEditing()
         iStyle = speclib.fields().indexFromName(HIDDEN_ATTRIBUTE_PREFIX + 'style')
 
         setVisible = checkState == Qt.Checked
+
+        b = speclib.isEditable()
+        speclib.startEditing()
         for p in profiles:
             assert isinstance(p, SpectralProfile)
             oldStyle = p.style()
@@ -449,10 +465,8 @@ class SpectralLibraryTableView(QgsAttributeTableView):
                 newStyle.setVisibility(setVisible)
                 p.setStyle(newStyle)
                 speclib.changeAttributeValue(p.id(), iStyle, p.attributes()[iStyle], oldStyle)
-        speclib.commitChanges()
+        saveEdits(speclib, leaveEditable=b)
 
-        if wasEditable:
-            speclib.editingStarted()
 
 
     def dropEvent(self, event):
@@ -682,39 +696,7 @@ class SpectralProfile(QgsFeature):
         return profile
 
 
-    @staticmethod
-    def standardFields():
-        fields = QgsFields()
 
-        """﻿
-        Parameters
-        name Field name type Field variant type, currently supported: String / Int / Double 
-        typeName Field type (e.g., char, varchar, text, int, serial, double). Field types are usually unique to the source and are stored exactly as returned from the data store. 
-        len Field length 
-        prec Field precision. Usually decimal places but may also be used in conjunction with other fields types (e.g., variable character fields) 
-        comment Comment for the field 
-        subType If the field is a collection, its element's type. When all the elements don't need to have the same type, leave this to QVariant::Invalid. 
-        """
-        fields.append(createQgsField('name', ''))
-        fields.append(createQgsField('px_x', 0))
-        fields.append(createQgsField('px_y', 0))
-        fields.append(createQgsField('x_unit', ''))
-        fields.append(createQgsField('y_unit', ''))
-        fields.append(createQgsField('source', ''))
-        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'xvalues', ''))
-        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'yvalues', ''))
-        fields.append(createQgsField(HIDDEN_ATTRIBUTE_PREFIX + 'style', ''))
-
-
-        """
-        fields.append(QgsField('name', QVariant.String,'varchar', 25))
-        fields.append(QgsField('px_x', QVariant.Int, 'int'))
-        fields.append(QgsField('px_y', QVariant.Int, 'int'))
-        fields.append(QgsField('x_unit', QVariant.String, 'varchar', 5))
-        fields.append(QgsField('y_unit', QVariant.String, 'varchar', 5))
-        fields.append(QgsField('source', QVariant.String, 'varchar', 5))
-        """
-        return fields
 
     @staticmethod
     def fromSpecLibFeature(feature):
@@ -732,7 +714,7 @@ class SpectralProfile(QgsFeature):
     def __init__(self, parent=None, fields=None, xUnit='index', yUnit=None):
 
         if fields is None:
-            fields = SpectralProfile.standardFields()
+            fields = createStandardFields()
 
         #QgsFeature.__init__(self, fields)
         #QObject.__init__(self)
@@ -996,6 +978,36 @@ class AbstractSpectralLibraryIO(object):
 MIMEDATA_SPECLIB = 'application/hub-spectrallibrary'
 MIMEDATA_XQT_WINDOWS_CSV = 'application/x-qt-windows-mime;value="Csv"'
 MIMEDATA_TEXT = 'text/html'
+
+
+def saveEdits(layer, leaveEditable=True, triggerRepaint=True):
+    """
+    function to save layer changes-
+    :param layer:
+    :param leaveEditable:
+    :param triggerRepaint:
+    """
+    if isinstance(layer, QgsVectorLayer):
+        if not layer.isEditable():
+            return
+        if not layer.commitChanges():
+            layer.commitErrors()
+
+        if leaveEditable:
+            layer.startEditing()
+
+        if triggerRepaint:
+            layer.triggerRepaint()
+
+
+def deleteSelected(layer):
+
+    assert isinstance(layer, QgsVectorLayer)
+    b = layer.isEditable()
+
+    layer.startEditing()
+    layer.deleteSelectedFeatures()
+    saveEdits(layer, leaveEditable=b)
 
 class ClipboardIO(AbstractSpectralLibraryIO):
     """
@@ -1587,7 +1599,7 @@ class SpectralLibrary(QgsVectorLayer):
         if fields is not None:
             defaultFields = fields
         else:
-            defaultFields = SpectralProfile.standardFields()
+            defaultFields = createStandardFields()
 
 
 
@@ -1618,15 +1630,11 @@ class SpectralLibrary(QgsVectorLayer):
             if i == -1:
                 missingFields.append(field)
         if len(missingFields) > 0:
+
+            b = self.isEditable()
             self.startEditing()
-            b = self.dataProvider().addAttributes(missingFields)
-            # for field in missingFields:
-            #    assert isinstance(field, QgsField)
-            if b:
-                self.commitChanges()
-            else:
-                self.commitErrors()
-            s = ""
+            self.dataProvider().addAttributes(missingFields)
+            saveEdits(self, leaveEditable=b)
 
     def addSpeclib(self, speclib, addMissingFields=True):
         assert isinstance(speclib, SpectralLibrary)
@@ -1651,14 +1659,10 @@ class SpectralLibrary(QgsVectorLayer):
         if addMissingFields:
             self.addMissingFields(profiles[0].fields())
 
-        inEditMode = self.isEditable()
-        if not inEditMode:
-            self.startEditing()
-        #b, l = self.dataProvider().addFeatures(profiles)
+        b = self.isEditable()
+        self.startEditing()
         self.addFeatures(profiles)
-        if not inEditMode:
-            self.commitChanges()
-        s = ""
+        saveEdits(self, leaveEditable=b)
 
     def removeProfiles(self, profiles):
         """
@@ -1676,12 +1680,10 @@ class SpectralLibrary(QgsVectorLayer):
         if len(fids) == 0:
             return
 
-        inEditMode = self.isEditable()
-        if not inEditMode:
-            self.startEditing()
+        b = self.isEditable()
+        self.startEditing()
         self.deleteFeatures(fids)
-        if not inEditMode:
-            self.commitChanges()
+        saveEdits(self, leaveEditable=b)
 
 
     def features(self, fids=None):
@@ -1949,10 +1951,12 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
         result = False
         speclib = self.layer()
         assert isinstance(speclib, SpectralLibrary)
+        if value == QVariant():
+            value = None
         if index.column() == 0 and role in [Qt.CheckStateRole, Qt.UserRole]:
             profile = self.spectralProfile(index)
 
-            b = speclib.isEditable()
+
 
 
             if role == Qt.CheckStateRole:
@@ -1963,13 +1967,10 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
             if role == Qt.UserRole and isinstance(value, PlotStyle):
                 profile.setStyle(value)
 
-            if not b:
-
-                speclib.startEditing()
+            b = speclib.isEditable()
+            speclib.startEditing()
             result = speclib.updateFeature(profile)
-
-            if not b:
-                speclib.commitChanges()
+            saveEdits(speclib, leaveEditable=b)
 
             #f = self.layer().getFeature(profile.id())
             #i = f.fieldNameIndex(SpectralProfile.STYLE_FIELD)
@@ -2109,15 +2110,16 @@ class SpectralLibraryPlotWidget(PlotWidget):
 
         fids = list(changeMap.keys())
         for fid in fids:
-            style = changeMap[fid].get(iStyle)
-            style = pickle.loads(style)
+            if iStyle in changeMap[fid].keys():
+                #update the local plot style
+                style = changeMap[fid].get(iStyle)
 
-            pdi = self.mPlotItems.get(fid)
-            if isinstance(pdi, SpectralProfilePlotDataItem):
-                pdi.setStyle(style)
+                style = pickle.loads(style)
 
+                pdi = self.mPlotItems.get(fid)
+                if isinstance(pdi, SpectralProfilePlotDataItem):
+                    pdi.setStyle(style)
 
-        s = ""
 
     def onProfilesAdded(self, layerID, features):
 
@@ -2270,6 +2272,8 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.initActions()
         self.setMapInteraction(False)
 
+
+
     def initActions(self):
 
         self.actionSelectProfilesFromMap.triggered.connect(self.sigLoadFromMapRequest.emit)
@@ -2277,25 +2281,94 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.actionImportSpeclib
         self.actionSaveSpeclib
 
-        self.actionReload
-        self.actionToggleEditing
-        self.actionSaveEdits
-        self.actionDeleteSelected
+        self.actionReload.triggered.connect(lambda : self.speclib().dataProvider().forceReload())
+        self.actionToggleEditing.toggled.connect(self.onToggleEditing)
+        self.actionSaveEdits.triggered.connect(lambda : saveEdits(self.speclib(), leaveEditable=self.speclib().isEditable()))
+        self.actionDeleteSelected.triggered.connect(lambda : deleteSelected(self.speclib()))
         self.actionCutSelectedRows.setVisible(False)
         self.actionCopySelectedRows
         self.actionPasteFeatures.setVisible(False)
 
-        self.actionSelectAll
-        self.actionInvertSelection
-        self.actionRemoveSelection
+        self.actionSelectAll.triggered.connect(lambda :
+                                               self.speclib().selectAll()
+                                               )
+        self.actionInvertSelection.triggered.connect(lambda :
+                                                     self.speclib().invertSelection()
+                                                     )
+        self.actionRemoveSelection.triggered.connect(lambda :
+                                                     self.speclib().removeSelection()
+                                                     )
+
 
         #to hide
         self.actionPanMapToSelectedRows.setVisible(False)
         self.actionZoomMapToSelectedRows.setVisible(False)
 
 
-        self.actionAddAttribute.triggered.connect()
-        self.actionRemoveAttribute.triggered.connect()
+        self.actionAddAttribute.triggered.connect(self.onAddAttribute)
+        self.actionRemoveAttribute.triggered.connect(self.onRemoveAttribute)
+
+        self.onEditingToggled()
+
+    def speclib(self):
+        return self.mSpeclib
+
+    def onToggleEditing(self, b):
+
+        b = False
+        speclib = self.speclib()
+
+        if speclib.isEditable():
+            saveEdits(speclib, leaveEditable=False)
+        else:
+            speclib.startEditing()
+
+
+        self.onEditingToggled()
+
+    def onEditingToggled(self):
+        speclib = self.speclib()
+
+        hasSelectedFeatures = speclib.selectedFeatureCount() > 0
+        isEditable = speclib.isEditable()
+        self.actionToggleEditing.blockSignals(True)
+        self.actionToggleEditing.setChecked(isEditable)
+        self.actionSaveEdits.setEnabled(isEditable)
+        self.actionReload.setEnabled(not isEditable)
+        self.actionToggleEditing.blockSignals(False)
+
+        self.actionAddAttribute.setEnabled(isEditable)
+        self.actionRemoveAttribute.setEnabled(isEditable)
+        self.actionDeleteSelected.setEnabled(isEditable and hasSelectedFeatures)
+        self.actionPasteFeatures.setEnabled(isEditable)
+        self.actionToggleEditing.setEnabled(not speclib.readOnly())
+
+    def onAddAttribute(self):
+        d = AddAttributeDialog(self.mSpeclib)
+        d.exec_()
+
+        if d.result() == QDialog.Accepted:
+
+            field = d.field()
+            b = self.mSpeclib.isEditable()
+            self.mSpeclib.startEditing()
+            self.mSpeclib.addAttribute(field)
+            saveEdits(self.mSpeclib, leaveEditable=b)
+
+    def onRemoveAttribute(self):
+
+        stdFields = createStandardFields().names() + ['shape']
+        fieldNames = [n for n in self.mSpeclib.fields().names() if n not in stdFields]
+
+        fieldName, accepted = QInputDialog.getItem(self, 'Remove Field', 'Select', fieldNames, editable=False)
+        if accepted:
+            i = self.mSpeclib.fields().indexFromName(fieldName)
+            if i >= 0:
+                b = self.mSpeclib.isEditable()
+                self.mSpeclib.startEditing()
+                self.mSpeclib.deleteAttribute(i)
+                saveEdits(self.mSpeclib, leaveEditable=b)
+        s  =""
 
 
     def updateTableConfig(self):
@@ -2309,6 +2382,8 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         for i, columnConfig in enumerate(self.mTableConfig.columns()):
             if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
                 self.mTableConfig.setColumnHidden(i, True)
+            if columnConfig.name == 'source':
+                self.mTableConfig.setColumnWidth(i, 25)
 
         self.mSpeclib.setAttributeTableConfig(self.mTableConfig)
         self.mFilterModel.setAttributeTableConfig(self.mTableConfig)
@@ -2321,8 +2396,8 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
         self.actionSelectProfilesFromMap.setVisible(b)
         self.actionSaveCurrentProfiles.setVisible(b)
-        self.actionPanMapToSelectedRows.setVisbible(b)
-        self.actionZoomMapToSelectedRows.setVisbible(b)
+        self.actionPanMapToSelectedRows.setVisible(b)
+        self.actionZoomMapToSelectedRows.setVisible(b)
 
 
     def mapInteraction(self):
@@ -2360,7 +2435,8 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         pi.replot()
     def getPlotItem(self):
         pi = self.plotWidget.getPlotItem()
-        assert isinstance(pi, pg.PlotItem)
+
+        assert isinstance(pi, PlotItem)
         return pi
 
     def onExportSpectra(self, *args):
@@ -2399,7 +2475,7 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
                 self.removePDI(p)
 
         self.mCurrentSpectra = listOfSpectra[:]
-        if self.cbAddCurrentSpectraToSpeclib.isChecked():
+        if self.actionSaveCurrentProfiles.isChecked():
             self.addCurrentSpectraToSpeclib()
 
         for p in self.mCurrentSpectra:
@@ -2512,6 +2588,7 @@ class SpectralLibraryFeatureSelectionManager(QgsIFeatureSelectionManager):
         super(SpectralLibraryFeatureSelectionManager, self).__init__(parent)
         assert isinstance(layer, QgsVectorLayer)
         self.mLayer = layer
+        self.mLayer.selectionChanged.connect(self.selectionChanged)
 
     def layer(self):
         return self.mLayer
