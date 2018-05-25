@@ -20,15 +20,18 @@
 """
 
 #see http://python-future.org/str_literals.html for str issue discussion
-import os, re, tempfile, pickle, copy, shutil
+import os, re, tempfile, pickle, copy, shutil, locale
 from collections import OrderedDict
 from qgis.core import *
 from qgis.gui import *
-import pyqtgraph as pg
-from pyqtgraph import functions as fn
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
+from qgis.core import QgsField, QgsFields, QgsFeature, QgsMapLayer, QgsVectorLayer, QgsConditionalStyle
+from qgis.gui import QgsMapCanvas, QgsDockWidget
+from pyqtgraph.widgets.PlotWidget import PlotWidget
+from pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
+import pyqtgraph.functions as fn
 import numpy as np
 from osgeo import gdal, gdal_array
 
@@ -42,6 +45,7 @@ FILTERS = 'ENVI Spectral Library (*.esl *.sli);;CSV Table (*.csv)'
 
 PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
 HIDDEN_ATTRIBUTE_PREFIX = '__serialized__'
+
 
 def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
     """
@@ -155,7 +159,7 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         assert isinstance(index, QModelIndex)
 
         featureIDs = self.mSelectionManager.selectedFeatureIds()
-        indices = self.selectedFeatureIndices()
+        featureIndices = self.fidsToIndices(featureIDs)
         if not isinstance(featureIDs, list):
             s = ""
 
@@ -173,13 +177,12 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         menu.addSeparator()
         a = menu.addAction('Style...')
         a.triggered.connect(lambda b, ids=featureIDs : self.onSetStyle(ids))
-        a = menu.addAction('Show')
-        a.triggered.connect(lambda : self.setCheckState(Qt.Checked))
-        a = menu.addAction('Hide')
-        a.triggered.connect(lambda: self.setCheckState(Qt.Unchecked))
-        a = menu.addAction('Remove')
-        a.triggered.connect(lambda : self.model().removeProfiles(self.selectedSpectra()))
-        #menu.popup(QCursor.pos())
+        a = menu.addAction('Show profiles')
+        a.triggered.connect(lambda : self.setCheckState(featureIndices, Qt.Checked))
+        a = menu.addAction('Hide profiles')
+        a.triggered.connect(lambda: self.setCheckState(featureIndices, Qt.Unchecked))
+        a = menu.addAction('Remove profiles')
+        a.triggered.connect(lambda : self.onRemoveFIDs(featureIDs))
 
 
     def spectralLibrary(self):
@@ -187,6 +190,7 @@ class SpectralLibraryTableView(QgsAttributeTableView):
 
 
     def onCopy2Clipboard(self, fids, mode):
+        assert isinstance(fids, list)
         assert mode in ClipboardIO.WritingModes().modes()
 
         speclib = self.spectralLibrary()
@@ -202,17 +206,31 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         speclib.getFeatures(fids)
         speclib.exportProfiles()
 
-
-    def selectedFeatureIndices(self):
+    def fidsToIndices(self, fids):
         """
-        Returns the zero-column QModelIndex of all selected features
-        :return: [list-of-QModelIndex]
+        Converts feature ids into FilterModel QModelIndices
+        :param fids: [list-of-int]
+        :return:
         """
-
-        ids = self.mSelectionManager.selectedFeatureIds()
+        if isinstance(fids, int):
+            fids = [fids]
+        assert isinstance(fids, list)
         fmodel = self.model()
-        indices = [fmodel.fidToIndex(id) for id in ids]
+        indices = [fmodel.fidToIndex(id) for id in fids]
         return [fmodel.index(idx.row(), 0) for idx in indices]
+
+    def onRemoveFIDs(self, fids):
+
+        speclib = self.spectralLibrary()
+        assert isinstance(speclib, SpectralLibrary)
+        b = speclib.isEditable()
+        if not b:
+            speclib.startEditing()
+
+        speclib.deleteFeatures(fids)
+        if not b:
+            speclib.commitChanges()
+
 
     def onSetStyle(self, featureIDs):
         fmodel = self.model()
@@ -229,10 +247,10 @@ class SpectralLibraryTableView(QgsAttributeTableView):
                 for idx in indices:
                     fmodel.setData(idx, style, Qt.DecorationRole)
 
-    def setCheckState(self, checkState):
+    def setCheckState(self, indices, checkState):
         fmodel = self.model()
 
-        for idx in self.selectedFeatureIndices():
+        for idx in indices:
             fmodel.setData(idx, checkState, Qt.CheckStateRole)
 
 
@@ -334,17 +352,30 @@ class SpectralProfileMapTool(QgsMapToolEmitPoint):
 
 """
 
-class SpectralProfilePlotDataItem(pg.PlotDataItem):
+class SpectralProfilePlotDataItem(PlotDataItem):
 
     def __init__(self, spectralProfile):
         assert isinstance(spectralProfile, SpectralProfile)
         super(SpectralProfilePlotDataItem, self).__init__()
         self.mProfile = spectralProfile
-        self.setData(x=spectralProfile.xValues(), y=spectralProfile.yValues())
 
+        self.setData(x=spectralProfile.xValues(), y=spectralProfile.yValues())
+        self.setStyle(self.mProfile.style())
     def setClickable(self, b, width=None):
         assert isinstance(b, bool)
         self.curve.setClickable(b, width=width)
+
+
+    def setStyle(self, style):
+        assert isinstance(style, PlotStyle)
+        self.setVisible(style.isVisible())
+
+        self.setSymbol(style.markerSymbol)
+        self.setSymbolBrush(style.markerBrush)
+        self.setSymbolSize(style.markerSize)
+        self.setSymbolPen(style.markerPen)
+        self.setPen(style.linePen)
+
 
     def setColor(self, color):
         if not isinstance(color, QColor):
@@ -806,26 +837,16 @@ class ClipboardIO(AbstractSpectralLibraryIO):
         return SpectralLibrary()
 
     @staticmethod
-    def write(speclib, path=None, mode=None, sep=None, dec=None, newline=None):
+    def write(speclib, path=None, mode=None, sep=None, newline=None):
         if mode is None:
             mode = ClipboardIO.WritingModes.ALL
         assert isinstance(speclib, SpectralLibrary)
 
         mimeData = QMimeData()
 
-        import locale
-        lang, enc = locale.getdefaultlocale()
 
         if not isinstance(sep, str):
-            if lang.startswith('de_'):
-                sep = '\t'
-            else:
-                sep = ';'
-        if not isinstance(dec, str):
-            if lang.startswith('de_'):
-                dec = ','
-            else:
-                sep = '.'
+            sep = '\t'
 
         if not isinstance(newline, str):
             newline = '\r\n'
@@ -871,9 +892,8 @@ class ClipboardIO(AbstractSpectralLibraryIO):
                 if value in excluded:
                     formatedLine.append('')
                 else:
-                    if not isinstance(value, str):
-                        value = str(value)
-                        value = value.replace('.', dec)
+                    if type(value) in [float, int]:
+                        value = locale.str(value)
                     formatedLine.append(value)
             csvlines.append(sep.join(formatedLine))
         text = newline.join(csvlines)
@@ -1355,8 +1375,6 @@ class SpectralLibrary(QgsVectorLayer):
         return None
 
 
-    sigProfilesAdded = pyqtSignal([list], [list, list])
-    sigProfilesRemoved = pyqtSignal([list], [list, list])
     sigNameChanged = pyqtSignal(str)
 
     def __init__(self, name='SpectralLibrary', fields=None):
@@ -1441,6 +1459,29 @@ class SpectralLibrary(QgsVectorLayer):
             self.commitChanges()
         s = ""
 
+    def removeProfiles(self, profiles):
+        """
+        Removes profiles from this ProfileSet
+        :param profiles: Profile or [list-of-profiles] to be removed
+        :return: [list-of-remove profiles] (only profiles that existed in this set before)
+        """
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        for p in profiles:
+            assert isinstance(p, SpectralProfile)
+
+        fids = [p.id() for p in profiles]
+        if len(fids) == 0:
+            return
+
+        inEditMode = self.isEditable()
+        if not inEditMode:
+            self.startEditing()
+        self.deleteFeatures(fids)
+        if not inEditMode:
+            self.commitChanges()
+
     def profiles(self):
         return self[:]
 
@@ -1499,26 +1540,6 @@ class SpectralLibrary(QgsVectorLayer):
 
 
         return []
-
-    def removeProfiles(self, profiles):
-        """
-        Removes profiles from this ProfileSet
-        :param profiles: Profile or [list-of-profiles] to be removed
-        :return: [list-of-remove profiles] (only profiles that existed in this set before)
-        """
-        to_remove = self.extractProfileList(profiles)
-
-        indices_to_remove = sorted([self.mProfiles.index(p) for p in to_remove if p in self.mProfiles], reverse=True)
-        to_remove = [self.mProfiles[i] for i in indices_to_remove]
-
-        if len(to_remove) > 0:
-            for p in to_remove:
-                self.mProfiles.remove(p)
-            self.sigProfilesRemoved[list].emit(to_remove)
-            self.sigProfilesRemoved[list, list].emit(to_remove, indices_to_remove)
-
-        s = ""
-
 
 
     def yRange(self):
@@ -1687,6 +1708,7 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
         if role is None or not index.isValid():
             return False
 
+        result = False
         speclib = self.layer()
         assert isinstance(speclib, SpectralLibrary)
         if index.column() == 0 and role in [Qt.CheckStateRole, Qt.DecorationRole]:
@@ -1706,7 +1728,6 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
             result = speclib.updateFeature(profile)
             if not b:
                 speclib.commitChanges()
-            return result
 
             #f = self.layer().getFeature(profile.id())
             #i = f.fieldNameIndex(SpectralProfile.STYLE_FIELD)
@@ -1714,10 +1735,13 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
             #result = super().setData(self.index(index.row(), self.mcnStyle), value, role=Qt.EditRole)
             #if not b:
             #    self.layer().commitChanges()
-
+        if result:
+            self.dataChanged.emit(index, index, [role])
         else:
-            return super().setData(index, value, role=role)
+            result = super().setData(index, value, role=role)
 
+
+        return result
 
     def supportedDragActions(self):
         return Qt.CopyAction
@@ -1802,6 +1826,103 @@ class UnitComboBoxItemModel(OptionListModel):
         return value
 
 
+class SpectralLibraryPlotWidget(PlotWidget):
+
+    def __init__(self, parent=None):
+        super(SpectralLibraryPlotWidget, self).__init__(parent)
+        self.mModel = None
+        self.mPlotItems = dict()
+        self.setAntialiasing(True)
+        self.setAcceptDrops(True)
+
+
+    def setModel(self, model):
+        assert isinstance(model, SpectralLibraryTableModel)
+        self.mModel = model
+        self.mModel.rowsAboutToBeRemoved.connect(self.onRowsAboutToBeRemoved)
+        self.mModel.rowsInserted.connect(self.onRowsInserted)
+        self.mModel.dataChanged.connect(self.onDataChanged)
+        if self.mModel.rowCount() > 0:
+            self.onRowsInserted(self.mModel.index(0,0), 0, self.mModel.rowCount())
+
+    def onDataChanged(self, topLeft, bottomRight, roles):
+
+        if topLeft.column() == 0:
+            for row in range(topLeft.row(), bottomRight.row()+1):
+                fid = self.mModel.rowToId(row)
+                idx = self.mModel.idToIndex(fid)
+                profile = self.mModel.spectralProfile(idx)
+
+                pdi = self.mPlotItems.get(fid)
+                if isinstance(pdi, SpectralProfilePlotDataItem):
+                    if len(roles) == 0 or Qt.DecorationRole in roles or Qt.CheckStateRole in roles:
+                        pdi.setStyle(profile.style())
+
+
+    def onRowsAboutToBeRemoved(self, index, first, last):
+
+        fids = [self.mModel.rowToId(i) for i in range(first, last+1)]
+        fids = [fid for fid in fids if fid in list(self.mPlotItems.keys())]
+        pdis = [self.mPlotItems.pop(fid) for fid in fids]
+        pdis = [pdi for pdi in pdis if isinstance(pdi, SpectralProfilePlotDataItem)]
+        for pdi in pdis:
+            self.removeItem(pdi)
+
+    def onRowsInserted(self, index, first, last):
+
+        for i in range(first, last+1):
+            fid = self.mModel.rowToId(i)
+            if fid < 0:
+                continue
+
+            idx = self.mModel.index(i,0)
+            p = self.mModel.spectralProfile(idx)
+            assert fid == p.id()
+
+            pdi = SpectralProfilePlotDataItem(p)
+            self.mPlotItems[fid] = pdi
+            self.addItem(pdi)
+
+    def dragEnterEvent(self, event):
+        assert isinstance(event, QDragEnterEvent)
+        if event.mimeData().hasFormat(MIMEDATA_SPECLIB):
+            event.accept()
+
+    def dragMoveEvent(self, event):
+        assert isinstance(event, QDragMoveEvent)
+        if event.mimeData().hasFormat(MIMEDATA_SPECLIB):
+            event.accept()
+
+
+    def dropEvent(self, event):
+        assert isinstance(event, QDropEvent)
+        mimeData = event.mimeData()
+
+        if mimeData.hasFormat(MIMEDATA_SPECLIB):
+            speclib = pickle.loads(mimeData.data(MIMEDATA_SPECLIB))
+            self.mSpeclib.addSpeclib(speclib)
+            event.accept()
+
+    def onProfilesAdded(self, profiles):
+        # todo: remove some PDIs from plot if there are too many
+        pi = self.getPlotItem()
+        if True:
+            to_remove = max(0, len(pi.listDataItems()) - self.m_plot_max)
+            if to_remove > 0:
+                for pdi in pi.listDataItems()[0:to_remove]:
+                    pi.removeItem(pdi)
+
+        for p in profiles:
+            self.mPlotXUnitModel.addOption(Option(p.xUnit()))
+            pi.addItem(self.createPDI(p))
+
+        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
+
+    def onProfilesRemoved(self, profiles):
+        for p in profiles:
+            self.removePDI(p)
+        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
+
 
 class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
     sigLoadFromMapRequest = pyqtSignal()
@@ -1835,29 +1956,24 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.tableViewSpeclib.setDropIndicatorShown(True)
 
         self.mModel = SpectralLibraryTableModel()
-        self.mSpeclib = self.mModel.mSpecLib
+        self.mFilterModel = SpectralLibraryTableFilterModel(self.mModel)
+        self.mSpeclib = self.mModel.speclib()
 
-        self.mSpeclib.sigProfilesAdded.connect(self.onProfilesAdded)
-        self.mSpeclib.sigProfilesRemoved.connect(self.onProfilesRemoved)
+        # view.setFeatureSelectionManager(featureSelectionManager)
+        self.mTableConfig = None
+        self.updateTableConfig()
+
+
         self.mPlotDataItems = dict() #stores plotDataItems
 
 
         #self.mModel.sigAttributeAdded.connect(self.onAttributesChanged)
         #self.mModel.sigAttributeRemoved.connect(self.onAttributesChanged)
 
-        self.tableViewSpeclib.setModel(self.mModel)
-        self.mSelectionModel = QItemSelectionModel(self.mModel)
-        self.mSelectionModel.selectionChanged.connect(self.onSelectionChanged)
-        #self.mSelectionModel.currentChanged.connect(self.onCurrentSelectionChanged)
-        self.tableViewSpeclib.setSelectionModel(self.mSelectionModel)
+        self.tableViewSpeclib.setModel(self.mFilterModel)
+        self.plotWidget.setModel(self.mModel)
 
 
-        self.plotWidget.setAntialiasing(True)
-        self.plotWidget.setAcceptDrops(True)
-
-        self.plotWidget.dragEnterEvent = self.dragEnterEvent
-        self.plotWidget.dragMoveEvent = self.dragMoveEvent
-        self.plotWidget.dropEvent = self.dropEvent
         pi = self.plotWidget.getPlotItem()
         pi.setAcceptDrops(True)
 
@@ -1883,6 +1999,23 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
             )
         )
 
+
+    def updateTableConfig(self):
+        """
+        Updates the QgsAttributeTableConfig, basically only to hide columns to be hidden.
+        """
+
+        self.mTableConfig = QgsAttributeTableConfig()
+        self.mTableConfig.update(self.mSpeclib.fields())
+
+        for i, columnConfig in enumerate(self.mTableConfig.columns()):
+            if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
+                self.mTableConfig.setColumnHidden(i, True)
+
+        self.mSpeclib.setAttributeTableConfig(self.mTableConfig)
+        self.mFilterModel.setAttributeTableConfig(self.mTableConfig)
+        #self.tableViewSpeclib.setAttributeTableConfig(self.mTableConfig)
+
     def setMapInteraction(self, b):
         assert isinstance(b, bool)
         if b is None or b is False:
@@ -1892,25 +2025,6 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
     def mapInteraction(self):
         return self.btnBoxMapInteraction.isEnabled()
 
-    def dragEnterEvent(self, event):
-        assert isinstance(event, QDragEnterEvent)
-        if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
-            event.accept()
-
-    def dragMoveEvent(self, event):
-        assert isinstance(event, QDragMoveEvent)
-        if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
-            event.accept()
-
-
-    def dropEvent(self, event):
-        assert isinstance(event, QDropEvent)
-        mimeData = event.mimeData()
-
-        if mimeData.hasFormat(mimedata.MDF_SPECTRALLIBRARY):
-            speclib = SpectralLibrary.readFromPickleDump(mimeData.data(mimedata.MDF_SPECTRALLIBRARY))
-            self.mSpeclib.addSpeclib(speclib)
-            event.accept()
 
     def onAttributesChanged(self):
         self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
@@ -1950,20 +2064,6 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.mSpeclib.exportProfiles()
 
 
-    def onProfilesAdded(self, profiles):
-        # todo: remove some PDIs from plot if there are too many
-        pi = self.getPlotItem()
-        if True:
-            to_remove = max(0, len(pi.listDataItems()) - self.m_plot_max)
-            if to_remove > 0:
-                for pdi in pi.listDataItems()[0:to_remove]:
-                    pi.removeItem(pdi)
-
-        for p in profiles:
-            self.mPlotXUnitModel.addOption(Option(p.xUnit()))
-            pi.addItem(self.createPDI(p))
-
-        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
 
     def addSpectralPlotItem(self, pdi):
         assert isinstance(pdi, SpectralProfilePlotDataItem)
@@ -1971,10 +2071,6 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
         pi.addItem(pdi)
 
-    def onProfilesRemoved(self, profiles):
-        for p in profiles:
-            self.removePDI(p)
-        self.btnRemoveAttribute.setEnabled(len(self.mSpeclib.metadataAttributes()) > 0)
 
     def addSpeclib(self, speclib):
         if isinstance(speclib, SpectralLibrary):
@@ -2132,12 +2228,12 @@ class SpectralLibraryFeatureSelectionManager(QgsIFeatureSelectionManager):
     def setSelectedFeatures(self, ids):
         self.mLayer.selectByIds(ids)
 
-if __name__ == "__main__":
-
+def __sandbox():
 
 
     app = initQgisApplication()
     app.messageLog().messageReceived.connect(lambda args: print(args) )
+
 
     from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
 
@@ -2161,39 +2257,48 @@ if __name__ == "__main__":
     speclib.addProfiles([p1,p2],0)
     speclib.addSpeclib(SpectralLibrary.readFromRasterPositions(p, pos))
     speclib.startEditing()
-    w = QFrame()
-    w.setLayout(QHBoxLayout())
-
-    model = SpectralLibraryTableModel(speclib=speclib, parent=w)
-    fmodel = SpectralLibraryTableFilterModel(model)
-    view = SpectralLibraryTableView(parent=w)
-    #view = QgsAttributeTableView(parent=w)
-    # view = QTableView()
-    # from qgis.gui import QgsVectorLayerSelectionManager
-    # featureSelectionManager = QgsVectorLayerSelectionManager(speclib)
-
-    view.setModel(fmodel)
 
 
-    # view.setFeatureSelectionManager(featureSelectionManager)
-    config = QgsAttributeTableConfig()
-    config.update(speclib.fields())
+    if False:
 
-    for i, columnConfig in enumerate(config.columns()):
+        w = QFrame()
+        w.setLayout(QHBoxLayout())
 
-        if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
-            config.setColumnHidden(i, True)
+        model = SpectralLibraryTableModel(speclib=speclib, parent=w)
+        fmodel = SpectralLibraryTableFilterModel(model)
+        view = SpectralLibraryTableView(parent=w)
+        #view = QgsAttributeTableView(parent=w)
+        # view = QTableView()
+        # from qgis.gui import QgsVectorLayerSelectionManager
+        # featureSelectionManager = QgsVectorLayerSelectionManager(speclib)
 
-    speclib.setAttributeTableConfig(config)
-    fmodel.setAttributeTableConfig(config)
-    view.setAttributeTableConfig(config)
+        view.setModel(fmodel)
 
-    #view.setSelectionBehavior(QAbstractItemView.SelectItems)
-    #view.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-    w.layout().addWidget(view)
-    w.show()
-    w.resize(QSize(800, 200))
+        # view.setFeatureSelectionManager(featureSelectionManager)
+        config = QgsAttributeTableConfig()
+        config.update(speclib.fields())
+
+        for i, columnConfig in enumerate(config.columns()):
+
+            if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
+                config.setColumnHidden(i, True)
+
+        speclib.setAttributeTableConfig(config)
+        fmodel.setAttributeTableConfig(config)
+        view.setAttributeTableConfig(config)
+
+        #view.setSelectionBehavior(QAbstractItemView.SelectItems)
+        #view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+        w.layout().addWidget(view)
+    else:
+        w = SpectralLibraryWidget()
+
+        w.mSpeclib.addSpeclib(speclib)
+
+        w.show()
+        w.resize(QSize(800, 200))
 
     app.exec_()
     print('Finished')

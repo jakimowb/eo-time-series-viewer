@@ -334,6 +334,14 @@ class TestInit(unittest.TestCase):
         dmodel = SpectralLibraryTableModel(speclib, parent=w)
         fmodel = SpectralLibraryTableFilterModel(dmodel, parent=w)
 
+        cnt = len(speclib)
+        self.assertEqual(cnt, dmodel.rowCount())
+        speclib.removeProfiles(speclib[0])
+        self.assertEqual(cnt - 1, len(speclib))
+        self.assertEqual(cnt - 1, dmodel.rowCount())
+        self.assertEqual(cnt - 1, fmodel.rowCount())
+
+
 
         #https://stackoverflow.com/questions/671340/qsortfilterproxymodel-maptosource-crashes-no-info-why
         #!!! use filterModel.index(row, col), NOT filterModel.createIndex(row, col)!
@@ -360,10 +368,29 @@ class TestInit(unittest.TestCase):
         p.show()
 
 
+    def test_plotWidget(self):
+
+        speclib = self.createSpeclib()
+        model = SpectralLibraryTableModel(speclib=speclib)
+        w = SpectralLibraryPlotWidget()
+        w.setModel(model)
+
+        self.assertIsInstance(w, SpectralLibraryPlotWidget)
+
+        pdis = [i for i in w.plotItem.items if isinstance(i, SpectralProfilePlotDataItem)]
+        self.assertTrue(len(speclib), len(pdis))
+        for pdi in pdis:
+            self.assertTrue(pdi.isVisible())
 
 
+        p = speclib[3]
+        fid = p.id()
 
+        speclib.removeProfiles(p)
 
+        pdis = [i for i in w.plotItem.items if isinstance(i, SpectralProfilePlotDataItem)]
+        for pdi in pdis:
+            self.assertFalse(pdi.mProfile.id() == fid)
 
         pass
 
