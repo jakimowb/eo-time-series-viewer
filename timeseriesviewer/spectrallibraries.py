@@ -365,6 +365,9 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         a.triggered.connect(lambda : self.setCheckState(featureIDs, Qt.Checked))
         a = menu.addAction('Uncheck')
         a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
+        menu.addSeparator()
+        for a in self.actions():
+            menu.addAction(a)
 
     def spectralLibrary(self):
         return self.model().layer()
@@ -1740,11 +1743,11 @@ class SpectralLibrary(QgsVectorLayer):
     def asPickleDump(self):
         return pickle.dumps(self)
 
-    def exportProfiles(self, path=None):
+    def exportProfiles(self, path=None, parent=None):
 
         if path is None:
 
-            path = QFileDialog.getSaveFileName(parent=None, caption="Save Spectral Library", filter=FILTERS)
+            path = QFileDialog.getSaveFileName(parent=parent, caption="Save Spectral Library", filter=FILTERS)
             if isinstance(path, tuple):
                 path = path[0]
 
@@ -2278,8 +2281,10 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
 
         self.actionSelectProfilesFromMap.triggered.connect(self.sigLoadFromMapRequest.emit)
         self.actionSaveCurrentProfiles
-        self.actionImportSpeclib
-        self.actionSaveSpeclib
+
+
+        self.actionImportSpeclib.triggered.connect(lambda :self.importSpeclib())
+        self.actionSaveSpeclib.triggered.connect(lambda :self.speclib().exportProfiles(parent=self))
 
         self.actionReload.triggered.connect(lambda : self.speclib().dataProvider().forceReload())
         self.actionToggleEditing.toggled.connect(self.onToggleEditing)
@@ -2292,6 +2297,7 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.actionSelectAll.triggered.connect(lambda :
                                                self.speclib().selectAll()
                                                )
+
         self.actionInvertSelection.triggered.connect(lambda :
                                                      self.speclib().invertSelection()
                                                      )
@@ -2308,7 +2314,19 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.actionAddAttribute.triggered.connect(self.onAddAttribute)
         self.actionRemoveAttribute.triggered.connect(self.onRemoveAttribute)
 
+        self.tableViewSpeclib.addActions([self.actionPanMapToSelectedRows, self.actionZoomMapToSelectedRows, self.actionDeleteSelected, self.actionToggleEditing])
         self.onEditingToggled()
+
+    def importSpeclib(self, path=None):
+        slib = None
+        if path is None:
+            slib = SpectralLibrary.readFromSourceDialog(self)
+        else:
+            slib = SpectralLibrary.readFrom(path)
+
+        if isinstance(slib, SpectralLibrary):
+            self.speclib().addSpeclib(slib)
+
 
     def speclib(self):
         return self.mSpeclib
