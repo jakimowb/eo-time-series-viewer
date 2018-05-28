@@ -257,8 +257,11 @@ class TestInit(unittest.TestCase):
 
 
 
+
+    def test_io(self):
         #sl1.plot()
 
+        sl1 = self.createSpeclib()
         tempDir = tempfile.gettempdir()
         pathESL = tempfile.mktemp(prefix='speclib.', suffix='.esl')
         pathCSV = tempfile.mktemp(prefix='speclib.', suffix='.csv')
@@ -274,41 +277,43 @@ class TestInit(unittest.TestCase):
         self.assertIsInstance(sl1b, SpectralLibrary)
         self.assertEqual(sl1, sl1b)
 
-
+        #!!! clear clipboard
+        QApplication.clipboard().setMimeData(QMimeData())
         #test ENVI Spectral Library
-        try:
-            writtenFiles = sl1.exportProfiles(pathESL)
-        except Exception as ex:
-            self.fail('Unable to write ESL. {}'.format(ex))
-        for f in writtenFiles:
-            self.assertTrue(os.path.isfile(f))
-            try:
-                self.assertTrue(EnviSpectralLibraryIO.canRead(f))
-                sl = EnviSpectralLibraryIO.readFrom(f)
-                self.assertIsInstance(sl, SpectralLibrary)
-                sl = SpectralLibrary.readFrom(f)
-            except Exception as ex:
-                self.fail('Failed SpectralLibrary.readFrom(p) p = {}\n{}'.format(f, ex))
-            self.assertIsInstance(sl, SpectralLibrary)
 
-        try:
-            writtenFiles = sl1.exportProfiles(pathCSV)
-            self.assertIsInstance(writtenFiles, list)
-            for f in writtenFiles:
-                try:
-                    sl1 = SpectralLibrary.readFrom(f)
-                except Exception as ex:
-                    self.fail('Unable to read CSV. {}'.format(ex))
+        writtenFiles = EnviSpectralLibraryIO.write(sl1, pathESL)
+        n = 0
+        for path in writtenFiles:
+            self.assertTrue(os.path.isfile(path))
 
-        except Exception as ex:
-            self.fail('Unable to write CSV. {}'.format(ex))
+            self.assertTrue(EnviSpectralLibraryIO.canRead(path))
+            sl_read1 = EnviSpectralLibraryIO.readFrom(path)
+            self.assertIsInstance(sl_read1, SpectralLibrary)
+            sl_read2 = SpectralLibrary.readFrom(path)
+            self.assertIsInstance(sl_read2, SpectralLibrary)
+            self.assertEqual(sl_read1, sl_read2)
+            n += len(sl_read1)
+        self.assertEqual(len(sl1) - 1, n ) #-1 because of a missing data profile
+
+        writtenFiles = sl1.exportProfiles(pathCSV)
+        self.assertIsInstance(writtenFiles, list)
+        n = 0
+        for path in writtenFiles:
+            self.assertTrue(CSVSpectralLibraryIO.canRead(path))
+            sl_read1 = CSVSpectralLibraryIO.readFrom(path)
+            sl_read2 = SpectralLibrary.readFrom(path)
+
+            self.assertIsInstance(sl_read1, SpectralLibrary)
+            self.assertIsInstance(sl_read2, SpectralLibrary)
+            self.assertEqual(sl_read1, sl_read2)
+            n += len(sl_read1)
+        self.assertEqual(n, len(sl1))
 
 
 
 
 
         self.SPECLIB = sl1
-
 
 
     def test_mergeSpeclibs(self):
@@ -368,6 +373,8 @@ class TestInit(unittest.TestCase):
         namef = fmodel.data(idx0f, Qt.DisplayRole)
         named = dmodel.data(idx0d, Qt.DisplayRole)
         self.assertEqual(namef, named)
+
+
 
 
     def test_speclibTableView(self):

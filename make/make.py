@@ -618,7 +618,7 @@ if __name__ == '__main__':
         #file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png')
         file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.svg')
 
-    if True:
+    if False:
         checkFileHeader()
         exit()
 

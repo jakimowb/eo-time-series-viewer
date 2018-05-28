@@ -848,7 +848,7 @@ class TemporalProfile(QObject):
             pi = TemporalProfilePlotDataItem(plotStyle)
             pi.setClickable(True)
             pw = pg.plot(title=self.name())
-            pw.getPlotItem().addItem(pi)
+            pw.plotItem().addItem(pi)
             pi.setColor('green')
             pg.QAPP.exec_()
 

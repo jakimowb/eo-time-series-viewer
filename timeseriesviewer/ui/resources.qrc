@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/profile2speclib_auto.svg</file>
     <file>icons/mActionAddOgrLayer.svg</file>
     <file>icons/mapCenterExport.svg</file>
     <file>icons/mapCenterImport.svg</file>
@@ -43,8 +44,8 @@
     <file>icons/mActionIdentify.svg</file>
     <file>icons/mActionOpenTable.svg</file>
     <file>icons/mActionPan.svg</file>
-    <file>icons/mActionRefresh.png</file>
     <file>icons/mActionRemove.svg</file>
+    <file>icons/mActionRefresh.svg</file>
     <file>icons/mActionRemoveMapView.svg</file>
     <file>icons/mActionRemoveTS.svg</file>
     <file>icons/mActionRemoveTSD.svg</file>
