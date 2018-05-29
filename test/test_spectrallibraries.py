@@ -322,7 +322,6 @@ class TestInit(unittest.TestCase):
         fieldName = 'newField'
         sp.setMetadata(fieldName, 'foo', addMissingFields=True)
         sl = SpectralLibrary()
-
         sl.startEditing()
         sl.addAttribute(createQgsField(fieldName, ''))
         sl.commitChanges()
@@ -331,17 +330,19 @@ class TestInit(unittest.TestCase):
         sl = SpectralLibrary()
         sl.addProfiles(sp)
 
-
         sl = SpectralLibrary()
         self.assertTrue(fieldName not in sl.fieldNames())
+        self.assertTrue(len(sl) == 0)
         sl.addProfiles(sp, addMissingFields=False)
         self.assertTrue(fieldName not in sl.fieldNames())
+        self.assertTrue(len(sl) == 1)
 
 
         sl = SpectralLibrary()
         self.assertTrue(fieldName not in sl.fieldNames())
         sl.addProfiles(sp, addMissingFields=True)
         self.assertTrue(fieldName in sl.fieldNames())
+        self.assertTrue(len(sl) == 1)
         p = sl[0]
         self.assertIsInstance(p, SpectralProfile)
         self.assertEqual(p.metadata(fieldName), sp.metadata(fieldName))
@@ -383,10 +384,31 @@ class TestInit(unittest.TestCase):
         v.show()
 
     def test_speclibWidget(self):
+
+        speclib = self.createSpeclib()
         p = SpectralLibraryWidget()
-        p.addSpeclib(self.SPECLIB)
+        p.addSpeclib(speclib)
         p.show()
 
+        self.assertEqual(p.speclib(), speclib)
+
+        p = SpectralLibraryWidget()
+        p.show()
+
+        cs = [speclib[0], speclib[3], speclib[-1]]
+        p.setAddCurrentSpectraToSpeclibMode(False)
+        p.setCurrentSpectra(cs)
+        self.assertTrue(len(p.speclib()) == 0)
+        p.addCurrentSpectraToSpeclib()
+        self.assertTrue(len(p.speclib()) == len(cs))
+        self.assertEqual(p.speclib()[:], cs)
+
+        p.speclib().removeProfiles(p.speclib()[:])
+        self.assertTrue(len(p.speclib()) == 0)
+
+        p.setAddCurrentSpectraToSpeclibMode(True)
+        p.setCurrentSpectra(cs)
+        self.assertTrue(len(p.speclib()) == len(cs))
 
     def test_plotWidget(self):
 

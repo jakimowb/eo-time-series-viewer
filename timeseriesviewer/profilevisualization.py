@@ -1389,7 +1389,7 @@ class SpectralTemporalVisualization(QObject):
             for plotStyle in plotStyles:
                 assert isinstance(plotStyle, PlotStyle)
                 for pi in plotStyle.mPlotItems:
-                    self.plot2D.getPlotItem().removeItem(pi)
+                    self.plot2D.plotItem().removeItem(pi)
 
         def on3DPlotStyleRemoved(plotStyles):
             toRemove = []
@@ -1526,7 +1526,7 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(pdi, TemporalProfilePlotDataItem)
         pdi.sigClicked.connect(self.onProfileClicked2D)
         pdi.sigPointsClicked.connect(self.onPointsClicked2D)
-        self.plot2D.getPlotItem().addItem(pdi)
+        self.plot2D.plotItem.addItem(pdi)
         #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
         #plotItem.addDataItem(pdi)
         #plotItem.plot().sigPlotChanged.emit(plotItem)
@@ -1952,11 +1952,11 @@ class SpectralTemporalVisualization(QObject):
                 plotSetting.temporalProfile().resetUpdatedFlag()
 
 
-        for i in self.plot2D.getPlotItem().dataItems:
+        for i in self.plot2D.plotItem.dataItems:
             i.updateItems()
 
 
-        notInit = [0, 1] == self.plot2D.getPlotItem().getAxis('bottom').range
+        notInit = [0, 1] == self.plot2D.plotItem.getAxis('bottom').range
         if notInit:
             x0 = x1 = None
             for plotSetting in self.plotSettingsModel2D:
@@ -1973,7 +1973,7 @@ class SpectralTemporalVisualization(QObject):
                         x1 = max(pdi.xData.max(), x1)
 
             if x0 is not None:
-                self.plot2D.getPlotItem().setXRange(x0, x1)
+                self.plot2D.plotItem().setXRange(x0, x1)
                 #self.plot2D.xAxisInitialized = True
 
     @QtCore.pyqtSlot()

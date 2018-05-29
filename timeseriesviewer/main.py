@@ -470,6 +470,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
 
+        from timeseriesviewer.spectrallibraries import createQgsField
+        newFields = QgsFields()
+        newFields.append(createQgsField('date', ''))
+        newFields.append(createQgsField('sensorname', ''))
+
+        D.dockSpectralLibrary.speclib().addMissingFields(newFields)
+        names = D.dockSpectralLibrary.speclib().fieldNames()
+        for name in ['sensorname', 'date']:
+            iFrom  = names.index(name)
+        D.dockSpectralLibrary.SLW.tableViewSpeclib.horizontalHeader().moveSection(iFrom, 1)
+
+        s = ""
 
     def initQGISConnection(self):
 
@@ -508,9 +520,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 for p in profiles:
                     assert isinstance(p, SpectralProfile)
                     p.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
-                    p.setMetadata(u'date', u'{}'.format(tsd.date))
-                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()))
-                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()))
+                    p.setMetadata(u'date', u'{}'.format(tsd.date), addMissingFields=True)
+                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()) , addMissingFields=True)
+                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()), addMissingFields=True)
 
             self.cntSpectralProfile += 1
             self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
