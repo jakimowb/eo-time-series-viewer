@@ -390,8 +390,8 @@
   </action>
   <action name="actionReload">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionDraw.svg</normaloff>:/images/themes/default/mActionDraw.svg</iconset>
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Reload the table</string>
