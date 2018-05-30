@@ -46,6 +46,13 @@ MARKERSYMBOLS = [Option('o', u'Circle'),
                  Option(None, u'No Symbol')
                  ]
 
+MARKERSYMBOLS2QGIS_SYMBOLS = dict()
+for o in MARKERSYMBOLS:
+    name = o.name()
+    name = name.replace(' ','_')
+    name = name.lower()
+    MARKERSYMBOLS2QGIS_SYMBOLS[o.value()] = name
+
 PENSTYLES = [Option(Qt.SolidLine, '___'),
              Option(Qt.DashLine, '_ _ _'),
              Option(Qt.DotLine, '. . .'),
@@ -168,7 +175,7 @@ class PlotStyle(QObject):
         state['linePen'] = s.readQVariant()
         state['markerPen'] = s.readQVariant()
         state['markerBrush'] = s.readQVariant()
-
+        state.pop('__pickleStateQByteArray__')
         self.__dict__.update(state)
 
 class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
@@ -361,7 +368,7 @@ class PlotStyleDialog(QgsDialog):
         Opens a CrosshairDialog.
         :param args:
         :param kwds:
-        :return: specified CrosshairStyle if accepted, else None
+        :return: specified PlotStyle if accepted, else None
         """
         d = PlotStyleDialog(*args, **kwds)
         d.exec_()

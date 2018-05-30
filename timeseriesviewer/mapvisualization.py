@@ -87,6 +87,7 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         #w = MapViewSensorSettings(sensor)
         w = MapViewRenderSettings(sensor)
+
         #sizePolicy = QSizePolicy(QSize)
         #w.ui.
         #l = self.renderSettingsLayout
@@ -1082,6 +1083,10 @@ class MapView(QObject):
     def setVectorLayerStyle(self, *args):
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             d = QgsRendererPropertiesDialog(self.mVectorLayer, QgsStyle.defaultStyle())
+
+            mc = self.mapCanvases()
+            if len(mc) > 0:
+                d.setMapCanvas(mc[0])
             d.exec_()
             s = ""
 
@@ -1135,11 +1140,17 @@ class MapView(QObject):
     def title(self):
         return self.ui.tbName.text()
 
-    def refreshMapView(self, *args):
+    def refreshMapView(self, sensor=None):
 
-        for renderSettings in self.mSensorViews.values():
-            assert isinstance(renderSettings, MapViewRenderSettings)
-            renderSettings.applyStyle()
+        if isinstance(sensor, SensorInstrument):
+            sensorSettings = [self.mSensorViews[sensor]]
+        else:
+            #update all sensors
+            sensorSettings = self.mSensorViews.values()
+
+        for renderSetting in sensorSettings:
+            assert isinstance(renderSetting, MapViewRenderSettings)
+            renderSetting.applyStyle()
 
         #for mapCanvas in self.mapCanvases():
         #    assert isinstance(mapCanvas, MapCanvas)
@@ -1248,6 +1259,7 @@ class MapView(QObject):
 
             #w.showSensorName(False)
             w = self.ui.addSensor(sensor)
+            w.sigRendererChanged.connect(lambda s=sensor : self.refreshMapView(sensor=s))
             #w.sigSensorRendererChanged.connect(self.onSensorRenderingChanged)
             self.mSensorViews[sensor] = w
             s  =""
@@ -1318,6 +1330,7 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
     LUT_RENDERER[QgsSingleBandGrayRenderer]=SingleBandGrayRendererWidget
     LUT_RENDERER[QgsPalettedRasterRenderer] = PalettedRendererWidget
 
+    sigRendererChanged = pyqtSignal()
     def __init__(self, sensor, parent=None):
         """Constructor."""
         super(MapViewRenderSettings, self).__init__(parent)
@@ -1724,8 +1737,11 @@ class DatumView(QObject):
         mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
         mapCanvas.blockSignals(True)
         mapCanvas.setMapView(mapView)
+
         mapCanvas.setTSD(self.TSD)
         self.registerMapCanvas(mapView, mapCanvas)
+
+
 
         # register MapCanvas on MV level
         mapView.registerMapCanvas(self.mSensor, mapCanvas)
@@ -1771,7 +1787,7 @@ class DatumView(QObject):
         assert isinstance(mapCanvas, MapCanvas)
         assert isinstance(mapView, MapView)
         self.mMapCanvases[mapView] = mapCanvas
-
+        mapCanvas.setVisible(mapView.isVisible())
 
 
         #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
@@ -2543,6 +2559,8 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         if isinstance(nextShown, MapView):
             self.setCurrentMapView(nextShown)
 
+        for mapView in mapViews:
+            self.sigMapViewAdded.emit(mapView)
 
     def updateButtons(self, *args):
         b = len(self.mMapViews) > 0
@@ -2566,7 +2584,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         mapView.sigShowProfiles.connect(self.sigShowProfiles)
         self.mMapViews.addMapView(mapView)
-        self.sigMapViewAdded.emit(mapView)
+        #self.sigMapViewAdded.emit(mapView)
         return mapView
 
 
@@ -2698,6 +2716,7 @@ if __name__ == '__main__':
     else:
 
         w = MapViewRenderSettings(TS.sensors()[0])
+
         w.show()
         w.setRasterRenderer(w.rasterRenderer())
         #renderer2 = w.rasterRenderer()

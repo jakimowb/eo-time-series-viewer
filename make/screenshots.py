@@ -55,7 +55,7 @@ assert isinstance(mv1, MapView)
 assert isinstance(mv2, MapView)
 mv1.setTitle('True Color')
 mv2.setTitle('Short-Wave IR')
-
+TSV.spatialTemporalVis.adjustScrollArea()
 #set True Color Bands
 for sensor in [sensorLS, sensorRE]:
     rendering = mv1.sensorWidget(sensor)
@@ -86,6 +86,9 @@ renderer.setGreenBand(4)
 renderer.setBlueBand(3)
 rendering.setRasterRenderer(renderer)
 
+mv1.refreshMapView()
+mv2.refreshMapView()
+
 center = TSV.TS.getMaxSpatialExtent().spatialCenter()
 from timeseriesviewer.mapcanvas import MapTools
 
@@ -94,13 +97,20 @@ TSV.onShowProfile(center, mv1.mapCanvases()[0], MapTools.CursorLocation)
 
 TSV.ui.dockSpectralLibrary.setAddCurrentSpectraToSpeclibMode(True)
 
+
 #collect exemplary profiles
+
+import random
+n = len(mv1.mapCanvases())
+dx = random.sample(range(-500, 500, 30), n)
+dy = random.sample(range(-500, 500, 20), n)
 for i, mc in enumerate(mv1.mapCanvases()):
 
+
+    coordinate = SpatialPoint(center.crs(), center.x()+dx[i], center.y() + dy[i])
     TSV.onShowProfile(center, mc, MapTools.SpectralProfile)
     if i == 10:
         break
-
 
 ps2D_LS_NDVI = TSV.spectralTemporalVis.createNewPlotStyle2D()
 ps2D_RE_NDVI = TSV.spectralTemporalVis.createNewPlotStyle2D()
@@ -173,6 +183,7 @@ for dockWidget in TSV.ui.findChildren(QDockWidget):
 
     if name == 'spectralLibraryPanel':
         dockWidget.resize(QSize(800, 250))
+
         makePNG(dockWidget, name)
 
     if name == 'temporalProfilePanel':

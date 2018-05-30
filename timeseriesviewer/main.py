@@ -51,12 +51,19 @@ from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 import numpy as np
 
 
+
 DEBUG = False
 
+from timeseriesviewer.spectrallibraries import createQgsField, createStandardFields
+import timeseriesviewer.spectrallibraries
 
-
-
-
+fields = [f for f in createStandardFields()]
+fields.insert(1, createQgsField('date', ''))
+fields.insert(2, createQgsField('sensorname', ''))
+standardFields = QgsFields()
+for field in fields:
+    standardFields.append(field)
+timeseriesviewer.spectrallibraries.createStandardFields = lambda: standardFields
 
 #ensure that required non-standard modules are available
 
@@ -469,8 +476,27 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(URL_DOCUMENTATION))
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
+        D.dockSpectralLibrary.SLW.setMapInteraction(True)
 
 
+        QgsProject.instance().addMapLayer(D.dockSpectralLibrary.speclib())
+
+        moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
+        moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+        reg = QgsGui.instance().mapLayerActionRegistry()
+        assert isinstance(reg, QgsMapLayerActionRegistry)
+        reg.addMapLayerAction(moveToFeatureCenter)
+        reg.setDefaultActionForLayer(D.dockSpectralLibrary.speclib(), moveToFeatureCenter)
+
+    def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
+        g = feature.geometry()
+        if isinstance(g, QgsGeometry):
+            c = g.centroid()
+            x, y = c.asPoint()
+            crs = layer.crs()
+            center = SpatialPoint(crs, x, y)
+            self.spatialTemporalVis.setSpatialCenter(center)
+            s = ""
     def initQGISConnection(self):
 
         self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
@@ -508,9 +534,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 for p in profiles:
                     assert isinstance(p, SpectralProfile)
                     p.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
-                    p.setMetadata(u'date', u'{}'.format(tsd.date))
-                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()))
-                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()))
+                    p.setMetadata(u'date', u'{}'.format(tsd.date), addMissingFields=True)
+                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()) , addMissingFields=True)
+                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()), addMissingFields=True)
 
             self.cntSpectralProfile += 1
             self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
