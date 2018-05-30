@@ -1118,6 +1118,7 @@ class TemporalProfileCollection(QAbstractTableModel):
     sigTemporalProfilesAdded = pyqtSignal(list)
     sigTemporalProfilesRemoved = pyqtSignal(list)
     sigMaxProfilesChanged = pyqtSignal(int)
+
     def __init__(self, ):
         super(TemporalProfileCollection, self).__init__()
         #self.sensorPxLayers = dict()
@@ -1130,11 +1131,13 @@ class TemporalProfileCollection(QAbstractTableModel):
         self.mcnName = 'Name'
         self.mColumNames = [self.mcnName, self.mcnLoaded, self.mcnCoordinate]
 
-        crs = QgsCoordinateReferenceSystem('EPSG:4862')
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
         uri = 'Point?crs={}&field=id:integer&field=name:string(120)'.format(crs.authid())
-        self.mLocations = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
-        symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
-        self.mLocations.renderer().setSymbol(symbol)
+        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+        self.mLocations = QgsVectorLayer(uri, 'Temporal Profile Locations', 'memory', lyrOptions)
+        #symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
+        #self.mLocations.renderer().setSymbol(symbol)
 
         self.TS = None
 
@@ -1292,10 +1295,10 @@ class TemporalProfileCollection(QAbstractTableModel):
                 self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
 
                 f = QgsFeature(self.mLocations.fields())
+                f.setGeometry(QgsGeometry.fromPointXY(temporalProfile.coordinate().toCrs(self.mLocations.crs())))
                 f.setFields(self.mLocations.fields())
                 f.setAttribute('id', QVariant(id))
                 f.setAttribute('name', QVariant(temporalProfile.name()))
-                f.setGeometry(QgsGeometry.fromPointXY(temporalProfile.coordinate()))
                 features.append(f)
 
 
@@ -1303,7 +1306,7 @@ class TemporalProfileCollection(QAbstractTableModel):
                 temporalProfile.sigNameChanged.connect(lambda: self.onUpdateName(temporalProfile))
                 i += 1
             self.mLocations.startEditing()
-            assert self.mLocations.dataProvider().addFeatures(features)
+            assert self.mLocations.addFeatures(features)
             assert self.mLocations.commitChanges()
             self.endInsertRows()
 
@@ -1379,8 +1382,10 @@ class TemporalProfileCollection(QAbstractTableModel):
                     key = list(d.keys())[list(d.values()).index(value)]
                     d.pop(key)
 
+            ids = []
             for temporalProfile in temporalProfiles:
                 assert isinstance(temporalProfile, TemporalProfile)
+                ids.append(temporalProfile.id())
                 idx = self.tp2idx(temporalProfile)
                 row = idx.row()
                 self.beginRemoveRows(QModelIndex(), row, row)
@@ -1392,6 +1397,11 @@ class TemporalProfileCollection(QAbstractTableModel):
                 self.endRemoveRows()
             self.sigTemporalProfilesRemoved.emit(temporalProfiles)
 
+            if len(ids) > 0:
+                assert self.mLocations.startEditing()
+                assert self.mLocations.selectByIds(ids)
+                assert self.mLocations.deleteSelectedFeatures()
+                assert self.mLocations.commitChanges()
 
     def connectTimeSeries(self, timeSeries):
         self.clear()

@@ -1362,6 +1362,9 @@ class SpectralTemporalVisualization(QObject):
 
         self.reset3DCamera()
 
+
+
+
         def onTemporalProfilesRemoved(removedProfiles):
             #set to valid temporal profile
 
@@ -1422,6 +1425,12 @@ class SpectralTemporalVisualization(QObject):
 
         self.initActions()
 
+    def profileLocationLayer(self):
+        """
+        Returns a QgsVectorLayer that is used to store profile coordinates.
+        :return:
+        """
+        return self.tpCollection.mLocations
 
     def onTemporalProfilesContextMenu(self, event):
         assert isinstance(event, QContextMenuEvent)

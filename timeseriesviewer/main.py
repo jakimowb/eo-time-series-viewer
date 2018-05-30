@@ -480,7 +480,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         QgsProject.instance().addMapLayer(D.dockSpectralLibrary.speclib())
-
+        QgsProject.instance().addMapLayer(self.spectralTemporalVis.profileLocationLayer())
         moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
         moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
         reg = QgsGui.instance().mapLayerActionRegistry()
