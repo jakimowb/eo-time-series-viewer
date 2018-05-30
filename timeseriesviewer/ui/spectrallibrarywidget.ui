@@ -524,6 +524,9 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/profile2speclib_auto.svg</normaloff>:/timeseriesviewer/icons/profile2speclib_auto.svg</iconset>

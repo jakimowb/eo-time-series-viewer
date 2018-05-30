@@ -352,9 +352,9 @@ if __name__ == '__main__':
     if False: sandboxQgisBridge()
     if False: sandboxGui()
 
-    if False: sandboxTestdata()
+    if True: sandboxTestdata()
     if False: sandboxDemo()
-    if True:
+    if False:
         import timeseriesviewer.spectrallibraries
         timeseriesviewer.spectrallibraries.__sandbox()
     #close QGIS

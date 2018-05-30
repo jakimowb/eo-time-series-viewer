@@ -51,12 +51,19 @@ from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 import numpy as np
 
 
+
 DEBUG = False
 
+from timeseriesviewer.spectrallibraries import createQgsField, createStandardFields
+import timeseriesviewer.spectrallibraries
 
-
-
-
+fields = [f for f in createStandardFields()]
+fields.insert(1, createQgsField('date', ''))
+fields.insert(2, createQgsField('sensorname', ''))
+standardFields = QgsFields()
+for field in fields:
+    standardFields.append(field)
+timeseriesviewer.spectrallibraries.createStandardFields = lambda: standardFields
 
 #ensure that required non-standard modules are available
 
@@ -469,20 +476,27 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(URL_DOCUMENTATION))
 
         D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
+        D.dockSpectralLibrary.SLW.setMapInteraction(True)
 
-        from timeseriesviewer.spectrallibraries import createQgsField
-        newFields = QgsFields()
-        newFields.append(createQgsField('date', ''))
-        newFields.append(createQgsField('sensorname', ''))
 
-        D.dockSpectralLibrary.speclib().addMissingFields(newFields)
-        names = D.dockSpectralLibrary.speclib().fieldNames()
-        for name in ['sensorname', 'date']:
-            iFrom  = names.index(name)
-        D.dockSpectralLibrary.SLW.tableViewSpeclib.horizontalHeader().moveSection(iFrom, 1)
+        QgsProject.instance().addMapLayer(D.dockSpectralLibrary.speclib())
 
-        s = ""
+        moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
+        moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+        reg = QgsGui.instance().mapLayerActionRegistry()
+        assert isinstance(reg, QgsMapLayerActionRegistry)
+        reg.addMapLayerAction(moveToFeatureCenter)
+        reg.setDefaultActionForLayer(D.dockSpectralLibrary.speclib(), moveToFeatureCenter)
 
+    def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
+        g = feature.geometry()
+        if isinstance(g, QgsGeometry):
+            c = g.centroid()
+            x, y = c.asPoint()
+            crs = layer.crs()
+            center = SpatialPoint(crs, x, y)
+            self.spatialTemporalVis.setSpatialCenter(center)
+            s = ""
     def initQGISConnection(self):
 
         self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))

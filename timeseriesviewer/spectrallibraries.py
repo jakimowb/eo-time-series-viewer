@@ -2534,7 +2534,7 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
             field = d.field()
             b = self.mSpeclib.isEditable()
             self.mSpeclib.startEditing()
-            self.mSpeclib.addAttribute(field)
+            self.mSpecli.addAttribute(field)
             saveEdits(self.mSpeclib, leaveEditable=b)
 
     def onRemoveAttribute(self):
@@ -2553,20 +2553,26 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         s  =""
 
 
-    def updateTableConfig(self):
+    def updateTableConfig(self, config = None):
         """
         Updates the QgsAttributeTableConfig, basically only to hide columns to be hidden.
         """
 
-        self.mTableConfig = QgsAttributeTableConfig()
-        self.mTableConfig.update(self.mSpeclib.fields())
+        if not isinstance(config, QgsAttributeTableConfig):
 
-        for i, columnConfig in enumerate(self.mTableConfig.columns()):
-            if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
-                self.mTableConfig.setColumnHidden(i, True)
-            if columnConfig.name == 'source':
-                self.mTableConfig.setColumnWidth(i, 25)
+            config = QgsAttributeTableConfig()
+            config.update(self.mSpeclib.fields())
 
+            for i, columnConfig in enumerate(config.columns()):
+                assert isinstance(columnConfig, QgsAttributeTableConfig.ColumnConfig)
+                hidden = columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX)
+                config.setColumnHidden(i, hidden)
+            #config.setActionWidgetVisible(False)
+            #self.mTableConfig.setColumnHidden(i, True)
+                #if columnConfig.name == 'source':
+                #    self.mTableConfig.setColumnWidth(i, 25)
+
+        self.mTableConfig = config
         self.mSpeclib.setAttributeTableConfig(self.mTableConfig)
         self.mFilterModel.setAttributeTableConfig(self.mTableConfig)
         #self.tableViewSpeclib.setAttributeTableConfig(self.mTableConfig)

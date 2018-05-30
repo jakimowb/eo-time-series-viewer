@@ -211,6 +211,8 @@ class TestInit(unittest.TestCase):
 
 
 
+
+
         self.assertIsInstance(sl1[0], SpectralProfile)
         self.assertEqual(sl1[0], sp1)
         self.assertEqual(sl1[1], sp2)
@@ -253,9 +255,6 @@ class TestInit(unittest.TestCase):
             self.assertTrue(sl[0].hasGeometry())
 
         self.assertTrue(len(sl3) == 2)
-
-
-
 
 
     def test_io(self):

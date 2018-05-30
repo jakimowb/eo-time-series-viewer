@@ -1973,7 +1973,7 @@ class SpectralTemporalVisualization(QObject):
                         x1 = max(pdi.xData.max(), x1)
 
             if x0 is not None:
-                self.plot2D.plotItem().setXRange(x0, x1)
+                self.plot2D.plotItem.setXRange(x0, x1)
                 #self.plot2D.xAxisInitialized = True
 
     @QtCore.pyqtSlot()
