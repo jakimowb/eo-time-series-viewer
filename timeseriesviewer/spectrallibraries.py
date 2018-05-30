@@ -24,6 +24,7 @@ import os, re, tempfile, pickle, copy, shutil, locale
 from collections import OrderedDict
 from qgis.core import *
 from qgis.gui import *
+from qgis.utils import qgsfunction
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -39,7 +40,7 @@ from osgeo import gdal, gdal_array
 from timeseriesviewer.utils import *
 from timeseriesviewer.virtualrasters import *
 from timeseriesviewer.models import *
-from timeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog
+from timeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog, MARKERSYMBOLS2QGIS_SYMBOLS
 import timeseriesviewer.mimedata as mimedata
 
 FILTERS = 'ENVI Spectral Library (*.esl *.sli);;CSV Table (*.csv)'
@@ -74,6 +75,50 @@ def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
     assert isinstance(pathOrDataset, gdal.Dataset)
 
     return pathOrDataset
+
+
+
+@qgsfunction(0, "Spectral Libraries")
+def plotStyleSymbolFillColor(values, feature, parent):
+    if isinstance(feature, QgsFeature):
+        i = feature.fieldNameIndex(HIDDEN_ATTRIBUTE_PREFIX+'style')
+        if i >= 0:
+            style = pickle.loads(feature.attribute(i))
+            if isinstance(style, PlotStyle):
+                r,g,b,a = style.markerBrush.color().getRgb()
+                return '{},{},{},{}'.format(r,g,b, a)
+
+    return None
+
+@qgsfunction(0, "Spectral Libraries")
+def plotStyleSymbol(values, feature, parent):
+    if isinstance(feature, QgsFeature):
+        i = feature.fieldNameIndex(HIDDEN_ATTRIBUTE_PREFIX+'style')
+        if i >= 0:
+            style = pickle.loads(feature.attribute(i))
+            if isinstance(style, PlotStyle):
+                symbol = style.markerSymbol
+
+                qgisSymbolString =  MARKERSYMBOLS2QGIS_SYMBOLS.get(symbol)
+                if isinstance(qgisSymbolString, str):
+                    return qgisSymbolString
+
+    return None
+
+@qgsfunction(0, "Spectral Libraries")
+def plotStyleSymbolSize(values, feature, parent):
+    if isinstance(feature, QgsFeature):
+        i = feature.fieldNameIndex(HIDDEN_ATTRIBUTE_PREFIX+'style')
+        if i >= 0:
+            style = pickle.loads(feature.attribute(i))
+            if isinstance(style, PlotStyle):
+                return style.markerSize
+    return None
+
+
+QgsExpression.registerFunction(plotStyleSymbolFillColor)
+QgsExpression.registerFunction(plotStyleSymbol)
+QgsExpression.registerFunction(plotStyleSymbolSize)
 
 
 #Lookup table for ENVI IDL DataTypes to GDAL Data Types
@@ -350,10 +395,15 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         assert isinstance(menu, QMenu)
         assert isinstance(index, QModelIndex)
 
-        featureIDs = self.mSelectionManager.selectedFeatureIds()
-        featureIndices = self.fidsToIndices(featureIDs)
-        if not isinstance(featureIDs, list):
-            s = ""
+        featureIDs = self.spectralLibrary().selectedFeatureIds()
+
+        if len(featureIDs) == 0 and index.isValid():
+            if isinstance(self.model(), QgsAttributeTableFilterModel):
+                index = self.model().mapToSource(index)
+                if index.isValid():
+                    featureIDs.append(self.model().sourceModel().feature(index).id())
+            elif isinstance(self.model(), QgsAttributeTableFilterModel):
+                featureIDs.append(self.model().feature(index).id())
 
 
 
@@ -434,7 +484,8 @@ class SpectralLibraryTableView(QgsAttributeTableView):
         refProfile = profiles[0]
         styleDefault = refProfile.style()
         refStyle = PlotStyleDialog.getPlotStyle(plotStyle=styleDefault)
-        refProfile.setStyle(refStyle)
+        if isinstance(refStyle, PlotStyle):
+            refProfile.setStyle(refStyle)
 
         iStyle = speclib.fields().indexFromName(HIDDEN_ATTRIBUTE_PREFIX+'style')
         assert iStyle >= 0

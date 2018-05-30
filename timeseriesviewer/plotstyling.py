@@ -46,6 +46,13 @@ MARKERSYMBOLS = [Option('o', u'Circle'),
                  Option(None, u'No Symbol')
                  ]
 
+MARKERSYMBOLS2QGIS_SYMBOLS = dict()
+for o in MARKERSYMBOLS:
+    name = o.name()
+    name = name.replace(' ','_')
+    name = name.lower()
+    MARKERSYMBOLS2QGIS_SYMBOLS[o.value()] = name
+
 PENSTYLES = [Option(Qt.SolidLine, '___'),
              Option(Qt.DashLine, '_ _ _'),
              Option(Qt.DotLine, '. . .'),

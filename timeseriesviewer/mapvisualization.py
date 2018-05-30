@@ -1083,6 +1083,10 @@ class MapView(QObject):
     def setVectorLayerStyle(self, *args):
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             d = QgsRendererPropertiesDialog(self.mVectorLayer, QgsStyle.defaultStyle())
+
+            mc = self.mapCanvases()
+            if len(mc) > 0:
+                d.setMapCanvas(mc[0])
             d.exec_()
             s = ""
 
@@ -1736,6 +1740,8 @@ class DatumView(QObject):
 
         mapCanvas.setTSD(self.TSD)
         self.registerMapCanvas(mapView, mapCanvas)
+
+
 
         # register MapCanvas on MV level
         mapView.registerMapCanvas(self.mSensor, mapCanvas)
