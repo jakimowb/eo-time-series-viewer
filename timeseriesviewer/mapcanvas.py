@@ -500,6 +500,7 @@ class MapCanvas(QgsMapCanvas):
 
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
+        scope = self.expressionContextScope()
 
     def setTSD(self, tsd):
         from timeseriesviewer.timeseries import TimeSeriesDatum
@@ -507,6 +508,13 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(tsd, TimeSeriesDatum)
         self.mTSD = tsd
 
+        scope = self.expressionContextScope()
+        scope.setVariable('map_date', str(tsd.date), isStatic=True)
+        scope.setVariable('map_doy', tsd.doy, isStatic=True)
+        scope.setVariable('map_sensor', tsd.sensor.name(), isStatic=False)
+        tsd.sensor.sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
+
+        s = ""
 
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
