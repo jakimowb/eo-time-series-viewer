@@ -146,7 +146,7 @@
           </sizepolicy>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>2</number>
          </property>
          <widget class="QWidget" name="page2D">
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -352,7 +352,7 @@
                  <property name="title">
                   <string>Data Value(s)</string>
                  </property>
-                 <property name="collapsed">
+                 <property name="collapsed" stdset="0">
                   <bool>true</bool>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_8">

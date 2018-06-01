@@ -18,7 +18,8 @@ from qgis.gui import *
 from PyQt5.QtGui import QIcon
 import example.Images
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
-from timeseriesviewer.temporalprofiles2d import TemporalProfile, saveTemporalProfiles
+from timeseriesviewer.temporalprofiles2d import *
+from timeseriesviewer.profilevisualization import *
 from timeseriesviewer.utils import *
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
@@ -46,14 +47,14 @@ class testclassUtilityTests(unittest.TestCase):
 
         center = self.TS.getMaxSpatialExtent().spatialCenter()
 
+        lyr = TemporalProfileLayer(self.TS)
+        tp = lyr.createTemporalProfiles(center)[0]
 
-        tp = TemporalProfile(self.TS, center)
+
         self.assertIsInstance(tp, TemporalProfile)
-        tp.setName('TestName')
-        self.assertEqual(tp.name(), 'TestName')
         tp.loadMissingData(False)
         temporalProfiles = [tp]
-        temporalProfiles.append(TemporalProfile(self.TS, SpatialPoint(center.crs(), center.x() - 50, center.y() + 50)))
+        temporalProfiles.extend(lyr.createTemporalProfiles((SpatialPoint(center.crs(), center.x() - 50, center.y() + 50))))
 
         for tp in temporalProfiles:
             tp.loadMissingData()
@@ -80,6 +81,72 @@ class testclassUtilityTests(unittest.TestCase):
         lyr = ds.GetLayer(0)
         self.assertIsInstance(lyr, ogr.Layer)
         #self.assertEqual(lyr.GetFeatureCount(), len(lines)-1)
+
+    def test_temporalProfileLayer(self):
+
+        col = TemporalProfileLayer(self.TS)
+
+        extent = self.TS.getMaxSpatialExtent()
+        center = extent.spatialCenter()
+
+        point1 = SpatialPoint(center.crs(), center.x(), center.y() )
+        point2 = SpatialPoint(center.crs(), center.x()+30, center.y()-30 )
+        tps = col.createTemporalProfiles([point1, point1, point2])
+
+        self.assertTrue(len(col) == 3)
+        self.assertIsInstance(tps, list)
+        self.assertTrue(len(tps) == 3)
+        for tp in tps:
+            self.assertIsInstance(tp, TemporalProfile)
+        tp1, tp2, tp3 = tps
+
+        self.assertIsInstance(tp1.geometry(), QgsGeometry)
+        self.assertEqual(tp1.geometry().asWkb(), tp2.geometry().asWkb())
+        self.assertNotEqual(tp1.geometry().asWkb(), tp3.geometry().asWkb())
+
+        self.assertIsInstance(tp1.coordinate(), SpatialPoint)
+        self.assertEqual(tp1.coordinate(), tp2.coordinate())
+        col.removeTemporalProfiles([tp1])
+        self.assertTrue(len(col) == 2)
+
+        self.assertEqual(tp2, col[0])
+
+        tp = col.fromSpatialPoint(tp2.coordinate())
+        self.assertIsInstance(tp, TemporalProfile)
+        self.assertEqual(tp, tp2)
+
+
+    def test_widgets(self):
+
+        TS = self.TS
+        layer = TemporalProfileLayer(self.TS)
+
+        extent = self.TS.getMaxSpatialExtent()
+        center = extent.spatialCenter()
+
+        point1 = SpatialPoint(center.crs(), center.x(), center.y())
+        point2 = SpatialPoint(center.crs(), center.x() + 30, center.y() - 30)
+        point3 = SpatialPoint(center.crs(), center.x() + 30, center.y() + 30)
+        tps = layer.createTemporalProfiles([point1, point1, point2])
+
+        model = TemporalProfileTableModel(layer)
+        fmodel = TemporalProfileTableFilterModel(model)
+
+
+        self.assertEqual(model.rowCount(), 3)
+        self.assertEqual(fmodel.rowCount(), 3)
+        tv = TemporalProfileTableView()
+        tv.setModel(fmodel)
+        tv.show()
+
+        ui = ProfileViewDockUI()
+        ui.show()
+
+        svis = SpectralTemporalVisualization(ui)
+        svis.setTimeSeries(self.TS)
+        svis.loadCoordinate(point3)
+        s = ""
+
 
 if __name__ == "__main__":
     unittest.main()

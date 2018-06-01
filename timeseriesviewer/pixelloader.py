@@ -219,7 +219,11 @@ def doLoaderTask(task):
 
     for geom in task.geometries:
         crsRequest = osr.SpatialReference()
-        crsRequest.ImportFromWkt(geom.crs().toWkt())
+
+        if geom.crs().isValid():
+            crsRequest.ImportFromWkt(geom.crs().toWkt())
+        else:
+            crsRequest.ImportFromWkt(crsSrc.ExportToWkt())
         trans = osr.CoordinateTransformation(crsRequest, crsSrc)
 
         if isinstance(geom, QgsPointXY):

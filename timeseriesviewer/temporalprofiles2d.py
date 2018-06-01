@@ -25,11 +25,10 @@ import os, sys, pickle, datetime, re, collections
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
-from PyQt5.Qt import *
-from PyQt5.QtCore import *
-from PyQt5.QtXml import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from qgis.PyQt.Qt import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph import functions as fn
@@ -44,6 +43,8 @@ LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
 DEBUG = False
 OPENGL_AVAILABLE = False
+
+DEFAULT_CRS = QgsCoordinateReferenceSystem('EPSG:4326')
 
 try:
     import OpenGL
@@ -189,7 +190,7 @@ def saveTemporalProfiles(profiles, path, mode='all', sep=',', loadMissingValues=
 
         for nP, p in enumerate(profiles):
             assert isinstance(p, TemporalProfile)
-            lines.append('Profile {} "{}": {}'.format(p.mID, p.name(), p.mCoordinate))
+            lines.append('Profile {} "{}": {}'.format(p.mID, p.name(), p.coordinate()))
             assert isinstance(p, TemporalProfile)
             c = p.coordinate()
             for i, tsd in enumerate(p.mTimeSeries):
@@ -230,7 +231,7 @@ def saveTemporalProfiles(profiles, path, mode='all', sep=',', loadMissingValues=
         dsMEM = drvMEM.CreateDataSource('')
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
-        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        crs = DEFAULT_CRS
         assert isinstance(dsMEM, ogr.DataSource)
         #lines.append(sep.join(['pid', 'name', 'date', 'img', 'location', 'band values']))
         lyr = dsMEM.CreateLayer(os.path.basename(path), srs, ogr.wkbPoint)
@@ -261,7 +262,7 @@ def saveTemporalProfiles(profiles, path, mode='all', sep=',', loadMissingValues=
                 feature.SetField('pid', p.id())
                 feature.SetField('name', p.name())
                 feature.SetField('date', str(tsd.date))
-                feature.SetField('doy', tsd.doy)
+                feature.SetField('doy', int(tsd.doy))
 
                 feature.SetField('img', tsd.pathImg)
                 feature.SetField('lon', c.x())
@@ -703,35 +704,30 @@ class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
 
 class TemporalProfile(QObject):
 
-    _mNextID = 0
-    @staticmethod
-    def nextID():
-        n = TemporalProfile._mNextID
-        TemporalProfile._mNextID += 1
-        return n
 
     sigNameChanged = pyqtSignal(str)
     sigDataChanged = pyqtSignal()
 
-    def __init__(self, timeSeries, spatialPoint):
+    def __init__(self, layer, fid):
         super(TemporalProfile, self).__init__()
-        assert isinstance(timeSeries, TimeSeries)
-        assert isinstance(spatialPoint, SpatialPoint)
+        assert isinstance(layer, TemporalProfileLayer)
+        assert fid >= 0
 
-        self.mTimeSeries = timeSeries
-        self.mCoordinate = spatialPoint
-        self.mID = TemporalProfile.nextID()
+        self.mID = fid
+        self.mLayer = layer
+        self.mTimeSeries = layer.timeSeries()
         self.mData = {}
         self.mUpdated = False
-        self.mName = 'Location {}'.format(self.mID)
-
         self.mLoaded = self.mLoadedMax = self.mNoData = 0
         self.initMetadata()
         self.updateLoadingStatus()
 
+    def __hash__(self):
+        return hash('{}{}'.format(self.mID, self.mLayer.layerId()))
+
     def __eq__(self, other):
         """
-        Two temporal profiles are equal if they point to the same geometry
+        Two temporal profiles are equal if they have the same feature id and source layer
         :param other:
         :return:
         """
@@ -739,13 +735,37 @@ class TemporalProfile(QObject):
         if not isinstance(other, TemporalProfile):
             return False
 
-        return other.mCoordinate == self.mCoordinate
+        return other.mID == self.mID and self.mLayer == other.mLayer
+
+    def geometry(self):
+        return self.mLayer.getFeature(self.mID).geometry()
 
     def coordinate(self):
-        return self.mCoordinate
+        x,y = self.geometry().asPoint()
+        return SpatialPoint(self.mLayer.crs(), x,y)
 
     def id(self):
+        """Feature ID in connected QgsVectorLayer"""
         return self.mID
+
+    def attribute(self, key):
+        f = self.mLayer.getFeature(self.mID)
+        return f.attribute(f.fieldNameIndex(key))
+
+    def setAttribute(self, key, value):
+        f = self.mLayer.getFeature(self.mID)
+        f.setAttribute(f.fieldNameIndex(key), value)
+
+        b = self.mLayer.isEditable()
+        self.mLayer.startEditing()
+        self.mLayer.updateFeature(f)
+        self.mLayer.saveEdits(leaveEditable=b)
+
+    def name(self):
+        return self.attribute('name')
+
+    def setName(self, name:str):
+        self.setAttribute('name', name)
 
     def data(self):
         return self.mData
@@ -800,7 +820,7 @@ class TemporalProfile(QObject):
             missingIndices = self.missingBandIndices(tsd)
 
             if len(missingIndices) > 0:
-                task = PixelLoaderTask(tsd.pathImg, [self.mCoordinate],
+                task = PixelLoaderTask(tsd.pathImg, [self.coordinate()],
                                        bandIndices=missingIndices,
                                        temporalProfileIDs=[self.mID])
                 tasks.append(task)
@@ -824,15 +844,6 @@ class TemporalProfile(QObject):
         requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.sensor.nb]
         existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
         return [i for i in requiredIndices if i not in existingBandIndices]
-
-
-    def setName(self, name):
-        if name != self.mName:
-            self.mName = name
-            self.sigNameChanged.emit(self.mName)
-
-    def name(self):
-        return self.mName
 
 
     def plot(self):
@@ -975,7 +986,7 @@ class TemporalProfile(QObject):
         return tsd in self.mData.keys()
 
     def __repr__(self):
-        return 'TemporalProfile {}'.format(self.mCoordinate)
+        return 'TemporalProfile {}'.format(self.mID)
 
 
 class TemporalProfilePlotDataItem(pg.PlotDataItem):
@@ -1105,7 +1116,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
 
 
-class TemporalProfileCollection(QAbstractTableModel):
+class TemporalProfileLayer(QgsVectorLayer):
     """
     A collection to store the TemporalProfile data delivered by a PixelLoader
     """
@@ -1119,215 +1130,159 @@ class TemporalProfileCollection(QAbstractTableModel):
     sigTemporalProfilesRemoved = pyqtSignal(list)
     sigMaxProfilesChanged = pyqtSignal(int)
 
-    def __init__(self, ):
-        super(TemporalProfileCollection, self).__init__()
-        #self.sensorPxLayers = dict()
-        #self.memLyrCrs = QgsCoordinateReferenceSystem('EPSG:4326')
-        self.newDataFlag = False
-
-        self.mcnID = 'id'
-        self.mcnCoordinate = 'Coordinate'
-        self.mcnLoaded = 'Loading'
-        self.mcnName = 'Name'
-        self.mColumNames = [self.mcnName, self.mcnLoaded, self.mcnCoordinate]
-
+    def __init__(self, timeSeries, name='Temporal Profiles'):
 
         crs = QgsCoordinateReferenceSystem('EPSG:4326')
-        uri = 'Point?crs={}&field=id:integer&field=name:string(120)'.format(crs.authid())
+        uri = 'Point?crs={}'.format(crs.authid())
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
-        self.mLocations = QgsVectorLayer(uri, 'Temporal Profile Locations', 'memory', lyrOptions)
+        super(TemporalProfileLayer, self).__init__(uri, name, 'memory', lyrOptions)
+
+        from collections import  OrderedDict
+        self.mProfiles = OrderedDict()
+        self.mTimeSeries = timeSeries
         #symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
         #self.mLocations.renderer().setSymbol(symbol)
-
-        self.TS = None
-
-
-
-
-        self.mTemporalProfiles = []
-        self.mTPLookupSpatialPoint = {}
-        self.mTPLookupID = {}
-        self.mCurrentTPID = 0
+        self.mNextID = 1
         self.mMaxProfiles = 64
+        self.TS = None
+        from timeseriesviewer.spectrallibraries import createQgsField
+        fields = QgsFields()
+        fields.append(createQgsField('name',''))
+        fields.append(createQgsField('lon', 0.0, comment='Longitude'))
+        fields.append(createQgsField('lat', 0.0, comment='Latitude'))
+        fields.append(createQgsField('loaded',0, comment='Band values loaded'))
+        fields.append(createQgsField('no data',0, comment='Total number of no data values'))
+        fields.append(createQgsField('total',0, comment='Total number of band values'))
+        fields.append(createQgsField('progress',0.0, comment='Loading progress (%)'))
+        assert self.startEditing()
+        assert self.dataProvider().addAttributes(fields)
+        assert self.commitChanges()
+        self.initConditionalStyles()
 
-        self.nextID = 0
-
-    def __len__(self):
-        return len(self.mTemporalProfiles)
-
-    def __iter__(self):
-        return iter(self.mTemporalProfiles)
+        self.committedFeaturesAdded.connect(self.onFeaturesAdded)
+        self.committedFeaturesRemoved.connect(self.onFeaturesRemoved)
 
     def __getitem__(self, slice):
-        return self.mTemporalProfiles[slice]
+        return list(self.mProfiles.values())[slice]
 
-    def __contains__(self, item):
-        return item in self.mTemporalProfiles
-
-    def rowCount(self, parent=None, *args, **kwargs):
-        return len(self.mTemporalProfiles)
-
-    def columnCount(self, QModelIndex_parent=None, *args, **kwargs):
-        return len(self.mColumNames)
-
-    def idx2tp(self, index):
-        if index.isValid() and index.row() < len(self.mTemporalProfiles) :
-            return self.mTemporalProfiles[index.row()]
-        return None
-
-    def tp2idx(self, temporalProfile):
-        assert isinstance(temporalProfile, TemporalProfile)
-
-        if temporalProfile in self.mTemporalProfiles:
-            row = self.mTemporalProfiles.index(temporalProfile)
-            return self.createIndex(row, 0)
-        else:
-            return QModelIndex()
-
-    def data(self, index, role = Qt.DisplayRole):
-        if role is None or not index.isValid():
-            return None
-
-        value = None
-        columnName = self.mColumNames[index.column()]
-        TP = self.idx2tp(index)
-        if not isinstance(TP, TemporalProfile):
-            return None
-        #self.mColumNames = ['id','coordinate','loaded']
-        if role == Qt.DisplayRole:
-            if columnName == self.mcnID:
-                value = TP.mID
-            elif columnName == self.mcnName:
-                value = TP.name()
-            elif columnName == self.mcnCoordinate:
-                value = '{}'.format(TP.mCoordinate)
-            elif columnName == self.mcnLoaded:
-                nIs, nNoData, nMax = TP.loadingStatus()
-                if nMax > 0:
-                    value = '{}/{}/{} ({:0.2f} %)'.format(nIs, nNoData, nMax, float(nIs+nNoData) / nMax * 100)
-        elif role == Qt.EditRole:
-            if columnName == self.mcnName:
-                value = TP.name()
-        elif role == Qt.ToolTipRole:
-            if columnName == self.mcnID:
-                value = 'ID Temporal Profile'
-            elif columnName == self.mcnName:
-                value = TP.name()
-            elif columnName == self.mcnCoordinate:
-                value = 'Coordinate: {}'.format(TP.mCoordinate)
-            elif columnName == self.mcnLoaded:
-                nIs, nNoData, nMax = TP.loadingStatus()
-                value = 'Band-pixels: {} loaded, {} no-data, {} total'.format(nIs, nNoData, nMax)
-        elif role == Qt.UserRole:
-            value = TP
-
-        return value
-
-    def flags(self, index):
-        if index.isValid():
-            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
-            cName = self.mColumNames[index.column()]
-            if cName == self.mcnName:
-                flags = flags | Qt.ItemIsEditable
-
-            return flags
-            #return item.qt_flags(index.column())
-        return None
+    def timeSeries(self):
+        return self.mTimeSeries
 
 
-    def setData(self, index, value, role=None):
-        if role is None or not index.isValid():
-            return None
+    def onFeaturesAdded(self, layerID, addedFeatures):
 
-        cName = self.mColumNames[index.column()]
-        TP = self.idx2tp(index)
-        if isinstance(TP, TemporalProfile):
-            if role == Qt.EditRole and cName == self.mcnName:
-                if len(value) == 0: #do not accept empty strings
-                    return False
-                else:
-                    TP.setName(value)
-                return True
+        if len(addedFeatures) > 0:
 
-        return False
+            temporalProfiles = []
+            for feature in addedFeatures:
+                fid = feature.id()
+                tp = TemporalProfile(self, fid)
 
-
-    def headerData(self, col, orientation, role):
-        if Qt is None:
-            return None
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                return self.mColumNames[col]
-            elif orientation == Qt.Vertical:
-                return col
-        return None
-
-    def insertTemporalProfiles(self, temporalProfiles, i=None):
-        if isinstance(temporalProfiles, TemporalProfile):
-            temporalProfiles = [temporalProfiles]
-
-        assert isinstance(temporalProfiles, list)
-        for temporalProfile in temporalProfiles:
-            assert isinstance(temporalProfile, TemporalProfile)
-
-        if i is None:
-            i = len(self.mTemporalProfiles)
-
-        temporalProfiles = [t for t in temporalProfiles if t not in self]
-        l = len(temporalProfiles)
-
-        if l > 0:
-
-            #remove older profiles
-            self.prune(nMax=self.mMaxProfiles - l)
-
-            self.beginInsertRows(QModelIndex(), i, i + l - 1)
-
-            features = []
-            for temporalProfile in temporalProfiles:
-                assert isinstance(temporalProfile, TemporalProfile)
-                id = self.nextID
-                self.nextID += 1
-                temporalProfile.mID = id
-                self.mTemporalProfiles.insert(i, temporalProfile)
-                self.mTPLookupID[id] = temporalProfile
-                self.mTPLookupSpatialPoint[temporalProfile.mCoordinate] = temporalProfile
-
-                f = QgsFeature(self.mLocations.fields())
-                f.setGeometry(QgsGeometry.fromPointXY(temporalProfile.coordinate().toCrs(self.mLocations.crs())))
-                f.setFields(self.mLocations.fields())
-                f.setAttribute('id', QVariant(id))
-                f.setAttribute('name', QVariant(temporalProfile.name()))
-                features.append(f)
-
-
-                temporalProfile.sigDataChanged.connect(lambda: self.onUpdate(temporalProfile))
-                temporalProfile.sigNameChanged.connect(lambda: self.onUpdateName(temporalProfile))
-                i += 1
-            self.mLocations.startEditing()
-            assert self.mLocations.addFeatures(features)
-            assert self.mLocations.commitChanges()
-            self.endInsertRows()
+                self.mProfiles[fid] = tp
+                temporalProfiles.append(tp)
 
             self.sigTemporalProfilesAdded.emit(temporalProfiles)
 
 
-    def temporalProfileFromGeometry(self, geometry):
-        if geometry in self.mTPLookupSpatialPoint.keys():
-            return self.mTPLookupSpatialPoint[geometry]
+    def onFeaturesRemoved(self,  layerID, removedFIDs):
+        if len(removedFIDs) > 0:
+
+            toRemove = []
+
+            for fid in removedFIDs:
+                toRemove.append(self.mProfiles.pop(fid))
+
+            self.sigTemporalProfilesRemoved(toRemove)
+
+
+    def initConditionalStyles(self):
+        styles = self.conditionalStyles()
+        assert isinstance(styles, QgsConditionalLayerStyles)
+
+        for fieldName in self.fields().names():
+            red = QgsConditionalStyle("@value is NULL")
+            red.setTextColor(QColor('red'))
+            styles.setFieldStyles(fieldName, [red])
+        styles.setRowStyles([red])
+
+
+    def createTemporalProfiles(self, coordinates):
+        """
+        Creates temporal profiles
+        :param coordinates:
+        :return:
+        """
+        if not isinstance(coordinates, list):
+            coordinates = [coordinates]
+
+        features = []
+
+        for i, coordinate in enumerate(coordinates):
+            assert isinstance(coordinate, SpatialPoint)
+
+            f = QgsFeature(self.fields())
+            f.setGeometry(QgsGeometry.fromPointXY(coordinate.toCrs(self.crs())))
+            f.setAttribute('name', 'Location {}'.format(self.mNextID))
+            self.mNextID += 1
+            features.append(f)
+
+        b = self.isEditable()
+        tps_before = list(self.mProfiles.values())
+        assert self.startEditing()
+        success = self.addFeatures(features)
+
+        self.saveEdits(leaveEditable=b)
+
+        if success:
+            return [tp for tp in self.mProfiles.values() if tp not in tps_before]
         else:
             return None
 
-    def temporalProfileFromID(self, id):
-        if id in self.mTPLookupID.keys():
-            return self.mTPLookupID[id]
-        else:
-            return None
 
-    def temporalProfileFromFeature(self, feature):
+    def saveEdits(self, leaveEditable=True, triggerRepaint=True):
+        """
+        function to save layer changes-
+        :param layer:
+        :param leaveEditable:
+        :param triggerRepaint:
+        """
+        if not self.isEditable():
+            return
+        if not self.commitChanges():
+            self.commitErrors()
 
-        return None
+        if leaveEditable:
+            self.startEditing()
+
+        if triggerRepaint:
+            self.triggerRepaint()
+
+    def addMissingFields(self, fields):
+        missingFields = []
+        for field in fields:
+            assert isinstance(field, QgsField)
+            i = self.dataProvider().fieldNameIndex(field.name())
+            if i == -1:
+                missingFields.append(field)
+        if len(missingFields) > 0:
+
+            b = self.isEditable()
+            self.startEditing()
+            self.dataProvider().addAttributes(missingFields)
+            self.saveEdits(leaveEditable=b)
+
+
+    def __len__(self):
+        return self.featureCount()
+
+    def __iter__(self):
+        r = QgsFeatureRequest()
+        for f in self.getFeatures(r):
+            yield self.mProfiles[f.id()]
+
+    def __contains__(self, item):
+        return item in self.mProfiles.values()
+
 
     def temporalProfileToLocationFeature(self, tp:TemporalProfile):
 
@@ -1338,29 +1293,23 @@ class TemporalProfileCollection(QAbstractTableModel):
 
         return None
 
-    def id(self, temporalProfile):
-        """
-        Returns the id of an TemporalProfile
-        :param temporalProfile: TemporalProfile
-        :return: id or None, inf temporalProfile is not part of this collections
-        """
-
-        for k, tp in self.mTPLookupID.items():
-            if tp == temporalProfile:
-                return k
-        return None
-
-    def fromID(self, id):
-        if id in self.mTPLookupID:
-            return self.mTPLookupID[id]
-        else:
-            return None
 
     def fromSpatialPoint(self, spatialPoint):
-        if spatialPoint in self.mTPLookupSpatialPoint:
-            return self.mTPLookupSpatialPoint[spatialPoint]
+        """ Tests if a Temporal Profile already exists for the given spatialPoint"""
+
+        spatialPoint = spatialPoint.toCrs(self.crs())
+        unit = QgsUnitTypes.toAbbreviatedString(self.crs().mapUnits()).lower()
+        x = spatialPoint.x() + 0.00001
+        y = spatialPoint.y() + 0.
+
+        if 'degree' in unit:
+            dx = dy = 0.000001
         else:
-            return None
+            dx = dy = 0.1
+        rect = QgsRectangle(x-dx,y-dy, x+dy,y+dy)
+        for f  in self.getFeatures(rect):
+            return self.mProfiles[f.id()]
+        return None
 
     def removeTemporalProfiles(self, temporalProfiles):
         """
@@ -1372,36 +1321,20 @@ class TemporalProfileCollection(QAbstractTableModel):
             temporalProfiles = [temporalProfiles]
         assert isinstance(temporalProfiles, list)
 
-        temporalProfiles = [tp for tp in temporalProfiles if isinstance(tp, TemporalProfile) and tp in self.mTemporalProfiles]
+        temporalProfiles = [tp for tp in temporalProfiles if isinstance(tp, TemporalProfile) and tp.id() in self.mProfiles.keys()]
 
         if len(temporalProfiles) > 0:
+            b = self.isEditable()
+            assert self.startEditing()
 
-            def deleteFromDict(d, value):
-                assert isinstance(d, dict)
-                if value in d.values():
-                    key = list(d.keys())[list(d.values()).index(value)]
-                    d.pop(key)
+            fids = [tp.mID for tp in temporalProfiles]
 
-            ids = []
-            for temporalProfile in temporalProfiles:
-                assert isinstance(temporalProfile, TemporalProfile)
-                ids.append(temporalProfile.id())
-                idx = self.tp2idx(temporalProfile)
-                row = idx.row()
-                self.beginRemoveRows(QModelIndex(), row, row)
-                self.mTemporalProfiles.remove(temporalProfile)
+            self.deleteFeatures(fids)
+            self.saveEdits(leaveEditable=b)
 
-                deleteFromDict(self.mTPLookupID, temporalProfile)
-                deleteFromDict(self.mTPLookupSpatialPoint,  temporalProfile)
-
-                self.endRemoveRows()
             self.sigTemporalProfilesRemoved.emit(temporalProfiles)
 
-            if len(ids) > 0:
-                assert self.mLocations.startEditing()
-                assert self.mLocations.selectByIds(ids)
-                assert self.mLocations.deleteSelectedFeatures()
-                assert self.mLocations.commitChanges()
+
 
     def connectTimeSeries(self, timeSeries):
         self.clear()
@@ -1445,7 +1378,8 @@ class TemporalProfileCollection(QAbstractTableModel):
 
         toRemove = len(self) - nMax
         if toRemove > 0:
-            toRemove = sorted(self[:], key=lambda p:p.mID)[0:toRemove]
+
+            toRemove = sorted(self[:], key=lambda p:p.id())[0:toRemove]
             self.removeTemporalProfiles(toRemove)
 
 
@@ -1467,55 +1401,12 @@ class TemporalProfileCollection(QAbstractTableModel):
 
         return QgsField(name, fType, fTypeName)
 
-    def onUpdate(self, tp):
-        assert isinstance(tp, TemporalProfile)
-
-        if tp in self.mTemporalProfiles:
-            idx0 = self.tp2idx(tp)
-            idx1 = self.createIndex(idx0.row(), self.columnCount())
-            self.dataChanged.emit(idx0, idx1, [Qt.DisplayRole])
-
-
-
-    def onUpdateName(self, tp):
-        assert isinstance(tp, TemporalProfile)
-
-        if tp in self.mTemporalProfiles:
-            idx0 = self.tp2idx(tp)
-            c = self.mColumNames.index(self.mcnName)
-            idx = self.createIndex(idx0.row(), c)
-            self.dataChanged.emit(idx, idx, [Qt.DisplayRole])
-
-            f = self.temporalProfileToLocationFeature(tp)
-
-            if isinstance(f, QgsFeature):
-                f.setAttribute('name', tp.name())
-
-
-    def sort(self, col, order):
-        if self.rowCount() == 0:
-            return
-
-        self.layoutAboutToBeChanged.emit()
-        colName = self.mColumNames[col]
-        r = order != Qt.AscendingOrder
-
-        if colName == self.mcnName:
-            self.mTemporalProfiles.sort(key = lambda TP:TP.name(), reverse=r)
-        elif colName == self.mcnCoordinate:
-            self.mTemporalProfiles.sort(key=lambda TP: str(TP.mCoordinate), reverse=r)
-        elif colName == self.mcnID:
-            self.mTemporalProfiles.sort(key=lambda TP: TP.mID, reverse=r)
-        elif colName == self.mcnLoaded:
-            self.mTemporalProfiles.sort(key=lambda TP: TP.loadingStatus(), reverse=r)
-        self.layoutChanged.emit()
-
 
     def addPixelLoaderResult(self, d):
         assert isinstance(d, PixelLoaderTask)
         if d.success():
-            for TPid in d.temporalProfileIDs:
-                TP = self.temporalProfileFromID(TPid)
+            for fid in d.temporalProfileIDs:
+                TP = self.mProfiles.get(fid)
                 if isinstance(TP, TemporalProfile):
                     TP.pullDataUpdate(d)
                 else:
@@ -1529,69 +1420,263 @@ class TemporalProfileCollection(QAbstractTableModel):
         pass
 
 
+class TemporalProfileTableFilterModel(QgsAttributeTableFilterModel):
 
-class TemporalProfileCollectionListModel(QAbstractListModel):
-
-
-    def __init__(self, temporalProfileCollection, *args, **kwds):
-
-        super(TemporalProfileCollectionListModel, self).__init__(*args, **kwds)
-        assert isinstance(temporalProfileCollection, TemporalProfileCollection)
-
-        self.mTPColl = temporalProfileCollection
-        self.mTPColl.rowsAboutToBeInserted.connect(self.rowsAboutToBeInserted)
-        self.mTPColl.rowsInserted.connect(self.rowsInserted.emit)
-        #self.mTPColl.rowsAboutToBeRemoved.connect(self.rowsAboutToBeRemoved)
-        self.mTPColl.rowsRemoved.connect(lambda : self.modelReset.emit())
-        self.mTPColl.dataChanged.connect(self.onDataChanged)
-
-    def onDataChanged(self, idx0, idx1, roles):
-        idx0r = self.createIndex(idx0.row(), idx0.column())
-        idx1r = self.createIndex(idx1.row(), idx1.column())
-
-        tp = self.idx2tp(idx0r)
-        assert isinstance(tp, TemporalProfile)
-        self.dataChanged.emit(idx0r, idx1r, roles)
+    def __init__(self, sourceModel, parent=None):
 
 
-    def idx2tp(self, *args, **kwds):
-        return self.mTPColl.idx2tp(*args, **kwds)
+        dummyCanvas = QgsMapCanvas()
+        dummyCanvas.setDestinationCrs(DEFAULT_CRS)
+        dummyCanvas.setExtent(QgsRectangle(-180,-90,180,90))
 
-    def tp2idx(self, *args, **kwds):
-        return self.mTPColl.tp2idx(*args, **kwds)
+        super(TemporalProfileTableFilterModel, self).__init__(dummyCanvas, sourceModel, parent=parent)
 
-    def flags(self, index):
-        if index.isValid():
-            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            return flags
-            #return item.qt_flags(index.column())
-        return Qt.NoItemFlags
+        self.mDummyCanvas = dummyCanvas
 
-    def rowCount(self, *args, **kwds):
-        return self.mTPColl.rowCount(*args, **kwds)
+        #self.setSelectedOnTop(True)
 
+
+
+class TemporalProfileTableModel(QgsAttributeTableModel):
+
+    #sigPlotStyleChanged = pyqtSignal(SpectralProfile)
+    #sigAttributeRemoved = pyqtSignal(str)
+    #sigAttributeAdded = pyqtSignal(str)
+
+    def __init__(self, temporalProfileLayer=None, parent=None):
+
+        if temporalProfileLayer is None:
+            temporalProfileLayer = TemporalProfileLayer()
+
+        cache = QgsVectorLayerCache(temporalProfileLayer, 1000)
+
+        super(TemporalProfileTableModel, self).__init__(cache, parent)
+        self.mTemporalProfileLayer = temporalProfileLayer
+        self.mCache = cache
+
+        assert self.mCache.layer() == self.mTemporalProfileLayer
+
+        self.loadLayer()
+
+    def columnNames(self):
+        return self.mTemporalProfileLayer.fields().names()
+
+    def feature(self, index):
+
+        id = self.rowToId(index.row())
+        f = self.layer().getFeature(id)
+
+        return f
+
+    def temporalProfile(self, index):
+        feature = self.feature(index)
+        return self.mTemporalProfileLayer.temporalProfileFromFeature(feature)
 
     def data(self, index, role=Qt.DisplayRole):
+        """
+        Returns Spectral Library data
+        Use column = 0 and Qt.CheckStateRole to return PlotStyle visibility
+        Use column = 0 and Qt.DecorationRole to return QIcon with PlotStyle preview
+        Use column = 0 and Qt.UserRole to return entire PlotStyle
+        :param index: QModelIndex
+        :param role: enum Qt.ItemDataRole
+        :return: value
+        """
         if role is None or not index.isValid():
             return None
 
+        result = super(TemporalProfileTableModel,self).data(index, role=role)
+
+        return result
 
 
-        TP = self.mTPColl.idx2tp(index)
-        value = None
-        if isinstance(TP, TemporalProfile):
-            if role == Qt.DisplayRole:
-                value = '{}'.format(TP.name())
-            elif role == Qt.ToolTipRole:
-                value = '#{} "{}" {}'.format(TP.mID, TP.name(), TP.mCoordinate)
-            elif role == Qt.UserRole:
-                value = TP
+    def supportedDragActions(self):
+        return Qt.CopyAction | Qt.MoveAction
+
+    def supportedDropActions(self):
+        return Qt.CopyAction | Qt.MoveAction
+
+
+    def supportedDragActions(self):
+        return Qt.CopyAction
+
+    def supportedDropActions(self):
+        return Qt.CopyAction
+
+    def flags(self, index):
+
+        if index.isValid():
+            columnName = self.columnNames()[index.column()]
+            flags = super(TemporalProfileTableModel, self).flags(index) | Qt.ItemIsSelectable
+            #if index.column() == 0:
+            #    flags = flags | Qt.ItemIsUserCheckable
+            return flags
+        return None
+
+
+class TemporalProfileFeatureSelectionManager(QgsIFeatureSelectionManager):
+
+
+    def __init__(self, layer, parent=None):
+        s =""
+        super(TemporalProfileFeatureSelectionManager, self).__init__(parent)
+        assert isinstance(layer, QgsVectorLayer)
+        self.mLayer = layer
+        self.mLayer.selectionChanged.connect(self.selectionChanged)
+
+    def layer(self):
+        return self.mLayer
+
+    def deselect(self, ids):
+
+        if len(ids) > 0:
+            selected = [id for id in self.selectedFeatureIds() if id not in ids]
+            self.mLayer.deselect(ids)
+
+            self.selectionChanged.emit(selected, ids, True)
+
+    def select(self, ids):
+        self.mLayer.select(ids)
+
+    def selectFeatures(self, selection, command):
+
+        super(TemporalProfileFeatureSelectionManager, self).selectF
+        s = ""
+    def selectedFeatureCount(self):
+        return self.mLayer.selectedFeatureCount()
+
+    def selectedFeatureIds(self):
+        return self.mLayer.selectedFeatureIds()
+
+    def setSelectedFeatures(self, ids):
+        self.mLayer.selectByIds(ids)
+
+
+
+class TemporalProfileTableView(QgsAttributeTableView):
+
+    def __init__(self, parent=None):
+        super(TemporalProfileTableView, self).__init__(parent)
+
+
+        #self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        #self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.horizontalHeader().setSectionsMovable(True)
+        self.willShowContextMenu.connect(self.onWillShowContextMenu)
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+
+
+        self.mSelectionManager = None
+
+    def setModel(self, filterModel):
+
+        super(TemporalProfileTableView, self).setModel(filterModel)
+
+
+        self.mSelectionManager = TemporalProfileFeatureSelectionManager(self.model().layer())
+        self.setFeatureSelectionManager(self.mSelectionManager)
+        #self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+
+
+    #def contextMenuEvent(self, event):
+    def onWillShowContextMenu(self, menu, index):
+        assert isinstance(menu, QMenu)
+        assert isinstance(index, QModelIndex)
+
+        featureIDs = self.spectralLibrary().selectedFeatureIds()
+
+        if len(featureIDs) == 0 and index.isValid():
+            if isinstance(self.model(), QgsAttributeTableFilterModel):
+                index = self.model().mapToSource(index)
+                if index.isValid():
+                    featureIDs.append(self.model().sourceModel().feature(index).id())
+            elif isinstance(self.model(), QgsAttributeTableFilterModel):
+                featureIDs.append(self.model().feature(index).id())
+
+
+
+        if len(featureIDs) > 0:
+            pass
+            #m = menu.addMenu('Copy...')
+            #a = m.addAction("Values")
+            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.VALUES: self.onCopy2Clipboard(ids, mode))
+            #a = m.addAction("Attributes")
+            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ATTRIBUTES: self.onCopy2Clipboard(ids, mode))
+            #a = m.addAction("Values + Attributes")
+            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ALL: self.onCopy2Clipboard(ids, mode))
+
+        a = menu.addAction('Save as...')
+        a.triggered.connect(lambda b, ids=featureIDs : self.onSaveToFile(ids))
+        menu.addSeparator()
+        #a = menu.addAction('Set Style')
+        #a.triggered.connect(lambda b, ids=featureIDs : self.onSetStyle(ids))
+        #a = menu.addAction('Check')
+        #a.triggered.connect(lambda : self.setCheckState(featureIDs, Qt.Checked))
+        #a = menu.addAction('Uncheck')
+        #a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
+        #menu.addSeparator()
+        for a in self.actions():
+            menu.addAction(a)
+
+    def temporalProfileLayer(self):
+        return self.model().layer()
+
+
+
+    def fidsToIndices(self, fids):
+        """
+        Converts feature ids into FilterModel QModelIndices
+        :param fids: [list-of-int]
+        :return:
+        """
+        if isinstance(fids, int):
+            fids = [fids]
+        assert isinstance(fids, list)
+        fmodel = self.model()
+        indices = [fmodel.fidToIndex(id) for id in fids]
+        return [fmodel.index(idx.row(), 0) for idx in indices]
+
+    def onRemoveFIDs(self, fids):
+
+        layer = self.temporalProfileLayer()
+        assert isinstance(layer, TemporalProfileLayer)
+        b = layer.isEditable()
+        layer.startEditing()
+        layer.deleteFeatures(fids)
+        layer.saveEdits(leaveEditable=b)
+
+
+    def dropEvent(self, event):
+        assert isinstance(event, QDropEvent)
+        mimeData = event.mimeData()
+
+        if self.model().rowCount() == 0:
+            index = self.model().createIndex(0,0)
         else:
-            if role == Qt.DisplayRole:
-                value = 'undefined'
-            elif role == Qt.ToolTipRole:
-                value = 'Please select a location to read the temporal profile from'
-        return value
+            index = self.indexAt(event.pos())
+
+        #if mimeData.hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+         #   self.model().dropMimeData(mimeData, event.dropAction(), index.row(), index.column(), index.parent())
+          #  event.accept()
+
+
+
+
+
+    def dragEnterEvent(self, event):
+        assert isinstance(event, QDragEnterEvent)
+        #if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+        #    event.accept()
+
+    def dragMoveEvent(self, event):
+        assert isinstance(event, QDragMoveEvent)
+        #if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+        #    event.accept()
+        s = ""
+
+
+    def mimeTypes(self):
+        pass
 
 
 if __name__ == '__main__':
@@ -1600,9 +1685,10 @@ if __name__ == '__main__':
     qgsApp = utils.initQgisApplication()
     DEBUG = False
 
-    w = TemporalProfile2DPlotStyle()
+
+
+    w = TemporalProfileTableView()
     w.show()
-    print(w.plotStyle())
 
     #btn = TemporalProfile3DPlotStyleButton()
     #btn.show()

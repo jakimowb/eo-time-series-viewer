@@ -677,7 +677,7 @@ class SpectralProfilePlotDataItem(PlotDataItem):
 
 class SpectralProfile(QgsFeature):
 
-    crs = QgsCoordinateReferenceSystem('EPSG:4689')
+    crs = QgsCoordinateReferenceSystem('EPSG:4326')
 
     @staticmethod
     def fromMapCanvas(mapCanvas, position):
@@ -2031,16 +2031,6 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
     #sigPlotStyleChanged = pyqtSignal(SpectralProfile)
     #sigAttributeRemoved = pyqtSignal(str)
     #sigAttributeAdded = pyqtSignal(str)
-
-    class ProfileWrapper(object):
-        def __init__(self, profile):
-            assert isinstance(profile, SpectralProfile)
-            self.profile = profile
-            self.style = QColor('white')
-            self.checkState = Qt.Unchecked
-
-        def id(self):
-            return self.profile.id()
 
     def __init__(self, speclib=None, parent=None):
 
