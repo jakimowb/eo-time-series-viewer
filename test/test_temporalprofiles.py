@@ -100,6 +100,7 @@ class testclassUtilityTests(unittest.TestCase):
             self.assertIsInstance(tp, TemporalProfile)
         tp1, tp2, tp3 = tps
 
+
         self.assertIsInstance(tp1.geometry(), QgsGeometry)
         self.assertEqual(tp1.geometry().asWkb(), tp2.geometry().asWkb())
         self.assertNotEqual(tp1.geometry().asWkb(), tp3.geometry().asWkb())
@@ -116,6 +117,16 @@ class testclassUtilityTests(unittest.TestCase):
         self.assertEqual(tp, tp2)
 
 
+        cb = QgsFeatureListComboBox()
+        cb.setSourceLayer(col)
+        cb.setIdentifierField(FN_ID)
+        cb.setIdentifierValue(tp.id())
+        cb.setDisplayExpression('to_string("id") + \'  \' + "name"')
+
+        cb.show()
+        s = ""
+        QGIS_APP.exec_()
+
     def test_widgets(self):
 
         TS = self.TS
@@ -127,25 +138,30 @@ class testclassUtilityTests(unittest.TestCase):
         point1 = SpatialPoint(center.crs(), center.x(), center.y())
         point2 = SpatialPoint(center.crs(), center.x() + 30, center.y() - 30)
         point3 = SpatialPoint(center.crs(), center.x() + 30, center.y() + 30)
-        tps = layer.createTemporalProfiles([point1, point1, point2])
-
+        points = [point1, point2, point3]
+        n = len(points)
+        #tps = layer.createTemporalProfiles([point1])
+        tps = layer.createTemporalProfiles(points)
+        self.assertIsInstance(tps, list)
+        self.assertEqual(len(tps), n)
         model = TemporalProfileTableModel(layer)
         fmodel = TemporalProfileTableFilterModel(model)
 
-
-        self.assertEqual(model.rowCount(), 3)
-        self.assertEqual(fmodel.rowCount(), 3)
+        self.assertEqual(model.rowCount(), n)
+        self.assertEqual(fmodel.rowCount(), n)
         tv = TemporalProfileTableView()
         tv.setModel(fmodel)
         tv.show()
 
-        ui = ProfileViewDockUI()
-        ui.show()
+        #i = ProfileViewDockUI()
 
-        svis = SpectralTemporalVisualization(ui)
-        svis.setTimeSeries(self.TS)
+
+        svis = SpectralTemporalVisualization(self.TS)
+        svis.ui.show()
         svis.loadCoordinate(point3)
+        svis.loadCoordinate(point2)
         s = ""
+        QGIS_APP.exec_()
 
 
 if __name__ == "__main__":

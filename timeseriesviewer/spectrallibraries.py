@@ -135,31 +135,6 @@ LUT_IDL2GDAL = {1:gdal.GDT_Byte,
                 9:gdal.GDT_CFloat64}
 
 
-def createQgsField(name : str, exampleValue, comment:str=None):
-    if isinstance(exampleValue, str):
-        return QgsField(name, QVariant.String, 'varchar', comment=None)
-    elif isinstance(exampleValue, int):
-        return QgsField(name, QVariant.Int, 'int', comment=None)
-    elif isinstance(exampleValue, float):
-        return QgsField(name, QVariant.Double, 'double', comment=None)
-    elif isinstance(exampleValue, np.ndarray):
-        return QgsField(name, QVariant.String, 'varchar', comment=None)
-    elif isinstance(exampleValue, list):
-        assert len(exampleValue)> 0, 'need at least one value in provided list'
-        v = exampleValue[0]
-        if isinstance(v, int):
-            subType = QVariant.Int
-            typeName = 'int'
-        elif isinstance(v, float):
-            subType = QVariant.Double
-            typeName = 'double'
-        elif isinstance(v, str):
-            subType = QVariant.String
-            typeName = 'varchar'
-        return QgsField(name, QVariant.List, typeName, comment=None, subType=subType)
-    else:
-        raise NotImplemented()
-
 
 def createStandardFields():
     fields = QgsFields()

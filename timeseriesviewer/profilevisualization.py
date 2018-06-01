@@ -156,6 +156,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
         super(PlotSettingsModel2DWidgetDelegate, self).__init__(parent=parent)
         self._preferedSize = QgsFieldExpressionWidget().sizeHint()
         self.mTableView = tableView
+        self.mFeatureListModel = QgsFeatureListModel()
         self.mTemporalProfileLayer = temporalProfileLayer
         self.mTimeSeries = temporalProfileLayer.timeSeries()
 
@@ -233,11 +234,13 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                     w.setModel(m)
 
                 elif cname == model.cnTemporalProfile:
-                    w = QgsFeatureComboBox(parent=parent)
+                    w = QgsFeatureListComboBox(parent=parent)
                     #w = QComboBox(parent=parent)
                     #w.setModel(self.mTemporalProfileListModel)
                     w.setSourceLayer(self.mTemporalProfileLayer)
-                    w.setIdentifierField('name')
+                    w.setIdentifierField('$id')
+                    w.setDisplayExpression('$id + "name"')
+                    s = ""
                 else:
                     raise NotImplementedError()
         return w
@@ -290,12 +293,16 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
             elif cname == model.cnTemporalProfile:
                 assert isinstance(editor, QgsFeatureListComboBox)
 
-                m = editor.model()
-                assert isinstance(m, TemporalProfileCollectionListModel)
-                TP = index.data(role=Qt.UserRole)
-                if isinstance(TP, TemporalProfile):
-                    idx = m.tp2idx(TP)
-                    editor.setCurrentIndex(idx)
+                value = editor.identifierValue()
+
+                if value != QVariant():
+                    row = editor.currentIndex()
+
+                    plotStyle = index.data(role=Qt.UserRole)
+                    TP = plotStyle.temporalProfile()
+                    editor.setIdentifierValue(TP.id())
+                else:
+                    s  = ""
             else:
                 raise NotImplementedError()
 
@@ -323,7 +330,8 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                 model.setData(index, sensor, Qt.EditRole)
 
             elif cname == model.cnTemporalProfile:
-                assert isinstance(w, QComboBox)
+                assert isinstance(w, QgsFeatureListComboBox)
+                t = w.currentText()
                 TP = w.itemData(w.currentIndex(), role=Qt.UserRole)
                 #assert isinstance(TP, TemporalProfile)
                 model.setData(index, TP, Qt.EditRole)
@@ -407,10 +415,11 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                     w.setModel(m)
 
                 elif cname == model.cnTemporalProfile:
-                    w = QgsFeatureComboBox(parent=parent)
-                    #w = QComboBox(parent=parent)
-                    #w.setModel(self.mTemporalProfileListModel)
+                    w = QgsFeatureListComboBox(parent=parent)
+
                     w.setSourceLayer(self.mTemporalProfileLayer)
+                    w.setAllowNull(False)
+
                 else:
                     raise NotImplementedError()
         return w
@@ -481,9 +490,8 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                     idx = m.sensor2idx(sensor)
                     editor.setCurrentIndex(idx.row())
             elif cname == model.cnTemporalProfile:
-                assert isinstance(editor, QComboBox)
-                m = editor.model()
-                assert isinstance(m, TemporalProfileCollectionListModel)
+                assert isinstance(editor, QgsFeatureListComboBox)
+
                 TP = index.data(role=Qt.UserRole)
                 if isinstance(TP, TemporalProfile):
                     idx = m.tp2idx(TP)
@@ -1302,23 +1310,24 @@ class SpectralTemporalVisualization(QObject):
     sigMoveToDate = pyqtSignal(np.datetime64)
 
 
-    def __init__(self, ui):
+    def __init__(self, timeSeries, parent=None):
         super(SpectralTemporalVisualization, self).__init__()
 
-        assert isinstance(ui, ProfileViewDockUI), 'arg ui of type: {} {}'.format(type(ui), str(ui))
-        self.ui = ui
+
+        self.ui = ProfileViewDockUI(parent)
 
         import timeseriesviewer.pixelloader
         if DEBUG:
             timeseriesviewer.pixelloader.DEBUG = True
 
         #the timeseries. will be set later
-        self.TS = None
+        assert isinstance(timeSeries, TimeSeries)
+        self.TS = timeSeries
         self.plot_initialized = False
 
-        self.plot2D = ui.plotWidget2D
+        self.plot2D = self.ui.plotWidget2D
         self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
-        self.plot3D = ui.plotWidget3D
+        self.plot3D = self.ui.plotWidget3D
 
         # temporal profile collection to store loaded values
         self.temporalProfileLayer = TemporalProfileLayer(self.TS)
@@ -1333,6 +1342,8 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         #self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
         # pixel loader to load pixel values in parallel
+
+
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
         self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
@@ -1345,10 +1356,11 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableView2DProfiles.setSortingEnabled(False)
         self.ui.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
         self.ui.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        self.delegateTableView2D = None #wil be set with connecting the TimeSeries
         self.plotSettingsModel2D.sigDataChanged.connect(self.requestUpdate)
-
         self.plotSettingsModel2D.rowsInserted.connect(self.onRowsInserted2D)
+        self.delegateTableView2D = PlotSettingsModel2DWidgetDelegate(self.ui.tableView2DProfiles, self.temporalProfileLayer)
+        self.delegateTableView2D.setItemDelegates(self.ui.tableView2DProfiles)
+
 
         # set the plot models for 3D
         self.plotSettingsModel3D = PlotSettingsModel3D()
@@ -1357,7 +1369,8 @@ class SpectralTemporalVisualization(QObject):
         self.ui.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot3DSelectionChanged)
         self.ui.tableView3DProfiles.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.plotSettingsModel3D.rowsInserted.connect(self.onRowsInserted3D)
-        self.delegateTableView3D = None #will be set with connecting the TimeSeries
+        self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles, self.temporalProfileLayer)
+        self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
 
         self.reset3DCamera()
 
@@ -1467,17 +1480,6 @@ class SpectralTemporalVisualization(QObject):
         menu.popup(tableView.viewport().mapToGlobal(event.pos()))
         self.menu = menu
 
-    def setTimeSeries(self, TS):
-
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
-        self.temporalProfileLayer.connectTimeSeries(self.TS)
-
-        self.delegateTableView2D = PlotSettingsModel2DWidgetDelegate(self.ui.tableView2DProfiles, self.temporalProfileLayer)
-        self.delegateTableView2D.setItemDelegates(self.ui.tableView2DProfiles)
-
-        self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles, self.temporalProfileLayer)
-        self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
 
     def selected2DPlotStyles(self):
         result = []
@@ -1860,8 +1862,6 @@ class SpectralTemporalVisualization(QObject):
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)
             TP = self.temporalProfileLayer.fromSpatialPoint(spatialPoint)
-
-
             #if not TP exists for this point, create an empty one
             if not isinstance(TP, TemporalProfile):
                 TP = self.temporalProfileLayer.createTemporalProfiles(spatialPoint)[0]
@@ -2030,7 +2030,7 @@ class SpectralTemporalVisualization(QObject):
             for plotStyle in self.plotSettingsModel2D:
                 assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
                 if plotStyle.isPlotable():
-                    locations.add(plotStyle.temporalProfile().mCoordinate)
+                    locations.add(plotStyle.temporalProfile().coordinate())
 
                     for pdi in plotStyle.mPlotItems:
                         assert isinstance(pdi, TemporalProfilePlotDataItem)
@@ -2178,62 +2178,12 @@ if __name__ == '__main__':
                 assert date1 == num2date(date2num(date1), dt64=True), 'date1: {}'.format(date1)
                 assert date2 == num2date(date2num(date2), dt64=False), 'date2: {}'.format(date1)
 
-    ui = ProfileViewDockUI()
-    ui.show()
 
 
-    s =""
-    if True:
-        TS = TimeSeries()
-        STVis = SpectralTemporalVisualization(ui)
-        STVis.setTimeSeries(TS)
+    TS = TimeSeries()
 
-        import example.Images
-        from timeseriesviewer.utils import file_search
-        files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
-        TS.addFiles(files)
-        ext = TS.getMaxSpatialExtent()
-        for tsd in TS:
-            ext = tsd.spatialExtent()
-            if ext.crs().description() != '':
-                break
-        cp1 = SpatialPoint(ext.crs(),ext.center())
-        cpND = SpatialPoint(ext.crs(), 681151.214,-752388.476)
-        cp2 = SpatialPoint(ext.crs(), ext.center())
-        cp3 = SpatialPoint(ext.crs(), ext.center().x()+500, ext.center().y()+250)
-
-        STVis.createNewPlotStyle2D()
-
-        def addProfile():
-            x0,y1 = ext.upperLeftPt()
-            x1,y0 = ext.lowerRightPt()
-
-            x = x0 + (x1 - x0) * np.random.sample()
-            y = y0 + (y1 - y0) * np.random.sample()
-            pt = SpatialPoint(ext.crs(), x, y)
-            STVis.loadCoordinate(pt)
-
-
-        btn = QPushButton('Add Profile')
-        btn.clicked.connect(addProfile)
-        btn.show()
-
-        if False:
-            for tp in STVis.tpCollection:
-                assert isinstance(tp, TemporalProfile)
-                tp.plot()
-        #STVis.tpCollection.removeTemporalProfiles(STVis.tpCollection[-1])
-        STVis.createNewPlotStyle3D()
-        STVis.ui.listWidget.setCurrentRow(1)
-
-        STVis.loadCoordinate(cpND, backgroundProcess=False)
-
-        STVis.temporalProfileLayer.mTemporalProfiles[0].setName('My Name')
-
-        from example import  exampleEvents
-        #STVis.loadCoordinatesFromOgr(exampleEvents)
-        # STVis.loadCoordinate(cp2)
-        # STVis.loadCoordinate(cp3)
+    STVis = SpectralTemporalVisualization(TS)
+    STVis.ui.show()
 
     qgsApp.exec_()
     qgsApp.exitQgis()

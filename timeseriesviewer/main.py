@@ -414,7 +414,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         D.dockSensors.setTimeSeries(self.TS)
 
 
-        self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
+        self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles, self.TS)
         self.spectralTemporalVis.setTimeSeries(self.TS)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
             lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))

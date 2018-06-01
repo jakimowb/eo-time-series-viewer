@@ -38,6 +38,7 @@ from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstr
 from timeseriesviewer.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.utils import *
+from timeseriesviewer.spectrallibraries import createQgsField
 from timeseriesviewer.models import OptionListModel, Option
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
@@ -45,6 +46,15 @@ DEBUG = False
 OPENGL_AVAILABLE = False
 
 DEFAULT_CRS = QgsCoordinateReferenceSystem('EPSG:4326')
+
+FN_ID = 'id'
+FN_X = 'x'
+FN_Y = 'y'
+FN_NAME = 'name'
+FN_N_TOTAL = 'total'
+FN_N_NODATA = 'nnd'
+FN_N_LOADED = 'loaded'
+FN_N_LOADED_PERCENT = 'loaded_p'
 
 try:
     import OpenGL
@@ -54,19 +64,6 @@ try:
 except:
     pass
 
-
-def qgsFieldFromKeyValue(fieldName, value):
-    t = type(value)
-    if t in [int, float] or np.isreal(value):
-
-        fLen  = 0
-        fPrec = 0
-        fComm = ''
-        fType = ''
-        f = QgsField(fieldName, QVariant.Double, 'double', 40, 5)
-    else:
-        f = QgsField(fieldName, QVariant.String, 'text', 40, 5)
-    return f
 
 
 def sensorExampleQgsFeature(sensor, singleBandOnly=False):
@@ -92,7 +89,7 @@ def sensorExampleQgsFeature(sensor, singleBandOnly=False):
 
     fields = QgsFields()
     for k, v in fieldValues.items():
-        fields.append(qgsFieldFromKeyValue(k,v))
+        fields.append(createQgsField(k,v))
     f = QgsFeature(fields)
     for k, v in fieldValues.items():
         f.setAttribute(k, v)
@@ -716,11 +713,22 @@ class TemporalProfile(QObject):
         self.mID = fid
         self.mLayer = layer
         self.mTimeSeries = layer.timeSeries()
+        assert isinstance(self.mTimeSeries, TimeSeries)
         self.mData = {}
         self.mUpdated = False
         self.mLoaded = self.mLoadedMax = self.mNoData = 0
-        self.initMetadata()
-        self.updateLoadingStatus()
+
+        for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDatum)
+            meta = {'doy': tsd.doy,
+                    'date': str(tsd.date),
+                    'nodata':False}
+
+            self.updateData(tsd, meta, skipStatusUpdate=True)
+        #self.updateLoadingStatus()
+        s = ""
+
+
 
     def __hash__(self):
         return hash('{}{}'.format(self.mID, self.mLayer.layerId()))
@@ -753,12 +761,11 @@ class TemporalProfile(QObject):
         return f.attribute(f.fieldNameIndex(key))
 
     def setAttribute(self, key, value):
-        f = self.mLayer.getFeature(self.mID)
-        f.setAttribute(f.fieldNameIndex(key), value)
+        f = self.mLayer.getFeature(self.id())
 
         b = self.mLayer.isEditable()
         self.mLayer.startEditing()
-        self.mLayer.updateFeature(f)
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(key), value)
         self.mLayer.saveEdits(leaveEditable=b)
 
     def name(self):
@@ -772,15 +779,6 @@ class TemporalProfile(QObject):
 
     def timeSeries(self):
         return self.mTimeSeries
-
-    def initMetadata(self):
-        for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDatum)
-            meta = {'doy':tsd.doy,
-                    'date':str(tsd.date),
-                    'nodata':False}
-
-            self.updateData(tsd, meta)
 
     def pullDataUpdate(self, d):
         assert isinstance(d, PixelLoaderTask)
@@ -863,7 +861,7 @@ class TemporalProfile(QObject):
             pi.setColor('green')
             pg.QAPP.exec_()
 
-    def updateData(self, tsd, values):
+    def updateData(self, tsd, values, skipStatusUpdate=False):
         assert isinstance(tsd, TimeSeriesDatum)
         assert isinstance(values, dict)
 
@@ -871,9 +869,10 @@ class TemporalProfile(QObject):
             self.mData[tsd] = {}
 
         self.mData[tsd].update(values)
-        self.updateLoadingStatus()
-        self.mUpdated = True
-        self.sigDataChanged.emit()
+        if not skipStatusUpdate:
+            self.updateLoadingStatus()
+            self.mUpdated = True
+            self.sigDataChanged.emit()
 
     def resetUpdatedFlag(self):
         self.mUpdated = False
@@ -881,7 +880,7 @@ class TemporalProfile(QObject):
     def updated(self):
         return self.mUpdated
 
-    def dataFromExpression(self, sensor, expression, dateType='date'):
+    def dataFromExpression(self, sensor, expression:str, dateType='date'):
         assert dateType in ['date','doy']
         x = []
         y = []
@@ -898,35 +897,38 @@ class TemporalProfile(QObject):
             data = self.mData[tsd]
             for k, v in data.items():
                 if v is not None and fields.indexFromName(k) == -1:
-                    fields.append(qgsFieldFromKeyValue(k, v))
+                    fields.append(createQgsField(k, v))
 
         for i, tsd in enumerate(sensorTSDs):
             assert isinstance(tsd, TimeSeriesDatum)
             data = self.mData[tsd]
             context = QgsExpressionContext()
-            scope = QgsExpressionContextScope()
-            f = QgsFeature()
-            f.setFields(fields)
+            context.setFields(fields)
+
+            #scope = QgsExpressionContextScope()
+            f = QgsFeature(fields)
             f.setValid(True)
             for k, v in data.items():
                 if v is None:
                     continue
                 idx = f.fields().indexFromName(k)
                 field = f.fields().field(idx)
-                if field.typeName() == 'text':
+                if field.type() == QVariant.String:
                     v = str(v)
+                elif field.type() in [QVariant.Int, QVariant.Bool]:
+                    v = int(v)
                 else:
-                    v = float(v)
+                    s = ""
 
                 f.setAttribute(k,v)
-
-            scope.setFeature(f)
-            context.appendScope(scope)
+            context.setFeature(f)
+           # scope.setFeature(f)
+            #context.appendScope(scope)
             #value = expression.evaluatePrepared(f)
             value = expression.evaluate(context)
 
 
-            if value in [None]:
+            if value in [None, QVariant()]:
                 s = ""
             else:
                 if dateType == 'date':
@@ -977,6 +979,17 @@ class TemporalProfile(QObject):
                 else:
                     self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
 
+        f = self.mLayer.getFeature(self.id())
+
+        b = self.mLayer.isEditable()
+        self.mLayer.startEditing()
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), 100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax)
+
+        self.mLayer.saveEdits(leaveEditable=b)
+        s = ""
     def isNoData(self, tsd):
         assert isinstance(tsd, TimeSeriesDatum)
         return self.mData[tsd]['nodata']
@@ -1056,10 +1069,10 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         sensor = self.mPlotStyle.sensor()
 
         if isinstance(TP, TemporalProfile) and isinstance(sensor, SensorInstrument):
-            x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression())
-            x = np.asarray(x, dtype=np.float)
-            y = np.asarray(y, dtype=np.float)
+            x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression(), dateType='date')
             if len(y) > 0:
+                x = np.asarray(x, dtype=np.float)
+                y = np.asarray(y, dtype=np.float)
                 self.setData(x=x, y=y)
             else:
                 self.setData(x=[], y=[]) # dummy
@@ -1130,14 +1143,15 @@ class TemporalProfileLayer(QgsVectorLayer):
     sigTemporalProfilesRemoved = pyqtSignal(list)
     sigMaxProfilesChanged = pyqtSignal(int)
 
-    def __init__(self, timeSeries, name='Temporal Profiles'):
 
+    def __init__(self, timeSeries, name='Temporal Profiles'):
+        assert isinstance(timeSeries, TimeSeries)
         crs = QgsCoordinateReferenceSystem('EPSG:4326')
         uri = 'Point?crs={}'.format(crs.authid())
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
         super(TemporalProfileLayer, self).__init__(uri, name, 'memory', lyrOptions)
 
-        from collections import  OrderedDict
+        from collections import OrderedDict
         self.mProfiles = OrderedDict()
         self.mTimeSeries = timeSeries
         #symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
@@ -1145,15 +1159,16 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.mNextID = 1
         self.mMaxProfiles = 64
         self.TS = None
-        from timeseriesviewer.spectrallibraries import createQgsField
+
         fields = QgsFields()
-        fields.append(createQgsField('name',''))
-        fields.append(createQgsField('lon', 0.0, comment='Longitude'))
-        fields.append(createQgsField('lat', 0.0, comment='Latitude'))
-        fields.append(createQgsField('loaded',0, comment='Band values loaded'))
-        fields.append(createQgsField('no data',0, comment='Total number of no data values'))
-        fields.append(createQgsField('total',0, comment='Total number of band values'))
-        fields.append(createQgsField('progress',0.0, comment='Loading progress (%)'))
+        fields.append(createQgsField(FN_ID, self.mNextID))
+        fields.append(createQgsField(FN_NAME,''))
+        fields.append(createQgsField(FN_X, 0.0, comment='Longitude'))
+        fields.append(createQgsField(FN_Y, 0.0, comment='Latitude'))
+        fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
+        fields.append(createQgsField(FN_N_NODATA,0, comment='Total of no-data values.'))
+        fields.append(createQgsField(FN_N_LOADED, 0, comment='Loaded valid band values.'))
+        fields.append(createQgsField(FN_N_LOADED_PERCENT,0.0, comment='Loading progress (%)'))
         assert self.startEditing()
         assert self.dataProvider().addAttributes(fields)
         assert self.commitChanges()
@@ -1166,22 +1181,36 @@ class TemporalProfileLayer(QgsVectorLayer):
         return list(self.mProfiles.values())[slice]
 
     def timeSeries(self):
+        """
+        Returns the TimeSeries instance.
+        :return: TimeSeries
+        """
         return self.mTimeSeries
 
 
     def onFeaturesAdded(self, layerID, addedFeatures):
+        """
+        Create a TemporalProfile object for each QgsFeature added to the backend QgsVectorLayer
+        :param layerID:
+        :param addedFeatures:
+        :return:
+        """
 
         if len(addedFeatures) > 0:
 
             temporalProfiles = []
             for feature in addedFeatures:
                 fid = feature.id()
+                if fid < 0:
+                    continue
                 tp = TemporalProfile(self, fid)
 
                 self.mProfiles[fid] = tp
                 temporalProfiles.append(tp)
 
-            self.sigTemporalProfilesAdded.emit(temporalProfiles)
+            if len(temporalProfiles) > 0:
+                pass
+                #self.sigTemporalProfilesAdded.emit(temporalProfiles)
 
 
     def onFeaturesRemoved(self,  layerID, removedFIDs):
@@ -1192,7 +1221,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             for fid in removedFIDs:
                 toRemove.append(self.mProfiles.pop(fid))
 
-            self.sigTemporalProfilesRemoved(toRemove)
+            self.sigTemporalProfilesRemoved.emit(toRemove)
 
 
     def initConditionalStyles(self):
@@ -1216,25 +1245,37 @@ class TemporalProfileLayer(QgsVectorLayer):
             coordinates = [coordinates]
 
         features = []
-
+        n = self.featureCount()
         for i, coordinate in enumerate(coordinates):
             assert isinstance(coordinate, SpatialPoint)
 
             f = QgsFeature(self.fields())
             f.setGeometry(QgsGeometry.fromPointXY(coordinate.toCrs(self.crs())))
-            f.setAttribute('name', 'Location {}'.format(self.mNextID))
+            f.setAttribute(FN_ID, self.mNextID)
+            f.setAttribute(FN_NAME, 'Location {}'.format(self.mNextID))
+            f.setAttribute(FN_X, coordinate.x())
+            f.setAttribute(FN_Y, coordinate.y())
+            f.setAttribute(FN_N_LOADED_PERCENT, 0.0)
+            f.setAttribute(FN_N_LOADED, 0)
+            f.setAttribute(FN_N_TOTAL, 0)
+            f.setAttribute(FN_N_NODATA, 0)
             self.mNextID += 1
             features.append(f)
 
         b = self.isEditable()
         tps_before = list(self.mProfiles.values())
-        assert self.startEditing()
+        self.startEditing()
         success = self.addFeatures(features)
-
         self.saveEdits(leaveEditable=b)
 
+
         if success:
-            return [tp for tp in self.mProfiles.values() if tp not in tps_before]
+            assert n+len(features) == self.featureCount()
+            assert self.featureCount() == len(self.mProfiles)
+            profiles = [tp for tp in self.mProfiles.values() if tp not in tps_before]
+            for p in profiles:
+                p.updateLoadingStatus()
+            return profiles
         else:
             return None
 
@@ -1335,18 +1376,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             self.sigTemporalProfilesRemoved.emit(temporalProfiles)
 
 
-
-    def connectTimeSeries(self, timeSeries):
-        self.clear()
-
-        if isinstance(timeSeries, TimeSeries):
-            self.TS = timeSeries
-            #for sensor in self.TS.Sensors:
-            #    self.addSensor(sensor)
-            #self.TS.sigSensorAdded.connect(self.addSensor)
-            #self.TS.sigSensorRemoved.connect(self.removeSensor)
-        else:
-            self.TS = None
 
     def setMaxProfiles(self, n):
         """
@@ -1485,10 +1514,20 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
         if role is None or not index.isValid():
             return None
 
-        result = super(TemporalProfileTableModel,self).data(index, role=role)
-
+        result = super(TemporalProfileTableModel, self).data(index, role=role)
         return result
 
+    def headerData(self, section:int, orientation:Qt.Orientation, role:int):
+        data = super(TemporalProfileTableModel, self).headerData(section, orientation, role)
+        if role == Qt.ToolTipRole and orientation == Qt.Horizontal:
+            #add the field comment to column description
+            field = self.layer().fields().at(section)
+            assert isinstance(field, QgsField)
+            comment = field.comment()
+            if len(comment) > 0:
+                data = re.sub('</p>$', ' <i>{}</i></p>'.format(comment), data)
+
+        return data
 
     def supportedDragActions(self):
         return Qt.CopyAction | Qt.MoveAction
