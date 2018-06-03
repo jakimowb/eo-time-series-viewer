@@ -146,7 +146,7 @@
           </sizepolicy>
          </property>
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="page2D">
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -165,6 +165,27 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
+           <item>
+            <widget class="QToolBar" name="toolbar2DPlot">
+             <property name="styleSheet">
+              <string notr="true"/>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="floatable">
+              <bool>false</bool>
+             </property>
+             <addaction name="actionLoadProfileRequest"/>
+             <addaction name="actionRefresh2D"/>
+             <addaction name="actionReset2DPlot"/>
+             <addaction name="actionAddStyle2D"/>
+             <addaction name="actionRemoveStyle2D"/>
+            </widget>
+           </item>
            <item>
             <widget class="QSplitter" name="splitter2D">
              <property name="orientation">
@@ -205,102 +226,6 @@
                <property name="bottomMargin">
                 <number>0</number>
                </property>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_5">
-                 <property name="spacing">
-                  <number>1</number>
-                 </property>
-                 <property name="topMargin">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <widget class="QToolButton" name="btnLoadProfile1">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRefresh2D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnReset2DPlot">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnAddStyle2D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRemoveStyle2D">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_2">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
                <item>
                 <widget class="QTableView" name="tableView2DProfiles">
                  <property name="sizePolicy">
@@ -352,7 +277,7 @@
                  <property name="title">
                   <string>Data Value(s)</string>
                  </property>
-                 <property name="collapsed">
+                 <property name="collapsed" stdset="0">
                   <bool>true</bool>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_8">
@@ -449,6 +374,27 @@
             <number>0</number>
            </property>
            <item>
+            <widget class="QToolBar" name="toolbar3DPlot">
+             <property name="styleSheet">
+              <string notr="true"/>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>18</width>
+               <height>18</height>
+              </size>
+             </property>
+             <property name="floatable">
+              <bool>false</bool>
+             </property>
+             <addaction name="actionLoadProfileRequest"/>
+             <addaction name="actionRefresh3D"/>
+             <addaction name="actionReset3DCamera"/>
+             <addaction name="actionAddStyle3D"/>
+             <addaction name="actionRemoveStyle3D"/>
+            </widget>
+           </item>
+           <item>
             <widget class="QSplitter" name="splitter3D">
              <property name="orientation">
               <enum>Qt::Horizontal</enum>
@@ -485,99 +431,6 @@
                <property name="bottomMargin">
                 <number>0</number>
                </property>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_6">
-                 <property name="spacing">
-                  <number>1</number>
-                 </property>
-                 <property name="topMargin">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <widget class="QToolButton" name="btnLoadProfile2">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRefresh3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset>
-                     <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnReset3DCamera">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnAddStyle3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRemoveStyle3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_3">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
                <item>
                 <widget class="QTableView" name="tableView3DProfiles">
                  <property name="sizePolicy">
@@ -704,112 +557,27 @@ background-color: rgb(0, 0, 0);</string>
                <number>0</number>
               </property>
               <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_7">
-                <property name="spacing">
-                 <number>1</number>
+               <widget class="QToolBar" name="toolbarTemporalProfiles">
+                <property name="styleSheet">
+                 <string notr="true"/>
                 </property>
-                <property name="topMargin">
-                 <number>0</number>
+                <property name="iconSize">
+                 <size>
+                  <width>18</width>
+                  <height>18</height>
+                 </size>
                 </property>
-                <item>
-                 <widget class="QToolButton" name="btnLoadProfile3">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnLoadTPFromOgr">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnRemoveTemporalProfile">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnSaveTemporalProfiles">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</iconset>
-                  </property>
-                  <property name="popupMode">
-                   <enum>QToolButton::MenuButtonPopup</enum>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QLabel" name="label_2">
-                  <property name="text">
-                   <string>Max. Coordinates</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QSpinBox" name="sbMaxTP">
-                  <property name="toolTip">
-                   <string>Set the maximum number of temporal profiles loaded. Adding more will delete the most oldest profile data. </string>
-                  </property>
-                  <property name="minimum">
-                   <number>1</number>
-                  </property>
-                  <property name="maximum">
-                   <number>256</number>
-                  </property>
-                  <property name="value">
-                   <number>3</number>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="horizontalSpacer_4">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-               </layout>
+                <property name="floatable">
+                 <bool>false</bool>
+                </property>
+                <addaction name="actionLoadProfileRequest"/>
+                <addaction name="actionLoadTPFromOgr"/>
+                <addaction name="actionRemoveTemporalProfile"/>
+                <addaction name="actionSaveTemporalProfiles"/>
+               </widget>
               </item>
               <item>
-               <widget class="QTableView" name="tableViewTemporalProfiles">
+               <widget class="TemporalProfileTableView" name="tableViewTemporalProfiles">
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -1025,30 +793,6 @@ background-color: rgb(0, 0, 0);</string>
     <string>Reset View</string>
    </property>
   </action>
-  <action name="actionSaveTPVector">
-   <property name="text">
-    <string>Save to vectorfile</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profiles into a vectorfile</string>
-   </property>
-  </action>
-  <action name="actionSaveTPCSV">
-   <property name="text">
-    <string>Save to CSV textfile</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profiles as CSV text file.</string>
-   </property>
-  </action>
-  <action name="actionSaveTPCoordinates">
-   <property name="text">
-    <string>Save Coordinates</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profile coordinates.</string>
-   </property>
-  </action>
   <action name="actionAddStyle3D">
    <property name="icon">
     <iconset resource="resources.qrc">
@@ -1097,6 +841,24 @@ background-color: rgb(0, 0, 0);</string>
     <string>Reset View</string>
    </property>
   </action>
+  <action name="actionLoadMissingValues">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>LoadMissingValues</string>
+   </property>
+  </action>
+  <action name="actionSaveTemporalProfiles">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
+   </property>
+   <property name="text">
+    <string>SaveTemporalProfiles</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -1110,6 +872,11 @@ background-color: rgb(0, 0, 0);</string>
    <extends>QGraphicsView</extends>
    <header>timeseriesviewer.profilevisualization</header>
   </customwidget>
+  <customwidget>
+   <class>TemporalProfileTableView</class>
+   <extends>QTableView</extends>
+   <header>timeseriesviewer.temporalprofiles2d</header>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
@@ -1122,8 +889,8 @@ background-color: rgb(0, 0, 0);</string>
    <slot>setCurrentIndex(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>38</x>
-     <y>110</y>
+     <x>37</x>
+     <y>132</y>
     </hint>
     <hint type="destinationlabel">
      <x>213</x>
