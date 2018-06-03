@@ -51,10 +51,10 @@ FN_ID = 'id'
 FN_X = 'x'
 FN_Y = 'y'
 FN_NAME = 'name'
-FN_N_TOTAL = 'total'
-FN_N_NODATA = 'nnd'
+FN_N_TOTAL = 'n'
+FN_N_NODATA = 'no_data'
 FN_N_LOADED = 'loaded'
-FN_N_LOADED_PERCENT = 'loaded_p'
+FN_N_LOADED_PERCENT = 'percent'
 
 try:
     import OpenGL
@@ -594,7 +594,7 @@ class TemporalProfilePlotStyleBase(PlotStyle):
 
         b = temporalPofile != self.mTP
         self.mTP = temporalPofile
-        if temporalPofile is None:
+        if temporalPofile in [None, QVariant()]:
             s  =""
         else:
             assert isinstance(temporalPofile, TemporalProfile)
@@ -986,7 +986,7 @@ class TemporalProfile(QObject):
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), 100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax)
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax,2))
 
         self.mLayer.saveEdits(leaveEditable=b)
         s = ""
@@ -1232,7 +1232,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             red = QgsConditionalStyle("@value is NULL")
             red.setTextColor(QColor('red'))
             styles.setFieldStyles(fieldName, [red])
-        styles.setRowStyles([red])
+        #styles.setRowStyles([red])
 
 
     def createTemporalProfiles(self, coordinates):
@@ -1472,6 +1472,8 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
     #sigAttributeRemoved = pyqtSignal(str)
     #sigAttributeAdded = pyqtSignal(str)
 
+    AUTOGENERATES_COLUMNS = [FN_Y, FN_X, FN_N_LOADED, FN_N_TOTAL, FN_N_NODATA, FN_ID, FN_N_LOADED_PERCENT]
+
     def __init__(self, temporalProfileLayer=None, parent=None):
 
         if temporalProfileLayer is None:
@@ -1503,10 +1505,7 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
 
     def data(self, index, role=Qt.DisplayRole):
         """
-        Returns Spectral Library data
-        Use column = 0 and Qt.CheckStateRole to return PlotStyle visibility
-        Use column = 0 and Qt.DecorationRole to return QIcon with PlotStyle preview
-        Use column = 0 and Qt.UserRole to return entire PlotStyle
+        Returns Temporal Profile Layer values
         :param index: QModelIndex
         :param role: enum Qt.ItemDataRole
         :return: value
@@ -1516,6 +1515,48 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
 
         result = super(TemporalProfileTableModel, self).data(index, role=role)
         return result
+
+
+    def setData(self, index, value, role=None):
+        """
+        Sets Temporal Profile Data.
+        :param index: QModelIndex()
+        :param value: value to set
+        :param role: role
+        :return: True | False
+        """
+        if role is None or not index.isValid():
+            return False
+
+        f = self.feature(index)
+        result = False
+
+        if value == None:
+            value = QVariant()
+        cname = self.columnNames()[index.column()]
+        if role == Qt.EditRole and cname not in TemporalProfileTableModel.AUTOGENERATES_COLUMNS:
+            i = f.fieldNameIndex(cname)
+            if f.attribute(i) == value:
+                return False
+            b = self.mTemporalProfileLayer.isEditable()
+            self.mTemporalProfileLayer.startEditing()
+            self.mTemporalProfileLayer.changeAttributeValue(f.id(), i, value)
+            self.mTemporalProfileLayer.saveEdits(leaveEditable=b)
+            result = True
+            #f = self.layer().getFeature(profile.id())
+            #i = f.fieldNameIndex(SpectralProfile.STYLE_FIELD)
+            #self.layer().changeAttributeValue(f.id(), i, value)
+            #result = super().setData(self.index(index.row(), self.mcnStyle), value, role=Qt.EditRole)
+            #if not b:
+            #    self.layer().commitChanges()
+        if result:
+            self.dataChanged.emit(index, index, [role])
+        else:
+            result = super().setData(index, value, role=role)
+
+
+        return result
+
 
     def headerData(self, section:int, orientation:Qt.Orientation, role:int):
         data = super(TemporalProfileTableModel, self).headerData(section, orientation, role)
@@ -1549,6 +1590,9 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
             flags = super(TemporalProfileTableModel, self).flags(index) | Qt.ItemIsSelectable
             #if index.column() == 0:
             #    flags = flags | Qt.ItemIsUserCheckable
+
+            if columnName in TemporalProfileTableModel.AUTOGENERATES_COLUMNS:
+                flags = flags ^ Qt.ItemIsEditable
             return flags
         return None
 
@@ -1615,14 +1659,17 @@ class TemporalProfileTableView(QgsAttributeTableView):
         self.mSelectionManager = TemporalProfileFeatureSelectionManager(self.model().layer())
         self.setFeatureSelectionManager(self.mSelectionManager)
         #self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+        self.mContextMenuActions = []
 
+    def setContextMenuActions(self, actions:list):
+        self.mContextMenuActions = actions
 
     #def contextMenuEvent(self, event):
     def onWillShowContextMenu(self, menu, index):
         assert isinstance(menu, QMenu)
         assert isinstance(index, QModelIndex)
 
-        featureIDs = self.spectralLibrary().selectedFeatureIds()
+        featureIDs = self.temporalProfileLayer().selectedFeatureIds()
 
         if len(featureIDs) == 0 and index.isValid():
             if isinstance(self.model(), QgsAttributeTableFilterModel):
@@ -1635,7 +1682,8 @@ class TemporalProfileTableView(QgsAttributeTableView):
 
 
         if len(featureIDs) > 0:
-            pass
+            a = menu.addAction('Load missing values')
+            a.setToolTip('Load missing values')
             #m = menu.addMenu('Copy...')
             #a = m.addAction("Values")
             #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.VALUES: self.onCopy2Clipboard(ids, mode))
@@ -1654,8 +1702,13 @@ class TemporalProfileTableView(QgsAttributeTableView):
         #a = menu.addAction('Uncheck')
         #a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
         #menu.addSeparator()
+
+        for a in self.mContextMenuActions:
+            menu.addAction(a)
+
         for a in self.actions():
             menu.addAction(a)
+
 
     def temporalProfileLayer(self):
         return self.model().layer()
