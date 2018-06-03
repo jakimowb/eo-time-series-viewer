@@ -568,7 +568,15 @@ class RendererWidgetModifications(object):
         assert isinstance(combobox, QComboBox)
 
         # init the slider
-        nb = self.rasterLayer().dataProvider().bandCount()
+        lyr = self.rasterLayer()
+        if lyr.isValid():
+            nb = lyr.dataProvider().bandCount()
+        else:
+            ds = gdal.Open(lyr.source())
+            if isinstance(ds, gdal.Dataset):
+                nb = ds.RasterCount
+            else:
+                nb = 1
         slider.setTickPosition(QSlider.TicksAbove)
         slider.valueChanged.connect(combobox.setCurrentIndex)
         slider.setMinimum(1)
@@ -905,7 +913,6 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
 
         self.mBandComboBoxes.extend([self.mRedBandComboBox, self.mGreenBandComboBox, self.mBlueBandComboBox])
         self.mSliders = [self.mRedBandSlider, self.mGreenBandSlider, self.mBlueBandSlider]
-        nb = self.rasterLayer().dataProvider().bandCount()
         for cbox, slider in zip(self.mBandComboBoxes, self.mSliders):
             self.connectSliderWithBandComboBox(slider, cbox)
 

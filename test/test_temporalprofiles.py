@@ -153,13 +153,25 @@ class testclassUtilityTests(unittest.TestCase):
         tv.setModel(fmodel)
         tv.show()
 
-        #i = ProfileViewDockUI()
+        pd = ProfileViewDockUI()
 
 
-        svis = SpectralTemporalVisualization(self.TS)
-        svis.ui.show()
+        svis = SpectralTemporalVisualization(self.TS, pd)
+
+
+        QgsProject.instance().addMapLayer(svis.temporalProfileLayer())
+        reg = QgsGui.instance().mapLayerActionRegistry()
+
+        moveToFeatureCenter = QgsMapLayerAction('Move to', svis.ui, QgsMapLayer.VectorLayer)
+
+        assert isinstance(reg, QgsMapLayerActionRegistry)
+        reg.setDefaultActionForLayer(svis.temporalProfileLayer(), moveToFeatureCenter)
+
+
         svis.loadCoordinate(point3)
         svis.loadCoordinate(point2)
+        svis.ui.show()
+
         s = ""
         QGIS_APP.exec_()
 

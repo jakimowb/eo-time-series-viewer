@@ -2236,7 +2236,7 @@ class SpectralLibraryPlotWidget(PlotWidget):
         speclib.committedFeaturesRemoved.connect(self.onProfilesRemoved)
         speclib.committedAttributeValuesChanges.connect(self.onProfileDataChanged)
 
-        self.onProfilesAdded(speclib.id(), speclib.allFeatureIds())
+        self.onProfilesAdded(speclib.id(), speclib[:])
 
         #self.mModel.rowsAboutToBeRemoved.connect(self.onRowsAboutToBeRemoved)
         #self.mModel.rowsInserted.connect(self.onRowsInserted)
