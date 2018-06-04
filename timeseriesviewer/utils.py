@@ -25,14 +25,13 @@ import os, sys, math, re, io, fnmatch
 
 from collections import defaultdict
 
-#from qgis.core import *
+from qgis.core import *
 from qgis.core import QgsPointXY, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsApplication, QgsRectangle, \
     QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsRasterRenderer, QgsFeatureRenderer, QgsRasterDataProvider, QgsUnitTypes, QgsSingleBandPseudoColorRenderer
 
 
 #from qgis.gui import *
 from qgis.gui import QgsMapCanvas, QgisInterface
-
 import qgis.utils
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -100,6 +99,67 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories
             pass
 
     return results
+
+
+
+
+def createQgsField(name : str, exampleValue, comment:str=None):
+    """
+    Create a QgsField using a Python-datatype exampleValue
+    :param name: field name
+    :param exampleValue: value, can be any type
+    :param comment: (optional) field comment.
+    :return: QgsField
+    """
+    t = type(exampleValue)
+    if t in [str]:
+        return QgsField(name, QVariant.String, 'varchar', comment=comment)
+    elif t in [bool]:
+        return QgsField(name, QVariant.Bool, 'int', len=1, comment=comment)
+    elif t in [int, np.int32, np.int64]:
+        return QgsField(name, QVariant.Int, 'int', comment=comment)
+    elif t in [float, np.double, np.float, np.float64]:
+        return QgsField(name, QVariant.Double, 'double', comment=comment)
+    elif isinstance(exampleValue, np.ndarray):
+        return QgsField(name, QVariant.String, 'varchar', comment=comment)
+    elif isinstance(exampleValue, list):
+        assert len(exampleValue)> 0, 'need at least one value in provided list'
+        v = exampleValue[0]
+        prototype = createQgsField(name, v)
+        subType = prototype.type()
+        typeName = prototype.typeName()
+        return QgsField(name, QVariant.List, typeName, comment=comment, subType=subType)
+    else:
+        raise NotImplemented()
+
+
+def setQgsFieldValue(feature:QgsFeature, field, value):
+    """
+    Wrties the Python value v into a QgsFeature field, taking care of required conversions
+    :param feature: QgsFeature
+    :param field: QgsField | field name (str) | field index (int)
+    :param value: any python value
+    """
+
+    if isinstance(field, int):
+        field = feature.fields().at(field)
+    elif isinstance(field, str):
+        field = feature.fields().at(feature.fieldNameIndex(field))
+    assert isinstance(field, QgsField)
+
+    if value is None:
+        value = QVariant.NULL
+    if field.type() == QVariant.String:
+        value = str(value)
+    elif field.type() in [QVariant.Int, QVariant.Bool]:
+        value = int(value)
+    elif field.type() in [QVariant.Double]:
+        value = float(value)
+    else:
+        raise NotImplementedError()
+
+   # i = feature.fieldNameIndex(field.name())
+    feature.setAttribute(field.name(), value)
 
 
 def appendItemsToMenu(menu, itemsToAdd):

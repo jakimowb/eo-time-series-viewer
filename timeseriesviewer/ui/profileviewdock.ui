@@ -138,700 +138,452 @@
         </widget>
        </item>
        <item>
-        <widget class="QStackedWidget" name="stackedWidget">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-           <horstretch>2</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="currentIndex">
+        <layout class="QVBoxLayout" name="verticalLayout_9">
+         <property name="spacing">
           <number>0</number>
          </property>
-         <widget class="QWidget" name="page2D">
-          <layout class="QVBoxLayout" name="verticalLayout_3">
-           <property name="spacing">
-            <number>1</number>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QToolBar" name="toolbar">
+           <property name="styleSheet">
+            <string notr="true"/>
            </property>
-           <property name="leftMargin">
+           <property name="iconSize">
+            <size>
+             <width>18</width>
+             <height>18</height>
+            </size>
+           </property>
+           <property name="floatable">
+            <bool>false</bool>
+           </property>
+           <addaction name="actionLoadProfileRequest"/>
+           <addaction name="actionLoadMissingValues"/>
+           <addaction name="actionLoadTPFromOgr"/>
+           <addaction name="actionToggleEditing"/>
+           <addaction name="actionSaveTemporalProfiles"/>
+           <addaction name="actionRemoveTemporalProfile"/>
+           <addaction name="actionRefresh2D"/>
+           <addaction name="actionReset2DPlot"/>
+           <addaction name="actionAddStyle2D"/>
+           <addaction name="actionRemoveStyle2D"/>
+           <addaction name="actionRefresh3D"/>
+           <addaction name="actionReset3DCamera"/>
+           <addaction name="actionAddStyle3D"/>
+           <addaction name="actionRemoveStyle3D"/>
+          </widget>
+         </item>
+         <item>
+          <widget class="QStackedWidget" name="stackedWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>2</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Plain</enum>
+           </property>
+           <property name="lineWidth">
             <number>0</number>
            </property>
-           <property name="topMargin">
-            <number>0</number>
+           <property name="currentIndex">
+            <number>2</number>
            </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QSplitter" name="splitter2D">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+           <widget class="QWidget" name="page2D">
+            <layout class="QVBoxLayout" name="verticalLayout_3">
+             <property name="spacing">
+              <number>1</number>
              </property>
-             <widget class="QFrame" name="frameSettings2D">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>1</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>100</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::StyledPanel</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Sunken</enum>
-              </property>
-              <layout class="QVBoxLayout" name="verticalLayout_4">
-               <property name="spacing">
-                <number>1</number>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QSplitter" name="splitter2D">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_5">
+               <widget class="QFrame" name="frameSettings2D">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::StyledPanel</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Sunken</enum>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_4">
                  <property name="spacing">
                   <number>1</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
                  </property>
                  <property name="topMargin">
                   <number>0</number>
                  </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
                  <item>
-                  <widget class="QToolButton" name="btnLoadProfile1">
-                   <property name="text">
-                    <string>...</string>
+                  <widget class="QTableView" name="tableView2DProfiles">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                     <horstretch>1</horstretch>
+                     <verstretch>2</verstretch>
+                    </sizepolicy>
                    </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRefresh2D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnReset2DPlot">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnAddStyle2D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRemoveStyle2D">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_2">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
+                   <property name="minimumSize">
                     <size>
-                     <width>40</width>
-                     <height>20</height>
+                     <width>0</width>
+                     <height>0</height>
                     </size>
                    </property>
-                  </spacer>
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <attribute name="horizontalHeaderCascadingSectionResizes">
+                    <bool>true</bool>
+                   </attribute>
+                   <attribute name="horizontalHeaderMinimumSectionSize">
+                    <number>5</number>
+                   </attribute>
+                   <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                    <bool>true</bool>
+                   </attribute>
+                   <attribute name="horizontalHeaderStretchLastSection">
+                    <bool>true</bool>
+                   </attribute>
+                   <attribute name="verticalHeaderShowSortIndicator" stdset="0">
+                    <bool>true</bool>
+                   </attribute>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QgsCollapsibleGroupBox" name="mGroupBox">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>1</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="title">
+                    <string>Data Value(s)</string>
+                   </property>
+                   <property name="collapsed">
+                    <bool>true</bool>
+                   </property>
+                   <layout class="QVBoxLayout" name="verticalLayout_8">
+                    <property name="spacing">
+                     <number>1</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>6</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>6</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>6</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>6</number>
+                    </property>
+                    <item>
+                     <widget class="QPlainTextEdit" name="tbInfo2D">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="frameShape">
+                       <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="readOnly">
+                       <bool>true</bool>
+                      </property>
+                      <property name="backgroundVisible">
+                       <bool>false</bool>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
                  </item>
                 </layout>
-               </item>
-               <item>
-                <widget class="QTableView" name="tableView2DProfiles">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                   <horstretch>1</horstretch>
-                   <verstretch>2</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::NoFrame</enum>
-                 </property>
-                 <attribute name="horizontalHeaderCascadingSectionResizes">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="horizontalHeaderMinimumSectionSize">
-                  <number>5</number>
-                 </attribute>
-                 <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="horizontalHeaderStretchLastSection">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="verticalHeaderShowSortIndicator" stdset="0">
-                  <bool>true</bool>
-                 </attribute>
-                </widget>
-               </item>
-               <item>
-                <widget class="QgsCollapsibleGroupBox" name="mGroupBox">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                   <horstretch>0</horstretch>
-                   <verstretch>1</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                 <property name="title">
-                  <string>Data Value(s)</string>
-                 </property>
-                 <property name="collapsed">
-                  <bool>true</bool>
-                 </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_8">
-                  <property name="spacing">
-                   <number>1</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>6</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>6</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>6</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>6</number>
-                  </property>
-                  <item>
-                   <widget class="QPlainTextEdit" name="tbInfo2D">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="frameShape">
-                     <enum>QFrame::NoFrame</enum>
-                    </property>
-                    <property name="readOnly">
-                     <bool>true</bool>
-                    </property>
-                    <property name="backgroundVisible">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="DateTimePlotWidget" name="plotWidget2D">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                <horstretch>3</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="styleSheet">
-               <string notr="true">background-color: rgb(0, 0, 0);</string>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::NoFrame</enum>
-              </property>
-              <property name="backgroundBrush">
-               <brush brushstyle="NoBrush">
-                <color alpha="255">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </property>
-              <property name="foregroundBrush">
-               <brush brushstyle="NoBrush">
-                <color alpha="255">
-                 <red>0</red>
-                 <green>0</green>
-                 <blue>0</blue>
-                </color>
-               </brush>
-              </property>
-             </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-         <widget class="QWidget" name="page3D">
-          <layout class="QVBoxLayout" name="verticalLayout_6">
-           <property name="spacing">
-            <number>1</number>
-           </property>
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QSplitter" name="splitter3D">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+               </widget>
+               <widget class="DateTimePlotWidget" name="plotWidget2D">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>3</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="styleSheet">
+                 <string notr="true">background-color: rgb(0, 0, 0);</string>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::NoFrame</enum>
+                </property>
+                <property name="backgroundBrush">
+                 <brush brushstyle="NoBrush">
+                  <color alpha="255">
+                   <red>0</red>
+                   <green>0</green>
+                   <blue>0</blue>
+                  </color>
+                 </brush>
+                </property>
+                <property name="foregroundBrush">
+                 <brush brushstyle="NoBrush">
+                  <color alpha="255">
+                   <red>0</red>
+                   <green>0</green>
+                   <blue>0</blue>
+                  </color>
+                 </brush>
+                </property>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="page3D">
+            <layout class="QVBoxLayout" name="verticalLayout_6">
+             <property name="spacing">
+              <number>1</number>
              </property>
-             <property name="opaqueResize">
-              <bool>true</bool>
+             <property name="leftMargin">
+              <number>0</number>
              </property>
-             <widget class="QFrame" name="frameSettings3D">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>1</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="frameShape">
-               <enum>QFrame::StyledPanel</enum>
-              </property>
-              <property name="frameShadow">
-               <enum>QFrame::Sunken</enum>
-              </property>
-              <layout class="QVBoxLayout" name="verticalLayout_5">
-               <property name="spacing">
-                <number>1</number>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QSplitter" name="splitter3D">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
-               <property name="leftMargin">
-                <number>0</number>
+               <property name="opaqueResize">
+                <bool>true</bool>
                </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_6">
+               <widget class="QFrame" name="frameSettings3D">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::StyledPanel</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Sunken</enum>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_5">
                  <property name="spacing">
                   <number>1</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
                  </property>
                  <property name="topMargin">
                   <number>0</number>
                  </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
                  <item>
-                  <widget class="QToolButton" name="btnLoadProfile2">
-                   <property name="text">
-                    <string>...</string>
+                  <widget class="QTableView" name="tableView3DProfiles">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
                    </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
                    </property>
-                   <property name="autoRaise">
+                   <attribute name="horizontalHeaderCascadingSectionResizes">
                     <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRefresh3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset>
-                     <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
-                   </property>
-                   <property name="autoRaise">
+                   </attribute>
+                   <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
                     <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnReset3DCamera">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
+                   </attribute>
+                   <attribute name="horizontalHeaderStretchLastSection">
                     <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnAddStyle3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
+                   </attribute>
+                   <attribute name="verticalHeaderShowSortIndicator" stdset="0">
                     <bool>true</bool>
-                   </property>
+                   </attribute>
                   </widget>
-                 </item>
-                 <item>
-                  <widget class="QToolButton" name="btnRemoveStyle3D">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                   <property name="icon">
-                    <iconset resource="resources.qrc">
-                     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                   </property>
-                   <property name="autoRaise">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_3">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
                  </item>
                 </layout>
-               </item>
-               <item>
-                <widget class="QTableView" name="tableView3DProfiles">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
+               </widget>
+               <widget class="QFrame" name="frame3DPlot">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>3</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <layout class="QVBoxLayout" name="layout3DPlotWidget">
+                 <property name="spacing">
+                  <number>1</number>
                  </property>
-                 <property name="frameShape">
-                  <enum>QFrame::NoFrame</enum>
+                 <property name="leftMargin">
+                  <number>0</number>
                  </property>
-                 <attribute name="horizontalHeaderCascadingSectionResizes">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="horizontalHeaderStretchLastSection">
-                  <bool>true</bool>
-                 </attribute>
-                 <attribute name="verticalHeaderShowSortIndicator" stdset="0">
-                  <bool>true</bool>
-                 </attribute>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="QFrame" name="frame3DPlot">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                <horstretch>3</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <layout class="QVBoxLayout" name="layout3DPlotWidget">
-               <property name="spacing">
-                <number>1</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="labelDummy3D">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                   <horstretch>3</horstretch>
-                   <verstretch>2</verstretch>
-                  </sizepolicy>
+                 <property name="topMargin">
+                  <number>0</number>
                  </property>
-                 <property name="font">
-                  <font>
-                   <pointsize>9</pointsize>
-                  </font>
+                 <property name="rightMargin">
+                  <number>0</number>
                  </property>
-                 <property name="styleSheet">
-                  <string notr="true">color: rgb(255, 255, 0);
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="labelDummy3D">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                     <horstretch>3</horstretch>
+                     <verstretch>2</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <pointsize>9</pointsize>
+                    </font>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true">color: rgb(255, 255, 0);
 background-color: rgb(0, 0, 0);</string>
-                 </property>
-                 <property name="text">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Unable to initialize 3D plot window. &lt;br/&gt;Please ensure that PyOpenGL (http://pyopengl.sourceforge.net) is installed. &lt;br/&gt;&lt;/p&gt;&lt;p&gt;You can install PyOpenGL calling:&lt;br/&gt;&lt;span style=&quot; font-family:'Courier';&quot;&gt;python -m pip install PyOpenGL&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignCenter</set>
-                 </property>
-                 <property name="openExternalLinks">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-         <widget class="QWidget" name="pagePixel">
-          <layout class="QVBoxLayout" name="verticalLayout_7">
-           <property name="spacing">
-            <number>1</number>
-           </property>
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QFrame" name="frameTemporalProfiles">
-             <property name="frameShape">
-              <enum>QFrame::StyledPanel</enum>
+                   </property>
+                   <property name="text">
+                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Unable to initialize 3D plot window. &lt;br/&gt;Please ensure that PyOpenGL (http://pyopengl.sourceforge.net) is installed. &lt;br/&gt;&lt;/p&gt;&lt;p&gt;You can install PyOpenGL calling:&lt;br/&gt;&lt;span style=&quot; font-family:'Courier';&quot;&gt;python -m pip install PyOpenGL&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignCenter</set>
+                   </property>
+                   <property name="openExternalLinks">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="pagePixel">
+            <layout class="QVBoxLayout" name="verticalLayout_7">
+             <property name="spacing">
+              <number>1</number>
              </property>
-             <property name="frameShadow">
-              <enum>QFrame::Sunken</enum>
+             <property name="leftMargin">
+              <number>0</number>
              </property>
-             <layout class="QVBoxLayout" name="verticalLayout_2">
-              <property name="spacing">
-               <number>1</number>
-              </property>
-              <property name="leftMargin">
-               <number>0</number>
-              </property>
-              <property name="topMargin">
-               <number>0</number>
-              </property>
-              <property name="rightMargin">
-               <number>0</number>
-              </property>
-              <property name="bottomMargin">
-               <number>0</number>
-              </property>
-              <item>
-               <layout class="QHBoxLayout" name="horizontalLayout_7">
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QFrame" name="frameTemporalProfiles">
+               <property name="frameShape">
+                <enum>QFrame::StyledPanel</enum>
+               </property>
+               <property name="frameShadow">
+                <enum>QFrame::Sunken</enum>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_2">
                 <property name="spacing">
                  <number>1</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
                 </property>
                 <property name="topMargin">
                  <number>0</number>
                 </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
                 <item>
-                 <widget class="QToolButton" name="btnLoadProfile3">
-                  <property name="text">
-                   <string>...</string>
+                 <widget class="TemporalProfileTableView" name="tableViewTemporalProfiles">
+                  <property name="frameShape">
+                   <enum>QFrame::NoFrame</enum>
                   </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
+                  <property name="sortingEnabled">
                    <bool>true</bool>
                   </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnLoadTPFromOgr">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
+                  <attribute name="horizontalHeaderStretchLastSection">
                    <bool>true</bool>
-                  </property>
+                  </attribute>
                  </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnRemoveTemporalProfile">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QToolButton" name="btnSaveTemporalProfiles">
-                  <property name="text">
-                   <string>...</string>
-                  </property>
-                  <property name="icon">
-                   <iconset resource="resources.qrc">
-                    <normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</normaloff>:/timeseriesviewer/icons/mActionFileSave.svg</iconset>
-                  </property>
-                  <property name="popupMode">
-                   <enum>QToolButton::MenuButtonPopup</enum>
-                  </property>
-                  <property name="autoRaise">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QLabel" name="label_2">
-                  <property name="text">
-                   <string>Max. Coordinates</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QSpinBox" name="sbMaxTP">
-                  <property name="toolTip">
-                   <string>Set the maximum number of temporal profiles loaded. Adding more will delete the most oldest profile data. </string>
-                  </property>
-                  <property name="minimum">
-                   <number>1</number>
-                  </property>
-                  <property name="maximum">
-                   <number>256</number>
-                  </property>
-                  <property name="value">
-                   <number>3</number>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <spacer name="horizontalSpacer_4">
-                  <property name="orientation">
-                   <enum>Qt::Horizontal</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>40</width>
-                    <height>20</height>
-                   </size>
-                  </property>
-                 </spacer>
                 </item>
                </layout>
-              </item>
-              <item>
-               <widget class="QTableView" name="tableViewTemporalProfiles">
-                <property name="frameShape">
-                 <enum>QFrame::NoFrame</enum>
-                </property>
-                <property name="sortingEnabled">
-                 <bool>true</bool>
-                </property>
-                <attribute name="horizontalHeaderStretchLastSection">
-                 <bool>true</bool>
-                </attribute>
-               </widget>
-              </item>
-             </layout>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
-      <zorder>listWidget</zorder>
-      <zorder>line</zorder>
-      <zorder>stackedWidget</zorder>
      </widget>
     </item>
     <item>
@@ -947,13 +699,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string>Refresh 2D Plot</string>
    </property>
    <property name="toolTip">
-    <string>Refresh plot</string>
-   </property>
-   <property name="shortcut">
-    <string>F5</string>
+    <string>Refresh 2D Plot</string>
    </property>
   </action>
   <action name="actionAddStyle2D">
@@ -962,7 +711,7 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
-    <string>Add a 2D profile visualization</string>
+    <string>Add 2D profile visualization</string>
    </property>
    <property name="toolTip">
     <string>Adds a new 2D profile visualization</string>
@@ -986,7 +735,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
    </property>
    <property name="text">
-    <string>loadProfile</string>
+    <string>Select Profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Select temporal profile from map.</string>
    </property>
   </action>
   <action name="actionRefresh3D">
@@ -995,19 +747,16 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string>Refresh 3D Plot</string>
    </property>
    <property name="toolTip">
-    <string>Refresh plot</string>
-   </property>
-   <property name="shortcut">
-    <string>F5</string>
+    <string>Refresh 3D plot</string>
    </property>
   </action>
   <action name="actionRemoveTemporalProfile">
    <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">
     <string>Remove Temporal Profiles</string>
@@ -1022,31 +771,7 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
-    <string>Reset View</string>
-   </property>
-  </action>
-  <action name="actionSaveTPVector">
-   <property name="text">
-    <string>Save to vectorfile</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profiles into a vectorfile</string>
-   </property>
-  </action>
-  <action name="actionSaveTPCSV">
-   <property name="text">
-    <string>Save to CSV textfile</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profiles as CSV text file.</string>
-   </property>
-  </action>
-  <action name="actionSaveTPCoordinates">
-   <property name="text">
-    <string>Save Coordinates</string>
-   </property>
-   <property name="toolTip">
-    <string>Save the temporal profile coordinates.</string>
+    <string>Reset 3D Camera</string>
    </property>
   </action>
   <action name="actionAddStyle3D">
@@ -1084,9 +809,6 @@ background-color: rgb(0, 0, 0);</string>
    <property name="toolTip">
     <string>Loads the coordinate from a vector file</string>
    </property>
-   <property name="shortcut">
-    <string>Backspace</string>
-   </property>
   </action>
   <action name="actionReset2DPlot">
    <property name="icon">
@@ -1094,7 +816,52 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
-    <string>Reset View</string>
+    <string>Reset 3D Plot</string>
+   </property>
+   <property name="toolTip">
+    <string>Reset 2D plot</string>
+   </property>
+  </action>
+  <action name="actionLoadMissingValues">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Load Missing Values</string>
+   </property>
+   <property name="toolTip">
+    <string>Load missing band values</string>
+   </property>
+  </action>
+  <action name="actionSaveTemporalProfiles">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Save Temporal Profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Save temporal profiles</string>
+   </property>
+  </action>
+  <action name="actionToggleEditing">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle editing mode</string>
+   </property>
+   <property name="toolTip">
+    <string>Toggle editing mode (Ctrl+E)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
    </property>
   </action>
  </widget>
@@ -1110,9 +877,15 @@ background-color: rgb(0, 0, 0);</string>
    <extends>QGraphicsView</extends>
    <header>timeseriesviewer.profilevisualization</header>
   </customwidget>
+  <customwidget>
+   <class>TemporalProfileTableView</class>
+   <extends>QTableView</extends>
+   <header>timeseriesviewer.temporalprofiles2d</header>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
@@ -1122,8 +895,8 @@ background-color: rgb(0, 0, 0);</string>
    <slot>setCurrentIndex(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>38</x>
-     <y>110</y>
+     <x>37</x>
+     <y>132</y>
     </hint>
     <hint type="destinationlabel">
      <x>213</x>

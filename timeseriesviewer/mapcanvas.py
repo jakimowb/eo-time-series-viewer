@@ -251,7 +251,7 @@ class MapLayerInfo(object):
 
         else:
             self.mSrc = srcOrMapLayer
-            assert provider in ['ogr','gdal']
+            assert provider in ['ogr','gdal','memory']
             self.mProvider = provider
 
 
@@ -356,7 +356,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
         self.addLayerInfos(rasterSources, provider='gdal', **kwds)
 
     def vectorLayerInfos(self):
-        return [li for li in self.mLayerInfos if li.mProvider == 'ogr']
+        return [li for li in self.mLayerInfos if li.mProvider in ['ogr', 'memory']]
 
     def rasterLayerInfos(self):
         return [li for li in self.mLayerInfos if li.mProvider == 'gdal']
@@ -376,14 +376,18 @@ class MapCanvasLayerModel(QAbstractTableModel):
             li = None
             if isinstance(mapLayer, QgsRasterLayer) and provider != 'gdal':
                 continue
-            if isinstance(mapLayer, QgsVectorLayer) and provider != 'ogr':
+            if isinstance(mapLayer, QgsVectorLayer) and provider not in ['ogr', 'memory']:
                 continue
-            if isinstance(mapLayer, QgsMapLayer) or isinstance(mapLayer, str):
+            if isinstance(mapLayer, QgsMapLayer):
+                li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=mapLayer.dataProvider().name())
+            elif isinstance(mapLayer, QgsRasterLayer):
+                li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=mapLayer.dataProvider().name())
+            elif isinstance(mapLayer, str):
                 li = MapLayerInfo(mapLayer, isVisible=isVisible, provider=provider)
 
-            assert isinstance(li, MapLayerInfo)
-            self.mLayerInfos.insert(i, li)
-            i += 1
+            if isinstance(li, MapLayerInfo):
+                self.mLayerInfos.insert(i, li)
+                i += 1
 
     def removeLayerInfo(self, mapLayer):
         self.removeLayerInfos([mapLayer])

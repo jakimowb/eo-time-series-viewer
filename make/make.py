@@ -211,7 +211,9 @@ def compile_rc_files(ROOT, targetDir=None):
     for root_dir, f in resourcefiles:
         #dn = os.path.dirname(f)
         pathQrc = os.path.normpath(jp(root_dir, f))
-        assert os.path.exists(pathQrc), pathQrc
+        if not os.path.exists(pathQrc):
+            print('Resource file does not exist: {}'.format(pathQrc))
+            continue
         bn = os.path.basename(pathQrc)
 
         if isinstance(targetDir, str):

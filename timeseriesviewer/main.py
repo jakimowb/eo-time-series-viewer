@@ -405,17 +405,16 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         #init other GUI components
 
-        D = self.ui
+
         #self.ICP = D.scrollAreaSubsetContent.layout()
         #D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         #self.BVP = self.ui.scrollAreaMapViews.layout()
         #D.dockNavigation.connectTimeSeries(self.TS)
-        D.dockTimeSeries.setTimeSeries(self.TS)
-        D.dockSensors.setTimeSeries(self.TS)
+        self.ui.dockTimeSeries.setTimeSeries(self.TS)
+        self.ui.dockSensors.setTimeSeries(self.TS)
 
 
-        self.spectralTemporalVis = SpectralTemporalVisualization(D.dockProfiles)
-        self.spectralTemporalVis.setTimeSeries(self.TS)
+        self.spectralTemporalVis = SpectralTemporalVisualization(self.TS, self.ui.dockProfiles)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
             lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
@@ -434,59 +433,62 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
 
-        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(D.actionIdentifyTemporalProfile.trigger)
+        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.ui.actionIdentifyTemporalProfile.trigger)
         from timeseriesviewer.mapcanvas import MapTools
 
-        D.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))
+        self.ui.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))
         #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
-        D.actionZoomMaxExtent.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.ZoomFull))
-        D.actionZoomPixelScale.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomPixelScale))
-        D.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomIn))
-        D.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomOut))
-        D.actionPan.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.Pan))
+        self.ui.actionZoomMaxExtent.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.ZoomFull))
+        self.ui.actionZoomPixelScale.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomPixelScale))
+        self.ui.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomIn))
+        self.ui.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomOut))
+        self.ui.actionPan.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.Pan))
 
-        D.actionIdentifyTemporalProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.TemporalProfile))
-        D.actionIdentifySpectralProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.SpectralProfile))
+        self.ui.actionIdentifyTemporalProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.TemporalProfile))
+        self.ui.actionIdentifySpectralProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.SpectralProfile))
 
-        D.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
-        D.dockCursorLocation.sigLocationRequest.connect(D.actionIdentifyCursorLocationValues.trigger)
+        self.ui.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
+        self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
 
         from timeseriesviewer.cursorlocationvalue import CursorLocationInfoModel
-        D.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
+        self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
-        D.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
+        self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
-        D.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
-        D.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
-        D.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
-        D.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
-        D.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
-        D.actionClearTS.triggered.connect(self.clearTimeSeries)
-        D.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
-        D.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
+        self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
+        self.ui.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
+        self.ui.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
+        self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
+        self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
+        self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
+        self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
+        self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
 
-        D.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
+        self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
 
         #connect buttons with actions
         from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
-        D.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
-        D.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
+        self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
+        self.ui.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
         import webbrowser
         from timeseriesviewer import URL_DOCUMENTATION
-        D.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(URL_DOCUMENTATION))
+        self.ui.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(URL_DOCUMENTATION))
 
-        D.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(D.actionIdentifySpectralProfile.trigger)
-        D.dockSpectralLibrary.SLW.setMapInteraction(True)
+        self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
 
-        QgsProject.instance().addMapLayer(D.dockSpectralLibrary.speclib())
+        QgsProject.instance().addMapLayer(self.ui.dockSpectralLibrary.speclib())
+        QgsProject.instance().addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
         moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
         moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+
         reg = QgsGui.instance().mapLayerActionRegistry()
         assert isinstance(reg, QgsMapLayerActionRegistry)
         reg.addMapLayerAction(moveToFeatureCenter)
-        reg.setDefaultActionForLayer(D.dockSpectralLibrary.speclib(), moveToFeatureCenter)
+        reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
+        reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
     def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
         g = feature.geometry()
@@ -496,6 +498,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             crs = layer.crs()
             center = SpatialPoint(crs, x, y)
             self.spatialTemporalVis.setSpatialCenter(center)
+            self.ui.actionRefresh.trigger()
             s = ""
     def initQGISConnection(self):
 
@@ -773,12 +776,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if files is None:
             s = settings()
             defDir = s.value('dir_datasources')
-            """
-            filters = "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
-                      "ENVI Images (*.bsq *.bil *.bip);;" + \
-                      "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
-                      "All files (*.*)"
-            """
+
             filters = QgsProviderRegistry.instance().fileRasterFilters()
             files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 

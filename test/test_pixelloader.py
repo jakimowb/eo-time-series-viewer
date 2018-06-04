@@ -185,6 +185,10 @@ class PixelLoaderTest(unittest.TestCase):
             kwargs = {'myid': 'myID{}'.format(i)}
             tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
+        for t in tasks1:
+            result = doLoaderTask(t)
+            s = ""
+
         PL.startLoading(tasks1)
         PL.startLoading(tasks2)
 

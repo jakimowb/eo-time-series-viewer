@@ -135,31 +135,6 @@ LUT_IDL2GDAL = {1:gdal.GDT_Byte,
                 9:gdal.GDT_CFloat64}
 
 
-def createQgsField(name : str, exampleValue, comment:str=None):
-    if isinstance(exampleValue, str):
-        return QgsField(name, QVariant.String, 'varchar', comment=None)
-    elif isinstance(exampleValue, int):
-        return QgsField(name, QVariant.Int, 'int', comment=None)
-    elif isinstance(exampleValue, float):
-        return QgsField(name, QVariant.Double, 'double', comment=None)
-    elif isinstance(exampleValue, np.ndarray):
-        return QgsField(name, QVariant.String, 'varchar', comment=None)
-    elif isinstance(exampleValue, list):
-        assert len(exampleValue)> 0, 'need at least one value in provided list'
-        v = exampleValue[0]
-        if isinstance(v, int):
-            subType = QVariant.Int
-            typeName = 'int'
-        elif isinstance(v, float):
-            subType = QVariant.Double
-            typeName = 'double'
-        elif isinstance(v, str):
-            subType = QVariant.String
-            typeName = 'varchar'
-        return QgsField(name, QVariant.List, typeName, comment=None, subType=subType)
-    else:
-        raise NotImplemented()
-
 
 def createStandardFields():
     fields = QgsFields()
@@ -677,7 +652,7 @@ class SpectralProfilePlotDataItem(PlotDataItem):
 
 class SpectralProfile(QgsFeature):
 
-    crs = QgsCoordinateReferenceSystem('EPSG:4689')
+    crs = QgsCoordinateReferenceSystem('EPSG:4326')
 
     @staticmethod
     def fromMapCanvas(mapCanvas, position):
@@ -1265,7 +1240,6 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         co = ['SEPARATOR={}'.format(ogrSep),
               'STRING_QUOTING=ALWAYS']
         fw = QgsVectorFileWriter.writeAsVectorFormat(speclib, path, 'utf-8', speclib.crs(), 'CSV',
-
                                                      fieldValueConverter=fwc, datasourceOptions=co)
 
         writtenFiles = []
@@ -2032,16 +2006,6 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
     #sigAttributeRemoved = pyqtSignal(str)
     #sigAttributeAdded = pyqtSignal(str)
 
-    class ProfileWrapper(object):
-        def __init__(self, profile):
-            assert isinstance(profile, SpectralProfile)
-            self.profile = profile
-            self.style = QColor('white')
-            self.checkState = Qt.Unchecked
-
-        def id(self):
-            return self.profile.id()
-
     def __init__(self, speclib=None, parent=None):
 
         if speclib is None:
@@ -2271,7 +2235,7 @@ class SpectralLibraryPlotWidget(PlotWidget):
         speclib.committedFeaturesRemoved.connect(self.onProfilesRemoved)
         speclib.committedAttributeValuesChanges.connect(self.onProfileDataChanged)
 
-        self.onProfilesAdded(speclib.id(), speclib.allFeatureIds())
+        self.onProfilesAdded(speclib.id(), speclib[:])
 
         #self.mModel.rowsAboutToBeRemoved.connect(self.onRowsAboutToBeRemoved)
         #self.mModel.rowsInserted.connect(self.onRowsInserted)
