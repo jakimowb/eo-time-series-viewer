@@ -25,7 +25,28 @@ TSV.show()
 
 #set up example settings
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25
-TSV.loadExampleTimeSeries()
+if False:
+    TSV.loadExampleTimeSeries()
+    center = TSV.TS.getMaxSpatialExtent().spatialCenter()
+else:
+    dirTestData = r'F:\TSData'
+    files = file_search(dirTestData, re.compile('\.tif$'))
+    assert len(files) > 0
+    TSV.loadImageFiles(files)
+    center = TSV.TS.getMaxSpatialExtent().spatialCenter()
+    x = 682430.2823150387
+    y = -751432.9531412527
+    center = SpatialPoint(center.crs(), x, y)
+
+dx = 500
+extent = SpatialExtent(center.crs(), center.x()-dx, center.y()-dx, center.x()+dx, center.y() + dx)
+
+date = np.datetime64('2014-08-01')
+TSV.spatialTemporalVis.setSpatialExtent(extent)
+dt = np.asarray([np.abs(tsd.date - date) for tsd in TSV.TS])
+i = np.argmin(dt)
+TSV.spatialTemporalVis.navigateToTSD(TSV.TS[i])
+
 #TS.loadImageFiles([Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25])
 
 
@@ -89,7 +110,7 @@ rendering.setRasterRenderer(renderer)
 mv1.refreshMapView()
 mv2.refreshMapView()
 
-center = TSV.TS.getMaxSpatialExtent().spatialCenter()
+
 from timeseriesviewer.mapcanvas import MapTools
 
 TSV.onShowProfile(center, mv1.mapCanvases()[0], MapTools.CursorLocation)
@@ -102,6 +123,7 @@ TSV.ui.dockSpectralLibrary.setAddCurrentSpectraToSpeclibMode(True)
 
 import random
 n = len(mv1.mapCanvases())
+n = 20
 dx = random.sample(range(-500, 500, 30), n)
 dy = random.sample(range(-500, 500, 20), n)
 for i, mc in enumerate(mv1.mapCanvases()):
@@ -122,7 +144,7 @@ for dx in range(-120, 120, 60):
 
 TSV.spectralTemporalVis.loadMissingData(backgroundProcess=False)
 
-TP = TSV.spectralTemporalVis.tpCollection[0]
+TP = TSV.spectralTemporalVis.mTemporalProfileLayer[0]
 ps2D_LS_NDVI.setSensor(sensorLS)
 ps2D_LS_NDVI.setExpression('(b4-b3)/(b4+b3)')
 ps2D_LS_NDVI.setTemporalProfile(TP)
@@ -195,9 +217,10 @@ for dockWidget in TSV.ui.findChildren(QDockWidget):
             pageName = page.objectName()
             page.update()
 
-            if i == 0:
+            if pageName == 'page2D':
                 dockWidget.plotWidget2D.update()
-            elif i == 1:
+            elif pageName == 'page3D' and dockWidget.plotWidget3D is not None:
+
                 dockWidget.plotWidget3D.update()
                 dockWidget.plotWidget3D.paintGL()
                 #dockWidget.plotWidget3D.repaint()

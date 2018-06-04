@@ -267,7 +267,7 @@
   </action>
   <action name="mActionCopySelectedRows">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionEditCopy.svg</normaloff>:/images/themes/default/mActionEditCopy.svg</iconset>
    </property>
    <property name="text">
@@ -282,7 +282,7 @@
   </action>
   <action name="actionAddAttribute">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionNewAttribute.svg</normaloff>:/images/themes/default/mActionNewAttribute.svg</iconset>
    </property>
    <property name="text">
@@ -297,7 +297,7 @@
   </action>
   <action name="actionPasteFeatures">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionEditPaste.svg</normaloff>:/images/themes/default/mActionEditPaste.svg</iconset>
    </property>
    <property name="text">
@@ -312,7 +312,7 @@
   </action>
   <action name="actionRemoveAttribute">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDeleteAttribute.svg</normaloff>:/images/themes/default/mActionDeleteAttribute.svg</iconset>
    </property>
    <property name="text">
@@ -327,7 +327,7 @@
   </action>
   <action name="actionSaveEdits">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSaveAllEdits.svg</normaloff>:/images/themes/default/mActionSaveAllEdits.svg</iconset>
    </property>
    <property name="text">
@@ -345,7 +345,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
    </property>
    <property name="text">
@@ -402,7 +402,7 @@
   </action>
   <action name="actionSelectAll">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectAll.svg</normaloff>:/images/themes/default/mActionSelectAll.svg</iconset>
    </property>
    <property name="text">
@@ -417,7 +417,7 @@
   </action>
   <action name="actionInvertSelection">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionInvertSelection.svg</normaloff>:/images/themes/default/mActionInvertSelection.svg</iconset>
    </property>
    <property name="text">
@@ -432,7 +432,7 @@
   </action>
   <action name="actionRemoveSelection">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
    </property>
    <property name="text">
@@ -447,7 +447,7 @@
   </action>
   <action name="actionPanMapToSelectedRows">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionPanToSelected.svg</normaloff>:/images/themes/default/mActionPanToSelected.svg</iconset>
    </property>
    <property name="text">
@@ -462,7 +462,7 @@
   </action>
   <action name="actionZoomMapToSelectedRows">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionZoomToSelected.svg</normaloff>:/images/themes/default/mActionZoomToSelected.svg</iconset>
    </property>
    <property name="text">
@@ -477,7 +477,7 @@
   </action>
   <action name="actionDeleteSelected">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">
@@ -492,7 +492,7 @@
   </action>
   <action name="actionCutSelectedRows">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionEditCut.svg</normaloff>:/images/themes/default/mActionEditCut.svg</iconset>
    </property>
    <property name="text">
@@ -507,7 +507,7 @@
   </action>
   <action name="actionCopySelectedRows">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionEditCopy.svg</normaloff>:/images/themes/default/mActionEditCopy.svg</iconset>
    </property>
    <property name="text">
@@ -553,8 +553,6 @@
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
-  <include location="../../images/images.qrc"/>
-  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>

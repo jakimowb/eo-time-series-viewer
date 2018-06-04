@@ -478,8 +478,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
 
-        QgsProject.instance().addMapLayer(self.ui.dockSpectralLibrary.speclib())
-        QgsProject.instance().addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
+        QgsProject.instance().addMapLayer(self.ui.dockSpectralLibrary.speclib(), False)
+        QgsProject.instance().addMapLayer(self.spectralTemporalVis.temporalProfileLayer(), False)
 
         moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
         moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
@@ -714,30 +714,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def run(self):
         #QApplication.processEvents()
         self.ui.show()
-
-
-
-    def scrollToDate(self, date_of_interest):
-        QApplication.processEvents()
-        HBar = self.ui.scrollArea_imageChips.horizontalScrollBar()
-        TSDs = list(self.CHIPWIDGETS.keys())
-        if len(TSDs) == 0:
-            return
-
-        #get date INDEX that is closest to requested date
-        if type(date_of_interest) is str:
-            date_of_interest = np.datetime64(date_of_interest)
-
-
-        if type(date_of_interest) is np.datetime64:
-            i_doi = TSDs.index(sorted(TSDs, key=lambda TSD: abs(date_of_interest - TSD.getDate()))[0])
-        else:
-            i_doi = date_of_interest
-
-        step = int(float(HBar.maximum()) / (len(TSDs)+1))
-        HBar.setSingleStep(step)
-        HBar.setPageStep(step*5)
-        HBar.setValue(i_doi * step)
 
 
     def clearLayoutWidgets(self, L):
