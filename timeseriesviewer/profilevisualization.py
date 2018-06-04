@@ -1198,6 +1198,12 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         super(ProfileViewDockUI, self).__init__(parent)
         self.setupUi(self)
 
+        self.addActions(self.findChildren(QAction))
+
+        self.mActions2D = [self.actionAddStyle2D, self.actionRemoveStyle2D, self.actionRefresh2D, self.actionReset2DPlot]
+        self.mActions3D = [self.actionAddStyle3D, self.actionRemoveStyle3D, self.actionRefresh3D,
+                           self.actionReset3DCamera]
+        self.mActionsTP = [self.actionLoadMissingValues]
         #TBD.
         #self.line.setVisible(False)
         #self.listWidget.setVisible(False)
@@ -1234,7 +1240,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         if OPENGL_AVAILABLE and mode == 'gl':
 
             from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
-            self.plotWidget3D = ViewWidget3D(parent=self.frame3DPlot)
+            self.plotWidget3D = ViewWidget3D(parent=self.labelDummy3D.parent())
             self.plotWidget3D.setObjectName('plotWidget3D')
 
             size = self.labelDummy3D.size()
@@ -1242,8 +1248,9 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             self.plotWidget3D.setSizePolicy(self.labelDummy3D.sizePolicy())
             self.labelDummy3D.setVisible(False)
             l.removeWidget(self.labelDummy3D)
-            self.plotWidget3D.setBaseSize(size)
-            self.splitter3D.setSizes([100, 100])
+            #self.plotWidget3D.setBaseSize(size)
+            #self.splitter3D.setSizes([100, 100])
+            self.frameSettings3D.setEnabled(True)
         else:
             self.frameSettings3D.setEnabled(False)
 
@@ -1252,10 +1259,19 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         title = self.baseTitle
         if w == self.page2D:
             title = '{} | 2D'.format(title)
+            for a in self.mActions2D:
+                a.setVisible(True)
+            for a in self.mActions3D:
+                a.setVisible(False)
         elif w == self.page3D:
             title = '{} | 3D (experimental!)'.format(title)
+            for a in self.mActions2D:
+                a.setVisible(False)
+            for a in self.mActions3D:
+                a.setVisible(True)
         elif w == self.pagePixel:
             title = '{} | Coordinates'.format(title)
+        w.update()
         self.setWindowTitle(title)
 
 NEXT_COLOR_HUE_DELTA_CON = 10
@@ -2125,8 +2141,8 @@ if __name__ == '__main__':
 
 
     TS = TimeSeries()
-
-    STVis = SpectralTemporalVisualization(TS)
+    pd = ProfileViewDockUI()
+    STVis = SpectralTemporalVisualization(TS, pd)
     STVis.ui.show()
 
     qgsApp.exec_()
