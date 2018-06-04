@@ -22,7 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -46,7 +46,7 @@
      inkscape:cy="12"
      inkscape:window-x="0"
      inkscape:window-y="0"
-     inkscape:window-maximized="0"
+     inkscape:window-maximized="1"
      inkscape:current-layer="svg19941" />
   <linearGradient
      id="a">
@@ -243,30 +243,4 @@
      id="path19939"
      inkscape:connector-curvature="0"
      style="overflow:visible;opacity:0.27222224;fill:#ffffff" />
-  <image
-     y="-12.915255"
-     x="32.025425"
-     id="image23646"
-     xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABcAAAAYCAIAAACeHvEiAAAAA3NCSVQICAjb4U/gAAADaUlEQVQ4
-jY2Vy2/cVBTGz7m+d8b2vD2eVxJnpglNIRKNgKLuQN0hFoUFNKsiqEQRAok/gVXF3wBIXXQFWQES
-YlUV6BaBWICgqJRo8pqkmfHYEz+vfbpoRMLgkfptv08/f/fcq2MkIshS84155Dj4YivTnRKbZSAD
-vqJ01q0nofCZThGLz4IzxLOvnh3XAg6Uci4qKFocYorGhJO0//mD409mnqjxWiO/qhYvMjnC8HfQ
-6mptvlRrVMrlAgDESTSJvL3+yP51slXt0sd3ZnTBHO+gLnRj0aitGBW1WsqVVK4pyGQqvdhzIqe4
-rG+VD/D25uwTcSo084ZaN3Wzrpl1zTQ0o5wrI6AbucNgSEBREtaqunPes95bzqawMpSquspVlWsa
-13ShCRC/3f/rp59/2epvF2vFfFUU51XSI9FMkFEGxbg8r61hkqYyjUMZerFnB/a339++d/dvFHLv
-1h4A4CW0nu5qFzQ0QiiJDIqCaeLiw02b5jAlCpNgHNqsApTC4Nbe4wzdIQBYuN7VXxJKFbD9Tnv3
-5u4UqP76vIIp5lFpMd3KFzuqVs3v/GD7/0z2N/ZPJ3s3VhQNOMPc/+scfrV9QrzScdKIlYEVkInp
-cLwjsSk4AGYO+IS4cdwUr2BLbU25OY+ShzFYH57pvd2j/6p1tQVvAj2Z5q51uWKKKI2nCyS807La
-16zUgYTJf+vMEHFWIsGnbyqNo7xWnHul6tvhZDeY+2ghGaQUUkLs9MiOwxRh78ZTYpG8H+OtzzZP
-e831hWcuLy0sN3zpT6LJ0LUPd0b+n0nygA6+nq7GEhtYQRYu6ovv9/DS8aTbb7WRQToGq7zYLnTq
-mmmWa2a3qpQwoYxlwuEo4ZBvdCvYaLXPt9c+eWEympx7cfXC888tWQuudGQqPelxJhTG5DYNv9nJ
-oJDEeF8RlZzZNOpds66ZhmqUciUCciLHi31f+oH0Axm4tpc62ePl/U/vL36wNGp4BeG7iouAgfQ5
-4wmlgfTdyB0H9igYDoPh0X4IMvtxcQDoN7t0dzNYi9qWN87ZQskBgOMcjQ7Go23XPwzyq8BrJHcJ
-KMqknOw6690zVGS5CoLAeCDjMTEpJWBlpE6WwvLLaH+XDG5mL/PsjTmlzrrFzjH5hxxsTD+Wx5r5
-Dzit3S/78l5C6czAIzPTvLnijE/0AAAAAElFTkSuQmCC
-"
-     style="image-rendering:optimizeSpeed"
-     preserveAspectRatio="none"
-     height="24"
-     width="23" />
 </svg>

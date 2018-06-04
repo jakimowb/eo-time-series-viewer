@@ -43,6 +43,17 @@ class testclassUtilityTests(unittest.TestCase):
         shutil.rmtree(self.dirTmp)
 
 
+    def createTemporalProfiles(self):
+
+        center = self.TS.getMaxSpatialExtent().spatialCenter()
+
+        lyr = TemporalProfileLayer(self.TS)
+
+
+        tp1 = lyr.createTemporalProfiles(center)[0]
+        tp2 = lyr.createTemporalProfiles(SpatialPoint(center.crs(), center.x() + 40, center.y() + 50))
+        return [tp1, tp2]
+
     def test_createTemporalProfile(self):
 
         center = self.TS.getMaxSpatialExtent().spatialCenter()
@@ -126,6 +137,32 @@ class testclassUtilityTests(unittest.TestCase):
         cb.show()
         s = ""
         QGIS_APP.exec_()
+
+
+    def test_expressions(self):
+        s = ""
+        tps = self.createTemporalProfiles()
+        expressions = ['b1 + b2']
+
+        for tp in tps:
+            self.assertIsInstance(tp, TemporalProfile)
+            tp.loadMissingData()
+            tsdKeys = list(tp.mData.keys())
+            for tsd in self.TS:
+                self.assertIn(tsd, tsdKeys)
+                s = ""
+
+            for sensor in self.TS.sensors():
+                self.assertIsInstance(sensor, SensorInstrument)
+                for expression in expressions:
+                    x , y = tp.dataFromExpression(sensor, expression)
+                    self.assertIsInstance(x, list)
+                    self.assertIsInstance(y, list)
+                    self.assertEqual(len(x), len(y))
+                    #self.assertTrue(len(x) > 0)
+
+        styles = PlotStyle()
+
 
     def test_widgets(self):
 

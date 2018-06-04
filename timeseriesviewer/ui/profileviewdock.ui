@@ -160,9 +160,10 @@
             <bool>false</bool>
            </property>
            <addaction name="actionLoadProfileRequest"/>
+           <addaction name="actionLoadMissingValues"/>
            <addaction name="actionLoadTPFromOgr"/>
            <addaction name="actionSaveTemporalProfiles"/>
-           <addaction name="actionLoadMissingValues"/>
+           <addaction name="actionRemoveTemporalProfile"/>
            <addaction name="actionRefresh2D"/>
            <addaction name="actionReset2DPlot"/>
            <addaction name="actionAddStyle2D"/>
@@ -191,7 +192,7 @@
             <number>0</number>
            </property>
            <property name="currentIndex">
-            <number>1</number>
+            <number>0</number>
            </property>
            <widget class="QWidget" name="page2D">
             <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -301,7 +302,7 @@
                    <property name="title">
                     <string>Data Value(s)</string>
                    </property>
-                   <property name="collapsed" stdset="0">
+                   <property name="collapsed">
                     <bool>true</bool>
                    </property>
                    <layout class="QVBoxLayout" name="verticalLayout_8">
@@ -697,13 +698,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string>Refresh 2D Plot</string>
    </property>
    <property name="toolTip">
-    <string>Refresh plot</string>
-   </property>
-   <property name="shortcut">
-    <string>F5</string>
+    <string>Refresh 2D Plot</string>
    </property>
   </action>
   <action name="actionAddStyle2D">
@@ -712,7 +710,7 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
-    <string>Add a 2D profile visualization</string>
+    <string>Add 2D profile visualization</string>
    </property>
    <property name="toolTip">
     <string>Adds a new 2D profile visualization</string>
@@ -736,7 +734,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
    </property>
    <property name="text">
-    <string>loadProfile</string>
+    <string>Select Profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Select temporal profile from map.</string>
    </property>
   </action>
   <action name="actionRefresh3D">
@@ -745,13 +746,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>Refresh</string>
+    <string>Refresh 3D Plot</string>
    </property>
    <property name="toolTip">
-    <string>Refresh plot</string>
-   </property>
-   <property name="shortcut">
-    <string>F5</string>
+    <string>Refresh 3D plot</string>
    </property>
   </action>
   <action name="actionRemoveTemporalProfile">
@@ -772,7 +770,7 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
-    <string>Reset View</string>
+    <string>Reset 3D Camera</string>
    </property>
   </action>
   <action name="actionAddStyle3D">
@@ -810,9 +808,6 @@ background-color: rgb(0, 0, 0);</string>
    <property name="toolTip">
     <string>Loads the coordinate from a vector file</string>
    </property>
-   <property name="shortcut">
-    <string>Backspace</string>
-   </property>
   </action>
   <action name="actionReset2DPlot">
    <property name="icon">
@@ -820,16 +815,22 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
-    <string>Reset View</string>
+    <string>Reset 3D Plot</string>
+   </property>
+   <property name="toolTip">
+    <string>Reset 2D plot</string>
    </property>
   </action>
   <action name="actionLoadMissingValues">
    <property name="icon">
     <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>LoadMissingValues</string>
+    <string>Load Missing Values</string>
+   </property>
+   <property name="toolTip">
+    <string>Load missing band values</string>
    </property>
   </action>
   <action name="actionSaveTemporalProfiles">
@@ -838,7 +839,10 @@ background-color: rgb(0, 0, 0);</string>
      <normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
    </property>
    <property name="text">
-    <string>SaveTemporalProfiles</string>
+    <string>Save Temporal Profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Save temporal profiles</string>
    </property>
   </action>
  </widget>

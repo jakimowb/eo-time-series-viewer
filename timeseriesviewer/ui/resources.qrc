@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mIconTemporalProfileRefresh.svg</file>
     <file>icons/profile2speclib_auto.svg</file>
     <file>icons/mActionAddOgrLayer.svg</file>
     <file>icons/mapCenterExport.svg</file>

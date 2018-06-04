@@ -495,7 +495,7 @@ class PixelLoader(QObject):
                 self.mWorkerProcess = None
 
                 #code = self.mWorkerProcess.exitcode
-
+                self.pixelLoadingLoop(self.mTaskQueue, self.mResultQueue, self.mCancelEvent, self.mKillEvent)
                 #self.mWorkerProcess = None
                 return False
                 #self.initWorkerProcess()
@@ -547,15 +547,18 @@ class PixelLoader(QObject):
         self.mJobProgress[jobId] = LoadingProgress(jobId, len(tasks))
 
         #self.mKillEvent.clear()
-        t = 0
-        while not self.initWorkerProcess('{}.{}'.format(self.mJobId, t)) and t < 10:
-            t += 1
-
         for t in tasks:
             assert isinstance(t, PixelLoaderTask)
             t.mJobId = self.mJobId
             self.mTaskQueue.put(t.toDump())
         self.mTaskQueue.put('LAST_{}'.format(jobId))
+
+        #self.mWorkerProcess = None
+        t = 0
+        while not self.initWorkerProcess('{}.{}'.format(self.mJobId, t)) and t < 10:
+            t += 1
+        s = ""
+
 
     def cancelLoading(self):
         self.mCancelEvent.set()

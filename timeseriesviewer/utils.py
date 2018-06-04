@@ -101,7 +101,16 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories
     return results
 
 
+
+
 def createQgsField(name : str, exampleValue, comment:str=None):
+    """
+    Create a QgsField using a Python-datatype exampleValue
+    :param name: field name
+    :param exampleValue: value, can be any type
+    :param comment: (optional) field comment.
+    :return: QgsField
+    """
     t = type(exampleValue)
     if t in [str]:
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
@@ -122,6 +131,35 @@ def createQgsField(name : str, exampleValue, comment:str=None):
         return QgsField(name, QVariant.List, typeName, comment=comment, subType=subType)
     else:
         raise NotImplemented()
+
+
+def setQgsFieldValue(feature:QgsFeature, field, value):
+    """
+    Wrties the Python value v into a QgsFeature field, taking care of required conversions
+    :param feature: QgsFeature
+    :param field: QgsField | field name (str) | field index (int)
+    :param value: any python value
+    """
+
+    if isinstance(field, int):
+        field = feature.fields().at(field)
+    elif isinstance(field, str):
+        field = feature.fields().at(feature.fieldNameIndex(field))
+    assert isinstance(field, QgsField)
+
+    if value is None:
+        value = QVariant.NULL
+    if field.type() == QVariant.String:
+        value = str(value)
+    elif field.type() in [QVariant.Int, QVariant.Bool]:
+        value = int(value)
+    elif field.type() in [QVariant.Double]:
+        value = float(value)
+    else:
+        raise NotImplementedError()
+
+   # i = feature.fieldNameIndex(field.name())
+    feature.setAttribute(field.name(), value)
 
 
 def appendItemsToMenu(menu, itemsToAdd):

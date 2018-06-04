@@ -46,6 +46,7 @@ import numpy as np
 
 DEBUG = False
 OPENGL_AVAILABLE = False
+ENABLE_OPENGL = False
 
 try:
 
@@ -1203,7 +1204,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
         self.mActions2D = [self.actionAddStyle2D, self.actionRemoveStyle2D, self.actionRefresh2D, self.actionReset2DPlot]
         self.mActions3D = [self.actionAddStyle3D, self.actionRemoveStyle3D, self.actionRefresh3D,
                            self.actionReset3DCamera]
-        self.mActionsTP = [self.actionLoadMissingValues]
+        self.mActionsTP = [self.actionLoadTPFromOgr, self.actionSaveTemporalProfiles, self.actionRemoveTemporalProfile, self.actionLoadMissingValues]
         #TBD.
         #self.line.setVisible(False)
         #self.listWidget.setVisible(False)
@@ -1233,11 +1234,11 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
 
         self.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
 
-    def init3DWidgets(self, mode):
+    def init3DWidgets(self, mode='gl'):
         assert mode in ['gl']
         l = self.frame3DPlot.layout()
 
-        if OPENGL_AVAILABLE and mode == 'gl':
+        if ENABLE_OPENGL and OPENGL_AVAILABLE and mode == 'gl':
 
             from timeseriesviewer.temporalprofiles3dGL import ViewWidget3D
             self.plotWidget3D = ViewWidget3D(parent=self.labelDummy3D.parent())
@@ -1249,7 +1250,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             self.labelDummy3D.setVisible(False)
             l.removeWidget(self.labelDummy3D)
             #self.plotWidget3D.setBaseSize(size)
-            #self.splitter3D.setSizes([100, 100])
+            self.splitter3D.setSizes([100, 100])
             self.frameSettings3D.setEnabled(True)
         else:
             self.frameSettings3D.setEnabled(False)
@@ -1261,16 +1262,21 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
             title = '{} | 2D'.format(title)
             for a in self.mActions2D:
                 a.setVisible(True)
-            for a in self.mActions3D:
+            for a in self.mActions3D + self.mActionsTP:
                 a.setVisible(False)
         elif w == self.page3D:
             title = '{} | 3D (experimental!)'.format(title)
-            for a in self.mActions2D:
+            for a in self.mActions2D + self.mActionsTP:
                 a.setVisible(False)
             for a in self.mActions3D:
                 a.setVisible(True)
         elif w == self.pagePixel:
             title = '{} | Coordinates'.format(title)
+            for a in self.mActions2D + self.mActions3D:
+                a.setVisible(False)
+            for a in self.mActionsTP:
+                a.setVisible(True)
+
         w.update()
         self.setWindowTitle(title)
 
@@ -1392,8 +1398,9 @@ class SpectralTemporalVisualization(QObject):
         self.delegateTableView3D = PlotSettingsModel3DWidgetDelegate(self.ui.tableView3DProfiles, self.mTemporalProfileLayer)
         self.delegateTableView3D.setItemDelegates(self.ui.tableView3DProfiles)
 
-        self.reset3DCamera()
-
+        if not ENABLE_OPENGL:
+            self.ui.listWidget.item(1).setHidden(True)
+            self.ui.page3D.setHidden(True)
 
         def temporalProfileLayer():
             return self.mTemporalProfileLayer
@@ -1567,7 +1574,7 @@ class SpectralTemporalVisualization(QObject):
 
 
     def createNewPlotStyle3D(self):
-        if not OPENGL_AVAILABLE:
+        if not (ENABLE_OPENGL and OPENGL_AVAILABLE):
             return
 
 
@@ -1584,6 +1591,7 @@ class SpectralTemporalVisualization(QObject):
         sensors = list(self.TS.Sensors.keys())
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
+
 
         self.plotSettingsModel3D.insertPlotStyles([plotStyle], i=0) # latest to the top
         plotItems = plotStyle.createPlotItem()
@@ -1657,7 +1665,7 @@ class SpectralTemporalVisualization(QObject):
         self.plot2D.resetTransform()
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
         self.ui.actionLoadTPFromOgr.triggered.connect(lambda : self.loadCoordinatesFromOgr(None))
-
+        self.ui.actionLoadMissingValues.triggered.connect(lambda: self.loadMissingData())
 
         #set actions to be shown in the TemporalProfileTableView context menu
         ma = [self.ui.actionSaveTemporalProfiles, self.ui.actionLoadMissingValues]
@@ -1699,8 +1707,8 @@ class SpectralTemporalVisualization(QObject):
 
     def reset3DCamera(self, *args):
 
-        if OPENGL_AVAILABLE:
-            self.plot3D.resetCamera()
+        if ENABLE_OPENGL and OPENGL_AVAILABLE:
+            self.ui.actionReset3DCamera.trigger()
 
 
 
@@ -1766,15 +1774,21 @@ class SpectralTemporalVisualization(QObject):
             #print(tsd)
 
 
-    def loadMissingData(self, backgroundProcess=True):
+    def loadMissingData(self, backgroundProcess=False):
         """
         Loads all band values of collected locations that have not been loaded until now
         """
-        spatialPoints = [tp.coordinate() for tp in self.mTemporalProfileLayer]
+
+        fids = self.mTemporalProfileLayer.selectedFeatureIds()
+        if len(fids) == 0:
+            fids = [f.id() for f in self.mTemporalProfileLayer.getFeatures()]
+
+        tps = [self.mTemporalProfileLayer.mProfiles.get(fid) for fid in fids]
+        spatialPoints = [tp.coordinate() for tp in tps if isinstance(tp, TemporalProfile)]
         self.loadCoordinate(spatialPoints=spatialPoints, mode='all', backgroundProcess=backgroundProcess)
 
     LOADING_MODES = ['missing','reload','all']
-    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = True):
+    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = False):
         """
         :param spatialPoints: [list-of-geometries] to load pixel values from
         :param LUT_bandIndices: dictionary {sensor:[indices]} with band indices to be loaded per sensor
@@ -1943,7 +1957,7 @@ class SpectralTemporalVisualization(QObject):
 
     @QtCore.pyqtSlot()
     def updatePlot3D(self):
-        if OPENGL_AVAILABLE:
+        if ENABLE_OPENGL and OPENGL_AVAILABLE:
             from pyqtgraph.opengl import GLViewWidget
             from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
             import pyqtgraph.opengl as gl

@@ -891,6 +891,7 @@ class TemporalProfile(QObject):
         assert isinstance(expression, QgsExpression)
         expression = QgsExpression(expression)
 
+        #define required QgsFields
         fields = QgsFields()
         sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor == sensor])
         for tsd in sensorTSDs:
@@ -907,20 +908,9 @@ class TemporalProfile(QObject):
 
             #scope = QgsExpressionContextScope()
             f = QgsFeature(fields)
-            f.setValid(True)
             for k, v in data.items():
-                if v is None:
-                    continue
-                idx = f.fields().indexFromName(k)
-                field = f.fields().field(idx)
-                if field.type() == QVariant.String:
-                    v = str(v)
-                elif field.type() in [QVariant.Int, QVariant.Bool]:
-                    v = int(v)
-                else:
-                    s = ""
+                setQgsFieldValue(f, k, v)
 
-                f.setAttribute(k,v)
             context.setFeature(f)
            # scope.setFeature(f)
             #context.appendScope(scope)
