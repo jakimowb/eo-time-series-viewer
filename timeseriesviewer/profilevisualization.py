@@ -1343,14 +1343,15 @@ class SpectralTemporalVisualization(QObject):
         self.mTemporalProfileLayer = TemporalProfileLayer(self.TS)
         self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
         self.mTemporalProfileLayer.startEditing()
+        self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
         #self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
         self.tpModel = TemporalProfileTableModel(self.mTemporalProfileLayer)
         self.tpFilterModel = TemporalProfileTableFilterModel(self.tpModel)
 
         self.ui.tableViewTemporalProfiles.setModel(self.tpFilterModel)
-        self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
+        #self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
-        self.ui.tableViewTemporalProfiles.setSortingEnabled(True)
+        self.ui.tableViewTemporalProfiles.setSortingEnabled(False)
         #self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
         # pixel loader to load pixel values in parallel
         config = QgsAttributeTableConfig()
@@ -1518,25 +1519,20 @@ class SpectralTemporalVisualization(QObject):
             result.append(m.idx2plotStyle(idx))
         return result
 
-    def selectedTemporalProfiles(self):
-        result = []
-        m = self.ui.tableViewTemporalProfiles.model()
-        for idx in selectedModelIndices(self.ui.tableViewTemporalProfiles):
-            result.append(m.idx2tp(idx))
-        return result
+
 
     def removePlotStyles2D(self, plotStyles):
         m = self.ui.tableView2DProfiles.model()
         if isinstance(m, PlotSettingsModel2D):
             m.removePlotStyles(plotStyles)
 
+    def removeTemporalProfiles(self, fids):
 
-
-
-    def removeTemporalProfiles(self, temporalProfiles):
-        m = self.ui.tableViewTemporalProfiles.model()
-        if isinstance(m, TemporalProfileLayer):
-            m.removeTemporalProfiles(temporalProfiles)
+        self.mTemporalProfileLayer.selectByIds(fids)
+        b = self.mTemporalProfileLayer.isEditable()
+        self.mTemporalProfileLayer.startEditing()
+        self.mTemporalProfileLayer.deleteSelectedFeatures()
+        self.mTemporalProfileLayer.saveEdits(leaveEditable=b)
 
     def createNewPlotStyle2D(self):
         l = len(self.mTemporalProfileLayer)
@@ -1628,7 +1624,7 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
     def onTemporalProfilesAdded(self, profiles):
-        self.mTemporalProfileLayer.prune()
+        #self.mTemporalProfileLayer.prune()
         for plotStyle in self.plotSettingsModel3D:
             assert isinstance(plotStyle, TemporalProfilePlotStyleBase)
             if not isinstance(plotStyle.temporalProfile(), TemporalProfile):
@@ -1637,10 +1633,11 @@ class SpectralTemporalVisualization(QObject):
                 idx = self.plotSettingsModel3D.createIndex(r,c)
                 self.plotSettingsModel3D.setData(idx, self.mTemporalProfileLayer[0])
 
-    def onTemporalProfileSelectionChanged(self, selected, deselected):
-        nSelected = len(selected)
+    def onTemporalProfileSelectionChanged(self, selectedFIDs, deselectedFIDs):
+        nSelected = len(selectedFIDs)
+
         self.ui.actionRemoveTemporalProfile.setEnabled(nSelected > 0)
-        self.ui.btnSaveTemporalProfiles.setEnabled(nSelected > 0)
+
 
     def onPlot2DSelectionChanged(self, selected, deselected):
 
@@ -1659,17 +1656,48 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionRefresh2D.triggered.connect(self.updatePlot2D)
         self.ui.actionRefresh3D.triggered.connect(self.updatePlot3D)
         self.ui.actionRemoveStyle2D.triggered.connect(lambda:self.removePlotStyles2D(self.selected2DPlotStyles()))
-        self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.selectedTemporalProfiles()))
-
+        self.ui.actionRemoveTemporalProfile.triggered.connect(lambda :self.removeTemporalProfiles(self.mTemporalProfileLayer.selectedFeatureIds()))
+        self.ui.actionToggleEditing.triggered.connect(self.onToggleEditing)
         self.ui.actionReset2DPlot.triggered.connect(self.plot2D.resetViewBox)
         self.plot2D.resetTransform()
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
         self.ui.actionLoadTPFromOgr.triggered.connect(lambda : self.loadCoordinatesFromOgr(None))
         self.ui.actionLoadMissingValues.triggered.connect(lambda: self.loadMissingData())
-
+        self.ui.actionSaveTemporalProfiles.triggered.connect(self.mTemporalProfileLayer.saveTemporalProfiles)
         #set actions to be shown in the TemporalProfileTableView context menu
         ma = [self.ui.actionSaveTemporalProfiles, self.ui.actionLoadMissingValues]
         self.ui.tableViewTemporalProfiles.setContextMenuActions(ma)
+
+        self.onEditingToggled()
+
+    def onSaveTemporalProfiles(self):
+
+        s = ""
+
+    def onToggleEditing(self, b):
+
+        if self.mTemporalProfileLayer.isEditable():
+            self.mTemporalProfileLayer.saveEdits(leaveEditable=False)
+        else:
+            self.mTemporalProfileLayer.startEditing()
+        self.onEditingToggled()
+
+    def onEditingToggled(self):
+        lyr = self.mTemporalProfileLayer
+
+        hasSelectedFeatures = lyr.selectedFeatureCount() > 0
+        isEditable = lyr.isEditable()
+        self.ui.actionToggleEditing.blockSignals(True)
+        self.ui.actionToggleEditing.setChecked(isEditable)
+        #self.actionSaveTemporalProfiles.setEnabled(isEditable)
+        #self.actionReload.setEnabled(not isEditable)
+        self.ui.actionToggleEditing.blockSignals(False)
+
+        #self.actionAddAttribute.setEnabled(isEditable)
+        #self.actionRemoveAttribute.setEnabled(isEditable)
+        self.ui.actionRemoveTemporalProfile.setEnabled(isEditable and hasSelectedFeatures)
+        #self.actionPasteFeatures.setEnabled(isEditable)
+        self.ui.actionToggleEditing.setEnabled(not lyr.readOnly())
 
 
     def loadCoordinatesFromOgr(self, path):
@@ -1919,7 +1947,7 @@ class SpectralTemporalVisualization(QObject):
     @QtCore.pyqtSlot()
     def onDataUpdate(self):
 
-        self.mTemporalProfileLayer.prune()
+        #self.mTemporalProfileLayer.prune()
 
         for plotSetting in self.plotSettingsModel2D:
             assert isinstance(plotSetting, TemporalProfile2DPlotStyle)

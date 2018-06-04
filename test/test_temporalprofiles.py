@@ -73,26 +73,6 @@ class testclassUtilityTests(unittest.TestCase):
             self.assertEqual(total, nd+nnd)
 
 
-        path = os.path.join(self.dirTmp, 'testsave.csv')
-        saveTemporalProfiles(temporalProfiles,path, mode='all')
-
-        self.assertTrue(os.path.isfile(path))
-        file = open(path, 'r')
-        lines = file.readlines()
-        file.close()
-        self.assertTrue(len(lines) > 2)
-
-
-        path = os.path.join(self.dirTmp, 'testsave.shp')
-        saveTemporalProfiles(temporalProfiles, path, mode='all')
-
-        ds = ogr.Open(path)
-        self.assertIsInstance(ds, ogr.DataSource)
-        self.assertEqual(ds.GetDriver().GetDescription(), 'ESRI Shapefile')
-        lyr = ds.GetLayer(0)
-        self.assertIsInstance(lyr, ogr.Layer)
-        #self.assertEqual(lyr.GetFeatureCount(), len(lines)-1)
-
     def test_temporalProfileLayer(self):
 
         col = TemporalProfileLayer(self.TS)
@@ -126,6 +106,23 @@ class testclassUtilityTests(unittest.TestCase):
         tp = col.fromSpatialPoint(tp2.coordinate())
         self.assertIsInstance(tp, TemporalProfile)
         self.assertEqual(tp, tp2)
+
+        p = tempfile.mktemp('.shp','testtemporalprofiles')
+        writtenFiles = col.saveTemporalProfiles(p, loadMissingValues=True)
+        self.assertTrue(len(writtenFiles) == 2)
+
+        writtenFiles = col.saveTemporalProfiles(None)
+        self.assertTrue(len(writtenFiles) == 2)
+        s = ""
+        path = os.path.join(self.dirTmp, 'testsave.csv')
+        writtenFiles = col.saveTemporalProfiles(path)
+        self.assertTrue(len(writtenFiles) == 2)
+
+        self.assertTrue(os.path.isfile(path))
+        file = open(path, 'r')
+        lines = file.readlines()
+        file.close()
+        self.assertTrue(len(lines) > 2)
 
 
         cb = QgsFeatureListComboBox()
@@ -214,6 +211,8 @@ class testclassUtilityTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+
+
     unittest.main()
 
 

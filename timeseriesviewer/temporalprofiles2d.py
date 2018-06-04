@@ -44,7 +44,7 @@ LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
 DEBUG = False
 OPENGL_AVAILABLE = False
-
+DEFAULT_SAVE_PATH = None
 DEFAULT_CRS = QgsCoordinateReferenceSystem('EPSG:4326')
 
 FN_ID = 'id'
@@ -55,6 +55,10 @@ FN_N_TOTAL = 'n'
 FN_N_NODATA = 'no_data'
 FN_N_LOADED = 'loaded'
 FN_N_LOADED_PERCENT = 'percent'
+
+
+regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
+regBandKeyExact = re.compile(r'^' + regBandKey.pattern + '$', re.IGNORECASE)
 
 try:
     import OpenGL
@@ -157,140 +161,14 @@ def num2date(n, dt64=True, qDate=False):
     #return np.datetime64('{:04}-01-01'.format(year), 'D') + np.timedelta64(int(yearElapsed), 'D')
 
 
-def saveTemporalProfiles(profiles, path, mode='all', sep=',', loadMissingValues=False):
-    if path is None or len(path) == 0:
-        return
-
-    assert mode in ['coordinate','all']
-
-    nbMax = 0
-    for sensor in profiles[0].timeSeries().sensors():
-        assert isinstance(sensor, SensorInstrument)
-        nbMax = max(nbMax, sensor.nb)
-
-    ext = os.path.splitext(path)[1].lower()
-
-    assert isinstance(ext, str)
-    if ext.startswith('.'):
-        ext = ext[1:]
-
-    if loadMissingValues:
-        for p in profiles:
-            assert isinstance(p, TemporalProfile)
-            p.loadMissingData()
 
 
-    if ext == 'csv':
-        #write a flat list of profiles
-        lines = ['Temporal Profiles']
-        lines.append(sep.join(['pid', 'name', 'date', 'img', 'location', 'band values']))
 
-        for nP, p in enumerate(profiles):
-            assert isinstance(p, TemporalProfile)
-            lines.append('Profile {} "{}": {}'.format(p.mID, p.name(), p.coordinate()))
-            assert isinstance(p, TemporalProfile)
-            c = p.coordinate()
-            for i, tsd in enumerate(p.mTimeSeries):
-                assert isinstance(tsd, TimeSeriesDatum)
-
-                data = p.data(tsd)
-                line = [p.id(), p.name(), data['date'], tsd.pathImg, c.asWkt()]
-                for b in range(tsd.sensor.nb):
-                    key = 'b{}'.format(b+1)
-                    if key in data.keys():
-                        line.append(data[key])
-                    else:
-                        line.append('')
-
-                line = sep.join([str(l) for l in line])
-                lines.append(line)
-        file = open(path, 'w', encoding='utf8')
-        file.writelines('\n'.join(lines))
-        file.flush()
-        file.close()
-
-    else:
-
-        drv = None
-        for i in range(ogr.GetDriverCount()):
-            d = ogr.GetDriver(i)
-            driverExtensions = d.GetMetadataItem('DMD_EXTENSIONS')
-            if driverExtensions is not None and ext in driverExtensions:
-                drv = d
-                break
-
-        if not isinstance(drv, ogr.Driver):
-            raise Exception('Unable to find a OGR driver to write {}'.format(path))
-
-
-        drvMEM = ogr.GetDriverByName('Memory')
-        assert isinstance(drvMEM, ogr.Driver)
-        dsMEM = drvMEM.CreateDataSource('')
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        crs = DEFAULT_CRS
-        assert isinstance(dsMEM, ogr.DataSource)
-        #lines.append(sep.join(['pid', 'name', 'date', 'img', 'location', 'band values']))
-        lyr = dsMEM.CreateLayer(os.path.basename(path), srs, ogr.wkbPoint)
-        lyr.CreateField(ogr.FieldDefn('pid', ogr.OFTInteger64))
-        lyr.CreateField(ogr.FieldDefn('name', ogr.OFTString))
-        lyr.CreateField(ogr.FieldDefn('date', ogr.OFTDateTime))
-        lyr.CreateField(ogr.FieldDefn('doy', ogr.OFTInteger))
-        lyr.CreateField(ogr.FieldDefn('img', ogr.OFTString))
-        lyr.CreateField(ogr.FieldDefn('lat', ogr.OFTReal))
-        lyr.CreateField(ogr.FieldDefn('lon', ogr.OFTReal))
-        lyr.CreateField(ogr.FieldDefn('nodata', ogr.OFTBinary))
-
-        for b in range(nbMax):
-            lyr.CreateField(ogr.FieldDefn('b{}'.format(b+1), ogr.OFTReal))
-
-
-        for iP, p in enumerate(profiles):
-            assert isinstance(p, TemporalProfile)
-
-            c = p.coordinate().toCrs(crs)
-            assert isinstance(c, SpatialPoint)
-
-            for iT, tsd in enumerate(p.timeSeries()):
-                feature = ogr.Feature(lyr.GetLayerDefn())
-                assert isinstance(feature, ogr.Feature)
-                data = p.data(tsd)
-                assert isinstance(tsd, TimeSeriesDatum)
-                feature.SetField('pid', p.id())
-                feature.SetField('name', p.name())
-                feature.SetField('date', str(tsd.date))
-                feature.SetField('doy', int(tsd.doy))
-
-                feature.SetField('img', tsd.pathImg)
-                feature.SetField('lon', c.x())
-                feature.SetField('lat', c.y())
-
-                point = ogr.CreateGeometryFromWkt(c.asWkt())
-                feature.SetGeometry(point)
-
-                if 'nodata' in data.keys():
-                    feature.SetField('nodata', data['nodata'])
-
-                for b in range(tsd.sensor.nb):
-                    key = 'b{}'.format(b+1)
-                    if key in data.keys():
-                        feature.SetField(key, data[key])
-                lyr.CreateFeature(feature)
-        drv.CopyDataSource(dsMEM, path)
-
-        pass
-
-
-regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
-regBandKeyExact = re.compile(r'^' + regBandKey.pattern + '$', re.IGNORECASE)
-
-
-def bandIndex2bandKey(i):
-    assert isinstance(i, int)
+def bandIndex2bandKey(i : int):
     assert i >= 0
     return 'b{}'.format(i + 1)
 
-def bandKey2bandIndex(key):
+def bandKey2bandIndex(key: str):
     match = regBandKeyExact.search(key)
     assert match
     idx = int(match.group()[1:]) - 1
@@ -694,11 +572,6 @@ class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
             pdi.updateDataAndStyle()
 
 
-
-
-
-
-
 class TemporalProfile(QObject):
 
 
@@ -756,11 +629,11 @@ class TemporalProfile(QObject):
         """Feature ID in connected QgsVectorLayer"""
         return self.mID
 
-    def attribute(self, key):
+    def attribute(self, key:str):
         f = self.mLayer.getFeature(self.mID)
         return f.attribute(f.fieldNameIndex(key))
 
-    def setAttribute(self, key, value):
+    def setAttribute(self, key:str, value):
         f = self.mLayer.getFeature(self.id())
 
         b = self.mLayer.isEditable()
@@ -809,7 +682,7 @@ class TemporalProfile(QObject):
 
     def loadMissingData(self, showGUI=False):
         """
-        Loads the missing data
+        Loads the missing data for this profile.
         :return:
         """
         from timeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
@@ -1170,6 +1043,133 @@ class TemporalProfileLayer(QgsVectorLayer):
     def __getitem__(self, slice):
         return list(self.mProfiles.values())[slice]
 
+    def loadMissingData(self, backgroundProcess=False):
+        assert isinstance(self.mTimeSeries, TimeSeries)
+
+        # Get or create the TimeSeriesProfiles which will store the loaded values
+
+
+        tasks = []
+
+        theGeometries = []
+
+        # Define which (new) bands need to be loaded for each sensor
+        LUT_bandIndices = dict()
+        for sensor in self.mTimeSeries.Sensors:
+                LUT_bandIndices[sensor] = list(range(sensor.nb))
+
+        PL = PixelLoader()
+        PL.sigPixelLoaded[object].connect(self.addPixelLoaderResult)
+        # update new / existing points
+
+        for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDatum)
+
+
+            requiredIndices = LUT_bandIndices[tsd.sensor]
+            requiredIndexKeys = [bandIndex2bandKey(b) for b in requiredIndices]
+            TPs = []
+            missingIndices = set()
+            for TP in self.mProfiles.values():
+                assert isinstance(TP, TemporalProfile)
+                dataValues = TP.mData[tsd]
+                existingKeys = list(dataValues.keys())
+                missingIdx = [bandKey2bandIndex(k) for k in requiredIndexKeys if k not in existingKeys]
+                if len(missingIdx) > 0:
+                    TPs.append(TP)
+                    missingIndices.union(set(missingIdx))
+
+            if len(TPs) > 0:
+                theGeometries = [tp.coordinate() for tp in TPs]
+                theIDs = [tp.id() for tp in TPs]
+                task = PixelLoaderTask(tsd.pathImg, theGeometries,
+                                       bandIndices=requiredIndices,
+                                       temporalProfileIDs=theIDs)
+                tasks.append(task)
+
+
+        if len(tasks) > 0:
+
+
+            # self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
+            if backgroundProcess:
+                PL.startLoading(tasks)
+            else:
+                import timeseriesviewer.pixelloader
+                tasks = [timeseriesviewer.pixelloader.doLoaderTask(task) for task in tasks]
+                l = len(tasks)
+                for i, task in enumerate(tasks):
+                    PL.sigPixelLoaded[int, int, object].emit(i + 1, l, task)
+                    PL.sigPixelLoaded[object].emit(task)
+
+
+        else:
+            if DEBUG:
+                print('Data for geometries already loaded')
+
+        s = ""
+
+    def saveTemporalProfiles(self, pathVector, loadMissingValues=False, sep='\t'):
+        if pathVector is None or len(pathVector) == 0:
+            global DEFAULT_SAVE_PATH
+            if DEFAULT_SAVE_PATH == None:
+                DEFAULT_SAVE_PATH = 'temporalprofiles.shp'
+            d = os.path.dirname(DEFAULT_SAVE_PATH)
+            filters = QgsProviderRegistry.instance().fileVectorFilters()
+            pathVector, filter = QFileDialog.getSaveFileName(None, 'Save {}'.format(self.name()), DEFAULT_SAVE_PATH,
+                                                             filter=filters)
+
+            if len(pathVector) == 0:
+                return None
+            else:
+                DEFAULT_SAVE_PATH = pathVector
+
+        if loadMissingValues:
+            self.loadMissingData(backgroundProcess=False)
+            for p in self.mProfiles.values():
+                assert isinstance(p, TemporalProfile)
+                p.loadMissingData()
+
+        drvName = QgsVectorFileWriter.driverForExtension(os.path.splitext(pathVector)[-1])
+        QgsVectorFileWriter.writeAsVectorFormat(self, pathVector, 'utf-8', destCRS=self.crs(), driverName=drvName)
+
+        pathCSV = os.path.splitext(pathVector)[0] + '.data.csv'
+        # write a flat list of profiles
+        lines = ['Temporal Profiles']
+        nBands = max([s.nb for s in self.mTimeSeries.sensors()])
+        lines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy', 'sensor'] + ['b{}'.format(b+1) for b in range(nBands)]))
+
+        for p in list(self.getFeatures()):
+
+            assert isinstance(p, QgsFeature)
+            fid = p.id()
+            tp = self.mProfiles.get(fid)
+            if tp is None:
+                continue
+            assert isinstance(tp, TemporalProfile)
+            name = tp.name()
+            for tsd, values in tp.mData.items():
+                assert isinstance(tsd, TimeSeriesDatum)
+                line = [fid, name, tsd.sensor.name(), tsd.date, tsd.doy]
+                for b in range(tsd.sensor.nb):
+                    key = 'b{}'.format(b+1)
+                    line.append(values.get(key))
+
+                line = ['' if v == None else str(v) for v in line]
+                line = sep.join([str(l) for l in line])
+                lines.append(line)
+            s = ""
+
+
+
+            file = open(pathCSV, 'w', encoding='utf8')
+            file.writelines('\n'.join(lines))
+            #print('\n'.join(lines))
+            file.flush()
+            file.close()
+
+        return [pathVector, pathCSV]
+
     def timeSeries(self):
         """
         Returns the TimeSeries instance.
@@ -1235,7 +1235,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             coordinates = [coordinates]
 
         features = []
-        n = self.featureCount()
+        n = self.dataProvider().featureCount()
         for i, coordinate in enumerate(coordinates):
             assert isinstance(coordinate, SpatialPoint)
 
@@ -1260,8 +1260,8 @@ class TemporalProfileLayer(QgsVectorLayer):
 
 
         if success:
-            assert n+len(features) == self.featureCount()
-            assert self.featureCount() == len(self.mProfiles)
+            assert n+len(features) == self.dataProvider().featureCount()
+            assert self.dataProvider().featureCount() == len(self.mProfiles)
             profiles = [tp for tp in self.mProfiles.values() if tp not in tps_before]
             for p in profiles:
                 p.updateLoadingStatus()
@@ -1304,7 +1304,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
 
     def __len__(self):
-        return self.featureCount()
+        return self.dataProvider().featureCount()
 
     def __iter__(self):
         r = QgsFeatureRequest()
@@ -1328,6 +1328,12 @@ class TemporalProfileLayer(QgsVectorLayer):
     def fromSpatialPoint(self, spatialPoint):
         """ Tests if a Temporal Profile already exists for the given spatialPoint"""
 
+
+        for p in list(self.mProfiles.values()):
+            assert isinstance(p, TemporalProfile)
+            if p.coordinate() == spatialPoint:
+                return p
+        """
         spatialPoint = spatialPoint.toCrs(self.crs())
         unit = QgsUnitTypes.toAbbreviatedString(self.crs().mapUnits()).lower()
         x = spatialPoint.x() + 0.00001
@@ -1340,6 +1346,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         rect = QgsRectangle(x-dx,y-dy, x+dy,y+dy)
         for f  in self.getFeatures(rect):
             return self.mProfiles[f.id()]
+        """
         return None
 
     def removeTemporalProfiles(self, temporalProfiles):
@@ -1378,47 +1385,13 @@ class TemporalProfileLayer(QgsVectorLayer):
         if old != n:
             self.mMaxProfiles = n
 
-            self.prune()
+            #self.prune()
             self.sigMaxProfilesChanged.emit(self.mMaxProfiles)
 
     def maxProfiles(self):
         return self.mMaxProfiles
 
 
-    def prune(self, nMax=None):
-        """
-        Reduces the number of temporal profile to the value n defined with .setMaxProfiles(n)
-        :return: [list-of-removed-TemporalProfiles]
-        """
-        if nMax is None:
-            nMax = self.mMaxProfiles
-
-        nMax = max(nMax, 1)
-
-        toRemove = len(self) - nMax
-        if toRemove > 0:
-
-            toRemove = sorted(self[:], key=lambda p:p.id())[0:toRemove]
-            self.removeTemporalProfiles(toRemove)
-
-
-
-
-
-    def getFieldDefn(self, name, values):
-        if isinstance(values, np.ndarray):
-            # add bands
-            if values.dtype in [np.int8, np.int16, np.int32, np.int64,
-                                np.uint8, np.uint16, np.uint32, np.uint64]:
-                fType = QVariant.Int
-                fTypeName = 'integer'
-            elif values.dtype in [np.float16, np.float32, np.float64]:
-                fType = QVariant.Double
-                fTypeName = 'decimal'
-        else:
-            raise NotImplementedError()
-
-        return QgsField(name, fType, fTypeName)
 
 
     def addPixelLoaderResult(self, d):
@@ -1668,30 +1641,6 @@ class TemporalProfileTableView(QgsAttributeTableView):
                     featureIDs.append(self.model().sourceModel().feature(index).id())
             elif isinstance(self.model(), QgsAttributeTableFilterModel):
                 featureIDs.append(self.model().feature(index).id())
-
-
-
-        if len(featureIDs) > 0:
-            a = menu.addAction('Load missing values')
-            a.setToolTip('Load missing values')
-            #m = menu.addMenu('Copy...')
-            #a = m.addAction("Values")
-            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.VALUES: self.onCopy2Clipboard(ids, mode))
-            #a = m.addAction("Attributes")
-            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ATTRIBUTES: self.onCopy2Clipboard(ids, mode))
-            #a = m.addAction("Values + Attributes")
-            #a.triggered.connect(lambda b, ids=featureIDs, mode=ClipboardIO.WritingModes.ALL: self.onCopy2Clipboard(ids, mode))
-
-        a = menu.addAction('Save as...')
-        a.triggered.connect(lambda b, ids=featureIDs : self.onSaveToFile(ids))
-        menu.addSeparator()
-        #a = menu.addAction('Set Style')
-        #a.triggered.connect(lambda b, ids=featureIDs : self.onSetStyle(ids))
-        #a = menu.addAction('Check')
-        #a.triggered.connect(lambda : self.setCheckState(featureIDs, Qt.Checked))
-        #a = menu.addAction('Uncheck')
-        #a.triggered.connect(lambda: self.setCheckState(featureIDs, Qt.Unchecked))
-        #menu.addSeparator()
 
         for a in self.mContextMenuActions:
             menu.addAction(a)

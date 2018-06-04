@@ -498,6 +498,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             crs = layer.crs()
             center = SpatialPoint(crs, x, y)
             self.spatialTemporalVis.setSpatialCenter(center)
+            self.ui.actionRefresh.trigger()
             s = ""
     def initQGISConnection(self):
 
@@ -775,12 +776,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if files is None:
             s = settings()
             defDir = s.value('dir_datasources')
-            """
-            filters = "GeoTiff (*.tif *.tiff *.gtiff);;"+ \
-                      "ENVI Images (*.bsq *.bil *.bip);;" + \
-                      "JPEG (*.jpg *.jpeg *.jp2 *.j2k);;"+\
-                      "All files (*.*)"
-            """
+
             filters = QgsProviderRegistry.instance().fileRasterFilters()
             files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 

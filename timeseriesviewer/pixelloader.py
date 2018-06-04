@@ -442,7 +442,7 @@ class PixelLoader(QObject):
     Loads pixel from raster images
     """
 
-    sigPixelLoaded = pyqtSignal(int, int, object)
+    sigPixelLoaded = pyqtSignal([int, int, object],[object])
     sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal(np.timedelta64)
     sigLoadingCanceled = pyqtSignal()
@@ -505,7 +505,7 @@ class PixelLoader(QObject):
 
 
 
-    @QtCore.pyqtSlot(PixelLoaderTask)
+
     def onPixelLoaded(self, dataList):
         assert isinstance(dataList, list)
         for data in dataList:
@@ -524,7 +524,8 @@ class PixelLoader(QObject):
                 if progressInfo.done() == progressInfo.total():
                     self.mJobProgress.pop(data.mJobId)
 
-                self.sigPixelLoaded.emit(progressInfo.done(), progressInfo.total(), data)
+                self.sigPixelLoaded[int, int, object].emit(progressInfo.done(), progressInfo.total(), data)
+                self.sigPixelLoaded[object].emit(data)
 
     #def setNumberOfProcesses(self, nProcesses):
     #    assert nProcesses >= 1

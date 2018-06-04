@@ -1240,7 +1240,6 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         co = ['SEPARATOR={}'.format(ogrSep),
               'STRING_QUOTING=ALWAYS']
         fw = QgsVectorFileWriter.writeAsVectorFormat(speclib, path, 'utf-8', speclib.crs(), 'CSV',
-
                                                      fieldValueConverter=fwc, datasourceOptions=co)
 
         writtenFiles = []
