@@ -110,10 +110,17 @@ class testclassUtilityTests(unittest.TestCase):
         p = tempfile.mktemp('.shp','testtemporalprofiles')
         writtenFiles = col.saveTemporalProfiles(p, loadMissingValues=True)
         self.assertTrue(len(writtenFiles) == 2)
+        for f in writtenFiles:
+            self.assertTrue(os.path.isfile(f))
 
         writtenFiles = col.saveTemporalProfiles(None)
         self.assertTrue(len(writtenFiles) == 2)
-        s = ""
+        for f in writtenFiles:
+            self.assertTrue(os.path.isfile(f))
+
+        lyr2 = TemporalProfileLayer(self.TS)
+        lyr2.from
+
         path = os.path.join(self.dirTmp, 'testsave.csv')
         writtenFiles = col.saveTemporalProfiles(path)
         self.assertTrue(len(writtenFiles) == 2)

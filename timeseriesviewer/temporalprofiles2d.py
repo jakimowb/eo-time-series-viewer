@@ -849,7 +849,8 @@ class TemporalProfile(QObject):
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
         self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax,2))
+        if self.mLoadedMax > 0:
+            self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax, 2))
 
         self.mLayer.saveEdits(leaveEditable=b)
         s = ""
@@ -1020,7 +1021,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         #symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
         #self.mLocations.renderer().setSymbol(symbol)
         self.mNextID = 1
-        self.mMaxProfiles = 64
+
         self.TS = None
 
         fields = QgsFields()
@@ -1374,25 +1375,47 @@ class TemporalProfileLayer(QgsVectorLayer):
 
 
 
-    def setMaxProfiles(self, n):
-        """
-        Sets the maximum number of temporal profiles to be stored in this container.
-        :param n: number of profiles, must be >= 1
-        """
-        old = self.mMaxProfiles
+    def loadCoordinatesFromOgr(self, path):
+        """Loads the TemporalProfiles for vector geometries in data source 'path' """
+        if path is None:
+            filters = QgsProviderRegistry.instance().fileVectorFilters()
+            defDir = None
+            if isinstance(DEFAULT_SAVE_PATH, str) and len(DEFAULT_SAVE_PATH) > 0:
+                defDir = os.path.dirname(DEFAULT_SAVE_PATH)
+            path, filter = QFileDialog.getOpenFileName(directory=defDir, filter=filters)
 
-        assert n >= 1
-        if old != n:
-            self.mMaxProfiles = n
+        if isinstance(path, str) and len(path) > 0:
+            sourceLyr = QgsVectorLayer(path)
+            nameAttribute = None
 
-            #self.prune()
-            self.sigMaxProfilesChanged.emit(self.mMaxProfiles)
+            fieldNames = [n.lower() for n in sourceLyr.fields().names()]
+            for candidate in ['name', 'id']:
+                if candidate in fieldNames:
+                    nameAttribute = sourceLyr.fields().names()[fieldNames.index(candidate)]
+                    break
 
-    def maxProfiles(self):
-        return self.mMaxProfiles
-
-
-
+            if len(self.timeSeries()) == 0:
+                sourceLyr.selectAll()
+            else:
+                extent = self.timeSeries().getMaxSpatialExtent(sourceLyr.crs())
+                sourceLyr.selectByRect(extent)
+            newProfiles = []
+            for feature in sourceLyr.selectedFeatures():
+                assert isinstance(feature, QgsFeature)
+                geom = feature.geometry()
+                if isinstance(geom, QgsGeometry):
+                    point = geom.centroid().constGet()
+                    try:
+                        TPs = self.createTemporalProfiles(SpatialPoint(sourceLyr.crs(), point))
+                        for TP in TPs:
+                            if nameAttribute:
+                                name = feature.attribute(nameAttribute)
+                            else:
+                                name = 'FID {}'.format(feature.id())
+                            TP.setName(name)
+                            newProfiles.append(TP)
+                    except Exception as ex:
+                        print(ex)
 
     def addPixelLoaderResult(self, d):
         assert isinstance(d, PixelLoaderTask)
