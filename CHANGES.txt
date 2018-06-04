@@ -1,3 +1,19 @@
+2019-06-04
+    increased version to 0.6
+    SpectralLibrary Module
+        - now based on in-memory QgsVectorLayer
+        - Locations and values of spectral profile can be exported as vector data set
+        - Locations of spectral profiles can be rendered on MapCanvases
+
+    Temporal Profile Module
+        - now based on in-memory QgsVectorLayer
+        - Locations of temporal profiles can be exported as vector data set
+        - Band values of temporal profiles can be exported as CSV file
+        - Locations of temporal profiles can be rendered on MapCanvases
+
+    several bug fixes
+
+
 2018-04-17
     increased version to 0.5
     ported to QGIS 3, Qt5 and Python 3.6
