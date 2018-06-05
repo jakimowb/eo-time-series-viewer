@@ -119,7 +119,7 @@ class testclassUtilityTests(unittest.TestCase):
             self.assertTrue(os.path.isfile(f))
 
         lyr2 = TemporalProfileLayer(self.TS)
-        lyr2.from
+
 
         path = os.path.join(self.dirTmp, 'testsave.csv')
         writtenFiles = col.saveTemporalProfiles(path)

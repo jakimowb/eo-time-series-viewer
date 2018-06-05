@@ -409,6 +409,7 @@ class TestInit(unittest.TestCase):
         p.setCurrentSpectra(cs)
         self.assertTrue(len(p.speclib()) == len(cs))
 
+        qapp.exec_()
     def test_plotWidget(self):
 
         speclib = self.createSpeclib()
@@ -433,7 +434,7 @@ class TestInit(unittest.TestCase):
         for pdi in pdis:
             self.assertFalse(pdi.mProfile.id() == fid)
 
-        pass
+
 
 
 if __name__ == '__main__':
