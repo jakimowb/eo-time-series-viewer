@@ -2061,15 +2061,15 @@ class SpectralLibraryTableModel(QgsAttributeTableModel):
         if index.column() == 0 and role in [Qt.CheckStateRole, Qt.DecorationRole, Qt.UserRole]:
             profile = self.spectralProfile(index)
             style = profile.style()
-            assert isinstance(style, PlotStyle)
-            if role == Qt.UserRole:
-                result = style
+            if isinstance(style, PlotStyle):
+                if role == Qt.UserRole:
+                    result = style
 
-            if role == Qt.CheckStateRole:
-                result = Qt.Checked if style.isVisible() else Qt.Unchecked
+                if role == Qt.CheckStateRole:
+                    result = Qt.Checked if style.isVisible() else Qt.Unchecked
 
-            if role == Qt.DecorationRole:
-                result = style.createIcon(QSize(21,21))
+                if role == Qt.DecorationRole:
+                    result = style.createIcon(QSize(21,21))
 
         return result
 

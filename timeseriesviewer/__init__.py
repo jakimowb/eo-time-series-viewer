@@ -26,12 +26,12 @@ import os, sys, fnmatch, site, re, site
 VERSION = '0.6.201806041845'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
-DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor remote-sensing time-series data.'
+DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor Earth observation time series data.'
 URL_WEBSITE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 URL_DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
 URL_REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ABOUT = """
-The EO Time Series Viewer is developed at Humboldt-Universität zu Berlin. Born in the SenseCarbon project, it was funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 it is developed under contract by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities (www.enmap.org), funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529).
+The EO Time Series Viewer is developed at Humboldt-Universität zu Berlin. Earlier versions of the EO Time Series Viewer were partly developed in the SenseCarbon project, funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 development of the software is supported by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities, funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529), and the Land Use Monitoring System (LUMOS) project funded by the Belgian Science Policy Office as part of the Stereo-III research program (grant no. SR/01/349).
 """
 DEBUG = True
 

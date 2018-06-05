@@ -1993,7 +1993,7 @@ class SpatialTemporalVisualization(QObject):
             #          s.height() + margins.top() + margins.bottom())
 
         #print(sizeX, sizeY)
-        self.targetLayout.parentWidget().setFixedSize(QSize(sizeX, sizeY))
+        self.targetLayout.parentWidget().resize(QSize(sizeX, sizeY))
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         # filter map tools

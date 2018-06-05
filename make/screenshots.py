@@ -33,14 +33,22 @@ else:
     files = file_search(dirTestData, re.compile('\.tif$'))
     assert len(files) > 0
     TSV.loadImageFiles(files)
+
+    dirTestData = r'Y:\Pleiades'
+    files = file_search(dirTestData, re.compile('\.JP2$'), recursive=True)
+    assert len(files) > 0
+    TSV.loadImageFiles(files)
+
     center = TSV.TS.getMaxSpatialExtent().spatialCenter()
-    x = 682430.2823150387
-    y = -751432.9531412527
+    #x = 682430.2823150387
+    #y = -751432.9531412527
+    x = 682459.8471361337
+    y = -751853.6488464196
     center = SpatialPoint(center.crs(), x, y)
 
 dx = 500
 extent = SpatialExtent(center.crs(), center.x()-dx, center.y()-dx, center.x()+dx, center.y() + dx)
-
+extent = SpatialExtent(center.crs(), 681519.46197612234391272, -752814.23602663306519389, 683369.92926584207452834, -750963.76873691333457828)
 date = np.datetime64('2014-08-01')
 TSV.spatialTemporalVis.setSpatialExtent(extent)
 dt = np.asarray([np.abs(tsd.date - date) for tsd in TSV.TS])
@@ -49,19 +57,30 @@ TSV.spatialTemporalVis.navigateToTSD(TSV.TS[i])
 
 #TS.loadImageFiles([Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25])
 
-
+toHide = ['2014-07-18', '2014-08-08', '2014-08-10', '2014-08-23', '2014-08-25', '2014-08-03', '2014-07-26', '2014-07-10']
+for tsd in TSV.TS:
+    assert isinstance(tsd, TimeSeriesDatum)
+    if str(tsd.date) in toHide:
+        tsd.setVisibility(False)
 
 sensorLS = None
 sensorRE = None
+sensorPL = None
 for sensor in TSV.TS.sensors():
     assert isinstance(sensor, SensorInstrument)
 
     if sensor.id() == '6b30.0m0.49;0.56;0.66;0.84;1.65;2.2um':
         sensor.setName('Landsat')
         sensorLS = sensor
+        continue
     if sensor.id() == '5b5.0m':
         sensor.setName('RapidEye')
         sensorRE = sensor
+        continue
+    if sensor.id() == '4b0.5m':
+        sensor.setName('Pléiades')
+        sensorPL = sensor
+        continue
 
 assert isinstance(sensorLS, SensorInstrument)
 assert isinstance(sensorRE, SensorInstrument)
@@ -78,7 +97,7 @@ mv1.setTitle('True Color')
 mv2.setTitle('Short-Wave IR')
 TSV.spatialTemporalVis.adjustScrollArea()
 #set True Color Bands
-for sensor in [sensorLS, sensorRE]:
+for sensor in [sensorLS, sensorRE, sensorPL]:
     rendering = mv1.sensorWidget(sensor)
     assert isinstance(rendering, MapViewRenderSettings)
     renderer = rendering.rasterRenderer()
@@ -106,6 +125,16 @@ renderer.setRedBand(5)
 renderer.setGreenBand(4)
 renderer.setBlueBand(3)
 rendering.setRasterRenderer(renderer)
+
+if isinstance(sensorPL, SensorInstrument):
+    rendering = mv2.sensorWidget(sensorPL)
+    assert isinstance(rendering, MapViewRenderSettings)
+    renderer = rendering.rasterRenderer()
+    assert isinstance(renderer, QgsMultiBandColorRenderer)
+    renderer.setRedBand(4)
+    renderer.setGreenBand(3)
+    renderer.setBlueBand(2)
+    rendering.setRasterRenderer(renderer)
 
 mv1.refreshMapView()
 mv2.refreshMapView()
