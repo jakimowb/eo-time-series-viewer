@@ -2549,7 +2549,7 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
             field = d.field()
             b = self.mSpeclib.isEditable()
             self.mSpeclib.startEditing()
-            self.mSpecli.addAttribute(field)
+            self.mSpeclib.addAttribute(field)
             saveEdits(self.mSpeclib, leaveEditable=b)
 
     def onRemoveAttribute(self):
