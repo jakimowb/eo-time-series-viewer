@@ -1757,6 +1757,16 @@ class SpectralLibrary(QgsVectorLayer):
         assert self.commitChanges()
         self.initConditionalStyles()
 
+    def optionalFields(self):
+        """
+        Returns a list of optional fields.
+        """
+        standardFields = createStandardFields()
+        return [f for f in self.fields() if f not in standardFields]
+
+    def optionalFieldNames(self):
+        return [f.name() for f in self.optionalFields()]
+
     def initConditionalStyles(self):
         styles = self.conditionalStyles()
         assert isinstance(styles, QgsConditionalLayerStyles)
@@ -2534,13 +2544,19 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
         self.actionReload.setEnabled(not isEditable)
         self.actionToggleEditing.blockSignals(False)
 
+
         self.actionAddAttribute.setEnabled(isEditable)
         self.actionRemoveAttribute.setEnabled(isEditable)
         self.actionDeleteSelected.setEnabled(isEditable and hasSelectedFeatures)
         self.actionPasteFeatures.setEnabled(isEditable)
         self.actionToggleEditing.setEnabled(not speclib.readOnly())
 
+        self.actionRemoveAttribute.setEnabled(len(speclib.optionalFieldNames()) > 0)
+
     def onAddAttribute(self):
+        """
+        Slot to add an optional QgsField / attribute
+        """
         d = AddAttributeDialog(self.mSpeclib)
         d.exec_()
 
@@ -2552,20 +2568,24 @@ class SpectralLibraryWidget(QFrame, loadUI('spectrallibrarywidget.ui')):
             self.mSpeclib.addAttribute(field)
             saveEdits(self.mSpeclib, leaveEditable=b)
 
+        self.onEditingToggled()
+
+
     def onRemoveAttribute(self):
-
-        stdFields = createStandardFields().names() + ['shape']
-        fieldNames = [n for n in self.mSpeclib.fields().names() if n not in stdFields]
-
-        fieldName, accepted = QInputDialog.getItem(self, 'Remove Field', 'Select', fieldNames, editable=False)
-        if accepted:
-            i = self.mSpeclib.fields().indexFromName(fieldName)
-            if i >= 0:
-                b = self.mSpeclib.isEditable()
-                self.mSpeclib.startEditing()
-                self.mSpeclib.deleteAttribute(i)
-                saveEdits(self.mSpeclib, leaveEditable=b)
-        s  =""
+        """
+        Slot to remove none-mandatorie fields / attributes
+        """
+        fieldNames = self.mSpeclib.optionalFieldNames()
+        if len(fieldNames) > 0:
+            fieldName, accepted = QInputDialog.getItem(self, 'Remove Field', 'Select', fieldNames, editable=False)
+            if accepted:
+                i = self.mSpeclib.fields().indexFromName(fieldName)
+                if i >= 0:
+                    b = self.mSpeclib.isEditable()
+                    self.mSpeclib.startEditing()
+                    self.mSpeclib.deleteAttribute(i)
+                    saveEdits(self.mSpeclib, leaveEditable=b)
+                self.onEditingToggled()
 
 
     def updateTableConfig(self, config = None):
