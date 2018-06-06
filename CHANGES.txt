@@ -13,7 +13,6 @@
 
     several bug fixes
 
-
 2018-04-17
     increased version to 0.5
     ported to QGIS 3, Qt5 and Python 3.6
