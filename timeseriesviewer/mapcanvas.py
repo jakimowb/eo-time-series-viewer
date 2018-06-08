@@ -743,11 +743,17 @@ class MapCanvas(QgsMapCanvas):
 
         m.addSeparator()
 
-        action = m.addAction('Center (WKT Point)')
+        action = m.addAction('Map Center (WKT)')
         action.triggered.connect(lambda: QApplication.clipboard().setText(center.wellKnownText()))
 
-        action = m.addAction('Center (x,y)')
+        action = m.addAction('Map Center')
         action.triggered.connect(lambda: QApplication.clipboard().setText(center.toString()))
+
+        action = m.addAction('Map Extent (WKT)')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.wellKnownText()))
+
+        action = m.addAction('Map Extent')
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.toString()))
 
         m.addSeparator()
 
