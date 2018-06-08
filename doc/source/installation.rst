@@ -69,7 +69,8 @@ On **Windows**, open the *OSGeo4W Shell* and install the packages via pip:
     python3 -m pip install pyqtgraph
     python3 -m pip install pyopengl
 
-On **Linux** or **Mac** you should be able to use the same commands in the terminal, as long as pip is available, i.e.
+On **Linux** or **Mac** you should be able to use the same commands in the terminal, as long as `pip <https://pip.pypa.io/en/stable/installing/>`_
+is available, i.e.
 
 .. code-block:: shell
 
