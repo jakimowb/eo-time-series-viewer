@@ -151,13 +151,47 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
     vrt.append('</VRTDataset>')
     vrt = '\n'.join(vrt)
 
-    file = open(pathVrt, 'w')
-    file.write(vrt)
-    file.flush()
-    file.close()
+    drv = gdal.GetDriverByName('VRT')
+    assert isinstance(drv, gdal.Driver)
 
-    ds = gdal.Open(pathVrt)
-    return ds
+    dsVRT = drv.Create(pathVrt, xsize, ysize, bands , eType)
+    assert isinstance(dsVRT, gdal.Dataset)
+    for b in range(bands):
+        band = dsVRT.GetRasterBand(b+1)
+        assert isinstance(band, gdal.Band)
+
+        if interleave == 'bsq':
+            imageOffset = headerOffset
+            pixelOffset = LUT_GDT_SIZE[eType]
+            lineOffset = pixelOffset * xsize
+        elif interleave == 'bip':
+            imageOffset = headerOffset + b * LUT_GDT_SIZE[eType]
+            pixelOffset = bands * LUT_GDT_SIZE[eType]
+            lineOffset = xsize * bands
+        else:
+            raise Exception('Interleave {} is not supported'.format(interleave))
+
+        xml = """<SourceFilename relativetoVRT="{relativeToVRT}">{srcFilename}</SourceFilename>
+            <ImageOffset>{imageOffset}</ImageOffset>
+            <PixelOffset>{pixelOffset}</PixelOffset>
+            <LineOffset>{lineOffset}</LineOffset>
+            <ByteOrder>{byteOrder}</ByteOrder>""".format(relativeToVRT=relativeToVRT,
+                           srcFilename=srcFilename,
+                           imageOffset=imageOffset,
+                           pixelOffset=pixelOffset,
+                           lineOffset=lineOffset,
+                           byteOrder=byteOrder)
+
+        band.SetMetadataItem('source_0', xml, "new_vrt_sources")
+    dsVRT.FlushCache()
+
+    #file = open(pathVrt, 'w')
+    #file.write(vrt)
+    #file.flush()
+    #file.close()
+    #ds = gdal.Open(pathVrt)
+    #return ds
+    return dsVRT
 
 
 class VRTRasterInputSourceBand(object):

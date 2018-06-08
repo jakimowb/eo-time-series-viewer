@@ -87,10 +87,7 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         #w = MapViewSensorSettings(sensor)
         w = MapViewRenderSettings(sensor)
-
-        #sizePolicy = QSizePolicy(QSize)
-        #w.ui.
-        #l = self.renderSettingsLayout
+        w.collapsedStateChanged.connect(self.onSensorBoxCollapsed)
         l = self.gbRasterRendering.layout()
         assert sensor not in self.mSensors.keys()
 
@@ -116,7 +113,12 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         sensorSettings.close()
         #self.resize(self.sizeHint())
 
+    def onSensorBoxCollapsed(self, b:bool):
+        l = self.gbRasterRendering.layout()
+        for i in range(l.count()):
+            item = l.itemAt(i)
 
+            s = ""
 
 class RendererWidgetModifications(object):
 
@@ -610,7 +612,8 @@ class RendererWidgetModifications(object):
 
     def comboBoxWithNotSetItem(self, cb):
         assert isinstance(cb, QComboBox)
-        return cb.itemData(0, role=Qt.DisplayRole).lower() == 'not set'
+        data = cb.itemData(0, role=Qt.DisplayRole)
+        return str(data) in ['not set', 'None', 'NoneType']
 
     def setLayoutItemVisibility(self, grid, isVisible):
         assert isinstance(self, QgsRasterRendererWidget)
