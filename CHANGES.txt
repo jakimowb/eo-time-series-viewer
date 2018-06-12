@@ -9,8 +9,6 @@
         - Width of plot lines now scale-independent (issue #64, QPen.setCosmetic(True))
         - adding fields to spectral library (issue #61)
 
-
-
 2018-06-04
     increased version to 0.6
     SpectralLibrary Module
