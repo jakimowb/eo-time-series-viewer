@@ -30,9 +30,18 @@ DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor Earth observation time se
 URL_WEBSITE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 URL_DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
 URL_REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-ABOUT = """
-The EO Time Series Viewer is developed at Humboldt-Universität zu Berlin. Earlier versions of the EO Time Series Viewer were partly developed in the SenseCarbon project, funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research (BMBF, grant no. 50EE1254). Since 2017 development of the software is supported by the German Research Centre for Geosciences (GFZ) as part of the EnMAP Core Science Team activities, funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529), and the Land Use Monitoring System (LUMOS) project funded by the Belgian Science Policy Office as part of the Stereo-III research program (grant no. SR/01/349).
-"""
+
+
+ABOUT = os.path.join(os.path.dirname(__file__), 'ABOUT.txt')
+if os.path.isfile(ABOUT):
+    f = open(ABOUT, 'r', encoding='utf-8')
+    ABOUT = f.read()
+    f.close()
+    del f
+else:
+    ABOUT = "The EO Time Series Viewer"
+
+
 DEBUG = True
 
 DEPENDENCIES = ['pyqtgraph']
@@ -55,6 +64,7 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
+PATH_ABOUT = jp(DIR_REPO, 'ABOUT.txt')
 SETTINGS = QSettings(QSettings.UserScope, 'HU-Berlin', 'EO Time Series Viewer')
 
 

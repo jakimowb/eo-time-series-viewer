@@ -815,14 +815,11 @@ class MapCanvas(QgsMapCanvas):
             for l in mapLayers:
                 if isinstance(l, QgsRasterLayer):
                     lqgis = iface.addRasterLayer(l.source(), l.name())
-                    #lqgis = QgsRasterLayer(l.source(), l.name(), l.providerType(), False)
                     lqgis.setRenderer(l.renderer().clone())
-                    #grpNode.addLayer(lqgis)
+
                 if isinstance(l, QgsVectorLayer):
                     lqgis = iface.addVectorLayer(l.source(), l.name(), 'ogr')
-                    #lqgis = QgsVectorLayer(l.source(), l.name(), 'ogr', False)
-                    lqgis.setRendererV2(l.renderer().clone())
-                    #grpNode.addLayer(lqgis)
+                    lqgis.setRenderer(l.renderer().clone())
 
     def stretchToCurrentExtent(self):
 

@@ -1,0 +1,30 @@
+The EO Time Series Viewer is a QGIS Plugin to visualize and label Earth Observation (EO) time series data.
+
+Features:
+
+<ul>
+<li>visualization of time series data in spatially synchronized maps</li>
+<li>map views visualize different band combinations in parallel, e.g. True Color and SWIR bands</li>
+<li>multi-sensor support: each sensor has its own visualization settings</li>
+<li>easy definition of time series: just use a common "Open File" dialog</li>
+<li>labeling of time series in interaction with QGIS</li>
+<li>extraction of Spectral Profiles and export as Spectral Library</li>
+<li>extraction of Temporal Profiles for single bands or spectral indices (on-the-fly calculation)</li>
+</ul>
+
+Dependencies:
+
+    pyqtgraph (required), PyOpenGL (optional)
+
+    install with "python -m pip pyqtgraph"
+
+
+The EO Time Series Viewer is developed at Geomatics Lab, Humboldt-Universität zu Berlin.
+
+Earlier versions of the EO Time Series Viewer were partly developed in the SenseCarbon project,
+funded by the German Aerospace Centre (DLR) and granted by the Federal Ministry of Education and Research
+(BMBF, grant no. 50EE1254). Since 2017 development of the software is supported by the German Research Centre for Geosciences (GFZ) as
+part of the EnMAP Core Science Team activities, funded by DLR and granted by the Federal Ministry of Economic Affairs and Energy (BMWi, grant no. 50EE1529),
+and the Land Use Monitoring System (LUMOS) project, funded by the Belgian Science Policy Office as part of
+the Stereo-III research program (grant no. SR/01/349).
+
