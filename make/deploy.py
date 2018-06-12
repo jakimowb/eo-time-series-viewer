@@ -117,6 +117,7 @@ if __name__ == "__main__":
     pluginname = cfg.get('plugin', 'name')
     dirPlugin = jp(DIR_DEPLOY, pluginname)
     os.chdir(cdir)
+    make.updateMetadataTxt()
     if True:
         #1. clean an existing directory = the timeseriesviewer folder
 

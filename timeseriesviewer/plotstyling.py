@@ -76,13 +76,16 @@ class PlotStyle(QObject):
         self.backgroundColor = Qt.black
 
         self.markerPen = QPen()
+        self.markerPen.setCosmetic(True)
         self.markerPen.setStyle(Qt.NoPen)
         self.markerPen.setColor(Qt.white)
+        self.markerPen.setWidthF(0)
 
 
         self.linePen = QPen()
+        self.linePen.setCosmetic(True)
         self.linePen.setStyle(Qt.NoPen)
-        self.linePen.setWidth(0)
+        self.linePen.setWidthF(0)
         self.linePen.setColor(QColor(74, 75, 75))
 
         self.mIsVisible = True

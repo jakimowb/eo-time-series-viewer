@@ -7,6 +7,8 @@ deploy/*
 temp/
 doc/build/
 doc/build/*
+test/outputs
+test/outputs/*
 qgisresources/
 qgisresources/*
 screenshots/
