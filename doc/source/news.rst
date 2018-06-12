@@ -2,7 +2,7 @@
 News
 ====
 
-2019-06-04:
+2018-06-04:
     * increased version to 0.6
     * SpectralLibrary Module
 
