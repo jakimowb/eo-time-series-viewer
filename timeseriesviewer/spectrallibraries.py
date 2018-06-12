@@ -38,7 +38,7 @@ import numpy as np
 from osgeo import gdal, gdal_array
 
 from timeseriesviewer.utils import *
-from timeseriesviewer.virtualrasters import *
+#from timeseriesviewer.virtualrasters import *
 from timeseriesviewer.models import *
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog, MARKERSYMBOLS2QGIS_SYMBOLS
 import timeseriesviewer.mimedata as mimedata
