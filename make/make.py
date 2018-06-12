@@ -440,6 +440,7 @@ def updateMetadataTxt():
     #see http://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/plugins.html#plugin-metadata
     #for required metatags
     pathDst = jp(DIR_REPO, 'metadata.txt')
+    pathAboutPlugin = jp(DIR_REPO, 'ABOUT_Plugin.html')
     assert os.path.exists(pathDst)
     import timeseriesviewer.utils
     #required to use QIcons
@@ -462,6 +463,13 @@ def updateMetadataTxt():
     md['author'] = r"Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
     md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
     #md['changelog'] =
+
+    f = open(pathAboutPlugin, 'r', encoding='utf-8')
+    aboutText =f.read()
+    aboutText=aboutText.replace('\n','')
+    f.close()
+
+    md['about'] = aboutText
     md['experimental'] = "False"
     md['deprecated'] = "False"
     md['tags'] = "remote sensing, raster, time series"

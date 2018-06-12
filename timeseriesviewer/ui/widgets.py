@@ -96,7 +96,7 @@ class AboutDialogUI(QDialog,
         self.setAboutTitle()
 
         # page About
-        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG
+        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG, PATH_ABOUT
         self.labelVersion.setText('{}'.format(VERSION))
 
         def readTextFile(path):
@@ -109,7 +109,7 @@ class AboutDialogUI(QDialog,
             return txt
 
         # page Changed
-
+        self.tbAbout.setHtml(readTextFile(PATH_ABOUT))
         self.tbChanges.setText(readTextFile(PATH_CHANGELOG))
         self.tbLicense.setText(readTextFile(PATH_LICENSE))
 

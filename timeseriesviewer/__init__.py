@@ -23,10 +23,10 @@
 import os, sys, fnmatch, site, re, site
 
 
-VERSION = '0.6.201806051822'
+VERSION = '0.6.201806121141'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
-DESCRIPTION = 'A QGIS Plugin to visualize multi-sensor Earth observation time series data.'
+DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
 URL_WEBSITE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 URL_DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
 URL_REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
@@ -64,7 +64,7 @@ DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
-PATH_ABOUT = jp(DIR_REPO, 'ABOUT.txt')
+PATH_ABOUT = jp(DIR_REPO, 'ABOUT.html')
 SETTINGS = QSettings(QSettings.UserScope, 'HU-Berlin', 'EO Time Series Viewer')
 
 
