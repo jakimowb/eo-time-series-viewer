@@ -680,7 +680,11 @@ class MapCanvas(QgsMapCanvas):
         :return: QPixmap
         """
         #return QPixmap(self.map().contentImage().copy())
-        return QPixmap.grabWidget(self)
+
+        pixmap = QPixmap(self.rect().size())
+        painter = QPainter(pixmap)
+        self.render(painter)
+        return pixmap
 
 
 
