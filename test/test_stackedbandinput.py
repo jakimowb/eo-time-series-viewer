@@ -4,7 +4,7 @@
 ***************************************************************************
     
     ---------------------
-    Date                 : 30.11.2017
+    Date                 :
     Copyright            : (C) 2017 by Benjamin Jakimow
     Email                : benjamin jakimow at geo dot hu-berlin dot de
 ***************************************************************************
@@ -23,8 +23,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-from timeseriesviewer.mapcanvas import *
-
+from timeseriesviewer.stackedbandinput import *
+from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
 resourceDir = os.path.join(DIR_REPO,'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 
@@ -41,15 +41,12 @@ class testclassDialogTest(unittest.TestCase):
         pass
 
 
-    def test_mapcanvas(self):
-        m = MapCanvas()
-        self.assertIsInstance(m, QgsMapCanvas)
-        m.show()
+    def test_dialog(self):
+        d = StackedBandInputDialog()
+        d.addSources([Img_2014_05_07_LC82270652014127LGN00_BOA, Img_2014_06_16_LE72270652014167CUB00_BOA])
+        d.show()
 
-        self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
-
-        m.saveAsImage()
-
-
+        QGIS_APP.exec_()
+        pass
 if __name__ == "__main__":
     unittest.main()
