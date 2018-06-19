@@ -41,6 +41,7 @@ class testclassDialogTest(unittest.TestCase):
     def setUp(self):
         """Runs before each test."""
         pass
+
     def tearDown(self):
         """Runs after each test."""
         pass
@@ -52,8 +53,8 @@ class testclassDialogTest(unittest.TestCase):
         ns = 50
         nl = 100
 
-        r1 = np.arange('2000-01-01', '2001-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
-        r2 = np.arange('2000-01-01', '2001-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
+        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
+        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
         drv = gdal.GetDriverByName('ENVI')
 
         crs = osr.SpatialReference()
@@ -87,6 +88,7 @@ class testclassDialogTest(unittest.TestCase):
 
         return datasets
 
+
     def test_inputmodel(self):
         testData = self.createTestDatasets()
         m = InputStackTableModel()
@@ -113,21 +115,24 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(stackInfo) > 0)
 
         stackInfos = [InputStackInfo(f) for f in testData]
-        m.setMultiStackSources(stackInfos)
+
+        dates = set()
+
+        for s in stackInfos:
+            dates.update(s.dates())
+
+        m.setMultiStackSources(stackInfos, list(dates))
 
         self.assertTrue(len(m) > 0)
-
 
         outInfo = m.mOutputImages[0]
         self.assertIsInstance(outInfo, OutputVRTDescription)
 
         xml = m.vrtXML(outInfo)
         self.assertIsInstance(xml, str)
+
         eTree = m.vrtXML(outInfo, asElementTree=True)
         self.assertIsInstance(eTree, ElementTree.Element)
-
-
-
 
 
     def test_dateparsing(self):
@@ -138,7 +143,6 @@ class testclassDialogTest(unittest.TestCase):
         dates = datesFromDataset(dsDates)
         self.assertEqual(len(dates), dsDates.RasterCount)
 
-
         dsNoDates = gdal.OpenEx(self.stackFiles[0], allowed_drivers=['ENVI'])
         dates = datesFromDataset(dsNoDates)
         self.assertEqual(len(dates), 0)
@@ -148,12 +152,43 @@ class testclassDialogTest(unittest.TestCase):
     def test_dialog(self):
         d = StackedBandInputDialog()
         d.addSources(self.createTestDatasets())
-        d.show()
 
-        QGIS_APP.exec_()
+        r = d.exec_()
+
+        self.assertTrue(r in [QDialog.Rejected, QDialog.Accepted])
+        if r == QDialog.Accepted:
+            images = d.writtenFiles()
+            self.assertTrue(len(images) > 0)
+
+            for p in images:
+                ds = gdal.Open(p)
+                self.assertIsInstance(ds, gdal.Dataset)
+                lyr = QgsRasterLayer(p)
+                self.assertIsInstance(lyr, QgsRasterLayer)
+                self.assertTrue(lyr.isValid())
+        else:
+            self.assertTrue(len(d.writtenFiles()) == 0)
+
+        #QGIS_APP.exec_()
         pass
 
+    def test_withTSV(self):
 
 
+
+        testImages = self.createTestDatasets()
+        from timeseriesviewer.main import TimeSeriesViewer
+        TSV = TimeSeriesViewer(None)
+        TSV.show()
+
+        d = StackedBandInputDialog()
+        d.addSources(self.createTestDatasets())
+        writtenFiles = d.saveImages()
+        self.assertTrue(len(writtenFiles) > 0)
+        TSV.loadImageFiles(writtenFiles)
+
+        self.assertTrue(len(TSV.TS) == len(writtenFiles))
+
+        QGIS_APP.exec_()
 if __name__ == "__main__":
     unittest.main()

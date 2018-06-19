@@ -213,13 +213,13 @@ class SensorInstrument(QObject):
         return '\n'.join(info)
 
 
-def verifyInputImage(path, vrtInspection=''):
-    if path is None or not isinstance(path, str):
-        return None
-    ds = gdal.Open(path)
+def verifyInputImage(ds, vrtInspection=''):
 
-    if not ds:
-        #logger.error('{}GDAL unable to open: '.format(vrtInspection, path))
+    if ds is None:
+        return None
+    if isinstance(ds, str):
+        ds = gdal.Open(ds)
+    if not isinstance(ds, gdal.Dataset):
         return False
 
     if ds.RasterCount == 0 and len(ds.GetSubDatasets()) > 0:
@@ -227,11 +227,12 @@ def verifyInputImage(path, vrtInspection=''):
         return False
 
     if ds.GetDriver().ShortName == 'VRT':
-        vrtInspection = 'VRT Inspection {}\n'.format(path)
-        nextFiles = set(ds.GetFileList()) - set([path])
-        validSrc = [verifyInputImage(p, vrtInspection=vrtInspection) for p in nextFiles]
-        if not all(validSrc):
-            return False
+        files = ds.GetFileList()
+        if len(files) > 0:
+            for f in files:
+                subDS = gdal.Open(f)
+                if not isinstance(subDS, gdal.Dataset):
+                    return False
 
     from timeseriesviewer.dateparser import parseDateFromDataSet
     date = parseDateFromDataSet(ds)
@@ -656,7 +657,7 @@ class TimeSeries(QObject):
 
         nMax = len(files)
         nDone = 0
-        self.sigLoadingProgress.emit(0,nMax, 'Start loading {} files...'.format(nMax))
+        self.sigLoadingProgress.emit(0, nMax, 'Start loading {} files...'.format(nMax))
 
         for i, file in enumerate(files):
             t0 = np.datetime64('now')

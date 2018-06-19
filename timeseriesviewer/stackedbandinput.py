@@ -120,8 +120,9 @@ class InputStackInfo(object):
 
         self.path = dataset.GetFileList()[0]
 
-        self.outputBandName = os.path.splitext(os.path.basename(self.path))[0]
-
+        self.outputBandName = os.path.basename(self.path)
+        if len(self.outputBandName) == 0:
+            self.outputBandName = ''
 
         self.bandnames = []
         self.nodatavalues = []
@@ -276,6 +277,9 @@ class InputStackTableModel(QAbstractTableModel):
 
             self.beginInsertRows(QModelIndex(), i, i+len(infos)-1)
             for j, info in enumerate(infos):
+                assert isinstance(info, InputStackInfo)
+                if len(info.outputBandName) == 0:
+                    info.outputBandName = 'Band {}'.format(i+j+1)
                 self.mStackImages.insert(i+j, info)
             self.endInsertRows()
 
@@ -377,8 +381,9 @@ class InputStackTableModel(QAbstractTableModel):
         changed = False
         if role == Qt.EditRole:
             if cname == self.cn_name:
-                info.outputBandName = value
-                changed = True
+                if isinstance(value, str) and len(value) > 0:
+                    info.outputBandName = value
+                    changed = True
             elif cname == self.cn_wl:
                 info.setWavelength(value)
                 changed = True
@@ -402,7 +407,6 @@ class OutputImageModel(QAbstractTableModel):
         self.masterVRT_SourceBandTemplates = {}
         self.masterVRT_InputStacks = None
         self.masterVRT_XML = None
-        self.masterVRT_nb = None
         self.mOutputDir = '/vsimem/'
         self.mOutputPrefix = 'date'
 
@@ -443,6 +447,7 @@ class OutputImageModel(QAbstractTableModel):
             return
         for s in listOfInputStacks:
             assert isinstance(s, InputStackInfo)
+        dates = sorted(dates)
 
         listOfInputStacks = [s for s in listOfInputStacks if len(s) > 0]
         numberOfOutputVRTBands = len(listOfInputStacks)
@@ -456,10 +461,11 @@ class OutputImageModel(QAbstractTableModel):
         #dates = sorted(list(dates))
 
         #create a LUT to get the stack indices for a related date (not each stack might contain a band for each date)
-        for d in dates:
-            self.masterVRT_DateLookup[d] = []
+
         for stackIndex, s in enumerate(listOfInputStacks):
             for bandIndex, bandDate in enumerate(s.dates()):
+                if bandDate not in self.masterVRT_DateLookup.keys():
+                    self.masterVRT_DateLookup[bandDate] = []
                 self.masterVRT_DateLookup[bandDate].append((stackIndex, bandIndex))
 
         #create VRT Template XML
@@ -566,8 +572,6 @@ class OutputImageModel(QAbstractTableModel):
         if role in [Qt.DisplayRole, Qt.ToolTipRole]:
             if cname == self.cn_uri:
                 return vrt.mPath
-            if cname == self.cn_nb:
-                return self.masterVRT_nb
             if cname == self.cn_date:
                 return str(vrt.mDate)
 
@@ -619,6 +623,7 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         super(StackedBandInputDialog, self).__init__(parent=parent)
         self.setupUi(self)
 
+        self.mWrittenFiles = []
 
         self.tableModelInputStacks = InputStackTableModel()
         self.tableModelInputStacks.rowsInserted.connect(self.updateOutputs)
@@ -629,18 +634,39 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.tableViewSourceStacks.setModel(self.tableModelInputStacks)
 
         self.tableModelOutputImages = OutputImageModel()
+        self.tableModelOutputImages.rowsInserted.connect(self.updateOutputInfo)
+        self.tableModelOutputImages.rowsRemoved.connect(self.updateOutputInfo)
+        self.tableModelOutputImages.dataChanged.connect(self.updateOutputInfo)
         self.tableViewOutputImages.setModel(self.tableModelOutputImages)
+        self.tableViewOutputImages.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
+        self.buttonGroupDateMode.buttonClicked.connect(self.updateOutputs)
+        self.buttonGroupOutputLocation.buttonClicked.connect(self.updateOutputs)
 
+        self.cbOpenInQGIS.setEnabled(isinstance(qgis.utils.iface, QgisInterface))
         self.tbFilePrefix.textChanged.connect(self.tableModelOutputImages.setOutputPrefix)
         self.tbFilePrefix.setText('img')
+
+        self.fileWidgetOutputDir.setStorageMode(QgsFileWidget.GetDirectory)
+        self.fileWidgetOutputDir.fileChanged.connect(self.tableModelOutputImages.setOutputDir)
+
         sm = self.tableViewSourceStacks.selectionModel()
         assert isinstance(sm, QItemSelectionModel)
         sm.selectionChanged.connect(self.onSourceStackSelectionChanged)
         self.onSourceStackSelectionChanged([],[])
 
+        sm = self.tableViewOutputImages.selectionModel()
+        assert isinstance(sm, QItemSelectionModel)
+        sm.selectionChanged.connect(self.onOutputImageSelectionChanged)
+
         self.initActions()
 
+    def writtenFiles(self):
+        """
+        Returns the files written after pressing the "Save" button.
+        :return: [list-of-written-file-paths]
+        """
+        return self.mWrittenFiles[:]
 
     def updateOutputs(self, *args):
 
@@ -648,8 +674,16 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         self.tableModelOutputImages.clearOutputs()
         inputStacks = self.tableModelInputStacks.mStackImages
-        self.tableModelOutputImages.setMultiStackSources(inputStacks)
+        datesTotal, datesIntersection = self.tableModelInputStacks.dateInfo()
+        if self.rbDatesAll.isChecked():
+            self.tableModelOutputImages.setMultiStackSources(inputStacks, datesTotal)
+        elif self.rbDatesIntersection.isChecked():
+            self.tableModelOutputImages.setMultiStackSources(inputStacks, datesIntersection)
 
+        if self.rbSaveInMemory.isChecked():
+            self.tableModelOutputImages.setOutputDir('/vsimem/')
+        elif self.rbSaveInDirectory.isChecked():
+            self.tableModelOutputImages.setOutputDir(self.fileWidgetOutputDir.filePath())
 
     def updateInputInfo(self):
 
@@ -668,8 +702,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         n = len(self.tableModelOutputImages)
         info = None
         if n > 0:
-            info = '{} output images, each with {} bands.'
-
+            nb = len(self.tableModelOutputImages.masterVRT_InputStacks)
+            info = '{} output images with {} bands to {}'.format(n, nb, self.tableModelOutputImages.mOutputDir)
+        self.buttonBox.button(QDialogButtonBox.Save).setEnabled(n > 0)
         self.tbInfoOutputImages.setText(info)
 
     def initActions(self):
@@ -680,9 +715,19 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.btnAddSourceStack.setDefaultAction(self.actionAddSourceStack)
         self.btnRemoveSourceStack.setDefaultAction(self.actionRemoveSourceStack)
 
+        self.buttonBox.button(QDialogButtonBox.Save).clicked.connect(self.accept)
+        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(self.close)
 
     def onAddSource(self, *args):
-        pass
+        from timeseriesviewer import SETTINGS
+        defDir = SETTINGS.value('DIR_FILESEARCH')
+        filters = QgsProviderRegistry.instance().fileVectorFilters()
+        files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
+
+        if len(files) > 0:
+            self.tableModelInputStacks.insertSources(files)
+        s = ""
+
 
     def addSources(self, paths):
         self.tableModelInputStacks.insertSources(paths)
@@ -700,15 +745,54 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.actionRemoveSourceStack.setEnabled(len(selected) > 0)
 
 
+    def onOutputImageSelectionChanged(self, selected, deselected):
+
+        if len(selected) > 0:
+            idx = selected.indexes()[0]
+
+            vrtOutput = self.tableModelOutputImages.index2vrt(idx)
+            assert isinstance(vrtOutput, OutputVRTDescription)
+            xml = self.tableModelOutputImages.vrtXML(vrtOutput)
+            self.tbXMLPreview.setPlainText(xml)
+        else:
+            self.tbXMLPreview.setPlainText(None)
+            s = ""
 
 
-    def validate(self):
+    def saveImages(self):
+        """
+        Write the VRT images
+        :return: [list-of-written-file-paths]
+        """
 
 
-        isValid = True
+        nTotal = len(self.tableModelOutputImages)
+        if nTotal == 0:
+            return
 
+        writtenFiles = []
+        self.progressBar.setValue(0)
+        from timeseriesviewer.virtualrasters import write_vsimem, read_vsimem
+        for i, outVRT in enumerate(self.tableModelOutputImages):
+            assert isinstance(outVRT, OutputVRTDescription)
+            xml = self.tableModelOutputImages.vrtXML(outVRT)
 
+            if outVRT.mPath.startswith('/vsimem/'):
+                write_vsimem(outVRT.mPath, xml)
+            else:
+                f = open(outVRT.mPath, 'w', encoding='utf-8')
+                f.write(xml)
+                f.flush()
+                f.close()
 
-        self.buttonBox
+            writtenFiles.append(outVRT.mPath)
 
+            self.progressBar.setValue(int(100. * i / nTotal))
 
+        QTimer.singleShot(500, lambda: self.progressBar.setValue(0))
+
+        if self.cbOpenInQGIS.isEnabled() and self.cbOpenInQGIS.isChecked():
+            mapLayers = [QgsRasterLayer(p) for p in writtenFiles]
+            QgsProject.instance().addMapLayers(mapLayers, addToLegend=True)
+        self.mWrittenFiles.extend(writtenFiles)
+        return writtenFiles

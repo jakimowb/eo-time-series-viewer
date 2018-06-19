@@ -118,12 +118,12 @@ def createQgsField(name : str, exampleValue, comment:str=None):
         return QgsField(name, QVariant.Bool, 'int', len=1, comment=comment)
     elif t in [int, np.int32, np.int64]:
         return QgsField(name, QVariant.Int, 'int', comment=comment)
-    elif t in [float, np.double, np.float, np.float64]:
+    elif t in [float, np.double, np.float16, np.float32, np.float64]:
         return QgsField(name, QVariant.Double, 'double', comment=comment)
     elif isinstance(exampleValue, np.ndarray):
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
     elif isinstance(exampleValue, list):
-        assert len(exampleValue)> 0, 'need at least one value in provided list'
+        assert len(exampleValue) > 0, 'need at least one value in provided list'
         v = exampleValue[0]
         prototype = createQgsField(name, v)
         subType = prototype.type()

@@ -155,6 +155,7 @@
      <string>Files</string>
     </property>
     <addaction name="actionAddTSD"/>
+    <addaction name="actionLoadTimeSeriesStack"/>
     <addaction name="actionAddVectorData"/>
     <addaction name="actionLoadTS"/>
     <addaction name="actionSaveTS"/>
@@ -686,6 +687,14 @@
    </property>
    <property name="toolTip">
     <string>Opens the online documentation</string>
+   </property>
+  </action>
+  <action name="actionLoadTimeSeriesStack">
+   <property name="text">
+    <string>Add images from time stack</string>
+   </property>
+   <property name="toolTip">
+    <string>Load images from a stack or list of stacks witch each image band being an temporal observation</string>
    </property>
   </action>
  </widget>

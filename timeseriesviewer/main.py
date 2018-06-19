@@ -463,7 +463,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
-
+        self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
 
         #connect buttons with actions
@@ -673,6 +673,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
+
+    def loadTimeSeriesStack(self):
+
+        from timeseriesviewer.stackedbandinput import StackedBandInputDialog
+
+        d = StackedBandInputDialog(parent=self.ui)
+        if d.exec_() == QDialog.Accepted:
+            C = d.saveImages()
+            self.addTimeSeriesImages(writtenFiles)
 
 
 
