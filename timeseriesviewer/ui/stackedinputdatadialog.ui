@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>596</width>
-    <height>584</height>
+    <width>582</width>
+    <height>597</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,198 +15,305 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QFrame" name="frame">
+    <widget class="QgsCollapsibleGroupBox" name="gbInputStacks">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
-       <verstretch>2</verstretch>
+       <verstretch>1</verstretch>
       </sizepolicy>
      </property>
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+     <property name="title">
+      <string>Input Images (each band = one temporal observation)</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_2">
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <property name="leftMargin">
-       <number>10</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>10</number>
-      </property>
+     <property name="collapsed" stdset="0">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
-       <widget class="QgsCollapsibleGroupBox" name="gbInputStacks">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="title">
-         <string>Input Stacks</string>
-        </property>
-        <property name="collapsed">
-         <bool>false</bool>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout">
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QToolButton" name="btnAddSourceStack">
-             <property name="text">
-              <string>...</string>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QToolButton" name="btnRemoveSourceStack">
-             <property name="text">
-              <string>...</string>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="horizontalSpacer_2">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QTableView" name="tableViewSourceStacks"/>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QgsCollapsibleGroupBox" name="gbOutputImages">
-        <property name="title">
-         <string>Output Images</string>
-        </property>
-        <property name="collapsed">
-         <bool>false</bool>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_3">
-         <item>
-          <widget class="QTableView" name="tableViewOutputImages"/>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <layout class="QGridLayout" name="gridLayout_2">
+       <layout class="QHBoxLayout" name="horizontalLayout">
         <property name="topMargin">
          <number>0</number>
         </property>
-        <item row="2" column="1">
+        <item>
+         <widget class="QToolButton" name="btnAddSourceStack">
+          <property name="text">
+           <string>...</string>
+          </property>
+          <property name="autoRaise">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btnRemoveSourceStack">
+          <property name="text">
+           <string>...</string>
+          </property>
+          <property name="autoRaise">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QTableView" name="tableViewSourceStacks"/>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="tbInfoInputImages">
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="frame">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>Add images with stacked observations to the list of input images</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>50</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Options</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0" rowspan="2">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Dates from</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4" rowspan="2">
+       <widget class="QLineEdit" name="tbFilePrefix">
+        <property name="text">
+         <string>timestack</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1" rowspan="2" colspan="2">
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QRadioButton" name="radioButton_4">
+          <property name="text">
+           <string>All Input images</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="radioButton_3">
+          <property name="text">
+           <string>Intersection</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="0" column="3" rowspan="2">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Prefix</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1" colspan="2">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
          <widget class="QRadioButton" name="radioButton_2">
           <property name="text">
-           <string>in memory</string>
+           <string>memory</string>
           </property>
           <property name="checked">
            <bool>true</bool>
           </property>
          </widget>
         </item>
-        <item row="2" column="3">
-         <widget class="QFrame" name="frameInMemoryPath">
-          <property name="frameShape">
-           <enum>QFrame::StyledPanel</enum>
-          </property>
-          <property name="frameShadow">
-           <enum>QFrame::Raised</enum>
-          </property>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <property name="spacing">
-            <number>0</number>
-           </property>
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-           <item>
-            <widget class="QgsFileWidget" name="fileWidgetOutputdir">
-             <property name="dialogTitle">
-              <string>Select output directory</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>Save</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
+        <item>
          <widget class="QRadioButton" name="radioButton">
           <property name="text">
-           <string>in directory</string>
+           <string>directory</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_6">
-          <property name="text">
-           <string>Prefix</string>
+        <item>
+         <widget class="QgsFileWidget" name="fileWidgetOutputdir" native="true">
+          <property name="dialogTitle" stdset="0">
+           <string>Select output directory</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="1" colspan="3">
-         <widget class="QLineEdit" name="tbFilePrefix">
-          <property name="text">
-           <string>timestack</string>
+        <item>
+         <spacer name="horizontalSpacer_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
           </property>
-         </widget>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
         </item>
        </layout>
       </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>Save images to</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
+   </item>
+   <item>
+    <widget class="QgsCollapsibleGroupBox" name="gbOutputImages">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>3</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Output Images (each image = one temporal observation)</string>
+     </property>
+     <property name="collapsed" stdset="0">
+      <bool>false</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QSplitter" name="splitter">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <widget class="QTableView" name="tableViewOutputImages">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>3</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+        <widget class="QPlainTextEdit" name="tbXMLPreview">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+           <horstretch>1</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="verticalScrollBarPolicy">
+          <enum>Qt::ScrollBarAlwaysOn</enum>
+         </property>
+         <property name="horizontalScrollBarPolicy">
+          <enum>Qt::ScrollBarAlwaysOn</enum>
+         </property>
+         <property name="sizeAdjustPolicy">
+          <enum>QAbstractScrollArea::AdjustToContents</enum>
+         </property>
+         <property name="placeholderText">
+          <string>Select output image to show its definition here</string>
+         </property>
+        </widget>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="tbInfoOutputImages">
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="frame">
+         <bool>false</bool>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="placeholderText">
+         <string>No output images defined</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
@@ -214,7 +321,7 @@
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Save</set>
      </property>
     </widget>
    </item>
@@ -300,22 +407,6 @@
     <hint type="destinationlabel">
      <x>137</x>
      <y>635</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>radioButton_2</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>frameInMemoryPath</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>67</x>
-     <y>600</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>121</x>
-     <y>595</y>
     </hint>
    </hints>
   </connection>

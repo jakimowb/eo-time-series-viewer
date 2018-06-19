@@ -92,7 +92,7 @@ class InputStackInfo(object):
         if isinstance(dataset, str):
             #test ENVI header first
             basename = os.path.splitext(dataset)[0]
-
+            ds = None
             if os.path.isfile(basename+'.hdr'):
                 ds = gdal.OpenEx(dataset, allowed_drivers=['ENVI'])
             if not isinstance(ds, gdal.Dataset):
@@ -166,11 +166,7 @@ class OutputVRTDescription(object):
     def setPath(self, path:str):
         self.mPath = path
 
-    def xml(self):
-        """
-        Create the VRT XML
-        :return:
-        """
+
 
 class InputStackTableModel(QAbstractTableModel):
 
@@ -211,6 +207,30 @@ class InputStackTableModel(QAbstractTableModel):
         if isinstance(i, QModelIndex):
             i = i.column()
         return self.mColumnNames[i]
+
+
+
+    def dateInfo(self):
+        """
+        Returns a list with all extracted dates and a list of date in common between all datasets
+        :return: [all dates], [dates in common]
+        """
+        if len(self) == 0:
+            return [],[]
+        datesTotal = set()
+        datesInCommon = None
+        for i, f in enumerate(self.mStackImages):
+            assert isinstance(f, InputStackInfo)
+
+            dates = f.dates()
+            if datesInCommon is None:
+                datesInCommon = set(dates)
+            else:
+                datesInCommon = datesInCommon.intersection(dates)
+
+            datesTotal = datesTotal.union(f.dates())
+
+        return sorted(list(datesTotal)), sorted(list(datesInCommon))
 
     def flags(self, index):
         if index.isValid():
@@ -372,13 +392,11 @@ class OutputImageModel(QAbstractTableModel):
         super(OutputImageModel, self).__init__(parent)
 
         self.cn_uri = 'Path'
-        self.cn_nb = 'nb'
         self.cn_date = 'Date'
         self.mOutputImages = []
 
-        self.mColumnNames = [self.cn_date, self.cn_nb, self.cn_uri]
+        self.mColumnNames = [self.cn_date, self.cn_uri]
         self.mColumnTooltips = {}
-        self.mColumnTooltips[self.cn_nb] = 'Number of bands'
         self.mColumnTooltips[self.cn_uri] = 'Output location'
         self.masterVRT_DateLookup = {}
         self.masterVRT_SourceBandTemplates = {}
@@ -415,14 +433,14 @@ class OutputImageModel(QAbstractTableModel):
         self.mOutputImages = []
         self.endRemoveRows()
 
-    def setMultiStackSources(self, listOfInputStacks:list, nextBand:int=1, nextDate:int=1):
+    def setMultiStackSources(self, listOfInputStacks:list, dates:list):
 
         self.clearOutputs()
-        if len(listOfInputStacks) == 0:
-            return
+
         if listOfInputStacks is None or len(listOfInputStacks) == 0:
             return
-
+        if dates is None or len(dates) == 0:
+            return
         for s in listOfInputStacks:
             assert isinstance(s, InputStackInfo)
 
@@ -431,18 +449,18 @@ class OutputImageModel(QAbstractTableModel):
         self.masterVRT_DateLookup.clear()
         self.masterVRT_InputStacks = listOfInputStacks
         self.masterVRT_SourceBandTemplates.clear()
-        dates = set()
-        for s in listOfInputStacks:
-            for d in s.dates():
-                dates.add(d)
-        dates = sorted(list(dates))
+        #dates = set()
+        #for s in listOfInputStacks:
+        #    for d in s.dates():
+        #        dates.add(d)
+        #dates = sorted(list(dates))
 
         #create a LUT to get the stack indices for a related date (not each stack might contain a band for each date)
         for d in dates:
             self.masterVRT_DateLookup[d] = []
         for stackIndex, s in enumerate(listOfInputStacks):
-            for bandIndex, date in enumerate(s.dates()):
-                self.masterVRT_DateLookup[date].append((stackIndex, bandIndex))
+            for bandIndex, bandDate in enumerate(s.dates()):
+                self.masterVRT_DateLookup[bandDate].append((stackIndex, bandIndex))
 
         #create VRT Template XML
         VRT = VRTRaster()
@@ -606,6 +624,8 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.tableModelInputStacks.rowsInserted.connect(self.updateOutputs)
         self.tableModelInputStacks.dataChanged.connect(self.updateOutputs)
         self.tableModelInputStacks.rowsRemoved.connect(self.updateOutputs)
+        self.tableModelInputStacks.rowsInserted.connect(self.updateInputInfo)
+        self.tableModelInputStacks.rowsRemoved.connect(self.updateInputInfo)
         self.tableViewSourceStacks.setModel(self.tableModelInputStacks)
 
         self.tableModelOutputImages = OutputImageModel()
@@ -621,12 +641,36 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         self.initActions()
 
+
     def updateOutputs(self, *args):
+
+
 
         self.tableModelOutputImages.clearOutputs()
         inputStacks = self.tableModelInputStacks.mStackImages
         self.tableModelOutputImages.setMultiStackSources(inputStacks)
 
+
+    def updateInputInfo(self):
+
+        n = len(self.tableModelInputStacks)
+        datesTotal, datesInCommon = self.tableModelInputStacks.dateInfo()
+        info = None
+        if n > 0:
+            nAll = len(datesTotal)
+            nInt = len(datesInCommon)
+            info = '{} Input Images with {} dates in total, {} in intersection'.format(n, nAll, nInt)
+
+        self.tbInfoInputImages.setText(info)
+
+    def updateOutputInfo(self):
+
+        n = len(self.tableModelOutputImages)
+        info = None
+        if n > 0:
+            info = '{} output images, each with {} bands.'
+
+        self.tbInfoOutputImages.setText(info)
 
     def initActions(self):
 
