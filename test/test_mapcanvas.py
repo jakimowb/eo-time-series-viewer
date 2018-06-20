@@ -48,7 +48,6 @@ class testclassDialogTest(unittest.TestCase):
 
         self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
 
-        m.saveAsImage()
 
 
 if __name__ == "__main__":
