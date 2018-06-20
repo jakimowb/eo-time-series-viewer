@@ -101,6 +101,35 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories
     return results
 
 
+NEXT_COLOR_HUE_DELTA_CON = 10
+NEXT_COLOR_HUE_DELTA_CAT = 100
+def nextColor(color, mode='cat'):
+    """
+    Returns another color
+    :param color: the previous color
+    :param mode: 'cat' - for categorical color jump (next color looks pretty different to previous)
+                 'con' - for continuous color jump (next color looks similar to previous)
+    :return:
+    """
+    assert mode in ['cat','con']
+    assert isinstance(color, QColor)
+    hue, sat, value, alpha = color.getHsl()
+    if mode == 'cat':
+        hue += NEXT_COLOR_HUE_DELTA_CAT
+    elif mode == 'con':
+        hue += NEXT_COLOR_HUE_DELTA_CON
+    if sat == 0:
+        sat = 255
+        value = 128
+        alpha = 255
+        s = ""
+    while hue > 360:
+        hue -= 360
+
+    return QColor.fromHsl(hue, sat, value, alpha)
+
+
+
 
 
 def createQgsField(name : str, exampleValue, comment:str=None):
@@ -131,6 +160,7 @@ def createQgsField(name : str, exampleValue, comment:str=None):
         return QgsField(name, QVariant.List, typeName, comment=comment, subType=subType)
     else:
         raise NotImplemented()
+
 
 
 def setQgsFieldValue(feature:QgsFeature, field, value):

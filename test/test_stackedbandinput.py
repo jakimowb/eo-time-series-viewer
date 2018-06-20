@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewer.utils import initQgisApplication, nextColor
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -64,8 +64,8 @@ class testclassDialogTest(unittest.TestCase):
         datasets = []
         for i, r in enumerate([r1, r2]):
             p = '{}tmpstack{}.bsq'.format(vsiDir, i+1)
-
-            ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
+            nb = len(r)
+            ds = drv.Create(p, ns, nl, nb, eType=gdal.GDT_Float32)
             assert isinstance(ds, gdal.Dataset)
 
             ds.SetProjection(crs.ExportToWkt())
@@ -84,8 +84,33 @@ class testclassDialogTest(unittest.TestCase):
             datasets.append(p)
 
 
+            if i == 0:
+                #create a classification image stack
 
+                nc = nb
+                data = np.ones((nb, ns, nl), dtype=np.uint8)
+                classNames = ['unclassified']
+                colorTable = gdal.ColorTable()
+                colorTable.SetColorEntry(0, (0,0,0))
+                assert isinstance(colorTable, gdal.ColorTable)
+                color = QColor('green')
 
+                for j, date in enumerate(r):
+                    c = j+1
+                    data[j, j:-1, 0:j] = c
+                    classNames.append('Class {}'.format(date))
+                    colorTable.SetColorEntry(c, color.getRgb())
+                    color = nextColor(color)
+
+                p = '{}tmpClassificationStack.bsq'.format(vsiDir)
+                ds = gdal_array.SaveArray(data,p, format='ENVI', prototype=datasets[0])
+                ds.GetRasterBand(1).SetColorTable(colorTable)
+                ds.GetRasterBand(1).SetCategoryNames(classNames)
+
+                assert isinstance(ds, gdal.Dataset)
+                ds.SetMetadataItem('wavelength', dateString, 'ENVI')
+                ds.FlushCache()
+                datasets.append(ds)
         return datasets
 
 

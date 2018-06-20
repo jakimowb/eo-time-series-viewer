@@ -118,6 +118,9 @@ class InputStackInfo(object):
         self.wkt = dataset.GetProjection()
         self.gt = dataset.GetGeoTransform()
 
+        self.colorTable = dataset.GetRasterBand(1).GetColorTable()
+        self.classNames = dataset.GetRasterBand(1).GetCategoryNames()
+
         self.path = dataset.GetFileList()[0]
 
         self.outputBandName = os.path.basename(self.path)
@@ -486,6 +489,8 @@ class OutputImageModel(QAbstractTableModel):
             wavelength.append(stack.wavelength())
             VRT.addVirtualBand(vrtBand)
 
+
+
         pathVSITmp = '/vsimem/temp.vrt'
         dsVRT = VRT.saveVRT(pathVSITmp)
         dsVRT.SetMetadataItem('acquisition date', 'XML_REPLACE_DATE')
@@ -493,6 +498,15 @@ class OutputImageModel(QAbstractTableModel):
         if None not in wavelength:
             dsVRT.SetMetadataItem('wavelength', ','.join(str(wl) for wl in wavelength))
             dsVRT.SetMetadataItem('wavelength units', 'Nanometers')
+
+        for stackIndex, stack in enumerate(listOfInputStacks):
+            band = dsVRT.GetRasterBand(stackIndex+1)
+            assert isinstance(band, gdal.Band)
+            assert isinstance(stack, InputStackInfo)
+            if stack.colorTable:
+                band.SetColorTable(stack.colorTable)
+            if stack.classNames:
+                band.SetCategoryNames(stack.classNames)
 
         dsVRT.FlushCache()
         drv = dsVRT.GetDriver()

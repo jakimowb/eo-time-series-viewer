@@ -1568,7 +1568,7 @@ def rendererToXml(renderer):
                   </VRTRasterBand>
                 </VRTDataset>
                 """
-        path = '/vsimem/{}.vrt'.format(uuid.UUID())
+        path = '/vsimem/{}.vrt'.format(uuid.uuid4())
         drv = gdal.GetDriverByName('VRT')
         assert isinstance(drv, gdal.Driver)
         write_vsimem(path, xml)
