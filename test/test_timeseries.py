@@ -95,7 +95,7 @@ class TestInit(unittest.TestCase):
         dsRE = gdal.Open(pathRE)
         assert isinstance(dsRE, gdal.Dataset)
 
-        tsdRE = TS.tsdFromPath(pathRE)
+        tsdRE = TS.getTSD(pathRE)
         self.assertIsInstance(tsdRE, TimeSeriesDatum)
         sRE = tsdRE.sensor
         self.assertIsInstance(sRE, SensorInstrument)

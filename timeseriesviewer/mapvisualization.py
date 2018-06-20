@@ -42,7 +42,6 @@ from timeseriesviewer.crosshair import CrosshairStyle
 
 
 
-#dummyPath = os.path.abspath(os.path.join(os.path.dirname(__file__), 'dummy_gdal.vrt'))
 #assert os.path.isfile(dummyPath)
 #lyr = QgsRasterLayer(dummyPath)
 #assert lyr.isValid()
@@ -1532,21 +1531,65 @@ RENDER_CLASSES['renderer-v2'] = {
 }
 
 
+
+
 def rendererToXml(renderer):
+    """
+    Returns a renderer XML representation
+    :param renderer: QgsRasterRender | QgsFeatureRenderer
+    :return: QDomDocument
+    """
     doc = QDomDocument()
+    err = ''
     if isinstance(renderer, QgsRasterRenderer):
-        path = os.path.join(os.path.dirname(__file__), 'dummy_gdal.vrt')
+        #create a dummy raster layer
+        import uuid
+        from timeseriesviewer.virtualrasters import write_vsimem, read_vsimem
+        xml = """<VRTDataset rasterXSize="1" rasterYSize="1">
+                  <GeoTransform>  0.0000000000000000e+00,  1.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00, -1.0000000000000000e+00</GeoTransform>
+                  <VRTRasterBand dataType="Float32" band="1">
+                    <Metadata>
+                      <MDI key="STATISTICS_MAXIMUM">0</MDI>
+                      <MDI key="STATISTICS_MEAN">0</MDI>
+                      <MDI key="STATISTICS_MINIMUM">0</MDI>
+                      <MDI key="STATISTICS_STDDEV">0</MDI>
+                    </Metadata>
+                    <Description>Band 1</Description>
+                    <Histograms>
+                      <HistItem>
+                        <HistMin>0</HistMin>
+                        <HistMax>0</HistMax>
+                        <BucketCount>1</BucketCount>
+                        <IncludeOutOfRange>0</IncludeOutOfRange>
+                        <Approximate>0</Approximate>
+                        <HistCounts>0</HistCounts>
+                      </HistItem>
+                    </Histograms>
+                  </VRTRasterBand>
+                </VRTDataset>
+                """
+        path = '/vsimem/{}.vrt'.format(uuid.UUID())
+        drv = gdal.GetDriverByName('VRT')
+        assert isinstance(drv, gdal.Driver)
+        write_vsimem(path, xml)
         lyr = QgsRasterLayer(path)
+        assert lyr.isValid()
         lyr.setRenderer(renderer.clone())
+        lyr.exportNamedStyle(doc, err)
+        #remove dummy raster layer
+        lyr = None
+        drv.Delete(path)
 
     elif isinstance(renderer, QgsFeatureRenderer):
         #todo: distinguish vector type from requested renderer
         lyr = QgsVectorLayer('Point?crs=epsg:4326&field=id:integer', 'dummy', 'memory')
         lyr.setRenderer(renderer.clone())
+        lyr.exportNamedStyle(doc, err)
+        lyr = None
     else:
         raise NotImplementedError()
-    err = ''
-    lyr.exportNamedStyle(doc, err)
+
+
     return doc
 
 

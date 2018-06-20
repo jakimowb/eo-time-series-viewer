@@ -265,6 +265,11 @@ class InputStackTableModel(QAbstractTableModel):
         return len(self.mColumnNames)
 
     def insertSources(self, paths, i=None):
+        """
+        Inserts new datasources
+        :param paths: [list-of-datasources]
+        :param i: index where to add the first datasource.
+        """
 
         if i == None:
             i = self.rowCount()
@@ -395,6 +400,7 @@ class OutputImageModel(QAbstractTableModel):
 
     def __init__(self, parent=None):
         super(OutputImageModel, self).__init__(parent)
+
 
         self.cn_uri = 'Path'
         self.cn_date = 'Date'
@@ -622,7 +628,7 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         super(StackedBandInputDialog, self).__init__(parent=parent)
         self.setupUi(self)
-
+        self.setWindowTitle('Stacked Time Series Data Input')
         self.mWrittenFiles = []
 
         self.tableModelInputStacks = InputStackTableModel()
@@ -669,9 +675,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         return self.mWrittenFiles[:]
 
     def updateOutputs(self, *args):
-
-
-
+        """
+        Updates the output file information
+        """
         self.tableModelOutputImages.clearOutputs()
         inputStacks = self.tableModelInputStacks.mStackImages
         datesTotal, datesIntersection = self.tableModelInputStacks.dateInfo()
@@ -686,6 +692,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
             self.tableModelOutputImages.setOutputDir(self.fileWidgetOutputDir.filePath())
 
     def updateInputInfo(self):
+        """
+        Updates the input file information
+        """
 
         n = len(self.tableModelInputStacks)
         datesTotal, datesInCommon = self.tableModelInputStacks.dateInfo()
@@ -708,6 +717,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.tbInfoOutputImages.setText(info)
 
     def initActions(self):
+        """
+        Initializes QActions and what they trigger.
+        """
 
         self.actionAddSourceStack.triggered.connect(self.onAddSource)
         self.actionRemoveSourceStack.triggered.connect(self.onRemoveSources)
@@ -719,6 +731,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(self.close)
 
     def onAddSource(self, *args):
+        """
+        Reacts on new added datasets
+        """
         from timeseriesviewer import SETTINGS
         defDir = SETTINGS.value('DIR_FILESEARCH')
         filters = QgsProviderRegistry.instance().fileVectorFilters()
@@ -730,6 +745,11 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
 
     def addSources(self, paths):
+        """
+        Adds new datasources
+        :param paths: [list-of-new-datasources]
+        :return:
+        """
         self.tableModelInputStacks.insertSources(paths)
 
     def onRemoveSources(self, *args):
