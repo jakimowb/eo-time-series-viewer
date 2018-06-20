@@ -680,7 +680,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         d = StackedBandInputDialog(parent=self.ui)
         if d.exec_() == QDialog.Accepted:
-            C = d.saveImages()
+            writtenFiles = d.saveImages()
             self.addTimeSeriesImages(writtenFiles)
 
 
