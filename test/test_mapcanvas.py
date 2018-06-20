@@ -25,7 +25,8 @@ import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
 
-QGIS_APP = initQgisApplication()
+resourceDir = os.path.join(DIR_REPO,'qgisresources')
+QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 
 
 class testclassDialogTest(unittest.TestCase):
@@ -47,7 +48,6 @@ class testclassDialogTest(unittest.TestCase):
 
         self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
 
-        m.saveAsImage()
 
 
 if __name__ == "__main__":

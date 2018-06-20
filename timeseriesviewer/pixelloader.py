@@ -67,7 +67,7 @@ class PixelLoaderTask(object):
     def fromDump(byte_object):
         return pickle.loads(byte_object)
 
-    def __init__(self, source, geometries, bandIndices=None, **kwargs):
+    def __init__(self, source:str, geometries, bandIndices=None, **kwargs):
         """
 
         :param jobId: jobId number as given by the calling PixelLoader
@@ -82,8 +82,6 @@ class PixelLoaderTask(object):
         assert isinstance(geometries, list)
         for geometry in geometries:
             assert type(geometry) in [SpatialExtent, SpatialPoint]
-
-        assert os.path.isfile(source)
 
 
         #assert isinstance(source, str) or isinstance(source, unicode)

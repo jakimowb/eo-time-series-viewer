@@ -35,10 +35,10 @@ from pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
 from pyqtgraph.graphicsItems.PlotItem import PlotItem
 import pyqtgraph.functions as fn
 import numpy as np
-from osgeo import gdal, gdal_array
+from osgeo import gdal, gdal_array, ogr
 
 from timeseriesviewer.utils import *
-#from timeseriesviewer.virtualrasters import *
+from timeseriesviewer.virtualrasters import describeRawFile
 from timeseriesviewer.models import *
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog, MARKERSYMBOLS2QGIS_SYMBOLS
 import timeseriesviewer.mimedata as mimedata
@@ -1863,7 +1863,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         xSize = int(hdr['samples'])
         ySize = int(hdr['lines'])
         bands = int(hdr['bands'])
-        byteOrder = 'MSB' if hdr['byte order'] == 0 else 'LSB'
+        byteOrder = 'LSB' if int(hdr['byte order']) == 0 else 'MSB'
 
         if pathVrt is None:
             id = uuid.UUID()
@@ -2556,36 +2556,6 @@ class SpectralLibraryPlotWidget(PlotWidget):
         #if self.mModel.rowCount() > 0:
         #    self.onRowsInserted(self.mModel.index(0,0), 0, self.mModel.rowCount())
 
-    def onMouseMoved2D(self, evt):
-        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
-
-        plotItem = self.getPlotItem()
-        if plotItem.sceneBoundingRect().contains(pos):
-            vb = plotItem.vb
-            assert isinstance(vb, DateTimeViewBox)
-            mousePoint = vb.mapSceneToView(pos)
-            x = mousePoint.x()
-            if x >= 0:
-                y = mousePoint.y()
-                date = num2date(x)
-                doy = dateDOY(date)
-                plotItem.vb.updateCurrentDate(num2date(x, dt64=True))
-                self.mInfoLabelCursor.setText('DN {:0.2f}\nDate {}\nDOY {}'.format(
-                                              mousePoint.y(), date, doy),
-                                              color=self.mInfoColor)
-
-                s = self.size()
-                pos = QPointF(s.width(), 0)
-                self.mInfoLabelCursor.setVisible(vb.mActionShowCursorValues.isChecked())
-                self.mInfoLabelCursor.setPos(pos)
-
-                b = vb.mActionShowCrosshair.isChecked()
-                self.mCrosshairLineH.setVisible(b)
-                self.mCrosshairLineV.setVisible(b)
-                self.mCrosshairLineH.pen.setColor(self.mInfoColor)
-                self.mCrosshairLineV.pen.setColor(self.mInfoColor)
-                self.mCrosshairLineV.setPos(mousePoint.x())
-                self.mCrosshairLineH.setPos(mousePoint.y())
 
 
     def speclib(self):

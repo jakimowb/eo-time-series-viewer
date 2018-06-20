@@ -1,9 +1,10 @@
 
-import os, re, logging
+import os, re, logging, datetime
 from osgeo import gdal
 import numpy as np
 from qgis import *
-logger = logging.getLogger(__file__)
+from qgis.PyQt.QtCore import QDate
+
 
 #regular expression. compile them only once
 
@@ -19,6 +20,7 @@ regYYYYMMDD = re.compile(r'(?P<year>(19|20)\d\d)(?P<hyphen>-?)(?P<month>1[0-2]|0
 regMissingHypen = re.compile(r'^\d{8}')
 regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
 regYYYYDOY = re.compile(r'(?P<year>(19|20)\d\d)-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
+regDecimalYear = re.compile(r'(?P<year>(19|20)\d\d)\.(?P<datefraction>\d\d\d)')
 
 def matchOrNone(regex, text):
     match = regex.search(text)
@@ -27,7 +29,52 @@ def matchOrNone(regex, text):
     else:
         return None
 
-def extractDateTimeGroup(text):
+def dateDOY(date):
+    if isinstance(date, np.datetime64):
+        date = date.astype(datetime.date)
+    return date.timetuple().tm_yday
+
+def daysPerYear(year):
+
+    if isinstance(year, np.datetime64):
+        year = year.astype(datetime.date)
+    if isinstance(year, datetime.date):
+        year = year.timetuple().tm_year
+
+    return dateDOY(datetime.date(year=year, month=12, day=31))
+
+def num2date(n, dt64=True, qDate=False):
+    n = float(n)
+    if n < 1:
+        n += 1
+
+    year = int(n)
+    fraction = n - year
+    yearDuration = daysPerYear(year)
+    yearElapsed = fraction * yearDuration
+
+    import math
+    doy = round(yearElapsed)
+    if doy < 1:
+        doy = 1
+    try:
+        date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
+    except:
+        s = ""
+    if qDate:
+        return QDate(date.year, date.month, date.day)
+    if dt64:
+        return np.datetime64(date)
+    else:
+        return date
+
+
+def extractDateTimeGroup(text:str)->np.datetime64:
+    """
+    Extracts a date-time-group from a text string
+    :param text: a string
+    :return: numpy.datetime64 in case of success, or None
+    """
     match = regISODate1.search(text)
     if match:
         matchedText = match.group()
@@ -46,6 +93,14 @@ def extractDateTimeGroup(text):
     match = regYYYYMM.search(text)
     if match:
         return np.datetime64(match.group())
+
+    match = regDecimalYear.search(text)
+    if match:
+        year = float(match.group('year'))
+        df = float(match.group('datefraction'))
+        num = match.group()
+        return num2date(num)
+
 
     return None
 
