@@ -2159,6 +2159,8 @@ class SpectralLibrary(QgsVectorLayer):
         """
         featureRequest = QgsFeatureRequest()
         if fids is not None:
+            if isinstance(fids, int):
+                fids = [fids]
             if not isinstance(fids, list):
                 fids = list(fids)
             featureRequest.setFilterFids(fids)
@@ -3056,93 +3058,4 @@ class SpectralLibraryFeatureSelectionManager(QgsIFeatureSelectionManager):
     def setSelectedFeatures(self, ids):
         self.mLayer.selectByIds(ids)
 
-def __sandbox():
-
-
-    app = initQgisApplication()
-    app.messageLog().messageReceived.connect(lambda args: print(args) )
-
-
-    from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
-
-    mapCanvas = QgsMapCanvas()
-    p = Img_2014_06_16_LE72270652014167CUB00_BOA
-    ext = SpatialExtent.fromRasterSource(p)
-    pos = []
-    center = ext.spatialCenter()
-    for dx in range(-120,120, 60):
-        for dy in range(-120,120,60):
-            pos.append(SpatialPoint(ext.crs(), center.x()+dx, center.y()+dy))
-
-    speclib = SpectralLibrary()
-    p1 = SpectralProfile()
-    p1.setName('No Geometry')
-    p1.setXValues([1,2,3,4,5])
-    p1.setYValues([0.2,0.3,0.2,0.5,0.7])
-
-    p2 = SpectralProfile()
-    p2.setName('No Geom/NoData')
-
-    speclib.addProfiles([p1,p2],0)
-    speclib.addSpeclib(SpectralLibrary.readFromRasterPositions(p, pos))
-    speclib.startEditing()
-
-    mapCanvas.show()
-
-
-
-    lyr = QgsRasterLayer(Img_2014_06_16_LE72270652014167CUB00_BOA)
-    lyrs = [speclib, lyr]
-    QgsProject.instance().addMapLayers(lyrs)
-    mapCanvas.setLayers(lyrs)
-    mapCanvas.setDestinationCrs(lyr.crs())
-    mapCanvas.setExtent(lyr.extent())
-    sp = SpectralProfile.fromMapCanvas(mapCanvas,
-                                       SpatialPoint(mapCanvas.mapSettings().destinationCrs(), mapCanvas.center()))
-
-    if False:
-
-        w = QFrame()
-        w.setLayout(QHBoxLayout())
-
-        model = SpectralLibraryTableModel(speclib=speclib, parent=w)
-        fmodel = SpectralLibraryTableFilterModel(model)
-        view = SpectralLibraryTableView(parent=w)
-        #view = QgsAttributeTableView(parent=w)
-        # view = QTableView()
-        # from qgis.gui import QgsVectorLayerSelectionManager
-        # featureSelectionManager = QgsVectorLayerSelectionManager(speclib)
-
-        view.setModel(fmodel)
-
-
-        # view.setFeatureSelectionManager(featureSelectionManager)
-        config = QgsAttributeTableConfig()
-        config.update(speclib.fields())
-
-        for i, columnConfig in enumerate(config.columns()):
-
-            if columnConfig.name.startswith(HIDDEN_ATTRIBUTE_PREFIX):
-                config.setColumnHidden(i, True)
-
-        speclib.setAttributeTableConfig(config)
-        fmodel.setAttributeTableConfig(config)
-        view.setAttributeTableConfig(config)
-
-        #view.setSelectionBehavior(QAbstractItemView.SelectItems)
-        #view.setSelectionMode(QAbstractItemView.ExtendedSelection)
-
-        w.layout().addWidget(view)
-    else:
-        w = SpectralLibraryWidget()
-        w.setMapInteraction(True)
-
-        w.mSpeclib.addSpeclib(speclib)
-
-        w.setCurrentSpectra(sp)
-        w.show()
-        w.resize(QSize(800, 200))
-
-    app.exec_()
-    print('Finished')
 
