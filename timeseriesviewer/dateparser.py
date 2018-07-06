@@ -147,7 +147,7 @@ class ImageDateReader(object):
 class ImageDateReaderDefault(ImageDateReader):
     def __init__(self, dataSet):
         super(ImageDateReaderDefault, self).__init__(dataSet)
-        self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
+        self.regDateKeys = re.compile('(acquisition[ ]*time|date|datetime)', re.IGNORECASE)
 
     def readDTG(self):
         # search metadata for datetime information

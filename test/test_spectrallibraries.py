@@ -461,6 +461,13 @@ class TestInit(unittest.TestCase):
         p = SpectralLibraryWidget()
         p.show()
 
+        self.assertIsInstance(p.speclib(), SpectralLibrary)
+        fieldNames = p.speclib().fieldNames()
+        self.assertIsInstance(fieldNames, list)
+
+        self.assertIsInstance(p.mModel, SpectralLibraryTableModel)
+        self.assertTrue(p.mModel.headerData(0, Qt.Horizontal) == fieldNames[0])
+
         cs = [speclib[0], speclib[3], speclib[-1]]
         p.setAddCurrentSpectraToSpeclibMode(False)
         p.setCurrentSpectra(cs)
