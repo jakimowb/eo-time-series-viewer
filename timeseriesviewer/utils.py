@@ -1109,12 +1109,13 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
                 PATH_QGIS_APP = re.split(r'\.app[\/]', qgis.__file__)[0] + '.app'
                 PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS'])
 
-                if not 'GDAL_DATA' in os.environ.keys():
-                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/Current/Resources/gdal'
-
+                #if not 'GDAL_DATA' in os.environ.keys():
+                #   os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/Current/Resources/gdal'
+                #QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS']))
                 QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
-                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
-
+                #QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'Frameworks']))
+                #QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
+                #QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'platforms']))
 
             else:
                 # assume OSGeo4W startup
@@ -1126,6 +1127,14 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
         qgsApp.registerOgrDrivers()
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4328')
+        if not crs.isValid():
+            print('CRS not initialized', file=sys.stderr)
+            #env = QProcess.systemEnvironment()
+            #for p in env: print(p)
+
+            exit(12)
 
         from qgis.gui import QgsGui
         QgsGui.editorWidgetRegistry().initEditors()
