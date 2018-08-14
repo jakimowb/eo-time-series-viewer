@@ -414,7 +414,7 @@ def geo2px(geo, gt):
     return QPoint(int(px.x()), int(px.y()))
 
 
-def px2geo(px:QPoint, gt, pxCenter=True)->QgsPointXY:
+def px2geo(px:QPoint, gt, pxCenter:bool=True)->QgsPointXY:
     """
     Converts a pixel coordinate into a geo-coordinate
     :param px: QPoint() with pixel coordinates
