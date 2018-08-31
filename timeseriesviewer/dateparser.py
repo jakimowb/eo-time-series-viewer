@@ -230,7 +230,7 @@ class ImageDateParserLandsat(ImageDateReader):
 dateParserList = [c for c in ImageDateReader.__subclasses__()]
 dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault))) #set to first position
 
-def parseDateFromDataSet(dataSet):
+def parseDateFromDataSet(dataSet)->np.datetime64:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()

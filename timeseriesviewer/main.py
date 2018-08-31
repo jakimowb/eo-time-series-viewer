@@ -387,16 +387,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui = TimeSeriesViewerUI()
 
         # Save reference to the QGIS interface
-
         if isinstance(iface, QgisInterface):
             self.iface = iface
             self.initQGISConnection()
         else:
             self.initQGISInterface()
-
-
-        #
-
 
         #init empty time series
         self.TS = TimeSeries()
@@ -500,6 +495,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.spatialTemporalVis.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
             s = ""
+
     def initQGISConnection(self):
 
         self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
@@ -513,7 +509,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         self.iface = self
         qgis.utils.iface = self
-
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
