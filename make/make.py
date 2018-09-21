@@ -11,7 +11,7 @@ from PyQt5.QtSvg import *
 from PyQt5.QtXml import *
 
 
-import gdal
+from osgeo import gdal
 
 from timeseriesviewer import DIR_UI, DIR_REPO
 from timeseriesviewer.utils import file_search, jp
@@ -43,7 +43,7 @@ def createFilePackage(dirData, recursive=True):
                 code.append('# '+comment)
             for f in files:
                 an, ext = os.path.splitext(os.path.basename(f))
-                if re.search('^\d', an):
+                if re.search(r'^\d', an):
                     an = numberPrefix+an
                 an = re.sub(r'[-.]', '_',an)
 
@@ -53,8 +53,8 @@ def createFilePackage(dirData, recursive=True):
                 filePathAttributes.add(an)
             code.append('\n')
 
-    raster = [f for f in files if re.search('.*\.(bsq|bip|bil|tif|tiff)$', f)]
-    vector = [f for f in files if re.search('.*\.(shp|kml|kmz)$', f)]
+    raster = [f for f in files if re.search(r'.*\.(bsq|bip|bil|tif|tiff)$', f)]
+    vector = [f for f in files if re.search(r'.*\.(shp|kml|kmz)$', f)]
 
     addFiles(raster, 'Raster files:', numberPrefix='Img_')
     addFiles(vector, 'Vector files:', numberPrefix='Shp_')
@@ -184,7 +184,7 @@ def compile_rc_files(ROOT, targetDir=None):
     qrcs = set()
 
     doc = QDomDocument()
-    reg = re.compile('(?<=resource=")[^"]+\.qrc(?=")')
+    reg = re.compile(r'(?<=resource=")[^"]+\.qrc(?=")')
 
     for ui_file in ui_files:
         pathDir = os.path.dirname(ui_file)
@@ -448,10 +448,12 @@ def updateMetadataTxt():
 
     import timeseriesviewer, collections
     md = collections.OrderedDict()
-    for line in open(pathDst).readlines():
-        parts = line.split('=')
-        if len(parts) >= 2:
-            md[parts[0]] = '='.join(parts[1:])
+
+    with open(pathDst) as f:
+        for line in f.readlines():
+            parts = line.split('=')
+            if len(parts) >= 2:
+                md[parts[0]] = '='.join(parts[1:])
 
     #update/set new metadata
     md['name'] = timeseriesviewer.TITLE
@@ -464,10 +466,10 @@ def updateMetadataTxt():
     md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
     #md['changelog'] =
 
-    f = open(pathAboutPlugin, 'r', encoding='utf-8')
-    aboutText =f.read()
-    aboutText=aboutText.replace('\n','')
-    f.close()
+    with open(pathAboutPlugin, 'r', encoding='utf-8') as f:
+        aboutText =f.read()
+        aboutText=aboutText.replace('\n','')
+
 
     md['about'] = aboutText
     md['experimental'] = "False"
@@ -482,10 +484,11 @@ def updateMetadataTxt():
     lines = ['[general]']
     for k, line in md.items():
         lines.append('{}={}'.format(k, line))
-    f = open(pathDst, 'w', encoding='utf-8')
-    f.writelines('\n'.join(lines))
-    f.flush()
-    f.close()
+
+    with open(pathDst, 'w', encoding='utf-8') as f:
+        f.writelines('\n'.join(lines))
+        f.flush()
+
 
 
 def make_pb_tool_cfg():

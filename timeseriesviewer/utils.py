@@ -707,7 +707,7 @@ def defaultBands(dataset):
 
         db = dataset.GetMetadataItem(str('default_bands'), str('ENVI'))
         if db != None:
-            db = [int(n) for n in re.findall('\d+')]
+            db = [int(n) for n in re.findall(r'\d+')]
             return db
         db = [0, 0, 0]
         cis = [gdal.GCI_RedBand, gdal.GCI_GreenBand, gdal.GCI_BlueBand]
@@ -833,10 +833,10 @@ def parseWavelength(dataset):
 
             for key, values in mdDict.items():
                 key = key.lower()
-                if re.search('wavelength$', key, re.I):
-                    tmp = re.findall('\d*\.\d+|\d+', values)  # find floats
+                if re.search(r'wavelength$', key, re.I):
+                    tmp = re.findall(r'\d*\.\d+|\d+', values)  # find floats
                     if len(tmp) != dataset.RasterCount:
-                        tmp = re.findall('\d+', values)  # find integers
+                        tmp = re.findall(r'\d+', values)  # find integers
                     if len(tmp) == dataset.RasterCount:
                         wl = np.asarray([float(w) for w in tmp])
 

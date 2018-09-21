@@ -23,7 +23,7 @@
 import os, sys, fnmatch, site, re, site
 
 
-VERSION = '0.7.201806201143'
+VERSION = '0.7.201809211358'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
