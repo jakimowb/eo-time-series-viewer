@@ -76,29 +76,20 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories
     """
     assert os.path.isdir(rootdir), "Path is not a directory:{}".format(rootdir)
     regType = type(re.compile('.*'))
-    results = []
 
-    for root, dirs, files in os.walk(rootdir):
-
-        if directories:
-            files = dirs
-
-        for file in files:
+    for entry in os.scandir(rootdir):
+        if entry.is_file():
             if isinstance(pattern, regType):
-                if pattern.search(file):
-                    path = os.path.join(root, file)
-                    results.append(path)
+                if pattern.search(entry.path):
+                    yield entry.path.replace('\\','/')
 
-            elif (ignoreCase and fnmatch.fnmatch(file.lower(), pattern.lower())) \
-                    or fnmatch.fnmatch(file, pattern):
+            elif (ignoreCase and fnmatch.fnmatch(entry.path.lower(), pattern.lower())) \
+                    or fnmatch.fnmatch(entry.path, pattern):
+                yield entry.path.replace('\\','/')
+        elif entry.is_dir() and recursive == True:
+            for r in file_search(entry.path, pattern, recursive=recursive, directories=directories):
+                yield r
 
-                path = os.path.join(root, file)
-                results.append(path)
-        if not recursive:
-            break
-            pass
-
-    return results
 
 
 NEXT_COLOR_HUE_DELTA_CON = 10

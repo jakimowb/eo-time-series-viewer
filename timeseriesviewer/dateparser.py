@@ -17,8 +17,10 @@ regISODate2 = re.compile(r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([1
 #https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch04s07.html
 
 regYYYYMMDD = re.compile(r'(?P<year>(19|20)\d\d)(?P<hyphen>-?)(?P<month>1[0-2]|0[1-9])(?P=hyphen)(?P<day>3[01]|0[1-9]|[12][0-9])')
+regYYYY = re.compile(r'(?P<year>(19|20)\d\d)')
 regMissingHypen = re.compile(r'^\d{8}')
 regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
+
 regYYYYDOY = re.compile(r'(?P<year>(19|20)\d\d)-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 regDecimalYear = re.compile(r'(?P<year>(19|20)\d\d)\.(?P<datefraction>\d\d\d)')
 
@@ -101,7 +103,9 @@ def extractDateTimeGroup(text:str)->np.datetime64:
         num = match.group()
         return num2date(num)
 
-
+    match = regYYYY.search(text)
+    if match:
+        return np.datetime64(match.group('year'))
     return None
 
 def datetime64FromYYYYMMDD(yyyymmdd):
@@ -147,7 +151,7 @@ class ImageDateReader(object):
 class ImageDateReaderDefault(ImageDateReader):
     def __init__(self, dataSet):
         super(ImageDateReaderDefault, self).__init__(dataSet)
-        self.regDateKeys = re.compile('(acquisition[ ]*time|date|datetime)', re.IGNORECASE)
+        self.regDateKeys = re.compile(r'(acquisition[ _]*time|date|datetime)', re.IGNORECASE)
 
     def readDTG(self):
         # search metadata for datetime information

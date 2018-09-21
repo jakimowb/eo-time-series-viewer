@@ -1280,7 +1280,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
     """
     STD_NAMES = ['WKT']+[n for n in createStandardFields().names() if not n.startswith(HIDDEN_ATTRIBUTE_PREFIX)]
     REGEX_HEADERLINE = re.compile('^'+'\\t'.join(STD_NAMES)+'\\t.*')
-    REGEX_BANDVALUE_COLUMN = re.compile('^b(?P<band>\d+)[ _]*(?P<xvalue>-?\d+\.?\d*)?[ _]*(?P<xunit>\D+)?')
+    REGEX_BANDVALUE_COLUMN = re.compile(r'^b(?P<band>\d+)[ _]*(?P<xvalue>-?\d+\.?\d*)?[ _]*(?P<xunit>\D+)?')
 
     @staticmethod
     def canRead(path=None):
