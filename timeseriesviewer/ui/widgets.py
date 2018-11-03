@@ -96,7 +96,7 @@ class AboutDialogUI(QDialog,
         self.setAboutTitle()
 
         # page About
-        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG
+        from timeseriesviewer import PATH_LICENSE, VERSION, PATH_CHANGELOG, PATH_ABOUT
         self.labelVersion.setText('{}'.format(VERSION))
 
         def readTextFile(path):
@@ -109,6 +109,7 @@ class AboutDialogUI(QDialog,
             return txt
 
         # page Changed
+        self.tbAbout.setHtml(readTextFile(PATH_ABOUT))
         self.tbChanges.setText(readTextFile(PATH_CHANGELOG))
         self.tbLicense.setText(readTextFile(PATH_LICENSE))
 
@@ -137,25 +138,8 @@ class PropertyDialogUI(QDialog, loadUI('settingsdialog.ui')):
 if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
-
-    from timeseriesviewer import DIR_SITE_PACKAGES
-    site.addsitedir(DIR_SITE_PACKAGES)
     from timeseriesviewer.utils import initQgisApplication
-    #prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
     qgsApp = initQgisApplication()
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-
     #run tests
     d = AboutDialogUI()
     d.show()

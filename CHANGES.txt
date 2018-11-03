@@ -1,5 +1,21 @@
-2019-06-04
-    increased version to 0.6
+2918-06-20
+        - increase version to 0.7
+        - Visualization of images with stacked temporal information (each band = one observation date)
+        - some bugfixes
+
+2018-06-12
+    enhancements:
+        - Speclib I/O as CSV or ENVI-Spectral Library + CSV table for attributes
+        - temporary VRTs now created in-memory (gdal VSI mechanism) instead in a disk temp path
+
+    fixed bugs:
+        - Spectral Library: profile coordinate now in center of map pixel (issue #66)
+        - Save map canvas to clipboard
+        - Width of plot lines now scale-independent (issue #64, QPen.setCosmetic(True))
+        - adding fields to spectral library (issue #61)
+
+2018-06-04
+    - increased version to 0.6
     SpectralLibrary Module
         - now based on in-memory QgsVectorLayer
         - Locations and values of spectral profile can be exported as vector data set
@@ -12,7 +28,6 @@
         - Locations of temporal profiles can be rendered on MapCanvases
 
     several bug fixes
-
 
 2018-04-17
     increased version to 0.5

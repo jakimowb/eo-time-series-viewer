@@ -387,16 +387,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui = TimeSeriesViewerUI()
 
         # Save reference to the QGIS interface
-
         if isinstance(iface, QgisInterface):
             self.iface = iface
             self.initQGISConnection()
         else:
             self.initQGISInterface()
-
-
-        #
-
 
         #init empty time series
         self.TS = TimeSeries()
@@ -463,7 +458,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
-
+        self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
 
         #connect buttons with actions
@@ -500,6 +495,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.spatialTemporalVis.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
             s = ""
+
     def initQGISConnection(self):
 
         self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
@@ -513,7 +509,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         self.iface = self
         qgis.utils.iface = self
-
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
@@ -673,6 +668,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         path = self.TS.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
+
+    def loadTimeSeriesStack(self):
+
+        from timeseriesviewer.stackedbandinput import StackedBandInputDialog
+
+        d = StackedBandInputDialog(parent=self.ui)
+        if d.exec_() == QDialog.Accepted:
+            writtenFiles = d.saveImages()
+            self.addTimeSeriesImages(writtenFiles)
 
 
 

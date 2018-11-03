@@ -750,7 +750,6 @@ if __name__ == '__main__':
 
     app = initQgisApplication()
     from timeseriesviewer.utils import *
-    from timeseriesviewer.tests import TestObjects
 
     w = ViewWidget3D()
     w.show()

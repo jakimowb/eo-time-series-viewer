@@ -350,13 +350,10 @@ if __name__ == '__main__':
     #run tests
     if False: gdal_qgis_benchmark()
     if False: sandboxQgisBridge()
-    if False: sandboxGui()
+    if True: sandboxGui()
 
-    if True: sandboxTestdata()
+    if False: sandboxTestdata()
     if False: sandboxDemo()
-    if False:
-        import timeseriesviewer.spectrallibraries
-        timeseriesviewer.spectrallibraries.__sandbox()
     #close QGIS
     qgsApp.exec_()
     qgsApp.exitQgis()
