@@ -788,18 +788,3 @@ def disconnect_signal(signal):
             signal.disconnect()
         except TypeError:
             break
-
-
-def main():
-    # add site-packages to sys.path as done by enmapboxplugin.py
-    from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
-    ts = TimeSeriesViewer(None)
-    ts.run()
-    qgsApp.exec_()
-    qgsApp.exitQgis()
-
-if __name__ == '__main__':
-
-    import timeseriesviewer.__main__ as m
-    m.run()

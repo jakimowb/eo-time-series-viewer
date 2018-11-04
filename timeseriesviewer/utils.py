@@ -1091,18 +1091,19 @@ def zipdir(pathDir, pathZip):
                     zip.write(filename, arcname)
 
 
-
 def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
     """
     Initializes the QGIS Environment
     :return: QgsApplication instance of local QGIS installation
     """
-    import site
     if pythonPlugins is None:
         pythonPlugins = []
     assert isinstance(pythonPlugins, list)
 
-    if isinstance(qgisResourceDir, str) and os.path.isdir(qgisResourceDir):
+    if os.path.exists(os.path.join(DIR_REPO, 'qgisresources')):
+        qgisResourceDir = os.path.join(DIR_REPO, 'qgisresources')
+    if isinstance(qgisResourceDir, str):
+        assert os.path.isdir(qgisResourceDir)
         import importlib, re
         modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
         modules = [m[0:-3] for m in modules]
@@ -1110,7 +1111,6 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             mod = importlib.import_module('qgisresources.{}'.format(m))
             if "qInitResources" in dir(mod):
                 mod.qInitResources()
-
 
     envVar = os.environ.get('QGIS_PLUGINPATH', None)
     if isinstance(envVar, list):
@@ -1153,18 +1153,54 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
         qgsApp = QgsApplication([], True)
         qgsApp.setPrefixPath(PATH_QGIS, True)
         qgsApp.initQgis()
-        qgsApp.registerOgrDrivers()
 
-        from qgis.gui import QgsGui
-        QgsGui.editorWidgetRegistry().initEditors()
-
-        def printQgisLog(tb, error, level):
-            if error not in ['Python warning']:
-                print(tb)
+        def printQgisLog(msg, tag, level):
+            if tag not in ['Processing']:
+                if tag in ['Python warning', 'warning']:
+                    import re
+                    if re.search('(Deprecation|Import)Warning', msg) is not None:
+                        return
+                    else:
+                        return
+                print(msg)
 
         QgsApplication.instance().messageLog().messageReceived.connect(printQgisLog)
 
+        #initiate a PythonRunner instance if None exists
+        if not QgsPythonRunner.isValid():
+            r = PythonRunnerImpl()
+            QgsPythonRunner.setInstance(r)
         return qgsApp
+
+
+class PythonRunnerImpl(QgsPythonRunner):
+    """
+    A Qgs PythonRunner implementation
+    """
+
+    def __init__(self):
+        super(PythonRunnerImpl, self).__init__()
+
+
+    def evalCommand(self, cmd:str, result:str):
+        try:
+            o = compile(cmd)
+        except Exception as ex:
+            result = str(ex)
+            return False
+        return True
+
+    def runCommand(self, command, messageOnError=''):
+        try:
+            o = compile(command, 'fakemodule', 'exec')
+            exec(o)
+        except Exception as ex:
+            messageOnError = str(ex)
+            command = ['{}:{}'.format(i+1, l) for i,l in enumerate(command.splitlines())]
+            print('\n'.join(command), file=sys.stderr)
+            raise ex
+            return False
+        return True
 
 
 def createCRSTransform(src, dst):

@@ -17,19 +17,17 @@
 ***************************************************************************
 """
 
-import sys, os
-
 
 def run():
-    pkg = os.path.dirname(__file__)
-    repo = os.path.dirname(pkg)
-    if repo not in sys.path:
-        if __name__ == '__main__':
-            sys.path.append(repo)
-    #for p in sorted(sys.path): print(p)
-    import timeseriesviewer.main
-    timeseriesviewer.main.DEBUG = True
-    timeseriesviewer.main.main()
+    # add site-packages to sys.path as done by enmapboxplugin.py
+    from timeseriesviewer.utils import initQgisApplication
+    qgsApp = initQgisApplication()
+
+    from timeseriesviewer.main import TimeSeriesViewer
+    ts = TimeSeriesViewer(None)
+    ts.run()
+    qgsApp.exec_()
+    qgsApp.exitQgis()
 
 if __name__ == '__main__':
     run()

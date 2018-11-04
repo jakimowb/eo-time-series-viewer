@@ -40,7 +40,8 @@ app = initQgisApplication()
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 
-
+QGIS_MIN = '3.4'
+QGIS_MAX = '3.99'
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
@@ -166,6 +167,8 @@ def build():
         lines = f.readlines()
         f.close()
         lines = re.sub('version=.*\n', 'version={}\n'.format(buildID), ''.join(lines))
+        lines = re.sub('qgisMinimumVersion=.*\n', 'qgisMinimumVersion={}\n'.format(QGIS_MIN), ''.join(lines))
+        lines = re.sub('qgisMaximumVersion=.*\n', 'qgisMaximumVersion={}\n'.format(QGIS_MAX), ''.join(lines))
         f = open(pathMetadata, 'w')
         f.write(lines)
         f.flush()
@@ -237,8 +240,8 @@ def updateRepositoryXML(path:str=None):
         <about></about>
         <version></version>
         <trusted>True</trusted>
-        <qgis_minimum_version>3.3.0</qgis_minimum_version>
-        <qgis_maximum_version>3.99.0</qgis_maximum_version>
+        <qgis_minimum_version>dummy</qgis_minimum_version>
+        <qgis_maximum_version>dummy</qgis_maximum_version>
         <homepage></homepage>
         <file_name></file_name>
         <icon></icon>
@@ -264,11 +267,11 @@ def updateRepositoryXML(path:str=None):
     plugin = ET.SubElement(root, 'pyqgis_plugin')
     plugin.attrib['name'] = "{} (develop version)".format(timeseriesviewer.TITLE)
     plugin.attrib['version'] = '{}'.format(version)
-    ET.SubElement(plugin, 'description').text = r'EnMAP-Box development version'
+    ET.SubElement(plugin, 'description').text = r'EO Time Series Viewer (Development Version)'
     ET.SubElement(plugin, 'about').text = 'Preview'
     ET.SubElement(plugin, 'version').text = version
-    ET.SubElement(plugin, 'qgis_minimum_version').text = '3.4'
-    ET.SubElement(plugin, 'qgis_maximum_version').text = '3.99'
+    ET.SubElement(plugin, 'qgis_minimum_version').text = QGIS_MIN
+    ET.SubElement(plugin, 'qgis_maximum_version').text = QGIS_MAX
     ET.SubElement(plugin, 'homepage').text = timeseriesviewer.HOMEPAGE
     ET.SubElement(plugin, 'file_name').text = bn
     ET.SubElement(plugin, 'icon').text = 'icon.png'

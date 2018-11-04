@@ -546,9 +546,20 @@ class RendererWidgetModifications(object):
             minMaxWidget.layout().itemAt(0).widget().collapsedStateChanged.connect(self.onCollapsed)
 
 
-    def initWidgetNames(self):
-        for c in self.children():
-            setattr(self, c.objectName(), c)
+    def initWidgetNames(self, parent=None):
+        """
+        Create a python variables to access QObjects which are child of parent
+        :param parent: QObject, self by default
+        """
+        if parent is None:
+            parent = self
+
+        for c in parent.children():
+            setattr(parent, c.objectName(), c)
+
+
+
+
 
     def onCollapsed(self, b):
         hint = self.sizeHint()
@@ -609,10 +620,10 @@ class RendererWidgetModifications(object):
 
         s = ""
 
-    def comboBoxWithNotSetItem(self, cb):
+    def comboBoxWithNotSetItem(self, cb)->bool:
         assert isinstance(cb, QComboBox)
         data = cb.itemData(0, role=Qt.DisplayRole)
-        return str(data) in ['not set', 'None', 'NoneType']
+        return re.search(r'^(not set|none|nonetype)$',str(data).strip(), re.I) is not None
 
     def setLayoutItemVisibility(self, grid, isVisible):
         assert isinstance(self, QgsRasterRendererWidget)
@@ -797,9 +808,9 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
     def __init__(self, layer, extent):
         super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
 
-        self.mColormapTreeWidget.setMinimumSize(QSize(1,1))
+        #self.mColormapTreeWidget.setMinimumSize(QSize(1,1))
 
-        self.gridLayout = self.layout()
+        self.gridLayout = self.layout().children()[0]
         assert isinstance(self.gridLayout, QGridLayout)
         for i in range(self.gridLayout.count()):
             w = self.gridLayout.itemAt(i)
@@ -1575,7 +1586,7 @@ def rendererToXml(renderer):
         lyr = QgsRasterLayer(path)
         assert lyr.isValid()
         lyr.setRenderer(renderer.clone())
-        lyr.exportNamedStyle(doc, err)
+        lyr.exportNamedStyle(doc)
         #remove dummy raster layer
         lyr = None
         drv.Delete(path)
@@ -1584,7 +1595,7 @@ def rendererToXml(renderer):
         #todo: distinguish vector type from requested renderer
         lyr = QgsVectorLayer('Point?crs=epsg:4326&field=id:integer', 'dummy', 'memory')
         lyr.setRenderer(renderer.clone())
-        lyr.exportNamedStyle(doc, err)
+        lyr.exportNamedStyle(doc)
         lyr = None
     else:
         raise NotImplementedError()

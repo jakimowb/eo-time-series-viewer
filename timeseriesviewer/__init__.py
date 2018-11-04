@@ -80,12 +80,13 @@ DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
 
 site.addsitedir(DIR_SITE_PACKAGES)
 OPENGL_AVAILABLE = False
-
 try:
     import OpenGL
     OPENGL_AVAILABLE = True
 except:
     pass
+
+
 
 def messageLog(msg, level=None):
     """
@@ -104,6 +105,29 @@ try:
     timeseriesviewer.ui.resources.qInitResources()
 except:
     pass
+
+# make the EnMAP-Box resources available
+if not 'images' in sys.modules.keys():
+    import timeseriesviewer.resourcemockup
+    sys.modules['images'] = timeseriesviewer.resourcemockup
+
+
+#see https://github.com/pyqtgraph/pyqtgraph/issues/774
+WORKAROUND_PYTGRAPH_ISSUE_774 = True
+if WORKAROUND_PYTGRAPH_ISSUE_774:
+    from pyqtgraph.graphicsItems.GraphicsObject import GraphicsObject
+
+    from qgis.PyQt.QtCore import QVariant
+    untouched = GraphicsObject.itemChange
+
+    def newFunc(cls, change, value):
+        if value != QVariant(None):
+            return untouched(cls, change, value)
+        else:
+            return untouched(cls, change, None)
+
+    GraphicsObject.itemChange = newFunc
+
 
 def initSettings():
     def setIfNone(key, value):

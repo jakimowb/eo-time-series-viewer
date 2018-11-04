@@ -185,7 +185,7 @@ class testclassDialogTest(unittest.TestCase):
         lyr = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
         doc = QDomDocument()
         err = ''
-        lyr.exportNamedStyle(doc, err)
+        lyr.exportNamedStyle(doc)
         xml0 = doc.toString()
         self.assertEqual(err, '')
 
