@@ -757,7 +757,6 @@ class TimeSeries(QObject):
         """
         if isinstance(files, str):
             files = [files]
-        assert isinstance(files, list)
         files = [f for f in files if f is not None]
 
         nMax = len(files)

@@ -2012,7 +2012,7 @@ def examplePixelLoader():
     else:
         from timeseriesviewer.utils import file_search
         searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
-        files = file_search(searchDir, '*227065*band4.img', recursive=True)
+        files = list(file_search(searchDir, '*227065*band4.img', recursive=True))
         #files = files[0:3]
 
     lyr = QgsRasterLayer(files[0])

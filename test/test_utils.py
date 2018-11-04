@@ -56,6 +56,14 @@ class testclassUtilityTests(unittest.TestCase):
 
         s = ""
 
+    def test_file_search(self):
+
+
+        import example
+
+        files =list(file_search(os.path.dirname(example.__file__), '*.tif'))
+        self.assertTrue(len(files)>0)
+
 if __name__ == "__main__":
     unittest.main()
 

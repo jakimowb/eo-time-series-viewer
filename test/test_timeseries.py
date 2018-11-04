@@ -68,7 +68,7 @@ class TestInit(unittest.TestCase):
 
     def test_timeseries(self):
 
-        files = file_search(os.path.dirname(example.__file__), '*.tif', recursive=True)
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
 
         addedDates = []
 
@@ -81,11 +81,11 @@ class TestInit(unittest.TestCase):
 
         self.assertEqual(len(files), len(TS))
         TS.removeDates(addedDates)
-        self.assertEquals(len(addedDates), 0)
+        self.assertEqual(len(addedDates), 0)
 
     def test_sensors(self):
-        pathRE = file_search(os.path.dirname(example.__file__), 're*.tiff', recursive=True)[0]
-        pathLS = file_search(os.path.dirname(example.__file__), '*BOA.tiff', recursive=True)[0]
+        pathRE = list(file_search(os.path.dirname(example.__file__), 're*.tif', recursive=True))[0]
+        pathLS = list(file_search(os.path.dirname(example.__file__), '*BOA.tif', recursive=True))[0]
 
         TS = TimeSeries()
         TS.addFiles(pathRE)

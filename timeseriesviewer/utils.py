@@ -64,7 +64,7 @@ def qgisInstance():
         return None
 
 
-def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories=False):
+def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories=False, fullpath=False):
     """
     Searches for files
     :param rootdir: root directory to search for files.
@@ -79,16 +79,22 @@ def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories
 
     for entry in os.scandir(rootdir):
         if entry.is_file():
+            if fullpath:
+                name = entry.path
+            else:
+                name =  os.path.basename(entry.path)
             if isinstance(pattern, regType):
-                if pattern.search(entry.path):
+                if pattern.search(name):
                     yield entry.path.replace('\\','/')
 
-            elif (ignoreCase and fnmatch.fnmatch(entry.path.lower(), pattern.lower())) \
-                    or fnmatch.fnmatch(entry.path, pattern):
+            elif (ignoreCase and fnmatch.fnmatch(name, pattern.lower())) \
+                    or fnmatch.fnmatch(name, pattern):
                 yield entry.path.replace('\\','/')
         elif entry.is_dir() and recursive == True:
             for r in file_search(entry.path, pattern, recursive=recursive, directories=directories):
                 yield r
+
+
 
 
 
@@ -1083,6 +1089,7 @@ def zipdir(pathDir, pathZip):
                 if os.path.isfile(filename):  # regular files only
                     arcname = os.path.join(os.path.relpath(root, relroot), file)
                     zip.write(filename, arcname)
+
 
 
 def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):

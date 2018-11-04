@@ -23,13 +23,21 @@
 import os, sys, fnmatch, site, re, site
 
 
-VERSION = '0.7.201809211358'
+__version__ = '0.7.<replaced_by_build>'
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
-URL_WEBSITE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-URL_DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
-URL_REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
+REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+
+HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
+CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
+DEPENDENCIES = ['numpy','pyqtgraph','gdal']
+
+URL_TESTDATA = r''
+
 
 
 ABOUT = os.path.join(os.path.dirname(__file__), 'ABOUT.txt')

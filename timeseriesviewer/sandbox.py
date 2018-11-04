@@ -36,7 +36,7 @@ class SandboxObjects(object):
 
     @staticmethod
     def TimeSeries(nMax=10):
-        files = file_search(jp(DIR_EXAMPLES,'Images'),'*.bsq')
+        files = list(file_search(jp(DIR_EXAMPLES,'Images'),'*.bsq'))
         from timeseriesviewer.timeseries import TimeSeries
         ts = TimeSeries()
         n = len(files)
@@ -60,7 +60,7 @@ def sandboxGui():
 
 
     searchDir = jp(DIR_EXAMPLES, 'Images')
-    imgs = file_search(searchDir, '*.tif', recursive=True)[:]
+    imgs = list(file_search(searchDir, '*.tif', recursive=True)[:])
     #searchDir = r'O:\SenseCarbonProcessing\09_testFolder\HLS-data-HUB-viewer\DE\L30\2016\33UUT'
     #imgs = file_search(searchDir, '*OLI.img')
 
@@ -205,7 +205,7 @@ def gdal_qgis_benchmark():
     dtime = lambda t0 : np.datetime64('now') - t0
 
     root = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB'
-    files = file_search(root, '*_sr.tif', recursive=True)
+    files = list(file_search(root, '*_sr.tif', recursive=True))
     #files = files[0:10]
 
 
@@ -312,21 +312,21 @@ def sandboxDemo():
 
     #load Landsat
     p = r'F:\TSData'
-    files = file_search(p, re.compile('.*BOA\.tif$'), recursive=True)
+    files = list(file_search(p, re.compile('.*BOA\.tif$'), recursive=True))
     S.addTimeSeriesImages(files)
 
     #load RapidEye
-    files = file_search(p, re.compile('re.*\.tif$'), recursive=True)
+    files = list(file_search(p, re.compile('re.*\.tif$'), recursive=True))
     S.addTimeSeriesImages(files)
 
     #load Pleiades
     p = r'Y:\Pleiades'
-    files = file_search(p,re.compile('IMG_.*JP2$'), recursive=True)
+    files = list(file_search(p,re.compile('IMG_.*JP2$'), recursive=True))
     S.addTimeSeriesImages(files)
 
     #load CBERS
     p = 'Y:\CBERS\VRTs'
-    files = file_search(p, re.compile('CBERS_*.vrt$'), recursive=True)
+    files = list(file_search(p, re.compile('CBERS_*.vrt$'), recursive=True))
     S.addTimeSeriesImages(files)
 
     from example import exampleEvents

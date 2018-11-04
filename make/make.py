@@ -461,7 +461,7 @@ def updateMetadataTxt():
     #md['qgisMaximumVersion'] =
     md['description'] = timeseriesviewer.DESCRIPTION.strip()
     md['about'] = timeseriesviewer.ABOUT.strip()
-    md['version'] = timeseriesviewer.VERSION.strip()
+    md['version'] = timeseriesviewer.__version__.strip()
     md['author'] = r"Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin"
     md['email'] = "benjamin.jakimow@geo.hu-berlin.de"
     #md['changelog'] =
@@ -475,9 +475,9 @@ def updateMetadataTxt():
     md['experimental'] = "False"
     md['deprecated'] = "False"
     md['tags'] = "remote sensing, raster, time series"
-    md['homepage'] = timeseriesviewer.URL_WEBSITE
-    md['repository'] = timeseriesviewer.URL_WEBSITE
-    md['tracker'] = timeseriesviewer.URL_WEBSITE + '/issues'
+    md['homepage'] = timeseriesviewer.HOMEPAGE
+    md['repository'] = timeseriesviewer.HOMEPAGE
+    md['tracker'] = timeseriesviewer.HOMEPAGE + '/issues'
     md['icon'] = r'timeseriesviewer/icon.png'
     md['category'] = 'Raster'
 
