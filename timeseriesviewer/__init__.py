@@ -104,6 +104,8 @@ try:
     import timeseriesviewer.ui.resources
     timeseriesviewer.ui.resources.qInitResources()
 except:
+    print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
+
     pass
 
 # make the EnMAP-Box resources available
@@ -145,7 +147,11 @@ def initSettings():
 
 initSettings()
 
-def icon():
+def icon()->QIcon:
+    """
+    Returns the EO Time Series Viewer icon
+    :return: QIcon
+    """
     path = os.path.join(os.path.dirname(__file__), 'icon.png')
     return QIcon(path)
 
@@ -159,5 +165,4 @@ def getFileAndAttributes(file):
     bn = os.path.basename(file)
     bnSplit = bn.split(':')
     return os.path.join(dn,bnSplit[0]), ':'.join(bnSplit[1:])
-
 

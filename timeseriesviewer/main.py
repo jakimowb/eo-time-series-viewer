@@ -208,10 +208,12 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
         self.addActions(self.findChildren(QAction))
-        from timeseriesviewer import TITLE, icon
-        self.setWindowTitle(TITLE)
+        from timeseriesviewer import TITLE, icon, __version__
 
+        self.setWindowTitle('{} ()'.format(TITLE, __version__))
         self.setWindowIcon(icon())
+        if sys.platform == 'darwin':
+            self.menuBar().setNativeMenuBar(False)
 
 
         #set button default actions -> this will show the action icons as well
@@ -310,9 +312,6 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
 
-
-
-
     sigSubsetSizeChanged = pyqtSignal(QSize)
     def setSubsetSize(self, size, blockSignal=False):
         old = self.subsetSize()
@@ -365,11 +364,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     @staticmethod
     def instance():
+        """
+        Returns the TimeSeriesViewer instance
+        :return:
+        """
         return TimeSeriesViewer._instance
 
 
 
-    def __init__(self, iface):
+    def __init__(self, iface:QgisInterface=None):
         """Constructor.
 
         :param iface: An interface instance that will be passed to this class
@@ -397,6 +400,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.TS = TimeSeries()
         self.mSpatialMapExtentInitialized = False
         self.TS.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
+
+
+        #map layer store
+        self.mMapLayerStore = QgsMapLayerStore()
 
         #init other GUI components
 
@@ -472,20 +479,32 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
         self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
+        self.mMapLayerStore.addMapLayer(self.ui.dockSpectralLibrary.speclib())
+        self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
-        QgsProject.instance().addMapLayer(self.ui.dockSpectralLibrary.speclib(), False)
-        QgsProject.instance().addMapLayer(self.spectralTemporalVis.temporalProfileLayer(), False)
+        #moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
+        #moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
 
-        moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
-        moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+        #reg = QgsGui.instance().mapLayerActionRegistry()
+        #assert isinstance(reg, QgsMapLayerActionRegistry)
+        #reg.addMapLayerAction(moveToFeatureCenter)
+        #reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
+        #reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
-        reg = QgsGui.instance().mapLayerActionRegistry()
-        assert isinstance(reg, QgsMapLayerActionRegistry)
-        reg.addMapLayerAction(moveToFeatureCenter)
-        reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
-        reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
+
+    def mapLayerStore(self)->QgsMapLayerStore:
+        """
+        Returns the QgsMapLayerStore which is used to register QgsMapLayers
+        :return: QgsMapLayerStore
+        """
+        return self.mMapLayerStore
 
     def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
+        """
+        Move the spatial center of map visualization to `feature`.
+        :param layer: QgsMapLayer
+        :param feature: QgsFeature
+        """
         g = feature.geometry()
         if isinstance(g, QgsGeometry):
             c = g.centroid()
@@ -494,10 +513,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
             center = SpatialPoint(crs, x, y)
             self.spatialTemporalVis.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
-            s = ""
+
 
     def initQGISConnection(self):
-
+        """
+        Initializes interactions between TimeSeriesViewer and the QGIS instances
+        :return:
+        """
         self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
         self.ui.actionExportExtent.triggered.connect(lambda: self.iface.mapCanvas().setExtent(self.spatialTemporalVis.spatialExtent().toCrs(self.iface.mapCanvas().mapSettings().destinationCrs())))
         self.ui.actionExportCenter.triggered.connect(lambda: self.iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
@@ -547,15 +569,29 @@ class TimeSeriesViewer(QgisInterface, QObject):
             s = ""
         pass
 
-    def messageBar(self):
+    def messageBar(self)->QgsMessageBar:
+        """
+        Returns the QgsMessageBar that is used to show messages in the TimeSeriesViewer UI.
+        :return: QgsMessageBar
+        """
         return self.ui.messageBar
 
-    def loadImageFiles(self, files):
+    def loadImageFiles(self, files:list):
+        """
+        Loads image files to the time series.
+        :param files: [list-of-file-paths]
+        """
         assert isinstance(files, list)
         self.TS.addFiles(files)
 
 
     def loadTimeSeriesDefinition(self, path=None, n_max=None):
+        """
+        Loads a time series definition file
+        :param path:
+        :param n_max:
+        :return:
+        """
         s = settings()
         defFile = s.value('file_ts_definition')
         defDir = None
@@ -575,9 +611,16 @@ class TimeSeriesViewer(QgisInterface, QObject):
             M.endResetModel()
 
     def createMapView(self):
+        """
+        Create a new MapView
+        """
         self.spatialTemporalVis.createMapView()
 
-    def mapViews(self):
+    def mapViews(self)->list:
+        """
+        Returns all MapViews
+        :return: [list-of-MapViews]
+        """
         return self.spatialTemporalVis.MVC[:]
 
     def zoomTo(self, key):
@@ -605,8 +648,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.setSpatialExtent(ext)
 
 
-    def icon(self):
-        return TimeSeriesViewer.icon()
+    def icon(self)->QIcon:
+        """
+        Returns the EO Time Series Viewer icon
+        :return: QIcon
+        """
+        return timeseriesviewer.icon()
 
 
     def logMessage(self, message, tag, level):
@@ -731,6 +778,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QApplication.processEvents()
 
     def addVectorData(self, files=None):
+
         if files is None:
             s = settings()
             defDir = s.value('DIR_FILESEARCH')

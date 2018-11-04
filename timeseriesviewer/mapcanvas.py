@@ -591,14 +591,19 @@ class MapCanvas(QgsMapCanvas):
         return self.mLayerModel
 
     def setLayers(self, mapLayers):
+        """
+        Set the map layers and, if necessary, registers the in a QgsMapLayerStore
+        :param mapLayers:
+        """
 
+        from .main import TimeSeriesViewer
+        tsv = TimeSeriesViewer.instance()
+        if isinstance(tsv, TimeSeriesViewer):
+            store = tsv.mapLayerStore()
+        else:
+            store = QgsProject.instance()
 
-        oldLayers = self.layers()
-        newLayers = [l for l in mapLayers if l not in oldLayers]
-
-        if len(newLayers) > 0:
-            reg = QgsProject.instance()
-            reg.addMapLayers(newLayers, False)
+        store.addMapLayers(mapLayers)
 
         super(MapCanvas, self).setLayers(mapLayers)
 

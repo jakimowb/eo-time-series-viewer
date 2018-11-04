@@ -100,7 +100,7 @@
          <x>0</x>
          <y>0</y>
          <width>878</width>
-         <height>202</height>
+         <height>184</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -141,13 +141,13 @@
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <widget class="QMenuBar" name="menuBar">
+  <widget class="QMenuBar" name="mMenuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
      <width>880</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
