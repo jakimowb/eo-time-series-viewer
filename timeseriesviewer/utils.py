@@ -322,6 +322,9 @@ class SpatialPoint(QgsPointXY):
                self.y() == other.y() and \
                self.crs() == other.crs()
 
+    def copy(self):
+        return self.__copy__()
+
     def __copy__(self):
         return SpatialPoint(self.crs(), self.x(), self.y())
 

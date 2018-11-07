@@ -31,202 +31,11 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtXml import QDomDocument
 
-from timeseriesviewer import SETTINGS
-from timeseriesviewer.utils import *
-from timeseriesviewer.timeseries import TimeSeriesDatum
-from timeseriesviewer.crosshair import CrosshairDialog
-
-class MapTools(object):
-    """
-    Static class to support handling of nQgsMapTools.
-    """
-    def __init__(self):
-        raise Exception('This class is not for any instantiation')
-    ZoomIn = 'ZOOM_IN'
-    ZoomOut = 'ZOOM_OUT'
-    ZoomFull = 'ZOOM_FULL'
-    Pan = 'PAN'
-    ZoomPixelScale = 'ZOOM_PIXEL_SCALE'
-    CursorLocation = 'CURSOR_LOCATION'
-    SpectralProfile = 'SPECTRAL_PROFILE'
-    TemporalProfile = 'TEMPORAL_PROFILE'
-    MoveToCenter = 'MOVE_CENTER'
-
-    @staticmethod
-    def copy(mapTool):
-        assert isinstance(mapTool, QgsMapTool)
-        s = ""
-
-    @staticmethod
-    def create(mapToolKey, canvas, *args, **kwds):
-        assert mapToolKey in MapTools.mapToolKeys()
-
-        assert isinstance(canvas, QgsMapCanvas)
-
-        if mapToolKey == MapTools.ZoomIn:
-            return QgsMapToolZoom(canvas, False)
-        if mapToolKey == MapTools.ZoomOut:
-            return QgsMapToolZoom(canvas, True)
-        if mapToolKey == MapTools.Pan:
-            return QgsMapToolPan(canvas)
-        if mapToolKey == MapTools.ZoomPixelScale:
-            return PixelScaleExtentMapTool(canvas)
-        if mapToolKey == MapTools.ZoomFull:
-            return FullExtentMapTool(canvas)
-        if mapToolKey == MapTools.CursorLocation:
-            return CursorLocationMapTool(canvas, *args, **kwds)
-        if mapToolKey == MapTools.MoveToCenter:
-            tool = CursorLocationMapTool(canvas, *args, **kwds)
-            tool.sigLocationRequest.connect(canvas.setCenter)
-            return tool
-        if mapToolKey == MapTools.SpectralProfile:
-            return SpectralProfileMapTool(canvas, *args, **kwds)
-        if mapToolKey == MapTools.TemporalProfile:
-            return TemporalProfileMapTool(canvas, *args, **kwds)
-
-        raise Exception('Unknown mapToolKey {}'.format(mapToolKey))
-
-
-    @staticmethod
-    def mapToolKeys():
-        return [MapTools.__dict__[k] for k in MapTools.__dict__.keys() if not k.startswith('_')]
-
-
-
-class CursorLocationMapTool(QgsMapToolEmitPoint):
-
-    sigLocationRequest = pyqtSignal([SpatialPoint],[SpatialPoint, QgsMapCanvas])
-
-    def __init__(self, canvas, showCrosshair=True, purpose=None):
-        self.mShowCrosshair = showCrosshair
-        self.mCanvas = canvas
-        self.mPurpose = purpose
-        QgsMapToolEmitPoint.__init__(self, self.mCanvas)
-
-        self.mMarker = QgsVertexMarker(self.mCanvas)
-        self.mRubberband = QgsRubberBand(self.mCanvas, QgsWkbTypes.PolygonGeometry)
-
-        color = QColor('red')
-
-        self.mRubberband.setLineStyle(Qt.SolidLine)
-        self.mRubberband.setColor(color)
-        self.mRubberband.setWidth(2)
-
-        self.mMarker.setColor(color)
-        self.mMarker.setPenWidth(3)
-        self.mMarker.setIconSize(5)
-        self.mMarker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
-
-    def canvasPressEvent(self, e):
-        geoPoint = self.toMapCoordinates(e.pos())
-        self.mMarker.setCenter(geoPoint)
-
-    def setStyle(self, color=None, brushStyle=None, fillColor=None, lineStyle=None):
-        if color:
-            self.mRubberband.setColor(color)
-        if brushStyle:
-            self.mRubberband.setBrushStyle(brushStyle)
-        if fillColor:
-            self.mRubberband.setFillColor(fillColor)
-        if lineStyle:
-            self.mRubberband.setLineStyle(lineStyle)
-
-    def canvasReleaseEvent(self, e):
-
-
-        pixelPoint = e.pixelPoint()
-
-        crs = self.mCanvas.mapSettings().destinationCrs()
-        self.mMarker.hide()
-        geoPoint = self.toMapCoordinates(pixelPoint)
-        if self.mShowCrosshair:
-            #show a temporary crosshair
-            ext = SpatialExtent.fromMapCanvas(self.mCanvas)
-            cen = geoPoint
-            geom = QgsGeometry()
-
-            lineV = QgsLineString([QgsPoint(ext.upperLeftPt().x(),cen.y()), QgsPoint(ext.lowerRightPt().x(), cen.y())])
-            lineH = QgsLineString([QgsPoint(cen.x(), ext.upperLeftPt().y()), QgsPoint(cen.x(), ext.lowerRightPt().y())])
-            geom.addPart(lineV, QgsWkbTypes.LineGeometry)
-            geom.addPart(lineH, QgsWkbTypes.LineGeometry)
-            self.mRubberband.addGeometry(geom, None)
-            self.mRubberband.show()
-            #remove crosshair after 0.25 sec
-            QTimer.singleShot(250, self.hideRubberband)
-
-        pt = SpatialPoint(crs, geoPoint)
-        self.sigLocationRequest[SpatialPoint].emit(pt)
-        self.sigLocationRequest[SpatialPoint, QgsMapCanvas].emit(pt, self.canvas())
-
-    def hideRubberband(self):
-        self.mRubberband.reset()
-
-
-class SpectralProfileMapTool(CursorLocationMapTool):
-
-    def __init__(self, *args, **kwds):
-        super(SpectralProfileMapTool, self).__init__(*args, **kwds)
-
-
-class TemporalProfileMapTool(CursorLocationMapTool):
-
-    def __init__(self, *args, **kwds):
-        super(TemporalProfileMapTool, self).__init__(*args, **kwds)
-
-
-class FullExtentMapTool(QgsMapTool):
-    def __init__(self, canvas):
-        super(FullExtentMapTool, self).__init__(canvas)
-        self.canvas = canvas
-
-    def canvasReleaseEvent(self, mouseEvent):
-        self.canvas.zoomToFullExtent()
-
-    def flags(self):
-        return QgsMapTool.Transient
-
-
-class PixelScaleExtentMapTool(QgsMapTool):
-    def __init__(self, canvas):
-        super(PixelScaleExtentMapTool, self).__init__(canvas)
-        self.canvas = canvas
-
-    def flags(self):
-        return QgsMapTool.Transient
-
-
-    def canvasReleaseEvent(self, mouseEvent):
-        layers = self.canvas.layers()
-
-        unitsPxX = []
-        unitsPxY = []
-        for lyr in self.canvas.layers():
-            if isinstance(lyr, QgsRasterLayer):
-                unitsPxX.append(lyr.rasterUnitsPerPixelX())
-                unitsPxY.append(lyr.rasterUnitsPerPixelY())
-
-        if len(unitsPxX) > 0:
-            unitsPxX = np.asarray(unitsPxX)
-            unitsPxY = np.asarray(unitsPxY)
-            if True:
-                # zoom to largest pixel size
-                i = np.nanargmax(unitsPxX)
-            else:
-                # zoom to smallest pixel size
-                i = np.nanargmin(unitsPxX)
-            unitsPxX = unitsPxX[i]
-            unitsPxY = unitsPxY[i]
-            f = 0.2
-            width = f * self.canvas.size().width() * unitsPxX #width in map units
-            height = f * self.canvas.size().height() * unitsPxY #height in map units
-
-
-            center = SpatialPoint.fromMapCanvasCenter(self.canvas)
-            extent = SpatialExtent(center.crs(), 0, 0, width, height)
-            extent.setCenter(center, center.crs())
-            self.canvas.setExtent(extent)
-        s = ""
-
+from . import SETTINGS
+from .utils import *
+from .timeseries import TimeSeriesDatum
+from .crosshair import CrosshairDialog, CrosshairStyle
+from .maptools import *
 
 class MapLayerInfo(object):
     """
@@ -433,6 +242,10 @@ class MapCanvas(QgsMapCanvas):
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
     sigDataLoadingFinished = pyqtSignal(np.timedelta64)
+    sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
+    sigCrosshairVisibilityChanged = pyqtSignal(bool)
+    from .crosshair import CrosshairStyle
+    sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
@@ -472,7 +285,7 @@ class MapCanvas(QgsMapCanvas):
         self.mMapSummary = self.mapSummary()
 
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
-        self.crosshairItem = CrosshairMapCanvasItem(self)
+        self.mCrosshairItem = CrosshairMapCanvasItem(self)
 
         self.mMapTools = dict()
         self.mMapTools['zoomOut'] = QgsMapToolZoom(self, True)
@@ -497,6 +310,23 @@ class MapCanvas(QgsMapCanvas):
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
+
+    def mousePressEvent(self, event:QMouseEvent):
+
+        b = event.button() == Qt.LeftButton
+        if b and isinstance(self.mapTool(), QgsMapTool):
+            from timeseriesviewer.maptools import CursorLocationMapTool
+            b = isinstance(self.mapTool(), (QgsMapToolIdentify,
+                                            CursorLocationMapTool,
+                                            SpectralProfileMapTool, TemporalProfileMapTool))
+
+        super(MapCanvas, self).mousePressEvent(event)
+
+        if b:
+            ms = self.mapSettings()
+            pointXY = ms.mapToPixel().toMapCoordinates(event.x(), event.y())
+            spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)
+            self.setCrosshairPosition(spatialPoint)
 
 
     def setMapView(self, mapView):
@@ -634,17 +464,51 @@ class MapCanvas(QgsMapCanvas):
             #self.refreshAllLayers()
 
 
-    def setCrosshairStyle(self,crosshairStyle):
+    def setCrosshairStyle(self, crosshairStyle, emitSignal=True):
         from timeseriesviewer.crosshair import CrosshairStyle
         if crosshairStyle is None:
-            self.crosshairItem.crosshairStyle.setShow(False)
-            self.crosshairItem.update()
+            self.mCrosshairItem.crosshairStyle.setShow(False)
+            self.mCrosshairItem.update()
         else:
             assert isinstance(crosshairStyle, CrosshairStyle)
-            self.crosshairItem.setCrosshairStyle(crosshairStyle)
+            self.mCrosshairItem.setCrosshairStyle(crosshairStyle)
 
-    def setShowCrosshair(self,b):
-        self.crosshairItem.setShow(b)
+        if emitSignal:
+            self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle)
+
+    def crosshairStyle(self)->CrosshairStyle:
+        return self.mCrosshairItem.crosshairStyle
+
+    def setCrosshairPosition(self, spatialPoint:SpatialPoint, emitSignal=True):
+        """
+        Sets the position of the Crosshair.
+        :param spatialPoint: SpatialPoint
+        :param emitSignal: True (default). Set False to avoid emitting sigCrosshairPositionChanged
+        :return:
+        """
+        point = spatialPoint.toCrs(self.mapSettings().destinationCrs())
+        self.mCrosshairItem.setPosition(point)
+        if emitSignal:
+            self.sigCrosshairPositionChanged.emit(point)
+
+    def crosshairPosition(self)->SpatialPoint:
+        """Returns the last crosshair position"""
+        return self.mCrosshairItem.mPosition
+
+
+    def setCrosshairVisibility(self, b:bool, emitSignal=True):
+        """
+        Sets the Crosshair visbility
+        :param b: bool
+        """
+        if b and self.mCrosshairItem.mPosition is None:
+            self.mCrosshairItem.setPosition(self.spatialCenter())
+            self.sigCrosshairPositionChanged.emit(self.spatialCenter())
+
+        if b != self.mCrosshairItem.visibility():
+            self.mCrosshairItem.setVisibility(b)
+            if emitSignal:
+                self.sigCrosshairVisibilityChanged.emit(b)
 
 
     def checkRenderFlag(self):
@@ -716,18 +580,24 @@ class MapCanvas(QgsMapCanvas):
 
         action = menu.addAction('Change crosshair style')
 
-        action.triggered.connect(lambda : self.setCrosshairStyle(
-                CrosshairDialog.getCrosshairStyle(parent=self,
-                                                  mapCanvas=self,
-                                                  crosshairStyle=self.crosshairItem.crosshairStyle)
-                ))
 
-        if self.crosshairItem.crosshairStyle.mShow:
+        def onCrosshairChange(*args):
+
+            style = CrosshairDialog.getCrosshairStyle(parent=self,
+                                                  mapCanvas=self,
+                                                  crosshairStyle=self.mCrosshairItem.crosshairStyle)
+
+            if isinstance(style, CrosshairStyle):
+                self.setCrosshairStyle(style)
+
+        action.triggered.connect(onCrosshairChange)
+
+        if self.mCrosshairItem.visibility():
             action = menu.addAction('Hide crosshair')
-            action.triggered.connect(lambda : self.setShowCrosshair(False))
+            action.triggered.connect(lambda : self.setCrosshairVisibility(False))
         else:
             action = menu.addAction('Show crosshair')
-            action.triggered.connect(lambda: self.setShowCrosshair(True))
+            action.triggered.connect(lambda: self.setCrosshairVisibility(True))
 
         menu.addSeparator()
 
@@ -962,10 +832,20 @@ class MapCanvas(QgsMapCanvas):
                 self.setExtent(ext)
                 s = ""
 
-
-
-    def spatialExtent(self):
+    def spatialExtent(self)->SpatialExtent:
+        """
+        Returns the map extent as SpatialExtent (extent + CRS)
+        :return: SpatialExtent
+        """
         return SpatialExtent.fromMapCanvas(self)
+
+    def spatialCenter(self)->SpatialPoint:
+        """
+        Returns the map center as SpatialPoint (QgsPointXY + CRS)
+        :return: SpatialPoint
+        """
+        return SpatialPoint.fromMapCanvasCenter(self)
+
 
     def spatialExtentHint(self):
         crs = self.crs()

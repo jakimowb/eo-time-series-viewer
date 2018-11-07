@@ -49,6 +49,35 @@ class testclassDialogTest(unittest.TestCase):
         self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
 
 
+    def test_mapTools(self):
+
+        m = MapCanvas()
+
+        lastPos = None
+        def onChanged(position:SpatialPoint):
+            nonlocal lastPos
+            lastPos = position
+        m.sigCrosshairPositionChanged.connect(onChanged)
+
+        center = SpatialPoint.fromMapCanvasCenter(m)
+        import timeseriesviewer.maptools as mts
+        m.setCrosshairVisibility(True)
+        mt = mts.SpectralProfileMapTool(m)
+        m.setMapTool(mt)
+        self.assertTrue(m.crosshairPosition() == center)
+
+        p2 = center.copy()
+        p2.setX(p2.x()+100)
+        m.setCrosshairPosition(p2)
+        self.assertIsInstance(lastPos, SpatialPoint)
+        self.assertTrue(lastPos == p2)
+
+
+    def test_CrosshairDialog(self):
+
+        pass
+
+
 
 if __name__ == "__main__":
     unittest.main()

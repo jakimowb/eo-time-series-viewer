@@ -1020,8 +1020,7 @@ class MapView(QObject):
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
 
-    sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
-    sigShowCrosshair = pyqtSignal(bool)
+
     sigVectorLayerChanged = pyqtSignal()
 
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
@@ -1037,9 +1036,9 @@ class MapView(QObject):
         self.ui.tbName.textChanged.connect(self.sigTitleChanged)
         from timeseriesviewer.crosshair import getCrosshairStyle
         self.ui.actionSetCrosshairStyle.triggered.connect(
-            lambda : self.setCrosshairStyle(getCrosshairStyle(
+            lambda : self.onCrosshairChanged(getCrosshairStyle(
                 parent=self.ui,
-                crosshairStyle=self.mCrosshairStyle))
+                crosshairStyle=self.crosshairStyle()))
         )
 
         self.mapViewCollection = mapViewCollectionDock
@@ -1048,14 +1047,11 @@ class MapView(QObject):
         self.mVectorLayer = None
         self.setVectorLayer(None)
 
-        self.mCrosshairStyle = CrosshairStyle()
-        self.mShowCrosshair = True
-
         self.mIsVisible = True
 
         self.ui.actionToggleVectorVisibility.toggled.connect(self.setVectorVisibility)
         self.ui.actionToggleRasterVisibility.toggled.connect(self.setRasterVisibility)
-        self.ui.actionToggleCrosshairVisibility.toggled.connect(self.setShowCrosshair)
+        self.ui.actionToggleCrosshairVisibility.toggled.connect(self.onCrosshairChanged)
         self.ui.actionToggleMapViewHidden.toggled.connect(lambda b: self.setIsVisible(not b))
 
         self.ui.actionToggleVectorVisibility.setChecked(False)
@@ -1177,11 +1173,7 @@ class MapView(QObject):
         #    mapCanvas.refresh()
 
     def setCrosshairStyle(self, crosshairStyle):
-        if isinstance(crosshairStyle, CrosshairStyle):
-            old = self.mCrosshairStyle
-            self.mCrosshairStyle = crosshairStyle
-            if old != self.mCrosshairStyle:
-                self.sigCrosshairStyleChanged.emit(self.mCrosshairStyle)
+        self.onCrosshairChanged(crosshairStyle)
 
     def setHighlighted(self, b=True, timeout=1000):
         styleOn = """.MapCanvas {
@@ -1198,14 +1190,6 @@ class MapView(QObject):
             for mapCanvas in self.mapCanvases():
                 mapCanvas.setStyleSheet(styleOff)
 
-
-    def setShowCrosshair(self, b):
-        assert isinstance(b, bool)
-        self.mShowCrosshair = b
-        self.sigShowCrosshair.emit(b)
-
-    def showCrosshair(self):
-        return self.mShowCrosshair and self.mCrosshairStyle is not None
 
 
     def rasterVisibility(self):
@@ -1260,14 +1244,45 @@ class MapView(QObject):
         mapCanvas.setRenderer(self.vectorLayerRenderer())
 
 
+        mapCanvas.sigCrosshairVisibilityChanged.connect(self.onCrosshairChanged)
+        mapCanvas.sigCrosshairStyleChanged.connect(self.onCrosshairChanged)
+
         #register non-sensor specific signals for this mpa view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
-        self.sigCrosshairStyleChanged.connect(mapCanvas.setCrosshairStyle)
-        self.sigShowCrosshair.connect(mapCanvas.setShowCrosshair)
         self.sigVectorLayerChanged.connect(mapCanvas.refresh)
 #        self.sigVectorVisibility.connect(mapCanvas.refresh)
 
+    def crosshairStyle(self)->CrosshairStyle:
+        """
+        Returns the CrosshairStyle
+        :return:
+        """
+        for c in self.mapCanvases():
+            assert isinstance(c, MapCanvas)
+            style = c.crosshairStyle()
+            if isinstance(style, CrosshairStyle):
+                return style
+        return None
 
+    def onCrosshairChanged(self, obj):
+        """
+        Synchronizes all crosshair positions. Takes care of CRS differences.
+        :param spatialPoint: SpatialPoint of the new Crosshair position
+        """
+        from timeseriesviewer.crosshair import CrosshairStyle
+
+        srcCanvas = self.sender()
+        if isinstance(srcCanvas, MapCanvas):
+            dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
+        else:
+            dstCanvases = [c for c in self.mapCanvases()]
+
+        if isinstance(obj, bool):
+            for mapCanvas in dstCanvases:
+                mapCanvas.setCrosshairVisibility(obj, emitSignal=False)
+        if isinstance(obj, CrosshairStyle):
+            for mapCanvas in dstCanvases:
+                mapCanvas.setCrosshairStyle(obj, emitSignal=False)
 
 
     def addSensor(self, sensor):
@@ -1959,6 +1974,19 @@ class SpatialTemporalVisualization(QObject):
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
 
+
+    def mapViewFromCanvas(self, mapCanvas:MapCanvas)->MapView:
+        """
+        Returns the MapView a mapCanvas belongs to
+        :param mapCanvas: MapCanvas
+        :return: MapView
+        """
+        for mapView in self.MVC:
+            assert isinstance(mapView, MapView)
+            if mapCanvas in mapView.mapCanvases():
+                return mapView
+        return None
+
     def onMapViewAdded(self, *args):
         self.adjustScrollArea()
         s = ""
@@ -1976,23 +2004,42 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setFixedSize(self.mSize)
         mapCanvas.setCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
-
-
         #register on map canvas signals
         mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
 
+        mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairChanged)
+
+    def onCrosshairChanged(self, obj):
+        """
+        Synchronizes all crosshair positions. Takes care of CRS differences.
+        :param spatialPoint: SpatialPoint of the new Crosshair position
+        """
+        from timeseriesviewer.crosshair import CrosshairStyle
+
+        srcCanvas = self.sender()
+        if isinstance(srcCanvas, MapCanvas):
+            dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
+        else:
+            dstCanvases = [c for c in self.mapCanvases()]
+
+        if isinstance(obj, SpatialPoint):
+            for mapCanvas in dstCanvases:
+                mapCanvas.setCrosshairPosition(obj, emitSignal=False)
 
 
-    def setCrosshairStyle(self, crosshairStyle):
-        from timeseriesviewer.mapcanvas import MapCanvas
-        for mapCanvas in self.mMapCanvases:
-            assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.setCrosshairStyle(crosshairStyle)
+    def setCrosshairStyle(self, crosshairStyle:CrosshairStyle):
+        """
+        Sets a crosshair style to all map canvas
+        :param crosshairStyle: CrosshairStyle
 
-        #self.MVC.setCrosshairStyle(crosshairStyle)
+        """
+        for mapView in self.mapViews():
+            assert isinstance(mapView, MapView)
+            mapView.setCrosshairStyle(crosshairStyle)
+
 
     def setShowCrosshair(self, b):
-        self.MVC.setShowCrosshair(b)
+        self.MVC.setCrosshairVisibility(b)
 
     def setVectorLayer(self, lyr):
         self.MVC.setVectorLayer(lyr)
@@ -2057,7 +2104,7 @@ class SpatialTemporalVisualization(QObject):
         self.mMapToolActivator = self.sender()
         del self.mMapTools[:]
 
-        from timeseriesviewer.mapcanvas import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
+        from timeseriesviewer.maptools import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
         for canvas in self.mMapCanvases:
             mt = None
             if mapToolKey in MapTools.mapToolKeys():
@@ -2164,8 +2211,22 @@ class SpatialTemporalVisualization(QObject):
         return self.mColor
 
 
-    def mapCanvasIterator(self):
+    def mapCanvases(self, mapView=None)->list:
+        """
+        Returns MapCanvases
+        :param mapView: a MapView to return MapCanvases from only, defaults to None
+        :return: [list-of-MapCanvas]
+        """
+        if isinstance(mapView, MapView):
+            s = ""
         return self.mMapCanvases[:]
+
+    def mapViews(self)->list:
+        """
+        Returns a list of all mapviews
+        :return [list-of-MapViews]:
+        """
+        return self.MVC[:]
 
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -2174,7 +2235,7 @@ class SpatialTemporalVisualization(QObject):
             from timeseriesviewer.utils import saveTransform
             if saveTransform(self.mSpatialExtent, self.mCRS, crs):
                 self.mCRS = crs
-                for mapCanvas in self.mapCanvasIterator():
+                for mapCanvas in self.mapCanvases():
                     #print(('STV set CRS {} {}', str(mapCanvas), self.mCRS.description()))
                     mapCanvas.setCrs(crs)
             else:
@@ -2709,7 +2770,7 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     def setShowCrosshair(self, b):
         for mapView in self.mMapViews:
-            mapView.setShowCrosshair(b)
+            mapView.setCrosshairVisibility(b)
 
     def index(self, mapView):
         assert isinstance(mapView, MapView)

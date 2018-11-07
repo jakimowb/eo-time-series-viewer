@@ -492,6 +492,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         #reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
 
+
+    def mapCanvases(self)->list:
+        """
+        Returns all MapCanvases of the spatial visualization
+        :return: [list-of-MapCanvases]
+        """
+        return self.spatialTemporalVis.mapCanvases()
+
     def mapLayerStore(self)->QgsMapLayerStore:
         """
         Returns the QgsMapLayerStore which is used to register QgsMapLayers
@@ -513,6 +521,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
             center = SpatialPoint(crs, x, y)
             self.spatialTemporalVis.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
+
+
+    def onCrosshairPositionChanged(self, spatialPoint:SpatialPoint):
+        """
+        Synchronizes all crosshair positions. Takes care of CRS differences.
+        :param spatialPoint: SpatialPoint of the new Crosshair position
+        """
+        sender = self.sender()
+        from .mapcanvas import MapCanvas
+        for mapCanvas in self.mapCanvases():
+            if isinstance(mapCanvas, MapCanvas) and mapCanvas != sender:
+                mapCanvas.setCrosshairPosition(spatialPoint, emitSignal=False)
 
 
     def initQGISConnection(self):
