@@ -53,7 +53,7 @@ DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 PLUGIN_REPO_XML_REMOTE = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop.xml')
 PLUGIN_REPO_XML_LOCAL  = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop_local.xml')
 URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-
+urlDownloads = 'https://api.bitbucket.org/2.0/repositories/jakimowb/eo-time-series-viewer/downloads'
 
 #list of deploy options:
 # ZIP - add zipped plugin to DIR_DEPLOY
@@ -61,7 +61,7 @@ URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 DEPLOY_OPTIONS = ['ZIP', 'UNZIPPED']
 ADD_TESTDATA = True
 
-#directories below the <enmapbox-repository> folder whose content is to be copied without filtering
+
 PLAIN_COPY_SUBDIRS = ['site-packages']
 
 ########## End of config section
@@ -134,7 +134,7 @@ def build():
     # issue tracker: https://github.com/g-sherman/plugin_build_tool/issues/4
 
     if True:
-        # 1. clean an existing directory = the enmapboxplugin folder
+        # 1. clean an existing directory = plugin folder
         pb_tool.clean_deployment(ask_first=False)
 
         # 2. Compile. Basically call pyrcc to create the resources.rc file
@@ -145,7 +145,7 @@ def build():
             print('Failed to compile resources')
             print(ex)
 
-        # 3. Deploy = write the data to the new enmapboxplugin folder
+        # 3. Deploy = write the data to the new plugin folder
         pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
 
         # 4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
@@ -278,8 +278,7 @@ def updateRepositoryXML(path:str=None):
     ET.SubElement(plugin, 'author_name').text = 'Benjamin Jakimow'
     ET.SubElement(plugin, 'download_url').text = download_url
     ET.SubElement(plugin, 'deprecated').text = 'False'
-    #is this a supported tag????
-    #ET.SubElement(plugin, 'external_dependencies').text = ','.join(enmapbox.DEPENDENCIES)
+
     ET.SubElement(plugin, 'tracker').text = timeseriesviewer.ISSUE_TRACKER
     ET.SubElement(plugin, 'repository').text = timeseriesviewer.REPOSITORY
     ET.SubElement(plugin, 'tags').text = 'Remote Sensing, Raster, Time Series Viewer'
@@ -312,7 +311,7 @@ def updateRepositoryXML(path:str=None):
     #https://bitbucket.org/hu-geomatics/enmap-box/raw/HEAD/qgis_plugin_develop.xml
 
 def uploadDeveloperPlugin():
-    urlDownloads = 'https://api.bitbucket.org/2.0/repositories/hu-geomatics/enmap-box/downloads'
+
     assert os.path.isfile(PLUGIN_REPO_XML_REMOTE)
 
     if True:
@@ -340,8 +339,8 @@ def uploadDeveloperPlugin():
     for url, paths in UPLOADS.items():
         UPLOADS[url] = [p.replace('\\','/') for p in paths]
 
-    skeyUsr = 'enmapbox-repo-username'
-    settings = QSettings('HU Geomatics', 'enmabox-development-team')
+    skeyUsr = 'eotsv-repo-username'
+    settings = QSettings('HU Geomatics', 'EO TSV Development')
     usr = settings.value(skeyUsr, '')
     pwd = ''
     auth = HTTPBasicAuth(usr, pwd)
@@ -349,7 +348,7 @@ def uploadDeveloperPlugin():
     while not auth_success:
         try:
             if False: #print curl command(s) to be used in shell
-                print('# CURL command(s) to upload enmapbox plugin build')
+                print('# CURL command(s) to upload the EO Time Series Viewer plugin build')
                 for url, paths in UPLOADS.items():
 
                     cmd = ['curl']
@@ -423,6 +422,6 @@ if __name__ == "__main__":
 
     build()
     updateRepositoryXML()
-    #uploadDeveloperPlugin()
+    uploadDeveloperPlugin()
     #s = ""
 

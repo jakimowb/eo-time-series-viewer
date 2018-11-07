@@ -34,12 +34,6 @@ class TimeSeriesViewerPlugin:
     def __init__(self, iface):
         self.iface = iface
         self.tsv = None
-        import console.console as CONSOLE
-        if CONSOLE._console is None:
-            CONSOLE._console = CONSOLE.PythonConsole(iface.mainWindow())
-            QTimer.singleShot(0, CONSOLE._console.activate)
-
-
         dirPlugin = os.path.dirname(__file__)
         site.addsitedir(dirPlugin)
 

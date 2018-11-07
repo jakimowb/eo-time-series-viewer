@@ -19,7 +19,7 @@
 
 
 def run():
-    # add site-packages to sys.path as done by enmapboxplugin.py
+    # add site-packages to sys.path
     from timeseriesviewer.utils import initQgisApplication
     qgsApp = initQgisApplication()
 
