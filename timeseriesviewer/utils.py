@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, math, re, io, fnmatch
+import os, sys, math, re, io, fnmatch, uuid
 
 
 from collections import defaultdict
@@ -254,6 +254,12 @@ class SpatialPoint(QgsPointXY):
         assert isinstance(mapCanvas, QgsMapCanvas)
         crs = mapCanvas.mapSettings().destinationCrs()
         return SpatialPoint(crs, mapCanvas.center())
+
+    @staticmethod
+    def fromMapLayerCenter(mapLayer:QgsMapLayer):
+        assert isinstance(mapLayer, QgsMapLayer) and mapLayer.isValid()
+        crs = mapLayer.crs()
+        return SpatialPoint(crs, mapLayer.extent().center())
 
     @staticmethod
     def fromSpatialExtent(spatialExtent):
@@ -1176,6 +1182,15 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
 
 
 class TestObjects():
+    @staticmethod
+    def createTestImageSeries(n=1) -> list:
+        assert n > 0
+
+        datasets = []
+        for i in range(n):
+            ds = TestObjects.inMemoryImage()
+            datasets.append(ds)
+        return datasets
 
     @staticmethod
     def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632')->gdal.Dataset:
@@ -1189,8 +1204,8 @@ class TestObjects():
         """
         drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
-
-        path = '/vsimem/testimage.tif'
+        id = uuid.uuid4()
+        path = '/vsimem/testimage.multiband.{}.tif'.format(id)
         ds = drv.Create(path, ns, nl, bands=nb, eType=gdal.GDT_Float32)
 
         if isinstance(crs, str):
@@ -1217,11 +1232,12 @@ class TestObjects():
         scheme = ClassificationScheme()
         scheme.createClasses(n)
 
-        drv = gdal.GetDriverByName('MEM')
+        drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
 
-
-        ds = drv.Create('', ns, nl, bands=nb, eType=gdal.GDT_Byte)
+        id = uuid.uuid4()
+        path = '/vsimem/testimage.class._{}.tif'.format(id)
+        ds = drv.Create(path, ns, nl, bands=nb, eType=gdal.GDT_Byte)
 
         if isinstance(crs, str):
             c = QgsCoordinateReferenceSystem(crs)

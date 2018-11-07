@@ -179,10 +179,12 @@ def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
     return geo2px(QgsPointXY(x, y), gt)
 
-def doLoaderTask(task):
+def doLoaderTask(taskWrapper:QgsTask, *args, **kwds):
 
+    assert isinstance(taskWrapper, QgsTask)
     #assert isinstance(task, PixelLoaderTask), '{}\n{}'.format(type(task), task)
-
+    task = args[0]
+    assert isinstance(task, PixelLoaderTask)
     result = task
 
     ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
@@ -384,7 +386,7 @@ class PixelLoader(QObject):
     Loads pixel from raster images
     Use QgsTaskManager interface in background
     """
-    sigPixelLoaded = pyqtSignal([int, int, object],[object])
+    sigPixelLoaded = pyqtSignal([int, int, object], [object])
     sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal(np.timedelta64)
     sigLoadingCanceled = pyqtSignal()
@@ -434,15 +436,23 @@ class PixelLoader(QObject):
         tm = self.taskManager()
 
         #todo: create chuncks
-
+        import uuid
         for plt in tasks:
             assert isinstance(plt, PixelLoaderTask)
 
-            qgsTask = QgsTask.fromFunction('pltTask', doLoaderTask, on_finished=)
+            name = 'pltTask.{}'.format(uuid.uuid4())
+            qgsTask = QgsTask.fromFunction(name, doLoaderTask, plt, on_finished=self.onLoadingFinished)
+            qgsTask
             self.mTasks.append(qgsTask)
             tm.addTask(qgsTask)
 
-    def onLoadingFinished(self, e, result):
+    def onLoadingFinished(self, *args):
+
+        err = args[0]
+        results = args[1:]
+
+
+        print('Loading finished')
         s  =""
 
     def cancelLoading(self):
