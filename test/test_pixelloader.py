@@ -14,12 +14,13 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 
 import unittest
 import os, sys, pickle
-
+import qgis.testing
 from timeseriesviewer.utils import initQgisApplication
 import example.Images
-from timeseriesviewer.utils import file_search
+from timeseriesviewer.utils import *
 
-QGIS_APP = initQgisApplication()
+QGIS_APP = qgis.testing.start_app(False)
+#QGIS_APP = initQgisApplication()
 
 
 def onDummy(*args):
@@ -34,7 +35,7 @@ class PixelLoaderTest(unittest.TestCase):
         from timeseriesviewer import DIR_EXAMPLES
         from timeseriesviewer.utils import file_search
         cls.imgs = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
-        cls.img1 = cls.imgs[0]
+        cls.img1 = list(cls.imgs)[0]
         ds = gdal.Open(cls.img1)
         assert isinstance(ds, gdal.Dataset)
         nb, nl, ns = ds.RasterCount, ds.RasterYSize, ds.RasterXSize
@@ -55,6 +56,49 @@ class PixelLoaderTest(unittest.TestCase):
         """Runs after each test."""
         pass
 
+    def createTestDataSets(self):
+
+
+
+    def test_QgsTaskManager(self):
+
+        nTasks = 0
+        result = None
+        def countTasks(*args):
+            nonlocal nTasks
+            nTasks += 1
+
+        tm = QgsApplication.taskManager()
+        self.assertIsInstance(tm, QgsTaskManager)
+        tm.taskAdded.connect(countTasks)
+
+        def func1(taskWrapper:QgsTaskWrapper):
+            return 'Hello'
+
+        def onFinished(e, value):
+            nonlocal result
+            assert e is None
+            result = value
+
+
+        task = QgsTask.fromFunction('',func1, on_finished = onFinished)
+        self.assertIsInstance(task, QgsTask)
+        tm.addTask(task)
+
+        while task.status() not in [QgsTask.Complete, QgsTask.Terminated]:
+            pass
+        while QgsApplication.taskManager().countActiveTasks() > 0:
+            QCoreApplication.processEvents()
+        self.assertTrue(nTasks == 1)
+        self.assertTrue(result == 'Hello')
+
+    def test_PixelLoader(self):
+
+
+
+
+        pl = PixelLoader()
+        self.assertIsInstance(pl, PixelLoader)
 
 
 
