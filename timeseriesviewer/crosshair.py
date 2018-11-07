@@ -404,6 +404,25 @@ class CrosshairWidget(QWidget, loadUI('crosshairwidget.ui')):
         self.refreshCrosshairPreview()
 
 
+    def copyCanvas(self,mapCanvas:QgsMapCanvas):
+        """
+        Copys layers,crs, extent and background color
+        :param mapCanvas:
+        :return:
+        """
+
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        # copy layers
+        canvas = self.w.mapCanvasItem.canvas
+        lyrs = mapCanvas.layers()
+        canvas.setLayers(lyrs)
+        canvas.setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
+        canvas.setExtent(mapCanvas.extent())
+        canvas.setCenter(mapCanvas.center())
+        canvas.setCanvasColor(mapCanvas.canvasColor())
+        self.w.refreshCrosshairPreview()
+
+
 
     def setCanvasColor(self, color):
         self.mapCanvas.setBackgroundColor(color)
@@ -433,6 +452,7 @@ class CrosshairWidget(QWidget, loadUI('crosshairwidget.ui')):
         self.cbCrosshairShowDot.setChecked(style.mShowDot)
         self.cbShowPixelBoundaries.setChecked(style.mShowPixelBorder)
         self.cbShowDistanceMarker.setChecked(style.mShowDistanceMarker)
+
     def crosshairStyle(self):
         style = CrosshairStyle()
         c = self.btnCrosshairColor.color()
@@ -509,16 +529,7 @@ class CrosshairDialog(QgsDialog):
         :param mapCanvas: QgsMapCanvas
         :return:
         """
-        assert isinstance(mapCanvas, QgsMapCanvas)
-        # copy layers
-        canvas = self.w.mapCanvasItem.canvas
-        lyrs = mapCanvas.layers()
-        canvas.setLayers(lyrs)
-        canvas.setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
-        canvas.setExtent(mapCanvas.extent())
-        canvas.setCenter(mapCanvas.center())
-        canvas.setCanvasColor(mapCanvas.canvasColor())
-        self.w.refreshCrosshairPreview()
+        self.w.copyCanvas(mapCanvas)
 
 
 

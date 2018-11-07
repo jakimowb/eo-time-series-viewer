@@ -24,10 +24,12 @@ from PyQt5.QtCore import *
 import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
-
+from timeseriesviewer.crosshair import *
+from timeseriesviewer.utils import *
 resourceDir = os.path.join(DIR_REPO,'qgisresources')
-QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
+QGIS_APP = initQgisApplication()
 
+SHOW_GUI = True
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -40,41 +42,40 @@ class testclassDialogTest(unittest.TestCase):
         """Runs after each test."""
         pass
 
+    def test_CrosshairWidget(self):
 
-    def test_mapcanvas(self):
-        m = MapCanvas()
-        self.assertIsInstance(m, QgsMapCanvas)
-        m.show()
+        ds = TestObjects.inMemoryImage()
 
-        self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
+        lyr = QgsRasterLayer(ds.GetFileList()[0])
+        c = QgsMapCanvas()
+        store = QgsMapLayerStore()
+        store.addMapLayer(lyr)
+        c.setLayers([lyr])
+        c.setDestinationCrs(lyr.crs())
+        c.setExtent(lyr.extent())
+
+        w = CrosshairWidget()
+        self.assertIsInstance(w, CrosshairWidget)
+        self.assertIsInstance(w.mapCanvas, QgsMapCanvas)
+        self.assertTrue(len(w.mapCanvas.layers()), 0)
+
+        w.copyCanvas(c)
 
 
-    def test_mapTools(self):
 
-        m = MapCanvas()
 
-        lastPos = None
-        def onChanged(position:SpatialPoint):
-            nonlocal lastPos
-            lastPos = position
-        m.sigCrosshairPositionChanged.connect(onChanged)
 
-        center = SpatialPoint.fromMapCanvasCenter(m)
-        import timeseriesviewer.maptools as mts
-        m.setCrosshairVisibility(True)
-        mt = mts.SpectralProfileMapTool(m)
-        m.setMapTool(mt)
-        self.assertTrue(m.crosshairPosition() == center)
 
-        p2 = center.copy()
-        p2.setX(p2.x()+100)
-        m.setCrosshairPosition(p2)
-        self.assertIsInstance(lastPos, SpatialPoint)
-        self.assertTrue(lastPos == p2)
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
+    def test_CrosshairDialog(self):
+
+        pass
 
 
 
 
 if __name__ == "__main__":
+    SHOW_GUI = False
     unittest.main()
