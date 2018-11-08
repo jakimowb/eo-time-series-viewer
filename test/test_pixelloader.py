@@ -21,7 +21,7 @@ from timeseriesviewer.utils import *
 
 QGIS_APP = qgis.testing.start_app(False)
 #QGIS_APP = initQgisApplication()
-
+SHOW_GUI = True
 
 def onDummy(*args):
     print(('dummy', args))
@@ -56,9 +56,8 @@ class PixelLoaderTest(unittest.TestCase):
         """Runs after each test."""
         pass
 
-    def createTestDataSets(self):
-
-
+    def createTestImageSeries(self, n=10)->list:
+        return TestObjects.createTestImageSeries(n=n)
 
     def test_QgsTaskManager(self):
 
@@ -94,13 +93,59 @@ class PixelLoaderTest(unittest.TestCase):
 
     def test_PixelLoader(self):
 
+        images = self.createTestImageSeries(n=50)
 
+        RESULTS = []
+        def onPixelLoaded(*args):
+            nonlocal RESULTS
+
+        paths = [i.GetFileList()[0] for i in images]
+        rl = QgsRasterLayer(paths[0])
+
+        self.assertIsInstance(rl, QgsRasterLayer)
+        self.assertTrue(rl.isValid())
+
+        center = SpatialPoint.fromMapLayerCenter(rl)
+        cleft = SpatialPoint(center.crs(), center.x()-100, center.y())
+
+        geometries = [center, cleft]
+
+
+        plt = PixelLoaderTask(paths[0], [center])
+
+        task = QgsTask.fromFunction('', doLoaderTask, plt)
+
+        result = doLoaderTask(task, plt)
+
+        self.assertIsInstance(result, PixelLoaderTask)
+        self.assertTrue(result.exception is None)
+        self.assertIsInstance(result.geometries, list)
+        self.assertListEqual(plt.geometries, result.geometries)
 
 
         pl = PixelLoader()
+        pl.sigPixelLoaded.connect(onPixelLoaded)
         self.assertIsInstance(pl, PixelLoader)
 
+        tasks = []
+        for p in paths:
+            task = PixelLoaderTask(p, geometries)
+            tasks.append(task)
+        pl.startLoading(tasks)
 
+        while QgsApplication.taskManager().countActiveTasks() > 0:
+            QCoreApplication.processEvents()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+        self.assertTrue(len(RESULTS), len(tasks))
+        for r in RESULTS:
+
+            s  =""
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
     def test_pixelLoader(self):
         from timeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
@@ -242,5 +287,6 @@ class PixelLoaderTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    SHOW_GUI = False
     unittest.main()
 
