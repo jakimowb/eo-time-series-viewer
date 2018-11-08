@@ -20,7 +20,7 @@ import example.Images
 from timeseriesviewer.utils import *
 
 QGIS_APP = qgis.testing.start_app(False)
-#QGIS_APP = initQgisApplication()
+QGIS_APP = initQgisApplication()
 SHOW_GUI = True
 
 def onDummy(*args):
@@ -96,8 +96,9 @@ class PixelLoaderTest(unittest.TestCase):
         images = self.createTestImageSeries(n=50)
 
         RESULTS = []
-        def onPixelLoaded(*args):
+        def onPixelLoaded(taskResult):
             nonlocal RESULTS
+            RESULTS.append(taskResult)
 
         paths = [i.GetFileList()[0] for i in images]
         rl = QgsRasterLayer(paths[0])
@@ -115,8 +116,8 @@ class PixelLoaderTest(unittest.TestCase):
 
         task = QgsTask.fromFunction('', doLoaderTask, plt)
 
-        result = doLoaderTask(task, plt)
-
+        result = doLoaderTask(task, plt.toDump())
+        result = PixelLoaderTask.fromDump(result)
         self.assertIsInstance(result, PixelLoaderTask)
         self.assertTrue(result.exception is None)
         self.assertIsInstance(result.geometries, list)
@@ -135,14 +136,9 @@ class PixelLoaderTest(unittest.TestCase):
 
         while QgsApplication.taskManager().countActiveTasks() > 0:
             QCoreApplication.processEvents()
+        QCoreApplication.processEvents()
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-
-        self.assertTrue(len(RESULTS), len(tasks))
-        for r in RESULTS:
-
-            s  =""
+        self.assertTrue(len(RESULTS)== len(tasks))
 
         if SHOW_GUI:
             QGIS_APP.exec_()
@@ -168,9 +164,11 @@ class PixelLoaderTest(unittest.TestCase):
         ptValid2 = SpatialPoint(ext.crs(), x+50, y+50)
 
         #test a valid pixels
-
+        plt = PixelLoaderTask(source, [ptValid1, ptValid2])
+        task = QgsTask.fromFunction('', doLoaderTask, plt)
         try:
-            result = doLoaderTask(PixelLoaderTask(source, [ptValid1, ptValid2]))
+            result = doLoaderTask(task, plt.toDump())
+            result = PixelLoaderTask.fromDump(result)
         except Exception as ex:
             self.fail('Failed to return the pixels for two geometries')
 
@@ -200,14 +198,6 @@ class PixelLoaderTest(unittest.TestCase):
 
 
 
-        #test a out-of-image geometry
-        result = doLoaderTask(PixelLoaderTask(source, ptOutOfImage))
-        self.assertTrue(result.success())
-        self.assertEqual(result.resProfiles[0], INFO_OUT_OF_IMAGE)
-
-        result = doLoaderTask(PixelLoaderTask(source, ptNoData))
-        self.assertTrue(result.success())
-        self.assertEqual(result.resProfiles[0], INFO_NO_DATA)
 
     def test_loadProfiles(self):
 
@@ -244,25 +234,19 @@ class PixelLoaderTest(unittest.TestCase):
         geoms2 = [SpatialPoint(ext.crs(), x, y),
                   SpatialPoint(ext.crs(), x + 250, y + 70)]
 
-        from multiprocessing import Pool
+        loaded_values = []
+        def onPxLoaded(task, *args):
+            print('got loaded')
+            nonlocal loaded_values
+            self.assertIsInstance(task, PixelLoaderTask)
+            loaded_values.append(task)
 
-        def onPxLoaded(*args):
-            n, nmax, task = args
-            assert isinstance(task, PixelLoaderTask)
-            print(task)
+
 
         PL = PixelLoader()
-
-
-        def onTimer(*args):
-            print(('TIMER', PL))
-            pass
-
         PL.sigPixelLoaded.connect(onPxLoaded)
         PL.sigLoadingFinished.connect(lambda: onDummy('finished'))
-        PL.sigLoadingCanceled.connect(lambda: onDummy('canceled'))
         PL.sigLoadingStarted.connect(lambda: onDummy('started'))
-        PL.sigPixelLoaded.connect(lambda: onDummy('px loaded'))
 
         tasks1 = []
         for i, f in enumerate(files):
@@ -274,13 +258,14 @@ class PixelLoaderTest(unittest.TestCase):
             kwargs = {'myid': 'myID{}'.format(i)}
             tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
-        for t in tasks1:
-            result = doLoaderTask(t)
-            s = ""
-
         PL.startLoading(tasks1)
         PL.startLoading(tasks2)
 
+        while QgsApplication.taskManager().countActiveTasks() > 0:
+            QCoreApplication.processEvents()
+
+
+        self.assertTrue(len(loaded_values) == len(tasks2)+len(tasks1))
         print('DONE')
 
 
@@ -288,5 +273,6 @@ class PixelLoaderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     SHOW_GUI = False
+
     unittest.main()
 

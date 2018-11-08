@@ -76,6 +76,8 @@ class PixelLoaderTask(object):
             assert type(geometry) in [SpatialExtent, SpatialPoint]
 
 
+        self.mId = ''
+
         #assert isinstance(source, str) or isinstance(source, unicode)
         self.sourcePath = source
         self.geometries = geometries
@@ -98,6 +100,12 @@ class PixelLoaderTask(object):
             assert not k.startswith('_')
             if not k in self.__dict__.keys():
                 self.__dict__[k] = kwargs[k]
+
+    def setId(self, idStr:str):
+        self.mId = idStr
+
+    def id(self)->str:
+        return self.mId
 
     def toDump(self):
         return pickle.dumps(self)
@@ -179,11 +187,15 @@ def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
     return geo2px(QgsPointXY(x, y), gt)
 
-def doLoaderTask(taskWrapper:QgsTask, *args, **kwds):
+def doLoaderTask(taskWrapper:QgsTask, dump:bytes, **kwds):
 
     assert isinstance(taskWrapper, QgsTask)
     #assert isinstance(task, PixelLoaderTask), '{}\n{}'.format(type(task), task)
-    task = args[0]
+
+
+
+    task = PixelLoaderTask.fromDump(dump)
+
     assert isinstance(task, PixelLoaderTask)
     result = task
 
@@ -345,7 +357,7 @@ def doLoaderTask(taskWrapper:QgsTask, *args, **kwds):
             s = ""
     task.resProfiles = PROFILE_DATA
     task.mIsDone = True
-    return task
+    return task.toDump()
 
 
 
@@ -388,14 +400,12 @@ class PixelLoader(QObject):
     """
     sigPixelLoaded = pyqtSignal([int, int, object], [object])
     sigLoadingStarted = pyqtSignal()
-    sigLoadingFinished = pyqtSignal(np.timedelta64)
-    sigLoadingCanceled = pyqtSignal()
+    sigLoadingFinished = pyqtSignal()
+
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
-
-
-        self.mTasks = []
+        self.mTaskIds = {}
 
 
 
@@ -435,25 +445,40 @@ class PixelLoader(QObject):
 
         tm = self.taskManager()
 
+        self.sigLoadingStarted.emit()
+
         #todo: create chuncks
         import uuid
         for plt in tasks:
             assert isinstance(plt, PixelLoaderTask)
 
-            name = 'pltTask.{}'.format(uuid.uuid4())
-            qgsTask = QgsTask.fromFunction(name, doLoaderTask, plt, on_finished=self.onLoadingFinished)
-            qgsTask
-            self.mTasks.append(qgsTask)
+            pltId = 'pltTask.{}'.format(uuid.uuid4())
+            plt.setId(pltId)
+            dump = plt.toDump()
+            qgsTask = QgsTask.fromFunction(pltId, doLoaderTask, dump, on_finished=self.onLoadingFinished)
+
             tm.addTask(qgsTask)
-
-    def onLoadingFinished(self, *args):
-
-        err = args[0]
-        results = args[1:]
+            self.mTaskIds[pltId] = qgsTask
 
 
-        print('Loading finished')
-        s  =""
+    def onLoadingFinished(self, err, plt:PixelLoaderTask):
+
+        qgsTask = self.mTaskIds.pop(plt.id())
+
+        if not isinstance(qgsTask, QgsTaskWrapper):
+            #cleanup
+
+            to_remove = []
+            for pltId, qgsTask in self.mTaskIds.items():
+                if isinstance(qgsTask, QgsTaskWrapper):
+                    s = ""
+
+
+        self.sigPixelLoaded.emit(plt)
+
+    def status(self)->tuple:
+
+        return None
 
     def cancelLoading(self):
         raise NotImplementedError
