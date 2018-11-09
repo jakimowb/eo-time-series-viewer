@@ -413,14 +413,15 @@ class CrosshairWidget(QWidget, loadUI('crosshairwidget.ui')):
 
         assert isinstance(mapCanvas, QgsMapCanvas)
         # copy layers
-        canvas = self.w.mapCanvasItem.canvas
+        canvas = self.mapCanvas
         lyrs = mapCanvas.layers()
         canvas.setLayers(lyrs)
         canvas.setDestinationCrs(mapCanvas.mapSettings().destinationCrs())
         canvas.setExtent(mapCanvas.extent())
         canvas.setCenter(mapCanvas.center())
         canvas.setCanvasColor(mapCanvas.canvasColor())
-        self.w.refreshCrosshairPreview()
+        self.mapCanvasItem.setPosition(SpatialPoint.fromMapCanvasCenter(canvas))
+        self.refreshCrosshairPreview()
 
 
 
