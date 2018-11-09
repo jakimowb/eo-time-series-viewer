@@ -52,7 +52,7 @@ buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', timeseriesviewer.__versi
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 PLUGIN_REPO_XML_REMOTE = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop.xml')
 PLUGIN_REPO_XML_LOCAL  = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop_local.xml')
-URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads'
 urlDownloads = 'https://api.bitbucket.org/2.0/repositories/jakimowb/eo-time-series-viewer/downloads'
 
 #list of deploy options:
