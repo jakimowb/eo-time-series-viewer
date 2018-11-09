@@ -38,7 +38,7 @@ from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstr
 from timeseriesviewer.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.utils import *
-from timeseriesviewer.spectrallibraries import createQgsField
+from timeseriesviewer.speclib.spectrallibraries import createQgsField
 from timeseriesviewer.models import OptionListModel, Option
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'

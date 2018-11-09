@@ -20,36 +20,45 @@
 """
 # noinspection PyPep8Naming
 
-import os
+import os, json
+
+DEBUG = False
 
 from qgis.core import *
-from qgis.gui import *
+from qgis.gui import QgsDialog
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import numpy as np
-from timeseriesviewer import *
-from timeseriesviewer.utils import *
-from timeseriesviewer.models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
+
+MODULE_IMPORT_PATH = 'enmapbox.gui.plotstyling'
+
+from .utils import *
+from .models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
 import pyqtgraph as pg
 
 
+def log(msg: str):
+    if DEBUG:
+        QgsMessageLog.logMessage(msg, 'plotstyling.py')
+
+
 MARKERSYMBOLS = [Option('o', u'Circle'),
-                 Option('t',u'Triangle Down'),
-                 Option('t1',u'Triangle Up'),
-                 Option('t2',u'Triangle Right'),
+                 Option('t', u'Triangle Down'),
+                 Option('t1', u'Triangle Up'),
+                 Option('t2', u'Triangle Right'),
                  Option('t3', u'Triangle Left'),
-                 Option('p',u'Pentagon'),
+                 Option('p', u'Pentagon'),
                  Option('h', u'Hexagon'),
-                 Option('s',u'Star'),
-                 Option('+',u'Plus'),
-                 Option('d',u'Diamond'),
+                 Option('s', u'Star'),
+                 Option('+', u'Plus'),
+                 Option('d', u'Diamond'),
                  Option(None, u'No Symbol')
                  ]
 
 MARKERSYMBOLS2QGIS_SYMBOLS = dict()
 for o in MARKERSYMBOLS:
     name = o.name()
-    name = name.replace(' ','_')
+    name = name.replace(' ', '_')
     name = name.lower()
     MARKERSYMBOLS2QGIS_SYMBOLS[o.value()] = name
 
@@ -60,12 +69,132 @@ PENSTYLES = [Option(Qt.SolidLine, '___'),
              Option(Qt.DashDotDotLine, '_ . .'),
              Option(Qt.NoPen, 'No Pen')]
 
+
+def brush2tuple(brush: QBrush) -> tuple:
+    return (
+        QgsSymbolLayerUtils.encodeColor(brush.color()),
+        # setMatrix
+        QgsSymbolLayerUtils.encodeBrushStyle(brush.style())
+        # texture
+        # transform
+    )
+
+
+def tuple2brush(t: tuple) -> QBrush:
+    # log('tuple2brush')
+    assert len(t) == 2
+    brush = QBrush()
+    brush.setColor(QgsSymbolLayerUtils.decodeColor(t[0]))
+    brush.setStyle(QgsSymbolLayerUtils.decodeBrushStyle(t[1]))
+    return brush
+
+
+def pen2tuple(pen: QPen) -> tuple:
+    # log('pen2tuple')
+    return (
+        pen.width(),
+        brush2tuple(pen.brush()),  # 1
+        QgsSymbolLayerUtils.encodePenCapStyle(pen.capStyle()),
+        QgsSymbolLayerUtils.encodeColor(pen.color()),
+        pen.isCosmetic(),
+        pen.dashOffset(),  # 5
+        pen.dashPattern(),
+        QgsSymbolLayerUtils.encodePenJoinStyle(pen.joinStyle()),
+        pen.miterLimit(),
+        QgsSymbolLayerUtils.encodePenStyle(pen.style())  # 9
+
+    )
+
+
+def tuple2pen(t: tuple) -> QPen:
+    assert len(t) == 10
+    pen = QPen()
+    pen.setWidth(t[0])
+    pen.setBrush(tuple2brush(t[1]))
+    pen.setCapStyle(QgsSymbolLayerUtils.decodePenCapStyle(t[2]))
+    pen.setColor(QgsSymbolLayerUtils.decodeColor(t[3]))
+    pen.setCosmetic(t[4])
+    pen.setDashOffset(t[5])
+    pen.setDashPattern(t[6])
+    pen.setJoinStyle(QgsSymbolLayerUtils.decodePenJoinStyle(t[7]))
+    pen.setMiterLimit(t[8])
+    pen.setStyle(QgsSymbolLayerUtils.decodePenStyle(t[9]))
+    return pen
+
+
+def runPlotStyleActionRoutine(layerID, styleField: str, id: int):
+    """
+    Is applied to a set of layer features to change the plotStyle JSON string stored in styleField
+    :param layerID: QgsVectorLayer or vector id
+    :param styleField: str, name of string field in layer.fields() to store the PlotStyle
+    :param id: feature id of feature for which the QgsAction was called
+    """
+
+    layer = findMapLayer(layerID)
+    if isinstance(layer, QgsVectorLayer):
+        if layer.selectedFeatureCount():
+            ids = layer.selectedFeatureIds()
+        else:
+            ids = [id]
+        if len(ids) == 0:
+            return
+
+        fieldName = styleField
+        fieldIndex = layer.fields().lookupField(fieldName)
+        style = None
+        features = [f for f in layer.getFeatures(ids)]
+
+        for f in features:
+            json = f.attribute(fieldName)
+            style = PlotStyle.fromJSON(json)
+            if isinstance(style, PlotStyle):
+                style = PlotStyle.fromDialog(plotStyle=style)
+                break
+        if isinstance(style, PlotStyle):
+            json = style.json()
+            b = layer.isEditable()
+            layer.startEditing()
+            for f in features:
+                f.setAttribute(fieldName, json)
+                layer.changeAttributeValues(f.id(), {fieldIndex: json})
+            if not b:
+                layer.commitChanges()
+    else:
+        print('Unable to find layer "{}"'.format(layerID))
+
+
+def createSetPlotStyleAction(field, mapLayerStore='QgsProject.instance()'):
+    """
+    Creates a QgsAction to set the style field of a QgsVectorLayer
+    :param field: QgsField , the field to store the serialized PlotStyle
+    :param mapLayerStore: str, code handle to access the relevant QgsMapLayer store
+    :return: QgsAction
+    """
+    assert isinstance(field, QgsField)
+    assert field.type() == QVariant.String
+
+    iconPath = ':/qt-project.org/styles/commonstyle/images/standardbutton-clear-128.png'
+    pythonCode = """
+from {modulePath} import runPlotStyleActionRoutine
+layerId = '[% @layer_id %]'
+runPlotStyleActionRoutine(layerId, '{styleField}' , [% $id %])
+""".format(modulePath=MODULE_IMPORT_PATH, mapLayerStore=mapLayerStore, styleField=field.name())
+
+    return QgsAction(QgsAction.GenericPython, 'Set PlotStyle', pythonCode, iconPath, True,
+                     notificationMessage='msgSetPlotStyle',
+                     actionScopes={'Feature'})
+
+
 class PlotStyle(QObject):
+    """
+    A class to store PyQtGraph specific plot settings
+    """
     sigUpdated = pyqtSignal()
+
     def __init__(self, **kwds):
         plotStyle = kwds.get('plotStyle')
         if plotStyle: kwds.pop('plotStyle')
-        super(PlotStyle,self).__init__()
+        super(PlotStyle, self).__init__()
 
         self.markerSymbol = MARKERSYMBOLS[0].mValue
         self.markerSize = 5
@@ -73,14 +202,13 @@ class PlotStyle(QObject):
         self.markerBrush.setColor(Qt.green)
         self.markerBrush.setStyle(Qt.SolidPattern)
 
-        self.backgroundColor = Qt.black
+        self.backgroundColor = QColor(Qt.black)
 
         self.markerPen = QPen()
         self.markerPen.setCosmetic(True)
         self.markerPen.setStyle(Qt.NoPen)
         self.markerPen.setColor(Qt.white)
         self.markerPen.setWidthF(0)
-
 
         self.linePen = QPen()
         self.linePen.setCosmetic(True)
@@ -93,10 +221,76 @@ class PlotStyle(QObject):
         if plotStyle:
             self.copyFrom(plotStyle)
 
+    @staticmethod
+    def fromJSON(jsonString: str):
+        """
+        Takes a json string and returns a PlotStyle if any plot-style attribute was set
+        see https://www.gdal.org/ogr_feature_style.html for details
 
+        :param ogrFeatureStyle: str
+        :return: [list-of-PlotStyles], usually of length = 1
+        """
+        # log('BEGIN fromJSON')
+        if not isinstance(jsonString, str):
+            return None
+        try:
+            obj = json.loads(jsonString)
+        except Exception:
+            return None
 
+        plotStyle = PlotStyle()
+        if 'markerPen' in obj.keys():
+            plotStyle.markerPen = tuple2pen(obj['markerPen'])
+        if 'markerBrush' in obj.keys():
+            plotStyle.markerBrush = tuple2brush(obj['markerBrush'])
+        if 'markerSymbol' in obj.keys():
+            plotStyle.markerSymbol = obj['markerSymbol']
+        if 'markerSize' in obj.keys():
+            plotStyle.markerSize = obj['markerSize']
+        if 'linePen' in obj.keys():
+            plotStyle.linePen = tuple2pen(obj['linePen'])
+        if 'isVisible' in obj.keys():
+            plotStyle.setVisibility(obj['isVisible'])
+        if 'backgroundColor' in obj.keys():
+            plotStyle.backgroundColor = QgsSymbolLayerUtils.decodeColor(obj['backgroundColor'])
+        # log('END fromJSON')
+        return plotStyle
+
+    @staticmethod
+    def fromDialog(*args, **kwds):
+        """
+        Selects a PlotStyle from a user dialog
+        :param self:
+        :param args:
+        :param kwds:
+        :return: PlotStyle
+        """
+
+        return PlotStyleDialog.getPlotStyle(*args, **kwds)
+
+    def json(self) -> str:
+        """Returns a JSON representation of this plot style
+        """
+        # log('START json()')
+        style = dict()
+        style['markerPen'] = pen2tuple(self.markerPen)
+        style['markerBrush'] = brush2tuple(self.markerBrush)
+        style['markerSymbol'] = self.markerSymbol
+        style['markerSize'] = self.markerSize
+        style['linePen'] = pen2tuple(self.linePen)
+        style['isVisible'] = self.mIsVisible
+        style['backgroundColor'] = QgsSymbolLayerUtils.encodeColor(self.backgroundColor)
+        dump = json.dumps(style, sort_keys=True, indent=0, separators=(',', ':'))
+        # log('END json()')
+        return dump
 
     def setVisibility(self, b):
+        """
+        Sets the visibility of a plot item
+        :param b: bool
+        """
+        # log('setVisibility')
+        b = bool(b)
         assert isinstance(b, bool)
         old = self.mIsVisible
         self.mIsVisible = b
@@ -104,15 +298,26 @@ class PlotStyle(QObject):
         if b != old:
             self.update()
 
-
     def update(self):
+        """
+        Calls the sigUpdated signal
+        :return:
+        """
         self.sigUpdated.emit()
 
-
-    def isVisible(self):
+    def isVisible(self) -> bool:
+        """
+        Visibility of the plot item
+        :return: bool
+        """
         return self.mIsVisible
 
     def copyFrom(self, plotStyle):
+        """
+        Copyis the plot settings of another plot style
+        :param plotStyle: PlotStyle
+        """
+        # log('copyFrom')
         assert isinstance(plotStyle, PlotStyle)
 
         self.markerSymbol = plotStyle.markerSymbol
@@ -124,23 +329,36 @@ class PlotStyle(QObject):
 
         self.setVisibility(plotStyle.isVisible())
 
-    def createIcon(self, size=None):
+    def createIcon(self, size=None) -> QIcon:
+        """
+        Creates a QIcon to show this PlotStyle
+        :param size: QSize
+        :return: QIcon
+        """
+        return QIcon(self.createPixmap(size=size))
+
+    def createPixmap(self, size=None) -> QPixmap:
+        """
+        Creates a QPixmap to show this PlotStyle
+        :param size: QSize
+        :return: QPixmap
+        """
 
         if size is None:
-            size = QSize(60,60)
+            size = QSize(60, 60)
 
         pm = QPixmap(size)
         pm.fill(self.backgroundColor)
 
         p = QPainter(pm)
-        #draw the line
+        # draw the line
         p.setPen(self.linePen)
-        p.drawLine(2, pm.height()-2, pm.width()-2, 2)
+        p.drawLine(2, pm.height() - 2, pm.width() - 2, 2)
         p.translate(pm.width() / 2, pm.height() / 2)
         from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
         drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
         p.end()
-        return QIcon(pm)
+        return pm
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -150,7 +368,29 @@ class PlotStyle(QObject):
             return False
         for k in self.__dict__.keys():
             if not self.__dict__[k] == other.__dict__[k]:
-                return False
+                # bugfix if two pens are the same but pen1 != pen2
+                if isinstance(self.__dict__[k], QPen):
+                    p1, p2 = self.__dict__[k], other.__dict__[k]
+                    assert isinstance(p1, QPen)
+                    assert isinstance(p2, QPen)
+
+                    if p1.brush() != p2.brush(): return False
+                    if p1.capStyle() != p2.capStyle(): return False
+                    if p1.color() != p2.color(): return False
+                    if p1.dashPattern() != p2.dashPattern(): return False
+                    if p1.dashOffset() != p2.dashOffset(): return False
+                    if p1.isCosmetic() != p2.isCosmetic(): return False
+                    if p1.isSolid() != p2.isSolid(): return False
+                    if p1.joinStyle() != p2.joinStyle(): return False
+                    if p1.miterLimit() != p2.miterLimit(): return False
+                    if p1.style() != p2.style(): return False
+                    if p1.width() != p2.width(): return False
+                    if p1.widthF() != p2.widthF(): return False
+                    s = ""
+
+                else:
+
+                    return False
         return True
 
     def __reduce_ex__(self, protocol):
@@ -181,28 +421,35 @@ class PlotStyle(QObject):
         state.pop('__pickleStateQByteArray__')
         self.__dict__.update(state)
 
+
 class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
-    def __init__(self, title='<#>', parent=None):
+    def __init__(self, title='<#>', parent=None, x=None, y=None):
         super(PlotStyleWidget, self).__init__(parent)
         self.setupUi(self)
         assert isinstance(self.plotWidget, pg.PlotWidget)
 
         self.mBlockUpdates = False
-        #self.plotWidget.disableAutoRange()
-        #self.plotWidget.setAspectLocked()
-        self.plotWidget.setRange(xRange=[0,1], yRange=[0,1], update=True)
+        # self.plotWidget.disableAutoRange()
+        # self.plotWidget.setAspectLocked()
+        self.plotWidget.setRange(xRange=[0, 1], yRange=[0, 1], update=True)
         self.plotWidget.setLimits(xMin=0, xMax=1, yMin=0, yMax=1)
         self.plotWidget.setMouseEnabled(x=False, y=False)
 
         for ax in self.plotWidget.plotItem.axes:
             self.plotWidget.plotItem.hideAxis(ax)
-        #self.plotWidget.disableAutoRange()
+        # self.plotWidget.disableAutoRange()
 
-        self.plotDataItem = self.plotWidget.plot(x=[0.1, 0.5, 0.9], y=[0.25, 0.9, 0.5])
-        self.legend = pg.LegendItem((100,60), offset=(70,30))  # args are (size, offset)
-        self.legend.setParentItem(self.plotDataItem.topLevelItem())   # Note we do NOT call plt.addItem in this case
+        if x is None or y is None:
+            # some arbitrary values
+            x = [0.10, 0.5, 0.9]
+            y = [0.25, 0.9, 0.5]
+        assert len(x) == len(y), 'x and y need to be lists of same length.'
+
+        self.plotDataItem = self.plotWidget.plot(x=x, y=y)
+        self.legend = pg.LegendItem((100, 60), offset=(70, 30))  # args are (size, offset)
+        self.legend.setParentItem(self.plotDataItem.topLevelItem())  # Note we do NOT call plt.addItem in this case
         self.legend.hide()
 
         self.mMarkerSymbolModel = OptionListModel(options=MARKERSYMBOLS)
@@ -211,80 +458,96 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         self.cbMarkerPenStyle.setModel(self.mPenAndLineStyleModel)
         self.cbLinePenStyle.setModel(self.mPenAndLineStyleModel)
 
-        #connect signals
+        # connect signals
         self.btnMarkerBrushColor.colorChanged.connect(self.refreshPreview)
         self.btnMarkerPenColor.colorChanged.connect(self.refreshPreview)
         self.btnLinePenColor.colorChanged.connect(self.refreshPreview)
 
         self.cbMarkerSymbol.currentIndexChanged.connect(self.refreshPreview)
+        self.cbMarkerSymbol.currentIndexChanged.connect(
+            lambda: self.toggleWidgetEnabled(self.cbMarkerSymbol, [self.btnMarkerBrushColor, self.sbMarkerSize]))
         self.cbMarkerPenStyle.currentIndexChanged.connect(self.refreshPreview)
+        self.cbMarkerPenStyle.currentIndexChanged.connect(
+            lambda: self.toggleWidgetEnabled(self.cbMarkerPenStyle, [self.btnMarkerPenColor, self.sbMarkerPenWidth]))
         self.cbLinePenStyle.currentIndexChanged.connect(self.refreshPreview)
+        self.cbLinePenStyle.currentIndexChanged.connect(
+            lambda: self.toggleWidgetEnabled(self.cbLinePenStyle, [self.btnLinePenColor, self.sbLinePenWidth]))
 
         self.sbMarkerSize.valueChanged.connect(self.refreshPreview)
         self.sbMarkerPenWidth.valueChanged.connect(self.refreshPreview)
         self.sbLinePenWidth.valueChanged.connect(self.refreshPreview)
         self.mLastPlotStyle = None
-
+        self.cbIsVisible.toggled.connect(self.refreshPreview)
         self.setPlotStyle(PlotStyle())
         self.refreshPreview()
 
+    def toggleWidgetEnabled(self, cb: QComboBox, widgets: list):
+        """
+        Toggles if widgets are enabled according to the QComboBox text values
+        :param cb: QComboBox
+        :param widgets: [list-of-QWidgets]
+        """
+        text = cb.currentText()
+        enabled = re.search('No (Pen|Symbol)', text) is None
+        for w in widgets:
+            assert isinstance(w, QWidget)
+            w.setEnabled(enabled)
+
     def refreshPreview(self, *args):
         if not self.mBlockUpdates:
-            #print('DEBUG: REFRESH NOW')
+            # log(': REFRESH NOW')
             style = self.plotStyle()
 
-            #todo: set style to style preview
+            # todo: set style to style preview
             pi = self.plotDataItem
             pi.setSymbol(style.markerSymbol)
             pi.setSymbolSize(style.markerSize)
             pi.setSymbolBrush(style.markerBrush)
             pi.setSymbolPen(style.markerPen)
             pi.setPen(style.linePen)
-
+            pi.setVisible(style.isVisible())
             pi.update()
             self.plotWidget.update()
-            self.sigPlotStyleChanged.emit(style)
 
+            self.sigPlotStyleChanged.emit(style)
 
     def setPlotStyle(self, style):
         assert isinstance(style, PlotStyle)
-        #set widget values
+        # set widget values
         self.mLastPlotStyle = style
         self.mBlockUpdates = True
         self.sbMarkerSize.setValue(style.markerSize)
-        #self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
+        # self._setComboBoxToValue(self.cbMarkerSymbol, style.markerSymbol)
         setCurrentComboBoxValue(self.cbMarkerSymbol, style.markerSymbol)
 
         assert isinstance(style.markerPen, QPen)
         assert isinstance(style.markerBrush, QBrush)
         assert isinstance(style.linePen, QPen)
 
-
         self.btnMarkerPenColor.setColor(style.markerPen.color())
-        #self._setComboBoxToValue(self.cbMarkerPenStyle, style.markerPen.style())
+        # self._setComboBoxToValue(self.cbMarkerPenStyle, style.markerPen.style())
         setCurrentComboBoxValue(self.cbMarkerPenStyle, style.markerPen.style())
         self.sbMarkerPenWidth.setValue(style.markerPen.width())
         self.btnMarkerBrushColor.setColor(style.markerBrush.color())
 
         self.btnLinePenColor.setColor(style.linePen.color())
-        #self._setComboBoxToValue(self.cbLinePenStyle, style.linePen.style())
+        # self._setComboBoxToValue(self.cbLinePenStyle, style.linePen.style())
         setCurrentComboBoxValue(self.cbLinePenStyle, style.linePen.style())
         self.sbLinePenWidth.setValue(style.linePen.width())
-
+        self.cbIsVisible.setChecked(style.isVisible())
         self.mBlockUpdates = False
 
         self.refreshPreview()
 
-
     def plotStyleIcon(self):
         icon = QIcon()
-        #todo: get plot preview as 60x60 icon
+        # todo: get plot preview as 60x60 icon
         return icon
 
     def plotStyle(self):
         style = PlotStyle(plotStyle=self.mLastPlotStyle)
 
-        #read plotstyle values from widgets
+        # read plotstyle values from widgets
         style.markerSize = self.sbMarkerSize.value()
         symbol = currentComboBoxValue(self.cbMarkerSymbol)
         style.markerSymbol = symbol
@@ -298,50 +561,87 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
 
         style.markerBrush.setColor(self.btnMarkerBrushColor.color())
 
-
-        #style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
+        # style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
         #                         width=self.sbLinePenWidth.value(),
         #                         style=currentComboBoxValue(self.cbLinePenStyle))
         style.linePen.setColor(self.btnLinePenColor.color())
         style.linePen.setWidth(self.sbLinePenWidth.value())
         style.linePen.setStyle(currentComboBoxValue(self.cbLinePenStyle))
-
+        style.setVisibility(self.cbIsVisible.isChecked())
         return style
 
 
-class PlotStyleButton(QPushButton):
-
-
+class PlotStyleButton(QToolButton):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
     def __init__(self, *args, **kwds):
         super(PlotStyleButton, self).__init__(*args, **kwds)
         self.mPlotStyle = PlotStyle()
+
         self.mInitialButtonSize = None
         self.setStyleSheet('* { padding: 0px; }')
-        self.clicked.connect(self.showDialog)
-        self.setPlotStyle(PlotStyle())
+        # self.clicked.connect(self.showDialog)
+        # self.setPlotStyle(PlotStyle())
+        self._updateIcon()
+        self.mMenu = None
+        self.mWidget = None
 
+        self.prepareMenu()
+
+        self.clicked.connect(self.buttonClicked)
+
+    def buttonClicked(self):
+
+        self.activateWindow()
+
+    def prepareMenu(self):
+
+        self.mMenu = QMenu()
+        self.mWidget = PlotStyleWidget()
+        self.mWidget.setPlotStyle(self.mPlotStyle)
+        self.mWidget.sigPlotStyleChanged.connect(self.setPlotStyle)
+
+        wa = QWidgetAction(self.mMenu)
+        wa.setDefaultWidget(self.mWidget)
+        self.mMenu.addAction(wa)
+        self.setMenu(self.mMenu)
+        self.mMenuIsOpen = False
+        self.setPopupMode(QToolButton.MenuButtonPopup)
+        # self.setContextMenuPolicy(Qt.PreventContextMenu)
+
+    def mousePressEvent(self, e: QMouseEvent):
+
+        if isinstance(self.mWidget, PlotStyleWidget) and self.mWidget.isVisible():
+            e.accept()
+            return
+
+        if e.button() == Qt.RightButton:
+            self.showMenu()
+            return
+        if e.button() == Qt.LeftButton:
+            pass
+
+        if not self.mMenuIsOpen:
+            self.showMenu()
+            e.accept()
+        else:
+            pass
+
+        # self.activateWindow()
 
     def plotStyle(self):
         return PlotStyle(plotStyle=self.mPlotStyle)
 
     def setPlotStyle(self, plotStyle):
         if isinstance(plotStyle, PlotStyle):
+            log('setPlotStyle...')
             self.mPlotStyle.copyFrom(plotStyle)
             self._updateIcon()
             self.sigPlotStyleChanged.emit(self.mPlotStyle)
         else:
+
             s = ""
 
-
-    def showDialog(self):
-        #print(('A',self.mPlotStyle))
-        style = PlotStyleDialog.getPlotStyle(plotStyle=self.mPlotStyle)
-
-        if style:
-            self.setPlotStyle(style)
-        #print(('B',self.mPlotStyle))
     def resizeEvent(self, arg):
         self._updateIcon()
 
@@ -353,15 +653,13 @@ class PlotStyleButton(QPushButton):
         if self.mPlotStyle != None:
             s = self.mInitialButtonSize
             s = self.sizeHint()
-            #s = QSize()
+            # s = QSize()
             icon = self.mPlotStyle.createIcon(self.mInitialButtonSize)
             self.setIcon(icon)
         self.update()
 
-
-
-
         pass
+
 
 class PlotStyleDialog(QgsDialog):
 
@@ -374,31 +672,29 @@ class PlotStyleDialog(QgsDialog):
         :return: specified PlotStyle if accepted, else None
         """
         d = PlotStyleDialog(*args, **kwds)
-        d.exec_()
 
-        if d.result() == QDialog.Accepted:
+        if d.exec_() == QDialog.Accepted:
             return d.plotStyle()
         else:
-
             return None
 
-    def __init__(self, parent=None, plotStyle=None, title='Specify Plot Style'):
-        super(PlotStyleDialog, self).__init__(parent=parent , \
-            buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+    def __init__(self, parent=None, plotStyle=None, title='Specify Plot Style', **kwds):
+        super(PlotStyleDialog, self).__init__(parent=parent, \
+                                              buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+                                              **kwds)
         self.w = PlotStyleWidget(parent=self)
         self.setWindowTitle(title)
         self.btOk = QPushButton('Ok')
         self.btCancel = QPushButton('Cancel')
         buttonBar = QHBoxLayout()
-        #buttonBar.addWidget(self.btCancel)
-        #buttonBar.addWidget(self.btOk)
+        # buttonBar.addWidget(self.btCancel)
+        # buttonBar.addWidget(self.btOk)
         l = self.layout()
         l.addWidget(self.w)
         l.addLayout(buttonBar)
         if isinstance(plotStyle, PlotStyle):
             self.setPlotStyle(plotStyle)
-        #self.setLayout(l)
-
+        # self.setLayout(l)
 
     def plotStyle(self):
         return self.w.plotStyle()
@@ -408,25 +704,177 @@ class PlotStyleDialog(QgsDialog):
         self.w.setPlotStyle(plotStyle)
 
 
-if __name__ == '__main__':
-    import site, sys
-    #add site-packages to sys.path as done by enmapboxplugin.py
+class PlotStyleEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
-    from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
+    def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
+        super(PlotStyleEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
+        self.mEditorWidget = None
+        self.mEditorButton = None
+        self.mLabel = None
+        self.mDefaultValue = None
 
-    import pickle
-    s1 = PlotStyle()
-    s2 = pickle.loads(pickle.dumps(s1))
-    assert isinstance(s2, PlotStyle)
-    #btn = QgsSymbolButton()
+    def createWidget(self, parent: QWidget):
+        # log('createWidget')
+        w = None
+        if not self.isInTable(parent):
+            w = PlotStyleWidget(parent=parent)
+        else:
+            # w = PlotStyleButton(parent)
+            w = QLabel(parent)
 
-    #btn = QgsSymbolButton()
-    #btn.show()
-    d  = PlotStyleDialog()
-    d.exec_()
+        return w
 
-    #btn = PlotStyleButton()
-    #btn.show()
-    qgsApp.exec_()
-    qgsApp.exitQgis()
+    def initWidget(self, editor: QWidget):
+        # log(' initWidget')
+        if isinstance(editor, PlotStyleWidget):
+            self.mEditorWidget = editor
+            self.mEditorWidget.sigPlotStyleChanged.connect(self.onValueChanged)
+            s = ""
+        if isinstance(editor, PlotStyleButton):
+            self.mEditorButton = editor
+            self.mEditorButton.sigPlotStyleChanged.connect(self.onValueChanged)
+
+        if isinstance(editor, QLabel):
+            self.mLabel = editor
+            self.mLabel.setToolTip('Use Form View to edit values')
+
+    def setEnabled(self, enabled: bool):
+        # log(' setEnabled={}'.format(enabled))
+
+        if isinstance(self.mEditorWidget, PlotStyleWidget):
+            self.mEditorWidget.setEnabled(enabled)
+        if isinstance(self.mEditorButton, PlotStyleButton):
+            self.mEditorButton.setEnabled(enabled)
+        if isinstance(self.mLabel, QLabel):
+            self.mLabel.setEnabled(enabled)
+
+    def onValueChanged(self, *args):
+        # log(' onValueChangedFORM')
+
+        self.valueChanged.emit(self.value())
+        s = ""
+
+    def valid(self, *args, **kwargs) -> bool:
+        return any([isinstance(w, QWidget) for w in [self.mLabel, self.mEditorButton, self.mEditorWidget]])
+
+    def value(self, *args, **kwargs):
+        # log(' BEGIN value()')
+        # value = self.defaultValue()
+        value = self.mDefaultValue
+        if isinstance(self.mEditorWidget, PlotStyleWidget):
+            value = self.mEditorWidget.plotStyle()
+        # if isinstance(self.mEditorButton, PlotStyleButton):
+        # value = self.mEditorButton.plotStyle()
+        if isinstance(value, PlotStyle):
+            value = value.json()
+        return value
+
+    def setValue(self, value):
+
+        # log(' setValue()')
+        if not isinstance(value, str):
+            style = PlotStyle()
+        else:
+            style = PlotStyle.fromJSON(value)
+
+        if isinstance(style, PlotStyle):
+            self.mDefaultValue = value
+            if isinstance(self.mEditorWidget, PlotStyleWidget):
+                self.mEditorWidget.setPlotStyle(style)
+            # if isinstance(self.mEditorButton, PlotStyleButton):
+            #    self.mEditorButton.setPlotStyle(style)
+            if isinstance(self.mLabel, QLabel):
+                self.mLabel.setPixmap(style.createPixmap(self.mLabel.size()))
+        else:
+            # log('STYLE IS NONE!')
+            pass
+        # log(' setValue() END')
+
+
+class PlotStyleEditorConfigWidget(QgsEditorConfigWidget):
+
+    def __init__(self, vl: QgsVectorLayer, fieldIdx: int, parent: QWidget):
+        super(PlotStyleEditorConfigWidget, self).__init__(vl, fieldIdx, parent)
+
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(QLabel('Shows a dialog to specify a PlotStyle'))
+        self.mConfig = {}
+
+    def config(self, *args, **kwargs) -> dict:
+        log(' config()')
+        config = {}
+
+        return config
+
+    def setConfig(self, *args, **kwargs):
+        log(' setConfig()')
+        self.mConfig = {}
+
+
+class PlotStyleEditorWidgetFactory(QgsEditorWidgetFactory):
+
+    def __init__(self, name: str):
+
+        super(PlotStyleEditorWidgetFactory, self).__init__(name)
+        self._wrappers = []
+        s = ""
+
+    def configWidget(self, vl: QgsVectorLayer, fieldIdx: int, parent=QWidget) -> QgsEditorConfigWidget:
+        print('configWidget()')
+        w = PlotStyleEditorConfigWidget(vl, fieldIdx, parent)
+        self._wrappers.append(w)
+        return w
+
+    def create(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget,
+               parent: QWidget) -> PlotStyleEditorWidgetWrapper:
+        # log(': create(...)')
+        w = PlotStyleEditorWidgetWrapper(vl, fieldIdx, editor, parent)
+        self._wrappers.append(w)
+        return w
+
+    def fieldScore(self, vl: QgsVectorLayer, fieldIdx: int) -> int:
+        """
+        This method allows disabling this editor widget type for a certain field.
+        0: not supported: none String fields
+        5: maybe support String fields with length <= 400
+        20: specialized support: String fields with length > 400
+
+        :param vl: QgsVectorLayer
+        :param fieldIdx: int
+        :return: int
+        """
+        # log(' fieldScore()')
+        field = vl.fields().at(fieldIdx)
+        assert isinstance(field, QgsField)
+        if field.type() == QVariant.String and field.length() > 400 and field.name().upper() == 'STYLE':
+            return 20
+        elif field.type() == QVariant.String:
+            return 5
+        else:
+            return 0  # no support
+
+    def createSearchWidget(self, vl: QgsVectorLayer, fieldIdx: int, parent: QWidget) -> QgsSearchWidgetWrapper:
+        log(' createSearchWidget()')
+        return super(PlotStyleEditorWidgetFactory, self).createSearchWidget(vl, fieldIdx, parent)
+
+    def writeConfig(self, config, configElement, doc, layer, fieldIdx):
+
+        s = ""
+
+    def readConfig(self, configElement, layer, fieldIdx):
+
+        d = {}
+        return d
+
+
+EDITOR_WIDGET_REGISTRY_KEY = 'PlotSettings'
+plotStyleEditorWidgetFactory = None
+
+
+def registerPlotStyleEditorWidget():
+    reg = QgsGui.editorWidgetRegistry()
+    if not EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys():
+        plotStyleEditorWidgetFactory = PlotStyleEditorWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
+        reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, plotStyleEditorWidgetFactory)
+    else:
+        plotStyleEditorWidgetFactory = reg.factories()[EDITOR_WIDGET_REGISTRY_KEY]

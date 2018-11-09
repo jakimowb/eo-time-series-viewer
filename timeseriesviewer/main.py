@@ -54,8 +54,8 @@ import numpy as np
 
 DEBUG = False
 
-from timeseriesviewer.spectrallibraries import createQgsField, createStandardFields
-import timeseriesviewer.spectrallibraries
+from timeseriesviewer.speclib.spectrallibraries import createQgsField, createStandardFields
+import timeseriesviewer.speclib.spectrallibraries
 
 fields = [f for f in createStandardFields()]
 fields.insert(1, createQgsField('date', ''))
@@ -63,7 +63,7 @@ fields.insert(2, createQgsField('sensorname', ''))
 standardFields = QgsFields()
 for field in fields:
     standardFields.append(field)
-timeseriesviewer.spectrallibraries.createStandardFields = lambda: standardFields
+timeseriesviewer.speclib.spectrallibraries.createStandardFields = lambda: standardFields
 
 #ensure that required non-standard modules are available
 
@@ -263,7 +263,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
 
-        from timeseriesviewer.spectrallibraries import SpectralLibraryPanel
+        from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
@@ -387,6 +387,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QgisInterface.__init__(self)
         QApplication.processEvents()
 
+        self.mMapLayerStore = QgsMapLayerStore()
+        import timeseriesviewer.utils
+        timeseriesviewer.utils.MAP_LAYER_STORES.insert(0,self.mapLayerStore())
+
+
         self.ui = TimeSeriesViewerUI()
 
         # Save reference to the QGIS interface
@@ -403,7 +408,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         #map layer store
-        self.mMapLayerStore = QgsMapLayerStore()
 
         #init other GUI components
 
@@ -562,7 +566,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if mapToolKey == MapTools.TemporalProfile:
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
         elif mapToolKey == MapTools.SpectralProfile:
-            from timeseriesviewer.spectrallibraries import SpectralProfile
+            from timeseriesviewer.speclib.spectrallibraries import SpectralProfile
             tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
 
             if not hasattr(self, 'cntSpectralProfile'):

@@ -23,7 +23,7 @@ from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_
 qapp = initQgisApplication()
 import gdal
 gdal.AllRegister()
-from timeseriesviewer.spectrallibraries import *
+from timeseriesviewer.speclib.spectrallibraries import *
 
 class TestInit(unittest.TestCase):
 

@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="classificationimages">
+    <file>remove_class.svg</file>
+    <file>add_class.svg</file>
+  </qresource>
+</RCC>
