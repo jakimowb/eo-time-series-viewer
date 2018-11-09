@@ -210,7 +210,7 @@ class TimeSeriesViewerUI(QMainWindow,
         self.addActions(self.findChildren(QAction))
         from timeseriesviewer import TITLE, icon, __version__
 
-        self.setWindowTitle('{} ()'.format(TITLE, __version__))
+        self.setWindowTitle('{} ({})'.format(TITLE, __version__))
         self.setWindowIcon(icon())
         if sys.platform == 'darwin':
             self.menuBar().setNativeMenuBar(False)
@@ -817,7 +817,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     vectorLayers.append(l)
                 except Exception as ex:
                     pass
-            QgsProject.instance().addMapLayers(vectorLayers)
+            self.mapLayerStore().addMapLayers(vectorLayers)
 
 
     def addTimeSeriesImages(self, files=None):

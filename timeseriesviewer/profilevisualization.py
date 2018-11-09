@@ -1748,7 +1748,7 @@ class SpectralTemporalVisualization(QObject):
         self.loadCoordinate(spatialPoints=spatialPoints, mode='all', backgroundProcess=backgroundProcess)
 
     LOADING_MODES = ['missing','reload','all']
-    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = False):
+    def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = True):
         """
         :param spatialPoints: [list-of-geometries] to load pixel values from
         :param LUT_bandIndices: dictionary {sensor:[indices]} with band indices to be loaded per sensor
