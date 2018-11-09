@@ -187,18 +187,19 @@ def transformPoint2Px(trans, pt, gt):
     x, y, _ = trans.TransformPoint(pt.x(), pt.y())
     return geo2px(QgsPointXY(x, y), gt)
 
-def doLoaderTask(taskWrapper:QgsTask, dump:bytes, **kwds):
-
-    assert isinstance(taskWrapper, QgsTask)
-    #assert isinstance(task, PixelLoaderTask), '{}\n{}'.format(type(task), task)
 
 
 
-    task = PixelLoaderTask.fromDump(dump)
 
+def doLoaderTask(taskWrapper:QgsTask, dump):
+
+    #assert isinstance(taskWrapper, QgsTask)
+    if isinstance(dump, PixelLoaderTask):
+        task = dump
+    else:
+        task = PixelLoaderTask.fromDump(dump)
     assert isinstance(task, PixelLoaderTask)
     result = task
-
     ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
     nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
@@ -398,42 +399,23 @@ class PixelLoader(QObject):
     Loads pixel from raster images
     Use QgsTaskManager interface in background
     """
-    sigPixelLoaded = pyqtSignal([int, int, object], [object])
+    sigPixelLoaded = pyqtSignal(PixelLoaderTask)
     sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal()
 
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
-        self.mTaskIds = {}
+        self.mTasks = {}
 
 
+    def tasks(self)->list:
+        """
+        Returns the list of QgsTaskWrappers
+        :return: list
+        """
 
-    def onPixelLoaded(self, dataList):
-        assert isinstance(dataList, list)
-        for data in dataList:
-            assert isinstance(data, PixelLoaderTask)
-
-            if data.mJobId not in self.mJobProgress.keys():
-                return
-            else:
-                progressInfo = self.mJobProgress[data.mJobId]
-
-                assert isinstance(progressInfo, LoadingProgress)
-                if not data.success():
-                    s = ""
-
-                progressInfo.addResult(data.success())
-                if progressInfo.done() == progressInfo.total():
-                    self.mJobProgress.pop(data.mJobId)
-
-                self.sigPixelLoaded[int, int, object].emit(progressInfo.done(), progressInfo.total(), data)
-                self.sigPixelLoaded[object].emit(data)
-
-    #def setNumberOfProcesses(self, nProcesses):
-    #    assert nProcesses >= 1
-    #    self.mNumberOfProcesses = nProcesses
-
+        return self.taskManager().tasks()
 
     def taskManager(self)->QgsTaskManager:
         return QgsApplication.taskManager()
@@ -441,40 +423,34 @@ class PixelLoader(QObject):
     def startLoading(self, tasks):
 
         assert isinstance(tasks, list)
-        self.sigLoadingStarted.emit()
 
         tm = self.taskManager()
 
-        self.sigLoadingStarted.emit()
+        #self.sigLoadingStarted.emit()
 
         #todo: create chuncks
         import uuid
         for plt in tasks:
             assert isinstance(plt, PixelLoaderTask)
 
-            pltId = 'pltTask.{}'.format(uuid.uuid4())
-            plt.setId(pltId)
+            taskName = 'pltTask.{}'.format(uuid.uuid4())
+            plt.setId(taskName)
             dump = plt.toDump()
-            qgsTask = QgsTask.fromFunction(pltId, doLoaderTask, dump, on_finished=self.onLoadingFinished)
-
+            qgsTask = QgsTask.fromFunction(taskName, doLoaderTask, dump, on_finished=self.onLoadingFinished)
             tm.addTask(qgsTask)
-            self.mTaskIds[pltId] = qgsTask
+            self.mTasks[taskName] = qgsTask
 
 
-    def onLoadingFinished(self, err, plt:PixelLoaderTask):
+    def onLoadingFinished(self, *args, **kwds):
 
-        qgsTask = self.mTaskIds.pop(plt.id())
+        error = args[0]
+        if error is None:
+            dump = args[1]
+            plt = PixelLoaderTask.fromDump(dump)
+            if isinstance(plt, PixelLoaderTask):
+                self.mTasks.pop(plt.id())
+                self.sigPixelLoaded.emit(plt)
 
-        if not isinstance(qgsTask, QgsTaskWrapper):
-            #cleanup
-
-            to_remove = []
-            for pltId, qgsTask in self.mTaskIds.items():
-                if isinstance(qgsTask, QgsTaskWrapper):
-                    s = ""
-
-
-        self.sigPixelLoaded.emit(plt)
 
     def status(self)->tuple:
 

@@ -1098,15 +1098,12 @@ def zipdir(pathDir, pathZip):
                     zip.write(filename, arcname)
 
 
-def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
+
+def initQgisApplication(PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
     """
     Initializes the QGIS Environment
     :return: QgsApplication instance of local QGIS installation
     """
-    if pythonPlugins is None:
-        pythonPlugins = []
-    assert isinstance(pythonPlugins, list)
-
     if os.path.exists(os.path.join(DIR_REPO, 'qgisresources')):
         qgisResourceDir = os.path.join(DIR_REPO, 'qgisresources')
     if isinstance(qgisResourceDir, str):
@@ -1119,24 +1116,11 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             if "qInitResources" in dir(mod):
                 mod.qInitResources()
 
-    envVar = os.environ.get('QGIS_PLUGINPATH', None)
-    if isinstance(envVar, list):
-        pythonPlugins.extend(re.split('[;:]', envVar))
-
-    # make plugin paths available to QGIS and Python
-    os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
-    os.environ['QGIS_DEBUG'] = '1' if qgisDebug else '0'
-    for p in pythonPlugins:
-        sys.path.append(p)
-
     if isinstance(QgsApplication.instance(), QgsApplication):
-
         return QgsApplication.instance()
-
     else:
-
         if PATH_QGIS is None:
-            # find QGIS Path
+            # find QGIS_PREFIX_PATH
             if sys.platform == 'darwin':
                 # search for the QGIS.app
                 import qgis, re
@@ -1154,12 +1138,17 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             else:
                 # assume OSGeo4W startup
                 PATH_QGIS = os.environ['QGIS_PREFIX_PATH']
-
         assert os.path.exists(PATH_QGIS)
 
-        qgsApp = QgsApplication([], True)
-        qgsApp.setPrefixPath(PATH_QGIS, True)
-        qgsApp.initQgis()
+        try:
+            import qgis.testing
+            qgsApp = qgis.testing.start_app()
+        except Exception as ex:
+            print(ex)
+
+            qgsApp = QgsApplication([], True)
+            qgsApp.setPrefixPath(PATH_QGIS, True)
+            qgsApp.initQgis()
 
         def printQgisLog(msg, tag, level):
             if tag not in ['Processing']:
@@ -1178,6 +1167,7 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             r = PythonRunnerImpl()
             QgsPythonRunner.setInstance(r)
         return qgsApp
+
 
 
 

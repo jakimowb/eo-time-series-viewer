@@ -1682,25 +1682,23 @@ class SpectralTemporalVisualization(QObject):
         self.sigMoveToTSD.emit(self.TS[i])
 
 
-    def onPixelLoaded(self, nDone, nMax, d):
-        self.ui.progressBar.setValue(nDone)
-        self.ui.progressBar.setMaximum(nMax)
+    def onPixelLoaded(self, d):
 
-        assert isinstance(d, PixelLoaderTask)
+        if isinstance(d, PixelLoaderTask):
 
-        bn = os.path.basename(d.sourcePath)
-        if d.success():
+            bn = os.path.basename(d.sourcePath)
+            if d.success():
 
-            t = 'Loaded {} pixel from {}.'.format(len(d.resProfiles), bn)
-            self.mTemporalProfileLayer.addPixelLoaderResult(d)
-            self.updateRequested = True
-        else:
-            t = 'Failed loading from {}.'.format(bn)
-            if d.info and d.info != '':
-                t += '({})'.format(d.info)
+                t = 'Loaded {} pixel from {}.'.format(len(d.resProfiles), bn)
+                self.mTemporalProfileLayer.addPixelLoaderResult(d)
+                self.updateRequested = True
+            else:
+                t = 'Failed loading from {}.'.format(bn)
+                if d.info and d.info != '':
+                    t += '({})'.format(d.info)
 
-        # QgsApplication.processEvents()
-        self.ui.progressInfo.setText(t)
+            # QgsApplication.processEvents()
+            self.ui.progressInfo.setText(t)
 
     def requestUpdate(self, *args):
         self.updateRequested = True
@@ -1858,10 +1856,10 @@ class SpectralTemporalVisualization(QObject):
                 self.pixelLoader.startLoading(tasks)
             else:
                 import timeseriesviewer.pixelloader
-                tasks = [timeseriesviewer.pixelloader.doLoaderTask(task) for task in tasks]
+                tasks = [PixelLoaderTask.fromDump(timeseriesviewer.pixelloader.doLoaderTask(None, task.toDump())) for task in tasks]
                 l = len(tasks)
                 for i, task in enumerate(tasks):
-                    self.pixelLoader.sigPixelLoaded.emit(i+1, l, task)
+                    self.pixelLoader.sigPixelLoaded.emit(task)
 
         else:
             if DEBUG:
@@ -2003,7 +2001,7 @@ def examplePixelLoader():
     gb.setTitle('Sandbox')
 
     PL = PixelLoader()
-    PL.setNumberOfThreads(2)
+
 
     if False:
         files = ['observationcloud/testdata/2014-07-26_LC82270652014207LGN00_BOA.bsq',

@@ -23,6 +23,7 @@ from timeseriesviewer.profilevisualization import *
 from timeseriesviewer.utils import *
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
+SHOW_GUI = True
 
 class testclassUtilityTests(unittest.TestCase):
     """Test rerources work."""
@@ -49,10 +50,12 @@ class testclassUtilityTests(unittest.TestCase):
 
         lyr = TemporalProfileLayer(self.TS)
 
-
-        tp1 = lyr.createTemporalProfiles(center)[0]
-        tp2 = lyr.createTemporalProfiles(SpatialPoint(center.crs(), center.x() + 40, center.y() + 50))
-        return [tp1, tp2]
+        results = []
+        results.extend(lyr.createTemporalProfiles(center))
+        results.extend(lyr.createTemporalProfiles(SpatialPoint(center.crs(), center.x() + 40, center.y() + 50)))
+        for p in results:
+            self.assertIsInstance(p, TemporalProfile)
+        return results
 
     def test_createTemporalProfile(self):
 
@@ -213,8 +216,8 @@ class testclassUtilityTests(unittest.TestCase):
         svis.loadCoordinate(point2)
         svis.ui.show()
 
-        s = ""
-        QGIS_APP.exec_()
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
 
 if __name__ == "__main__":

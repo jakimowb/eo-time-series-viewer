@@ -20,11 +20,22 @@ import example.Images
 from timeseriesviewer.utils import *
 
 QGIS_APP = qgis.testing.start_app(False)
-QGIS_APP = initQgisApplication()
+#QGIS_APP = initQgisApplication()
 SHOW_GUI = True
 
 def onDummy(*args):
     print(('dummy', args))
+
+
+def waitForEnd(pl:PixelLoader):
+    print('wait for end...')
+
+    while QgsApplication.taskManager().countActiveTasks() > 0:
+        QCoreApplication.processEvents()
+
+
+    QCoreApplication.processEvents()
+    print('done')
 
 
 class PixelLoaderTest(unittest.TestCase):
@@ -96,8 +107,9 @@ class PixelLoaderTest(unittest.TestCase):
         images = self.createTestImageSeries(n=50)
 
         RESULTS = []
-        def onPixelLoaded(taskResult):
+        def onPixelLoaded(taskResult, *args):
             nonlocal RESULTS
+            print('Pixel loaded: {}'.format(taskResult))
             RESULTS.append(taskResult)
 
         paths = [i.GetFileList()[0] for i in images]
@@ -111,19 +123,6 @@ class PixelLoaderTest(unittest.TestCase):
 
         geometries = [center, cleft]
 
-
-        plt = PixelLoaderTask(paths[0], [center])
-
-        task = QgsTask.fromFunction('', doLoaderTask, plt)
-
-        result = doLoaderTask(task, plt.toDump())
-        result = PixelLoaderTask.fromDump(result)
-        self.assertIsInstance(result, PixelLoaderTask)
-        self.assertTrue(result.exception is None)
-        self.assertIsInstance(result.geometries, list)
-        self.assertListEqual(plt.geometries, result.geometries)
-
-
         pl = PixelLoader()
         pl.sigPixelLoaded.connect(onPixelLoaded)
         self.assertIsInstance(pl, PixelLoader)
@@ -134,14 +133,13 @@ class PixelLoaderTest(unittest.TestCase):
             tasks.append(task)
         pl.startLoading(tasks)
 
-        while QgsApplication.taskManager().countActiveTasks() > 0:
-            QCoreApplication.processEvents()
+        waitForEnd(pl)
         QCoreApplication.processEvents()
 
-        self.assertTrue(len(RESULTS)== len(tasks))
+        import time
+        time.sleep(5)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.assertTrue(len(RESULTS) == len(tasks))
 
     def test_pixelLoader(self):
         from timeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
@@ -204,7 +202,6 @@ class PixelLoaderTest(unittest.TestCase):
         from timeseriesviewer.utils import SpatialPoint, SpatialExtent, px2geo
 
 
-
         img1 = self.img1
         nb, nl, ns = self.img1Shape
         gt = self.img1gt
@@ -235,8 +232,9 @@ class PixelLoaderTest(unittest.TestCase):
                   SpatialPoint(ext.crs(), x + 250, y + 70)]
 
         loaded_values = []
-        def onPxLoaded(task, *args):
+        def onPxLoaded(*args):
             print('got loaded')
+            task = args[0]
             nonlocal loaded_values
             self.assertIsInstance(task, PixelLoaderTask)
             loaded_values.append(task)
@@ -258,11 +256,11 @@ class PixelLoaderTest(unittest.TestCase):
             kwargs = {'myid': 'myID{}'.format(i)}
             tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
+
         PL.startLoading(tasks1)
         PL.startLoading(tasks2)
 
-        while QgsApplication.taskManager().countActiveTasks() > 0:
-            QCoreApplication.processEvents()
+        waitForEnd(PL)
 
 
         self.assertTrue(len(loaded_values) == len(tasks2)+len(tasks1))
