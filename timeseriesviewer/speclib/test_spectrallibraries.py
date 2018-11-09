@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 import unittest
-from enmapbox.gui.utils import *
+from timeseriesviewer.utils import *
 from enmapbox.dependencycheck import installTestdata
 installTestdata(False)
 from enmapboxtestdata import *
