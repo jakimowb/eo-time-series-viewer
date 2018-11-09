@@ -46,7 +46,8 @@ dn = os.path.dirname
 
 from timeseriesviewer import DIR_UI, DIR_REPO
 from timeseriesviewer import messageLog
-
+import timeseriesviewer
+MAP_LAYER_STORES = [QgsProject.instance()]
 
 def qgisInstance():
     """

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>354</width>
-    <height>248</height>
+    <width>305</width>
+    <height>204</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,9 +41,6 @@
       <number>0</number>
      </property>
     </widget>
-   </item>
-   <item row="4" column="0" rowspan="4" colspan="4">
-    <widget class="PlotWidget" name="plotWidget"/>
    </item>
    <item row="1" column="3">
     <widget class="QSpinBox" name="sbMarkerSize">
@@ -224,6 +221,16 @@
      </property>
      <property name="text">
       <string>Maker Outline</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" rowspan="4" colspan="3">
+    <widget class="PlotWidget" name="plotWidget"/>
+   </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="cbIsVisible">
+     <property name="text">
+      <string>visible</string>
      </property>
     </widget>
    </item>

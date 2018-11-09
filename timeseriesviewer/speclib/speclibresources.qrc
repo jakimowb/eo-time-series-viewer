@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="speclibimages">
+    <file>icons/pickrasterspectrum.svg</file>
+    <file>icons/profile2speclib.svg</file>
+    <file>icons/profile2speclib_auto.svg</file>
+    <file>icons/speclib.svg</file>
+    <file>icons/speclib_add.svg</file>
+    <file>icons/speclib_save.svg</file>
+  </qresource>
+</RCC>
