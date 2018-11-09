@@ -1098,6 +1098,12 @@ def zipdir(pathDir, pathZip):
                     arcname = os.path.join(os.path.relpath(root, relroot), file)
                     zip.write(filename, arcname)
 
+        for zname in zip.namelist():
+            if zname.find('..') != -1 or zname.find(os.path.sep) == 0:
+                s = ""
+
+        s  =""
+
 
 
 def initQgisApplication(PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
