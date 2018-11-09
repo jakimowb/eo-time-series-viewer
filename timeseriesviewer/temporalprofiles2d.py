@@ -698,7 +698,7 @@ class TemporalProfile(QObject):
 
 
         for task in tasks:
-            result = doLoaderTask(task)
+            result = PixelLoaderTask.fromDump(doLoaderTask(None, task))
             assert isinstance(result, PixelLoaderTask)
             self.pullDataUpdate(result)
 
@@ -1060,7 +1060,7 @@ class TemporalProfileLayer(QgsVectorLayer):
                 LUT_bandIndices[sensor] = list(range(sensor.nb))
 
         PL = PixelLoader()
-        PL.sigPixelLoaded[object].connect(self.addPixelLoaderResult)
+        PL.sigPixelLoaded.connect(self.addPixelLoaderResult)
         # update new / existing points
 
         for tsd in self.mTimeSeries:
@@ -1097,11 +1097,10 @@ class TemporalProfileLayer(QgsVectorLayer):
                 PL.startLoading(tasks)
             else:
                 import timeseriesviewer.pixelloader
-                tasks = [timeseriesviewer.pixelloader.doLoaderTask(task) for task in tasks]
+                tasks = [PixelLoaderTask.fromDump(timeseriesviewer.pixelloader.doLoaderTask(None, task.toDump())) for task in tasks]
                 l = len(tasks)
                 for i, task in enumerate(tasks):
-                    PL.sigPixelLoaded[int, int, object].emit(i + 1, l, task)
-                    PL.sigPixelLoaded[object].emit(task)
+                    PL.sigPixelLoaded.emit(task)
 
 
         else:
@@ -1226,7 +1225,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         #styles.setRowStyles([red])
 
 
-    def createTemporalProfiles(self, coordinates):
+    def createTemporalProfiles(self, coordinates)->list:
         """
         Creates temporal profiles
         :param coordinates:
@@ -1268,7 +1267,7 @@ class TemporalProfileLayer(QgsVectorLayer):
                 p.updateLoadingStatus()
             return profiles
         else:
-            return None
+            return []
 
 
     def saveEdits(self, leaveEditable=True, triggerRepaint=True):

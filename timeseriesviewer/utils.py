@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, math, re, io, fnmatch
+import os, sys, math, re, io, fnmatch, uuid
 
 
 from collections import defaultdict
@@ -254,6 +254,12 @@ class SpatialPoint(QgsPointXY):
         assert isinstance(mapCanvas, QgsMapCanvas)
         crs = mapCanvas.mapSettings().destinationCrs()
         return SpatialPoint(crs, mapCanvas.center())
+
+    @staticmethod
+    def fromMapLayerCenter(mapLayer:QgsMapLayer):
+        assert isinstance(mapLayer, QgsMapLayer) and mapLayer.isValid()
+        crs = mapLayer.crs()
+        return SpatialPoint(crs, mapLayer.extent().center())
 
     @staticmethod
     def fromSpatialExtent(spatialExtent):
@@ -1092,15 +1098,12 @@ def zipdir(pathDir, pathZip):
                     zip.write(filename, arcname)
 
 
-def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
+
+def initQgisApplication(PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
     """
     Initializes the QGIS Environment
     :return: QgsApplication instance of local QGIS installation
     """
-    if pythonPlugins is None:
-        pythonPlugins = []
-    assert isinstance(pythonPlugins, list)
-
     if os.path.exists(os.path.join(DIR_REPO, 'qgisresources')):
         qgisResourceDir = os.path.join(DIR_REPO, 'qgisresources')
     if isinstance(qgisResourceDir, str):
@@ -1113,24 +1116,11 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             if "qInitResources" in dir(mod):
                 mod.qInitResources()
 
-    envVar = os.environ.get('QGIS_PLUGINPATH', None)
-    if isinstance(envVar, list):
-        pythonPlugins.extend(re.split('[;:]', envVar))
-
-    # make plugin paths available to QGIS and Python
-    os.environ['QGIS_PLUGINPATH'] = ';'.join(pythonPlugins)
-    os.environ['QGIS_DEBUG'] = '1' if qgisDebug else '0'
-    for p in pythonPlugins:
-        sys.path.append(p)
-
     if isinstance(QgsApplication.instance(), QgsApplication):
-
         return QgsApplication.instance()
-
     else:
-
         if PATH_QGIS is None:
-            # find QGIS Path
+            # find QGIS_PREFIX_PATH
             if sys.platform == 'darwin':
                 # search for the QGIS.app
                 import qgis, re
@@ -1148,12 +1138,17 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
             else:
                 # assume OSGeo4W startup
                 PATH_QGIS = os.environ['QGIS_PREFIX_PATH']
-
         assert os.path.exists(PATH_QGIS)
 
-        qgsApp = QgsApplication([], True)
-        qgsApp.setPrefixPath(PATH_QGIS, True)
-        qgsApp.initQgis()
+        try:
+            import qgis.testing
+            qgsApp = qgis.testing.start_app()
+        except Exception as ex:
+            print(ex)
+
+            qgsApp = QgsApplication([], True)
+            qgsApp.setPrefixPath(PATH_QGIS, True)
+            qgsApp.initQgis()
 
         def printQgisLog(msg, tag, level):
             if tag not in ['Processing']:
@@ -1175,7 +1170,17 @@ def initQgisApplication(pythonPlugins=None, PATH_QGIS=None, qgisDebug=False, qgi
 
 
 
+
 class TestObjects():
+    @staticmethod
+    def createTestImageSeries(n=1) -> list:
+        assert n > 0
+
+        datasets = []
+        for i in range(n):
+            ds = TestObjects.inMemoryImage()
+            datasets.append(ds)
+        return datasets
 
     @staticmethod
     def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632')->gdal.Dataset:
@@ -1189,8 +1194,8 @@ class TestObjects():
         """
         drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
-
-        path = '/vsimem/testimage.tif'
+        id = uuid.uuid4()
+        path = '/vsimem/testimage.multiband.{}.tif'.format(id)
         ds = drv.Create(path, ns, nl, bands=nb, eType=gdal.GDT_Float32)
 
         if isinstance(crs, str):
@@ -1217,11 +1222,12 @@ class TestObjects():
         scheme = ClassificationScheme()
         scheme.createClasses(n)
 
-        drv = gdal.GetDriverByName('MEM')
+        drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
 
-
-        ds = drv.Create('', ns, nl, bands=nb, eType=gdal.GDT_Byte)
+        id = uuid.uuid4()
+        path = '/vsimem/testimage.class._{}.tif'.format(id)
+        ds = drv.Create(path, ns, nl, bands=nb, eType=gdal.GDT_Byte)
 
         if isinstance(crs, str):
             c = QgsCoordinateReferenceSystem(crs)

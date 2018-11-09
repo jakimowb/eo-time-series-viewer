@@ -14,16 +14,28 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 
 import unittest
 import os, sys, pickle
-
+import qgis.testing
 from timeseriesviewer.utils import initQgisApplication
 import example.Images
-from timeseriesviewer.utils import file_search
+from timeseriesviewer.utils import *
 
-QGIS_APP = initQgisApplication()
-
+QGIS_APP = qgis.testing.start_app(False)
+#QGIS_APP = initQgisApplication()
+SHOW_GUI = True
 
 def onDummy(*args):
     print(('dummy', args))
+
+
+def waitForEnd(pl:PixelLoader):
+    print('wait for end...')
+
+    while QgsApplication.taskManager().countActiveTasks() > 0:
+        QCoreApplication.processEvents()
+
+
+    QCoreApplication.processEvents()
+    print('done')
 
 
 class PixelLoaderTest(unittest.TestCase):
@@ -34,7 +46,7 @@ class PixelLoaderTest(unittest.TestCase):
         from timeseriesviewer import DIR_EXAMPLES
         from timeseriesviewer.utils import file_search
         cls.imgs = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
-        cls.img1 = cls.imgs[0]
+        cls.img1 = list(cls.imgs)[0]
         ds = gdal.Open(cls.img1)
         assert isinstance(ds, gdal.Dataset)
         nb, nl, ns = ds.RasterCount, ds.RasterYSize, ds.RasterXSize
@@ -55,8 +67,79 @@ class PixelLoaderTest(unittest.TestCase):
         """Runs after each test."""
         pass
 
+    def createTestImageSeries(self, n=10)->list:
+        return TestObjects.createTestImageSeries(n=n)
+
+    def test_QgsTaskManager(self):
+
+        nTasks = 0
+        result = None
+        def countTasks(*args):
+            nonlocal nTasks
+            nTasks += 1
+
+        tm = QgsApplication.taskManager()
+        self.assertIsInstance(tm, QgsTaskManager)
+        tm.taskAdded.connect(countTasks)
+
+        def func1(taskWrapper:QgsTaskWrapper):
+            return 'Hello'
+
+        def onFinished(e, value):
+            nonlocal result
+            assert e is None
+            result = value
 
 
+        task = QgsTask.fromFunction('',func1, on_finished = onFinished)
+        self.assertIsInstance(task, QgsTask)
+        tm.addTask(task)
+
+        while task.status() not in [QgsTask.Complete, QgsTask.Terminated]:
+            pass
+        while QgsApplication.taskManager().countActiveTasks() > 0:
+            QCoreApplication.processEvents()
+        self.assertTrue(nTasks == 1)
+        self.assertTrue(result == 'Hello')
+
+    def test_PixelLoader(self):
+
+        images = self.createTestImageSeries(n=50)
+
+        RESULTS = []
+        def onPixelLoaded(taskResult, *args):
+            nonlocal RESULTS
+            print('Pixel loaded: {}'.format(taskResult))
+            RESULTS.append(taskResult)
+
+        paths = [i.GetFileList()[0] for i in images]
+        rl = QgsRasterLayer(paths[0])
+
+        self.assertIsInstance(rl, QgsRasterLayer)
+        self.assertTrue(rl.isValid())
+
+        center = SpatialPoint.fromMapLayerCenter(rl)
+        cleft = SpatialPoint(center.crs(), center.x()-100, center.y())
+
+        geometries = [center, cleft]
+
+        pl = PixelLoader()
+        pl.sigPixelLoaded.connect(onPixelLoaded)
+        self.assertIsInstance(pl, PixelLoader)
+
+        tasks = []
+        for p in paths:
+            task = PixelLoaderTask(p, geometries)
+            tasks.append(task)
+        pl.startLoading(tasks)
+
+        waitForEnd(pl)
+        QCoreApplication.processEvents()
+
+        import time
+        time.sleep(5)
+
+        self.assertTrue(len(RESULTS) == len(tasks))
 
     def test_pixelLoader(self):
         from timeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
@@ -79,9 +162,11 @@ class PixelLoaderTest(unittest.TestCase):
         ptValid2 = SpatialPoint(ext.crs(), x+50, y+50)
 
         #test a valid pixels
-
+        plt = PixelLoaderTask(source, [ptValid1, ptValid2])
+        task = QgsTask.fromFunction('', doLoaderTask, plt)
         try:
-            result = doLoaderTask(PixelLoaderTask(source, [ptValid1, ptValid2]))
+            result = doLoaderTask(task, plt.toDump())
+            result = PixelLoaderTask.fromDump(result)
         except Exception as ex:
             self.fail('Failed to return the pixels for two geometries')
 
@@ -111,19 +196,10 @@ class PixelLoaderTest(unittest.TestCase):
 
 
 
-        #test a out-of-image geometry
-        result = doLoaderTask(PixelLoaderTask(source, ptOutOfImage))
-        self.assertTrue(result.success())
-        self.assertEqual(result.resProfiles[0], INFO_OUT_OF_IMAGE)
-
-        result = doLoaderTask(PixelLoaderTask(source, ptNoData))
-        self.assertTrue(result.success())
-        self.assertEqual(result.resProfiles[0], INFO_NO_DATA)
 
     def test_loadProfiles(self):
 
         from timeseriesviewer.utils import SpatialPoint, SpatialExtent, px2geo
-
 
 
         img1 = self.img1
@@ -155,25 +231,20 @@ class PixelLoaderTest(unittest.TestCase):
         geoms2 = [SpatialPoint(ext.crs(), x, y),
                   SpatialPoint(ext.crs(), x + 250, y + 70)]
 
-        from multiprocessing import Pool
-
+        loaded_values = []
         def onPxLoaded(*args):
-            n, nmax, task = args
-            assert isinstance(task, PixelLoaderTask)
-            print(task)
+            print('got loaded')
+            task = args[0]
+            nonlocal loaded_values
+            self.assertIsInstance(task, PixelLoaderTask)
+            loaded_values.append(task)
+
+
 
         PL = PixelLoader()
-
-
-        def onTimer(*args):
-            print(('TIMER', PL))
-            pass
-
         PL.sigPixelLoaded.connect(onPxLoaded)
         PL.sigLoadingFinished.connect(lambda: onDummy('finished'))
-        PL.sigLoadingCanceled.connect(lambda: onDummy('canceled'))
         PL.sigLoadingStarted.connect(lambda: onDummy('started'))
-        PL.sigPixelLoaded.connect(lambda: onDummy('px loaded'))
 
         tasks1 = []
         for i, f in enumerate(files):
@@ -185,18 +256,21 @@ class PixelLoaderTest(unittest.TestCase):
             kwargs = {'myid': 'myID{}'.format(i)}
             tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
-        for t in tasks1:
-            result = doLoaderTask(t)
-            s = ""
 
         PL.startLoading(tasks1)
         PL.startLoading(tasks2)
 
+        waitForEnd(PL)
+
+
+        self.assertTrue(len(loaded_values) == len(tasks2)+len(tasks1))
         print('DONE')
 
 
 
 
 if __name__ == "__main__":
+    SHOW_GUI = False
+
     unittest.main()
 
