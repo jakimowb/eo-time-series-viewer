@@ -25,7 +25,6 @@ import os, sys, pickle, datetime, re, collections
 from collections import OrderedDict
 from qgis.gui import *
 from qgis.core import *
-from qgis.PyQt.Qt import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *

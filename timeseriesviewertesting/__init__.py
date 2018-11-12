@@ -8,7 +8,7 @@ import qgis
 from qgis.gui import *
 from qgis.core import *
 import qgis.testing
-from qgis.PyQt.Qt import *
+from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 
@@ -29,15 +29,11 @@ def initQgisApplication(*args, **kwds):
 
 
         if sys.platform == 'darwin':
-            # search for the QGIS.app
+            # add location of Qt Libraries
             assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
-            PATH_QGIS_APP = re.split(r'\.app[\/]', qgis.__file__)[0] + '.app'
-            PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS'])
-
-
+            PATH_QGIS_APP = re.search(r'.*\.app', qgis.__file__).group()
             QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
             QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
-
 
         qgsApp = qgis.testing.start_app()
 

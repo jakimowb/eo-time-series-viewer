@@ -821,7 +821,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     vectorLayers.append(l)
                 except Exception as ex:
                     pass
-            self.mapLayerStore().addMapLayers(vectorLayers)
+            QgsProject.instance().addMapLayers(vectorLayers)
+            #self.mapLayerStore().addMapLayers(^)
 
 
     def addTimeSeriesImages(self, files=None):

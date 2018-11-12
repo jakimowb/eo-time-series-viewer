@@ -23,7 +23,7 @@
 import os, sys, fnmatch, site, re, site
 
 
-__version__ = '0.7.<replaced_by_build>'
+__version__ = '0.7' #sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'

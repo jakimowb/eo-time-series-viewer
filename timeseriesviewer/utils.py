@@ -63,6 +63,28 @@ def qgisInstance():
         return None
 
 
+def findMapLayer(layer)->QgsMapLayer:
+    """
+    Returns the first QgsMapLayer out of all layers stored in MAP_LAYER_STORES that matches layer
+    :param layer: str layer id or layer name or QgsMapLayer
+    :return: QgsMapLayer
+    """
+    if isinstance(layer, QgsMapLayer):
+        return layer
+    elif isinstance(layer, str):
+        #check for IDs
+        for store in MAP_LAYER_STORES:
+            l = store.mapLayer(layer)
+            if isinstance(l, QgsMapLayer):
+                return l
+        #check for name
+        for store in MAP_LAYER_STORES:
+            l = store.mapLayersByName(layer)
+            if len(l) > 0:
+                return l[0]
+    return None
+
+
 def file_search(rootdir, pattern, recursive=False, ignoreCase=False, directories=False, fullpath=False):
     """
     Searches for files
