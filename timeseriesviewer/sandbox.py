@@ -333,27 +333,3 @@ def sandboxDemo():
     ml = QgsVectorLayer(exampleEvents, 'labels', 'ogr')
     QgsProject.instance().addMapLayer(ml)
 
-
-if __name__ == '__main__':
-    # add site-packages to sys.path as done by enmapboxplugin.py
-    from timeseriesviewer.utils import initQgisApplication
-    resDir = jp(DIR_REPO, 'qgisresources')
-    qgsApp = initQgisApplication(qgisResourceDir=resDir)
-
-
-
-    #import qgisresources.images
-    #qgisresources.images.qInitResources()
-
-    import timeseriesviewer
-    timeseriesviewer.DEBUG = True
-    #run tests
-    if False: gdal_qgis_benchmark()
-    if False: sandboxQgisBridge()
-    if True: sandboxGui()
-
-    if False: sandboxTestdata()
-    if False: sandboxDemo()
-    #close QGIS
-    qgsApp.exec_()
-    qgsApp.exitQgis()

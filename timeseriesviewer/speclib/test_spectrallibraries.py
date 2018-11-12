@@ -21,8 +21,8 @@ import unittest
 from timeseriesviewer.utils import *
 from enmapbox.dependencycheck import installTestdata
 installTestdata(False)
-from enmapboxtestdata import *
-QAPP = initQgisApplication(qgisResourceDir=DIR_QGISRESOURCES)
+from timeseriesviewertesting import initQgisApplication
+QAPP = initQgisApplication()
 from osgeo import gdal
 gdal.AllRegister()
 from .spectrallibraries import *

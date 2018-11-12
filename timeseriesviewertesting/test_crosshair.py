@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewertesting import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -57,7 +57,7 @@ class testclassDialogTest(unittest.TestCase):
         w = CrosshairWidget()
         self.assertIsInstance(w, CrosshairWidget)
         self.assertIsInstance(w.mapCanvas, QgsMapCanvas)
-        self.assertTrue(len(w.mapCanvas.layers()), 0)
+        self.assertEqual(len(w.mapCanvas.layers()), 0)
 
         w.copyCanvas(c)
 

@@ -1106,77 +1106,6 @@ def zipdir(pathDir, pathZip):
 
 
 
-def initQgisApplication(PATH_QGIS=None, qgisDebug=False, qgisResourceDir=None):
-    """
-    Initializes the QGIS Environment
-    :return: QgsApplication instance of local QGIS installation
-    """
-    if os.path.exists(os.path.join(DIR_REPO, 'qgisresources')):
-        qgisResourceDir = os.path.join(DIR_REPO, 'qgisresources')
-    if isinstance(qgisResourceDir, str):
-        assert os.path.isdir(qgisResourceDir)
-        import importlib, re
-        modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
-        modules = [m[0:-3] for m in modules]
-        for m in modules:
-            mod = importlib.import_module('qgisresources.{}'.format(m))
-            if "qInitResources" in dir(mod):
-                mod.qInitResources()
-
-    if isinstance(QgsApplication.instance(), QgsApplication):
-        return QgsApplication.instance()
-    else:
-        if PATH_QGIS is None:
-            # find QGIS_PREFIX_PATH
-            if sys.platform == 'darwin':
-                # search for the QGIS.app
-                import qgis, re
-                assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
-                PATH_QGIS_APP = re.split(r'\.app[\/]', qgis.__file__)[0] + '.app'
-                PATH_QGIS = os.path.join(PATH_QGIS_APP, *['Contents', 'MacOS'])
-
-                if not 'GDAL_DATA' in os.environ.keys():
-                    os.environ['GDAL_DATA'] = r'/Library/Frameworks/GDAL.framework/Versions/Current/Resources/gdal'
-
-                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns']))
-                QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
-
-
-            else:
-                # assume OSGeo4W startup
-                PATH_QGIS = os.environ['QGIS_PREFIX_PATH']
-        assert os.path.exists(PATH_QGIS)
-
-        try:
-            import qgis.testing
-            qgsApp = qgis.testing.start_app()
-        except Exception as ex:
-            print(ex)
-
-            qgsApp = QgsApplication([], True)
-            qgsApp.setPrefixPath(PATH_QGIS, True)
-            qgsApp.initQgis()
-
-        def printQgisLog(msg, tag, level):
-            if tag not in ['Processing']:
-                if tag in ['Python warning', 'warning']:
-                    import re
-                    if re.search('(Deprecation|Import)Warning', msg) is not None:
-                        return
-                    else:
-                        return
-                print(msg)
-
-        QgsApplication.instance().messageLog().messageReceived.connect(printQgisLog)
-
-        #initiate a PythonRunner instance if None exists
-        if not QgsPythonRunner.isValid():
-            r = PythonRunnerImpl()
-            QgsPythonRunner.setInstance(r)
-        return qgsApp
-
-
-
 
 class TestObjects():
     @staticmethod
@@ -1464,6 +1393,7 @@ class QgisMockup(QgisInterface):
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, os.path.basename(path))
         self.lyrs.append(l)
+
         QgsProject.instance().addMapLayer(l, True)
         self.mRootNode.addLayer(l)
         self.mLayerTreeMapCanvasBridge.setCanvasLayers()
@@ -1553,19 +1483,3 @@ def createCRSTransform(src, dst):
     t.setSourceCrs(src)
     t.setDestinationCrs(dst)
     return t
-
-if __name__ == '__main__':
-    #nice predecessors
-
-    qgsApp = initQgisApplication()
-    se = SpatialExtent.world()
-    assert nicePredecessor(26) == 25
-    assert nicePredecessor(25) == 25
-    assert nicePredecessor(23) == 20
-    assert nicePredecessor(999) == 950
-    assert nicePredecessor(1001) == 1000
-    assert nicePredecessor(1.2) == 1.0      #
-    assert nicePredecessor(0.8) == 0.5
-    assert nicePredecessor(0.2) == 0.1
-    assert nicePredecessor(0.021) == 0.01
-    assert nicePredecessor(0.0009991) == 0.0005

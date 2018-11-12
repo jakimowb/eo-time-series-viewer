@@ -21,7 +21,7 @@
 
 
 import os, unittest
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewertesting import initQgisApplication
 QGIS_APP = initQgisApplication()
 
 from timeseriesviewer.plotstyling import *

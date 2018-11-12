@@ -201,13 +201,8 @@ def compile_rc_files(ROOT, targetDir=None):
     resourcefiles = list(qrcs)
     assert len(resourcefiles) > 0
 
-    if sys.platform == 'darwin':
-        prefix = '/Applications/QGIS.app/Contents/MacOS/bin/'
-    else:
-        prefix = ''
-
-
-
+    shell_cmds = []
+    subprocess_args = []
     for root_dir, f in resourcefiles:
         #dn = os.path.dirname(f)
         pathQrc = os.path.normpath(jp(root_dir, f))
@@ -223,10 +218,20 @@ def compile_rc_files(ROOT, targetDir=None):
 
         bn = os.path.splitext(bn)[0]
         pathPy = os.path.join(dn, bn+'.py' )
+        subprocess_args.append(('pyrcc5','-o', pathPy, pathQrc))
+        shell_cmds.append('pyrcc5 -o {} {}'.format(pathPy, pathQrc))
+
+    print('Call in shell:')
+    for cmd in shell_cmds:
+        print(cmd)
+
+    for args in subprocess_args:
         try:
-            subprocess.call(['pyrcc5', '-o', pathPy, pathQrc])
+            subprocess.call(*args)
         except Exception as ex:
-            print('Failed to call: pyrcc5 -o {} {}'.format(pathPy, pathQrc))
+            print('Failed to call: pyrcc5 -o {} {}'.format(args[0], args[1]))
+
+
 
 
 def fileNeedsUpdate(file1, file2):

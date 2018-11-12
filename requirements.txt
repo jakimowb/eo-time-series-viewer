@@ -4,5 +4,5 @@
 ###### Requirements without Version Specifiers ######
 gdal
 numpy
-pyqtgraph
+https://bitbucket.org/hu-geomatics/enmap-box/downloads/pyqtgraph-0.11.0.dev0.zip
 

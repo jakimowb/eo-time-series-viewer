@@ -10,7 +10,7 @@ import qgis
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.opengl as gl
 import numpy as np
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewertesting import initQgisApplication
 
 app = initQgisApplication()
 w = gl.GLViewWidget()

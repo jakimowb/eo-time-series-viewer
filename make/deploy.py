@@ -32,10 +32,12 @@ import numpy as np
 from pb_tool import pb_tool
 import git
 
-from timeseriesviewer import DIR_REPO
-from timeseriesviewer.utils import file_search, jp, initQgisApplication, zipdir
-import timeseriesviewer
+from timeseriesviewertesting import initQgisApplication
 app = initQgisApplication()
+from timeseriesviewer import DIR_REPO
+from timeseriesviewer.utils import file_search, jp, zipdir
+import timeseriesviewer
+
 
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')

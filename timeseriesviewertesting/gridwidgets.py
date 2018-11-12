@@ -18,15 +18,3 @@ class MapViewGridLayout(QGridLayout):
 
 
 
-
-if __name__ == '__main__':
-
-    app = initQgisApplication()
-
-    w = QWidget()
-    l = MapViewGridLayout()
-    w.setLayout(l)
-    w.show()
-    w.resize(QSize(300,200))
-
-    app.exec_()

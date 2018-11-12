@@ -1280,6 +1280,7 @@ class MapView(QObject):
         if isinstance(obj, bool):
             for mapCanvas in dstCanvases:
                 mapCanvas.setCrosshairVisibility(obj, emitSignal=False)
+
         if isinstance(obj, CrosshairStyle):
             for mapCanvas in dstCanvases:
                 mapCanvas.setCrosshairStyle(obj, emitSignal=False)
@@ -2038,8 +2039,10 @@ class SpatialTemporalVisualization(QObject):
             mapView.setCrosshairStyle(crosshairStyle)
 
 
-    def setShowCrosshair(self, b):
-        self.MVC.setCrosshairVisibility(b)
+    def setCrosshairVisibility(self, b:bool):
+        assert isinstance(b, bool)
+        self.onCrosshairChanged(b)
+
 
     def setVectorLayer(self, lyr):
         self.MVC.setVectorLayer(lyr)
@@ -2808,44 +2811,3 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             else:
                 return None
 
-
-if __name__ == '__main__':
-    from timeseriesviewer import utils
-    from timeseriesviewer.mapcanvas import MapCanvas
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25
-
-
-    from example import  exampleEvents
-    rDir = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\eo-time-series-viewer\qgisresources'
-    qgsApp = utils.initQgisApplication(qgisResourceDir=rDir)
-    TS = TimeSeries()
-    TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA, re_2014_06_25])
-
-    if False:
-
-        dock  = MapViewCollectionDock()
-        dock.setTimeSeries(TS)
-        dock.show()
-        mv1 = dock.createMapView()
-        mv2 = dock.createMapView()
-        dock.setCurrentMapView(mv1)
-        assert dock.currentMapView() == mv1
-        dock.setCurrentMapView(mv2)
-        assert dock.currentMapView() == mv2
-
-        vl = QgsVectorLayer(exampleEvents, 'ogr')
-        QgsProject.instance().addMapLayer(vl)
-        #d = QgsRendererPropertiesDialog(vl, QgsStyle.defaultStyle())
-        #d.show()
-
-    else:
-
-        w = MapViewRenderSettings(TS.sensors()[0])
-
-        w.show()
-        w.setRasterRenderer(w.rasterRenderer())
-        #renderer2 = w.rasterRenderer()
-        #print(renderer2)
-
-
-    qgsApp.exec_()

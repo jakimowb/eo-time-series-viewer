@@ -470,7 +470,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
-        self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setShowCrosshair)
+        self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
 
         #connect buttons with actions
         from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI

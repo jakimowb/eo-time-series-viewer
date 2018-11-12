@@ -602,25 +602,6 @@ class TreeView(QTreeView):
 
 
 
-
-if __name__ == '__main__':
-    from timeseriesviewer.utils import initQgisApplication
-
-
-    app =  initQgisApplication()
-
-    for k in sorted(os.environ.keys()): print('{}={}'.format(k, os.environ[k]))
-
-    def printModelSubclasses(model, modelIndex=QModelIndex()):
-        assert isinstance(model, QAbstractItemModel)
-        print('index(0,0) {}'.format(model.index(0,0)))
-        print('parent() {}'.format(model.parent(modelIndex)))
-        print('rowCount() {}'.format(model.rowCount(modelIndex)))
-        print('columnCount() {}'.format(model.columnCount(modelIndex)))
-
-
-
-
     treeModel = TreeModel()
     cbModel = OptionListModel()
     for k in sorted(os.environ.keys()):
@@ -630,7 +611,6 @@ if __name__ == '__main__':
     cb = QComboBox()
     cb.setModel(cbModel)
     cb.show()
-    printModelSubclasses(treeModel)
 
 
     tv = QTreeView(None)
@@ -647,6 +627,3 @@ if __name__ == '__main__':
     n1.appendChildNodes(n4)
 
 
-
-    print('DONE')
-    app.exec_()

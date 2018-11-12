@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import os, json
+import os, json, sys
 
 DEBUG = False
 
@@ -30,7 +30,14 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import numpy as np
 
-MODULE_IMPORT_PATH = 'enmapbox.gui.plotstyling'
+#get to now how we can import this module
+MODULE_IMPORT_PATH = None
+#'timeseriesviewer.plotstyling'
+for name, module in sys.modules.items():
+    if hasattr(module, '__file__') and module.__file__ == __file__:
+        MODULE_IMPORT_PATH = name
+        break
+
 
 from .utils import *
 from .models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue

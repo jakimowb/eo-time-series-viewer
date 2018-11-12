@@ -1,0 +1,13 @@
+WKT	name	px_x	px_y	x_unit	y_unit	source	b1	b2	b3	b4	b5
+	No Geometry			index			0.2	0.3	0.2	0.5	0.7
+											
+WKT	name	px_x	px_y	x_unit	y_unit	source	b1_250.0nm	b2_251.0nm	b3_253.0nm	b4_254.0nm	b5_256.0nm
+				nm			0.2	0.3	0.2	0.5	0.7
+											
+WKT	name	px_x	px_y	x_unit	y_unit	source	b1_0.25um	b2_0.251um	b3_0.253um	b4_0.254um	b5_0.256um
+				um			0.22	0.333	0.222	0.555	0.777
+											
+WKT	name	px_x	px_y	x_unit	y_unit	source	b1	b2	b3	b4	b5	b6
+Point (682219.8955597480526194 -752141.71791329700499773)	Position A	36	12	index		/Users/benjamin.jakimow/Repositories/QGIS_Plugins/eo-time-series-viewer/example/Images/2014-06-16_LE72270652014167CUB00_BOA.tif	151	335	157	3993	1652	587
+Point (682279.8955597480526194 -752051.71791329700499773)	Position B	38	9	index		/Users/benjamin.jakimow/Repositories/QGIS_Plugins/eo-time-series-viewer/example/Images/2014-06-16_LE72270652014167CUB00_BOA.tif	175	383	199	4577	2022	700
+												

@@ -62,7 +62,12 @@ from timeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog, MARKERSYMBO
 from timeseriesviewer.plotstyling import EDITOR_WIDGET_REGISTRY_KEY as PlotSettingsEditorWidgetKey
 
 
-MODULE_IMPORT_PATH = 'enmapbox.gui.speclib.spectrallibraries'
+MODULE_IMPORT_PATH = None
+#'timeseriesviewer.plotstyling'
+for name, module in sys.modules.items():
+    if hasattr(module, '__file__') and module.__file__ == __file__:
+        MODULE_IMPORT_PATH = name
+        break
 
 MIMEDATA_SPECLIB = 'application/hub-spectrallibrary'
 MIMEDATA_SPECLIB_LINK = 'application/hub-spectrallibrary-link'

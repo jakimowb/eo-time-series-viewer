@@ -408,22 +408,3 @@ class SystemInfoDock(QgsDockWidget, loadUI('systeminfo.ui')):
                     file.write(line + '\n')
                 file.flush()
                 file.close()
-
-
-if __name__ == '__main__':
-    import site, sys
-    from timeseriesviewer import utils
-    from timeseriesviewer.mapcanvas import MapCanvas
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-    qgsApp = utils.initQgisApplication()
-
-    d = SystemInfoDock()
-    d.show()
-    c = MapCanvas()
-    c.sigDataLoadingFinished.connect(lambda p : d.addTimeDelta('MAPCANVAS', p))
-    c.show()
-    lyr = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
-    c.setDestinationCrs(lyr.crs())
-    c.setExtent(lyr.extent())
-    c.setLayers([lyr])
-    qgsApp.exec_()

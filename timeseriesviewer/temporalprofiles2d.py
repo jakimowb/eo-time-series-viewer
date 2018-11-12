@@ -1730,20 +1730,3 @@ class TemporalProfileTableView(QgsAttributeTableView):
 
     def mimeTypes(self):
         pass
-
-
-if __name__ == '__main__':
-    import site, sys
-    from timeseriesviewer import utils
-    qgsApp = utils.initQgisApplication()
-    DEBUG = False
-
-
-
-    w = TemporalProfileTableView()
-    w.show()
-
-    #btn = TemporalProfile3DPlotStyleButton()
-    #btn.show()
-    qgsApp.exec_()
-    qgsApp.exitQgis()

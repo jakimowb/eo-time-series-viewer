@@ -998,12 +998,6 @@ def exampleSyncedCanvases():
     qgsApp.exec_()
     qgsApp.exitQgis()
 
-if __name__ == '__main__':
-    from timeseriesviewer import utils
-    from timeseriesviewer.mapcanvas import MapCanvas
-    from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-    from example import  exampleEvents
-    qgsApp = utils.initQgisApplication()
 
 
 

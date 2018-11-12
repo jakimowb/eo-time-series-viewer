@@ -20,7 +20,7 @@
 
 def run():
     # add site-packages to sys.path
-    from timeseriesviewer.utils import initQgisApplication
+    from timeseriesviewertesting import initQgisApplication
     qgsApp = initQgisApplication()
 
     from timeseriesviewer.main import TimeSeriesViewer

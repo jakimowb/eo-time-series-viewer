@@ -542,26 +542,3 @@ class Resulthandler(QObject):
 
 
 R = Resulthandler()
-if __name__ == '__main__':
-    from timeseriesviewer.utils import initQgisApplication
-    from timeseriesviewer import DIR_QGIS_RESOURCES
-    qgsApp = initQgisApplication(qgisResourceDir=DIR_QGIS_RESOURCES)
-
-    from example.Images import Img_2014_05_31_LE72270652014151CUB00_BOA
-    from example import exampleEvents
-
-    canvas = QgsMapCanvas()
-    lyr = QgsRasterLayer(Img_2014_05_31_LE72270652014151CUB00_BOA)
-    shp = QgsVectorLayer(exampleEvents, 'events')
-    QgsProject.instance().addMapLayers([lyr,shp])
-    canvas.setLayers([shp, lyr])
-    canvas.setDestinationCrs(lyr.crs())
-    canvas.setExtent(lyr.extent())
-    canvas.show()
-
-    d = CursorLocationInfoDock()
-    d.show()
-    d.loadCursorLocation(lyr.extent().center(), canvas)
-    pass
-
-    qgsApp.exec_()

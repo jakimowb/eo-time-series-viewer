@@ -1,0 +1,30 @@
+ENVI
+description = {
+SpectralLibrary}
+samples = 5
+lines   = 1
+bands   = 1
+header offset = 0
+file type = ENVI Spectral Library
+data type = 5
+interleave = bsq
+byte order = 0
+band names = {
+Band 1}
+name = {
+ None}
+px x = {
+ None}
+px y = {
+ None}
+source = {
+ None}
+spectra names = {
+ None}
+wavelength = {
+ 0.25, 0.251, 0.253, 0.254, 0.256}
+wavelength units = um
+x unit = {
+ um}
+y unit = {
+ None}

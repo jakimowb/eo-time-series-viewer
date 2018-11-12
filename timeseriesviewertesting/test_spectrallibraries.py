@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 import os, sys, unittest, tempfile
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewertesting import initQgisApplication
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
 qapp = initQgisApplication()
 import gdal

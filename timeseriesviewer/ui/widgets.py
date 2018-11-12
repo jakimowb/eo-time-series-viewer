@@ -134,18 +134,3 @@ class PropertyDialogUI(QDialog, loadUI('settingsdialog.ui')):
         self.setupUi(self)
 
 
-
-if __name__ == '__main__':
-    import site, sys
-    #add site-packages to sys.path as done by enmapboxplugin.py
-    from timeseriesviewer.utils import initQgisApplication
-    qgsApp = initQgisApplication()
-    #run tests
-    d = AboutDialogUI()
-    d.show()
-
-    #d = PropertyDialogUI()
-    d.exec_()
-    #close QGIS
-    qgsApp.exec_()
-    qgsApp.exitQgis()

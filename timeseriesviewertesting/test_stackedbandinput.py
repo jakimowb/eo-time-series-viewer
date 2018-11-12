@@ -18,7 +18,9 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.utils import initQgisApplication, nextColor
+from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.utils import nextColor
+
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
