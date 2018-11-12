@@ -6,7 +6,7 @@ from qgis.core import *
 from qgis.gui import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5.Qt import QApplication
+from PyQt5.QtWidgets import *
 from PyQt5.QtSvg import *
 from PyQt5.QtXml import *
 
@@ -266,7 +266,7 @@ def svg2png(pathDir, overwrite=False, mode='INKSCAPE', filterFile=None):
     if len(svgs) == 0:
         print('No SVGs to convert')
         return
-    from PyQt5.Qt import QApplication
+
     app = QApplication([], True)
     buggySvg = []
 
@@ -573,74 +573,10 @@ def checkFileHeader():
 
 
 if __name__ == '__main__':
-    icondir = jp(DIR_UI, *['icons'])
-    pathQrc = jp(DIR_UI,'resources.qrc')
-    from timeseriesviewer import DIR_EXAMPLES
-
-    if False:
-        from qgis import *
-        from qgis.core import *
-        from qgis.gui import *
-
-        if sys.platform == 'darwin':
-            PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-            os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-        else:
-            # assume OSGeo4W startup
-            PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-        assert os.path.exists(PATH_QGS)
-
-        qgsApp = QgsApplication([], True)
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-        QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-        qgsApp.setPrefixPath(PATH_QGS, True)
-        qgsApp.initQgis()
-
-
-
-        pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        pathTS = r'C:\Users\geo_beja\Repositories\QGIS_Plugins\SenseCarbonTSViewer\make\testdata_sources.txt'
-        from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsRectangle
-        subset = QgsRectangle(QgsPointXY(-55.36091,-6.79851), #UL
-                              QgsPointXY(-55.34132,-6.80514)) #LR
-
-        crs = QgsCoordinateReferenceSystem('EPSG:4326') # lat lon coordinates
-
-
-        createTestData(pathDirTestData, pathTS,subset, crs, drv='ENVI')
-        exit(0)
-
-    if False:
-        copyQGISRessourceFile()
-        s = ""
-
-    if False:
-
-        # update __init__.py of testdata directories
-        d = pathDirTestData = os.path.join(DIR_EXAMPLES,'Images')
-        #d = pathDirTestData = DIR_EXAMPLES
-        createFilePackage(d, recursive=False)
-
-    if False:
-        updateInfoHTML()
-
-    if False:
-        updateMetadataTxt()
-
-    if False:
-        # convert SVG to PNG
-        svg2png(icondir, overwrite=False,
-                filterFile=os.path.join(os.path.dirname(__file__), 'svg2png.txt'))
-    if False:
-        #add png icons to qrc file
-        #file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.png')
-        file2qrc(icondir, pathQrc, qrcPrefix='timeseriesviewer', fileExtension='.svg')
-
-    if False:
-        checkFileHeader()
-        exit()
 
     if True:
         compile_rc_files(DIR_UI)
+
+
     print('Done')
 

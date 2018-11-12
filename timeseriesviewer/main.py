@@ -36,12 +36,12 @@ see https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
 see https://github.com/CleanCut/green/issues/103 
 
 """
-
+"""
 path = os.path.abspath(os.path.join(sys.exec_prefix, '../../bin/pythonw.exe'))
-
 if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
+"""
 
 import qgis.utils
 from timeseriesviewer.utils import *
@@ -49,7 +49,7 @@ from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 import numpy as np
-
+import pyqtgraph as pg
 
 
 DEBUG = False
@@ -67,131 +67,6 @@ timeseriesviewer.speclib.spectrallibraries.createStandardFields = lambda: standa
 
 #ensure that required non-standard modules are available
 
-import pyqtgraph as pg
-
-
-"""
-class QgisTsvBridge(QObject):
-    #Class to control interactions between TSV and the running QGIS instance
-    _instance = None
-
-    @staticmethod
-    def instance():
-        if QgisTsvBridge._instance is None:
-            QgisTsvBridge._instance = QgisTsvBridge()
-        return QgisTsvBridge._instance
-
-    @staticmethod
-    def qgisInstance():
-        if qgis.utils is not None and isinstance(qgis.utils.iface, QgisInterface):
-            return qgis.utils.iface
-        else:
-            return None
-
-    @staticmethod
-    def addMapLayers(mapLayers, checkDuplicates=False):
-        iface = QgisTsvBridge.qgisInstance()
-        if iface:
-            existingSources = [lyr.source() for lyr in iface.mapCanvas().layers()]
-
-            for ml in mapLayers:
-                assert isinstance(ml, QgsMapLayer)
-                src = ml.source()
-                if checkDuplicates and src in existingSources:
-                    continue
-
-                if isinstance(ml, QgsRasterLayer):
-                    iface.addRasterLayer(src)
-                if isinstance(ml, QgsVectorLayer):
-                    iface.addVectorLayer(src, os.path.basename(src), ml.providerType())
-
-
-
-    sigQgisProjectClosed = pyqtSignal()
-
-    def __init__(self, parent=None):
-        assert QgisTsvBridge._instance is None, 'Can not instantiate QgsTsvBridge twice'
-        super(QgisTsvBridge, self).__init__(parent)
-        self.TSV = None
-        self.ui = None
-        self.SpatTempVis = None
-    def isValid(self):
-        return isinstance(self.iface, QgisInterface) and isinstance(self.TSV, TimeSeriesViewer)
-
-    def connect(self,TSV):
-        # super(QgisTsvBridge, self).__init__(parent=TSV)
-        iface = QgisTsvBridge.qgisInstance()
-        if iface:
-            self.iface = iface
-            self.TSV = TSV
-            self.ui = self.TSV.ui
-            self.SpatTempVis = self
-
-
-
-            from timeseriesviewer.ui.docks import RenderingDockUI
-            assert isinstance(self.ui, TimeSeriesViewerUI)
-            assert isinstance(self.ui.dockRendering, RenderingDockUI)
-
-            self.ui.dockRendering.sigQgisInteractionRequest.connect(self.onQgisInteractionRequest)
-            self.ui.dockRendering.enableQgisInteraction(True)
-
-            #self.cbQgsVectorLayer = self.ui.dockRendering.cbQgsVectorLayer
-            #self.gbQgsVectorLayer = self.ui.dockRendering.gbQgsVectorLayer
-
-            self.qgsMapCanvas = self.iface.mapCanvas()
-            assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
-            #assert isinstance(self.cbQgsVectorLayer, QgsMapLayerComboBox)
-            #assert isinstance(self.gbQgsVectorLayer, QgsCollapsibleGroupBox)
-            return True
-        else:
-            return False
-
-    def addLayersToQGIS(self, mapLayers, noDuplicates=False):
-        QgisTsvBridge.addMapLayers(mapLayers, checkDuplicates=noDuplicates)
-
-    def onQgisInteractionRequest(self, request):
-        if not self.isValid(): return
-        assert isinstance(self.qgsMapCanvas, QgsMapCanvas)
-        extQgs = SpatialExtent.fromMapCanvas(self.qgsMapCanvas)
-
-        assert isinstance(self.TSV, TimeSeriesViewer)
-        extTsv = self.TSV.spatialTemporalVis.spatialExtent()
-
-        assert request in ['tsvCenter2qgsCenter',
-                            'tsvExtent2qgsExtent',
-                            'qgisCenter2tsvCenter',
-                            'qgisExtent2tsvExtent']
-
-        if request == 'tsvCenter2qgsCenter':
-            center = SpatialPoint.fromSpatialExtent(extTsv)
-            center = center.toCrs(extQgs.crs())
-            if center:
-                self.qgsMapCanvas.setCenter(center)
-                self.qgsMapCanvas.refresh()
-
-        if request == 'qgisCenter2tsvCenter':
-            center = SpatialPoint.fromSpatialExtent(extQgs)
-            center = center.toCrs(extTsv.crs())
-            if center:
-                self.TSV.spatialTemporalVis.setSpatialCenter(center)
-                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
-                    self.TSV.spectralTemporalVis.loadCoordinate(center)
-
-        if request == 'tsvExtent2qgsExtent':
-            extent = extTsv.toCrs(extQgs.crs())
-            if extent:
-                self.qgsMapCanvas.setExtent(extent)
-                self.qgsMapCanvas.refresh()
-
-        if request == 'qgisExtent2tsvExtent':
-            extent = extQgs.toCrs(extTsv.crs())
-            if extent:
-                self.TSV.spatialTemporalVis.setSpatialExtent(extent)
-                if self.ui.dockRendering.cbLoadCenterPixelProfile.isChecked():
-                    self.TSV.spectralTemporalVis.loadCoordinate(extent.spatialCenter())
-
-"""
 
 class TimeSeriesViewerUI(QMainWindow,
                          loadUI('timeseriesviewer.ui')):
@@ -265,6 +140,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
+        QgsProject.instance().addMapLayer(self.dockSpectralLibrary.SLW.speclib())
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)

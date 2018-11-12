@@ -24,11 +24,7 @@ import os, sys, math, re, io, fnmatch, uuid
 
 
 from collections import defaultdict
-
 from qgis.core import *
-
-
-#from qgis.gui import *
 from qgis.gui import *
 import qgis.utils
 from PyQt5.QtCore import *

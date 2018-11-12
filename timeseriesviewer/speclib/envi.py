@@ -30,6 +30,31 @@
 import os, csv
 from .spectrallibraries import *
 
+#lookup GDAL Data Type and its size in bytes
+LUT_GDT_SIZE = {gdal.GDT_Byte:1,
+                gdal.GDT_UInt16:2,
+                gdal.GDT_Int16:2,
+                gdal.GDT_UInt32:4,
+                gdal.GDT_Int32:4,
+                gdal.GDT_Float32:4,
+                gdal.GDT_Float64:8,
+                gdal.GDT_CInt16:2,
+                gdal.GDT_CInt32:4,
+                gdal.GDT_CFloat32:4,
+                gdal.GDT_CFloat64:8}
+
+LUT_GDT_NAME = {gdal.GDT_Byte:'Byte',
+                gdal.GDT_UInt16:'UInt16',
+                gdal.GDT_Int16:'Int16',
+                gdal.GDT_UInt32:'UInt32',
+                gdal.GDT_Int32:'Int32',
+                gdal.GDT_Float32:'Float32',
+                gdal.GDT_Float64:'Float64',
+                gdal.GDT_CInt16:'Int16',
+                gdal.GDT_CInt32:'Int32',
+                gdal.GDT_CFloat32:'Float32',
+                gdal.GDT_CFloat64:'Float64'}
+
 
 CSV_PROFILE_NAME_COLUMN_NAMES = ['spectra names', 'name']
 CSV_GEOMETRY_COLUMN = 'wkt'
@@ -531,7 +556,11 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             key, value = tmp[0].strip(), '='.join(tmp[1:]).strip()
             if value.startswith('{') and value.endswith('}'):
                 value = [v.strip() for v in value.strip('{}').split(',')]
-            md[key] = value
+                if len(value) > 0 and len(value[0]) > 0:
+                    md[key] = value
+            else:
+                if len(value) > 0:
+                    md[key] = value
 
         # check required metadata tegs
         for k in EnviSpectralLibraryIO.REQUIRED_TAGS:
@@ -543,11 +572,104 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             to_float = ['fwhm','wavelength', 'reflectance scale factor']
             for k in to_int:
                 if k in md.keys():
-                    md[k] = toType(int, md[k])
+                    value = toType(int, md[k])
+                    if value:
+                        md[k] = value
             for k in to_float:
                 if k in md.keys():
-                    md[k] = toType(float, md[k])
+                    value = toType(float, md[k])
+                    if value:
+                        md[k] = value
 
 
         return md
+
+
+def describeRawFile(pathRaw, pathVrt, xsize, ysize,
+                    bands=1,
+                    eType = gdal.GDT_Byte,
+                    interleave='bsq',
+                    byteOrder='LSB',
+                    headerOffset=0)->gdal.Dataset:
+    """
+    Creates a VRT to describe a raw binary file
+    :param pathRaw: path of raw image
+    :param pathVrt: path of destination VRT
+    :param xsize: number of image samples / columns
+    :param ysize: number of image lines
+    :param bands: number of image bands
+    :param eType: the GDAL data type
+    :param interleave: can be 'bsq' (default),'bil' or 'bip'
+    :param byteOrder: 'LSB' (default) or 'MSB'
+    :param headerOffset: header offset in bytes, default = 0
+    :return: gdal.Dataset of created VRT
+    """
+    assert xsize > 0
+    assert ysize > 0
+    assert bands > 0
+    assert eType > 0
+
+    assert eType in LUT_GDT_SIZE.keys(), 'dataType "{}" is not a valid gdal datatype'.format(eType)
+    interleave = interleave.lower()
+
+    assert interleave in ['bsq','bil','bip']
+    assert byteOrder in ['LSB', 'MSB']
+
+    drvVRT = gdal.GetDriverByName('VRT')
+    assert isinstance(drvVRT, gdal.Driver)
+    dsVRT = drvVRT.Create(pathVrt, xsize, ysize, bands=0, eType=eType)
+    assert isinstance(dsVRT, gdal.Dataset)
+
+    #vrt = ['<VRTDataset rasterXSize="{xsize}" rasterYSize="{ysize}">'.format(xsize=xsize,ysize=ysize)]
+
+    vrtDir = os.path.dirname(pathVrt)
+    if pathRaw.startswith(vrtDir):
+        relativeToVRT = 1
+        srcFilename = os.path.relpath(pathRaw, vrtDir)
+    else:
+        relativeToVRT = 0
+        srcFilename = pathRaw
+
+    for b in range(bands):
+        if interleave == 'bsq':
+            imageOffset = headerOffset
+            pixelOffset = LUT_GDT_SIZE[eType]
+            lineOffset = pixelOffset * xsize
+        elif interleave == 'bip':
+            imageOffset = headerOffset + b * LUT_GDT_SIZE[eType]
+            pixelOffset = bands * LUT_GDT_SIZE[eType]
+            lineOffset = xsize * bands
+        else:
+            raise Exception('Interleave {} is not supported'.format(interleave))
+
+        options = ['subClass=VRTRawRasterBand']
+        options.append('SourceFilename={}'.format(srcFilename))
+        options.append('dataType={}'.format(LUT_GDT_NAME[eType]))
+        options.append('ImageOffset={}'.format(imageOffset))
+        options.append('PixelOffset={}'.format(pixelOffset))
+        options.append('LineOffset={}'.format(lineOffset))
+        options.append('ByteOrder={}'.format(byteOrder))
+
+        xml = """<SourceFilename relativetoVRT="{relativeToVRT}">{srcFilename}</SourceFilename>
+            <ImageOffset>{imageOffset}</ImageOffset>
+            <PixelOffset>{pixelOffset}</PixelOffset>
+            <LineOffset>{lineOffset}</LineOffset>
+            <ByteOrder>{byteOrder}</ByteOrder>""".format(relativeToVRT=relativeToVRT,
+                                                         srcFilename=srcFilename,
+                                                         imageOffset=imageOffset,
+                                                         pixelOffset=pixelOffset,
+                                                         lineOffset=lineOffset,
+                                                         byteOrder=byteOrder)
+
+        #md = {}
+        #md['source_0'] = xml
+        #vrtBand = dsVRT.GetRasterBand(b + 1)
+        assert dsVRT.AddBand(eType, options=options) == 0
+
+        vrtBand = dsVRT.GetRasterBand(b+1)
+        assert isinstance(vrtBand, gdal.Band)
+        #vrtBand.SetMetadata(md, 'vrt_sources')
+        #vrt.append('  <VRTRasterBand dataType="{dataType}" band="{band}" subClass="VRTRawRasterBand">'.format(dataType=LUT_GDT_NAME[eType], band=b+1))
+    dsVRT.FlushCache()
+    return dsVRT
 

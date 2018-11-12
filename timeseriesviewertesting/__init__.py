@@ -3,7 +3,7 @@ import qgis
 
 __package__ = "test"
 
-import os, sys, re
+import os, sys, re, importlib
 import qgis
 from qgis.gui import *
 from qgis.core import *
@@ -15,7 +15,7 @@ from qgis.PyQt.QtCore import *
 
 
 
-def initQgisApplication(*args, **kwds):
+def initQgisApplication(*args, qgisResourceDir:str=None, **kwds):
     """
     Initializes a QGIS Environment
     :return: QgsApplication instance of local QGIS installation
@@ -36,6 +36,20 @@ def initQgisApplication(*args, **kwds):
             QApplication.addLibraryPath(os.path.join(PATH_QGIS_APP, *['Contents', 'PlugIns', 'qgis']))
 
         qgsApp = qgis.testing.start_app()
+
+        if not isinstance(qgisResourceDir, str):
+            parentDir = os.path.dirname(os.path.dirname(__file__))
+            resourceDir = os.path.join(parentDir, 'qgisresources')
+            if os.path.exists(resourceDir):
+                qgisResourceDir = resourceDir
+
+        if isinstance(qgisResourceDir, str) and os.path.isdir(qgisResourceDir):
+            modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
+            modules = [m[0:-3] for m in modules]
+            for m in modules:
+                mod = importlib.import_module('qgisresources.{}'.format(m))
+                if "qInitResources" in dir(mod):
+                    mod.qInitResources()
 
         #initiate a PythonRunner instance if None exists
         if not QgsPythonRunner.isValid():
