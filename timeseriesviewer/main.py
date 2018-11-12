@@ -48,24 +48,18 @@ from timeseriesviewer.utils import *
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
+from timeseriesviewer.speclib.spectrallibraries import SpectralLibrary, createQgsField
 import numpy as np
 import pyqtgraph as pg
 
 
 DEBUG = False
 
-from timeseriesviewer.speclib.spectrallibraries import createQgsField, createStandardFields
-import timeseriesviewer.speclib.spectrallibraries
-
-fields = [f for f in createStandardFields()]
-fields.insert(1, createQgsField('date', ''))
-fields.insert(2, createQgsField('sensorname', ''))
-standardFields = QgsFields()
-for field in fields:
-    standardFields.append(field)
-timeseriesviewer.speclib.spectrallibraries.createStandardFields = lambda: standardFields
-
-#ensure that required non-standard modules are available
+EXTRA_SPECLIB_FIELDS = [
+    QgsField('date', QVariant.String, 'varchar'),
+    QgsField('doy', QVariant.Int, 'int'),
+    QgsField('sensor', QVariant.String, 'varchar')
+]
 
 
 class TimeSeriesViewerUI(QMainWindow,
@@ -359,6 +353,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
         self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
+        #add time-specific fields
+        sl = self.spectralLibrary()
+        assert isinstance(sl, SpectralLibrary)
+        sl.startEditing()
+        for field in EXTRA_SPECLIB_FIELDS:
+            sl.addAttribute(field)
+        assert sl.commitChanges()
         self.mMapLayerStore.addMapLayer(self.ui.dockSpectralLibrary.speclib())
         self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
@@ -371,6 +372,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         #reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
         #reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
+
+    def spectralLibrary(self)->SpectralLibrary:
+        """
+        Returns the SpectraLibrary of the SpectralLibrary dock
+        :return: SpectraLibrary
+        """
+        return self.ui.dockSpectralLibrary.SLW.speclib()
 
 
     def mapCanvases(self)->list:
@@ -449,17 +457,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 self.cntSpectralProfile = 0
 
             profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
+
             #add metadata
             if isinstance(tsd, TimeSeriesDatum):
+                profiles2 = []
+                sl = self.spectralLibrary()
                 for p in profiles:
+                    self.cntSpectralProfile += 1
                     assert isinstance(p, SpectralProfile)
-                    p.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
-                    p.setMetadata(u'date', u'{}'.format(tsd.date), addMissingFields=True)
-                    p.setMetadata(u'sensorname', u'{}'.format(tsd.sensor.name()) , addMissingFields=True)
-                    p.setMetadata(u'sensorid', u'{}'.format(tsd.sensor.id()), addMissingFields=True)
-
-            self.cntSpectralProfile += 1
-            self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles)
+                    p2 = p.copyFieldSubset(fields=sl.fields())
+                    p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
+                    p2.setAttribute('date', '{}'.format(tsd.date))
+                    p2.setAttribute('doy', int(tsd.doy))
+                    p2.setAttribute('sensor', tsd.sensor.name())
+                    profiles2.append(p2)
+                self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles2)
 
         elif mapToolKey == MapTools.CursorLocation:
 

@@ -301,8 +301,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             for csvField in CSV_FIELDS:
                 assert isinstance(csvField, QgsField)
-                if csvField.name() not in speclibFields.names() and \
-                   csvField.name() not in CSV_PROFILE_NAME_COLUMN_NAMES:
+                if csvField.name() not in [speclibFields.names(), CSV_GEOMETRY_COLUMN] + CSV_PROFILE_NAME_COLUMN_NAMES:
                     speclibFields.append(csvField)
 
             CSVLine2ESLProfile = {}
@@ -332,14 +331,15 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
 
         if CSV_METADATA is not None:
             #find which column index from CSV table matches which QgsFeature attribute index
-            for csvField in CSV_FIELDS:
+            for fieldIndex, csvField in enumerate(CSV_FIELDS):
                 assert isinstance(csvField, QgsField)
                 fieldName = csvField.name()
                 #is this a geometry field?
+
                 if fieldName == CSV_GEOMETRY_COLUMN:
                     # copy CSV values to profile geometry attribute
                     for iCSV, iProfile in CSVLine2ESLProfile.items():
-                        value = CSV_DATA[iCSV][aCSV]
+                        value = CSV_DATA[iCSV][fieldIndex]
                         if isinstance(value, str):
                             g = QgsGeometry.fromWkt(value)
                             if g.wkbType() == QgsWkbTypes.Point:
