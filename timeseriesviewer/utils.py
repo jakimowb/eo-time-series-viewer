@@ -581,10 +581,20 @@ class SpatialExtent(QgsRectangle):
 
         return self
 
-    def setCenter(self, centerPoint, crs=None):
+    def setCenter(self, centerPoint:SpatialPoint, crs=None):
+        """
+        Sets the center. Can be used to move the SpatialExtent
+        :param centerPoint:
+        :param crs: QgsCoordinateReferenceSystem
+        :return:
+        """
+        if isinstance(centerPoint, SpatialPoint):
+            crs = centerPoint.crs()
 
-        if crs and crs != self.crs():
-            trans = QgsCoordinateTransform(crs, self.crs())
+        if isinstance(crs, QgsCoordinateReferenceSystem) and crs != self.crs():
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(crs)
+            trans.setDestinationCrs(self.crs())
             centerPoint = trans.transform(centerPoint)
 
         delta = centerPoint - self.center()

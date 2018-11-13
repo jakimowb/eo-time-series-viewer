@@ -1,3 +1,6 @@
+2018-11-13
+        - fixed bugs caused by CRS-changes
+
 2018-11-09
         - uses QgsTaskManager for background loading
         - own QgsMapLayerStore to not mix-up with (main) QGIS layers
