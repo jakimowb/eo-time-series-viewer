@@ -366,41 +366,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.refresh()
 
-    """
-    def depr_mapLayersToRender(self, *args):
-        
-        if len(self.mLazyRasterSources) > 0:
-            mls = [QgsRasterLayer(src) for src in self.mLazyRasterSources]
-            QgsProject.instance().addMapLayers(mls, False)
-            del self.mLazyRasterSources[:]
-            self.mLayerModel.extend(mls)
-            self.setRenderer(self.mRendererRaster, refresh=False)
-        if len(self.mLazyVectorSources) > 0:
-            for t in self.mLazyVectorSources:
 
-                lyr, path, name, provider = t
-                #lyr = QgsVectorLayer(path, name, provider, False)
-                #lyr = t
-                #add vector layers on top
-                lyr.rendererChanged.connect(self.onVectorOverlayChange)
-                self.mLayerModel.insert(0, lyr)
-            del self.mLazyVectorSources[:]
-            self.setRenderer(self.mRendererVector, refresh=False)
-
-        return self.mLayerModel
-        """
-
-    #def setLazyRasterSources(self, sources):
-    #    del self.mLazyRasterSources[:]
-    #    assert isinstance(sources, list)
-    #    self.mLazyRasterSources.extend(sources[:])
-
-    #def setLazyVectorSources(self, sourceLayers):
-    #    assert isinstance(sourceLayers, list)
-    #    del self.mLazyVectorSources[:]
-    #    for lyr in sourceLayers:
-    #        assert isinstance(lyr, QgsVectorLayer)
-    #        self.mLazyVectorSources.append((lyr, lyr.source(), lyr.name(), lyr.providerType()))
 
     def mapSummary(self):
         dom = QDomDocument()
@@ -425,14 +391,13 @@ class MapCanvas(QgsMapCanvas):
         :param mapLayers:
         """
 
-        from .main import TimeSeriesViewer
-        tsv = TimeSeriesViewer.instance()
-        if isinstance(tsv, TimeSeriesViewer):
-            store = tsv.mapLayerStore()
+        from .utils import MAP_LAYER_STORES
+        if len(MAP_LAYER_STORES) > 0:
+            store = MAP_LAYER_STORES[0]
+            store.addMapLayers(mapLayers)
         else:
-            store = QgsProject.instance()
+            print('MAPCANVAS without map layer store', file=sys.stderr)
 
-        store.addMapLayers(mapLayers)
 
         super(MapCanvas, self).setLayers(mapLayers)
 

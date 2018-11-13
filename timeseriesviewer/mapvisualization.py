@@ -63,6 +63,13 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         self.btnToggleCrosshair.setMenu(m)
 
+        from timeseriesviewer.main import TimeSeriesViewer
+        tsv = TimeSeriesViewer.instance()
+        if isinstance(tsv, TimeSeriesViewer):
+            store = tsv.mapLayerStore()
+            store.layersAdded.connect(self.cbQgsVectorLayer.model().sourceModel().addLayers)
+            store.layersRemoved.connect(self.cbQgsVectorLayer.model().sourceModel().removeLayers)
+
         #connect the QActions with the QgsCollapsibleGroupBoxes
         self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.setChecked)
         self.gbRasterRendering.toggled.connect(self.actionToggleRasterVisibility.setChecked)
@@ -1033,7 +1040,9 @@ class MapView(QObject):
         self.ui.show()
         self.ui.cbQgsVectorLayer.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.ui.cbQgsVectorLayer.layerChanged.connect(self.setVectorLayer)
-        self.ui.tbName.textChanged.connect(self.sigTitleChanged)
+
+
+        self.ui.tbName.textChanged.connect(self.sigTitleChanged.emit)
         from timeseriesviewer.crosshair import getCrosshairStyle
         self.ui.actionSetCrosshairStyle.triggered.connect(
             lambda : self.onCrosshairChanged(getCrosshairStyle(

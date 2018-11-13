@@ -15,7 +15,7 @@ from qgis.PyQt.QtCore import *
 
 
 
-def initQgisApplication(*args, qgisResourceDir:str=None, **kwds):
+def initQgisApplication(*args, qgisResourceDir:str=None, **kwds)->QgsApplication:
     """
     Initializes a QGIS Environment
     :return: QgsApplication instance of local QGIS installation

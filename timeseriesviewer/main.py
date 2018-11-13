@@ -65,8 +65,6 @@ EXTRA_SPECLIB_FIELDS = [
 class TimeSeriesViewerUI(QMainWindow,
                          loadUI('timeseriesviewer.ui')):
 
-    sigQgsSyncChanged = pyqtSignal(bool, bool, bool)
-
     def __init__(self, parent=None):
         """Constructor."""
         super(TimeSeriesViewerUI, self).__init__(parent)
@@ -134,7 +132,6 @@ class TimeSeriesViewerUI(QMainWindow,
 
         from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
-        QgsProject.instance().addMapLayer(self.dockSpectralLibrary.SLW.speclib())
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
@@ -355,12 +352,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         #add time-specific fields
         sl = self.spectralLibrary()
+
         assert isinstance(sl, SpectralLibrary)
         sl.startEditing()
         for field in EXTRA_SPECLIB_FIELDS:
             sl.addAttribute(field)
         assert sl.commitChanges()
-        self.mMapLayerStore.addMapLayer(self.ui.dockSpectralLibrary.speclib())
+
+        self.mMapLayerStore.addMapLayer(sl)
         self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
         #moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
@@ -372,6 +371,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         #reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
         #reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
+        TimeSeriesViewer._instance = self
 
     def spectralLibrary(self)->SpectralLibrary:
         """
@@ -709,8 +709,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     vectorLayers.append(l)
                 except Exception as ex:
                     pass
-            QgsProject.instance().addMapLayers(vectorLayers)
-            #self.mapLayerStore().addMapLayers(^)
+            #QgsProject.instance().addMapLayers(vectorLayers)
+            self.mapLayerStore().addMapLayers(vectorLayers)
 
 
     def addTimeSeriesImages(self, files=None):
