@@ -1,5 +1,6 @@
 2018-11-13
-        - fixed bugs caused by CRS-changes
+        - fixed bugs which where caused by CRS changes
+        - fixed macOS QGIS (3.4.1.) crashes caused by QgsMapCanvas constructor
 
 2018-11-09
         - uses QgsTaskManager for background loading
