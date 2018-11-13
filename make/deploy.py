@@ -428,5 +428,4 @@ if __name__ == "__main__":
     build()
     updateRepositoryXML()
     uploadDeveloperPlugin()
-    #s = ""
-
+    app.exitQgis()
