@@ -78,7 +78,7 @@ class QgisFake(QgisInterface):
     def __init__(self, *args):
         super(QgisFake, self).__init__(*args)
 
-        self.canvas = QgsMapCanvas()
+        self.canvas = QgsMapCanvas(self)
         self.canvas.blockSignals(False)
         print(self.canvas)
         self.canvas.setCanvasColor(Qt.black)

@@ -160,6 +160,9 @@ def build():
             shutil.rmtree(os.path.join(dirPlugin, *['help']), ignore_errors=True)
         for f in file_search(DIR_DEPLOY, re.compile('(svg|pyc)$'), recursive=True):
             os.remove(f)
+        for d in file_search(DIR_DEPLOY, '__pycache__', directories=True, recursive=True):
+            os.rmdir(d)
+
 
     #update metadata version
     if True:

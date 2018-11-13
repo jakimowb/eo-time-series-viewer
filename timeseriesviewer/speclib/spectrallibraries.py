@@ -2084,7 +2084,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         assert isinstance(self.plotWidget, SpectralLibraryPlotWidget)
         self.plotWidget.setSpeclib(self.mSpeclib)
         self.plotWidget.backgroundBrush().setColor(COLOR_BACKGROUND)
-        self.mCanvas = QgsMapCanvas()
+        self.mCanvas = QgsMapCanvas(self)
 
         assert isinstance(self.mDualView, QgsDualView)
         self.mDualView.init(self.mSpeclib, self.mCanvas)#, context=self.mAttributeEditorContext)

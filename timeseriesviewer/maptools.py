@@ -182,6 +182,9 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.marker.setPenWidth(3)
         self.marker.setIconSize(5)
         self.marker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
+        self.hideRubberband()
+
+
 
     def setMouseButtons(self, listOfButtons):
         assert isinstance(listOfButtons)

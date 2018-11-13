@@ -1178,9 +1178,9 @@ class MapView(QObject):
             assert isinstance(renderSetting, MapViewRenderSettings)
             renderSetting.applyStyle()
 
-        #for mapCanvas in self.mapCanvases():
-        #    assert isinstance(mapCanvas, MapCanvas)
-        #    mapCanvas.refresh()
+        for mapCanvas in self.mapCanvases():
+            if isinstance(mapCanvas, MapCanvas):
+                mapCanvas.refresh()
 
     def setCrosshairStyle(self, crosshairStyle):
         self.onCrosshairChanged(crosshairStyle)
@@ -1411,7 +1411,7 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
         self.cbRenderType.setModel(self.mRasterRendererModel)
         assert isinstance(self.stackedWidget, QStackedWidget)
 
-        self.mMockupCanvas = QgsMapCanvas()
+        self.mMockupCanvas = QgsMapCanvas(parent=parent)
         self.mMockupRasterLayer = QgsRasterLayer(self.mSensor.pathImg)
         self.mMockupCanvas.setLayers([self.mMockupRasterLayer])
         for func in rasterRendererModel.optionValues():

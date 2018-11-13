@@ -1438,7 +1438,7 @@ class TemporalProfileTableFilterModel(QgsAttributeTableFilterModel):
     def __init__(self, sourceModel, parent=None):
 
 
-        dummyCanvas = QgsMapCanvas()
+        dummyCanvas = QgsMapCanvas(parent)
         dummyCanvas.setDestinationCrs(DEFAULT_CRS)
         dummyCanvas.setExtent(QgsRectangle(-180,-90,180,90))
 
