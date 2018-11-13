@@ -483,7 +483,9 @@ class CursorLocationInfoDock(QDockWidget,
         crs, pt = self.cursorLocation()
         if isinstance(pt, QgsPointXY):
             if crs != self.mCrs:
-                trans = QgsCoordinateTransform(crs, self.mCrs)
+                trans = QgsCoordinateTransform()
+                trans.setSourceCrs(crs)
+                trans.setDestinationCrs(self.mCrs)
                 pt = trans.transform(pt)
 
             self.tbX.setText('{}'.format(pt.x()))
@@ -508,7 +510,7 @@ class CursorLocationInfoDock(QDockWidget,
                 self.setCrs(mapCanvases[0].mapSettings().destinationCrs())
         self.mCanvases = mapCanvases
 
-    def setCrs(self, crs):
+    def setCrs(self, crs:QgsCoordinateReferenceSystem):
         """
         Set the coordinate reference system in which coordinates are shown
         :param crs:

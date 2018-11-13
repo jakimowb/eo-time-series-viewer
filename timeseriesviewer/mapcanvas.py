@@ -354,12 +354,12 @@ class MapCanvas(QgsMapCanvas):
         if self.size() != size:
             super(MapCanvas, self).setFixedSize(size)
 
-    def setCrs(self, crs):
+    def setCrs(self, crs:QgsCoordinateReferenceSystem):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         if self.crs() != crs:
             self.setDestinationCrs(crs)
 
-    def crs(self):
+    def crs(self)->QgsCoordinateReferenceSystem:
         return self.mapSettings().destinationCrs()
 
     def onVectorOverlayChange(self, *args):
@@ -887,108 +887,3 @@ class CanvasBoundingBoxItem(QgsGeometryRubberBand):
         assert isinstance(b, bool)
         self.mShowTitles = b
 
-
-def exampleSyncedCanvases():
-    global btnCrs, mapCanvases, lyrs, syncExtents
-    import site, sys
-    # add site-packages to sys.path as done by enmapboxplugin.py
-    from timeseriesviewer import sandbox
-    from timeseriesviewer.utils import SpatialExtent
-    import example.Images
-    qgsApp = sandbox.initQgisEnvironment()
-    w = QWidget()
-    hl1 = QHBoxLayout()
-    hl2 = QHBoxLayout()
-    btnCrs = QgsProjectionSelectionWidget(w)
-    btnRefresh = QPushButton('Refresh', w)
-    hl1.addWidget(btnCrs)
-    hl1.addWidget(btnRefresh)
-    vl = QVBoxLayout()
-    vl.addLayout(hl1)
-    vl.addLayout(hl2)
-    w.setLayout(vl)
-    files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
-             example.Images.Img_2013_05_20_LC82270652013140LGN01_BOA,
-             example.Images.Img_2013_08_16_LE72270652013228CUB00_BOA]
-    mapCanvases = []
-    lyrs = []
-
-    def onRefresh(*args):
-
-        crs = btnCrs.crs()
-        ext = SpatialExtent.fromLayer(lyrs[0]).toCrs(crs)
-        for mapCanvas in mapCanvases:
-            mapCanvas.setCrs(crs)
-            mapCanvas.setSpatialExtent(ext)
-            mapCanvas.refresh()
-            mapCanvas.refreshAllLayers()
-
-    def syncExtents(ext):
-
-        for mapCanvas in mapCanvases:
-
-            oldext = SpatialExtent.fromMapCanvas(mapCanvas)
-            if oldext != ext:
-                mapCanvas.blockSignals(True)
-                #mapCanvas.setExtent(ext)
-                mapCanvas.setSpatialExtent(ext)
-                mapCanvas.blockSignals(False)
-                mapCanvas.refreshAllLayers()
-
-    def registerMapCanvas(mapCanvas):
-        mapCanvas.extentsChanged.connect(lambda: syncExtents(SpatialExtent.fromMapCanvas(mapCanvas)))
-
-    for i, f in enumerate(files):
-        ml = QgsRasterLayer(f)
-        #QgsProject.instance().addMapLayer(ml)
-        lyrs.append(ml)
-
-        #mapCanvas = QgsMapCanvas(w)
-        mapCanvas = MapCanvas(w)
-
-        registerMapCanvas(mapCanvas)
-        hl2.addWidget(mapCanvas)
-        #mapCanvas.setLayers([QgsMapCanvasLayer(ml)])
-        mapCanvas.setLayers([ml])
-
-        if i == 0:
-            btnCrs.setCrs(ml.crs())
-        mapCanvases.append(mapCanvas)
-
-        btnCrs.crsChanged.connect(onRefresh)
-        btnRefresh.clicked.connect(onRefresh)
-    w.show()
-    onRefresh()
-    qgsApp.exec_()
-    qgsApp.exitQgis()
-
-
-
-
-    def printTimeDelta(dt):
-        print(dt)
-    c = MapCanvas()
-    #c.activateMapTool('identifySpectralProfile')
-    #c.activateMapTool('identifyTemporalProfile')
-    #c.activateMapTool('identifyCursorLocationValues')
-    c.activateMapTool('moveCenter')
-
-    c.sigDataLoadingFinished.connect(printTimeDelta)
-    c.show()
-    lyr1 = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
-    lyr2 = QgsVectorLayer(exampleEvents, 'events', 'ogr')
-
-    c.layerModel().addLayerInfo(lyr2)
-    c.layerModel().addLayerInfo(lyr1)
-
-    for l in c.layerModel().visibleLayers():
-        print(l)
-
-    c.setDestinationCrs(lyr1.crs())
-    c.setExtent(lyr1.extent())
-    c.setCrs(QgsCoordinateReferenceSystem('EPSG:32632'))
-    c.setExtent(c.spatialExtentHint())
-
-
-    c.refresh()
-    qgsApp.exec_()

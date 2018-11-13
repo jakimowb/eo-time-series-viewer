@@ -387,7 +387,7 @@ def saveTransform(geom, crs1, crs2):
         transform.setSourceCrs(crs1)
         transform.setDestinationCrs(crs2)
         try:
-            rect = transform.transformBoundingBox(geom);
+            rect = transform.transformBoundingBox(geom)
             result = SpatialExtent(crs2, rect)
         except:
             messageLog('Can not transform from {} to {} on rectangle {}'.format( \
@@ -395,7 +395,7 @@ def saveTransform(geom, crs1, crs2):
 
     elif isinstance(geom, QgsPointXY):
 
-        transform = QgsCoordinateTransform();
+        transform = QgsCoordinateTransform()
         transform.setSourceCrs(crs1)
         transform.setDestinationCrs(crs2)
         try:

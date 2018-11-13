@@ -2016,7 +2016,7 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
         #register on map canvas signals
-        mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
+        #mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
 
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairChanged)
 
@@ -2245,15 +2245,23 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
 
         if self.mCRS != crs:
-            from timeseriesviewer.utils import saveTransform
-            if saveTransform(self.mSpatialExtent, self.mCRS, crs):
+            transform = QgsCoordinateTransform()
+            transform.setSourceCrs(self.mCRS)
+            transform.setDestinationCrs(crs)
+            if transform.isValid() and not transform.isShortCircuited():
                 self.mCRS = crs
                 for mapCanvas in self.mapCanvases():
-                    #print(('STV set CRS {} {}', str(mapCanvas), self.mCRS.description()))
-                    mapCanvas.setCrs(crs)
-            else:
-                pass
-            self.sigCRSChanged.emit(self.mCRS)
+                    # print(('STV set CRS {} {}', str(mapCanvas), self.mCRS.description()))
+                    mapCanvas.setDestinationCrs(QgsCoordinateReferenceSystem(crs))
+                """
+                from timeseriesviewer.utils import saveTransform
+                if saveTransform(self.mSpatialExtent, self.mCRS, crs):
+                    self.mCRS = crs
+                    
+                else:
+                    pass
+                """
+                self.sigCRSChanged.emit(self.crs())
 
 
     def crs(self):
@@ -2604,9 +2612,11 @@ class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.TS = None
 
     def setCrs(self, crs):
-        assert isinstance(crs, QgsCoordinateReferenceSystem)
-        self.btnCrs.setCrs(crs)
-        self.btnCrs.setLayerCrs(crs)
+        if isinstance(crs, QgsCoordinateReferenceSystem):
+            old = self.btnCrs.crs()
+            if old != crs:
+                self.btnCrs.setCrs(crs)
+                self.btnCrs.setLayerCrs(crs)
 
 
     def setMapSize(self, size):
