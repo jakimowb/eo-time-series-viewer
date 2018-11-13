@@ -66,9 +66,10 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
         from timeseriesviewer.main import TimeSeriesViewer
         tsv = TimeSeriesViewer.instance()
         if isinstance(tsv, TimeSeriesViewer):
-            store = tsv.mapLayerStore()
-            store.layersAdded.connect(self.cbQgsVectorLayer.model().sourceModel().addLayers)
-            store.layersRemoved.connect(self.cbQgsVectorLayer.model().sourceModel().removeLayers)
+            self.mStore = tsv.mapLayerStore()
+            self.mVectorSourceModel = self.cbQgsVectorLayer.model().sourceModel()
+            self.mStore.layersAdded.connect(self.mVectorSourceModel.addLayers)
+            self.mStore.layersRemoved.connect(self.mVectorSourceModel.removeLayers)
 
         #connect the QActions with the QgsCollapsibleGroupBoxes
         self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.setChecked)

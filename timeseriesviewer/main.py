@@ -248,7 +248,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :type iface: QgsInterface
         """
 
-        assert TimeSeriesViewer.instance() is None
+        #assert TimeSeriesViewer.instance() is None
 
         QObject.__init__(self)
         QgisInterface.__init__(self)
