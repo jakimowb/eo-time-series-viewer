@@ -73,6 +73,29 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(lastPos == p2)
 
 
+    def test_rendering_flags(self):
+        #img = TestObjects.inMemoryImage(ns=10000,nl=10000, nb=3)
+        #need a large image on file!
+        from timeseriesviewer.main import TimeSeriesViewer
+        from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
+        TSV = TimeSeriesViewer(None)
+        self.assertIsInstance(TSV, TimeSeriesViewer)
+        TSV.loadExampleTimeSeries()
+        TSV.show()
+        QApplication.processEvents()
+
+        stv = TSV.spatialTemporalVis
+        self.assertIsInstance(stv, SpatialTemporalVisualization)
+
+        maps = stv.mapCanvases()
+        hidden = [m for m in maps if not m.IsViewportVisible()]
+        visible = [m for m in maps if m.IsViewportVisible()]
+
+        self.assertTrue(len(maps) == len(visible) + len(hidden))
+        self.assertTrue(len(hidden) > 0)
+        s = ""
+
+
 
 
 

@@ -1448,7 +1448,7 @@ class QgisMockup(QgisInterface):
 
         cnt = len(self.canvas.layers())
 
-        self.canvas.setLayerSet([QgsMapCanvasLayer(l)])
+        self.canvas.setLayers([QgsMapCanvasLayer(l)])
         l.dataProvider()
         if cnt == 0:
             self.canvas.mapSettings().setDestinationCrs(l.crs())

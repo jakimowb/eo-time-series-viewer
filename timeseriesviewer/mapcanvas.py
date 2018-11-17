@@ -252,18 +252,20 @@ class MapCanvas(QgsMapCanvas):
         self.mLayerModel = MapCanvasLayerModel(parent=self)
         self.mTSD = self.mMapView = None
         #the canvas
-        self.mRefreshScheduled = False
 
-        def resetRenderStartTime():
-            self.mRenderStartTime = np.datetime64('now' ,'ms')
-        resetRenderStartTime()
+        self.mRenderingFinished = False
 
-        def emitRenderTimeDelta(*args):
+        def onRenderingStarted(*args):
+            self.mRenderingFinished = False
+            self.mRenderStartTime = np.datetime64('now', 'ms')
+
+        def onRenderingFinished(*args):
+            self.mRenderingFinished = True
             dt = np.datetime64('now', 'ms') - self.mRenderStartTime
             self.sigDataLoadingFinished.emit(dt)
 
-        self.renderStarting.connect(resetRenderStartTime)
-        self.renderComplete.connect(emitRenderTimeDelta)
+        self.renderStarting.connect(onRenderingStarted)
+        self.renderComplete.connect(onRenderingFinished)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
@@ -280,7 +282,7 @@ class MapCanvas(QgsMapCanvas):
         self.mRendererVector = None
 
 
-        self.mWasVisible = False
+
         self.mMapSummary = self.mapSummary()
 
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
@@ -309,6 +311,14 @@ class MapCanvas(QgsMapCanvas):
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
+
+
+    def renderingFinished(self)->bool:
+        """
+        Returns whether the MapCanvas is processing a rendering task
+        :return: bool
+        """
+        return self.mRenderingFinished
 
     def mousePressEvent(self, event:QMouseEvent):
 
@@ -360,12 +370,11 @@ class MapCanvas(QgsMapCanvas):
             self.setDestinationCrs(crs)
 
     def crs(self)->QgsCoordinateReferenceSystem:
+        """
+        Shortcut to return self.mapSettings().destinationCrs()
+        :return: QgsCoordinateReferenceSystem
+        """
         return self.mapSettings().destinationCrs()
-
-    def onVectorOverlayChange(self, *args):
-
-        self.refresh()
-
 
 
     def mapSummary(self):
@@ -379,8 +388,6 @@ class MapCanvas(QgsMapCanvas):
         xml = dom.toString()
         return (self.crs(), self.spatialExtent(), self.size(), self.mLayerModel.visibleLayers(), xml)
 
-    def setLayerSet(self, *args):
-        raise DeprecationWarning()
 
     def layerModel(self):
         return self.mLayerModel
@@ -403,14 +410,17 @@ class MapCanvas(QgsMapCanvas):
 
         #self.refresh()
 
-    def refresh(self, force=False):
-        #low-level, only performed if MapCanvas is visible
+    def IsViewportVisible(self)->bool:
+        return self.visibleRegion().boundingRect().isValid()
 
+    def refresh(self, force=False):
+        """
+        low-level, only performed if MapCanvas is visible or force=True
+        :param force: bool
+        """
         isVisible = self.visibleRegion().boundingRect().isValid() and self.isVisible()
 
-        if not isVisible:
-            self.mRefreshScheduled = True
-        else:
+        if isVisible or force:
             mLyrs = self.layers()
             vLyrs = self.mLayerModel.visibleLayers()
             if mLyrs != vLyrs:
@@ -419,16 +429,12 @@ class MapCanvas(QgsMapCanvas):
                 super(MapCanvas, self).refresh()
 
 
-
-        ##self.checkRenderFlag()
-        #if self.renderFlag() or force:
-        #    self.setLayers(self.mLayerModel.visibleLayers())
-        #    super(MapCanvas, self).refresh()
-
-            #self.refreshAllLayers()
-
-
-    def setCrosshairStyle(self, crosshairStyle, emitSignal=True):
+    def setCrosshairStyle(self, crosshairStyle:CrosshairStyle, emitSignal=True):
+        """
+        Sets the CrosshairStyle
+        :param crosshairStyle: CrosshairStyle
+        :param emitSignal: Set to Fals to no emit a signal.
+        """
         from timeseriesviewer.crosshair import CrosshairStyle
         if crosshairStyle is None:
             self.mCrosshairItem.crosshairStyle.setShow(False)
@@ -474,37 +480,10 @@ class MapCanvas(QgsMapCanvas):
             if emitSignal:
                 self.sigCrosshairVisibilityChanged.emit(b)
 
-
-    def checkRenderFlag(self):
-        """
-        Controls the MapCanvas Render flag to decide if rendering is required
-        :return:
-        """
-        wasVisible = self.mWasVisible
-        isVisible = self.visibleRegion().boundingRect().isValid() \
-                  and self.isVisible()
-        if not isVisible:
-            self.setRenderFlag(False)
-            self.mWasVisible = False
-            #will stop active render jobs
-
-        else:
-            #the canvas is visible, but is a new rendering required?
-            lastSummary = self.mMapSummary
-            self.mMapSummary = self.mapSummary()
-            #isRequired = (wasVisible == False) or self.renderFlag() or self.mDataRefreshed
-            #print(lastSummary)
-            #print(self.mMapSummary)
-            isRequired = lastSummary != self.mapSummary()
-            self.mWasVisible = True
-            if isRequired:
-                self.setRenderFlag(True)
-                #self.mMapSummary = self.mapSummary()
-            else:
-                self.setRenderFlag(False)
-
-
     def layerPaths(self):
+        """
+        :return: [list-of-str]
+        """
         return [str(l.source()) for l in self.layers()]
 
     def pixmap(self):
@@ -512,12 +491,7 @@ class MapCanvas(QgsMapCanvas):
         Returns the current map image as pixmap
         :return: QPixmap
         """
-        #return QPixmap(self.map().contentImage().copy())
-
-        pixmap = QPixmap(self.rect().size())
-        painter = QPainter(pixmap)
-        self.render(painter)
-        return pixmap
+        return self.grab()
 
 
 

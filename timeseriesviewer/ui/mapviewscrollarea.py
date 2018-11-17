@@ -18,9 +18,8 @@
 """
 # noinspection PyPep8Naming
 
-
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QScrollArea
+from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtWidgets import QScrollArea, QWidget
 
 class MapViewScrollArea(QScrollArea):
 
@@ -31,3 +30,8 @@ class MapViewScrollArea(QScrollArea):
     def resizeEvent(self, event):
         super(MapViewScrollArea, self).resizeEvent(event)
         self.sigResized.emit()
+
+    def distanceToCenter(self, widget:QWidget)->int:
+
+        s = ""
+        return None

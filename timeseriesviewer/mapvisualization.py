@@ -1810,12 +1810,20 @@ class DatumView(QObject):
         canvas = self.mMapCanvases.pop(mapView)
         self.ui.layout().removeWidget(canvas)
         canvas.close()
-        #self.adjustBaseMinSize()
+
+    def mapCanvases(self)->list:
+        """
+        Retuns the MapCanvases of this DataView
+        :return: [list-of-MapCanvases]
+        """
+        return self.mMapCanvases.values()
 
     def refresh(self):
-
+        """
+        Refreshes the MapCanvases in this DatumView, if they are not hidden behind a scroll area.
+        """
         if self.ui.isVisible():
-            for c in self.mMapCanvases.values():
+            for c in self.mapCanvases():
                 if c.isVisible():
                     c.refresh()
 
@@ -1948,12 +1956,8 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
 
-        self.mRefreshTimer = QTimer(self)
-        self.mRefreshTimer.setInterval(1000)
-        self.mRefreshTimer.timeout.connect(self.refresh)
-
-        self.scrollArea.sigResized.connect(self.mRefreshTimer.start)
-        self.scrollArea.horizontalScrollBar().valueChanged.connect(self.mRefreshTimer.start)
+        #self.scrollArea.sigResized.connect(self.refresh())
+        #self.scrollArea.horizontalScrollBar().valueChanged.connect(self.mRefreshTimer.start)
 
 
         self.TSV = timeSeriesViewer
@@ -1984,6 +1988,46 @@ class SpatialTemporalVisualization(QObject):
         if len(self.TS) > 0:
             self.setSpatialExtent(self.TS.getMaxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
+
+        self.mMapRefreshTimer = QTimer(self)
+        self.mMapRefreshTimer.timeout.connect(self.timedCanvasRefresh)
+        self.mMapRefreshTimer.setInterval(500)
+        self.mNumberOfHiddenMapsToRefresh = 2
+
+
+
+    def timedCanvasRefresh(self, *args, force:bool=False):
+        #do refresh maps
+
+        assert isinstance(self.scrollArea, MapViewScrollArea)
+
+
+        visibleMaps = [m for m in self.mapCanvases() if m.renderFlag() and m.IsViewportVisible()]
+
+        hiddenMaps = sorted([m for m in self.mapCanvases() if m.renderFlag() and m.IsViewportVisible()],
+                            key = lambda c : self.scrollArea.distanceToCenter(c))
+
+        n = 0
+        #redraw all visible maps
+        for c in visibleMaps:
+            assert isinstance(c, MapCanvas)
+            c.refresh(force=True)
+            n += 1
+
+
+        if n < 10:
+            #refresh up to mNumberOfHiddenMapsToRefresh maps which are not visible to the user
+            i = 0
+            for c in hiddenMaps:
+                assert isinstance(c, MapCanvas)
+                c.refresh(force=True)
+                i += 1
+                if i >= self.mNumberOfHiddenMapsToRefresh and not force:
+                    break
+
+
+
+
 
 
     def mapViewFromCanvas(self, mapCanvas:MapCanvas)->MapView:
@@ -2074,10 +2118,14 @@ class SpatialTemporalVisualization(QObject):
 
 
     def refresh(self):
-        #print('STV REFRESH')
-        for tsdView in self.DVC:
-            tsdView.refresh()
-        self.mRefreshTimer.stop()
+        """
+        Refreshes all visible MapCanvases
+        """
+        for c in self.mapCanvases():
+            assert isinstance(c, MapCanvas)
+            c.refresh()
+
+        #self.mMapRefreshTimer.stop()
 
     def adjustScrollArea(self):
         #adjust scroll area widget to fit all visible widgets
@@ -2183,7 +2231,7 @@ class SpatialTemporalVisualization(QObject):
         self.mBlockCanvasSignals = False
         #for mapCanvas in self.mMapCanvases:
         #    mapCanvas.refresh()
-        self.mRefreshTimer.start()
+        self.mMapRefreshTimer.start()
 
     def setSpatialExtent(self, extent, mapCanvas0=None):
         if self.mBlockCanvasSignals:
@@ -2209,7 +2257,7 @@ class SpatialTemporalVisualization(QObject):
         self.mBlockCanvasSignals = False
         #for mapCanvas in self.mMapCanvases:
         #    mapCanvas.refresh()
-        self.mRefreshTimer.start()
+        self.mMapRefreshTimer.start()
         self.sigSpatialExtentChanged.emit(extent)
 
     def setBackgroundColor(self, color):
