@@ -46,6 +46,13 @@ def daysPerYear(year):
     return dateDOY(datetime.date(year=year, month=12, day=31))
 
 def num2date(n, dt64=True, qDate=False):
+    """
+    Converts a decimal-year number into a date
+    :param n: number
+    :param dt64: Set True (default) to return the date as numpy.datetime64
+    :param qDate: Set True to return a Qt QDate instead of numpy.datetime64
+    :return: numpy.datetime64 (default) or QDate
+    """
     n = float(n)
     if n < 1:
         n += 1
@@ -118,6 +125,9 @@ def datetime64FromYYYYDOY(yyyydoy):
     return datetime64FromDOY(yyyydoy[0:4], yyyydoy[4:7])
 
 def DOYfromDatetime64(dt):
+    doy = dt.astype('datetime64[D]') - dt.astype('datetime64[Y]') + 1
+    doy = doy.astype(np.int16)
+    return doy
 
     return (dt.astype('datetime64[D]') - dt.astype('datetime64[Y]')).astype(int)+1
 
@@ -127,6 +137,7 @@ def datetime64FromDOY(year, doy):
         if type(doy) is str:
             doy = int(doy)
         return np.datetime64('{:04d}-01-01'.format(year)) + np.timedelta64(doy-1, 'D')
+
 
 
 class ImageDateReader(object):
@@ -151,7 +162,7 @@ class ImageDateReader(object):
 class ImageDateReaderDefault(ImageDateReader):
     def __init__(self, dataSet):
         super(ImageDateReaderDefault, self).__init__(dataSet)
-        self.regDateKeys = re.compile(r'(acquisition[ _]*time|date|datetime)', re.IGNORECASE)
+        self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
 
     def readDTG(self):
         # search metadata for datetime information
