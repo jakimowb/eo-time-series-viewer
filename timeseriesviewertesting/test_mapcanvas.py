@@ -27,7 +27,7 @@ from timeseriesviewer.mapcanvas import *
 
 resourceDir = os.path.join(DIR_REPO,'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-
+SHWO_GUI = True
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -88,15 +88,16 @@ class testclassDialogTest(unittest.TestCase):
         self.assertIsInstance(stv, SpatialTemporalVisualization)
 
         maps = stv.mapCanvases()
-        hidden = [m for m in maps if not m.IsViewportVisible()]
-        visible = [m for m in maps if m.IsViewportVisible()]
+        hidden = [m for m in maps if not m.isVisibleToViewport()]
+        visible = [m for m in maps if m.isVisibleToViewport()]
 
         self.assertTrue(len(maps) == len(visible) + len(hidden))
         self.assertTrue(len(hidden) > 0)
-        s = ""
 
 
 
+        if SHWO_GUI:
+            QGIS_APP.exec_()
 
 
 if __name__ == "__main__":

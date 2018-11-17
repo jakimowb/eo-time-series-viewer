@@ -18,8 +18,10 @@
 """
 # noinspection PyPep8Naming
 
-from qgis.PyQt.QtCore import pyqtSignal
-from qgis.PyQt.QtWidgets import QScrollArea, QWidget
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
+
 
 class MapViewScrollArea(QScrollArea):
 
@@ -32,6 +34,11 @@ class MapViewScrollArea(QScrollArea):
         self.sigResized.emit()
 
     def distanceToCenter(self, widget:QWidget)->int:
+        # self.visibleRegion().boundingRect().isValid()
+        halfSize = widget.size() * 0.5
+        centerInParent = widget.mapToParent(QPoint(halfSize.width(), halfSize.height()))
+        r = self.viewport().rect()
+        centerViewPort = QPoint(int(r.x() + r.width() *0.5 ), int(r.y()+r.height()*0.5))
 
-        s = ""
-        return None
+        diff = centerInParent - centerViewPort
+        return diff.manhattanLength()

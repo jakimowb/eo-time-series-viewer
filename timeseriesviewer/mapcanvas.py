@@ -410,7 +410,7 @@ class MapCanvas(QgsMapCanvas):
 
         #self.refresh()
 
-    def IsViewportVisible(self)->bool:
+    def isVisibleToViewport(self)->bool:
         return self.visibleRegion().boundingRect().isValid()
 
     def refresh(self, force=False):
