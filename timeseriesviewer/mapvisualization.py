@@ -1850,10 +1850,10 @@ class DatumView(QObject):
         mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
 
-        mapCanvas.sigDataLoadingFinished.connect(
-            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.mSensor.name()), dt))
-        mapCanvas.sigDataLoadingFinished.connect(
-            lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('All Sensors', dt))
+        #mapCanvas.sigMapRefreshed[float, float].connect(
+        #    lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.mSensor.name()), dt))
+        #mapCanvas.sigMapRefreshed.connect(
+        #    lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('All Sensors', dt))
 
     def showLoading(self, b):
         if b:
@@ -2002,16 +2002,17 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
 
-        visibleMaps = [m for m in self.mapCanvases() if m.renderFlag() == False and m.isVisibleToViewport()]
+        visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport() and m.renderFlag() and not m.isDrawing()]
 
-        hiddenMaps = sorted([m for m in self.mapCanvases() if m.renderFlag() == False and m.isVisibleToViewport()],
-                            key = lambda c : self.scrollArea.distanceToCenter(c))
+        hiddenMaps = sorted([m for m in self.mapCanvases()
+                             if m.isVisibleToViewport() == False and m.renderFlag() and not m.isDrawing()],
+                            key = lambda c : self.scrollArea.distanceToCenter(c) )
 
         n = 0
         #redraw all visible maps
         for c in visibleMaps:
             assert isinstance(c, MapCanvas)
-            c.refresh(force=True)
+            c.refresh()
             n += 1
 
 
@@ -2060,7 +2061,7 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
         #register on map canvas signals
-        #mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
+        mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
 
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairChanged)
 

@@ -94,8 +94,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(maps) == len(visible) + len(hidden))
         self.assertTrue(len(hidden) > 0)
 
-
-
         if SHWO_GUI:
             QGIS_APP.exec_()
 

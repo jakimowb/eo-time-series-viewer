@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 
 
-import os
+import os, time
 from qgis.core import *
 from qgis.gui import *
 
@@ -240,7 +240,8 @@ class MapCanvas(QgsMapCanvas):
     sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
-    sigDataLoadingFinished = pyqtSignal(np.timedelta64)
+    sigMapRefreshed = pyqtSignal([float, float],[float])
+
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
     from .crosshair import CrosshairStyle
@@ -253,19 +254,20 @@ class MapCanvas(QgsMapCanvas):
         self.mTSD = self.mMapView = None
         #the canvas
 
-        self.mRenderingFinished = False
+        self.mIsRefreshing = False
+        self.mRefreshStartTime = time.time()
 
-        def onRenderingStarted(*args):
-            self.mRenderingFinished = False
-            self.mRenderStartTime = np.datetime64('now', 'ms')
-
-        def onRenderingFinished(*args):
+        def onMapCanvasRefreshed(*args):
+            self.mIsRefreshing = False
             self.mRenderingFinished = True
-            dt = np.datetime64('now', 'ms') - self.mRenderStartTime
-            self.sigDataLoadingFinished.emit(dt)
+            self.mIsRefreshing = False
+            t2 = time.time()
+            dt = t2 - self.mRefreshStartTime
 
-        self.renderStarting.connect(onRenderingStarted)
-        self.renderComplete.connect(onRenderingFinished)
+            self.sigMapRefreshed[float].emit(dt)
+            self.sigMapRefreshed[float, float].emit(self.mRefreshStartTime, t2)
+
+        self.mapCanvasRefreshed.connect(onMapCanvasRefreshed)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
@@ -410,6 +412,9 @@ class MapCanvas(QgsMapCanvas):
 
         #self.refresh()
 
+    def isRefreshing(self)->bool:
+        return self.mIsRefreshing
+
     def isVisibleToViewport(self)->bool:
         return self.visibleRegion().boundingRect().isValid()
 
@@ -418,16 +423,18 @@ class MapCanvas(QgsMapCanvas):
         low-level, only performed if MapCanvas is visible or force=True
         :param force: bool
         """
-        isVisible = self.visibleRegion().boundingRect().isValid() and self.isVisible()
+        isVisible = self.isVisibleToViewport() and self.isVisible() and not self.mIsRefreshing()
 
         if isVisible or force:
             mLyrs = self.layers()
             vLyrs = self.mLayerModel.visibleLayers()
             if mLyrs != vLyrs:
                 self.setLayers(vLyrs)
-            if self.renderFlag() or force:
+            if (self.renderFlag() and not self.isDrawing()) or force:
+                self.mIsRefreshing = True
+                self.mRefreshStartTime = time.time()
                 super(MapCanvas, self).refresh()
-
+    
 
     def setCrosshairStyle(self, crosshairStyle:CrosshairStyle, emitSignal=True):
         """
