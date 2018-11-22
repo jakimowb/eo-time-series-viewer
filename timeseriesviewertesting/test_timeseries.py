@@ -6,8 +6,11 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
-from timeseriesviewer.utils import file_search
+from timeseriesviewer.utils import file_search, TestObjects
 from timeseriesviewer.timeseries import *
+from timeseriesviewertesting import initQgisApplication
+
+app = initQgisApplication()
 
 class TestInit(unittest.TestCase):
 
@@ -56,13 +59,90 @@ class TestInit(unittest.TestCase):
 
         return datasets
 
+    def test_sensorids(self):
+
+        configs = [(6, 30,30, [1,2,3,4,5,6], None),
+                   (6, 10, 20, [1, 2, 3, 4, 5, 6], 'index'),
+                   (6, 30, 30, [1, 2, 3, 323 ,23., 3.4], 'Micrometers'),
+                   (6, 30, 30, None, None),
+        ]
+
+        for conf in configs:
+            sid = sensorID(*conf)
+            self.assertIsInstance(sid, str)
+            c2 = sensorIDtoProperties(sid)
+            self.assertListEqual(list(conf),list(c2))
+
+
+
     def test_timeseriesdatum(self):
 
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
 
-        tsd = TimeSeriesDatum.createFromPath(file)
+        tss = TimeSeriesSource.create(file)
+        sensor = SensorInstrument(tss.sid())
+
+        tsd = TimeSeriesDatum(None, tss.date(), sensor)
         self.assertIsInstance(tsd, TimeSeriesDatum)
-        self.assertEqual(tsd.nb, 6)
+        self.assertEqual(tsd.sensor(), sensor)
+        self.assertEqual(len(tsd), 0)
+        tsd.addSource(tss)
+        self.assertEqual(len(tsd), 1)
+
+
+
+    def test_timeseriessource(self):
+        wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
+
+        if False:
+            webSources = [QgsRasterLayer(wcs, 'test', 'wcs')]
+
+            for src in webSources:
+                tss = TimeSeriesSource.create(src)
+                self.assertIsInstance(tss, TimeSeriesSource)
+
+
+        sources = [example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
+                   gdal.Open(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA),
+                   QgsRasterLayer(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA)
+                   ]
+
+        ref = None
+        for src in sources:
+
+            tss = TimeSeriesSource.create(src)
+            self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
+            self.assertIsInstance(tss, TimeSeriesSource)
+
+
+            if not isinstance(ref, TimeSeriesSource):
+                ref = tss
+            else:
+                self.assertTrue(ref == tss)
+                self.assertTrue(ref.sid() == tss.sid())
+
+
+    def test_multisource_tsd(self):
+
+        p1 = TestObjects.inMemoryImage()
+        p2 = TestObjects.inMemoryImage()
+
+        sources = [p1, p2]
+        for p in sources:
+            p.SetMetadataItem('acquisition_date', '2014-04-01')
+            s = ""
+
+        tssList = [TimeSeriesSource.create(p) for p in sources]
+
+        TS = TimeSeries()
+        self.assertTrue(len(TS) == 0)
+
+        TS.addSources(tssList)
+        self.assertTrue(len(TS) == 1)
+
+        tsd = TS[0]
+        self.assertIsInstance(tsd, TimeSeriesDatum)
+        self.assertTrue(len(tsd.sources()) == 2)
 
 
 
@@ -71,35 +151,60 @@ class TestInit(unittest.TestCase):
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
 
         addedDates = []
+        removedDates = []
+        addedSensors = []
+        removedSensors = []
+        sourcesChanged = []
 
         TS = TimeSeries()
         TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
-        TS.sigTimeSeriesDatesRemoved.connect(lambda dates: [addedDates.remove(d) for d in dates])
+        TS.sigTimeSeriesDatesRemoved.connect(lambda dates: removedDates.extend(dates))
+        TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
+        TS.sigSensorAdded.connect(lambda sensor: addedSensors.append(sensor))
+        TS.sigSensorRemoved.connect(lambda sensor:removedSensors.append(sensor))
+        TS.addSources(files)
 
-        for file in files:
-            TS.addFiles([file])
+        counts = dict()
+        for tsd in TS:
+            self.assertIsInstance(tsd, TimeSeriesDatum)
+            sensor = tsd.sensor()
+            if sensor not in counts.keys():
+                counts[sensor] = 0
+            counts[sensor] = counts[sensor] + 1
 
         self.assertEqual(len(files), len(TS))
-        TS.removeDates(addedDates)
-        self.assertEqual(len(addedDates), 0)
+        self.assertEqual(len(addedDates), len(TS))
+        self.assertEqual(len(removedDates), 0)
+        self.assertTrue(len(addedSensors) == 2)
+
+        self.assertIsInstance(TS.maxSpatialExtent(), SpatialExtent)
+
+        sensor = TS.sensors()[0]
+        self.assertIsInstance(sensor, SensorInstrument)
+        self.assertTrue(sensor == TS.sensor(sensor.id()))
+        TS.removeSensor(sensor)
+        self.assertEqual(counts[sensor], len(removedDates))
+
+        extent = TS.maxSpatialExtent()
+        self.assertIsInstance(extent, SpatialExtent)
 
     def test_sensors(self):
-        pathRE = list(file_search(os.path.dirname(example.__file__), 're*.tif', recursive=True))[0]
-        pathLS = list(file_search(os.path.dirname(example.__file__), '*BOA.tif', recursive=True))[0]
 
-        TS = TimeSeries()
-        TS.addFiles(pathRE)
-        TS.addFiles(pathLS)
-        self.assertEqual(len(TS.Sensors), 2)
+        tss = TimeSeriesSource.create(example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA)
+        self.assertIsInstance(tss, TimeSeriesSource)
 
-        dsRE = gdal.Open(pathRE)
-        assert isinstance(dsRE, gdal.Dataset)
+        sensor = SensorInstrument(tss.sid())
 
-        tsdRE = TS.getTSD(pathRE)
-        self.assertIsInstance(tsdRE, TimeSeriesDatum)
-        sRE = tsdRE.sensor
-        self.assertIsInstance(sRE, SensorInstrument)
-        self.assertEqual(dsRE.RasterCount, sRE.nb)
+        sensor2 = SensorInstrument(tss.sid())
+        self.assertIsInstance(sensor, SensorInstrument)
+        self.assertTrue(sensor == sensor2)
+        sensor2.setName('foobar')
+        self.assertTrue(sensor == sensor2)
+
+        self.assertIsInstance(sensor2.id(), str)
+
+        lyr = sensor.mockupLayer()
+        self.assertIsInstance(lyr, QgsRasterLayer)
 
     def test_datematching(self):
         pass

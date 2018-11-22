@@ -592,8 +592,8 @@ class TemporalProfile(QObject):
 
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDatum)
-            meta = {'doy': tsd.doy,
-                    'date': str(tsd.date),
+            meta = {'doy': tsd.mDOY,
+                    'date': str(tsd.mDate),
                     'nodata':False}
 
             self.updateData(tsd, meta, skipStatusUpdate=True)
@@ -710,8 +710,8 @@ class TemporalProfile(QObject):
         """
         assert isinstance(tsd, TimeSeriesDatum)
         if requiredIndices is None:
-            requiredIndices = list(range(tsd.sensor.nb))
-        requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.sensor.nb]
+            requiredIndices = list(range(tsd.mSensor.nb))
+        requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.mSensor.nb]
         existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
         return [i for i in requiredIndices if i not in existingBandIndices]
 
@@ -794,9 +794,9 @@ class TemporalProfile(QObject):
                 s = ""
             else:
                 if dateType == 'date':
-                    x.append(date2num(tsd.date))
+                    x.append(date2num(tsd.mDate))
                 elif dateType == 'doy':
-                    x.append(tsd.doy)
+                    x.append(tsd.mDOY)
                 y.append(value)
 
         #return np.asarray(x), np.asarray(y)
@@ -832,7 +832,7 @@ class TemporalProfile(QObject):
 
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDatum)
-            nb = tsd.sensor.nb
+            nb = tsd.mSensor.nb
 
             self.mLoadedMax += nb
             if self.hasData(tsd):
@@ -1055,7 +1055,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         # Define which (new) bands need to be loaded for each sensor
         LUT_bandIndices = dict()
-        for sensor in self.mTimeSeries.Sensors:
+        for sensor in self.mTimeSeries.mSensors2TSDs:
                 LUT_bandIndices[sensor] = list(range(sensor.nb))
 
         PL = PixelLoader()
@@ -1066,7 +1066,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             assert isinstance(tsd, TimeSeriesDatum)
 
 
-            requiredIndices = LUT_bandIndices[tsd.sensor]
+            requiredIndices = LUT_bandIndices[tsd.mSensor]
             requiredIndexKeys = [bandIndex2bandKey(b) for b in requiredIndices]
             TPs = []
             missingIndices = set()
@@ -1149,8 +1149,8 @@ class TemporalProfileLayer(QgsVectorLayer):
             name = tp.name()
             for tsd, values in tp.mData.items():
                 assert isinstance(tsd, TimeSeriesDatum)
-                line = [fid, name, tsd.sensor.name(), tsd.date, tsd.doy]
-                for b in range(tsd.sensor.nb):
+                line = [fid, name, tsd.mSensor.name(), tsd.mDate, tsd.mDOY]
+                for b in range(tsd.mSensor.nb):
                     key = 'b{}'.format(b+1)
                     line.append(values.get(key))
 
@@ -1395,7 +1395,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             if len(self.timeSeries()) == 0:
                 sourceLyr.selectAll()
             else:
-                extent = self.timeSeries().getMaxSpatialExtent(sourceLyr.crs())
+                extent = self.timeSeries().maxSpatialExtent(sourceLyr.crs())
                 sourceLyr.selectByRect(extent)
             newProfiles = []
             for feature in sourceLyr.selectedFeatures():

@@ -1069,7 +1069,7 @@ class MapView(QObject):
 
         self.ui.actionSetVectorStyle.triggered.connect(self.setVectorLayerStyle)
 
-        for sensor in self.mapViewCollection.TS.Sensors:
+        for sensor in self.mapViewCollection.TS.sensors():
             self.addSensor(sensor)
 
         self.setTitle(name)
@@ -1412,7 +1412,8 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
         assert isinstance(self.stackedWidget, QStackedWidget)
 
         self.mMockupCanvas = QgsMapCanvas(parent=parent)
-        self.mMockupRasterLayer = QgsRasterLayer(self.mSensor.pathImg)
+        self.mMockupCanvas.setVisible(False)
+        self.mMockupRasterLayer = self.mSensor.mockupLayer()
         self.mMockupCanvas.setLayers([self.mMockupRasterLayer])
         for func in rasterRendererModel.optionValues():
 
@@ -1772,7 +1773,7 @@ class DatumView(QObject):
 
         self.TSD = timeSeriesDatum
         self.scrollArea = stv.scrollArea
-        self.mSensor = self.TSD.sensor
+        self.mSensor = self.TSD.mSensor
         self.mSensor.sigNameChanged.connect(lambda :self.setColumnInfo())
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
         self.setColumnInfo()
@@ -1783,8 +1784,8 @@ class DatumView(QObject):
 
     def setColumnInfo(self):
 
-        labelTxt = '{}\n{}'.format(str(self.TSD.date), self.TSD.sensor.name())
-        tooltip = '{}'.format(self.TSD.pathImg)
+        labelTxt = '{}\n{}'.format(str(self.TSD.mDate), self.TSD.mSensor.name())
+        tooltip = '\n'.join([tss.uri()for tss in self.TSD.sources()])
 
         self.ui.labelTitle.setText(labelTxt)
         self.ui.labelTitle.setToolTip(tooltip)
@@ -1832,7 +1833,7 @@ class DatumView(QObject):
         from timeseriesviewer.mapcanvas import MapCanvas
 
         mapCanvas = MapCanvas(self.ui)
-        mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.date))
+        mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.mDate))
         mapCanvas.blockSignals(True)
         mapCanvas.setMapView(mapView)
 
@@ -1889,7 +1890,7 @@ class DatumView(QObject):
 
 
         #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
-        mapCanvas.layerModel().setRasterLayerSources([self.TSD.pathImg])
+        mapCanvas.layerModel().setRasterLayerSources(self.TSD.sourceUris())
 
         #self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.layout().insertWidget(self.ui.layout().count() - 1, mapCanvas)
@@ -1908,9 +1909,9 @@ class DatumView(QObject):
         if key == 'hide_date':
             self.TSD.setVisibility(False)
         if key == 'copy_sensor':
-            QApplication.clipboard().setText(self.TSD.sensor.name())
+            QApplication.clipboard().setText(self.TSD.mSensor.name())
         if key == 'copy_date':
-            QApplication.clipboard().setText(str(self.TSD.date))
+            QApplication.clipboard().setText(str(self.TSD.mDate))
         if key == 'copy_path':
             QApplication.clipboard().setText(str(self.TSD.pathImg))
 
@@ -1986,7 +1987,7 @@ class SpatialTemporalVisualization(QObject):
         #add dates, if already existing
         self.DVC.addDates(self.TS[:])
         if len(self.TS) > 0:
-            self.setSpatialExtent(self.TS.getMaxSpatialExtent())
+            self.setSpatialExtent(self.TS.maxSpatialExtent())
         #self.setSubsetSize(QSize(100,50))
 
         self.mMapRefreshTimer = QTimer(self)

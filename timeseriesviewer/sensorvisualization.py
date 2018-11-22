@@ -65,7 +65,7 @@ class SensorTableModel(QAbstractTableModel):
         self.items = []
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
-        for s in self.TS.Sensors:
+        for s in self.TS.sensors():
             self.addSensor(s)
 
 
@@ -134,16 +134,16 @@ class SensorTableModel(QAbstractTableModel):
             elif columnName == 'nb':
                 value = str(sensor.nb)
             elif columnName == 'n images':
-                value = str(len(self.TS.getTSDs(sensorOfInterest=sensor)))
+                value = str(len(self.TS.tsds(sensor=sensor)))
             elif columnName == 'id':
                 value = sensor.id()
             elif columnName == 'wl':
-                if sensor.wavelengths is None or sensor.wavelengths.ndim == 0:
+                if sensor.wl is None or sensor.wl.ndim == 0:
                     value = 'undefined'
                 else:
-                    value = ','.join([str(w) for w in sensor.wavelengths])
-                    if sensor.wavelengthUnits is not None:
-                        value += '[{}]'.format(sensor.wavelengthUnits)
+                    value = ','.join([str(w) for w in sensor.wl])
+                    if sensor.wlu is not None:
+                        value += '[{}]'.format(sensor.wlu)
 
         elif role == Qt.CheckStateRole:
             if columnName == 'name':
@@ -203,7 +203,7 @@ class SensorListModel(QAbstractListModel):
         self.mSensors = []
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
-        for s in self.TS.Sensors:
+        for s in self.TS.mSensors2TSDs:
             self.insertSensor(s)
 
 

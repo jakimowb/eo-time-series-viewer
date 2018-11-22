@@ -354,10 +354,10 @@ class MapCanvas(QgsMapCanvas):
         self.mTSD = tsd
 
         scope = self.expressionContextScope()
-        scope.setVariable('map_date', str(tsd.date), isStatic=True)
-        scope.setVariable('map_doy', tsd.doy, isStatic=True)
-        scope.setVariable('map_sensor', tsd.sensor.name(), isStatic=False)
-        tsd.sensor.sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
+        scope.setVariable('map_date', str(tsd.mDate), isStatic=True)
+        scope.setVariable('map_doy', tsd.mDOY, isStatic=True)
+        scope.setVariable('map_sensor', tsd.mSensor.name(), isStatic=False)
+        tsd.mSensor.sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
 
         s = ""
 
@@ -423,7 +423,7 @@ class MapCanvas(QgsMapCanvas):
         low-level, only performed if MapCanvas is visible or force=True
         :param force: bool
         """
-        isVisible = self.isVisibleToViewport() and self.isVisible() and not self.mIsRefreshing()
+        isVisible = self.isVisibleToViewport() and self.isVisible() and not self.isRefreshing()
 
         if isVisible or force:
             mLyrs = self.layers()
@@ -747,7 +747,7 @@ class MapCanvas(QgsMapCanvas):
         from timeseriesviewer.utils import saveFilePath
         from timeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
-            path = saveFilePath('{}.{}'.format(self.mTSD.date, self.mMapView.title()))
+            path = saveFilePath('{}.{}'.format(self.mTSD.mDate, self.mMapView.title()))
         else:
             path = 'mapcanvas'
         path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))

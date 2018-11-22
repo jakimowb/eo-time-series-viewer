@@ -1506,7 +1506,7 @@ class SpectralTemporalVisualization(QObject):
         plotStyle = TemporalProfile2DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
 
-        sensors = list(self.TS.Sensors.keys())
+        sensors = list(self.TS.mSensors2TSDs.keys())
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
 
@@ -1549,7 +1549,7 @@ class SpectralTemporalVisualization(QObject):
                 color = self.plotSettingsModel3D[-1].color()
                 plotStyle.setColor(nextColor(color))
 
-        sensors = list(self.TS.Sensors.keys())
+        sensors = list(self.TS.mSensors2TSDs.keys())
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
 
@@ -1779,14 +1779,14 @@ class SpectralTemporalVisualization(QObject):
         # Define which (new) bands need to be loaded for each sensor
         if LUT_bandIndices is None:
             LUT_bandIndices = dict()
-            for sensor in self.TS.Sensors:
+            for sensor in self.TS.mSensors2TSDs:
                 if mode in ['all','reload']:
                     LUT_bandIndices[sensor] = list(range(sensor.nb))
                 else:
                     LUT_bandIndices[sensor] = self.plotSettingsModel2D.requiredBandsIndices(sensor)
 
         assert isinstance(LUT_bandIndices, dict)
-        for sensor in self.TS.Sensors:
+        for sensor in self.TS.mSensors2TSDs:
             assert sensor in LUT_bandIndices.keys()
 
         #update new / existing points

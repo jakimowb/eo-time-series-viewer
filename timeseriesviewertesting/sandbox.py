@@ -42,9 +42,9 @@ class SandboxObjects(object):
         n = len(files)
         if nMax:
             nMax = min([n, nMax])
-            ts.addFiles(files[0:nMax])
+            ts.addSources(files[0:nMax])
         else:
-            ts.addFiles(files[:])
+            ts.addSources(files[:])
         return ts
 
 
