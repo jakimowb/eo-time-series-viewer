@@ -1163,13 +1163,22 @@ class TimeSeriesTableModel(QAbstractTableModel):
             elif columnName == self.cnSensor:
                 if role == Qt.ToolTipRole:
                     value = TSD.sensor().description()
+                else:
+                    value = TSD.sensor().name()
             elif columnName == self.cnDate:
                 value = '{}'.format(TSD.date())
             elif columnName == self.cnImage:
                 value = '\n'.join(TSD.sourceUris())
             elif columnName == self.cnCRS:
                 value = '\n'.join([tss.crs().description() for tss in tssList])
-
+            elif columnName == self.cnNB:
+                value = TSD.sensor().nb
+            elif columnName == self.cnNL:
+                value = ','.join([str(tss.nl) for tss in tssList])
+            elif columnName == self.cnNS:
+                value = ','.join([str(tss.ns) for tss in tssList])
+            elif columnName == self.cnSensor:
+                value = TSD.sensor().name()
 
             elif columnName in keys:
                 value = TSD.__dict__[columnName]

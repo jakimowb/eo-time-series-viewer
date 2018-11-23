@@ -1779,7 +1779,7 @@ class SpectralTemporalVisualization(QObject):
         # Define which (new) bands need to be loaded for each sensor
         if LUT_bandIndices is None:
             LUT_bandIndices = dict()
-            for sensor in self.TS.mSensors2TSDs:
+            for sensor in self.TS.sensors():
                 if mode in ['all','reload']:
                     LUT_bandIndices[sensor] = list(range(sensor.nb))
                 else:
