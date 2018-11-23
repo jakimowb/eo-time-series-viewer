@@ -255,6 +255,7 @@ class MapCanvas(QgsMapCanvas):
         #the canvas
 
         self.mIsRefreshing = False
+        self.mRenderingFinished = True
         self.mRefreshStartTime = time.time()
 
         def onMapCanvasRefreshed(*args):
@@ -423,18 +424,24 @@ class MapCanvas(QgsMapCanvas):
         low-level, only performed if MapCanvas is visible or force=True
         :param force: bool
         """
-        isVisible = self.isVisibleToViewport() and self.isVisible() and not self.mIsRefreshing()
 
-        if isVisible or force:
-            mLyrs = self.layers()
-            vLyrs = self.mLayerModel.visibleLayers()
-            if mLyrs != vLyrs:
-                self.setLayers(vLyrs)
+        mLyrs = self.layers()
+        vLyrs = self.mLayerModel.visibleLayers()
+        if mLyrs != vLyrs:
+            self.setLayers(vLyrs)
             if (self.renderFlag() and not self.isDrawing()) or force:
-                self.mIsRefreshing = True
-                self.mRefreshStartTime = time.time()
                 super(MapCanvas, self).refresh()
-    
+        else:
+            s = ""
+
+    def setLayers(self, layers, *args):
+        self.mNeedsRefresh = True
+        super(MapCanvas, self).setLayers(layers, *args)
+
+    def refreshMap(self):
+        self.mIsRefreshing = True
+        self.mRefreshStartTime = time.time()
+
 
     def setCrosshairStyle(self, crosshairStyle:CrosshairStyle, emitSignal=True):
         """
@@ -795,7 +802,7 @@ class MapCanvas(QgsMapCanvas):
     def spatialExtentHint(self):
         crs = self.crs()
         ext = SpatialExtent.world()
-        for lyr in self.mLayerModel.layers()+ self.layers():
+        for lyr in self.mLayerModel.layers() + self.layers():
             ext = SpatialExtent.fromLayer(lyr).toCrs(crs)
             break
         return ext

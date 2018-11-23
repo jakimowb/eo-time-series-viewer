@@ -1,16 +1,16 @@
-# import qgis libs so that ve set the correct sip api version
+import os, sys, re, uuid, importlib
+import numpy as np
 import qgis
-
-__package__ = "test"
-
-import os, sys, re, importlib
-import qgis
+from osgeo import gdal, ogr
 from qgis.gui import *
 from qgis.core import *
-import qgis.testing
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
+import qgis.testing
+
+
+SHOW_GUI = True
 
 
 
@@ -57,35 +57,6 @@ def initQgisApplication(*args, qgisResourceDir:str=None, **kwds)->QgsApplication
         return qgsApp
 
 
-
-class PythonRunnerImpl(QgsPythonRunner):
-    """
-    A Qgs PythonRunner implementation
-    """
-
-    def __init__(self):
-        super(PythonRunnerImpl, self).__init__()
-
-
-    def evalCommand(self, cmd:str, result:str):
-        try:
-            o = compile(cmd)
-        except Exception as ex:
-            result = str(ex)
-            return False
-        return True
-
-    def runCommand(self, command, messageOnError=''):
-        try:
-            o = compile(command, 'fakemodule', 'exec')
-            exec(o)
-        except Exception as ex:
-            messageOnError = str(ex)
-            command = ['{}:{}'.format(i+1, l) for i,l in enumerate(command.splitlines())]
-            print('\n'.join(command), file=sys.stderr)
-            raise ex
-            return False
-        return True
 
 class QgisMockup(QgisInterface):
     """
@@ -257,3 +228,212 @@ class QgisMockup(QgisInterface):
     def zoomFull(self, *args, **kwargs):
         super().zoomFull(*args, **kwargs)
 
+
+class TestObjects():
+    """
+    Class with static routines to create test objects
+    """
+    @staticmethod
+    def inMemoryImage(nl=10, ns=20, nb=1, crs='EPSG:32632', eType=gdal.GDT_Byte, nc:int=0, path:str=None):
+        from timeseriesviewer.classification.classificationscheme import ClassificationScheme
+
+        scheme = None
+        if nc is None:
+            nc = 0
+        if nc > 0:
+            eType = gdal.GDT_Byte if nc < 256 else gdal.GDT_Int16
+            scheme = ClassificationScheme()
+            scheme.createClasses(nc)
+
+        drv = gdal.GetDriverByName('GTiff')
+        assert isinstance(drv, gdal.Driver)
+
+        if not isinstance(path, str):
+            if nc > 0:
+                path = '/vsimem/testClassification.{}.tif'.format(str(uuid.uuid4()))
+            else:
+                path = '/vsimem/testImage.{}.tif'.format(str(uuid.uuid4()))
+
+        ds = drv.Create(path, ns, nl, bands=nb, eType=eType)
+        assert isinstance(ds, gdal.Dataset)
+        if isinstance(crs, str):
+            c = QgsCoordinateReferenceSystem(crs)
+            ds.SetProjection(c.toWkt())
+        ds.SetGeoTransform([0,1.0,0, \
+                            0,0,-1.0])
+
+        assert isinstance(ds, gdal.Dataset)
+        for b in range(1, nb + 1):
+            band = ds.GetRasterBand(b)
+
+            if isinstance(scheme, ClassificationScheme) and b == 1:
+                array = np.zeros((nl, ns), dtype=np.uint8) - 1
+                y0 = 0
+
+
+                step = int(np.ceil(float(nl) / len(scheme)))
+
+                for i, c in enumerate(scheme):
+                    y1 = min(y0 + step, nl - 1)
+                    array[y0:y1, :] = c.label()
+                    y0 += y1 + 1
+                band.SetCategoryNames(scheme.classNames())
+                band.SetColorTable(scheme.gdalColorTable())
+            else:
+                #create random data
+                array = np.random.random((nl, ns))
+                if eType == gdal.GDT_Byte:
+                    array = array *256
+                    array = array.astype(np.byte)
+                elif eType == gdal.GDT_Int16:
+                    array = array * 2**16
+                    array = array.astype(np.int16)
+                elif eType == gdal.GDT_Int32:
+                    array = array * 2 ** 32
+                    array = array.astype(np.int32)
+
+            band.WriteArray(array)
+        ds.FlushCache()
+        return ds
+
+    @staticmethod
+    def createDropEvent(mimeData:QMimeData):
+        """Creates a QDropEvent conaining the provided QMimeData"""
+        return QDropEvent(QPointF(0, 0), Qt.CopyAction, mimeData, Qt.LeftButton, Qt.NoModifier)
+
+
+    @staticmethod
+    def processingAlgorithm():
+
+        from qgis.core import QgsProcessingAlgorithm
+
+        class TestProcessingAlgorithm(QgsProcessingAlgorithm):
+
+            def __init__(self):
+                super(TestProcessingAlgorithm, self).__init__()
+                s = ""
+
+            def createInstance(self):
+                return TestProcessingAlgorithm()
+
+            def name(self):
+                return 'exmaplealg'
+
+            def displayName(self):
+                return 'Example Algorithm'
+
+            def groupId(self):
+                return 'exampleapp'
+
+            def group(self):
+                return 'TEST APPS'
+
+            def initAlgorithm(self, configuration=None):
+                self.addParameter(QgsProcessingParameterRasterLayer('pathInput', 'The Input Dataset'))
+                self.addParameter(
+                    QgsProcessingParameterNumber('value', 'The value', QgsProcessingParameterNumber.Double, 1, False,
+                                                 0.00, 999999.99))
+                self.addParameter(QgsProcessingParameterRasterDestination('pathOutput', 'The Output Dataset'))
+
+            def processAlgorithm(self, parameters, context, feedback):
+                assert isinstance(parameters, dict)
+                assert isinstance(context, QgsProcessingContext)
+                assert isinstance(feedback, QgsProcessingFeedback)
+
+
+                outputs = {}
+                return outputs
+
+        return TestProcessingAlgorithm()
+
+
+
+
+class QgsPluginManagerMockup(QgsPluginManagerInterface):
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+    def addPluginMetadata(self, *args, **kwargs):
+        super().addPluginMetadata(*args, **kwargs)
+
+    def addToRepositoryList(self, *args, **kwargs):
+        super().addToRepositoryList(*args, **kwargs)
+
+    def childEvent(self, *args, **kwargs):
+        super().childEvent(*args, **kwargs)
+
+    def clearPythonPluginMetadata(self, *args, **kwargs):
+        #super().clearPythonPluginMetadata(*args, **kwargs)
+        pass
+
+    def clearRepositoryList(self, *args, **kwargs):
+        super().clearRepositoryList(*args, **kwargs)
+
+    def connectNotify(self, *args, **kwargs):
+        super().connectNotify(*args, **kwargs)
+
+    def customEvent(self, *args, **kwargs):
+        super().customEvent(*args, **kwargs)
+
+    def disconnectNotify(self, *args, **kwargs):
+        super().disconnectNotify(*args, **kwargs)
+
+    def isSignalConnected(self, *args, **kwargs):
+        return super().isSignalConnected(*args, **kwargs)
+
+    def pluginMetadata(self, *args, **kwargs):
+        super().pluginMetadata(*args, **kwargs)
+
+    def pushMessage(self, *args, **kwargs):
+        super().pushMessage(*args, **kwargs)
+
+    def receivers(self, *args, **kwargs):
+        return super().receivers(*args, **kwargs)
+
+    def reloadModel(self, *args, **kwargs):
+        super().reloadModel(*args, **kwargs)
+
+    def sender(self, *args, **kwargs):
+        return super().sender(*args, **kwargs)
+
+    def senderSignalIndex(self, *args, **kwargs):
+        return super().senderSignalIndex(*args, **kwargs)
+
+    def showPluginManager(self, *args, **kwargs):
+        super().showPluginManager(*args, **kwargs)
+
+    def timerEvent(self, *args, **kwargs):
+        super().timerEvent(*args, **kwargs)
+
+
+class PythonRunnerImpl(QgsPythonRunner):
+    """
+    A Qgs PythonRunner implementation
+    """
+
+    def __init__(self):
+        super(PythonRunnerImpl, self).__init__()
+
+
+    def evalCommand(self, cmd:str, result:str):
+        try:
+            o = compile(cmd)
+        except Exception as ex:
+            result = str(ex)
+            return False
+        return True
+
+    def runCommand(self, command, messageOnError=''):
+        try:
+            o = compile(command, 'fakemodule', 'exec')
+            exec(o)
+        except Exception as ex:
+            messageOnError = str(ex)
+            command = ['{}:{}'.format(i+1, l) for i,l in enumerate(command.splitlines())]
+            print('\n'.join(command), file=sys.stderr)
+            raise ex
+            return False
+        return True

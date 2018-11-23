@@ -176,8 +176,6 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.rubberband.setColor(color)
         self.rubberband.setWidth(2)
 
-
-
         self.marker.setColor(color)
         self.marker.setPenWidth(3)
         self.marker.setIconSize(5)

@@ -2002,10 +2002,9 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
 
-        visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport() and m.renderFlag() and not m.isDrawing()]
+        visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport() and not m.renderingFinished()]
 
-        hiddenMaps = sorted([m for m in self.mapCanvases()
-                             if m.isVisibleToViewport() == False and m.renderFlag() and not m.isDrawing()],
+        hiddenMaps = sorted([m for m in self.mapCanvases() if not m.isVisibleToViewport() and not m.renderingFinished()],
                             key = lambda c : self.scrollArea.distanceToCenter(c) )
 
         n = 0
