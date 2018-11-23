@@ -290,7 +290,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         x0 = x1 = y0 = y1 = z0 = z1 = 0
         for iDate, tsd in enumerate(tp.mTimeSeries):
             assert isinstance(tsd, TimeSeriesDatum)
-            if tsd.sensor != sensor:
+            if tsd.mSensor != sensor:
                 continue
 
             data = tp.data(tsd)
@@ -299,7 +299,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
             if len(bandKeys) == 0:
                 continue
 
-            t = date2num(tsd.date)
+            t = date2num(tsd.mDate)
 
             x = []
             y = []

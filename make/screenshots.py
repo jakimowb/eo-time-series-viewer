@@ -29,7 +29,7 @@ TSV = TimeSeriesViewer(None)
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25
 if True:
     TSV.loadExampleTimeSeries()
-    center = TSV.TS.getMaxSpatialExtent().spatialCenter()
+    center = TSV.TS.maxSpatialExtent().spatialCenter()
 else:
     dirTestData = r'F:\TSData'
     files = list(file_search(dirTestData, re.compile('\.tif$')))
@@ -41,7 +41,7 @@ else:
     assert len(files) > 0
     TSV.loadImageFiles(files)
 
-    center = TSV.TS.getMaxSpatialExtent().spatialCenter()
+    center = TSV.TS.maxSpatialExtent().spatialCenter()
     #x = 682430.2823150387
     #y = -751432.9531412527
     x = 682459.8471361337
@@ -62,7 +62,7 @@ TSV.spatialTemporalVis.navigateToTSD(TSV.TS[i])
 toHide = ['2014-07-18', '2014-08-08', '2014-08-10', '2014-08-23', '2014-08-25', '2014-08-03', '2014-07-26', '2014-07-10']
 for tsd in TSV.TS:
     assert isinstance(tsd, TimeSeriesDatum)
-    if str(tsd.date) in toHide:
+    if str(tsd.mDate) in toHide:
         tsd.setVisibility(False)
 
 sensorLS = None

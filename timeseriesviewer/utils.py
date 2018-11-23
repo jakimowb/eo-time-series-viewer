@@ -1166,7 +1166,7 @@ class TestObjects():
         return datasets
 
     @staticmethod
-    def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632')->gdal.Dataset:
+    def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632', eType:int=None, path:str=None)->gdal.Dataset:
         """
         Create an in-memory gdal.Dataset
         :param nl:
@@ -1178,8 +1178,15 @@ class TestObjects():
         drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
         id = uuid.uuid4()
-        path = '/vsimem/testimage.multiband.{}.tif'.format(id)
-        ds = drv.Create(path, ns, nl, bands=nb, eType=gdal.GDT_Float32)
+        if not isinstance(path, str):
+            path = '/vsimem/testimage.multiband.{}.tif'.format(id)
+
+        if eType is None:
+            eType = gdal.GDT_Float32
+
+        assert isinstance(eType, int) and eType >= 0
+
+        ds = drv.Create(path, ns, nl, bands=nb, eType=eType)
 
         if isinstance(crs, str):
             c = QgsCoordinateReferenceSystem(crs)

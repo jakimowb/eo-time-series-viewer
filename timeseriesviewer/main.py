@@ -330,7 +330,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
         self.ui.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
-        self.ui.actionRemoveTSD.triggered.connect(lambda: self.TS.removeDates(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
+        self.ui.actionRemoveTSD.triggered.connect(lambda: self.TS.removeTSDs(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
@@ -466,10 +466,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     self.cntSpectralProfile += 1
                     assert isinstance(p, SpectralProfile)
                     p2 = p.copyFieldSubset(fields=sl.fields())
-                    p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.date))
-                    p2.setAttribute('date', '{}'.format(tsd.date))
-                    p2.setAttribute('doy', int(tsd.doy))
-                    p2.setAttribute('sensor', tsd.sensor.name())
+                    p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
+                    p2.setAttribute('date', '{}'.format(tsd.mDate))
+                    p2.setAttribute('doy', int(tsd.mDOY))
+                    p2.setAttribute('sensor', tsd.mSensor.name())
                     profiles2.append(p2)
                 self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles2)
 
@@ -494,7 +494,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param files: [list-of-file-paths]
         """
         assert isinstance(files, list)
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
 
 
     def loadTimeSeriesDefinition(self, path=None, n_max=None):
@@ -537,7 +537,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     def zoomTo(self, key):
         if key == 'zoomMaxExtent':
-            ext = self.TS.getMaxSpatialExtent(self.ui.dockRendering.crs())
+            ext = self.TS.maxSpatialExtent(self.ui.dockRendering.crs())
         elif key == 'zoomPixelScale':
 
             extent = self.spatialTemporalVis.spatialExtent()
@@ -546,7 +546,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             crsWMC = QgsCoordinateReferenceSystem('EPSG:3857')
 
             extentWMC = extent.toCrs(crsWMC)
-            pxSize = max(self.TS.getPixelSizes(), key= lambda s :s.width())
+            pxSize = max(self.TS.pixelSizes(), key= lambda s :s.width())
             canvasSize = self.spatialTemporalVis.mapSize()
             f = 0.05
             width = f * canvasSize.width() * pxSize.width()  # width in map units
@@ -597,13 +597,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def onTimeSeriesChanged(self, *args):
 
         if not self.mSpatialMapExtentInitialized:
-            if len(self.TS.data) > 0:
+            if len(self.TS.mTSDs) > 0:
                 if len(self.spatialTemporalVis.MVC) == 0:
                     # add an empty MapView by default
                     self.spatialTemporalVis.createMapView()
                     #self.spatialTemporalVis.createMapView()
 
-                extent = self.TS.getMaxSpatialExtent()
+                extent = self.TS.maxSpatialExtent()
 
                 self.spatialTemporalVis.setCrs(extent.crs())
                 self.spatialTemporalVis.setSpatialExtent(extent)
@@ -611,7 +611,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-        if len(self.TS.data) == 0:
+        if len(self.TS.mTSDs) == 0:
             self.mSpatialMapExtentInitialized = False
 
 
@@ -642,7 +642,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def loadExampleTimeSeries(self):
         import example.Images
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
-        self.addTimeSeriesImages(files)
+        self.addTimeSeriesImages(list(files))
 
 
     def qgs_handleMouseDown(self, pt, btn):
@@ -727,7 +727,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         if files:
-            self.TS.addFiles(files)
+            self.TS.addSources(files)
 
     def clearTimeSeries(self):
         #remove views

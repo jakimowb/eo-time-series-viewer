@@ -125,7 +125,7 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
     drvMEM = gdal.GetDriverByName('MEM')
 
     from timeseriesviewer.main import transformGeometry
-    for TSD in TS.data:
+    for TSD in TS.mTSDs:
         assert isinstance(TSD, TimeSeriesDatum)
 
         ox, oy = random_offset()

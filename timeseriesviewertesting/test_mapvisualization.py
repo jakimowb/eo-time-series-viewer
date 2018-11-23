@@ -176,7 +176,7 @@ class testclassDialogTest(unittest.TestCase):
 
         from timeseriesviewer.timeseries import TimeSeries
         TS = TimeSeries()
-        TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA])
+        TS.addSources([Img_2014_01_15_LC82270652014015LGN00_BOA])
         sensor1 = TS.sensors()[0]
         w = MapViewRenderSettings(sensor1)
         w.show()

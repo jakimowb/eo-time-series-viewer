@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+        # -*- coding: utf-8 -*-
 """
 /***************************************************************************
                               EO Time Series Viewer
@@ -42,7 +42,7 @@ class TestObjects():
 
         TS = TimeSeries()
         files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
-        TS.addFiles(files)
+        TS.addSources(files)
         return TS
 
     @staticmethod
@@ -147,13 +147,13 @@ class TestFileFormatLoading(TestCase):
         # load RapidEye
         searchDir = jp(DIR_EXAMPLES, 'Images')
         files = file_search(searchDir, 're_*.bsq', recursive=True)
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadLandsat(self):
         searchDir = jp(DIR_EXAMPLES, 'Images')
         files = file_search(searchDir, '*_L*_BOA.bsq')[0:3]
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
 
         self.assertEqual(len(files), len(self.TS))
         s = ""
@@ -162,7 +162,7 @@ class TestFileFormatLoading(TestCase):
         # load VRTs pointing to another VRT pointing to Landsat imagery
         searchDir = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
         files = file_search(searchDir, '*BOA.vrt', recursive=True)[0:3]
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadRapidEye(self):
@@ -170,7 +170,7 @@ class TestFileFormatLoading(TestCase):
         searchDir = r'H:\RapidEye\3A'
         files = file_search(searchDir, '*.tif', recursive=True)
         files = [f for f in files if not re.search('_(udm|browse)\.tif$', f)]
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
         self.assertEqual(len(files), len(self.TS))
 
 
@@ -180,14 +180,14 @@ class TestFileFormatLoading(TestCase):
         searchDir = r'H:\Pleiades'
         #files = file_search(searchDir, 'DIM*.xml', recursive=True)
         files = file_search(searchDir, '*.jp2', recursive=True)[0:3]
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadSentinel2(self):
         #load Sentinel-2
         searchDir = r'H:\Sentinel2'
         files = file_search(searchDir, '*MSIL1C.xml', recursive=True)
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
 
         #self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
         self.assertEqual(0, len(self.TS))  # do not add a containers
@@ -195,5 +195,5 @@ class TestFileFormatLoading(TestCase):
         for file in files:
             subs = gdal.Open(file).GetSubDatasets()
             subdatasets.extend(s[0] for s in subs)
-        self.TS.addFiles(subdatasets)
+        self.TS.addSources(subdatasets)
         self.assertEqual(len(subdatasets), len(self.TS))  # add subdatasets

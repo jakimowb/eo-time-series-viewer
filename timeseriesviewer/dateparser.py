@@ -159,10 +159,32 @@ class ImageDateReader(object):
         raise NotImplementedError()
         return None
 
+class ImageReaderOWS(ImageDateReader):
+    """Date reader for OGC web services"""
+
+    def __init__(self, dataSet):
+        super(ImageReaderOWS, self).__init__(dataSet)
+
+    def readDTG(self):
+        drv = self.dataSet.GetDriver()
+        assert isinstance(drv, gdal.Driver)
+        if drv.ShortName == 'WCS':
+            text = self.dataSet.GetMetadataItem('WCS_GLOBAL#updateSequence', '')
+            if isinstance(text, str):
+                date = extractDateTimeGroup(text)
+                if isinstance(date, np.datetime64):
+                    return date
+
+        return None
+
+
 class ImageDateReaderDefault(ImageDateReader):
+    """
+    Default reader for dates in gdal.Datasets
+    """
     def __init__(self, dataSet):
         super(ImageDateReaderDefault, self).__init__(dataSet)
-        self.regDateKeys = re.compile('(acquisition[ ]*time|datetime)', re.IGNORECASE)
+        self.regDateKeys = re.compile('(acquisition[ _]*(time|date|datetime))', re.IGNORECASE)
 
     def readDTG(self):
         # search metadata for datetime information
@@ -189,6 +211,9 @@ class ImageDateReaderDefault(ImageDateReader):
         return None
 
 class ImageDateReaderPLEIADES(ImageDateReader):
+    """
+    Date reader for PLEIADES images
+    """
     def __init__(self, dataSet):
         super(ImageDateReaderPLEIADES, self).__init__(dataSet)
 
@@ -222,7 +247,11 @@ class ImageDateReaderSentinel2(ImageDateReader):
         return None
 
 class ImageDateParserLandsat(ImageDateReader):
+    """
+    Reader for date in LANDSAT images
     #see https://landsat.usgs.gov/what-are-naming-conventions-landsat-scene-identifiers
+    """
+
     regLandsatSceneID  = re.compile(r'L[COTEM][4578]\d{3}\d{3}\d{4}\d{3}[A-Z]{2}[A-Z1]\d{2}')
     regLandsatProductID = re.compile(r'L[COTEM]0[78]_(L1TP|L1GT|L1GS)_\d{3}\d{3}_\d{4}\d{2}\d{2}_\d{4}\d{2}\d{2}_0\d{1}_(RT|T1|T2)')
 
@@ -245,7 +274,7 @@ class ImageDateParserLandsat(ImageDateReader):
 dateParserList = [c for c in ImageDateReader.__subclasses__()]
 dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault))) #set to first position
 
-def parseDateFromDataSet(dataSet)->np.datetime64:
+def parseDateFromDataSet(dataSet:gdal.Dataset)->np.datetime64:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()
