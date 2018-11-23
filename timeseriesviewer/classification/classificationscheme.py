@@ -27,7 +27,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 import numpy as np
 from osgeo import gdal
-from enmapbox.gui.utils import gdalDataset, nextColor, loadUIFormClass
+from timeseriesviewer.utils import *
 
 from itertools import cycle
 
@@ -1427,8 +1427,8 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
             self.mScheme.removeClasses(classes)
 
     def loadClasses(self, *args):
-        from enmapbox import enmapboxSettings
-        settings = enmapboxSettings()
+
+        settings = QSettings('HUB','ClassificationScheme')
         settingsKey = 'DEF_DIR_ClassificationSchemeWidget.loadClasses'
         defDir = settings.value(settingsKey, None)
         path, _ = QFileDialog.getOpenFileName(self, 'Select Raster File', directory=defDir)

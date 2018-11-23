@@ -19,7 +19,7 @@
 # noinspection PyPep8Naming
 
 import os, sys, unittest, configparser
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewertesting import initQgisApplication, TestObjects
 APP = initQgisApplication()
 
 from timeseriesviewer.main import *

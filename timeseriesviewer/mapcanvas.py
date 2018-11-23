@@ -356,9 +356,9 @@ class MapCanvas(QgsMapCanvas):
 
         scope = self.expressionContextScope()
         scope.setVariable('map_date', str(tsd.date), isStatic=True)
-        scope.setVariable('map_doy', tsd.doy, isStatic=True)
-        scope.setVariable('map_sensor', tsd.sensor.name(), isStatic=False)
-        tsd.sensor.sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
+        scope.setVariable('map_doy', tsd.mDOY, isStatic=True)
+        scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
+        tsd.sensor().sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
 
         s = ""
 
