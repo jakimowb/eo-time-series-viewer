@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import sys, re, collections, traceback, time, json, urllib
+import sys, re, collections, traceback, time, json, urllib, types
 
 
 import bisect
@@ -952,7 +952,7 @@ class TimeSeries(QObject):
         Adds new data sources to the TimeSeries
         :param sources: [list-of-TimeSeriesSources]
         """
-        assert isinstance(sources, list)
+        assert isinstance(sources, (list, types.GeneratorType))
 
         nMax = len(sources)
 
