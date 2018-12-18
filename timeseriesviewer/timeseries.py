@@ -53,8 +53,17 @@ def transformGeometry(geom, crsSrc, crsDst, trans=None):
         assert isinstance(trans, QgsCoordinateTransform)
         return trans.transform(geom)
 
+GDAL_DATATYPES = {}
+for var in vars(gdal):
+    match = re.search(r'^GDT_(?P<type>.*)$', var)
+    if match:
+        number = getattr(gdal, var)
+        GDAL_DATATYPES[match.group('type')] = number
+        GDAL_DATATYPES[match.group()] = number
+
+
 METRIC_EXPONENTS = {
-    "nm":-9,"um": -6, "mm":-3, "cm":-2, "dm":-1, "m": 0,"hm":2, "km":3
+    "nm": -9, "um": -6, "mm": -3, "cm": -2, "dm": -1, "m": 0, "hm": 2, "km": 3
 }
 #add synonyms
 METRIC_EXPONENTS['nanometers'] = METRIC_EXPONENTS['nm']
@@ -103,10 +112,10 @@ def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str)
     :param wlu: str, wavelength unit
     :return: str
     """
-    assert dt >=0
-    assert isinstance(nb, int)  and nb > 0
-    assert isinstance(px_size_x, (int,float)) and px_size_x > 0
-    assert isinstance(px_size_y, (int,float)) and px_size_y > 0
+    assert dt in GDAL_DATATYPES.values()
+    assert isinstance(nb, int) and nb > 0
+    assert isinstance(px_size_x, (int, float)) and px_size_x > 0
+    assert isinstance(px_size_y, (int, float)) and px_size_y > 0
 
     if wl != None:
         assert isinstance(wl, list)
@@ -1029,7 +1038,7 @@ class TimeSeries(QObject):
 
 class TimeSeriesTableModel(QAbstractTableModel):
 
-    def __init__(self, TS, parent=None, *args):
+    def __init__(self, TS:TimeSeries, parent=None, *args):
 
         super(TimeSeriesTableModel, self).__init__()
         assert isinstance(TS, TimeSeries)
@@ -1044,23 +1053,23 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.mColumnNames = [self.cnDate, self.cnSensor, \
                             self.cnNS, self.cnNL, self.cnNB, \
                             self.cnCRS, self.cnImage]
-        self.TS = TS
-        self.sensors = set()
-        self.TS.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
-        self.TS.sigTimeSeriesDatesAdded.connect(self.addTSDs)
+        self.mTimeSeries = TS
+        self.mSensors = set()
+        self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
+        self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.addTSDs)
 
 
         self.items = []
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
-        self.addTSDs([tsd for tsd in self.TS])
+        self.addTSDs([tsd for tsd in self.mTimeSeries])
 
     def removeTSDs(self, tsds):
         #self.TS.removeDates(tsds)
         for tsd in tsds:
-            if tsd in self.TS:
+            if tsd in self.mTimeSeries:
                 #remove from TimeSeries first.
-                self.TS.removeTSDs([tsd])
+                self.mTimeSeries.removeTSDs([tsd])
             elif tsd in self.items:
                 idx = self.getIndexFromDate(tsd)
                 self.removeRows(idx.row(), 1)
@@ -1094,8 +1103,8 @@ class TimeSeriesTableModel(QAbstractTableModel):
             tsd.sigVisibilityChanged.connect(lambda: self.tsdChanged(tsd))
 
         for sensor in set([tsd.sensor() for tsd in tsds]):
-            if sensor not in self.sensors:
-                self.sensors.add(sensor)
+            if sensor not in self.mSensors:
+                self.mSensors.add(sensor)
                 sensor.sigNameChanged.connect(self.sensorsChanged)
 
 
@@ -1115,7 +1124,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
         s = ""
 
 
-    def rowCount(self, parent = QModelIndex()):
+    def rowCount(self, parent = QModelIndex())->int:
         return len(self.items)
 
 
@@ -1126,15 +1135,18 @@ class TimeSeriesTableModel(QAbstractTableModel):
             self.items.remove(tsd)
         self.endRemoveRows()
 
-    def getIndexFromDate(self, tsd):
+    def getIndexFromDate(self, tsd:TimeSeriesDatum)->QModelIndex:
+        assert isinstance(tsd, TimeSeriesDatum)
         return self.createIndex(self.items.index(tsd),0)
 
-    def getDateFromIndex(self, index):
+    def getDateFromIndex(self, index:QModelIndex)->TimeSeriesDatum:
+        assert isinstance(index, QModelIndex)
         if index.isValid():
             return self.items[index.row()]
         return None
 
-    def getTimeSeriesDatumFromIndex(self, index):
+    def getTimeSeriesDatumFromIndex(self, index:QModelIndex)->TimeSeriesDatum:
+        assert isinstance(index, QModelIndex)
         if index.isValid():
             i = index.row()
             if i >= 0 and i < len(self.items):
@@ -1142,7 +1154,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
         return None
 
-    def columnCount(self, parent = QModelIndex()):
+    def columnCount(self, parent = QModelIndex())->int:
         return len(self.mColumnNames)
 
     def data(self, index, role = Qt.DisplayRole):
