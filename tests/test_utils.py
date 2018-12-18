@@ -18,7 +18,8 @@ from qgis.core import QgsProject
 from qgis.gui import *
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from timeseriesviewer.utils import *
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
+
 QGIS_APP = initQgisApplication()
 
 class testclassUtilityTests(unittest.TestCase):
@@ -62,8 +63,11 @@ class testclassUtilityTests(unittest.TestCase):
 
         import example
 
-        files =list(file_search(os.path.dirname(example.__file__), '*.tif'))
-        self.assertTrue(len(files)>0)
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif'))
+        self.assertTrue(len(files) == 0)
+
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        self.assertTrue(len(files) > 0)
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,7 +16,7 @@ import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
 from timeseriesviewer.utils import file_search
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 QGIS_APP = initQgisApplication()
 
 

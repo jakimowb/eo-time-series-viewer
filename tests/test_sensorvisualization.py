@@ -8,7 +8,7 @@ import example.Images
 from osgeo import gdal, ogr, osr
 from timeseriesviewer.utils import file_search, TestObjects
 from timeseriesviewer.timeseries import *
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from timeseriesviewer.sensorvisualization import *
 app = initQgisApplication()
 

@@ -8,7 +8,7 @@ import example.Images
 from osgeo import gdal, ogr, osr
 from timeseriesviewer.utils import file_search, TestObjects
 from timeseriesviewer.timeseries import *
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 
 app = initQgisApplication()
 
@@ -59,21 +59,49 @@ class TestInit(unittest.TestCase):
 
         return datasets
 
+
+    def createTimeSeries(self)->TimeSeries:
+
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        TS = TimeSeries()
+        self.assertIsInstance(TS, TimeSeries)
+        TS.addSources(files)
+        self.assertTrue(len(TS) > 0)
+        return TS
+
     def test_sensorids(self):
 
-        configs = [(6, 30,30, [1,2,3,4,5,6], None),
-                   (6, 10, 20, [1, 2, 3, 4, 5, 6], 'index'),
-                   (6, 30, 30, [1, 2, 3, 323 ,23., 3.4], 'Micrometers'),
-                   (6, 30, 30, None, None),
+        configs = [(6, 30, 30, gdal.GDT_Byte, [1, 2, 3, 4, 5, 6], None),
+                   (6, 10, 20, gdal.GDT_CFloat32, [1, 2, 3, 4, 5, 6], 'index'),
+                   (6, 30, 30, gdal.GDT_UInt32, [1, 2, 3, 323, 23., 3.4], 'Micrometers'),
+                   (6, 30, 30, gdal.GDT_Int32, None, None),
         ]
 
         for conf in configs:
+            #nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str
+            print(conf)
+            self.assertIsInstance(sensorID(*conf), str, msg='Unable to create sensorID from "{}"'.format(str(conf)))
             sid = sensorID(*conf)
-            self.assertIsInstance(sid, str)
+
             c2 = sensorIDtoProperties(sid)
             self.assertListEqual(list(conf),list(c2))
 
 
+    def test_TimeSeriesTableModel(self):
+
+        TS = self.createTimeSeries()
+
+        TM = TimeSeriesTableModel(TS)
+        self.assertTrue(len(TS) > 0)
+        self.assertIsInstance(TM, TimeSeriesTableModel)
+        self.assertIsInstance(TM, QAbstractTableModel)
+
+        self.assertTrue(TM.rowCount(None) == len(TS))
+
+        tsd = TS[2]
+
+        idx = TM.getIndexFromDate(tsd)
+        self.assertIsInstance(idx, QModelIndex)
 
     def test_timeseriesdatum(self):
 
@@ -157,6 +185,7 @@ class TestInit(unittest.TestCase):
         sourcesChanged = []
 
         TS = TimeSeries()
+        self.assertIsInstance(TS, TimeSeries)
         TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
         TS.sigTimeSeriesDatesRemoved.connect(lambda dates: removedDates.extend(dates))
         TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
@@ -165,7 +194,7 @@ class TestInit(unittest.TestCase):
         TS.addSources(files)
 
         counts = dict()
-        for tsd in TS:
+        for i, tsd in enumerate(TS):
             self.assertIsInstance(tsd, TimeSeriesDatum)
             sensor = tsd.sensor()
             if sensor not in counts.keys():
@@ -174,6 +203,11 @@ class TestInit(unittest.TestCase):
 
         self.assertEqual(len(files), len(TS))
         self.assertEqual(len(addedDates), len(TS))
+
+
+
+
+
         self.assertEqual(len(removedDates), 0)
         self.assertTrue(len(addedSensors) == 2)
 
@@ -187,6 +221,9 @@ class TestInit(unittest.TestCase):
 
         extent = TS.maxSpatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
+
+
+
 
     def test_sensors(self):
 

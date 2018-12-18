@@ -18,14 +18,14 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
 
-resourceDir = os.path.join(DIR_REPO,'qgisresources')
+resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHWO_GUI = True
 

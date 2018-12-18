@@ -202,7 +202,7 @@ class AvailableIcons(QWidget):
 
 
 def run():
-    from timeseriesviewertesting import initQgisApplication
+    from tests import initQgisApplication
     #app = QApplication(sys.argv)
     app = initQgisApplication()
 

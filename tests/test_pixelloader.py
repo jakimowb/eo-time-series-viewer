@@ -15,7 +15,7 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 import unittest
 import os, sys, pickle
 import qgis.testing
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 import example.Images
 from timeseriesviewer.utils import *
 

@@ -6,7 +6,7 @@ from qgis.gui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
-from timeseriesviewertesting import initQgisApplication
+from tests import initQgisApplication
 app = initQgisApplication()
 from timeseriesviewer.utils import *
 from timeseriesviewer.main import TimeSeriesViewer

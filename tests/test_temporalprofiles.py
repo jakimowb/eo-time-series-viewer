@@ -21,7 +21,7 @@ from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
 from timeseriesviewer.temporalprofiles2d import *
 from timeseriesviewer.profilevisualization import *
 from timeseriesviewer.utils import *
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
 SHOW_GUI = True

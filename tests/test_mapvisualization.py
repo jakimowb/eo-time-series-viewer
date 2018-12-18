@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
@@ -160,16 +160,12 @@ class testclassDialogTest(unittest.TestCase):
 
 
         for path in styleFiles:
-            f = open(path, encoding='utf8')
-            xml = ''.join(f.readlines())
-            f.close()
-
-            renderer = rendererFromXml(xml)
-            self.assertTrue(renderer != None)
-            #self.assertTrue(isinstance(renderer, QgsRasterRenderer) or isinstance(renderer, QgsFeatureRenderer), msg='Unable to read style from {}'.format(path))
+            with open(path, encoding='utf8') as f:
+                xml = ''.join(f.readlines())
 
 
-        print('test_renderer done')
+                renderer = rendererFromXml(xml)
+                self.assertTrue(renderer != None)
 
     def test_maprendersettings(self):
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
@@ -226,3 +222,4 @@ class testclassDialogTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+    print('Done')
