@@ -21,7 +21,7 @@ import unittest
 from timeseriesviewer.utils import *
 from enmapbox.dependencycheck import installTestdata
 installTestdata(False)
-from timeseriesviewertesting import initQgisApplication
+from tests import initQgisApplication
 QAPP = initQgisApplication()
 from osgeo import gdal
 gdal.AllRegister()

@@ -18,10 +18,11 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
+
 from timeseriesviewer.utils import *
 from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.mapvisualization import *
@@ -67,8 +68,8 @@ def compareXML(element1, element2 ):
         return True
 
 
-class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
+class testclassMapVisualization(unittest.TestCase):
+    """Test resources work."""
 
     def setUp(self):
         """Runs before each test."""
@@ -80,9 +81,20 @@ class testclassDialogTest(unittest.TestCase):
 
 
     def test_mapcanvas(self):
+
+        files = testRasterFiles()
+
+        lyr1 = QgsRasterLayer(files[0])
+
+        QgsMimeDataUtils
         m = MapCanvas()
-        self.assertIsInstance(m, QgsMapCanvas)
+
+        m.setLayers()
+
+        self.assertIsInstance(m, MapCanvas)
         m.show()
+
+
 
 
     def test_bandselection(self):

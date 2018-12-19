@@ -149,6 +149,13 @@ class TestInit(unittest.TestCase):
                 self.assertTrue(ref == tss)
                 self.assertTrue(ref.sid() == tss.sid())
 
+            mdui = tss.qgsMimeDataUtilsUri()
+            self.assertIsInstance(mdui, QgsMimeDataUtils.Uri)
+
+            lyr, b = mdui.rasterLayer('')
+            self.assertTrue(b)
+            self.assertIsInstance(lyr, QgsRasterLayer)
+            self.assertTrue(lyr.isValid())
 
     def test_multisource_tsd(self):
 

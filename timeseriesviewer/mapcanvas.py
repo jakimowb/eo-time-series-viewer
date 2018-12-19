@@ -310,7 +310,6 @@ class MapCanvas(QgsMapCanvas):
         mt.sigLocationRequest.connect(lambda c: self.sigShowProfiles.emit(c, 'identifyCursorLocationValues'))
         self.mMapTools['identifyCursorLocationValues'] = mt
 
-
         mt = CursorLocationMapTool(self)
         mt.sigLocationRequest.connect(lambda pt: self.setCenter(pt))
         self.mMapTools['moveCenter'] = mt
@@ -340,7 +339,6 @@ class MapCanvas(QgsMapCanvas):
             spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)
             self.setCrosshairPosition(spatialPoint)
 
-
     def setMapView(self, mapView):
         from timeseriesviewer.mapvisualization import MapView
 
@@ -360,14 +358,17 @@ class MapCanvas(QgsMapCanvas):
         scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
         tsd.sensor().sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
 
-        s = ""
-
     def setFixedSize(self, size):
         assert isinstance(size, QSize)
         if self.size() != size:
             super(MapCanvas, self).setFixedSize(size)
 
     def setCrs(self, crs:QgsCoordinateReferenceSystem):
+        """
+        Sets the
+        :param crs:
+        :return:
+        """
         assert isinstance(crs, QgsCoordinateReferenceSystem)
         if self.crs() != crs:
             self.setDestinationCrs(crs)
@@ -774,7 +775,7 @@ class MapCanvas(QgsMapCanvas):
     def setSpatialExtent(self, spatialExtent):
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
-            b =  self.crs() != spatialExtent.crs()
+            b = self.crs() != spatialExtent.crs()
             spatialExtent = spatialExtent.toCrs(self.crs())
             if spatialExtent:
                 ext = QgsRectangle(spatialExtent)

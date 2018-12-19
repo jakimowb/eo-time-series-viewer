@@ -371,9 +371,18 @@ class TimeSeriesSource(object):
         for domain in dataset.GetMetadataDomainList():
             self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
 
-
         self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
         self.mLR = QgsPointXY(*px2geo(QPoint(self.ns + 1, self.nl + 1), self.mGeoTransform, pxCenter=False))
+
+
+    def name(self)->str:
+        """
+        Returns a name for this data source
+        :return:
+        """
+        bn = os.path.basename(self.uri())
+        return '{} {}'.format(bn, self.date())
+
 
     def uri(self)->str:
         """
@@ -381,6 +390,14 @@ class TimeSeriesSource(object):
         :return: str
         """
         return self.mUri
+
+    def qgsMimeDataUtilsUri(self)->QgsMimeDataUtils.Uri:
+        uri = QgsMimeDataUtils.Uri()
+        uri.name = self.name()
+        uri.providerKey = 'gdal'
+        uri.uri = self.uri()
+        uri.layerType = 'raster'
+        return uri
 
     def sid(self)->str:
         """
@@ -550,6 +567,17 @@ class TimeSeriesDatum(QObject):
         """
         return (self.mDate, self.mSensor.id())
 
+
+    def mimeDataUris(self)->list:
+        """
+        Returns the sources of this TSD as list of QgsMimeDataUtils.Uris
+        :return: [list-of-QgsMimeDataUtils]
+        """
+        results = []
+        for tss in self.sources():
+            assert isinstance(tss, TimeSeriesSource)
+
+        [tss.uri() for tss in self.sources()]
 
     def __hash__(self):
         return hash(self.id())

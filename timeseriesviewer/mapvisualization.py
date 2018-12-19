@@ -1920,6 +1920,10 @@ class DatumView(QObject):
         return self.TSD < other.TSD
 
     def __eq__(self, other):
+        """
+        :param other:
+        :return:
+        """
         assert isinstance(other, DatumView)
         return self.TSD == other.TSD
 
@@ -2001,7 +2005,7 @@ class SpatialTemporalVisualization(QObject):
         #do refresh maps
 
         assert isinstance(self.scrollArea, MapViewScrollArea)
-
+        print('REFRESH TIMER')
 
         visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport() and not m.renderingFinished()]
 
@@ -2058,7 +2062,7 @@ class SpatialTemporalVisualization(QObject):
 
         #set general canvas properties
         mapCanvas.setFixedSize(self.mSize)
-        mapCanvas.setCrs(self.mCRS)
+        mapCanvas.setDestinationCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
         #register on map canvas signals
         mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas))
