@@ -214,7 +214,7 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(writtenFiles) > 0)
         TSV.loadImageFiles(writtenFiles)
 
-        self.assertTrue(len(TSV.TS) == len(writtenFiles))
+        self.assertTrue(len(TSV.mTimeSeries) == len(writtenFiles))
 
         QGIS_APP.exec_()
 if __name__ == "__main__":

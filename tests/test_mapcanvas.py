@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication, testRasterFiles
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -27,7 +27,7 @@ from timeseriesviewer.mapcanvas import *
 
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHWO_GUI = True
+SHOW_GUI = True
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -44,9 +44,29 @@ class testclassDialogTest(unittest.TestCase):
     def test_mapcanvas(self):
         m = MapCanvas()
         self.assertIsInstance(m, QgsMapCanvas)
+        self.assertFalse(m.isVisible())
+        self.assertFalse(m.isVisibleToViewport())
+
+        files = testRasterFiles()
+        lyr1 = QgsRasterLayer(files[0])
+
+
+        m.setLazyLayers(files[0:2])
+
+        self.assertTrue(len(m.layers()) == 0)
+        m.timedRefresh()
+        self.assertTrue(len(m.layers()) == 2)
+
         m.show()
 
-        self.assertIsInstance(m.mLayerModel, MapCanvasLayerModel)
+        self.assertTrue(m.isVisible())
+        self.assertTrue(m.isVisibleToViewport())
+
+        m.timedRefresh()
+        self.assertTrue(len(m.layers()) == 2)
+
+        m.setLazyLayers([lyr1])
+
 
 
     def test_mapTools(self):
@@ -94,7 +114,7 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(maps) == len(visible) + len(hidden))
         self.assertTrue(len(hidden) > 0)
 
-        if SHWO_GUI:
+        if SHOW_GUI:
             QGIS_APP.exec_()
 
 

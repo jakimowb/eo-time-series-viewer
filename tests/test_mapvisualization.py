@@ -86,10 +86,10 @@ class testclassMapVisualization(unittest.TestCase):
 
         lyr1 = QgsRasterLayer(files[0])
 
-        QgsMimeDataUtils
+
         m = MapCanvas()
 
-        m.setLayers()
+        m.setLayers([])
 
         self.assertIsInstance(m, MapCanvas)
         m.show()
@@ -228,8 +228,61 @@ class testclassMapVisualization(unittest.TestCase):
         s = ""
 
 
+    def test_spatialTemporalVisualization(self):
+        from timeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.loadExampleTimeSeries(n=3)
+        TSV.show()
+        SV = TSV.spatialTemporalVis
+        self.assertIsInstance(SV, SpatialTemporalVisualization)
+        SV.timedCanvasRefresh()
+
+        withLayers = []
+        empty = []
+        extent = None
+        for mc in SV.mapCanvases():
+            self.assertIsInstance(mc, MapCanvas)
+            self.assertIsInstance(mc.spatialExtent(), SpatialExtent)
+
+            if extent == None:
+                extent = mc.spatialExtent()
+            else:
+                self.assertTrue(mc.spatialExtent() == extent)
+
+            if len(mc.layers()) == 0:
+                empty.append(mc)
+            else:
+                withLayers.append(mc)
+
+        self.assertTrue(len(withLayers) > 0)
+        self.assertTrue(len(empty) > 0)
+
+        #shift spatial extent
+        extent2 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x()-100, extent.center().y()))
+        SV.setSpatialExtent(extent2)
+        SV.timedCanvasRefresh()
+        for mc in SV.mapCanvases():
+            self.assertTrue(mc.spatialExtent() == extent2)
 
 
+        #shift spatial extent of single map canvas
+        extent3 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x() + 100, extent.center().y()))
+        canvas = SV.mapCanvases()[0]
+        self.assertIsInstance(canvas, MapCanvas)
+        canvas.setSpatialExtent(extent3)
+        SV.timedCanvasRefresh()
+        for mc in SV.mapCanvases():
+            self.assertTrue(mc.spatialExtent() == extent3)
+
+        #test map render changes
+
+        for canvas in SV.mapCanvases():
+            self.assertIsInstance(canvas, MapCanvas)
+            menu = canvas.contextMenu()
+            self.assertIsInstance(menu, QMenu)
+
+            s  =""
 
 
 if __name__ == "__main__":

@@ -20,6 +20,17 @@
 
 import os, sys, unittest, configparser
 
+from timeseriesviewer.tests import initQgisApplication, testRasterFiles
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+import unittest, tempfile
+
+from timeseriesviewer.mapcanvas import *
+
+resourceDir = os.path.join(DIR_REPO, 'qgisresources')
+QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
+SHOW_GUI = True
+
 
 class TestInit(unittest.TestCase):
     """Test that the plugin init is usable for QGIS.
@@ -63,6 +74,20 @@ class TestInit(unittest.TestCase):
                 expectation, file_path))
 
             self.assertIn(expectation, dict(metadata), message)
+
+    def test_TimeSeriesViewer(self):
+
+
+        from timeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.show()
+        TSV.loadExampleTimeSeries()
+
+
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
 if __name__ == '__main__':
     unittest.main()

@@ -29,7 +29,7 @@ TSV = TimeSeriesViewer(None)
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25
 if True:
     TSV.loadExampleTimeSeries()
-    center = TSV.TS.maxSpatialExtent().spatialCenter()
+    center = TSV.mTimeSeries.maxSpatialExtent().spatialCenter()
 else:
     dirTestData = r'F:\TSData'
     files = list(file_search(dirTestData, re.compile('\.tif$')))
@@ -53,14 +53,14 @@ extent = SpatialExtent(center.crs(), center.x()-dx, center.y()-dx, center.x()+dx
 extent = SpatialExtent(center.crs(), 681519.46197612234391272, -752814.23602663306519389, 683369.92926584207452834, -750963.76873691333457828)
 date = np.datetime64('2014-08-01')
 TSV.spatialTemporalVis.setSpatialExtent(extent)
-dt = np.asarray([np.abs(tsd.date - date) for tsd in TSV.TS])
+dt = np.asarray([np.abs(tsd.date - date) for tsd in TSV.mTimeSeries])
 i = np.argmin(dt)
-TSV.spatialTemporalVis.navigateToTSD(TSV.TS[i])
+TSV.spatialTemporalVis.navigateToTSD(TSV.mTimeSeries[i])
 
 #TS.loadImageFiles([Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25])
 
 toHide = ['2014-07-18', '2014-08-08', '2014-08-10', '2014-08-23', '2014-08-25', '2014-08-03', '2014-07-26', '2014-07-10']
-for tsd in TSV.TS:
+for tsd in TSV.mTimeSeries:
     assert isinstance(tsd, TimeSeriesDatum)
     if str(tsd.mDate) in toHide:
         tsd.setVisibility(False)
@@ -68,7 +68,7 @@ for tsd in TSV.TS:
 sensorLS = None
 sensorRE = None
 sensorPL = None
-for sensor in TSV.TS.sensors():
+for sensor in TSV.mTimeSeries.sensors():
     assert isinstance(sensor, SensorInstrument)
 
     if sensor.id() == '6b30.0m0.49;0.56;0.66;0.84;1.65;2.2um':
@@ -101,7 +101,7 @@ mv1.setTitle('True Color')
 mv2.setTitle('Short-Wave IR')
 TSV.spatialTemporalVis.adjustScrollArea()
 #set True Color Bands
-for sensor in TSV.TS.sensors():
+for sensor in TSV.mTimeSeries.sensors():
     rendering = mv1.sensorWidget(sensor)
     assert isinstance(rendering, MapViewRenderSettings)
     renderer = rendering.rasterRenderer()

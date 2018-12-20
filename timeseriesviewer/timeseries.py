@@ -512,12 +512,26 @@ class TimeSeriesDatum(QObject):
         """
         return [tss.uri() for tss in self.sources()]
 
+    def qgsMimeDataUtilsUris(self)->list:
+        """
+        Returns all source URIs as list of QgsMimeDataUtils.Uri
+        :return: [list-of-QgsMimedataUtils.Uris]
+        """
+        return [s.qgsMimeDataUtilsUri() for s in self.sources()]
+
     def date(self)->np.datetime64:
         """
         Returns the observation date
         :return: numpy.datetime64
         """
         return np.datetime64(self.mDate)
+
+    def doy(self)->int:
+        """
+        Returns the day of Year (DOY)
+        :return: int
+        """
+        return int(self.mDOY)
 
     def spatialExtent(self):
         """

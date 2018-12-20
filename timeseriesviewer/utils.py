@@ -32,7 +32,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtXml import QDomDocument
 from PyQt5 import uic
-from osgeo import gdal
+from osgeo import gdal, ogr
 
 import weakref
 import numpy as np
@@ -254,6 +254,95 @@ def appendItemsToMenu(menu, itemsToAdd):
             s = ""
 
     return menu
+
+
+def toVectorLayer(src) -> QgsVectorLayer:
+    """
+    Returns a QgsRasterLayer if it can be extracted from src
+    :param src: any type of input
+    :return: QgsRasterLayer or None
+    """
+    lyr = None
+    try:
+        if isinstance(src, str):
+            lyr = QgsVectorLayer(src)
+        elif isinstance(src, QgsMimeDataUtils.Uri):
+            lyr, b = src.vectorLayer()
+            if not b:
+                lyr = None
+        if isinstance(src, ogr.DataSource):
+            path = src.GetDescription()
+            bn = os.path.basename(path)
+            lyr = QgsVectorLayer(path, bn, 'ogr')
+        elif isinstance(src, QgsVectorLayer):
+            lyr = src
+
+    except Exception as ex:
+        print(ex)
+
+    return lyr
+
+def toDataset(src, readonly=True)->gdal.Dataset:
+    """
+    Returns a gdal.Dataset if it can be extracted from src
+    :param src: input source
+    :param readonly: bool, true by default, set False to upen the gdal.Dataset in update mode
+    :return: gdal.Dataset
+    """
+    ga = gdal.GA_ReadOnly if readonly else gdal.GA_Update
+    if isinstance(src, str):
+        return gdal.Open(src, ga)
+    elif isinstance(src, QgsRasterLayer) and src.dataProvider().name() == 'gdal':
+        return toDataset(src.source(), readonly=readonly)
+    elif isinstance(src, gdal.Dataset):
+        return src
+    else:
+        return None
+
+
+def toMapLayer(src)->QgsMapLayer:
+    """
+    Return a QgsMapLayer if it can be extracted from src
+    :param src: any type of input
+    :return: QgsMapLayer
+    """
+    lyr = toRasterLayer(src)
+    if isinstance(lyr, QgsMapLayer):
+        return lyr
+    lyr = toVectorLayer(src)
+    if isinstance(lyr, QgsMapLayer):
+        return lyr
+    return lyr
+
+def toRasterLayer(src) -> QgsRasterLayer:
+    """
+    Returns a QgsRasterLayer if it can be extracted from src
+    :param src: any type of input
+    :return: QgsRasterLayer or None
+    """
+    lyr = None
+    try:
+        if isinstance(src, str):
+            lyr = QgsRasterLayer(src)
+        elif isinstance(src, QgsMimeDataUtils.Uri):
+            lyr, b = src.rasterLayer('')
+            if not b:
+                lyr = None
+        elif isinstance(src, gdal.Dataset):
+            lyr = QgsRasterLayer(src.GetFileList()[0], '', 'gdal')
+        elif isinstance(src, QgsMapLayer) :
+            lyr = src
+        elif isinstance(src, gdal.Band):
+            return toRasterLayer(src.GetDataset())
+
+    except Exception as ex:
+        print(ex)
+
+    if isinstance(lyr, QgsRasterLayer) and lyr.isValid():
+        return lyr
+    else:
+        return None
+
 
 def allSubclasses(cls):
     """
@@ -655,6 +744,8 @@ class SpatialExtent(QgsRectangle):
 
 
     def __eq__(self, other):
+        if not isinstance(other, SpatialExtent):
+            return False
         return self.toString() == other.toString()
 
     def __sub__(self, other):
@@ -1293,37 +1384,6 @@ class TestObjects():
                 return outputs
 
         return TestProcessingAlgorithm()
-
-
-
-    @staticmethod
-    def enmapBoxApplication():
-
-        from enmapbox.gui.applications import EnMAPBoxApplication
-        from enmapbox.gui.enmapboxgui import EnMAPBox
-        enmapbox = EnMAPBox.instance()
-
-        class TestApp(EnMAPBoxApplication):
-            def __init__(self, enmapbox):
-                super(TestApp, self).__init__(enmapbox)
-
-                self.name = 'TestApp'
-                self.licence = 'GPL-3'
-                self.version = '-12345'
-
-            def menu(self, appMenu:QMenu)->QMenu:
-                menu = appMenu.addMenu('Test Menu')
-                action = menu.addAction('Test Action')
-                action.triggered.connect(self.onAction)
-                return menu
-
-            def onAction(self):
-                print('TestApp action called')
-
-            def processingAlgorithms(self):
-                return [TestObjects.processingAlgorithm()]
-
-        return TestApp(enmapbox)
 
 
 
