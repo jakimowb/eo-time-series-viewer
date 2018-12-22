@@ -713,7 +713,7 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         :return: [list-of-TimeSeriesDatum]
         """
         if self.SM is not None:
-            return [self.TSM.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
+            return [self.mTSModel.data(idx, Qt.UserRole) for idx in self.SM.selectedRows()]
         return []
 
     def setTimeSeries(self, TS):
@@ -723,15 +723,17 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         """
         from timeseriesviewer.timeseries import TimeSeries
         self.TS = TS
-        self.TSM = None
+        self.mTSModel = None
         self.SM = None
         self.timeSeriesInitialized = False
 
         if isinstance(TS, TimeSeries):
             from timeseriesviewer.timeseries import TimeSeriesTableModel
-            self.TSM = TimeSeriesTableModel(self.TS)
-            self.tableView_TimeSeries.setModel(self.TSM)
-            self.SM = QItemSelectionModel(self.TSM)
+            self.mTSModel = TimeSeriesTableModel(self.TS)
+            self.mTSProxyModel = QSortFilterProxyModel(self)
+            self.mTSProxyModel.setSourceModel(self.mTSModel)
+            self.tableView_TimeSeries.setModel(self.mTSProxyModel)
+            self.SM = QItemSelectionModel(self.mTSProxyModel)
             self.tableView_TimeSeries.setSelectionModel(self.SM)
             self.SM.selectionChanged.connect(self.onSelectionChanged)
             self.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
@@ -1102,8 +1104,7 @@ class TimeSeriesTableModel(QAbstractTableModel):
 
 
         self.items = []
-        self.sortColumnIndex = 0
-        self.sortOrder = Qt.AscendingOrder
+
         self.addTSDs([tsd for tsd in self.mTimeSeries])
 
     def removeTSDs(self, tsds):
@@ -1148,23 +1149,6 @@ class TimeSeriesTableModel(QAbstractTableModel):
             if sensor not in self.mSensors:
                 self.mSensors.add(sensor)
                 sensor.sigNameChanged.connect(self.sensorsChanged)
-
-
-
-    def sort(self, col, order):
-        if self.rowCount() == 0:
-            return
-
-        self.layoutAboutToBeChanged.emit()
-        colName = self.mColumnNames[col]
-        r = order != Qt.AscendingOrder
-
-        if colName in ['date','ns','nl','sensor']:
-            self.items.sort(key = lambda d:d.__dict__[colName], reverse=r)
-
-        self.layoutChanged.emit()
-        s = ""
-
 
     def rowCount(self, parent = QModelIndex())->int:
         return len(self.items)
