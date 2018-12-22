@@ -1786,7 +1786,7 @@ class SpectralTemporalVisualization(QObject):
                     LUT_bandIndices[sensor] = self.plotSettingsModel2D.requiredBandsIndices(sensor)
 
         assert isinstance(LUT_bandIndices, dict)
-        for sensor in self.TS.mSensors2TSDs:
+        for sensor in self.TS.sensors():
             assert sensor in LUT_bandIndices.keys()
 
         #update new / existing points

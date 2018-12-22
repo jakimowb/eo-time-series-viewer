@@ -299,6 +299,30 @@ def toDataset(src, readonly=True)->gdal.Dataset:
     else:
         return None
 
+def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer)->QgsMimeDataUtils.Uri:
+    """
+    Creates a QgsMimeDataUtils.Uri that describes the QgsMapLayer `mapLayer`
+    :param mapLayer: QgsMapLayer
+    :return: QgsMimeDataUtils.Uri
+    """
+    assert isinstance(mapLayer, QgsMapLayer)
+    uri = QgsMimeDataUtils.Uri()
+    uri.uri = mapLayer.source()
+    uri.name = mapLayer.name()
+    if uri.name == '':
+        uri.name = os.path.basename(uri.uri)
+    uri.providerKey = mapLayer.dataProvider().name()
+
+    if isinstance(mapLayer, QgsRasterLayer):
+        uri.layerType = 'raster'
+    elif isinstance(mapLayer, QgsVectorLayer):
+        uri.layerType = 'vector'
+    elif isinstance(mapLayer, QgsPluginLayer):
+        uri.layerType = 'plugin'
+    else:
+        raise NotImplementedError()
+    return uri
+
 
 def toMapLayer(src)->QgsMapLayer:
     """
@@ -1246,6 +1270,17 @@ def zipdir(pathDir, pathZip):
 
 
 class TestObjects():
+    """
+    A class to provide test data
+    """
+    @staticmethod
+    def testImagePaths()->list:
+        import example
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        assert len(files) > 0
+        return files
+
+
     @staticmethod
     def createTestImageSeries(n=1) -> list:
         assert n > 0
@@ -1255,6 +1290,35 @@ class TestObjects():
             ds = TestObjects.inMemoryImage()
             datasets.append(ds)
         return datasets
+
+    @staticmethod
+    def createMultiSourceTimeSeries() -> list:
+        import example
+        #real files
+        files = TestObjects.testImagePaths()
+        movedFiles = []
+        d = r'/vsimem/'
+        for pathSrc in files:
+            bn = os.path.basename(pathSrc)
+            pathDst = d + 'shifted_'+bn+'.bsq'
+            dsSrc = gdal.Open(pathSrc)
+            tops = gdal.TranslateOptions(format='ENVI')
+            gdal.Translate(pathDst, dsSrc, options=tops)
+            dsDst = gdal.Open(pathDst, gdal.GA_Update)
+            assert isinstance(dsDst, gdal.Dataset)
+            gt = list(dsSrc.GetGeoTransform())
+            ns, nl = dsDst.RasterXSize, dsDst.RasterYSize
+            gt[0] = gt[0] + 0.5 * ns * gt[1]
+            gt[3] = gt[3] + abs(0.5 * nl * gt[5])
+            dsDst.SetGeoTransform(gt)
+            dsDst.SetMetadata(dsSrc.GetMetadata(''), '')
+            dsDst.FlushCache()
+
+            dsDst = None
+            dsDst = gdal.Open(pathDst)
+            assert list(dsDst.GetGeoTransform()) == gt
+            movedFiles.append(pathDst)
+        return files + movedFiles
 
     @staticmethod
     def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632', eType:int=None, path:str=None)->gdal.Dataset:

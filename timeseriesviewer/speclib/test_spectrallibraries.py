@@ -213,7 +213,7 @@ class TestCore(unittest.TestCase):
         self.lyr1 = QgsRasterLayer(hires)
         self.lyr2 = QgsRasterLayer(enmap)
         self.layers = [self.lyr1, self.lyr2]
-        QgsProject.instance().addMapLayers(self.layers)
+        QgsProject.instance().addUniqueMapLayers(self.layers)
 
 
 

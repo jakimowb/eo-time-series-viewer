@@ -84,14 +84,13 @@ class TestInit(unittest.TestCase):
             sid = sensorID(*conf)
 
             c2 = sensorIDtoProperties(sid)
-            self.assertListEqual(list(conf),list(c2))
-
+            self.assertListEqual(list(conf), list(c2))
 
     def test_TimeSeriesTableModel(self):
 
         TS = self.createTimeSeries()
-
         TM = TimeSeriesTableModel(TS)
+
         self.assertTrue(len(TS) > 0)
         self.assertIsInstance(TM, TimeSeriesTableModel)
         self.assertIsInstance(TM, QAbstractTableModel)
@@ -111,11 +110,15 @@ class TestInit(unittest.TestCase):
         sensor = SensorInstrument(tss.sid())
 
         tsd = TimeSeriesDatum(None, tss.date(), sensor)
+        tsd2 = TimeSeriesDatum(None, tss.date(), sensor)
         self.assertIsInstance(tsd, TimeSeriesDatum)
+        self.assertEqual(tsd, tsd2)
         self.assertEqual(tsd.sensor(), sensor)
         self.assertEqual(len(tsd), 0)
         tsd.addSource(tss)
         self.assertEqual(len(tsd), 1)
+
+
 
 
 
@@ -159,6 +162,8 @@ class TestInit(unittest.TestCase):
 
     def test_multisource_tsd(self):
 
+
+
         p1 = TestObjects.inMemoryImage()
         p2 = TestObjects.inMemoryImage()
 
@@ -179,6 +184,13 @@ class TestInit(unittest.TestCase):
         self.assertIsInstance(tsd, TimeSeriesDatum)
         self.assertTrue(len(tsd.sources()) == 2)
 
+        paths = TestObjects.createMultiSourceTimeSeries()
+        TS = TimeSeries()
+        TS.addSources(paths)
+        srcUris = TS.sourceUris()
+        self.assertTrue(len(srcUris) == len(paths))
+        self.assertTrue(len(TS) == 0.5 * len(paths))
+        self.assertTrue(len(TS) == 0.5 * len(srcUris))
 
 
     def test_timeseries(self):

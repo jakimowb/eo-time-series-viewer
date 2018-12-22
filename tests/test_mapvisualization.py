@@ -29,12 +29,14 @@ from timeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 QGIS_APP = initQgisApplication()
 
+
 def getChildElements(node):
     assert isinstance(node, QDomNode)
     childs = node.childNodes()
     return [childs.at(i) for i in range(childs.count())]
 
-def compareXML(element1, element2 ):
+
+def compareXML(element1, element2):
 
     assert isinstance(element1, QDomNode)
     assert isinstance(element2, QDomNode)
@@ -44,8 +46,8 @@ def compareXML(element1, element2 ):
     if tag1 != tag2:
         return False
 
-    elts1 = getChildElements(element1);
-    elts2 = getChildElements(element2);
+    elts1 = getChildElements(element1)
+    elts2 = getChildElements(element2)
 
     if len(elts1) != len(elts2):
         return False
@@ -232,7 +234,7 @@ class testclassMapVisualization(unittest.TestCase):
         from timeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.loadExampleTimeSeries(n=3)
+        TSV.loadExampleTimeSeries()
         TSV.show()
         SV = TSV.spatialTemporalVis
         self.assertIsInstance(SV, SpatialTemporalVisualization)
@@ -263,26 +265,39 @@ class testclassMapVisualization(unittest.TestCase):
         SV.setSpatialExtent(extent2)
         SV.timedCanvasRefresh()
         for mc in SV.mapCanvases():
-            self.assertTrue(mc.spatialExtent() == extent2)
+            self.assertIsInstance(mc, MapCanvas)
+            if mc.isVisibleToViewport():
+                self.assertTrue(mc.spatialExtent() == extent2)
 
 
-        #shift spatial extent of single map canvas
+        # shift spatial extent of single map canvas
         extent3 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x() + 100, extent.center().y()))
         canvas = SV.mapCanvases()[0]
         self.assertIsInstance(canvas, MapCanvas)
         canvas.setSpatialExtent(extent3)
         SV.timedCanvasRefresh()
         for mc in SV.mapCanvases():
-            self.assertTrue(mc.spatialExtent() == extent3)
+            if mc.isVisibleToViewport():
+                self.assertTrue(mc.spatialExtent() == extent3)
 
-        #test map render changes
-
+        # test map render changes
         for canvas in SV.mapCanvases():
             self.assertIsInstance(canvas, MapCanvas)
             menu = canvas.contextMenu()
             self.assertIsInstance(menu, QMenu)
+            if canvas.isVisibleToViewport():
 
-            s  =""
+                for action in menu.findChildren(QAction):
+                    self.assertIsInstance(action, QAction)
+                    text = action.text()
+                    if text in ['', 'Style', 'PNG', 'JPEG']:
+                        # skip menu / blocking dialog options
+                        continue
+                    else:
+                        print('Test QAction "{}"'.format(action.text()))
+                        action.trigger()
+                break
+        s = ""
 
 
 if __name__ == "__main__":

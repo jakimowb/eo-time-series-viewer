@@ -1073,7 +1073,7 @@ class MapView(QObject):
 
             for mapCanvas in self.mapCanvases():
                 assert isinstance(mapCanvas, MapCanvas)
-                mapCanvas.mLayerSources.insert(0, self.mVectorLayer)
+                mapCanvas.mapLayerModel().addMapLayerSources([self.mVectorLayer])
         if b:
             self.sigVectorLayerChanged.emit()
 
@@ -1208,13 +1208,9 @@ class MapView(QObject):
         mapViewRenderSettings = self.mSensorViews[sensor]
         assert isinstance(mapViewRenderSettings, MapViewRenderSettings)
         mapViewRenderSettings.registerMapCanvas(mapCanvas)
+        mapCanvas.setMapView(self)
 
         #register signals sensor specific signals
-        mapCanvas.setRenderer(mapViewRenderSettings.rasterRenderer())
-        mapCanvas.setRenderer(self.vectorLayerRenderer())
-        mapCanvas.setLayerVisibility(QgsRasterLayer, self.rasterVisibility())
-        mapCanvas.setLayerVisibility(QgsVectorLayer, self.vectorVisibility())
-
         mapCanvas.sigCrosshairVisibilityChanged.connect(self.onCrosshairChanged)
         mapCanvas.sigCrosshairStyleChanged.connect(self.onCrosshairChanged)
 
@@ -1507,12 +1503,11 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
         QApplication.clipboard().setMimeData(md)
 
     def applyStyle(self, *args):
-
         r = self.rasterRenderer()
-        for mapCanvas in self.mapCanvases():
-            assert isinstance(mapCanvas, MapCanvas)
-            mapCanvas.setRenderer(r)
-            mapCanvas.refresh()
+        if isinstance(r, QgsRasterRenderer):
+            for mapCanvas in self.mapCanvases():
+                assert isinstance(mapCanvas, MapCanvas)
+                mapCanvas.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
 
 
 
@@ -1796,20 +1791,14 @@ class DatumView(QObject):
 
         mapCanvas = MapCanvas(self.ui)
         mapCanvas.setObjectName('MapCanvas {} {}'.format(mapView.title(), self.TSD.mDate))
-        mapCanvas.blockSignals(True)
-        mapCanvas.setMapView(mapView)
 
-        mapCanvas.setTSD(self.TSD)
         self.registerMapCanvas(mapView, mapCanvas)
+        mapCanvas.setMapView(mapView)
+        mapCanvas.setTSD(self.TSD)
 
-
-
-        # register MapCanvas on MV level
+        #mapCanvas.setMapView(mapView)
         mapView.registerMapCanvas(self.mSensor, mapCanvas)
-        # register MapCanvas on STV level
         self.STV.registerMapCanvas(mapCanvas)
-
-        mapCanvas.blockSignals(False)
         mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
 
@@ -1852,7 +1841,7 @@ class DatumView(QObject):
 
 
         #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
-        mapCanvas.mLayerSources.extend(self.TSD.qgsMimeDataUtilsUris())
+        mapCanvas.mapLayerModel().addMapLayerSources(self.TSD.qgsMimeDataUtilsUris())
 
         #self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.layout().insertWidget(self.ui.layout().count() - 1, mapCanvas)
@@ -1873,9 +1862,9 @@ class DatumView(QObject):
         if key == 'copy_sensor':
             QApplication.clipboard().setText(self.TSD.mSensor.name())
         if key == 'copy_date':
-            QApplication.clipboard().setText(str(self.TSD.mDate))
+            QApplication.clipboard().setText(str(self.TSD.date()))
         if key == 'copy_path':
-            QApplication.clipboard().setText(str(self.TSD.pathImg))
+            QApplication.clipboard().setText('\n'.join(self.TSD.sourceUris()))
 
     def __lt__(self, other):
         assert isinstance(other, DatumView)
@@ -1927,7 +1916,7 @@ class SpatialTemporalVisualization(QObject):
 
 
         self.TSV = timeSeriesViewer
-        self.TS = timeSeriesViewer.TS
+        self.TS = timeSeriesViewer.timeSeries()
         self.ui.dockMapViews.setTimeSeries(self.TS)
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
 
@@ -1958,6 +1947,7 @@ class SpatialTemporalVisualization(QObject):
         self.mMapRefreshTimer = QTimer(self)
         self.mMapRefreshTimer.timeout.connect(self.timedCanvasRefresh)
         self.mMapRefreshTimer.setInterval(500)
+        self.mMapRefreshTimer.start()
         self.mNumberOfHiddenMapsToRefresh = 2
 
 
@@ -2227,11 +2217,8 @@ class SpatialTemporalVisualization(QObject):
             assert isinstance(mapCanvas, MapCanvas)
             extent0 = mapCanvas.spatialExtent()
             if mapCanvas != mapCanvas0 and extent0 != extent:
-                #oldState = mapCanvas.blockSignals(True)
-                mapCanvas.setExtent(extent)
-                #mapCanvas.blockSignals(oldState)
+                mapCanvas.addToRefreshPipeLine(extent)
 
-        self.mMapRefreshTimer.start()
         self.sigSpatialExtentChanged.emit(extent)
 
     def setBackgroundColor(self, color:QColor):
@@ -2244,7 +2231,7 @@ class SpatialTemporalVisualization(QObject):
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
             mapCanvas.setCanvasColor(color)
-            mapCanvas.refresh()
+
 
     def backgroundColor(self)->QColor:
         """
@@ -2294,15 +2281,27 @@ class SpatialTemporalVisualization(QObject):
                 self.sigCRSChanged.emit(self.crs())
 
 
-    def crs(self):
+    def crs(self)->QgsCoordinateReferenceSystem:
+        """
+        Returns the QgsCoordinateReferenceSystem
+        :return: QgsCoordinateReferenceSystem
+        """
         return self.mCRS
 
-    def spatialExtent(self):
+    def spatialExtent(self)->SpatialExtent:
+        """
+        Returns the SpatialExtent
+        :return: SpatialExtent
+        """
         return self.mSpatialExtent
 
 
 
-    def navigateToTSD(self, TSD):
+    def navigateToTSD(self, TSD:TimeSeriesDatum):
+        """
+        Changes the viewport of the scroll window to show the requested TimeSeriesDatum
+        :param TSD: TimeSeriesDatum
+        """
         assert isinstance(TSD, TimeSeriesDatum)
         #get widget related to TSD
         tsdv = self.DVC.tsdView(TSD)

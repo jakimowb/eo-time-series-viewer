@@ -118,13 +118,13 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
-        #self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
+        # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
 
         area = Qt.BottomDockWidgetArea
-        #from timeseriesviewer.mapvisualization import MapViewDockUI
-        #self.dockMapViews = addDockWidget(MapViewDockUI(self))
+        # from timeseriesviewer.mapvisualization import MapViewDockUI
+        # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
@@ -207,10 +207,10 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
 LUT_MESSAGELOGLEVEL = {
-                Qgis.Info:'INFO',
-                Qgis.Critical:'INFO',
-                Qgis.Warning:'WARNING',
-                Qgis.Success:'SUCCESS',
+                Qgis.Info: 'INFO',
+                Qgis.Critical: 'INFO',
+                Qgis.Warning: 'WARNING',
+                Qgis.Success: 'SUCCESS',
                 }
 
 
@@ -304,9 +304,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
         self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
-        self.spectralTemporalVis.sigMoveToTSD.connect(self.spatialTemporalVis.navigateToTSD)
+        self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.ui.actionIdentifyTemporalProfile.trigger)
+
+
+        tstv = self.ui.dockTimeSeries.tableView_TimeSeries
+        assert isinstance(tstv, TimeSeriesTableView)
+        tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDatum)
+
         from timeseriesviewer.mapcanvas import MapTools
 
         self.ui.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))
@@ -328,7 +334,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
-        self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages())
+        self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
@@ -339,18 +345,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
 
-        #connect buttons with actions
+        # connect buttons with actions
         from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
-        self.ui.actionSettings.triggered.connect(lambda : PropertyDialogUI(self.ui).exec_())
+        self.ui.actionSettings.triggered.connect(lambda: PropertyDialogUI(self.ui).exec_())
         import webbrowser
         from timeseriesviewer import DOCUMENTATION
-        self.ui.actionShowOnlineHelp.triggered.connect(lambda : webbrowser.open(DOCUMENTATION))
+        self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
         self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
         self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
-        #add time-specific fields
+        # add time-specific fields
         sl = self.spectralLibrary()
 
         assert isinstance(sl, SpectralLibrary)
@@ -362,14 +368,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore.addMapLayer(sl)
         self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
-        #moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
-        #moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+        # moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
+        # moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
 
-        #reg = QgsGui.instance().mapLayerActionRegistry()
-        #assert isinstance(reg, QgsMapLayerActionRegistry)
-        #reg.addMapLayerAction(moveToFeatureCenter)
-        #reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
-        #reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
+        # reg = QgsGui.instance().mapLayerActionRegistry()
+        # assert isinstance(reg, QgsMapLayerActionRegistry)
+        # reg.addMapLayerAction(moveToFeatureCenter)
+        # reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
+        # reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
         TimeSeriesViewer._instance = self
 
@@ -380,6 +386,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.dockSpectralLibrary.SLW.speclib()
 
+
+    def showTimeSeriesDatum(self, tsd:TimeSeriesDatum):
+        """
+        Moves the viewport of the scroll window to a specific TimeSeriesDatum
+        :param tsd:  TimeSeriesDatum
+        """
+        assert isinstance(tsd, TimeSeriesDatum)
+        self.spatialTemporalVis.navigateToTSD(tsd)
+        #todo: move TableViews to as well
 
     def mapCanvases(self)->list:
         """
@@ -639,7 +654,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-    def loadExampleTimeSeries(self, n=0):
+    def loadExampleTimeSeries(self, n:int=None):
         import example.Images
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
 
@@ -724,8 +739,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
             #QgsProject.instance().addMapLayers(vectorLayers)
             self.mapLayerStore().addMapLayers(vectorLayers)
 
-
-    def addTimeSeriesImages(self, files=None):
+    def addTimeSeriesImages(self, files:list):
+        """
+        Adds images to the time series
+        :param files:
+        """
         if files is None:
             s = settings()
             defDir = s.value('dir_datasources')

@@ -8,8 +8,8 @@ temp/
 doc/build/
 doc/build/*
 timeseriesviewer/ui/resources.py
-test/outputs
-test/outputs/*
+tests/outputs
+tests/outputs/*
 qgisresources/
 qgisresources/*
 screenshots/
@@ -25,6 +25,6 @@ timeseriesviewer/ui/tmp.ui
 *.pyc
 *.pyd
 *.iml
-__pycache__/
+*__pycache__/
 
 /qgisresources/

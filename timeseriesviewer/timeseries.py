@@ -555,18 +555,35 @@ class TimeSeriesDatum(QObject):
 
         return None
 
-    def __repr__(self):
-        return 'TimeSeriesDatum({},{})'.format(self.mDate, str(self.mSensor))
+    def __repr__(self)->str:
+        """
+        String representation
+        :return:
+        """
+        return 'TimeSeriesDatum({},{})'.format(str(self.mDate), str(self.mSensor))
 
-    def __eq__(self, other):
-        return self.mDate == other.date and self.mSensor.id() == other.sensor.id()
+    def __eq__(self, other)->bool:
+        """
+        Tow TimeSeriesDatum instances are equal if they have the same date, sensor and sources.
+        :param other: TimeSeriesDatum
+        :return: bool
+        """
+        if not isinstance(other, TimeSeriesDatum):
+            return False
+        return self.id() == other.id() and self.mSources == other.mSources
 
-    def __len__(self):
+    def __len__(self)->int:
+        """
+        Returns the number of source images.
+        :return: int
+        """
         return len(self.mSources)
 
-
-
-    def __lt__(self, other):
+    def __lt__(self, other)->bool:
+        """
+        :param other: TimeSeriesDatum
+        :return: bool
+        """
         assert isinstance(other, TimeSeriesDatum)
         if self.date() < other.date():
             return True
@@ -575,9 +592,9 @@ class TimeSeriesDatum(QObject):
         else:
             return self.sensor().id() < other.sensor().id()
 
-    def id(self):
+    def id(self)->tuple:
         """
-        :return:
+        :return: tuple
         """
         return (self.mDate, self.mSensor.id())
 
@@ -599,6 +616,8 @@ class TimeSeriesDatum(QObject):
 
 class TimeSeriesTableView(QTableView):
 
+    sigMoveToDateRequest = pyqtSignal(TimeSeriesDatum)
+
     def __init__(self, parent=None):
         super(TimeSeriesTableView, self).__init__(parent)
 
@@ -607,13 +626,22 @@ class TimeSeriesTableView(QTableView):
         Creates and shows an QMenu
         :param event:
         """
+
+        idx = self.indexAt(event.pos())
+        tsd = self.model().data(idx, role=Qt.UserRole)
+
+
         menu = QMenu(self)
         a = menu.addAction('Copy value(s)')
-        a.triggered.connect(self.onCopyValues)
+        a.triggered.connect(lambda: self.onCopyValues())
         a = menu.addAction('Check')
-        a.triggered.connect(lambda : self.onSetCheckState(Qt.Checked))
+        a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
         a = menu.addAction('Uncheck')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
+        if isinstance(tsd, TimeSeriesDatum):
+            a = menu.addAction('Show {}'.format(tsd.date()))
+            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
+
         menu.popup(QCursor.pos())
 
     def onSetCheckState(self, checkState):
@@ -626,16 +654,16 @@ class TimeSeriesTableView(QTableView):
         model = self.model()
         if isinstance(model, TimeSeriesTableModel):
             for r in rows:
-                idx = model.index(r,0)
+                idx = model.index(r, 0)
                 model.setData(idx, checkState, Qt.CheckStateRole)
 
-    def onCopyValues(self):
+    def onCopyValues(self, delimiter='\t'):
         """
         Copies selected cell values to the clipboard
         """
         indices = self.selectionModel().selectedIndexes()
         model = self.model()
-        if isinstance(model, TimeSeriesTableModel):
+        if isinstance(model, QSortFilterProxyModel):
             from collections import OrderedDict
             R = OrderedDict()
             for idx in indices:
@@ -644,7 +672,7 @@ class TimeSeriesTableView(QTableView):
                 R[idx.row()].append(model.data(idx, Qt.DisplayRole))
             info = []
             for k, values in R.items():
-                info.append(';'.join([str(v) for v in values]))
+                info.append(delimiter.join([str(v) for v in values]))
             info = '\n'.join(info)
             QApplication.clipboard().setText(info)
         s = ""
@@ -666,7 +694,7 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         self.btnClearTS.setDefaultAction(parent.actionClearTS)
 
         self.progressBar.setMinimum(0)
-        self.setProgressInfo(0,100, 'Add images to fill time series')
+        self.setProgressInfo(0, 100, 'Add images to fill time series')
         self.progressBar.setValue(0)
         self.progressInfo.setText(None)
         self.frameFilters.setVisible(False)
@@ -679,11 +707,11 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         """
         from timeseriesviewer.timeseries import TimeSeries
         if isinstance(self.TS, TimeSeries):
-            ndates = len(self.TS)
-            nsensors = len(set([tsd.sensor for tsd in self.TS]))
-            msg = '{} scene(s) from {} sensor(s)'.format(ndates, nsensors)
-            if ndates > 1:
-                msg += ', {} to {}'.format(str(self.TS[0].date), str(self.TS[-1].date))
+            nDates = len(self.TS)
+            nSensors = len(self.TS.sensors())
+            msg = '{} scene(s) from {} sensor(s)'.format(nDates, nSensors)
+            if nDates > 1:
+                msg += ', {} to {}'.format(str(self.TS[0].date()), str(self.TS[-1].date()))
             self.progressInfo.setText(msg)
 
     def setProgressInfo(self, nDone:int, nMax:int, message=None):
@@ -737,6 +765,7 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
             self.tableView_TimeSeries.setSelectionModel(self.SM)
             self.SM.selectionChanged.connect(self.onSelectionChanged)
             self.tableView_TimeSeries.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+            self.tableView_TimeSeries.verticalHeader().setResizeMode(QHeaderView.ResizeToContents)
             TS.sigLoadingProgress.connect(self.setProgressInfo)
 
         self.onSelectionChanged()
@@ -1054,6 +1083,17 @@ class TimeSeries(QObject):
         if len(addedDates) > 0:
             self.sigTimeSeriesDatesAdded.emit(addedDates)
 
+    def sourceUris(self)->list:
+        """
+        Returns the uris of all sources
+        :return: [list-of-str]
+        """
+        uris = []
+        for tsd in self:
+            assert isinstance(tsd, TimeSeriesDatum)
+            uris.extend(tsd.sourceUris())
+        return uris
+
     def __len__(self):
         return len(self.mTSDs)
 
@@ -1093,10 +1133,10 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.cnNL = 'nl'
         self.cnNB = 'nb'
         self.cnCRS = 'CRS'
-        self.cnImage = 'Images'
+        self.cnImages = 'Image(s)'
         self.mColumnNames = [self.cnDate, self.cnSensor, \
-                            self.cnNS, self.cnNL, self.cnNB, \
-                            self.cnCRS, self.cnImage]
+                             self.cnNS, self.cnNL, self.cnNB, \
+                             self.cnCRS, self.cnImages]
         self.mTimeSeries = TS
         self.mSensors = set()
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
@@ -1196,25 +1236,23 @@ class TimeSeriesTableModel(QAbstractTableModel):
         tssList = TSD.sources()
 
         if role == Qt.DisplayRole or role == Qt.ToolTipRole:
-            if columnName == self.cnImage:
-                value = [os.path.basename(tss.uri()) for tss in tssList]
-            elif columnName == self.cnSensor:
+            if columnName == self.cnSensor:
                 if role == Qt.ToolTipRole:
                     value = TSD.sensor().description()
                 else:
                     value = TSD.sensor().name()
             elif columnName == self.cnDate:
                 value = '{}'.format(TSD.date())
-            elif columnName == self.cnImage:
+            elif columnName == self.cnImages:
                 value = '\n'.join(TSD.sourceUris())
             elif columnName == self.cnCRS:
                 value = '\n'.join([tss.crs().description() for tss in tssList])
             elif columnName == self.cnNB:
                 value = TSD.sensor().nb
             elif columnName == self.cnNL:
-                value = ','.join([str(tss.nl) for tss in tssList])
+                value = '\n'.join([str(tss.nl) for tss in tssList])
             elif columnName == self.cnNS:
-                value = ','.join([str(tss.ns) for tss in tssList])
+                value = '\n'.join([str(tss.ns) for tss in tssList])
             elif columnName == self.cnSensor:
                 value = TSD.sensor().name()
 

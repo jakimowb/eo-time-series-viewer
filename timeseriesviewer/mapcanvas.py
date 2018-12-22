@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 
 
-import os, time, types
+import os, time, types, enum
 from qgis.core import *
 from qgis.gui import *
 
@@ -36,9 +36,273 @@ from .timeseries import TimeSeriesDatum
 from .crosshair import CrosshairDialog, CrosshairStyle
 from .maptools import *
 
+class MapCanvasLayerModel(QAbstractTableModel):
+
+    class LayerItem(object):
+
+        def __init__(self, src):
+
+            self.mLyr = None
+            self.mUri = None
+            self.mIsVisible = True
+            self.mExternalControl = False
+
+            if isinstance(src, QgsMimeDataUtils.Uri):
+                self.mUri = src
+                self.mExternalControl = False
+            else:
+                assert isinstance(src, QgsMapLayer)
+                self.mLyr = src
+                self.mUri = toQgsMimeDataUtilsUri(src)
+                self.mExternalControl = True
+                s  = ""
+            assert isinstance(self.mUri, QgsMimeDataUtils.Uri)
+
+        def name(self)->str:
+            return self.mUri.name
+
+        def source(self)->str:
+            return self.mUri.uri
+
+        def layerType(self)->str:
+            return self.mUri.layerType
+
+        def isVisible(self)->bool:
+            return self.mIsVisible
+
+
+        def hasMapLayerInstance(self)->bool:
+            return isinstance(self.mLyr, QgsMapLayer)
+
+
+
+    """
+    A model to create QgsMapLayer instances and control its visibility.
+    """
+    def __init__(self, parent=None):
+
+        super(MapCanvasLayerModel, self).__init__()
+        self.cnName = 'Name'
+        self.cnUri = 'Uri'
+        self.cnLayerType = 'Type'
+
+        self.mColumnNames = [self.cnName, self.cnLayerType, self.cnUri]
+
+        self.mVectorsVisible = True
+        self.mRastersVisible = True
+
+        self.mDefaultRasterRenderer = None
+        self.mDefaultVectorRenderer = None
+
+        self.mItems = []
+
+    def __iter__(self):
+        return iter(self.mItems)
+
+    def __len__(self)->int:
+        return len(self.mItems)
+
+    def setDefaultRasterRenderer(self, renderer:QgsRasterRenderer):
+        assert isinstance(renderer, QgsRasterRenderer)
+        self.mDefaultRasterRenderer = renderer
+
+        for item in self.mItems:
+            assert isinstance(item, MapCanvasLayerModel.LayerItem)
+            if not item.mExternalControl and isinstance(item.mLyr, QgsRasterLayer):
+                item.mLyr.setRenderer(renderer.clone())
+
+    def setDefaultVectorRenderer(self, renderer:QgsFeatureRenderer):
+        assert isinstance(renderer, QgsFeatureRenderer)
+        self.mDefaultVectorRenderer = renderer
+
+        for item in self.mItems:
+            assert isinstance(item, MapCanvasLayerModel.LayerItem)
+            if not item.mExternalControl and isinstance(item.mLyr, QgsVectorLayer):
+                item.mLyr.setRenderer(renderer.clone())
+
+    def setLayerVisibility(self, cls, b:bool):
+
+        assert isinstance(b, bool)
+        if isinstance(cls, int):
+            item = self.mItems[cls]
+            assert isinstance(item, MapCanvasLayerModel.LayerItem)
+            item.mIsVisible = b
+
+        elif cls == QgsRasterLayer:
+            self.mRastersVisible = b
+            for item in [i for i in self if i.layerType() == 'raster']:
+                assert isinstance(item, MapCanvasLayerModel.LayerItem)
+                item.mIsVisible = b
+
+        elif cls == QgsVectorLayer:
+            self.mVectorsVisible = b
+            for item in [i for i in self if i.layerType() == 'vector']:
+                assert isinstance(item, MapCanvasLayerModel.LayerItem)
+                item.mIsVisible = b
+        else:
+            raise NotImplementedError()
+
+    def clear(self):
+        """
+        Removes all layers
+        """
+        self.beginRemoveRows(QModelIndex(), 0, len(self)-1)
+        self.mItems.clear()
+        self.endRemoveRows()
+
+
+    def addMapLayerSources(self, src):
+
+        i = len(self.mItems)
+
+        self.insertMapLayerSources(i, src)
+
+    def insertMapLayerSources(self, index:int, mapLayerSources):
+        assert isinstance(mapLayerSources, (list, types.GeneratorType))
+        items = [MapCanvasLayerModel.LayerItem(src) for src in mapLayerSources]
+
+        self.beginInsertRows(QModelIndex(), index, index + len(items) - 1)
+        i = index
+        for item in items:
+            self.mItems.insert(i, item)
+            i += 1
+        self.endInsertRows()
+
+    def visibleLayers(self, sorted=True)->list:
+        """
+        Returns the visible QgsMapLayer instances. Will create QgsMapLayer instances if necessary from uri's
+        :return: [list-of-QgsMapLayers]
+        """
+        layers = []
+
+        for item in self.mItems:
+            assert isinstance(item, MapCanvasLayerModel.LayerItem)
+            if not item.isVisible():
+                continue
+
+            if not item.hasMapLayerInstance():
+                item.mLyr = toMapLayer(item.mUri)
+                assert isinstance(item.mLyr, QgsMapLayer)
+
+                if isinstance(self.mDefaultRasterRenderer, QgsRasterRenderer) and isinstance(item.mLyr, QgsRasterLayer):
+                    item.mLyr.setRenderer(self.mDefaultRasterRenderer.clone())
+
+                if isinstance(self.mDefaultVectorRenderer, QgsFeatureRenderer) and isinstance(item.mLyr, QgsVectorLayer):
+                    item.mLyr.setRenderer(self.mDefaultRasterRenderer.clone())
+
+            layers.append(item.mLyr)
+
+        if sorted:
+            layers = [l for l in layers if isinstance(l, QgsVectorLayer)] + \
+                     [l for l in layers if isinstance(l, QgsRasterLayer)]
+        return layers
+
+    def removeMapLayerSources(self, mapLayerSources):
+        assert isinstance(mapLayerSources, (list, types.GeneratorType))
+        toRemove = []
+        for src in mapLayerSources:
+            uri = None
+            if isinstance(src, QgsRasterLayer):
+                uri = src.source()
+            elif isinstance(src, QgsMimeDataUtils.Uri):
+                uri = src.uri
+            elif isinstance(src, str):
+                uri = src
+            for item, item in enumerate(self.mItems):
+                assert isinstance(item, MapCanvasLayerModel.LayerItem)
+                if item.mUri.uri == uri:
+                    toRemove.append(item)
+
+        for item in toRemove:
+            idx = self.item2index(item)
+            self.beginRemoveRows(QModelIndex(), idx.row(), idx.row())
+            self.mItems.remove(item)
+            self.endRemoveRows()
+
+    def item2index(self, item)->QModelIndex:
+        assert isinstance(item, MapCanvasLayerModel.LayerItem)
+        i = self.mItems.index(item)
+        return self.createIndex(i,0,object=self.mItems[i])
+
+
+    def rowCount(self, parent = QModelIndex())->int:
+
+        return len(self.mItems)
+
+    def columnCount(self, parent = QModelIndex())->int:
+        return len(self.mColumnNames)
+
+    def flags(self, index:QModelIndex):
+        if index.isValid():
+            columnName = self.mColumnNames[index.column()]
+            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+            if columnName == self.cnName: #allow check state
+                flags = flags | Qt.ItemIsUserCheckable
+            return flags
+            #return item.qt_flags(index.column())
+        return None
+
+    def headerData(self, col, orientation, role):
+        if Qt is None:
+            return None
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.mColumnNames[col]
+        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
+            return col
+        return None
+
+    def data(self, index, role = Qt.DisplayRole):
+        if role is None or not index.isValid():
+            return None
+
+        item = self.mItems[index.row()]
+        assert isinstance(item, MapCanvasLayerModel.LayerItem)
+        cn = self.mColumnNames[index.column()]
+        value = None
+        if role == Qt.DisplayRole or role == Qt.ToolTipRole or role == Qt.EditRole:
+            if cn == self.cnName:
+                value = item.name()
+            elif cn == self.cnUri:
+                value = item.mUri.uri
+            elif cn == self.cnLayerType:
+                value = item.mUri.layerType
+
+        elif role == Qt.CheckStateRole:
+            if cn == self.cnName:
+                value = Qt.Checked if item.isVisible() else Qt.Unchecked
+        return value
+
+
+
+    def setData(self, index, value, role=None):
+        if role is None or not index.isValid():
+            return None
+
+        cn = self.mColumnNames[index.column()]
+        item = self.mItems[index.row()]
+        assert isinstance(item, MapCanvasLayerModel.LayerItem)
+        changed = False
+
+        if role == Qt.CheckStateRole and cn == self.cnName:
+            item.mIsVisible = value == Qt.Checked
+            changed = True
+
+        if changed:
+            self.dataChanged.emit(index, index, [role])
+        return changed
+
+        return False
+
 
 
 class MapCanvas(QgsMapCanvas):
+
+    class Command(enum.Enum):
+
+        RefreshRenderer = 1
+        RefreshVisibility = 2
+        Clear = 3
+
 
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint, str)
@@ -46,7 +310,7 @@ class MapCanvas(QgsMapCanvas):
     sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
-    sigMapRefreshed = pyqtSignal([float, float],[float])
+    sigMapRefreshed = pyqtSignal([float, float], [float])
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
@@ -56,20 +320,17 @@ class MapCanvas(QgsMapCanvas):
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
         self.mMapLayerStore = QgsProject.instance()
-        self.mLayerSources = []
+        self.mMapLayers = []
+        self.mMapLayerModel = MapCanvasLayerModel()
+        self.mTimedRefreshPipeLine = dict()
+
+
         self.mTSD = self.mMapView = None
         #the canvas
-
-        self.mRasterLayersVisible = True
-        self.mVectorLayersVisible = True
-        self.mPluginLayerVisible = True
-
         self.mIsRefreshing = False
         self.mRenderingFinished = True
         self.mRefreshStartTime = time.time()
         self.mNeedsRefresh = False
-        self.mRendererRaster = None
-        self.mRendererVector = None
 
         def onMapCanvasRefreshed(*args):
             self.mIsRefreshing = False
@@ -96,6 +357,13 @@ class MapCanvas(QgsMapCanvas):
         from timeseriesviewer.crosshair import CrosshairMapCanvasItem
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
 
+    def mapLayerModel(self)->MapCanvasLayerModel:
+        """
+        Returns the MapCanvasLayerModel which controls the layer visibility
+        :return: MapCanvasLayerModel
+        """
+        return self.mMapLayerModel
+
     def setMapLayerStore(self, store):
         """
         Sets the QgsMapLayerStore or QgsProject instance that is used to register map layers
@@ -103,24 +371,6 @@ class MapCanvas(QgsMapCanvas):
         """
         assert isinstance(store, (QgsMapLayerStore, QgsProject))
         self.mMapLayerStore = store
-
-
-
-    def setLayerVisibility(self, cls, isVisible:bool):
-        """
-        Sets if specific QgsMapLayer types are to be shown or not
-        :param cls: class-type or instance of QgsMapLayer
-        :param isVisible: bool
-        """
-        assert isinstance(isVisible, bool)
-
-        if cls == QgsRasterLayer or isinstance(cls, QgsRasterLayer):
-            self.mRasterLayersVisible = isVisible
-        elif cls == QgsVectorLayer or isinstance(cls, QgsVectorLayer):
-            self.mVectorLayersVisible = isVisible
-        elif cls == QgsPluginLayer or isinstance(cls, QgsPluginLayer):
-            self.mPluginLayerVisible = isVisible
-
 
     def renderingFinished(self)->bool:
         """
@@ -151,11 +401,14 @@ class MapCanvas(QgsMapCanvas):
 
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
-        scope = self.expressionContextScope()
 
-    def setTSD(self, tsd):
-        from timeseriesviewer.timeseries import TimeSeriesDatum
 
+    def setTSD(self, tsd:TimeSeriesDatum):
+        """
+        Sets the TimeSeriesDatum this map-canvas is linked to
+        :param tsd:
+        :return:
+        """
         assert isinstance(tsd, TimeSeriesDatum)
         self.mTSD = tsd
 
@@ -164,8 +417,49 @@ class MapCanvas(QgsMapCanvas):
         scope.setVariable('map_doy', tsd.doy(), isStatic=True)
         scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
         tsd.sensor().sigNameChanged.connect(lambda name : scope.setVariable('map_sensor', name))
+        tsd.sigSourcesChanged.connect(self.resetRasterSources)
 
-    def setFixedSize(self, size):
+
+        self.resetRasterSources()
+        self.mapLayerModel().setDefaultRasterRenderer(self.defaultRasterRenderer())
+
+    def resetRasterSources(self, *args):
+        tsd = self.tsd()
+        self.mapLayerModel().clear()
+        if isinstance(tsd, TimeSeriesDatum):
+            self.mapLayerModel().addMapLayerSources(tsd.qgsMimeDataUtilsUris())
+
+
+    def tsd(self)->TimeSeriesDatum:
+        """
+        Returns the TimeSeriesDatum
+        :return: TimeSeriesDatum
+        """
+        return self.mTSD
+
+    def setSpatialExtent(self, extent:SpatialExtent):
+        """
+        Sets the spatial extent
+        :param extent: SpatialExtent
+        """
+        assert isinstance(extent, SpatialExtent)
+        extent = extent.toCrs(self.crs())
+        self.setExtent(extent)
+
+    def setSpatialCenter(self, center:SpatialPoint):
+        """
+        Sets the SpatialCenter
+        :param center: SpatialPoint
+        """
+        assert isinstance(center, SpatialPoint)
+        center = center.toCrs(self.crs())
+        self.setCenter(center)
+
+    def setFixedSize(self, size:QSize):
+        """
+        Changes the map-canvas size
+        :param size: QSize
+        """
         assert isinstance(size, QSize)
         if self.size() != size:
             super(MapCanvas, self).setFixedSize(size)
@@ -189,10 +483,6 @@ class MapCanvas(QgsMapCanvas):
 
 
 
-
-    def layerModel(self):
-        return self.mLayerSources
-
     def setLayers(self, mapLayers):
         """
         Set the map layers and, if necessary, registers the in a QgsMapLayerStore
@@ -202,15 +492,6 @@ class MapCanvas(QgsMapCanvas):
         super(MapCanvas, self).setLayers(mapLayers)
 
 
-    def setLazyLayers(self, layerSources):
-        """
-        Sets the list of map layers of map layer sources to be shown.
-        :param layerSources: [list-of-sources]
-        """
-        assert isinstance(layerSources, (list, types.GeneratorType))
-        self.mLayerSources = layerSources
-
-
     def isRefreshing(self)->bool:
         return self.mIsRefreshing
 
@@ -218,48 +499,125 @@ class MapCanvas(QgsMapCanvas):
         return self.visibleRegion().boundingRect().isValid()
 
 
-    def visibleLayers(self)->list:
+    def addUniqueMapLayers(self, mapLayers):
+        self.mMapLayerModel.addMapLayerSources(mapLayers)
+        self.mTimedRefreshPipeLine.append(MapCanvas.Command.RefreshVisibility)
+
+    def removeUniqueMapLayers(self, mapLayers):
+        self.mMapLayerModel.removeMapLayerSources(mapLayers)
+        self.mTimedRefreshPipeLine.append(MapCanvas.Command.RefreshVisibility)
+
+    def visibleLayers(self, sorted = True)->list:
         """
-        Returns the QgsMpaLayers to be shown in the map
+        Returns the QgsMapLayers to be shown in the map
         :return: [list-of-QgsMapLayers]
         """
-        for i in range(len(self.mLayerSources)):
-            if not isinstance(self.mLayerSources[i], QgsMapLayer):
-                lyr = toMapLayer(self.mLayerSources[i])
-                assert isinstance(lyr, QgsMapLayer), 'unable to convert {} into QgsMapLayer'.format(
-                    self.mLayerSources[i])
-                self.mLayerSources[i] = lyr
-                if isinstance(lyr, QgsRasterLayer) and isinstance(self.mRendererRaster, QgsRasterRenderer):
-                    lyr.setRenderer(self.mRendererRaster)
-                elif isinstance(lyr, QgsVectorLayer) and isinstance(self.mRendererVector, QgsFeatureRenderer):
-                    lyr.setRenderer(self.mRendererVector)
+        return self.mMapLayerModel.visibleLayers(sorted=sorted)
 
-        visibleLayers = []
-        for l in self.mLayerSources:
-            if isinstance(l, QgsRasterLayer) and self.mRasterLayersVisible:
-                visibleLayers.append(l)
-            elif isinstance(l, QgsVectorLayer) and self.mVectorLayersVisible:
-                visibleLayers.append(l)
-            elif isinstance(l, QgsPluginLayer) and self.mPluginLayerVisible:
-                visibleLayers.append(l)
+    def addToRefreshPipeLine(self, arguments):
+        if not isinstance(arguments, list):
+            arguments = [arguments]
+        for a in arguments:
+            if isinstance(a, (QgsMimeDataUtils.Uri, QgsMapLayer)):
+                if not 'sources' in self.mTimedRefreshPipeLine.keys():
+                    self.mTimedRefreshPipeLine['sources'] = []
+                self.mTimedRefreshPipeLine['sources'].append(a)
+            elif isinstance(a, QgsRasterRenderer):
+                self.mTimedRefreshPipeLine[QgsFeatureRenderer] = a
+            elif isinstance(a, QgsFeatureRenderer):
+                self.mTimedRefreshPipeLine[QgsFeatureRenderer] = a
+            elif isinstance(a, SpatialExtent):
+                self.mTimedRefreshPipeLine[SpatialExtent] = a
+            elif isinstance(a, SpatialPoint):
+                self.mTimedRefreshPipeLine[SpatialExtent] = a
+            elif isinstance(a, MapCanvas.Command):
+                if not MapCanvas.Command in self.mTimedRefreshPipeLine.keys():
+                    self.mTimedRefreshPipeLine[MapCanvas.Command] = []
 
-        return visibleLayers
+                #append command, remove previous of same type
+                while a in self.mTimedRefreshPipeLine[MapCanvas.Command]:
+                    self.mTimedRefreshPipeLine[MapCanvas.Command].remove(a)
+                self.mTimedRefreshPipeLine[MapCanvas.Command].append(a)
+            else:
+                raise NotImplementedError('Unsupported argument: {}'.format(str(a)))
+
 
     def timedRefresh(self):
         """
-        Call this to refresh all layers, visibility etc.
+        Called to refresh the map canvas with all things needed to be done with lazy evaluation
         """
+        if len(self.mTimedRefreshPipeLine) == 0 and self.layers() == self.mapLayerModel().visibleLayers():
+            #there is nothing to do.
+            return
+        else:
+            self.freeze(True)
+            #look for new layers
+            mlm = self.mapLayerModel()
+            assert isinstance(mlm, MapCanvasLayerModel)
 
-        visibleLayers = self.visibleLayers()
-        lastLayers = self.layers()
+            #set sources first
+            keys = self.mTimedRefreshPipeLine.keys()
+            if 'sources' in keys:
+                mlm.addMapLayerSources(self.mTimedRefreshPipeLine['sources'])
 
-        if self.mNeedsRefresh or visibleLayers != lastLayers:
-            self.mIsRefreshing = True
-            self.mRefreshStartTime = time.time()
-            self.setLayers(visibleLayers)
+            #set renderers
+            if QgsRasterRenderer in keys:
+                self.mapLayerModel().setDefaultRasterRenderer(self.mTimedRefreshPipeLine[QgsRasterRenderer])
+
+            if QgsFeatureRenderer in keys:
+                self.mapLayerModel().setDefaultVectorRenderer(self.mTimedRefreshPipeLine[QgsFeatureRenderer])
+
+            if QgsCoordinateReferenceSystem in keys:
+                self.setDestinationCrs(self.mTimedRefreshPipeLine[QgsCoordinateReferenceSystem])
+
+            if SpatialExtent in keys:
+                self.setSpatialExtent(self.mTimedRefreshPipeLine[SpatialExtent])
+
+            if SpatialPoint in keys:
+                self.setSpatialExtent(self.mTimedRefreshPipeLine[SpatialPoint])
+
+            if MapCanvas.Command in keys:
+                commands = self.mTimedRefreshPipeLine[MapCanvas.Command]
+                for command in commands:
+                    assert isinstance(command, MapCanvas.Command)
+                    if command == MapCanvas.Command.RefreshRenderer:
+                        r = self.defaultRasterRenderer()
+                        if isinstance(r, QgsRasterRenderer):
+                            self.mapLayerModel().setDefaultRasterRenderer(r)
+
+                    elif command == MapCanvas.Command.RefreshVisibility:
+                        self.setLayers(self.visibleLayers())
+
+                    elif command == MapCanvas.Command.Clear:
+                        self.mMapLayerModel.clear()
+                s = ""
+
+            self.mTimedRefreshPipeLine.clear()
+
+            lyrs = self.layers()
+            visibleLayers = self.mapLayerModel().visibleLayers()
+            if lyrs != visibleLayers:
+                self.setLayers(visibleLayers)
+            self.freeze(False)
             self.refresh()
-            self.mNeedsRefresh = False
+            #is this really required?
 
+            #if self.mNeedsRefresh or visibleLayers != lastLayers:
+            #    self.mIsRefreshing = True
+            #    self.mRefreshStartTime = time.time()
+            #    self.setLayers(visibleLayers)
+            #    self.refresh()
+            #    self.mNeedsRefresh = False
+
+
+    def setLayerVisibility(self, cls, isVisible:bool):
+        """
+        :param cls: type of layer, e.g. QgsRasterLayer to set visibility of all layers of same type
+                    QgsMapLayer instance to the visibility of a specific layer
+        :param isVisible: bool
+        """
+        self.mMapLayerModel.setLayerVisibility(cls, isVisible)
+        self.addToRefreshPipeLine(MapCanvas.Command.RefreshVisibility)
 
 
     def setCrosshairStyle(self, crosshairStyle:CrosshairStyle, emitSignal=True):
@@ -352,29 +710,25 @@ class MapCanvas(QgsMapCanvas):
         action = menu.addAction('Zoom to Layer')
         action.triggered.connect(lambda : self.setSpatialExtent(self.spatialExtentHint()))
         action = menu.addAction('Refresh')
-        action.triggered.connect(lambda: self.refresh(True))
+        action.triggered.connect(lambda: self.refresh())
         menu.addSeparator()
+        m = menu.addMenu('Crosshair...')
+        action = m.addAction('Show')
+        action.setCheckable(True)
+        action.setChecked(self.mCrosshairItem.visibility())
+        action.toggled.connect(self.setCrosshairVisibility)
 
-        action = menu.addAction('Change crosshair style')
-
-
+        action = m.addAction('Style')
         def onCrosshairChange(*args):
 
             style = CrosshairDialog.getCrosshairStyle(parent=self,
-                                                  mapCanvas=self,
-                                                  crosshairStyle=self.mCrosshairItem.crosshairStyle)
+                                                      mapCanvas=self,
+                                                      crosshairStyle=self.mCrosshairItem.crosshairStyle)
 
             if isinstance(style, CrosshairStyle):
                 self.setCrosshairStyle(style)
 
         action.triggered.connect(onCrosshairChange)
-
-        if self.mCrosshairItem.visibility():
-            action = menu.addAction('Hide crosshair')
-            action.triggered.connect(lambda : self.setCrosshairVisibility(False))
-        else:
-            action = menu.addAction('Show crosshair')
-            action.triggered.connect(lambda: self.setCrosshairVisibility(True))
 
         menu.addSeparator()
 
@@ -400,13 +754,13 @@ class MapCanvas(QgsMapCanvas):
         m.addSeparator()
 
         action = m.addAction('Map Center (WKT)')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(center.wellKnownText()))
+        action.triggered.connect(lambda: QApplication.clipboard().setText(center.asWkt()))
 
         action = m.addAction('Map Center')
         action.triggered.connect(lambda: QApplication.clipboard().setText(center.toString()))
 
         action = m.addAction('Map Extent (WKT)')
-        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.wellKnownText()))
+        action.triggered.connect(lambda: QApplication.clipboard().setText(ext.asWktPolygon()))
 
         action = m.addAction('Map Extent')
         action.triggered.connect(lambda: QApplication.clipboard().setText(ext.toString()))
@@ -562,6 +916,7 @@ class MapCanvas(QgsMapCanvas):
 
                 if newRenderer is not None:
                     self.sigChangeSVRequest.emit(self, newRenderer)
+                    return
         s = ""
 
 
@@ -579,25 +934,16 @@ class MapCanvas(QgsMapCanvas):
             self.saveAsImage(path, None, fileType)
             SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
 
-
-    def setRenderer(self, renderer, refresh=True):
+    def defaultRasterRenderer(self)->QgsRasterRenderer:
         """
-        Sets a QgsRasterRenderer or QgsFeatureRenderer which is applied or all QgsRasterLayers or QgsVectorLayer, respectively.
-        :param renderer: QgsRasterRenderer | QgsFeatureRenderer
-        :param refresh:
-        :return:
+        Returns the raster renderer in dependence of MapView and TimeSeriesDatum sensor
+        :return: QgsRasterRenderer
         """
-
-        if isinstance(renderer, QgsRasterRenderer):
-            self.mRendererRaster = renderer
-            for l in self.layers():
-                if isinstance(l, QgsRasterLayer):
-                    l.setRenderer(renderer.clone())
-        if isinstance(renderer, QgsFeatureRenderer):
-            self.mRendererVector = renderer
-            for l in self.layers():
-                if isinstance(l, QgsVectorLayer):
-                    l.setRenderer(renderer.clone())
+        from timeseriesviewer.mapvisualization import MapView
+        if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
+            return self.mMapView.sensorWidget(self.mTSD.sensor()).rasterRenderer()
+        else:
+            return None
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
@@ -607,11 +953,15 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
             spatialExtent = spatialExtent.toCrs(self.crs())
-            if spatialExtent:
-                ext = QgsRectangle(spatialExtent)
-                self.setCenter(ext.center())
-                self.setExtent(ext)
+            self.setExtent(spatialExtent)
 
+    def setSpatialCenter(self, spatialPoint:SpatialPoint):
+        """
+        Sets the map center
+        :param spatialPoint: SpatialPoint
+        """
+        center = spatialPoint.toCrs(self.crs())
+        self.setCenter(center)
 
     def spatialExtent(self)->SpatialExtent:
         """
@@ -630,15 +980,17 @@ class MapCanvas(QgsMapCanvas):
 
     def spatialExtentHint(self)->SpatialExtent:
         """
-        Returns a hint for a SpatialExtent, derived from the first raster layer in this
-        :return:
+        Returns a hint for a SpatialExtent, derived from the first raster layer
+        :return: SpatialExtent
         """
         crs = self.crs()
-        ext = SpatialExtent.world()
-        layers = self.layers() + self.visibleLayers()
-        for lyr in layers:
-            ext = SpatialExtent.fromLayer(lyr).toCrs(crs)
-            break
+
+        layers = self.layers()
+        if len(layers) > 0:
+            e = self.fullExtent()
+            ext = SpatialExtent(crs, e)
+        else:
+            ext = SpatialExtent.world()
         return ext
 
 

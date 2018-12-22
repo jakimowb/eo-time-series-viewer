@@ -26,7 +26,7 @@ from PyQt5.QtCore import *
 import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
-
+from timeseriesviewer.utils import TestObjects
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True
@@ -84,10 +84,21 @@ class TestInit(unittest.TestCase):
         TSV.show()
         TSV.loadExampleTimeSeries()
 
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
+    def test_TimeSeriesViewerMultiSource(self):
+
+        from timeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.show()
+        paths = TestObjects.createMultiSourceTimeSeries()
+        TSV.addTimeSeriesImages(paths)
 
         if SHOW_GUI:
             QGIS_APP.exec_()
+
 
 if __name__ == '__main__':
     unittest.main()

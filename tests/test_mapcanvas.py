@@ -24,7 +24,7 @@ from PyQt5.QtCore import *
 import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
-
+from timeseriesviewer.timeseries import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True
@@ -41,31 +41,60 @@ class testclassDialogTest(unittest.TestCase):
         pass
 
 
-    def test_mapcanvas(self):
-        m = MapCanvas()
-        self.assertIsInstance(m, QgsMapCanvas)
-        self.assertFalse(m.isVisible())
-        self.assertFalse(m.isVisibleToViewport())
+    def test_basic_behaviour(self):
 
-        files = testRasterFiles()
+        files = TestObjects.testImagePaths()
         lyr1 = QgsRasterLayer(files[0])
 
 
-        m.setLazyLayers(files[0:2])
+        c = QgsMapCanvas()
+        self.assertIsInstance(c, QgsMapCanvas)
+        ext0 = c.extent()
 
-        self.assertTrue(len(m.layers()) == 0)
-        m.timedRefresh()
-        self.assertTrue(len(m.layers()) == 2)
+        bExtent = 0
+        def onExtentChanged():
+            nonlocal bExtent
+            bExtent += 1
 
-        m.show()
 
-        self.assertTrue(m.isVisible())
-        self.assertTrue(m.isVisibleToViewport())
+        c.extentsChanged.connect(onExtentChanged)
+        c.setExtent(lyr1.extent())
 
-        m.timedRefresh()
-        self.assertTrue(len(m.layers()) == 2)
+        self.assertTrue(bExtent == 1)
+        c.freeze(True)
+        c.setExtent(ext0)
 
-        m.setLazyLayers([lyr1])
+
+    def test_mapcanvas(self):
+        files = testRasterFiles()
+        lyr1 = QgsRasterLayer(files[0])
+        lyr2 = QgsRasterLayer(files[1])
+
+
+
+        canvas = MapCanvas()
+
+        self.assertIsInstance(canvas, QgsMapCanvas)
+        self.assertFalse(canvas.isVisible())
+        self.assertFalse(canvas.isVisibleToViewport())
+        canvas.show()
+        self.assertTrue(canvas.isVisible())
+        self.assertTrue(canvas.isVisibleToViewport())
+
+        #test the pipeline
+        canvas.addToRefreshPipeLine([lyr1, lyr2])
+        self.assertTrue(len(canvas.layers()) == 0)
+        canvas.timedRefresh()
+        self.assertTrue(len(canvas.layers()) == 2)
+        canvas.removeUniqueMapLayers([lyr1, lyr2])
+        self.assertTrue(len(canvas.layers()) == 2)
+
+
+
+        canvas.timedRefresh()
+        self.assertTrue(len(canvas.layers()) == 0)
+
+
 
 
 
@@ -101,6 +130,8 @@ class testclassDialogTest(unittest.TestCase):
         TSV = TimeSeriesViewer(None)
         self.assertIsInstance(TSV, TimeSeriesViewer)
         TSV.loadExampleTimeSeries()
+        self.assertIsInstance(TSV.timeSeries(), TimeSeries)
+        self.assertTrue(len(TSV.timeSeries()) > 0)
         TSV.show()
         QApplication.processEvents()
 
@@ -116,6 +147,50 @@ class testclassDialogTest(unittest.TestCase):
 
         if SHOW_GUI:
             QGIS_APP.exec_()
+
+    def test_mapCanvasLayerModel(self):
+
+        M = MapCanvasLayerModel()
+        self.assertIsInstance(M, MapCanvasLayerModel)
+        files = TestObjects.testImagePaths()
+
+        from timeseriesviewer.timeseries import TimeSeriesSource
+
+        p0 = TimeSeriesSource.create(files[0]).qgsMimeDataUtilsUri()
+        p1 = TimeSeriesSource.create(files[1]).qgsMimeDataUtilsUri()
+
+        M.addMapLayerSources([p0])
+        self.assertTrue(len(M) == 1)
+        M.addMapLayerSources([p1])
+        self.assertTrue(len(M) == 2)
+
+        vl = M.visibleLayers()
+        self.assertIsInstance(vl, list)
+        self.assertTrue(len(vl) == 2)
+        M.setLayerVisibility(0, False)
+        self.assertTrue(len(M.visibleLayers()) == 1)
+        M.setLayerVisibility(QgsRasterLayer, False)
+        self.assertTrue(len(M.visibleLayers()) == 0)
+        M.setLayerVisibility(QgsRasterLayer, True)
+        self.assertTrue(len(M.visibleLayers()) == 2)
+
+        M.clear()
+        self.assertTrue(len(M) == 0)
+
+
+        lyr1 = QgsRasterLayer(files[3])
+        lyr2 = QgsRasterLayer(files[4])
+        M.addMapLayerSources([lyr1, lyr2])
+
+        from qgis.PyQt.QtWidgets import QTableView
+        TV = QTableView()
+        TV.setModel(M)
+
+        if SHOW_GUI:
+            TV.show()
+            QGIS_APP.exec_()
+
+
 
 
 if __name__ == "__main__":
