@@ -18,22 +18,25 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
+
 from timeseriesviewer.utils import *
 from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 QGIS_APP = initQgisApplication()
 
+
 def getChildElements(node):
     assert isinstance(node, QDomNode)
     childs = node.childNodes()
     return [childs.at(i) for i in range(childs.count())]
 
-def compareXML(element1, element2 ):
+
+def compareXML(element1, element2):
 
     assert isinstance(element1, QDomNode)
     assert isinstance(element2, QDomNode)
@@ -43,8 +46,8 @@ def compareXML(element1, element2 ):
     if tag1 != tag2:
         return False
 
-    elts1 = getChildElements(element1);
-    elts2 = getChildElements(element2);
+    elts1 = getChildElements(element1)
+    elts2 = getChildElements(element2)
 
     if len(elts1) != len(elts2):
         return False
@@ -67,8 +70,8 @@ def compareXML(element1, element2 ):
         return True
 
 
-class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
+class testclassMapVisualization(unittest.TestCase):
+    """Test resources work."""
 
     def setUp(self):
         """Runs before each test."""
@@ -80,9 +83,20 @@ class testclassDialogTest(unittest.TestCase):
 
 
     def test_mapcanvas(self):
+
+        files = testRasterFiles()
+
+        lyr1 = QgsRasterLayer(files[0])
+
+
         m = MapCanvas()
-        self.assertIsInstance(m, QgsMapCanvas)
+
+        m.setLayers([])
+
+        self.assertIsInstance(m, MapCanvas)
         m.show()
+
+
 
 
     def test_bandselection(self):
@@ -160,23 +174,19 @@ class testclassDialogTest(unittest.TestCase):
 
 
         for path in styleFiles:
-            f = open(path, encoding='utf8')
-            xml = ''.join(f.readlines())
-            f.close()
-
-            renderer = rendererFromXml(xml)
-            self.assertTrue(renderer != None)
-            #self.assertTrue(isinstance(renderer, QgsRasterRenderer) or isinstance(renderer, QgsFeatureRenderer), msg='Unable to read style from {}'.format(path))
+            with open(path, encoding='utf8') as f:
+                xml = ''.join(f.readlines())
 
 
-        print('test_renderer done')
+                renderer = rendererFromXml(xml)
+                self.assertTrue(renderer != None)
 
     def test_maprendersettings(self):
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
 
         from timeseriesviewer.timeseries import TimeSeries
         TS = TimeSeries()
-        TS.addFiles([Img_2014_01_15_LC82270652014015LGN00_BOA])
+        TS.addSources([Img_2014_01_15_LC82270652014015LGN00_BOA])
         sensor1 = TS.sensors()[0]
         w = MapViewRenderSettings(sensor1)
         w.show()
@@ -220,9 +230,76 @@ class testclassDialogTest(unittest.TestCase):
         s = ""
 
 
+    def test_spatialTemporalVisualization(self):
+        from timeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.loadExampleTimeSeries()
+        TSV.show()
+        SV = TSV.spatialTemporalVis
+        self.assertIsInstance(SV, SpatialTemporalVisualization)
+        SV.timedCanvasRefresh()
+
+        withLayers = []
+        empty = []
+        extent = None
+        for mc in SV.mapCanvases():
+            self.assertIsInstance(mc, MapCanvas)
+            self.assertIsInstance(mc.spatialExtent(), SpatialExtent)
+
+            if extent == None:
+                extent = mc.spatialExtent()
+            else:
+                self.assertTrue(mc.spatialExtent() == extent)
+
+            if len(mc.layers()) == 0:
+                empty.append(mc)
+            else:
+                withLayers.append(mc)
+
+        self.assertTrue(len(withLayers) > 0)
+        self.assertTrue(len(empty) > 0)
+
+        #shift spatial extent
+        extent2 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x()-100, extent.center().y()))
+        SV.setSpatialExtent(extent2)
+        SV.timedCanvasRefresh()
+        for mc in SV.mapCanvases():
+            self.assertIsInstance(mc, MapCanvas)
+            if mc.isVisibleToViewport():
+                self.assertTrue(mc.spatialExtent() == extent2)
 
 
+        # shift spatial extent of single map canvas
+        extent3 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x() + 100, extent.center().y()))
+        canvas = SV.mapCanvases()[0]
+        self.assertIsInstance(canvas, MapCanvas)
+        canvas.setSpatialExtent(extent3)
+        SV.timedCanvasRefresh()
+        for mc in SV.mapCanvases():
+            if mc.isVisibleToViewport():
+                self.assertTrue(mc.spatialExtent() == extent3)
+
+        # test map render changes
+        for canvas in SV.mapCanvases():
+            self.assertIsInstance(canvas, MapCanvas)
+            menu = canvas.contextMenu()
+            self.assertIsInstance(menu, QMenu)
+            if canvas.isVisibleToViewport():
+
+                for action in menu.findChildren(QAction):
+                    self.assertIsInstance(action, QAction)
+                    text = action.text()
+                    if text in ['', 'Style', 'PNG', 'JPEG']:
+                        # skip menu / blocking dialog options
+                        continue
+                    else:
+                        print('Test QAction "{}"'.format(action.text()))
+                        action.trigger()
+                break
+        s = ""
 
 
 if __name__ == "__main__":
     unittest.main()
+    print('Done')

@@ -827,6 +827,6 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         if self.cbOpenInQGIS.isEnabled() and self.cbOpenInQGIS.isChecked():
             mapLayers = [QgsRasterLayer(p) for p in writtenFiles]
-            QgsProject.instance().addMapLayers(mapLayers, addToLegend=True)
+            QgsProject.instance().addUniqueMapLayers(mapLayers, addToLegend=True)
         self.mWrittenFiles.extend(writtenFiles)
         return writtenFiles

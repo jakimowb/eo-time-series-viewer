@@ -39,7 +39,7 @@ if __name__ == '__main__':
     import site, sys
     #add site-packages to sys.path as done by enmapboxplugin.py
 
-    from timeseriesviewertesting import initQgisApplication
+    from tests import initQgisApplication
     qapp = initQgisApplication()
 
     import example

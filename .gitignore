@@ -7,8 +7,9 @@ deploy/*
 temp/
 doc/build/
 doc/build/*
-test/outputs
-test/outputs/*
+timeseriesviewer/ui/resources.py
+tests/outputs
+tests/outputs/*
 qgisresources/
 qgisresources/*
 screenshots/
@@ -24,6 +25,6 @@ timeseriesviewer/ui/tmp.ui
 *.pyc
 *.pyd
 *.iml
-__pycache__/
+*__pycache__/
 
 /qgisresources/

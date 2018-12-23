@@ -17,28 +17,23 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
+import os
+from timeseriesviewer.tests import initQgisApplication
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
+from qgis.core import QgsApplication
+from qgis.gui import QgsCollapsibleGroupBox
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 
-class MapViewScrollArea(QScrollArea):
 
-    sigResized = pyqtSignal()
-    def __init__(self, *args, **kwds):
-        super(MapViewScrollArea, self).__init__(*args, **kwds)
+app = initQgisApplication()
+app.setPkgDataPath('D:/Repositories/QGIS')
+p = app.getThemeIcon("/mIconCollapse.svg" )
+gb = QgsCollapsibleGroupBox()
+gb.setTitle('TEST')
+gb.setWindowIconText('x')
+gb.show()
+s = ""
 
-    def resizeEvent(self, event):
-        super(MapViewScrollArea, self).resizeEvent(event)
-        self.sigResized.emit()
-
-    def distanceToCenter(self, widget:QWidget)->int:
-        # self.visibleRegion().boundingRect().isValid()
-        halfSize = widget.size() * 0.5
-        centerInParent = widget.mapToParent(QPoint(halfSize.width(), halfSize.height()))
-        r = self.viewport().rect()
-        centerViewPort = QPoint(int(r.x() + r.width() *0.5 ), int(r.y()+r.height()*0.5))
-
-        diff = centerInParent - centerViewPort
-        return diff.manhattanLength()
+app.exec_()

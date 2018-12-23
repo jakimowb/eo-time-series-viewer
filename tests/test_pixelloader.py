@@ -15,7 +15,7 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 import unittest
 import os, sys, pickle
 import qgis.testing
-from timeseriesviewer.utils import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 import example.Images
 from timeseriesviewer.utils import *
 
@@ -256,12 +256,10 @@ class PixelLoaderTest(unittest.TestCase):
             kwargs = {'myid': 'myID{}'.format(i)}
             tasks2.append(PixelLoaderTask(f, geoms2, bandIndices=None, **kwargs))
 
-
         PL.startLoading(tasks1)
         PL.startLoading(tasks2)
 
         waitForEnd(PL)
-
 
         self.assertTrue(len(loaded_values) == len(tasks2)+len(tasks1))
         print('DONE')

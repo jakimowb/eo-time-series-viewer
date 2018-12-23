@@ -9,7 +9,7 @@ Installation
 ============
 
 
-.. note:: * The EO TSV plugin requires QGIS Version 3.0 or higher
+.. note:: * The EO TSV plugin requires QGIS Version 3.4 or higher
           * You can get QGIS `here <https://www.qgis.org/en/site/forusers/download.html>`_
 
 .. important:: :ref:`Additional python packages <Additional python dependencies>` are needed and some of them are not delivered with the
@@ -57,7 +57,7 @@ Additional python dependencies
 The EO Time Series Viewer requires the following packages:
 
     * pyqtgraph
-    * pyopengl
+    * pyopengl (optional)
 
 
 

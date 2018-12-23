@@ -21,7 +21,7 @@ from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
 from timeseriesviewer.temporalprofiles2d import *
 from timeseriesviewer.profilevisualization import *
 from timeseriesviewer.utils import *
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
 SHOW_GUI = True
@@ -34,7 +34,7 @@ class testclassUtilityTests(unittest.TestCase):
         self.TS = TimeSeries()
 
         files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
-        self.TS.addFiles(files)
+        self.TS.addSources(files)
         self.dirTmp = tempfile.mkdtemp(prefix='EOTSV_Test')
 
 
@@ -47,7 +47,7 @@ class testclassUtilityTests(unittest.TestCase):
 
     def createTemporalProfiles(self):
 
-        center = self.TS.getMaxSpatialExtent().spatialCenter()
+        center = self.TS.maxSpatialExtent().spatialCenter()
 
         lyr = TemporalProfileLayer(self.TS)
 
@@ -60,7 +60,7 @@ class testclassUtilityTests(unittest.TestCase):
 
     def test_createTemporalProfile(self):
 
-        center = self.TS.getMaxSpatialExtent().spatialCenter()
+        center = self.TS.maxSpatialExtent().spatialCenter()
 
         lyr = TemporalProfileLayer(self.TS)
         tp = lyr.createTemporalProfiles(center)[0]
@@ -81,7 +81,7 @@ class testclassUtilityTests(unittest.TestCase):
 
         col = TemporalProfileLayer(self.TS)
 
-        extent = self.TS.getMaxSpatialExtent()
+        extent = self.TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
         point1 = SpatialPoint(center.crs(), center.x(), center.y() )
@@ -177,7 +177,7 @@ class testclassUtilityTests(unittest.TestCase):
         TS = self.TS
         layer = TemporalProfileLayer(self.TS)
 
-        extent = self.TS.getMaxSpatialExtent()
+        extent = self.TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
         point1 = SpatialPoint(center.crs(), center.x(), center.y())

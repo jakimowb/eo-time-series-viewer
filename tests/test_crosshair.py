@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -26,14 +26,13 @@ import unittest, tempfile
 from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.crosshair import *
 from timeseriesviewer.utils import *
-resourceDir = os.path.join(DIR_REPO,'qgisresources')
+resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication()
 
 SHOW_GUI = True
 
 class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
-
+    """Test resources work."""
     def setUp(self):
         """Runs before each test."""
         pass
@@ -64,10 +63,6 @@ class testclassDialogTest(unittest.TestCase):
 
 
 
-
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
 
     def test_CrosshairDialog(self):
 

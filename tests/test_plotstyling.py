@@ -21,11 +21,11 @@
 
 
 import os, unittest
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
+
 QGIS_APP = initQgisApplication()
 
 from timeseriesviewer.plotstyling import *
-
 
 class TestPlotStyling(unittest.TestCase):
     """Test translations work."""
@@ -62,8 +62,10 @@ class TestPlotStyling(unittest.TestCase):
         self.assertIsInstance(d, PlotStyleDialog)
 
         try:
+
             d.show()
             d.setPlotStyle(s1)
+
         except Exception:
             self.fail('Unable to initialize PlotStyleDialog')
         s2 = d.plotStyle()

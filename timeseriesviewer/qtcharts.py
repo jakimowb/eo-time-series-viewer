@@ -8,7 +8,7 @@ Simple example illustrating Qt Charts capabilities to plot curves with
 a high number of points, using OpenGL accelerated series
 """
 
-from PyQt5.QtChart import QChart, QChartView, QLineSeries
+import PyQt5.QtChart
 from PyQt5.QtGui import QPolygonF, QPainter
 from PyQt5.QtWidgets import QMainWindow
 
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     import sys
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtCore import Qt
-
+    from PyQt5.QtChart import *
     app = QApplication(sys.argv)
 
     window = TestWindow()

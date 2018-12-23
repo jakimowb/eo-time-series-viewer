@@ -2,10 +2,10 @@
 
 """
 ***************************************************************************
-    
+
     ---------------------
-    Date                 : 10.01.2018
-    Copyright            : (C) 2018 by Benjamin Jakimow
+    Date                 : 30.11.2017
+    Copyright            : (C) 2017 by Benjamin Jakimow
     Email                : benjamin jakimow at geo dot hu-berlin dot de
 ***************************************************************************
 *                                                                         *
@@ -17,23 +17,29 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-import os
-from timeseriesviewer.utils import initQgisApplication
 
-from qgis.core import QgsApplication
-from qgis.gui import QgsCollapsibleGroupBox
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+import os, sys, unittest, configparser
+from timeseriesviewer.tests import initQgisApplication, TestObjects
+APP = initQgisApplication()
 
+from timeseriesviewer.main import *
 
 
-app = initQgisApplication()
-app.setPkgDataPath('D:/Repositories/QGIS')
-p = app.getThemeIcon("/mIconCollapse.svg" )
-gb = QgsCollapsibleGroupBox()
-gb.setTitle('TEST')
-gb.setWindowIconText('x')
-gb.show()
-s = ""
+SHOW_GUI = True
 
-app.exec_()
+class TestInit(unittest.TestCase):
+
+
+    def test_loadexampledata(self):
+        TSV = TimeSeriesViewer()
+        TSV.show()
+        TSV.loadExampleTimeSeries()
+
+        if SHOW_GUI:
+            APP.exec_()
+
+
+
+if __name__ == '__main__':
+    SHOW_GUI = False
+    unittest.main()

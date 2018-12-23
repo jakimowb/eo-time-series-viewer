@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 import os, sys, unittest, tempfile
-from timeseriesviewertesting import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, re_2014_06_25
 qapp = initQgisApplication()
 import gdal
@@ -34,7 +34,7 @@ class TestInit(unittest.TestCase):
         self.lyr1 = QgsRasterLayer(Img_2014_06_16_LE72270652014167CUB00_BOA)
         self.lyr2 = QgsRasterLayer(re_2014_06_25)
         self.layers = [self.lyr1, self.lyr2]
-        QgsProject.instance().addMapLayers(self.layers)
+        QgsProject.instance().addUniqueMapLayers(self.layers)
 
 
 

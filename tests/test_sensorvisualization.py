@@ -6,8 +6,11 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
-from timeseriesviewer.utils import file_search
+from timeseriesviewer.utils import file_search, TestObjects
 from timeseriesviewer.timeseries import *
+from timeseriesviewer.tests import initQgisApplication
+from timeseriesviewer.sensorvisualization import *
+app = initQgisApplication()
 
 class TestInit(unittest.TestCase):
 
@@ -50,59 +53,24 @@ class TestInit(unittest.TestCase):
             ds.FlushCache()
             datasets.append(p)
 
-
-
-
-
         return datasets
 
-    def test_timeseriesdatum(self):
+    def createTimeSeries(self)->TimeSeries:
 
-        file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
-
-        tsd = TimeSeriesDatum.createFromPath(file)
-        self.assertIsInstance(tsd, TimeSeriesDatum)
-        self.assertEqual(tsd.nb, 6)
-
-
-
-    def test_timeseries(self):
-
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
-
-        addedDates = []
+        pathes = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
+                  example.Images.Img_2014_04_29_LE72270652014119CUB00_BOA,
+                  example.Images.re_2014_06_25
+                ]
 
         TS = TimeSeries()
-        TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
-        TS.sigTimeSeriesDatesRemoved.connect(lambda dates: [addedDates.remove(d) for d in dates])
+        model = SensorListModel(TS)
+        self.assertTrue(model.rowCount() == 0)
 
-        for file in files:
-            TS.addFiles([file])
+        TS.addSources(pathes)
+        self.assertTrue(len(TS) == len(pathes))
 
-        self.assertEqual(len(files), len(TS))
-        TS.removeDates(addedDates)
-        self.assertEqual(len(addedDates), 0)
+        self.assertTrue(model.rowCount() == 2)
 
-    def test_sensors(self):
-        pathRE = list(file_search(os.path.dirname(example.__file__), 're*.tif', recursive=True))[0]
-        pathLS = list(file_search(os.path.dirname(example.__file__), '*BOA.tif', recursive=True))[0]
-
-        TS = TimeSeries()
-        TS.addFiles(pathRE)
-        TS.addFiles(pathLS)
-        self.assertEqual(len(TS.Sensors), 2)
-
-        dsRE = gdal.Open(pathRE)
-        assert isinstance(dsRE, gdal.Dataset)
-
-        tsdRE = TS.getTSD(pathRE)
-        self.assertIsInstance(tsdRE, TimeSeriesDatum)
-        sRE = tsdRE.sensor
-        self.assertIsInstance(sRE, SensorInstrument)
-        self.assertEqual(dsRE.RasterCount, sRE.nb)
-
-    def test_datematching(self):
-        pass
 
 
 

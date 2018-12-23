@@ -125,7 +125,7 @@ def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
     drvMEM = gdal.GetDriverByName('MEM')
 
     from timeseriesviewer.main import transformGeometry
-    for TSD in TS.data:
+    for TSD in TS.mTSDs:
         assert isinstance(TSD, TimeSeriesDatum)
 
         ox, oy = random_offset()
@@ -218,18 +218,7 @@ def compile_rc_files(ROOT, targetDir=None):
 
         bn = os.path.splitext(bn)[0]
         pathPy = os.path.join(dn, bn+'.py' )
-        subprocess_args.append(('pyrcc5','-o', pathPy, pathQrc))
-        shell_cmds.append('pyrcc5 -o {} {}'.format(pathPy, pathQrc))
-
-    print('Call in shell:')
-    for cmd in shell_cmds:
-        print(cmd)
-
-    for args in subprocess_args:
-        try:
-            subprocess.call(*args)
-        except Exception as ex:
-            print('Failed to call: pyrcc5 -o {} {}'.format(args[0], args[1]))
+        os.system('pyrcc5 -o {} {}'.format(pathPy, pathQrc))
 
 
 
