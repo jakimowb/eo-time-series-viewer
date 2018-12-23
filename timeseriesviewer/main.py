@@ -655,13 +655,19 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
     def loadExampleTimeSeries(self, n:int=None):
+        """
+        Loads an example time series
+        :param n: int, max. number of images to load. Useful for developer test-cases
+        """
         import example.Images
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
 
-        if n is None:
+        if isinstance(n, bool) or not isinstance(n, int):
             n = len(files)
-        else:
-            n = min(n, len(files))
+
+        #ensure valid inputs for n
+        n = min(n, len(files))
+        n = max(1, n)
 
         self.addTimeSeriesImages(files[0:n])
 

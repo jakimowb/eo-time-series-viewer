@@ -100,5 +100,17 @@ class TestInit(unittest.TestCase):
             QGIS_APP.exec_()
 
 
+    def test_TimeSeriesViewerNoSource(self):
+
+        from timeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.show()
+        TSV.loadExampleTimeSeries(1)
+        self.assertIsInstance(TSV, TimeSeriesViewer)
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
 if __name__ == '__main__':
     unittest.main()
