@@ -1621,7 +1621,7 @@ class SpatialTemporalVisualization(QObject):
         #default map settings
         self.mSpatialExtent = SpatialExtent.world()
         self.mCRS = self.mSpatialExtent.crs()
-        self.mSize = QSize(200,200)
+        self.mSize = QSize(200, 200)
         self.mColor = Qt.black
         self.mMapCanvases = []
         self.ui = timeSeriesViewer.ui

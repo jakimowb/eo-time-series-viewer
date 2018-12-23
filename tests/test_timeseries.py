@@ -160,6 +160,37 @@ class TestInit(unittest.TestCase):
             self.assertIsInstance(lyr, QgsRasterLayer)
             self.assertTrue(lyr.isValid())
 
+
+    def test_datetimeprecision(self):
+
+        img1 = TestObjects.inMemoryImage()
+        img2 = TestObjects.inMemoryImage()
+        self.assertIsInstance(img1, gdal.Dataset)
+        self.assertIsInstance(img2, gdal.Dataset)
+        t0 = np.datetime64('now')
+
+        pairs = [('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Minute),
+                 ('2018-12-23T14:40', '2018-12-23T14:39', DateTimePrecision.Hour),
+                 ('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Day),
+                 ('2018-12-23', '2018-12-22', DateTimePrecision.Week),
+                 ('2018-12-23', '2018-12-01', DateTimePrecision.Month),
+                 ('2018-12-23', '2018-11-01', DateTimePrecision.Year),
+                 ]
+        for p in pairs:
+            t1, t2, precision = p
+            img1.SetMetadataItem('acquisition time', t1)
+            img2.SetMetadataItem('acquisition time', t2)
+            TS = TimeSeries()
+            self.assertIsInstance(TS, TimeSeries)
+            self.assertTrue(TS.mDateTimePrecision == DateTimePrecision.Original)
+            TS.addSources([img1, img2])
+            self.assertTrue(len(TS) == 2)
+
+            TS = TimeSeries()
+            TS.setDateTimePrecision(precision)
+            TS.addSources([img1, img2])
+            self.assertTrue(len(TS) == 1)
+
     def test_multisource_tsd(self):
 
 

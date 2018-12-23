@@ -270,6 +270,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         #init empty time series
         self.mTimeSeries = TimeSeries()
+        self.mTimeSeries.setDateTimePrecision(DateTimePrecision.Day)
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 

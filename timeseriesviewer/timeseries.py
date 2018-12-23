@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import sys, re, collections, traceback, time, json, urllib, types
+import sys, re, collections, traceback, time, json, urllib, types, enum
 
 
 import bisect
@@ -292,7 +292,6 @@ def verifyInputImage(datasource):
 class TimeSeriesSource(object):
     """Provides some information on source images"""
 
-
     @staticmethod
     def create(source):
         """
@@ -323,8 +322,6 @@ class TimeSeriesSource(object):
                             break
 
             else:
-
-
                 raise Exception('Unsupported raster data provider: {}'.format(provider))
 
         elif isinstance(source, str):
@@ -337,8 +334,6 @@ class TimeSeriesSource(object):
             raise Exception('Unsupported source: {}'.format(source))
 
         return TimeSeriesSource(ds)
-
-
 
     def __init__(self, dataset:gdal.Dataset):
 
@@ -771,6 +766,22 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         self.onSelectionChanged()
 
 
+class DateTimePrecision(enum.Enum):
+    """
+    Describes the precision to pares DateTimeStamps.
+    """
+
+    Year = 'Y'
+    Month = 'M'
+    Week = 'W'
+    Day = 'D'
+    Hour = 'h'
+    Minute = 'm'
+    Second = 's'
+    Milisecond = 'ms'
+    Original = 0
+
+
 class TimeSeries(QObject):
     """
     The sorted list of data sources that specify the time series
@@ -784,11 +795,13 @@ class TimeSeries(QObject):
     sigSourcesChanged = pyqtSignal(TimeSeriesDatum)
     sigRuntimeStats = pyqtSignal(dict)
 
+
     def __init__(self, imageFiles=None, maskFiles=None):
         QObject.__init__(self)
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None
+        self.mDateTimePrecision = DateTimePrecision.Original
 
         if imageFiles is not None:
             self.addSources(imageFiles)
@@ -930,7 +943,7 @@ class TimeSeries(QObject):
                     return tsd
         return None
 
-    def insertTSD(self, tsd:TimeSeriesDatum)->TimeSeriesDatum:
+    def insertTSD(self, tsd: TimeSeriesDatum)->TimeSeriesDatum:
         """
         Inserts a TimeSeriesDatum
         :param tsd: TimeSeriesDatum
@@ -1047,17 +1060,19 @@ class TimeSeries(QObject):
 
             msg = None
             try:
-                tss = None
-                if not isinstance(source, TimeSeriesSource):
-                    tss = TimeSeriesSource.create(source)
-                else:
+
+                if isinstance(source, TimeSeriesSource):
                     tss = source
+                else:
+                    tss = TimeSeriesSource.create(source)
 
                 assert isinstance(tss, TimeSeriesSource)
-
+                tss.mDate = self.date2date(tss.date())
                 date = tss.date()
                 sid = tss.sid()
                 sensor = self.sensor(sid)
+
+
 
                 #if necessary, add a new sensor instance
                 if not isinstance(sensor, SensorInstrument):
@@ -1082,6 +1097,29 @@ class TimeSeries(QObject):
             self.sigLoadingProgress.emit(i+1, nMax, msg)
         if len(addedDates) > 0:
             self.sigTimeSeriesDatesAdded.emit(addedDates)
+
+    def setDateTimePrecision(self, mode:DateTimePrecision):
+        """
+        Sets the precision with which the parsed DateTime information will be handled.
+        :param mode: TimeSeriesViewer:DateTimePrecision
+        :return:
+        """
+        self.mDateTimePrecision = mode
+
+        #do we like to update existing sources?
+
+
+
+
+    def date2date(self, date:np.datetime64):
+        assert isinstance(date, np.datetime64)
+        if self.mDateTimePrecision == DateTimePrecision.Original:
+            return date
+        else:
+            date = np.datetime64(date, self.mDateTimePrecision.value)
+
+        return date
+
 
     def sourceUris(self)->list:
         """
@@ -1134,33 +1172,31 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.cnNB = 'nb'
         self.cnCRS = 'CRS'
         self.cnImages = 'Image(s)'
-        self.mColumnNames = [self.cnDate, self.cnSensor, \
-                             self.cnNS, self.cnNL, self.cnNB, \
+        self.mColumnNames = [self.cnDate, self.cnSensor,
+                             self.cnNS, self.cnNL, self.cnNB,
                              self.cnCRS, self.cnImages]
         self.mTimeSeries = TS
         self.mSensors = set()
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.addTSDs)
 
-
         self.items = []
 
         self.addTSDs([tsd for tsd in self.mTimeSeries])
 
-    def removeTSDs(self, tsds):
-        #self.TS.removeDates(tsds)
+    def removeTSDs(self, tsds:list):
+        """
+        Removes TimeSeriesDatum instances
+        :param tsds: list
+        """
         for tsd in tsds:
             if tsd in self.mTimeSeries:
-                #remove from TimeSeries first.
                 self.mTimeSeries.removeTSDs([tsd])
             elif tsd in self.items:
                 idx = self.getIndexFromDate(tsd)
                 self.removeRows(idx.row(), 1)
 
-        #self.sort(self.sortColumnIndex, self.sortOrder)
-
-
-    def tsdChanged(self, tsd):
+    def tsdChanged(self, tsd:TimeSeriesDatum):
         idx = self.getIndexFromDate(tsd)
         self.dataChanged.emit(idx, idx)
 
@@ -1294,11 +1330,11 @@ class TimeSeriesTableModel(QAbstractTableModel):
         if index.isValid():
             columnName = self.mColumnNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName == self.cnDate: #allow check state
+            if columnName == self.cnDate: # allow check state
                 flags = flags | Qt.ItemIsUserCheckable
 
             return flags
-            #return item.qt_flags(index.column())
+            # return item.qt_flags(index.column())
         return None
 
     def headerData(self, col, orientation, role):
@@ -1391,9 +1427,9 @@ def extractWavelengths(ds):
 
 
 if __name__ == '__main__':
-    q  = QApplication([])
+    q = QApplication([])
     p = QProgressBar()
-    p.setRange(0,0)
+    p.setRange(0, 0)
 
     p.show()
     q.exec_()
