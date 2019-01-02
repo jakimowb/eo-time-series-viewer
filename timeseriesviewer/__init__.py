@@ -86,7 +86,10 @@ try:
 except:
     pass
 
-
+if not 'images' in sys.modules.keys():
+    import timeseriesviewer.resourcemockup
+    sys.modules['images'] = timeseriesviewer.resourcemockup
+    sys.modules['resources'] = timeseriesviewer.resourcemockup
 
 def messageLog(msg, level=None):
     """

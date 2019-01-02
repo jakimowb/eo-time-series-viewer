@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import os, sys, fnmatch, six, subprocess, re
-from qgis import *
-from qgis.core import *
-from qgis.gui import *
+#from qgis import *
+#from qgis.core import *
+#from qgis.gui import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtSvg import *
 from PyQt5.QtXml import *
 
-
 from osgeo import gdal
-
 from timeseriesviewer import DIR_UI, DIR_REPO
 from timeseriesviewer.utils import file_search, jp
 

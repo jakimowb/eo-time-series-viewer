@@ -14,7 +14,6 @@ app = initQgisApplication()
 
 class TestInit(unittest.TestCase):
 
-
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
@@ -117,9 +116,6 @@ class TestInit(unittest.TestCase):
         self.assertEqual(len(tsd), 0)
         tsd.addSource(tss)
         self.assertEqual(len(tsd), 1)
-
-
-
 
 
     def test_timeseriessource(self):
