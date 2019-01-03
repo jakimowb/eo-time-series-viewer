@@ -387,12 +387,12 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
             self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
             self.mBtnBar.layout().setSpacing(2)
 
-            self.actionSetDefault = QAction('Default')
-            self.actionSetRed = QAction('R')
-            self.actionSetGreen = QAction('G')
-            self.actionSetBlue = QAction('B')
-            self.actionSetNIR = QAction('nIR')
-            self.actionSetSWIR = QAction('swIR')
+            self.actionSetDefault = QAction('Default', self)
+            self.actionSetRed = QAction('R', self)
+            self.actionSetGreen = QAction('G', self)
+            self.actionSetBlue = QAction('B', self)
+            self.actionSetNIR = QAction('nIR', self)
+            self.actionSetSWIR = QAction('swIR', self)
 
             self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
             self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
@@ -506,12 +506,12 @@ class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidg
         self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
         self.mBtnBar.layout().setSpacing(2)
 
-        self.actionSetDefault = QAction('Default')
-        self.actionSetRed = QAction('R')
-        self.actionSetGreen = QAction('G')
-        self.actionSetBlue = QAction('B')
-        self.actionSetNIR = QAction('nIR')
-        self.actionSetSWIR = QAction('swIR')
+        self.actionSetDefault = QAction('Default', self)
+        self.actionSetRed = QAction('R', self)
+        self.actionSetGreen = QAction('G', self)
+        self.actionSetBlue = QAction('B', self)
+        self.actionSetNIR = QAction('nIR', self)
+        self.actionSetSWIR = QAction('swIR', self)
 
         self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
         self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
@@ -626,10 +626,10 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
         self.wavelengths = wl
         self.wavelengthUnit = wlu
 
-        self.actionSetDefault = QAction('Default')
-        self.actionSetTrueColor = QAction('RGB')
-        self.actionSetCIR = QAction('nIR')
-        self.actionSet453 = QAction('swIR')
+        self.actionSetDefault = QAction('Default', self)
+        self.actionSetTrueColor = QAction('RGB', self)
+        self.actionSetCIR = QAction('nIR', self)
+        self.actionSet453 = QAction('swIR', self)
 
         self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
         self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
