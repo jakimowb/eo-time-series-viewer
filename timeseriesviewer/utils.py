@@ -1321,7 +1321,7 @@ class TestObjects():
         return files + movedFiles
 
     @staticmethod
-    def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632', eType:int=None, path:str=None)->gdal.Dataset:
+    def inMemoryImage(nl=10, ns=20, nb=3, crs='EPSG:32632', eType:int=None, path:str=None) -> gdal.Dataset:
         """
         Create an in-memory gdal.Dataset
         :param nl:

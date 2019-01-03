@@ -34,9 +34,6 @@ import sys, re, os, six
 
 #widgets defined without UI file
 
-
-
-from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI
 
 
@@ -125,12 +122,5 @@ class AboutDialogUI(QDialog,
             title += ' ' + suffix
         self.setWindowTitle(title)
 
-
-
-class PropertyDialogUI(QDialog, loadUI('settingsdialog.ui')):
-
-    def __init__(self, parent=None):
-        super(PropertyDialogUI, self).__init__(parent)
-        self.setupUi(self)
 
 

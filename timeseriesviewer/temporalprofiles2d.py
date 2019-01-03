@@ -1090,8 +1090,6 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         if len(tasks) > 0:
 
-
-            # self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
             if backgroundProcess:
                 PL.startLoading(tasks)
             else:

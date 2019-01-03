@@ -73,7 +73,7 @@ PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
 PATH_ABOUT = jp(DIR_REPO, 'ABOUT.html')
-SETTINGS = QSettings(QSettings.UserScope, 'HU-Berlin', 'EO Time Series Viewer')
+
 
 
 DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
@@ -86,7 +86,10 @@ try:
 except:
     pass
 
-
+if not 'images' in sys.modules.keys():
+    import timeseriesviewer.resourcemockup
+    sys.modules['images'] = timeseriesviewer.resourcemockup
+    sys.modules['resources'] = timeseriesviewer.resourcemockup
 
 def messageLog(msg, level=None):
     """
@@ -130,22 +133,6 @@ if WORKAROUND_PYTGRAPH_ISSUE_774:
 
     GraphicsObject.itemChange = newFunc
 
-
-def initSettings():
-    def setIfNone(key, value):
-        if SETTINGS.value(key) is None:
-            SETTINGS.setValue(key, value)
-
-    setIfNone('n_processes', 3)
-    setIfNone('n_timer', 500)
-    setIfNone('max_temporalprofiles', 64)
-
-    import pathlib
-
-    setIfNone('dir_datasources', str(pathlib.Path.home()))
-    setIfNone('file_ts_definition', os.path.join(DIR_EXAMPLES, 'ExampleTimeSeries.csv'))
-
-initSettings()
 
 def icon()->QIcon:
     """

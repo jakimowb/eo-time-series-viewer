@@ -106,7 +106,7 @@ class TestInit(unittest.TestCase):
 
         TSV = TimeSeriesViewer()
         TSV.show()
-        TSV.loadExampleTimeSeries(1)
+        #TSV.loadExampleTimeSeries(1)
         self.assertIsInstance(TSV, TimeSeriesViewer)
         if SHOW_GUI:
             QGIS_APP.exec_()

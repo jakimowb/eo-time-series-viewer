@@ -27,7 +27,7 @@ from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.timeseries import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True
+SHOW_GUI = False
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -86,11 +86,17 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(canvas.layers()) == 0)
         canvas.timedRefresh()
         self.assertTrue(len(canvas.layers()) == 2)
-        canvas.removeUniqueMapLayers([lyr1, lyr2])
+
+        canvas.addToRefreshPipeLine(MapCanvas.Command.HideRasters)
+        canvas.timedRefresh()
+        self.assertTrue(len(canvas.layers()) == 0)
+
+        canvas.addToRefreshPipeLine(MapCanvas.Command.ShowRasters)
+        canvas.timedRefresh()
         self.assertTrue(len(canvas.layers()) == 2)
 
 
-
+        canvas.addToRefreshPipeLine(MapCanvas.Command.RemoveRasters)
         canvas.timedRefresh()
         self.assertTrue(len(canvas.layers()) == 0)
 
@@ -194,4 +200,5 @@ class testclassDialogTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    SHOW_GUI = False
     unittest.main()
