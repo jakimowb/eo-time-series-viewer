@@ -261,8 +261,90 @@ class QgisMockup(QgisInterface):
     def zoomFull(self, *args, **kwargs):
         super().zoomFull(*args, **kwargs)
 
-
 class TestObjects():
+    """
+    Creates objects to be used for testing. It is preferred to generate objects in-memory.
+    """
+
+
+    @staticmethod
+    def createTimeSeries():
+
+        TS = TimeSeries()
+        files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
+        TS.addSources(files)
+        return TS
+
+    @staticmethod
+    def createTimeSeriesStacks():
+        vsiDir = '/vsimem/tmp'
+        from timeseriesviewer.temporalprofiles2d import date2num
+        ns = 50
+        nl = 100
+
+        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
+        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
+        drv = gdal.GetDriverByName('ENVI')
+
+        crs = osr.SpatialReference()
+        crs.ImportFromEPSG(32633)
+
+        assert isinstance(drv, gdal.Driver)
+        datasets = []
+        for i, r in enumerate([r1, r2]):
+            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
+
+            ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
+            assert isinstance(ds, gdal.Dataset)
+
+            ds.SetProjection(crs.ExportToWkt())
+
+            dateString = ','.join([str(d) for d in r])
+            dateString = '{{{}}}'.format(dateString)
+            ds.SetMetadataItem('wavelength', dateString, 'ENVI')
+
+            for b, date in enumerate(r):
+                decimalYear = date2num(date)
+
+                band = ds.GetRasterBand(b + 1)
+                assert isinstance(band, gdal.Band)
+                band.Fill(decimalYear)
+            ds.FlushCache()
+            datasets.append(p)
+
+        return datasets
+
+    @staticmethod
+    def spectralProfiles(n):
+        """
+        Returns n random spectral profiles from the test data
+        :return: lost of (N,3) array of floats specifying point locations.
+        """
+
+        files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
+        results = []
+        import random
+        for file in random.choices(files, k=n):
+            ds = gdal.Open(file)
+            assert isinstance(ds, gdal.Dataset)
+            b1 = ds.GetRasterBand(1)
+            noData = b1.GetNoDataValue()
+            assert isinstance(b1, gdal.Band)
+            x = None
+            y = None
+            while x is None:
+                x = random.randint(0, ds.RasterXSize - 1)
+                y = random.randint(0, ds.RasterYSize - 1)
+
+                if noData is not None:
+                    v = b1.ReadAsArray(x, y, 1, 1)
+                    if v == noData:
+                        x = None
+            profile = ds.ReadAsArray(x, y, 1, 1).flatten()
+            results.append(profile)
+
+        return results
+
     """
     Class with static routines to create test objects
     """
@@ -328,6 +410,19 @@ class TestObjects():
             band.WriteArray(array)
         ds.FlushCache()
         return ds
+
+    @staticmethod
+    def createVectorDataSet()->ogr.DataSource:
+        path = '/vsimem/tmp' + str(uuid.uuid4()) + '.shp'
+        files = list(file_search(DIR_EXAMPLES, '*.shp', recursive=True))
+        assert len(files) > 0
+        dsSrc = ogr.Open(files[0])
+        assert isinstance(dsSrc, ogr.DataSource)
+        drv = dsSrc.GetDriver()
+        assert isinstance(drv, ogr.Driver)
+        dsDst = drv.CopyDataSource(dsSrc, path)
+        assert isinstance(dsDst, ogr.DataSource)
+        return dsDst
 
     @staticmethod
     def createDropEvent(mimeData:QMimeData):
@@ -472,85 +567,3 @@ class PythonRunnerImpl(QgsPythonRunner):
         return True
 
 
-class TestObjects():
-    """
-    Creates objects to be used for testing. It is prefered to generate objects in-memory.
-    """
-
-    @staticmethod
-    def createTimeSeries():
-
-        TS = TimeSeries()
-        files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
-        TS.addSources(files)
-        return TS
-
-    @staticmethod
-    def createTimeSeriesStacks():
-        vsiDir = '/vsimem/tmp'
-        from timeseriesviewer.temporalprofiles2d import date2num
-        ns = 50
-        nl = 100
-
-        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
-        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
-        drv = gdal.GetDriverByName('ENVI')
-
-        crs = osr.SpatialReference()
-        crs.ImportFromEPSG(32633)
-
-        assert isinstance(drv, gdal.Driver)
-        datasets = []
-        for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
-
-            ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
-            assert isinstance(ds, gdal.Dataset)
-
-            ds.SetProjection(crs.ExportToWkt())
-
-            dateString = ','.join([str(d) for d in r])
-            dateString = '{{{}}}'.format(dateString)
-            ds.SetMetadataItem('wavelength', dateString, 'ENVI')
-
-            for b, date in enumerate(r):
-                decimalYear = date2num(date)
-
-                band = ds.GetRasterBand(b + 1)
-                assert isinstance(band, gdal.Band)
-                band.Fill(decimalYear)
-            ds.FlushCache()
-            datasets.append(p)
-
-        return datasets
-
-    @staticmethod
-    def spectralProfiles(n):
-        """
-        Returns n random spectral profiles from the test data
-        :return: lost of (N,3) array of floats specifying point locations.
-        """
-
-        files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
-        results = []
-        import random
-        for file in random.choices(files, k=n):
-            ds = gdal.Open(file)
-            assert isinstance(ds, gdal.Dataset)
-            b1 = ds.GetRasterBand(1)
-            noData = b1.GetNoDataValue()
-            assert isinstance(b1, gdal.Band)
-            x = None
-            y = None
-            while x is None:
-                x = random.randint(0, ds.RasterXSize-1)
-                y = random.randint(0, ds.RasterYSize-1)
-
-                if noData is not None:
-                    v = b1.ReadAsArray(x,y,1,1)
-                    if v == noData:
-                        x = None
-            profile = ds.ReadAsArray(x,y,1,1).flatten()
-            results.append(profile)
-
-        return results

@@ -105,8 +105,8 @@ class TimeSeriesViewerUI(QMainWindow,
         #self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
         if DEBUG:
-            from timeseriesviewer.labeling import LabelingDockUI
-            self.dockLabeling = addDockWidget(LabelingDockUI(self))
+            from timeseriesviewer.labeling import LabelingDock
+            self.dockLabeling = addDockWidget(LabelingDock(self))
             self.dockLabeling.setHidden(True)
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
