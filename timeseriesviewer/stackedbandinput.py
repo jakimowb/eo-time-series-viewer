@@ -503,7 +503,7 @@ class OutputImageModel(QAbstractTableModel):
             band = dsVRT.GetRasterBand(stackIndex+1)
             assert isinstance(band, gdal.Band)
             assert isinstance(stack, InputStackInfo)
-            if stack.colorTable:
+            if isinstance(stack.colorTable, gdal.ColorTable) and stack.colorTable.GetCount() > 0:
                 band.SetColorTable(stack.colorTable)
             if stack.classNames:
                 band.SetCategoryNames(stack.classNames)
@@ -701,7 +701,7 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
             self.tableModelOutputImages.setMultiStackSources(inputStacks, datesIntersection)
 
         if self.rbSaveInMemory.isChecked():
-            self.tableModelOutputImages.setOutputDir('/vsimem/')
+            self.tableModelOutputImages.setOutputDir(r'/vsimem/')
         elif self.rbSaveInDirectory.isChecked():
             self.tableModelOutputImages.setOutputDir(self.fileWidgetOutputDir.filePath())
 
@@ -748,8 +748,8 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         """
         Reacts on new added datasets
         """
-        from timeseriesviewer import SETTINGS
-        defDir = SETTINGS.value('DIR_FILESEARCH')
+        import timeseriesviewer.settings
+        defDir = timeseriesviewer.settings.value(timeseriesviewer.settings.Keys.RasterSourceDirectory)
         filters = QgsProviderRegistry.instance().fileVectorFilters()
         files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
 
@@ -827,6 +827,6 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         if self.cbOpenInQGIS.isEnabled() and self.cbOpenInQGIS.isChecked():
             mapLayers = [QgsRasterLayer(p) for p in writtenFiles]
-            QgsProject.instance().addUniqueMapLayers(mapLayers, addToLegend=True)
+            QgsProject.instance().addMapLayers(mapLayers, addToLegend=True)
         self.mWrittenFiles.extend(writtenFiles)
         return writtenFiles

@@ -29,7 +29,6 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 import numpy as np
-from timeseriesviewer import jp, SETTINGS
 from timeseriesviewer.utils import loadUI, SpatialExtent, value2str
 
 PSUTIL_AVAILABLE = False

@@ -25,8 +25,6 @@ from qgis.gui import QgsDockWidget
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
-from timeseriesviewer import jp, SETTINGS
-from timeseriesviewer.utils import loadUI, SpatialExtent
 
 class TsvDockWidgetBase(QgsDockWidget):
 

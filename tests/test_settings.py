@@ -45,10 +45,37 @@ class testclassSettingsTest(unittest.TestCase):
     def test_Dialog(self):
 
         d = SettingsDialog()
-        self.assertIsInstance(d, QDialog)
-        r = d.exec_()
+        self.assertIsInstance(d, SettingsDialog)
 
-        self.assertTrue(r in [QDialog.Accepted, QDialog.Rejected])
+        defaults = defaultValues()
+        self.assertIsInstance(defaults, dict)
+
+        values = d.values()
+
+        defaultMapColor = values[Keys.MapBackgroundColor]
+        values[Keys.MapBackgroundColor] = QColor('yellow')
+        d.setValues(values)
+        self.assertTrue(d.mCanvasColorButton.color() == QColor('yellow'))
+        d.onAccept()
+
+        d = SettingsDialog()
+        values = d.values()
+        self.assertTrue(values[Keys.MapBackgroundColor] == QColor('yellow'))
+        values[Keys.MapBackgroundColor] = defaultMapColor
+        setValues(values)
+
+        d = SettingsDialog()
+        values = d.values()
+        self.assertTrue(values[Keys.MapBackgroundColor] == defaultMapColor)
+
+        if SHOW_GUI:
+            r = d.exec_()
+
+            self.assertTrue(r in [QDialog.Accepted, QDialog.Rejected])
+
+            if r == QDialog.Accepted:
+                defaults = d.values()
+                self.assertIsInstance(defaults, dict)
 
 
 

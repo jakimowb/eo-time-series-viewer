@@ -52,8 +52,8 @@ def speclibSettings()->QSettings:
     Returns SPECLIB relevant QSettings
     :return: QSettings
     """
-    from timeseriesviewer import SETTINGS
-    return SETTINGS
+    import timeseriesviewer.settings
+    return timeseriesviewer.settings.settings()
 
 
 

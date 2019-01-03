@@ -156,16 +156,6 @@ class TimeSeriesViewerUI(QMainWindow,
 
         #self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
-        self.restoreSettings()
-
-
-    def restoreSettings(self):
-        from timeseriesviewer import SETTINGS
-
-        #todo: restore settings
-        s = ""
-
-
 
     def _blockSignals(self, widgets, block=True):
         states = dict()
@@ -347,9 +337,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
 
         # connect buttons with actions
-        from timeseriesviewer.ui.widgets import AboutDialogUI, PropertyDialogUI
+        from timeseriesviewer.ui.widgets import AboutDialogUI
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
-        self.ui.actionSettings.triggered.connect(lambda: PropertyDialogUI(self.ui).exec_())
+
+        from timeseriesviewer.settings import SettingsDialog
+        self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
         import webbrowser
         from timeseriesviewer import DOCUMENTATION
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
@@ -377,6 +369,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # reg.addMapLayerAction(moveToFeatureCenter)
         # reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
         # reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
+
+        self.applySettings()
 
         TimeSeriesViewer._instance = self
 
@@ -455,6 +449,28 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         self.iface = self
         qgis.utils.iface = self
+
+    def onShowSettingsDialog(self):
+        from timeseriesviewer.settings import SettingsDialog, Keys
+        d = SettingsDialog(self.ui)
+        r = d.exec_()
+
+        if r == QDialog.Accepted:
+            self.applySettings()
+            s = ""
+        else:
+            pass
+            s  =""
+
+    def applySettings(self):
+        """
+        Reads the QSettings object and applies its value to related widget components
+        """
+        from timeseriesviewer.settings import value, Keys
+        self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
+        self.spatialTemporalVis.mMapRefreshTimer.start(value(Keys.MapUpdateInterval))
+        self.spatialTemporalVis.setBackgroundColor(value(Keys.MapBackgroundColor))
+        self.spatialTemporalVis.setMapSize(value(Keys.MapSize))
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
@@ -583,7 +599,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         return timeseriesviewer.icon()
 
-
     def logMessage(self, message, tag, level):
         m = message.split('\n')
         if '' in message.split('\n'):
@@ -595,20 +610,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if level in [Qgis.Critical, Qgis.Warning]:
 
-
-            if False:
-                widget = self.ui.messageBar.createMessage(tag, message)
-                button = QPushButton(widget)
-                button.setText("Show")
-                button.pressed.connect(lambda: showMessage(message, '{}'.format(tag), level))
-                widget.layout().addWidget(button)
-
-
-                self.ui.messageBar.pushWidget(widget, level, SETTINGS.value('MESSAGE_TIMEOUT', 10))
-            else:
-                self.ui.messageBar.pushMessage(tag, message, level=level)
-            #print on normal console
-            print(u'{}({}): {}'.format(tag, level, message))
+            self.ui.messageBar.pushMessage(tag, message, level=level)
+            print(r'{}({}): {}'.format(tag, level, message))
 
     def onTimeSeriesChanged(self, *args):
 

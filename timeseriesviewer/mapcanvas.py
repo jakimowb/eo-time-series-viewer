@@ -30,11 +30,12 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtXml import QDomDocument
 
-from . import SETTINGS
+
 from .utils import *
 from .timeseries import TimeSeriesDatum
 from .crosshair import CrosshairDialog, CrosshairStyle
 from .maptools import *
+
 
 class MapCanvasLayerModel(QAbstractTableModel):
 
@@ -197,11 +198,19 @@ class MapCanvasLayerModel(QAbstractTableModel):
                      [l for l in layers if isinstance(l, QgsRasterLayer)]
         return layers
 
+    def rasterSources(self)->list:
+        return [s for s in self if isinstance(s, MapCanvasLayerModel.LayerItem) and s.layerType() == 'raster']
+
+    def vectorSources(self)->list:
+        return [s for s in self if isinstance(s, MapCanvasLayerModel.LayerItem) and s.layerType() == 'vector']
+
     def removeMapLayerSources(self, mapLayerSources):
         assert isinstance(mapLayerSources, (list, types.GeneratorType))
         toRemove = []
         for src in mapLayerSources:
             uri = None
+            if isinstance(src, MapCanvasLayerModel.LayerItem):
+                uri = src.mUri.uri
             if isinstance(src, QgsRasterLayer):
                 uri = src.source()
             elif isinstance(src, QgsMimeDataUtils.Uri):
@@ -302,6 +311,13 @@ class MapCanvas(QgsMapCanvas):
         RefreshRenderer = 1
         RefreshVisibility = 2
         Clear = 3
+        RemoveRasters = 4
+        HideRasters = 5
+        ShowRasters = 6
+        RemoveVectors = 7
+        HideVectors = 8
+        ShowVectors = 9
+
 
 
     saveFileDirectories = dict()
@@ -345,7 +361,8 @@ class MapCanvas(QgsMapCanvas):
         self.mapCanvasRefreshed.connect(onMapCanvasRefreshed)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.setCanvasColor(SETTINGS.value('CANVAS_BACKGROUND_COLOR', QColor(0, 0, 0)))
+        bg = timeseriesviewer.settings.value(timeseriesviewer.settings.Keys.MapBackgroundColor, default=QColor(0, 0, 0))
+        self.setCanvasColor(bg)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
         #refreshTimer.timeout.connect(self.onTimerRefresh)
@@ -496,16 +513,11 @@ class MapCanvas(QgsMapCanvas):
         return self.mIsRefreshing
 
     def isVisibleToViewport(self)->bool:
+        """
+        Returns whether the MapCanvas is visible to a user and not hidden behind the invisible regions of a scroll area.
+        :return: bool
+        """
         return self.visibleRegion().boundingRect().isValid()
-
-
-    def addUniqueMapLayers(self, mapLayers):
-        self.mMapLayerModel.addMapLayerSources(mapLayers)
-        self.mTimedRefreshPipeLine.append(MapCanvas.Command.RefreshVisibility)
-
-    def removeUniqueMapLayers(self, mapLayers):
-        self.mMapLayerModel.removeMapLayerSources(mapLayers)
-        self.mTimedRefreshPipeLine.append(MapCanvas.Command.RefreshVisibility)
 
     def visibleLayers(self, sorted = True)->list:
         """
@@ -514,7 +526,11 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mMapLayerModel.visibleLayers(sorted=sorted)
 
-    def addToRefreshPipeLine(self, arguments):
+    def addToRefreshPipeLine(self, arguments: list):
+        """
+        Adds commands or other arguments to a pipeline which will be handled during the next timed refresh.
+        :param arguments: argument | [list-of-arguments]
+        """
         if not isinstance(arguments, list):
             arguments = [arguments]
         for a in arguments:
@@ -587,6 +603,30 @@ class MapCanvas(QgsMapCanvas):
 
                     elif command == MapCanvas.Command.RefreshVisibility:
                         self.setLayers(self.visibleLayers())
+
+                    elif command == MapCanvas.Command.RemoveRasters:
+                        self.mMapLayerModel.removeMapLayerSources(self.mMapLayerModel.rasterSources())
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
+
+                    elif command == MapCanvas.Command.RemoveVectors:
+                        self.mMapLayerModel.removeMapLayerSources(self.mMapLayerModel.vectorSources())
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
+
+                    elif command == MapCanvas.Command.ShowRasters:
+                        self.mMapLayerModel.setLayerVisibility(QgsRasterLayer, True)
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
+
+                    elif command == MapCanvas.Command.ShowVectors:
+                        self.mMapLayerModel.setLayerVisibility(QgsVectorLayer, True)
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
+
+                    elif command == MapCanvas.Command.HideRasters:
+                        self.mMapLayerModel.setLayerVisibility(QgsRasterLayer, False)
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
+
+                    elif command == MapCanvas.Command.HideVectors:
+                        self.mMapLayerModel.setLayerVisibility(QgsVectorLayer, False)
+                        self.setLayers(self.mMapLayerModel.visibleLayers())
 
                     elif command == MapCanvas.Command.Clear:
                         self.mMapLayerModel.clear()
@@ -921,7 +961,8 @@ class MapCanvas(QgsMapCanvas):
 
 
     def saveMapImageDialog(self, fileType):
-        lastDir = SETTINGS.value('CANVAS_SAVE_IMG_DIR', os.path.expanduser('~'))
+        import timeseriesviewer.settings
+        lastDir = timeseriesviewer.settings.value(timeseriesviewer.settings.Keys.ScreenShotDirectory, os.path.expanduser('~'))
         from timeseriesviewer.utils import saveFilePath
         from timeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
@@ -932,7 +973,7 @@ class MapCanvas(QgsMapCanvas):
         path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
-            SETTINGS.setValue('CANVAS_SAVE_IMG_DIR', os.path.dirname(path))
+            timeseriesviewer.settings.setValue(timeseriesviewer.settings.Keys.ScreenShotDirectory, os.path.dirname(path))
 
     def defaultRasterRenderer(self)->QgsRasterRenderer:
         """

@@ -35,7 +35,7 @@ import numpy as np
 from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
-from timeseriesviewer.ui.docks import loadUI
+from timeseriesviewer.utils import loadUI
 from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
 from timeseriesviewer.crosshair import CrosshairStyle
@@ -46,7 +46,6 @@ from timeseriesviewer.crosshair import CrosshairStyle
 #lyr = QgsRasterLayer(dummyPath)
 #assert lyr.isValid()
 DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
-
 
 
 class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):

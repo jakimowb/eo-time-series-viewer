@@ -28,7 +28,7 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtGui import *
 
-from timeseriesviewer import jp, SETTINGS
+from timeseriesviewer import jp
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
 from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
@@ -1144,32 +1144,9 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
     def savePlotSettings(self, sensorPlotSettings, index='DEFAULT'):
         return
-        #todo
-        assert isinstance(sensorPlotSettings, TemporalProfile2DPlotStyle)
-        #todo: avoid dumps
-        id = 'SPS.{}.{}'.format(index, sensorPlotSettings.sensor().id())
-        d = pickle.dumps(sensorPlotSettings)
-        SETTINGS.setValue(id, d)
 
     def restorePlotSettings(self, sensor, index='DEFAULT'):
         return None
-
-        #todo
-        assert isinstance(sensor, SensorInstrument)
-        id = 'SPS.{}.{}'.format(index, sensor.id())
-        sensorPlotSettings = SETTINGS.value(id)
-        if sensorPlotSettings is not None:
-            try:
-                sensorPlotSettings = pickle.loads(sensorPlotSettings)
-                s = ""
-            except:
-                sensorPlotSettings = None
-                pass
-
-        if isinstance(sensorPlotSettings, TemporalProfile2DPlotStyle):
-            return sensorPlotSettings
-        else:
-            return None
 
 
     def flags(self, index):
@@ -1847,7 +1824,7 @@ class SpectralTemporalVisualization(QObject):
         if len(tasks) > 0:
             aGoodDefault = 2 if len(self.TS) > 25 else 1
 
-            #self.pixelLoader.setNumberOfProcesses(SETTINGS.value('profileloader_threads', aGoodDefault))
+
             if DEBUG:
                 print('Start loading for {} geometries from {} sources...'.format(
                     len(theGeometries), len(tasks)

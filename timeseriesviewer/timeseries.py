@@ -41,7 +41,7 @@ gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not chang
 
 import numpy as np
 
-from timeseriesviewer import SETTINGS, messageLog
+from timeseriesviewer import messageLog
 from timeseriesviewer.dateparser import parseDateFromDataSet
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
@@ -182,7 +182,8 @@ class SensorInstrument(QObject):
 
         if sensor_name is None:
             sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
-            sensor_name = SETTINGS.value(self._sensorSettingsKey(), sensor_name)
+            import timeseriesviewer.settings
+            sensor_name = timeseriesviewer.settings.value(self._sensorSettingsKey(), sensor_name)
         self.mName = ''
         self.setName(sensor_name)
 
@@ -213,7 +214,8 @@ class SensorInstrument(QObject):
         """
         if name != self.mName:
             self.mName = name
-            SETTINGS.setValue(self._sensorSettingsKey(), name)
+            import timeseriesviewer.settings
+            timeseriesviewer.settings.setValue(self._sensorSettingsKey(), name)
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
