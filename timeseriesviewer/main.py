@@ -21,9 +21,6 @@
 # noinspection PyPep8Naming
 
 from qgis.core import *
-import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
-
-
 
 
 r"""

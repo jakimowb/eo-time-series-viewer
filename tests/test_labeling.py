@@ -40,8 +40,11 @@ class testclassLabelingTest(unittest.TestCase):
 
         ds = TestObjects.createVectorDataSet()
         path = ds.GetDescription()
+        import example
+        path = example.exampleEvents
         lyr = QgsVectorLayer(path)
         self.assertIsInstance(lyr, QgsVectorLayer)
+        self.assertTrue(lyr.featureCount() > 0)
         QgsProject.instance().addMapLayer(lyr)
 
         self.assertIsInstance(dock.mVectorLayerComboBox, QgsMapLayerComboBox)
