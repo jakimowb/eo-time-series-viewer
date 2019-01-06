@@ -271,8 +271,9 @@ class TestObjects():
     def createTimeSeries():
 
         TS = TimeSeries()
-        files = file_search(DIR_EXAMPLES, '*.bsq', recursive=True)
-        TS.addSources(files)
+        files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
+        TS.addSources(list(files))
+        assert len(TS) > 0
         return TS
 
     @staticmethod
@@ -413,16 +414,33 @@ class TestObjects():
 
     @staticmethod
     def createVectorDataSet()->ogr.DataSource:
-        path = '/vsimem/tmp' + str(uuid.uuid4()) + '.shp'
+        path = '/vsimem/tmp' + str(uuid.uuid4()) + '.gpkg'
         files = list(file_search(DIR_EXAMPLES, '*.shp', recursive=True))
         assert len(files) > 0
         dsSrc = ogr.Open(files[0])
         assert isinstance(dsSrc, ogr.DataSource)
-        drv = dsSrc.GetDriver()
+        drv = ogr.GetDriverByName('GPKG')
         assert isinstance(drv, ogr.Driver)
         dsDst = drv.CopyDataSource(dsSrc, path)
         assert isinstance(dsDst, ogr.DataSource)
+        dsDst.FlushCache()
         return dsDst
+
+    @staticmethod
+    def createVectorLayer()->QgsVectorLayer:
+        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+        dsSrc = TestObjects.createVectorDataSet()
+        assert isinstance(dsSrc, ogr.DataSource)
+        lyr = dsSrc.GetLayer(0)
+        assert isinstance(lyr, ogr.Layer)
+        assert lyr.GetFeatureCount() > 0
+        uri ='{}|{}'.format(dsSrc.GetName(), lyr.GetName())
+        #dsSrc = None
+        vl = QgsVectorLayer(uri, 'testlayer', 'ogr', lyrOptions)
+        assert isinstance(vl, QgsVectorLayer)
+        assert vl.featureCount() == lyr.GetFeatureCount()
+        return vl
+
 
     @staticmethod
     def createDropEvent(mimeData:QMimeData):

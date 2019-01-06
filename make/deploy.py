@@ -32,7 +32,7 @@ import numpy as np
 from pb_tool import pb_tool
 import git
 
-from tests import initQgisApplication
+from timeseriesviewer.tests import initQgisApplication
 app = initQgisApplication()
 from timeseriesviewer import DIR_REPO
 from timeseriesviewer.utils import file_search, jp, zipdir

@@ -13,11 +13,13 @@ from timeseriesviewer.timeseries import TimeSeriesDatum
 
 
 class LabelShortCutType(enum.Enum):
+    """Enumeration for shortcuts to be derived from a TimeSeriesDatum instance"""
     Off = 0
     Date = 1
     DOY = 2
-    Sensor = 3
-    ClassLabel = 4
+    DecimalYear = 3
+    Sensor = 4
+    ClassLabel = 5
 
 
 
@@ -47,7 +49,83 @@ class LabelAttributeTableModel(QAbstractTableModel):
         self.resetModel()
 
 
+    def contextMenuTSD(self, tsd:TimeSeriesDatum, parentMenu:QMenu)->QMenu:
+        """
+        Create a QMenu to label selected QgsFeatures via shortcuts.
+        :param tsd: TimeSeriesDatum
+        :param parentMenu: parent QMenu to add
+        :return: QMenu parent
+        """
+
+        if self.hasVectorLayer():
+            n = len(self.mVectorLayer.selectedFeatureIds())
+            m = parentMenu.addMenu('Label shortcuts "{}"'.format(self.mVectorLayer.name()))
+            m.setToolTip('Label {} selected feature(s) in {}'.format(n, self.mVectorLayer.name()))
+
+            sm = m.addAction('Shortcuts {}'.format(str(tsd.date())))
+            sm.triggered.connect(lambda : self.applyOnSelectedFeatures(tsd))
+            sm.setEnabled(n > 0)
+        else:
+            a = parentMenu.addAction('Label shortcuts undefined')
+            a.setToolTip('Use the labeling panel and specify a vector layer to selected features.')
+            a.setEnabled(False)
+
+        return parentMenu
+
+    def applyOnSelectedFeatures(self, tsd:TimeSeriesDatum, classInfos:list=None):
+        """
+        Labels selected features with information related to TimeSeriesDatum tsd, according to
+        the settings specified in this model.
+        :param tsd: TimeSeriesDatum
+        :param classInfos:
+        """
+
+        assert isinstance(tsd, TimeSeriesDatum)
+        if isinstance(self.mVectorLayer, QgsVectorLayer):
+            fields = self.mVectorLayer.fields()
+            assert isinstance(fields, QgsFields)
+            names = fields.names()
+            names = [n for n in names if n in self.mLabelTypes.keys()  and self.mLabelTypes[n] != LabelShortCutType.Off]
+
+            for feature in self.mVectorLayer.selectedFeatures():
+                fid = feature.id()
+                for name in names:
+                    idx = fields.indexOf(name)
+                    field = fields.at(idx)
+                    assert isinstance(field, QgsField)
+                    labelType = self.mLabelTypes[name]
+                    value = None
+                    if isinstance(labelType, LabelShortCutType):
+                        if labelType == LabelShortCutType.Sensor:
+                            value = tsd.sensor().name()
+                        elif labelType == LabelShortCutType.DOY:
+                            value = tsd.doy()
+                        elif labelType == LabelShortCutType.Date:
+                            value = str(tsd.date())
+                        elif labelType == LabelShortCutType.DecimalYear:
+                            value = tsd.decimalYear()
+                    else:
+                        pass
+                        #todo: support class infos
+
+                    if value == None:
+                        continue
+
+                    if field.typeName == 'String':
+                        value = str(value)
+
+                    oldValue = feature.attribute(name)
+                    self.mVectorLayer.changeAttributeValue(fid, idx, value, oldValue)
+
+
+
+        pass
+
     def hasVectorLayer(self)->bool:
+        """
+        Returns true if a QgsVectorLayer is specified.
+        :return: bool
+        """
         return isinstance(self.mVectorLayer, QgsVectorLayer)
 
     def resetModel(self):
@@ -69,16 +147,24 @@ class LabelAttributeTableModel(QAbstractTableModel):
         else:
             return 0
 
-    def field2index(self, field:QgsField)->QModelIndex:
-        assert isinstance(field, QgsField)
+
+    def fieldName2Index(self, fieldName:str)->str:
+        assert isinstance(fieldName, str)
 
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             fields = self.mVectorLayer.fields()
             assert isinstance(fields, QgsFields)
-            i = fields.indexOf(field)
+            i = fields.indexOf(fieldName)
             return self.createIndex(i, 0)
         else:
             return QModelIndex()
+
+
+    def field2index(self, field:QgsField)->QModelIndex:
+
+        assert isinstance(field, QgsField)
+        return self.fieldName2Index(field.name())
+
 
     def index2field(self, index:QModelIndex)->QgsField:
         if index.isValid() and isinstance(self.mVectorLayer, QgsVectorLayer):
@@ -90,6 +176,24 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
     def columnCount(self, parent = QModelIndex())->int:
         return len(self.mColumnNames)
+
+
+    def setFieldShortCut(self, fieldName:str, attributeType:LabelShortCutType):
+        if isinstance(fieldName, QgsField):
+            fieldName = fieldName.name()
+        assert isinstance(fieldName, str)
+        assert isinstance(attributeType, LabelShortCutType)
+
+        if self.hasVectorLayer():
+            fields = self.mVectorLayer.fields()
+            assert isinstance(fields, QgsFields)
+            i = self.mVectorLayer.fields().indexFromName(fieldName)
+            assert i >= 0
+            field = self.mVectorLayer.fields().at(i)
+            idx = self.field2index(field)
+
+            self.setData(self.createIndex(idx.row(), 2), attributeType, role=Qt.EditRole)
+
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
@@ -252,6 +356,9 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
         self.initActions()
         self.onVectorLayerChanged()
+
+    def setFieldShortCut(self, fieldName:str, labelShortCut:LabelShortCutType):
+        self.mLabelAttributeModel.setFieldShortCut(fieldName, labelShortCut)
 
     def onVectorLayerChanged(self):
         lyr = self.currentVectorSource()

@@ -35,7 +35,7 @@ from .utils import *
 from .timeseries import TimeSeriesDatum
 from .crosshair import CrosshairDialog, CrosshairStyle
 from .maptools import *
-
+from .labeling import LabelAttributeTableModel
 
 class MapCanvasLayerModel(QAbstractTableModel):
 
@@ -104,13 +104,13 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return len(self.mItems)
 
     def setDefaultRasterRenderer(self, renderer:QgsRasterRenderer):
-        assert isinstance(renderer, QgsRasterRenderer)
-        self.mDefaultRasterRenderer = renderer
+        if isinstance(renderer, QgsRasterRenderer):
+            self.mDefaultRasterRenderer = renderer
 
-        for item in self.mItems:
-            assert isinstance(item, MapCanvasLayerModel.LayerItem)
-            if not item.mExternalControl and isinstance(item.mLyr, QgsRasterLayer):
-                item.mLyr.setRenderer(renderer.clone())
+            for item in self.mItems:
+                assert isinstance(item, MapCanvasLayerModel.LayerItem)
+                if not item.mExternalControl and isinstance(item.mLyr, QgsRasterLayer):
+                    item.mLyr.setRenderer(renderer.clone())
 
     def setDefaultVectorRenderer(self, renderer:QgsFeatureRenderer):
         assert isinstance(renderer, QgsFeatureRenderer)
@@ -342,6 +342,7 @@ class MapCanvas(QgsMapCanvas):
 
 
         self.mTSD = self.mMapView = None
+        self.mLabelingModel = None
         #the canvas
         self.mIsRefreshing = False
         self.mRenderingFinished = True
@@ -418,6 +419,10 @@ class MapCanvas(QgsMapCanvas):
 
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
+
+    def setLabelingModel(self, model):
+        assert isinstance(model, (LabelAttributeTableModel, None))
+        self.mLabelingModel = model
 
 
     def setTSD(self, tsd:TimeSeriesDatum):
@@ -821,6 +826,9 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
+        if isinstance(self.mLabelingModel, LabelAttributeTableModel) and isinstance(self.mTSD, TimeSeriesDatum):
+            menu.addSeparator()
+            m = self.mLabelingModel.contextMenuTSD(self.mTSD, menu)
 
         menu.addSeparator()
 

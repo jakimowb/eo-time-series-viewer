@@ -523,6 +523,21 @@ class TimeSeriesDatum(QObject):
         """
         return np.datetime64(self.mDate)
 
+    def decimalYear(self)->float:
+        """
+        Returns the observation date as decimal year (year + doy / (366+1) )
+        :return: float
+        """
+
+        return self.year() + self.doy() / (366+1)
+
+    def year(self)->int:
+        """
+        Returns the observation year
+        :return: int
+        """
+        return self.mDate.astype(object).year
+
     def doy(self)->int:
         """
         Returns the day of Year (DOY)

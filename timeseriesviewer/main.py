@@ -130,9 +130,14 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
 
+
+        from timeseriesviewer.labeling import LabelingDock
+        self.dockLabeling = addDockWidget(LabelingDock(self))
+
+
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
-
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
 
@@ -463,7 +468,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         Reads the QSettings object and applies its value to related widget components
         """
-        from timeseriesviewer.settings import value, Keys
+
+
+        from timeseriesviewer.settings import value, Keys, defaultValues, setValue
+
+        #the default values
+        defaults = defaultValues()
+        for key in list(Keys):
+            if value(key) == None:
+                setValue(key, defaults[key])
+
+
         self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
         self.spatialTemporalVis.mMapRefreshTimer.start(value(Keys.MapUpdateInterval))
         self.spatialTemporalVis.setBackgroundColor(value(Keys.MapBackgroundColor))
