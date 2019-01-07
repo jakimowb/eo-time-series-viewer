@@ -14,12 +14,12 @@ from timeseriesviewer.timeseries import TimeSeriesDatum
 
 class LabelShortCutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDatum instance"""
-    Off = 0
-    Date = 1
-    DOY = 2
-    DecimalYear = 3
-    Sensor = 4
-    ClassLabel = 5
+    Off = 'No label shortcut'
+    Date = 'Date-Time'
+    DOY = 'Day of Year (DOY)'
+    Year = 'Year'
+    DecimalYear = 'Decimal year'
+    Sensor = 'Sensor name'
 
 
 
@@ -194,6 +194,43 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
             self.setData(self.createIndex(idx.row(), 2), attributeType, role=Qt.EditRole)
 
+    def shortcuts(self, field:QgsField):
+        """
+        Returns the possible LabelShortCutTypes for a certain field
+        :param fieldName: str
+        :return: [list]
+        """
+        if not self.hasVectorLayer():
+            return []
+
+        if isinstance(field, QModelIndex):
+            field = self.index2field(field)
+
+        if isinstance(field, str):
+            i = self.mVectorLayer.fields().lookupField(field)
+            field = self.mVectorLayer.fields().at(i)
+
+        assert isinstance(field, QgsField)
+
+        shortCutsString = [LabelShortCutType.Sensor, LabelShortCutType.Date]
+        shortCutsInt = [LabelShortCutType.Year, LabelShortCutType.DOY]
+        shortCutsFloat = [LabelShortCutType.DecimalYear]
+
+        options = [LabelShortCutType.Off]
+        t = field.typeName().lower()
+        if t == 'string':
+            options.extend(shortCutsString)
+            options.extend(shortCutsInt)
+            options.extend(shortCutsFloat)
+        elif t.startswith('integer'):
+            options.extend(shortCutsInt)
+        elif t.startswith('real'):
+            options.extend(shortCutsInt)
+            options.extend(shortCutsFloat)
+        else:
+            s = ""
+        return options
+
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
@@ -299,8 +336,10 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel:
                 w = QComboBox(parent=parent)
-                for i in list(LabelShortCutType):
-                    w.addItem(i.name, i)
+                for i, shortcutType in enumerate(model.shortcuts(index)):
+                    assert isinstance(shortcutType, LabelShortCutType)
+                    w.addItem(shortcutType.name, shortcutType)
+                    w.setItemData(i, shortcutType.value, Qt.ToolTipRole)
         return w
 
 

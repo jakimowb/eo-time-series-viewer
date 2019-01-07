@@ -125,6 +125,11 @@ class testclassLabelingTest(unittest.TestCase):
         dock.setFieldShortCut('class2l', LabelShortCutType.Off)
         dock.setFieldShortCut('class2n', LabelShortCutType.Off)
 
+        for name in lyr.fields().names():
+            options = model.shortcuts(name)
+            self.assertIsInstance(options, list)
+            self.assertTrue(len(options) > 0)
+
         m = dock.mLabelAttributeModel
         self.assertIsInstance(m, LabelAttributeTableModel)
         self.assertTrue(m.data(m.createIndex(3, 0), Qt.DisplayRole) == 'sensor')
