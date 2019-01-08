@@ -64,11 +64,16 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         from timeseriesviewer.main import TimeSeriesViewer
         tsv = TimeSeriesViewer.instance()
+        self.mVectorSourceModel = self.cbQgsVectorLayer.model().sourceModel()
+        QgsProject.instance().layersAdded.connect(self.mVectorSourceModel.addLayers)
+        QgsProject.instance().layersRemoved.connect(self.mVectorSourceModel.removeLayers)
+
         if isinstance(tsv, TimeSeriesViewer):
             self.mStore = tsv.mapLayerStore()
-            self.mVectorSourceModel = self.cbQgsVectorLayer.model().sourceModel()
+
             self.mStore.layersAdded.connect(self.mVectorSourceModel.addLayers)
             self.mStore.layersRemoved.connect(self.mVectorSourceModel.removeLayers)
+
 
         #connect the QActions with the QgsCollapsibleGroupBoxes
         self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.setChecked)
@@ -1778,11 +1783,19 @@ class SpatialTemporalVisualization(QObject):
 
 
     def setCrosshairVisibility(self, b:bool):
+        """
+        Sets the Crosshair visiblity
+        :param b: bool
+        """
         assert isinstance(b, bool)
         self.onCrosshairChanged(b)
 
 
-    def setVectorLayer(self, lyr):
+    def setVectorLayer(self, lyr:QgsVectorLayer):
+        """
+        Sets a QgsVectorLaye to be shown on top of raster images
+        :param lyr: QgsVectorLayer
+        """
         self.MVC.setVectorLayer(lyr)
 
 
@@ -1797,7 +1810,11 @@ class SpatialTemporalVisualization(QObject):
         self.sigMapSizeChanged.emit(self.mSize)
         self.adjustScrollArea()
 
-    def mapSize(self):
+    def mapSize(self)->QSize:
+        """
+        Returns the MapCanvas size
+        :return: QSize
+        """
         return QSize(self.mSize)
 
 
@@ -1812,7 +1829,10 @@ class SpatialTemporalVisualization(QObject):
         #self.mMapRefreshTimer.stop()
 
     def adjustScrollArea(self):
-        #adjust scroll area widget to fit all visible widgets
+        """
+        Adjusts the scroll area widget to fit all visible widgets
+        """
+
         m = self.targetLayout.contentsMargins()
         nX = len(self.DVC)
         w = h = 0
@@ -1845,7 +1865,13 @@ class SpatialTemporalVisualization(QObject):
         self.targetLayout.parentWidget().resize(QSize(sizeX, sizeY))
 
     def setMapTool(self, mapToolKey, *args, **kwds):
-        # filter map tools
+        """
+        Create a maptool instance to each MapCanvas
+        :param mapToolKey: str which MapTool is to create, or QgsMapTool instance
+        :param args: optional maptool arguments
+        :param kwds: optional maptool keywords
+        :return: [list-of-QgsMapTools]
+        """
         self.mMapToolActivator = self.sender()
         del self.mMapTools[:]
 
@@ -1868,13 +1894,12 @@ class SpatialTemporalVisualization(QObject):
 
         return self.mMapTools
 
-
-
-    def setMaxTSDViews(self, n=-1):
-        self.nMaxTSDViews = n
-        #todo: remove views
-
     def setSpatialCenter(self, center, mapCanvas0=None):
+        """
+        Sets the spatial center of all MapCanvases
+        :param center: SpatialPoint
+        :param mapCanvas0:
+        """
         assert isinstance(center, SpatialPoint)
         center = center.toCrs(self.mCRS)
         if not isinstance(center, SpatialPoint):

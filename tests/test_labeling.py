@@ -106,7 +106,32 @@ class testclassLabelingTest(unittest.TestCase):
         dock = LabelingDock()
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
+        self.assertIsInstance(lyr, QgsVectorLayer)
 
+
+        from timeseriesviewer.classification.classificationscheme import registerClassificationSchemeEditorWidget
+        from timeseriesviewer.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY
+        registerClassificationSchemeEditorWidget()
+
+        reg = QgsGui.editorWidgetRegistry()
+        if len(reg.factories()) == 0:
+            reg.initEditors()
+
+        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
+        am = lyr.actions()
+        self.assertIsInstance(am, QgsActionManager)
+
+        atc = lyr.attributeTableConfig()
+        #set a ClassificationScheme to each class-specific column
+        for name in lyr.fields().names():
+            if name.startswith('class'):
+                field = lyr.fields().lookupField(name)
+                classScheme = {'foo':'bar'}
+                lyr.setEditorWidgetSetup(field,
+                                         QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, classScheme))
+
+                setup = lyr.editorWidgetSetup(field)
+                s = ""
         self.assertIsInstance(dock.mVectorLayerComboBox, QgsMapLayerComboBox)
         dock.mVectorLayerComboBox.setCurrentIndex(1)
         self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == lyr)
