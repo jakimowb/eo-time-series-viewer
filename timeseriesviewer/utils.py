@@ -1151,7 +1151,8 @@ def nicePredecessor(l):
 
 loadUI = lambda p : loadUIFormClass(jp(DIR_UI, p))
 loadIcon = lambda p: jp(DIR_UI, *['icons',p])
-#dictionary to store form classes and avoid multiple calls to read <myui>.ui
+
+# dictionary to store form classes and avoid multiple calls to read *.ui
 FORM_CLASSES = dict()
 
 
@@ -1363,7 +1364,7 @@ class TestObjects():
 
     @staticmethod
     def inMemoryClassification(n=3, nl=10, ns=20, nb=1, crs='EPSG:32632'):
-        from .classificationscheme import ClassificationScheme
+        from timeseriesviewer.classification.classificationscheme import ClassificationScheme
         scheme = ClassificationScheme()
         scheme.createClasses(n)
 
@@ -1448,6 +1449,66 @@ class TestObjects():
                 return outputs
 
         return TestProcessingAlgorithm()
+
+
+class QgsPluginManagerMockup(QgsPluginManagerInterface):
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+    def addPluginMetadata(self, *args, **kwargs):
+        super().addPluginMetadata(*args, **kwargs)
+
+    def addToRepositoryList(self, *args, **kwargs):
+        super().addToRepositoryList(*args, **kwargs)
+
+    def childEvent(self, *args, **kwargs):
+        super().childEvent(*args, **kwargs)
+
+    def clearPythonPluginMetadata(self, *args, **kwargs):
+        #super().clearPythonPluginMetadata(*args, **kwargs)
+        pass
+
+    def clearRepositoryList(self, *args, **kwargs):
+        super().clearRepositoryList(*args, **kwargs)
+
+    def connectNotify(self, *args, **kwargs):
+        super().connectNotify(*args, **kwargs)
+
+    def customEvent(self, *args, **kwargs):
+        super().customEvent(*args, **kwargs)
+
+    def disconnectNotify(self, *args, **kwargs):
+        super().disconnectNotify(*args, **kwargs)
+
+    def isSignalConnected(self, *args, **kwargs):
+        return super().isSignalConnected(*args, **kwargs)
+
+    def pluginMetadata(self, *args, **kwargs):
+        super().pluginMetadata(*args, **kwargs)
+
+    def pushMessage(self, *args, **kwargs):
+        super().pushMessage(*args, **kwargs)
+
+    def receivers(self, *args, **kwargs):
+        return super().receivers(*args, **kwargs)
+
+    def reloadModel(self, *args, **kwargs):
+        super().reloadModel(*args, **kwargs)
+
+    def sender(self, *args, **kwargs):
+        return super().sender(*args, **kwargs)
+
+    def senderSignalIndex(self, *args, **kwargs):
+        return super().senderSignalIndex(*args, **kwargs)
+
+    def showPluginManager(self, *args, **kwargs):
+        super().showPluginManager(*args, **kwargs)
+
+    def timerEvent(self, *args, **kwargs):
+        super().timerEvent(*args, **kwargs)
 
 
 
