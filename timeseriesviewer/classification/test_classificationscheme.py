@@ -10,7 +10,7 @@ import unittest
 import tempfile
 import enmapboxtestdata
 
-from enmapbox.gui.utils import *
+from timeseriesviewer.gui.utils import *
 from .classificationscheme import *
 
 SHOW_GUIS = True

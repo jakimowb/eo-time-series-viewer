@@ -48,7 +48,7 @@ class testclassLabelingTest(unittest.TestCase):
         lyr.addAttribute(QgsField('class2n', QVariant.String, 'varchar'))
         assert lyr.commitChanges()
         names = lyr.fields().names()
-        QgsProject.instance().addMapLayer(lyr)
+
         return lyr
 
 
@@ -99,21 +99,142 @@ class testclassLabelingTest(unittest.TestCase):
         if SHOW_GUI:
             menu.exec_()
 
+    def test_shortcuts(self):
 
-    def test_labelWidget(self):
+        vl = self.createVectorLayer()
 
-        vl = TestObjects.createVectorLayer()
+        fields = vl.fields()
+        self.assertIsInstance(fields, QgsFields)
+
+        for name in fields.names():
+            field = fields.at(fields.lookupField(name))
+            self.assertIsInstance(field, QgsField)
+
+            possibleTypes = shortcuts(field)
+
+            if re.search('string', field.typeName(), re.I):
+                for t in list(LabelShortCutType):
+                    self.assertTrue(t in possibleTypes)
+            elif re.search('integer', field.typeName(), re.I):
+                for t in [LabelShortCutType.Classification, LabelShortCutType.Off, LabelShortCutType.DOY]:
+                    self.assertTrue(t in possibleTypes)
+            elif re.search('real', field.typeName(), re.I):
+                for t in [LabelShortCutType.Classification, LabelShortCutType.Off, LabelShortCutType.DOY]:
+                    self.assertTrue(t in possibleTypes)
+            else:
+                self.fail('Unhandled QgsField typeName: {}'.format(field.typeName()))
+
+
+    def test_LabelShortcutEditorConfigWidget(self):
+
+        vl = self.createVectorLayer()
+
         self.assertIsInstance(vl, QgsVectorLayer)
         fields = vl.fields()
-        i = fields
+        i = fields.lookupField('class1l')
         field = fields.at(i)
-        w = LabelShortcutEditorConfigWidget(field, None)
 
+        parent = QWidget()
+
+        parent.setWindowTitle('TEST')
+        parent.setLayout(QVBoxLayout())
+        w = LabelShortcutEditorConfigWidget(vl, i, parent)
         self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
-        w.show()
+
+        classScheme1 = ClassificationScheme.create(5)
+        classScheme1.setName('Schema1')
+        classScheme1 = ClassificationScheme.create(3)
+        classScheme1.setName('Schema2')
+        reg = QgsGui.editorWidgetRegistry()
+        reg.initEditors()
+        registerLabelShortcutEditorWidget()
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {'labelType': LabelShortCutType.Sensor}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.Date}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.DOY}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.DecimalYear}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                    {'labelType': LabelShortCutType.Classification,
+                                     'classificationScheme':classScheme1}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {'labelType': LabelShortCutType.Classification,
+                                                      'classificationScheme': classScheme1}))
+
+        for i in range(vl.fields().count()):
+            setup = vl.editorWidgetSetup(i)
+            self.assertIsInstance(setup, QgsEditorWidgetSetup)
+            if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+                self.assertIsInstance(reg, QgsEditorWidgetRegistry)
+                w2 = QWidget()
+
+                confWidget = reg.createConfigWidget(EDITOR_WIDGET_REGISTRY_KEY, vl, i, parent)
+                self.assertIsInstance(confWidget, QgsEditorConfigWidget)
+
+
+                editorWidgetWrapper = reg.create(EDITOR_WIDGET_REGISTRY_KEY, vl, i, setup.config(), None, parent)
+                self.assertIsInstance(editorWidgetWrapper, QgsEditorWidgetWrapper)
+
+
+
+        canvas = QgsMapCanvas(parent)
+        canvas.setVisible(False)
+
+        dv = QgsDualView(parent)
+        assert isinstance(dv, QgsDualView)
+        dv.init(vl, canvas)  # , context=self.mAttributeEditorContext)
+        dv.setView(QgsDualView.AttributeTable)
+
+
+        panel = QgsMapLayerStyleManagerWidget(vl, canvas, parent)
+
+        parent.layout().addWidget(w)
+        parent.layout().addWidget(dv)
+        parent.layout().addWidget(panel)
+
+        parent.show()
+
+        #randomly click into table cells
+        vl.startEditing()
+
+        size = dv.size()
+        w = size.width()
+        h = size.height()
+        from random import randint
+        for i in range(500):
+            x = randint(0, w-1)
+            y = randint(0, h-1)
+            localPos = QPointF(x,y)
+            event = QMouseEvent(QEvent.MouseButtonPress, localPos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
+            dv.mousePressEvent(event)
+            s = ""
+
+        vl.selectByIds([1, 2, 3])
+        ts = TestObjects.createTimeSeries()
+        tsd = ts[5]
+
+
+        self.assertTrue(len(labelShortcutLayers()) == 0)
+        QgsProject.instance().addMapLayer(vl)
+
+        self.assertTrue(len(labelShortcutLayers()) == 1)
+        for lyr in labelShortcutLayers():
+            assert isinstance(lyr, QgsVectorLayer)
+            applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
 
         if SHOW_GUI:
+            dv.show()
             QGIS_APP.exec_()
+
+        self.assertTrue(vl.commitChanges())
         pass
 
 
@@ -189,6 +310,8 @@ class testclassLabelingTest(unittest.TestCase):
         if SHOW_GUI:
             dock.show()
             QGIS_APP.exec_()
+
+        self.assertTrue(lyr.commitChanges())
 
 if __name__ == "__main__":
     SHOW_GUI = False

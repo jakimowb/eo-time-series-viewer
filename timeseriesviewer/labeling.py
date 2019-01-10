@@ -13,6 +13,9 @@ from timeseriesviewer.classification.classificationscheme \
 
 from timeseriesviewer.timeseries import TimeSeriesDatum
 
+MAP_LAYER_STORES = [QgsProject.instance()]
+
+
 
 class LabelShortCutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDatum instance"""
@@ -32,9 +35,9 @@ def shortcuts(field:QgsField):
     """
     assert isinstance(field, QgsField)
 
-    shortCutsString = [LabelShortCutType.Sensor, LabelShortCutType.Date]
-    shortCutsInt = [LabelShortCutType.Year, LabelShortCutType.DOY]
-    shortCutsFloat = [LabelShortCutType.DecimalYear]
+    shortCutsString = [LabelShortCutType.Sensor, LabelShortCutType.Date, LabelShortCutType.Classification]
+    shortCutsInt = [LabelShortCutType.Year, LabelShortCutType.DOY, LabelShortCutType.Classification]
+    shortCutsFloat = [LabelShortCutType.Year, LabelShortCutType.DOY, LabelShortCutType.DecimalYear, LabelShortCutType.Classification]
 
     options = [LabelShortCutType.Off]
     t = field.typeName().lower()
@@ -51,6 +54,112 @@ def shortcuts(field:QgsField):
         s = ""
     return options
 
+
+def layerClassSchemes(layer:QgsVectorLayer)->list:
+    assert isinstance(layer, QgsVectorLayer)
+    schemes = []
+    for i in range(layer.fields().count()):
+        setup = layer.editorWidgetSetup(i)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            results.append(layer)
+            break
+    return schemes
+
+
+def labelShortcutLayers()->list:
+    """
+    Returns a list of all known QgsVectorLayer which define at least one LabelShortcutEditWidget
+    :return: [list-of-QgsVectorLayer]
+    """
+    layers = set()
+    classSchemes = set()
+    for store in MAP_LAYER_STORES:
+        assert isinstance(store, (QgsProject, QgsMapLayerStore))
+        for layer in store.mapLayers().values():
+            if isinstance(layer, QgsVectorLayer):
+                s  =""
+                for i in range(layer.fields().count()):
+                    setup = layer.editorWidgetSetup(i)
+                    assert isinstance(setup, QgsEditorWidgetSetup)
+                    if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+                        conf = setup.config()
+                        ci = conf.get('classificationScheme')
+                        if isinstance(ci, ClassificationScheme):
+                            classSchemes.add(ci)
+
+                        layers.add(layer)
+                        break
+    return layers, list(classSchemes)
+
+def applyShortcutsToRegisteredLayers(tsd:TimeSeriesDatum, classInfos:list):
+
+    for layer in labelShortcutLayers():
+        assert isinstance(layer, QgsVectorLayer)
+        applyShortcuts(layer, tsd, classInfos)
+
+
+def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:list=None):
+    """
+    Labels selected features with information related to TimeSeriesDatum tsd, according to
+    the settings specified in this model.
+    :param tsd: TimeSeriesDatum
+    :param classInfos:
+    """
+    assert isinstance(tsd, TimeSeriesDatum)
+    assert isinstance(classInfos, list)
+    assert isinstance(vectorLayer, QgsVectorLayer)
+
+    assert vectorLayer.isEditable()
+
+    for i in range(vectorLayer.fields().count()):
+        setup = vectorLayer.editorWidgetSetup(i)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            field = vectorLayer.fields().at(i)
+            assert isinstance(field, QgsField)
+
+            conf = setup.config()
+            labelType = conf.get('labelType')
+            if isinstance(labelType, LabelShortCutType):
+                value = None
+                if labelType == LabelShortCutType.Sensor:
+                    value = tsd.sensor().name()
+                elif labelType == LabelShortCutType.DOY:
+                    value = tsd.doy()
+                elif labelType == LabelShortCutType.Date:
+                    value = str(tsd.date())
+                elif labelType == LabelShortCutType.DecimalYear:
+                    value = tsd.decimalYear()
+                elif labelType == LabelShortCutType.Classification:
+                    classScheme = conf.get('classificationScheme')
+                    if isinstance(classScheme, ClassificationScheme):
+                        for classInfo in classInfos:
+                            assert isinstance(classInfo, ClassInfo)
+                            if classInfo in classScheme:
+                                if field.type() == QVariant.String:
+                                    value = classInfo.name()
+                                else:
+                                    value = classInfo.label()
+                                break
+
+                if value == None:
+                    continue
+
+                if field.type() == QVariant.String:
+                    value = str(value)
+
+                for feature in vectorLayer.selectedFeatures():
+                    assert isinstance(feature, QgsFeature)
+                    oldValue = feature.attribute(field.name())
+                    vectorLayer.changeAttributeValue(feature.id(), i, value, oldValue)
+
+
+    pass
+
+
+
+
 class LabelAttributeTableModel(QAbstractTableModel):
 
     def __init__(self, parent=None, *args):
@@ -63,8 +172,6 @@ class LabelAttributeTableModel(QAbstractTableModel):
         self.mColumnNames = [self.cnField, self.cnFieldType, self.cnLabel]
         self.mLabelTypes = dict()
         self.mVectorLayer = None
-
-
 
     def setVectorLayer(self, layer:QgsVectorLayer):
 
@@ -550,7 +657,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
             labelType = self.mAllowedShortCuts[0]
 
         i = self.mCBShortCutType.findData(labelType)
-        self.mCBShortCutType.setCurrentText(i)
+        self.mCBShortCutType.setCurrentIndex(i)
 
 
         classScheme = config.get('classificationScheme')
@@ -576,6 +683,97 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         return self.mCBShortCutType.currentData(Qt.UserRole)
 
 
+
+class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
+
+    def __init__(self, vl:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget):
+        super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
+
+        self.mEditor = None
+        self.mValidator = None
+
+    def configLabelType(self)->LabelShortCutType:
+        return self.config('labelType')
+
+    def configClassificationScheme(self)->ClassificationScheme:
+        return self.config('classificationScheme')
+
+    def createWidget(self, parent: QWidget):
+        #log('createWidget')
+        labelType = self.configLabelType()
+        if labelType == LabelShortCutType.Classification:
+            self.mEditor = ClassificationSchemeComboBox(parent)
+        else:
+            self.mEditor = QLineEdit(parent)
+            self.mValidator = QRegExpValidator()
+        return self.mEditor
+
+
+    def initWidget(self, editor:QWidget):
+        #log(' initWidget')
+
+        if isinstance(editor, ClassificationSchemeComboBox):
+            cs = self.configClassificationScheme()
+            if isinstance(cs, ClassificationScheme):
+                self.mEditor.setClassificationScheme(cs)
+                self.mEditor.currentIndexChanged.connect(self.onValueChanged)
+
+        if isinstance(editor, QLineEdit):
+            self.mEditor = editor
+            self.mEditor.textChanged.connect(self.onValueChanged)
+
+    def onValueChanged(self, *args):
+        self.valueChanged.emit(self.value())
+        s = ""
+
+    def valid(self, *args, **kwargs)->bool:
+        return isinstance(self.mEditor, (ClassificationSchemeComboBox, QLineEdit))
+
+    def value(self, *args, **kwargs):
+        typeCode = self.field().type()
+        if isinstance(self.mEditor, ClassificationSchemeComboBox):
+            classInfo = self.mEditor.currentClassInfo()
+            if isinstance(classInfo, ClassInfo):
+                if typeCode == QVariant.String:
+                    return classInfo.name()
+                if typeCode in [QVariant.Int, QVariant.Double]:
+                    return classInfo.label()
+        elif isinstance(self.mEditor, QLineEdit):
+            txt = self.mEditor.text()
+            if len(txt) == '':
+                return self.defaultValue()
+            if typeCode == QVariant.String:
+                return txt
+
+            try:
+                txt = txt.strip()
+                if typeCode == QVariant.Int:
+                    return int(txt)
+                if typeCode == QVariant.Double:
+                    return float(txt)
+            except Exception as e:
+                return self.defaultValue()
+
+            return self.mLineEdit.text()
+
+        return None
+
+
+    def setEnabled(self, enabled:bool):
+
+        if isinstance(self.mEditor, QWidget):
+            self.mEditor.setEnabled(enabled)
+
+
+    def setValue(self, value):
+
+        if isinstance(self.mEditor, ClassificationSchemeComboBox):
+            cs = self.mEditor.classificationScheme()
+            if isinstance(cs, ClassificationScheme) and len(cs) > 0:
+                i = cs.classIndexFromValue(value)
+                self.mEditor.setCurrentIndex(max(i, 0))
+        elif isinstance(self.mEditor, QLineEdit):
+            self.mEditor.setText(str(value))
 
 
 class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
@@ -610,7 +808,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         """
         return (layer.id(), fieldIdx)
 
-    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget)->ClassificationSchemeEditorWidgetWrapper:
+    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget)->LabelShortcutEditorWidgetWrapper:
         """
         Create a ClassificationSchemeEditorWidgetWrapper
         :param layer: QgsVectorLayer
@@ -619,7 +817,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         :param parent: QWidget
         :return: ClassificationSchemeEditorWidgetWrapper
         """
-        w = ClassificationSchemeEditorWidgetWrapper(layer, fieldIdx, editor, parent)
+        w = LabelShortcutEditorWidgetWrapper(layer, fieldIdx, editor, parent)
         return w
 
     def writeConfig(self, key:tuple, config:dict):
@@ -670,83 +868,13 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
 
 
 
-class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
-
-    def __init__(self, vl:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget):
-        super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
-
-        self.mComboBox = None
-        self.mLineEdit = None
-        self.mDefaultValue = None
-
-    def createWidget(self, parent: QWidget):
-        #log('createWidget')
-
-        w = QLineEdit(parent)
-        #w = ClassificationSchemeComboBox(parent)
-        w.setVisible(True)
-
-        return w
-
-    def initWidget(self, editor:QWidget):
-        #log(' initWidget')
-        conf = self.config()
-
-        if isinstance(editor, ClassificationSchemeComboBox):
-            self.mComboBox = editor
-            cs = conf.get('classificationScheme')
-            if isinstance(cs, ClassificationScheme):
-            self.mComboBox.setClassificationScheme(cs)
-            self.mComboBox.currentIndexChanged.connect(self.onValueChanged)
-
-        else:
-            s = ""
-
-    def onValueChanged(self, *args):
-        self.valueChanged.emit(self.value())
-        s = ""
-
-    def valid(self, *args, **kwargs)->bool:
-        return isinstance(self.mComboBox, ClassificationSchemeComboBox) or \
-               isinstance(self.mLineEdit, QLineEdit)
-
-    def value(self, *args, **kwargs):
-        if isinstance(self.mComboBox, ClassificationSchemeComboBox):
-            classInfo = self.mComboBox.currentClassInfo()
-            if isinstance(classInfo, ClassInfo):
-                typeCode = self.field().type()
-                if typeCode == QVariant.String:
-                    return classInfo.name()
-                if typeCode in [QVariant.Int, QVariant.Double]:
-                    return classInfo.label()
-        elif isinstance(self.mLineEdit):
-            return self.mLineEdit.text()
-
-        return None
-
-
-    def setEnabled(self, enabled:bool):
-
-        if isinstance(self.mComboBox, ClassificationSchemeComboBox):
-            self.mComboBox.setEnabled(enabled)
-
-
-    def setValue(self, value):
-
-        if isinstance(self.mComboBox, ClassificationSchemeComboBox):
-            cs = self.mComboBox.classificationScheme()
-            if isinstance(cs, ClassificationScheme) and len(cs) > 0:
-                i = cs.classIndexFromValue(value)
-                self.mComboBox.setCurrentIndex(max(i,0))
-
-
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV_Labeling'
 labelEditorWidgetFactory = None
-def registerLabelingEditorWidget():
+def registerLabelShortcutEditorWidget():
     reg = QgsGui.editorWidgetRegistry()
     if not EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys():
-        factory = LabelingWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
+        factory = LabelShortcutWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
         reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, factory)
     else:
         labelEditorWidgetFactory = reg.factories()[EDITOR_WIDGET_REGISTRY_KEY]

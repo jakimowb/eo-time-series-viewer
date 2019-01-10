@@ -826,8 +826,20 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
+        menu.addSeparator()
+        from timeseriesviewer.labeling import labelShortcutLayers
+        labelLayers = labelShortcutLayers()
+
+        if len(labelLayers) == 0:
+            a = menu.addAction('No vector layers to label')
+        else:
+            a = menu.addAction('Label time & sensor attributes')
+            m = menu.addMenu('Class Labels...')
+            for
+
+
         if isinstance(self.mLabelingModel, LabelAttributeTableModel) and isinstance(self.mTSD, TimeSeriesDatum):
-            menu.addSeparator()
+
             m = self.mLabelingModel.contextMenuTSD(self.mTSD, menu)
 
         menu.addSeparator()
