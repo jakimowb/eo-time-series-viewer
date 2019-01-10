@@ -100,6 +100,22 @@ class testclassLabelingTest(unittest.TestCase):
             menu.exec_()
 
 
+    def test_labelWidget(self):
+
+        vl = TestObjects.createVectorLayer()
+        self.assertIsInstance(vl, QgsVectorLayer)
+        fields = vl.fields()
+        i = fields
+        field = fields.at(i)
+        w = LabelShortcutEditorConfigWidget(field, None)
+
+        self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
+        w.show()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+        pass
+
 
     def test_LabelingDock(self):
 
