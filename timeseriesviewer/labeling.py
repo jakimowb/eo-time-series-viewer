@@ -13,11 +13,13 @@ from timeseriesviewer.classification.classificationscheme \
 
 from timeseriesviewer.timeseries import TimeSeriesDatum
 
+#the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
+CONFKEY_CLASSIFICATIONSCHEME = 'classificationScheme'
+CONFKEY_LABELTYPE = 'labelKey'
 
-
-class LabelShortCutType(enum.Enum):
+class LabelShortcutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDatum instance"""
     Off = 'No label shortcut'
     Date = 'Date-Time'
@@ -35,11 +37,11 @@ def shortcuts(field:QgsField):
     """
     assert isinstance(field, QgsField)
 
-    shortCutsString = [LabelShortCutType.Sensor, LabelShortCutType.Date, LabelShortCutType.Classification]
-    shortCutsInt = [LabelShortCutType.Year, LabelShortCutType.DOY, LabelShortCutType.Classification]
-    shortCutsFloat = [LabelShortCutType.Year, LabelShortCutType.DOY, LabelShortCutType.DecimalYear, LabelShortCutType.Classification]
+    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date, LabelShortcutType.Classification]
+    shortCutsInt = [LabelShortcutType.Year, LabelShortcutType.DOY, LabelShortcutType.Classification]
+    shortCutsFloat = [LabelShortcutType.Year, LabelShortcutType.DOY, LabelShortcutType.DecimalYear, LabelShortcutType.Classification]
 
-    options = [LabelShortCutType.Off]
+    options = [LabelShortcutType.Off]
     t = field.typeName().lower()
     if t == 'string':
         options.extend(shortCutsString)
@@ -66,33 +68,53 @@ def layerClassSchemes(layer:QgsVectorLayer)->list:
             break
     return schemes
 
+def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
+    """
+    Returns the ClassificationSchemes used for labeling shortcuts
+    :param layer: QgsVectorLayer
+    :return: [list-of-classificationSchemes]
+    """
+    classSchemes = []
+    assert isinstance(layer, QgsVectorLayer)
+    for i in range(layer.fields().count()):
+        setup = layer.editorWidgetSetup(i)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            conf = setup.config()
+            ci = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
+            if isinstance(ci, ClassificationScheme) and ci not in classSchemes:
+                classSchemes.add(ci)
+
+    return classSchemes
 
 def labelShortcutLayers()->list:
     """
     Returns a list of all known QgsVectorLayer which define at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
     """
-    layers = set()
+    layers = []
     classSchemes = set()
     for store in MAP_LAYER_STORES:
         assert isinstance(store, (QgsProject, QgsMapLayerStore))
         for layer in store.mapLayers().values():
             if isinstance(layer, QgsVectorLayer):
-                s  =""
                 for i in range(layer.fields().count()):
                     setup = layer.editorWidgetSetup(i)
                     assert isinstance(setup, QgsEditorWidgetSetup)
                     if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
-                        conf = setup.config()
-                        ci = conf.get('classificationScheme')
-                        if isinstance(ci, ClassificationScheme):
-                            classSchemes.add(ci)
-
-                        layers.add(layer)
+                        if layer not in layers:
+                            layers.append(layer)
                         break
-    return layers, list(classSchemes)
+    return layers
 
 def applyShortcutsToRegisteredLayers(tsd:TimeSeriesDatum, classInfos:list):
+    """
+
+    :param tsd:
+    :param classInfos:
+    :return:
+    """
+
 
     for layer in labelShortcutLayers():
         assert isinstance(layer, QgsVectorLayer)
@@ -120,19 +142,19 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:l
             assert isinstance(field, QgsField)
 
             conf = setup.config()
-            labelType = conf.get('labelType')
-            if isinstance(labelType, LabelShortCutType):
+            labelType = conf.get(CONFKEY_LABELTYPE)
+            if isinstance(labelType, LabelShortcutType):
                 value = None
-                if labelType == LabelShortCutType.Sensor:
+                if labelType == LabelShortcutType.Sensor:
                     value = tsd.sensor().name()
-                elif labelType == LabelShortCutType.DOY:
+                elif labelType == LabelShortcutType.DOY:
                     value = tsd.doy()
-                elif labelType == LabelShortCutType.Date:
+                elif labelType == LabelShortcutType.Date:
                     value = str(tsd.date())
-                elif labelType == LabelShortCutType.DecimalYear:
+                elif labelType == LabelShortcutType.DecimalYear:
                     value = tsd.decimalYear()
-                elif labelType == LabelShortCutType.Classification:
-                    classScheme = conf.get('classificationScheme')
+                elif labelType == LabelShortcutType.Classification:
+                    classScheme = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
                     if isinstance(classScheme, ClassificationScheme):
                         for classInfo in classInfos:
                             assert isinstance(classInfo, ClassInfo)
@@ -220,7 +242,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             fields = self.mVectorLayer.fields()
             assert isinstance(fields, QgsFields)
             names = fields.names()
-            names = [n for n in names if n in self.mLabelTypes.keys()  and self.mLabelTypes[n] != LabelShortCutType.Off]
+            names = [n for n in names if n in self.mLabelTypes.keys() and self.mLabelTypes[n] != LabelShortcutType.Off]
 
             for feature in self.mVectorLayer.selectedFeatures():
                 fid = feature.id()
@@ -230,14 +252,14 @@ class LabelAttributeTableModel(QAbstractTableModel):
                     assert isinstance(field, QgsField)
                     labelType = self.mLabelTypes[name]
                     value = None
-                    if isinstance(labelType, LabelShortCutType):
-                        if labelType == LabelShortCutType.Sensor:
+                    if isinstance(labelType, LabelShortcutType):
+                        if labelType == LabelShortcutType.Sensor:
                             value = tsd.sensor().name()
-                        elif labelType == LabelShortCutType.DOY:
+                        elif labelType == LabelShortcutType.DOY:
                             value = tsd.doy()
-                        elif labelType == LabelShortCutType.Date:
+                        elif labelType == LabelShortcutType.Date:
                             value = str(tsd.date())
-                        elif labelType == LabelShortCutType.DecimalYear:
+                        elif labelType == LabelShortcutType.DecimalYear:
                             value = tsd.decimalYear()
                     else:
                         pass
@@ -272,7 +294,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             for i in range(fields.count()):
                 field = fields.at(i)
                 assert isinstance(field, QgsField)
-                self.mLabelTypes[field.name()] = LabelShortCutType.Off
+                self.mLabelTypes[field.name()] = LabelShortcutType.Off
 
         self.endResetModel()
 
@@ -312,11 +334,11 @@ class LabelAttributeTableModel(QAbstractTableModel):
         return len(self.mColumnNames)
 
 
-    def setFieldShortCut(self, fieldName:str, attributeType:LabelShortCutType):
+    def setFieldShortCut(self, fieldName:str, attributeType:LabelShortcutType):
         if isinstance(fieldName, QgsField):
             fieldName = fieldName.name()
         assert isinstance(fieldName, str)
-        assert isinstance(attributeType, LabelShortCutType)
+        assert isinstance(attributeType, LabelShortcutType)
 
         if self.hasVectorLayer():
             fields = self.mVectorLayer.fields()
@@ -364,7 +386,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             elif columnName == self.cnFieldType:
                 value = '{}'.format(field.typeName())
             elif columnName == self.cnLabel:
-                if isinstance(labelType, LabelShortCutType):
+                if isinstance(labelType, LabelShortcutType):
                     value = labelType.name
                 else:
                     value = str(labelType)
@@ -384,7 +406,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
         oldTabelType = self.mLabelTypes.get(field.name())
         changed = False
         if columnName == self.cnLabel and role == Qt.EditRole:
-            if isinstance(value, LabelShortCutType) and value != oldTabelType:
+            if isinstance(value, LabelShortcutType) and value != oldTabelType:
                 self.mLabelTypes[field.name()] = value
                 changed = True
         if changed:
@@ -453,7 +475,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
             if cname == model.cnLabel:
                 w = QComboBox(parent=parent)
                 for i, shortcutType in enumerate(model.shortcuts(index)):
-                    assert isinstance(shortcutType, LabelShortCutType)
+                    assert isinstance(shortcutType, LabelShortcutType)
                     w.addItem(shortcutType.name, shortcutType)
                     w.setItemData(i, shortcutType.value, Qt.ToolTipRole)
         return w
@@ -467,7 +489,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel and isinstance(editor, QComboBox):
                 labelType = model.data(index, role=Qt.UserRole)
-                assert isinstance(labelType, LabelShortCutType)
+                assert isinstance(labelType, LabelShortcutType)
                 for i in range(editor.count()):
                     d = editor.itemData(i)
                     if d == labelType:
@@ -512,7 +534,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.initActions()
         self.onVectorLayerChanged()
 
-    def setFieldShortCut(self, fieldName:str, labelShortCut:LabelShortCutType):
+    def setFieldShortCut(self, fieldName:str, labelShortCut:LabelShortcutType):
         self.mLabelAttributeModel.setFieldShortCut(fieldName, labelShortCut)
 
     def onVectorLayerChanged(self):
@@ -639,19 +661,19 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
     def config(self, *args, **kwargs)->dict:
 
         conf = dict()
-        conf['labelType'] = self.mCBShortCutType.currentData()
+        conf[CONFKEY_LABELTYPE] = self.mCBShortCutType.currentData()
         cs = self.mClassWidget.classificationScheme()
         assert isinstance(cs, ClassificationScheme)
         #todo: json for serialization
-        conf['classificationScheme'] = cs
+        conf[CONFKEY_CLASSIFICATIONSCHEME] = cs
 
         return conf
 
     def setConfig(self, config:dict):
         self.mLastConfig = config
-        labelType = config.get('labelType')
-        if not isinstance(labelType, LabelShortCutType):
-            labelType = LabelShortCutType.Off
+        labelType = config.get(CONFKEY_LABELTYPE)
+        if not isinstance(labelType, LabelShortcutType):
+            labelType = LabelShortcutType.Off
 
         if labelType not in self.mAllowedShortCuts:
             labelType = self.mAllowedShortCuts[0]
@@ -660,14 +682,14 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.mCBShortCutType.setCurrentIndex(i)
 
 
-        classScheme = config.get('classificationScheme')
+        classScheme = config.get(CONFKEY_CLASSIFICATIONSCHEME)
         if isinstance(classScheme, ClassificationScheme):
             self.mClassWidget.setClassificationScheme(classScheme)
 
 
     def onIndexChanged(self, *args):
         ltype = self.shortcutType()
-        if ltype == LabelShortCutType.Classification:
+        if ltype == LabelShortcutType.Classification:
             self.mClassWidget.setEnabled(True)
         else:
             self.mClassWidget.setEnabled(False)
@@ -679,7 +701,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         assert isinstance(classScheme, ClassificationScheme)
         self.mClassWidget.setClassificationScheme(classScheme)
 
-    def shortcutType(self)->LabelShortCutType:
+    def shortcutType(self)->LabelShortcutType:
         return self.mCBShortCutType.currentData(Qt.UserRole)
 
 
@@ -692,16 +714,16 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.mEditor = None
         self.mValidator = None
 
-    def configLabelType(self)->LabelShortCutType:
-        return self.config('labelType')
+    def configLabelType(self)->LabelShortcutType:
+        return self.config(CONFKEY_LABELTYPE)
 
     def configClassificationScheme(self)->ClassificationScheme:
-        return self.config('classificationScheme')
+        return self.config(CONFKEY_CLASSIFICATIONSCHEME)
 
     def createWidget(self, parent: QWidget):
         #log('createWidget')
         labelType = self.configLabelType()
-        if labelType == LabelShortCutType.Classification:
+        if labelType == LabelShortcutType.Classification:
             self.mEditor = ClassificationSchemeComboBox(parent)
         else:
             self.mEditor = QLineEdit(parent)

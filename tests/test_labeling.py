@@ -60,10 +60,10 @@ class testclassLabelingTest(unittest.TestCase):
         model = LabelAttributeTableModel()
         model.setVectorLayer(lyr)
 
-        model.setFieldShortCut('sensor', LabelShortCutType.Sensor)
-        model.setFieldShortCut('date', LabelShortCutType.Date)
-        model.setFieldShortCut('DOY', LabelShortCutType.DOY)
-        model.setFieldShortCut('decyr', LabelShortCutType.Off)
+        model.setFieldShortCut('sensor', LabelShortcutType.Sensor)
+        model.setFieldShortCut('date', LabelShortcutType.Date)
+        model.setFieldShortCut('DOY', LabelShortcutType.DOY)
+        model.setFieldShortCut('decyr', LabelShortcutType.Off)
 
         self.assertIsInstance(lyr, QgsVectorLayer)
 
@@ -113,13 +113,13 @@ class testclassLabelingTest(unittest.TestCase):
             possibleTypes = shortcuts(field)
 
             if re.search('string', field.typeName(), re.I):
-                for t in list(LabelShortCutType):
+                for t in list(LabelShortcutType):
                     self.assertTrue(t in possibleTypes)
             elif re.search('integer', field.typeName(), re.I):
-                for t in [LabelShortCutType.Classification, LabelShortCutType.Off, LabelShortCutType.DOY]:
+                for t in [LabelShortcutType.Classification, LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
             elif re.search('real', field.typeName(), re.I):
-                for t in [LabelShortCutType.Classification, LabelShortCutType.Off, LabelShortCutType.DOY]:
+                for t in [LabelShortcutType.Classification, LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
             else:
                 self.fail('Unhandled QgsField typeName: {}'.format(field.typeName()))
@@ -151,22 +151,22 @@ class testclassLabelingTest(unittest.TestCase):
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {'labelType': LabelShortCutType.Sensor}))
+                                                     {'labelType': LabelShortcutType.Sensor}))
         vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.Date}))
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.Date}))
         vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.DOY}))
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.DOY}))
         vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortCutType.DecimalYear}))
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.DecimalYear}))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                    {'labelType': LabelShortCutType.Classification,
+                                    {'labelType': LabelShortcutType.Classification,
                                      'classificationScheme':classScheme1}))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {'labelType': LabelShortCutType.Classification,
+                                                     {'labelType': LabelShortcutType.Classification,
                                                       'classificationScheme': classScheme1}))
 
         for i in range(vl.fields().count()):
@@ -278,14 +278,14 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(model.mVectorLayer == lyr)
         self.assertTrue(lyr.fields().count() == model.rowCount())
 
-        dock.setFieldShortCut('sensor', LabelShortCutType.Sensor)
-        dock.setFieldShortCut('date', LabelShortCutType.Date)
-        dock.setFieldShortCut('DOY', LabelShortCutType.DOY)
-        dock.setFieldShortCut('decyr', LabelShortCutType.Off)
-        dock.setFieldShortCut('class1l', LabelShortCutType.Off)
-        dock.setFieldShortCut('class1n', LabelShortCutType.Off)
-        dock.setFieldShortCut('class2l', LabelShortCutType.Off)
-        dock.setFieldShortCut('class2n', LabelShortCutType.Off)
+        dock.setFieldShortCut('sensor', LabelShortcutType.Sensor)
+        dock.setFieldShortCut('date', LabelShortcutType.Date)
+        dock.setFieldShortCut('DOY', LabelShortcutType.DOY)
+        dock.setFieldShortCut('decyr', LabelShortcutType.Off)
+        dock.setFieldShortCut('class1l', LabelShortcutType.Off)
+        dock.setFieldShortCut('class1n', LabelShortcutType.Off)
+        dock.setFieldShortCut('class2l', LabelShortcutType.Off)
+        dock.setFieldShortCut('class2n', LabelShortcutType.Off)
 
         for name in lyr.fields().names():
             options = model.shortcuts(name)
@@ -297,8 +297,8 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(m.data(m.createIndex(3, 0), Qt.DisplayRole) == 'sensor')
 
         v = m.data(m.createIndex(3, 0), Qt.UserRole)
-        self.assertIsInstance(v, LabelShortCutType)
-        self.assertTrue(v == LabelShortCutType.Sensor)
+        self.assertIsInstance(v, LabelShortcutType)
+        self.assertTrue(v == LabelShortcutType.Sensor)
 
 
         lyr.selectByIds([1,2,3])

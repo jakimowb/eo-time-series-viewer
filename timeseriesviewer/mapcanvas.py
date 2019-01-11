@@ -35,7 +35,9 @@ from .utils import *
 from .timeseries import TimeSeriesDatum
 from .crosshair import CrosshairDialog, CrosshairStyle
 from .maptools import *
-from .labeling import LabelAttributeTableModel
+from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
+from .classification.classificationscheme import ClassificationScheme, ClassInfo
+import timeseriesviewer.settings
 
 class MapCanvasLayerModel(QAbstractTableModel):
 
@@ -342,7 +344,7 @@ class MapCanvas(QgsMapCanvas):
 
 
         self.mTSD = self.mMapView = None
-        self.mLabelingModel = None
+        #self.mLabelingModel = None
         #the canvas
         self.mIsRefreshing = False
         self.mRenderingFinished = True
@@ -420,9 +422,9 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
 
-    def setLabelingModel(self, model):
-        assert isinstance(model, (LabelAttributeTableModel, None))
-        self.mLabelingModel = model
+    #def setLabelingModel(self, model):
+    #    assert isinstance(model, (LabelAttributeTableModel, None))
+    #    self.mLabelingModel = model
 
 
     def setTSD(self, tsd:TimeSeriesDatum):
@@ -827,20 +829,38 @@ class MapCanvas(QgsMapCanvas):
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
         menu.addSeparator()
-        from timeseriesviewer.labeling import labelShortcutLayers
+
+        m = menu.addMenu('Label...')
+
         labelLayers = labelShortcutLayers()
-
-        if len(labelLayers) == 0:
-            a = menu.addAction('No vector layers to label')
-        else:
-            a = menu.addAction('Label time & sensor attributes')
-            m = menu.addMenu('Class Labels...')
-            for
+        hasShortcutLayers = len(labelLayers) > 0
+        lyrWithSelectedFeaturs = [l for l in labelLayers if len(l.selectedFeatureIds()) > 0]
+        hasSelectedFeaturs = len(lyrWithSelectedFeaturs) > 0
 
 
-        if isinstance(self.mLabelingModel, LabelAttributeTableModel) and isinstance(self.mTSD, TimeSeriesDatum):
+        a = m.addAction('Time & sensor')
+        a.setEnabled(hasShortcutLayers)
+        a.setToolTip('Write time and sensor attribute related to {}.'.format(self.tsd().date()))
 
-            m = self.mLabelingModel.contextMenuTSD(self.mTSD, menu)
+        classSchemes = []
+        for layer in lyrWithSelectedFeaturs:
+            for classScheme in layerClassSchemes(layer):
+                assert isinstance(classScheme, ClassificationScheme)
+                if classScheme in classSchemes:
+                    continue
+
+                classMenu = m.addMenu('Classification "{}"'.format(classScheme.name()))
+                assert isinstance(classMenu, QMenu)
+                for classInfo in classScheme:
+                    assert isinstance(classInfo, ClassInfo)
+                    a = classMenu.addAction(classInfo.name())
+                    a.setIcon(classInfo.icon())
+                    a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(clasSInfo.name(), classInfo.value()))
+
+                    a.triggered.connect(
+                        lambda tsd=self.tsd(), ci = classInfo:
+                        applyShortcutsToRegisteredLayers(tsd, [ci]))
+                classSchemes.append(classScheme)
 
         menu.addSeparator()
 

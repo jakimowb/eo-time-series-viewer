@@ -1744,7 +1744,7 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setFixedSize(self.mSize)
         mapCanvas.setDestinationCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
-        mapCanvas.setLabelingModel(self.TSV.ui.dockLabeling.mLabelAttributeModel)
+
 
         #register on map canvas signals
         def onChanged(e, mapCanvas0=None):
