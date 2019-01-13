@@ -17,17 +17,17 @@ from timeseriesviewer.timeseries import TimeSeriesDatum
 MAP_LAYER_STORES = [QgsProject.instance()]
 
 CONFKEY_CLASSIFICATIONSCHEME = 'classificationScheme'
-CONFKEY_LABELTYPE = 'labelKey'
+CONFKEY_LABELTYPE = 'labelType'
 
 class LabelShortcutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDatum instance"""
-    Off = 'No label shortcut'
+    Off = 'No labeling (default)'
     Date = 'Date-Time'
     DOY = 'Day of Year (DOY)'
     Year = 'Year'
     DecimalYear = 'Decimal year'
     Sensor = 'Sensor name'
-    Classification = 'Classification Label'
+    Classification = 'Classificaton'
 
 def shortcuts(field:QgsField):
     """
@@ -54,7 +54,11 @@ def shortcuts(field:QgsField):
         options.extend(shortCutsFloat)
     else:
         s = ""
-    return options
+    result = []
+    for o in options:
+        if o not in result:
+            result.append(o)
+    return result
 
 
 def layerClassSchemes(layer:QgsVectorLayer)->list:
@@ -67,6 +71,8 @@ def layerClassSchemes(layer:QgsVectorLayer)->list:
             results.append(layer)
             break
     return schemes
+
+
 
 def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
     """
@@ -121,7 +127,7 @@ def applyShortcutsToRegisteredLayers(tsd:TimeSeriesDatum, classInfos:list):
         applyShortcuts(layer, tsd, classInfos)
 
 
-def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:list=None):
+def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:dict=None):
     """
     Labels selected features with information related to TimeSeriesDatum tsd, according to
     the settings specified in this model.
@@ -129,10 +135,25 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:l
     :param classInfos:
     """
     assert isinstance(tsd, TimeSeriesDatum)
-    assert isinstance(classInfos, list)
+    assert isinstance(classInfos, (dict, None))
     assert isinstance(vectorLayer, QgsVectorLayer)
 
     assert vectorLayer.isEditable()
+
+    #Lookup-Table for classiicationSchemes
+    LUT_Classifications = dict()
+    for i in range(vectorLayer.fields().count()):
+        field = vectorLayer.fields().at(i)
+        setup = vectorLayer.editorWidgetSetup(i)
+        assert isinstance(setup, QgsEditorWidgetSetup)
+        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+            conf = setup.config()
+            labelType = conf.get(CONFKEY_LABELTYPE)
+            classScheme = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
+            if labelType == LabelShortcutType.Classification and isinstance(classScheme, ClassificationScheme):
+                LUT_Classifications[i] = classScheme
+                LUT_Classifications[classScheme.name()] = classScheme
+                LUT_Classifications[field.name()] = classScheme
 
     for i in range(vectorLayer.fields().count()):
         setup = vectorLayer.editorWidgetSetup(i)
@@ -154,11 +175,11 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:l
                 elif labelType == LabelShortcutType.DecimalYear:
                     value = tsd.decimalYear()
                 elif labelType == LabelShortcutType.Classification:
-                    classScheme = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
-                    if isinstance(classScheme, ClassificationScheme):
-                        for classInfo in classInfos:
-                            assert isinstance(classInfo, ClassInfo)
-                            if classInfo in classScheme:
+                    fieldClassScheme = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
+                    if isinstance(fieldClassScheme, ClassificationScheme):
+                        for ciKey, classInfo in classInfos.items():
+                            classScheme = LUT_Classifications.get(ciKey)
+                            if classScheme == fieldClassScheme and classInfo in fieldClassScheme:
                                 if field.type() == QVariant.String:
                                     value = classInfo.name()
                                 else:
@@ -190,9 +211,9 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
         self.cnField = 'Field'
         self.cnFieldType = 'Type'
-        self.cnLabel = 'Label'
+        self.cnLabel = 'Label shortcut'
         self.mColumnNames = [self.cnField, self.cnFieldType, self.cnLabel]
-        self.mLabelTypes = dict()
+        #self.mLabelTypes = dict()
         self.mVectorLayer = None
 
     def setVectorLayer(self, layer:QgsVectorLayer):
@@ -203,80 +224,8 @@ class LabelAttributeTableModel(QAbstractTableModel):
             self.mVectorLayer = layer
         else:
             self.mVectorLayer = None
+
         self.resetModel()
-
-
-    def contextMenuTSD(self, tsd:TimeSeriesDatum, parentMenu:QMenu)->QMenu:
-        """
-        Create a QMenu to label selected QgsFeatures via shortcuts.
-        :param tsd: TimeSeriesDatum
-        :param parentMenu: parent QMenu to add
-        :return: QMenu parent
-        """
-
-        if self.hasVectorLayer():
-            n = len(self.mVectorLayer.selectedFeatureIds())
-            m = parentMenu.addMenu('Label shortcuts "{}"'.format(self.mVectorLayer.name()))
-            m.setToolTip('Label {} selected feature(s) in {}'.format(n, self.mVectorLayer.name()))
-
-            sm = m.addAction('Shortcuts {}'.format(str(tsd.date())))
-            sm.triggered.connect(lambda : self.applyOnSelectedFeatures(tsd))
-            sm.setEnabled(n > 0)
-        else:
-            a = parentMenu.addAction('Label shortcuts undefined')
-            a.setToolTip('Use the labeling panel and specify a vector layer to selected features.')
-            a.setEnabled(False)
-
-        return parentMenu
-
-    def applyOnSelectedFeatures(self, tsd:TimeSeriesDatum, classInfos:list=None):
-        """
-        Labels selected features with information related to TimeSeriesDatum tsd, according to
-        the settings specified in this model.
-        :param tsd: TimeSeriesDatum
-        :param classInfos:
-        """
-
-        assert isinstance(tsd, TimeSeriesDatum)
-        if isinstance(self.mVectorLayer, QgsVectorLayer):
-            fields = self.mVectorLayer.fields()
-            assert isinstance(fields, QgsFields)
-            names = fields.names()
-            names = [n for n in names if n in self.mLabelTypes.keys() and self.mLabelTypes[n] != LabelShortcutType.Off]
-
-            for feature in self.mVectorLayer.selectedFeatures():
-                fid = feature.id()
-                for name in names:
-                    idx = fields.indexOf(name)
-                    field = fields.at(idx)
-                    assert isinstance(field, QgsField)
-                    labelType = self.mLabelTypes[name]
-                    value = None
-                    if isinstance(labelType, LabelShortcutType):
-                        if labelType == LabelShortcutType.Sensor:
-                            value = tsd.sensor().name()
-                        elif labelType == LabelShortcutType.DOY:
-                            value = tsd.doy()
-                        elif labelType == LabelShortcutType.Date:
-                            value = str(tsd.date())
-                        elif labelType == LabelShortcutType.DecimalYear:
-                            value = tsd.decimalYear()
-                    else:
-                        pass
-                        #todo: support class infos
-
-                    if value == None:
-                        continue
-
-                    if field.typeName == 'String':
-                        value = str(value)
-
-                    oldValue = feature.attribute(name)
-                    self.mVectorLayer.changeAttributeValue(fid, idx, value, oldValue)
-
-
-
-        pass
 
     def hasVectorLayer(self)->bool:
         """
@@ -287,14 +236,14 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
     def resetModel(self):
         self.beginResetModel()
-        self.mLabelTypes.clear()
+
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             fields = self.mVectorLayer.fields()
             assert isinstance(fields, QgsFields)
             for i in range(fields.count()):
                 field = fields.at(i)
                 assert isinstance(field, QgsField)
-                self.mLabelTypes[field.name()] = LabelShortcutType.Off
+                #self.mLabelTypes[field.name()] = LabelShortcutType.Off
 
         self.endResetModel()
 
@@ -320,6 +269,13 @@ class LabelAttributeTableModel(QAbstractTableModel):
     def field2index(self, field:QgsField)->QModelIndex:
         assert isinstance(field, QgsField)
         return self.fieldName2Index(field.name())
+
+
+    def index2editorSetup(self, index:QModelIndex):
+        if index.isValid() and isinstance(self.mVectorLayer, QgsVectorLayer):
+            return self.mVectorLayer.editorWidgetSetup(index.row())
+        else:
+            return None
 
 
     def index2field(self, index:QModelIndex)->QgsField:
@@ -350,6 +306,8 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
             self.setData(self.createIndex(idx.row(), 2), attributeType, role=Qt.EditRole)
 
+
+
     def shortcuts(self, field:QgsField):
         """
         Returns the possible LabelShortCutTypes for a certain field
@@ -376,9 +334,12 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
         value = None
         columnName = self.mColumnNames[index.column()]
-        field = self.index2field(index)
+        fields = self.mVectorLayer.fields()
+        assert isinstance(fields, QgsFields)
+        field = fields.at(index.row())
         assert isinstance(field, QgsField)
-        labelType = self.mLabelTypes.get(field.name())
+        setup = self.mVectorLayer.editorWidgetSetup(index.row())
+        assert isinstance(setup, QgsEditorWidgetSetup)
 
         if role == Qt.DisplayRole or role == Qt.ToolTipRole:
             if columnName == self.cnField:
@@ -386,14 +347,12 @@ class LabelAttributeTableModel(QAbstractTableModel):
             elif columnName == self.cnFieldType:
                 value = '{}'.format(field.typeName())
             elif columnName == self.cnLabel:
-                if isinstance(labelType, LabelShortcutType):
-                    value = labelType.name
-                else:
-                    value = str(labelType)
+                fac = QgsGui.editorWidgetRegistry().factory(setup.type())
+                value = fac.name()
             else:
                 s = ""
         elif role == Qt.UserRole:
-            value = labelType
+            value = setup
         return value
 
     def setData(self, index, value, role=None):
@@ -401,13 +360,19 @@ class LabelAttributeTableModel(QAbstractTableModel):
             return None
 
         columnName = self.mColumnNames[index.column()]
-        field = self.index2field(index)
+        fields = self.mVectorLayer.fields()
+        assert isinstance(fields, QgsFields)
+        field = fields.at(index.row())
         assert isinstance(field, QgsField)
-        oldTabelType = self.mLabelTypes.get(field.name())
+        setup = self.mVectorLayer.editorWidgetSetup(index.row())
+        assert isinstance(setup, QgsEditorWidgetSetup)
+
         changed = False
         if columnName == self.cnLabel and role == Qt.EditRole:
-            if isinstance(value, LabelShortcutType) and value != oldTabelType:
-                self.mLabelTypes[field.name()] = value
+            if isinstance(value, str):
+                setup = QgsEditorWidgetSetup(value,{})
+                self.mVectorLayer.setEditorWidgetSetup(index.row(), setup)
+
                 changed = True
         if changed:
             self.dataChanged.emit(index, index, [role])
@@ -469,40 +434,52 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
 
     def createEditor(self, parent, option, index):
         cname = self.columnName(index)
-        model = self.mTableView.model()
+        model = self.model()
+        layer = model.mVectorLayer
+        idx = index.row()
         w = None
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel:
                 w = QComboBox(parent=parent)
-                for i, shortcutType in enumerate(model.shortcuts(index)):
-                    assert isinstance(shortcutType, LabelShortcutType)
-                    w.addItem(shortcutType.name, shortcutType)
-                    w.setItemData(i, shortcutType.value, Qt.ToolTipRole)
+                reg = QgsGui.editorWidgetRegistry()
+                assert isinstance(reg, QgsEditorWidgetRegistry)
+                factories = reg.factories()
+                i = 0
+                for key, fac in reg.factories().items():
+                    score = fac.fieldScore(layer, idx)
+                    if score > 0:
+                        w.addItem(fac.name(), key)
+
+
+
+
         return w
 
 
     def setEditorData(self, editor, index):
         cname = self.columnName(index)
-        model = self.mTableView.model()
+        model = self.model()
+        layer = model.mVectorLayer
 
         w = None
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel and isinstance(editor, QComboBox):
-                labelType = model.data(index, role=Qt.UserRole)
-                assert isinstance(labelType, LabelShortcutType)
+                key = model.data(index, role=Qt.UserRole)
+                i = -1
                 for i in range(editor.count()):
-                    d = editor.itemData(i)
-                    if d == labelType:
+                    if editor.itemData(i, role=Qt.UserRole) == key:
                         editor.setCurrentIndex(i)
                         break
 
-    def setModelData(self, w, model, index):
 
-        model = self.mTableView.model()
+    def setModelData(self, w, model, index):
+        assert isinstance(model, LabelAttributeTableModel)
+        assert isinstance(index, QModelIndex)
+
         cname = model.columnName(index)
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel and isinstance(w, QComboBox):
-                model.setData(index, w.currentData(), Qt.EditRole)
+                model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
 
 class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
@@ -513,7 +490,9 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
 
         self.mLabelAttributeModel = LabelAttributeTableModel()
-        self.tableView.setModel(self.mLabelAttributeModel)
+        self.configTableView.setModel(self.mLabelAttributeModel)
+        self.configSelectionModel = self.configTableView.selectionModel()
+        self.configSelectionModel.currentRowChanged.connect(self.onSelectedRowChanged)
 
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
@@ -522,50 +501,86 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.mVectorLayerComboBox.setExcludedProviders(excluded)
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
 
-        self.delegateTableView = LabelAttributeTypeWidgetDelegate(self.tableView, self.mLabelAttributeModel)
-        self.delegateTableView.setItemDelegates(self.tableView)
+        self.delegateTableView = LabelAttributeTypeWidgetDelegate(self.configTableView, self.mLabelAttributeModel)
+        self.delegateTableView.setItemDelegates(self.configTableView)
 
         self.mDualView = None
         self.mCanvas = QgsMapCanvas(self)
         self.mCanvas.setVisible(False)
 
-
+        self.gbConfigField.setLayout(QVBoxLayout())
 
         self.initActions()
         self.onVectorLayerChanged()
 
+    def onSelectedRowChanged(self, current:QModelIndex, previous:QModelIndex):
+
+        toRemove = self.gbConfigField.findChildren(QWidget, options=Qt.FindDirectChildrenOnly)
+        for w in toRemove:
+            self.gbConfigField.layout().removeWidget(w)
+            w.setParent(None)
+
+
+
+        if current.isValid():
+            field = self.mLabelAttributeModel.index2field(current)
+            setup = self.mLabelAttributeModel.index2editorSetup(current)
+            layer = self.mLabelAttributeModel.mVectorLayer
+            if isinstance(field, QgsField):
+
+                w = QgsGui.editorWidgetRegistry().createConfigWidget(setup.type(), layer, current.row(), self.gbConfigField)
+                if isinstance(w, QWidget):
+                    self.gbConfigField.layout().addWidget(w)
+
+                self.gbConfigField.setEnabled(True)
+                self.gbConfigField.setTitle('Widget type "{}"'.format(field.name()))
+
+            else:
+                self.gbConfigField.setEnabled(False)
+                self.gbConfigField.setTitle('')
+        else:
+            self.gbConfigField.setTitle('')
+            self.gbConfigField.setEnabled(False)
+
+
+
     def setFieldShortCut(self, fieldName:str, labelShortCut:LabelShortcutType):
-        self.mLabelAttributeModel.setFieldShortCut(fieldName, labelShortCut)
+        pass
+        #self.mLabelAttributeModel.setFieldShortCut(fieldName, labelShortCut)
 
     def onVectorLayerChanged(self):
         lyr = self.currentVectorSource()
-        self.mLabelAttributeModel.setVectorLayer(lyr)
 
+
+        #self.mLabelAttributeModel.setVectorLayer(lyr)
+        self.mLabelAttributeModel.setVectorLayer(lyr)
         if isinstance(lyr, QgsVectorLayer):
 
             lyr.editingStarted.connect(lambda : self.actionToggleEditing.setChecked(True))
             lyr.editingStopped.connect(lambda: self.actionToggleEditing.setChecked(False))
 
-            self.mDualView = QgsDualView(self.gbAttributeTable)
-            assert isinstance(self.mDualView, QgsDualView)
-            self.gbAttributeTable.layout().addWidget(self.mDualView)
             self.mCanvas.setLayers([lyr])
             self.mCanvas.setDestinationCrs(lyr.crs())
             self.mCanvas.setExtent(lyr.extent())
+
+            self.mDualView = QgsDualView(self.pageDualView)
+            self.pageDualView.layout().addWidget(self.mDualView)
             self.mDualView.init(lyr, self.mCanvas)  # , context=self.mAttributeEditorContext)
             self.mDualView.setView(QgsDualView.AttributeTable)
             self.mDualView.setAttributeTableConfig(lyr.attributeTableConfig())
-            self.btnBar.setEnabled(True)
+            self.btnBar1.setEnabled(True)
+            self.btnBar2.setEnabled(True)
         else:
             self.mCanvas.setLayers([])
 
             if isinstance(self.mDualView, QgsDualView):
+                self.frameAttributeTable.layout().removeWidget(self.mDualView)
                 self.mDualView.setParent(None)
                 self.mDualView.hide()
+                self.mDualView = None
 
-
-
-            self.btnBar.setEnabled(False)
+            self.btnBar1.setEnabled(False)
+            self.btnBar2.setEnabled(False)
 
 
 
@@ -609,12 +624,33 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.actionCancelEdits.triggered.connect(onCancelEdits)
         self.actionSaveEdits.triggered.connect(onSaveEdits)
 
+        self.actionSwitchToTableView.triggered.connect(self.showTableView)
+        self.actionSwitchToConfigView.triggered.connect(self.showConfigView)
+        self.actionSwitchToFormView.triggered.connect(self.showFormView)
 
         self.btnAddFeature.setDefaultAction(self.actionAddFeature)
         self.btnSaveEdits.setDefaultAction(self.actionSaveEdits)
         self.btnCancelEdits.setDefaultAction(self.actionCancelEdits)
         self.btnToggleEditing.setDefaultAction(self.actionToggleEditing)
         self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
+
+        #bottom button bar
+        self.btnAttributeView.setDefaultAction(self.actionSwitchToTableView)
+        self.btnConfigView.setDefaultAction(self.actionSwitchToConfigView)
+        self.btnFormView.setDefaultAction(self.actionSwitchToFormView)
+
+    def showTableView(self):
+        self.stackedWidget.setCurrentWidget(self.pageDualView)
+        if isinstance(self.mDualView, QgsDualView):
+            self.mDualView.setView(QgsDualView.AttributeTable)
+
+    def showFormView(self):
+        self.stackedWidget.setCurrentWidget(self.pageDualView)
+        if isinstance(self.mDualView, QgsDualView):
+            self.mDualView.setView(QgsDualView.AttributeEditor)
+
+    def showConfigView(self):
+        self.stackedWidget.setCurrentWidget(self.pageConfigView)
 
 
     def currentVectorSource(self)->QgsVectorLayer:
@@ -691,8 +727,10 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         ltype = self.shortcutType()
         if ltype == LabelShortcutType.Classification:
             self.mClassWidget.setEnabled(True)
+            self.mClassWidget.setVisible(True)
         else:
             self.mClassWidget.setEnabled(False)
+            self.mClassWidget.setVisible(False)
 
     def classificationScheme(self)->ClassificationScheme:
         return self.mClassWidget.classificationScheme()
@@ -806,6 +844,10 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
 
         self.mConfigurations = {}
 
+
+    def name(self)->str:
+        return 'EOTSV Label Shortcut'
+
     def configWidget(self, layer:QgsVectorLayer, fieldIdx:int, parent=QWidget)->LabelShortcutEditorConfigWidget:
         """
         Returns a SpectralProfileEditorConfigWidget
@@ -877,7 +919,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
             return 0
         field = vl.fields().at(fieldIdx)
         assert isinstance(field, QgsField)
-        if field.type() in [QVariant.String, QVariant.Int] and re.search(r'.*(class|label).*', field.name(), re.I):
+        if field.type() in [QVariant.String, QVariant.Int]:
             return 20
         else:
             return 0 #no support

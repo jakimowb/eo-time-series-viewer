@@ -141,33 +141,11 @@ class testclassLabelingTest(unittest.TestCase):
         w = LabelShortcutEditorConfigWidget(vl, i, parent)
         self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
 
-        classScheme1 = ClassificationScheme.create(5)
-        classScheme1.setName('Schema1')
-        classScheme1 = ClassificationScheme.create(3)
-        classScheme1.setName('Schema2')
         reg = QgsGui.editorWidgetRegistry()
         reg.initEditors()
         registerLabelShortcutEditorWidget()
 
-        vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {'labelType': LabelShortcutType.Sensor}))
-        vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.Date}))
-        vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.DOY}))
-        vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {'labelType': LabelShortcutType.DecimalYear}))
-
-        vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                    {'labelType': LabelShortcutType.Classification,
-                                     'classificationScheme':classScheme1}))
-
-        vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {'labelType': LabelShortcutType.Classification,
-                                                      'classificationScheme': classScheme1}))
+        classScheme1, classScheme2 = self.setupEditWidget(vl)
 
         for i in range(vl.fields().count()):
             setup = vl.editorWidgetSetup(i)
@@ -237,6 +215,47 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(vl.commitChanges())
         pass
 
+    def setupEditWidget(self, vl):
+
+        classScheme1 = ClassificationScheme.create(5)
+        classScheme1.setName('Schema1')
+        classScheme2 = ClassificationScheme.create(3)
+        classScheme2.setName('Schema2')
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Sensor}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Date}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DOY}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DecimalYear}))
+
+        vl = vl
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
+                                                      CONFKEY_CLASSIFICATIONSCHEME: classScheme1}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
+                                                      CONFKEY_CLASSIFICATIONSCHEME: classScheme1}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class2l'),
+                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                      {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
+                                                       CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('class2n'),
+                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                      {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
+                                                       CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
+        return classScheme1, classScheme2
 
     def test_LabelingDock(self):
 
@@ -244,68 +263,60 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
+        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == None)
+
+        QgsProject.instance().addMapLayer(lyr)
 
 
-        from timeseriesviewer.classification.classificationscheme import registerClassificationSchemeEditorWidget
-        from timeseriesviewer.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY
-        registerClassificationSchemeEditorWidget()
 
         reg = QgsGui.editorWidgetRegistry()
         if len(reg.factories()) == 0:
             reg.initEditors()
 
+        registerLabelShortcutEditorWidget()
+
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
         am = lyr.actions()
         self.assertIsInstance(am, QgsActionManager)
 
-        atc = lyr.attributeTableConfig()
-        #set a ClassificationScheme to each class-specific column
-        for name in lyr.fields().names():
-            if name.startswith('class'):
-                field = lyr.fields().lookupField(name)
-                classScheme = {'foo':'bar'}
-                lyr.setEditorWidgetSetup(field,
-                                         QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, classScheme))
 
-                setup = lyr.editorWidgetSetup(field)
-                s = ""
+        #set a ClassificationScheme to each class-specific column
+
+        classScheme1, classScheme2 = self.setupEditWidget(lyr)
+
+
+
+
+        fids = [1, 2, 3]
+        lyr.selectByIds(fids)
+        lyr.startEditing()
+        ts = TestObjects.createTimeSeries()
+        tsd = ts[7]
+        classInfo1 = classScheme1[2]
+        classInfo2 = classScheme2[1]
+
+        classInfoDict = {classScheme1.name():classInfo1,
+                         classScheme2.name():classInfo2}
+
+        applyShortcuts(lyr, tsd, classInfos=classInfoDict)
+
+        for fid in fids:
+            feature = lyr.getFeature(fid)
+            self.assertIsInstance(feature, QgsFeature)
+            self.assertEqual(feature.attribute('date'), str(tsd.date()))
+            self.assertEqual(feature.attribute('sensor'), tsd.sensor().name())
+            self.assertEqual(feature.attribute('class1l'), classInfo1.label())
+            self.assertEqual(feature.attribute('class1n'), classInfo1.name())
+            self.assertEqual(feature.attribute('class2l'), classInfo2.label())
+            self.assertEqual(feature.attribute('class2n'), classInfo2.name())
+
         self.assertIsInstance(dock.mVectorLayerComboBox, QgsMapLayerComboBox)
         dock.mVectorLayerComboBox.setCurrentIndex(1)
         self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == lyr)
 
-        model = dock.mLabelAttributeModel
-        self.assertIsInstance(model, LabelAttributeTableModel)
-        self.assertTrue(model.mVectorLayer == lyr)
-        self.assertTrue(lyr.fields().count() == model.rowCount())
-
-        dock.setFieldShortCut('sensor', LabelShortcutType.Sensor)
-        dock.setFieldShortCut('date', LabelShortcutType.Date)
-        dock.setFieldShortCut('DOY', LabelShortcutType.DOY)
-        dock.setFieldShortCut('decyr', LabelShortcutType.Off)
-        dock.setFieldShortCut('class1l', LabelShortcutType.Off)
-        dock.setFieldShortCut('class1n', LabelShortcutType.Off)
-        dock.setFieldShortCut('class2l', LabelShortcutType.Off)
-        dock.setFieldShortCut('class2n', LabelShortcutType.Off)
-
-        for name in lyr.fields().names():
-            options = model.shortcuts(name)
-            self.assertIsInstance(options, list)
-            self.assertTrue(len(options) > 0)
-
-        m = dock.mLabelAttributeModel
-        self.assertIsInstance(m, LabelAttributeTableModel)
-        self.assertTrue(m.data(m.createIndex(3, 0), Qt.DisplayRole) == 'sensor')
-
-        v = m.data(m.createIndex(3, 0), Qt.UserRole)
-        self.assertIsInstance(v, LabelShortcutType)
-        self.assertTrue(v == LabelShortcutType.Sensor)
 
 
-        lyr.selectByIds([1,2,3])
-        lyr.startEditing()
-        ts = TestObjects.createTimeSeries()
-        tsd = ts[5]
-        m.applyOnSelectedFeatures(tsd)
+
 
         if SHOW_GUI:
             dock.show()
