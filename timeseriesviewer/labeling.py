@@ -202,7 +202,6 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:d
 
 
 
-
 class LabelAttributeTableModel(QAbstractTableModel):
 
     def __init__(self, parent=None, *args):
@@ -221,6 +220,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
         if isinstance(layer, QgsVectorLayer):
             layer.attributeAdded.connect(self.resetModel)
             layer.attributeDeleted.connect(self.resetModel)
+
             self.mVectorLayer = layer
         else:
             self.mVectorLayer = None
@@ -489,72 +489,118 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
 
 
-        self.mLabelAttributeModel = LabelAttributeTableModel()
-        self.configTableView.setModel(self.mLabelAttributeModel)
+        #self.mLabelAttributeModel = LabelAttributeTableModel()
+        self.mLayerFieldModel = LabelFieldModel(self)
+        self.configTableView.setModel(self.mLayerFieldModel)
         self.configSelectionModel = self.configTableView.selectionModel()
-        self.configSelectionModel.currentRowChanged.connect(self.onSelectedRowChanged)
+        self.configSelectionModel.currentRowChanged.connect(lambda idx: self.stackedFieldConfigs.setCurrentIndex(idx.row()))
 
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
                    'postgres', 'spatialite', 'virtual']
+
         excluded = [k for k in QgsProviderRegistry.instance().providerList() if k not in allowed]
         self.mVectorLayerComboBox.setExcludedProviders(excluded)
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
 
-        self.delegateTableView = LabelAttributeTypeWidgetDelegate(self.configTableView, self.mLabelAttributeModel)
-        self.delegateTableView.setItemDelegates(self.configTableView)
-
+        self.mLastConf = {}
+        self.mCurrentConfigWidget = None
         self.mDualView = None
         self.mCanvas = QgsMapCanvas(self)
         self.mCanvas.setVisible(False)
-
-        self.gbConfigField.setLayout(QVBoxLayout())
 
         self.initActions()
         self.onVectorLayerChanged()
 
     def onSelectedRowChanged(self, current:QModelIndex, previous:QModelIndex):
+        """
+        Sets the
+        :param current:
+        :param previous:
+        :return:
+        """
 
-        toRemove = self.gbConfigField.findChildren(QWidget, options=Qt.FindDirectChildrenOnly)
+        toRemove = self.scrollAreaWidgetContents.findChildren(QWidget, options=Qt.FindDirectChildrenOnly)
         for w in toRemove:
-            self.gbConfigField.layout().removeWidget(w)
+            self.scrollAreaWidgetContents.layout().removeWidget(w)
             w.setParent(None)
+        self.labelFieldName.setText('')
+
+        layer = self.mLayerFieldModel.layer()
+        if current.isValid() and isinstance(layer, QgsVectorLayer):
+            i = current.row()
+            field = layer.fields().at(i)
+            setup = layer.editorWidgetSetup(i)
 
 
+            self.labelFieldName.setText('Field "{}"'.format(field.name()))
 
-        if current.isValid():
-            field = self.mLabelAttributeModel.index2field(current)
-            setup = self.mLabelAttributeModel.index2editorSetup(current)
-            layer = self.mLabelAttributeModel.mVectorLayer
-            if isinstance(field, QgsField):
-
-                w = QgsGui.editorWidgetRegistry().createConfigWidget(setup.type(), layer, current.row(), self.gbConfigField)
-                if isinstance(w, QWidget):
-                    self.gbConfigField.layout().addWidget(w)
-
-                self.gbConfigField.setEnabled(True)
-                self.gbConfigField.setTitle('Widget type "{}"'.format(field.name()))
-
-            else:
-                self.gbConfigField.setEnabled(False)
-                self.gbConfigField.setTitle('')
-        else:
-            self.gbConfigField.setTitle('')
-            self.gbConfigField.setEnabled(False)
+            factoryName = setup.type()
+            if factoryName == '':
+                factoryName = QgsGui.editorWidgetRegistry().findBest(layer, layer.fields().at(i).name()).type()
+            self.mCurrentConfigWidget = QgsGui.editorWidgetRegistry().createConfigWidget(factoryName, layer, i, self.scrollAreaWidgetContents)
+            if isinstance(self.mCurrentConfigWidget, QgsEditorConfigWidget):
+                self.mLastConf = w.config()
+                self.mCurrentConfigWidget.changed.connect(self.onCheckApply)
+                self.scrollAreaWidgetContents.layout().addWidget(self.mCurrentConfigWidget)
+                self.onCheckApply()
 
 
+    def onCheckApply(self):
+        """
+        Checks if any QgsVectorLayer settings have changed and enables/disable buttons
+        """
+        btnApply = self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply)
+        btnReset = self.buttonBoxEditorWidget.button(QDialogButtonBox.Reset)
+        changed = False
+        for w in self.stackedFieldConfigs.findChildren(FieldConfigEditorWidget):
+            assert isinstance(w, FieldConfigEditorWidget)
+            if w.changed():
+                changed = True
+                break
 
-    def setFieldShortCut(self, fieldName:str, labelShortCut:LabelShortcutType):
-        pass
-        #self.mLabelAttributeModel.setFieldShortCut(fieldName, labelShortCut)
+        btnApply.setEnabled(changed)
+        btnReset.setEnabled(not changed)
+
+    def onReset(self):
+        """
+        Reloads the QgsVectorLayer and all its current settings
+        """
+        self.onVectorLayerChanged()
+
+
+    def onApply(self):
+        """
+        Stores changes settings to current QgsVectorLayer
+        """
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+            for w in self.stackedFieldConfigs.findChildren(FieldConfigEditorWidget):
+                assert isinstance(w, FieldConfigEditorWidget)
+                if w.changed():
+                    config = w.currentFieldConfig()
+                    lyr.setEditFormConfig(config.index(), config.editorWidgetSetup())
+
+        self.onVectorLayerChanged()
 
     def onVectorLayerChanged(self):
         lyr = self.currentVectorSource()
+        self.mLayerFieldModel.setLayer(lyr)
 
+        # remove old config widget
+        while self.stackedFieldConfigs.count() > 0:
+            w = self.stackedFieldConfigs.widget(0)
+            self.stackedFieldConfigs.removeWidget(w)
+            w.setParent(None)
+        btnApply = self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply)
+        btnApply.setEnabled(False)
 
-        #self.mLabelAttributeModel.setVectorLayer(lyr)
-        self.mLabelAttributeModel.setVectorLayer(lyr)
+        # add a config widget for each QgsField
         if isinstance(lyr, QgsVectorLayer):
+            for i in range(lyr.fields().count()):
+                w = FieldConfigEditorWidget(self.stackedFieldConfigs, lyr, i)
+                w.sigChanged.connect(self.onCheckApply)
+                self.stackedFieldConfigs.addWidget(w)
 
             lyr.editingStarted.connect(lambda : self.actionToggleEditing.setChecked(True))
             lyr.editingStopped.connect(lambda: self.actionToggleEditing.setChecked(False))
@@ -568,13 +614,16 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
             self.mDualView.init(lyr, self.mCanvas)  # , context=self.mAttributeEditorContext)
             self.mDualView.setView(QgsDualView.AttributeTable)
             self.mDualView.setAttributeTableConfig(lyr.attributeTableConfig())
+
             self.btnBar1.setEnabled(True)
             self.btnBar2.setEnabled(True)
+
+
         else:
             self.mCanvas.setLayers([])
 
             if isinstance(self.mDualView, QgsDualView):
-                self.frameAttributeTable.layout().removeWidget(self.mDualView)
+                self.pageDualView.layout().removeWidget(self.mDualView)
                 self.mDualView.setParent(None)
                 self.mDualView.hide()
                 self.mDualView = None
@@ -597,8 +646,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
             self.actionAddOgrLayer = iface.actionAddOgrLayer()
 
 
-        def onToggleEditing(b):
-
+        def onToggleEditing(b:bool):
             lyr = self.currentVectorSource()
             if isinstance(lyr, QgsVectorLayer):
                 if b:
@@ -634,34 +682,46 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.btnToggleEditing.setDefaultAction(self.actionToggleEditing)
         self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
 
-        #bottom button bar
+        # QgsVectorLayer settings view buttons
+        self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply).clicked.connect(self.onApply)
+        self.buttonBoxEditorWidget.button(QDialogButtonBox.Reset).clicked.connect(self.onReset)
+
+        # bottom button bar
         self.btnAttributeView.setDefaultAction(self.actionSwitchToTableView)
         self.btnConfigView.setDefaultAction(self.actionSwitchToConfigView)
         self.btnFormView.setDefaultAction(self.actionSwitchToFormView)
 
+
     def showTableView(self):
+        """
+        Call to show the QgsDualView Attribute Table
+        """
         self.stackedWidget.setCurrentWidget(self.pageDualView)
         if isinstance(self.mDualView, QgsDualView):
             self.mDualView.setView(QgsDualView.AttributeTable)
 
     def showFormView(self):
+        """
+        Call to show the QgsDualView Attribute Editor
+        """
         self.stackedWidget.setCurrentWidget(self.pageDualView)
         if isinstance(self.mDualView, QgsDualView):
             self.mDualView.setView(QgsDualView.AttributeEditor)
 
     def showConfigView(self):
+        """
+        Call to show the QgsVectorLayer field settings
+        """
         self.stackedWidget.setCurrentWidget(self.pageConfigView)
 
 
     def currentVectorSource(self)->QgsVectorLayer:
+        """
+        Returns the current QgsVectorLayer
+        :return: QgsVectorLayer
+        """
         return self.mVectorLayerComboBox.currentLayer()
 
-
-    def updateTemporalLabels(self, tsd):
-        pass
-
-    def updateClassLabels(self, classScheme, classInfo):
-        pass
 
 
 
@@ -677,6 +737,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
         self.mCBShortCutType = QComboBox(self)
         self.mClassWidget = ClassificationSchemeWidget(parent=self)
+        self.layout().addWidget(self.mCBShortCutType)
+        self.layout().addWidget(self.mClassWidget)
 
         assert isinstance(vl, QgsVectorLayer)
         field = vl.fields().at(fieldIdx)
@@ -685,10 +747,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         for i, option in enumerate(self.mAllowedShortCuts):
             self.mCBShortCutType.addItem(option.value, option)
 
-        self.mCBShortCutType.currentIndexChanged.connect(self.onIndexChanged)
-
-        self.layout().addWidget(self.mCBShortCutType)
-        self.layout().addWidget(self.mClassWidget)
+        self.mCBShortCutType.currentIndexChanged[int].connect(self.onIndexChanged)
+        self.mCBShortCutType.currentIndexChanged[int].connect(lambda : self.onIndexChanged())
 
         self.mLastConfig = {}
 
@@ -715,6 +775,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
             labelType = self.mAllowedShortCuts[0]
 
         i = self.mCBShortCutType.findData(labelType)
+        #self.mCBShortCutType.currentIndexChanged.connect(self.onIndexChanged)
         self.mCBShortCutType.setCurrentIndex(i)
 
 
@@ -724,13 +785,14 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
 
     def onIndexChanged(self, *args):
+
         ltype = self.shortcutType()
         if ltype == LabelShortcutType.Classification:
             self.mClassWidget.setEnabled(True)
-            self.mClassWidget.setVisible(True)
+            #self.mClassWidget.setVisible(True)
         else:
             self.mClassWidget.setEnabled(False)
-            self.mClassWidget.setVisible(False)
+            #self.mClassWidget.setVisible(False)
 
     def classificationScheme(self)->ClassificationScheme:
         return self.mClassWidget.classificationScheme()

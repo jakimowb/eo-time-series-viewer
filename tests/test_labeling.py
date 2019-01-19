@@ -16,11 +16,11 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
-import os, sys, re
+
 from timeseriesviewer.tests import initQgisApplication, testRasterFiles
 import unittest, tempfile
 
+from timeseriesviewer.layerproperties import *
 from timeseriesviewer.labeling import *
 from timeseriesviewer import DIR_REPO
 from timeseriesviewer.mapcanvas import MapCanvas
@@ -29,10 +29,12 @@ resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True
 
+
+QgsGui.editorWidgetRegistry().initEditors()
+
 class testclassLabelingTest(unittest.TestCase):
 
     def createVectorLayer(self)->QgsVectorLayer:
-
 
         lyr = TestObjects.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
@@ -50,7 +52,6 @@ class testclassLabelingTest(unittest.TestCase):
         names = lyr.fields().names()
 
         return lyr
-
 
     def test_menu(self):
 
@@ -73,7 +74,6 @@ class testclassLabelingTest(unittest.TestCase):
 
         canvas = MapCanvas()
         canvas.setTSD(tsd)
-        canvas.setLabelingModel(model)
         menu = canvas.contextMenu()
         self.assertIsInstance(menu, QMenu)
 
@@ -206,7 +206,7 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(len(labelShortcutLayers()) == 1)
         for lyr in labelShortcutLayers():
             assert isinstance(lyr, QgsVectorLayer)
-            applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
+        #    applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
 
         if SHOW_GUI:
             dv.show()
@@ -256,6 +256,36 @@ class testclassLabelingTest(unittest.TestCase):
                                                       {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
                                                        CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
         return classScheme1, classScheme2
+
+    def test_FieldConfigEditorWidget(self):
+
+        reg = QgsGui.editorWidgetRegistry()
+        if len(reg.factories()) == 0:
+            reg.initEditors()
+
+        registerLabelShortcutEditorWidget()
+
+        lyr = self.createVectorLayer()
+
+        w = FieldConfigEditorWidget(None, lyr, 3)
+        w.show()
+
+        conf1 = w.currentFieldConfig()
+        self.assertEqual(conf1.config(), w.mInitialConf)
+        self.assertEqual(conf1.factoryKey(), w.mInitialFactoryKey)
+        w.setFactory('CheckBox')
+        conf2 = w.currentFieldConfig()
+        self.assertTrue(conf1 != conf2)
+        self.assertTrue(w.hasChanged())
+        w.setFactory(conf1.factoryKey())
+
+        conf3 = w.currentFieldConfig()
+        self.assertEqual(conf3.factoryKey(), conf1.factoryKey())
+
+        self.assertFalse(w.hasChanged())
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
     def test_LabelingDock(self):
 
