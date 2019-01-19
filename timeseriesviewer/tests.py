@@ -444,7 +444,7 @@ class TestObjects():
 
     @staticmethod
     def createDropEvent(mimeData:QMimeData):
-        """Creates a QDropEvent conaining the provided QMimeData"""
+        """Creates a QDropEvent containing the provided QMimeData"""
         return QDropEvent(QPointF(0, 0), Qt.CopyAction, mimeData, Qt.LeftButton, Qt.NoModifier)
 
 
