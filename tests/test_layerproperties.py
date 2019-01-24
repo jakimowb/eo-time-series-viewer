@@ -85,6 +85,7 @@ class TestLayerproperties(unittest.TestCase):
             QGIS_APP.exec_()
 
 
+
     def test_LayerFieldConfigEditorWidget(self):
 
         lyr = self.createVectorLayer()
@@ -92,16 +93,14 @@ class TestLayerproperties(unittest.TestCase):
         w = LayerFieldConfigEditorWidget(None)
         self.assertIsInstance(w, LayerFieldConfigEditorWidget)
 
-        w.show()
         self.assertTrue(w.layer() == None)
         w.setLayer(lyr)
         self.assertTrue(w.layer() == lyr)
         w.setLayer(None)
         self.assertTrue(w.layer() == None)
 
-
         if SHOW_GUI:
-
+            w.show()
             QGIS_APP.exec_()
 
 if __name__ == "__main__":
