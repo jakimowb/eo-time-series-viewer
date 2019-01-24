@@ -12,7 +12,7 @@ from timeseriesviewer.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
 from timeseriesviewer.timeseries import TimeSeriesDatum
-
+from timeseriesviewer.layerproperties import *
 #the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
@@ -68,7 +68,7 @@ def layerClassSchemes(layer:QgsVectorLayer)->list:
         setup = layer.editorWidgetSetup(i)
         assert isinstance(setup, QgsEditorWidgetSetup)
         if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
-            results.append(layer)
+            schemes.append(layer)
             break
     return schemes
 
@@ -490,10 +490,6 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
 
         #self.mLabelAttributeModel = LabelAttributeTableModel()
-        self.mLayerFieldModel = LabelFieldModel(self)
-        self.configTableView.setModel(self.mLayerFieldModel)
-        self.configSelectionModel = self.configTableView.selectionModel()
-        self.configSelectionModel.currentRowChanged.connect(lambda idx: self.stackedFieldConfigs.setCurrentIndex(idx.row()))
 
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
@@ -503,8 +499,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.mVectorLayerComboBox.setExcludedProviders(excluded)
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
 
-        self.mLastConf = {}
-        self.mCurrentConfigWidget = None
+
         self.mDualView = None
         self.mCanvas = QgsMapCanvas(self)
         self.mCanvas.setVisible(False)
@@ -585,22 +580,9 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
     def onVectorLayerChanged(self):
         lyr = self.currentVectorSource()
-        self.mLayerFieldModel.setLayer(lyr)
-
-        # remove old config widget
-        while self.stackedFieldConfigs.count() > 0:
-            w = self.stackedFieldConfigs.widget(0)
-            self.stackedFieldConfigs.removeWidget(w)
-            w.setParent(None)
-        btnApply = self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply)
-        btnApply.setEnabled(False)
-
+        self.layerFieldConfigEditorWidget.setLayer(lyr)
         # add a config widget for each QgsField
         if isinstance(lyr, QgsVectorLayer):
-            for i in range(lyr.fields().count()):
-                w = FieldConfigEditorWidget(self.stackedFieldConfigs, lyr, i)
-                w.sigChanged.connect(self.onCheckApply)
-                self.stackedFieldConfigs.addWidget(w)
 
             lyr.editingStarted.connect(lambda : self.actionToggleEditing.setChecked(True))
             lyr.editingStopped.connect(lambda: self.actionToggleEditing.setChecked(False))
@@ -682,9 +664,6 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.btnToggleEditing.setDefaultAction(self.actionToggleEditing)
         self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
 
-        # QgsVectorLayer settings view buttons
-        self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply).clicked.connect(self.onApply)
-        self.buttonBoxEditorWidget.button(QDialogButtonBox.Reset).clicked.connect(self.onReset)
 
         # bottom button bar
         self.btnAttributeView.setDefaultAction(self.actionSwitchToTableView)
@@ -821,6 +800,11 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         return self.config(CONFKEY_CLASSIFICATIONSCHEME)
 
     def createWidget(self, parent: QWidget):
+        """
+        Create the data input widget
+        :param parent: QWidget
+        :return: ClassificationSchemeComboBox | default widget
+        """
         #log('createWidget')
         labelType = self.configLabelType()
         if labelType == LabelShortcutType.Classification:
@@ -849,36 +833,58 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         s = ""
 
     def valid(self, *args, **kwargs)->bool:
+        """
+        Returns True if a valid editor widget exists
+        :param args:
+        :param kwargs:
+        :return: bool
+        """
         return isinstance(self.mEditor, (ClassificationSchemeComboBox, QLineEdit))
 
     def value(self, *args, **kwargs):
+        """
+        Reuturns the value
+        :param args:
+        :param kwargs:
+        :return:
+        """
         typeCode = self.field().type()
         if isinstance(self.mEditor, ClassificationSchemeComboBox):
             classInfo = self.mEditor.currentClassInfo()
+
             if isinstance(classInfo, ClassInfo):
+
                 if typeCode == QVariant.String:
                     return classInfo.name()
+
                 if typeCode in [QVariant.Int, QVariant.Double]:
                     return classInfo.label()
+
         elif isinstance(self.mEditor, QLineEdit):
             txt = self.mEditor.text()
+
             if len(txt) == '':
                 return self.defaultValue()
+
             if typeCode == QVariant.String:
                 return txt
 
             try:
+
                 txt = txt.strip()
+
                 if typeCode == QVariant.Int:
                     return int(txt)
+
                 if typeCode == QVariant.Double:
                     return float(txt)
+
             except Exception as e:
-                return self.defaultValue()
+                return txt
 
             return self.mLineEdit.text()
 
-        return None
+        return self.defaultValue()
 
 
     def setEnabled(self, enabled:bool):
@@ -895,7 +901,10 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
                 i = cs.classIndexFromValue(value)
                 self.mEditor.setCurrentIndex(max(i, 0))
         elif isinstance(self.mEditor, QLineEdit):
-            self.mEditor.setText(str(value))
+            if value in [QVariant(), None]:
+                self.mEditor.setText(None)
+            else:
+                self.mEditor.setText(str(value))
 
 
 class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):

@@ -1,12 +1,13 @@
 # noinspection PyPep8Naming
 import os, sys, re
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles
+from qgis.core import *
+from qgis.gui import *
+from timeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
 import unittest, tempfile
 
 from timeseriesviewer.layerproperties import *
 from timeseriesviewer import DIR_REPO
-from timeseriesviewer.mapcanvas import MapCanvas
-from timeseriesviewer.tests import TestObjects
+
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True
@@ -15,7 +16,7 @@ SHOW_GUI = True
 QgsGui.editorWidgetRegistry().initEditors()
 
 
-class testclassLabelingTest(unittest.TestCase):
+class TestLayerproperties(unittest.TestCase):
 
     def createVectorLayer(self) -> QgsVectorLayer:
         lyr = TestObjects.createVectorLayer()
@@ -35,9 +36,7 @@ class testclassLabelingTest(unittest.TestCase):
 
         return lyr
 
-
-
-    def test_fieldModel(self):
+    def test_LabelFieldModel(self):
 
         lyr = self.createVectorLayer()
 
@@ -45,9 +44,42 @@ class testclassLabelingTest(unittest.TestCase):
 
         fm = LabelFieldModel(w)
         fm.setLayer(lyr)
+        self.assertEqual(fm.layer(), lyr)
+
+        newName = 'Layer Fields'
+        fm.setHeaderData(0, Qt.Horizontal, newName, role=Qt.EditRole)
+        self.assertEqual(newName, fm.headerData(0, Qt.Horizontal))
+
         w.setModel(fm)
         w.show()
 
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+    def test_FieldConfigEditorWidget(self):
+
+
+        lyr = self.createVectorLayer()
+
+        w = FieldConfigEditorWidget(None, lyr, 3)
+        self.assertIsInstance(w, FieldConfigEditorWidget)
+        w.show()
+
+        conf1 = w.currentFieldConfig()
+        self.assertEqual(conf1.config(), w.mInitialConf)
+        self.assertEqual(conf1.factoryKey(), w.mInitialFactoryKey)
+        w.setFactory('CheckBox')
+        conf2 = w.currentFieldConfig()
+
+        self.assertTrue(conf1 != conf2)
+        self.assertTrue(w.changed())
+        w.setFactory(conf1.factoryKey())
+
+        conf3 = w.currentFieldConfig()
+        self.assertEqual(conf3.factoryKey(), conf1.factoryKey())
+
+        self.assertFalse(w.changed())
 
         if SHOW_GUI:
             QGIS_APP.exec_()
@@ -64,8 +96,14 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(w.layer() == None)
         w.setLayer(lyr)
         self.assertTrue(w.layer() == lyr)
+        w.setLayer(None)
+        self.assertTrue(w.layer() == None)
 
 
         if SHOW_GUI:
 
             QGIS_APP.exec_()
+
+if __name__ == "__main__":
+    SHOW_GUI = False
+    unittest.main()

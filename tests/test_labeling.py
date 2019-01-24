@@ -29,8 +29,9 @@ resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True
 
-
-QgsGui.editorWidgetRegistry().initEditors()
+reg = QgsGui.editorWidgetRegistry()
+if len(reg.factories()) == 0:
+    reg.initEditors()
 
 class testclassLabelingTest(unittest.TestCase):
 
@@ -257,35 +258,6 @@ class testclassLabelingTest(unittest.TestCase):
                                                        CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
         return classScheme1, classScheme2
 
-    def test_FieldConfigEditorWidget(self):
-
-        reg = QgsGui.editorWidgetRegistry()
-        if len(reg.factories()) == 0:
-            reg.initEditors()
-
-        registerLabelShortcutEditorWidget()
-
-        lyr = self.createVectorLayer()
-
-        w = FieldConfigEditorWidget(None, lyr, 3)
-        w.show()
-
-        conf1 = w.currentFieldConfig()
-        self.assertEqual(conf1.config(), w.mInitialConf)
-        self.assertEqual(conf1.factoryKey(), w.mInitialFactoryKey)
-        w.setFactory('CheckBox')
-        conf2 = w.currentFieldConfig()
-        self.assertTrue(conf1 != conf2)
-        self.assertTrue(w.hasChanged())
-        w.setFactory(conf1.factoryKey())
-
-        conf3 = w.currentFieldConfig()
-        self.assertEqual(conf3.factoryKey(), conf1.factoryKey())
-
-        self.assertFalse(w.hasChanged())
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
 
     def test_LabelingDock(self):
 
@@ -299,9 +271,7 @@ class testclassLabelingTest(unittest.TestCase):
 
 
 
-        reg = QgsGui.editorWidgetRegistry()
-        if len(reg.factories()) == 0:
-            reg.initEditors()
+
 
         registerLabelShortcutEditorWidget()
 
@@ -343,9 +313,6 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertIsInstance(dock.mVectorLayerComboBox, QgsMapLayerComboBox)
         dock.mVectorLayerComboBox.setCurrentIndex(1)
         self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == lyr)
-
-
-
 
 
         if SHOW_GUI:

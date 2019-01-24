@@ -5,23 +5,31 @@ from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from osgeo import gdal
 
-from timeseriesviewer.utils import loadUI, qgisInstance
-from timeseriesviewer.classification.classificationscheme \
-    import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
-
-from timeseriesviewer.timeseries import TimeSeriesDatum
+from timeseriesviewer.utils import loadUI
 
 
 class LabelFieldModel(QgsFieldModel):
-
+    """
+    A model to show the QgsFields of an QgsVectorLayer.
+    Inherits QgsFieldModel and allows to change the name of the 1st column.
+    """
     def __init__(self, parent):
+        """
+        Constructor
+        :param parent:
+        """
         super(LabelFieldModel, self).__init__(parent)
-        self.mColumnNames = ['Fields', 'Type']
+        self.mColumnNames = ['Fields']
 
-
-    def headerData(self, col, orientation, role):
+    def headerData(self, col, orientation, role=Qt.DisplayRole):
+        """
+        Returns header data
+        :param col: int
+        :param orientation: Qt.Horizontal | Qt.Vertical
+        :param role:
+        :return: value
+        """
         if Qt is None:
             return None
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
@@ -30,7 +38,24 @@ class LabelFieldModel(QgsFieldModel):
             return col
         return None
 
+    def setHeaderData(self, col, orientation, value, role=Qt.EditRole):
+        """
+        Sets the header data.
+        :param col: int
+        :param orientation:
+        :param value: any
+        :param role:
+        """
+        result = False
 
+        if role == Qt.EditRole:
+            if orientation == Qt.Horizontal and col < len(self.mColumnNames) and isinstance(value, str):
+                self.mColumnNames[col] = value
+                result = True
+
+        if result == True:
+            self.headerDataChanged.emit(orientation, col, col)
+        return result
 
 class FieldConfigEditorWidget(QWidget):
 
@@ -251,20 +276,27 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
         super(LayerFieldConfigEditorWidget, self).__init__(parent,  *args, **kwds)
         self.setupUi(self)
 
+        self.scrollArea.resizeEvent = self.onScrollAreaResize
         self.mFieldModel = LabelFieldModel(self)
         self.treeView.setModel(self.mFieldModel)
-        self.treeView.selectionModel().currentRowChanged.connect(self.onSelectionChanged)
+        self.treeView.selectionModel().currentRowChanged.connect(
+            lambda current, _ : self.stackedWidget.setCurrentIndex(current.row())
+        )
+
         self.btnApply = self.buttonBox.button(QDialogButtonBox.Apply)
         self.btnReset = self.buttonBox.button(QDialogButtonBox.Reset)
         self.btnApply.clicked.connect(self.onApply)
         self.btnReset.clicked.connect(self.onReset)
 
-    def onSelectionChanged(self, current:QModelIndex, previous:QModelIndex):
-        sw = self.stackedWidget
-        assert isinstance(sw, QStackedWidget)
-        sw.setCurrentWidget(sw.widget(current.row()))
-        s = ""
-        pass
+
+    def onScrollAreaResize(self, resizeEvent:QResizeEvent):
+        """
+        Forces the stackedWidget's width to fit into the scrollAreas viewport
+        :param resizeEvent: QResizeEvent
+        """
+        assert isinstance(resizeEvent, QResizeEvent)
+        self.stackedWidget.setMaximumWidth(resizeEvent.size().width())
+        s  =""
 
     def onReset(self):
 
@@ -278,6 +310,10 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
         self.onSettingsChanged()
 
     def onApply(self):
+        """
+        Applies all changes to the QgsVectorLayer
+        :return:
+        """
 
         sw = self.stackedWidget
         assert isinstance(sw, QStackedWidget)
@@ -291,13 +327,24 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
 
     def setLayer(self, layer:QgsVectorLayer):
         """
+        Sets the QgsVectorLayer
         :param layer:
         """
         self.mFieldModel.setLayer(layer)
         self.updateFieldWidgets()
 
-    def updateFieldWidgets(self):
+    def layer(self)->QgsVectorLayer:
+        """
+        Returns the current QgsVectorLayer
+        :return:
+        """
+        return self.mFieldModel.layer()
 
+    def updateFieldWidgets(self):
+        """
+        Empties the stackedWidget and populates it with a FieldConfigEditor
+        for each QgsVectorLayer field.
+        """
         sw = self.stackedWidget
         assert isinstance(sw, QStackedWidget)
         while sw.count() > 0:
@@ -312,10 +359,11 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
 
         self.onSettingsChanged()
 
-
-
     def onSettingsChanged(self):
-
+        """
+        Enables/disables buttons
+        :return:
+        """
         b = False
         for i in range(self.stackedWidget.count()):
             w = self.stackedWidget.widget(i)
@@ -324,15 +372,6 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
                 b = True
                 break
 
-
         self.btnReset.setEnabled(b)
         self.btnApply.setEnabled(b)
-
-
-    def layer(self)->QgsVectorLayer:
-        """
-        Returns the current QgsVectorLayer
-        :return:
-        """
-        return self.mFieldModel.layer()
 
