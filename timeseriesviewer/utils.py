@@ -1091,21 +1091,6 @@ def copyRenderer(renderer, targetLayer):
     return False
 
 
-def getSubLayerEndings(files):
-    subLayerEndings = []
-    for file in files:
-        try:
-            ds = gdal.Open(file)
-            for subLayer in ds.GetSubDatasets():
-                ending = subLayer[0].split(':')[-2:]
-                if ending not in subLayerEndings:
-                    subLayerEndings.append(':'.join(ending))
-        except:
-            s = ""
-            pass
-
-    return subLayerEndings
-
 
 def settings():
     return QSettings('HU-Berlin', 'EO Time Series Viewer')

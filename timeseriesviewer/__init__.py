@@ -78,18 +78,24 @@ PATH_ABOUT = jp(DIR_REPO, 'ABOUT.html')
 
 DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
 
-site.addsitedir(DIR_SITE_PACKAGES)
 OPENGL_AVAILABLE = False
 try:
     import OpenGL
+
     OPENGL_AVAILABLE = True
 except:
     pass
 
-if not 'images' in sys.modules.keys():
-    import timeseriesviewer.resourcemockup
-    sys.modules['images'] = timeseriesviewer.resourcemockup
-    sys.modules['resources'] = timeseriesviewer.resourcemockup
+
+try:
+    import qps
+    #todo: check package version?
+
+except Exception as ex:
+    #site.addpackage(DIR_SITE_PACKAGES, 'qps', None)
+    sys.path.append(DIR_SITE_PACKAGES)
+    import qps
+
 
 def messageLog(msg, level=None):
     """
@@ -110,11 +116,6 @@ except:
     print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
 
     pass
-
-# make the EnMAP-Box resources available
-if not 'images' in sys.modules.keys():
-    import timeseriesviewer.resourcemockup
-    sys.modules['images'] = timeseriesviewer.resourcemockup
 
 
 #see https://github.com/pyqtgraph/pyqtgraph/issues/774
