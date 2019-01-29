@@ -346,7 +346,7 @@ def loadUI(basename: str):
 
 # dictionary to store form classes and avoid multiple calls to read <myui>.ui
 FORM_CLASSES = dict()
-
+QGIS_RESOURCE_WARNINGS = set()
 
 def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQGISRessourceFileReferences=True, _modifiedui=None):
     """
@@ -361,7 +361,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
     RC_SUFFIX = resourceSuffix
     assert os.path.isfile(pathUi), '*.ui file does not exist: {}'.format(pathUi)
 
-    global FORM_CLASSES
+
     if pathUi not in FORM_CLASSES.keys():
         #parse *.ui xml and replace *.h by qgis.gui
 
@@ -410,12 +410,13 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
                     print('{}: "{}"'.format(i+1, path), file=sys.stderr)
 
             if len(missingQgs) > 0 and not isinstance(qgisAppQgisInterface(), QgisInterface):
-                print('{}\nrefers to {} none-existing resource (*.qrc) file(s) '.format(pathUi, len(missingQgs)) +
-                      'which are likely available when started from QGIS Desktop:')
-                for i, t in enumerate(missingQgs):
-                    line, path = t
-                    print('{}: "{}"'.format(i+1, path))
+                missingFiles = [p[1] for p in missingQrc if p[1] not in QGIS_RESOURCE_WARNINGS]
 
+                if len(missingFiles) > 0:
+                    print('{}\nrefers to {} none-existing resource (*.qrc) file(s) '.format(pathUi, len(missingFiles)))
+                    for i, path in enumerate(missingFiles):
+                        print('{}: "{}"'.format(i+1, path))
+                    print('These files are likely available in a QGIS Desktop session. Further warnings will be skipped')
 
         doc = QDomDocument()
         doc.setContent(txt)

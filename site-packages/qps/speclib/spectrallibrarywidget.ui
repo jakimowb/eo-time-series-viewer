@@ -179,7 +179,7 @@
        </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>0</width>
+         <width>20</width>
          <height>20</height>
         </size>
        </property>
@@ -209,6 +209,17 @@
         <property name="bottomMargin">
          <number>0</number>
         </property>
+        <item>
+         <widget class="QToolButton" name="btnSpeclibProperties">
+          <property name="text">
+           <string>F</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../../../../QGIS/images/images.qrc">
+            <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QToolButton" name="btnFormView">
           <property name="text">
@@ -555,6 +566,15 @@
    </property>
    <property name="toolTip">
     <string>Block new profiles from being shown and added in this spectral library</string>
+   </property>
+  </action>
+  <action name="actionProperties">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Spectral Library Poperties</string>
    </property>
   </action>
  </widget>

@@ -27,7 +27,7 @@
 *                                                                         *
 ***************************************************************************
 """
-import sys, re, os
+import sys, re, os, collections
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
@@ -667,12 +667,27 @@ class SpectralViewBox(pg.ViewBox):
 
         self.mCBXAxisUnit = QComboBox()
 
-        items = sorted(METRIC_EXPONENTS.items(), key=lambda item: item[1])
-        self.mCBXAxisUnit.addItem(BAND_INDEX, userData='')
+
+
+        # Order of X units:
+        # 1. long names
+        # 2. short si names
+        # 3. within these groups: by exponent
+        items = sorted(METRIC_EXPONENTS.items(), key= lambda item: item[1])
+        fullNames = []
+        siNames = []
         for item in items:
+            if len(item[0]) > 5:
+                # make centimeters to Centimeters
+                item = (item[0].title(), item[1])
+                fullNames.append(item)
+            else:
+                siNames.append(item)
+
+        self.mCBXAxisUnit.addItem(BAND_INDEX, userData='')
+        for item in fullNames + siNames:
             name, exponent = item
-            title = name if len(name) <= 3 else name.title()
-            self.mCBXAxisUnit.addItem(title, userData=name)
+            self.mCBXAxisUnit.addItem(name, userData=name)
         self.mCBXAxisUnit.setCurrentIndex(0)
 
         self.mCBXAxisUnit.currentIndexChanged.connect(lambda : self.sigXUnitChanged.emit(self.mCBXAxisUnit.currentText()))

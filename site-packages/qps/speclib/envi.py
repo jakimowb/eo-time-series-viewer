@@ -372,11 +372,12 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         SLIB = SpectralLibrary()
         SLIB.startEditing()
         SLIB.addMissingFields(speclibFields)
-        #SLIB.commitChanges()
-        #SLIB.startEditing()
         SLIB.addProfiles(profiles)
         assert SLIB.commitChanges()
         assert SLIB.featureCount() == nSpectra
+
+
+        SLIB.readJSONProperties(pathESL)
         return SLIB
 
     @staticmethod
@@ -468,11 +469,13 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             file.flush()
             file.close()
 
+            # write JSON properties
+            speclib.writeJSONProperties(pathDst)
+
             # write other metadata to CSV
             pathCSV = os.path.splitext(pathHDR)[0] + '.csv'
 
             writeCSVMetadata(pathCSV, profiles)
-
             writtenFiles.append(pathDst)
 
         return writtenFiles
