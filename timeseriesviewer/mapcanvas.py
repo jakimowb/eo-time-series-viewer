@@ -33,10 +33,10 @@ from PyQt5.QtXml import QDomDocument
 
 from .utils import *
 from .timeseries import TimeSeriesDatum
-from .crosshair import CrosshairDialog, CrosshairStyle
-from .maptools import *
+from qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle
+from qps.maptools import *
 from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
-from .classification.classificationscheme import ClassificationScheme, ClassInfo
+from qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 import timeseriesviewer.settings
 
 class MapCanvasLayerModel(QAbstractTableModel):
@@ -332,7 +332,7 @@ class MapCanvas(QgsMapCanvas):
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
-    from .crosshair import CrosshairStyle
+
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, parent=None):
@@ -374,7 +374,7 @@ class MapCanvas(QgsMapCanvas):
 
 
 
-        from timeseriesviewer.crosshair import CrosshairMapCanvasItem
+        from qps.crosshair.crosshair import CrosshairMapCanvasItem
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
 
     def mapLayerModel(self)->MapCanvasLayerModel:

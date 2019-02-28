@@ -34,11 +34,11 @@ from pyqtgraph import functions as fn
 from pyqtgraph import AxisItem
 from osgeo import ogr, osr, gdal
 from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
-from timeseriesviewer.plotstyling import PlotStyle
+from qps.plotstyling.plotstyling import PlotStyle
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.utils import *
-from timeseriesviewer.speclib.spectrallibraries import createQgsField
-from timeseriesviewer.models import OptionListModel, Option
+from qps.speclib.spectrallibraries import createQgsField
+
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
 DEBUG = False

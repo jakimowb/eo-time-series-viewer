@@ -26,7 +26,7 @@ from PyQt5.QtCore import *
 import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
-from timeseriesviewer.utils import TestObjects
+from timeseriesviewer.tests import TestObjects
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
 SHOW_GUI = True

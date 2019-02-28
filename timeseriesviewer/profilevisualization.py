@@ -31,7 +31,7 @@ from qgis.PyQt.QtGui import *
 from timeseriesviewer import jp
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
-from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
+from qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
 from timeseriesviewer.temporalprofiles2d import LABEL_EXPRESSION_2D

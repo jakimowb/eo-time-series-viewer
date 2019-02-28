@@ -156,8 +156,6 @@ class FieldConfigEditorWidget(QWidget):
         self.gbWidgetType.layout().addWidget(self.stackedWidget)
 
 
-
-
         currentSetup = self.mLayer.editorWidgetSetup(self.mFieldIndex)
         self.mInitialConf = currentSetup.config()
         refkey = currentSetup.type()

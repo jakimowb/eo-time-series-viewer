@@ -97,3 +97,50 @@ class TestObjects(qps.testing.TestObjects):
             datasets.append(p)
 
         return datasets
+
+    @staticmethod
+    def testImagePaths() -> list:
+        import example
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        assert len(files) > 0
+        return files
+
+    @staticmethod
+    def createTestImageSeries(n=1) -> list:
+        assert n > 0
+
+        datasets = []
+        for i in range(n):
+            ds = TestObjects.inMemoryImage()
+            datasets.append(ds)
+        return datasets
+
+    @staticmethod
+    def createMultiSourceTimeSeries() -> list:
+        import example
+        # real files
+        files = TestObjects.testImagePaths()
+        movedFiles = []
+        d = r'/vsimem/'
+        for pathSrc in files:
+            bn = os.path.basename(pathSrc)
+            pathDst = d + 'shifted_' + bn + '.bsq'
+            dsSrc = gdal.Open(pathSrc)
+            tops = gdal.TranslateOptions(format='ENVI')
+            gdal.Translate(pathDst, dsSrc, options=tops)
+            dsDst = gdal.Open(pathDst, gdal.GA_Update)
+            assert isinstance(dsDst, gdal.Dataset)
+            gt = list(dsSrc.GetGeoTransform())
+            ns, nl = dsDst.RasterXSize, dsDst.RasterYSize
+            gt[0] = gt[0] + 0.5 * ns * gt[1]
+            gt[3] = gt[3] + abs(0.5 * nl * gt[5])
+            dsDst.SetGeoTransform(gt)
+            dsDst.SetMetadata(dsSrc.GetMetadata(''), '')
+            dsDst.FlushCache()
+
+            dsDst = None
+            dsDst = gdal.Open(pathDst)
+            assert list(dsDst.GetGeoTransform()) == gt
+            movedFiles.append(pathDst)
+        return files + movedFiles
+

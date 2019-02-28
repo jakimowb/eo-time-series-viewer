@@ -45,7 +45,7 @@ from timeseriesviewer.utils import *
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
-from timeseriesviewer.speclib.spectrallibraries import SpectralLibrary, createQgsField
+from qps.speclib.spectrallibraries import SpectralLibrary, createQgsField
 import numpy as np
 import pyqtgraph as pg
 
@@ -84,8 +84,6 @@ class TimeSeriesViewerUI(QMainWindow,
         #I don't know why this is not possible in the QDesigner when QToolButtons are
         #placed outside a toolbar
 
-        import timeseriesviewer.ui.docks as docks
-
         area = None
 
         def addDockWidget(dock):
@@ -112,7 +110,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.mapvisualization import MapViewCollectionDock
         self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
-        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoDock
+        from qps.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
@@ -127,7 +125,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
 
-        from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
+        from qps.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
 
 

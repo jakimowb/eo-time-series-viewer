@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles
+from timeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -115,13 +115,13 @@ class testclassDialogTest(unittest.TestCase):
         m.sigCrosshairPositionChanged.connect(onChanged)
 
         center = SpatialPoint.fromMapCanvasCenter(m)
-        import timeseriesviewer.maptools as mts
+        import qps.maptools as mts
         m.setCrosshairVisibility(True)
         mt = mts.SpectralProfileMapTool(m)
         m.setMapTool(mt)
         self.assertTrue(m.crosshairPosition() == center)
 
-        p2 = center.copy()
+        p2 = SpatialPoint(center.crs(), center)
         p2.setX(p2.x()+100)
         m.setCrosshairPosition(p2)
         self.assertIsInstance(lastPos, SpatialPoint)

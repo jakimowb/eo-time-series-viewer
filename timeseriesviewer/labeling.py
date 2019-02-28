@@ -8,11 +8,11 @@ from qgis.PyQt.QtWidgets import *
 from osgeo import gdal
 
 from timeseriesviewer.utils import loadUI, qgisInstance
-from timeseriesviewer.classification.classificationscheme \
+from qps.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
 from timeseriesviewer.timeseries import TimeSeriesDatum
-from timeseriesviewer.layerproperties import *
+from qps.layerproperties import *
 #the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
@@ -620,12 +620,12 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
         iface = qgisInstance()
 
-        if isinstance(iface, QgisInterface):
-            self.actionAddFeature = iface.actionAddFeature()
-            self.actionSaveEdits = iface.actionSaveEdits()
-            self.actionCancelEdits = iface.actionCancelEdits()
-            self.actionToggleEditing = iface.actionToggleEditing()
-            self.actionAddOgrLayer = iface.actionAddOgrLayer()
+#        if isinstance(iface, QgisInterface):
+ #           self.actionAddFeature = iface.actionAddFeature()
+  #          self.actionSaveEdits = iface.actionSaveEdits()
+   #         self.actionCancelEdits = iface.actionCancelEdits()
+    #        self.actionToggleEditing = iface.actionToggleEditing()
+     #       self.actionAddOgrLayer = iface.actionAddOgrLayer()
 
 
         def onToggleEditing(b:bool):

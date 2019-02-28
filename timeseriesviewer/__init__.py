@@ -88,13 +88,14 @@ except:
 
 
 try:
-    import qps
-    #todo: check package version?
+    import qps.utils
 
 except Exception as ex:
     #site.addpackage(DIR_SITE_PACKAGES, 'qps', None)
     sys.path.append(DIR_SITE_PACKAGES)
     import qps
+
+qps.utils.UI_DIRECTORIES.append(DIR_UI)
 
 
 def messageLog(msg, level=None):

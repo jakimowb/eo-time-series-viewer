@@ -36,9 +36,9 @@ from timeseriesviewer.utils import *
 
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
 from timeseriesviewer.utils import loadUI
-from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
+from timeseriesviewer.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
-from timeseriesviewer.crosshair import CrosshairStyle
+from qps.crosshair.crosshair import CrosshairStyle
 
 
 
