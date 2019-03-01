@@ -272,6 +272,45 @@ def createQgsField(name : str, exampleValue, comment:str=None):
         raise NotImplemented()
 
 
+def filenameFromString(text : str):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    see https://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename
+    :return: path
+    """
+    if text is None:
+        return ''
+    isInValid = re.compile(r"[\\/:?\"<>|]")
+    isValid = re.compile(r"([-_.()]|\d|\D)", re.ASCII + re.IGNORECASE)
+    import unicodedata
+    cleaned = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore')
+
+    return '_'.join(c for c in cleaned.decode() if isValid.search(c) and not isInValid.search(c))
+
+
+def value2str(value, sep:str=None, delimiter:str=' '):
+    """
+    Converts a value into a string
+    :param value: any
+    :param delimiter: delimiter to be used for list values
+    :return:
+    """
+
+    if sep is not None:
+        delimiter = sep
+
+    if isinstance(value, list):
+        value = delimiter.join([str(v) for v in value])
+    elif isinstance(value, np.ndarray):
+        value = value2str(value.tolist(), delimiter=delimiter)
+    elif value is None:
+        value = ''
+    else:
+        value = str(value)
+    return value
+
+
 def setQgsFieldValue(feature:QgsFeature, field, value):
     """
     Wrties the Python value v into a QgsFeature field, taking care of required conversions
@@ -923,7 +962,7 @@ def geo2pxF(geo, gt):
     # see http://www.gdal.org/gdal_datamodel.html
     px = (geo.x() - gt[0]) / gt[1]  # x pixel
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
-    return QPointF(px,py)
+    return QPointF(px, py)
 
 def geo2px(geo, gt):
     """
