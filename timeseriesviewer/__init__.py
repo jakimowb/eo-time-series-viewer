@@ -31,7 +31,7 @@ from qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile
 from qps.maptools import *
 
 
-__version__ = '0.7' #sub-subversion number is added automatically
+__version__ = '0.8'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
