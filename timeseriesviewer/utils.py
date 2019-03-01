@@ -42,9 +42,10 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
-from timeseriesviewer import DIR_UI, DIR_REPO
-from timeseriesviewer import messageLog
-import timeseriesviewer
+from qps.utils import *
+from timeseriesviewer import DIR_UI
+UI_DIRECTORIES.append(DIR_UI)
+
 MAP_LAYER_STORES = [QgsProject.instance()]
 
 def qgisInstance():

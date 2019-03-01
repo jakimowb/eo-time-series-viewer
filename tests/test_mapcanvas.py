@@ -25,9 +25,8 @@ import unittest, tempfile
 
 from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.timeseries import *
-resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = False
+QGIS_APP = initQgisApplication()
+SHOW_GUI = True
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -45,25 +44,33 @@ class testclassDialogTest(unittest.TestCase):
 
         files = TestObjects.testImagePaths()
         lyr1 = QgsRasterLayer(files[0])
-
+        self.assertTrue(lyr1.isValid())
+        QgsProject.instance().addMapLayer(lyr1)
 
         c = QgsMapCanvas()
+        c.setWindowTitle('QgsMapCanvas test')
         self.assertIsInstance(c, QgsMapCanvas)
-        ext0 = c.extent()
+
 
         bExtent = 0
+
         def onExtentChanged():
             nonlocal bExtent
             bExtent += 1
-
 
         c.extentsChanged.connect(onExtentChanged)
         c.setExtent(lyr1.extent())
 
         self.assertTrue(bExtent == 1)
-        c.freeze(True)
-        c.setExtent(ext0)
 
+
+        c.setLayers([lyr1])
+        c.setDestinationCrs(lyr1.crs())
+        c.setExtent(lyr1.extent())
+
+        if SHOW_GUI:
+            c.show()
+            QGIS_APP.exec_()
 
     def test_mapcanvas(self):
         files = testRasterFiles()
@@ -73,6 +80,9 @@ class testclassDialogTest(unittest.TestCase):
 
 
         canvas = MapCanvas()
+        canvas.setWindowTitle('timeseriesviewer.MapCanvas')
+        canvas.setDestinationCrs(lyr1.crs())
+        canvas.setExtent(lyr1.extent())
 
         self.assertIsInstance(canvas, QgsMapCanvas)
         self.assertFalse(canvas.isVisible())
@@ -81,9 +91,10 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(canvas.isVisible())
         self.assertTrue(canvas.isVisibleToViewport())
 
-        #test the pipeline
+        # test the pipeline
         canvas.addToRefreshPipeLine([lyr1, lyr2])
         self.assertTrue(len(canvas.layers()) == 0)
+        canvas.setExtent(canvas.fullExtent())
         canvas.timedRefresh()
         self.assertTrue(len(canvas.layers()) == 2)
 
@@ -100,8 +111,14 @@ class testclassDialogTest(unittest.TestCase):
         canvas.timedRefresh()
         self.assertTrue(len(canvas.layers()) == 0)
 
+        canvas.addToRefreshPipeLine([lyr1, lyr2])
+        self.assertTrue(len(canvas.layers()) == 0)
+        canvas.timedRefresh()
+        self.assertTrue(len(canvas.layers()) == 2)
 
-
+        if SHOW_GUI:
+            canvas.setExtent(canvas.fullExtent())
+            QGIS_APP.exec_()
 
 
     def test_mapTools(self):
@@ -200,5 +217,6 @@ class testclassDialogTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
+
     SHOW_GUI = False
     unittest.main()

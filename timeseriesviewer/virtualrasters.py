@@ -30,7 +30,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from timeseriesviewer.models import Option, OptionListModel
+from timeseriesviewer import Option, OptionListModel
 #lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte:1,
                 gdal.GDT_UInt16:2,
@@ -77,7 +77,7 @@ for GRAkey in [k for k in list(gdal.__dict__.keys()) if k.startswith('GRA_')]:
     GRA = gdal.__dict__[GRAkey]
     GRA_Name = GRAkey[4:]
 
-    option = Option(GRA, GRA_Name, tooltip=GRA_tooltips.get(GRA_Name))
+    option = Option(GRA, GRA_Name, toolTip=GRA_tooltips.get(GRA_Name))
     RESAMPLE_ALGS.addOption(option)
 
 

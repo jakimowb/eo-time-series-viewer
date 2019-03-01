@@ -6,6 +6,7 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
+
 from timeseriesviewer.utils import loadUI
 
 
@@ -174,7 +175,7 @@ class FieldConfigEditorWidget(QWidget):
             configWidget = fac.configWidget(self.mLayer, self.mFieldIndex, self.stackedWidget)
 
             if isinstance(configWidget, QgsEditorConfigWidget):
-                configWidget.changed.connect(lambda :self.sigChanged.emit(self))
+                configWidget.changed.connect(lambda: self.sigChanged.emit(self))
                 self.stackedWidget.addWidget(configWidget)
                 confItem = FieldConfigEditorWidget.ConfigInfo(key, fac, configWidget)
                 if key == refkey:
@@ -184,7 +185,8 @@ class FieldConfigEditorWidget(QWidget):
                 self.mItemModel.appendRow(confItem)
 
                 i += 1
-
+        if iCurrent == -1:
+            s = ""
         self.cbWidgetType.setModel(self.mItemModel)
         self.cbWidgetType.currentIndexChanged.connect(self.updateConfigWidget)
 
@@ -194,6 +196,9 @@ class FieldConfigEditorWidget(QWidget):
 
 
         conf = self.currentFieldConfig()
+        if not isinstance(conf, FieldConfigEditorWidget.ConfigInfo):
+            s = ""
+        assert isinstance(conf, FieldConfigEditorWidget.ConfigInfo)
         self.mInitialFactoryKey = conf.factoryKey()
         self.mInitialConf = conf.config()
 
@@ -261,9 +266,11 @@ class FieldConfigEditorWidget(QWidget):
     def updateConfigWidget(self, index):
         self.stackedWidget.setCurrentIndex(index)
         fieldConfig = self.currentFieldConfig()
-        assert isinstance(fieldConfig, FieldConfigEditorWidget.ConfigInfo)
+        if isinstance(fieldConfig, FieldConfigEditorWidget.ConfigInfo):
 
-        self.sigChanged.emit(self)
+            self.sigChanged.emit(self)
+        else:
+            s  =""
 
 
 class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget.ui')):

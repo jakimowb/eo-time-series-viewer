@@ -21,18 +21,35 @@
 # noinspection PyPep8Naming
 
 import os, re, io, importlib, uuid
-
+from qgis.core import *
+import numpy as np
+from qgis.gui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 import qps.testing
-from qps.testing import initQgisApplication
-from unittest import TestCase
-from timeseriesviewer import *
-from timeseriesviewer.timeseries import *
-from timeseriesviewer import DIR_EXAMPLES
-from timeseriesviewer.utils import file_search
+from qps.utils import file_search
 from osgeo import ogr, osr, gdal, gdal_array
 import example
-
+from timeseriesviewer import DIR_EXAMPLES
+from timeseriesviewer.timeseries import TimeSeries
 SHOW_GUI = True
+
+def initQgisApplication(*args, **kwds)->QgsApplication:
+    """
+    Initializes a QGIS Environment
+    :return: QgsApplication instance of local QGIS installation
+    """
+    if isinstance(QgsApplication.instance(), QgsApplication):
+        return QgsApplication.instance()
+    else:
+
+
+        app = qps.testing.initQgisApplication(*args, **kwds)
+
+        import timeseriesviewer
+        timeseriesviewer.initEditorWidgets()
+        return app
 
 def testRasterFiles()->list:
     return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))

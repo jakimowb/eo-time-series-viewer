@@ -687,13 +687,17 @@ class TemporalProfile(QObject):
         from timeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
         tasks = []
         for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDatum)
             missingIndices = self.missingBandIndices(tsd)
 
             if len(missingIndices) > 0:
-                task = PixelLoaderTask(tsd.pathImg, [self.coordinate()],
-                                       bandIndices=missingIndices,
-                                       temporalProfileIDs=[self.mID])
-                tasks.append(task)
+
+                for pathImg in tsd.sourceUris():
+
+                    task = PixelLoaderTask(pathImg, [self.coordinate()],
+                                           bandIndices=missingIndices,
+                                           temporalProfileIDs=[self.mID])
+                    tasks.append(task)
 
 
         for task in tasks:
@@ -753,7 +757,7 @@ class TemporalProfile(QObject):
         return self.mUpdated
 
     def dataFromExpression(self, sensor, expression:str, dateType='date'):
-        assert dateType in ['date','doy']
+        assert dateType in ['date', 'doy']
         x = []
         y = []
 
@@ -763,9 +767,9 @@ class TemporalProfile(QObject):
         assert isinstance(expression, QgsExpression)
         expression = QgsExpression(expression)
 
-        #define required QgsFields
+        # define required QgsFields
         fields = QgsFields()
-        sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor == sensor])
+        sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor() == sensor])
         for tsd in sensorTSDs:
             data = self.mData[tsd]
             for k, v in data.items():
@@ -778,15 +782,13 @@ class TemporalProfile(QObject):
             context = QgsExpressionContext()
             context.setFields(fields)
 
-            #scope = QgsExpressionContextScope()
+             #scope = QgsExpressionContextScope()
             f = QgsFeature(fields)
             for k, v in data.items():
                 setQgsFieldValue(f, k, v)
 
             context.setFeature(f)
-           # scope.setFeature(f)
-            #context.appendScope(scope)
-            #value = expression.evaluatePrepared(f)
+
             value = expression.evaluate(context)
 
 
@@ -934,8 +936,8 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         if isinstance(TP, TemporalProfile) and isinstance(sensor, SensorInstrument):
             x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression(), dateType='date')
             if len(y) > 0:
-                x = np.asarray(x, dtype=np.float)
-                y = np.asarray(y, dtype=np.float)
+                #x = np.asarray(x, dtype=np.float)
+                #y = np.asarray(y, dtype=np.float)
                 self.setData(x=x, y=y)
             else:
                 self.setData(x=[], y=[]) # dummy
@@ -1082,10 +1084,11 @@ class TemporalProfileLayer(QgsVectorLayer):
             if len(TPs) > 0:
                 theGeometries = [tp.coordinate() for tp in TPs]
                 theIDs = [tp.id() for tp in TPs]
-                task = PixelLoaderTask(tsd.pathImg, theGeometries,
-                                       bandIndices=requiredIndices,
-                                       temporalProfileIDs=theIDs)
-                tasks.append(task)
+                for pathImg in tsd.sourceUris():
+                    task = PixelLoaderTask(pathImg, theGeometries,
+                                           bandIndices=requiredIndices,
+                                           temporalProfileIDs=theIDs)
+                    tasks.append(task)
 
 
         if len(tasks) > 0:

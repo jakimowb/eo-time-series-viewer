@@ -384,9 +384,9 @@ def value2str(value, sep:str=' ')->str:
     :return:
     """
     if isinstance(value, list):
-        value = sep.join([value2str(v, sep=sep) for v in value])
+        value = sep.join([value2str(v, delimiter=sep) for v in value])
     elif isinstance(value, np.ndarray):
-        value = value2str(value.astype(list), sep=sep)
+        value = value2str(value.astype(list), delimiter=sep)
     elif value in EMPTY_VALUES:
         value = ''
     else:

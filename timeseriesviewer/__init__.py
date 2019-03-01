@@ -22,6 +22,14 @@
 
 import os, sys, fnmatch, site, re, site
 
+# import QPS modules
+from qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
+from qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
+from qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
+from qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
+from qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile
+from qps.maptools import *
+
 
 __version__ = '0.7' #sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
@@ -34,7 +42,7 @@ REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
-DEPENDENCIES = ['numpy','pyqtgraph','gdal']
+DEPENDENCIES = ['numpy', 'pyqtgraph', 'gdal']
 
 URL_TESTDATA = r''
 
@@ -66,8 +74,8 @@ mkdir = lambda p: os.makedirs(p, exist_ok=True)
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
-DIR_UI = jp(DIR,*['ui'])
-DIR_DOCS = jp(DIR,'docs')
+DIR_UI = jp(DIR, *['ui'])
+DIR_DOCS = jp(DIR, 'docs')
 DIR_EXAMPLES = jp(DIR_REPO, 'example')
 PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
@@ -117,6 +125,13 @@ except:
     print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
 
     pass
+
+def initEditorWidgets():
+    """
+    Initialises QgsEditorWidgets
+    """
+    import qps
+    qps.registerEditorWidgets()
 
 
 #see https://github.com/pyqtgraph/pyqtgraph/issues/774

@@ -29,7 +29,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 import numpy as np
-from timeseriesviewer.utils import loadUI, SpatialExtent, value2str
+from timeseriesviewer.utils import loadUI, SpatialExtent
 
 PSUTIL_AVAILABLE = False
 try:
@@ -38,6 +38,8 @@ try:
 except:
     pass
 
+def value2str(args, separator = ''):
+    return str(args)
 
 class MapLayerRegistryModel(QAbstractTableModel):
 

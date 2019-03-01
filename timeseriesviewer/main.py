@@ -45,7 +45,7 @@ from timeseriesviewer.utils import *
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
-from qps.speclib.spectrallibraries import SpectralLibrary, createQgsField
+from timeseriesviewer import SpectralProfile, SpectralLibrary
 import numpy as np
 import pyqtgraph as pg
 
@@ -107,7 +107,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
 
-        from timeseriesviewer.mapvisualization import MapViewCollectionDock
+        from timeseriesviewer.mapvisualization import MapViewCollectionDock, MapViewCollectionDockV2
         self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
         from qps.cursorlocationvalue import CursorLocationInfoDock
@@ -320,7 +320,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
 
-        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoModel
+        from qps.cursorlocationvalue import CursorLocationInfoModel
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
@@ -492,7 +492,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if mapToolKey == MapTools.TemporalProfile:
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
         elif mapToolKey == MapTools.SpectralProfile:
-            from timeseriesviewer.speclib.spectrallibraries import SpectralProfile
+
             tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
 
             if not hasattr(self, 'cntSpectralProfile'):
@@ -607,6 +607,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the EO Time Series Viewer icon
         :return: QIcon
         """
+        import timeseriesviewer
         return timeseriesviewer.icon()
 
     def logMessage(self, message, tag, level):
@@ -679,7 +680,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if isinstance(n, bool) or not isinstance(n, int):
             n = len(files)
 
-        #ensure valid inputs for n
+        # ensure valid inputs for n
         n = min(n, len(files))
         n = max(1, n)
 

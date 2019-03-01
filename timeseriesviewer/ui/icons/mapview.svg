@@ -8,13 +8,13 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   viewBox="0 0 24 24"
+   viewBox="0 0 300 300"
    version="1.1"
    id="svg5692"
-   height="24"
-   width="24"
-   inkscape:version="0.91 r13725"
-   sodipodi:docname="BandView.svg">
+   height="300"
+   width="300"
+   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
+   sodipodi:docname="mapview.svg">
   <sodipodi:namedview
      pagecolor="#ffffff"
      bordercolor="#666666"
@@ -24,16 +24,16 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="737"
-     inkscape:window-height="480"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
      id="namedview14470"
      showgrid="false"
-     inkscape:zoom="9.8333333"
-     inkscape:cx="12"
-     inkscape:cy="12"
-     inkscape:window-x="24"
-     inkscape:window-y="43"
-     inkscape:window-maximized="0"
+     inkscape:zoom="0.5"
+     inkscape:cx="74.291404"
+     inkscape:cy="53.513341"
+     inkscape:window-x="-8"
+     inkscape:window-y="107"
+     inkscape:window-maximized="1"
      inkscape:current-layer="svg5692" />
   <title
      id="title2829">GIS icon theme 0.2</title>
@@ -273,7 +273,7 @@
     <radialGradient
        gradientTransform="matrix(0.71392723,1.0641605,-0.69302733,0.45911438,-10.291955,4.6155606)"
        gradientUnits="userSpaceOnUse"
-       r="7.0000001"
+       r="7"
        fy="-12.5"
        fx="16.5"
        cy="-12.5"
@@ -308,10 +308,10 @@
         <dc:coverage>GIS icons</dc:coverage>
         <dc:description>http://robert.szczepanek.pl/</dc:description>
         <cc:license
-           rdf:resource="http://creativecommons.org/licenses/by-sa/3.0/" />
+           rdf:resource="http://creativecommons.org/licenses/by-sa/4.0/" />
       </cc:Work>
       <cc:License
-         rdf:about="http://creativecommons.org/licenses/by-sa/3.0/">
+         rdf:about="http://creativecommons.org/licenses/by-sa/4.0/">
         <cc:permits
            rdf:resource="http://creativecommons.org/ns#Reproduction" />
         <cc:permits
@@ -328,17 +328,22 @@
     </rdf:RDF>
   </metadata>
   <g
-     transform="translate(0,-8)"
+     transform="matrix(12.199948,0,0,12.199948,-1.199948,-90.261974)"
      style="display:inline"
-     id="layer2">
+     id="layer2"
+     inkscape:export-filename="C:\Users\geo_beja\Seafile\Meine Bibliothek\Promotion\2019_EnMAPBoxWorkshop\visual.png"
+     inkscape:export-xdpi="2379.2659"
+     inkscape:export-ydpi="2379.2659">
     <path
        id="path4389-5-0-7"
        d="m 23.920726,22.589049 c 0,0 -1.892101,-0.277217 -2.871364,-1.366642 -0.626778,-0.697285 -3.678535,-3.947217 -5.453989,-4.650095 -2.962962,-1.172997 -5.321805,-1.134553 -7.5695483,-0.546833 -2.09114,0.546775 -3.530204,1.337547 -4.903697,2.645046 -0.639528,0.608801 -1.518255,2.273176 -1.505979,2.551883 -0.01888,0.230131 1.214539,2.152487 2.867438,3.325547 1.508743,1.070752 3.592552,2.336622 5.9029663,2.73289 2.79582,0.479522 3.821514,0.379776 6.481198,-0.469869 1.39945,-0.447059 3.888123,-2.570867 3.888123,-2.570867 0,0 0.521038,-0.348323 1.332925,-0.951893 0.700164,-0.520511 1.831927,-0.699167 1.831927,-0.699167 z"
-       style="display:inline;fill:#eeeeec;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="display:inline;fill:#eeeeec;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
     <path
        id="path4377"
        d="m 10.703793,15.636921 c -0.7881923,0.02907 -1.0668593,0.04567 -1.9065573,0.207793 -0.480734,0.09555 -1.032406,0.24279 -1.259721,0.314658 -0.82902,0.985202 -1.232344,2.302381 -1.232555,3.586626 3.34e-4,3.02468 2.467746,5.476585 5.5115563,5.476917 3.043809,-3.33e-4 5.511221,-2.452237 5.511555,-5.476917 -0.0019,-0.802706 0.04206,-1.574914 -0.302154,-2.301101 -0.523643,-0.400667 -1.160508,-0.754077 -1.584197,-0.91776 -1.870192,-0.722509 -3.334895,-0.941964 -4.737927,-0.890216 z"
-       style="opacity:1;fill:url(#radialGradient4385);fill-opacity:1;stroke:#415a75;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="opacity:1;fill:url(#radialGradient4385);fill-opacity:1;stroke:#415a75;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
     <ellipse
        ry="2.2123857"
        rx="2.2263777"
@@ -349,11 +354,13 @@
     <path
        id="path4421-4"
        d="m 1.1431106,15.424331 c 5.0059781,-1.495379 8.5535321,-2.062068 10.9931454,-2.285946 5.222126,-0.479224 7.062158,0.400175 8.402611,1.388166 1.448462,1.0676 1.763071,1.760039 1.763071,1.760039"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#888a85;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#888a85;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
     <path
        id="path4389-5-0"
        d="m 23.920726,22.589049 c 0,0 -1.892101,-0.277217 -2.871364,-1.366642 -0.626778,-0.697285 -3.678535,-3.947217 -5.453989,-4.650095 -2.962962,-1.172997 -5.321805,-1.134553 -7.5695483,-0.546833 -2.09114,0.546775 -3.530204,1.337547 -4.903697,2.645046 -0.639528,0.608801 -1.518255,2.273177 -1.505979,2.551883 -0.01888,0.230131 1.214539,2.152488 2.867438,3.325547 1.508743,1.070753 3.592552,2.336622 5.9029663,2.73289 2.79582,0.479522 3.821514,0.379776 6.481198,-0.469869 1.39945,-0.447059 3.888123,-2.570867 3.888123,-2.570867 0,0 0.521038,-0.348323 1.332925,-0.951893 0.700164,-0.520511 1.831927,-0.699167 1.831927,-0.699167 z"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#888a85;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#888a85;stroke-width:0.99999994;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       inkscape:connector-curvature="0" />
     <ellipse
        ry="0.88495421"
        rx="0.89055109"

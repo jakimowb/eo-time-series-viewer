@@ -189,7 +189,7 @@ class SensorInstrument(QObject):
 
         self.hashvalue = hash(self.mId)
 
-        from .utils import TestObjects
+        from timeseriesviewer.tests import TestObjects
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
@@ -890,9 +890,9 @@ class TimeSeries(QObject):
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
         lines.append('#<image path>')
         for TSD in self.mTSDs:
-
-            line = TSD.pathImg
-            lines.append(line)
+            assert isinstance(TSD, TimeSeriesDatum)
+            for pathImg in TSD.sourceUris():
+                lines.append(pathImg)
 
         lines = [l+'\n' for l in lines]
 
@@ -940,11 +940,11 @@ class TimeSeries(QObject):
         """
         for tsd in self.mTSDs:
             assert isinstance(tsd, TimeSeriesDatum)
-            if pathOfInterest in tsd.pathImg:
+            if pathOfInterest in tsd.sourceUris():
                 return tsd
         return None
 
-    def tsd(self, date:np.datetime64, sensor)->TimeSeriesDatum:
+    def tsd(self, date: np.datetime64, sensor)->TimeSeriesDatum:
         """
         Returns the TimeSeriesDatum identified by ate nd sensorID
         :param date:
@@ -1091,14 +1091,14 @@ class TimeSeries(QObject):
 
 
 
-                #if necessary, add a new sensor instance
+                # if necessary, add a new sensor instance
                 if not isinstance(sensor, SensorInstrument):
                     sensor = self.addSensor(SensorInstrument(sid))
                 assert isinstance(sensor, SensorInstrument)
 
                 tsd = self.tsd(date, sensor)
 
-                #if necessary, add a new TimeSeriesDatum instance
+                # if necessary, add a new TimeSeriesDatum instance
                 if not isinstance(tsd, TimeSeriesDatum):
                     tsd = self.insertTSD(TimeSeriesDatum(self, date, sensor))
                     addedDates.append(tsd)
