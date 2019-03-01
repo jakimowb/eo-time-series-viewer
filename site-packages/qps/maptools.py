@@ -229,35 +229,37 @@ class PixelScaleExtentMapTool(QgsMapTool):
         canvas.setCursor(self.mCursor)
 
     def flags(self):
+        """
+
+        :return:
+        """
         return QgsMapTool.Transient
 
-    def canvasReleaseEvent(self, mouseEvent):
+    def canvasReleaseEvent(self, mouseEvent:QgsMapMouseEvent):
+        """
 
-        unitsPxX = []
-        unitsPxY = []
+        :param mouseEvent:
+        :return:
+        """
+        crs = self.canvas().mapSettings().destinationCrs()
+        pt = SpatialPoint(crs, mouseEvent.mapPoint())
+        center = SpatialPoint.fromMapCanvasCenter(self.canvas())
+
+        unitsPxX = None
+        unitsPxY = None
+
+
         for lyr in self.canvas().layers():
-            if isinstance(lyr, QgsRasterLayer):
-                unitsPxX.append(lyr.rasterUnitsPerPixelX())
-                unitsPxY.append(lyr.rasterUnitsPerPixelY())
+            if isinstance(lyr, QgsRasterLayer) and lyr.extent().contains(pt.toCrs(lyr.crs())):
+                unitsPxX = lyr.rasterUnitsPerPixelX()
+                unitsPxY = lyr.rasterUnitsPerPixelY()
+                break
 
-        if len(unitsPxX) > 0:
-            unitsPxX = np.asarray(unitsPxX)
-            unitsPxY = np.asarray(unitsPxY)
-            if True:
-                # zoom to largest pixel size
-                i = np.nanargmax(unitsPxX)
-            else:
-                # zoom to smallest pixel size
-                i = np.nanargmin(unitsPxX)
-            unitsPxX = unitsPxX[i]
-            unitsPxY = unitsPxY[i]
-            f = 0.2
-            width = f * self.canvas().size().width() * unitsPxX #width in map units
-            height = f * self.canvas().size().height() * unitsPxY #height in map units
-
-            center = SpatialPoint.fromMapCanvasCenter(self.canvas())
-            extent = SpatialExtent(center.crs(), 0, 0, width, height)
-            extent.setCenter(center, center.crs())
+        if isinstance(unitsPxX, (int, float)) and unitsPxX > 0:
+            width = self.canvas().size().width() * unitsPxX #width in map units
+            height = self.canvas().size().height() * unitsPxY #height in map units
+            extent = SpatialExtent(crs, 0, 0, width, height)
+            extent.setCenter(center, crs=crs)
             self.canvas().setExtent(extent)
 
 

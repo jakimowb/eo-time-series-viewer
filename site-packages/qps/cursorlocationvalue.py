@@ -27,7 +27,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qps.utils import *
 from qps.models import *
-
+from qps.classification.classificationscheme import ClassInfo, ClassificationScheme
 
 class SourceValueSet(object):
     def __init__(self, source, point:SpatialPoint):
@@ -46,7 +46,7 @@ class SourceValueSet(object):
 class RasterValueSet(SourceValueSet):
 
     class BandInfo(object):
-        def __init__(self, bandIndex, bandValue, bandName):
+        def __init__(self, bandIndex, bandValue, bandName, classInfo=None):
             assert bandIndex >= 0
             if bandValue is not None:
                 assert type(bandValue) in [float, int]
@@ -56,6 +56,7 @@ class RasterValueSet(SourceValueSet):
             self.bandIndex = bandIndex
             self.bandValue = bandValue
             self.bandName = bandName
+            self.classInfo = classInfo
 
 
     def __init__(self, source, point, pxPosition):
@@ -162,6 +163,13 @@ class CursorLocationInfoModel(TreeModel):
                     n = gocn(root, 'Band {}'.format(bv.bandIndex + 1))
                     n.setToolTip('Band {} {}'.format(bv.bandIndex + 1, bv.bandName).strip())
                     n.setValues([bv.bandValue, bv.bandName])
+
+                    if isinstance(bv.classInfo, ClassInfo):
+                        nc = gocn(root, 'Class')
+                        nc.setValues(bv.classInfo.name())
+                        nc.setIcon(bv.classInfo.icon())
+
+
                 elif isinstance(bv, QColor):
                     n = gocn(root, 'Color')
                     n.setToolTip('Color selected from screen pixel')
@@ -212,7 +220,7 @@ class ComboBoxOption(object):
 LUT_GEOMETRY_ICONS = {}
 
 RASTERBANDS = [
-    ComboBoxOption('VISIBLE', 'RGB', 'Visible bands only.'),
+    ComboBoxOption('VISIBLE', 'Visible', 'Visible bands only.'),
     ComboBoxOption('ALL', 'All', 'All raster bands.'),
 
 ]
@@ -345,7 +353,7 @@ class CursorLocationInfoDock(QDockWidget,
 
     def reloadCursorLocation(self):
         """
-        Call to load / re-load the data for the specifed cursor location
+        Call to load / re-load the data for the cursor location
         """
 
         ptInfo = self.cursorLocation()
@@ -380,7 +388,7 @@ class CursorLocationInfoDock(QDockWidget,
             assert isinstance(l, QgsMapLayer)
 
             pointLyr = ptInfo.toCrs(l.crs())
-            if not isinstance(pointLyr, SpatialPoint) or not l.extent().contains(pointLyr):
+            if not (isinstance(pointLyr, SpatialPoint) and l.extent().contains(pointLyr)):
                 continue
 
             if isinstance(l, QgsRasterLayer):
@@ -390,7 +398,15 @@ class CursorLocationInfoDock(QDockWidget,
 
                 # !Note: b is not zero-based -> 1st band means b == 1
                 if rasterbands == 'VISIBLE':
-                    bandNumbers = renderer.usesBands()
+                    if isinstance(renderer, QgsPalettedRasterRenderer):
+                        bandNumbers = renderer.usesBands()
+                        # sometime the rendere is set to band 0 (which does not exist)
+                        # QGIS bug
+                        if bandNumbers == [0] and l.bandCount() > 0:
+                            bandNumbers = [1]
+                    else:
+                        bandNumbers = renderer.usesBands()
+
                 elif rasterbands == 'ALL':
                     bandNumbers = list(range(1, l.bandCount()+1))
                 else:
@@ -407,34 +423,21 @@ class CursorLocationInfoDock(QDockWidget,
                         v.bandValues.append(QColor(block.color(0, 0)))
                 else:
                     results = l.dataProvider().identify(pointLyr, QgsRaster.IdentifyFormatValue).results()
+                    classScheme = None
+                    if isinstance(l.renderer(), QgsPalettedRasterRenderer):
+                        classScheme = ClassificationScheme.fromRasterRenderer(l.renderer())
                     for b in bandNumbers:
+                        if b in results.keys():
+                            bandValue = results[b]
 
-                        info = RasterValueSet.BandInfo(b - 1, results[b], l.bandName(b))
-                        v.bandValues.append(info)
-
-                if False:
-                    results = l.dataProvider().identify(pointLyr, QgsRaster.IdentifyFormatValue).results()
-
-
-                    #x, y  = pointLyr.x(), pointLyr.y()
-                    #dx = 0.5 * l.rasterUnitsPerPixelX()
-                    #dy = 0.5 * l.rasterUnitsPerPixelY()
-                    #bb = QgsRectangle(x-dx, y-dy, x+dx, y+dy)
-                    #results2 = l.dataProvider().identify(pointLyr, QgsRaster.IdentifyFormatValue, boundingBox=bb, width=1, height=1).results()
-                    if len(results) == 0:
-                        # fallback: get the colors, e.g. in case of WMS
-                        pt2 = QgsPointXY(pointLyr.x() + l.rasterUnitsPerPixelX() * 3,
-                                         pointLyr.y() - l.rasterUnitsPerPixelY() * 3)
-                        ext2Px = QgsRectangle(pointLyr.x(), pt2.y(), pt2.x(), pointLyr.y())
-
-                        block = l.renderer().block(1, ext2Px, 3, 3)
-                        color = QColor(block.color(0, 0))
-                        v.bandValues.append(color)
-
-                    else:
-                        wl, wlu = parseWavelength(l)
-                        for band, value in results.items():
-                            v.bandValues.append(RasterValueSet.BandInfo(band-1, value, l.bandName(band)))
+                            classInfo = None
+                            if isinstance(bandValue, (int, float)) \
+                                and isinstance(classScheme, ClassificationScheme) \
+                                and bandValue >= 0 \
+                                and bandValue < len(classScheme):
+                                classInfo = classScheme[int(bandValue)]
+                            info = RasterValueSet.BandInfo(b - 1, bandValue, l.bandName(b), classInfo=classInfo)
+                            v.bandValues.append(info)
 
                 self.mLocationInfoModel.addSourceValues(v)
                 s = ""

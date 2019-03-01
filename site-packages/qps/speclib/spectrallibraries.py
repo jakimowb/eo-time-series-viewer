@@ -1483,7 +1483,8 @@ class SpectralLibrary(QgsVectorLayer):
                     continue
                 if not len(d['y']) > 0:
                     continue
-            key = (tuple(d['x']), d['xUnit'], d['yUnit'])
+            x = None if d['x'] is None else tuple(d['x'])
+            key = (x, d['xUnit'], d['yUnit'])
             if key not in results.keys():
                 results[key] = []
             results[key].append(p)
@@ -1492,11 +1493,12 @@ class SpectralLibrary(QgsVectorLayer):
     def asPickleDump(self):
         return pickle.dumps(self)
 
-    def exportProfiles(self, path:str, **kwds):
+    def exportProfiles(self, path:str, **kwds)->list:
         """
         Exports profiles to a file
         :param path: str, filepath
         :param kwds: keywords to be used in specific `AbstractSpectralLibraryIO.write(...)` methods.
+        :return: list of written files
         """
 
         if path is None:
@@ -2462,15 +2464,14 @@ class SpectralProfileEditorWidgetFactory(QgsEditorWidgetFactory):
 
 
 EDITOR_WIDGET_REGISTRY_KEY = 'Spectral Profile'
-spectralProfileEditorWidgetFactory = None
+
 def registerSpectralProfileEditorWidget():
     reg = QgsGui.editorWidgetRegistry()
-    global spectralProfileEditorWidgetFactory
+
     if not EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys():
-        spectralProfileEditorWidgetFactory = SpectralProfileEditorWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
-        reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, spectralProfileEditorWidgetFactory)
-    else:
-        spectralProfileEditorWidgetFactory = reg.factories()[EDITOR_WIDGET_REGISTRY_KEY]
+        global SPECTRAL_PROFILE_EDITOR_WIDGET_FACTORY
+        SPECTRAL_PROFILE_EDITOR_WIDGET_FACTORY = SpectralProfileEditorWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
+        reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, SPECTRAL_PROFILE_EDITOR_WIDGET_FACTORY)
 
 
 def registerAbstractLibraryIOs():
@@ -2483,6 +2484,7 @@ def registerAbstractLibraryIOs():
 
 class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
     sigLoadFromMapRequest = pyqtSignal()
+    sigFilesCreated = pyqtSignal(list)
 
     class CurrentProfilesMode(enum.Enum):
         normal = 0
@@ -2707,9 +2709,10 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
         from qps.layerproperties import VectorLayerProperties
 
-
-        w = VectorLayerProperties(self.speclib(), None, parent=self)
-        w.exec_()
+        self._propDialog = VectorLayerProperties(self.speclib(), None, parent=None)
+        self._propDialog.exec_()
+        self._propDialog.setParent(None)
+        del self._propDialog
         s = ""
 
     def importSpeclib(self, path=None):
@@ -2898,7 +2901,10 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         return pi
 
     def onExportSpectra(self, *args):
-        self.mSpeclib.exportProfiles(None)
+        files = self.mSpeclib.exportProfiles(None)
+        if len(files) > 0:
+            self.sigFilesCreated.emit(files)
+
 
     def addSpeclib(self, speclib:SpectralLibrary):
         """
