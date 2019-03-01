@@ -33,12 +33,12 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import numpy as np
 from timeseriesviewer.utils import *
-
+from timeseriesviewer import Option, OptionListModel
 from timeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries
 from timeseriesviewer.utils import loadUI
-from timeseriesviewer.ui.mapviewscrollarea import MapViewScrollArea
+from timeseriesviewer.mapviewscrollarea import MapViewScrollArea
 from timeseriesviewer.mapcanvas import MapCanvas
-from timeseriesviewer.crosshair import CrosshairStyle
+from qps.crosshair.crosshair import CrosshairStyle
 
 
 
@@ -64,11 +64,16 @@ class MapViewUI(QFrame, loadUI('mapviewdefinition.ui')):
 
         from timeseriesviewer.main import TimeSeriesViewer
         tsv = TimeSeriesViewer.instance()
+        self.mVectorSourceModel = self.cbQgsVectorLayer.model().sourceModel()
+        QgsProject.instance().layersAdded.connect(self.mVectorSourceModel.addLayers)
+        QgsProject.instance().layersRemoved.connect(self.mVectorSourceModel.removeLayers)
+
         if isinstance(tsv, TimeSeriesViewer):
             self.mStore = tsv.mapLayerStore()
-            self.mVectorSourceModel = self.cbQgsVectorLayer.model().sourceModel()
+
             self.mStore.layersAdded.connect(self.mVectorSourceModel.addLayers)
             self.mStore.layersRemoved.connect(self.mVectorSourceModel.removeLayers)
+
 
         #connect the QActions with the QgsCollapsibleGroupBoxes
         self.gbVectorRendering.toggled.connect(self.actionToggleVectorVisibility.setChecked)
@@ -387,12 +392,12 @@ class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget
             self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
             self.mBtnBar.layout().setSpacing(2)
 
-            self.actionSetDefault = QAction('Default')
-            self.actionSetRed = QAction('R')
-            self.actionSetGreen = QAction('G')
-            self.actionSetBlue = QAction('B')
-            self.actionSetNIR = QAction('nIR')
-            self.actionSetSWIR = QAction('swIR')
+            self.actionSetDefault = QAction('Default', self)
+            self.actionSetRed = QAction('R', self)
+            self.actionSetGreen = QAction('G', self)
+            self.actionSetBlue = QAction('B', self)
+            self.actionSetNIR = QAction('nIR', self)
+            self.actionSetSWIR = QAction('swIR', self)
 
             self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
             self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
@@ -506,12 +511,12 @@ class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidg
         self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
         self.mBtnBar.layout().setSpacing(2)
 
-        self.actionSetDefault = QAction('Default')
-        self.actionSetRed = QAction('R')
-        self.actionSetGreen = QAction('G')
-        self.actionSetBlue = QAction('B')
-        self.actionSetNIR = QAction('nIR')
-        self.actionSetSWIR = QAction('swIR')
+        self.actionSetDefault = QAction('Default', self)
+        self.actionSetRed = QAction('R', self)
+        self.actionSetGreen = QAction('G', self)
+        self.actionSetBlue = QAction('B', self)
+        self.actionSetNIR = QAction('nIR', self)
+        self.actionSetSWIR = QAction('swIR', self)
 
         self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
         self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
@@ -626,10 +631,10 @@ class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidg
         self.wavelengths = wl
         self.wavelengthUnit = wlu
 
-        self.actionSetDefault = QAction('Default')
-        self.actionSetTrueColor = QAction('RGB')
-        self.actionSetCIR = QAction('nIR')
-        self.actionSet453 = QAction('swIR')
+        self.actionSetDefault = QAction('Default', self)
+        self.actionSetTrueColor = QAction('RGB', self)
+        self.actionSetCIR = QAction('nIR', self)
+        self.actionSet453 = QAction('swIR', self)
 
         self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
         self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
@@ -680,7 +685,7 @@ class MapView(QObject):
 
 
         self.ui.tbName.textChanged.connect(self.sigTitleChanged.emit)
-        from timeseriesviewer.crosshair import getCrosshairStyle
+        from timeseriesviewer import getCrosshairStyle
         self.ui.actionSetCrosshairStyle.triggered.connect(
             lambda : self.onCrosshairChanged(getCrosshairStyle(
                 parent=self.ui,
@@ -955,7 +960,7 @@ class MapView(QObject):
         Synchronizes all crosshair positions. Takes care of CRS differences.
         :param spatialPoint: SpatialPoint of the new Crosshair position
         """
-        from timeseriesviewer.crosshair import CrosshairStyle
+        from timeseriesviewer import CrosshairStyle
 
         srcCanvas = self.sender()
         if isinstance(srcCanvas, MapCanvas):
@@ -1042,16 +1047,6 @@ class RasterDataProviderMockup(QgsRasterDataProvider):
 
 class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersettings.ui')):
 
-
-    LUT_RENDERER = {QgsMultiBandColorRenderer:QgsMultiBandColorRendererWidget,
-                    QgsSingleBandGrayRenderer:QgsSingleBandGrayRendererWidget,
-                    QgsSingleBandPseudoColorRenderer:QgsSingleBandPseudoColorRendererWidget,
-                    QgsPalettedRasterRenderer:QgsPalettedRendererWidget}
-    LUT_RENDERER[QgsMultiBandColorRenderer]=MultiBandColorRendererWidget
-    LUT_RENDERER[QgsSingleBandPseudoColorRenderer]=SingleBandPseudoColorRendererWidget
-    LUT_RENDERER[QgsSingleBandGrayRenderer]=SingleBandGrayRendererWidget
-    LUT_RENDERER[QgsPalettedRasterRenderer] = PalettedRendererWidget
-
     sigRendererChanged = pyqtSignal()
     def __init__(self, sensor, parent=None):
         """Constructor."""
@@ -1071,47 +1066,61 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
         self.mSensor.sigNameChanged.connect(self.onSensorNameChanged)
         self.setTitle(self.mSensor.name())
 
-        from timeseriesviewer.models import OptionListModel, Option
+        from timeseriesviewer import OptionListModel, Option
         rasterRendererModel = OptionListModel()
-        #rasterRendererModel.addOption(Option(QgsMultiBandColorRendererWidget, name='multibandcolor (QGIS)', mRenderType = QgsMultiBandColorRenderer))
-        #rasterRendererModel.addOption(Option(QgsPalettedRendererWidget, name='paletted (QGIS)', mRenderType = QgsPalettedRasterRenderer))
-        #rasterRendererModel.addOption(Option(QgsSingleBandGrayRendererWidget, name='singlegray (QGIS)', mRenderType = QgsSingleBandGrayRenderer))
-        #rasterRendererModel.addOption(Option(QgsSingleBandPseudoColorRendererWidget, name='singlebandpseudocolor (QGIS)', mRenderType = QgsSingleBandPseudoColorRenderer))
-
-        rasterRendererModel.addOption(Option(MultiBandColorRendererWidget, name='Multibandcolor', mRenderType=QgsMultiBandColorRenderer))
-        rasterRendererModel.addOption(Option(SingleBandGrayRendererWidget, name='Singlegray', mRenderType=QgsSingleBandGrayRenderer))
-        rasterRendererModel.addOption(Option(SingleBandPseudoColorRendererWidget, name='Singleband Pseudocolor', mRenderType=QgsSingleBandPseudoColorRenderer))
-        rasterRendererModel.addOption(Option(PalettedRendererWidget, name='Paletted', mRenderType=QgsPalettedRasterRenderer))
+        rasterRendererModel.addOption(Option(QgsMultiBandColorRenderer, name='Multibandcolor'))
+        rasterRendererModel.addOption(Option(QgsSingleBandGrayRenderer, name='Singlegray'))
+        rasterRendererModel.addOption(Option(QgsSingleBandPseudoColorRenderer, name='Singleband Pseudocolor'))
+        rasterRendererModel.addOption(Option(QgsPalettedRasterRenderer, name='Paletted'))
+        rasterRendererModel.addOption(Option(QgsHillshadeRenderer, name='Hillshade'))
         self.mRasterRendererModel = rasterRendererModel
 
-        self.cbRenderType.setModel(self.mRasterRendererModel)
-        assert isinstance(self.stackedWidget, QStackedWidget)
+        self.mRenderCache = dict()
 
+        self.cbRenderType.setModel(self.mRasterRendererModel)
+        self.cbRenderType.currentIndexChanged.connect(self.onCurrentIndexChanged)
         self.mMockupCanvas = QgsMapCanvas(parent)
         self.mMockupCanvas.setVisible(False)
         self.mMockupRasterLayer = self.mSensor.mockupLayer()
         self.mMockupCanvas.setLayers([self.mMockupRasterLayer])
-        for func in rasterRendererModel.optionValues():
-
-            #extent = self.canvas.extent()
-            #w = func.create(self.mMockupRasterLayer, self.mMockupRasterLayer.extent())
-            w = func(self.mMockupRasterLayer, self.mMockupRasterLayer.extent())
-
-            assert isinstance(w, QgsRasterRendererWidget)
-            w.setParent(self.stackedWidget)
-
-
-            w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
-            w.setMapCanvas(self.mMockupCanvas)
-
-            self.stackedWidget.addWidget(w)
-            s = ""
 
         self.mMapCanvases = []
         self.initActions()
 
-    def initActions(self):
+        # set default
+        self.setRasterRenderer(self.mMockupRasterLayer.renderer())
 
+    def onCurrentIndexChanged(self, i):
+        if i >= 0:
+            option = self.cbRenderType.currentData()
+            r = self.cbRenderType.currentData().value()
+
+            renderer = None
+            if r in self.mRenderCache.keys():
+                renderer = self.mRenderCache[r]
+            else:
+                dp = self.mMockupRasterLayer.dataProvider()
+                if r == QgsSingleBandGrayRenderer:
+                    renderer = QgsSingleBandGrayRenderer(dp, 1)
+                elif r == QgsMultiBandColorRenderer:
+                    renderer = QgsMultiBandColorRenderer(dp, 1, 1, 1,
+                                                         QgsContrastEnhancement(),
+                                                         QgsContrastEnhancement(),
+                                                         QgsContrastEnhancement())
+                elif r == QgsPalettedRasterRenderer:
+                    renderer = QgsPalettedRasterRenderer(dp, 1, [])
+                elif r == QgsHillshadeRenderer:
+                    renderer = QgsHillshadeRenderer(dp, 1, 45, 45)
+                elif r == QgsSingleBandColorDataRenderer:
+                    renderer = QgsSingleBandColorDataRenderer(dp, 1)
+                elif r == QgsSingleBandPseudoColorRenderer:
+                    renderer = QgsSingleBandPseudoColorRenderer(dp, 1)
+
+            if isinstance(renderer, QgsRasterRenderer):
+                self.setRasterRenderer(renderer)
+
+
+    def initActions(self):
 
         self.btnPasteStyle.setDefaultAction(self.actionPasteStyle)
         self.btnCopyStyle.setDefaultAction(self.actionCopyStyle)
@@ -1142,54 +1151,84 @@ class MapViewRenderSettings(QgsCollapsibleGroupBox, loadUI('mapviewrendersetting
         self.actionApplyStyle.setToolTip('Apply style to all map view images from "{}"'.format(self.mSensor.name()))
 
 
-    def currentRenderWidget(self):
+    def currentRenderWidget(self)->QgsRasterRendererWidget:
         """
         Returns the current QgsRasterRendererWidget
         :return: QgsRasterRendererWidget
         """
-        return self.stackedWidget.currentWidget()
+        widgets = []
+        for i in range(self.renderWidgetLayout.count()):
+            w = self.renderWidgetLayout.itemAt(i).widget()
+            if isinstance(w, QgsRasterRendererWidget):
+                widgets.append(w)
+        if len(widgets) > 0:
+            return widgets[0]
+        return None
 
 
     def setRasterRenderer(self, renderer):
+
+        lastRenderer = self.rasterRenderer()
+        self.mRenderCache[type(lastRenderer)] = lastRenderer
+
         assert isinstance(renderer, QgsRasterRenderer)
-        assert isinstance(self.stackedWidget, QStackedWidget)
+        self.mMockupRasterLayer.setRenderer(renderer.clone())
 
-        self.mMockupRasterLayer.setRenderer(renderer)
+        layout = self.renderWidgetLayout
+        assert isinstance(layout, QBoxLayout)
 
-        #find the widget class that fits
-        cls = None
-
-        for option in self.mRasterRendererModel:
-            if type(renderer) == option.mRenderType:
-                cls = option.value()
-                break
-        if cls == None:
-            return
-
-        widgets = []
-        for i in range(self.stackedWidget.count()):
-            w = self.stackedWidget.widget(i)
-            if isinstance(w, cls):
-                widgets.append(w)
-
-        if len(widgets) > 0:
-            for w in widgets:
-                assert isinstance(w, QgsRasterRendererWidget)
-
-                #w.setRasterLayer(self.mMockupRasterLayer)
-                #w.setFromRenderer(cloneRenderer(renderer))
-                w.setFromRenderer(renderer)
-                #w.doComputations()
-
-            w = widgets[0]
-            self.stackedWidget.setCurrentWidget(w)
-
-            self.cbRenderType.setCurrentIndex(self.stackedWidget.currentIndex())
+        extent = self.mMockupRasterLayer.extent()
+        renderWidget = None
+        if isinstance(renderer, QgsSingleBandGrayRenderer):
+            renderWidget = QgsSingleBandGrayRendererWidget(self.mMockupRasterLayer, extent)
+        elif isinstance(renderer, QgsMultiBandColorRenderer):
+            renderWidget = QgsMultiBandColorRendererWidget(self.mMockupRasterLayer, extent)
+        elif isinstance(renderer, QgsPalettedRasterRenderer):
+            renderWidget = QgsPalettedRendererWidget(self.mMockupRasterLayer, extent)
+        elif isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+            renderWidget = QgsSingleBandPseudoColorRendererWidget(self.mMockupRasterLayer, extent)
+        elif isinstance(renderer, QgsHillshadeRenderer):
+            renderWidget = QgsHillshadeRendererWidget(self.mMockupRasterLayer, extent)
+        else:
+            pass
 
 
-    def rasterRenderer(self):
 
-        return self.stackedWidget.currentWidget().renderer()
+        if isinstance(renderWidget, QgsRasterRendererWidget):
+            # remove old
+            while self.renderWidgetLayout.count() > 0:
+                wi = self.renderWidgetLayout.takeAt(0)
+
+                if isinstance(wi.widget(), QgsRasterRendererWidget):
+                    w = wi.widget()
+                    self.renderWidgetLayout.removeWidget(w)
+                    w.setParent(None)
+
+            # add new
+            self.renderWidgetLayout.addWidget(renderWidget)
+
+        # select combobox value
+
+        self.cbRenderType.currentIndex()
+        blocked = self.cbRenderType.blockSignals(True)
+        self.cbRenderType.setCurrentIndex(-1)
+        from timeseriesviewer import Option
+        for i, o in enumerate(self.cbRenderType.model()):
+            assert isinstance(o, Option)
+            if isinstance(renderer, o.value()):
+                self.cbRenderType.setCurrentIndex(i)
+        self.cbRenderType.blockSignals(blocked)
+        self.sigRendererChanged.emit()
+
+
+
+    def rasterRenderer(self)->QgsRasterRenderer:
+
+        w = self.currentRenderWidget()
+        if isinstance(w, QgsRasterRendererWidget):
+            return w.renderer()
+        else:
+            return None
 
 
     def apply(self):
@@ -1243,8 +1282,8 @@ RENDER_CLASSES['rasterrenderer'] = {
     'hillshade': QgsHillshadeRenderer
 }
 RENDER_CLASSES['renderer-v2'] = {
-    'categorizedSymbol':QgsCategorizedSymbolRenderer,
-    'singleSymbol':QgsSingleSymbolRenderer
+    'categorizedSymbol': QgsCategorizedSymbolRenderer,
+    'singleSymbol': QgsSingleSymbolRenderer
 }
 
 
@@ -1675,7 +1714,7 @@ class SpatialTemporalVisualization(QObject):
 
 
     def timedCanvasRefresh(self, *args, force:bool=False):
-        #do refresh maps
+        # do refresh maps
 
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
@@ -1685,7 +1724,7 @@ class SpatialTemporalVisualization(QObject):
                             key = lambda c : self.scrollArea.distanceToCenter(c) )
 
         n = 0
-        #redraw all visible maps
+        # redraw all visible maps
         for c in visibleMaps:
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
@@ -1740,6 +1779,7 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setDestinationCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
 
+
         #register on map canvas signals
         def onChanged(e, mapCanvas0=None):
             self.setSpatialExtent(e, mapCanvas0=mapCanvas0)
@@ -1752,7 +1792,7 @@ class SpatialTemporalVisualization(QObject):
         Synchronizes all crosshair positions. Takes care of CRS differences.
         :param spatialPoint: SpatialPoint of new Crosshair position
         """
-        from timeseriesviewer.crosshair import CrosshairStyle
+        from timeseriesviewer import CrosshairStyle
 
         srcCanvas = self.sender()
         if isinstance(srcCanvas, MapCanvas):
@@ -1777,11 +1817,19 @@ class SpatialTemporalVisualization(QObject):
 
 
     def setCrosshairVisibility(self, b:bool):
+        """
+        Sets the Crosshair visiblity
+        :param b: bool
+        """
         assert isinstance(b, bool)
         self.onCrosshairChanged(b)
 
 
-    def setVectorLayer(self, lyr):
+    def setVectorLayer(self, lyr:QgsVectorLayer):
+        """
+        Sets a QgsVectorLaye to be shown on top of raster images
+        :param lyr: QgsVectorLayer
+        """
         self.MVC.setVectorLayer(lyr)
 
 
@@ -1796,7 +1844,11 @@ class SpatialTemporalVisualization(QObject):
         self.sigMapSizeChanged.emit(self.mSize)
         self.adjustScrollArea()
 
-    def mapSize(self):
+    def mapSize(self)->QSize:
+        """
+        Returns the MapCanvas size
+        :return: QSize
+        """
         return QSize(self.mSize)
 
 
@@ -1811,7 +1863,10 @@ class SpatialTemporalVisualization(QObject):
         #self.mMapRefreshTimer.stop()
 
     def adjustScrollArea(self):
-        #adjust scroll area widget to fit all visible widgets
+        """
+        Adjusts the scroll area widget to fit all visible widgets
+        """
+
         m = self.targetLayout.contentsMargins()
         nX = len(self.DVC)
         w = h = 0
@@ -1844,11 +1899,17 @@ class SpatialTemporalVisualization(QObject):
         self.targetLayout.parentWidget().resize(QSize(sizeX, sizeY))
 
     def setMapTool(self, mapToolKey, *args, **kwds):
-        # filter map tools
+        """
+        Create a maptool instance to each MapCanvas
+        :param mapToolKey: str which MapTool is to create, or QgsMapTool instance
+        :param args: optional maptool arguments
+        :param kwds: optional maptool keywords
+        :return: [list-of-QgsMapTools]
+        """
         self.mMapToolActivator = self.sender()
         del self.mMapTools[:]
 
-        from timeseriesviewer.maptools import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
+        from timeseriesviewer import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
         for canvas in self.mMapCanvases:
             mt = None
             if mapToolKey in MapTools.mapToolKeys():
@@ -1867,13 +1928,12 @@ class SpatialTemporalVisualization(QObject):
 
         return self.mMapTools
 
-
-
-    def setMaxTSDViews(self, n=-1):
-        self.nMaxTSDViews = n
-        #todo: remove views
-
     def setSpatialCenter(self, center, mapCanvas0=None):
+        """
+        Sets the spatial center of all MapCanvases
+        :param center: SpatialPoint
+        :param mapCanvas0:
+        """
         assert isinstance(center, SpatialPoint)
         center = center.toCrs(self.mCRS)
         if not isinstance(center, SpatialPoint):
@@ -2310,6 +2370,280 @@ class MapViewListModel(QAbstractListModel):
         return value
 
 class MapViewCollectionDock(QgsDockWidget, loadUI('mapviewdock.ui')):
+
+    sigMapViewAdded = pyqtSignal(MapView)
+    sigMapViewRemoved = pyqtSignal(MapView)
+    sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
+
+    sigMapCanvasColorChanged = pyqtSignal(QColor)
+    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigMapSizeChanged = pyqtSignal(QSize)
+
+    def setTimeSeries(self, timeSeries):
+        assert isinstance(timeSeries, TimeSeries)
+        self.TS = timeSeries
+        self.TS.sigSensorAdded.connect(self.addSensor)
+        self.TS.sigSensorRemoved.connect(self.removeSensor)
+
+    def __init__(self, parent=None):
+        super(MapViewCollectionDock, self).__init__(parent)
+        self.setupUi(self)
+
+        self.mMapViews = MapViewListModel()
+        self.baseTitle = self.windowTitle()
+
+        self.btnAddMapView.setDefaultAction(self.actionAddMapView)
+        self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
+        self.btnRefresh.setDefaultAction(self.actionApplyStyles)
+        self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
+
+        self.btnCrs.crsChanged.connect(self.sigCrsChanged)
+        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
+        self.btnApplySizeChanges.clicked.connect(lambda : self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(),self.spinBoxMapSizeY.value())))
+
+        self.actionAddMapView.triggered.connect(self.createMapView)
+        self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
+        self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True) if self.currentMapView() else None)
+        self.actionApplyStyles.triggered.connect(self.refreshCurrentMapView)
+        #self.actionApplyStyles.triggered.connect(self.dummySlot)
+
+        self.mMapViews.sigMapViewsRemoved.connect(self.onMapViewsRemoved)
+        self.mMapViews.sigMapViewsAdded.connect(self.onMapViewsAdded)
+        self.mMapViews.sigMapViewsAdded.connect(self.updateButtons)
+        self.mMapViews.sigMapViewsRemoved.connect(self.updateButtons)
+        self.cbMapView.setModel(self.mMapViews)
+        self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i < 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
+
+
+        self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
+        self.spinBoxMapSizeY.valueChanged.connect(lambda: self.onMapSizeChanged('Y'))
+        self.mLastMapSize = self.mapSize()
+        #self.mapSize() #inits mLastMapSize
+        self.TS = None
+
+    def setCrs(self, crs):
+        if isinstance(crs, QgsCoordinateReferenceSystem):
+            old = self.btnCrs.crs()
+            if old != crs:
+                self.btnCrs.setCrs(crs)
+                self.btnCrs.setLayerCrs(crs)
+
+
+    def setMapSize(self, size):
+        assert isinstance(size, QSize)
+        ws = [self.spinBoxMapSizeX, self.spinBoxMapSizeY]
+        oldSize = self.mapSize()
+        b = oldSize != size
+        for w in ws:
+            w.blockSignals(True)
+
+        self.spinBoxMapSizeX.setValue(size.width()),
+        self.spinBoxMapSizeY.setValue(size.height())
+        self.mLastMapSize = QSize(size)
+        for w in ws:
+            w.blockSignals(False)
+        self.mLastMapSize = QSize(size)
+        if b:
+            self.sigMapSizeChanged.emit(size)
+
+    def onMapSizeChanged(self, dim):
+        newSize = self.mapSize()
+        #1. set size of other dimension accordingly
+        if dim is not None:
+            if self.checkBoxKeepSubsetAspectRatio.isChecked():
+                if dim == 'X':
+                    vOld = self.mLastMapSize.width()
+                    vNew = newSize.width()
+                    targetSpinBox = self.spinBoxMapSizeY
+                elif dim == 'Y':
+                    vOld = self.mLastMapSize.height()
+                    vNew = newSize.height()
+                    targetSpinBox = self.spinBoxMapSizeX
+
+                oldState = targetSpinBox.blockSignals(True)
+                targetSpinBox.setValue(int(round(float(vNew) / vOld * targetSpinBox.value())))
+                targetSpinBox.blockSignals(oldState)
+                newSize = self.mapSize()
+            if newSize != self.mLastMapSize:
+                self.btnApplySizeChanges.setEnabled(True)
+        else:
+            self.sigMapSizeChanged.emit(self.mapSize())
+            self.btnApplySizeChanges.setEnabled(False)
+        self.setMapSize(newSize)
+
+    def mapSize(self):
+        return QSize(self.spinBoxMapSizeX.value(),
+                     self.spinBoxMapSizeY.value())
+
+
+    def refreshCurrentMapView(self, *args):
+        mv = self.currentMapView()
+        if isinstance(mv, MapView):
+            mv.refreshMapView()
+        else:
+            s  =""
+    def dummySlot(self):
+        s  =""
+
+    def onMapViewsRemoved(self, mapViews):
+
+        for mapView in mapViews:
+            idx = self.stackedWidget.indexOf(mapView.ui)
+            if idx >= 0:
+                self.stackedWidget.removeWidget(mapView.ui)
+                mapView.ui.close()
+            else:
+                s = ""
+
+
+        self.actionRemoveMapView.setEnabled(len(self.mMapViews) > 0)
+
+    def onMapViewsAdded(self, mapViews):
+        nextShown = None
+        for mapView in mapViews:
+            mapView.sigTitleChanged.connect(self.updateTitle)
+            self.stackedWidget.addWidget(mapView.ui)
+            if nextShown is None:
+                nextShown = mapView
+
+            contents = mapView.ui.scrollAreaWidgetContents
+            size = contents.size()
+            hint = contents.sizeHint()
+            #mapView.ui.scrollArea.update()
+            s = ""
+            #setMinimumSize(mapView.ui.scrollAreaWidgetContents.sizeHint())
+            #hint = contents.sizeHint()
+            #contents.setMinimumSize(hint)
+        if isinstance(nextShown, MapView):
+            self.setCurrentMapView(nextShown)
+
+        for mapView in mapViews:
+            self.sigMapViewAdded.emit(mapView)
+
+    def updateButtons(self, *args):
+        b = len(self.mMapViews) > 0
+        self.actionRemoveMapView.setEnabled(b)
+        self.actionApplyStyles.setEnabled(b)
+        self.actionHighlightMapView.setEnabled(b)
+
+
+    def createMapView(self):
+
+
+        mapView = MapView(self)
+
+        n = len(self.mMapViews) + 1
+        title = 'Map View {}'.format(n)
+        while title in [m.title() for m in self.mMapViews]:
+            n += 1
+            title = 'Map View {}'.format(n)
+        mapView.setTitle(title)
+
+
+        mapView.sigShowProfiles.connect(self.sigShowProfiles)
+        self.mMapViews.addMapView(mapView)
+        #self.sigMapViewAdded.emit(mapView)
+        return mapView
+
+
+    def removeMapView(self, mapView):
+        if isinstance(mapView, MapView):
+            assert mapView in self.mMapViews
+
+            i = self.mMapViews.mapView2idx(mapView)
+            if not i == self.stackedWidget.indexOf(mapView.ui):
+                s = ""
+
+            self.mMapViews.removeMapView(mapView)
+
+            mapView.ui.close()
+
+            self.sigMapViewRemoved.emit(mapView)
+
+
+
+
+    def __len__(self):
+        return len(self.mMapViews)
+
+    def __iter__(self):
+        return iter(self.mMapViews)
+
+    def __getitem__(self, slice):
+        return self.mMapViews[slice]
+
+    def __contains__(self, mapView):
+        return mapView in self.mMapViews
+
+    def index(self, mapView):
+        assert isinstance(mapView, MapView)
+        return self.mMapViews.index(mapView)
+
+    def setVectorLayer(self, lyr):
+        for mapView in self.mMapViews:
+            assert isinstance(mapView, MapView)
+            mapView.setVectorLayer(lyr)
+
+    def addSensor(self, sensor):
+        for mapView in self.mMapViews:
+            mapView.addSensor(sensor)
+
+
+    def removeSensor(self, sensor):
+        for mapView in self.mMapViews:
+            mapView.removeSensor(sensor)
+
+    def applyStyles(self):
+        for mapView in self.mMapViews:
+            mapView.applyStyles()
+
+    def setCrosshairStyle(self, crosshairStyle):
+        for mapView in self.mMapViews:
+            mapView.setCrosshairStyle(crosshairStyle)
+
+    def setShowCrosshair(self, b):
+        for mapView in self.mMapViews:
+            mapView.setCrosshairVisibility(b)
+
+    def index(self, mapView):
+        assert isinstance(mapView, MapView)
+        return self.mapViewsDefinitions.index(mapView)
+
+
+    def setCurrentMapView(self, mapView):
+        assert isinstance(mapView, MapView) and mapView in self.mMapViews
+        idx = self.stackedWidget.indexOf(mapView.ui)
+        if idx >= 0:
+            self.stackedWidget.setCurrentIndex(idx)
+            self.cbMapView.setCurrentIndex(self.mMapViews.mapView2idx(mapView).row())
+
+        self.updateTitle()
+
+    def updateTitle(self, *args):
+        # self.btnToggleMapViewVisibility.setChecked(mapView)
+        mapView = self.currentMapView()
+        if isinstance(mapView, MapView):
+            if mapView in self.mMapViews:
+                i = str(self.mMapViews.mapView2idx(mapView).row()+1)
+            else:
+                i = ''
+            #title = '{} | {} "{}"'.format(self.baseTitle, i, mapView.title())
+            title = '{} | {}'.format(self.baseTitle, i)
+            self.setWindowTitle(title)
+
+    def currentMapView(self):
+        if len(self.mMapViews) == 0:
+            return None
+        else:
+            i = self.cbMapView.currentIndex()
+            if i >= 0:
+                return self.mMapViews.idx2MapView(i)
+            else:
+                return None
+
+
+class MapViewCollectionDockV2(QgsDockWidget, loadUI('mapviewdockV2.ui')):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)

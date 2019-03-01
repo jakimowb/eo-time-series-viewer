@@ -21,9 +21,6 @@
 # noinspection PyPep8Naming
 
 from qgis.core import *
-import os, sys, re, fnmatch, collections, copy, traceback, six, multiprocessing
-
-
 
 
 r"""
@@ -48,7 +45,7 @@ from timeseriesviewer.utils import *
 from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
-from timeseriesviewer.speclib.spectrallibraries import SpectralLibrary, createQgsField
+from timeseriesviewer import SpectralProfile, SpectralLibrary
 import numpy as np
 import pyqtgraph as pg
 
@@ -87,8 +84,6 @@ class TimeSeriesViewerUI(QMainWindow,
         #I don't know why this is not possible in the QDesigner when QToolButtons are
         #placed outside a toolbar
 
-        import timeseriesviewer.ui.docks as docks
-
         area = None
 
         def addDockWidget(dock):
@@ -105,17 +100,17 @@ class TimeSeriesViewerUI(QMainWindow,
         #self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
         if DEBUG:
-            from timeseriesviewer.labeling import LabelingDockUI
-            self.dockLabeling = addDockWidget(LabelingDockUI(self))
+            from timeseriesviewer.labeling import LabelingDock
+            self.dockLabeling = addDockWidget(LabelingDock(self))
             self.dockLabeling.setHidden(True)
 
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
 
-        from timeseriesviewer.mapvisualization import MapViewCollectionDock
+        from timeseriesviewer.mapvisualization import MapViewCollectionDock, MapViewCollectionDockV2
         self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
-        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoDock
+        from qps.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
@@ -130,12 +125,17 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
 
-        from timeseriesviewer.speclib.spectrallibraries import SpectralLibraryPanel
+        from qps.speclib.spectrallibraries import SpectralLibraryPanel
         self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
+
+
+        from timeseriesviewer.labeling import LabelingDock
+        self.dockLabeling = addDockWidget(LabelingDock(self))
+
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
-
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
 
@@ -320,7 +320,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
 
-        from timeseriesviewer.cursorlocationvalue import CursorLocationInfoModel
+        from qps.cursorlocationvalue import CursorLocationInfoModel
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
@@ -466,7 +466,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         Reads the QSettings object and applies its value to related widget components
         """
-        from timeseriesviewer.settings import value, Keys
+
+
+        from timeseriesviewer.settings import value, Keys, defaultValues, setValue
+
+        #the default values
+        defaults = defaultValues()
+        for key in list(Keys):
+            if value(key) == None:
+                setValue(key, defaults[key])
+
+
         self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
         self.spatialTemporalVis.mMapRefreshTimer.start(value(Keys.MapUpdateInterval))
         self.spatialTemporalVis.setBackgroundColor(value(Keys.MapBackgroundColor))
@@ -482,7 +492,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if mapToolKey == MapTools.TemporalProfile:
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
         elif mapToolKey == MapTools.SpectralProfile:
-            from timeseriesviewer.speclib.spectrallibraries import SpectralProfile
+
             tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
 
             if not hasattr(self, 'cntSpectralProfile'):
@@ -597,6 +607,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the EO Time Series Viewer icon
         :return: QIcon
         """
+        import timeseriesviewer
         return timeseriesviewer.icon()
 
     def logMessage(self, message, tag, level):
@@ -669,7 +680,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if isinstance(n, bool) or not isinstance(n, int):
             n = len(files)
 
-        #ensure valid inputs for n
+        # ensure valid inputs for n
         n = min(n, len(files))
         n = max(1, n)
 

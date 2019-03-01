@@ -24,7 +24,7 @@ from qgis.gui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-
+from qps.models import Option, OptionListModel
 
 
 from timeseriesviewer.temporalprofiles2d import *

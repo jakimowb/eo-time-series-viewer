@@ -31,7 +31,7 @@ from qgis.PyQt.QtGui import *
 from timeseriesviewer import jp
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
-from timeseriesviewer.plotstyling import PlotStyle, PlotStyleButton
+from qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
 from timeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from timeseriesviewer.sensorvisualization import SensorListModel
 from timeseriesviewer.temporalprofiles2d import LABEL_EXPRESSION_2D
@@ -855,7 +855,7 @@ class PlotSettingsModel3D(QAbstractTableModel):
 
 class PlotSettingsModel2D(QAbstractTableModel):
 
-    #sigSensorAdded = pyqtSignal(SensorPlotSettings)
+    # sigSensorAdded = pyqtSignal(SensorPlotSettings)
     sigVisibilityChanged = pyqtSignal(TemporalProfile2DPlotStyle)
     sigDataChanged = pyqtSignal(TemporalProfile2DPlotStyle)
     sigPlotStylesAdded = pyqtSignal(list)
@@ -864,10 +864,8 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
     def __init__(self, parent=None, *args):
 
-        #assert isinstance(tableView, QTableView)
 
         super(PlotSettingsModel2D, self).__init__(parent=parent)
-        #assert isinstance(temporalProfileCollection, TemporalProfileCollection)
 
         self.cnID = 'ID'
         self.cnSensor = 'Sensor'
@@ -1296,15 +1294,19 @@ class SpectralTemporalVisualization(QObject):
         self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
         self.mTemporalProfileLayer.startEditing()
         self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
-        #self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
+
+        # self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
+
         self.tpModel = TemporalProfileTableModel(self.mTemporalProfileLayer)
         self.tpFilterModel = TemporalProfileTableFilterModel(self.tpModel)
 
         self.ui.tableViewTemporalProfiles.setModel(self.tpFilterModel)
-        #self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
+        # self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
+
         self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
         self.ui.tableViewTemporalProfiles.setSortingEnabled(False)
-        #self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
+
+        # self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
         # pixel loader to load pixel values in parallel
         config = QgsAttributeTableConfig()
         config.update(self.mTemporalProfileLayer.fields())
@@ -1326,10 +1328,10 @@ class SpectralTemporalVisualization(QObject):
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
         self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
-        #self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
-        self.pixelLoader.sigLoadingFinished.connect(lambda : self.plot2D.enableAutoRange('x', False))
+        # self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
+        self.pixelLoader.sigLoadingFinished.connect(lambda: self.plot2D.enableAutoRange('x', False))
 
-        #set the plot models for 2D
+        # set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
         self.ui.tableView2DProfiles.setModel(self.plotSettingsModel2D)
         self.ui.tableView2DProfiles.setSortingEnabled(False)
@@ -1339,7 +1341,6 @@ class SpectralTemporalVisualization(QObject):
         self.plotSettingsModel2D.rowsInserted.connect(self.onRowsInserted2D)
         self.delegateTableView2D = PlotSettingsModel2DWidgetDelegate(self.ui.tableView2DProfiles, self.mTemporalProfileLayer)
         self.delegateTableView2D.setItemDelegates(self.ui.tableView2DProfiles)
-
 
         # set the plot models for 3D
         self.plotSettingsModel3D = PlotSettingsModel3D()
@@ -1483,7 +1484,7 @@ class SpectralTemporalVisualization(QObject):
         plotStyle = TemporalProfile2DPlotStyle()
         plotStyle.sigExpressionUpdated.connect(self.updatePlot2D)
 
-        sensors = list(self.TS.mSensors2TSDs.keys())
+        sensors = self.TS.sensors()
         if len(sensors) > 0:
             plotStyle.setSensor(sensors[0])
 
@@ -1566,13 +1567,14 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
     def onTemporalProfilesAdded(self, profiles):
-        #self.mTemporalProfileLayer.prune()
+        # self.mTemporalProfileLayer.prune()
         for plotStyle in self.plotSettingsModel3D:
             assert isinstance(plotStyle, TemporalProfilePlotStyleBase)
             if not isinstance(plotStyle.temporalProfile(), TemporalProfile):
+
                 r = self.plotSettingsModel3D.plotStyle2idx(plotStyle).row()
                 c = self.plotSettingsModel3D.columnIndex(self.plotSettingsModel3D.cnTemporalProfile)
-                idx = self.plotSettingsModel3D.createIndex(r,c)
+                idx = self.plotSettingsModel3D.createIndex(r, c)
                 self.plotSettingsModel3D.setData(idx, self.mTemporalProfileLayer[0])
 
     def onTemporalProfileSelectionChanged(self, selectedFIDs, deselectedFIDs):
@@ -1724,7 +1726,7 @@ class SpectralTemporalVisualization(QObject):
         spatialPoints = [tp.coordinate() for tp in tps if isinstance(tp, TemporalProfile)]
         self.loadCoordinate(spatialPoints=spatialPoints, mode='all', backgroundProcess=backgroundProcess)
 
-    LOADING_MODES = ['missing','reload','all']
+    LOADING_MODES = ['missing', 'reload', 'all']
     def loadCoordinate(self, spatialPoints=None, LUT_bandIndices=None, mode='missing', backgroundProcess = True):
         """
         :param spatialPoints: [list-of-geometries] to load pixel values from
@@ -1741,17 +1743,16 @@ class SpectralTemporalVisualization(QObject):
         if not isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
             return False
 
-        #if not self.pixelLoader.isReadyToLoad():
+        # if not self.pixelLoader.isReadyToLoad():
         #    return False
 
         assert isinstance(self.TS, TimeSeries)
 
-        #Get or create the TimeSeriesProfiles which will store the loaded values
+        # Get or create the TimeSeriesProfiles which will store the loaded values
 
         tasks = []
         TPs = []
         theGeometries = []
-
 
         # Define which (new) bands need to be loaded for each sensor
         if LUT_bandIndices is None:
@@ -1773,7 +1774,8 @@ class SpectralTemporalVisualization(QObject):
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)
             TP = self.mTemporalProfileLayer.fromSpatialPoint(spatialPoint)
-            #if not TP exists for this point, create an empty one
+
+            # if not TP exists for this point, create an empty one
             if not isinstance(TP, TemporalProfile):
                 TP = self.mTemporalProfileLayer.createTemporalProfiles(spatialPoint)[0]
 
@@ -1789,17 +1791,18 @@ class SpectralTemporalVisualization(QObject):
 
 
         TP_ids = [TP.id() for TP in TPs]
-        #each TSD is a Task
+        # each TSD is a Task
         s = ""
-        #a Task defines which bands are to be loaded
+        # a Task defines which bands are to be loaded
         for tsd in self.TS:
+            assert isinstance(tsd, TimeSeriesDatum)
 
-            #do not load from invisible TSDs
+            # do not load from invisible TSDs
             if not tsd.isVisible():
                 continue
 
-            #which bands do we need to load?
-            requiredIndices = set(LUT_bandIndices[tsd.sensor])
+            # which bands do we need to load?
+            requiredIndices = set(LUT_bandIndices[tsd.sensor()])
             if len(requiredIndices) == 0:
                 continue
 
@@ -1816,7 +1819,8 @@ class SpectralTemporalVisualization(QObject):
                 missingIndices = requiredIndices
 
             if len(missingIndices) > 0:
-                task = PixelLoaderTask(tsd.pathImg, theGeometries,
+                for pathImg in tsd.sourceUris():
+                    task = PixelLoaderTask(pathImg, theGeometries,
                                        bandIndices=missingIndices,
                                        temporalProfileIDs=TP_ids)
                 tasks.append(task)
@@ -1842,21 +1846,12 @@ class SpectralTemporalVisualization(QObject):
             if DEBUG:
                 print('Data for geometries already loaded')
 
-        s  =""
-
-    def addData(self, sensorView = None):
-        if sensorView is None:
-            for sv in self.plotSettingsModel2D.items:
-                self.setData(sv)
-        else:
-            assert isinstance(sensorView, TemporalProfile2DPlotStyle)
-            self.setData2D(sensorView)
 
 
     @QtCore.pyqtSlot()
     def onDataUpdate(self):
 
-        #self.mTemporalProfileLayer.prune()
+        # self.mTemporalProfileLayer.prune()
 
         for plotSetting in self.plotSettingsModel2D:
             assert isinstance(plotSetting, TemporalProfile2DPlotStyle)
@@ -1870,7 +1865,6 @@ class SpectralTemporalVisualization(QObject):
 
         for i in self.plot2D.plotItem.dataItems:
             i.updateItems()
-
 
         notInit = [0, 1] == self.plot2D.plotItem.getAxis('bottom').range
         if notInit:
@@ -1890,7 +1884,8 @@ class SpectralTemporalVisualization(QObject):
 
             if x0 is not None:
                 self.plot2D.plotItem.setXRange(x0, x1)
-                #self.plot2D.xAxisInitialized = True
+
+                # self.plot2D.xAxisInitialized = True
 
     @QtCore.pyqtSlot()
     def updatePlot3D(self):

@@ -88,93 +88,6 @@ def getDOMAttributes(elem):
     return values
 
 
-def createTestData(dirTestData, pathTS, subsetRectangle, crs, drv=None):
-    lines = open(pathTS).readlines()
-    import tempfile, random
-    from timeseriesviewer.main import TimeSeries, TimeSeriesDatum
-    from qgis.core import QgsRectangle, QgsPoint, QgsPointXY, QgsCoordinateReferenceSystem
-
-    max_offset = 0 #in %
-
-
-    assert isinstance(subsetRectangle, QgsRectangle)
-    assert isinstance(crs, QgsCoordinateReferenceSystem)
-    TS = TimeSeries()
-    TS.loadFromFile(pathTS)
-
-    sw = subsetRectangle.width()
-    sh = subsetRectangle.height()
-
-    max_offset_x = sw / 100 * max_offset
-    max_offset_y = sw / 100 * max_offset
-    center = subsetRectangle.center()
-
-    if not os.path.exists(dirTestData):
-        os.mkdir(dirTestData)
-    dirImages = os.path.join(dirTestData, 'Images')
-    if not os.path.exists(dirImages):
-        os.mkdir(dirImages)
-
-    def random_offset():
-        offset_x = random.randrange(-max_offset_x, max_offset_x) if max_offset_x > 0 else 0
-        offset_y = random.randrange(-max_offset_y, max_offset_y) if max_offset_y > 0 else 0
-        return offset_x, offset_y
-
-    drvMEM = gdal.GetDriverByName('MEM')
-
-    from timeseriesviewer.main import transformGeometry
-    for TSD in TS.mTSDs:
-        assert isinstance(TSD, TimeSeriesDatum)
-
-        ox, oy = random_offset()
-
-        UL = QgsPointXY(subsetRectangle.xMinimum() + ox,
-                      subsetRectangle.yMaximum() + oy)
-        LR = QgsPointXY(subsetRectangle.xMaximum() + ox,
-                      subsetRectangle.yMinimum() + oy)
-        UL = transformGeometry(UL, crs, TSD.crs)
-        LR = transformGeometry(LR, crs, TSD.crs)
-        BBOX = QgsRectangle(UL, LR)
-        if not BBOX.intersects(TSD.getBoundingBox()):
-            print('Please note: no intersection with BBOX: '+TSD.pathImg)
-        #crop src dataset to BBOX
-        #for this we use GDAL
-        LUT_EXT = {'ENVI':'.bsq'}
-
-
-        filesToCopy = [f for f in [TSD.pathImg, TSD.pathMsk] if f is not None and os.path.exists(f)]
-        for pathSrc in filesToCopy:
-            dsSrc = gdal.Open(pathSrc)
-
-            assert isinstance(dsSrc, gdal.Dataset)
-            proj = dsSrc.GetProjection()
-            trans = list(dsSrc.GetGeoTransform())
-            trans[0] = UL.x()
-            trans[3] = UL.y()
-
-            nsDst = int(BBOX.width() / TSD.lyrImg.rasterUnitsPerPixelX())
-            nlDst = int(BBOX.height() / TSD.lyrImg.rasterUnitsPerPixelY())
-
-            dsDst = drvMEM.Create('', nsDst, nlDst, dsSrc.RasterCount, eType = dsSrc.GetRasterBand(1).DataType)
-            assert isinstance(dsDst, gdal.Dataset)
-            dsDst.SetProjection(proj)
-            dsDst.SetGeoTransform(trans)
-            wo = gdal.WarpOptions()
-            r = gdal.Warp(dsDst, dsSrc)
-
-            assert r > 0
-
-            drvDst = gdal.GetDriverByName(drv) if drv is not None else dsSrc.GetDriver()
-            #try to retireve an extension
-            pathDst = os.path.join(dirImages, os.path.splitext(os.path.basename(pathSrc))[0])
-            ext = drvDst.GetMetadata_Dict().get('DMD_EXTENSION','')
-            if ext == '':
-                ext = LUT_EXT.get(drvDst.ShortName, '')
-            if not pathDst.endswith(ext):
-                pathDst += ext
-            print('Write {}'.format(pathDst))
-            drvDst.CreateCopy(pathDst, dsDst)
-
 
 def compile_rc_files(ROOT, targetDir=None):
     #find ui files
@@ -216,7 +129,9 @@ def compile_rc_files(ROOT, targetDir=None):
 
         bn = os.path.splitext(bn)[0]
         pathPy = os.path.join(dn, bn+'.py' )
-        os.system('pyrcc5 -o {} {}'.format(pathPy, pathQrc))
+        cmd = 'pyrcc5 -o {} {}'.format(pathPy, pathQrc)
+        print(cmd)
+        os.system(cmd)
 
 
 

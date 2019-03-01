@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>880</width>
-    <height>290</height>
+    <width>680</width>
+    <height>178</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,8 +99,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>878</width>
-         <height>184</height>
+         <width>678</width>
+         <height>72</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -146,7 +146,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>880</width>
+     <width>680</width>
      <height>22</height>
     </rect>
    </property>
@@ -708,7 +708,7 @@
   <customwidget>
    <class>MapViewScrollArea</class>
    <extends>QScrollArea</extends>
-   <header>timeseriesviewer.ui.mapviewscrollarea</header>
+   <header>timeseriesviewer.mapviewscrollarea</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

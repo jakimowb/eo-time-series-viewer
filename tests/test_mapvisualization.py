@@ -27,7 +27,7 @@ from timeseriesviewer.utils import *
 from timeseriesviewer.mapcanvas import *
 from timeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
-QGIS_APP = initQgisApplication()
+QGIS_APP = initQgisApplication(loadProcessingFramework=False)
 
 
 def getChildElements(node):
@@ -160,7 +160,7 @@ class testclassMapVisualization(unittest.TestCase):
             self.assertTrue(xml1.toString() == xml2.toString())
 
 
-            rClone = cloneRenderer(r1)
+            rClone = r1.clone()
             self.assertTrue(type(r1), type(rClone))
             xmlClone =  rendererToXml(rClone)
             self.assertIsInstance(xmlClone, QDomDocument)
@@ -180,6 +180,10 @@ class testclassMapVisualization(unittest.TestCase):
 
                 renderer = rendererFromXml(xml)
                 self.assertTrue(renderer != None)
+
+        s  =""
+
+
 
     def test_maprendersettings(self):
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
@@ -207,9 +211,8 @@ class testclassMapVisualization(unittest.TestCase):
 
         r0 = lyr.renderer()
         r = w.rasterRenderer()
-
         self.assertIsInstance(r, QgsMultiBandColorRenderer)
-
+        self.assertEqual(r0.type(), r.type())
         r2 = QgsSingleBandGrayRenderer(r, 2)
         w.setRasterRenderer(r2)
         self.assertIsInstance(w.currentRenderWidget(), QgsSingleBandGrayRendererWidget)
@@ -247,7 +250,7 @@ class testclassMapVisualization(unittest.TestCase):
             self.assertIsInstance(mc, MapCanvas)
             self.assertIsInstance(mc.spatialExtent(), SpatialExtent)
 
-            if extent == None:
+            if extent is None:
                 extent = mc.spatialExtent()
             else:
                 self.assertTrue(mc.spatialExtent() == extent)

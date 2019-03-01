@@ -12,6 +12,8 @@ tests/outputs
 tests/outputs/*
 qgisresources/
 qgisresources/*
+enmapboxtestdata/
+enmapboxtestdata/*
 screenshots/
 screenshots/*
 example/*.aux.xml

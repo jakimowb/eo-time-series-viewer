@@ -1,3 +1,10 @@
+2019-03-01
+        - increased version to 0.8
+        - added labeling panel
+        - scheduled map canvas refreshes
+        - multiple images per observationdata & sensor
+        - fixed several bugs
+
 2018-11-13
         - fixed bugs which where caused by CRS changes
         - fixed macOS QGIS (3.4.1.) crashes caused by QgsMapCanvas constructor

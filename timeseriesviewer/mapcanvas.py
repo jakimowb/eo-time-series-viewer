@@ -22,6 +22,7 @@
 
 
 import os, time, types, enum
+from timeseriesviewer import CursorLocationMapTool
 from qgis.core import *
 from qgis.gui import *
 
@@ -33,9 +34,26 @@ from PyQt5.QtXml import QDomDocument
 
 from .utils import *
 from .timeseries import TimeSeriesDatum
-from .crosshair import CrosshairDialog, CrosshairStyle
-from .maptools import *
+from qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle
+from qps.maptools import *
+from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
+from qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+import timeseriesviewer.settings
 
+
+def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer):
+
+    uri = QgsMimeDataUtils.Uri()
+    uri.name = mapLayer.name()
+    uri.providerKey = mapLayer.dataProvider().name()
+    uri.uri = mapLayer.source()
+    if isinstance(mapLayer, QgsRasterLayer):
+        uri.layerType = 'raster'
+    elif isinstance(mapLayer, QgsVectorLayer):
+        uri.layerType = 'vector'
+    else:
+        raise NotImplementedError()
+    return uri
 
 class MapCanvasLayerModel(QAbstractTableModel):
 
@@ -71,11 +89,26 @@ class MapCanvasLayerModel(QAbstractTableModel):
         def isVisible(self)->bool:
             return self.mIsVisible
 
+        def providerKey(self)->str:
+            return self.mUri.providerKey
 
         def hasMapLayerInstance(self)->bool:
             return isinstance(self.mLyr, QgsMapLayer)
 
 
+        def mapLayer(self)->QgsMapLayer:
+
+            if not self.hasMapLayerInstance():
+                assert isinstance(self.mUri, QgsMimeDataUtils.Uri)
+                if self.layerType() == 'raster':
+                    self.mLyr = QgsRasterLayer(self.source(), self.name(), self.providerKey())
+                elif self.layerType() == 'vector':
+                    self.mLyr = QgsVectorLayer(self.source(), self.name(), self.providerKey())
+                else:
+                    raise Exception()
+
+
+            return self.mLyr
 
     """
     A model to create QgsMapLayer instances and control its visibility.
@@ -104,13 +137,13 @@ class MapCanvasLayerModel(QAbstractTableModel):
         return len(self.mItems)
 
     def setDefaultRasterRenderer(self, renderer:QgsRasterRenderer):
-        assert isinstance(renderer, QgsRasterRenderer)
-        self.mDefaultRasterRenderer = renderer
+        if isinstance(renderer, QgsRasterRenderer):
+            self.mDefaultRasterRenderer = renderer
 
-        for item in self.mItems:
-            assert isinstance(item, MapCanvasLayerModel.LayerItem)
-            if not item.mExternalControl and isinstance(item.mLyr, QgsRasterLayer):
-                item.mLyr.setRenderer(renderer.clone())
+            for item in self.mItems:
+                assert isinstance(item, MapCanvasLayerModel.LayerItem)
+                if not item.mExternalControl and isinstance(item.mLyr, QgsRasterLayer):
+                    item.mLyr.setRenderer(renderer.clone())
 
     def setDefaultVectorRenderer(self, renderer:QgsFeatureRenderer):
         assert isinstance(renderer, QgsFeatureRenderer)
@@ -182,7 +215,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
                 continue
 
             if not item.hasMapLayerInstance():
-                item.mLyr = toMapLayer(item.mUri)
+                item.mLyr = item.mapLayer()
                 assert isinstance(item.mLyr, QgsMapLayer)
 
                 if isinstance(self.mDefaultRasterRenderer, QgsRasterRenderer) and isinstance(item.mLyr, QgsRasterLayer):
@@ -330,7 +363,7 @@ class MapCanvas(QgsMapCanvas):
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
-    from .crosshair import CrosshairStyle
+
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, parent=None):
@@ -342,7 +375,8 @@ class MapCanvas(QgsMapCanvas):
 
 
         self.mTSD = self.mMapView = None
-        #the canvas
+        # self.mLabelingModel = None
+        # the canvas
         self.mIsRefreshing = False
         self.mRenderingFinished = True
         self.mRefreshStartTime = time.time()
@@ -371,7 +405,7 @@ class MapCanvas(QgsMapCanvas):
 
 
 
-        from timeseriesviewer.crosshair import CrosshairMapCanvasItem
+        from qps.crosshair.crosshair import CrosshairMapCanvasItem
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
 
     def mapLayerModel(self)->MapCanvasLayerModel:
@@ -400,7 +434,6 @@ class MapCanvas(QgsMapCanvas):
 
         b = event.button() == Qt.LeftButton
         if b and isinstance(self.mapTool(), QgsMapTool):
-            from timeseriesviewer.maptools import CursorLocationMapTool
             b = isinstance(self.mapTool(), (QgsMapToolIdentify,
                                             CursorLocationMapTool,
                                             SpectralProfileMapTool, TemporalProfileMapTool))
@@ -418,6 +451,10 @@ class MapCanvas(QgsMapCanvas):
 
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
+
+    #def setLabelingModel(self, model):
+    #    assert isinstance(model, (LabelAttributeTableModel, None))
+    #    self.mLabelingModel = model
 
 
     def setTSD(self, tsd:TimeSeriesDatum):
@@ -666,7 +703,7 @@ class MapCanvas(QgsMapCanvas):
         :param crosshairStyle: CrosshairStyle
         :param emitSignal: Set to Fals to no emit a signal.
         """
-        from timeseriesviewer.crosshair import CrosshairStyle
+        from timeseriesviewer import CrosshairStyle
         if crosshairStyle is None:
             self.mCrosshairItem.crosshairStyle.setShow(False)
             self.mCrosshairItem.update()
@@ -733,6 +770,9 @@ class MapCanvas(QgsMapCanvas):
         Create the MapCanvas context menu
         :return:
         """
+
+        tsd = self.tsd()
+
         menu = QMenu()
         # add general options
         menu.addSeparator()
@@ -748,7 +788,7 @@ class MapCanvas(QgsMapCanvas):
 
 
         action = menu.addAction('Zoom to Layer')
-        action.triggered.connect(lambda : self.setSpatialExtent(self.spatialExtentHint()))
+        action.triggered.connect(lambda: self.setSpatialExtent(self.spatialExtentHint()))
         action = menu.addAction('Refresh')
         action.triggered.connect(lambda: self.refresh())
         menu.addSeparator()
@@ -821,6 +861,40 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
+        menu.addSeparator()
+
+        m = menu.addMenu('Label...')
+
+        labelLayers = labelShortcutLayers()
+        hasShortcutLayers = len(labelLayers) > 0
+        lyrWithSelectedFeaturs = [l for l in labelLayers if len(l.selectedFeatureIds()) > 0]
+        hasSelectedFeaturs = len(lyrWithSelectedFeaturs) > 0
+
+
+        a = m.addAction('Time & sensor')
+        a.setEnabled(hasShortcutLayers)
+        if isinstance(self.tsd(), TimeSeriesDatum):
+            a.setToolTip('Write time and sensor attribute related to {}.'.format(self.tsd().date()))
+
+        classSchemes = []
+        for layer in lyrWithSelectedFeaturs:
+            for classScheme in layerClassSchemes(layer):
+                assert isinstance(classScheme, ClassificationScheme)
+                if classScheme in classSchemes:
+                    continue
+
+                classMenu = m.addMenu('Classification "{}"'.format(classScheme.name()))
+                assert isinstance(classMenu, QMenu)
+                for classInfo in classScheme:
+                    assert isinstance(classInfo, ClassInfo)
+                    a = classMenu.addAction(classInfo.name())
+                    a.setIcon(classInfo.icon())
+                    a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(classInfo.name(), classInfo.value()))
+
+                    a.triggered.connect(
+                        lambda tsd=self.tsd(), ci = classInfo:
+                        applyShortcutsToRegisteredLayers(tsd, [ci]))
+                classSchemes.append(classScheme)
 
         menu.addSeparator()
 
@@ -927,7 +1001,7 @@ class MapCanvas(QgsMapCanvas):
                 if isinstance(r, QgsMultiBandColorRenderer):
 
                     #newRenderer = QgsMultiBandColorRenderer(None, r.redBand(), r.greenBand(), r.blueBand())
-                    newRenderer = cloneRenderer(r)
+                    newRenderer = r.clone()
 
                     ceR = getCE(r.redBand())
                     ceG = getCE(r.greenBand())
@@ -938,9 +1012,10 @@ class MapCanvas(QgsMapCanvas):
                     newRenderer.setBlueContrastEnhancement(ceB)
 
                 elif isinstance(r, QgsSingleBandPseudoColorRenderer):
-                    newRenderer = cloneRenderer(r)
+                    newRenderer = r.clone()
                     ce = getCE(newRenderer.band())
-                    #stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
+
+                    # stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
 
                     shader = newRenderer.shader()
                     newRenderer.setClassificationMax(ce.maximumValue())
@@ -948,8 +1023,10 @@ class MapCanvas(QgsMapCanvas):
                     shader.setMaximumValue(ce.maximumValue())
                     shader.setMinimumValue(ce.minimumValue())
                 elif isinstance(r, QgsSingleBandGrayRenderer):
-                    newRenderer = cloneRenderer(r)
-                    s = ""
+                    newRenderer = r.clone()
+                    ce = getCE(newRenderer.grayBand())
+                    newRenderer.setContrastEnhancement(ce)
+
                 elif isinstance(r, QgsPalettedRasterRenderer):
                     s = ""
                     #newRenderer = cloneRenderer(r)
@@ -961,12 +1038,17 @@ class MapCanvas(QgsMapCanvas):
 
 
     def saveMapImageDialog(self, fileType):
+        """
+        Opens a dialog to save the map as local file
+        :param fileType:
+        :return:
+        """
         import timeseriesviewer.settings
         lastDir = timeseriesviewer.settings.value(timeseriesviewer.settings.Keys.ScreenShotDirectory, os.path.expanduser('~'))
-        from timeseriesviewer.utils import saveFilePath
+        from timeseriesviewer.utils import filenameFromString
         from timeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
-            path = saveFilePath('{}.{}'.format(self.mTSD.date, self.mMapView.title()))
+            path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
         else:
             path = 'mapcanvas'
         path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))

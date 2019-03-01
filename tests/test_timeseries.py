@@ -117,6 +117,10 @@ class TestInit(unittest.TestCase):
         tsd.addSource(tss)
         self.assertEqual(len(tsd), 1)
 
+        self.assertTrue(tsd.year() == 2014)
+        self.assertTrue(tsd.doy() == 79)
+        self.assertIsInstance(tsd.decimalYear(), float)
+        self.assertTrue(tsd.decimalYear() >= 2014 and tsd.decimalYear() < 2015)
 
     def test_timeseriessource(self):
         wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
