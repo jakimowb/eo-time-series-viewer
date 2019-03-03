@@ -125,7 +125,10 @@ class TimeSeriesViewerUI(QMainWindow,
         from qps.speclib.spectrallibraries import SpectralLibraryPanel
 
         try:
-            self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
+
+            panel = SpectralLibraryPanel(None)
+            panel.setParent(self)
+            self.dockSpectralLibrary = addDockWidget(panel)
             self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         except Exception as ex:
             print(ex, file=sys.stderr)
