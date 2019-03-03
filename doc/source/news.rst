@@ -1,6 +1,12 @@
 ====
 News
 ====
+2019-03-01:
+
+    * increased version to 0.8
+    * several bug fixes
+    * ready for QGIS 3.6 (at least for windows versions)
+
 
 2018-06-04:
     * increased version to 0.6

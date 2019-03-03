@@ -157,7 +157,7 @@ def searchAndCompileResourceFiles(dirRoot:str, targetDir:str=None):
     """
     #find ui files
     assert os.path.isdir(dirRoot)
-    ui_files = file_search(dirRoot, '*.ui', recursive=True)
+    ui_files = list(file_search(dirRoot, '*.ui', recursive=True))
 
     qrcs = set()
 
@@ -241,7 +241,7 @@ def createResourceIconPackage(dirIcons, pathResourceFile):
             'thisDir = os.path.dirname(__file__)',
             '# File path attributes:',
             ]
-    files = file_search(dirIcons, '*.png', recursive=True)
+    files = list(file_search(dirIcons, '*.png', recursive=True))
 
     filePathAttributes = set()
 
@@ -347,7 +347,7 @@ def createFilePackage(dirData):
             'thisDir = os.path.dirname(__file__)',
             '# File path attributes:',
             ]
-    files = file_search(dirData, '*', recursive=True)
+    files = list(file_search(dirData, '*', recursive=True))
 
     filePathAttributes = set()
     def addFiles(files, comment=None, numberPrefix='File'):

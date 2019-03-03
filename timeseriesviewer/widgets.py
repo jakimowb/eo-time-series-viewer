@@ -31,10 +31,11 @@ from qgis.PyQt.QtXml import *
 
 
 import sys, re, os, six
+from timeseriesviewer import DIR_UI
+from timeseriesviewer.utils import jp
+# widgets defined without UI file
 
-#widgets defined without UI file
-
-from timeseriesviewer.utils import loadUI
+from timeseriesviewer.utils import loadUIFormClass
 
 
 def maxWidgetSizes(layout, onHint=True):
@@ -73,8 +74,7 @@ def maxWidgetSizes(layout, onHint=True):
 
 
 
-class AboutDialogUI(QDialog,
-                    loadUI('aboutdialog.ui')):
+class AboutDialogUI(QDialog, loadUIFormClass(jp(DIR_UI, 'aboutdialog.ui'))):
     def __init__(self, parent=None):
         """Constructor."""
         super(AboutDialogUI, self).__init__(parent)

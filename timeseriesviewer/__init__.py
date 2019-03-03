@@ -20,16 +20,6 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, fnmatch, site, re, site
-
-# import QPS modules
-from qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
-from qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
-from qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
-from qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-from qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile
-from qps.maptools import *
-
 
 __version__ = '0.8'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
@@ -43,37 +33,21 @@ HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'pyqtgraph', 'gdal']
-
 URL_TESTDATA = r''
 
 
-
-ABOUT = os.path.join(os.path.dirname(__file__), 'ABOUT.txt')
-if os.path.isfile(ABOUT):
-    f = open(ABOUT, 'r', encoding='utf-8')
-    ABOUT = f.read()
-    f.close()
-    del f
-else:
-    ABOUT = "The EO Time Series Viewer"
-
-
-DEBUG = True
-
-DEPENDENCIES = ['pyqtgraph']
-
-
-from qgis.core import QgsApplication, Qgis
-from qgis.PyQt.QtCore import QSettings
-from qgis.PyQt.QtGui import QIcon
-
+import os, sys, fnmatch, site, re, site
 jp = os.path.join
 dn = os.path.dirname
+from qgis.core import QgsApplication, Qgis
+from qgis.PyQt.QtGui import QIcon
+
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
+
+
 
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
-DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
 DIR_UI = jp(DIR, *['ui'])
 DIR_DOCS = jp(DIR, 'docs')
 DIR_EXAMPLES = jp(DIR_REPO, 'example')
@@ -81,12 +55,12 @@ PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
 PATH_LICENSE = jp(DIR_REPO, 'LICENSE.txt')
 PATH_CHANGELOG = jp(DIR_REPO, 'CHANGES.txt')
 PATH_ABOUT = jp(DIR_REPO, 'ABOUT.html')
-
-
-
 DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
 
+DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
+
 OPENGL_AVAILABLE = False
+
 try:
     import OpenGL
 
@@ -96,14 +70,22 @@ except:
 
 
 try:
-    import qps.utils
-
+    import qps
 except Exception as ex:
-    #site.addpackage(DIR_SITE_PACKAGES, 'qps', None)
     sys.path.append(DIR_SITE_PACKAGES)
     import qps
 
+import qps.utils
 qps.utils.UI_DIRECTORIES.append(DIR_UI)
+
+# import QPS modules
+
+from qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
+from qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
+from qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
+from qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
+from qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile
+from qps.maptools import *
 
 
 def messageLog(msg, level=None):
@@ -118,13 +100,22 @@ def messageLog(msg, level=None):
 
         QgsApplication.instance().messageLog().logMessage(msg, 'EO TSV', level)
 
-try:
-    import timeseriesviewer.ui.resources
-    timeseriesviewer.ui.resources.qInitResources()
-except:
-    print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
+def initResources():
+    """
+    Loads (or reloads) required Qt resources
+    :return:
+    """
+    try:
+        import timeseriesviewer.ui.resources
+        timeseriesviewer.ui.resources.qInitResources()
+    except:
+        print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
 
-    pass
+    try:
+        import qps.qpsresources
+        qps.qpsresources.qInitResources()
+    except Exception as ex:
+        print('Unable to import qps.resources', file=sys.stderr)
 
 def initEditorWidgets():
     """
@@ -133,23 +124,13 @@ def initEditorWidgets():
     import qps
     qps.registerEditorWidgets()
 
-
-#see https://github.com/pyqtgraph/pyqtgraph/issues/774
-WORKAROUND_PYTGRAPH_ISSUE_774 = True
-if WORKAROUND_PYTGRAPH_ISSUE_774:
-    from pyqtgraph.graphicsItems.GraphicsObject import GraphicsObject
-
-    from qgis.PyQt.QtCore import QVariant
-    untouched = GraphicsObject.itemChange
-
-    def newFunc(cls, change, value):
-        if value != QVariant(None):
-            return untouched(cls, change, value)
-        else:
-            return untouched(cls, change, None)
-
-    GraphicsObject.itemChange = newFunc
-
+def initAll():
+    """
+    Calls all required init routines
+    :return:
+    """
+    initResources()
+    initEditorWidgets()
 
 def icon()->QIcon:
     """
@@ -158,15 +139,3 @@ def icon()->QIcon:
     """
     path = os.path.join(os.path.dirname(__file__), 'icon.png')
     return QIcon(path)
-
-def getFileAndAttributes(file):
-    """
-    splits a GDAL valid file path into
-    :param file:
-    :return:
-    """
-    dn = os.path.dirname(file)
-    bn = os.path.basename(file)
-    bnSplit = bn.split(':')
-    return os.path.join(dn,bnSplit[0]), ':'.join(bnSplit[1:])
-

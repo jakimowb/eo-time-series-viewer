@@ -37,19 +37,22 @@ class TimeSeriesViewerPlugin:
         dirPlugin = os.path.dirname(__file__)
         site.addsitedir(dirPlugin)
 
-        #run a dependency check
+        import timeseriesviewer
+        site.addsitedir(timeseriesviewer.DIR_SITE_PACKAGES)
+
+        # run a dependency check
         self.initialDependencyCheck()
+
+        # initialize required settings
+        timeseriesviewer.initAll()
 
     def initGui(self):
         self.toolbarActions = []
 
-        dir_repo = os.path.dirname(__file__)
-        site.addsitedir(dir_repo)
-        #site.addsitedir(os.path.join(dir_repo, 'site-packages'))
-
         assert isinstance(self.iface, QgisInterface)
 
         import timeseriesviewer
+
         # init main UI
         from timeseriesviewer import DIR_UI, jp, TITLE
         icon = timeseriesviewer.icon()

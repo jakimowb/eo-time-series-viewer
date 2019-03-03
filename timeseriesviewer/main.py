@@ -20,8 +20,6 @@
 """
 # noinspection PyPep8Naming
 
-from qgis.core import *
-
 
 r"""
 File "D:\Programs\OSGeo4W\apps\Python27\lib\multiprocessing\managers.py", line
@@ -42,13 +40,9 @@ if os.path.exists(path):
 
 import qgis.utils
 from timeseriesviewer.utils import *
-from timeseriesviewer import jp, mkdir, DIR_SITE_PACKAGES, messageLog
 from timeseriesviewer.timeseries import *
 from timeseriesviewer.profilevisualization import SpectralTemporalVisualization
 from timeseriesviewer import SpectralProfile, SpectralLibrary
-import numpy as np
-import pyqtgraph as pg
-
 
 DEBUG = False
 
@@ -107,7 +101,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from timeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
 
-        from timeseriesviewer.mapvisualization import MapViewCollectionDock, MapViewCollectionDockV2
+        from timeseriesviewer.mapvisualization import MapViewCollectionDock
         self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
 
         from qps.cursorlocationvalue import CursorLocationInfoDock
@@ -337,10 +331,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
 
         # connect buttons with actions
-        from timeseriesviewer.ui.widgets import AboutDialogUI
+        from timeseriesviewer.widgets import AboutDialogUI
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
 
-        from timeseriesviewer.settings import SettingsDialog
         self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
         import webbrowser
         from timeseriesviewer import DOCUMENTATION
@@ -451,7 +444,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         qgis.utils.iface = self
 
     def onShowSettingsDialog(self):
-        from timeseriesviewer.settings import SettingsDialog, Keys
+        from timeseriesviewer.settings import SettingsDialog
         d = SettingsDialog(self.ui)
         r = d.exec_()
 

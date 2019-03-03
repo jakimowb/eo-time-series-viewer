@@ -414,7 +414,7 @@ class TestObjects():
         :return: lost of (N,3) array of floats specifying point locations.
         """
 
-        files = file_search(DIR_TESTDATA, '*.tif', recursive=True)
+        files = list(file_search(DIR_TESTDATA, '*.tif', recursive=True))
         results = []
         import random
         for file in random.choices(files, k=n):

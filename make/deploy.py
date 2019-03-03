@@ -141,11 +141,16 @@ def build():
 
         # 2. Compile. Basically call pyrcc to create the resources.rc file
         # I don't know how to call this from pure python
-        try:
-            pb_tool.compile_files(cfg)
-        except Exception as ex:
-            print('Failed to compile resources')
-            print(ex)
+        #try:
+        #    pb_tool.compile_files(cfg)
+        #except Exception as ex:
+        #    print('Failed to compile resources')
+        #    print(ex)
+
+
+        import make
+        make.compileResourceFiles()
+
 
         # 3. Deploy = write the data to the new plugin folder
         pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
@@ -164,7 +169,7 @@ def build():
             os.rmdir(d)
 
 
-    #update metadata version
+    # update metadata version
     if True:
         pathMetadata = jp(dirPlugin, 'metadata.txt')
         # update version number in metadata
@@ -200,7 +205,8 @@ def build():
     # os.chdir(dirPlugin)
     # shutil.make_archive(pathZip, 'zip', '..', dirPlugin)
 
-
+    # 6. Update XML repositories
+    updateRepositoryXML(path=pathZip)
 
     # 6. install the zip file into the local QGIS instance. You will need to restart QGIS!
     if True:
@@ -312,15 +318,13 @@ def updateRepositoryXML(path:str=None):
     with open(PLUGIN_REPO_XML_LOCAL, 'w') as f:
         f.write(xmlLocal)
 
-   # tree.write(pathXML, encoding='utf-8', pretty_print=True, xml_declaration=True)
-    #https://bitbucket.org/hu-geomatics/enmap-box/raw/HEAD/qgis_plugin_develop.xml
 
 def uploadDeveloperPlugin():
 
     assert os.path.isfile(PLUGIN_REPO_XML_REMOTE)
 
     if True:
-        #copy to head
+        # copy to head
         bnXML = os.path.basename(PLUGIN_REPO_XML_REMOTE)
         pathNew = os.path.join(DIR_REPO, bnXML)
         print('Copy {}\n\tto {}'.format(PLUGIN_REPO_XML_REMOTE, pathNew))
@@ -423,9 +427,4 @@ def uploadDeveloperPlugin():
     if auth_success:
         settings.setValue(skeyUsr, session.auth.username)
 
-if __name__ == "__main__":
 
-    build()
-    updateRepositoryXML()
-    uploadDeveloperPlugin()
-    app.exitQgis()
