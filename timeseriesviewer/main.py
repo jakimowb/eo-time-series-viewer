@@ -74,9 +74,9 @@ class TimeSeriesViewerUI(QMainWindow,
             self.menuBar().setNativeMenuBar(False)
 
 
-        #set button default actions -> this will show the action icons as well
-        #I don't know why this is not possible in the QDesigner when QToolButtons are
-        #placed outside a toolbar
+        # set button default actions -> this will show the action icons as well
+        # I don't know why this is not possible in the QDesigner when QToolButtons are
+        # placed outside a toolbar
 
         area = None
 
@@ -91,7 +91,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         area = Qt.LeftDockWidgetArea
 
-        #self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
+        # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
         if DEBUG:
             from timeseriesviewer.labeling import LabelingDock
@@ -118,16 +118,22 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
         from timeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
-
-        from qps.speclib.spectrallibraries import SpectralLibraryPanel
-        self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
-
-
         from timeseriesviewer.labeling import LabelingDock
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
 
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+        from qps.speclib.spectrallibraries import SpectralLibraryPanel
+
+        try:
+            self.dockSpectralLibrary = addDockWidget(SpectralLibraryPanel(self))
+            self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+        except Exception as ex:
+            print(ex, file=sys.stderr)
+            self.dockSpectralLibrary = None
+
+
+
+
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
@@ -148,7 +154,7 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockTimeSeries.raise_()
 
-        #self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
+        # self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
 
 
     def _blockSignals(self, widgets, block=True):
@@ -232,7 +238,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :type iface: QgsInterface
         """
 
-        #assert TimeSeriesViewer.instance() is None
+        # assert TimeSeriesViewer.instance() is None
 
         QObject.__init__(self)
         QgisInterface.__init__(self)
@@ -241,7 +247,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore = QgsMapLayerStore()
         import timeseriesviewer.utils
         timeseriesviewer.utils.MAP_LAYER_STORES.insert(0,self.mapLayerStore())
-
 
         self.ui = TimeSeriesViewerUI()
 
@@ -252,22 +257,22 @@ class TimeSeriesViewer(QgisInterface, QObject):
         else:
             self.initQGISInterface()
 
-        #init empty time series
+        # init empty time series
         self.mTimeSeries = TimeSeries()
         self.mTimeSeries.setDateTimePrecision(DateTimePrecision.Day)
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
 
-        #map layer store
+        # map layer store
 
-        #init other GUI components
+        # init other GUI components
 
 
-        #self.ICP = D.scrollAreaSubsetContent.layout()
-        #D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-        #self.BVP = self.ui.scrollAreaMapViews.layout()
-        #D.dockNavigation.connectTimeSeries(self.TS)
+        # self.ICP = D.scrollAreaSubsetContent.layout()
+        # D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        # self.BVP = self.ui.scrollAreaMapViews.layout()
+        # D.dockNavigation.connectTimeSeries(self.TS)
         self.ui.dockTimeSeries.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
 
@@ -339,19 +344,23 @@ class TimeSeriesViewer(QgisInterface, QObject):
         from timeseriesviewer import DOCUMENTATION
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
-        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
+        from qps.speclib.spectrallibraries import SpectralLibraryPanel
+        if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
 
-        # add time-specific fields
-        sl = self.spectralLibrary()
+            self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+            self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
-        assert isinstance(sl, SpectralLibrary)
-        sl.startEditing()
-        for field in EXTRA_SPECLIB_FIELDS:
-            sl.addAttribute(field)
-        assert sl.commitChanges()
+            # add time-specific fields
+            sl = self.spectralLibrary()
 
-        self.mMapLayerStore.addMapLayer(sl)
+            assert isinstance(sl, SpectralLibrary)
+            sl.startEditing()
+            for field in EXTRA_SPECLIB_FIELDS:
+                sl.addAttribute(field)
+            assert sl.commitChanges()
+
+            self.mMapLayerStore.addMapLayer(sl)
+
         self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
 
         # moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
@@ -372,7 +381,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the SpectraLibrary of the SpectralLibrary dock
         :return: SpectraLibrary
         """
-        return self.ui.dockSpectralLibrary.SLW.speclib()
+        from qps.speclib.spectrallibraries import SpectralLibraryPanel
+        if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
+            return self.ui.dockSpectralLibrary.SLW.speclib()
+        else:
+            return None
 
 
     def showTimeSeriesDatum(self, tsd:TimeSeriesDatum):
@@ -497,16 +510,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
             if isinstance(tsd, TimeSeriesDatum):
                 profiles2 = []
                 sl = self.spectralLibrary()
-                for p in profiles:
-                    self.cntSpectralProfile += 1
-                    assert isinstance(p, SpectralProfile)
-                    p2 = p.copyFieldSubset(fields=sl.fields())
-                    p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
-                    p2.setAttribute('date', '{}'.format(tsd.mDate))
-                    p2.setAttribute('doy', int(tsd.mDOY))
-                    p2.setAttribute('sensor', tsd.mSensor.name())
-                    profiles2.append(p2)
-                self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles2)
+                if isinstance(sl, SpectralLibrary):
+                    for p in profiles:
+                        self.cntSpectralProfile += 1
+                        assert isinstance(p, SpectralProfile)
+                        p2 = p.copyFieldSubset(fields=sl.fields())
+                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
+                        p2.setAttribute('date', '{}'.format(tsd.mDate))
+                        p2.setAttribute('doy', int(tsd.mDOY))
+                        p2.setAttribute('sensor', tsd.mSensor.name())
+                        profiles2.append(p2)
+                    self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles2)
 
         elif mapToolKey == MapTools.CursorLocation:
 
