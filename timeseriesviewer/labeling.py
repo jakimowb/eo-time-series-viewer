@@ -606,7 +606,6 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
             if isinstance(self.mDualView, QgsDualView):
                 self.pageDualView.layout().removeWidget(self.mDualView)
-                self.mDualView.setParent(None)
                 self.mDualView.hide()
                 self.mDualView = None
 

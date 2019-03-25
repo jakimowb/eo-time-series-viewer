@@ -84,7 +84,7 @@ class TestInit(unittest.TestCase):
 
         TSV = TimeSeriesViewer()
         TSV.show()
-        #TSV.loadExampleTimeSeries()
+        TSV.loadExampleTimeSeries()
 
         if SHOW_GUI:
             QGIS_APP.exec_()
