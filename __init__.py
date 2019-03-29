@@ -34,5 +34,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     if not d in sys.path:
         sys.path.append(d)
 
-    from timeseriesviewer.timeseriesviewerplugin import TimeSeriesViewerPlugin
+    from eotimeseriesviewer.timeseriesviewerplugin import TimeSeriesViewerPlugin
     return TimeSeriesViewerPlugin(iface)

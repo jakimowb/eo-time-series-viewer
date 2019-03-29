@@ -20,18 +20,18 @@
 
 import os, sys, unittest, configparser
 
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-import timeseriesviewer
-timeseriesviewer.initResources()
-from timeseriesviewer.mapcanvas import *
-from timeseriesviewer.tests import TestObjects
+import eotimeseriesviewer
+eotimeseriesviewer.initResources()
+from eotimeseriesviewer.mapcanvas import *
+from eotimeseriesviewer.tests import TestObjects
 
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None
 
 
 class TestInit(unittest.TestCase):
@@ -80,7 +80,7 @@ class TestInit(unittest.TestCase):
     def test_TimeSeriesViewer(self):
 
 
-        from timeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
         TSV.show()
@@ -91,7 +91,7 @@ class TestInit(unittest.TestCase):
 
     def test_TimeSeriesViewerMultiSource(self):
 
-        from timeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
         TSV.show()
@@ -104,11 +104,11 @@ class TestInit(unittest.TestCase):
 
     def test_TimeSeriesViewerNoSource(self):
 
-        from timeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
         TSV.show()
-        #TSV.loadExampleTimeSeries(1)
+
         self.assertIsInstance(TSV, TimeSeriesViewer)
         if SHOW_GUI:
             QGIS_APP.exec_()

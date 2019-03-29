@@ -31,11 +31,11 @@ import pickle
 
 from qgis.core import *
 
-from .spectrallibraries import FIELD_STYLE, FIELD_VALUES, decodeProfileValueDict
+from .spectrallibraries import FIELD_VALUES, decodeProfileValueDict
 from qps.plotstyling.plotstyling import PlotStyle, MARKERSYMBOLS2QGIS_SYMBOLS
 
 QGS_FUNCTION_GROUP = "Spectral Libraries"
-
+"""
 @qgsfunction(0, QGS_FUNCTION_GROUP)
 def plotStyleSymbolFillColor(values, feature, parent):
     if isinstance(feature, QgsFeature):
@@ -72,7 +72,7 @@ def plotStyleSymbolSize(values, feature, parent):
             if isinstance(style, PlotStyle):
                 return style.markerSize
     return None
-
+"""
 @qgsfunction(0, QGS_FUNCTION_GROUP)
 def spectralValues(values, feature, parent):
     """
@@ -94,7 +94,7 @@ def registerQgsExpressionFunctions():
     """
     Registers functions to support SpectraLibrary handling with QgsExpressions
     """
-    QgsExpression.registerFunction(plotStyleSymbolFillColor)
-    QgsExpression.registerFunction(plotStyleSymbol)
-    QgsExpression.registerFunction(plotStyleSymbolSize)
+    #QgsExpression.registerFunction(plotStyleSymbolFillColor)
+    #QgsExpression.registerFunction(plotStyleSymbol)
+    #QgsExpression.registerFunction(plotStyleSymbolSize)
     QgsExpression.registerFunction(spectralValues)

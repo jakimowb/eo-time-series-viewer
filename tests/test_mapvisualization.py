@@ -18,16 +18,18 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles
+from eotimeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
 
-from timeseriesviewer.utils import *
-from timeseriesviewer.mapcanvas import *
-from timeseriesviewer.mapvisualization import *
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.mapcanvas import *
+from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 QGIS_APP = initQgisApplication(loadProcessingFramework=False)
+
+SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
 
 
 def getChildElements(node):
@@ -188,7 +190,7 @@ class testclassMapVisualization(unittest.TestCase):
     def test_maprendersettings(self):
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
 
-        from timeseriesviewer.timeseries import TimeSeries
+        from eotimeseriesviewer.timeseries import TimeSeries
         TS = TimeSeries()
         TS.addSources([Img_2014_01_15_LC82270652014015LGN00_BOA])
         sensor1 = TS.sensors()[0]
@@ -234,7 +236,7 @@ class testclassMapVisualization(unittest.TestCase):
 
 
     def test_spatialTemporalVisualization(self):
-        from timeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
         TSV.loadExampleTimeSeries()
@@ -263,7 +265,7 @@ class testclassMapVisualization(unittest.TestCase):
         self.assertTrue(len(withLayers) > 0)
         self.assertTrue(len(empty) > 0)
 
-        #shift spatial extent
+        # shift spatial extent
         extent2 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x()-100, extent.center().y()))
         SV.setSpatialExtent(extent2)
         SV.timedCanvasRefresh()

@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TSVGUIBase</class>
+ <widget class="QMainWindow" name="TSVGUIBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>178</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>EO Time Series Viewer</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</iconset>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <property name="tabShape">
+   <enum>QTabWidget::Rounded</enum>
+  </property>
+  <property name="dockNestingEnabled">
+   <bool>true</bool>
+  </property>
+  <property name="dockOptions">
+   <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks</set>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>100</width>
+     <height>0</height>
+    </size>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_3">
+    <property name="spacing">
+     <number>1</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <item>
+     <widget class="QgsMessageBar" name="messageBar">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="MapViewScrollArea" name="scrollAreaSubsets">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>1</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>50</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAsNeeded</enum>
+      </property>
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="scrollAreaSubsetContent">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>678</width>
+         <height>72</height>
+        </rect>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <layout class="QHBoxLayout" name="scrollAreaLayout">
+        <property name="spacing">
+         <number>1</number>
+        </property>
+        <property name="sizeConstraint">
+         <enum>QLayout::SetNoConstraint</enum>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QMenuBar" name="mMenuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>680</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFiles">
+    <property name="title">
+     <string>Files</string>
+    </property>
+    <addaction name="actionAddTSD"/>
+    <addaction name="actionLoadTimeSeriesStack"/>
+    <addaction name="actionAddVectorData"/>
+    <addaction name="actionLoadTS"/>
+    <addaction name="actionSaveTS"/>
+    <addaction name="actionClearTS"/>
+    <addaction name="separator"/>
+    <addaction name="actionAddTSExample"/>
+   </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>Others</string>
+    </property>
+    <addaction name="actionAbout"/>
+    <addaction name="actionSettings"/>
+    <addaction name="actionShowOnlineHelp"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <widget class="QMenu" name="menuPanels">
+     <property name="title">
+      <string>Panels...</string>
+     </property>
+    </widget>
+    <addaction name="actionRefresh"/>
+    <addaction name="actionAddMapView"/>
+    <addaction name="separator"/>
+    <addaction name="actionIdentifySpectralProfile"/>
+    <addaction name="actionIdentifyTemporalProfile"/>
+    <addaction name="separator"/>
+    <addaction name="menuPanels"/>
+   </widget>
+   <widget class="QMenu" name="menuNavigation">
+    <property name="title">
+     <string>Navigation</string>
+    </property>
+    <widget class="QMenu" name="menuQGIS_map_canvas">
+     <property name="title">
+      <string>QGIS map canvas</string>
+     </property>
+     <addaction name="actionImportExtent"/>
+     <addaction name="actionImportCenter"/>
+     <addaction name="actionExportExtent"/>
+     <addaction name="actionExportCenter"/>
+    </widget>
+    <addaction name="actionPan"/>
+    <addaction name="actionZoomIn"/>
+    <addaction name="actionZoomOut"/>
+    <addaction name="actionZoomMaxExtent"/>
+    <addaction name="actionZoomPixelScale"/>
+    <addaction name="actionMoveCenter"/>
+    <addaction name="separator"/>
+    <addaction name="menuQGIS_map_canvas"/>
+   </widget>
+   <addaction name="menuFiles"/>
+   <addaction name="menuView"/>
+   <addaction name="menuNavigation"/>
+   <addaction name="menuAbout"/>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionAddTSD"/>
+   <addaction name="actionLoadTS"/>
+   <addaction name="actionClearTS"/>
+   <addaction name="actionSaveTS"/>
+   <addaction name="actionAddMapView"/>
+   <addaction name="separator"/>
+   <addaction name="actionRefresh"/>
+   <addaction name="actionMoveCenter"/>
+   <addaction name="actionZoomIn"/>
+   <addaction name="actionZoomOut"/>
+   <addaction name="actionZoomMaxExtent"/>
+   <addaction name="actionZoomPixelScale"/>
+   <addaction name="actionPan"/>
+   <addaction name="separator"/>
+   <addaction name="actionImportExtent"/>
+   <addaction name="actionImportCenter"/>
+   <addaction name="actionExportExtent"/>
+   <addaction name="actionExportCenter"/>
+   <addaction name="separator"/>
+   <addaction name="actionIdentifyCursorLocationValues"/>
+   <addaction name="actionIdentifyTemporalProfile"/>
+   <addaction name="actionIdentifySpectralProfile"/>
+   <addaction name="separator"/>
+   <addaction name="actionAbout"/>
+  </widget>
+  <action name="actionMoveCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</iconset>
+   </property>
+   <property name="text">
+    <string>SelectCenter</string>
+   </property>
+   <property name="toolTip">
+    <string>select center coordinate</string>
+   </property>
+  </action>
+  <action name="actionSelectCRS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/CRS.svg</normaloff>:/timeseriesviewer/icons/CRS.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select CRS</string>
+   </property>
+   <property name="toolTip">
+    <string>Select coordinate reference system</string>
+   </property>
+  </action>
+  <action name="actionNextTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</iconset>
+   </property>
+   <property name="text">
+    <string>nextTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>go to next time series datum</string>
+   </property>
+  </action>
+  <action name="actionPreviousTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</iconset>
+   </property>
+   <property name="text">
+    <string>previousTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to prevoius time series datum</string>
+   </property>
+  </action>
+  <action name="actionFirstTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</iconset>
+   </property>
+   <property name="text">
+    <string>first TSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to first time series datum</string>
+   </property>
+  </action>
+  <action name="actionLastTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</iconset>
+   </property>
+   <property name="text">
+    <string>lastTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>got to last time series datum</string>
+   </property>
+  </action>
+  <action name="actionLoadTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Load time series</string>
+   </property>
+   <property name="toolTip">
+    <string>Load time series from CSV file</string>
+   </property>
+  </action>
+  <action name="actionAddTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add images</string>
+   </property>
+   <property name="toolTip">
+    <string>Add images to the time series</string>
+   </property>
+  </action>
+  <action name="actionRemoveTSD">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Remove images</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove images from this time series</string>
+   </property>
+  </action>
+  <action name="actionSaveTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Save time serie</string>
+   </property>
+   <property name="toolTip">
+    <string>Save time series as CSV file</string>
+   </property>
+  </action>
+  <action name="actionAddMapView">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add Map View</string>
+   </property>
+   <property name="toolTip">
+    <string>Add maps that show a specified band selection</string>
+   </property>
+  </action>
+  <action name="actionRemoveMapView">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Remove Map View</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove map view</string>
+   </property>
+  </action>
+  <action name="actionAddTSExample">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add example</string>
+   </property>
+   <property name="toolTip">
+    <string>Add example time series</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+   </property>
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+  <action name="actionDummy">
+   <property name="text">
+    <string>Dummy</string>
+   </property>
+   <property name="toolTip">
+    <string>This is an obviously not removed dummy</string>
+   </property>
+  </action>
+  <action name="actionClearTS">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Clear Time Series</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove all images from time series</string>
+   </property>
+  </action>
+  <action name="actionSetExtent">
+   <property name="text">
+    <string>Set Extent</string>
+   </property>
+  </action>
+  <action name="actionZoomIn">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom in</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom into map</string>
+   </property>
+  </action>
+  <action name="actionZoomOut">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom out</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom out</string>
+   </property>
+  </action>
+  <action name="actionZoomMaxExtent">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Max. Extent</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom to maximum extent of time series</string>
+   </property>
+  </action>
+  <action name="actionZoomPixelScale">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Pixel Scale</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom to pixel scale</string>
+   </property>
+  </action>
+  <action name="actionPan">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionPan.svg</normaloff>:/timeseriesviewer/icons/mActionPan.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Pan Map</string>
+   </property>
+   <property name="toolTip">
+    <string>Pan map</string>
+   </property>
+  </action>
+  <action name="actionShowToolBar">
+   <property name="text">
+    <string>Panels</string>
+   </property>
+  </action>
+  <action name="actionIdentifyCursorLocationValues">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Identify</string>
+   </property>
+   <property name="toolTip">
+    <string>Identify map layers</string>
+   </property>
+  </action>
+  <action name="actionClearLabelList">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mIconClose.svg</normaloff>:/timeseriesviewer/icons/mIconClose.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Clear labels</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear selected labels</string>
+   </property>
+  </action>
+  <action name="actionCopyLabelList">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Copy labels</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy labels to clipboard</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/system.svg</normaloff>:/timeseriesviewer/icons/system.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Settings</string>
+   </property>
+  </action>
+  <action name="actionCollectLabels">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Collect Labels</string>
+   </property>
+   <property name="toolTip">
+    <string>Collect labels by clicking on related map windows</string>
+   </property>
+  </action>
+  <action name="actionIdentifyTemporalProfile">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Temporal profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Identify pixel time series for specific coordinate</string>
+   </property>
+  </action>
+  <action name="actionRefresh">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Refresh maps</string>
+   </property>
+   <property name="toolTip">
+    <string>Refresh maps (F5)</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionShowCrosshair">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Crosshair</string>
+   </property>
+  </action>
+  <action name="actionIdentifySpectralProfile">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/pickrasterspectrum.svg</normaloff>
+     <normalon>:/enmapbox/png/icons/mActionIdentify.png</normalon>:/timeseriesviewer/icons/pickrasterspectrum.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Pixel profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Select pixel profiles from map</string>
+   </property>
+  </action>
+  <action name="actionImportExtent">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import extent</string>
+   </property>
+   <property name="toolTip">
+    <string>Set spatial map extent from QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionExportExtent">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set extent</string>
+   </property>
+   <property name="toolTip">
+    <string>Set map extent to QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionImportCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import center</string>
+   </property>
+   <property name="toolTip">
+    <string>Set spatial map center from QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionExportCenter">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set center</string>
+   </property>
+   <property name="toolTip">
+    <string>Set map center to QGIS map canvas</string>
+   </property>
+  </action>
+  <action name="actionAddVectorData">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add vector data</string>
+   </property>
+   <property name="toolTip">
+    <string>Loads a vector data file</string>
+   </property>
+  </action>
+  <action name="actionShowOnlineHelp">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Help (online)</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens the online documentation</string>
+   </property>
+  </action>
+  <action name="actionLoadTimeSeriesStack">
+   <property name="text">
+    <string>Add images from time stack</string>
+   </property>
+   <property name="toolTip">
+    <string>Load images from a stack or list of stacks witch each image band being an temporal observation</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsMessageBar</class>
+   <extends>QFrame</extends>
+   <header>qgis.gui</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>MapViewScrollArea</class>
+   <extends>QScrollArea</extends>
+   <header>eotimeseriesviewer.mapviewscrollarea</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

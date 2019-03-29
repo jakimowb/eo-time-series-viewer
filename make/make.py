@@ -4,7 +4,7 @@ import os, sys, fnmatch, six, subprocess, re
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
 
-from timeseriesviewer import DIR_REPO
+from eotimeseriesviewer import DIR_REPO
 from qps.make.make import compileResourceFile, compileQGISResourceFiles
 from qps.utils import file_search
 
@@ -12,7 +12,7 @@ from qps.utils import file_search
 
 def compileResourceFiles():
 
-    dir1 = os.path.join(DIR_REPO, 'timeseriesviewer')
+    dir1 = os.path.join(DIR_REPO, 'eotimeseriesviewer')
     dir2 = os.path.join(DIR_REPO, 'site-packages')
 
     qrcFiles = []
@@ -22,3 +22,8 @@ def compileResourceFiles():
     for file in qrcFiles:
         print('Compile {}...'.format(file))
         compileResourceFile(file)
+
+
+if __name__ == '__main__':
+
+    compileResourceFiles()

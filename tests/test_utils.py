@@ -17,8 +17,8 @@ from qgis import *
 from qgis.core import QgsProject
 from qgis.gui import *
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
-from timeseriesviewer.utils import *
-from timeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.tests import initQgisApplication
 
 QGIS_APP = initQgisApplication()
 

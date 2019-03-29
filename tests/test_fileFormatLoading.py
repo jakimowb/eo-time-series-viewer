@@ -4,9 +4,9 @@ import os, re, io, importlib, uuid, unittest
 import qgis.testing
 
 from unittest import TestCase
-from timeseriesviewer import *
-from timeseriesviewer.utils import *
-from timeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer import *
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.timeseries import TimeSeries
 
 
 DIR_SENTINEL = r''

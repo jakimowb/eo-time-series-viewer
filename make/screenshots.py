@@ -8,12 +8,12 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from tests import initQgisApplication
 app = initQgisApplication()
-from timeseriesviewer.utils import *
-from timeseriesviewer.main import TimeSeriesViewer
-from timeseriesviewer.mapvisualization import *
-from timeseriesviewer.profilevisualization import *
-from timeseriesviewer.timeseries import *
-from timeseriesviewer import DIR_REPO, DIR_QGIS_RESOURCES
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.main import TimeSeriesViewer
+from eotimeseriesviewer.mapvisualization import *
+from eotimeseriesviewer.profilevisualization import *
+from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer import DIR_REPO, DIR_QGIS_RESOURCES
 
 #DIR_SCREENSHOTS = jp(DIR_REPO, 'screenshots')
 
@@ -148,7 +148,7 @@ mv2.refreshMapView()
 #activate Crosshair
 TSV.spatialTemporalVis.setCrosshairVisibility(True)
 
-from timeseriesviewer.mapcanvas import MapTools
+from eotimeseriesviewer.mapcanvas import MapTools
 
 TSV.onShowProfile(center, mv1.mapCanvases()[0], MapTools.CursorLocation)
 #load data from other locations

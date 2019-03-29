@@ -17,14 +17,14 @@ from qgis import *
 from qgis.gui import *
 from PyQt5.QtGui import QIcon
 import example.Images
-from timeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
-from timeseriesviewer.temporalprofiles2d import *
-from timeseriesviewer.profilevisualization import *
-from timeseriesviewer.utils import *
-from timeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
+from eotimeseriesviewer.temporalprofiles2d import *
+from eotimeseriesviewer.profilevisualization import *
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
 
 class testclassUtilityTests(unittest.TestCase):
     """Test rerources work."""
@@ -144,7 +144,8 @@ class testclassUtilityTests(unittest.TestCase):
 
         cb.show()
         s = ""
-        QGIS_APP.exec_()
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
 
     def test_expressions(self):

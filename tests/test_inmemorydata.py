@@ -20,7 +20,7 @@
 
 import os, sys, unittest, configparser
 
-from timeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
@@ -36,7 +36,7 @@ class TestInMemoryData(unittest.TestCase):
         QGIS_APP = initQgisApplication()
 
         from osgeo import gdal
-        from timeseriesviewer.tests import TestObjects
+        from eotimeseriesviewer.tests import TestObjects
         from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
         TestObjects.inMemoryImage()
         # create an in-memory raster

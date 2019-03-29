@@ -18,15 +18,15 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-from timeseriesviewer.mapcanvas import *
-from timeseriesviewer.timeseries import *
+from eotimeseriesviewer.mapcanvas import *
+from eotimeseriesviewer.timeseries import *
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -148,8 +148,8 @@ class testclassDialogTest(unittest.TestCase):
     def test_rendering_flags(self):
         #img = TestObjects.inMemoryImage(ns=10000,nl=10000, nb=3)
         #need a large image on file!
-        from timeseriesviewer.main import TimeSeriesViewer
-        from timeseriesviewer.mapvisualization import SpatialTemporalVisualization
+        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
         TSV = TimeSeriesViewer(None)
         self.assertIsInstance(TSV, TimeSeriesViewer)
         TSV.loadExampleTimeSeries()
@@ -177,7 +177,7 @@ class testclassDialogTest(unittest.TestCase):
         self.assertIsInstance(M, MapCanvasLayerModel)
         files = TestObjects.testImagePaths()
 
-        from timeseriesviewer.timeseries import TimeSeriesSource
+        from eotimeseriesviewer.timeseries import TimeSeriesSource
 
         p0 = TimeSeriesSource.create(files[0]).qgsMimeDataUtilsUri()
         p1 = TimeSeriesSource.create(files[1]).qgsMimeDataUtilsUri()
@@ -218,5 +218,5 @@ class testclassDialogTest(unittest.TestCase):
 
 if __name__ == "__main__":
 
-    SHOW_GUI = False
+    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

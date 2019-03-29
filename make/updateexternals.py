@@ -2,7 +2,7 @@
 import os, sys, re, shutil, zipfile, datetime
 from qps.make import updateexternals
 from qps.make.updateexternals import RemoteInfo, updateRemoteLocations
-from timeseriesviewer import DIR_REPO
+from eotimeseriesviewer import DIR_REPO
 import git # install with: pip install gitpython
 
 updateexternals.setProjectRepository(DIR_REPO)

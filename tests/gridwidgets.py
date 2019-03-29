@@ -4,7 +4,7 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
-from timeseriesviewer.utils import *
+from eotimeseriesviewer.utils import *
 
 viewModes = ['timeXmapview', 'mapviewXtime', 'time2Xmapview']
 class MapViewGridLayout(QGridLayout):

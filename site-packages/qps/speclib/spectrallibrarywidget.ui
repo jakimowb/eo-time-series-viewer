@@ -221,6 +221,17 @@
          </widget>
         </item>
         <item>
+         <widget class="QToolButton" name="btnRenderingView">
+          <property name="text">
+           <string>F</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../../../../QGIS/images/images.qrc">
+            <normaloff>:/images/themes/default/propertyicons/rendering.svg</normaloff>:/images/themes/default/propertyicons/rendering.svg</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QToolButton" name="btnFormView">
           <property name="text">
            <string>F</string>
@@ -575,6 +586,18 @@
    </property>
    <property name="text">
     <string>Show Spectral Library Poperties</string>
+   </property>
+  </action>
+  <action name="actionRenderingView">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/propertyicons/rendering.svg</normaloff>:/images/themes/default/propertyicons/rendering.svg</iconset>
+   </property>
+   <property name="text">
+    <string>RenderingView</string>
+   </property>
+   <property name="toolTip">
+    <string>Rendering view</string>
    </property>
   </action>
  </widget>

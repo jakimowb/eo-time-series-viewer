@@ -6,10 +6,10 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
-from timeseriesviewer.utils import file_search, TestObjects
-from timeseriesviewer.timeseries import *
-from timeseriesviewer.tests import initQgisApplication
-from timeseriesviewer.sensorvisualization import *
+from eotimeseriesviewer.utils import file_search, TestObjects
+from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.sensorvisualization import *
 app = initQgisApplication()
 
 class TestInit(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestInit(unittest.TestCase):
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from timeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles2d import date2num
         ns = 50
         nl = 100
 

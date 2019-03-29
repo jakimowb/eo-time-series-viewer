@@ -19,13 +19,13 @@
 # noinspection PyPep8Naming
 
 import os, sys, unittest, configparser
-from timeseriesviewer.tests import initQgisApplication, TestObjects
+from eotimeseriesviewer.tests import initQgisApplication, TestObjects
 APP = initQgisApplication()
 
-from timeseriesviewer.main import *
+from eotimeseriesviewer.main import *
 
 
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None
 
 class TestInit(unittest.TestCase):
 
@@ -41,5 +41,5 @@ class TestInit(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    SHOW_GUI = False
+    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

@@ -17,17 +17,17 @@
 ***************************************************************************
 """
 
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
 import unittest, tempfile
 
-from timeseriesviewer.layerproperties import *
-from timeseriesviewer.labeling import *
-from timeseriesviewer import DIR_REPO
-from timeseriesviewer.mapcanvas import MapCanvas
-from timeseriesviewer.tests import TestObjects
+from eotimeseriesviewer.layerproperties import *
+from eotimeseriesviewer.labeling import *
+from eotimeseriesviewer import DIR_REPO
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.tests import TestObjects
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None
 
 reg = QgsGui.editorWidgetRegistry()
 if len(reg.factories()) == 0:
@@ -322,5 +322,5 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(lyr.commitChanges())
 
 if __name__ == "__main__":
-    SHOW_GUI = False
+    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

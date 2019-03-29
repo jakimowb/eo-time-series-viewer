@@ -2,15 +2,15 @@
 import os, sys, re
 from qgis.core import *
 from qgis.gui import *
-from timeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
 import unittest, tempfile
 
-from timeseriesviewer.layerproperties import *
-from timeseriesviewer import DIR_REPO
+from eotimeseriesviewer.layerproperties import *
+from eotimeseriesviewer import DIR_REPO
 
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True
+SHOW_GUI = True and os.environ.get('CI') is None
 
 
 QgsGui.editorWidgetRegistry().initEditors()
@@ -104,5 +104,5 @@ class TestLayerproperties(unittest.TestCase):
             QGIS_APP.exec_()
 
 if __name__ == "__main__":
-    SHOW_GUI = False
+    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

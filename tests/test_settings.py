@@ -18,19 +18,19 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-from timeseriesviewer.mapcanvas import *
-from timeseriesviewer.crosshair import *
-from timeseriesviewer.utils import *
+from eotimeseriesviewer.mapcanvas import *
+from eotimeseriesviewer.crosshair import *
+from eotimeseriesviewer.utils import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication()
 
-from timeseriesviewer.settings import *
-SHOW_GUI = True
+from eotimeseriesviewer.settings import *
+SHOW_GUI = True and os.environ.get('CI') is None
 
 class testclassSettingsTest(unittest.TestCase):
     """Test resources work."""
@@ -81,5 +81,5 @@ class testclassSettingsTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    SHOW_GUI = False
+    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

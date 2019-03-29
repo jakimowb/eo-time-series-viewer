@@ -34,9 +34,9 @@ import git
 
 from qps.testing import initQgisApplication
 app = initQgisApplication()
-from timeseriesviewer import DIR_REPO
-from timeseriesviewer.utils import file_search, jp, zipdir
-import timeseriesviewer
+from eotimeseriesviewer import DIR_REPO
+from eotimeseriesviewer.utils import file_search, jp, zipdir
+import eotimeseriesviewer
 
 
 DIR_BUILD = jp(DIR_REPO, 'build')
@@ -47,7 +47,7 @@ QGIS_MAX = '3.99'
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
-buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', timeseriesviewer.__version__).group()
+buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__version__).group()
                             , timestamp,
                             re.sub(r'[\\/]','_', currentBranch))
 
@@ -56,8 +56,9 @@ PLUGIN_REPO_XML_REMOTE = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop.xml')
 PLUGIN_REPO_XML_LOCAL  = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop_local.xml')
 URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads'
 urlDownloads = 'https://api.bitbucket.org/2.0/repositories/jakimowb/eo-time-series-viewer/downloads'
+PLUGIN_FOLDER_NAME = 'EOTimeSeriesViewer'
 
-#list of deploy options:
+# list of deploy options:
 # ZIP - add zipped plugin to DIR_DEPLOY
 # UNZIPPED - add the non-zipped plugin to DIR_DEPLOY
 DEPLOY_OPTIONS = ['ZIP', 'UNZIPPED']
@@ -68,11 +69,11 @@ PLAIN_COPY_SUBDIRS = ['site-packages']
 
 ########## End of config section
 
-########## End of config section
+
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
-buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', timeseriesviewer.__version__).group()
+buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__version__).group()
                             , timestamp,
                             re.sub(r'[\\/]','_', currentBranch))
 
@@ -80,8 +81,8 @@ buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', timeseriesviewer.__versi
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1])
 timestamp = re.sub('[-T]','', timestamp)
 
-timeseriesviewer.__version__ = buildID
-dirBuildPlugin = jp(DIR_BUILD, 'timeseriesviewerplugin')
+eotimeseriesviewer.__version__ = buildID
+dirBuildPlugin = jp(DIR_BUILD, PLUGIN_FOLDER_NAME)
 
 def rm(p):
     """
@@ -139,18 +140,8 @@ def build():
         # 1. clean an existing directory = plugin folder
         pb_tool.clean_deployment(ask_first=False)
 
-        # 2. Compile. Basically call pyrcc to create the resources.rc file
-        # I don't know how to call this from pure python
-        #try:
-        #    pb_tool.compile_files(cfg)
-        #except Exception as ex:
-        #    print('Failed to compile resources')
-        #    print(ex)
-
-
         import make
         make.compileResourceFiles()
-
 
         # 3. Deploy = write the data to the new plugin folder
         pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
@@ -179,12 +170,13 @@ def build():
         lines = re.sub('version=.*\n', 'version={}\n'.format(buildID), ''.join(lines))
         lines = re.sub('qgisMinimumVersion=.*\n', 'qgisMinimumVersion={}\n'.format(QGIS_MIN), ''.join(lines))
         lines = re.sub('qgisMaximumVersion=.*\n', 'qgisMaximumVersion={}\n'.format(QGIS_MAX), ''.join(lines))
+        lines = re.sub('icon=.*\n', 'eotimeseriesviewer/icon.svg', ''.join(lines))
         f = open(pathMetadata, 'w')
         f.write(lines)
         f.flush()
         f.close()
 
-        pathPackageInit = jp(dirPlugin, *['timeseriesviewer', '__init__.py'])
+        pathPackageInit = jp(dirPlugin, *['eotimeseriesviewer', '__init__.py'])
         f = open(pathPackageInit)
         lines = f.read()
         f.close()
@@ -231,7 +223,7 @@ def updateRepositoryXML(path:str=None):
     :return:
     """
     if not isinstance(path, str):
-        zipFiles = list(file_search(DIR_DEPLOY, '*timeseriesviewerplugin*.zip'))
+        zipFiles = list(file_search(DIR_DEPLOY, '*eotimeseriesviewer*.zip'))
         zipFiles.sort(key=lambda f:os.path.getctime(f))
         path = zipFiles[-1]
 
@@ -241,7 +233,7 @@ def updateRepositoryXML(path:str=None):
 
     os.makedirs(DIR_DEPLOY, exist_ok=True)
     bn = os.path.basename(path)
-    version = re.search(r'^timeseriesviewerplugin\.(.*)\.zip$', bn).group(1)
+    version = re.search(r'^'+PLUGIN_FOLDER_NAME+'\.(.*)\.zip$', bn).group(1)
     s = ""
     """
  <?xml-stylesheet type="text/xsl" href="plugins.xsl" ?>
@@ -276,22 +268,22 @@ def updateRepositoryXML(path:str=None):
 
     root = ET.Element('plugins')
     plugin = ET.SubElement(root, 'pyqgis_plugin')
-    plugin.attrib['name'] = "{} (develop version)".format(timeseriesviewer.TITLE)
+    plugin.attrib['name'] = "{} (develop version)".format(eotimeseriesviewer.TITLE)
     plugin.attrib['version'] = '{}'.format(version)
     ET.SubElement(plugin, 'description').text = r'EO Time Series Viewer (Development Version)'
     ET.SubElement(plugin, 'about').text = 'Preview'
     ET.SubElement(plugin, 'version').text = version
     ET.SubElement(plugin, 'qgis_minimum_version').text = QGIS_MIN
     ET.SubElement(plugin, 'qgis_maximum_version').text = QGIS_MAX
-    ET.SubElement(plugin, 'homepage').text = timeseriesviewer.HOMEPAGE
+    ET.SubElement(plugin, 'homepage').text = eotimeseriesviewer.HOMEPAGE
     ET.SubElement(plugin, 'file_name').text = bn
-    ET.SubElement(plugin, 'icon').text = 'icon.png'
+    ET.SubElement(plugin, 'icon').text = 'icon.svg'
     ET.SubElement(plugin, 'author_name').text = 'Benjamin Jakimow'
     ET.SubElement(plugin, 'download_url').text = download_url
     ET.SubElement(plugin, 'deprecated').text = 'False'
 
-    ET.SubElement(plugin, 'tracker').text = timeseriesviewer.ISSUE_TRACKER
-    ET.SubElement(plugin, 'repository').text = timeseriesviewer.REPOSITORY
+    ET.SubElement(plugin, 'tracker').text = eotimeseriesviewer.ISSUE_TRACKER
+    ET.SubElement(plugin, 'repository').text = eotimeseriesviewer.REPOSITORY
     ET.SubElement(plugin, 'tags').text = 'Remote Sensing, Raster, Time Series Viewer'
     ET.SubElement(plugin, 'experimental').text = 'False'
 
@@ -428,3 +420,5 @@ def uploadDeveloperPlugin():
         settings.setValue(skeyUsr, session.auth.username)
 
 
+if __name__ == "__main__":
+    build()

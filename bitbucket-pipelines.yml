@@ -1,0 +1,33 @@
+# This is a sample build configuration for Python.
+# Check our guides at https://confluence.atlassian.com/x/x4UWN for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: qgis/qgis
+
+pipelines:
+  default:
+    - step:
+        services:
+          - docker
+        caches:
+          - docker
+          - pip
+        script: # Modify the commands below to build your repository.
+          - python -m pip install -r requirements.txt
+          # - Xvfb :1
+          # - xvfb-run
+          # - startx
+          # - pushd /usr/src
+          # - xvfb-run nose2-3
+          # - popd
+
+          - apt-get update
+          - apt-get install xvfb
+          - Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
+          - ps aux | grep X
+          - DISPLAY=:1.0
+          - export DISPLAY
+          - python -m unittest discover tests "test_*.py"
+          # - python -m pip install pytest-cov
+          # - py.test --cov enmapbox --cov-report term-missing enmapboxtesting

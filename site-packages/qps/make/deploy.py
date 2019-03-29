@@ -384,19 +384,4 @@ def uploadDeveloperPlugin():
 
 
 
-if __name__ == "__main__":
-
-    #1. update deploy/enmapboxplugin and
-    #   create deploy/enmapboxplugin.<version>.<branch>.zip
-    build()
-
-    #2. run updateRepositoryXML() to create QGIS Plugin Repository XMLs
-    # deploy/qgis_plugin_develop.xml (remote, points on https://bitbucket.org/hu-geomatics/enmap-box/src/<branch>/qgis_plugin_develop.xml)
-    # deploy/qgis_plugin_develop.xml (local, points on deploy/enmapboxplugin.<version>.<branch>.zip
-    updateRepositoryXML()
-
-    #3. Upload to Repository
-    # upload deploy/enmapboxplugin.<version>.<branch>.zip to https://api.bitbucket.org/2.0/repositories/hu-geomatics/enmap-box/downloads
-    uploadDeveloperPlugin()
-
 

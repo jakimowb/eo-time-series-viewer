@@ -18,14 +18,14 @@
 """
 # noinspection PyPep8Naming
 
-from timeseriesviewer.tests import initQgisApplication
-from timeseriesviewer.utils import nextColor
+from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.utils import nextColor
 
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-from timeseriesviewer.stackedbandinput import *
+from eotimeseriesviewer.stackedbandinput import *
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
@@ -51,7 +51,7 @@ class testclassDialogTest(unittest.TestCase):
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from timeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles2d import date2num
         ns = 50
         nl = 100
 
@@ -204,7 +204,7 @@ class testclassDialogTest(unittest.TestCase):
 
 
         testImages = self.createTestDatasets()
-        from timeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import TimeSeriesViewer
         TSV = TimeSeriesViewer(None)
         TSV.show()
 

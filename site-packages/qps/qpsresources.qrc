@@ -32,4 +32,9 @@
     <file>ui/icons/undo_green.svg</file>
     <file>ui/icons/undo_orange.svg</file>
   </qresource>
+  <qresource prefix="newPrefix">
+    <file>ui/icons/poly2speclib.svg</file>
+    <file>ui/icons/speclib_clear.svg</file>
+    <file>ui/icons/speclib_reload.svg</file>
+  </qresource>
 </RCC>

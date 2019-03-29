@@ -15,8 +15,8 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
-from timeseriesviewer.utils import file_search
-from timeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.utils import file_search
+from eotimeseriesviewer.tests import initQgisApplication
 QGIS_APP = initQgisApplication()
 
 
@@ -34,7 +34,7 @@ class testclassDialogTest(unittest.TestCase):
 
     def test_icon(self):
         """Test we can click OK."""
-        from timeseriesviewer import icon, DIR_UI
+        from eotimeseriesviewer import icon, DIR_UI
         self.assertFalse(icon().isNull())
 
         iconSVGs = file_search(os.path.join(DIR_UI, 'icons'), '*.svg')
