@@ -244,7 +244,7 @@ class MapCanvasLayerModel(QAbstractTableModel):
             uri = None
             if isinstance(src, MapCanvasLayerModel.LayerItem):
                 uri = src.mUri.uri
-            if isinstance(src, QgsRasterLayer):
+            if isinstance(src, (QgsRasterLayer, QgsVectorLayer)):
                 uri = src.source()
             elif isinstance(src, QgsMimeDataUtils.Uri):
                 uri = src.uri

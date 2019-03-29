@@ -670,7 +670,7 @@ class MapView(QObject):
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
 
 
-    #sigVectorLayerChanged = pyqtSignal()
+    sigVectorLayerChanged = pyqtSignal()
 
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
@@ -795,7 +795,8 @@ class MapView(QObject):
             for mapCanvas in self.mapCanvases():
                 assert isinstance(mapCanvas, MapCanvas)
                 mapCanvas.mapLayerModel().addMapLayerSources([self.mVectorLayer])
-
+        self.sigVectorLayerChanged.emit()
+        #self.mVectorLayer.rendererChanged.connect(self.sigVectorLayerChanged)
 
     def applyStyles(self):
         """Applies all style changes to all sensor views."""
@@ -930,11 +931,11 @@ class MapView(QObject):
         mapViewRenderSettings.registerMapCanvas(mapCanvas)
         mapCanvas.setMapView(self)
 
-        #register signals sensor specific signals
+        # register signals sensor specific signals
         mapCanvas.sigCrosshairVisibilityChanged.connect(self.onCrosshairChanged)
         mapCanvas.sigCrosshairStyleChanged.connect(self.onCrosshairChanged)
 
-        #register non-sensor specific signals for this mpa view
+        # register non-sensor specific signals for this map view
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
         self.sigVectorLayerChanged.connect(mapCanvas.refresh)
 #        self.sigVectorVisibility.connect(mapCanvas.refresh)
