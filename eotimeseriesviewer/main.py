@@ -357,6 +357,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             sl = self.spectralLibrary()
 
             assert isinstance(sl, SpectralLibrary)
+            sl.setName('EOTS Spectral Library')
             sl.startEditing()
             for field in EXTRA_SPECLIB_FIELDS:
                 sl.addAttribute(field)
