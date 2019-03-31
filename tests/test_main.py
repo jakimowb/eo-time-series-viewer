@@ -88,7 +88,7 @@ class TestInit(unittest.TestCase):
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
-        #TSV.addMapLayer(lyr)
+
         if SHOW_GUI:
             QGIS_APP.exec_()
 

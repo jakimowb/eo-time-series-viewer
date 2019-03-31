@@ -1301,16 +1301,9 @@ class SpectralTemporalVisualization(QObject):
         self.mMapCanvas.setLayers([self.mTemporalProfileLayer])
         # self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
 
-        self.tpModel = TemporalProfileTableModel(self.mTemporalProfileLayer)
-        self.tpFilterModel = TemporalProfileTableFilterModel(self.tpModel)
+        assert isinstance(self.ui.mDualView, QgsDualView)
+        self.ui.mDualView.init(self.mTemporalProfileLayer, self.mMapCanvas)
 
-        self.ui.tableViewTemporalProfiles.setModel(self.tpFilterModel)
-        # self.ui.tableViewTemporalProfiles.selectionModel().selectionChanged.connect(self.onTemporalProfileSelectionChanged)
-
-        self.ui.tableViewTemporalProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
-        self.ui.tableViewTemporalProfiles.setSortingEnabled(False)
-
-        # self.ui.tableViewTemporalProfiles.contextMenuEvent = self.onTemporalProfilesContextMenu
         # pixel loader to load pixel values in parallel
         config = QgsAttributeTableConfig()
         config.update(self.mTemporalProfileLayer.fields())
@@ -1325,9 +1318,6 @@ class SpectralTemporalVisualization(QObject):
 
         self.mTemporalProfilesTableConfig = config
         self.mTemporalProfileLayer.setAttributeTableConfig(self.mTemporalProfilesTableConfig)
-        self.tpFilterModel.setAttributeTableConfig(self.mTemporalProfilesTableConfig)
-        #self.ui.tableViewTemporalProfiles.setAttributeTable(self.mTemporalProfilesTableConfig)
-
 
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
@@ -1614,7 +1604,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionSaveTemporalProfiles.triggered.connect(self.mTemporalProfileLayer.saveTemporalProfiles)
         #set actions to be shown in the TemporalProfileTableView context menu
         ma = [self.ui.actionSaveTemporalProfiles, self.ui.actionLoadMissingValues]
-        self.ui.tableViewTemporalProfiles.setContextMenuActions(ma)
+
 
         self.onEditingToggled()
 

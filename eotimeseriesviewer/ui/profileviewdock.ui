@@ -562,10 +562,64 @@ background-color: rgb(0, 0, 0);</string>
                  <number>0</number>
                 </property>
                 <item>
-                 <widget class="QStackedWidget" name="stackedWidget_2">
-                  <widget class="QWidget" name="page"/>
-                  <widget class="QWidget" name="page_2"/>
+                 <widget class="QgsDualView" name="mDualView" native="true">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>1</verstretch>
+                   </sizepolicy>
+                  </property>
                  </widget>
+                </item>
+                <item>
+                 <layout class="QHBoxLayout" name="horizontalLayout_2">
+                  <item>
+                   <spacer name="horizontalSpacer_2">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>40</width>
+                      <height>20</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="btnLayerProperties">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                    <property name="icon">
+                     <iconset resource="../../../../QGIS/images/images.qrc">
+                      <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="btnFormView">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                    <property name="icon">
+                     <iconset resource="../../../../QGIS/images/images.qrc">
+                      <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QToolButton" name="btnTableView">
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                    <property name="icon">
+                     <iconset resource="../../../../QGIS/images/images.qrc">
+                      <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
                 </item>
                </layout>
               </widget>
@@ -748,7 +802,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionRemoveTemporalProfile">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">
@@ -844,7 +898,7 @@ background-color: rgb(0, 0, 0);</string>
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
    </property>
    <property name="text">
@@ -866,6 +920,12 @@ background-color: rgb(0, 0, 0);</string>
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>QgsDualView</class>
+   <extends>QWidget</extends>
+   <header>qgis.gui</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>DateTimePlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>eotimeseriesviewer.profilevisualization</header>
@@ -873,6 +933,7 @@ background-color: rgb(0, 0, 0);</string>
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
