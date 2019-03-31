@@ -1303,7 +1303,7 @@ class SpectralTemporalVisualization(QObject):
 
         assert isinstance(self.ui.mDualView, QgsDualView)
         self.ui.mDualView.init(self.mTemporalProfileLayer, self.mMapCanvas)
-
+        self.ui.mDualView.setView(QgsDualView.AttributeTable)
         # pixel loader to load pixel values in parallel
         config = QgsAttributeTableConfig()
         config.update(self.mTemporalProfileLayer.fields())
