@@ -994,6 +994,8 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
 
 
+VSI_DIR = r'/vsimem/temporalprofiles/'
+
 class TemporalProfileLayer(QgsVectorLayer):
     """
     A collection to store the TemporalProfile data delivered by a PixelLoader
@@ -1009,12 +1011,61 @@ class TemporalProfileLayer(QgsVectorLayer):
     sigMaxProfilesChanged = pyqtSignal(int)
 
 
-    def __init__(self, timeSeries, name='Temporal Profiles'):
+    def __init__(self, timeSeries, uri=None, name='Temporal Profiles'):
+
+        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+
+        if uri is None:
+            # create a new, empty backend
+            # existing_vsi_files = vsiSpeclibs()
+            existing_vsi_files = []
+            # todo:
+            assert isinstance(existing_vsi_files, list)
+            i = 0
+            uri = (pathlib.Path(VSI_DIR) / '{}.gpkg'.format(name)).as_posix()
+            while uri in existing_vsi_files:
+                i += 1
+                uri = (pathlib.Path(VSI_DIR) / '{}{:03}.gpkg'.format(name, i)).as_posix()
+
+            drv = ogr.GetDriverByName('GPKG')
+            assert isinstance(drv, ogr.Driver)
+            co = ['VERSION=AUTO']
+            dsSrc = drv.CreateDataSource(uri, options=co)
+            assert isinstance(dsSrc, ogr.DataSource)
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(4326)
+            co = ['GEOMETRY_NAME=geom',
+                  'GEOMETRY_NULLABLE=YES',
+                  'FID=fid'
+                  ]
+
+            lyr = dsSrc.CreateLayer(name, srs=srs, geom_type=ogr.wkbPoint, options=co)
+
+            assert isinstance(lyr, ogr.Layer)
+            ldefn = lyr.GetLayerDefn()
+            assert isinstance(ldefn, ogr.FeatureDefn)
+            dsSrc.FlushCache()
+        else:
+            dsSrc = ogr.Open(uri)
+            assert isinstance(dsSrc, ogr.DataSource)
+            names = [dsSrc.GetLayerByIndex(i).GetName() for i in range(dsSrc.GetLayerCount())]
+            i = names.index(name)
+            lyr = dsSrc.GetLayer(i)
+
+
+        # consistency check
+        uri2 = '{}|{}'.format(dsSrc.GetName(), lyr.GetName())
+        assert QgsVectorLayer(uri2).isValid()
+        super(TemporalProfileLayer, self).__init__(uri2, name, 'ogr', lyrOptions)
+
+
+        """
         assert isinstance(timeSeries, TimeSeries)
         crs = QgsCoordinateReferenceSystem('EPSG:4326')
         uri = 'Point?crs={}'.format(crs.authid())
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
         super(TemporalProfileLayer, self).__init__(uri, name, 'memory', lyrOptions)
+        """
 
         from collections import OrderedDict
         self.mProfiles = OrderedDict()
@@ -1024,7 +1075,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.mNextID = 1
 
         self.TS = None
-
+        self.setName('EOTS Temporal Profiles')
         fields = QgsFields()
         fields.append(createQgsField(FN_ID, self.mNextID))
         fields.append(createQgsField(FN_NAME,''))

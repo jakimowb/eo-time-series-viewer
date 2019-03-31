@@ -52,11 +52,15 @@ buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__ver
                             re.sub(r'[\\/]','_', currentBranch))
 
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
+pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
+CFG = pb_tool.get_config(pathCfg)
+PLUGIN_FOLDER_NAME = CFG.get('plugin', 'name')
+
 PLUGIN_REPO_XML_REMOTE = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop.xml')
 PLUGIN_REPO_XML_LOCAL  = os.path.join(DIR_DEPLOY, 'qgis_plugin_develop_local.xml')
 URL_DOWNLOADS = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads'
 urlDownloads = 'https://api.bitbucket.org/2.0/repositories/jakimowb/eo-time-series-viewer/downloads'
-PLUGIN_FOLDER_NAME = 'EOTimeSeriesViewer'
+
 
 # list of deploy options:
 # ZIP - add zipped plugin to DIR_DEPLOY
@@ -170,7 +174,7 @@ def build():
         lines = re.sub('version=.*\n', 'version={}\n'.format(buildID), ''.join(lines))
         lines = re.sub('qgisMinimumVersion=.*\n', 'qgisMinimumVersion={}\n'.format(QGIS_MIN), ''.join(lines))
         lines = re.sub('qgisMaximumVersion=.*\n', 'qgisMaximumVersion={}\n'.format(QGIS_MAX), ''.join(lines))
-        lines = re.sub('icon=.*\n', 'eotimeseriesviewer/icon.svg', ''.join(lines))
+        lines = re.sub('icon=.*\n', 'icon=eotimeseriesviewer/icon.png\n', ''.join(lines))
         f = open(pathMetadata, 'w')
         f.write(lines)
         f.flush()
@@ -421,4 +425,5 @@ def uploadDeveloperPlugin():
 
 
 if __name__ == "__main__":
+
     build()

@@ -27,7 +27,7 @@
 *                                                                         *
 ***************************************************************************
 """
-import os, csv, tempfile
+import os, csv, tempfile, uuid
 from osgeo import gdal, gdal_array
 from .spectrallibraries import *
 

@@ -40,6 +40,6 @@ class TestInit(unittest.TestCase):
 
 
 
+
 if __name__ == '__main__':
-    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

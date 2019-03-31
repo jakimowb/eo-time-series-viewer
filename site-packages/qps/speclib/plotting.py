@@ -245,6 +245,13 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
             mousePoint = vb.mapSceneToView(pos)
             x = mousePoint.x()
             if x >= 0:
+
+                #todo: add infos about plot data below mouse, e.g. profile band number
+                rect = QRectF(pos.x()-2, pos.y()-2,5,5)
+                itemsBelow = plotItem.scene().items(rect)
+                if SpectralProfilePlotDataItem in itemsBelow:
+                    s = ""
+
                 y = mousePoint.y()
                 vb.updateCurrentPosition(x, y)
                 self.mInfoLabelCursor.setText('x:{:0.5f}\ny:{:0.5f}'.format(x, y))
@@ -507,6 +514,8 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
 
             elif isinstance(symbol, QgsFillSymbol):
                 pdi.setColor(symbol.color())
+
+
         renderer.stopRender(renderContext)
         if isinstance(xUnit, str):
             self.setXUnit(xUnit)
@@ -829,6 +838,7 @@ class SpectralProfilePlotDataItem(PlotDataItem):
         self.mXValueConversionFunction = lambda v, *args: v
         self.mYValueConversionFunction = lambda v, *args: v
         self.mDefaultLineWidth = self.pen().width()
+        self.mDefaultLineColor = None
         self.applyMapFunctions()
 
     def spectralProfile(self)->SpectralProfile:
@@ -913,9 +923,10 @@ class SpectralProfilePlotDataItem(PlotDataItem):
 
         if b:
             self.setLineWidth(self.mDefaultLineWidth + 3)
+            #self.setColor(Qgis.DEFAULT_HIGHLIGHT_COLOR)
         else:
             self.setLineWidth(self.mDefaultLineWidth)
-
+            #self.setColor(self.mDefaultLineColor)
 
 
     def setColor(self, color:QColor):
@@ -925,7 +936,11 @@ class SpectralProfilePlotDataItem(PlotDataItem):
         """
         if not isinstance(color, QColor):
             color = QColor(color)
+
         self.setPen(color)
+
+        if not isinstance(self.mDefaultLineColor, QColor):
+            self.mDefaultLineColor = color
 
     def pen(self):
         """

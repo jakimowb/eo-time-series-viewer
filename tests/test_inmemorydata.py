@@ -25,7 +25,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-
+QGIS_APP = initQgisApplication()
 
 class TestInMemoryData(unittest.TestCase):
     """
@@ -33,7 +33,6 @@ class TestInMemoryData(unittest.TestCase):
     """
 
     def test_vsimem_raster(self):
-        QGIS_APP = initQgisApplication()
 
         from osgeo import gdal
         from eotimeseriesviewer.tests import TestObjects
@@ -63,28 +62,31 @@ class TestInMemoryData(unittest.TestCase):
 
     def test_vsimem_raster2(self):
 
-from osgeo import gdal
-from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
+        from osgeo import gdal
+        from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
 
-# create an in-memory raster
-driver = gdal.GetDriverByName('GTiff')
-assert isinstance(driver, gdal.Driver)
-path = '/vsimem/inmemoryraster.tif'
+        # create an in-memory raster
+        driver = gdal.GetDriverByName('GTiff')
+        assert isinstance(driver, gdal.Driver)
+        path = '/vsimem/inmemoryraster.tif'
 
-dataSet = driver.Create(path, 100, 50, bands=3, eType=gdal.GDT_Int16)
-assert isinstance(dataSet, gdal.Dataset)
-c = QgsCoordinateReferenceSystem('EPSG:32632')
-dataSet.SetProjection(c.toWkt())
-dataSet.SetGeoTransform([0, 1.0, 0, 0, 0, -1.0])
-dataSet.FlushCache()
-dataSet = None
+        dataSet = driver.Create(path, 100, 50, bands=3, eType=gdal.GDT_Int16)
+        assert isinstance(dataSet, gdal.Dataset)
+        c = QgsCoordinateReferenceSystem('EPSG:32632')
+        dataSet.SetProjection(c.toWkt())
+        dataSet.SetGeoTransform([0, 1.0, 0, 0, 0, -1.0])
+        dataSet.FlushCache()
+        dataSet = None
 
-ds2 = gdal.Open(path)
-assert isinstance(ds2, gdal.Dataset)
+        ds2 = gdal.Open(path)
+        assert isinstance(ds2, gdal.Dataset)
 
-layer = QgsRasterLayer(path)
-assert isinstance(layer, QgsRasterLayer)
-assert layer.isValid()
+        layer = QgsRasterLayer(path)
+        self.assertIsInstance(layer, QgsRasterLayer)
+        self.assertTrue(layer.isValid())
+
+QGIS_APP.quit()
 
 if __name__ == '__main__':
     unittest.main()
+    print('all tests done in '.format(__file__))

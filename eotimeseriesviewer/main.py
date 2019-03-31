@@ -287,9 +287,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
-        #self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        #self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        #self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+        # self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
+        # self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
+        # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
 
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
@@ -365,7 +365,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
             self.mMapLayerStore.addMapLayer(sl)
 
-        self.mMapLayerStore.addMapLayer(self.spectralTemporalVis.temporalProfileLayer())
+        temporalProfileLayer = self.spectralTemporalVis.temporalProfileLayer()
+        assert isinstance(temporalProfileLayer, QgsVectorLayer)
+        temporalProfileLayer.setName('EOTS Temporal Profiles')
+        QgsProject.instance().addMapLayer(temporalProfileLayer)
 
         # moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
         # moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)

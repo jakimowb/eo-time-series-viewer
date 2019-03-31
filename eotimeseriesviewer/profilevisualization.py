@@ -187,7 +187,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
         return self._preferedSize
     """
     def exampleLyr(self, sensor):
-        #if isinstance(sensor, SensorInstrument):
+        # if isinstance(sensor, SensorInstrument):
         if sensor not in self.mSensorLayers.keys():
 
             crs = QgsCoordinateReferenceSystem('EPSG:4862')
@@ -1295,6 +1295,10 @@ class SpectralTemporalVisualization(QObject):
         self.mTemporalProfileLayer.startEditing()
         self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
 
+        # fix to not loose C++ reference on temporal profile layer in case it is removed from QGIS mapcanvas
+        self.mMapCanvas = QgsMapCanvas()
+        self.mMapCanvas.setVisible(False)
+        self.mMapCanvas.setLayers([self.mTemporalProfileLayer])
         # self.tpCollectionListModel = TemporalProfileCollectionListModel(self.tpCollection)
 
         self.tpModel = TemporalProfileTableModel(self.mTemporalProfileLayer)
@@ -1410,7 +1414,7 @@ class SpectralTemporalVisualization(QObject):
         #self.ui.stackedWidget.setCurrentPage(self.ui.pagePixel)
         self.ui.onStackPageChanged(self.ui.stackedWidget.currentIndex())
 
-    def temporalProfileLayer(self):
+    def temporalProfileLayer(self)->TemporalProfileLayer:
         """
         Returns a QgsVectorLayer that is used to store profile coordinates.
         :return:
