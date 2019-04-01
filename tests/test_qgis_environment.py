@@ -14,6 +14,43 @@ class QGISTest(unittest.TestCase):
     """Test the QGIS Environment"""
 
 
+    def test_mapcanvasbridge(self):
+
+        from eotimeseriesviewer.tests import TestObjects
+        layer = TestObjects.createVectorLayer()
+        layer2 = TestObjects.createRasterLayer()
+        QgsProject.instance().addMapLayers([layer, layer2])
+        w = QWidget()
+        w.setLayout(QHBoxLayout())
+
+        c = QgsMapCanvas()
+        c.setLayers([layer])
+        c.setDestinationCrs(layer.crs())
+        c.setExtent(c.fullExtent())
+
+        ltree = QgsLayerTree()
+        bridge = QgsLayerTreeMapCanvasBridge(ltree, c)
+        model = QgsLayerTreeModel(ltree)
+
+        model.setFlags(QgsLayerTreeModel.AllowNodeChangeVisibility |
+                       QgsLayerTreeModel.AllowNodeRename |
+                       QgsLayerTreeModel.AllowNodeReorder)
+
+        ltree.addLayer(layer)
+        ltree.addLayer(layer2)
+        grp = ltree.addGroup('Name')
+        grp.addLayer(layer)
+        grp.addLayer(layer2)
+        v = QgsLayerTreeView()
+        v.setModel(model)
+        w.layout().addWidget(v)
+        w.layout().addWidget(c)
+
+
+        if True:
+            w.show()
+            QGIS_APP.exec_()
+
     def test_qgis_environment(self):
         """QGIS environment has the expected providers"""
 
