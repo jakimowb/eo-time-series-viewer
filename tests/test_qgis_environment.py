@@ -13,6 +13,8 @@ QGIS_APP = initQgisApplication()
 class QGISTest(unittest.TestCase):
     """Test the QGIS Environment"""
 
+    def test_QgsLayerTreeViewDefaultActions(self):
+        pass
 
     def test_mapcanvasbridge(self):
 
@@ -30,19 +32,86 @@ class QGISTest(unittest.TestCase):
 
         ltree = QgsLayerTree()
         bridge = QgsLayerTreeMapCanvasBridge(ltree, c)
+
         model = QgsLayerTreeModel(ltree)
 
         model.setFlags(QgsLayerTreeModel.AllowNodeChangeVisibility |
                        QgsLayerTreeModel.AllowNodeRename |
                        QgsLayerTreeModel.AllowNodeReorder)
 
+
+        class MenuProvider(QgsLayerTreeViewMenuProvider):
+
+            def __init__(self, view:QgsLayerTreeView, canvas:QgsMapCanvas):
+                super(MenuProvider, self).__init__()
+                assert isinstance(view, QgsLayerTreeView)
+                assert isinstance(canvas, QgsMapCanvas)
+                self._view = view
+                self._canvas = canvas
+                self.mDefActions = QgsLayerTreeViewDefaultActions(self._view)
+
+                self.actionAddGroup = self.mDefActions.actionAddGroup()
+                self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
+
+
+            def layerTreeView(self)->QgsLayerTreeView:
+                return self._view
+
+            def layerTree(self)->QgsLayerTree:
+                return self.layerTreeModel().rootGroup()
+
+            def layerTreeModel(self)->QgsLayerTreeModel:
+                return self.layerTreeView().model()
+
+            def onAddGroup(self, *args):
+                view = self.layerTreeView()
+                l = view.currentLayer()
+                i = view.currentIndex()
+                view.currentGroupNode().insertGroup(i.row(), 'Group')
+
+
+
+            def createContextMenu(self)->QMenu:
+
+                model = self.layerTreeModel()
+                ltree = self.layerTree()
+                view = self.layerTreeView()
+                l = view.currentLayer()
+                i = view.currentIndex()
+
+
+                def copyAction(menu:QMenu, action:QAction):
+
+                    a = menu.addAction(action.text())
+                    a.setIcon(action.icon())
+                    a.triggered.connect(action.trigger)
+
+                menu = QMenu(view)
+                #copyAction(menu, self.actionAddGroup)
+                menu.addAction(self.actionAddGroup)
+                menu.addAction(self.actionRename)
+                #copyAction(menu, self.actionRename)
+
+                #a = menu.addAction('Settings')
+                #from qps.layerproperties import showLayerPropertiesDialog
+                #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
+
+                return menu
+
+        v = QgsLayerTreeView()
+        # v.setContextMenuPolicy(Qt.DefaultContextMenu)
+        v.setModel(model)
+        menuProvider = MenuProvider(v, c)
+        v.setMenuProvider(menuProvider)
+
+
+
         ltree.addLayer(layer)
         ltree.addLayer(layer2)
         grp = ltree.addGroup('Name')
         grp.addLayer(layer)
         grp.addLayer(layer2)
-        v = QgsLayerTreeView()
-        v.setModel(model)
+
         w.layout().addWidget(v)
         w.layout().addWidget(c)
 
