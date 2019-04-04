@@ -6,11 +6,12 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
-from eotimeseriesviewer.utils import file_search, TestObjects
+from eotimeseriesviewer.utils import file_search
+from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.tests import initQgisApplication
 
-app = initQgisApplication()
+QAPP = initQgisApplication()
 
 class TestInit(unittest.TestCase):
 
@@ -300,3 +301,5 @@ class TestInit(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+QAPP.quit()
