@@ -24,26 +24,24 @@ from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
+SHOW_GUI = False and os.environ.get('CI') is None and not os.environ.get('CI')
 
 class testclassUtilityTests(unittest.TestCase):
-    """Test rerources work."""
+    """Test temporal profiles"""
 
     def setUp(self):
         """Runs before each test."""
         self.TS = TimeSeries()
 
-        files = file_search(os.path.dirname(example.Images.__file__), '*.tif')
+        files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
         self.TS.addSources(files)
         self.dirTmp = tempfile.mkdtemp(prefix='EOTSV_Test')
-
 
     def tearDown(self):
         """Runs after each test."""
 
         import shutil
         shutil.rmtree(self.dirTmp)
-
 
     def createTemporalProfiles(self):
 
@@ -77,24 +75,32 @@ class testclassUtilityTests(unittest.TestCase):
             self.assertEqual(total, nd+nnd)
 
 
+
     def test_temporalProfileLayer(self):
 
-        col = TemporalProfileLayer(self.TS)
+        lyr1 = TemporalProfileLayer(self.TS)
+
+
 
         extent = self.TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
         point1 = SpatialPoint(center.crs(), center.x(), center.y() )
         point2 = SpatialPoint(center.crs(), center.x()+30, center.y()-30 )
-        tps = col.createTemporalProfiles([point1, point1, point2])
+        tps = lyr1.createTemporalProfiles([point1, point1, point2])
 
-        self.assertTrue(len(col) == 3)
+
+
+        self.assertTrue(len(lyr1) == 3)
         self.assertIsInstance(tps, list)
         self.assertTrue(len(tps) == 3)
         for tp in tps:
             self.assertIsInstance(tp, TemporalProfile)
         tp1, tp2, tp3 = tps
+        self.assertTrue(len(list(lyr1.getFeatures())) == lyr1.featureCount())
 
+        lyr2 = TemporalProfileLayer(self.TS)
+        self.assertTrue(len(list(lyr1.getFeatures())) == lyr1.featureCount(), msg='Creation of other Temporal Profile Layers failed')
 
         self.assertIsInstance(tp1.geometry(), QgsGeometry)
         self.assertEqual(tp1.geometry().asWkb(), tp2.geometry().asWkb())
@@ -102,42 +108,44 @@ class testclassUtilityTests(unittest.TestCase):
 
         self.assertIsInstance(tp1.coordinate(), SpatialPoint)
         self.assertEqual(tp1.coordinate(), tp2.coordinate())
-        col.removeTemporalProfiles([tp1])
-        self.assertTrue(len(col) == 2)
+        lyr1.removeTemporalProfiles([tp1])
+        self.assertTrue(len(lyr1) == 2)
 
-        self.assertEqual(tp2, col[0])
+        self.assertEqual(tp2, lyr1[0])
 
-        tp = col.fromSpatialPoint(tp2.coordinate())
+        tp = lyr1.fromSpatialPoint(tp2.coordinate())
         self.assertIsInstance(tp, TemporalProfile)
         self.assertEqual(tp, tp2)
 
-        p = tempfile.mktemp('.shp','testtemporalprofiles')
-        writtenFiles = col.saveTemporalProfiles(p, loadMissingValues=True)
+        p = tempfile.mktemp('.shp', 'testtemporalprofiles')
+        writtenFiles = lyr1.saveTemporalProfiles(p, loadMissingValues=True)
         self.assertTrue(len(writtenFiles) == 2)
         for f in writtenFiles:
             self.assertTrue(os.path.isfile(f))
 
-        writtenFiles = col.saveTemporalProfiles(None)
-        self.assertTrue(len(writtenFiles) == 2)
-        for f in writtenFiles:
-            self.assertTrue(os.path.isfile(f))
+        if SHOW_GUI:
+            # test save-file-dialog
+            writtenFiles = lyr1.saveTemporalProfiles(None)
+            self.assertTrue(len(writtenFiles) == 2)
+            for f in writtenFiles:
+                self.assertTrue(os.path.isfile(f))
 
         lyr2 = TemporalProfileLayer(self.TS)
 
 
-        path = os.path.join(self.dirTmp, 'testsave.csv')
-        writtenFiles = col.saveTemporalProfiles(path)
+        path = os.path.join(self.dirTmp, 'testsave.shp')
+        writtenFiles = lyr1.saveTemporalProfiles(path)
         self.assertTrue(len(writtenFiles) == 2)
+        for p in writtenFiles:
+            self.assertTrue(os.path.isfile(p))
+        with open(writtenFiles[1], 'r', encoding='utf-8') as f:
+            lines = f.readlines()
 
-        self.assertTrue(os.path.isfile(path))
-        file = open(path, 'r')
-        lines = file.readlines()
-        file.close()
-        self.assertTrue(len(lines) > 2)
+            self.assertTrue(len(lines) > 2)
 
 
         cb = QgsFeatureListComboBox()
-        cb.setSourceLayer(col)
+        cb.setSourceLayer(lyr1)
         cb.setIdentifierField(FN_ID)
         cb.setIdentifierValue(tp.id())
         cb.setDisplayExpression('to_string("id") + \'  \' + "name"')
@@ -229,3 +237,4 @@ if __name__ == "__main__":
 
 
 
+QGIS_APP.quit()

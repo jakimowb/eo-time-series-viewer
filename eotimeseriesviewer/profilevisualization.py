@@ -31,7 +31,7 @@ from qgis.PyQt.QtGui import *
 from eotimeseriesviewer import jp
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
-from qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
+from eotimeseriesviewer.externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
 
 from eotimeseriesviewer.sensorvisualization import SensorListModel
 

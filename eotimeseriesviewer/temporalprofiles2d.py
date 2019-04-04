@@ -950,9 +950,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         """
         Updates visibility properties
         """
-        from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
-#        path = drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
-    #                    #painter, symbol, size, pen, brush
+
         self.setVisible(self.mPlotStyle.isVisible())
         self.setSymbol(self.mPlotStyle.markerSymbol)
         self.setSymbolSize(self.mPlotStyle.markerSize)
@@ -961,13 +959,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         self.setPen(self.mPlotStyle.linePen)
         self.update()
 
-        #self.setPen(fn.mkPen(self.mPlotStyle.linePen))
-        #self.setFillBrush(fn.mkBrush(self.mPlotStyle.mExpression))
-        #self.setSymbolBrush(fn.mkBrush(self.mPlotStyle.markerBrush))
 
-        # self.setFillBrush(self.mPlotStyle.)
-
-        #self.update()
 
     def setClickable(self, b, width=None):
         assert isinstance(b, bool)
@@ -1011,7 +1003,7 @@ class TemporalProfileLayer(QgsVectorLayer):
     sigMaxProfilesChanged = pyqtSignal(int)
 
 
-    def __init__(self, timeSeries, uri=None, name='Temporal Profiles'):
+    def __init__(self, timeSeries:TimeSeries, uri=None, name='Temporal Profiles'):
 
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
 
@@ -1022,10 +1014,11 @@ class TemporalProfileLayer(QgsVectorLayer):
             # todo:
             assert isinstance(existing_vsi_files, list)
             i = 0
-            uri = (pathlib.Path(VSI_DIR) / '{}.gpkg'.format(name)).as_posix()
-            while uri in existing_vsi_files:
+            _name = name.replace(' ', '_')
+            uri = (pathlib.Path(VSI_DIR) / '{}.gpkg'.format(_name)).as_posix()
+            while not ogr.Open(uri) is None:
                 i += 1
-                uri = (pathlib.Path(VSI_DIR) / '{}{:03}.gpkg'.format(name, i)).as_posix()
+                uri = (pathlib.Path(VSI_DIR) / '{}{:03}.gpkg'.format(_name, i)).as_posix()
 
             drv = ogr.GetDriverByName('GPKG')
             assert isinstance(drv, ogr.Driver)
@@ -1108,7 +1101,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         # Define which (new) bands need to be loaded for each sensor
         LUT_bandIndices = dict()
-        for sensor in self.mTimeSeries.mSensors2TSDs:
+        for sensor in self.mTimeSeries.sensors():
                 LUT_bandIndices[sensor] = list(range(sensor.nb))
 
         PL = PixelLoader()
@@ -1186,9 +1179,9 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         pathCSV = os.path.splitext(pathVector)[0] + '.data.csv'
         # write a flat list of profiles
-        lines = ['Temporal Profiles']
+        csvLines = ['Temporal Profiles']
         nBands = max([s.nb for s in self.mTimeSeries.sensors()])
-        lines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy', 'sensor'] + ['b{}'.format(b+1) for b in range(nBands)]))
+        csvLines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy', 'sensor'] + ['b{}'.format(b+1) for b in range(nBands)]))
 
         for p in list(self.getFeatures()):
 
@@ -1208,16 +1201,12 @@ class TemporalProfileLayer(QgsVectorLayer):
 
                 line = ['' if v == None else str(v) for v in line]
                 line = sep.join([str(l) for l in line])
-                lines.append(line)
+                csvLines.append(line)
             s = ""
 
-
-
-            file = open(pathCSV, 'w', encoding='utf8')
-            file.writelines('\n'.join(lines))
-            #print('\n'.join(lines))
-            file.flush()
-            file.close()
+        # write CSV file
+        with open(pathCSV, 'w', encoding='utf8') as f:
+            f.write('\n'.join(csvLines))
 
         return [pathVector, pathCSV]
 

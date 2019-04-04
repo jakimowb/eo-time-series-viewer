@@ -827,16 +827,16 @@ class TimeSeries(QObject):
 
     _sep = ';'
 
-    def sensor(self, sid:str)->SensorInstrument:
+    def sensor(self, sensorID:str)->SensorInstrument:
         """
         Returns the sensor with sid = sid
-        :param sid: str, sensor id
+        :param sensorID: str, sensor id
         :return: SensorInstrument
         """
-        assert isinstance(sid, str)
+        assert isinstance(sensorID, str)
         for sensor in self.mSensors:
             assert isinstance(sensor, SensorInstrument)
-            if sensor.id() == sid:
+            if sensor.id() == sensorID:
                 return sensor
         return None
 
@@ -1064,7 +1064,7 @@ class TimeSeries(QObject):
         Adds new data sources to the TimeSeries
         :param sources: [list-of-TimeSeriesSources]
         """
-        assert isinstance(sources, (list, types.GeneratorType))
+        assert isinstance(sources, list)
 
         nMax = len(sources)
 
@@ -1089,8 +1089,6 @@ class TimeSeries(QObject):
                 sid = tss.sid()
                 sensor = self.sensor(sid)
 
-
-
                 # if necessary, add a new sensor instance
                 if not isinstance(sensor, SensorInstrument):
                     sensor = self.addSensor(SensorInstrument(sid))
@@ -1104,9 +1102,8 @@ class TimeSeries(QObject):
                     addedDates.append(tsd)
                 assert isinstance(tsd, TimeSeriesDatum)
 
-                #add the source
+                # add the source
                 tsd.addSource(tss)
-                s = ""
 
             except Exception as ex:
                 msg = 'Unable to add: {}\n{}'.format(str(source), str(ex))
