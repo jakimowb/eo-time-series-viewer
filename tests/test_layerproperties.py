@@ -10,7 +10,7 @@ from eotimeseriesviewer import DIR_REPO
 
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 
 QgsGui.editorWidgetRegistry().initEditors()
@@ -106,3 +106,5 @@ class TestLayerproperties(unittest.TestCase):
 if __name__ == "__main__":
     SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()
+
+QGIS_APP.quit()

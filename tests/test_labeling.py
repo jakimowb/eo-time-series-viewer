@@ -27,7 +27,7 @@ from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.tests import TestObjects
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 reg = QgsGui.editorWidgetRegistry()
 if len(reg.factories()) == 0:
@@ -217,7 +217,7 @@ class testclassLabelingTest(unittest.TestCase):
         pass
 
     def setupEditWidget(self, vl):
-
+        from eotimeseriesviewer import ClassificationScheme
         classScheme1 = ClassificationScheme.create(5)
         classScheme1.setName('Schema1')
         classScheme2 = ClassificationScheme.create(3)
@@ -262,6 +262,7 @@ class testclassLabelingTest(unittest.TestCase):
     def test_LabelingDock(self):
 
         dock = LabelingDock()
+        dock.show()
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
@@ -269,18 +270,13 @@ class testclassLabelingTest(unittest.TestCase):
 
         QgsProject.instance().addMapLayer(lyr)
 
-
-
-
-
         registerLabelShortcutEditorWidget()
 
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
         am = lyr.actions()
         self.assertIsInstance(am, QgsActionManager)
 
-
-        #set a ClassificationScheme to each class-specific column
+        # set a ClassificationScheme to each class-specific column
 
         classScheme1, classScheme2 = self.setupEditWidget(lyr)
 
@@ -314,13 +310,14 @@ class testclassLabelingTest(unittest.TestCase):
         dock.mVectorLayerComboBox.setCurrentIndex(1)
         self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == lyr)
 
+        self.assertTrue(lyr.commitChanges())
+
 
         if SHOW_GUI:
-            dock.show()
             QGIS_APP.exec_()
-
-        self.assertTrue(lyr.commitChanges())
 
 if __name__ == "__main__":
     SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()
+
+QGIS_APP.quit()

@@ -15,19 +15,12 @@ pipelines:
           - pip
         script: # Modify the commands below to build your repository.
           - python -m pip install -r requirements.txt
-          # - Xvfb :1
-          # - xvfb-run
-          # - startx
-          # - pushd /usr/src
-          # - xvfb-run nose2-3
-          # - popd
-
+          - python -m pip install nose2
           - apt-get update
           - apt-get install xvfb
           - Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
           - ps aux | grep X
           - DISPLAY=:1.0
           - export DISPLAY
-          - python -m unittest discover tests "test_*.py"
-          # - python -m pip install pytest-cov
-          # - py.test --cov enmapbox --cov-report term-missing enmapboxtesting
+          - mkdir test-reports
+          - python -m nose2 discover tests "test_*.py" > test-reports/report.txt

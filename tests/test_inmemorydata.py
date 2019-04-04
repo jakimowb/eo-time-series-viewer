@@ -85,8 +85,11 @@ class TestInMemoryData(unittest.TestCase):
         self.assertIsInstance(layer, QgsRasterLayer)
         self.assertTrue(layer.isValid())
 
-QGIS_APP.quit()
 
 if __name__ == '__main__':
     unittest.main()
     print('all tests done in '.format(__file__))
+
+
+
+QGIS_APP.quit()

@@ -43,3 +43,5 @@ class TestInit(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+APP.quit()

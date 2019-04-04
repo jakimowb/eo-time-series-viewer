@@ -22,11 +22,11 @@ from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestO
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
-
+from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -132,7 +132,7 @@ class testclassDialogTest(unittest.TestCase):
         m.sigCrosshairPositionChanged.connect(onChanged)
 
         center = SpatialPoint.fromMapCanvasCenter(m)
-        import qps.maptools as mts
+        import eotimeseriesviewer.externals.qps.maptools as mts
         m.setCrosshairVisibility(True)
         mt = mts.SpectralProfileMapTool(m)
         m.setMapTool(mt)
@@ -220,3 +220,5 @@ if __name__ == "__main__":
 
     SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()
+
+QGIS_APP.quit()
