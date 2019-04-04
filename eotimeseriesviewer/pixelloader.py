@@ -72,21 +72,19 @@ class PixelLoaderTask(object):
         if not isinstance(geometries, list):
             geometries = [geometries]
         assert isinstance(geometries, list)
-        for geometry in geometries:
-            assert type(geometry) in [SpatialExtent, SpatialPoint]
-
+        geometries = [g for g in geometries if isinstance(g, (SpatialExtent, SpatialPoint))]
 
         self.mId = ''
 
-        #assert isinstance(source, str) or isinstance(source, unicode)
+        # assert isinstance(source, str) or isinstance(source, unicode)
         self.sourcePath = source
         self.geometries = geometries
         self.bandIndices = bandIndices
 
-        #for internal use only
+        # for internal use only
         self.mIsDone = False
 
-        #for returned data
+        # for returned data
         self.resCrsWkt = None
         self.resGeoTransformation = None
         self.resProfiles = None
@@ -94,7 +92,7 @@ class PixelLoaderTask(object):
         self.exception = None
         self.info = None
 
-        #other, free keywords
+        # other, free keywords
         for k in kwargs.keys():
             assert isinstance(k, str)
             assert not k.startswith('_')

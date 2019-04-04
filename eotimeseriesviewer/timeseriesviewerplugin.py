@@ -38,7 +38,6 @@ class TimeSeriesViewerPlugin:
         site.addsitedir(dirPlugin)
 
         import eotimeseriesviewer
-        site.addsitedir(eotimeseriesviewer.DIR_SITE_PACKAGES)
 
         # run a dependency check
         self.initialDependencyCheck()

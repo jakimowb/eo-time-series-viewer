@@ -34,7 +34,7 @@ from PyQt5.QtXml import QDomDocument
 from PyQt5 import uic
 from osgeo import gdal, ogr
 
-from qps.utils import *
+from .externals.qps.utils import *
 
 import weakref
 import numpy as np
@@ -42,7 +42,6 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
-from qps.utils import *
 from eotimeseriesviewer import DIR_UI
 UI_DIRECTORIES.append(DIR_UI)
 

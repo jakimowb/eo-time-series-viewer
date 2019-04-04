@@ -50,13 +50,6 @@ class testclassUtilityTests(unittest.TestCase):
         self.assertIsInstance(center, SpatialPoint)
         self.assertEqual(ext.spatialCenter(), center)
 
-    def test_others(self):
-
-        p = 'This is a §$%& formed file path+§"^1'
-
-        p2 = saveFilePath(p)
-
-        s = ""
 
     def test_file_search(self):
 
@@ -74,3 +67,4 @@ if __name__ == "__main__":
 
 
 
+QGIS_APP.quit()

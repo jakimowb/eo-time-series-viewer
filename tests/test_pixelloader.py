@@ -17,10 +17,11 @@ import os, sys, pickle
 import qgis.testing
 from eotimeseriesviewer.tests import initQgisApplication
 import example.Images
-from eotimeseriesviewer.utils import *
+from eotimeseriesviewer import *
+from eotimeseriesviewer.tests import TestObjects, initQgisApplication
+QGIS_APP = initQgisApplication()
 
-QGIS_APP = qgis.testing.start_app(False)
-#QGIS_APP = initQgisApplication()
+
 SHOW_GUI = True and os.environ.get('CI') is None
 
 def onDummy(*args):
@@ -44,7 +45,7 @@ class PixelLoaderTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from eotimeseriesviewer import DIR_EXAMPLES
-        from eotimeseriesviewer.utils import file_search
+        from eotimeseriesviewer import file_search
         cls.imgs = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
         cls.img1 = list(cls.imgs)[0]
         ds = gdal.Open(cls.img1)
@@ -143,7 +144,7 @@ class PixelLoaderTest(unittest.TestCase):
 
     def test_pixelLoader(self):
         from eotimeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
-        from eotimeseriesviewer.utils import px2geo
+        from eotimeseriesviewer import px2geo
         source = example.Images.Img_2014_05_15_LE72270652014135CUB00_BOA
 
         ext = SpatialExtent.fromRasterSource(source)
@@ -199,7 +200,7 @@ class PixelLoaderTest(unittest.TestCase):
 
     def test_loadProfiles(self):
 
-        from eotimeseriesviewer.utils import SpatialPoint, SpatialExtent, px2geo
+        from eotimeseriesviewer import SpatialPoint, SpatialExtent, px2geo
 
 
         img1 = self.img1
@@ -272,3 +273,4 @@ if __name__ == "__main__":
 
     unittest.main()
 
+QGIS_APP.quit()

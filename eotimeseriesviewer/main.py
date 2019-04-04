@@ -344,10 +344,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
         import webbrowser
-        from eotimeseriesviewer import DOCUMENTATION
+        from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        from qps.speclib.spectrallibraries import SpectralLibraryPanel
         if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
 
             self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)

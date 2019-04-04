@@ -15,7 +15,7 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
-from eotimeseriesviewer.utils import file_search
+from eotimeseriesviewer import file_search
 from eotimeseriesviewer.tests import initQgisApplication
 QGIS_APP = initQgisApplication()
 
@@ -51,3 +51,4 @@ if __name__ == "__main__":
 
 
 
+QGIS_APP.quit()

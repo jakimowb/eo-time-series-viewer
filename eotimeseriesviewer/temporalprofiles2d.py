@@ -29,15 +29,15 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 import numpy as np
-import pyqtgraph as pg
-from pyqtgraph import functions as fn
-from pyqtgraph import AxisItem
 from osgeo import ogr, osr, gdal
+import eotimeseriesviewer.externals.pyqtgraph as pg
+from eotimeseriesviewer.externals.pyqtgraph import functions as fn, AxisItem
+
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
-from qps.plotstyling.plotstyling import PlotStyle
+from .externals.qps.plotstyling.plotstyling import PlotStyle
 from eotimeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
 from eotimeseriesviewer.utils import *
-from qps.speclib.spectrallibraries import createQgsField
+from .externals.qps.speclib.spectrallibraries import createQgsField
 
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'

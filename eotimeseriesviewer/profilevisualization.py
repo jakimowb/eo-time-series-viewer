@@ -32,14 +32,9 @@ from eotimeseriesviewer import jp
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
 from qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
-from eotimeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
-from eotimeseriesviewer.sensorvisualization import SensorListModel
-from eotimeseriesviewer.temporalprofiles2d import LABEL_EXPRESSION_2D
-from eotimeseriesviewer.temporalprofiles3d import LABEL_EXPRESSION_3D
 
-import pyqtgraph as pg
-from pyqtgraph import functions as fn
-from pyqtgraph import AxisItem
+from eotimeseriesviewer.sensorvisualization import SensorListModel
+
 
 
 import numpy as np
@@ -1884,9 +1879,7 @@ class SpectralTemporalVisualization(QObject):
     @QtCore.pyqtSlot()
     def updatePlot3D(self):
         if ENABLE_OPENGL and OPENGL_AVAILABLE:
-            from pyqtgraph.opengl import GLViewWidget
-            from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
-            import pyqtgraph.opengl as gl
+
             from eotimeseriesviewer.temporalprofiles3dGL import ViewWidget3D
             assert isinstance(self.plot3D, ViewWidget3D)
 
