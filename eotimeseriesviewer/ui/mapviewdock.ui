@@ -12,8 +12,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>190</width>
-    <height>210</height>
+    <width>229</width>
+    <height>255</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -53,7 +53,7 @@
       <property name="title">
        <string>Map Properties</string>
       </property>
-      <property name="collapsed">
+      <property name="collapsed" stdset="0">
        <bool>true</bool>
       </property>
       <layout class="QFormLayout" name="formLayout">
@@ -289,10 +289,10 @@
            <height>0</height>
           </size>
          </property>
-         <property name="colorDialogTitle">
+         <property name="colorDialogTitle" stdset="0">
           <string>Select Map Canvas Background Color</string>
          </property>
-         <property name="color">
+         <property name="color" stdset="0">
           <color>
            <red>0</red>
            <green>0</green>
@@ -312,7 +312,7 @@
         </widget>
        </item>
        <item row="3" column="1">
-        <widget class="QgsProjectionSelectionWidget" name="btnCrs">
+        <widget class="QgsProjectionSelectionWidget" name="btnCrs" native="true">
          <property name="minimumSize">
           <size>
            <width>0</width>

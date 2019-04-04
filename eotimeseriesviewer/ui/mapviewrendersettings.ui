@@ -68,7 +68,7 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QFrame" name="">
+    <widget class="QFrame" name="frame">
      <layout class="QHBoxLayout" name="horizontalLayout_3">
       <property name="spacing">
        <number>2</number>

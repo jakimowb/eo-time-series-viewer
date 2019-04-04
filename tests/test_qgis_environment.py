@@ -20,8 +20,13 @@ class QGISTest(unittest.TestCase):
 
         from eotimeseriesviewer.tests import TestObjects
         layer = TestObjects.createVectorLayer()
-        layer2 = TestObjects.createRasterLayer()
-        QgsProject.instance().addMapLayers([layer, layer2])
+        layer2 = TestObjects.createVectorLayer()
+        layer2.setName('free layer')
+        layer3fix = TestObjects.createVectorLayer()
+        layer3fix.setName('Time Series Raster')
+        assert isinstance(layer3fix, QgsMapLayer)
+        layer3fix.setProperty('eotsv/fixed', True)
+        QgsProject.instance().addMapLayers([layer, layer2, layer3fix])
         w = QWidget()
         w.setLayout(QHBoxLayout())
 
@@ -52,7 +57,7 @@ class QGISTest(unittest.TestCase):
 
                 self.actionAddGroup = self.mDefActions.actionAddGroup()
                 self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
-
+                self.actionRemove = self.mDefActions.actionRemoveGroupOrLayer()
 
             def layerTreeView(self)->QgsLayerTreeView:
                 return self._view
@@ -69,8 +74,6 @@ class QGISTest(unittest.TestCase):
                 i = view.currentIndex()
                 view.currentGroupNode().insertGroup(i.row(), 'Group')
 
-
-
             def createContextMenu(self)->QMenu:
 
                 model = self.layerTreeModel()
@@ -78,7 +81,8 @@ class QGISTest(unittest.TestCase):
                 view = self.layerTreeView()
                 l = view.currentLayer()
                 i = view.currentIndex()
-
+                fixedLayers = [l for l in view.selectedLayersRecursive() if l.property('eotsv/fixed')]
+                self.actionRemove.setEnabled(len(fixedLayers) == 0)
 
                 def copyAction(menu:QMenu, action:QAction):
 
@@ -91,6 +95,10 @@ class QGISTest(unittest.TestCase):
                 menu.addAction(self.actionAddGroup)
                 menu.addAction(self.actionRename)
                 #copyAction(menu, self.actionRename)
+
+                menu.addAction(self.actionRemove)
+
+
 
                 #a = menu.addAction('Settings')
                 #from qps.layerproperties import showLayerPropertiesDialog
@@ -107,6 +115,7 @@ class QGISTest(unittest.TestCase):
 
 
         ltree.addLayer(layer)
+        ltree.addLayer(layer3fix)
         ltree.addLayer(layer2)
         grp = ltree.addGroup('Name')
         grp.addLayer(layer)
