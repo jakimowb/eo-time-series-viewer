@@ -33,19 +33,16 @@
 import json, enum, tempfile
 from qgis.utils import iface
 from qgis.gui import Targets, QgsMapLayerAction
-from pyqtgraph import PlotItem
-
+from qps.externals.pyqtgraph import PlotItem
+import qps.externals.pyqtgraph as pg
 from osgeo import ogr
 import collections
 from qps.utils import *
 from qps.speclib import speclibSettings
 from qps.models import *
-from qps.plotstyling.plotstyling import PlotStyle, createSetPlotStyleAction
-from qps.plotstyling.plotstyling import EDITOR_WIDGET_REGISTRY_KEY as PlotSettingsEditorWidgetKey
 
 
-#MODULE_IMPORT_PATH = 'enmapbox.gui.speclib.spec trallibraries'
-#get to now how we can import this module
+# get to now how we can import this module
 MODULE_IMPORT_PATH = None
 #'timeseriesviewer.plotstyling'
 for name, module in sys.modules.items():
@@ -797,7 +794,6 @@ class SpectralProfile(QgsFeature):
         Plots this profile to an new PyQtGraph window
         :return:
         """
-        import pyqtgraph as pg
         from .plotting import SpectralProfilePlotDataItem
         pi = SpectralProfilePlotDataItem(self)
         pi.setClickable(True)
@@ -1561,7 +1557,6 @@ class SpectralLibrary(QgsVectorLayer):
 
     def plot(self):
         """Create a plot widget and shows all SpectralProfile in this SpectralLibrary."""
-        import pyqtgraph as pg
         pg.mkQApp()
 
         win = pg.GraphicsWindow(title="Spectral Library")

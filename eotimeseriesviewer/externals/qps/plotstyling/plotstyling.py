@@ -21,16 +21,14 @@
 # noinspection PyPep8Naming
 
 import os, json, sys
+from qps.externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+from qps.utils import *
+from qps.models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
+import qps.externals.pyqtgraph as pg
+
 
 DEBUG = False
 
-from qgis.core import *
-from qgis.gui import QgsDialog
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-import numpy as np
-
-#get to now how we can import this module
 MODULE_IMPORT_PATH = None
 #'timeseriesviewer.plotstyling'
 for name, module in sys.modules.items():
@@ -39,9 +37,6 @@ for name, module in sys.modules.items():
         break
 
 
-from qps.utils import *
-from qps.models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
-import pyqtgraph as pg
 
 
 def log(msg: str):
@@ -363,7 +358,6 @@ class PlotStyle(QObject):
         p.setPen(self.linePen)
         p.drawLine(2, pm.height() - 2, pm.width() - 2, 2)
         p.translate(pm.width() / 2, pm.height() / 2)
-        from pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
         drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
         p.end()
         return pm

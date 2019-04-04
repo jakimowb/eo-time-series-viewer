@@ -207,7 +207,9 @@ def compileResourceFile(pathQrc:str, targetDir:str=None):
 
     bn = os.path.splitext(bn)[0]
     pathPy = os.path.join(dn, bn + '.py')
-    os.system('pyrcc5 -o {} {}'.format(pathPy, pathQrc))
+    cmd = 'pyrcc5 -o {} {}'.format(pathPy, pathQrc)
+    print(cmd)
+    os.system(cmd)
 
 def fileNeedsUpdate(file1, file2):
     """

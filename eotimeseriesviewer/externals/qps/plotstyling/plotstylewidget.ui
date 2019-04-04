@@ -245,7 +245,7 @@
   <customwidget>
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
+   <header>qps.externals.pyqtgraph</header>
   </customwidget>
  </customwidgets>
  <resources/>

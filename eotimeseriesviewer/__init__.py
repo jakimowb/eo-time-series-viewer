@@ -69,26 +69,27 @@ except:
     pass
 
 
+import eotimeseriesviewer.externals.qps
 try:
     import qps
 except Exception as ex:
-    sys.path.append(DIR_SITE_PACKAGES)
+    sys.modules['qps'] = eotimeseriesviewer.externals.qps
     import qps
 
 
 
-import qps.utils
-qps.utils.UI_DIRECTORIES.append(DIR_UI)
+import eotimeseriesviewer.externals.qps.utils
+eotimeseriesviewer.externals.qps.utils.UI_DIRECTORIES.append(DIR_UI)
 
 # import QPS modules
 
-from qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
-from qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
-from qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
-from qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-from qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile
-from qps.maptools import *
-
+from eotimeseriesviewer.externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
+from eotimeseriesviewer.externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
+from eotimeseriesviewer.externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
+from eotimeseriesviewer.externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
+from eotimeseriesviewer.externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel
+from eotimeseriesviewer.externals.qps.maptools import *
+from eotimeseriesviewer.externals.qps.utils import *
 
 def messageLog(msg, level=None):
     """
@@ -123,7 +124,7 @@ def initEditorWidgets():
     """
     Initialises QgsEditorWidgets
     """
-    import qps
+    import eotimeseriesviewer.externals.qps as qps
     qps.registerEditorWidgets()
 
 def initAll():

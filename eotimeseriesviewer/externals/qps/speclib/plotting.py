@@ -33,10 +33,9 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
 from qgis.gui import *
 from qgis.core import *
-from pyqtgraph.functions import mkPen
-import pyqtgraph as pg
-from pyqtgraph.widgets.PlotWidget import PlotWidget
-from pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
+from qps.externals.pyqtgraph.functions import mkPen
+import qps.externals.pyqtgraph as pg
+from qps.externals.pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
 from qps.utils import METRIC_EXPONENTS, convertMetricUnit
 from .spectrallibraries import SpectralProfile, SpectralLibrary, MIMEDATA_SPECLIB_LINK
 
