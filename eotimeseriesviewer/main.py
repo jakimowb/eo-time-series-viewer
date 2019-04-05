@@ -100,8 +100,8 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
 
-        from eotimeseriesviewer.mapvisualization import MapViewCollectionDock
-        self.dockMapViews = addDockWidget(MapViewCollectionDock(self))
+        from eotimeseriesviewer.mapvisualization import MapViewDock
+        self.dockMapViews = addDockWidget(MapViewDock(self))
 
         from qps.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))

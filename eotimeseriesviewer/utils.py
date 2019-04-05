@@ -34,7 +34,7 @@ from PyQt5.QtXml import QDomDocument
 from PyQt5 import uic
 from osgeo import gdal, ogr
 
-from .externals.qps.utils import *
+from eotimeseriesviewer.externals.qps.utils import *
 
 import weakref
 import numpy as np
@@ -46,6 +46,7 @@ from eotimeseriesviewer import DIR_UI
 UI_DIRECTORIES.append(DIR_UI)
 
 MAP_LAYER_STORES = [QgsProject.instance()]
+
 
 def qgisInstance():
     """

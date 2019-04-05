@@ -18,16 +18,18 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles
+from eotimeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles, TestObjects
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
-
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 QGIS_APP = initQgisApplication(loadProcessingFramework=False)
+
+from eotimeseriesviewer import initResources
+initResources()
 
 SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
 
@@ -82,6 +84,51 @@ class testclassMapVisualization(unittest.TestCase):
     def tearDown(self):
         """Runs after each test."""
         pass
+
+    def test_mapview(self):
+        TS = TestObjects.createTimeSeries()
+        lyr = TestObjects.createVectorLayer()
+        lyr.setName('Layer1 Name')
+        lyr.setTitle('Layer1 title')
+        lyr2 = TestObjects.createVectorLayer()
+        lyr2.setName('Layer2 name')
+        mapview = MapView()
+        mapview.show()
+
+        self.assertEqual([], mapview.sensors())
+
+        for sensor in TS.sensors():
+            self.assertIsInstance(sensor, SensorInstrument)
+            mapview.addSensor(sensor)
+        mapview.addLayer(lyr)
+        mapview.addLayer(lyr2)
+        self.assertEqual(TS.sensors(), mapview.sensors())
+
+
+        from eotimeseriesviewer.mapcanvas import MapCanvas
+        canvas = MapCanvas()
+        tsd = TS[0]
+        canvas.setTSD(tsd)
+        mapview.registerMapCanvas(canvas)
+
+        self.assertTrue(canvas in mapview.mapCanvases())
+        canvas.show()
+        self.assertEqual([], canvas.layers())
+        canvas.timedRefresh()
+        self.assertNotEqual([], canvas.layers())
+        l = canvas.layers()[-1]
+        canvas.setCrs(l.crs())
+        canvas.setExtent(l.extent())
+
+        if SHOW_GUI:
+
+            timer = QTimer()
+            timer.timeout.connect(canvas.timedRefresh)
+            timer.setInterval(500)
+            timer.start()
+            QGIS_APP.exec_()
+
+
 
 
     def test_mapcanvas(self):
@@ -305,6 +352,9 @@ class testclassMapVisualization(unittest.TestCase):
         s = ""
 
 
+
 if __name__ == "__main__":
     unittest.main()
     print('Done')
+
+QGIS_APP.quit()

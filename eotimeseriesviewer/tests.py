@@ -27,8 +27,9 @@ from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-import qps.testing
-from qps.utils import file_search
+import eotimeseriesviewer.externals.qps.testing
+import eotimeseriesviewer.externals.qps
+from eotimeseriesviewer.utils import file_search
 from osgeo import ogr, osr, gdal, gdal_array
 import example
 from eotimeseriesviewer import DIR_EXAMPLES
@@ -44,11 +45,11 @@ def initQgisApplication(*args, **kwds)->QgsApplication:
         return QgsApplication.instance()
     else:
 
-
-        app = qps.testing.initQgisApplication(*args, **kwds)
+        import eotimeseriesviewer.externals.qps.testing
+        app = eotimeseriesviewer.externals.qps.testing.initQgisApplication(*args, **kwds)
 
         import eotimeseriesviewer
-        eotimeseriesviewer.initEditorWidgets()
+        eotimeseriesviewer.initAll()
         return app
 
 def testRasterFiles()->list:
@@ -63,7 +64,7 @@ def createTimeSeries(self) -> TimeSeries:
     self.assertTrue(len(TS) > 0)
     return TS
 
-class TestObjects(qps.testing.TestObjects):
+class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
     """
     Creates objects to be used for testing. It is preferred to generate objects in-memory.
     """

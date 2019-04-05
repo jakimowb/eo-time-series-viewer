@@ -31,6 +31,7 @@ class QGISTest(unittest.TestCase):
         w.setLayout(QHBoxLayout())
 
         c = QgsMapCanvas()
+        c.setVisible(True)
         c.setLayers([layer])
         c.setDestinationCrs(layer.crs())
         c.setExtent(c.fullExtent())

@@ -7,12 +7,13 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from osgeo import gdal
 
+from eotimeseriesviewer.externals.qps.layerproperties import *
 from eotimeseriesviewer.utils import loadUI, qgisInstance
-from qps.classification.classificationscheme \
+from eotimeseriesviewer.externals.qps.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
 from eotimeseriesviewer.timeseries import TimeSeriesDatum
-from qps.layerproperties import *
+
 #the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
@@ -480,6 +481,8 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
         if index.isValid() and isinstance(model, LabelAttributeTableModel):
             if cname == model.cnLabel and isinstance(w, QComboBox):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
+
+
 
 
 class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):

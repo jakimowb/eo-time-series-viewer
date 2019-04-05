@@ -6,7 +6,8 @@ import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
-from eotimeseriesviewer.utils import file_search, TestObjects
+from eotimeseriesviewer.utils import file_search
+from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.tests import initQgisApplication
 from eotimeseriesviewer.sensorvisualization import *

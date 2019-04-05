@@ -291,7 +291,7 @@ class TestInit(unittest.TestCase):
 
         self.assertIsInstance(sensor2.id(), str)
 
-        lyr = sensor.mockupLayer()
+        lyr = sensor.proxyLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
 
     def test_datematching(self):

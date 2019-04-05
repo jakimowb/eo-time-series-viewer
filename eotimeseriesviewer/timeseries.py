@@ -145,7 +145,6 @@ def sensorIDtoProperties(idString:str)->tuple:
     return nb, px_size_x, px_size_y, dt, wl, wlu
 
 
-
 class SensorInstrument(QObject):
     """
     Describes a Sensor Configuration
@@ -153,13 +152,13 @@ class SensorInstrument(QObject):
     SensorNameSettingsPrefix = 'SensorName.'
     sigNameChanged = pyqtSignal(str)
 
-    LUT_Wavelengths = dict({'B':480,
-                            'G':570,
-                            'R':660,
-                            'nIR':850,
-                            'swIR':1650,
-                            'swIR1':1650,
-                            'swIR2':2150
+    LUT_Wavelengths = dict({'B': 480,
+                            'G': 570,
+                            'R': 660,
+                            'nIR': 850,
+                            'swIR': 1650,
+                            'swIR1': 1650,
+                            'swIR2': 2150
                             })
 
     def __init__(self, sid:str, sensor_name:str=None, band_names:list = None):
@@ -193,21 +192,29 @@ class SensorInstrument(QObject):
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
-        self.mMockupLayer = QgsRasterLayer(self.mMockupDS.GetFileList()[0])
 
-
-    def mockupLayer(self)->QgsRasterLayer:
-
-        #create an in-memory data set
-        return self.mMockupLayer
+    def proxyLayer(self)->QgsRasterLayer:
+        """
+        Creates an "empty" layer that can be used as proxy for band names, data types and render styles
+        :return: QgsRasterLayer
+        """
+        lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0], name=self.name(), sensor=self)
+        lyr.nameChanged.connect(lambda l=lyr: self.setName(l.name()))
+        lyr.setCustomProperty('eotsv/sensorid', self.id())
+        self.sigNameChanged.connect(lyr.setName)
+        return lyr
 
     def id(self)->str:
+        """
+        Returns the Sensor id
+        :return: str
+        """
         return self.mId
 
     def _sensorSettingsKey(self):
         return SensorInstrument.SensorNameSettingsPrefix+self.mId
 
-    def setName(self, name:str):
+    def setName(self, name: str):
         """
         Sets the sensor/product name
         :param name: str
@@ -254,6 +261,20 @@ class SensorInstrument(QObject):
 
         return '\n'.join(info)
 
+
+
+class SensorProxyLayer(QgsRasterLayer):
+
+    def __init__(self, *args, sensor:SensorInstrument, **kwds):
+        super(SensorProxyLayer, self).__init__(*args, **kwds)
+        self.mSensor = sensor
+
+    def sensor(self)->SensorInstrument:
+        """
+        Returns the SensorInstrument this layer relates to
+        :return: SensorInstrument
+        """
+        return self.mSensor
 
 def verifyInputImage(datasource):
     """

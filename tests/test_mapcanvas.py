@@ -91,30 +91,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(canvas.isVisible())
         self.assertTrue(canvas.isVisibleToViewport())
 
-        # test the pipeline
-        canvas.addToRefreshPipeLine([lyr1, lyr2])
-        self.assertTrue(len(canvas.layers()) == 0)
-        canvas.setExtent(canvas.fullExtent())
-        canvas.timedRefresh()
-        self.assertTrue(len(canvas.layers()) == 2)
-
-        canvas.addToRefreshPipeLine(MapCanvas.Command.HideRasters)
-        canvas.timedRefresh()
-        self.assertTrue(len(canvas.layers()) == 0)
-
-        canvas.addToRefreshPipeLine(MapCanvas.Command.ShowRasters)
-        canvas.timedRefresh()
-        self.assertTrue(len(canvas.layers()) == 2)
-
-
-        canvas.addToRefreshPipeLine(MapCanvas.Command.RemoveRasters)
-        canvas.timedRefresh()
-        self.assertTrue(len(canvas.layers()) == 0)
-
-        canvas.addToRefreshPipeLine([lyr1, lyr2])
-        self.assertTrue(len(canvas.layers()) == 0)
-        canvas.timedRefresh()
-        self.assertTrue(len(canvas.layers()) == 2)
 
         if SHOW_GUI:
             canvas.setExtent(canvas.fullExtent())
@@ -182,28 +158,13 @@ class testclassDialogTest(unittest.TestCase):
         p0 = TimeSeriesSource.create(files[0]).qgsMimeDataUtilsUri()
         p1 = TimeSeriesSource.create(files[1]).qgsMimeDataUtilsUri()
 
-        M.addMapLayerSources([p0])
-        self.assertTrue(len(M) == 1)
-        M.addMapLayerSources([p1])
-        self.assertTrue(len(M) == 2)
-
-        vl = M.visibleLayers()
-        self.assertIsInstance(vl, list)
-        self.assertTrue(len(vl) == 2)
-        M.setLayerVisibility(0, False)
-        self.assertTrue(len(M.visibleLayers()) == 1)
-        M.setLayerVisibility(QgsRasterLayer, False)
-        self.assertTrue(len(M.visibleLayers()) == 0)
-        M.setLayerVisibility(QgsRasterLayer, True)
-        self.assertTrue(len(M.visibleLayers()) == 2)
-
-        M.clear()
         self.assertTrue(len(M) == 0)
-
+        M.insertMapLayerSources(0, [p0, p1])
+        self.assertTrue(len(M) == 2)
 
         lyr1 = QgsRasterLayer(files[3])
         lyr2 = QgsRasterLayer(files[4])
-        M.addMapLayerSources([lyr1, lyr2])
+        M.insertMapLayerSources(0, [lyr1, lyr2])
 
         from qgis.PyQt.QtWidgets import QTableView
         TV = QTableView()

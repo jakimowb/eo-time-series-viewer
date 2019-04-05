@@ -78,9 +78,6 @@ except Exception as ex:
 
 
 
-import eotimeseriesviewer.externals.qps.utils
-eotimeseriesviewer.externals.qps.utils.UI_DIRECTORIES.append(DIR_UI)
-
 # import QPS modules
 
 from eotimeseriesviewer.externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
@@ -90,6 +87,7 @@ from eotimeseriesviewer.externals.qps.models import Option, OptionListModel, Tre
 from eotimeseriesviewer.externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import *
 from eotimeseriesviewer.externals.qps.utils import *
+eotimeseriesviewer.externals.qps.utils.UI_DIRECTORIES.append(DIR_UI)
 
 def messageLog(msg, level=None):
     """
