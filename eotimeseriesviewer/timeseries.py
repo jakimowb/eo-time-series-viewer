@@ -440,13 +440,12 @@ class TimeSeriesSource(object):
 
 
 class TimeSeriesDatum(QObject):
-
+    """
+    A containe to store all image source related to a single observation date and sensor.
+    """
     sigVisibilityChanged = pyqtSignal(bool)
     sigRemoveMe = pyqtSignal()
     sigSourcesChanged = pyqtSignal()
-
-
-
 
     def __init__(self, timeSeries, date:np.datetime64, sensor:SensorInstrument):
         """
@@ -465,9 +464,6 @@ class TimeSeriesDatum(QObject):
         self.mMasks = []
         self.mVisibility = True
         self.mTimeSeries = timeSeries
-
-
-
 
     def addSource(self, source):
         """
@@ -488,8 +484,6 @@ class TimeSeriesDatum(QObject):
                 return source
             else:
                 return None
-
-
 
     def setVisibility(self, b:bool):
         """
@@ -604,6 +598,19 @@ class TimeSeriesDatum(QObject):
         if not isinstance(other, TimeSeriesDatum):
             return False
         return self.id() == other.id() and self.mSources == other.mSources
+
+
+    def __contains__(self, item):
+        return item in self.mSources
+
+    def __getitem__(self, slice):
+        return self.mSources[slice]
+
+    def __iter__(self):
+        """
+        Iterator over all sources
+        """
+        return iter(self.mSources)
 
     def __len__(self)->int:
         """
@@ -835,7 +842,7 @@ class TimeSeries(QObject):
 
 
     def __init__(self, imageFiles=None, maskFiles=None):
-        QObject.__init__(self)
+        super(TimeSeries, self).__init__()
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None

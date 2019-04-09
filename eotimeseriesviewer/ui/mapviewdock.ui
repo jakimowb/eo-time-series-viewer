@@ -17,7 +17,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Maps &amp;&amp; Map Views</string>
+   <string>Mapping</string>
   </property>
   <widget class="QWidget" name="dockWidgetContents">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -43,6 +43,9 @@
       </property>
       <item>
        <widget class="QToolButton" name="btnRemoveMapView">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
@@ -97,26 +100,6 @@
         </property>
        </spacer>
       </item>
-      <item>
-       <widget class="QToolButton" name="btnHighlightMapView">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>...</string>
-        </property>
-        <property name="icon">
-         <iconset resource="resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
-        </property>
-        <property name="autoRaise">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
      </layout>
     </item>
     <item>
@@ -151,9 +134,13 @@ QToolBox::tab:selected { /* italicize selected tabs */
          <x>0</x>
          <y>0</y>
          <width>452</width>
-         <height>389</height>
+         <height>386</height>
         </rect>
        </property>
+       <attribute name="icon">
+        <iconset resource="../../../../QGIS/images/images.qrc">
+         <normaloff>:/images/themes/default/mLayoutItemMap.svg</normaloff>:/images/themes/default/mLayoutItemMap.svg</iconset>
+       </attribute>
        <attribute name="label">
         <string>Map Properties</string>
        </attribute>
@@ -453,14 +440,6 @@ QToolBox::tab:selected { /* italicize selected tabs */
     <string>Create a new map view</string>
    </property>
   </action>
-  <action name="actionHighlightMapView">
-   <property name="text">
-    <string>?</string>
-   </property>
-   <property name="toolTip">
-    <string>Click to highlight this map view</string>
-   </property>
-  </action>
   <action name="actionSetSubsetSize">
    <property name="text">
     <string>setSubsetSize</string>
@@ -483,6 +462,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>

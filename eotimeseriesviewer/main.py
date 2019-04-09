@@ -639,7 +639,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def onTimeSeriesChanged(self, *args):
 
         if not self.mSpatialMapExtentInitialized:
-            if len(self.mTimeSeries.mTSDs) > 0:
+            if len(self.mTimeSeries) > 0:
                 if len(self.spatialTemporalVis.MVC) == 0:
                     # add an empty MapView by default
                     self.spatialTemporalVis.createMapView()
@@ -653,7 +653,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-        if len(self.mTimeSeries.mTSDs) == 0:
+        if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False
 
 

@@ -32,12 +32,13 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtXml import QDomDocument
 
 
-from .utils import *
+
 from .timeseries import TimeSeriesDatum, SensorProxyLayer, SensorInstrument
 from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.maptools import *
 from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .externals.qps.utils import *
 import eotimeseriesviewer.settings
 
 
@@ -765,7 +766,7 @@ class MapCanvas(QgsMapCanvas):
 
                 if newRenderer is not None:
                     self.mMapView.sensorProxyLayer(l.sensor()).setRenderer(newRenderer)
-                    #self.sigChangeSVRequest.emit(self, )
+                    # self.sigChangeSVRequest.emit(self, )
                     self.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
                     return
         s = ""
@@ -791,7 +792,7 @@ class MapCanvas(QgsMapCanvas):
             self.saveAsImage(path, None, fileType)
             eotimeseriesviewer.settings.setValue(eotimeseriesviewer.settings.Keys.ScreenShotDirectory, os.path.dirname(path))
 
-    def setSpatialExtent(self, spatialExtent:SpatialExtent):
+    def setSpatialExtent(self, spatialExtent: SpatialExtent):
         """
         Sets the SpatialExtent to be shown.
         :param spatialExtent: SpatialExtent
@@ -801,7 +802,7 @@ class MapCanvas(QgsMapCanvas):
             spatialExtent = spatialExtent.toCrs(self.crs())
             self.setExtent(spatialExtent)
 
-    def setSpatialCenter(self, spatialPoint:SpatialPoint):
+    def setSpatialCenter(self, spatialPoint: SpatialPoint):
         """
         Sets the map center
         :param spatialPoint: SpatialPoint

@@ -50,536 +50,6 @@ KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
 KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 
-class RendererWidgetModifications(object):
-
-    def __init__(self, *args):
-
-        self.initWidgetNames()
-        self.mBandComboBoxes = []
-        s = ""
-
-    def modifyGridLayout(self):
-
-        gridLayoutOld = self.layout().children()[0]
-        self.gridLayout = QGridLayout()
-        while gridLayoutOld.count() > 0:
-            w = gridLayoutOld.takeAt(0)
-            w = w.widget()
-            gridLayoutOld.removeWidget(w)
-            w.setVisible(False)
-
-        self.gridLayout.setSpacing(2)
-
-        l = self.layout()
-        l.removeItem(gridLayoutOld)
-        if isinstance(l, QBoxLayout):
-            l.insertItem(0, self.gridLayout)
-            self.layout().addStretch()
-        elif isinstance(l, QGridLayout):
-            l.addItem(self.gridLayout, 0, 0)
-
-
-        minMaxWidget = self.minMaxWidget()
-        if isinstance(minMaxWidget, QWidget):
-            minMaxWidget.layout().itemAt(0).widget().collapsedStateChanged.connect(self.onCollapsed)
-
-
-    def initWidgetNames(self, parent=None):
-        """
-        Create a python variables to access QObjects which are child of parent
-        :param parent: QObject, self by default
-        """
-        if parent is None:
-            parent = self
-
-        for c in parent.children():
-            setattr(parent, c.objectName(), c)
-
-
-
-
-
-    def onCollapsed(self, b):
-        hint = self.sizeHint()
-        self.parent().adjustSize()
-       # self.parent().setFixedSize(hint)
-        self.parent().parent().adjustSize()
-
-    def connectSliderWithBandComboBox(self, slider, combobox):
-        """
-        Connects a band-selection slider with a band-selection combobox
-        :param widget: QgsRasterRendererWidget
-        :param slider: QSlider to show the band number
-        :param combobox: QComboBox to show the band name
-        :return:
-        """
-        assert isinstance(self, QgsRasterRendererWidget)
-        assert isinstance(slider, QSlider)
-        assert isinstance(combobox, QComboBox)
-
-        # init the slider
-        lyr = self.rasterLayer()
-        if lyr.isValid():
-            nb = lyr.dataProvider().bandCount()
-        else:
-            ds = gdal.Open(lyr.source())
-            if isinstance(ds, gdal.Dataset):
-                nb = ds.RasterCount
-            else:
-                nb = 1
-        slider.setTickPosition(QSlider.TicksAbove)
-        slider.valueChanged.connect(combobox.setCurrentIndex)
-        slider.setMinimum(1)
-        slider.setMaximum(nb)
-        intervals = [1, 2, 5, 10, 25, 50]
-        for interval in intervals:
-            if nb / interval < 10:
-                break
-        slider.setTickInterval(interval)
-        slider.setPageStep(interval)
-
-        def onBandValueChanged(self, idx, slider):
-            assert isinstance(self, QgsRasterRendererWidget)
-            assert isinstance(idx, int)
-            assert isinstance(slider, QSlider)
-
-            # i = slider.value()
-            slider.blockSignals(True)
-            slider.setValue(idx)
-            slider.blockSignals(False)
-
-            # self.minMaxWidget().setBands(myBands)
-            # self.widgetChanged.emit()
-
-        if self.comboBoxWithNotSetItem(combobox):
-            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx, slider))
-        else:
-            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx + 1, slider))
-
-        s = ""
-
-    def comboBoxWithNotSetItem(self, cb)->bool:
-        assert isinstance(cb, QComboBox)
-        data = cb.itemData(0, role=Qt.DisplayRole)
-        return re.search(r'^(not set|none|nonetype)$', str(data).strip(), re.I) is not None
-
-    def setLayoutItemVisibility(self, grid, isVisible):
-        assert isinstance(self, QgsRasterRendererWidget)
-        for i in range(grid.count()):
-            item = grid.itemAt(i)
-            if isinstance(item, QLayout):
-                s = ""
-            elif isinstance(item, QWidgetItem):
-                item.widget().setVisible(isVisible)
-                item.widget().setParent(self)
-            else:
-                s = ""
-
-    def setBandSelection(self, key):
-        key = key.upper()
-        if key == 'DEFAULT':
-            bandIndices = defaultBands(self.rasterLayer())
-        else:
-            colors = re.split('[ ,;:]', key)
-
-            bandIndices = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
-
-        n = min(len(bandIndices), len(self.mBandComboBoxes))
-        for i in range(n):
-            cb = self.mBandComboBoxes[i]
-            bandIndex = bandIndices[i]
-            if self.comboBoxWithNotSetItem(cb):
-                cb.setCurrentIndex(bandIndex+1)
-            else:
-                cb.setCurrentIndex(bandIndex)
-
-
-    def fixBandNames(self, comboBox):
-        """
-        Changes the QGIS default bandnames ("Band 001") to more meaningfull information including gdal.Dataset.Descriptions.
-        :param widget:
-        :param comboBox:
-        """
-        nb = self.rasterLayer().bandCount()
-
-        assert isinstance(self, QgsRasterRendererWidget)
-        assert isinstance(comboBox, QComboBox)
-        #comboBox.clear()
-        m = comboBox.model()
-        assert isinstance(m, QStandardItemModel)
-        bandNames = displayBandNames(self.rasterLayer())
-
-
-        b = 1 if nb < comboBox.count() else 0
-        for i in range(nb):
-            item = m.item(i+b,0)
-            assert isinstance(item, QStandardItem)
-            item.setData(bandNames[i], Qt.DisplayRole)
-            item.setData('Band {} "{}"'.format(i+1, bandNames[i]), Qt.ToolTipRole)
-
-
-
-
-
-
-
-
-def displayBandNames(provider_or_dataset, bands=None):
-    results = None
-    if isinstance(provider_or_dataset, QgsRasterLayer):
-        return displayBandNames(provider_or_dataset.dataProvider())
-    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
-        if provider_or_dataset.name() == 'gdal':
-            ds = gdal.Open(provider_or_dataset.dataSourceUri())
-            results = displayBandNames(ds, bands=bands)
-        else:
-            # same as in QgsRasterRendererWidget::displayBandName
-            results = []
-            if bands is None:
-                bands = range(1, provider_or_dataset.bandCount() + 1)
-            for band in bands:
-                result = provider_or_dataset.generateBandName(band)
-                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
-                if colorInterp != 'Undefined':
-                    result += '({})'.format(colorInterp)
-                results.append(result)
-
-    elif isinstance(provider_or_dataset, gdal.Dataset):
-        results = []
-        if bands is None:
-            bands = range(1, provider_or_dataset.RasterCount+1)
-        for band in bands:
-            b = provider_or_dataset.GetRasterBand(band)
-            descr = b.GetDescription()
-            if len(descr) == 0:
-                descr = 'Band {}'.format(band)
-            results.append(descr)
-
-    return results
-
-
-class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return SingleBandPseudoColorRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
-
-        self.gridLayout = self.layout().children()[0]
-        assert isinstance(self.gridLayout, QGridLayout)
-        for i in range(self.gridLayout.count()):
-            w = self.gridLayout.itemAt(i)
-            w = w.widget()
-            if isinstance(w, QWidget):
-                setattr(self, w.objectName(), w)
-
-        toReplace = [self.mBandComboBox, self.mMinLabel, self.mMaxLabel, self.mMinLineEdit, self.mMaxLineEdit]
-        for w in toReplace:
-            self.gridLayout.removeWidget(w)
-            w.setVisible(False)
-        self.mBandSlider = QSlider(Qt.Horizontal, self)
-        self.mBandComboBoxes.append(self.mBandComboBox)
-        self.fixBandNames(self.mBandComboBox)
-        self.connectSliderWithBandComboBox(self.mBandSlider, self.mBandComboBox)
-
-        self.mBtnBar = QFrame(self)
-        self.initActionButtons()
-        grid = QGridLayout(self)
-        grid.addWidget(self.mBtnBar, 0, 0, 1, 4, Qt.AlignLeft)
-        grid.addWidget(self.mBandSlider, 1, 0, 1, 2)
-        grid.addWidget(self.mBandComboBox, 1, 2, 1, 2)
-        grid.addWidget(self.mMinLabel, 2, 0)
-        grid.addWidget(self.mMinLineEdit, 2, 1)
-        grid.addWidget(self.mMaxLabel, 2, 2)
-        grid.addWidget(self.mMaxLineEdit, 2, 3)
-
-        grid.setColumnStretch(0, 0)
-        grid.setColumnStretch(1, 2)
-        grid.setColumnStretch(2, 0)
-        grid.setColumnStretch(3, 2)
-        grid.setSpacing(2)
-        self.gridLayout.addItem(grid, 0, 1, 2, 4)
-        self.gridLayout.setSpacing(2)
-        self.setLayoutItemVisibility(grid, True)
-
-
-    def initActionButtons(self):
-
-            wl, wlu = parseWavelength(self.rasterLayer())
-            self.wavelengths = wl
-            self.wavelengthUnit = wlu
-
-            self.mBtnBar.setLayout(QHBoxLayout(self.mBtnBar))
-            self.mBtnBar.layout().addStretch()
-            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-            self.mBtnBar.layout().setSpacing(2)
-
-            self.actionSetDefault = QAction('Default', self)
-            self.actionSetRed = QAction('R', self)
-            self.actionSetGreen = QAction('G', self)
-            self.actionSetBlue = QAction('B', self)
-            self.actionSetNIR = QAction('nIR', self)
-            self.actionSetSWIR = QAction('swIR', self)
-
-            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
-            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
-            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
-            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
-            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
-
-
-            def addBtnAction(action):
-                btn = QToolButton(self.mBtnBar)
-                btn.setDefaultAction(action)
-                self.mBtnBar.layout().addWidget(btn)
-                self.insertAction(None, action)
-                return btn
-
-            self.btnDefault = addBtnAction(self.actionSetDefault)
-            self.btnRed = addBtnAction(self.actionSetRed)
-            self.btnGreen = addBtnAction(self.actionSetGreen)
-            self.btnBlue = addBtnAction(self.actionSetRed)
-            self.btnNIR = addBtnAction(self.actionSetNIR)
-            self.btnSWIR = addBtnAction(self.actionSetSWIR)
-
-            b = self.wavelengths is not None
-            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
-                a.setEnabled(b)
-
-
-def displayBandNames(provider_or_dataset, bands=None):
-    results = None
-    if isinstance(provider_or_dataset, QgsRasterLayer):
-        return displayBandNames(provider_or_dataset.dataProvider())
-    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
-        if provider_or_dataset.name() == 'gdal':
-            ds = gdal.Open(provider_or_dataset.dataSourceUri())
-            results = displayBandNames(ds, bands=bands)
-        else:
-            # same as in QgsRasterRendererWidget::displayBandName
-            results = []
-            if bands is None:
-                bands = range(1, provider_or_dataset.bandCount() + 1)
-            for band in bands:
-                result = provider_or_dataset.generateBandName(band)
-                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
-                if colorInterp != 'Undefined':
-                    result += '({})'.format(colorInterp)
-                results.append(result)
-
-    elif isinstance(provider_or_dataset, gdal.Dataset):
-        results = []
-        if bands is None:
-            bands = range(1, provider_or_dataset.RasterCount+1)
-        for band in bands:
-            b = provider_or_dataset.GetRasterBand(band)
-            descr = b.GetDescription()
-            if len(descr) == 0:
-                descr = 'Band {}'.format(band)
-            results.append(descr)
-
-    return results
-
-
-class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return SingleBandGrayRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(SingleBandGrayRendererWidget, self).__init__(layer, extent)
-
-        self.modifyGridLayout()
-        self.mGrayBandSlider = QSlider(Qt.Horizontal, self)
-        self.mBandComboBoxes.append(self.mGrayBandComboBox)
-        self.fixBandNames(self.mGrayBandComboBox)
-        self.connectSliderWithBandComboBox(self.mGrayBandSlider, self.mGrayBandComboBox)
-
-        self.mBtnBar = QFrame(self)
-        self.initActionButtons()
-
-        self.gridLayout.addWidget(self.mGrayBandLabel, 0, 0)
-        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 4, Qt.AlignLeft)
-
-        self.gridLayout.addWidget(self.mGrayBandSlider, 1, 1, 1, 2)
-        self.gridLayout.addWidget(self.mGrayBandComboBox, 1, 3, 1, 2)
-
-        self.gridLayout.addWidget(self.label, 2, 0)
-        self.gridLayout.addWidget(self.mGradientComboBox, 2, 1, 1, 4)
-
-        self.gridLayout.addWidget(self.mMinLabel, 3, 1)
-        self.gridLayout.addWidget(self.mMinLineEdit, 3, 2)
-        self.gridLayout.addWidget(self.mMaxLabel, 3, 3)
-        self.gridLayout.addWidget(self.mMaxLineEdit, 3, 4)
-
-        self.gridLayout.addWidget(self.mContrastEnhancementLabel, 4, 0)
-        self.gridLayout.addWidget(self.mContrastEnhancementComboBox, 4, 1, 1, 4)
-        self.gridLayout.setSpacing(2)
-
-        self.setLayoutItemVisibility(self.gridLayout, True)
-
-        self.mDefaultRenderer = layer.renderer()
-        self.setFromRenderer(self.mDefaultRenderer)
-
-    def initActionButtons(self):
-
-        wl, wlu = parseWavelength(self.rasterLayer())
-        self.wavelengths = wl
-        self.wavelengthUnit = wlu
-
-        self.mBtnBar.setLayout(QHBoxLayout(self))
-        self.mBtnBar.layout().addStretch()
-        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-        self.mBtnBar.layout().setSpacing(2)
-
-        self.actionSetDefault = QAction('Default', self)
-        self.actionSetRed = QAction('R', self)
-        self.actionSetGreen = QAction('G', self)
-        self.actionSetBlue = QAction('B', self)
-        self.actionSetNIR = QAction('nIR', self)
-        self.actionSetSWIR = QAction('swIR', self)
-
-        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-        self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
-        self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
-        self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
-        self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
-        self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
-
-
-        def addBtnAction(action):
-            btn = QToolButton(self.mBtnBar)
-            btn.setDefaultAction(action)
-            self.mBtnBar.layout().addWidget(btn)
-            self.insertAction(None, action)
-            return btn
-
-        self.btnDefault = addBtnAction(self.actionSetDefault)
-        self.btnBlue = addBtnAction(self.actionSetBlue)
-        self.btnGreen = addBtnAction(self.actionSetGreen)
-        self.btnRed = addBtnAction(self.actionSetRed)
-        self.btnNIR = addBtnAction(self.actionSetNIR)
-        self.btnSWIR = addBtnAction(self.actionSetSWIR)
-
-        b = self.wavelengths is not None
-        for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
-            a.setEnabled(b)
-
-
-class PalettedRendererWidget(QgsPalettedRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return PalettedRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(PalettedRendererWidget, self).__init__(layer, extent)
-
-        #self.modifyGridLayout()
-
-        self.fixBandNames(self.mBandComboBox)
-        self.mTreeView.setMinimumSize(QSize(10,10))
-        s = ""
-
-
-class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return MultiBandColorRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(MultiBandColorRendererWidget, self).__init__(layer, extent)
-
-        self.modifyGridLayout()
-
-        self.mRedBandSlider = QSlider(Qt.Horizontal, self)
-        self.mGreenBandSlider = QSlider(Qt.Horizontal, self)
-        self.mBlueBandSlider = QSlider(Qt.Horizontal, self)
-
-        self.mBandComboBoxes.extend([self.mRedBandComboBox, self.mGreenBandComboBox, self.mBlueBandComboBox])
-        self.mSliders = [self.mRedBandSlider, self.mGreenBandSlider, self.mBlueBandSlider]
-        for cbox, slider in zip(self.mBandComboBoxes, self.mSliders):
-            self.connectSliderWithBandComboBox(slider, cbox)
-
-        self.fixBandNames(self.mRedBandComboBox)
-        self.fixBandNames(self.mGreenBandComboBox)
-        self.fixBandNames(self.mBlueBandComboBox)
-
-        self.mBtnBar = QFrame(self)
-        self.mBtnBar.setLayout(QHBoxLayout(self.mBtnBar))
-        self.initActionButtons()
-        self.mBtnBar.layout().addStretch()
-        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-        self.mBtnBar.layout().setSpacing(2)
-
-        #self.gridLayout.deleteLater()
-#        self.gridLayout = newGrid
-        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 3)
-        self.gridLayout.addWidget(self.mRedBandLabel, 1, 0)
-        self.gridLayout.addWidget(self.mRedBandSlider, 1, 1)
-        self.gridLayout.addWidget(self.mRedBandComboBox, 1, 2)
-        self.gridLayout.addWidget(self.mRedMinLineEdit, 1, 3)
-        self.gridLayout.addWidget(self.mRedMaxLineEdit, 1, 4)
-
-        self.gridLayout.addWidget(self.mGreenBandLabel, 2, 0)
-        self.gridLayout.addWidget(self.mGreenBandSlider, 2, 1)
-        self.gridLayout.addWidget(self.mGreenBandComboBox, 2, 2)
-        self.gridLayout.addWidget(self.mGreenMinLineEdit, 2, 3)
-        self.gridLayout.addWidget(self.mGreenMaxLineEdit, 2, 4)
-
-        self.gridLayout.addWidget(self.mBlueBandLabel, 3, 0)
-        self.gridLayout.addWidget(self.mBlueBandSlider, 3, 1)
-        self.gridLayout.addWidget(self.mBlueBandComboBox, 3, 2)
-        self.gridLayout.addWidget(self.mBlueMinLineEdit, 3, 3)
-        self.gridLayout.addWidget(self.mBlueMaxLineEdit, 3, 4)
-
-        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmLabel, 4, 0, 1, 2)
-        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmComboBox, 4, 2, 1, 3)
-
-        self.setLayoutItemVisibility(self.gridLayout, True)
-
-
-        self.mRedBandLabel.setText('R')
-        self.mGreenBandLabel.setText('G')
-        self.mBlueBandLabel.setText('B')
-
-        self.mDefaultRenderer = layer.renderer()
-
-
-
-    def initActionButtons(self):
-
-        wl, wlu = parseWavelength(self.rasterLayer())
-        self.wavelengths = wl
-        self.wavelengthUnit = wlu
-
-        self.actionSetDefault = QAction('Default', self)
-        self.actionSetTrueColor = QAction('RGB', self)
-        self.actionSetCIR = QAction('nIR', self)
-        self.actionSet453 = QAction('swIR', self)
-
-        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-        self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
-        self.actionSetCIR.triggered.connect(lambda: self.setBandSelection('nIR,R,G'))
-        self.actionSet453.triggered.connect(lambda: self.setBandSelection('nIR,swIR,R'))
-
-
-        def addBtnAction(action):
-            btn = QToolButton(self.mBtnBar)
-            btn.setDefaultAction(action)
-            self.mBtnBar.layout().addWidget(btn)
-            self.insertAction(None, action)
-            return btn
-
-        self.btnDefault = addBtnAction(self.actionSetDefault)
-        self.btnTrueColor = addBtnAction(self.actionSetTrueColor)
-        self.btnCIR = addBtnAction(self.actionSetCIR)
-        self.btn453 = addBtnAction(self.actionSet453)
-
-        b = self.wavelengths is not None
-        for a in [self.actionSetCIR, self.actionSet453, self.actionSetTrueColor]:
-            a.setEnabled(b)
 
 
 class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
@@ -712,10 +182,15 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.btnToggleCrosshair.setMenu(m)
         self.btnToggleCrosshair.setDefaultAction(self.actionToggleCrosshairVisibility)
         self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewHidden)
-        self.tbName.textChanged.connect(self.sigTitleChanged)
         self.tbName.textChanged.connect(self.onTitleChanged)
         self.actionSetCrosshairStyle.triggered.connect(self.onChangeCrosshairStyle)
+        self.actionToggleMapViewHidden.toggled.connect(self.sigMapViewVisibility.emit)
+        self.actionToggleCrosshairVisibility.toggled.connect(self.setCrosshairVisibility)
 
+        self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
+        self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
+
+        self.mTimeSeries = None
         self.mSensorLayerList = list()
         self.mMapCanvases = list()
         assert isinstance(self.mLayerTreeView, QgsLayerTreeView)
@@ -779,7 +254,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         if isinstance(style, CrosshairStyle):
             self.setCrosshairStyle(style)
 
-    def setIsVisible(self, b: bool):
+    def setVisibility(self, b: bool):
         """
         Sets the map view visibility
         :param b: bool
@@ -815,13 +290,26 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         return self.mMapCanvases[:]
 
-    def applyStyles(self):
-        """Applies all style changes to all sensor views."""
-        for sensorView in self.mSensorViews.values():
-            sensorView.applyStyle()
-
     def onTitleChanged(self, *args):
         self.setWindowTitle('Map View "{}"'.format(self.title()))
+        self.sigTitleChanged.emit(self.title())
+
+    def setTimeSeries(self, timeSeries:TimeSeries):
+        """
+        Conntects the MapView with a TimeSeries.
+        :param timeSeries: TimeSeries
+        """
+        assert isinstance(timeSeries, TimeSeries)
+
+        for s in self.sensors():
+            self.removeSensor(s)
+
+        self.mTimeSeries = timeSeries
+        self.mTimeSeries.sigSensorAdded.connect(self.addSensor)
+        self.mTimeSeries.sigSensorRemoved.connect(self.removeSensor)
+        for s in timeSeries.sensors():
+            self.addSensor(s)
+
 
     def setTitle(self, title:str):
         """
@@ -857,7 +345,17 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         Seths the CrosshairStyle of this MapView
         :param crosshairStyle: CrosshairStyle
         """
-        self.onCrosshairChanged(crosshairStyle)
+        from eotimeseriesviewer import CrosshairStyle
+        assert isinstance(crosshairStyle, CrosshairStyle)
+        srcCanvas = self.sender()
+        if isinstance(srcCanvas, MapCanvas):
+            dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
+        else:
+            dstCanvases = [c for c in self.mapCanvases()]
+
+        for mapCanvas in dstCanvases:
+            mapCanvas.setCrosshairStyle(crosshairStyle, emitSignal=False)
+
 
     def setHighlighted(self, b=True, timeout=1000):
         """
@@ -891,8 +389,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         assert isinstance(mapCanvas, MapCanvas)
 
         mapCanvas.setMapView(self)
-        mapCanvas.sigCrosshairVisibilityChanged.connect(self.onCrosshairChanged)
-        mapCanvas.sigCrosshairStyleChanged.connect(self.onCrosshairChanged)
+        mapCanvas.sigCrosshairVisibilityChanged.connect(self.setCrosshairVisibility)
+        mapCanvas.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
         self.mMapCanvases.append(mapCanvas)
         self.sigMapViewVisibility.connect(mapCanvas.refresh)
 
@@ -909,26 +407,19 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
                 return style
         return None
 
-    def onCrosshairChanged(self, obj):
+    def setCrosshairVisibility(self, b:bool):
         """
-        Synchronizes all crosshair positions. Takes care of CRS differences.
-        :param spatialPoint: SpatialPoint of the new Crosshair position
+        Enables / diables the map canvas crosshair.
+        :param b: bool
         """
-        from eotimeseriesviewer import CrosshairStyle
-
         srcCanvas = self.sender()
         if isinstance(srcCanvas, MapCanvas):
             dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
         else:
             dstCanvases = [c for c in self.mapCanvases()]
 
-        if isinstance(obj, bool):
-            for mapCanvas in dstCanvases:
-                mapCanvas.setCrosshairVisibility(obj, emitSignal=False)
-
-        if isinstance(obj, CrosshairStyle):
-            for mapCanvas in dstCanvases:
-                mapCanvas.setCrosshairStyle(obj, emitSignal=False)
+        for mapCanvas in dstCanvases:
+            mapCanvas.setCrosshairVisibility(b, emitSignal=False)
 
     def sensorProxyLayers(self)->list:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
@@ -1007,47 +498,6 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         assert isinstance(sensor, SensorInstrument)
         return sensor in self.sensors()
-
-def displayBandNames(provider_or_dataset, bands=None):
-    results = None
-    if isinstance(provider_or_dataset, QgsRasterLayer):
-        return displayBandNames(provider_or_dataset.dataProvider())
-    elif isinstance(provider_or_dataset, QgsRasterDataProvider):
-        if provider_or_dataset.name() == 'gdal':
-            ds = gdal.Open(provider_or_dataset.dataSourceUri())
-            results = displayBandNames(ds, bands=bands)
-        else:
-            # same as in QgsRasterRendererWidget::displayBandName
-            results = []
-            if bands is None:
-                bands = range(1, provider_or_dataset.bandCount() + 1)
-            for band in bands:
-                result = provider_or_dataset.generateBandName(band)
-                colorInterp ='{}'.format(provider_or_dataset.colorInterpretationName(band))
-                if colorInterp != 'Undefined':
-                    result += '({})'.format(colorInterp)
-                results.append(result)
-
-    elif isinstance(provider_or_dataset, gdal.Dataset):
-        results = []
-        if bands is None:
-            bands = range(1, provider_or_dataset.RasterCount+1)
-        for band in bands:
-            b = provider_or_dataset.GetRasterBand(band)
-            descr = b.GetDescription()
-            if len(descr) == 0:
-                descr = 'Band {}'.format(band)
-            results.append(descr)
-
-    return results
-
-
-class RasterDataProviderMockup(QgsRasterDataProvider):
-
-    def __init__(self):
-        super(RasterDataProviderMockup, self).__init__('')
-
-
 
 def rendererToXml(renderer):
     """
@@ -1316,9 +766,7 @@ class DatumView(QObject):
         self.registerMapCanvas(mapView, mapCanvas)
         mapCanvas.setMapView(mapView)
         mapCanvas.setTSD(self.TSD)
-
-        #mapCanvas.setMapView(mapView)
-        mapView.registerMapCanvas(self.mSensor, mapCanvas)
+        mapView.registerMapCanvas(mapCanvas)
         self.STV.registerMapCanvas(mapCanvas)
         mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
         mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
@@ -1362,7 +810,7 @@ class DatumView(QObject):
 
 
         #mapView.sigTitleChanged.connect(lambda title : mapCanvas.setSaveFileName('{}_{}'.format(self.TSD.date, title)))
-        mapCanvas.mapLayerModel().addMapLayerSources(self.TSD.qgsMimeDataUtilsUris())
+        #mapCanvas.mapLayerModel().addMapLayerSources(self.TSD.qgsMimeDataUtilsUris())
 
         #self.ui.layout().insertWidget(self.wOffset + len(self.mapCanvases), mapCanvas)
         self.ui.layout().insertWidget(self.ui.layout().count() - 1, mapCanvas)
@@ -1371,8 +819,8 @@ class DatumView(QObject):
         #register signals handled on (this) DV level
         mapCanvas.renderStarting.connect(lambda: self.sigLoadingStarted.emit(mapView, self.TSD))
         mapCanvas.mapCanvasRefreshed.connect(lambda: self.sigLoadingFinished.emit(mapView, self.TSD))
-        mapCanvas.sigShowProfiles.connect(lambda c, t : mapView.sigShowProfiles.emit(c,mapCanvas, t))
-        mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
+        #mapCanvas.sigShowProfiles.connect(lambda c, t : mapView.sigShowProfiles.emit(c,mapCanvas, t))
+        #mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
 
 
 
@@ -1438,11 +886,6 @@ class SpatialTemporalVisualization(QObject):
         self.ui.dockMapViews.setTimeSeries(self.TS)
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
 
-
-
-        #self.MVC = MapViewCollection(self)
-        #self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
-
         self.MVC = self.ui.dockMapViews
         assert isinstance(self.MVC, MapViewDock)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
@@ -1451,12 +894,10 @@ class SpatialTemporalVisualization(QObject):
 
         self.DVC = DateViewCollection(self)
         self.DVC.sigResizeRequired.connect(self.adjustScrollArea)
-        #self.DVC.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        #self.DVC.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        #self.timeSeriesDateViewCollection.sigSpatialExtentChanged.connect(self.setSpatialExtent)
+
         self.TS.sigTimeSeriesDatesAdded.connect(self.DVC.addDates)
         self.TS.sigTimeSeriesDatesRemoved.connect(self.DVC.removeDates)
-        #add dates, if already existing
+
         self.DVC.addDates(self.TS[:])
         if len(self.TS) > 0:
             self.setSpatialExtent(self.TS.maxSpatialExtent())
@@ -1517,8 +958,13 @@ class SpatialTemporalVisualization(QObject):
     def onMapViewAdded(self, *args):
         self.adjustScrollArea()
         s = ""
-    def createMapView(self):
-        self.MVC.createMapView()
+    def createMapView(self)->MapView:
+        """
+        Create a new MapWiew
+        :return: MapView
+        """
+        return self.MVC.createMapView()
+
 
     def registerMapCanvas(self, mapCanvas:MapCanvas):
         """
@@ -1965,11 +1411,10 @@ class DateViewCollection(QObject):
         for tsd in tsdList:
             assert isinstance(tsd, TimeSeriesDatum)
             DV = DatumView(tsd, self.STV, parent=self.ui)
-            #tsdView.setSubsetSize(self.subsetSize)
+
             DV.sigLoadingStarted.connect(self.sigLoadingStarted.emit)
             DV.sigLoadingFinished.connect(self.sigLoadingFinished.emit)
             DV.sigVisibilityChanged.connect(lambda: self.STV.adjustScrollArea())
-
 
             for i, mapView in enumerate(self.STV.MVC):
                 DV.insertMapView(mapView)
@@ -2137,23 +1582,23 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
 
-    def setTimeSeries(self, timeSeries):
+    def setTimeSeries(self, timeSeries:TimeSeries):
         assert isinstance(timeSeries, TimeSeries)
-        self.TS = timeSeries
-        self.TS.sigSensorAdded.connect(self.addSensor)
-        self.TS.sigSensorRemoved.connect(self.removeSensor)
+        self.mTimeSeries = timeSeries
+        self.mTimeSeries.sigSensorAdded.connect(self.addSensor)
+        self.mTimeSeries.sigSensorRemoved.connect(self.removeSensor)
 
     def __init__(self, parent=None):
         super(MapViewDock, self).__init__(parent)
         self.setupUi(self)
 
-        #self.mMapViews = MapViewListModel()
+        # self.mMapViews = MapViewListModel()
         self.baseTitle = self.windowTitle()
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
 #        self.btnRefresh.setDefaultAction(self.actionApplyStyles)
-        self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
+
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
@@ -2161,7 +1606,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
-        self.actionHighlightMapView.triggered.connect(lambda : self.currentMapView().setHighlighted(True) if self.currentMapView() else None)
+
         self.actionApplyStyles.triggered.connect(self.refreshCurrentMapView)
         #self.actionApplyStyles.triggered.connect(self.dummySlot)
 
@@ -2177,7 +1622,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.spinBoxMapSizeY.valueChanged.connect(lambda: self.onMapSizeChanged('Y'))
         self.mLastMapSize = self.mapSize()
         #self.mapSize() #inits mLastMapSize
-        self.TS = None
+        self.mTimeSeries = None
 
 
     def mapViews(self)->list:
@@ -2255,6 +1700,8 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             mv.refreshMapView()
         else:
             s  =""
+
+
     def dummySlot(self):
         s  =""
 
@@ -2300,10 +1747,13 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.actionHighlightMapView.setEnabled(b)
 
 
-    def createMapView(self):
+    def createMapView(self)->MapView:
+        """
+        Create a new MapView
+        :return: MapView
+        """
 
-
-        mapView = MapView(parent=self)
+        mapView = MapView()
 
         n = len(self.mapViews()) + 1
         title = 'Map View {}'.format(n)
@@ -2312,38 +1762,76 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             title = 'Map View {}'.format(n)
         mapView.setTitle(title)
         mapView.sigShowProfiles.connect(self.sigShowProfiles)
+
+        mapView.setTimeSeries(self.mTimeSeries)
         self.addMapView(mapView)
+        return mapView
+
 
 
     def addMapView(self, mapView:MapView):
+        """
+        Adds a MapView
+        :param mapView: MapView
+        """
         assert isinstance(mapView, MapView)
-        mapView.sigTitleChanged.connect(self.onMapViewTitleChanged)
+        mapView.sigTitleChanged.connect(lambda *args, mv=mapView : self.onMapViewUpdated(mv))
+        mapView.sigMapViewVisibility.connect(lambda *args, mv=mapView : self.onMapViewUpdated(mv))
+
         i = self.toolBox.addItem(mapView, mapView.windowIcon(), mapView.title())
+        self.toolBox.setCurrentIndex(i)
+        self.onMapViewUpdated(mapView)
+        self.sigMapViewAdded.emit(mapView)
 
-    def onMapViewTitleChanged(self, mapView):
-        pass
+    def onMapViewUpdated(self, mapView:MapView):
+        """
+        Handles updates that react on MapView changes
+        :param mapView: MapView to make the update for
+        """
+        numMV = 0
+        for i in range(self.toolBox.count()):
+            item = self.toolBox.widget(i)
+            if item == mapView:
+                numMV += 1
+                if mapView.isVisible():
+                    icon = QIcon(":/timeseriesviewer/icons/mapview.svg")
+                else:
+                    icon = QIcon(":/timeseriesviewer/icons/mapviewHidden.svg")
 
-    def removeMapView(self, mapView):
-        if isinstance(mapView, MapView):
-            assert mapView in self.mMapViews
+                self.toolBox.setItemIcon(i, icon)
+                self.toolBox.setItemText(i, 'Map View {} "{}"'.format(numMV, mapView.title()))
+                break
 
-            i = self.mMapViews.mapView2idx(mapView)
-            if not i == self.stackedWidget.indexOf(mapView.ui):
-                s = ""
+    def removeMapView(self, mapView:MapView)->MapView:
+        """
+        Removes a MapView
+        :param mapView: MapView
+        :return: MapView
+        """
+        assert mapView in self.mapViews()
+        for i in range(self.toolBox.count()):
+            w = self.toolBox.widget(i)
+            if isinstance(w, MapView) and w == mapView:
+                self.toolBox.removeItem(i)
+                mapView.close()
 
-            self.mMapViews.removeMapView(mapView)
-
-            mapView.ui.close()
-
-            self.sigMapViewRemoved.emit(mapView)
+        self.sigMapViewRemoved.emit(mapView)
+        return mapView
 
 
 
-
-    def __len__(self):
+    def __len__(self)->int:
+        """
+        Returns the number of MapViews
+        :return: int
+        """
         return len(self.mapViews())
 
     def __iter__(self):
+        """
+        Provides an iterator over all MapViews
+        :return:
+        """
         return iter(self.mapViews())
 
     def __getitem__(self, slice):
@@ -2356,17 +1844,20 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         assert isinstance(mapView, MapView)
         return self.mapViews().index(mapView)
 
-    def setVectorLayer(self, lyr):
-        for mapView in self.mapViews():
-            assert isinstance(mapView, MapView)
-            mapView.setVectorLayer(lyr)
-
-    def addSensor(self, sensor):
+    def addSensor(self, sensor:SensorInstrument):
+        """
+        Adds a new SensorInstrument
+        :param sensor: SensorInstrument
+        """
         for mapView in self.mapViews():
             mapView.addSensor(sensor)
 
 
-    def removeSensor(self, sensor):
+    def removeSensor(self, sensor:SensorInstrument):
+        """
+        Removes a Sensor
+        :param sensor: SensorInstrument
+        """
         for mapView in self.mMapViews:
             mapView.removeSensor(sensor)
 
@@ -2409,12 +1900,8 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             self.setWindowTitle(title)
 
     def currentMapView(self):
-        if len(self.mMapViews) == 0:
-            return None
-        else:
-            i = self.cbMapView.currentIndex()
-            if i >= 0:
-                return self.mMapViews.idx2MapView(i)
-            else:
-                return None
+        w = self.toolBox.currentWidget()
+        if isinstance(w, MapView):
+            return w
+        return None
 

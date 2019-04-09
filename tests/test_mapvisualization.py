@@ -23,6 +23,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest
 from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, TimeSeriesSource
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
@@ -85,15 +86,17 @@ class testclassMapVisualization(unittest.TestCase):
         """Runs after each test."""
         pass
 
+
     def test_mapview(self):
+
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
         lyr.setName('Layer1 Name')
         lyr.setTitle('Layer1 title')
         lyr2 = TestObjects.createVectorLayer()
         lyr2.setName('Layer2 name')
+
         mapview = MapView()
-        mapview.show()
 
         self.assertEqual([], mapview.sensors())
 
@@ -103,7 +106,6 @@ class testclassMapVisualization(unittest.TestCase):
         mapview.addLayer(lyr)
         mapview.addLayer(lyr2)
         self.assertEqual(TS.sensors(), mapview.sensors())
-
 
         from eotimeseriesviewer.mapcanvas import MapCanvas
         canvas = MapCanvas()
@@ -121,6 +123,11 @@ class testclassMapVisualization(unittest.TestCase):
         canvas.setExtent(l.extent())
 
         if SHOW_GUI:
+            w = QWidget()
+            w.setLayout(QHBoxLayout())
+            w.layout().addWidget(mapview)
+            w.layout().addWidget(canvas)
+            w.show()
 
             timer = QTimer()
             timer.timeout.connect(canvas.timedRefresh)
@@ -128,6 +135,35 @@ class testclassMapVisualization(unittest.TestCase):
             timer.start()
             QGIS_APP.exec_()
 
+    def test_mapViewDock(self):
+
+        TS = TestObjects.createTimeSeries()
+
+        dock = MapViewDock()
+        self.assertIsInstance(dock, MapViewDock)
+        dock.setTimeSeries(TS)
+        mapView = dock.createMapView()
+        self.assertIsInstance(mapView, MapView)
+        mapView.setTimeSeries(TS)
+        canvas = MapCanvas()
+        canvas.setTSD(TS[0])
+        mapView.registerMapCanvas(canvas)
+        tss = TS[0][0]
+        self.assertIsInstance(tss, TimeSeriesSource)
+        canvas.setCrs(tss.crs())
+        canvas.setSpatialExtent(tss.spatialExtent())
+
+
+        if SHOW_GUI:
+            dock.show()
+            canvas.show()
+
+            timer = QTimer()
+            timer.timeout.connect(canvas.timedRefresh)
+            timer.setInterval(500)
+            timer.start()
+
+            QGIS_APP.exec_()
 
 
 
@@ -288,26 +324,38 @@ class testclassMapVisualization(unittest.TestCase):
         TSV = TimeSeriesViewer()
         TSV.loadExampleTimeSeries()
         TSV.show()
+
         SV = TSV.spatialTemporalVis
         self.assertIsInstance(SV, SpatialTemporalVisualization)
+        QApplication.processEvents()
+        # TSV.createMapView()
+
+        import time
+        time.sleep(5)
+
         SV.timedCanvasRefresh()
 
+
+        visibleCanvases = []
         withLayers = []
         empty = []
         extent = None
-        for mc in SV.mapCanvases():
-            self.assertIsInstance(mc, MapCanvas)
-            self.assertIsInstance(mc.spatialExtent(), SpatialExtent)
+        for mapCanvas in SV.mapCanvases():
+            self.assertIsInstance(mapCanvas, MapCanvas)
+            self.assertIsInstance(mapCanvas.spatialExtent(), SpatialExtent)
 
             if extent is None:
-                extent = mc.spatialExtent()
+                extent = mapCanvas.spatialExtent()
             else:
-                self.assertTrue(mc.spatialExtent() == extent)
+                self.assertTrue(mapCanvas.spatialExtent() == extent)
 
-            if len(mc.layers()) == 0:
-                empty.append(mc)
+            if len(mapCanvas.layers()) == 0:
+                empty.append(mapCanvas)
             else:
-                withLayers.append(mc)
+                withLayers.append(mapCanvas)
+
+        if True:
+            QGIS_APP.exec_()
 
         self.assertTrue(len(withLayers) > 0)
         self.assertTrue(len(empty) > 0)
@@ -316,10 +364,10 @@ class testclassMapVisualization(unittest.TestCase):
         extent2 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x()-100, extent.center().y()))
         SV.setSpatialExtent(extent2)
         SV.timedCanvasRefresh()
-        for mc in SV.mapCanvases():
-            self.assertIsInstance(mc, MapCanvas)
-            if mc.isVisibleToViewport():
-                self.assertTrue(mc.spatialExtent() == extent2)
+        for mapCanvas in SV.mapCanvases():
+            self.assertIsInstance(mapCanvas, MapCanvas)
+            if mapCanvas.isVisibleToViewport():
+                self.assertTrue(mapCanvas.spatialExtent() == extent2)
 
 
         # shift spatial extent of single map canvas
@@ -328,9 +376,9 @@ class testclassMapVisualization(unittest.TestCase):
         self.assertIsInstance(canvas, MapCanvas)
         canvas.setSpatialExtent(extent3)
         SV.timedCanvasRefresh()
-        for mc in SV.mapCanvases():
-            if mc.isVisibleToViewport():
-                self.assertTrue(mc.spatialExtent() == extent3)
+        for mapCanvas in SV.mapCanvases():
+            if mapCanvas.isVisibleToViewport():
+                self.assertTrue(mapCanvas.spatialExtent() == extent3)
 
         # test map render changes
         for canvas in SV.mapCanvases():
