@@ -24,7 +24,7 @@ from qgis.gui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from qps.models import Option, OptionListModel
+from eotimeseriesviewer.externals.qps.models import Option, OptionListModel
 
 
 from eotimeseriesviewer.temporalprofiles2d import *

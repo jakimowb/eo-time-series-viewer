@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>680</width>
+    <width>784</width>
     <height>178</height>
    </rect>
   </property>
@@ -99,8 +99,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>678</width>
-         <height>72</height>
+         <width>782</width>
+         <height>90</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -146,8 +146,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>680</width>
-     <height>22</height>
+     <width>784</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFiles">
@@ -204,7 +204,7 @@
     <addaction name="actionPan"/>
     <addaction name="actionZoomIn"/>
     <addaction name="actionZoomOut"/>
-    <addaction name="actionZoomMaxExtent"/>
+    <addaction name="actionZoomFullExtent"/>
     <addaction name="actionZoomPixelScale"/>
     <addaction name="actionMoveCenter"/>
     <addaction name="separator"/>
@@ -229,26 +229,26 @@
    <addaction name="actionLoadTS"/>
    <addaction name="actionClearTS"/>
    <addaction name="actionSaveTS"/>
-   <addaction name="actionAddMapView"/>
    <addaction name="separator"/>
+   <addaction name="actionAddMapView"/>
    <addaction name="actionRefresh"/>
-   <addaction name="actionMoveCenter"/>
+   <addaction name="separator"/>
+   <addaction name="actionPan"/>
    <addaction name="actionZoomIn"/>
    <addaction name="actionZoomOut"/>
-   <addaction name="actionZoomMaxExtent"/>
    <addaction name="actionZoomPixelScale"/>
-   <addaction name="actionPan"/>
+   <addaction name="actionZoomFullExtent"/>
+   <addaction name="actionIdentify"/>
+   <addaction name="separator"/>
+   <addaction name="optionIdentifyCursorLocation"/>
+   <addaction name="optionIdentifySpectralProfile"/>
+   <addaction name="optionIdentifyTemporalProfile"/>
+   <addaction name="optionMoveCenter"/>
    <addaction name="separator"/>
    <addaction name="actionImportExtent"/>
    <addaction name="actionImportCenter"/>
    <addaction name="actionExportExtent"/>
    <addaction name="actionExportCenter"/>
-   <addaction name="separator"/>
-   <addaction name="actionIdentifyCursorLocationValues"/>
-   <addaction name="actionIdentifyTemporalProfile"/>
-   <addaction name="actionIdentifySpectralProfile"/>
-   <addaction name="separator"/>
-   <addaction name="actionAbout"/>
   </widget>
   <action name="actionMoveCenter">
    <property name="icon">
@@ -441,6 +441,9 @@
    </property>
   </action>
   <action name="actionZoomIn">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</iconset>
@@ -453,6 +456,9 @@
    </property>
   </action>
   <action name="actionZoomOut">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</iconset>
@@ -464,7 +470,10 @@
     <string>Zoom out</string>
    </property>
   </action>
-  <action name="actionZoomMaxExtent">
+  <action name="actionZoomFullExtent">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
@@ -477,6 +486,9 @@
    </property>
   </action>
   <action name="actionZoomPixelScale">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</iconset>
@@ -489,6 +501,9 @@
    </property>
   </action>
   <action name="actionPan">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="icon">
     <iconset resource="resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionPan.svg</normaloff>:/timeseriesviewer/icons/mActionPan.svg</iconset>
@@ -667,7 +682,7 @@
   </action>
   <action name="actionAddVectorData">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
@@ -697,6 +712,81 @@
     <string>Load images from a stack or list of stacks witch each image band being an temporal observation</string>
    </property>
   </action>
+  <action name="actionIdentify">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../externals/qps/qpsresources.qrc">
+     <normaloff>:/qps/ui/icons/select_location.svg</normaloff>:/qps/ui/icons/select_location.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Identify Pixels and Features</string>
+   </property>
+   <property name="toolTip">
+    <string>identify</string>
+   </property>
+  </action>
+  <action name="optionIdentifyCursorLocation">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionPropertiesWidget.svg</normaloff>:/images/themes/default/mActionPropertiesWidget.svg</iconset>
+   </property>
+   <property name="text">
+    <string>CLV</string>
+   </property>
+   <property name="toolTip">
+    <string>Identify cursor location values</string>
+   </property>
+  </action>
+  <action name="optionMoveCenter">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../externals/qps/qpsresources.qrc">
+     <normaloff>:/qps/ui/icons/pan_center.svg</normaloff>:/qps/ui/icons/pan_center.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Move to Point</string>
+   </property>
+   <property name="toolTip">
+    <string>Center map on clicked locations</string>
+   </property>
+  </action>
+  <action name="optionIdentifySpectralProfile">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../externals/qps/qpsresources.qrc">
+     <normaloff>:/qps/ui/icons/profile.svg</normaloff>:/qps/ui/icons/profile.svg</iconset>
+   </property>
+   <property name="text">
+    <string>RP</string>
+   </property>
+   <property name="toolTip">
+    <string>Identify raster profiles to be shown in a Spectral Library.</string>
+   </property>
+  </action>
+  <action name="optionIdentifyTemporalProfile">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+   </property>
+   <property name="text">
+    <string>IdentifyTemporalProfile</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -714,6 +804,8 @@
  </customwidgets>
  <resources>
   <include location="resources.qrc"/>
+  <include location="../externals/qps/qpsresources.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>

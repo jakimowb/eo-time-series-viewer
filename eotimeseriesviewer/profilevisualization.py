@@ -28,12 +28,14 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtGui import *
 
-from eotimeseriesviewer import jp
-from eotimeseriesviewer.timeseries import *
-from eotimeseriesviewer.utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
-from eotimeseriesviewer.externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
 
-from eotimeseriesviewer.sensorvisualization import SensorListModel
+from .timeseries import *
+from .utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
+from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton
+from .externals import pyqtgraph as pg
+from .sensorvisualization import SensorListModel
+from .temporalprofiles2d import *
+from .temporalprofiles3d import *
 
 
 

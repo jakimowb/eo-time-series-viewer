@@ -20,30 +20,11 @@
 ***************************************************************************
 """
 
-import os, re, tempfile, pickle, copy, shutil, locale, uuid, csv, io
-from xml.etree import ElementTree
-from collections import OrderedDict
-from qgis.core import *
-from qgis.gui import *
-from qgis.utils import qgsfunction
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-from qgis.core import QgsField, QgsFields, QgsFeature, QgsMapLayer, QgsVectorLayer, QgsConditionalStyle
-from qgis.gui import QgsMapCanvas, QgsDockWidget
-from pyqtgraph.widgets.PlotWidget import PlotWidget
-from pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
-from pyqtgraph.graphicsItems.PlotItem import PlotItem
-import pyqtgraph.functions as fn
-import numpy as np
-from osgeo import gdal, gdal_array
-import numpy as np
+
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.virtualrasters import *
 from eotimeseriesviewer.models import *
 from eotimeseriesviewer.dateparser import *
-from eotimeseriesviewer.plotstyling import PlotStyle, PlotStyleDialog, MARKERSYMBOLS2QGIS_SYMBOLS
-import eotimeseriesviewer.mimedata as mimedata
 
 
 def datesFromDataset(dataset:gdal.Dataset)->list:

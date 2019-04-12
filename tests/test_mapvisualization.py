@@ -175,9 +175,7 @@ class testclassMapVisualization(unittest.TestCase):
 
 
         m = MapCanvas()
-
         m.setLayers([])
-
         self.assertIsInstance(m, MapCanvas)
         m.show()
 

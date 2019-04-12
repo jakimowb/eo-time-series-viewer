@@ -39,7 +39,7 @@ from eotimeseriesviewer.utils import loadUI
 from eotimeseriesviewer.mapviewscrollarea import MapViewScrollArea
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle
-
+from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog
 
 #assert os.path.isfile(dummyPath)
 #lyr = QgsRasterLayer(dummyPath)
@@ -109,6 +109,9 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addAction(self.actionZoomToLayer)
         menu.addAction(self.actionZoomToSelected)
 
+        a = menu.addAction('Set Properties')
+        a.triggered.connect(lambda *args, lyr=l, canvas=self.mDummyCanvas: showLayerPropertiesDialog(lyr, canvas))
+        a.setEnabled(not isinstance(l, SensorProxyLayer))
         #a = menu.addAction('Settings')
         #from qps.layerproperties import showLayerPropertiesDialog
         #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
@@ -184,7 +187,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.btnToggleMapViewVisibility.setDefaultAction(self.actionToggleMapViewHidden)
         self.tbName.textChanged.connect(self.onTitleChanged)
         self.actionSetCrosshairStyle.triggered.connect(self.onChangeCrosshairStyle)
-        self.actionToggleMapViewHidden.toggled.connect(self.sigMapViewVisibility.emit)
+        self.actionToggleMapViewHidden.toggled.connect(lambda isHidden: self.setVisibility(not isHidden))
         self.actionToggleCrosshairVisibility.toggled.connect(self.setCrosshairVisibility)
 
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
@@ -195,7 +198,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.mMapCanvases = list()
         assert isinstance(self.mLayerTreeView, QgsLayerTreeView)
 
-        self.mDummyCanvas = QgsMapCanvas()
+        self.mDummyCanvas = QgsMapCanvas() # dummy map canvas for dummy layers
         self.mDummyCanvas.setVisible(False)
 
         self.mLayerTree = QgsLayerTree()
@@ -269,8 +272,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
                 changed = True
                 mapCanvas.setVisible(b)
 
-        if self.ui.actionToggleMapViewHidden.isChecked() == b:
-            self.ui.actionToggleMapViewHidden.setChecked(not b)
+        if self.actionToggleMapViewHidden.isChecked() == b:
+            self.actionToggleMapViewHidden.setChecked(not b)
 
         if changed:
             self.sigMapViewVisibility.emit(b)
@@ -392,7 +395,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         mapCanvas.sigCrosshairVisibilityChanged.connect(self.setCrosshairVisibility)
         mapCanvas.sigCrosshairStyleChanged.connect(self.setCrosshairStyle)
         self.mMapCanvases.append(mapCanvas)
-        self.sigMapViewVisibility.connect(mapCanvas.refresh)
+        self.sigMapViewVisibility.connect(mapCanvas.setEnabled)
 
 
     def crosshairStyle(self)->CrosshairStyle:
@@ -453,12 +456,28 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
             dummyLayer = sensor.proxyLayer()
+            dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
             QgsProject.instance().addMapLayer(dummyLayer)
             layerTreeLayer = self.mLayerTreeSensorNode.addLayer(dummyLayer)
             assert isinstance(layerTreeLayer, QgsLayerTreeLayer)
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
             layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
             self.mSensorLayerList.append((sensor, dummyLayer))
+
+    def onSensorRendererChanged(self, sensor:SensorInstrument):
+        for c in self.sensorCanvases(sensor):
+            assert isinstance(c, MapCanvas)
+            c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
+
+    def sensorCanvases(self, sensor:SensorInstrument)->list:
+        """
+        Returns the MapCanvases that show a layer with data for the given ``sensor``
+        :param sensor: SensorInstrument
+        :return:
+        """
+        assert isinstance(sensor, SensorInstrument)
+        return [c for c in self.mapCanvases() if isinstance(c, MapCanvas) and c.tsd().sensor() == sensor]
+
 
     def sensorLayer(self, sensor: SensorInstrument):
         """
@@ -1127,9 +1146,13 @@ class SpatialTemporalVisualization(QObject):
 
                 # if required, link map-tool with specific slots
                 if isinstance(mt, CursorLocationMapTool):
-                    mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(lambda c, m : self.sigShowProfiles.emit(c,m, mapToolKey))
+                    mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.onLocationRequest)
 
         return self.mMapTools
+
+    def onLocationRequest(self, pt:SpatialPoint, canvas:QgsMapCanvas):
+
+        self.sigShowProfiles.emit(pt, canvas, "")
 
     def setSpatialCenter(self, center, mapCanvas0=None):
         """
@@ -1592,13 +1615,10 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         super(MapViewDock, self).__init__(parent)
         self.setupUi(self)
 
-        # self.mMapViews = MapViewListModel()
         self.baseTitle = self.windowTitle()
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
-#        self.btnRefresh.setDefaultAction(self.actionApplyStyles)
-
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
@@ -1606,22 +1626,14 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda : self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
-
         self.actionApplyStyles.triggered.connect(self.refreshCurrentMapView)
-        #self.actionApplyStyles.triggered.connect(self.dummySlot)
 
-   #     self.mMapViews.sigMapViewsRemoved.connect(self.onMapViewsRemoved)
-  #      self.mMapViews.sigMapViewsAdded.connect(self.onMapViewsAdded)
- #       self.mMapViews.sigMapViewsAdded.connect(self.updateButtons)
-#        self.mMapViews.sigMapViewsRemoved.connect(self.updateButtons)
-  #      self.cbMapView.setModel(self.mMapViews)
-  #      self.cbMapView.currentIndexChanged[int].connect(lambda i : None if i < 0 else self.setCurrentMapView(self.mMapViews.idx2MapView(i)) )
-
+        self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
         self.spinBoxMapSizeY.valueChanged.connect(lambda: self.onMapSizeChanged('Y'))
         self.mLastMapSize = self.mapSize()
-        #self.mapSize() #inits mLastMapSize
+
         self.mTimeSeries = None
 
 
@@ -1783,6 +1795,11 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.onMapViewUpdated(mapView)
         self.sigMapViewAdded.emit(mapView)
 
+    def onToolboxIndexChanged(self):
+
+        b = isinstance(self.toolBox.currentWidget(), MapView)
+        self.actionRemoveMapView.setEnabled(b)
+
     def onMapViewUpdated(self, mapView:MapView):
         """
         Handles updates that react on MapView changes
@@ -1814,6 +1831,8 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             if isinstance(w, MapView) and w == mapView:
                 self.toolBox.removeItem(i)
                 mapView.close()
+                if self.toolBox.count() >= i:
+                    self.toolBox.setCurrentIndex(min(i, self.toolBox.count()-1))
 
         self.sigMapViewRemoved.emit(mapView)
         return mapView

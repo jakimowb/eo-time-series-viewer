@@ -25,7 +25,8 @@ def run():
     from eotimeseriesviewer import initAll
     initAll()
     from eotimeseriesviewer.main import TimeSeriesViewer
-    ts = TimeSeriesViewer(None)
+    import qgis.utils
+    ts = TimeSeriesViewer(qgis.utils.iface)
     ts.run()
     qgsApp.exec_()
     qgsApp.exitQgis()

@@ -39,6 +39,7 @@ from .externals.qps.maptools import *
 from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .externals.qps.utils import *
+from .externals.qps.layerproperties import showLayerPropertiesDialog
 import eotimeseriesviewer.settings
 
 
@@ -405,19 +406,9 @@ class MapCanvas(QgsMapCanvas):
 
                 self.mTimedRefreshPipeLine.clear()
 
-
-
-
             self.freeze(False)
             self.refresh()
-            #is this really required?
-
-            #if self.mNeedsRefresh or visibleLayers != lastLayers:
-            #    self.mIsRefreshing = True
-            #    self.mRefreshStartTime = time.time()
-            #    self.setLayers(visibleLayers)
-            #    self.refresh()
-            #    self.mNeedsRefresh = False
+            # is this really required?
 
 
     def setLayerVisibility(self, cls, isVisible:bool):
@@ -498,18 +489,25 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.grab()
 
-    def contextMenu(self)->QMenu:
+    def contextMenu(self, pos:QPoint)->QMenu:
         """
-        Create the MapCanvas context menu
-        :return:
+        Create the MapCanvas context menu with options relevant for pixel position ``pos``.
+        :param pos: QPoint
+        :return: QMenu
         """
+        mapSettings = self.mapSettings()
+        assert isinstance(mapSettings, QgsMapSettings)
+
+        pointGeo = mapSettings.mapToPixel().toMapCoordinates(pos.x(), pos.y())
+        assert isinstance(pointGeo, QgsPointXY)
 
         tsd = self.tsd()
 
+
+
         menu = QMenu()
-        # add general options
-        menu.addSeparator()
-        m = menu.addMenu('Stretch to current extent...')
+
+        m = menu.addMenu('Optimize raster stretches...')
         action = m.addAction('Linear')
         action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.0))
 
@@ -519,12 +517,43 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('Gaussian')
         action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'gaussian', n=3))
 
+        menu.addSeparator()
 
-        action = menu.addAction('Zoom to Layer')
-        action.triggered.connect(lambda: self.setSpatialExtent(self.spatialExtentHint()))
+        m = menu.addMenu('Layers...')
+        for mapLayer in self.layers():
+            sub = m.addMenu(mapLayer.name())
+
+            if isinstance(mapLayer, SensorProxyLayer):
+                sub.setIcon(QIcon(':/timeseriesviewer/icons/icon.svg'))
+            elif isinstance(mapLayer, QgsRasterLayer):
+                sub.setIcon(QIcon(''))
+            elif isinstance(mapLayer, QgsVectorLayer):
+                wkbType = QgsWkbTypes.displayString(int(mapLayer.wkbType()))
+                if re.search('polygon', wkbType, re.I):
+                    sub.setIcon(QIcon(r':/images/themes/default/mIconPolygonLayer.svg'))
+                elif re.search('line', wkbType, re.I):
+                    sub.setIcon(QIcon(r':/images/themes/default/mIconLineLayer.svg'))
+                elif re.search('point', wkbType, re.I):
+                    sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
+
+            a = sub.addAction('Properties...')
+            a.triggered.connect(lambda *args, lyr=mapLayer: showLayerPropertiesDialog(lyr, self))
+
+            a = sub.addAction('Zoom to Layer')
+            a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))
+            a.triggered.connect(lambda *args, lyr=mapLayer: self.setSpatialExtent(SpatialExtent.fromLayer(lyr)))
+
+        menu.addSeparator()
+
+        action = menu.addAction('Zoom to full extent')
+        action.setIcon(QIcon(':/images/themes/default/mActionZoomFullExtent.svg'))
+        action.triggered.connect(lambda: self.setExtent(self.fullExtent()))
+
         action = menu.addAction('Refresh')
         action.triggered.connect(lambda: self.refresh())
+
         menu.addSeparator()
+
         m = menu.addMenu('Crosshair...')
         action = m.addAction('Show')
         action.setCheckable(True)
@@ -587,7 +616,6 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('CRS (Proj4)')
         action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
 
-
         m = menu.addMenu('Save to...')
         action = m.addAction('PNG')
         action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
@@ -629,27 +657,32 @@ class MapCanvas(QgsMapCanvas):
                         applyShortcutsToRegisteredLayers(tsd, [ci]))
                 classSchemes.append(classScheme)
 
-        menu.addSeparator()
-
-        from eotimeseriesviewer.utils import qgisInstance
-        actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
-        actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-                [l for l in self.layers() if isinstance(l, QgsRasterLayer)]
+        """
+            
+            menu.addSeparator()
+            
+            from eotimeseriesviewer.utils import qgisInstance
+            actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
+            actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
+                    [l for l in self.layers() if isinstance(l, QgsRasterLayer)]
+                )
             )
-        )
-        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-        actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
-        actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-            #QgsProject.instance().addMapLayers(
-                [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
+            # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
+            actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
+            actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
+                #QgsProject.instance().addMapLayers(
+                    [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
+                )
             )
-        )
-        # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
-
-        b = isinstance(qgisInstance(), QgisInterface)
-        for a in [actionAddRaster2QGIS, actionAddVector2QGIS]:
-            a.setEnabled(b)
-        menu.addSeparator()
+        
+            # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
+    
+            b = isinstance(qgisInstance(), QgisInterface)
+            for a in [actionAddRaster2QGIS, actionAddVector2QGIS]:
+                a.setEnabled(b)
+            menu.addSeparator()
+            
+        """
 
         action = menu.addAction('Hide date')
         action.triggered.connect(lambda : self.sigChangeDVRequest.emit(self, 'hide_date'))
@@ -663,12 +696,13 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event:QContextMenuEvent):
         """
         Create and shows the MapCanvas context menu.
         :param event: QEvent
         """
-        menu = self.contextMenu()
+        assert isinstance(event, QContextMenuEvent)
+        menu = self.contextMenu(event.pos())
         menu.exec_(event.globalPos())
 
     def addLayers2QGIS(self, mapLayers):
@@ -712,7 +746,7 @@ class MapCanvas(QgsMapCanvas):
 
                 def getCE(band):
                     stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
-                    # hist = dp.histogram(band,100, stats.minimumValue, stats.maximumValue, extent, 500, False)
+
                     ce = QgsContrastEnhancement(dp.dataType(band))
                     d = (stats.maximumValue - stats.minimumValue)
                     if stretchType == 'linear_minmax':
@@ -733,7 +767,6 @@ class MapCanvas(QgsMapCanvas):
 
                 if isinstance(r, QgsMultiBandColorRenderer):
 
-                    #newRenderer = QgsMultiBandColorRenderer(None, r.redBand(), r.greenBand(), r.blueBand())
                     newRenderer = r.clone()
 
                     ceR = getCE(r.redBand())
@@ -761,13 +794,11 @@ class MapCanvas(QgsMapCanvas):
                     newRenderer.setContrastEnhancement(ce)
 
                 elif isinstance(r, QgsPalettedRasterRenderer):
-                    s = ""
-                    #newRenderer = cloneRenderer(r)
+                    newRenderer = r.clone()
 
                 if newRenderer is not None:
                     self.mMapView.sensorProxyLayer(l.sensor()).setRenderer(newRenderer)
-                    # self.sigChangeSVRequest.emit(self, )
-                    self.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
+
                     return
         s = ""
 

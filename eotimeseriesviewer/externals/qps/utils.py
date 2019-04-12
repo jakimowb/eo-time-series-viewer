@@ -461,11 +461,8 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
     RC_SUFFIX = resourceSuffix
     assert os.path.isfile(pathUi), '*.ui file does not exist: {}'.format(pathUi)
 
-    createImportHook = sys.modules.get('qps') is None
-    if createImportHook:
-        from .. import qps
-        sys.modules['qps'] = qps
 
+    from .. import qps
 
     if pathUi not in FORM_CLASSES.keys():
         #parse *.ui xml and replace *.h by qgis.gui
@@ -529,11 +526,18 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
         elem = doc.elementsByTagName('customwidget')
         for child in [elem.item(i) for i in range(elem.count())]:
             child = child.toElement()
-            className = str(child.firstChildElement('class').firstChild().nodeValue())
-            if className.startswith('Qgs'):
-                cHeader = child.firstChildElement('header').firstChild()
-                cHeader.setNodeValue('qgis.gui')
 
+            cClass = child.firstChildElement('class').firstChild()
+            cHeader = child.firstChildElement('header').firstChild()
+            cExtends = child.firstChildElement('extends').firstChild()
+
+            sClass = str(cClass.nodeValue())
+            sExtends = str(cHeader.nodeValue())
+
+            if sClass.startswith('Qgs'):
+                cHeader.setNodeValue('qgis.gui')
+            if sExtends.startswith('qps.'):
+                cHeader.setNodeValue(re.sub('^qps\.', qps.__spec__.name + '.', sExtends))
 
         # collect resource file locations
         elems = doc.elementsByTagName('include')
@@ -607,11 +611,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
         #remove temporary added directories from python path
         for d in tmpDirs:
             sys.path.remove(d)
-    if pathUi.endswith('spectrallibrarywidget.ui'):
-        s =""
 
-    if createImportHook:
-        sys.modules.pop('qps')
 
     return FORM_CLASSES[pathUi]
 

@@ -42,8 +42,9 @@ import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
-from eotimeseriesviewer import SpectralProfile, SpectralLibrary
-
+from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
+from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool
+from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
 DEBUG = False
 
 EXTRA_SPECLIB_FIELDS = [
@@ -103,7 +104,6 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews = addDockWidget(MapViewDock(self))
 
-        from qps.cursorlocationvalue import CursorLocationInfoDock
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
@@ -120,22 +120,15 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.labeling import LabelingDock
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
-
-        from qps.speclib.spectrallibraries import SpectralLibraryPanel
-
-        try:
-
-            panel = SpectralLibraryPanel(None)
-            panel.setParent(self)
-            self.dockSpectralLibrary = addDockWidget(panel)
-            self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
-        except Exception as ex:
-            print('Unable to create SpectralLibrary panel', file=sys.stderr)
-            print(ex, file=sys.stderr)
-            self.dockSpectralLibrary = None
-
-
-
+        #try:
+        panel = SpectralLibraryPanel(None)
+        panel.setParent(self)
+        self.dockSpectralLibrary = addDockWidget(panel)
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+        #except Exception as ex:
+        #    print('Unable to create SpectralLibrary panel', file=sys.stderr)
+        #    print(ex, file=sys.stderr)
+        #    self.dockSpectralLibrary = None
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
@@ -146,18 +139,48 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
 
-
         for dock in self.findChildren(QDockWidget):
+
             if len(dock.actions()) > 0:
                 s = ""
             self.menuPanels.addAction(dock.toggleViewAction())
 
-
-
+        self.mMapToolActions = [self.actionZoomPixelScale,
+                                self.actionZoomFullExtent,
+                                self.actionZoomIn,
+                                self.actionZoomOut,
+                                self.actionPan,
+                                self.actionIdentify]
 
         self.dockTimeSeries.raise_()
 
-        # self.dockMapViews.btnAddMapView.setDefaultAction(self.actionAddMapView)
+        for a in self.mMapToolActions:
+            assert isinstance(a, QAction)
+            a.toggled.connect(self.onActionToggled)
+
+
+
+    def onActionToggled(self, b:bool):
+        action = QApplication.instance().sender()
+        assert isinstance(action, QAction)
+        otherActions = [a for a in self.mMapToolActions if a != action]
+
+        # enable / disable the other maptool actions
+        if b is True:
+            for a in otherActions:
+                assert isinstance(a, QAction)
+                a.setChecked(False)
+
+        else:
+            otherSelected = [a for a in otherActions if a.isChecked()]
+            if len(otherSelected) == 0:
+                action.setChecked(True)
+
+        b = self.actionIdentify.isChecked()
+        self.optionIdentifyCursorLocation.setEnabled(b)
+        self.optionIdentifySpectralProfile.setEnabled(b)
+        self.optionIdentifyTemporalProfile.setEnabled(b)
+        self.optionMoveCenter.setEnabled(b)
 
 
     def _blockSignals(self, widgets, block=True):
@@ -230,9 +253,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         return TimeSeriesViewer._instance
 
+    sigCurrentLocationChanged = pyqtSignal([SpatialPoint],
+                                           [SpatialPoint, QgsMapCanvas])
+
+    sigCurrentSpectralProfilesChanged = pyqtSignal(list)
+    sigCurrentTemporalProfilesChanged = pyqtSignal(list)
 
 
-    def __init__(self, iface:QgisInterface=None):
+    def __init__(self):
         """Constructor.
 
         :param iface: An interface instance that will be passed to this class
@@ -254,11 +282,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui = TimeSeriesViewerUI()
 
         # Save reference to the QGIS interface
-        if isinstance(iface, QgisInterface):
-            self.iface = iface
-            self.initQGISConnection()
-        else:
-            self.initQGISInterface()
+        import qgis.utils
+        iface = qgis.utils.iface
+        assert isinstance(iface, QgisInterface)
 
         # init empty time series
         self.mTimeSeries = TimeSeries()
@@ -306,23 +332,30 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(tstv, TimeSeriesTableView)
         tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDatum)
 
-        from eotimeseriesviewer.mapcanvas import MapTools
+        # init map tools
+        self.mMapTools = []
+        self.mCurrentMapLocation = None
+        self.mCurrentMapSpectraLoading = 'TOP'
 
-        self.ui.actionMoveCenter.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.MoveToCenter))
-        #D.actionSelectArea.triggered.connect(lambda : self.spatialTemporalVis.activateMapTool('selectArea'))
-        self.ui.actionZoomMaxExtent.triggered.connect(lambda : self.spatialTemporalVis.setMapTool(MapTools.ZoomFull))
-        self.ui.actionZoomPixelScale.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomPixelScale))
-        self.ui.actionZoomIn.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomIn))
-        self.ui.actionZoomOut.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.ZoomOut))
-        self.ui.actionPan.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.Pan))
+        def initMapToolAction(action, key):
+            assert isinstance(action, QAction)
+            assert isinstance(key, str)
+            assert key in MapTools.mapToolKeys()
+            action.triggered.connect(lambda: self.setMapTool(key))
+            action.setProperty('eotsv/maptoolkey', key)
+        initMapToolAction(self.ui.actionPan, MapTools.Pan)
+        initMapToolAction(self.ui.actionZoomIn, MapTools.ZoomIn)
+        initMapToolAction(self.ui.actionZoomOut, MapTools.ZoomOut)
+        initMapToolAction(self.ui.actionZoomPixelScale, MapTools.ZoomPixelScale)
+        initMapToolAction(self.ui.actionZoomFullExtent, MapTools.ZoomFull)
+        initMapToolAction(self.ui.actionIdentify, MapTools.CursorLocation)
 
-        self.ui.actionIdentifyTemporalProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.TemporalProfile))
-        self.ui.actionIdentifySpectralProfile.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.SpectralProfile))
+        #set default map tool
+        self.ui.actionPan.toggle()
 
-        self.ui.actionIdentifyCursorLocationValues.triggered.connect(lambda: self.spatialTemporalVis.setMapTool(MapTools.CursorLocation))
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
 
-        from qps.cursorlocationvalue import CursorLocationInfoModel
+
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
@@ -387,11 +420,23 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the SpectraLibrary of the SpectralLibrary dock
         :return: SpectraLibrary
         """
-        from qps.speclib.spectrallibraries import SpectralLibraryPanel
+        from .externals.qps.speclib.spectrallibraries import SpectralLibraryPanel
         if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
             return self.ui.dockSpectralLibrary.SLW.speclib()
         else:
             return None
+
+    def actionZoomActualSize(self):
+        return self.ui.actionZoomPixelScale
+
+    def actionZoomFullExtent(self):
+        return self.ui.actionZoomFullExtent
+
+    def actionZoomIn(self):
+        return self.ui.actionZoomIn
+
+    def actionZoomOut(self):
+        return self.ui.actionZoomOut
 
 
     def showTimeSeriesDatum(self, tsd:TimeSeriesDatum):
@@ -455,13 +500,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionExportCenter.triggered.connect(lambda: self.iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
         self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(self.iface.mapCanvas())))
 
-    def initQGISInterface(self):
-        """
-        Initialize the QGIS Interface in case the EO TSV was not started from a QGIS GUI Instance
-        """
-        self.iface = self
-        qgis.utils.iface = self
-
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
         d = SettingsDialog(self.ui)
@@ -493,6 +531,134 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.setBackgroundColor(value(Keys.MapBackgroundColor))
         self.spatialTemporalVis.setMapSize(value(Keys.MapSize))
 
+    def setMapTool(self, mapToolKey, *args, **kwds):
+        """
+        Sets the active QgsMapTool for all canvases know to the EOTSV.
+        :param mapToolKey: str, see MapTools documentation
+        :param args:
+        :param kwds:
+        :return:
+        """
+        # disconnect previous map-tools?
+        del self.mMapTools[:]
+        for canvas in self.mapCanvases():
+                self.setSingleMapTool(canvas, mapToolKey, *args, **kwds)
+
+    def currentMapToolKey(self)->str:
+        """
+        Returns the MapToolKey that identifies a MapTool
+        :return: str
+        """
+
+        if self.ui.actionPan.isChecked():
+            return MapTools.Pan
+        if self.ui.actionZoomIn.isChecked():
+            return MapTools.ZoomIn
+        if self.ui.actionZoomOut.isChecked():
+            return MapTools.ZoomOut
+        if self.ui.actionZoomPixelScale.isChecked():
+            return MapTools.ZoomPixelScale
+        if self.ui.actionZoomFullExtent.isChecked():
+            return MapTools.ZoomFull
+        if self.ui.actionIdentify.isChecked():
+            return MapTools.CursorLocation
+        else:
+            # default key
+            return MapTools.CursorLocation
+
+
+    def setSingleMapTool(self, canvas:QgsMapCanvas, mapToolKey, *args, **kwds):
+        """
+        Sets the QgsMapTool for a single canvas
+        :param canvas: QgsMapCanvas
+        :param mapToolKey:
+        :param args:
+        :param kwds:
+        :return:
+        """
+        mt = None
+        if mapToolKey in MapTools.mapToolKeys():
+            mt = MapTools.create(mapToolKey, canvas, *args, **kwds)
+
+        if isinstance(mapToolKey, QgsMapTool):
+            mt = MapTools.copy(mapToolKey, canvas, *args, **kwds)
+
+        if isinstance(mt, QgsMapTool):
+            canvas.setMapTool(mt)
+            self.mMapTools.append(mt)
+
+            # if required, link map-tool with specific EnMAP-Box slots
+            if isinstance(mt, CursorLocationMapTool):
+                mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.setCurrentLocation)
+
+    def setCurrentLocation(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas=None):
+        """
+        Sets the current "last selected" location, for which different properties might get derived,
+        like cursor location values and SpectraProfiles.
+        :param spatialPoint: SpatialPoint
+        :param mapCanvas: QgsMapCanvas (optional), the canvas on which the location got selected
+        """
+        assert isinstance(spatialPoint, SpatialPoint)
+
+        bCLV = self.ui.optionIdentifyCursorLocation.isChecked()
+        bSP = self.ui.optionIdentifySpectralProfile.isChecked()
+        bTP = self.ui.optionIdentifyTemporalProfile.isChecked()
+        bCenter = self.ui.optionMoveCenter.isChecked()
+
+        self.mCurrentMapLocation = spatialPoint
+
+        self.sigCurrentLocationChanged[SpatialPoint].emit(self.mCurrentMapLocation)
+
+        if isinstance(mapCanvas, QgsMapCanvas):
+            self.sigCurrentLocationChanged[SpatialPoint, QgsMapCanvas].emit(self.mCurrentMapLocation, mapCanvas)
+
+            if bCLV:
+                self.loadCursorLocationValueInfo(spatialPoint, mapCanvas)
+
+            if bCenter:
+                mapCanvas.setCenter(spatialPoint.toCrs(mapCanvas.mapSettings().crs()))
+
+            if bSP:
+                self.loadCurrentSpectralProfile(spatialPoint, mapCanvas)
+
+        if bTP:
+            self.loadCurrentTemporalProfile(spatialPoint)
+
+    @pyqtSlot(SpatialPoint, QgsMapCanvas)
+    def loadCurrentSpectralProfile(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):
+        """
+        Loads SpectralProfiles from a location defined by `spatialPoint`
+        :param spatialPoint: SpatialPoint
+        :param mapCanvas: QgsMapCanvas
+        """
+        assert self.mCurrentMapSpectraLoading in ['TOP', 'ALL']
+        assert isinstance(spatialPoint, SpatialPoint)
+        from .mapcanvas import MapCanvas
+        assert isinstance(mapCanvas, MapCanvas)
+        tsd = mapCanvas.tsd()
+
+        sensorLayers   = [l for l in mapCanvas.layers() if isinstance(l, SensorProxyLayer)]
+        currentSpectra = []
+
+
+        sl = self.spectralLibrary()
+        for lyr in sensorLayers:
+            assert isinstance(lyr, SensorProxyLayer)
+            p = SpectralProfile.fromRasterLayer(lyr, spatialPoint)
+            if isinstance(p, SpectralProfile):
+                p2 = p.copyFieldSubset(sl.fields())
+                p2.setName('{} {}'.format(p.name(), tsd.date()))
+                p2.setAttribute('date', '{}'.format(tsd.date()))
+                p2.setAttribute('doy', int(tsd.doy()))
+                p2.setAttribute('sensor', tsd.sensor().name())
+                currentSpectra.append(p2)
+                if self.mCurrentMapSpectraLoading == 'TOP':
+                    break
+
+        self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(currentSpectra)
+
+
+
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
         assert isinstance(spatialPoint, SpatialPoint)
@@ -511,7 +677,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
             profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
 
-            #add metadata
+            # add metadata
             if isinstance(tsd, TimeSeriesDatum):
                 profiles2 = []
                 sl = self.spectralLibrary()

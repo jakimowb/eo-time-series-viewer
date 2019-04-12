@@ -72,6 +72,27 @@ class testclassDialogTest(unittest.TestCase):
             c.show()
             QGIS_APP.exec_()
 
+    def test_contextMenu(self):
+        files = testRasterFiles()
+        lyr1 = QgsRasterLayer(files[0])
+        lyr2 = QgsRasterLayer(files[1])
+
+        canvas = MapCanvas()
+        canvas.setWindowTitle('timeseriesviewer.MapCanvas')
+        canvas.setDestinationCrs(lyr1.crs())
+        canvas.setExtent(lyr1.extent())
+
+        pos = QPoint(int(canvas.width()*0.5), int(canvas.height()*0.5))
+
+
+        menu = canvas.contextMenu(pos)
+        self.assertIsInstance(menu, QMenu)
+        menu.exec_()
+
+        event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
+        canvas.contextMenuEvent(event)
+
+
     def test_mapcanvas(self):
         files = testRasterFiles()
         lyr1 = QgsRasterLayer(files[0])
@@ -145,33 +166,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(len(hidden) > 0)
 
         if SHOW_GUI:
-            QGIS_APP.exec_()
-
-    def test_mapCanvasLayerModel(self):
-
-        M = MapCanvasLayerModel()
-        self.assertIsInstance(M, MapCanvasLayerModel)
-        files = TestObjects.testImagePaths()
-
-        from eotimeseriesviewer.timeseries import TimeSeriesSource
-
-        p0 = TimeSeriesSource.create(files[0]).qgsMimeDataUtilsUri()
-        p1 = TimeSeriesSource.create(files[1]).qgsMimeDataUtilsUri()
-
-        self.assertTrue(len(M) == 0)
-        M.insertMapLayerSources(0, [p0, p1])
-        self.assertTrue(len(M) == 2)
-
-        lyr1 = QgsRasterLayer(files[3])
-        lyr2 = QgsRasterLayer(files[4])
-        M.insertMapLayerSources(0, [lyr1, lyr2])
-
-        from qgis.PyQt.QtWidgets import QTableView
-        TV = QTableView()
-        TV.setModel(M)
-
-        if SHOW_GUI:
-            TV.show()
             QGIS_APP.exec_()
 
 

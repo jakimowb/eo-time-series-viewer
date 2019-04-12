@@ -928,7 +928,7 @@ background-color: rgb(0, 0, 0);</string>
   <customwidget>
    <class>DateTimePlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>eotimeseriesviewer.profilevisualization</header>
+   <header>eotimeseriesviewer.temporalprofiles2d</header>
   </customwidget>
  </customwidgets>
  <resources>

@@ -96,7 +96,7 @@ def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
 
 def labelShortcutLayers()->list:
     """
-    Returns a list of all known QgsVectorLayer which define at least one LabelShortcutEditWidget
+    Returns a list of all known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
     """
     layers = []

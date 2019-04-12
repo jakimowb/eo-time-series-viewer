@@ -73,21 +73,22 @@ import eotimeseriesviewer.externals.qps
 try:
     import qps
 except Exception as ex:
-    sys.modules['qps'] = eotimeseriesviewer.externals.qps
-    import qps
+    #sys.modules['qps'] = eotimeseriesviewer.externals.qps
+    #import qps
+    pass
 
 
 
 # import QPS modules
 
-from eotimeseriesviewer.externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
-from eotimeseriesviewer.externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
-from eotimeseriesviewer.externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
-from eotimeseriesviewer.externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-from eotimeseriesviewer.externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel
-from eotimeseriesviewer.externals.qps.maptools import *
-from eotimeseriesviewer.externals.qps.utils import *
-eotimeseriesviewer.externals.qps.utils.UI_DIRECTORIES.append(DIR_UI)
+from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
+from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
+from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
+from .externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
+from .externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel
+from .externals.qps.maptools import *
+from .externals.qps.utils import *
+UI_DIRECTORIES.append(DIR_UI)
 
 def messageLog(msg, level=None):
     """

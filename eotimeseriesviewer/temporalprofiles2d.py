@@ -30,13 +30,13 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 import numpy as np
 from osgeo import ogr, osr, gdal
-import eotimeseriesviewer.externals.pyqtgraph as pg
-from eotimeseriesviewer.externals.pyqtgraph import functions as fn, AxisItem
-
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
+from .externals import pyqtgraph as pg
+from .externals.pyqtgraph import functions as fn, AxisItem
 from .externals.qps.plotstyling.plotstyling import PlotStyle
-from eotimeseriesviewer.pixelloader import PixelLoader, PixelLoaderTask
-from eotimeseriesviewer.utils import *
+
+from .timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
+from .pixelloader import PixelLoader, PixelLoaderTask
+from .utils import *
 from .externals.qps.speclib.spectrallibraries import createQgsField
 
 LABEL_EXPRESSION_2D = 'DN or Index'
@@ -722,7 +722,6 @@ class TemporalProfile(QObject):
 
     def plot(self):
 
-        import pyqtgraph as pg
 
         for sensor in self.mTimeSeries.sensors():
             assert isinstance(sensor, SensorInstrument)
