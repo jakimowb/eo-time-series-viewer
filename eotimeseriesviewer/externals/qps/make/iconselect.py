@@ -3,6 +3,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from qgis.gui import QgsCollapsibleGroupBox
+from ..testing import initQgisApplication
+
 STANDARD_ICONS = [
             'SP_ArrowBack',
             'SP_ArrowDown',
@@ -202,7 +204,7 @@ class AvailableIcons(QWidget):
 
 
 def run():
-    from qps.testing import initQgisApplication
+
     #app = QApplication(sys.argv)
     app = initQgisApplication()
 

@@ -30,17 +30,15 @@
 """
 
 #see http://python-future.org/str_literals.html for str issue discussion
-import json, enum, tempfile
+import json, enum, tempfile, pickle, collections
+from osgeo import ogr, osr
 from qgis.utils import iface
 from qgis.gui import Targets, QgsMapLayerAction
-from qps.externals.pyqtgraph import PlotItem
-import qps.externals.pyqtgraph as pg
-from osgeo import ogr
-import collections
-from qps.utils import *
-from qps.speclib import speclibSettings
-from qps.models import *
-
+from ..externals.pyqtgraph import PlotItem
+from ..externals import pyqtgraph as pg
+from ..models import Option, OptionListModel
+from .. utils import *
+from ..speclib import speclibSettings
 
 # get to now how we can import this module
 MODULE_IMPORT_PATH = None
@@ -896,7 +894,7 @@ class SpectralLibrary(QgsVectorLayer):
         :return: SpectralLibrary
         """
         if MIMEDATA_SPECLIB_LINK in mimeData.formats():
-            #extract from link
+            # extract from link
             sid = pickle.loads(mimeData.data(MIMEDATA_SPECLIB_LINK))
             global SPECLIB_CLIPBOARD
             sl = SPECLIB_CLIPBOARD.get(sid)
@@ -909,7 +907,7 @@ class SpectralLibrary(QgsVectorLayer):
 
         elif MIMEDATA_TEXT in mimeData.formats():
             txt = mimeData.text()
-            from qps.speclib.csvdata import CSVSpectralLibraryIO
+            from .csvdata import CSVSpectralLibraryIO
             return CSVSpectralLibraryIO.fromString(txt)
 
         elif MIMEDATA_URL in mimeData.formats():
@@ -1027,10 +1025,8 @@ class SpectralLibrary(QgsVectorLayer):
                     # see https://enmap-box.readthedocs.io/en/latest/usr_section/usr_manual.html#labelled-spectral-library
                     # for details
                     if 'categories' in fieldProperties.keys():
-                        from qps.classification.classificationscheme import ClassificationScheme, ClassInfo, \
-                            classSchemeToConfig
-                        from qps.classification.classificationscheme import \
-                            EDITOR_WIDGET_REGISTRY_KEY as ClassEditorKey
+                        from ..classification.classificationscheme import ClassificationScheme, ClassInfo, classSchemeToConfig
+                        from ..classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as ClassEditorKey
                         classes = []
                         for item in fieldProperties['categories']:
                             cColor = None
@@ -1080,7 +1076,7 @@ class SpectralLibrary(QgsVectorLayer):
 
         jsonData = collections.OrderedDict()
 
-        from qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY, classSchemeFromConfig, ClassificationScheme, ClassInfo
+        from ..classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY, classSchemeFromConfig, ClassificationScheme, ClassInfo
         for fieldIdx, field in enumerate(self.fields()):
             assert isinstance(field, QgsField)
             attributeEntry = dict()
@@ -2551,7 +2547,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         self.mSpeclib.selectionChanged.connect(self.onSelectionChanged)
 
 
-        from qps.speclib.plotting import SpectralLibraryPlotWidget
+        from .plotting import SpectralLibraryPlotWidget
         assert isinstance(self.mPlotWidget, SpectralLibraryPlotWidget)
         self.mPlotWidget.setSpeclib(self.mSpeclib)
         self.mPlotWidget.backgroundBrush().setColor(COLOR_BACKGROUND)
@@ -2738,7 +2734,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
     def showProperties(self, *args):
 
-        from qps.layerproperties import VectorLayerProperties
+        from ..layerproperties import VectorLayerProperties
 
         self._propDialog = VectorLayerProperties(self.speclib(), None, parent=None)
         self._propDialog.exec_()

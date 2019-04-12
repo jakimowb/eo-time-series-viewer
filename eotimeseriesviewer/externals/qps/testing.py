@@ -11,7 +11,7 @@ import qgis.utils
 import numpy as np
 from osgeo import gdal, ogr, osr
 
-from qps.utils import file_search, dn, jp, findUpwardPath
+from .utils import file_search, dn, jp, findUpwardPath
 
 
 URL_TESTDATA = r'https://bitbucket.org/hu-geomatics/enmap-box-testdata/get/master.zip'
@@ -199,7 +199,7 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
         assert QgsProviderRegistry.instance().libraryDirectory().exists()
 
 
-        from qps.utils import check_vsimem
+        from .utils import check_vsimem
         assert check_vsimem()
 
         # initialize things not done by qgis.test.start_app()...
@@ -382,12 +382,18 @@ class QgisMockup(QgisInterface):
     def legendInterface(self):
         return None
 
+    def layerTreeCanvasBridge(self)->QgsLayerTreeMapCanvasBridge:
+        return self.mLayerTreeMapCanvasBridge
+
+    def layerTreeView(self)->QgsLayerTreeView:
+        return self.mLayerTreeView
+
     def addRasterLayer(self, path, baseName=''):
         l = QgsRasterLayer(path, os.path.basename(path))
         self.lyrs.append(l)
         QgsProject.instance().addMapLayer(l, True)
         self.mRootNode.addLayer(l)
-        self.mCanvas.setLayers(self.mCanvas.layers() + l)
+        #self.mCanvas.setLayers(self.mCanvas.layers() + l)
 
     def createActions(self):
         m = self.ui.menuBar().addAction('Add Vector')

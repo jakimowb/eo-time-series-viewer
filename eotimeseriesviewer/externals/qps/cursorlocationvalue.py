@@ -25,9 +25,9 @@ from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from qps.utils import *
-from qps.models import *
-from qps.classification.classificationscheme import ClassInfo, ClassificationScheme
+from .utils import *
+from .models import *
+from .classification.classificationscheme import ClassInfo, ClassificationScheme
 
 class SourceValueSet(object):
     def __init__(self, source, point:SpatialPoint):

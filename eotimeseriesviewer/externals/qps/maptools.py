@@ -30,7 +30,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 import numpy as np
-from qps.utils import *
+from .utils import *
 
 
 def createCursor(resourcePath:str):

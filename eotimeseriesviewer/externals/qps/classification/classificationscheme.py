@@ -27,7 +27,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 import numpy as np
 from osgeo import gdal
-from qps.utils import gdalDataset, nextColor, loadUIFormClass, findMapLayer, registeredMapLayers
+from ..utils import gdalDataset, nextColor, loadUIFormClass, findMapLayer, registeredMapLayers
 
 
 loadClassificationUI = lambda name: loadUIFormClass(os.path.join(os.path.dirname(__file__), name))

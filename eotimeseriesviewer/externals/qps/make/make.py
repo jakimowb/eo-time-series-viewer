@@ -1,8 +1,8 @@
 
 import xml.etree.ElementTree as ET
-from qps.testing import initQgisApplication
+from ..testing import initQgisApplication
 app = initQgisApplication()
-from qps.utils import *
+from ..utils import *
 from osgeo import gdal, ogr, osr
 
 DIR_QGIS_REPO = r'C:\Users\geo_beja\Repositories\QGIS'

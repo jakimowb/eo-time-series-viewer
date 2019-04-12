@@ -25,10 +25,10 @@ from requests.auth import HTTPBasicAuth
 from http.client import responses
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-from qps.testing import initQgisApplication
+from ..testing import initQgisApplication
 qgisApp = initQgisApplication()
+from ..utils import *
 
-from qps.utils import *
 from qgis.PyQt.QtCore import *
 import numpy as np
 from pb_tool import pb_tool # install with: pip install pb_tool

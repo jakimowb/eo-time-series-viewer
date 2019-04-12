@@ -17,7 +17,7 @@ from qgis.PyQt import uic
 from osgeo import gdal
 import numpy as np
 
-from qps import resourcemockup
+from . import resourcemockup
 
 
 
@@ -461,6 +461,11 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
     RC_SUFFIX = resourceSuffix
     assert os.path.isfile(pathUi), '*.ui file does not exist: {}'.format(pathUi)
 
+    createImportHook = sys.modules.get('qps') is None
+    if createImportHook:
+        from .. import qps
+        sys.modules['qps'] = qps
+
 
     if pathUi not in FORM_CLASSES.keys():
         #parse *.ui xml and replace *.h by qgis.gui
@@ -605,6 +610,8 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
     if pathUi.endswith('spectrallibrarywidget.ui'):
         s =""
 
+    if createImportHook:
+        sys.modules.pop('qps')
 
     return FORM_CLASSES[pathUi]
 

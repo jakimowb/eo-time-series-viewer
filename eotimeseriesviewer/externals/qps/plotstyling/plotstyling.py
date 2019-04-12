@@ -21,10 +21,10 @@
 # noinspection PyPep8Naming
 
 import os, json, sys
-from qps.externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
-from qps.utils import *
-from qps.models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
-import qps.externals.pyqtgraph as pg
+from ..externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+from ..utils import *
+from ..models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
+from ..externals import pyqtgraph as pg
 
 
 DEBUG = False

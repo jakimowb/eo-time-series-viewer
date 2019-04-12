@@ -32,7 +32,6 @@ import pickle
 from qgis.core import *
 
 from .spectrallibraries import FIELD_VALUES, decodeProfileValueDict
-from qps.plotstyling.plotstyling import PlotStyle, MARKERSYMBOLS2QGIS_SYMBOLS
 
 QGS_FUNCTION_GROUP = "Spectral Libraries"
 """

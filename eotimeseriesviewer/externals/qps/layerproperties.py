@@ -31,9 +31,9 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtXml import QDomDocument
 
-from qps.utils import *
-from qps.models import OptionListModel, Option
-from qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .utils import *
+from .models import OptionListModel, Option
+from .classification.classificationscheme import ClassificationScheme, ClassInfo
 
 """
 class RasterLayerProperties(QgsOptionsDialogBase):
