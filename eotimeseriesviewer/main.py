@@ -45,6 +45,8 @@ from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualizatio
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool
 from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
+import eotimeseriesviewer.labeling
+
 DEBUG = False
 
 EXTRA_SPECLIB_FIELDS = [
@@ -380,40 +382,40 @@ class TimeSeriesViewer(QgisInterface, QObject):
         from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
 
-            self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
-            self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
+        self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
-            # add time-specific fields
-            sl = self.spectralLibrary()
+        # add time-specific fields
+        sl = self.spectralLibrary()
 
-            assert isinstance(sl, SpectralLibrary)
-            sl.setName('EOTS Spectral Library')
-            sl.startEditing()
-            for field in EXTRA_SPECLIB_FIELDS:
-                sl.addAttribute(field)
-            assert sl.commitChanges()
+        assert isinstance(sl, SpectralLibrary)
+        sl.setName('EOTS Spectral Library')
+        sl.startEditing()
+        for field in EXTRA_SPECLIB_FIELDS:
+            sl.addAttribute(field)
+        assert sl.commitChanges()
 
-            self.mMapLayerStore.addMapLayer(sl)
+        self.mMapLayerStore.addMapLayer(sl)
 
         temporalProfileLayer = self.spectralTemporalVis.temporalProfileLayer()
         assert isinstance(temporalProfileLayer, QgsVectorLayer)
         temporalProfileLayer.setName('EOTS Temporal Profiles')
-        QgsProject.instance().addMapLayer(temporalProfileLayer)
+        self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
-        # moveToFeatureCenter = QgsMapLayerAction('Move to', self, QgsMapLayer.VectorLayer)
-        # moveToFeatureCenter.triggeredForFeature.connect(self.onMoveToFeature)
+        self.spatialTemporalVis.sigMapViewAdded.connect(self.onMapViewAdded)
 
-        # reg = QgsGui.instance().mapLayerActionRegistry()
-        # assert isinstance(reg, QgsMapLayerActionRegistry)
-        # reg.addMapLayerAction(moveToFeatureCenter)
-        # reg.setDefaultActionForLayer(self.ui.dockSpectralLibrary.speclib(), moveToFeatureCenter)
-        # reg.setDefaultActionForLayer(self.spectralTemporalVis.temporalProfileLayer(), moveToFeatureCenter)
 
+        eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
+        eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
         self.applySettings()
 
         TimeSeriesViewer._instance = self
+
+
+    def onMapViewAdded(self, mapView):
+        mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
+        mapView.addLayer(self.spectralLibrary())
 
     def spectralLibrary(self)->SpectralLibrary:
         """
@@ -607,8 +609,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.mCurrentMapLocation = spatialPoint
 
-        self.sigCurrentLocationChanged[SpatialPoint].emit(self.mCurrentMapLocation)
-
         if isinstance(mapCanvas, QgsMapCanvas):
             self.sigCurrentLocationChanged[SpatialPoint, QgsMapCanvas].emit(self.mCurrentMapLocation, mapCanvas)
 
@@ -623,6 +623,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if bTP:
             self.loadCurrentTemporalProfile(spatialPoint)
+
+        self.sigCurrentLocationChanged[SpatialPoint].emit(self.mCurrentMapLocation)
+
+    @pyqtSlot(SpatialPoint, QgsMapCanvas)
+    def loadCursorLocationValueInfo(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas):
+        self.ui.dockCursorLocation.loadCursorLocation(spatialPoint, mapCanvas)
+
 
     @pyqtSlot(SpatialPoint, QgsMapCanvas)
     def loadCurrentSpectralProfile(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):
@@ -657,7 +664,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(currentSpectra)
 
-
+    @pyqtSlot(SpatialPoint)
+    def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
+        self.spectralTemporalVis.loadCoordinate(spatialPoint)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
         # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)

@@ -878,6 +878,8 @@ class SpatialTemporalVisualization(QObject):
     sigMapSizeChanged = pyqtSignal(QSize)
     sigCRSChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigActivateMapTool = pyqtSignal(str)
+    sigMapViewAdded = pyqtSignal(MapView)
+    sigMapViewRemoved = pyqtSignal(MapView)
 
     def __init__(self, timeSeriesViewer):
         super(SpatialTemporalVisualization, self).__init__()
@@ -909,6 +911,8 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(self.MVC, MapViewDock)
         self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
         self.MVC.sigMapViewAdded.connect(self.onMapViewAdded)
+        self.MVC.sigMapViewAdded.connect(self.sigMapViewAdded.emit)
+        self.MVC.sigMapViewRemoved.connect(self.sigMapViewRemoved.emit)
         self.vectorOverlay = None
 
         self.DVC = DateViewCollection(self)
