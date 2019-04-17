@@ -27,7 +27,7 @@ from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.tests import TestObjects
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = False and os.environ.get('CI') is None
+SHOW_GUI = True and os.environ.get('CI') is None
 
 reg = QgsGui.editorWidgetRegistry()
 if len(reg.factories()) == 0:
@@ -261,18 +261,18 @@ class testclassLabelingTest(unittest.TestCase):
 
     def test_LabelingDock(self):
 
+        registerLabelShortcutEditorWidget()
+        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
+
         dock = LabelingDock()
         dock.show()
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
-        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == None)
+        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() is None)
 
         QgsProject.instance().addMapLayer(lyr)
 
-        registerLabelShortcutEditorWidget()
-
-        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
         am = lyr.actions()
         self.assertIsInstance(am, QgsActionManager)
 

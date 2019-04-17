@@ -650,7 +650,7 @@ class MapCanvas(QgsMapCanvas):
                     assert isinstance(classInfo, ClassInfo)
                     a = classMenu.addAction(classInfo.name())
                     a.setIcon(classInfo.icon())
-                    a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(classInfo.name(), classInfo.value()))
+                    a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(classInfo.name(), classInfo.label()))
 
                     a.triggered.connect(
                         lambda tsd=self.tsd(), ci = classInfo:

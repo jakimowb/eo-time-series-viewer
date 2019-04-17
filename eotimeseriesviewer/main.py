@@ -379,13 +379,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
         import webbrowser
-        from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel
+        from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel, SpectralLibraryWidget
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
 
+        assert isinstance(self.ui.dockSpectralLibrary.SLW, SpectralLibraryWidget)
         self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
-        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
 
+        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
+        self.ui.dockSpectralLibrary.SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
         # add time-specific fields
         sl = self.spectralLibrary()
 

@@ -7,7 +7,8 @@ deploy/*
 temp/
 doc/build/
 doc/build/*
-timeseriesviewer/ui/resources.py
+eotimeseriesviewer/ui/resources.py
+eotimeseriesviewer/externals/qps/qpsresources.py
 tests/outputs
 tests/outputs/*
 qgisresources/
@@ -17,7 +18,7 @@ enmapboxtestdata/*
 screenshots/
 screenshots/*
 example/*.aux.xml
-timeseriesviewer/ui/tmp.ui
+eotimeseriesviewer/ui/tmp.ui
 .*
 !/.gitignore
 !/.gitattributes

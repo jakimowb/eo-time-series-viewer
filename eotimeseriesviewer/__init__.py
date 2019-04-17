@@ -85,7 +85,7 @@ from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, 
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
 from .externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-from .externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel
+from .externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel, SpectralLibraryWidget
 from .externals.qps.maptools import *
 from .externals.qps.utils import *
 UI_DIRECTORIES.append(DIR_UI)

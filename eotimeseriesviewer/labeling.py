@@ -69,8 +69,9 @@ def layerClassSchemes(layer:QgsVectorLayer)->list:
         setup = layer.editorWidgetSetup(i)
         assert isinstance(setup, QgsEditorWidgetSetup)
         if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
-            schemes.append(layer)
-            break
+            cs = setup.config().get(CONFKEY_CLASSIFICATIONSCHEME)
+            if isinstance(cs, ClassificationScheme):
+                schemes.append(cs)
     return schemes
 
 
@@ -720,7 +721,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.mClassWidget = ClassificationSchemeWidget(parent=self)
         self.layout().addWidget(self.mCBShortCutType)
         self.layout().addWidget(self.mClassWidget)
-
+        self.layout().addStretch(0)
         assert isinstance(vl, QgsVectorLayer)
         field = vl.fields().at(fieldIdx)
         assert isinstance(field, QgsField)
@@ -770,10 +771,11 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         ltype = self.shortcutType()
         if ltype == LabelShortcutType.Classification:
             self.mClassWidget.setEnabled(True)
-            #self.mClassWidget.setVisible(True)
+            self.mClassWidget.setVisible(True)
         else:
             self.mClassWidget.setEnabled(False)
-            #self.mClassWidget.setVisible(False)
+            self.mClassWidget.setVisible(False)
+        self.changed.emit()
 
     def classificationScheme(self)->ClassificationScheme:
         return self.mClassWidget.classificationScheme()
@@ -993,11 +995,16 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         field = vl.fields().at(fieldIdx)
         assert isinstance(field, QgsField)
         if field.type() in [QVariant.String, QVariant.Int]:
-            return 20
+            return 5
         else:
-            return 0 #no support
+            return 0 # no support
 
-    def supportsField(self, vl:QgsVectorLayer, idx:int):
+    def supportsField(self, vl:QgsVectorLayer, idx:int)->True:
+        """
+        :param vl: vectorlayers
+        :param idx:
+        :return: bool
+        """
         field = vl.fields().at(idx)
         if isinstance(field, QgsField) and field.type() in [QVariant.Int, QVariant.String]:
             return True
@@ -1011,7 +1018,7 @@ labelEditorWidgetFactory = None
 def registerLabelShortcutEditorWidget():
     reg = QgsGui.editorWidgetRegistry()
     if not EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys():
-        factory = LabelShortcutWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
-        reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, factory)
+        labelEditorWidgetFactory = LabelShortcutWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
+        reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, labelEditorWidgetFactory)
     else:
         labelEditorWidgetFactory = reg.factories()[EDITOR_WIDGET_REGISTRY_KEY]

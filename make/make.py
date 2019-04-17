@@ -24,6 +24,9 @@ def compileResourceFiles():
         compileResourceFile(file)
 
 
+
 if __name__ == '__main__':
 
     compileResourceFiles()
+    print('Compiling finished')
+    exit(0)
