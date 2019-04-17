@@ -1032,7 +1032,7 @@ class TimeSeries(QObject):
         if date:
             tsds = [tsd for tsd in tsds if tsd.date() == date]
         if sensor:
-            tsds = [tsd for tsd in tsds if tsd.sensor == sensor]
+            tsds = [tsd for tsd in tsds if tsd.sensor() == sensor]
         return tsds
 
     def clear(self):

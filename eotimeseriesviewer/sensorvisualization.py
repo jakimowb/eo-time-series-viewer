@@ -28,7 +28,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
-from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument
+from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDatum, TimeSeriesSource
 from eotimeseriesviewer.utils import loadUI
 
 class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
@@ -43,101 +43,142 @@ class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
         from eotimeseriesviewer.sensorvisualization import SensorTableModel
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
-        model = SensorTableModel(self.TS)
-        self.sensorView.setModel(model)
+        self.mSensorModel = SensorTableModel(self.TS)
+        self.mSortedModel = QSortFilterProxyModel()
+        self.mSortedModel.setSourceModel(self.mSensorModel)
+        self.sensorView.setModel(self.mSortedModel)
         self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         s = ""
 
 
 
 class SensorTableModel(QAbstractTableModel):
-    columnames = ['name', 'nb', 'n images','wl','id']
-
     def __init__(self, TS, parent=None, *args):
 
         super(SensorTableModel, self).__init__()
         assert isinstance(TS, TimeSeries)
+
+        # define column names
+        self.mCN_Name = "name"
+        self.mCN_Band = "bands"
+        self.mCN_Dates = "dates"
+        self.mCN_Images = "images"
+        self.mCN_WL = "wavelength"
+        self.mCN_ID = "id"
+
+        self.mColumNames = [self.mCN_Name, self.mCN_Band, self.mCN_Dates, self.mCN_Images,
+                            self.mCN_WL, self.mCN_ID]
+
         self.TS = TS
 
         self.TS.sigSensorAdded.connect(self.addSensor)
         self.TS.sigSensorRemoved.connect(self.removeSensor)
-
-        self.items = []
-        self.sortColumnIndex = 0
-        self.sortOrder = Qt.AscendingOrder
+        self.TS.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesSourceChanges)
+        self.TS.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesSourceChanges)
+        self.mSensors = []
         for s in self.TS.sensors():
             self.addSensor(s)
 
+    def onTimeSeriesSourceChanges(self, timeSeriesDates:list):
+        """
+        Reaction on changes in the time series data sources
+        :param timeSeriesDates: list
+        """
+        sensors = set()
+        for tsd in timeSeriesDates:
+            assert isinstance(tsd, TimeSeriesDatum)
+            sensors.add(tsd.sensor())
 
-    def addSensor(self, sensor):
+        for sensor in sensors:
+            self.updateSensor(sensor)
+
+    def addSensor(self, sensor:SensorInstrument):
+        """
+        Adds a sensor
+        :param sensor: SensorInstrument
+        """
         assert isinstance(sensor, SensorInstrument)
+        i = self.rowCount()
+        self.beginInsertRows(QModelIndex(),i,i)
+        self.mSensors.append(sensor)
+        sensor.sigNameChanged.connect(lambda *args, sensor=sensor: self.updateSensor(sensor))
+        self.endInsertRows()
 
-        self.items.append(sensor)
-        self.sort(self.sortColumnIndex, self.sortOrder)
-
-    def removeSensor(self, sensor):
+    def updateSensor(self, sensor:SensorInstrument):
         assert isinstance(sensor, SensorInstrument)
-        if sensor in self.items:
-            self.items.remove(sensor)
+        if sensor in self.mSensors:
+            tl = self.getIndexFromSensor(sensor)
+            br = self.createIndex(tl.row(), self.columnCount()-1)
+            self.dataChanged.emit(tl, br)
 
-    def sort(self, col, order):
-        if self.rowCount() == 0:
-            return
 
-        self.layoutAboutToBeChanged.emit()
-        colName = self.columnames[col]
-        r = order != Qt.AscendingOrder
+    def removeSensor(self, sensor:SensorInstrument):
+        """
+        Removes a SensorInstrument
+        :param sensor: SensorInstrument
+        """
+        assert isinstance(sensor, SensorInstrument)
+        if sensor in self.mSensors:
 
-        if colName == 'name':
-            self.items.sort(key = lambda s:s.name(), reverse=r)
-        elif colName == 'nb':
-            self.items.sort(key=lambda s: s.nb, reverse=r)
-
-        self.layoutChanged.emit()
-
+            i = self.mSensors.index(sensor)
+            self.beginRemoveRows(QModelIndex(), i, i)
+            self.mSensors.remove(sensor)
+            self.endRemoveRows()
 
     def rowCount(self, parent = QModelIndex()):
-        return len(self.items)
+        return len(self.mSensors)
 
 
     def removeRows(self, row, count , parent=QModelIndex()):
         self.beginRemoveRows(parent, row, row+count-1)
-        toRemove = self.items[row:row+count]
+        toRemove = self.mSensors[row:row + count]
         for tsd in toRemove:
-            self.items.remove(tsd)
+            self.mSensors.remove(tsd)
         self.endRemoveRows()
 
-    def getIndexFromSensor(self, sensor):
-        return self.createIndex(self.items.index(sensor),0)
+    def getIndexFromSensor(self, sensor)->QModelIndex:
+        return self.createIndex(self.mSensors.index(sensor), 0)
 
-    def getSensorFromIndex(self, index):
+    def getSensorFromIndex(self, index)->SensorInstrument:
         if index.isValid():
-            return self.items[index.row()]
+            return self.mSensors[index.row()]
         return None
 
     def columnCount(self, parent = QModelIndex()):
-        return len(self.columnames)
+        return len(self.mColumNames)
 
     def data(self, index, role = Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
         value = None
-        columnName = self.columnames[index.column()]
+        columnName = self.mColumNames[index.column()]
 
         sensor = self.getSensorFromIndex(index)
         assert isinstance(sensor, SensorInstrument)
 
-        if role == Qt.DisplayRole:
-            if columnName == 'name':
+        if role in [Qt.DisplayRole, Qt.EditRole]:
+
+            if columnName == self.mCN_Name:
                 value = sensor.name()
-            elif columnName == 'nb':
+
+            elif columnName == self.mCN_Band:
                 value = str(sensor.nb)
-            elif columnName == 'n images':
-                value = str(len(self.TS.tsds(sensor=sensor)))
-            elif columnName == 'id':
+
+            elif columnName == self.mCN_Images:
+                n = 0
+                for tsd in self.TS.tsds(sensor=sensor):
+                    assert isinstance(tsd, TimeSeriesDatum)
+                    n += len(tsd.sources())
+                value = n
+
+            elif columnName == self.mCN_Dates:
+                value = len(self.TS.tsds(sensor=sensor))
+
+            elif columnName == self.mCN_ID:
                 value = sensor.id()
-            elif columnName == 'wl':
+
+            elif columnName == self.mCN_WL:
                 if sensor.wl is None or sensor.wl.ndim == 0:
                     value = 'undefined'
                 else:
@@ -146,34 +187,39 @@ class SensorTableModel(QAbstractTableModel):
                         value += '[{}]'.format(sensor.wlu)
 
         elif role == Qt.CheckStateRole:
-            if columnName == 'name':
+            if columnName == self.mCN_Name:
                 value = None
+
         elif role == Qt.UserRole:
             value = sensor
+
         return value
 
     def setData(self, index, value, role=None):
         if role is None or not index.isValid():
             return None
 
-        columnName = self.columnames[index.column()]
+        columnName = self.mColumNames[index.column()]
 
         sensor = self.getSensorFromIndex(index)
         assert isinstance(sensor, SensorInstrument)
-
-        if role == Qt.EditRole and columnName == 'name':
+        b = False
+        if role == Qt.EditRole and columnName == self.mCN_Name:
             if len(value) == 0: #do not accept empty strings
-                return False
-            sensor.setName(str(value))
-            return True
+                b = False
+            else:
+                sensor.setName(str(value))
+                b = True
 
-        return False
+        #data changed will be emitted via signal from sensor in updateSensor
+
+        return b
 
     def flags(self, index):
         if index.isValid():
-            columnName = self.columnames[index.column()]
+            columnName = self.mColumNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName in ['name']: #allow check state
+            if columnName in [self.mCN_Name]: #allow check state
                 flags = flags | Qt.ItemIsUserCheckable | Qt.ItemIsEditable
             return flags
             #return item.qt_flags(index.column())
@@ -183,7 +229,7 @@ class SensorTableModel(QAbstractTableModel):
         if Qt is None:
             return None
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.columnames[col]
+            return self.mColumNames[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
