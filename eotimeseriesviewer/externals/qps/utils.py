@@ -19,7 +19,10 @@ import numpy as np
 
 from . import resourcemockup
 
-
+try:
+    import qps
+except:
+    from .. import qps
 
 jp = os.path.join
 dn = os.path.dirname
@@ -461,8 +464,6 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
     RC_SUFFIX = resourceSuffix
     assert os.path.isfile(pathUi), '*.ui file does not exist: {}'.format(pathUi)
 
-
-    from .. import qps
 
     if pathUi not in FORM_CLASSES.keys():
         #parse *.ui xml and replace *.h by qgis.gui

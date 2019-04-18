@@ -207,9 +207,14 @@ def compileResourceFile(pathQrc:str, targetDir:str=None):
 
     bn = os.path.splitext(bn)[0]
     pathPy = os.path.join(dn, bn + '.py')
-    cmd = 'pyrcc5 -o {} {}'.format(pathPy, pathQrc)
-    print(cmd)
-    os.system(cmd)
+
+    try:
+        from PyQt5.pyrcc_main import processResourceFile
+        assert processResourceFile([pathQrc], pathPy, False)
+    except Exception as ex:
+        cmd = 'pyrcc5 -o {} {}'.format(pathPy, pathQrc)
+        print(cmd)
+        os.system(cmd)
 
 def fileNeedsUpdate(file1, file2):
     """
