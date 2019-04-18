@@ -1281,7 +1281,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             f = QgsFeature(self.fields())
             f.setGeometry(QgsGeometry.fromPointXY(coordinate.toCrs(self.crs())))
             f.setAttribute(FN_ID, self.mNextID)
-            f.setAttribute(FN_NAME, 'Location {}'.format(self.mNextID))
+            f.setAttribute(FN_NAME, 'TP {}'.format(self.mNextID))
             f.setAttribute(FN_X, coordinate.x())
             f.setAttribute(FN_Y, coordinate.y())
             f.setAttribute(FN_N_LOADED_PERCENT, 0.0)

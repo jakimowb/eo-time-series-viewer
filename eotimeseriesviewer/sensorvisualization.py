@@ -249,7 +249,7 @@ class SensorListModel(QAbstractListModel):
         self.mSensors = []
         self.sortColumnIndex = 0
         self.sortOrder = Qt.AscendingOrder
-        for s in self.TS.mSensors2TSDs:
+        for s in self.TS.sensors():
             self.insertSensor(s)
 
 

@@ -316,11 +316,18 @@ class MapCanvas(QgsMapCanvas):
         """
         if not isinstance(arguments, list):
             arguments = [arguments]
+
         for a in arguments:
+
             if isinstance(a, SpatialExtent):
                 self.mTimedRefreshPipeLine[SpatialExtent] = a
+
             elif isinstance(a, SpatialPoint):
                 self.mTimedRefreshPipeLine[SpatialExtent] = a
+
+            elif isinstance(a, QColor):
+                self.mTimedRefreshPipeLine[QColor] = a
+
             elif isinstance(a, MapCanvas.Command):
                 if not MapCanvas.Command in self.mTimedRefreshPipeLine.keys():
                     self.mTimedRefreshPipeLine[MapCanvas.Command] = []
@@ -328,6 +335,7 @@ class MapCanvas(QgsMapCanvas):
                 while a in self.mTimedRefreshPipeLine[MapCanvas.Command]:
                     self.mTimedRefreshPipeLine[MapCanvas.Command].remove(a)
                 self.mTimedRefreshPipeLine[MapCanvas.Command].append(a)
+
             else:
                 raise NotImplementedError('Unsupported argument: {}'.format(str(a)))
 
@@ -387,7 +395,10 @@ class MapCanvas(QgsMapCanvas):
                     self.setSpatialExtent(self.mTimedRefreshPipeLine[SpatialExtent])
 
                 if SpatialPoint in keys:
-                    self.setSpatialExtent(self.mTimedRefreshPipeLine[SpatialPoint])
+                    self.setSpatialCenter(self.mTimedRefreshPipeLine[SpatialPoint])
+
+                if QColor in keys:
+                    self.setCanvasColor(self.mTimedRefreshPipeLine[QColor])
 
                 if MapCanvas.Command in keys:
                     commands = self.mTimedRefreshPipeLine[MapCanvas.Command]
@@ -653,36 +664,9 @@ class MapCanvas(QgsMapCanvas):
                     a.setToolTip('Write "{}" or "{}" to connected vector field attributes'.format(classInfo.name(), classInfo.label()))
 
                     a.triggered.connect(
-                        lambda tsd=self.tsd(), ci = classInfo:
+                        lambda *args, tsd=self.tsd(), ci = classInfo:
                         applyShortcutsToRegisteredLayers(tsd, [ci]))
                 classSchemes.append(classScheme)
-
-        """
-            
-            menu.addSeparator()
-            
-            from eotimeseriesviewer.utils import qgisInstance
-            actionAddRaster2QGIS = menu.addAction('Add raster layers(s) to QGIS')
-            actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-                    [l for l in self.layers() if isinstance(l, QgsRasterLayer)]
-                )
-            )
-            # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsRasterLayer)]))
-            actionAddVector2QGIS = menu.addAction('Add vector layer(s) to QGIS')
-            actionAddRaster2QGIS.triggered.connect(lambda : self.addLayers2QGIS(
-                #QgsProject.instance().addMapLayers(
-                    [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
-                )
-            )
-        
-            # QGIS 3: action.triggered.connect(lambda: QgsProject.instance().addMapLayers([l for l in self.layers() if isinstance(l, QgsVectorLayer)]))
-    
-            b = isinstance(qgisInstance(), QgisInterface)
-            for a in [actionAddRaster2QGIS, actionAddVector2QGIS]:
-                a.setEnabled(b)
-            menu.addSeparator()
-            
-        """
 
         action = menu.addAction('Hide date')
         action.triggered.connect(lambda : self.sigChangeDVRequest.emit(self, 'hide_date'))

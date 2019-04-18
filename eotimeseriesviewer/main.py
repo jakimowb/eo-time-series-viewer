@@ -322,7 +322,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
         self.ui.dockMapViews.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
-        self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setBackgroundColor)
+        self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setMapBackgroundColor)
         self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
@@ -532,7 +532,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
         self.spatialTemporalVis.mMapRefreshTimer.start(value(Keys.MapUpdateInterval))
-        self.spatialTemporalVis.setBackgroundColor(value(Keys.MapBackgroundColor))
+        self.spatialTemporalVis.setMapBackgroundColor(value(Keys.MapBackgroundColor))
         self.spatialTemporalVis.setMapSize(value(Keys.MapSize))
 
     def setMapTool(self, mapToolKey, *args, **kwds):

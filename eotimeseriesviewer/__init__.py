@@ -70,14 +70,6 @@ except:
 
 
 import eotimeseriesviewer.externals.qps
-try:
-    import qps
-except Exception as ex:
-    #sys.modules['qps'] = eotimeseriesviewer.externals.qps
-    #import qps
-    pass
-
-
 
 # import QPS modules
 
@@ -114,8 +106,8 @@ def initResources():
         print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
 
     try:
-        import qps.qpsresources
-        qps.qpsresources.qInitResources()
+        import eotimeseriesviewer.externals.qps.qpsresources
+        eotimeseriesviewer.externals.qps.qpsresources.qInitResources()
     except Exception as ex:
         print('Unable to import qps.resources', file=sys.stderr)
 
