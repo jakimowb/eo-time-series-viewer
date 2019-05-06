@@ -50,10 +50,10 @@ FN_ID = 'id'
 FN_X = 'x'
 FN_Y = 'y'
 FN_NAME = 'name'
-FN_N_TOTAL = 'n'
-FN_N_NODATA = 'no_data'
-FN_N_LOADED = 'loaded'
-FN_N_LOADED_PERCENT = 'percent'
+#FN_N_TOTAL = 'n'
+#FN_N_NODATA = 'no_data'
+#FN_N_LOADED = 'loaded'
+#FN_N_LOADED_PERCENT = 'percent'
 
 
 regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
@@ -745,7 +745,7 @@ class TemporalProfile(QObject):
 
         self.mData[tsd].update(values)
         if not skipStatusUpdate:
-            self.updateLoadingStatus()
+            #self.updateLoadingStatus()
             self.mUpdated = True
             self.sigDataChanged.emit()
 
@@ -821,12 +821,12 @@ class TemporalProfile(QObject):
         """
         return self.mLoaded, self.mNoData, self.mLoadedMax
 
-    def updateLoadingStatus(self):
-        """
-        Calculates the loading status in terms of single pixel values.
-        nMax is the sum of all bands over each TimeSeriesDatum and Sensors
-        """
-
+    #def updateLoadingStatus(self):
+    #    """
+    #    Calculates the loading status in terms of single pixel values.
+    #    nMax is the sum of all bands over each TimeSeriesDatum and Sensors
+    #    """
+    """
         self.mLoaded = 0
         self.mLoadedMax = 0
         self.mNoData = 0
@@ -846,14 +846,16 @@ class TemporalProfile(QObject):
 
         b = self.mLayer.isEditable()
         self.mLayer.startEditing()
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
-        if self.mLoadedMax > 0:
-            self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax, 2))
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
+        # if self.mLoadedMax > 0:
+        #     self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax, 2))
 
         self.mLayer.saveEdits(leaveEditable=b)
         s = ""
+    """
+
     def isNoData(self, tsd):
         assert isinstance(tsd, TimeSeriesDatum)
         return self.mData[tsd]['nodata']
@@ -1073,10 +1075,10 @@ class TemporalProfileLayer(QgsVectorLayer):
         fields.append(createQgsField(FN_NAME,''))
         fields.append(createQgsField(FN_X, 0.0, comment='Longitude'))
         fields.append(createQgsField(FN_Y, 0.0, comment='Latitude'))
-        fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
-        fields.append(createQgsField(FN_N_NODATA,0, comment='Total of no-data values.'))
-        fields.append(createQgsField(FN_N_LOADED, 0, comment='Loaded valid band values.'))
-        fields.append(createQgsField(FN_N_LOADED_PERCENT,0.0, comment='Loading progress (%)'))
+        #fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
+        #fields.append(createQgsField(FN_N_NODATA,0, comment='Total of no-data values.'))
+        #fields.append(createQgsField(FN_N_LOADED, 0, comment='Loaded valid band values.'))
+        #fields.append(createQgsField(FN_N_LOADED_PERCENT,0.0, comment='Loading progress (%)'))
         assert self.startEditing()
         assert self.dataProvider().addAttributes(fields)
         assert self.commitChanges()
@@ -1284,10 +1286,10 @@ class TemporalProfileLayer(QgsVectorLayer):
             f.setAttribute(FN_NAME, 'TP {}'.format(self.mNextID))
             f.setAttribute(FN_X, coordinate.x())
             f.setAttribute(FN_Y, coordinate.y())
-            f.setAttribute(FN_N_LOADED_PERCENT, 0.0)
-            f.setAttribute(FN_N_LOADED, 0)
-            f.setAttribute(FN_N_TOTAL, 0)
-            f.setAttribute(FN_N_NODATA, 0)
+            #f.setAttribute(FN_N_LOADED_PERCENT, 0.0)
+            #f.setAttribute(FN_N_LOADED, 0)
+            #f.setAttribute(FN_N_TOTAL, 0)
+            #f.setAttribute(FN_N_NODATA, 0)
             self.mNextID += 1
             features.append(f)
 
@@ -1299,17 +1301,17 @@ class TemporalProfileLayer(QgsVectorLayer):
 
 
         if success:
-            assert n+len(features) == self.dataProvider().featureCount()
-            assert self.dataProvider().featureCount() == len(self.mProfiles)
+            assert n+len(features) == self.featureCount()
+            assert self.featureCount() == len(self.mProfiles)
             profiles = [tp for tp in self.mProfiles.values() if tp not in tps_before]
-            for p in profiles:
-                p.updateLoadingStatus()
+            #for p in profiles:
+            #    p.updateLoadingStatus()
             return profiles
         else:
             return []
 
 
-    def saveEdits(self, leaveEditable=True, triggerRepaint=True):
+    def saveEdits(self, leaveEditable=False, triggerRepaint=True):
         """
         function to save layer changes-
         :param layer:
@@ -1496,7 +1498,10 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
     #sigAttributeRemoved = pyqtSignal(str)
     #sigAttributeAdded = pyqtSignal(str)
 
-    AUTOGENERATES_COLUMNS = [FN_Y, FN_X, FN_N_LOADED, FN_N_TOTAL, FN_N_NODATA, FN_ID, FN_N_LOADED_PERCENT]
+    AUTOGENERATES_COLUMNS = [FN_ID, FN_Y, FN_X]
+                             #FN_N_LOADED, FN_N_TOTAL, FN_N_NODATA,
+                             #FN_N_LOADED_PERCENT
+
 
     def __init__(self, temporalProfileLayer=None, parent=None):
 
