@@ -144,395 +144,6 @@ class _SensorPoints(pg.PlotDataItem):
 
 
 
-class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
-    """
-
-    """
-    def __init__(self, tableView, temporalProfileLayer, parent=None):
-        assert isinstance(tableView, QTableView)
-        assert isinstance(temporalProfileLayer, TemporalProfileLayer)
-        super(PlotSettingsModel2DWidgetDelegate, self).__init__(parent=parent)
-        self._preferedSize = QgsFieldExpressionWidget().sizeHint()
-        self.mTableView = tableView
-        self.mTemporalProfileLayer = temporalProfileLayer
-        self.mTimeSeries = temporalProfileLayer.timeSeries()
-
-        self.mSensorLayers = {}
-
-    def setItemDelegates(self, tableView):
-        assert isinstance(tableView, QTableView)
-        model = tableView.model()
-
-        assert isinstance(model, PlotSettingsModel2D)
-        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
-            i = model.columnNames.index(c)
-            tableView.setItemDelegateForColumn(i, self)
-
-    def getColumnName(self, index):
-        assert index.isValid()
-        model = index.model()
-        assert isinstance(model, PlotSettingsModel2D)
-        return model.columnNames[index.column()]
-    """
-    def sizeHint(self, options, index):
-        s = super(ExpressionDelegate, self).sizeHint(options, index)
-        exprString = self.tableView.model().data(index)
-        l = QLabel()
-        l.setText(exprString)
-        x = l.sizeHint().width() + 100
-        s = QSize(x, s.height())
-        return self._preferedSize
-    """
-    def exampleLyr(self, sensor):
-        # if isinstance(sensor, SensorInstrument):
-        if sensor not in self.mSensorLayers.keys():
-
-            crs = QgsCoordinateReferenceSystem('EPSG:4862')
-            uri = 'Point?crs={}'.format(crs.authid())
-            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
-            f = sensorExampleQgsFeature(sensor)
-            assert isinstance(f, QgsFeature)
-            assert lyr.startEditing()
-            for field in f.fields():
-                lyr.addAttribute(field)
-            lyr.addFeature(f)
-            lyr.commitChanges()
-            self.mSensorLayers[sensor] = lyr
-        return self.mSensorLayers[sensor]
-
-    def createEditor(self, parent, option, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-        w = None
-        if index.isValid() and isinstance(model, PlotSettingsModel2D):
-            plotStyle = model.idx2plotStyle(index)
-
-            if isinstance(plotStyle, TemporalProfile2DPlotStyle):
-                if cname == model.cnExpression:
-
-                    w = QgsFieldExpressionWidget(parent=parent)
-                    w.setExpressionDialogTitle('Values')
-                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
-                    w.fieldChanged[str, bool].connect(lambda n, b: self.checkData(index, w, w.expression()))
-                    w.setExpression(plotStyle.expression())
-                    plotStyle.sigSensorChanged.connect(lambda s: w.setLayer(self.exampleLyr(s)))
-                    if isinstance(plotStyle.sensor(), SensorInstrument):
-                        w.setLayer(self.exampleLyr(plotStyle.sensor()))
-
-
-
-
-                elif cname == model.cnStyle:
-                    w = PlotStyleButton(parent=parent)
-                    w.setPlotStyle(plotStyle)
-                    w.setToolTip('Set style.')
-                    w.sigPlotStyleChanged.connect(lambda: self.checkData(index, w, w.plotStyle()))
-
-                elif cname == model.cnSensor:
-                    w = QComboBox(parent=parent)
-                    m = SensorListModel(self.mTimeSeries)
-                    w.setModel(m)
-
-                elif cname == model.cnTemporalProfile:
-                    w = QgsFeatureListComboBox(parent=parent)
-                    w.setSourceLayer(self.mTemporalProfileLayer)
-                    w.setIdentifierField('id')
-                    w.setDisplayExpression('to_string("id")+\'  \'+"name"')
-                    w.setAllowNull(False)
-                else:
-                    raise NotImplementedError()
-        return w
-
-    def checkData(self, index, w, value):
-        assert isinstance(index, QModelIndex)
-        model = self.mTableView.model()
-        if index.isValid() and isinstance(model, PlotSettingsModel2D):
-            plotStyle = model.idx2plotStyle(index)
-            assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
-            if isinstance(w, QgsFieldExpressionWidget):
-                assert value == w.expression()
-                assert w.isExpressionValid(value) == w.isValidExpression()
-
-                if w.isValidExpression():
-                    self.commitData.emit(w)
-                else:
-                    s = ""
-                    #print(('Delegate commit failed',w.asExpression()))
-            if isinstance(w, PlotStyleButton):
-
-                self.commitData.emit(w)
-
-    def setEditorData(self, editor, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-
-        w = None
-        if index.isValid() and isinstance(model, PlotSettingsModel2D):
-            cname = self.getColumnName(index)
-            if cname == model.cnExpression:
-                lastExpr = index.model().data(index, Qt.DisplayRole)
-                assert isinstance(editor, QgsFieldExpressionWidget)
-                editor.setProperty('lastexpr', lastExpr)
-                editor.setField(lastExpr)
-
-            elif cname == model.cnStyle:
-                style = index.data()
-                assert isinstance(editor, PlotStyleButton)
-                editor.setPlotStyle(style)
-
-            elif cname == model.cnSensor:
-                assert isinstance(editor, QComboBox)
-                m = editor.model()
-                assert isinstance(m, SensorListModel)
-                sensor = index.data(role=Qt.UserRole)
-                if isinstance(sensor, SensorInstrument):
-                    idx = m.sensor2idx(sensor)
-                    editor.setCurrentIndex(idx.row())
-            elif cname == model.cnTemporalProfile:
-                assert isinstance(editor, QgsFeatureListComboBox)
-                value = editor.identifierValue()
-                if value != QVariant():
-                    plotStyle = index.data(role=Qt.UserRole)
-                    TP = plotStyle.temporalProfile()
-                    editor.setIdentifierValue(TP.id())
-                else:
-                    s  = ""
-            else:
-                raise NotImplementedError()
-
-    def setModelData(self, w, model, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-
-        if index.isValid() and isinstance(model, PlotSettingsModel2D):
-            if cname == model.cnExpression:
-                assert isinstance(w, QgsFieldExpressionWidget)
-                expr = w.asExpression()
-                exprLast = model.data(index, Qt.DisplayRole)
-
-                if w.isValidExpression() and expr != exprLast:
-                    model.setData(index, w.asExpression(), Qt.EditRole)
-
-            elif cname == model.cnStyle:
-                if isinstance(w, PlotStyleButton):
-                    model.setData(index, w.plotStyle(), Qt.EditRole)
-
-            elif cname == model.cnSensor:
-                assert isinstance(w, QComboBox)
-                sensor = w.itemData(w.currentIndex(), role=Qt.UserRole)
-                if isinstance(sensor, SensorInstrument):
-                    model.setData(index, sensor, Qt.EditRole)
-
-            elif cname == model.cnTemporalProfile:
-                assert isinstance(w, QgsFeatureListComboBox)
-                fid = w.identifierValue()
-                if isinstance(fid, int):
-                    TP = self.mTemporalProfileLayer.mProfiles.get(fid)
-                    model.setData(index, TP, Qt.EditRole)
-
-            else:
-                raise NotImplementedError()
-
-
-
-class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
-    """
-
-    """
-    def __init__(self, tableView, temporalProfileLayer, parent=None):
-        assert isinstance(tableView, QTableView)
-        assert isinstance(temporalProfileLayer, TemporalProfileLayer)
-        super(PlotSettingsModel3DWidgetDelegate, self).__init__(parent=parent)
-        self._preferedSize = QgsFieldExpressionWidget().sizeHint()
-        self.mTableView = tableView
-        self.mTimeSeries = temporalProfileLayer.timeSeries()
-        self.mTemporalProfileLayer = temporalProfileLayer
-        self.mSensorLayers = {}
-
-
-
-
-
-
-
-    def setItemDelegates(self, tableView):
-        assert isinstance(tableView, QTableView)
-        model = tableView.model()
-        assert isinstance(model, PlotSettingsModel3D)
-        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
-            i = model.columnNames.index(c)
-            tableView.setItemDelegateForColumn(i, self)
-
-    def getColumnName(self, index):
-        assert index.isValid()
-        model = index.model()
-        assert isinstance(model, PlotSettingsModel3D)
-        return model.columnNames[index.column()]
-    """
-    def sizeHint(self, options, index):
-        s = super(ExpressionDelegate, self).sizeHint(options, index)
-        exprString = self.tableView.model().data(index)
-        l = QLabel()
-        l.setText(exprString)
-        x = l.sizeHint().width() + 100
-        s = QSize(x, s.height())
-        return self._preferedSize
-    """
-    def createEditor(self, parent, option, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-        w = None
-        if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            plotStyle = model.idx2plotStyle(index)
-            if isinstance(plotStyle, TemporalProfile3DPlotStyle):
-                if cname == model.cnExpression:
-                    w = QgsFieldExpressionWidget(parent=parent)
-                    w.setExpression(plotStyle.expression())
-                    w.setLayer(self.exampleLyr(plotStyle.sensor()))
-                    def onSensorAdded(s):
-                        w.setLayer(self.exampleLyr(s))
-                    #plotStyle.sigSensorChanged.connect(lambda s : w.setLayer(self.exampleLyr(s)))
-                    plotStyle.sigSensorChanged.connect(onSensorAdded)
-                    w.setExpressionDialogTitle('Values')
-                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
-                    w.fieldChanged[str,bool].connect(lambda n, b : self.checkData(index, w, w.expression()))
-
-                elif cname == model.cnStyle:
-                    w = TemporalProfile3DPlotStyleButton(parent=parent)
-                    w.setPlotStyle(plotStyle)
-                    w.setToolTip('Set plot style')
-                    w.sigPlotStyleChanged.connect(lambda: self.checkData(index, w, w.plotStyle()))
-
-                elif cname == model.cnSensor:
-                    w = QComboBox(parent=parent)
-                    m = SensorListModel(self.mTimeSeries)
-                    w.setModel(m)
-
-                elif cname == model.cnTemporalProfile:
-                    w = QgsFeatureListComboBox(parent=parent)
-                    w.setSourceLayer(self.mTemporalProfileLayer)
-                    w.setIdentifierField('id')
-                    w.setDisplayExpression('to_string("id")+\'  \'+"name"')
-                    w.setAllowNull(False)
-                else:
-                    raise NotImplementedError()
-        return w
-
-    def exampleLyr(self, sensor):
-
-        if sensor not in self.mSensorLayers.keys():
-            crs = QgsCoordinateReferenceSystem('EPSG:4862')
-            uri = 'Point?crs={}'.format(crs.authid())
-            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
-            assert sensor is None or isinstance(sensor, SensorInstrument)
-
-            f = sensorExampleQgsFeature(sensor, singleBandOnly=True)
-            assert isinstance(f, QgsFeature)
-            assert lyr.startEditing()
-            for field in f.fields():
-                lyr.addAttribute(field)
-            lyr.addFeature(f)
-            lyr.commitChanges()
-            self.mSensorLayers[sensor] = lyr
-        return self.mSensorLayers[sensor]
-
-    def checkData(self, index, w, value):
-        assert isinstance(index, QModelIndex)
-        model = self.mTableView.model()
-        if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            plotStyle = model.idx2plotStyle(index)
-            assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
-            if isinstance(w, QgsFieldExpressionWidget):
-                assert value == w.expression()
-                assert w.isExpressionValid(value) == w.isValidExpression()
-
-                if w.isValidExpression():
-                    self.commitData.emit(w)
-                else:
-                    s = ""
-                    #print(('Delegate commit failed',w.asExpression()))
-            if isinstance(w, TemporalProfile3DPlotStyleButton):
-
-                self.commitData.emit(w)
-
-
-    def setEditorData(self, editor, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-
-        w = None
-        if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            cname = self.getColumnName(index)
-            style = model.idx2plotStyle(index)
-
-            if cname == model.cnExpression:
-                lastExpr = index.model().data(index, Qt.DisplayRole)
-                assert isinstance(editor, QgsFieldExpressionWidget)
-                editor.setProperty('lastexpr', lastExpr)
-                editor.setField(lastExpr)
-
-            elif cname == model.cnStyle:
-                assert isinstance(editor, TemporalProfile3DPlotStyleButton)
-                editor.setPlotStyle(style)
-
-            elif cname == model.cnSensor:
-                assert isinstance(editor, QComboBox)
-                m = editor.model()
-                assert isinstance(m, SensorListModel)
-                sensor = index.data(role=Qt.UserRole)
-                if isinstance(sensor, SensorInstrument):
-                    idx = m.sensor2idx(sensor)
-                    editor.setCurrentIndex(idx.row())
-            elif cname == model.cnTemporalProfile:
-                assert isinstance(editor, QgsFeatureListComboBox)
-                value = editor.identifierValue()
-                if value != QVariant():
-                    plotStyle = index.data(role=Qt.UserRole)
-                    TP = plotStyle.temporalProfile()
-                    editor.setIdentifierValue(TP.id())
-                else:
-                    s  = ""
-
-            else:
-                raise NotImplementedError()
-
-    def setModelData(self, w, model, index):
-        cname = self.getColumnName(index)
-        model = self.mTableView.model()
-
-        if index.isValid() and isinstance(model, PlotSettingsModel3D):
-            if cname == model.cnExpression:
-                assert isinstance(w, QgsFieldExpressionWidget)
-                expr = w.asExpression()
-                exprLast = model.data(index, Qt.DisplayRole)
-
-                if w.isValidExpression() and expr != exprLast:
-                    model.setData(index, w.asExpression(), Qt.EditRole)
-
-            elif cname == model.cnStyle:
-                assert isinstance(w, TemporalProfile3DPlotStyleButton)
-                model.setData(index, w.plotStyle(), Qt.EditRole)
-
-            elif cname == model.cnSensor:
-                assert isinstance(w, QComboBox)
-                sensor = w.itemData(w.currentIndex(), role=Qt.UserRole)
-                assert isinstance(sensor, SensorInstrument)
-                model.setData(index, sensor, Qt.EditRole)
-
-                s = ""
-
-            elif cname == model.cnTemporalProfile:
-                assert isinstance(w, QgsFeatureListComboBox)
-                fid = w.identifierValue()
-                if isinstance(fid, int):
-                    TP = self.mTemporalProfileLayer.mProfiles.get(fid)
-                    model.setData(index, TP, Qt.EditRole)
-
-            else:
-                raise NotImplementedError()
-
-
-
 class SensorPixelDataMemoryLayer(QgsVectorLayer):
 
     def __init__(self, sensor, crs=None):
@@ -872,15 +483,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
         self.columnNames = [self.cnTemporalProfile, self.cnSensor, self.cnStyle, self.cnExpression]
 
         self.mPlotSettings = []
-        #assert isinstance(plotWidget, DateTimePlotWidget)
-        #self.mPlotWidget = plotWidget
-        self.sortColumnIndex = 0
-        self.sortOrder = Qt.AscendingOrder
-        #assert isinstance(self.tpCollection.TS, TimeSeries)
-        #self.tpCollection.TS.sigSensorAdded.connect(self.addPlotItem)
-        #self.tpCollection.TS.sigSensorRemoved.connect(self.removeSensor)
 
-        self.sort(0, Qt.AscendingOrder)
         self.dataChanged.connect(self.signaler)
 
     def __len__(self):
@@ -987,23 +590,6 @@ class PlotSettingsModel2D(QAbstractTableModel):
                     self.endRemoveRows()
             self.sigPlotStylesRemoved.emit(plotStyles)
 
-    def sort(self, col, order):
-        if self.rowCount() == 0:
-            return
-
-
-        colName = self.columnames[col]
-        r = order != Qt.AscendingOrder
-
-        #self.beginMoveRows(idxSrc,
-
-        if colName == self.cnSensor:
-            self.mPlotSettings.sort(key = lambda sv:sv.sensor().name(), reverse=r)
-        elif colName == self.cnExpression:
-            self.mPlotSettings.sort(key=lambda sv: sv.expression(), reverse=r)
-        elif colName == self.cnStyle:
-            self.mPlotSettings.sort(key=lambda sv: sv.color, reverse=r)
-
     def rowCount(self, parent = QModelIndex()):
         return len(self.mPlotSettings)
 
@@ -1064,9 +650,9 @@ class PlotSettingsModel2D(QAbstractTableModel):
                     else:
                         value = 'undefined'
 
-            #elif role == Qt.DecorationRole:
-            #    if columnName == self.cnStyle:
-            #        value = plotStyle.createIcon(QSize(96,96))
+            if role == Qt.DecorationRole:
+                if columnName == self.cnStyle:
+                    value = plotStyle.createIcon(QSize(25,25))
 
             elif role == Qt.CheckStateRole:
                 if columnName == self.cnTemporalProfile:
@@ -1289,7 +875,7 @@ class SpectralTemporalVisualization(QObject):
         # temporal profile collection to store loaded values
         self.mTemporalProfileLayer = TemporalProfileLayer(self.TS)
         self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
-        self.mTemporalProfileLayer.startEditing()
+        #self.mTemporalProfileLayer.startEditing()
         self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
 
         # fix to not loose C++ reference on temporal profile layer in case it is removed from QGIS mapcanvas
@@ -1324,8 +910,10 @@ class SpectralTemporalVisualization(QObject):
 
         # set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
-        self.ui.tableView2DProfiles.setModel(self.plotSettingsModel2D)
-        self.ui.tableView2DProfiles.setSortingEnabled(False)
+        self.plotSettingsModel2DProxy = QSortFilterProxyModel()
+        self.plotSettingsModel2DProxy.setSourceModel(self.plotSettingsModel2D)
+        self.ui.tableView2DProfiles.setModel(self.plotSettingsModel2DProxy)
+        self.ui.tableView2DProfiles.setSortingEnabled(True)
         self.ui.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
         self.ui.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
         self.plotSettingsModel2D.sigDataChanged.connect(self.requestUpdate)
@@ -1647,7 +1235,7 @@ class SpectralTemporalVisualization(QObject):
     sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
 
     def onMoveToDate(self, date):
-        dt = np.asarray([np.abs(tsd.date - date) for tsd in self.TS])
+        dt = np.asarray([np.abs(tsd.date() - date) for tsd in self.TS])
         i = np.argmin(dt)
         self.sigMoveToTSD.emit(self.TS[i])
 
@@ -1675,7 +1263,7 @@ class SpectralTemporalVisualization(QObject):
         #next time
 
     def onRowsInserted2D(self, parent, start, end):
-        model = self.ui.tableView2DProfiles.model()
+        model = self.ui.tableView2DProfiles.model().sourceModel()
         if isinstance(model, PlotSettingsModel2D):
             colExpression = model.columnIndex(model.cnExpression)
             colStyle = model.columnIndex(model.cnStyle)
@@ -1936,6 +1524,407 @@ class SpectralTemporalVisualization(QObject):
 
             # https://github.com/pyqtgraph/pyqtgraph/blob/5195d9dd6308caee87e043e859e7e553b9887453/examples/customPlot.py
             return
+
+
+
+class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
+    """
+
+    """
+    def __init__(self, tableView, temporalProfileLayer, parent=None):
+        assert isinstance(tableView, QTableView)
+        assert isinstance(temporalProfileLayer, TemporalProfileLayer)
+        super(PlotSettingsModel2DWidgetDelegate, self).__init__(parent=parent)
+        self._preferedSize = QgsFieldExpressionWidget().sizeHint()
+        self.mTableView = tableView
+        self.mTemporalProfileLayer = temporalProfileLayer
+        self.mTimeSeries = temporalProfileLayer.timeSeries()
+
+        self.mSensorLayers = {}
+
+
+    def sortFilterProxyModel(self)->QSortFilterProxyModel:
+        return self.mTableView.model()
+
+    def plotSettingsModel(self)->PlotSettingsModel2D:
+        return self.sortFilterProxyModel().sourceModel()
+
+    def setItemDelegates(self, tableView):
+        assert isinstance(tableView, QTableView)
+        model = self.plotSettingsModel()
+
+        assert isinstance(model, PlotSettingsModel2D)
+        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
+            i = model.columnNames.index(c)
+            tableView.setItemDelegateForColumn(i, self)
+
+    def getColumnName(self, index):
+        assert index.isValid()
+        model = self.plotSettingsModel()
+        assert isinstance(model, PlotSettingsModel2D)
+        return model.columnNames[index.column()]
+    """
+    def sizeHint(self, options, index):
+        s = super(ExpressionDelegate, self).sizeHint(options, index)
+        exprString = self.tableView.model().data(index)
+        l = QLabel()
+        l.setText(exprString)
+        x = l.sizeHint().width() + 100
+        s = QSize(x, s.height())
+        return self._preferedSize
+    """
+    def exampleLyr(self, sensor):
+        # if isinstance(sensor, SensorInstrument):
+        if sensor not in self.mSensorLayers.keys():
+
+            crs = QgsCoordinateReferenceSystem('EPSG:4862')
+            uri = 'Point?crs={}'.format(crs.authid())
+            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
+            f = sensorExampleQgsFeature(sensor)
+            assert isinstance(f, QgsFeature)
+            assert lyr.startEditing()
+            for field in f.fields():
+                lyr.addAttribute(field)
+            lyr.addFeature(f)
+            lyr.commitChanges()
+            self.mSensorLayers[sensor] = lyr
+        return self.mSensorLayers[sensor]
+
+    def createEditor(self, parent, option, index):
+        cname = self.getColumnName(index)
+        model = self.plotSettingsModel()
+        pmodel = self.sortFilterProxyModel()
+
+        w = None
+        if index.isValid() and isinstance(model, PlotSettingsModel2D):
+
+            plotStyle = model.idx2plotStyle(pmodel.mapToSource(index))
+
+            if isinstance(plotStyle, TemporalProfile2DPlotStyle):
+                if cname == model.cnExpression:
+
+                    w = QgsFieldExpressionWidget(parent=parent)
+                    w.setExpressionDialogTitle('Values')
+                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
+                    w.fieldChanged[str, bool].connect(lambda n, b: self.checkData(index, w, w.expression()))
+                    w.setExpression(plotStyle.expression())
+                    plotStyle.sigSensorChanged.connect(lambda s: w.setLayer(self.exampleLyr(s)))
+                    if isinstance(plotStyle.sensor(), SensorInstrument):
+                        w.setLayer(self.exampleLyr(plotStyle.sensor()))
+
+
+
+
+                elif cname == model.cnStyle:
+                    w = PlotStyleButton(parent=parent)
+                    w.setPlotStyle(plotStyle)
+                    w.setToolTip('Set style.')
+                    w.sigPlotStyleChanged.connect(lambda: self.checkData(index, w, w.plotStyle()))
+
+                elif cname == model.cnSensor:
+                    w = QComboBox(parent=parent)
+                    m = SensorListModel(self.mTimeSeries)
+                    w.setModel(m)
+
+                elif cname == model.cnTemporalProfile:
+                    w = QgsFeatureListComboBox(parent=parent)
+                    w.setSourceLayer(self.mTemporalProfileLayer)
+                    w.setIdentifierField('id')
+                    w.setDisplayExpression('to_string("id")+\'  \'+"name"')
+                    w.setAllowNull(False)
+                else:
+                    raise NotImplementedError()
+        return w
+
+    def checkData(self, index, w, value):
+        assert isinstance(index, QModelIndex)
+        model = self.mTableView.model()
+        if index.isValid() and isinstance(model, PlotSettingsModel2D):
+            plotStyle = model.idx2plotStyle(index)
+            assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
+            if isinstance(w, QgsFieldExpressionWidget):
+                assert value == w.expression()
+                assert w.isExpressionValid(value) == w.isValidExpression()
+
+                if w.isValidExpression():
+                    self.commitData.emit(w)
+                else:
+                    s = ""
+                    #print(('Delegate commit failed',w.asExpression()))
+            if isinstance(w, PlotStyleButton):
+
+                self.commitData.emit(w)
+
+    def setEditorData(self, editor, proxyIndex):
+
+        model = self.plotSettingsModel()
+        index = self.sortFilterProxyModel().mapToSource(proxyIndex)
+        w = None
+        if index.isValid() and isinstance(model, PlotSettingsModel2D):
+            cname = self.getColumnName(proxyIndex)
+            if cname == model.cnExpression:
+                lastExpr = model.data(index, Qt.DisplayRole)
+                assert isinstance(editor, QgsFieldExpressionWidget)
+                editor.setProperty('lastexpr', lastExpr)
+                editor.setField(lastExpr)
+
+            elif cname == model.cnStyle:
+                style = index.data()
+                assert isinstance(editor, PlotStyleButton)
+                editor.setPlotStyle(style)
+
+            elif cname == model.cnSensor:
+                assert isinstance(editor, QComboBox)
+                m = editor.model()
+                assert isinstance(m, SensorListModel)
+                sensor = index.data(role=Qt.UserRole)
+                if isinstance(sensor, SensorInstrument):
+                    idx = m.sensor2idx(sensor)
+                    editor.setCurrentIndex(idx.row())
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(editor, QgsFeatureListComboBox)
+                value = editor.identifierValue()
+                if value != QVariant():
+                    plotStyle = index.data(role=Qt.UserRole)
+                    TP = plotStyle.temporalProfile()
+                    editor.setIdentifierValue(TP.id())
+                else:
+                    s  = ""
+            else:
+                raise NotImplementedError()
+
+    def setModelData(self, w, model, proxyIndex):
+        index = self.sortFilterProxyModel().mapToSource(proxyIndex)
+        cname = self.getColumnName(proxyIndex)
+        model = self.plotSettingsModel()
+
+        if index.isValid() and isinstance(model, PlotSettingsModel2D):
+            if cname == model.cnExpression:
+                assert isinstance(w, QgsFieldExpressionWidget)
+                expr = w.asExpression()
+                exprLast = model.data(index, Qt.DisplayRole)
+
+                if w.isValidExpression() and expr != exprLast:
+                    model.setData(index, w.asExpression(), Qt.EditRole)
+
+            elif cname == model.cnStyle:
+                if isinstance(w, PlotStyleButton):
+                    model.setData(index, w.plotStyle(), Qt.EditRole)
+
+            elif cname == model.cnSensor:
+                assert isinstance(w, QComboBox)
+                sensor = w.itemData(w.currentIndex(), role=Qt.UserRole)
+                if isinstance(sensor, SensorInstrument):
+                    model.setData(index, sensor, Qt.EditRole)
+
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(w, QgsFeatureListComboBox)
+                fid = w.identifierValue()
+                if isinstance(fid, int):
+                    TP = self.mTemporalProfileLayer.mProfiles.get(fid)
+                    model.setData(index, TP, Qt.EditRole)
+
+            else:
+                raise NotImplementedError()
+
+
+
+class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
+    """
+
+    """
+    def __init__(self, tableView, temporalProfileLayer, parent=None):
+        assert isinstance(tableView, QTableView)
+        assert isinstance(temporalProfileLayer, TemporalProfileLayer)
+        super(PlotSettingsModel3DWidgetDelegate, self).__init__(parent=parent)
+        self._preferedSize = QgsFieldExpressionWidget().sizeHint()
+        self.mTableView = tableView
+        self.mTimeSeries = temporalProfileLayer.timeSeries()
+        self.mTemporalProfileLayer = temporalProfileLayer
+        self.mSensorLayers = {}
+
+
+
+
+
+
+
+    def setItemDelegates(self, tableView):
+        assert isinstance(tableView, QTableView)
+        model = tableView.model()
+        assert isinstance(model, PlotSettingsModel3D)
+        for c in [model.cnSensor, model.cnExpression, model.cnStyle, model.cnTemporalProfile]:
+            i = model.columnNames.index(c)
+            tableView.setItemDelegateForColumn(i, self)
+
+    def getColumnName(self, index):
+        assert index.isValid()
+        model = index.model()
+        assert isinstance(model, PlotSettingsModel3D)
+        return model.columnNames[index.column()]
+    """
+    def sizeHint(self, options, index):
+        s = super(ExpressionDelegate, self).sizeHint(options, index)
+        exprString = self.tableView.model().data(index)
+        l = QLabel()
+        l.setText(exprString)
+        x = l.sizeHint().width() + 100
+        s = QSize(x, s.height())
+        return self._preferedSize
+    """
+    def createEditor(self, parent, option, index):
+        cname = self.getColumnName(index)
+        model = self.mTableView.model()
+        w = None
+        if index.isValid() and isinstance(model, PlotSettingsModel3D):
+            plotStyle = model.idx2plotStyle(index)
+            if isinstance(plotStyle, TemporalProfile3DPlotStyle):
+                if cname == model.cnExpression:
+                    w = QgsFieldExpressionWidget(parent=parent)
+                    w.setExpression(plotStyle.expression())
+                    w.setLayer(self.exampleLyr(plotStyle.sensor()))
+                    def onSensorAdded(s):
+                        w.setLayer(self.exampleLyr(s))
+                    #plotStyle.sigSensorChanged.connect(lambda s : w.setLayer(self.exampleLyr(s)))
+                    plotStyle.sigSensorChanged.connect(onSensorAdded)
+                    w.setExpressionDialogTitle('Values')
+                    w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
+                    w.fieldChanged[str,bool].connect(lambda n, b : self.checkData(index, w, w.expression()))
+
+                elif cname == model.cnStyle:
+                    w = TemporalProfile3DPlotStyleButton(parent=parent)
+                    w.setPlotStyle(plotStyle)
+                    w.setToolTip('Set plot style')
+                    w.sigPlotStyleChanged.connect(lambda: self.checkData(index, w, w.plotStyle()))
+
+                elif cname == model.cnSensor:
+                    w = QComboBox(parent=parent)
+                    m = SensorListModel(self.mTimeSeries)
+                    w.setModel(m)
+
+                elif cname == model.cnTemporalProfile:
+                    w = QgsFeatureListComboBox(parent=parent)
+                    w.setSourceLayer(self.mTemporalProfileLayer)
+                    w.setIdentifierField('id')
+                    w.setDisplayExpression('to_string("id")+\'  \'+"name"')
+                    w.setAllowNull(False)
+                else:
+                    raise NotImplementedError()
+        return w
+
+    def exampleLyr(self, sensor):
+
+        if sensor not in self.mSensorLayers.keys():
+            crs = QgsCoordinateReferenceSystem('EPSG:4862')
+            uri = 'Point?crs={}'.format(crs.authid())
+            lyr = QgsVectorLayer(uri, 'LOCATIONS', 'memory')
+            assert sensor is None or isinstance(sensor, SensorInstrument)
+
+            f = sensorExampleQgsFeature(sensor, singleBandOnly=True)
+            assert isinstance(f, QgsFeature)
+            assert lyr.startEditing()
+            for field in f.fields():
+                lyr.addAttribute(field)
+            lyr.addFeature(f)
+            lyr.commitChanges()
+            self.mSensorLayers[sensor] = lyr
+        return self.mSensorLayers[sensor]
+
+    def checkData(self, index, w, value):
+        assert isinstance(index, QModelIndex)
+        model = self.mTableView.model()
+        if index.isValid() and isinstance(model, PlotSettingsModel3D):
+            plotStyle = model.idx2plotStyle(index)
+            assert isinstance(plotStyle, TemporalProfile3DPlotStyle)
+            if isinstance(w, QgsFieldExpressionWidget):
+                assert value == w.expression()
+                assert w.isExpressionValid(value) == w.isValidExpression()
+
+                if w.isValidExpression():
+                    self.commitData.emit(w)
+                else:
+                    s = ""
+                    #print(('Delegate commit failed',w.asExpression()))
+            if isinstance(w, TemporalProfile3DPlotStyleButton):
+
+                self.commitData.emit(w)
+
+
+    def setEditorData(self, editor, index):
+        cname = self.getColumnName(index)
+        model = self.mTableView.model()
+
+        w = None
+        if index.isValid() and isinstance(model, PlotSettingsModel3D):
+            cname = self.getColumnName(index)
+            style = model.idx2plotStyle(index)
+
+            if cname == model.cnExpression:
+                lastExpr = index.model().data(index, Qt.DisplayRole)
+                assert isinstance(editor, QgsFieldExpressionWidget)
+                editor.setProperty('lastexpr', lastExpr)
+                editor.setField(lastExpr)
+
+            elif cname == model.cnStyle:
+                assert isinstance(editor, TemporalProfile3DPlotStyleButton)
+                editor.setPlotStyle(style)
+
+            elif cname == model.cnSensor:
+                assert isinstance(editor, QComboBox)
+                m = editor.model()
+                assert isinstance(m, SensorListModel)
+                sensor = index.data(role=Qt.UserRole)
+                if isinstance(sensor, SensorInstrument):
+                    idx = m.sensor2idx(sensor)
+                    editor.setCurrentIndex(idx.row())
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(editor, QgsFeatureListComboBox)
+                value = editor.identifierValue()
+                if value != QVariant():
+                    plotStyle = index.data(role=Qt.UserRole)
+                    TP = plotStyle.temporalProfile()
+                    editor.setIdentifierValue(TP.id())
+                else:
+                    s  = ""
+
+            else:
+                raise NotImplementedError()
+
+    def setModelData(self, w, model, index):
+        cname = self.getColumnName(index)
+        model = self.mTableView.model()
+
+        if index.isValid() and isinstance(model, PlotSettingsModel3D):
+            if cname == model.cnExpression:
+                assert isinstance(w, QgsFieldExpressionWidget)
+                expr = w.asExpression()
+                exprLast = model.data(index, Qt.DisplayRole)
+
+                if w.isValidExpression() and expr != exprLast:
+                    model.setData(index, w.asExpression(), Qt.EditRole)
+
+            elif cname == model.cnStyle:
+                assert isinstance(w, TemporalProfile3DPlotStyleButton)
+                model.setData(index, w.plotStyle(), Qt.EditRole)
+
+            elif cname == model.cnSensor:
+                assert isinstance(w, QComboBox)
+                sensor = w.itemData(w.currentIndex(), role=Qt.UserRole)
+                assert isinstance(sensor, SensorInstrument)
+                model.setData(index, sensor, Qt.EditRole)
+
+                s = ""
+
+            elif cname == model.cnTemporalProfile:
+                assert isinstance(w, QgsFeatureListComboBox)
+                fid = w.identifierValue()
+                if isinstance(fid, int):
+                    TP = self.mTemporalProfileLayer.mProfiles.get(fid)
+                    model.setData(index, TP, Qt.EditRole)
+
+            else:
+                raise NotImplementedError()
+
 
 
 
