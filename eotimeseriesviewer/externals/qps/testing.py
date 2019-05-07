@@ -548,12 +548,13 @@ class TestObjects():
         return lyr
 
     @staticmethod
-    def createVectorDataSet()->ogr.DataSource:
+    def createVectorDataSet(wkb=ogr.wkbPolygon)->ogr.DataSource:
         """
         Create an in-memory ogr.DataSource
         :return: ogr.DataSource
         """
-        path = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.shp'
+        assert wkb in [ogr.wkbPoint, ogr.wkbPolygon, ogr.wkbLineString]
+
 
         pkgPath = QgsApplication.instance().pkgDataPath()
         pathSrc = os.path.join(pkgPath, *['resources', 'data', 'world_map.shp'])
@@ -561,21 +562,94 @@ class TestObjects():
 
         dsSrc = ogr.Open(pathSrc)
         assert isinstance(dsSrc, ogr.DataSource)
+        lyrSrc = dsSrc.GetLayer(0)
+        assert isinstance(lyrSrc, ogr.Layer)
+
+        ldef = lyrSrc.GetLayerDefn()
+        assert isinstance(ldef, ogr.FeatureDefn)
+
+        srs = lyrSrc.GetSpatialRef()
+        assert isinstance(srs, osr.SpatialReference)
+
         drv = dsSrc.GetDriver()
         assert isinstance(drv, ogr.Driver)
-        dsDst = drv.CopyDataSource(dsSrc, path)
+
+
+        #set temp path
+        if wkb == ogr.wkbPolygon:
+            lname = 'polygons'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.polygons.shp'
+        elif wkb == ogr.wkbPoint:
+            lname = 'points'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.centroids.shp'
+        elif wkb == ogr.wkbLineString:
+            lname = 'lines'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.line.shp'
+        else:
+            raise NotImplementedError()
+
+        if wkb == ogr.wkbPolygon:
+            dsDst = drv.CopyDataSource(dsSrc, pathDst)
+        else:
+            dsDst = drv.CreateDataSource(pathDst)
+            assert isinstance(dsDst, ogr.DataSource)
+            lyrDst = dsDst.CreateLayer(lname, srs=srs, geom_type=wkb)
+            assert isinstance(lyrDst, ogr.Layer)
+
+            # copy field definitions
+            for i in range(ldef.GetFieldCount()):
+                fieldDefn = ldef.GetFieldDefn(i)
+                assert isinstance(fieldDefn, ogr.FieldDefn)
+                lyrDst.CreateField(fieldDefn)
+
+            # copy features
+
+            for fSrc in lyrSrc:
+                assert isinstance(fSrc, ogr.Feature)
+                g = fSrc.geometry()
+
+                fDst = ogr.Feature(lyrDst.GetLayerDefn())
+                assert isinstance(fDst, ogr.Feature)
+
+                if isinstance(g, ogr.Geometry):
+                    if wkb == ogr.wkbPoint:
+                        g = g.Centroid()
+                    elif wkb == ogr.wkbLineString:
+                        g = g.GetBoundary()
+                    else:
+                        raise NotImplementedError()
+
+                fDst.SetGeometry(g)
+
+                for i in range(ldef.GetFieldCount()):
+                    fDst.SetField(i, fSrc.GetField(i))
+
+                lyrDst.CreateFeature(fDst)
+
         assert isinstance(dsDst, ogr.DataSource)
         dsDst.FlushCache()
         return dsDst
 
     @staticmethod
-    def createVectorLayer() -> QgsVectorLayer:
+    def createVectorLayer(wkbType:QgsWkbTypes=QgsWkbTypes.Polygon) -> QgsVectorLayer:
         """
         Create a QgsVectorLayer
         :return: QgsVectorLayer
         """
         lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
-        dsSrc = TestObjects.createVectorDataSet()
+
+        wkb = None
+
+        if wkbType in [QgsWkbTypes.Point, QgsWkbTypes.PointGeometry]:
+            wkb = ogr.wkbPoint
+        elif wkbType in [QgsWkbTypes.LineString, QgsWkbTypes.LineGeometry]:
+            wkb = ogr.wkbLineString
+        elif wkbType in [QgsWkbTypes.Polygon, QgsWkbTypes.PolygonGeometry]:
+            wkb = ogr.wkbPolygon
+
+        assert wkb is not None
+        dsSrc = TestObjects.createVectorDataSet(wkb)
+
         assert isinstance(dsSrc, ogr.DataSource)
         lyr = dsSrc.GetLayer(0)
         assert isinstance(lyr, ogr.Layer)
