@@ -32,7 +32,7 @@ REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
-DEPENDENCIES = ['numpy', 'pyqtgraph', 'gdal']
+DEPENDENCIES = ['numpy', 'gdal']
 URL_TESTDATA = r''
 
 

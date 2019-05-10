@@ -538,6 +538,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
             if sClass.startswith('Qgs'):
                 cHeader.setNodeValue('qgis.gui')
             if sExtends.startswith('qps.'):
+                print('{}:\nReplace {} with {}'.format(pathUi, sExtends, qps.__spec__.name), file=sys.stderr)
                 cHeader.setNodeValue(re.sub(r'^qps\.', qps.__spec__.name + '.', sExtends))
 
         # collect resource file locations

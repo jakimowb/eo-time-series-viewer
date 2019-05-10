@@ -103,7 +103,7 @@ class TimeSeriesViewerPlugin:
 
     def run(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
-        self.tsv = TimeSeriesViewer(self.iface)
+        self.tsv = TimeSeriesViewer()
         self.tsv.run()
 
 
