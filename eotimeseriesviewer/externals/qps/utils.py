@@ -845,10 +845,13 @@ def defaultBands(dataset):
         return defaultBands(dataset.source())
     elif isinstance(dataset, gdal.Dataset):
 
-        db = dataset.GetMetadataItem(str('default_bands'), str('ENVI'))
-        if db != None:
-            db = [int(n) for n in re.findall(r'\d+')]
-            return db
+        # check ENVI style metadata default band definition
+        for k in ['default_bands', 'default bands']:
+            db = dataset.GetMetadataItem(k, str('ENVI'))
+            if db != None:
+                db = [int(n) for n in re.findall(r'\d+', db)]
+                return db
+
         db = [0, 0, 0]
         cis = [gdal.GCI_RedBand, gdal.GCI_GreenBand, gdal.GCI_BlueBand]
         for b in range(dataset.RasterCount):

@@ -663,6 +663,7 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
         """
         self.mFieldModel.setLayer(layer)
         self.updateFieldWidgets()
+        s = ""
 
     def layer(self)->QgsVectorLayer:
         """
@@ -678,8 +679,12 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
         """
         sw = self.stackedWidget
         assert isinstance(sw, QStackedWidget)
-        while sw.count() > 0:
-            sw.removeWidget(sw.widget(0))
+        i = sw.count() - 1
+        while i >= 0:
+            w = sw.widget(i)
+            w.setParent(None)
+            i -= 1
+            #sw.removeWidget(sw.widget(0))
 
         lyr = self.layer()
         if isinstance(lyr, QgsVectorLayer):
@@ -689,6 +694,7 @@ class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget
                 sw.addWidget(w)
 
         self.onSettingsChanged()
+        s = ""
 
     def onSettingsChanged(self):
         """

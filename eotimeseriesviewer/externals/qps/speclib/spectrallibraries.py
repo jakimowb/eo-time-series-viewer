@@ -2565,7 +2565,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         assert isinstance(self.mTableView, QgsAttributeTableView)
         self.mTableView.willShowContextMenu.connect(self.onWillShowContextMenu)
 
-        # change selected row color: keep color also when attribtue table looses focus
+        # change selected row color: keep color also when attribute table looses focus
 
         pal = self.mDualView.tableView().palette()
         cSelected = pal.color(QPalette.Active, QPalette.Highlight)

@@ -483,7 +483,7 @@ class QgsFeatureAction(QAction):
         self.mForceSuppressFormPopup = False
 
 
-    def executed(self):
+    def execute(self):
         self.mLayer.actions().doAction(self.mActionId, self.mFeature, self.mIdx)
 
 
