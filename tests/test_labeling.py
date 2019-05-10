@@ -20,7 +20,6 @@
 from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
 import unittest, tempfile
 
-from eotimeseriesviewer.layerproperties import *
 from eotimeseriesviewer.labeling import *
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -257,6 +256,43 @@ class testclassLabelingTest(unittest.TestCase):
                                                       {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
                                                        CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
         return classScheme1, classScheme2
+
+    def test_LabelingDockActions(self):
+        registerLabelShortcutEditorWidget()
+        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
+
+        dock = LabelingDock()
+        dock.show()
+        self.assertIsInstance(dock, LabelingDock)
+        lyr = self.createVectorLayer()
+        self.assertIsInstance(lyr, QgsVectorLayer)
+        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() is None)
+
+        lyr1 = self.createVectorLayer()
+        lyr1.setName('in editing mode')
+        lyr1.startEditing()
+        lyr2 = self.createVectorLayer()
+        lyr2.setName('not in editing mode')
+
+        QgsProject.instance().addMapLayers([lyr1, lyr2])
+
+        dock.setCurrentVectorSource(lyr2)
+
+        canvas = QgsMapCanvas()
+        canvas.show()
+
+
+        def setLayers():
+            canvas.mapSettings().setDestinationCrs(dock.canvas().mapSettings().destinationCrs())
+            canvas.setExtent(dock.canvas().extent())
+            canvas.setLayers(dock.canvas().layers())
+
+        dock.sigVectorLayerChanged.connect(setLayers)
+        dock.sigMapCenterRequested.connect(setLayers)
+        dock.sigMapExtentRequested.connect(setLayers)
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
 
     def test_LabelingDock(self):

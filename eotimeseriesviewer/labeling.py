@@ -487,13 +487,18 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
 
 
 class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
+
+    sigVectorLayerChanged = pyqtSignal()
+    sigMapExtentRequested = pyqtSignal(SpatialExtent)
+    sigMapCenterRequested = pyqtSignal(SpatialPoint)
+
     def __init__(self, parent=None):
         super(LabelingDock, self).__init__(parent)
         self.setupUi(self)
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
 
 
-        #self.mLabelAttributeModel = LabelAttributeTableModel()
+
 
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
@@ -503,7 +508,6 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.mVectorLayerComboBox.setExcludedProviders(excluded)
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
 
-
         self.mDualView = None
         self.mCanvas = QgsMapCanvas(self)
         self.mCanvas.setVisible(False)
@@ -511,39 +515,12 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.initActions()
         self.onVectorLayerChanged()
 
-    def onSelectedRowChanged(self, current:QModelIndex, previous:QModelIndex):
+    def canvas(self)->QgsMapCanvas:
         """
-        Sets the
-        :param current:
-        :param previous:
-        :return:
+        Returns the internal map canvas
+        :return: QgsMapCanvas
         """
-
-        toRemove = self.scrollAreaWidgetContents.findChildren(QWidget, options=Qt.FindDirectChildrenOnly)
-        for w in toRemove:
-            self.scrollAreaWidgetContents.layout().removeWidget(w)
-            w.setParent(None)
-        self.labelFieldName.setText('')
-
-        layer = self.mLayerFieldModel.layer()
-        if current.isValid() and isinstance(layer, QgsVectorLayer):
-            i = current.row()
-            field = layer.fields().at(i)
-            setup = layer.editorWidgetSetup(i)
-
-
-            self.labelFieldName.setText('Field "{}"'.format(field.name()))
-
-            factoryName = setup.type()
-            if factoryName == '':
-                factoryName = QgsGui.editorWidgetRegistry().findBest(layer, layer.fields().at(i).name()).type()
-            self.mCurrentConfigWidget = QgsGui.editorWidgetRegistry().createConfigWidget(factoryName, layer, i, self.scrollAreaWidgetContents)
-            if isinstance(self.mCurrentConfigWidget, QgsEditorConfigWidget):
-                self.mLastConf = w.config()
-                self.mCurrentConfigWidget.changed.connect(self.onCheckApply)
-                self.scrollAreaWidgetContents.layout().addWidget(self.mCurrentConfigWidget)
-                self.onCheckApply()
-
+        return self.mCanvas
 
     def onCheckApply(self):
         """
@@ -567,7 +544,6 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         """
         self.onVectorLayerChanged()
 
-
     def onApply(self):
         """
         Stores changes settings to current QgsVectorLayer
@@ -579,106 +555,216 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
                 if w.changed():
                     config = w.currentFieldConfig()
                     lyr.setEditFormConfig(config.index(), config.editorWidgetSetup())
-
         self.onVectorLayerChanged()
+
+    def isModified(self)->bool:
+        return isinstance(self.currentVectorSource(), QgsVectorLayer) and self.currentVectorSource().isModified()
 
     def onVectorLayerChanged(self):
         lyr = self.currentVectorSource()
-        self.layerFieldConfigEditorWidget.setLayer(lyr)
+        # remove old QgsDualView
+        if isinstance(self.mDualView, QgsDualView):
+            self.mDualView.setParent(None)
+            self.mDualView = None
+
+        i = self.stackedWidget.count() - 1
+        while i >= 0:
+            self.stackedWidget.widget(i).setParent(None)
+            i -= 1
+
+        self.mCanvas.setLayers([])
+
+
+        assert isinstance(self.stackedWidget, QStackedWidget)
         # add a config widget for each QgsField
         if isinstance(lyr, QgsVectorLayer):
-
-            lyr.editingStarted.connect(lambda : self.actionToggleEditing.setChecked(True))
-            lyr.editingStopped.connect(lambda: self.actionToggleEditing.setChecked(False))
+            lyr.editingStarted.connect(lambda: self.mActionToggleEditing.setChecked(True))
+            lyr.editingStopped.connect(lambda: self.mActionToggleEditing.setChecked(False))
+            lyr.allowCommitChanged.connect(self.updateActions)
 
             self.mCanvas.setLayers([lyr])
-            self.mCanvas.setDestinationCrs(lyr.crs())
-            self.mCanvas.setExtent(lyr.extent())
 
-            self.mDualView = QgsDualView(self.pageDualView)
-            self.pageDualView.layout().addWidget(self.mDualView)
+            if not self.mCanvas.mapSettings().destinationCrs().isValid():
+                self.mCanvas.setDestinationCrs(lyr.crs())
+            if self.mCanvas.extent().width() == 0:
+                self.mCanvas.setExtent(lyr.extent())
+
+            self.mDualView = QgsDualView(self)
+
+            # change selected row color: keep color also when attribute table looses focus
+            pal = self.mDualView.tableView().palette()
+            cSelected = pal.color(QPalette.Active, QPalette.Highlight)
+            pal.setColor(QPalette.Inactive, QPalette.Highlight, cSelected)
+            self.mDualView.tableView().setPalette(pal)
+
+            self.stackedWidget.addWidget(self.mDualView)
             self.mDualView.init(lyr, self.mCanvas)  # , context=self.mAttributeEditorContext)
             self.mDualView.setView(QgsDualView.AttributeTable)
             self.mDualView.setAttributeTableConfig(lyr.attributeTableConfig())
 
-            self.btnBar1.setEnabled(True)
-            self.btnBar2.setEnabled(True)
+        self.updateActions()
+        self.sigVectorLayerChanged.emit()
 
+    def updateActions(self, *args):
+        if isinstance(self.currentVectorSource(), QgsVectorLayer):
+            self.mActionToggleEditing.setEnabled(True)
+
+            b = self.currentVectorSource().isEditable()
+            self.mActionToggleEditing.setChecked(b)
+            self.mActionAddFeature.setEnabled(b)
+
+            buffer = self.currentVectorSource().editBuffer()
+            b2 = b and isinstance(buffer, QgsVectorLayerEditBuffer)
+            self.mActionCancelEdits.setEnabled(b2)
+            self.mActionSaveEdits.setEnabled(b2)
+
+            self.mActionSelectAll.setEnabled(True)
+            self.mActionInvertSelection.setEnabled(True)
+            self.mActionRemoveSelection.setEnabled(True)
+            self.mActionPanMapToSelectedRows.setEnabled(True)
+            self.mActionZoomMapToSelectedRows.setEnabled(True)
 
         else:
-            self.mCanvas.setLayers([])
-
-            if isinstance(self.mDualView, QgsDualView):
-                self.pageDualView.layout().removeWidget(self.mDualView)
-                self.mDualView.hide()
-                self.mDualView = None
-
-            self.btnBar1.setEnabled(False)
-            self.btnBar2.setEnabled(False)
 
 
+
+            self.mActionToggleEditing.setEnabled(False)
+            self.mActionSaveEdits.setEnabled(False)
+            self.mActionCancelEdits.setEnabled(False)
+            self.mActionAddFeature.setEnabled(False)
+
+            self.mActionSelectAll.setEnabled(False)
+            self.mActionInvertSelection.setEnabled(False)
+            self.mActionRemoveSelection.setEnabled(False)
+            self.mActionPanMapToSelectedRows.setEnabled(False)
+            self.mActionZoomMapToSelectedRows.setEnabled(False)
+
+    def actionAddFeature(self)->QAction:
+        return self.mActionAddFeature
+
+    def actionSaveEdits(self)->QAction:
+        return self.mActionSaveEdits
+
+    def actionToggleEditing(self)->QAction:
+        return self.mActionToggleEditing
+
+    def onToggleEditing(self, b: bool):
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+
+            if b:
+                lyr.startEditing()
+            else:
+                if lyr.isModified():
+                    if QMessageBox.question(self, '{}'.format(lyr.name()), 'Save changes?') == QMessageBox.Ok:
+                        lyr.commitChanges()
+                    else:
+                        lyr.rollBack()
+                else:
+                    lyr.commitChanges()
+
+
+        self.updateActions()
+
+    def cancelEdits(self, *args):
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+            lyr.rollBack()
+
+    def saveEdits(self, *args):
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+            b = lyr.isEditable()
+            lyr.commitChanges()
+            if b:
+                lyr.startEditing()
 
 
     def initActions(self):
 
         iface = qgisInstance()
 
-#        if isinstance(iface, QgisInterface):
- #           self.actionAddFeature = iface.actionAddFeature()
-  #          self.actionSaveEdits = iface.actionSaveEdits()
-   #         self.actionCancelEdits = iface.actionCancelEdits()
-    #        self.actionToggleEditing = iface.actionToggleEditing()
-     #       self.actionAddOgrLayer = iface.actionAddOgrLayer()
+        # if isinstance(iface, QgisInterface):
+        # self.mActionAddFeature = iface.actionAddFeature()
+        # self.mActionSaveEdits = iface.actionSaveEdits()
+        # self.mActionCancelEdits = iface.actionCancelEdits()
+        # self.mActionToggleEditing = iface.actionToggleEditing()
+        # self.mActionAddOgrLayer = iface.actionAddOgrLayer()
 
+        self.mActionToggleEditing.toggled.connect(self.onToggleEditing)
+        self.mActionCancelEdits.triggered.connect(self.cancelEdits)
+        self.mActionSaveEdits.triggered.connect(self.saveEdits)
 
-        def onToggleEditing(b:bool):
-            lyr = self.currentVectorSource()
-            if isinstance(lyr, QgsVectorLayer):
-                if b:
-                    lyr.startEditing()
-                else:
-                    lyr.commitChanges()
+        self.mActionSwitchToTableView.triggered.connect(self.showTableView)
+        self.mActionShowLayerProperties.triggered.connect(self.showLayerProperties)
+        self.mActionSwitchToFormView.triggered.connect(self.showFormView)
 
-        def onCancelEdits(*args):
-            lyr = self.currentVectorSource()
-            if isinstance(lyr, QgsVectorLayer):
-                lyr.rollBack()
+        self.mActionSelectAll.triggered.connect(self.selectAll)
+        self.mActionInvertSelection.triggered.connect(self.invertSelection)
+        self.mActionRemoveSelection.triggered.connect(self.removeSelection)
+        self.mActionPanMapToSelectedRows.triggered.connect(self.panMapToSelectedRows)
+        self.mActionZoomMapToSelectedRows.triggered.connect(self.zoomMapToSelectedRows)
 
-        def onSaveEdits(*args):
-            lyr = self.currentVectorSource()
-            if isinstance(lyr, QgsVectorLayer):
-                b = lyr.isEditable()
-                lyr.commitChanges()
+        self.btnAddFeature.setDefaultAction(self.mActionAddFeature)
+        self.btnSaveEdits.setDefaultAction(self.mActionSaveEdits)
+        self.btnCancelEdits.setDefaultAction(self.mActionCancelEdits)
+        self.btnToggleEditing.setDefaultAction(self.mActionToggleEditing)
 
-                if b:
-                    lyr.startEditing()
+        self.btnSelectAll.setDefaultAction(self.mActionSelectAll)
+        self.btnInvertSelection.setDefaultAction(self.mActionInvertSelection)
+        self.btnRemoveSelection.setDefaultAction(self.mActionRemoveSelection)
+        self.btnPanMapToSelectedRows.setDefaultAction(self.mActionPanMapToSelectedRows)
+        self.btnZoomMapToSelectedRows.setDefaultAction(self.mActionZoomMapToSelectedRows)
 
-        self.actionToggleEditing.toggled.connect(onToggleEditing)
-        self.actionCancelEdits.triggered.connect(onCancelEdits)
-        self.actionSaveEdits.triggered.connect(onSaveEdits)
-
-        self.actionSwitchToTableView.triggered.connect(self.showTableView)
-        self.actionSwitchToConfigView.triggered.connect(self.showConfigView)
-        self.actionSwitchToFormView.triggered.connect(self.showFormView)
-
-        self.btnAddFeature.setDefaultAction(self.actionAddFeature)
-        self.btnSaveEdits.setDefaultAction(self.actionSaveEdits)
-        self.btnCancelEdits.setDefaultAction(self.actionCancelEdits)
-        self.btnToggleEditing.setDefaultAction(self.actionToggleEditing)
-        self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
+        self.btnAddOgrLayer.setDefaultAction(self.mActionAddOgrLayer)
 
 
         # bottom button bar
-        self.btnAttributeView.setDefaultAction(self.actionSwitchToTableView)
-        self.btnConfigView.setDefaultAction(self.actionSwitchToConfigView)
-        self.btnFormView.setDefaultAction(self.actionSwitchToFormView)
+        self.btnAttributeView.setDefaultAction(self.mActionSwitchToTableView)
+        self.btnShowLayerProperties.setDefaultAction(self.mActionShowLayerProperties)
+        self.btnFormView.setDefaultAction(self.mActionSwitchToFormView)
 
+    def selectAll(self):
+        if isinstance(self.currentVectorSource(), QgsVectorLayer):
+            self.currentVectorSource().selectAll()
+
+    def invertSelection(self):
+        if isinstance(self.currentVectorSource(), QgsVectorLayer):
+            self.currentVectorSource().invertSelection()
+
+    def removeSelection(self):
+        if isinstance(self.currentVectorSource(), QgsVectorLayer):
+            self.currentVectorSource().removeSelection()
+
+    def panMapToSelectedRows(self):
+        """
+        Pan to the selected layer features
+        Requires that external maps respond to sigMapCenterRequested
+        """
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+            crs = self.canvas().mapSettings().destinationCrs()
+            center = SpatialPoint(lyr.crs(), lyr.boundingBoxOfSelected().center()).toCrs(crs)
+            self.mCanvas.setCenter(center)
+            self.sigMapCenterRequested.emit(center)
+
+    def zoomMapToSelectedRows(self):
+        """
+        Zooms to the selected rows.
+        Requires that external maps respond to sigMapExtentRequested
+        """
+        lyr = self.currentVectorSource()
+
+        if isinstance(lyr, QgsVectorLayer):
+            crs = self.canvas().mapSettings().destinationCrs()
+            bbox = SpatialExtent(lyr.crs(), lyr.boundingBoxOfSelected()).toCrs(crs)
+            self.mCanvas.setExtent(bbox)
+            self.sigMapExtentRequested.emit(bbox)
 
     def showTableView(self):
         """
         Call to show the QgsDualView Attribute Table
         """
-        self.stackedWidget.setCurrentWidget(self.pageDualView)
         if isinstance(self.mDualView, QgsDualView):
             self.mDualView.setView(QgsDualView.AttributeTable)
 
@@ -686,16 +772,29 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         """
         Call to show the QgsDualView Attribute Editor
         """
-        self.stackedWidget.setCurrentWidget(self.pageDualView)
         if isinstance(self.mDualView, QgsDualView):
             self.mDualView.setView(QgsDualView.AttributeEditor)
 
-    def showConfigView(self):
+    def showLayerProperties(self):
         """
         Call to show the QgsVectorLayer field settings
         """
-        self.stackedWidget.setCurrentWidget(self.pageConfigView)
+        from .externals.qps.layerproperties import showLayerPropertiesDialog
+        lyr = self.currentVectorSource()
+        if isinstance(lyr, QgsVectorLayer):
+            showLayerPropertiesDialog(lyr, self.mCanvas, parent=self)
 
+
+
+    def setCurrentVectorSource(self, layer:QgsVectorLayer):
+        assert isinstance(layer, QgsVectorLayer)
+
+        if layer not in QgsProject.instance().mapLayers().values():
+            QgsProject.instance().addMapLayer(layer)
+
+        cboxLayers = [self.mVectorLayerComboBox.layer(i) for i in range(self.mVectorLayerComboBox.count())]
+        if layer in cboxLayers:
+            self.mVectorLayerComboBox.setCurrentIndex(cboxLayers.index(layer))
 
     def currentVectorSource(self)->QgsVectorLayer:
         """

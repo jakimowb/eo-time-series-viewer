@@ -78,6 +78,34 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
         return TS
 
     @staticmethod
+    def createArtificialTimeSeries(n=100)->list:
+        vsiDir = '/vsimem/tmp'
+        d1 = np.datetime64('2000-01-01')
+        print('Create in-memory test timeseries of length {}...'.format(n))
+        files = testRasterFiles()
+
+        paths = []
+        i = 0
+        import itertools
+        drv = gdal.GetDriverByName('GTiff')
+        assert isinstance(drv, gdal.Driver)
+        for file in itertools.cycle(files):
+            if i >= n:
+                break
+
+            date = d1 + i
+            path = os.path.join(vsiDir, 'file.{}.{}.tif'.format(i, date))
+            dsDst = drv.CreateCopy(path, gdal.Open(file))
+            assert isinstance(dsDst, gdal.Dataset)
+            paths.append(path)
+
+            i += 1
+
+        print('Done!')
+
+        return paths
+
+    @staticmethod
     def createTimeSeriesStacks():
         vsiDir = '/vsimem/tmp'
         from eotimeseriesviewer.temporalprofiles2d import date2num

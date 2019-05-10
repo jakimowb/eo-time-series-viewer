@@ -206,6 +206,7 @@ class testclassMapVisualization(unittest.TestCase):
         lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
 
         r0 = lyr.renderer()
+        from eotimeseriesviewer.externals.qps.layerproperties import rendererFromXml, rendererToXml
         xml0 = rendererToXml(r0)
         r0b = rendererFromXml(xml0)
         self.assertTrue(type(r0), type(r0b))
@@ -267,53 +268,6 @@ class testclassMapVisualization(unittest.TestCase):
         s  =""
 
 
-
-    def test_maprendersettings(self):
-        from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-
-        from eotimeseriesviewer.timeseries import TimeSeries
-        TS = TimeSeries()
-        TS.addSources([Img_2014_01_15_LC82270652014015LGN00_BOA])
-        sensor1 = TS.sensors()[0]
-        w = MapViewRenderSettings(sensor1)
-        w.show()
-
-
-        lyr = QgsRasterLayer(Img_2014_01_15_LC82270652014015LGN00_BOA)
-        doc = QDomDocument()
-        err = ''
-        lyr.exportNamedStyle(doc)
-        xml0 = doc.toString()
-        self.assertEqual(err, '')
-
-        xml = rendererToXml(lyr.renderer())
-        self.assertIsInstance(xml, QDomDocument)
-        xml = xml.toString()
-        self.assertEqual(xml0, xml)
-
-
-        r0 = lyr.renderer()
-        r = w.rasterRenderer()
-        self.assertIsInstance(r, QgsMultiBandColorRenderer)
-        self.assertEqual(r0.type(), r.type())
-        r2 = QgsSingleBandGrayRenderer(r, 2)
-        w.setRasterRenderer(r2)
-        self.assertIsInstance(w.currentRenderWidget(), QgsSingleBandGrayRendererWidget)
-        r2b = w.rasterRenderer()
-        self.assertIsInstance(r2b, QgsSingleBandGrayRenderer)
-        xml2, xml2b = rendererToXml(r2).toString(), rendererToXml(r2b).toString()
-        #self.assertEqual(xml2, xml2b)
-
-        r3 = QgsSingleBandPseudoColorRenderer(r,0)
-        r3.setClassificationMin(0)
-        r3.setClassificationMax(100)
-        w.setRasterRenderer(r3)
-        self.assertIsInstance(w.currentRenderWidget(), QgsSingleBandPseudoColorRendererWidget)
-        r3b = w.rasterRenderer()
-        self.assertIsInstance(r3b, QgsSingleBandPseudoColorRenderer)
-        xml3, xml3b = rendererToXml(r3).toString(), rendererToXml(r3b).toString()
-        #self.assertEqual(xml3, xml3b)
-        s = ""
 
 
     def test_spatialTemporalVisualization(self):
@@ -404,3 +358,4 @@ if __name__ == "__main__":
     print('Done')
 
 QGIS_APP.quit()
+exit(0)

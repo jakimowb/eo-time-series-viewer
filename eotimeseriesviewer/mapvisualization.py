@@ -518,111 +518,6 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         assert isinstance(sensor, SensorInstrument)
         return sensor in self.sensors()
 
-def rendererToXml(renderer):
-    """
-    Returns a renderer XML representation
-    :param renderer: QgsRasterRender | QgsFeatureRenderer
-    :return: QDomDocument
-    """
-    doc = QDomDocument()
-    err = ''
-    if isinstance(renderer, QgsRasterRenderer):
-        #create a dummy raster layer
-        import uuid
-        from eotimeseriesviewer.virtualrasters import write_vsimem, read_vsimem
-        xml = """<VRTDataset rasterXSize="1" rasterYSize="1">
-                  <GeoTransform>  0.0000000000000000e+00,  1.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00, -1.0000000000000000e+00</GeoTransform>
-                  <VRTRasterBand dataType="Float32" band="1">
-                    <Metadata>
-                      <MDI key="STATISTICS_MAXIMUM">0</MDI>
-                      <MDI key="STATISTICS_MEAN">0</MDI>
-                      <MDI key="STATISTICS_MINIMUM">0</MDI>
-                      <MDI key="STATISTICS_STDDEV">0</MDI>
-                    </Metadata>
-                    <Description>Band 1</Description>
-                    <Histograms>
-                      <HistItem>
-                        <HistMin>0</HistMin>
-                        <HistMax>0</HistMax>
-                        <BucketCount>1</BucketCount>
-                        <IncludeOutOfRange>0</IncludeOutOfRange>
-                        <Approximate>0</Approximate>
-                        <HistCounts>0</HistCounts>
-                      </HistItem>
-                    </Histograms>
-                  </VRTRasterBand>
-                </VRTDataset>
-                """
-        path = '/vsimem/{}.vrt'.format(uuid.uuid4())
-        drv = gdal.GetDriverByName('VRT')
-        assert isinstance(drv, gdal.Driver)
-        write_vsimem(path, xml)
-        lyr = QgsRasterLayer(path)
-        assert lyr.isValid()
-        lyr.setRenderer(renderer.clone())
-        lyr.exportNamedStyle(doc)
-        #remove dummy raster layer
-        lyr = None
-        drv.Delete(path)
-
-    elif isinstance(renderer, QgsFeatureRenderer):
-        #todo: distinguish vector type from requested renderer
-        lyr = QgsVectorLayer('Point?crs=epsg:4326&field=id:integer', 'dummy', 'memory')
-        lyr.setRenderer(renderer.clone())
-        lyr.exportNamedStyle(doc)
-        lyr = None
-    else:
-        raise NotImplementedError()
-
-
-    return doc
-
-
-def rendererFromXml(xml):
-    """
-    Reads a string `text` and returns the first QgsRasterRenderer or QgsFeatureRenderer (if defined).
-    :param text:
-    :return:
-    """
-
-    if isinstance(xml, QMimeData):
-        for format in ['application/qgis.style', 'text/plain']:
-            if format in xml.formats():
-                dom  = QDomDocument()
-                dom.setContent(xml.data(format))
-                return rendererFromXml(dom)
-        return None
-
-    elif isinstance(xml, str):
-        dom = QDomDocument()
-        dom.setContent(xml)
-        return rendererFromXml(dom)
-
-    assert isinstance(xml, QDomDocument)
-    root = xml.documentElement()
-    for baseClass, renderClasses in RENDER_CLASSES.items():
-        elements = root.elementsByTagName(baseClass)
-        if elements.count() > 0:
-            elem = elements.item(0).toElement()
-            typeName = elem.attributes().namedItem('type').nodeValue()
-            if typeName in renderClasses.keys():
-                rClass = renderClasses[typeName]
-                if baseClass == 'rasterrenderer':
-
-                    return rClass.create(elem, DUMMY_RASTERINTERFACE)
-                elif baseClass == 'renderer-v2':
-                    context = QgsReadWriteContext()
-                    return rClass.load(elem, context)
-                    #return rClass.create(elem)
-            else:
-                print(typeName)
-                s =""
-    return None
-
-
-
-
-
 class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
     """
     Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
@@ -1584,12 +1479,52 @@ class SpatialTemporalVisualization(QObject):
         self.mMapRefreshTimer.setInterval(500)
         self.mMapRefreshTimer.start()
         self.mNumberOfHiddenMapsToRefresh = 2
+        self.mCurrentLayer = None
 
+        self.mSyncLock = False
+
+    def setCurrentLayer(self, layer):
+
+        assert layer is None or isinstance(layer, QgsMapLayer)
+        self.mCurrentLayer = layer
+        for canvas in self.mapCanvases():
+            assert isinstance(canvas, QgsMapCanvas)
+            canvas.setCurrentLayer(layer)
+
+    def syncQGISCanvasCenter(self, qgisChanged:bool):
+
+        if self.mSyncLock:
+            return
+
+        iface = qgis.utils.iface
+        assert isinstance(iface, QgisInterface)
+
+        c = iface.mapCanvas()
+        assert isinstance(c, QgsMapCanvas)
+        tsvCenter = self.spatialExtent().spatialCenter()
+        qgsCenter = SpatialExtent.fromMapCanvas(c).spatialCenter()
+
+        if qgisChanged:
+            # change TSV
+            if tsvCenter.crs().isValid():
+                self.mSyncLock = True
+                qgsCenter = qgsCenter.toCrs(tsvCenter.crs())
+                self.setSpatialCenter(qgsCenter)
+        else:
+            # change QGIS
+            if qgsCenter.crs().isValid():
+                self.mSyncLock = True
+                tsvCenter = tsvCenter.toCrs(qgsCenter.crs())
+                c.setCenter(tsvCenter)
+            else:
+                pass
 
 
     def timedCanvasRefresh(self, *args, force:bool=False):
-        # do refresh maps
 
+        self.mSyncLock = False
+
+        # do refresh maps
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
         visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport()]
@@ -1613,11 +1548,6 @@ class SpatialTemporalVisualization(QObject):
                 i += 1
                 if i >= self.mNumberOfHiddenMapsToRefresh and not force:
                     break
-
-
-
-
-
 
     def mapViewFromCanvas(self, mapCanvas:MapCanvas)->MapView:
         """
@@ -1651,7 +1581,9 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(mapCanvas, MapCanvas)
 
         mapCanvas.setMapLayerStore(self.TSV.mMapLayerStore)
+        mapCanvas.sigCrosshairPositionChanged.connect(lambda point, canvas=mapCanvas: self.TSV.setCurrentLocation(point, canvas))
         self.mMapCanvases.append(mapCanvas)
+
 
         #set general canvas properties
         mapCanvas.setFixedSize(self.mSize)
@@ -1811,52 +1743,28 @@ class SpatialTemporalVisualization(QObject):
 
         self.sigShowProfiles.emit(pt, canvas, "")
 
-    def setSpatialCenter(self, center, mapCanvas0=None):
+    def setSpatialCenter(self, center:SpatialPoint, mapCanvas0=None):
         """
         Sets the spatial center of all MapCanvases
         :param center: SpatialPoint
         :param mapCanvas0:
         """
         assert isinstance(center, SpatialPoint)
-        center = center.toCrs(self.mCRS)
-        if not isinstance(center, SpatialPoint):
-            return
+
+        extent = self.spatialExtent()
+
+        if isinstance(extent, SpatialExtent):
+            centerOld = extent.center()
+            center = center.toCrs(extent.crs())
+            if center != centerOld:
+                extent = extent.__copy__()
+                extent.setCenter(center)
+                self.setSpatialExtent(extent)
 
 
-        self.mSpatialExtent.setCenter(center)
-        for mapCanvas in self.mMapCanvases:
-            if mapCanvas != mapCanvas0:
-                oldState = mapCanvas.blockSignals(True)
-                mapCanvas.setCenter(center)
-                mapCanvas.blockSignals(oldState)
+    def spatialCenter(self)->SpatialPoint:
+        return self.spatialExtent().spatialCenter()
 
-
-        self.sigSpatialExtentChanged.emit(self.mSpatialExtent)
-
-
-    def setSpatialCenter(self, center:SpatialPoint, mapCanvas0=None):
-        """
-        Sets the MapCanvas center.
-        :param center: SpatialPoint
-        :param mapCanvas0: MapCanvas0 optional
-        """
-
-        assert isinstance(center, SpatialPoint)
-        center = center.toCrs(self.mCRS)
-        if not isinstance(center, SpatialPoint):
-            return None
-
-
-        for mapCanvas in self.mapCanvases():
-            assert isinstance(mapCanvas, MapCanvas)
-            if mapCanvas != mapCanvas0:
-                center0 = mapCanvas.spatialCenter()
-                if center0 != center:
-                    oldState = mapCanvas.blockSignals(True)
-                    mapCanvas.setCenter(center)
-                    mapCanvas.blockSignals(oldState)
-
-        self.mMapRefreshTimer.start()
 
     def setSpatialExtent(self, extent, mapCanvas0=None):
         """
@@ -1865,8 +1773,10 @@ class SpatialTemporalVisualization(QObject):
         :param mapCanvas0:
         :return:
         """
+        lastExtent = self.spatialExtent()
+
         assert isinstance(extent, SpatialExtent)
-        extent = extent.toCrs(self.mCRS)
+        extent = extent.toCrs(self.crs())
         if not isinstance(extent, SpatialExtent) \
             or extent.isEmpty() or not extent.isFinite() \
             or extent.width() <= 0 \
@@ -1884,7 +1794,8 @@ class SpatialTemporalVisualization(QObject):
             if mapCanvas != mapCanvas0 and extent0 != extent:
                 mapCanvas.addToRefreshPipeLine(extent)
 
-        self.sigSpatialExtentChanged.emit(extent)
+        if lastExtent != extent:
+            self.sigSpatialExtentChanged.emit(extent)
 
 
     def mapViewDock(self)->MapViewDock:

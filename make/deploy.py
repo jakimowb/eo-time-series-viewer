@@ -32,7 +32,7 @@ import numpy as np
 from pb_tool import pb_tool
 import git
 
-from qps.testing import initQgisApplication
+from eotimeseriesviewer.externals.qps.testing import initQgisApplication
 app = initQgisApplication()
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.utils import file_search, jp, zipdir

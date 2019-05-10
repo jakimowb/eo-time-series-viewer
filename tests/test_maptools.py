@@ -18,14 +18,13 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, configparser
+import os, sys, unittest, configparser
 
 from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.core import *
 from qgis.gui import *
-from qgis.testing import TestCase
 import unittest, tempfile
 
 import eotimeseriesviewer
@@ -37,7 +36,7 @@ QGIS_APP = initQgisApplication()
 SHOW_GUI = True and os.environ.get('CI') is None
 
 
-class TestInit(TestCase):
+class TestInit(unittest.TestCase):
     """Test that the plugin init is usable for QGIS.
 
     Based heavily on the validator class by Alessandro
@@ -92,46 +91,44 @@ class TestInit(TestCase):
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        TSV.setMapTool(MapTools.ZoomIn)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolZoom)
 
-    def test_TimeSeriesViewerMultiSource(self):
+        TSV.setMapTool(MapTools.ZoomOut)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolZoom)
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        TSV.setMapTool(MapTools.ZoomFull)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), FullExtentMapTool)
 
-        TSV = TimeSeriesViewer()
-        TSV.show()
-        paths = TestObjects.createMultiSourceTimeSeries()
-        TSV.addTimeSeriesImages(paths)
+        TSV.setMapTool(MapTools.Pan)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolPan)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        TSV.setMapTool(MapTools.ZoomPixelScale)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), PixelScaleExtentMapTool)
 
-    def test_TimeSeriesViewerMassiveSources(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        TSV.setMapTool(MapTools.CursorLocation)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), CursorLocationMapTool)
+
+        from eotimeseriesviewer import SpectralProfileMapTool, TemporalProfileMapTool
+
+        #TSV.setMapTool(MapTools.SpectralProfile)
+        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), SpectralProfileMapTool)
+
+        #TSV.setMapTool(MapTools.TemporalProfile)
+        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), TemporalProfileMapTool)
+
+        TSV.setMapTool(MapTools.MoveToCenter)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), MapToolCenter)
+
+        TSV.setMapTool(MapTools.AddFeature)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolAddFeature)
+
+        TSV.setMapTool(MapTools.SelectFeature)
+        self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolSelect)
 
 
-        TSV = TimeSeriesViewer()
-        TSV.show()
-        files = TestObjects.createArtificialTimeSeries(100)
-        TSV.addTimeSeriesImages(files)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-
-
-    def test_TimeSeriesViewerNoSource(self):
-
-        from eotimeseriesviewer.main import TimeSeriesViewer
-
-        TSV = TimeSeriesViewer()
-        TSV.show()
-
-        self.assertIsInstance(TSV, TimeSeriesViewer)
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-
+        TSV.setMapTool()
 
 if __name__ == '__main__':
     unittest.main()
-

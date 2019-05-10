@@ -39,6 +39,9 @@ if os.path.exists(path):
 """
 
 import qgis.utils
+from qgis.core import *
+from qgis.gui import *
+import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
@@ -122,7 +125,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.labeling import LabelingDock
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
-        #try:
+
         panel = SpectralLibraryPanel(None)
         panel.setParent(self)
         self.dockSpectralLibrary = addDockWidget(panel)
@@ -153,6 +156,9 @@ class TimeSeriesViewerUI(QMainWindow,
                                 self.actionZoomOut,
                                 self.actionPan,
                                 self.actionIdentify]
+
+
+
 
         self.dockTimeSeries.raise_()
 
@@ -285,8 +291,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         # Save reference to the QGIS interface
         import qgis.utils
-        iface = qgis.utils.iface
-        assert isinstance(iface, QgisInterface)
+        assert isinstance(qgis.utils.iface, QgisInterface)
 
         # init empty time series
         self.mTimeSeries = TimeSeries()
@@ -352,11 +357,25 @@ class TimeSeriesViewer(QgisInterface, QObject):
         initMapToolAction(self.ui.actionZoomFullExtent, MapTools.ZoomFull)
         initMapToolAction(self.ui.actionIdentify, MapTools.CursorLocation)
 
-        #set default map tool
+        # create edit toolbar
+        tb = self.ui.toolBarEditing
+        assert isinstance(tb, QToolBar)
+        tb.addAction(self.ui.dockLabeling.actionToggleEditing())
+        tb.addAction(self.ui.dockLabeling.actionSaveEdits())
+        tb.addAction(self.ui.dockLabeling.actionAddFeature())
+        self.ui.dockLabeling.sigMapExtentRequested.connect(self.setSpatialExtent)
+        self.ui.dockLabeling.sigMapCenterRequested.connect(self.setSpatialCenter)
+
+        initMapToolAction(self.ui.dockLabeling.actionAddFeature(), MapTools.AddFeature)
+
+
+        self.ui.dockLabeling.sigVectorLayerChanged.connect(lambda : self.spatialTemporalVis.setCurrentLayer(self.ui.dockLabeling.currentVectorSource()))
+        #initMapToolAction(self.ui.dockLabeling., MapTools.AddFeature)
+
+        # set default map tool
         self.ui.actionPan.toggle()
 
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
-
 
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
@@ -414,6 +433,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         TimeSeriesViewer._instance = self
 
+        self.initQGISConnection()
+
+
+
 
     def onMapViewAdded(self, mapView):
         mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
@@ -429,6 +452,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
             return self.ui.dockSpectralLibrary.SLW.speclib()
         else:
             return None
+
+
 
     def actionZoomActualSize(self):
         return self.ui.actionZoomPixelScale
@@ -499,10 +524,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Initializes interactions between TimeSeriesViewer and the QGIS instances
         :return:
         """
-        self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(self.iface.mapCanvas())))
-        self.ui.actionExportExtent.triggered.connect(lambda: self.iface.mapCanvas().setExtent(self.spatialTemporalVis.spatialExtent().toCrs(self.iface.mapCanvas().mapSettings().destinationCrs())))
-        self.ui.actionExportCenter.triggered.connect(lambda: self.iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
-        self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(self.iface.mapCanvas())))
+
+        iface = qgis.utils.iface
+        assert isinstance(iface, QgisInterface)
+
+        self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
+        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(self.spatialTemporalVis.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
+        self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
+
+
+        self.spatialTemporalVis.sigSpatialExtentChanged.connect(lambda: self.spatialTemporalVis.syncQGISCanvasCenter(False))
+        iface.mapCanvas().extentsChanged.connect(lambda: self.spatialTemporalVis.syncQGISCanvasCenter(True))
+
+
 
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
@@ -546,54 +581,30 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # disconnect previous map-tools?
         del self.mMapTools[:]
         for canvas in self.mapCanvases():
-                self.setSingleMapTool(canvas, mapToolKey, *args, **kwds)
+            from .mapcanvas import MapCanvas, MapCanvasMapTools
 
-    def currentMapToolKey(self)->str:
+            if isinstance(canvas, MapCanvas):
+
+                mapTools = canvas.mapTools()
+                mapTools.activate(mapToolKey)
+
+
+    def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
-        Returns the MapToolKey that identifies a MapTool
-        :return: str
+        Sets the map canvas extent
+        :param spatialExtent: SpatialExtent
         """
+        self.spatialTemporalVis.setSpatialExtent(spatialExtent)
 
-        if self.ui.actionPan.isChecked():
-            return MapTools.Pan
-        if self.ui.actionZoomIn.isChecked():
-            return MapTools.ZoomIn
-        if self.ui.actionZoomOut.isChecked():
-            return MapTools.ZoomOut
-        if self.ui.actionZoomPixelScale.isChecked():
-            return MapTools.ZoomPixelScale
-        if self.ui.actionZoomFullExtent.isChecked():
-            return MapTools.ZoomFull
-        if self.ui.actionIdentify.isChecked():
-            return MapTools.CursorLocation
-        else:
-            # default key
-            return MapTools.CursorLocation
-
-
-    def setSingleMapTool(self, canvas:QgsMapCanvas, mapToolKey, *args, **kwds):
+    def setSpatialCenter(self, spatialPoint:SpatialPoint):
         """
-        Sets the QgsMapTool for a single canvas
-        :param canvas: QgsMapCanvas
-        :param mapToolKey:
-        :param args:
-        :param kwds:
-        :return:
+        Sets the center of map canvases
+        :param spatialPoint: SpatialPoint
         """
-        mt = None
-        if mapToolKey in MapTools.mapToolKeys():
-            mt = MapTools.create(mapToolKey, canvas, *args, **kwds)
+        self.spatialTemporalVis.setSpatialCenter(spatialPoint)
 
-        if isinstance(mapToolKey, QgsMapTool):
-            mt = MapTools.copy(mapToolKey, canvas, *args, **kwds)
-
-        if isinstance(mt, QgsMapTool):
-            canvas.setMapTool(mt)
-            self.mMapTools.append(mt)
-
-            # if required, link map-tool with specific EnMAP-Box slots
-            if isinstance(mt, CursorLocationMapTool):
-                mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.setCurrentLocation)
+    def spatialCenter(self)->SpatialPoint:
+        return self.spatialTemporalVis.spatialCenter()
 
     def setCurrentLocation(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas=None):
         """
@@ -618,7 +629,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 self.loadCursorLocationValueInfo(spatialPoint, mapCanvas)
 
             if bCenter:
-                mapCanvas.setCenter(spatialPoint.toCrs(mapCanvas.mapSettings().crs()))
+                mapCanvas.setCenter(spatialPoint.toCrs(mapCanvas.mapSettings().destinationCrs()))
 
             if bSP:
                 self.loadCurrentSpectralProfile(spatialPoint, mapCanvas)
@@ -940,16 +951,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if files:
             vectorLayers = []
+            from eotimeseriesviewer.mapvisualization import MapView
             for f in files:
-                try:
+                for mapView in self.mapViews():
+                    assert isinstance(mapView, MapView)
                     l = QgsVectorLayer(f, os.path.basename(f))
+                    mapView.addLayer(l)
                     vectorLayers.append(l)
-                except Exception as ex:
-                    pass
-            #QgsProject.instance().addMapLayers(vectorLayers)
-            self.mapLayerStore().addMapLayers(vectorLayers)
 
-    def addTimeSeriesImages(self, files:list):
+    def addTimeSeriesImages(self, files: list):
         """
         Adds images to the time series
         :param files:
@@ -970,7 +980,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):
-        #remove views
+        # remove views
 
         M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
         M.beginResetModel()

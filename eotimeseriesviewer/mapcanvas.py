@@ -118,6 +118,57 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             if self.mLRText:
                 self.paintText(painter, self.mLRText, QPoint(0, 0))
 
+class MapCanvasMapTools(QObject):
+
+
+    def __init__(self, canvas:QgsMapCanvas, cadDock:QgsAdvancedDigitizingDockWidget):
+
+        super(MapCanvasMapTools, self).__init__(canvas)
+        self.mCanvas = canvas
+        self.mCadDock = cadDock
+
+        self.mtZoomIn = QgsMapToolZoom(canvas, False)
+        self.mtZoomOut = QgsMapToolZoom(canvas, True)
+        self.mtMoveToCenter = MapToolCenter(canvas)
+        self.mtPan = QgsMapToolPan(canvas)
+        self.mtPixelScaleExtent = PixelScaleExtentMapTool(canvas)
+        self.mtFullExtentMapTool = FullExtentMapTool(canvas)
+        self.mtCursorLocation = CursorLocationMapTool(canvas, True)
+
+        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CapturePoint, cadDock)
+        self.mtSelectFeature = QgsMapToolSelect(canvas)
+
+    def activate(self, mapToolKey):
+        from .externals.qps.maptools import MapTools
+
+        if mapToolKey == MapTools.ZoomIn:
+            self.mCanvas.setMapTool(self.mtZoomIn)
+        elif mapToolKey == MapTools.ZoomOut:
+            self.mCanvas.setMapTool(self.mtZoomOut)
+        elif mapToolKey == MapTools.Pan:
+            self.mCanvas.setMapTool(self.mtPan)
+        elif mapToolKey == MapTools.ZoomFull:
+            self.mCanvas.setMapTool(self.mtFullExtentMapTool)
+        elif mapToolKey == MapTools.ZoomPixelScale:
+            self.mCanvas.setMapTool(self.mtPixelScaleExtent)
+        elif mapToolKey == MapTools.CursorLocation:
+            self.mCanvas.setMapTool(self.mtCursorLocation)
+        elif mapToolKey == MapTools.SpectralProfile:
+            pass
+        elif mapToolKey == MapTools.TemporalProfile:
+            pass
+        elif mapToolKey == MapTools.MoveToCenter:
+            self.mCanvas.setMapTool(self.mtMoveToCenter)
+        elif mapToolKey == MapTools.AddFeature:
+            self.mCanvas.setMapTool(self.mtAddFeature)
+        elif mapToolKey == MapTools.SelectFeature:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+        else:
+
+            print('Unknown MapTool key: {}'.format(mapToolKey))
+
+
+
 
 class MapCanvas(QgsMapCanvas):
     """
@@ -130,6 +181,7 @@ class MapCanvas(QgsMapCanvas):
         RefreshRenderer = 1
         Clear = 3
         UpdateLayers = 4
+
 
 
     saveFileDirectories = dict()
@@ -149,6 +201,9 @@ class MapCanvas(QgsMapCanvas):
         super(MapCanvas, self).__init__(parent=parent)
         self.mMapLayerStore = QgsProject.instance()
         self.mMapLayers = []
+
+        self.mMapTools = None
+        self.initMapTools()
 
         self.mTimedRefreshPipeLine = dict()
 
@@ -181,7 +236,14 @@ class MapCanvas(QgsMapCanvas):
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
+    def mapTools(self)->MapCanvasMapTools:
+        return self.mMapTools
 
+    def initMapTools(self):
+
+        self.mCadDock = QgsAdvancedDigitizingDockWidget(self)
+        self.mCadDock.setVisible(False)
+        self.mMapTools = MapCanvasMapTools(self, self.mCadDock)
 
     def setMapLayerStore(self, store):
         """

@@ -37,6 +37,7 @@ QGIS_APP = initQgisApplication()
 SHOW_GUI = True and os.environ.get('CI') is None
 
 
+
 class TestInit(TestCase):
     """Test that the plugin init is usable for QGIS.
 
@@ -48,39 +49,8 @@ class TestInit(TestCase):
 
     """
 
-    def test_read_init(self):
-        """Test that the plugin __init__ will validate on plugins.qgis.org."""
 
-        # You should update this list according to the latest in
-        # https://github.com/qgis/qgis-django/blob/master/qgis-app/plugins/validator.py
-
-        required_metadata = [
-            'name',
-            'description',
-            'version',
-            'qgisMinimumVersion',
-            'email',
-            'author']
-
-        file_path = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), os.pardir,
-            'metadata.txt'))
-
-        metadata = []
-        parser = configparser.ConfigParser()
-        parser.optionxform = str
-        parser.read(file_path)
-        message = 'Cannot find a section named "general" in %s' % file_path
-        assert parser.has_section('general'), message
-        metadata.extend(parser.items('general'))
-
-        for expectation in required_metadata:
-            message = ('Cannot find metadata "%s" in metadata source (%s).' % (
-                expectation, file_path))
-
-            self.assertIn(expectation, dict(metadata), message)
-
-    def test_TimeSeriesViewer(self):
+    def test_syncExtents(self):
 
 
         from eotimeseriesviewer.main import TimeSeriesViewer
@@ -92,42 +62,38 @@ class TestInit(TestCase):
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        from qgis.utils import iface
+        self.assertIsInstance(iface, QgisInterface)
+        qgisCanvas = iface.mapCanvas()
 
-    def test_TimeSeriesViewerMultiSource(self):
+        world = SpatialExtent.world()
+        qgisCanvas.setDestinationCrs(world.crs())
+        qgisCanvas.setExtent(world)
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        qcenter1 = qgisCanvas.center()
+        self.assertTrue(qgisCanvas.mapSettings().destinationCrs().isValid())
+        self.assertIsInstance(qgisCanvas, QgsMapCanvas)
+        TSV.ui.optionSyncMapCenter.setChecked(True)
 
-        TSV = TimeSeriesViewer()
-        TSV.show()
-        paths = TestObjects.createMultiSourceTimeSeries()
-        TSV.addTimeSeriesImages(paths)
+        extent = TSV.spatialTemporalVis.spatialExtent()
+        self.assertIsInstance(extent, SpatialExtent)
+        center = extent.spatialCenter()
+        self.assertIsInstance(center, SpatialPoint)
+        center2 = SpatialPoint(center.crs(), center.x() + 100, center.y() + 100)
+        TSV.spatialTemporalVis.mSyncLock = False
+        TSV.setSpatialCenter(center2)
+        self.assertEqual(TSV.spatialCenter(), center2)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-
-    def test_TimeSeriesViewerMassiveSources(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
-
-
-        TSV = TimeSeriesViewer()
-        TSV.show()
-        files = TestObjects.createArtificialTimeSeries(100)
-        TSV.addTimeSeriesImages(files)
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        qcenter2 = qgisCanvas.center()
+        self.assertNotEqual(qcenter1, qcenter2)
+        TSV.ui.optionSyncMapCenter.setChecked(False)
+        TSV.spatialTemporalVis.mSyncLock = False
+        TSV.setSpatialCenter(center)
+        self.assertNotEqual(qcenter2, qgisCanvas.center())
 
 
-    def test_TimeSeriesViewerNoSource(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
-        TSV.show()
-
-        self.assertIsInstance(TSV, TimeSeriesViewer)
         if SHOW_GUI:
             QGIS_APP.exec_()
 
