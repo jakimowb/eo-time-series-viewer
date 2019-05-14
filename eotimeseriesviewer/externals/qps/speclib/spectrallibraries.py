@@ -458,7 +458,10 @@ class SpectralProfile(QgsFeature):
         """
         Returns the Spectral Profiles from source at position `position`
         :param source: path or gdal.Dataset
-        :param position:
+        :param position: list of positions
+                        QPoint -> pixel index position
+                        QgsPointXY -> pixel geolocation position in layer/dataset CRS
+                        SpatialPoint -> pixel geolocation position, will be transformed into layer/dataset CRS
         :return: SpectralProfile
         """
 
@@ -511,7 +514,7 @@ class SpectralProfile(QgsFeature):
 
         profile.setValues(x=wl, y=y, xUnit=wlu)
 
-        profile.setCoordinates(SpatialPoint(crs, px2geo(px, gt)))
+        profile.setCoordinates(SpatialPoint(crs, px2geo(px, gt, pxCenter=True)))
         profile.setSource('{}'.format(ds.GetFileList()[0]))
         return profile
 
@@ -954,9 +957,80 @@ class SpectralLibrary(QgsVectorLayer):
         assert speclib.commitChanges()
         return speclib
 
+    @staticmethod
+    def readFromVectorPositions(rasterSource, vectorSource, mode='CENTROIDS', progressDialog:QProgressDialog=None):
+        """
+
+        :param pathRaster:
+        :param vectorSource:
+        :param mode:
+        :return:
+        """
+
+        assert mode in ['CENTROIDS', 'AVERAGES', 'PIXELS']
+
+        if isinstance(rasterSource, str):
+            rasterSource = QgsRasterLayer(rasterSource)
+        elif isinstance(rasterSource, gdal.Dataset):
+            rasterSource = QgsRasterLayer(rasterSource, '', 'gdal')
+
+        assert isinstance(rasterSource, QgsRasterLayer)
+
+        if isinstance(vectorSource, str):
+            vectorSource = QgsVectorLayer(vectorSource)
+        elif isinstance(vectorSource, ogr.DataSource):
+            raise NotImplementedError()
+
+        assert isinstance(vectorSource, QgsVectorLayer)
+
+        extentRaster = SpatialExtent.fromLayer(rasterSource)
+        vectorSource.selectByRect(extentRaster.toCrs(vectorSource.crs()))
+
+        trans = QgsCoordinateTransform()
+        trans.setSourceCrs(vectorSource.crs())
+        trans.setDestinationCrs(rasterSource.crs())
+
+        nSelected = vectorSource.selectedFeatureCount()
+
+        gt = layerGeoTransform(rasterSource)
+        extent = rasterSource.extent()
+        center = extent.center()
+        #m2p = QgsMapToPixel(rasterSource.rasterUnitsPerPixelX(),
+        #                    center.x() + 0.5*rasterSource.rasterUnitsPerPixelX(),
+        #                    center.y() - 0.5*rasterSource.rasterUnitsPerPixelY(),
+        #                    rasterSource.width(), rasterSource.height(), 0)
+
+        pixelpositions = []
+
+        if isinstance(progressDialog, QProgressDialog):
+            progressDialog.setMinimum(0)
+            progressDialog.setMaximum(nSelected)
+            progressDialog.setLabelText('Get pixel positions...')
+
+        for i, feature in enumerate(vectorSource.selectedFeatures()):
+            if isinstance(progressDialog, QProgressDialog) and progressDialog.wasCanceled():
+                return None
+
+            assert isinstance(feature, QgsFeature)
+
+            if feature.hasGeometry():
+                g = feature.geometry().constGet()
+                if isinstance(g, QgsPoint):
+                    point = trans.transform(QgsPointXY(g))
+                    px = geo2px(point, gt)
+                    pixelpositions.append(px)
+
+            if isinstance(progressDialog, QProgressDialog):
+                progressDialog.setValue(progressDialog.value()+1)
+
+        return SpectralLibrary.readFromRasterPositions(rasterSource, pixelpositions, progressDialog=progressDialog)
+
+
+
+
 
     @staticmethod
-    def readFromRasterPositions(pathRaster, positions):
+    def readFromRasterPositions(pathRaster, positions, progressDialog:QProgressDialog=None):
         """
         Reads a SpectralLibrary from a set of positions
         :param pathRaster:
@@ -967,14 +1041,33 @@ class SpectralLibrary(QgsVectorLayer):
             positions = [positions]
         profiles = []
 
-        source = gdal.Open(pathRaster)
+        source = gdalDataset(pathRaster)
         i = 0
-        for position in positions:
+
+
+        nTotal = len(positions)
+        if isinstance(progressDialog, QProgressDialog):
+            progressDialog.setMinimum(0)
+            progressDialog.setMaximum(nTotal)
+            progressDialog.setValue(0)
+            progressDialog.setLabelText('Extract pixel profiles...')
+
+        for p, position in enumerate(positions):
+            if isinstance(progressDialog, QProgressDialog) and progressDialog.wasCanceled():
+                return None
             profile = SpectralProfile.fromRasterSource(source, position)
             if isinstance(profile, SpectralProfile):
                 profile.setName('Spectrum {}'.format(i))
                 profiles.append(profile)
                 i += 1
+
+            if isinstance(progressDialog, QProgressDialog):
+                progressDialog.setValue(progressDialog.value()+1)
+                #import time
+                #time.sleep(2)
+                #QCoreApplication.instance().processEvents()
+                #progressDialog.show()
+
 
         sl = SpectralLibrary()
         sl.startEditing()
@@ -2217,26 +2310,6 @@ def deleteSelected(layer):
     #saveEdits(layer, leaveEditable=b)
 
 
-class SpectralLibraryPanel(QgsDockWidget):
-    sigLoadFromMapRequest = None
-    def __init__(self, parent=None):
-        super(SpectralLibraryPanel, self).__init__(parent)
-        self.setObjectName('spectralLibraryPanel')
-        self.setWindowTitle('Spectral Library')
-        self.SLW = SpectralLibraryWidget(self)
-        self.setWidget(self.SLW)
-
-
-    def speclib(self)->SpectralLibrary:
-        return self.SLW.speclib()
-
-    def setCurrentSpectra(self, listOfSpectra):
-        self.SLW.setCurrentSpectra(listOfSpectra)
-
-    def setAddCurrentSpectraToSpeclibMode(self, b: bool):
-        self.SLW.setAddCurrentSpectraToSpeclibMode(b)
-
-
 class UnitComboBoxItemModel(OptionListModel):
     def __init__(self, parent=None):
         super(UnitComboBoxItemModel, self).__init__(parent)
@@ -2506,26 +2579,91 @@ def registerAbstractLibraryIOs():
 
 
 
-class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
-    sigLoadFromMapRequest = pyqtSignal()
+class SpectralProfileImportPointsDialog(QDialog, loadSpeclibUI('spectralprofileimportpoints.ui')):
+
+    def __init__(self, parent=None, f:Qt.WindowFlags=None):
+        super(SpectralProfileImportPointsDialog, self).__init__()
+        self.setupUi(self)
+
+        self.mVectorSourceBox.setFilters(QgsMapLayerProxyModel.VectorLayer | QgsMapLayerProxyModel.HasGeometry)
+        self.mRasterSourceBox.setFilters(QgsMapLayerProxyModel.RasterLayer)
+        self.mSpeclib = None
+        self.buttonBox.button(QDialogButtonBox.Ok).clicked.connect(self.run)
+        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+
+    def speclib(self)->SpectralLibrary:
+        return self.mSpeclib
+
+    def setRasterSource(self, lyr):
+        if isinstance(lyr, str):
+            lyr = QgsRasterLayer(lyr)
+        assert isinstance(lyr, QgsRasterLayer)
+        self.selectMapLayer(self.mRasterSourceBox, lyr)
+
+    def setVectorSource(self, lyr):
+
+        if isinstance(lyr, str):
+            lyr = QgsVectorLayer(lyr)
+        assert isinstance(lyr, QgsVectorLayer)
+        self.selectMapLayer(self.mVectorSourceBox, lyr)
+
+
+    def selectMapLayer(self, box:QgsMapLayerComboBox, layer):
+        assert isinstance(layer, QgsMapLayer)
+        assert isinstance(box, QgsMapLayerComboBox)
+        QgsProject.instance().addMapLayer(layer)
+
+        for i in range(box.count()):
+            l = box.layer(i)
+            if isinstance(l, QgsMapLayer) and l == layer:
+                box.setCurrentIndex(i)
+                break
+
+    def run(self):
+        progressDialog = QProgressDialog()
+        progressDialog.setWindowModality(Qt.WindowModal)
+        progressDialog.setMinimumDuration(0)
+
+        slib = SpectralLibrary.readFromVectorPositions(self.rasterSource(), self.vectorSource(), progressDialog=progressDialog)
+
+        if isinstance(slib, SpectralLibrary) and not progressDialog.wasCanceled():
+            self.accept()
+
+
+
+    def vectorSource(self)->QgsVectorLayer:
+        return self.mVectorSourceBox.currentLayer()
+
+    def rasterSource(self)->QgsVectorLayer:
+        return self.mRasterSourceBox.currentLayer()
+
+
+class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui')):
+
     sigFilesCreated = pyqtSignal(list)
+    sigLoadFromMapRequest = pyqtSignal()
+    sigMapExtentRequested = pyqtSignal(SpatialExtent)
+    sigMapCenterRequested = pyqtSignal(SpatialPoint)
+
 
     class CurrentProfilesMode(enum.Enum):
         normal = 0
         automatically = 1
         block = 2
 
-    def __init__(self, parent=None, speclib:SpectralLibrary=None):
+    def __init__(self, *args, speclib:SpectralLibrary=None, **kwds):
 
-        super(SpectralLibraryWidget, self).__init__(parent)
+        super(SpectralLibraryWidget, self).__init__(*args, **kwds)
         self.setupUi(self)
 
+        # self.statusbar.setVisible(False)
+
         # set spacer into menu
-        empty = QWidget(self.mToolbar)
-        empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # empty = QWidget(self.mToolbar)
+         #empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         from .plotting import SpectralLibraryPlotWidget
         assert isinstance(self.mPlotWidget, SpectralLibraryPlotWidget)
-        self.mToolbar.insertWidget(self.actionReload, empty)
+        #self.mToolbar.insertWidget(self.actionReload, empty)
 
         self.mColorCurrentSpectra = COLOR_SELECTED_SPECTRA
         self.mColorSelectedSpectra = COLOR_SELECTED_SPECTRA
@@ -2551,7 +2689,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         assert isinstance(self.mPlotWidget, SpectralLibraryPlotWidget)
         self.mPlotWidget.setSpeclib(self.mSpeclib)
         self.mPlotWidget.backgroundBrush().setColor(COLOR_BACKGROUND)
-        self.mCanvas = QgsMapCanvas(self)
+        self.mCanvas = QgsMapCanvas(self.centralwidget)
         self.mCanvas.setVisible(False)
 
         self.mSourceFilter = '*'
@@ -2565,7 +2703,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         assert isinstance(self.mTableView, QgsAttributeTableView)
         self.mTableView.willShowContextMenu.connect(self.onWillShowContextMenu)
 
-        # change selected row color: keep color also when attribute table looses focus
+        # change selected row color: keep color also when attribtue table looses focus
 
         pal = self.mDualView.tableView().palette()
         cSelected = pal.color(QPalette.Active, QPalette.Highlight)
@@ -2587,6 +2725,25 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
         self.mMapInteraction = True
         self.setMapInteraction(self.mMapInteraction)
+
+
+    def onImportFromVectorSource(self):
+
+        d = SpectralProfileImportPointsDialog()
+        if d.exec_() == QDialog.Accepted:
+            sl = d.speclib()
+            assert isinstance(sl, SpectralLibrary)
+            b = sl.isEditable()
+            sl.startEditing()
+            sl.addSpeclib(sl, True)
+
+
+    def canvas(self)->QgsMapCanvas:
+        """
+        Returns the internal, hidden QgsMapCanvas. Note: not to be used in other widgets!
+        :return: QgsMapCanvas
+        """
+        return self.mCanvas
 
     def onWillShowContextMenu(self, menu:QMenu, atIndex:QModelIndex):
         """
@@ -2618,24 +2775,24 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
     def setCurrentProfilesMode(self, mode:CurrentProfilesMode):
         """
-        Sets the way how incomming profiles are handles
+        Sets the way how to handel profiles added by setCurrentProfiles
         :param mode: CurrentProfilesMode
         """
         assert isinstance(mode, SpectralLibraryWidget.CurrentProfilesMode)
         self.mCurrentProfilesMode = mode
         if mode == SpectralLibraryWidget.CurrentProfilesMode.block:
-            self.actionBlockProfiles.setChecked(True)
-            self.actionAddProfilesAutomatically.setEnabled(False)
-            self.actionAddProfiles.setEnabled(False)
+            self.optionBlockProfiles.setChecked(True)
+            self.optionAddCurrentProfilesAutomatically.setEnabled(False)
+            #self.actionAddProfiles.setEnabled(False)
         else:
-            self.actionBlockProfiles.setChecked(False)
-            self.actionAddProfilesAutomatically.setEnabled(True)
+            self.optionBlockProfiles.setChecked(False)
+            self.optionAddCurrentProfilesAutomatically.setEnabled(True)
             if mode == SpectralLibraryWidget.CurrentProfilesMode.automatically:
-                self.actionAddProfilesAutomatically.setChecked(True)
-                self.actionAddProfiles.setEnabled(False)
+                self.optionAddCurrentProfilesAutomatically.setChecked(True)
+                #self.actionAddProfiles.setEnabled(False)
             elif mode == SpectralLibraryWidget.CurrentProfilesMode.normal:
-                self.actionAddProfilesAutomatically.setChecked(False)
-                self.actionAddProfiles.setEnabled(len(self.currentSpectra()) > 0)
+                self.optionAddCurrentProfilesAutomatically.setChecked(False)
+                #self.actionAddProfiles.setEnabled(len(self.currentSpectra()) > 0)
             else:
                 raise NotImplementedError()
 
@@ -2663,28 +2820,36 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
         self.actionSelectProfilesFromMap.triggered.connect(self.sigLoadFromMapRequest.emit)
 
-
         def onSetBlocked(isBlocked):
             if isBlocked:
                 self.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.block)
             else:
-                if self.actionAddProfilesAutomatically.isChecked():
+                if self.optionAddCurrentProfilesAutomatically.isChecked():
                     self.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
                 else:
                     self.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.normal)
-        self.actionBlockProfiles.toggled.connect(onSetBlocked)
-        self.actionBlockProfiles.setVisible(False)
+        self.optionBlockProfiles.toggled.connect(onSetBlocked)
+        self.optionBlockProfiles.setVisible(False)
 
-        self.actionAddProfiles.triggered.connect(self.addCurrentSpectraToSpeclib)
-        self.actionAddProfilesAutomatically.toggled.connect(
+        self.optionAddCurrentProfilesAutomatically.toggled.connect(
             lambda b: self.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
                 if b else self.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.normal)
         )
 
-
-        #self.actionSaveCurrentProfiles.event = onEvent
-
         self.actionImportSpeclib.triggered.connect(lambda: self.importSpeclib())
+        self.actionImportVectorSource.triggered.connect(self.onImportFromVectorSource)
+        self.actionAddProfiles.triggered.connect(self.addCurrentSpectraToSpeclib)
+
+        m = QMenu()
+        m.addAction(self.actionImportSpeclib)
+        m.addAction(self.actionImportVectorSource)
+        m.addAction(self.optionAddCurrentProfilesAutomatically)
+        m.addAction(self.optionBlockProfiles)
+
+        self.actionAddProfiles.setMenu(m)
+
+
+
         self.actionSaveSpeclib.triggered.connect(self.onExportSpectra)
 
         self.actionReload.triggered.connect(lambda : self.mPlotWidget.updatePlot())
@@ -2692,19 +2857,11 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         self.actionSaveEdits.triggered.connect(self.onSaveEdits)
         self.actionDeleteSelected.triggered.connect(lambda : deleteSelected(self.speclib()))
 
-        self.actionSelectAll.triggered.connect(lambda :
-                                               self.speclib().selectAll()
-                                               )
-
-        self.actionInvertSelection.triggered.connect(lambda :
-                                                     self.speclib().invertSelection()
-                                                     )
-        self.actionRemoveSelection.triggered.connect(lambda :
-                                                     self.speclib().removeSelection()
-                                                     )
-
-
-
+        self.actionSelectAll.triggered.connect(self.selectAll)
+        self.actionInvertSelection.triggered.connect(self.invertSelection)
+        self.actionRemoveSelection.triggered.connect(self.removeSelection)
+        self.actionPanMapToSelectedRows.triggered.connect(self.panMapToSelectedRows)
+        self.actionZoomMapToSelectedRows.triggered.connect(self.zoomMapToSelectedRows)
 
         self.actionAddAttribute.triggered.connect(self.onAddAttribute)
         self.actionRemoveAttribute.triggered.connect(self.onRemoveAttribute)
@@ -2724,12 +2881,6 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         self.actionCopySelectedRows.triggered.connect(self.copySelectedFeatures)
         self.actionPasteFeatures.triggered.connect(self.pasteFeatures)
 
-        #to hide
-        #self.actionPanMapToSelectedRows.setVisible(False)
-        #self.actionZoomMapToSelectedRows.setVisible(False)
-        #self.actionCutSelectedRows.setVisible(False) #todo
-        #self.actionCopySelectedRows.setVisible(False) #todo
-        #self.actionPasteFeatures.setVisible(False)
         self.updateActionAvailability()
 
     def showProperties(self, *args):
@@ -2864,7 +3015,8 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
 
     def setMapInteraction(self, b: bool):
         """
-        Enables/disables buttons and actions to navigate on maps
+        Enables/disables actions to navigate on maps or select profiles from.
+        Note: you need to connect them with respective MapTools and QgsMapCanvases
         :param b: bool
         """
         if b == False:
@@ -2881,6 +3033,46 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         :return: bool
         """
         return self.mMapInteraction
+
+    def selectAll(self):
+        """
+        Selects all features/spectral profiles
+        """
+        self.speclib().selectAll()
+
+    def invertSelection(self):
+        """
+        Inverts the current selection
+        """
+        self.speclib().invertSelection()
+
+    def removeSelection(self):
+        """
+        Removes the current selection
+        """
+        self.speclib().removeSelection()
+
+    def panMapToSelectedRows(self):
+        """
+        Pan to the selected layer features
+        Requires that external maps respond to sigMapCenterRequested
+        """
+        crs = self.mCanvas.mapSettings().destinationCrs()
+        center = SpatialPoint(self.speclib().crs(), self.speclib().boundingBoxOfSelected().center()).toCrs(crs)
+        self.mCanvas.setCenter(center)
+        self.sigMapCenterRequested.emit(center)
+
+    def zoomMapToSelectedRows(self):
+        """
+        Zooms to the selected rows.
+        Requires that external maps respond to sigMapExtentRequested
+        """
+        crs = self.mCanvas.mapSettings().destinationCrs()
+        bbox = SpatialExtent(self.speclib().crs(), self.speclib().boundingBoxOfSelected()).toCrs(crs)
+        if isinstance(bbox, SpatialExtent):
+            self.mCanvas.setExtent(bbox)
+            self.sigMapExtentRequested.emit(bbox)
+
 
     def cutSelectedFeatures(self):
         """
@@ -3032,7 +3224,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
             if not b:
                 self.mSpeclib.commitChanges()
 
-        elif mode ==  SpectralLibraryWidget.CurrentProfilesMode.normal:
+        elif mode == SpectralLibraryWidget.CurrentProfilesMode.normal:
 
             newCurrent = collections.OrderedDict()
 
@@ -3042,7 +3234,7 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
                 newCurrent[p] = pdi
 
             self.mCurrentProfiles.update(newCurrent)
-            self.actionAddProfiles.setEnabled(len(profiles) > 0)
+            # self.actionAddProfiles.setEnabled(len(profiles) > 0)
         self.mPlotWidget.setPlotOverlayItems(list(self.mCurrentProfiles.values()))
 
     def currentSpectra(self) -> list:
@@ -3054,6 +3246,46 @@ class SpectralLibraryWidget(QFrame, loadSpeclibUI('spectrallibrarywidget.ui')):
         :return: [list-of-SpectralProfiles]
         """
         return list(self.mCurrentProfiles.keys())
+
+
+class SpectralLibraryPanel(QgsDockWidget):
+    sigLoadFromMapRequest = None
+
+    def __init__(self, *args, speclib:SpectralLibrary=None, **kwds):
+        super(SpectralLibraryPanel, self).__init__(*args, **kwds)
+        self.setObjectName('spectralLibraryPanel')
+        self.setWindowTitle('Spectral Library')
+        self.SLW = SpectralLibraryWidget(speclib=speclib)
+        self.setWidget(self.SLW)
+
+    def spectralLibraryWidget(self) -> SpectralLibraryWidget:
+        """
+        Returns the SpectralLibraryWidget
+        :return: SpectralLibraryWidget
+        """
+        return self.SLW
+
+    def speclib(self) -> SpectralLibrary:
+        """
+        Returns the SpectralLibrary
+        :return: SpectralLibrary
+        """
+        return self.SLW.speclib()
+
+    def setCurrentSpectra(self, listOfSpectra):
+        """
+        Adds a list of SpectralProfiles as current spectra
+        :param listOfSpectra: [list-of-SpectralProfiles]
+        :return:
+        """
+        self.SLW.setCurrentSpectra(listOfSpectra)
+
+    def setCurrentProfilesMode(self, mode:SpectralLibraryWidget.CurrentProfilesMode):
+        """
+        Sets the way how to handel profiles added by setCurrentProfiles
+        :param mode: SpectralLibraryWidget.CurrentProfilesMode
+        """
+        self.SLW.setCurrentProfilesMode(mode)
 
 
 registerAbstractLibraryIOs()

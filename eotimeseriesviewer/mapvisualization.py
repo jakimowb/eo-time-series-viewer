@@ -71,6 +71,9 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         self.actionZoomToLayer = self.mDefActions.actionZoomToLayer(self.mDummyCanvas)
         self.actionZoomToSelected = self.mDefActions.actionZoomToSelection(self.mDummyCanvas)
         self.actionZoomToGroup = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
+        self.actionAddEOTSVSpectralProfiles = QAction('Add Spectral Profile Layer')
+
+        self.actionAddEOTSVTemporalProfiles = QAction('Add Temporal Profile Layer')
 
 
     def layerTreeView(self)->QgsLayerTreeView:
@@ -109,6 +112,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addAction(self.actionZoomToLayer)
         menu.addAction(self.actionZoomToSelected)
 
+        menu.addAction(self.actionAddEOTSVSpectralProfiles)
+        menu.addAction(self.actionAddEOTSVTemporalProfiles)
         a = menu.addAction('Set Properties')
         a.triggered.connect(lambda *args, lyr=l, canvas=self.mDummyCanvas: showLayerPropertiesDialog(lyr, canvas))
         a.setEnabled(not isinstance(l, SensorProxyLayer))
@@ -215,12 +220,35 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
 
         self.mLayerTreeView.setModel(self.mLayerTreeModel)
         self.mMapLayerTreeViewMenuProvider = MapViewLayerTreeViewMenuProvider(self.mLayerTreeView, self.mDummyCanvas)
+
+        # register some actions that interact with other GUI elements
+        self.mMapLayerTreeViewMenuProvider.actionAddEOTSVSpectralProfiles.triggered.connect(self.addSpectralProfileLayer)
+        self.mMapLayerTreeViewMenuProvider.actionAddEOTSVTemporalProfiles.triggered.connect(self.addTemporalProfileLayer)
+
         self.mLayerTreeView.setMenuProvider(self.mMapLayerTreeViewMenuProvider)
 
         self.mLayerTree.removedChildren.connect(self.onChildNodesRemoved)
 
         self.mIsVisible = True
         self.setTitle(name)
+
+    def addSpectralProfileLayer(self):
+        """Adds the EOTSV Spectral Profile Layer"""
+        from eotimeseriesviewer.main import TimeSeriesViewer
+        tsv = TimeSeriesViewer.instance()
+        if isinstance(tsv, TimeSeriesViewer):
+            lyr = tsv.spectralLibrary()
+            if lyr not in self.layers():
+                self.addLayer(lyr)
+
+    def addTemporalProfileLayer(self):
+        """Adds the EOTSV Temporal Profile Layer"""
+        from eotimeseriesviewer.main import TimeSeriesViewer
+        tsv = TimeSeriesViewer.instance()
+        if isinstance(tsv, TimeSeriesViewer):
+            lyr = tsv.temporalProfileLayer()
+            if lyr not in self.layers():
+                self.addLayer(lyr)
 
 
     def addLayer(self, layer:QgsMapLayer):
@@ -1296,8 +1324,10 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         numMV = 0
         for i in range(self.toolBox.count()):
             item = self.toolBox.widget(i)
-            if item == mapView:
+            if isinstance(item, MapView):
                 numMV += 1
+            if item == mapView:
+
                 if mapView.isVisible():
                     icon = QIcon(":/timeseriesviewer/icons/mapview.svg")
                 else:

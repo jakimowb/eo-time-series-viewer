@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="qps">
+    <file>ui/icons/plus_green_icon.svg</file>
     <file>ui/icons/center_map.svg</file>
     <file>ui/icons/classinfo.svg</file>
     <file>ui/icons/classinfo_add.svg</file>

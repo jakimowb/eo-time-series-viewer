@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>spectralLibraryView</class>
- <widget class="QFrame" name="spectralLibraryView">
+ <widget class="QMainWindow" name="spectralLibraryView">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>709</width>
-    <height>360</height>
+    <width>766</width>
+    <height>365</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -20,180 +20,47 @@
    <iconset resource="../qpsresources.qrc">
     <normaloff>:/qps/ui/icons/speclib.svg</normaloff>:/qps/ui/icons/speclib.svg</iconset>
   </property>
-  <property name="frameShape">
-   <enum>QFrame::StyledPanel</enum>
-  </property>
-  <property name="frameShadow">
-   <enum>QFrame::Raised</enum>
-  </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <widget class="QToolBar" name="mToolbar">
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="movable">
-      <bool>false</bool>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="iconSize">
-      <size>
-       <width>18</width>
-       <height>18</height>
-      </size>
-     </property>
-     <property name="toolButtonStyle">
-      <enum>Qt::ToolButtonIconOnly</enum>
-     </property>
-     <property name="floatable">
-      <bool>false</bool>
-     </property>
-     <addaction name="actionSelectProfilesFromMap"/>
-     <addaction name="actionBlockProfiles"/>
-     <addaction name="actionAddProfiles"/>
-     <addaction name="actionAddProfilesAutomatically"/>
-     <addaction name="separator"/>
-     <addaction name="actionImportSpeclib"/>
-     <addaction name="actionSaveSpeclib"/>
-     <addaction name="separator"/>
-     <addaction name="actionSelectAll"/>
-     <addaction name="actionInvertSelection"/>
-     <addaction name="actionRemoveSelection"/>
-     <addaction name="actionPanMapToSelectedRows"/>
-     <addaction name="actionZoomMapToSelectedRows"/>
-     <addaction name="actionReload"/>
-     <addaction name="actionToggleEditing"/>
-     <addaction name="actionCutSelectedRows"/>
-     <addaction name="actionCopySelectedRows"/>
-     <addaction name="actionPasteFeatures"/>
-     <addaction name="actionDeleteSelected"/>
-     <addaction name="actionSaveEdits"/>
-     <addaction name="actionAddAttribute"/>
-     <addaction name="actionRemoveAttribute"/>
-    </widget>
-   </item>
-   <item>
-    <widget class="QSplitter" name="splitter">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>2</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="opaqueResize">
-      <bool>false</bool>
-     </property>
-     <widget class="SpectralLibraryPlotWidget" name="mPlotWidget">
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QSplitter" name="splitter">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
         <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
+        <verstretch>2</verstretch>
        </sizepolicy>
       </property>
-     </widget>
-     <widget class="QgsDualView" name="mDualView" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <property name="minimumSize">
-       <size>
-        <width>50</width>
-        <height>0</height>
-       </size>
+      <property name="opaqueResize">
+       <bool>false</bool>
       </property>
-      <property name="acceptDrops">
-       <bool>true</bool>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <property name="spacing">
-        <number>2</number>
-       </property>
-       <property name="leftMargin">
-        <number>0</number>
-       </property>
-       <property name="topMargin">
-        <number>0</number>
-       </property>
-       <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
-        <number>0</number>
-       </property>
-      </layout>
-     </widget>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QProgressBar" name="mProgressBar">
+      <widget class="SpectralLibraryPlotWidget" name="mPlotWidget">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
-       <property name="value">
-        <number>0</number>
-       </property>
-       <property name="textVisible">
-        <bool>false</bool>
-       </property>
-       <property name="invertedAppearance">
-        <bool>false</bool>
-       </property>
       </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="mInfoLabel">
+      <widget class="QgsDualView" name="mDualView" native="true">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>1</horstretch>
+         <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
        <property name="minimumSize">
         <size>
-         <width>150</width>
+         <width>50</width>
          <height>0</height>
         </size>
        </property>
-       <property name="text">
-        <string/>
+       <property name="acceptDrops">
+        <bool>true</bool>
        </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_4">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QFrame" name="btnBarDualViewOptions">
-       <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
-       </property>
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
         <property name="spacing">
          <number>2</number>
         </property>
@@ -209,63 +76,195 @@
         <property name="bottomMargin">
          <number>0</number>
         </property>
-        <item>
-         <widget class="QToolButton" name="btnSpeclibProperties">
-          <property name="text">
-           <string>F</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QToolButton" name="btnRenderingView">
-          <property name="text">
-           <string>F</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/propertyicons/rendering.svg</normaloff>:/images/themes/default/propertyicons/rendering.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QToolButton" name="btnFormView">
-          <property name="text">
-           <string>F</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QToolButton" name="btnTableView">
-          <property name="text">
-           <string>T</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
-          </property>
-         </widget>
-        </item>
        </layout>
       </widget>
-     </item>
-    </layout>
-   </item>
-  </layout>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QProgressBar" name="mProgressBar">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="value">
+         <number>0</number>
+        </property>
+        <property name="textVisible">
+         <bool>false</bool>
+        </property>
+        <property name="invertedAppearance">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="mInfoLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>150</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QFrame" name="btnBarDualViewOptions">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QToolButton" name="btnSpeclibProperties">
+           <property name="text">
+            <string>F</string>
+           </property>
+           <property name="icon">
+            <iconset resource="../../../../QGIS/images/images.qrc">
+             <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnRenderingView">
+           <property name="text">
+            <string>F</string>
+           </property>
+           <property name="icon">
+            <iconset resource="../../../../QGIS/images/images.qrc">
+             <normaloff>:/images/themes/default/propertyicons/rendering.svg</normaloff>:/images/themes/default/propertyicons/rendering.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnFormView">
+           <property name="text">
+            <string>F</string>
+           </property>
+           <property name="icon">
+            <iconset resource="../../../../QGIS/images/images.qrc">
+             <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="btnTableView">
+           <property name="text">
+            <string>T</string>
+           </property>
+           <property name="icon">
+            <iconset resource="../../../../QGIS/images/images.qrc">
+             <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QToolBar" name="toolBarAddProfiles">
+   <property name="windowTitle">
+    <string>Input / Output</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSelectProfilesFromMap"/>
+   <addaction name="actionAddProfiles"/>
+   <addaction name="actionSaveSpeclib"/>
+  </widget>
+  <widget class="QToolBar" name="toolBarFeatureSelections">
+   <property name="windowTitle">
+    <string>Selection Tools</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSelectAll"/>
+   <addaction name="actionInvertSelection"/>
+   <addaction name="actionRemoveSelection"/>
+   <addaction name="actionPanMapToSelectedRows"/>
+   <addaction name="actionZoomMapToSelectedRows"/>
+  </widget>
+  <widget class="QToolBar" name="toolBarEditTools">
+   <property name="windowTitle">
+    <string>Edit Tools</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionReload"/>
+   <addaction name="actionToggleEditing"/>
+   <addaction name="actionCutSelectedRows"/>
+   <addaction name="actionCopySelectedRows"/>
+   <addaction name="actionPasteFeatures"/>
+   <addaction name="actionDeleteSelected"/>
+   <addaction name="actionSaveEdits"/>
+   <addaction name="actionAddAttribute"/>
+   <addaction name="actionRemoveAttribute"/>
+  </widget>
   <action name="actionImportSpeclib">
    <property name="icon">
     <iconset resource="../qpsresources.qrc">
      <normaloff>:/qps/ui/icons/speclib_add.svg</normaloff>:/qps/ui/icons/speclib_add.svg</iconset>
    </property>
    <property name="text">
-    <string>importSpeclib</string>
+    <string>Import Spectral Library</string>
    </property>
    <property name="toolTip">
     <string>Import Spectral Library</string>
@@ -505,7 +504,7 @@
     <string>Ctrl+C</string>
    </property>
   </action>
-  <action name="actionAddProfilesAutomatically">
+  <action name="optionAddCurrentProfilesAutomatically">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -550,7 +549,7 @@
   <action name="actionAddProfiles">
    <property name="icon">
     <iconset resource="../qpsresources.qrc">
-     <normaloff>:/qps/ui/icons/plus_green.svg</normaloff>:/qps/ui/icons/plus_green.svg</iconset>
+     <normaloff>:/qps/ui/icons/plus_green_icon.svg</normaloff>:/qps/ui/icons/plus_green_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Add Profile(s)</string>
@@ -564,7 +563,7 @@
     <string>X</string>
    </property>
   </action>
-  <action name="actionBlockProfiles">
+  <action name="optionBlockProfiles">
    <property name="checkable">
     <bool>true</bool>
    </property>
@@ -598,6 +597,18 @@
    </property>
    <property name="toolTip">
     <string>Rendering view</string>
+   </property>
+  </action>
+  <action name="actionImportVectorSource">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import profiles from raster + vector source</string>
+   </property>
+   <property name="toolTip">
+    <string>Import spectral profiles from a raster image based on vector geometries (Points).</string>
    </property>
   </action>
  </widget>

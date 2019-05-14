@@ -111,6 +111,8 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
+        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self))
+        self.dockAdvancedDigitizingDockWidget.setVisible(False)
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
@@ -441,6 +443,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def onMapViewAdded(self, mapView):
         mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
         mapView.addLayer(self.spectralLibrary())
+
+    def temporalProfileLayer(self)->QgsVectorLayer:
+        """
+        Returns the TemporalProfileLayer
+        :return:
+        """
+        from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
+        return self.spectralTemporalVis.temporalProfileLayer()
+
 
     def spectralLibrary(self)->SpectralLibrary:
         """
