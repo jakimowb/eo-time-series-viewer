@@ -745,13 +745,16 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         assert isinstance(self.tableView_TimeSeries, QTableView)
         model = self.mTSProxyModel
         tsd.setVisibility(True)
-        if isinstance(model, QSortFilterProxyModel):
-            for i in range(model.rowCount()):
-                idx = model.createIndex(i, 0)
-                if tsd == model.data(idx, Qt.UserRole):
-                    self.tableView_TimeSeries.scrollTo(idx, QAbstractItemView.PositionAtCenter)
 
-                    break
+        tsdTableModel = model.sourceModel()
+        assert isinstance(tsdTableModel, TimeSeriesTableModel)
+        idxSrc = tsdTableModel.getIndexFromDate(tsd)
+
+        if isinstance(idxSrc, QModelIndex):
+            idx2 = model.mapFromSource(idxSrc)
+            if isinstance(idx2, QModelIndex):
+                #self.tableView_TimeSeries.setCurrentIndex(idx2)
+                self.tableView_TimeSeries.scrollTo(idx2, QAbstractItemView.PositionAtCenter)
 
 
     def setStatus(self):
@@ -1238,6 +1241,12 @@ class TimeSeriesTableModel(QAbstractTableModel):
         self.items = []
 
         self.addTSDs([tsd for tsd in self.mTimeSeries])
+
+    def timeSeries(self)->TimeSeries:
+        """
+        :return: TimeSeries
+        """
+        return self.mTimeSeries
 
     def removeTSDs(self, tsds:list):
         """

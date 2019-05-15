@@ -91,6 +91,8 @@ class TestInit(TestCase):
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
 
+        tsd = TSV.timeSeries()[-1]
+        TSV.showTimeSeriesDatum(tsd)
         if SHOW_GUI:
             QGIS_APP.exec_()
 
