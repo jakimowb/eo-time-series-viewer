@@ -741,17 +741,30 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
 
         self.setTimeSeries(None)
 
+    def showTSD(self, tsd:TimeSeriesDatum):
+        assert isinstance(self.tableView_TimeSeries, QTableView)
+        model = self.mTSProxyModel
+        tsd.setVisibility(True)
+        if isinstance(model, QSortFilterProxyModel):
+            for i in range(model.rowCount()):
+                idx = model.createIndex(i, 0)
+                if tsd == model.data(idx, Qt.UserRole):
+                    self.tableView_TimeSeries.scrollTo(idx, QAbstractItemView.PositionAtCenter)
+
+                    break
+
+
     def setStatus(self):
         """
         Updates the status of the TimeSeries
         """
         from eotimeseriesviewer.timeseries import TimeSeries
-        if isinstance(self.TS, TimeSeries):
-            nDates = len(self.TS)
-            nSensors = len(self.TS.sensors())
+        if isinstance(self.mTimeSeries, TimeSeries):
+            nDates = len(self.mTimeSeries)
+            nSensors = len(self.mTimeSeries.sensors())
             msg = '{} scene(s) from {} sensor(s)'.format(nDates, nSensors)
             if nDates > 1:
-                msg += ', {} to {}'.format(str(self.TS[0].date()), str(self.TS[-1].date()))
+                msg += ', {} to {}'.format(str(self.mTimeSeries[0].date()), str(self.mTimeSeries[-1].date()))
             self.progressInfo.setText(msg)
 
     def setProgressInfo(self, nDone:int, nMax:int, message=None):
@@ -790,14 +803,14 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         :param TS: TimeSeries
         """
         from eotimeseriesviewer.timeseries import TimeSeries
-        self.TS = TS
+        self.mTimeSeries = TS
         self.mTSModel = None
         self.SM = None
-        self.timeSeriesInitialized = False
+
 
         if isinstance(TS, TimeSeries):
             from eotimeseriesviewer.timeseries import TimeSeriesTableModel
-            self.mTSModel = TimeSeriesTableModel(self.TS)
+            self.mTSModel = TimeSeriesTableModel(self.mTimeSeries)
             self.mTSProxyModel = QSortFilterProxyModel(self)
             self.mTSProxyModel.setSourceModel(self.mTSModel)
             self.tableView_TimeSeries.setModel(self.mTSProxyModel)

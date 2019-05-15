@@ -1,5 +1,9 @@
 <RCC>
   <qresource prefix="qps">
+    <file>ui/icons/profile_reload.svg</file>
+    <file>ui/icons/speclib_clear.svg</file>
+    <file>ui/icons/speclib_reload.svg</file>
+    <file>ui/icons/profile_reload.svg</file>
     <file>ui/icons/plus_green_icon.svg</file>
     <file>ui/icons/center_map.svg</file>
     <file>ui/icons/classinfo.svg</file>

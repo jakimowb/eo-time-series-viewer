@@ -111,10 +111,10 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
-        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self))
-        self.dockAdvancedDigitizingDockWidget.setVisible(False)
+
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
+
 
 
         area = Qt.BottomDockWidgetArea
@@ -127,14 +127,21 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.labeling import LabelingDock
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
+        area = Qt.LeftDockWidgetArea
+        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.canvas(), self))
+        self.dockAdvancedDigitizingDockWidget.setVisible(False)
+        self.tabifyDockWidget(self.dockSensors, self.dockAdvancedDigitizingDockWidget)
 
+        area = Qt.BottomDockWidgetArea
         panel = SpectralLibraryPanel(None)
         panel.setParent(self)
         self.dockSpectralLibrary = addDockWidget(panel)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+
         #except Exception as ex:
         #    print('Unable to create SpectralLibrary panel', file=sys.stderr)
         #    print(ex, file=sys.stderr)
+        #    self.dockSpectralLibrary = None
         #    self.dockSpectralLibrary = None
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
@@ -404,11 +411,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
 
-        assert isinstance(self.ui.dockSpectralLibrary.SLW, SpectralLibraryWidget)
-        self.ui.dockSpectralLibrary.SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
 
-        self.ui.dockSpectralLibrary.SLW.setMapInteraction(True)
-        self.ui.dockSpectralLibrary.SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
+        SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
+        assert isinstance(SLW, SpectralLibraryWidget)
+        SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+        SLW.setMapInteraction(True)
+        SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
+        SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
+        SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
+
+        # add the cadDock
+
         # add time-specific fields
         sl = self.spectralLibrary()
 
@@ -486,7 +499,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         assert isinstance(tsd, TimeSeriesDatum)
         self.spatialTemporalVis.navigateToTSD(tsd)
-        #todo: move TableViews to as well
+        self.ui.dockTimeSeries.showTSD(tsd)
+        # todo: move TableViews to as well
+
 
     def mapCanvases(self)->list:
         """

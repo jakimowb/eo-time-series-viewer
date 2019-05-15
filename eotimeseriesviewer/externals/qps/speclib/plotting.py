@@ -37,7 +37,7 @@ from ..externals.pyqtgraph.functions import mkPen
 from ..externals import pyqtgraph as pg
 from ..externals.pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
 from ..utils import METRIC_EXPONENTS, convertMetricUnit
-from .spectrallibraries import SpectralProfile, SpectralLibrary, MIMEDATA_SPECLIB_LINK
+from .spectrallibraries import SpectralProfile, SpectralLibrary, MIMEDATA_SPECLIB_LINK, FIELD_VALUES
 
 
 BAND_INDEX = 'Band Index'
@@ -112,6 +112,229 @@ class SpectralLibraryPlotItem(pg.PlotItem):
         # name = kargs.get('name', getattr(item, 'opts', {}).get('name', None))
         #if name is not None and hasattr(self, 'legend') and self.legend is not None:
         #    self.legend.addItem(item, name=name)
+
+class SpectralProfilePlotDataItem(PlotDataItem):
+    """
+    A pyqtgraph.PlotDataItem to plot SpectralProfiles
+    """
+    def __init__(self, spectralProfile:SpectralProfile):
+        assert isinstance(spectralProfile, SpectralProfile)
+        super(SpectralProfilePlotDataItem, self).__init__()
+
+
+        self.mXValueConversionFunction = lambda v, *args: v
+        self.mYValueConversionFunction = lambda v, *args: v
+
+        self.mDefaultLineWidth = self.pen().width()
+        self.mDefaultLineColor = None
+
+        self.mProfile = None
+        self.mInitialDataX = None
+        self.mInitialDataY = None
+        self.mInitialUnitX = None
+        self.mInitialUnitY = None
+
+        self.initProfile(spectralProfile)
+        self.applyMapFunctions()
+
+    def initProfile(self, spectralProfile:SpectralProfile):
+        """
+        Initializes internal spectral profile settings
+        :param spectralProfile: SpectralProfile
+        """
+        assert isinstance(spectralProfile, SpectralProfile)
+        self.mProfile = spectralProfile
+        self.mInitialDataX = spectralProfile.xValues()
+        self.mInitialDataY = spectralProfile.yValues()
+        self.mInitialUnitX = spectralProfile.xUnit()
+        self.mInitialUnitY = spectralProfile.yUnit()
+        for v in [self.mInitialDataX, self.mInitialDataY]:
+            assert isinstance(v, list)
+
+    def resetSpectralProfile(self, spectralProfile:SpectralProfile=None):
+        """
+        Resets internal settings to either the original SpectraProfile or a new one
+        :param spectralProfile: a new SpectralProfile
+        """
+        """
+        
+        Use this to account for changes profile values.
+        """
+        sp = spectralProfile if isinstance(spectralProfile, SpectralProfile) else self.spectralProfile()
+        self.initProfile(sp)
+        self.applyMapFunctions()
+
+    def spectralProfile(self)->SpectralProfile:
+        """
+        Returns the SpectralProfile
+        :return: SpectralPrrofile
+        """
+        return self.mProfile
+
+    def setMapFunctionX(self, func):
+        """
+        Sets the function `func` to get the values to be plotted on x-axis.
+        The function must have the pattern mappedXValues = func(originalXValues, SpectralProfilePlotDataItem),
+        The default function `func = lambda v, *args : v` returns the unchanged x-values in `v`
+        :param func: callable, mapping function
+        """
+        assert callable(func)
+        self.mXValueConversionFunction = func
+
+    def setMapFunctionY(self, func):
+        """
+        Sets the function `func` to get the values to be plotted on y-axis.
+        The function must follow the pattern mappedYValues = func(originalYValues, plotDataItem),
+        The default function `func = lambda v, *args : v` returns the unchanged y-values in `v`
+        The second argument `plotDataItem` provides a handle to SpectralProfilePlotDataItem instance which uses this
+        function when running its `.applyMapFunctions()`.
+        :param func: callable, mapping function
+        """
+        assert callable(func)
+        self.mYValueConversionFunction = func
+
+    def applyMapFunctions(self)->bool:
+        """
+        Applies the two functions defined with `.setMapFunctionX` and `.setMapFunctionY`.
+        :return: bool, True in case of success
+        """
+        success = False
+        if len(self.mInitialDataX) > 0 and len(self.mInitialDataY) > 0:
+            x = None
+            y = None
+
+            try:
+                x = self.mXValueConversionFunction(self.mInitialDataX, self)
+                y = self.mYValueConversionFunction(self.mInitialDataY, self)
+                if isinstance(x, list) and isinstance(y, list) and len(x) > 0 and len(y) > 0:
+                    success = True
+            except Exception as ex:
+                print(ex)
+                pass
+
+        if success:
+            self.setData(x=x, y=y)
+            self.setVisible(True)
+        else:
+            #self.setData(x=[], y=[])
+            self.setVisible(False)
+
+        return success
+
+    def id(self)->int:
+        """
+        Returns the profile id
+        :return: int
+        """
+        return self.mProfile.id()
+
+    def setClickable(self, b:bool, width=None):
+        """
+
+        :param b:
+        :param width:
+        :return:
+        """
+        assert isinstance(b, bool)
+        self.curve.setClickable(b, width=width)
+
+    def setSelected(self, b: bool):
+        """
+        Sets if this profile should appear as "selected"
+        :param b: bool
+        """
+
+        if b:
+            self.setLineWidth(self.mDefaultLineWidth + 3)
+            #self.setColor(Qgis.DEFAULT_HIGHLIGHT_COLOR)
+        else:
+            self.setLineWidth(self.mDefaultLineWidth)
+            #self.setColor(self.mDefaultLineColor)
+
+
+    def setColor(self, color:QColor):
+        """
+        Sets the profile color
+        :param color: QColor
+        """
+        if not isinstance(color, QColor):
+            color = QColor(color)
+
+        self.setPen(color)
+
+        if not isinstance(self.mDefaultLineColor, QColor):
+            self.mDefaultLineColor = color
+
+    def pen(self):
+        """
+        Returns the QPen of the profile
+        :return: QPen
+        """
+        return mkPen(self.opts['pen'])
+
+    def color(self):
+        """
+        Returns the profile color
+        :return: QColor
+        """
+        return self.pen().color()
+
+    def setLineWidth(self, width):
+        """
+        Set the profile width in px
+        :param width: int
+        """
+        pen = mkPen(self.opts['pen'])
+        assert isinstance(pen, QPen)
+        pen.setWidth(width)
+        self.setPen(pen)
+
+    def mouseClickEvent(self, ev):
+        if ev.button() == Qt.RightButton:
+            if self.raiseContextMenu(ev):
+                ev.accept()
+
+
+    def raiseContextMenu(self, ev):
+        menu = self.contextMenu()
+
+        # Let the scene add on to the end of our context menu
+        # (this is optional)
+        menu = self.scene().addParentContextMenus(self, menu, ev)
+
+        pos = ev.screenPos()
+        menu.popup(QPoint(pos.x(), pos.y()))
+        return True
+
+    # This method will be called when this item's _children_ want to raise
+    # a context menu that includes their parents' menus.
+    def contextMenu(self, event=None):
+
+
+        self.menu = QMenu()
+        self.menu.setTitle(self.name + " options..")
+
+        green = QAction("Turn green", self.menu)
+        green.triggered.connect(self.setGreen)
+        self.menu.addAction(green)
+        self.menu.green = green
+
+        blue = QAction("Turn blue", self.menu)
+        blue.triggered.connect(self.setBlue)
+        self.menu.addAction(blue)
+        self.menu.green = blue
+
+        alpha = QWidgetAction(self.menu)
+        alphaSlider = QSlider()
+        alphaSlider.setOrientation(Qt.Horizontal)
+        alphaSlider.setMaximum(255)
+        alphaSlider.setValue(255)
+        alphaSlider.valueChanged.connect(self.setAlpha)
+        alpha.setDefaultWidget(alphaSlider)
+        self.menu.addAction(alpha)
+        self.menu.alpha = alpha
+        self.menu.alphaSlider = alphaSlider
+        return self.menu
 
 class SpectralLibraryPlotWidget(pg.PlotWidget):
     """
@@ -189,6 +412,7 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
         self.setYLabel('Y (Spectral Value)')
 
         self.mViewBox.sigXUnitChanged.connect(self.updateXUnit)
+
 
     def setInfoColor(self, color:QColor):
         if isinstance(color, QColor):
@@ -340,12 +564,44 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
         self.mSpeclib.featureAdded.connect(self.onProfilesAdded)
         self.mSpeclib.featuresDeleted.connect(self.onProfilesRemoved)
         self.mSpeclib.selectionChanged.connect(self.onSelectionChanged)
-        #self.mSpeclib.attributeValueChanged.connect(self.onAttributeChanged)
+        self.mSpeclib.committedAttributeValuesChanges.connect(self.onCommittedAttributeValuesChanges)
         self.mSpeclib.rendererChanged.connect(self.onRendererChanged)
         self.onProfilesAdded(self.speclib().allFeatureIds())
 
 
         self.updatePlot()
+
+    def speclib(self)->SpectralLibrary:
+        """
+        Returns the SpectralLibrary this widget is linked to.
+        :return: SpectralLibrary
+        """
+
+    def onCommittedAttributeValuesChanges(self, layerID, featureMap):
+        """
+        Reacts on changes in spectral values
+        """
+        s = ""
+
+
+        if layerID != self.speclib().id():
+            return
+
+        idxF = self.speclib().fields().indexOf(FIELD_VALUES)
+        fids = []
+
+        for fid, fieldMap in featureMap.items():
+            if idxF in fieldMap.keys():
+                fids.append(fid)
+
+        if len(fids) == 0:
+            return
+        for p in self.speclib().profiles(fids):
+            assert isinstance(p, SpectralProfile)
+            pdi = self.spectralProfilePlotDataItem(p.id())
+            if isinstance(pdi, SpectralProfilePlotDataItem):
+                pdi.resetSpectralProfile(p)
+
 
 
     def onRendererChanged(self):
@@ -470,6 +726,27 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
         self._removeSpectralProfilePDIs(to_remove)
         pi.addItems(to_add)
         pi.update()
+
+    def resetSpectralProfiles(self):
+        for pdi in self.spectralProfilePlotDataItems():
+            assert isinstance(pdi, SpectralProfilePlotDataItem)
+            pdi.resetSpectralProfile()
+
+    def spectralProfilePlotDataItems(self)->list:
+        """
+        Returns all available SpectralProfilePlotDataItems
+        """
+        return [i for i in self.mPlotDataItems.values() if isinstance(i, SpectralProfilePlotDataItem)]
+
+    def spectralProfilePlotDataItem(self, fid)->SpectralProfilePlotDataItem:
+        """
+        Returns the SpectralProfilePlotDataItem related to SpectralProfile fid
+        :param fid: int | QgsFeature | SpectralProfile
+        :return: SpectralProfilePlotDataItem
+        """
+        if isinstance(fid, QgsFeature):
+            fid = fid.id()
+        return self.mPlotDataItems.get(fid)
 
     def updateProfileStyles(self, listOfProfiles:list):
         """
@@ -812,202 +1089,4 @@ class SpectralViewBox(pg.ViewBox):
         self.mCurrentPosition = (x,y)
         pass
 
-class SpectralProfilePlotDataItem(PlotDataItem):
-    """
-    A pyqtgraph.PlotDataItem to plot SpectralProfiles
-    """
-    def __init__(self, spectralProfile:SpectralProfile):
-        assert isinstance(spectralProfile, SpectralProfile)
-        super(SpectralProfilePlotDataItem, self).__init__()
 
-        self.mProfile = spectralProfile
-
-        self.mInitialDataX = spectralProfile.xValues()
-        self.mInitialDataY = spectralProfile.yValues()
-        self.mInitialUnitX = spectralProfile.xUnit()
-        self.mInitialUnitY = spectralProfile.yUnit()
-
-        for v in [self.mInitialDataX, self.mInitialDataY]:
-            assert isinstance(v, list)
-
-
-
-        #self.setStyle(spectralProfile.style())
-
-        self.mXValueConversionFunction = lambda v, *args: v
-        self.mYValueConversionFunction = lambda v, *args: v
-        self.mDefaultLineWidth = self.pen().width()
-        self.mDefaultLineColor = None
-        self.applyMapFunctions()
-
-    def spectralProfile(self)->SpectralProfile:
-        """
-        Returns the SpectralProfile
-        :return: SpectralPrrofile
-        """
-        return self.mProfile
-
-    def setMapFunctionX(self, func):
-        """
-        Sets the function `func` to get the values to be plotted on x-axis.
-        The function must have the pattern mappedXValues = func(originalXValues, SpectralProfilePlotDataItem),
-        The default function `func = lambda v, *args : v` returns the unchanged x-values in `v`
-        :param func: callable, mapping function
-        """
-        assert callable(func)
-        self.mXValueConversionFunction = func
-
-    def setMapFunctionY(self, func):
-        """
-        Sets the function `func` to get the values to be plotted on y-axis.
-        The function must follow the pattern mappedYValues = func(originalYValues, plotDataItem),
-        The default function `func = lambda v, *args : v` returns the unchanged y-values in `v`
-        The second argument `plotDataItem` provides a handle to SpectralProfilePlotDataItem instance which uses this
-        function when running its `.applyMapFunctions()`.
-        :param func: callable, mapping function
-        """
-        assert callable(func)
-        self.mYValueConversionFunction = func
-
-    def applyMapFunctions(self)->bool:
-        """
-        Applies the two functions defined with `.setMapFunctionX` and `.setMapFunctionY`.
-        :return: bool, True in case of success
-        """
-        success = False
-        if len(self.mInitialDataX) > 0 and len(self.mInitialDataY) > 0:
-            x = None
-            y = None
-
-            try:
-                x = self.mXValueConversionFunction(self.mInitialDataX, self)
-                y = self.mYValueConversionFunction(self.mInitialDataY, self)
-                if isinstance(x, list) and isinstance(y, list) and len(x) > 0 and len(y) > 0:
-                    success = True
-            except Exception as ex:
-                print(ex)
-                pass
-
-        if success:
-            self.setData(x=x, y=y)
-            self.setVisible(True)
-        else:
-            #self.setData(x=[], y=[])
-            self.setVisible(False)
-
-        return success
-
-    def id(self)->int:
-        """
-        Returns the profile id
-        :return: int
-        """
-        return self.mProfile.id()
-
-    def setClickable(self, b:bool, width=None):
-        """
-
-        :param b:
-        :param width:
-        :return:
-        """
-        assert isinstance(b, bool)
-        self.curve.setClickable(b, width=width)
-
-    def setSelected(self, b: bool):
-        """
-        Sets if this profile should appear as "selected"
-        :param b: bool
-        """
-
-        if b:
-            self.setLineWidth(self.mDefaultLineWidth + 3)
-            #self.setColor(Qgis.DEFAULT_HIGHLIGHT_COLOR)
-        else:
-            self.setLineWidth(self.mDefaultLineWidth)
-            #self.setColor(self.mDefaultLineColor)
-
-
-    def setColor(self, color:QColor):
-        """
-        Sets the profile color
-        :param color: QColor
-        """
-        if not isinstance(color, QColor):
-            color = QColor(color)
-
-        self.setPen(color)
-
-        if not isinstance(self.mDefaultLineColor, QColor):
-            self.mDefaultLineColor = color
-
-    def pen(self):
-        """
-        Returns the QPen of the profile
-        :return: QPen
-        """
-        return mkPen(self.opts['pen'])
-
-    def color(self):
-        """
-        Returns the profile color
-        :return: QColor
-        """
-        return self.pen().color()
-
-    def setLineWidth(self, width):
-        """
-        Set the profile width in px
-        :param width: int
-        """
-        pen = mkPen(self.opts['pen'])
-        assert isinstance(pen, QPen)
-        pen.setWidth(width)
-        self.setPen(pen)
-
-    def mouseClickEvent(self, ev):
-        if ev.button() == Qt.RightButton:
-            if self.raiseContextMenu(ev):
-                ev.accept()
-
-
-    def raiseContextMenu(self, ev):
-        menu = self.contextMenu()
-
-        # Let the scene add on to the end of our context menu
-        # (this is optional)
-        menu = self.scene().addParentContextMenus(self, menu, ev)
-
-        pos = ev.screenPos()
-        menu.popup(QPoint(pos.x(), pos.y()))
-        return True
-
-    # This method will be called when this item's _children_ want to raise
-    # a context menu that includes their parents' menus.
-    def contextMenu(self, event=None):
-
-
-        self.menu = QMenu()
-        self.menu.setTitle(self.name + " options..")
-
-        green = QAction("Turn green", self.menu)
-        green.triggered.connect(self.setGreen)
-        self.menu.addAction(green)
-        self.menu.green = green
-
-        blue = QAction("Turn blue", self.menu)
-        blue.triggered.connect(self.setBlue)
-        self.menu.addAction(blue)
-        self.menu.green = blue
-
-        alpha = QWidgetAction(self.menu)
-        alphaSlider = QSlider()
-        alphaSlider.setOrientation(Qt.Horizontal)
-        alphaSlider.setMaximum(255)
-        alphaSlider.setValue(255)
-        alphaSlider.valueChanged.connect(self.setAlpha)
-        alpha.setDefaultWidget(alphaSlider)
-        self.menu.addAction(alpha)
-        self.menu.alpha = alpha
-        self.menu.alphaSlider = alphaSlider
-        return self.menu

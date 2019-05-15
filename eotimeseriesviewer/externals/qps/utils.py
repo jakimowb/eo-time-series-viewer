@@ -1534,3 +1534,87 @@ def setToolButtonDefaultActionMenu(toolButton:QToolButton, actions:list):
     menu.triggered.connect(toolButton.setDefaultAction)
     toolButton.setMenu(menu)
 
+
+
+class SelectMapLayersDialog(QgsDialog):
+
+    class LayerDescription(object):
+
+        def __init__(self, info:str, filters:QgsMapLayerProxyModel.Filters, allowEmptyLayer = False):
+            self.labelText = info
+            self.filters = filters
+            self.allowEmptyLayer = allowEmptyLayer
+
+    def __init__(self, *args, layerDescriptions:list=None, **kwds):
+        super(SelectMapLayersDialog, self).__init__(buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.setWindowTitle('Select layer(s)')
+
+        gl = QGridLayout()
+        assert isinstance(gl, QGridLayout)
+        self.mGrid = gl
+        gl.setSpacing(6)
+        gl.setColumnStretch(0, 0)
+        gl.setColumnStretch(1, 1)
+        self.layout().addLayout(gl)
+
+        self.mMapLayerBoxes = []
+
+        self.buttonBox().button(QDialogButtonBox.Ok).clicked.connect(self.accept)
+        self.buttonBox().button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+
+    def selectMapLayer(self, i, layer):
+        """
+        Selects the QgsMapLayer layer in QgsMapLayerComboBox.
+        :param i: int
+        :param layer: QgsMapLayer.
+        """
+        if isinstance(i, QgsMapLayerComboBox):
+            i = self.mMapLayerBoxes.index(i)
+        box = self.mMapLayerBoxes[i]
+        assert isinstance(layer, QgsMapLayer)
+        assert isinstance(box, QgsMapLayerComboBox)
+        QgsProject.instance().addMapLayer(layer)
+
+        for i in range(box.count()):
+            l = box.layer(i)
+            if isinstance(l, QgsMapLayer) and l == layer:
+                box.setCurrentIndex(i)
+                break
+
+
+    def exec_(self):
+
+        if len(self.mMapLayerBoxes) == 0:
+            self.addLayerDescription('Map Layer', QgsMapLayerProxyModel.All)
+        super(SelectMapLayersDialog, self).exec_()
+
+
+    def addLayerDescription(self, info:str,
+                            filters:QgsMapLayerProxyModel.Filters,
+                            allowEmptyLayer = False,
+                            layerDescription=None):
+
+        if not isinstance(layerDescription, SelectMapLayersDialog.LayerDescription):
+            layerDescription = SelectMapLayersDialog.LayerDescription(info, filters, allowEmptyLayer=allowEmptyLayer)
+
+        assert isinstance(layerDescription, SelectMapLayersDialog.LayerDescription)
+        i = self.mGrid.rowCount()
+
+        layerbox = QgsMapLayerComboBox(self)
+        layerbox.setFilters(layerDescription.filters)
+        self.mMapLayerBoxes.append(layerbox)
+        self.mGrid.addWidget(QLabel(layerDescription.labelText, self), i, 0)
+        self.mGrid.addWidget(layerbox, i, 1)
+
+
+
+
+    def mapLayers(self)->list:
+        """
+        Returns the user's list of map layers
+        :return: [list-of-QgsMapLayers]
+        """
+        return [b.currentLayer() for b in self.mMapLayerBoxes]
+
+
+

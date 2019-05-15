@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>766</width>
-    <height>365</height>
+    <width>641</width>
+    <height>245</height>
    </rect>
   </property>
   <property name="acceptDrops">
@@ -254,6 +254,7 @@
    <addaction name="actionCopySelectedRows"/>
    <addaction name="actionPasteFeatures"/>
    <addaction name="actionDeleteSelected"/>
+   <addaction name="actionReloadProfiles"/>
    <addaction name="actionSaveEdits"/>
    <addaction name="actionAddAttribute"/>
    <addaction name="actionRemoveAttribute"/>
@@ -609,6 +610,18 @@
    </property>
    <property name="toolTip">
     <string>Import spectral profiles from a raster image based on vector geometries (Points).</string>
+   </property>
+  </action>
+  <action name="actionReloadProfiles">
+   <property name="icon">
+    <iconset resource="../qpsresources.qrc">
+     <normaloff>:/qps/ui/icons/profile_reload.svg</normaloff>:/qps/ui/icons/profile_reload.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Reload Profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Reloads for all selected features the profile values from a raster source.</string>
    </property>
   </action>
  </widget>

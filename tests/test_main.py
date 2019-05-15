@@ -82,7 +82,6 @@ class TestInit(TestCase):
 
     def test_TimeSeriesViewer(self):
 
-
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()

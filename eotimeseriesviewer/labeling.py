@@ -492,13 +492,10 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
     sigMapExtentRequested = pyqtSignal(SpatialExtent)
     sigMapCenterRequested = pyqtSignal(SpatialPoint)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, canvas=None):
         super(LabelingDock, self).__init__(parent)
         self.setupUi(self)
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
-
-
-
 
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
@@ -509,8 +506,12 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
 
         self.mDualView = None
-        self.mCanvas = QgsMapCanvas(self)
-        self.mCanvas.setVisible(False)
+
+        if not isinstance(canvas, QgsMapCanvas):
+            canvas = QgsMapCanvas(self)
+            canvas.setVisible(False)
+
+        self.mCanvas = canvas
 
         self.initActions()
         self.onVectorLayerChanged()
