@@ -65,12 +65,12 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         self.actionAddGroup = self.mDefActions.actionAddGroup()
         self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
         self.actionRemove = self.mDefActions.actionRemoveGroupOrLayer()
-        self.actionZoomToLayer = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
+        #self.actionZoomToLayer = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
         self.actionCheckAndAllChildren = self.mDefActions.actionCheckAndAllChildren()
         self.actionShowFeatureCount = self.mDefActions.actionShowFeatureCount()
-        self.actionZoomToLayer = self.mDefActions.actionZoomToLayer(self.mDummyCanvas)
-        self.actionZoomToSelected = self.mDefActions.actionZoomToSelection(self.mDummyCanvas)
-        self.actionZoomToGroup = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
+        #self.actionZoomToLayer = self.mDefActions.actionZoomToLayer(self.mDummyCanvas)
+        #self.actionZoomToSelected = self.mDefActions.actionZoomToSelection(self.mDummyCanvas)
+        #self.actionZoomToGroup = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
         self.actionAddEOTSVSpectralProfiles = QAction('Add Spectral Profile Layer')
 
         self.actionAddEOTSVTemporalProfiles = QAction('Add Temporal Profile Layer')
@@ -108,12 +108,16 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addAction(self.actionRename)
         menu.addAction(self.actionRemove)
 
-        menu.addAction(self.actionZoomToGroup)
-        menu.addAction(self.actionZoomToLayer)
-        menu.addAction(self.actionZoomToSelected)
+        #menu.addAction(self.actionZoomToGroup)
+        #menu.addAction(self.actionZoomToLayer)
+        #menu.addAction(self.actionZoomToSelected)
+
+        menu.addSeparator()
 
         menu.addAction(self.actionAddEOTSVSpectralProfiles)
         menu.addAction(self.actionAddEOTSVTemporalProfiles)
+
+        menu.addSeparator()
         a = menu.addAction('Set Properties')
         a.triggered.connect(lambda *args, lyr=l, canvas=self.mDummyCanvas: showLayerPropertiesDialog(lyr, canvas))
         a.setEnabled(not isinstance(l, SensorProxyLayer))
@@ -321,7 +325,6 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         if changed:
             self.sigMapViewVisibility.emit(b)
 
-
     def isVisible(self)->bool:
         """
         Returns the map view visibility
@@ -500,7 +503,9 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         if sensor not in self.sensors():
             dummyLayer = sensor.proxyLayer()
             dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
-            QgsProject.instance().addMapLayer(dummyLayer)
+
+            #QgsProject.instance().addMapLayer(dummyLayer)
+
             layerTreeLayer = self.mLayerTreeSensorNode.addLayer(dummyLayer)
             assert isinstance(layerTreeLayer, QgsLayerTreeLayer)
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
@@ -1630,17 +1635,19 @@ class SpatialTemporalVisualization(QObject):
         self.mMapCanvases.append(mapCanvas)
 
 
-        #set general canvas properties
+        # set general canvas properties
         mapCanvas.setFixedSize(self.mSize)
         mapCanvas.setDestinationCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
 
 
-        #register on map canvas signals
+        # register on map canvas signals
         def onChanged(e, mapCanvas0=None):
-            self.setSpatialExtent(e, mapCanvas0=mapCanvas0)
+            #self.setSpatialExtent(e, mapCanvas0=mapCanvas0)
+            self.setSpatialExtent(e)
         #mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas0=mapCanvas))
-        mapCanvas.sigSpatialExtentChanged.connect(lambda e: onChanged(e, mapCanvas0=mapCanvas))
+        #mapCanvas.sigSpatialExtentChanged.connect(lambda e: onChanged(e, mapCanvas0=mapCanvas))
+        mapCanvas.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairChanged)
 
     def onCrosshairChanged(self, spatialPoint:SpatialPoint):
@@ -1835,9 +1842,7 @@ class SpatialTemporalVisualization(QObject):
         self.mSpatialExtent = extent
         for mapCanvas in self.mapCanvases():
             assert isinstance(mapCanvas, MapCanvas)
-            extent0 = mapCanvas.spatialExtent()
-            if mapCanvas != mapCanvas0 and extent0 != extent:
-                mapCanvas.addToRefreshPipeLine(extent)
+            mapCanvas.addToRefreshPipeLine(extent)
 
         if lastExtent != extent:
             self.sigSpatialExtentChanged.emit(extent)
