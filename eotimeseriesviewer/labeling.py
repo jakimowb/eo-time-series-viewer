@@ -122,8 +122,6 @@ def applyShortcutsToRegisteredLayers(tsd:TimeSeriesDatum, classInfos:list):
     :param classInfos:
     :return:
     """
-
-
     for layer in labelShortcutLayers():
         assert isinstance(layer, QgsVectorLayer)
         applyShortcuts(layer, tsd, classInfos)
@@ -137,10 +135,8 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:d
     :param classInfos:
     """
     assert isinstance(tsd, TimeSeriesDatum)
-    assert isinstance(classInfos, (dict, None))
     assert isinstance(vectorLayer, QgsVectorLayer)
-
-    assert vectorLayer.isEditable()
+    vectorLayer.beginEditCommand('Set quick labels {}'.format(tsd.date()))
 
     #Lookup-Table for classiicationSchemes
     LUT_Classifications = dict()
@@ -178,7 +174,7 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:d
                     value = tsd.decimalYear()
                 elif labelType == LabelShortcutType.Classification:
                     fieldClassScheme = conf.get(CONFKEY_CLASSIFICATIONSCHEME)
-                    if isinstance(fieldClassScheme, ClassificationScheme):
+                    if isinstance(fieldClassScheme, ClassificationScheme) and isinstance(classInfos, dict):
                         for ciKey, classInfo in classInfos.items():
                             classScheme = LUT_Classifications.get(ciKey)
                             if classScheme == fieldClassScheme and classInfo in fieldClassScheme:
@@ -198,6 +194,8 @@ def applyShortcuts(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDatum, classInfos:d
                     assert isinstance(feature, QgsFeature)
                     oldValue = feature.attribute(field.name())
                     vectorLayer.changeAttributeValue(feature.id(), i, value, oldValue)
+
+        vectorLayer.endEditCommand()
 
 
     pass
@@ -577,6 +575,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
 
         assert isinstance(self.stackedWidget, QStackedWidget)
+
         # add a config widget for each QgsField
         if isinstance(lyr, QgsVectorLayer):
             lyr.editingStarted.connect(lambda: self.mActionToggleEditing.setChecked(True))
@@ -603,6 +602,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
             self.mDualView.setView(QgsDualView.AttributeTable)
             self.mDualView.setAttributeTableConfig(lyr.attributeTableConfig())
 
+
         self.updateActions()
         self.sigVectorLayerChanged.emit()
 
@@ -612,7 +612,19 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
             b = self.currentVectorSource().isEditable()
             self.mActionToggleEditing.setChecked(b)
+
             self.mActionAddFeature.setEnabled(b)
+
+            gType = self.currentVectorSource().geometryType()
+            if gType == QgsWkbTypes.PointGeometry:
+                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePoint.svg'))
+            elif gType == QgsWkbTypes.LineGeometry:
+                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCaptureLine.svg'))
+            elif gType == QgsWkbTypes.PolygonGeometry:
+                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePolygon.svg'))
+            else:
+                # unknown geometry type?
+                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePolygon.svg'))
 
             buffer = self.currentVectorSource().editBuffer()
             b2 = b and isinstance(buffer, QgsVectorLayerEditBuffer)
