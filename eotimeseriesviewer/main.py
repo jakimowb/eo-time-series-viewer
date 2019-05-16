@@ -74,6 +74,7 @@ class TimeSeriesViewerUI(QMainWindow,
         self.addActions(self.findChildren(QAction))
         from eotimeseriesviewer import TITLE, icon, __version__
 
+        self.mMapToolActions = []
         self.setWindowTitle('{} ({})'.format(TITLE, __version__))
         self.setWindowIcon(icon())
         if sys.platform == 'darwin':
@@ -111,11 +112,8 @@ class TimeSeriesViewerUI(QMainWindow,
 
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
-
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
-
-
 
         area = Qt.BottomDockWidgetArea
         # from timeseriesviewer.mapvisualization import MapViewDockUI
@@ -159,25 +157,17 @@ class TimeSeriesViewerUI(QMainWindow,
                 s = ""
             self.menuPanels.addAction(dock.toggleViewAction())
 
-        self.mMapToolActions = [self.actionZoomPixelScale,
-                                self.actionZoomFullExtent,
-                                self.actionZoomIn,
-                                self.actionZoomOut,
-                                self.actionPan,
-                                self.actionIdentify]
-
-
-
-
         self.dockTimeSeries.raise_()
 
-        for a in self.mMapToolActions:
-            assert isinstance(a, QAction)
-            a.toggled.connect(self.onActionToggled)
 
+    def registerMapToolAction(self, a:QAction):
+        assert isinstance(a, QAction)
+        if a not in self.mMapToolActions:
+            self.mMapToolActions.append(a)
+        a.setCheckable(True)
+        a.toggled.connect(self.onMapToolActionToggled)
 
-
-    def onActionToggled(self, b:bool):
+    def onMapToolActionToggled(self, b:bool):
         action = QApplication.instance().sender()
         assert isinstance(action, QAction)
         otherActions = [a for a in self.mMapToolActions if a != action]
@@ -199,43 +189,6 @@ class TimeSeriesViewerUI(QMainWindow,
         self.optionIdentifyTemporalProfile.setEnabled(b)
         self.optionMoveCenter.setEnabled(b)
 
-
-    def _blockSignals(self, widgets, block=True):
-        states = dict()
-        if isinstance(widgets, dict):
-            for w, block in widgets.items():
-                states[w] = w.blockSignals(block)
-        else:
-            for w in widgets:
-                states[w] = w.blockSignals(block)
-        return states
-
-
-
-    sigSubsetSizeChanged = pyqtSignal(QSize)
-    def setSubsetSize(self, size, blockSignal=False):
-        old = self.subsetSize()
-        w = [self.spinBoxSubsetSizeX, self.spinBoxSubsetSizeY]
-        if blockSignal:
-            states = self._blockSignals(w, True)
-
-        self.spinBoxSubsetSizeX.setValue(size.width())
-        self.spinBoxSubsetSizeY.setValue(size.height())
-        self._setUpdateBehaviour()
-
-        if blockSignal:
-            self._blockSignals(states)
-        elif old != size:
-            self.sigSubsetSizeChanged(size)
-
-
-    def setProgress(self, value, valueMax=None, valueMin=0):
-        p = self.progressBar
-        if valueMin is not None and valueMin != self.progessBar.minimum():
-            p.setMinimum(valueMin)
-        if valueMax is not None and valueMax != self.progessBar.maximum():
-            p.setMaximum(valueMax)
-        self.progressBar.setValue(value)
 
 
 
@@ -359,6 +312,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
             assert key in MapTools.mapToolKeys()
             action.triggered.connect(lambda: self.setMapTool(key))
             action.setProperty('eotsv/maptoolkey', key)
+            self.ui.registerMapToolAction(action)
+
+
+
         initMapToolAction(self.ui.actionPan, MapTools.Pan)
         initMapToolAction(self.ui.actionZoomIn, MapTools.ZoomIn)
         initMapToolAction(self.ui.actionZoomOut, MapTools.ZoomOut)
@@ -381,6 +338,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         m.addAction(self.ui.optionSelectFeaturesRadius)
 
         self.ui.actionSelectFeatures.setMenu(m)
+
         # create edit toolbar
         tb = self.ui.toolBarEditing
         assert isinstance(tb, QToolBar)
@@ -402,7 +360,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
 
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
-        #D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
+
+        # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
         self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages(None))
@@ -424,8 +383,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         import webbrowser
         from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel, SpectralLibraryWidget
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
-
-
 
         SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         assert isinstance(SLW, SpectralLibraryWidget)
@@ -455,7 +412,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
         self.spatialTemporalVis.sigMapViewAdded.connect(self.onMapViewAdded)
-
+        #QgsProject.instance().addMapLayer(temporalProfileLayer)
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
@@ -1030,6 +987,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     l = QgsVectorLayer(f, os.path.basename(f))
                     mapView.addLayer(l)
                     vectorLayers.append(l)
+            QgsProject.instance().addMapLayers(vectorLayers)
+
 
     def addTimeSeriesImages(self, files: list):
         """

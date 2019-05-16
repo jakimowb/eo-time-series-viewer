@@ -583,6 +583,16 @@ class MapCanvas(QgsMapCanvas):
 
         menu = QMenu()
 
+        if isinstance(self.tsd(), TimeSeriesDatum):
+
+            action = menu.addAction('Set Quick Labels'.format(self.tsd().date()))
+            lyrWithSelectedFeatures = [l for l in labelShortcutLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
+            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
+            action.setEnabled(len(lyrWithSelectedFeatures) > 0)
+            action.setToolTip('Write date/sensor values to {} features in {}.'.format(self.tsd().date(), layerNames))
+            action.triggered.connect(lambda *args, tsd=self.tsd(): applyShortcutsToRegisteredLayers(tsd, None))
+
+            menu.addSeparator()
         m = menu.addMenu('Optimize raster stretches...')
         action = m.addAction('Linear')
         action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.0))
@@ -694,25 +704,13 @@ class MapCanvas(QgsMapCanvas):
 
         m = menu.addMenu('Save to...')
         action = m.addAction('PNG')
-        action.triggered.connect(lambda : self.saveMapImageDialog('PNG'))
+        action.triggered.connect(lambda: self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
         action.triggered.connect(lambda: self.saveMapImageDialog('JPG'))
 
         menu.addSeparator()
 
-        m = menu.addMenu('Label...')
-
-        labelLayers = labelShortcutLayers()
-        hasShortcutLayers = len(labelLayers) > 0
-        lyrWithSelectedFeaturs = [l for l in labelLayers if len(l.selectedFeatureIds()) > 0]
-        hasSelectedFeaturs = len(lyrWithSelectedFeaturs) > 0
-
-
-        a = m.addAction('Time & sensor')
-        a.setEnabled(hasShortcutLayers)
-        if isinstance(self.tsd(), TimeSeriesDatum):
-            a.setToolTip('Write time and sensor attribute related to {}.'.format(self.tsd().date()))
-
+        """
         classSchemes = []
         for layer in lyrWithSelectedFeaturs:
             for classScheme in layerClassSchemes(layer):
@@ -732,6 +730,7 @@ class MapCanvas(QgsMapCanvas):
                         lambda *args, tsd=self.tsd(), ci = classInfo:
                         applyShortcutsToRegisteredLayers(tsd, [ci]))
                 classSchemes.append(classScheme)
+        """
 
         action = menu.addAction('Hide date')
         action.triggered.connect(lambda : self.sigChangeDVRequest.emit(self, 'hide_date'))
@@ -880,7 +879,8 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
             spatialExtent = spatialExtent.toCrs(self.crs())
-            self.setExtent(spatialExtent)
+            if isinstance(spatialExtent, SpatialExtent):
+                self.setExtent(spatialExtent)
 
     def setSpatialCenter(self, spatialPoint: SpatialPoint):
         """
@@ -888,7 +888,8 @@ class MapCanvas(QgsMapCanvas):
         :param spatialPoint: SpatialPoint
         """
         center = spatialPoint.toCrs(self.crs())
-        self.setCenter(center)
+        if isinstance(center, SpatialPoint):
+            self.setCenter(center)
 
     def spatialExtent(self)->SpatialExtent:
         """
