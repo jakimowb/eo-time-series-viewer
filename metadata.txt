@@ -1,17 +1,17 @@
 [general]
-name=EO Time Series Viewer
-description=Visualization of multi-sensor Earth observation time series data.
+name=dummy
+description=dummy
 version=dummy
 qgisMinimumVersion=dummy
 qgisMaximumVersion=dummy
-author=Benjamin Jakimow, Geomatics Lab, Humboldt-Universität zu Berlin
-about=Highlights<ul><li>Spatially synchronized maps for each observation date</li><li>Multiple band combinations in parallel, e.g. True Color <i>and</i> SWIR bands</li><li>Multi-sensor support: separate render settings for separate senors/image products</li><li>Visualization of Spectral and Temporal Profiles</li></ul>Usage<ol>    <li>"Files" > "Add images" to define the time series</li>    <li>"View" > "Add Map View" to create a new row of maps, e.g. for SWIR visualization</li>    <li>For each map view specifiy how each sensor should be rendered, e.g. RGB or single band color range</li>    <li>Optimize render settings, e.g. via map canvas context menu</li></ol>Dependencies<ul>    <li>pyqtgraph (required)</li>    <li>PyOpenGL (optional)</li></ul>
-email=benjamin.jakimow@geo.hu-berlin.de
+author=dummy
+about=dummy
+email=dummy
 icon=dummy
-homepage=https://bitbucket.org/jakimowb/eo-time-series-viewer
-tracker=https://bitbucket.org/jakimowb/eo-time-series-viewer/issues
-repository=https://bitbucket.org/jakimowb/eo-time-series-viewer
+homepage=dummy
+tracker=dummy
+repository=dummy
 experimental=False
 deprecated=False
-tags=remote sensing, raster, time series
+tags=remote sensing, raster, time series, data cube, landsat, sentinel
 category=Raster
