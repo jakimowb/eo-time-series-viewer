@@ -1395,23 +1395,33 @@ class VectorLayerProperties(QgsOptionsDialogBase, loadUI('vectorlayerpropertiesd
             self.mOptsPage_Style.setEnabled(False)
 
 
-def showLayerPropertiesDialog(layer, canvas, parent=None, modal=True):
+def showLayerPropertiesDialog(layer:QgsMapLayer, canvas:QgsMapCanvas, parent:QObject=None, modal:bool=True)->QDialog.DialogCode:
+    """
+    Opens a dialog to adjust map layer settiongs.
+    :param layer: QgsMapLayer of type QgsVectorLayer or QgsRasterLayer
+    :param canvas: QgsMapCanvas
+    :param parent:
+    :param modal: bool
+    :return: QDialog.DialogCode
+    """
     dialog = None
+    result = QDialog.Rejected
 
-    if isinstance(layer, QgsRasterLayer):
-        dialog = RasterLayerProperties(layer, canvas, parent=parent)
-        #d.setSettings(QSettings())
-    elif isinstance(layer, QgsVectorLayer):
-        dialog = VectorLayerProperties(layer, canvas, parent=parent)
-    else:
-        assert NotImplementedError()
+    if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)) and isinstance(canvas, QgsMapCanvas):
+        if isinstance(layer, QgsRasterLayer):
+            dialog = RasterLayerProperties(layer, canvas, parent=parent)
+            #d.setSettings(QSettings())
+        elif isinstance(layer, QgsVectorLayer):
+            dialog = VectorLayerProperties(layer, canvas, parent=parent)
+        else:
+            assert NotImplementedError()
 
-    if modal == True:
-        dialog.setModal(True)
-    else:
-        dialog.setModal(False)
+        if modal == True:
+            dialog.setModal(True)
+        else:
+            dialog.setModal(False)
 
-    result = dialog.exec_()
+        result = dialog.exec_()
     return result
 
 RASTERRENDERER_CREATE_FUNCTIONSV2 = OptionListModel()

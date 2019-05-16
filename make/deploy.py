@@ -119,6 +119,58 @@ def mkDir(d, delete=False):
     if not os.path.isdir(d):
         os.makedirs(d)
 
+class QGISMetadataFileWriter(object):
+
+    def __init__(self):
+        self.mName = None
+
+        self.description = None
+        self.version = None
+        self.qgisMinimumVersion = '3.4'
+        self.qgisMaximumVersion = '3.99'
+        self.author = None
+        self.about = None
+        self.email = None
+        self.homepage = None
+        self.icon = None
+        self.tracker = None
+        self.repository = None
+        self.experimental = False
+        self.tags = None
+        self.category = None
+
+    def toString(self)->str:
+
+        lines = ['[general']
+        if self.description:
+            lines.append(self.description)
+
+    def write(self, path:str):
+
+
+
+
+        with open(path, 'w', encoding='utf-8') as f:
+
+            """
+            [general]
+            name=dummy
+            description=dummy
+            version=dummy
+            qgisMinimumVersion=dummy
+            qgisMaximumVersion=dummy
+            author=dummy
+            about=dummy
+            email=dummy
+            icon=dummy
+            homepage=dummy
+            tracker=dummy
+            repository=dummy
+            experimental=False
+            deprecated=False
+            tags=remote sensing, raster, time series, data cube, landsat, sentinel
+            category=Raster
+            """
 
 
 def build():
@@ -171,6 +223,7 @@ def build():
         f = open(pathMetadata)
         lines = f.readlines()
         f.close()
+        lines = re.sub('about=.*\n', 'about={}'.format(ABOUT_TEXT))
         lines = re.sub('version=.*\n', 'version={}\n'.format(buildID), ''.join(lines))
         lines = re.sub('qgisMinimumVersion=.*\n', 'qgisMinimumVersion={}\n'.format(QGIS_MIN), ''.join(lines))
         lines = re.sub('qgisMaximumVersion=.*\n', 'qgisMaximumVersion={}\n'.format(QGIS_MAX), ''.join(lines))

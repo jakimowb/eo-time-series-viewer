@@ -763,7 +763,7 @@ class QgsMapToolDigitizeFeature(QgsMapToolCapture):
         if self.mLayer:
             # //remember current layer
             self.mCurrentLayer = self.canvas().currentLayer()
-            # //set the layer with the given
+            #//set the layer with the given
             self.canvas().setCurrentLayer(self.mLayer)
 
 
