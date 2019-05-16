@@ -55,6 +55,22 @@ def createCursor(resourcePath:str):
     return cursor
 
 
+def createQgsMapCanvasUserInputWidget(canvas:QgsMapCanvas)->QgsUserInputWidget:
+    """
+    Create a QgsUserInputWidget that is linked to the top-right QgsMapCanvas corner (as in the QGIS Desktop main canvas).
+    :param canvas: QgsMapCanvas
+    :return: QgsUserInputWidget
+    """
+    assert isinstance(canvas, QgsMapCanvas)
+    mUserInputWidget = canvas.findChild(QgsUserInputWidget)
+    if not isinstance(mUserInputWidget, QgsUserInputWidget):
+        mUserInputWidget = QgsUserInputWidget(canvas)
+        mUserInputWidget.setObjectName('UserInputDockWidget')
+        mUserInputWidget.setAnchorWidget(canvas)
+        mUserInputWidget.setAnchorWidgetPoint(QgsFloatingWidget.TopRight)
+        mUserInputWidget.setAnchorPoint(QgsFloatingWidget.TopRight)
+    return mUserInputWidget
+
 class MapTools(object):
     """
     Static class to support handling of QgsMapTools.
@@ -1046,12 +1062,12 @@ class QgsMapToolAddFeature(QgsMapToolDigitizeFeature):
 
 
 class QgsDistanceWidget(QWidget):
-
+    distanceChanged = pyqtSignal(float)
     distanceEditingCanceled = pyqtSignal()
     distanceEditingFinished = pyqtSignal(float, Qt.KeyboardModifiers)
     distanceEditingCanceled = pyqtSignal()
 
-    def __init__(self, label:str, parent:QWidget):
+    def __init__(self, label:str, parent:QWidget=None):
 
         super(QgsDistanceWidget, self).__init__(parent)
 
@@ -1345,10 +1361,10 @@ class QgsMapToolSelectionHandler(QObject):
     """
 
     class SelectionMode(enum.Enum):
-        SelectSimple=0
-        SelectPolygon=1
-        SelectFreehand=2
-        SelectRadius=3
+        SelectSimple = 0
+        SelectPolygon = 1
+        SelectFreehand = 2
+        SelectRadius = 3
 
     geometryChanged = pyqtSignal(Qt.KeyboardModifiers)
 
@@ -1356,14 +1372,19 @@ class QgsMapToolSelectionHandler(QObject):
         super(QgsMapToolSelectionHandler, self).__init__()
         assert isinstance(selectionMode, QgsMapToolSelectionHandler.SelectionMode)
         self.mCanvas = canvas
+        assert isinstance(canvas, QgsMapCanvas)
+
         self.mSelectionMode = selectionMode
-        self.mSnapIndicato = QgsSnapIndicator(canvas)
+        self.mSnapIndicator = QgsSnapIndicator(canvas)
         self.mIdentifyMenu = QgsIdentifyMenu(canvas)
         self.mIdentifyMenu.setAllowMultipleReturn(False)
         self.mIdentifyMenu.setExecWithSingleResult(True)
         self.mSelectionActive = False
 
         self.mDistanceWidget = None
+
+        # create own user-input widget or use the first that is child to the map canvas
+        self.mUserInputWidget = createQgsMapCanvasUserInputWidget(self.mCanvas)
         self.mSelectionRubberBand = None
         self.mInitDragPos = None
         self.mRadiusCenter = None
@@ -1596,10 +1617,15 @@ class QgsMapToolSelectionHandler(QObject):
         self.deleteDistanceWidget()
 
         self.mDistanceWidget = QgsDistanceWidget("Selection radius:")
-        #QgisApp::instance()->addUserInputWidget( mDistanceWidget );
-        self.mDistanceWidget.setFocus(Qt.TabFocusReason)
+        # emulate
+        # QgisApp::instance()->addUserInputWidget( mDistanceWidget );
+        # by adding the distance widget to the MapTool's QgsMapCanvas directly
+        self.mUserInputWidget.addUserInputWidget(self.mDistanceWidget)
 
-        #connect( mDistanceWidget, &QgsDistanceWidget::distanceChanged, this, &QgsMapToolSelectionHandler::updateRadiusRubberband );
+        self.mDistanceWidget.setFocus(Qt.TabFocusReason)
+        self.mDistanceWidget.distanceChanged.connect(self.updateRadiusRubberband)
+        self.mDistanceWidget.distanceEditingFinished.connect(self.radiusValueEntered)
+        self.mDistanceWidget.distanceEditingCanceled.connect(self.cancel)
         #connect( mDistanceWidget, &QgsDistanceWidget::distanceEditingFinished, this, &QgsMapToolSelectionHandler::radiusValueEntered );
         #connect( mDistanceWidget, &QgsDistanceWidget::distanceEditingCanceled, this, &QgsMapToolSelectionHandler::cancel );
 
@@ -1626,7 +1652,8 @@ class QgsMapToolSelectionHandler(QObject):
 
         self.deleteDistanceWidget()
         self.mSnapIndicator.setMatch( QgsPointLocator.Match() )
-        self.mSelectionRubberBand.reset()
+        if isinstance(self.mSelectionRubberBand, QgsRubberBand):
+            self.mSelectionRubberBand.reset()
         self.mSelectionActive = False
 
 

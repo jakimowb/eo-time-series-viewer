@@ -198,6 +198,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
         self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
 
+        self.mCurrentLayer = None
+
         self.mTimeSeries = None
         self.mSensorLayerList = list()
         self.mMapCanvases = list()
@@ -226,11 +228,24 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.mMapLayerTreeViewMenuProvider.actionAddEOTSVTemporalProfiles.triggered.connect(self.addTemporalProfileLayer)
 
         self.mLayerTreeView.setMenuProvider(self.mMapLayerTreeViewMenuProvider)
-
+        self.mLayerTreeView.currentLayerChanged.connect(self.setCurrentLayer)
         self.mLayerTree.removedChildren.connect(self.onChildNodesRemoved)
 
         self.mIsVisible = True
         self.setTitle(name)
+
+    def setCurrentLayer(self, layer):
+        assert layer is None or isinstance(layer, QgsMapLayer)
+
+        self.mCurrentLayer = layer
+
+        if layer not in self.mSensorLayerList:
+            for c in self.mapCanvases():
+                c.setCurrentLayer(layer)
+        else:
+            s = ""
+
+
 
     def addSpectralProfileLayer(self):
         """Adds the EOTSV Spectral Profile Layer"""
@@ -357,7 +372,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         Returns the visible layers, including proxy layer for time-series data
         :return: [list-of-QgsMapLayers]
         """
-        return self.mLayerTree.checkedLayers()
+        return [l for l in self.mLayerTree.checkedLayers() if isinstance(l, QgsMapLayer)]
 
     def title(self)->str:
         """

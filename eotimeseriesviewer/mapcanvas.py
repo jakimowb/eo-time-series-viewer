@@ -138,7 +138,7 @@ class MapCanvasMapTools(QObject):
         self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CapturePoint, cadDock)
         self.mtSelectFeature = QgsMapToolSelect(canvas)
 
-    def activate(self, mapToolKey):
+    def activate(self, mapToolKey, **kwds):
         from .externals.qps.maptools import MapTools
 
         if mapToolKey == MapTools.ZoomIn:
@@ -163,6 +163,9 @@ class MapCanvasMapTools(QObject):
             self.mCanvas.setMapTool(self.mtAddFeature)
         elif mapToolKey == MapTools.SelectFeature:
             self.mCanvas.setMapTool(self.mtSelectFeature)
+
+            s = ""
+
         else:
 
             print('Unknown MapTool key: {}'.format(mapToolKey))

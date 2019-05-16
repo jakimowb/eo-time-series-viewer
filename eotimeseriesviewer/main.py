@@ -46,7 +46,7 @@ from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
-from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool
+from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
 import eotimeseriesviewer.labeling
 
@@ -366,6 +366,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
         initMapToolAction(self.ui.actionZoomFullExtent, MapTools.ZoomFull)
         initMapToolAction(self.ui.actionIdentify, MapTools.CursorLocation)
 
+        initMapToolAction(self.ui.actionSelectFeatures, MapTools.SelectFeature)
+        assert isinstance(self.ui.actionSelectFeatures, QAction)
+
+        self.ui.optionSelectFeaturesRectangle.triggered.connect(self.onSelectFeatureOptionTriggered)
+        self.ui.optionSelectFeaturesPolygon.triggered.connect(self.onSelectFeatureOptionTriggered)
+        self.ui.optionSelectFeaturesFreehand.triggered.connect(self.onSelectFeatureOptionTriggered)
+        self.ui.optionSelectFeaturesRadius.triggered.connect(self.onSelectFeatureOptionTriggered)
+
+        m = QMenu()
+        m.addAction(self.ui.optionSelectFeaturesRectangle)
+        m.addAction(self.ui.optionSelectFeaturesPolygon)
+        m.addAction(self.ui.optionSelectFeaturesFreehand)
+        m.addAction(self.ui.optionSelectFeaturesRadius)
+
+        self.ui.actionSelectFeatures.setMenu(m)
         # create edit toolbar
         tb = self.ui.toolBarEditing
         assert isinstance(tb, QToolBar)
@@ -532,6 +547,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.spatialTemporalVis.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
 
+    def onSelectFeatureOptionTriggered(self):
+
+        a = self.sender()
+        m = self.ui.actionSelectFeatures.menu()
+        if isinstance(a, QAction) and isinstance(m, QMenu) and a in m.actions():
+            for ca in m.actions():
+                assert isinstance(ca, QAction)
+                if ca == a:
+                    self.ui.actionSelectFeatures.setIcon(a.icon())
+                    self.ui.actionSelectFeatures.setToolTip(a.toolTip())
+                ca.setChecked(ca == a)
+        self.setMapTool(MapTools.SelectFeature)
 
     def onCrosshairPositionChanged(self, spatialPoint:SpatialPoint):
         """
@@ -606,6 +633,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         # disconnect previous map-tools?
         del self.mMapTools[:]
+
+        kwds = {}
+
+        if mapToolKey == MapTools.SelectFeature:
+            if self.ui.optionSelectFeaturesRectangle.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
+            elif self.ui.optionSelectFeaturesPolygon.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectPolygon
+            elif self.ui.optionSelectFeaturesFreehand.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectFreehand
+            elif self.ui.optionSelectFeaturesRadius.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectRadius
+            else:
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
+
         for canvas in self.mapCanvases():
             from .mapcanvas import MapCanvas, MapCanvasMapTools
 
@@ -613,6 +655,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
                 mapTools = canvas.mapTools()
                 mapTools.activate(mapToolKey)
+
+                mt = canvas.mapTool()
+                if isinstance(mt, QgsMapToolSelect):
+                    mt.setSelectionMode(mode)
 
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):

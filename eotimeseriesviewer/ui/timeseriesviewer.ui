@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1136</width>
+    <width>730</width>
     <height>178</height>
    </rect>
   </property>
@@ -99,7 +99,7 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>1134</width>
+         <width>728</width>
          <height>90</height>
         </rect>
        </property>
@@ -146,9 +146,15 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1136</width>
+     <width>730</width>
      <height>21</height>
     </rect>
+   </property>
+   <property name="contextMenuPolicy">
+    <enum>Qt::ActionsContextMenu</enum>
+   </property>
+   <property name="defaultUp">
+    <bool>true</bool>
    </property>
    <widget class="QMenu" name="menuFiles">
     <property name="title">
@@ -223,7 +229,7 @@
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
-    <bool>true</bool>
+    <bool>false</bool>
    </attribute>
    <addaction name="actionAddTSD"/>
    <addaction name="actionLoadTS"/>
@@ -265,6 +271,8 @@
    <addaction name="optionIdentifyCursorLocation"/>
    <addaction name="optionIdentifySpectralProfile"/>
    <addaction name="optionIdentifyTemporalProfile"/>
+   <addaction name="separator"/>
+   <addaction name="actionSelectFeatures"/>
   </widget>
   <widget class="QToolBar" name="toolBarEditing">
    <property name="windowTitle">
@@ -824,6 +832,72 @@
    </property>
    <property name="text">
     <string>Sync. with QGIS map canvas </string>
+   </property>
+  </action>
+  <action name="optionSelectFeaturesRectangle">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Feature(s)</string>
+   </property>
+   <property name="toolTip">
+    <string>Select Feature(s) by drawing a Rectangle</string>
+   </property>
+  </action>
+  <action name="optionSelectFeaturesPolygon">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectPolygon.svg</normaloff>:/images/themes/default/mActionSelectPolygon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Features by Polygon</string>
+   </property>
+   <property name="toolTip">
+    <string>Select Features by drawing a Polygon</string>
+   </property>
+  </action>
+  <action name="optionSelectFeaturesFreehand">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectFreehand.svg</normaloff>:/images/themes/default/mActionSelectFreehand.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Features by Freehand</string>
+   </property>
+  </action>
+  <action name="optionSelectFeaturesRadius">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectRadius.svg</normaloff>:/images/themes/default/mActionSelectRadius.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Features by Radius</string>
+   </property>
+  </action>
+  <action name="actionSelectFeatures">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Features</string>
    </property>
   </action>
  </widget>
