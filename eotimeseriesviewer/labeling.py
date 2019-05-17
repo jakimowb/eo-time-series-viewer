@@ -704,6 +704,8 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         # self.mActionToggleEditing = iface.actionToggleEditing()
         # self.mActionAddOgrLayer = iface.actionAddOgrLayer()
 
+
+
         self.mActionToggleEditing.toggled.connect(self.onToggleEditing)
         self.mActionCancelEdits.triggered.connect(self.cancelEdits)
         self.mActionSaveEdits.triggered.connect(self.saveEdits)
@@ -730,7 +732,7 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.btnZoomMapToSelectedRows.setDefaultAction(self.mActionZoomMapToSelectedRows)
 
         self.btnAddOgrLayer.setDefaultAction(self.mActionAddOgrLayer)
-
+        self.btnAddOgrLayer.setVisible(False)
 
         # bottom button bar
         self.btnAttributeView.setDefaultAction(self.mActionSwitchToTableView)

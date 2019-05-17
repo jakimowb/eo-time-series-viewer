@@ -89,6 +89,7 @@ class TestInit(TestCase):
         TSV.loadExampleTimeSeries()
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
+        lyr.setName('Example Events')
         QgsProject.instance().addMapLayer(lyr)
 
         tsd = TSV.timeSeries()[-1]

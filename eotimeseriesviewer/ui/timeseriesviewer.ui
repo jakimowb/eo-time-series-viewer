@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>730</width>
+    <width>556</width>
     <height>178</height>
    </rect>
   </property>
@@ -99,7 +99,7 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>728</width>
+         <width>554</width>
          <height>90</height>
         </rect>
        </property>
@@ -146,7 +146,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>730</width>
+     <width>556</width>
      <height>21</height>
     </rect>
    </property>
@@ -235,6 +235,7 @@
    <addaction name="actionLoadTS"/>
    <addaction name="actionClearTS"/>
    <addaction name="actionSaveTS"/>
+   <addaction name="actionAddVectorData"/>
   </widget>
   <widget class="QToolBar" name="toolBarViews">
    <property name="windowTitle">

@@ -199,6 +199,9 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.actionToggleMapViewHidden.toggled.connect(lambda isHidden: self.setVisibility(not isHidden))
         self.actionToggleCrosshairVisibility.toggled.connect(self.setCrosshairVisibility)
 
+        self.actionAddOgrLayer.triggered.connect(self.onAddOgrLayer)
+        self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
+
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
         self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
 
@@ -238,6 +241,19 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.mIsVisible = True
         self.setTitle(name)
 
+    def onAddOgrLayer(self):
+
+        from .externals.qps.utils import SelectMapLayersDialog
+
+        d = SelectMapLayersDialog()
+        d.setWindowTitle('Select Vector Layer')
+        d.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
+
+        if d.exec() == QDialog.Accepted:
+            for l in d.mapLayers():
+                self.addLayer(l)
+        else:
+            s = ""
     def setCurrentLayer(self, layer):
         assert layer is None or isinstance(layer, QgsMapLayer)
 
