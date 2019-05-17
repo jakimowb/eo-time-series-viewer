@@ -44,6 +44,8 @@ DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 
 QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
+PATH_ABOUT_TEXT = jp(DIR_REPO, 'ABOUT_Plugin.html')
+
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
@@ -124,53 +126,93 @@ class QGISMetadataFileWriter(object):
     def __init__(self):
         self.mName = None
 
-        self.description = None
-        self.version = None
-        self.qgisMinimumVersion = '3.4'
-        self.qgisMaximumVersion = '3.99'
-        self.author = None
-        self.about = None
-        self.email = None
-        self.homepage = None
-        self.icon = None
-        self.tracker = None
-        self.repository = None
-        self.experimental = False
-        self.tags = None
-        self.category = None
+        self.mDescription = None
+        self.mVersion = None
+        self.mQgisMinimumVersion = '3.4'
+        self.mQgisMaximumVersion = '3.99'
+        self.mAuthor = None
+        self.mAbout = None
+        self.mEmail = None
+        self.mHomepage = None
+        self.mIcon = None
+        self.mTracker = None
+        self.mRepository = None
+        self.mIsExperimental = False
+        self.mTags = None
+        self.mCategory = None
+        self.mChangelog = ''
 
-    def toString(self)->str:
+    def validate(self)->bool:
 
-        lines = ['[general']
-        if self.description:
-            lines.append(self.description)
+        return True
 
-    def write(self, path:str):
+    def metadataString(self)->str:
+        assert self.validate()
+
+        lines = ['[general]']
+        lines.append('name={}'.format(self.mName))
+        lines.append('author={}'.format(self.mAuthor))
+        lines.append('description={}'.format(self.mDescription))
+        lines.append('version={}'.format(self.mVersion))
+        lines.append('qgisMinimumVersion={}'.format(self.mQgisMinimumVersion))
+        lines.append('qgisMaximumVersion={}'.format(self.mQgisMaximumVersion))
+        lines.append('about={}'.format(re.sub('\n', '', self.mAbout)))
+        lines.append('email={}'.format(self.mEmail))
+        lines.append('icon={}'.format(self.mIcon))
+
+        lines.append('tags={}'.format(', '.join(self.mTags)))
+        lines.append('category={}'.format(self.mRepository))
+
+        lines.append('homepage={}'.format(self.mHomepage))
+        if self.mTracker:
+            lines.append('tracker={}'.format(self.mTracker))
+        if self.mRepository:
+            lines.append('repository={}'.format(self.mRepository))
+        if isinstance(self.mIsExperimental, bool):
+            lines.append('experimental={}'.format(self.mIsExperimental))
 
 
+        #lines.append('deprecated={}'.format(self.mIsDeprecated))
+        lines.append('')
+        lines.append('changelog={}'.format(self.mChangelog))
 
+        return '\n'.join(lines)
+    """
+    [general]
+    name=dummy
+    description=dummy
+    version=dummy
+    qgisMinimumVersion=dummy
+    qgisMaximumVersion=dummy
+    author=dummy
+    about=dummy
+    email=dummy
+    icon=dummy
+    homepage=dummy
+    tracker=dummy
+    repository=dummy
+    experimental=False
+    deprecated=False
+    tags=remote sensing, raster, time series, data cube, landsat, sentinel
+    category=Raster
+    """
 
+    def writeMetadataTxt(self, path:str):
         with open(path, 'w', encoding='utf-8') as f:
+            f.write(self.metadataString())
+        # read again and run checks
+        import pyplugin_installer.installer_data
 
-            """
-            [general]
-            name=dummy
-            description=dummy
-            version=dummy
-            qgisMinimumVersion=dummy
-            qgisMaximumVersion=dummy
-            author=dummy
-            about=dummy
-            email=dummy
-            icon=dummy
-            homepage=dummy
-            tracker=dummy
-            repository=dummy
-            experimental=False
-            deprecated=False
-            tags=remote sensing, raster, time series, data cube, landsat, sentinel
-            category=Raster
-            """
+        # test if we could read the plugin
+        import pyplugin_installer.installer_data
+        P = pyplugin_installer.installer_data.Plugins()
+        plugin = P.getInstalledPlugin(self.mName, os.path.dirname(path), True)
+
+        #if hasattr(pyplugin_installer.installer_data, 'errorDetails'):
+        #    raise Exception('plugin structure/metadata error:\n{}'.format(pyplugin_installer.installer_data.errorDetails))
+        s = ""
+
+
 
 
 def build():
@@ -184,6 +226,29 @@ def build():
     os.chdir(cdir)
 
     mkDir(DIR_DEPLOY)
+
+    # describe metadata
+    import eotimeseriesviewer
+    MD = QGISMetadataFileWriter()
+    with open(PATH_ABOUT_TEXT, 'r', encoding='utf-8') as f:
+        aboutText = f.readlines()
+        for i in range(1, len(aboutText)):
+            aboutText[i] = '    ' + aboutText[i]
+        aboutText = ''.join(aboutText)
+    MD.mName = eotimeseriesviewer.TITLE
+    MD.mCategory = 'Raster'
+    MD.mAbout = aboutText
+    MD.mDescription = eotimeseriesviewer.DESCRIPTION
+    MD.mVersion = buildID
+    MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
+    MD.mHomepage = eotimeseriesviewer.HOMEPAGE
+    MD.mRepository = eotimeseriesviewer.REPOSITORY
+    MD.mQgisMinimumVersion = QGIS_MIN
+    MD.mQgisMaximumVersion = QGIS_MAX
+    MD.mIcon = 'eotimeseriesviewer/icon.png'
+    MD.mTags = ['remote sensing', 'raster', 'time series', 'landsat', 'sentinel']
+    print(MD.metadataString())
+
 
     if os.path.isdir(dirPlugin):
         print('Remove old build folder...')
@@ -219,7 +284,11 @@ def build():
     # update metadata version
     if True:
         pathMetadata = jp(dirPlugin, 'metadata.txt')
+
+        MD.writeMetadataTxt(pathMetadata)
+
         # update version number in metadata
+        """
         f = open(pathMetadata)
         lines = f.readlines()
         f.close()
@@ -232,6 +301,7 @@ def build():
         f.write(lines)
         f.flush()
         f.close()
+        """
 
         pathPackageInit = jp(dirPlugin, *['eotimeseriesviewer', '__init__.py'])
         f = open(pathPackageInit)
@@ -255,7 +325,7 @@ def build():
     # shutil.make_archive(pathZip, 'zip', '..', dirPlugin)
 
     # 6. Update XML repositories
-    updateRepositoryXML(path=pathZip)
+    updateRepositoryXML(MD, path=pathZip)
 
     # 6. install the zip file into the local QGIS instance. You will need to restart QGIS!
     if True:
@@ -271,7 +341,7 @@ def build():
     print('Finished')
 
 
-def updateRepositoryXML(path:str=None):
+def updateRepositoryXML(MD:QGISMetadataFileWriter, path:str=None):
     """
     Creates the XML files:
         deploy/qgis_plugin_develop.xml - to be uploaded to the bitbucket repository
@@ -284,6 +354,7 @@ def updateRepositoryXML(path:str=None):
         zipFiles.sort(key=lambda f:os.path.getctime(f))
         path = zipFiles[-1]
 
+    assert isinstance(MD, QGISMetadataFileWriter)
     assert isinstance(path, str)
     assert os.path.isfile(path)
     assert os.path.splitext(path)[1] == '.zip'
@@ -325,23 +396,23 @@ def updateRepositoryXML(path:str=None):
 
     root = ET.Element('plugins')
     plugin = ET.SubElement(root, 'pyqgis_plugin')
-    plugin.attrib['name'] = "{} (develop version)".format(eotimeseriesviewer.TITLE)
-    plugin.attrib['version'] = '{}'.format(version)
-    ET.SubElement(plugin, 'description').text = r'EO Time Series Viewer (Development Version)'
-    ET.SubElement(plugin, 'about').text = 'Preview'
-    ET.SubElement(plugin, 'version').text = version
-    ET.SubElement(plugin, 'qgis_minimum_version').text = QGIS_MIN
-    ET.SubElement(plugin, 'qgis_maximum_version').text = QGIS_MAX
-    ET.SubElement(plugin, 'homepage').text = eotimeseriesviewer.HOMEPAGE
+    plugin.attrib['name'] = "{} (develop version)".format(MD.mName)
+    plugin.attrib['version'] = '{}'.format(MD.mVersion)
+    ET.SubElement(plugin, 'description').text = MD.mDescription
+    ET.SubElement(plugin, 'about').text = MD.mAbout
+    ET.SubElement(plugin, 'version').text = MD.mVersion
+    ET.SubElement(plugin, 'qgis_minimum_version').text = MD.mQgisMinimumVersion
+    ET.SubElement(plugin, 'qgis_maximum_version').text = MD.mQgisMaximumVersion
+    ET.SubElement(plugin, 'homepage').text = MD.mHomepage
     ET.SubElement(plugin, 'file_name').text = bn
     ET.SubElement(plugin, 'icon').text = 'icon.svg'
-    ET.SubElement(plugin, 'author_name').text = 'Benjamin Jakimow'
+    ET.SubElement(plugin, 'author_name').text = MD.mAuthor
     ET.SubElement(plugin, 'download_url').text = download_url
     ET.SubElement(plugin, 'deprecated').text = 'False'
 
-    ET.SubElement(plugin, 'tracker').text = eotimeseriesviewer.ISSUE_TRACKER
-    ET.SubElement(plugin, 'repository').text = eotimeseriesviewer.REPOSITORY
-    ET.SubElement(plugin, 'tags').text = 'Remote Sensing, Raster, Time Series Viewer'
+    ET.SubElement(plugin, 'tracker').text = MD.mTracker
+    ET.SubElement(plugin, 'repository').text = MD.mRepository
+    ET.SubElement(plugin, 'tags').text = ', '.join(MD.mTags)
     ET.SubElement(plugin, 'experimental').text = 'False'
 
     tree = ET.ElementTree(root)

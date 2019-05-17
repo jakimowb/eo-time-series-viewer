@@ -1,7 +1,7 @@
 2019-05-15
         - increased version to 1.0
-        - labeling tools to modify vector layers. Date-time information, e.g. DOY,
-          can be labeled by mouse-click
+        - labeling tools to modify vector layers.
+        - quick labeling for time-labels information
         - synchronization with QGIS Map canvas center
         - SpectralLibrary can import SpectralProfiles from a raster image based on vector positions
         - simplified MapView control dock, each MapView has it's own layer tree.
