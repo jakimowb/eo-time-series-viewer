@@ -3,83 +3,79 @@
 
 .. |cbc| image:: img/checkbox_checked.PNG
 .. |cbu| image:: img/checkbox_unchecked.PNG
-.. |ad_ra| image:: ../../timeseriesviewer/ui/icons/mActionAddRasterLayer.svg
+.. |ad_ra| image:: ../../eotimeseriesviewer/ui/icons/mActionAddRasterLayer.svg
     :width: 27px
-.. |re_ra| image:: ../../timeseriesviewer/ui/icons/mActionRemoveTSD.svg
+.. |re_ra| image:: ../../eotimeseriesviewer/ui/icons/mActionRemoveTSD.svg
     :width: 27px
 .. |timeseriesdock| image:: img/timeseriesdock.png
 
-.. |icon_eotsv| image:: ../../timeseriesviewer/ui/icons/icon.svg
+.. |icon_eotsv| image:: ../../eotimeseriesviewer/ui/icons/icon.svg
     :width: 27px
-.. |icon_zoom_in| image:: ../../timeseriesviewer/ui/icons/mActionZoomIn.svg
+.. |icon_zoom_in| image:: ../../eotimeseriesviewer/ui/icons/mActionZoomIn.svg
     :width: 27px
-.. |icon_zoom_out| image:: ../../timeseriesviewer/ui/icons/mActionZoomOut.svg
+.. |icon_zoom_out| image:: ../../eotimeseriesviewer/ui/icons/mActionZoomOut.svg
     :width: 27px
-.. |icon_zoom_pan| image:: ../../timeseriesviewer/ui/icons/mActionPan.svg
+.. |icon_zoom_pan| image:: ../../eotimeseriesviewer/ui/icons/mActionPan.svg
     :width: 27px
-.. |icon_zoom_full| image:: ../../timeseriesviewer/ui/icons/mActionZoomFullExtent.svg
+.. |icon_zoom_full| image:: ../../eotimeseriesviewer/ui/icons/mActionZoomFullExtent.svg
     :width: 27px
-.. |icon_zoom_11| image:: ../../timeseriesviewer/ui/icons/mActionZoomActual.svg
+.. |icon_zoom_11| image:: ../../eotimeseriesviewer/ui/icons/mActionZoomActual.svg
     :width: 27px
-.. |icon_add_map_view| image:: ../../timeseriesviewer/ui/icons/mActionAddMapView.svg
+.. |icon_add_map_view| image:: ../../eotimeseriesviewer/ui/icons/mActionAddMapView.svg
     :width: 27px
-.. |icon_select_ts_profile| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile.svg
+.. |icon_select_ts_profile| image:: ../../eotimeseriesviewer/ui/icons/mIconTemporalProfile.svg
     :width: 27px
-.. |spectral_profile| image:: ../../timeseriesviewer/ui/icons/pickrasterspectrum.svg
+.. |spectral_profile| image:: ../../eotimeseriesviewer/ui/icons/pickrasterspectrum.svg
     :width: 27px
-.. |addTS| image:: ../../timeseriesviewer/ui/icons/mActionAddTS.svg
+.. |addTS| image:: ../../eotimeseriesviewer/ui/icons/mActionAddTS.svg
     :width: 27px
-.. |remTS| image:: ../../timeseriesviewer/ui/icons/mActionRemoveTS.svg
+.. |remTS| image:: ../../eotimeseriesviewer/ui/icons/mActionRemoveTS.svg
     :width: 27px
-.. |saveTS| image:: ../../timeseriesviewer/ui/icons/mActionSaveTS.svg
+.. |saveTS| image:: ../../eotimeseriesviewer/ui/icons/mActionSaveTS.svg
     :width: 27px
-.. |refresh| image:: ../../timeseriesviewer/ui/icons/mActionRefresh.svg
+.. |refresh| image:: ../../eotimeseriesviewer/ui/icons/mActionRefresh.svg
     :width: 27px
-.. |zoompoint| image:: ../../timeseriesviewer/ui/icons/mActionZoomPoint.svg
+.. |zoompoint| image:: ../../eotimeseriesviewer/ui/icons/mActionZoomPoint.svg
     :width: 27px
-.. |extentimport| image:: ../../timeseriesviewer/ui/icons/mapExtentImport.svg
+.. |extentimport| image:: ../../eotimeseriesviewer/ui/icons/mapExtentImport.svg
     :width: 27px
-.. |centerimport| image:: ../../timeseriesviewer/ui/icons/mapCenterImport.svg
+.. |centerimport| image:: ../../eotimeseriesviewer/ui/icons/mapCenterImport.svg
     :width: 27px
-.. |extentexport| image:: ../../timeseriesviewer/ui/icons/mapExtentExport.svg
+.. |extentexport| image:: ../../eotimeseriesviewer/ui/icons/mapExtentExport.svg
     :width: 27px
-.. |centerexport| image:: ../../timeseriesviewer/ui/icons/mapCenterExport.svg
+.. |centerexport| image:: ../../eotimeseriesviewer/ui/icons/mapCenterExport.svg
     :width: 27px
-.. |identify| image:: ../../timeseriesviewer/ui/icons/mActionIdentify.svg
+.. |identify| image:: ../../eotimeseriesviewer/ui/icons/mActionIdentify.svg
     :width: 27px
 
-.. |removemapview| image:: ../../timeseriesviewer/ui/icons/mActionRemoveMapView.svg
+.. |removemapview| image:: ../../eotimeseriesviewer/ui/icons/mActionRemoveMapView.svg
 .. |mapviewdropdown| image:: img/mapviewdropdown.png
 .. |questionmark| image:: img/questionmark.png
-.. |hidemapview| image:: ../../timeseriesviewer/ui/icons/mapviewHidden.svg
+.. |hidemapview| image:: ../../eotimeseriesviewer/ui/icons/mapviewHidden.svg
     :height: 27px
     :width: 27px
-.. |crosshair| image:: ../../timeseriesviewer/ui/icons/crosshair.svg
+.. |crosshair| image:: ../../eotimeseriesviewer/ui/icons/crosshair.svg
     :height: 27px
     :width: 27px
-.. |symbology| image:: ../../timeseriesviewer/ui/icons/symbology.svg
+.. |symbology| image:: ../../eotimeseriesviewer/ui/icons/symbology.svg
     :height: 27px
     :width: 27px
-.. |copy| image:: ../../timeseriesviewer/ui/icons/mActionEditCopy.svg
-.. |paste| image:: ../../timeseriesviewer/ui/icons/mActionEditPaste.svg
+.. |copy| image:: ../../eotimeseriesviewer/ui/icons/mActionEditCopy.svg
+.. |paste| image:: ../../eotimeseriesviewer/ui/icons/mActionEditPaste.svg
 
-.. |addspectrum| image:: ../../timeseriesviewer/ui/icons/profile2speclib.svg
+.. |addspectrum| image:: ../../eotimeseriesviewer/ui/icons/profile2speclib.svg
     :width: 27px
 .. |addattribute| image:: img/qgis_icons/mActionNewAttribute.svg
     :width: 27px
 .. |removeattribute| image:: img/qgis_icons/mActionDeleteAttribute.svg
     :width: 27px
-.. |importspeclib| image:: ../../timeseriesviewer/ui/icons/speclib_add.svg
+.. |importspeclib| image:: ../../eotimeseriesviewer/ui/icons/speclib_add.svg
     :width: 27px
-.. |exportspeclib| image:: ../../timeseriesviewer/ui/icons/speclib_save.svg
+.. |exportspeclib| image:: ../../eotimeseriesviewer/ui/icons/speclib_save.svg
     :width: 27px
-.. |info| image:: ../../timeseriesviewer/ui/icons/metadata.svg
+.. |info| image:: ../../eotimeseriesviewer/ui/icons/metadata.svg
     :width: 27px
-.. |loadmissingvalues| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfileRefresh.svg
-    :width: 27px
-
-
-.. || image:: ../../
+.. |loadmissingvalues| image:: ../../eotimeseriesviewer/ui/icons/mIconTemporalProfileRefresh.svg
     :width: 27px
 
 
@@ -272,12 +268,14 @@ Now, for every Map View you can alter the following settings:
   the *Crosshair specifications* |symbology| , where you can customize e.g. color, opacity, thickness, size and further options.
 
 * You may rename the Map View by altering the text in the ``Name`` field.
+
 |
 * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
   in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
   Furthermore, you can visualize the locations of :ref:`Temporal Profiles` or :ref:`Spectral Profiles <Spectral Library>` as points. Select the desired option
   from the dropdown list.
 |
+
 * Under **Raster Rendering** you can adjust the visualisation of the raster layers. Every sensor, as specified in the :ref:`Sensors / Products` tab, has its separate
   rendering option section (since band specifications differ among sensors). The handling is very similar to the QGIS style options.
 
@@ -310,7 +308,7 @@ In case the Map View contains (additional) vector data, location information wil
 * Coordinates of the selected pixel are shown in the ``x`` and ``y`` fields. You may change the coordinate system of the
   displayed coordinates via the |crs| :superscript:`Select CRS` button.
 
-.. |crs| image:: ../../timeseriesviewer/ui/icons/CRS.svg
+.. |crs| image:: ../../eotimeseriesviewer/ui/icons/CRS.svg
 
 
 
@@ -379,19 +377,19 @@ Visualizing the temporal profile locations as points in the Map View:
 .. todo:: This feature is still experimental and under development. Documentation will follow!
 
 
-.. |temporal2d| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile2D.svg
+.. |temporal2d| image:: ../../eotimeseriesviewer/ui/icons/mIconTemporalProfile2D.svg
     :width: 27px
-.. |temporal3d| image:: ../../timeseriesviewer/ui/icons/mIconTemporalProfile3D.svg
+.. |temporal3d| image:: ../../eotimeseriesviewer/ui/icons/mIconTemporalProfile3D.svg
     :width: 27px
-.. |temporal_coords| image:: ../../timeseriesviewer/ui/icons/mActionOpenTable.svg
+.. |temporal_coords| image:: ../../eotimeseriesviewer/ui/icons/mActionOpenTable.svg
     :width: 27px
-.. |add| image:: ../../timeseriesviewer/ui/icons/mActionAdd.svg
+.. |add| image:: ../../eotimeseriesviewer/ui/icons/mActionAdd.svg
     :width: 27px
-.. |remove| image:: ../../timeseriesviewer/ui/icons/mActionRemove.svg
+.. |remove| image:: ../../eotimeseriesviewer/ui/icons/mActionRemove.svg
     :width: 27px
-.. |addvector| image:: ../../timeseriesviewer/ui/icons/mActionAddOgrLayer.svg
+.. |addvector| image:: ../../eotimeseriesviewer/ui/icons/mActionAddOgrLayer.svg
     :width: 27px
-.. |save| image:: ../../timeseriesviewer/ui/icons/mActionFileSave.svg
+.. |save| image:: ../../eotimeseriesviewer/ui/icons/mActionFileSave.svg
     :width: 27px
 
 
@@ -437,7 +435,7 @@ You can visualize the locations of your extracted spectra as points in the Map V
 
 .. |startediting| image:: img/qgis_icons/mActionToggleEditing.svg
     :width: 27px
-.. |autoadd_profile| image:: ../../timeseriesviewer/ui/icons/profile2speclib_auto.svg
+.. |autoadd_profile| image:: ../../eotimeseriesviewer/ui/icons/profile2speclib_auto.svg
     :width: 27px
 .. |deleteselected| image:: img/qgis_icons/mActionDeleteSelected.svg
     :width: 27px
