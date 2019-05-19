@@ -12,15 +12,3 @@ thisDir = os.path.dirname(__file__)
 # File path attributes:
 # Vector files:
 exampleEvents = os.path.join(thisDir, r'exampleEvents.gpkg|layername=exampleEvents')
-
-
-
-# self-test to check each file path attribute
-for a in dir(sys.modules[__name__]):
-    v = getattr(sys.modules[__name__], a)
-    if type(v) == str and os.path.isabs(v):
-        if not os.path.exists(v):
-            print('Missing package attribute file: {}={}'.format(a, v), file=sys.stderr)
-
-# cleanup
-del thisDir, a, v 
