@@ -1,15 +1,26 @@
 # Untracked directories
 .idea/
 .idea/*
+.idea/*.*
 deploy/
 deploy/*
 temp/
 doc/build/
 doc/build/*
+eotimeseriesviewer/ui/resources.py
+eotimeseriesviewer/externals/qps/qpsresources.py
+tests/outputs
+tests/outputs/*
 qgisresources/
 qgisresources/*
+enmapboxtestdata/
+enmapboxtestdata/*
+screenshots/
+screenshots/*
 example/*.aux.xml
-timeseriesviewer/ui/tmp.ui
+example/*.gpkg-shm
+example/*.gpkg-wal
+eotimeseriesviewer/ui/tmp.ui
 .*
 !/.gitignore
 !/.gitattributes
@@ -19,6 +30,6 @@ timeseriesviewer/ui/tmp.ui
 *.pyc
 *.pyd
 *.iml
-__pycache__/
+*__pycache__/
 
 /qgisresources/

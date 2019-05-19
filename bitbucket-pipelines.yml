@@ -1,0 +1,26 @@
+# This is a sample build configuration for Python.
+# Check our guides at https://confluence.atlassian.com/x/x4UWN for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: qgis/qgis
+
+pipelines:
+  default:
+    - step:
+        services:
+          - docker
+        caches:
+          - docker
+          - pip
+        script: # Modify the commands below to build your repository.
+          - python -m pip install -r requirements.txt
+          - python -m pip install nose2
+          - apt-get update
+          - apt-get install xvfb
+          - Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
+          - ps aux | grep X
+          - DISPLAY=:1.0
+          - export DISPLAY
+          - mkdir test-reports
+          - python -m nose2 discover tests "test_*.py" > test-reports/test-report.txt

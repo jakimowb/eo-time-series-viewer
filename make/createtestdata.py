@@ -10,11 +10,10 @@ from qgis.gui import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from timeseriesviewer import *
-from timeseriesviewer.utils import *
-from timeseriesviewer import file_search
-from timeseriesviewer.timeseries import *
-from timeseriesviewer.virtualrasters import VRTRasterInputSourceBand, VRTRasterBand, VRTRaster
+from eotimeseriesviewer import *
+from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer.virtualrasters import VRTRasterInputSourceBand, VRTRasterBand, VRTRaster
 
 def groupCBERS(dirIn, dirOut, pattern='CBERS*.tif'):
     files = file_search(dirIn, pattern, recursive=True)
@@ -140,7 +139,7 @@ def groupLandsat(dirIn, dirOut, pattern='L*_sr_band*.img'):
         dsVRT.SetMetadataItem('wavelength units','Micrometers', 'ENVI')
         dsVRT.SetMetadataItem('wavelength', '{{{}}}'.format(','.join([str(w) for w in cwl])), 'ENVI')
         dsVRT.SetMetadataItem('sensor type', 'Landsat-8 OLI', 'ENVI')
-        from timeseriesviewer.dateparser import datetime64FromYYYYDOY
+        from eotimeseriesviewer.dateparser import datetime64FromYYYYDOY
         dt = datetime64FromYYYYDOY(id[9:16])
         assert dt > np.datetime64('1900-01-01')
         assert dt < np.datetime64('2999-12-31')
@@ -178,7 +177,7 @@ def groupRapidEyeTiles(dirIn, dirOut):
             sources[date] = []
         sources[date].append(file)
 
-    from timeseriesviewer.virtualrasters import createVirtualBandMosaic
+    from eotimeseriesviewer.virtualrasters import createVirtualBandMosaic
     for date, files in sources.items():
         pathVRT = os.path.join(dirOut, 're_{}.vrt'.format(date))
 

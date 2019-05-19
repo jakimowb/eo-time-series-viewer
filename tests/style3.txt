@@ -1,0 +1,93 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis simplifyDrawingTol="1" labelsEnabled="0" simplifyAlgorithm="0" maxScale="0" readOnly="0" version="3.0.2-Girona" minScale="1e+8" simplifyMaxScale="1" simplifyLocal="1" simplifyDrawingHints="1" hasScaleBasedVisibilityFlag="0">
+ <renderer-v2 enableorderby="0" type="singleSymbol" symbollevels="0" forceraster="0">
+  <symbols>
+   <symbol alpha="1" type="fill" clip_to_extent="1" name="0">
+    <layer pass="0" enabled="1" locked="0" class="SimpleFill">
+     <prop v="3x:0,0,0,0,0,0" k="border_width_map_unit_scale"/>
+     <prop v="168,123,178,255" k="color"/>
+     <prop v="bevel" k="joinstyle"/>
+     <prop v="0,0" k="offset"/>
+     <prop v="3x:0,0,0,0,0,0" k="offset_map_unit_scale"/>
+     <prop v="MM" k="offset_unit"/>
+     <prop v="35,35,35,255" k="outline_color"/>
+     <prop v="solid" k="outline_style"/>
+     <prop v="0.26" k="outline_width"/>
+     <prop v="MM" k="outline_width_unit"/>
+     <prop v="solid" k="style"/>
+     <data_defined_properties>
+      <Option type="Map">
+       <Option value="" type="QString" name="name"/>
+       <Option name="properties"/>
+       <Option value="collection" type="QString" name="type"/>
+      </Option>
+     </data_defined_properties>
+    </layer>
+   </symbol>
+  </symbols>
+  <rotation/>
+  <sizescale/>
+ </renderer-v2>
+ <customproperties/>
+ <blendMode>0</blendMode>
+ <featureBlendMode>0</featureBlendMode>
+ <layerOpacity>1</layerOpacity>
+ <fieldConfiguration>
+  <field name="DN">
+   <editWidget type="">
+    <config>
+     <Option/>
+    </config>
+   </editWidget>
+  </field>
+  <field name="class_name">
+   <editWidget type="">
+    <config>
+     <Option/>
+    </config>
+   </editWidget>
+  </field>
+ </fieldConfiguration>
+ <aliases>
+  <alias field="DN" index="0" name=""/>
+  <alias field="class_name" index="1" name=""/>
+ </aliases>
+ <excludeAttributesWMS/>
+ <excludeAttributesWFS/>
+ <defaults>
+  <default expression="" field="DN" applyOnUpdate="0"/>
+  <default expression="" field="class_name" applyOnUpdate="0"/>
+ </defaults>
+ <constraints>
+  <constraint unique_strength="0" exp_strength="0" field="DN" notnull_strength="0" constraints="0"/>
+  <constraint unique_strength="0" exp_strength="0" field="class_name" notnull_strength="0" constraints="0"/>
+ </constraints>
+ <constraintExpressions>
+  <constraint field="DN" exp="" desc=""/>
+  <constraint field="class_name" exp="" desc=""/>
+ </constraintExpressions>
+ <attributeactions>
+  <defaultAction key="Canvas" value="{00000000-0000-0000-0000-000000000000}"/>
+ </attributeactions>
+ <attributetableconfig sortExpression="" sortOrder="0" actionWidgetStyle="dropDown">
+  <columns/>
+ </attributetableconfig>
+ <editform></editform>
+ <editforminit/>
+ <editforminitcodesource>0</editforminitcodesource>
+ <editforminitfilepath></editforminitfilepath>
+ <editforminitcode><![CDATA[]]></editforminitcode>
+ <featformsuppress>0</featformsuppress>
+ <editorlayout>generatedlayout</editorlayout>
+ <editable/>
+ <labelOnTop/>
+ <widgets/>
+ <conditionalstyles>
+  <rowstyles/>
+  <fieldstyles/>
+ </conditionalstyles>
+ <expressionfields/>
+ <previewExpression></previewExpression>
+ <mapTip></mapTip>
+ <layerGeometryType>2</layerGeometryType>
+</qgis>

@@ -17,8 +17,8 @@
 ***************************************************************************
 """
 
-from timeseriesviewer.virtualrasters import *
-from timeseriesviewer.utils import *
+from eotimeseriesviewer.virtualrasters import *
+from eotimeseriesviewer.utils import *
 from osgeo import gdal, gdal_array
 pathSrcDir = r'Z:\SenseCarbon\BJ\COS_BACKUP\01_RasterData\01_UncutVRT'
 pathDstDir = r'D:\Temp\TSData'

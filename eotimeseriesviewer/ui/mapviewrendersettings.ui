@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MapViewRenderSettings</class>
+ <widget class="QGroupBox" name="MapViewRenderSettings">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>335</width>
+    <height>487</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>150</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>16777215</height>
+   </size>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>8</pointsize>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>RenderSettings</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QFrame::title{color: rgb(0, 0, 127);}</string>
+  </property>
+  <property name="title">
+   <string>&lt;sensor/product&gt;</string>
+  </property>
+  <property name="flat">
+   <bool>true</bool>
+  </property>
+  <property name="checkable">
+   <bool>false</bool>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetNoConstraint</enum>
+   </property>
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QFrame" name="frame">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>1</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="labelRenderer">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>8</pointsize>
+          <weight>50</weight>
+          <italic>false</italic>
+          <bold>false</bold>
+          <kerning>true</kerning>
+         </font>
+        </property>
+        <property name="toolTip">
+         <string>Sensor name</string>
+        </property>
+        <property name="text">
+         <string>Style</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cbRenderType">
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>8</pointsize>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnPasteStyle">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="resources.qrc">
+          <normaloff>:/timeseriesviewer/icons/mActionEditPaste.svg</normaloff>:/timeseriesviewer/icons/mActionEditPaste.svg</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnCopyStyle">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="resources.qrc">
+          <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnApplyStyle">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="renderWidgetLayout"/>
+   </item>
+  </layout>
+  <action name="actionSetDefaultMB">
+   <property name="text">
+    <string>Def</string>
+   </property>
+   <property name="toolTip">
+    <string>Set default band selection</string>
+   </property>
+  </action>
+  <action name="actionSetTrueColor">
+   <property name="text">
+    <string>True</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to true color (red-green-blue)</string>
+   </property>
+  </action>
+  <action name="actionSetCIR">
+   <property name="text">
+    <string>CIR1</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to coloured infra red (swIR-red-green)</string>
+   </property>
+  </action>
+  <action name="actionSet453">
+   <property name="text">
+    <string>CIR2</string>
+   </property>
+   <property name="toolTip">
+    <string>Set to swIR-mwIR-red</string>
+   </property>
+  </action>
+  <action name="actionCopyStyle">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Copy style</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy style to clipboard</string>
+   </property>
+  </action>
+  <action name="actionPasteStyle">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionEditPaste.svg</normaloff>:/timeseriesviewer/icons/mActionEditPaste.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Paste Style</string>
+   </property>
+   <property name="toolTip">
+    <string>Paste style from clipboard</string>
+   </property>
+  </action>
+  <action name="actionApplyStyle">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>ApplySettings</string>
+   </property>
+   <property name="toolTip">
+    <string>Apply Style</string>
+   </property>
+  </action>
+  <action name="actionSetR">
+   <property name="text">
+    <string>R</string>
+   </property>
+  </action>
+  <action name="actionSetG">
+   <property name="text">
+    <string>G</string>
+   </property>
+  </action>
+  <action name="actionSetB">
+   <property name="text">
+    <string>B</string>
+   </property>
+  </action>
+  <action name="actionSetNIR">
+   <property name="text">
+    <string>nIR</string>
+   </property>
+  </action>
+  <action name="actionSetSWIR">
+   <property name="text">
+    <string>swIR</string>
+   </property>
+  </action>
+  <action name="actionSetDefaultSB">
+   <property name="text">
+    <string>Def</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

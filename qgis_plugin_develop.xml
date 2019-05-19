@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="https://plugins.qgis.org/static/style/plugins.xsl"?>
+<plugins>
+	<pyqgis_plugin name="EO Time Series Viewer (develop version)" version="0.8.20190303T2043.develop">
+		<description>EO Time Series Viewer (Development Version)</description>
+		<about>Preview</about>
+		<version>0.8.20190303T2043.develop</version>
+		<qgis_minimum_version>3.4</qgis_minimum_version>
+		<qgis_maximum_version>3.99</qgis_maximum_version>
+		<homepage>https://bitbucket.org/jakimowb/eo-time-series-viewer</homepage>
+		<file_name>timeseriesviewerplugin.0.8.20190303T2043.develop.zip</file_name>
+		<icon>icon.png</icon>
+		<author_name>Benjamin Jakimow</author_name>
+		<download_url>https://bitbucket.org/jakimowb/eo-time-series-viewer/downloads/timeseriesviewerplugin.0.8.20190303T2043.develop.zip</download_url>
+		<deprecated>False</deprecated>
+		<tracker>https://bitbucket.org/jakimowb/eo-time-series-viewer/issues</tracker>
+		<repository>https://bitbucket.org/jakimowb/eo-time-series-viewer</repository>
+		<tags>Remote Sensing, Raster, Time Series Viewer</tags>
+		<experimental>False</experimental>
+	</pyqgis_plugin>
+</plugins>

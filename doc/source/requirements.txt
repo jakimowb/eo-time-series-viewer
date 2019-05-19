@@ -1,0 +1,9 @@
+# this file lists packages that are required to run Sphinx
+# see https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format
+
+###### Requirements to build documentation with sphinx ######
+sphinx>=1.7.2
+sphinx_rtd_theme>=0.3.0
+recommonmark
+mock
+git-lfs
