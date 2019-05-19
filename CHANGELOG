@@ -7,7 +7,7 @@
         - simplified MapView control dock, each MapView has it's own layer tree.
         - improved MapTool organization
         - removed PyQtGraph from list of required external python packages
-          (no need to run pip first)
+          (no need to run pip)
 
 2019-03-29
         - renamed plugin folder from "timeseriesviewerplugin" to "EOTimeSeriesViewer".
@@ -91,5 +91,5 @@
     - e.g: QGIS MapCanvases for interactive maps, temporal profiles, ...
 
 2017-02-14:
-    - first setup for test users in the recent development branch qgis_apo
+    - first setup for test users in the recent development branch
 
