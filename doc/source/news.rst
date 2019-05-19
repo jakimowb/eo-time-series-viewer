@@ -1,6 +1,16 @@
 ====
 News
 ====
+2019-05-15:
+    * Major update: released version 1.0 with many new features:
+    * labeling tools to modify vector layers.
+    * quick labeling for time-labels information
+    * synchronization with QGIS Map canvas center
+    * SpectralLibrary can import SpectralProfiles from a raster image based on vector positions
+    * simplified MapView control dock, each MapView has it's own layer tree.
+    * improved MapTool organization
+    * removed PyQtGraph from list of required external python packages, no need to run a pip instalation first
+
 2019-03-01:
 
     * increased version to 0.8

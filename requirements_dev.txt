@@ -1,0 +1,19 @@
+# this file lists packages that are required to run the EO Time Series Viewer
+# see https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format
+
+
+# standard requirements
+-r requirements.txt
+
+
+# requirements for developers
+
+gitpython
+git-lfs
+pb_tool
+recommonmark
+sphinx
+sphinx-argparse
+sphinx-markdown
+sphinx-rtd-theme
+sphinx-autobuild

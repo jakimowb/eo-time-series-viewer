@@ -20,17 +20,21 @@ import os
 import sys
 import mock
 
-MOCK_MODULES = ['qgis','qgis.core','qgis.gui','qgis.utils',
-                'qgis.PyQt.QtGui','qgis.PyQt.QtCore','qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
-                'PyQt5.QtGui','PyQt5.QtCore','PyQt5.QtWidgets','PyQt5.QtXml',
-                'gdal', 'numpy', 'scipy', 'pyqtgraph','OpenGL','osgeo','weakref']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
+
+if False:
+    MOCK_MODULES = ['qgis','qgis.core','qgis.gui','qgis.utils', 'qgis.PyQt',
+                    'qgis.PyQt.QtGui','qgis.PyQt.QtCore','qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
+                    'PyQt5.QtGui','PyQt5.QtCore','PyQt5.QtWidgets','PyQt5.QtXml',
+                    'gdal', 'numpy', 'scipy', 'pyqtgraph','OpenGL','osgeo','weakref']
+    for mod_name in MOCK_MODULES:
+        sys.modules[mod_name] = mock.Mock()
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('../../'))
 
+#from eotimeseriesviewer.tests import initQgisApplication
+#app = initQgisApplication()
 
 try:
     # enable readthedocs to load git-lfs files
