@@ -83,6 +83,9 @@
 User Guide
 ==========
 
+.. note:: This documentation reflects the previous EO Time Series Viewer version, where some parts of the GUI looked
+          different. We are working hard on updating the figures and descriptions.
+
 Quick Start
 -----------
 
@@ -269,12 +272,11 @@ Now, for every Map View you can alter the following settings:
 
 * You may rename the Map View by altering the text in the ``Name`` field.
 
-|
 * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
   in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
   Furthermore, you can visualize the locations of :ref:`Temporal Profiles` or :ref:`Spectral Profiles <Spectral Library>` as points. Select the desired option
   from the dropdown list.
-|
+
 
 * Under **Raster Rendering** you can adjust the visualisation of the raster layers. Every sensor, as specified in the :ref:`Sensors / Products` tab, has its separate
   rendering option section (since band specifications differ among sensors). The handling is very similar to the QGIS style options.
@@ -338,8 +340,8 @@ On the left side you can switch between the different modes, i.e. |temporal2d| :
 * Mind how the selected pixel now also appears on the coordinates |temporal_coords| page!
 * If you select further pixels ( |icon_select_ts_profile| ), they will be listed in the coordinates page,
   but not automatically visualized in the plot.
-    * Use |add| to create an additional plot layer, and double click in the ``Coordinate`` field in order to select the
-      desired location (so e.g. the newly chosen pixel) or just change the location in the current plot layer.
+* Use |add| to create an additional plot layer, and double click in the ``Coordinate`` field in order to select the
+  desired location (so e.g. the newly chosen pixel) or just change the location in the current plot layer.
 * Similarly, you can change the sensor to be visualized by double clicking inside the ``Sensor`` field and choosing from
   the dropdown.
 * Click inside the ``Style`` field to change the visual representation of your time series in the plot.
