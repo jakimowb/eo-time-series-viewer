@@ -10,20 +10,24 @@ Version 1.0
 Map Canvas Context Menu
 .......................
 
-The map canvas context menu has been re-organized. You can now:
+The map canvas context menu has been re-organized and enhanced by:
 
-    * zoom to single map layers
+    * zooming to single map layers
     * open the properties of single map layers
+    * the "Set Quick Labels" button (see next feature)
 
 
 Quick Labeling
 ..............
 
 
-Sensor/product, file and observations-date specific information can be written to linked attributes of selected
-vector features with one mouse-click.
+The map canvas menu entry "Set Quick Labels" can be used to write sensor/product, file and observations-date specific information
+into attribute fields of linked vector layers.
 
-Each map canvas relates to a raster timeseries sensor/product and observation date. From that we can derive the following label information:
+1. open the layer properties of the vector layer you like to label
+2. edit the form attributes and use the EOTS Quick Label form to each layer fields, that you like to
+   label automatically.
+3. Each map canvas relates to a raster timeseries sensor/product and observation date. From that we can derive the following label information:
 
     ============ ========= ==============
     Information  Data Type Example
