@@ -768,7 +768,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.addSources(files)
 
 
-    def loadTimeSeriesDefinition(self, path=None, n_max=None):
+    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
         """
         Loads a time series definition file
         :param path:
@@ -776,21 +776,30 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
         s = settings()
-        defFile = s.value('file_ts_definition')
-        defDir = None
-        if defFile is not None:
-            defDir = os.path.dirname(defFile)
+        if not (isinstance(path, str) and os.path.isfile(path)):
 
-        filters = "CSV (*.csv *.txt);;" + \
-                  "All files (*.*)"
+            defFile = s.value('file_ts_definition')
+            defDir = None
+            if defFile is not None:
+                defDir = os.path.dirname(defFile)
 
-        path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filter=filters)
+            filters = "CSV (*.csv *.txt);;" + \
+                      "All files (*.*)"
+
+            path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filter=filters)
+
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
+            
+            progressDialog = QProgressDialog(parent=self.ui)
+            progressDialog.setWindowTitle('Load data')
+            progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+            progressDialog.show()
+            
             M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
             M.beginResetModel()
             self.clearTimeSeries()
-            self.mTimeSeries.loadFromFile(path, n_max=n_max)
+            self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
             M.endResetModel()
 
     def createMapView(self):

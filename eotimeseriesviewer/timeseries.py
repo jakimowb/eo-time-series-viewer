@@ -892,7 +892,7 @@ class TimeSeries(QObject):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None):
+    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -913,11 +913,12 @@ class TimeSeries(QObject):
                 if len(parts) > 1:
                     masks.append(parts[1])
 
+
         if n_max:
             n_max = min([len(images), n_max])
-            self.addSources(images[0:n_max])
+            self.addSources(images[0:n_max], progressDialog=progressDialog)
         else:
-            self.addSources(images)
+            self.addSources(images, progressDialog=progressDialog)
         #self.addMasks(masks)
 
 
@@ -1103,7 +1104,7 @@ class TimeSeries(QObject):
         return None
 
 
-    def addSources(self, sources:list):
+    def addSources(self, sources:list, progressDialog:QProgressDialog=None):
         """
         Adds new data sources to the TimeSeries
         :param sources: [list-of-TimeSeriesSources]
@@ -1113,12 +1114,17 @@ class TimeSeries(QObject):
         nMax = len(sources)
 
         self.sigLoadingProgress.emit(0, nMax, 'Start loading {} sources...'.format(nMax))
-
+        
+        if isinstance(progressDialog, QProgressDialog):
+            progressDialog.setRange(0, nMax)
+            progressDialog.setLabelText('Load rasters...'.format(nMax))
         # 1. read sources
         # this could be excluded into a parallel process
         addedDates = []
         for i, source in enumerate(sources):
+            
 
+            
             msg = None
             try:
 
@@ -1152,8 +1158,18 @@ class TimeSeries(QObject):
             except Exception as ex:
                 msg = 'Unable to add: {}\n{}'.format(str(source), str(ex))
                 print(msg, file=sys.stderr)
-            self.sigLoadingProgress.emit(i+1, nMax, msg)
+
+            if isinstance(progressDialog, QProgressDialog):
+                if progressDialog.wasCanceled():
+                    break
+                progressDialog.setValue(i)
+                progressDialog.setLabelText('{}/{}'.format(i+1, nMax))
+            if (i+1) % 10 == 0:
+
+                self.sigLoadingProgress.emit(i+1, nMax, msg)
         if len(addedDates) > 0:
+            if isinstance(progressDialog, QProgressDialog):
+                progressDialog.setLabelText('Create map widgets...')
             self.sigTimeSeriesDatesAdded.emit(addedDates)
 
     def setDateTimePrecision(self, mode:DateTimePrecision):
