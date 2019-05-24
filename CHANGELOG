@@ -16,7 +16,6 @@
         - improved MapTool organization
         - removed PyQtGraph from list of required external python packages
 
-
 2019-03-29
         - renamed plugin folder from "timeseriesviewerplugin" to "EOTimeSeriesViewer".
         - improved SpectraLibrary tool

@@ -21,6 +21,8 @@
 from eotimeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles, TestObjects
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from qgis.core import *
+from qgis.gui import *
 import unittest
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, TimeSeriesSource
@@ -180,6 +182,13 @@ class testclassMapVisualization(unittest.TestCase):
         m.show()
 
 
+    def test_virtualLayers(self):
+
+        lyr = TestObjects.createVectorLayer()
+        self.assertIsInstance(lyr, QgsVectorLayer)
+        VL = QgsVirtualLayerDefinition()
+        s = ""
+        self.assertTrue(1==1)
 
 
     def test_bandselection(self):
