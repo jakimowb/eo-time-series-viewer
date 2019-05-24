@@ -425,7 +425,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.initQGISConnection()
 
-
+        for toolBar in self.ui.findChildren(QToolBar):
+            for toolButton in toolBar.findChildren(QToolButton):
+                assert isinstance(toolButton, QToolButton)
+                if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu):
+                    toolButton.setPopupMode(QToolButton.MenuButtonPopup)
 
 
     def onMapViewAdded(self, mapView):
@@ -924,16 +928,23 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param n: int, max. number of images to load. Useful for developer test-cases
         """
         import example.Images
-        files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
-
+        exampleDataDir = os.path.dirname(example.__file__)
+        rasterFiles = list(file_search(exampleDataDir, '*.tif', recursive=True))
+        vectorFiles = list(file_search(exampleDataDir, re.compile(r'.*\.(gpkg|shp)$'), recursive=True))
         if isinstance(n, bool) or not isinstance(n, int):
-            n = len(files)
+            n = len(rasterFiles)
 
         # ensure valid inputs for n
-        n = min(n, len(files))
+        n = min(n, len(rasterFiles))
         n = max(1, n)
 
-        self.addTimeSeriesImages(files[0:n])
+        self.addTimeSeriesImages(rasterFiles[0:n])
+
+        if len(vectorFiles) > 0:
+            self.addVectorData(vectorFiles)
+
+
+
 
 
     def qgs_handleMouseDown(self, pt, btn):
@@ -986,8 +997,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
-    def addVectorData(self, files=None):
-
+    def addVectorData(self, files=None)->list:
+        """
+        Adds vector data
+        :param files: vector layer sources
+        :return: [list-of-QgsVectorLayers]
+        """
+        vectorLayers = []
         if files is None:
             s = settings()
             defDir = s.value('DIR_FILESEARCH')
@@ -999,15 +1015,24 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 s.setValue('DIR_FILESEARCH', dn)
 
         if files:
-            vectorLayers = []
             from eotimeseriesviewer.mapvisualization import MapView
             for f in files:
+                l = QgsVectorLayer(f, os.path.basename(f))
+
+                if l.isValid():
+                    vectorLayers.append(l)
+
+            if len(vectorLayers) > 0:
+                QgsProject.instance().addMapLayers(vectorLayers)
                 for mapView in self.mapViews():
                     assert isinstance(mapView, MapView)
-                    l = QgsVectorLayer(f, os.path.basename(f))
-                    mapView.addLayer(l)
-                    vectorLayers.append(l)
-            QgsProject.instance().addMapLayers(vectorLayers)
+                    for l in vectorLayers:
+                        mapView.addLayer(l)
+
+                    break #add to first mapview only
+
+
+
 
 
     def addTimeSeriesImages(self, files: list):
