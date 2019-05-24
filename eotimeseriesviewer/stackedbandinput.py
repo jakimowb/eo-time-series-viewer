@@ -21,10 +21,9 @@
 """
 
 
-from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.virtualrasters import *
-from eotimeseriesviewer.models import *
-from eotimeseriesviewer.dateparser import *
+from .utils import *
+from .virtualrasters import *
+from .dateparser import *
 
 
 def datesFromDataset(dataset:gdal.Dataset)->list:

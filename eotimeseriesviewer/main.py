@@ -768,7 +768,16 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param files: [list-of-file-paths]
         """
         assert isinstance(files, list)
-        self.mTimeSeries.addSources(files)
+
+        progressDialog = QProgressDialog(parent=self.ui)
+        progressDialog.setWindowTitle('Load data')
+        progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+        progressDialog.show()
+        QApplication.processEvents()
+        self.mTimeSeries.addSources(files, progressDialog=progressDialog)
+
+        progressDialog.hide()
+        progressDialog.setParent(None)
 
 
     def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
@@ -798,12 +807,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
             progressDialog.setWindowTitle('Load data')
             progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
             progressDialog.show()
-            
-            M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
-            M.beginResetModel()
+
             self.clearTimeSeries()
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
-            M.endResetModel()
+            progressDialog.hide()
+            progressDialog.setParent(None)
 
     def createMapView(self):
         """

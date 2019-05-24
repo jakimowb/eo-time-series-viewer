@@ -17,36 +17,25 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-
+import os, sys
 from eotimeseriesviewer.tests import initQgisApplication
 from eotimeseriesviewer.utils import nextColor
-
+from osgeo import gdal_array
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
+SHOW_GUI = True and os.environ.get('CI') is None
+
 from eotimeseriesviewer.stackedbandinput import *
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
-resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
+
+QGIS_APP = initQgisApplication()
 
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
 
-    @classmethod
-    def setUpClass(cls):
-        pass
-        #cls.srcDir = r'F:\Temp\EOTSV_Dev\DF'
-        #cls.stackFiles = file_search(cls.srcDir, '*.tif')
-
-    def setUp(self):
-        """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
 
     def createTestDatasets(self):
 
@@ -116,6 +105,7 @@ class testclassDialogTest(unittest.TestCase):
         return datasets
 
 
+
     def test_inputmodel(self):
         testData = self.createTestDatasets()
         m = InputStackTableModel()
@@ -162,20 +152,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertIsInstance(eTree, ElementTree.Element)
 
 
-    def test_dateparsing(self):
-
-        dsDates = gdal.OpenEx(self.stackFiles[1], allowed_drivers=['ENVI'])
-
-        #dsDates = gdal.Open(self.stackFiles[1])
-        dates = datesFromDataset(dsDates)
-        self.assertEqual(len(dates), dsDates.RasterCount)
-
-        dsNoDates = gdal.OpenEx(self.stackFiles[0], allowed_drivers=['ENVI'])
-        dates = datesFromDataset(dsNoDates)
-        self.assertEqual(len(dates), 0)
-
-        s = ""
-
     def test_dialog(self):
         d = StackedBandInputDialog()
         d.addSources(self.createTestDatasets())
@@ -184,6 +160,7 @@ class testclassDialogTest(unittest.TestCase):
 
         self.assertTrue(r in [QDialog.Rejected, QDialog.Accepted])
         if r == QDialog.Accepted:
+            d.saveImages()
             images = d.writtenFiles()
             self.assertTrue(len(images) > 0)
 
@@ -205,7 +182,7 @@ class testclassDialogTest(unittest.TestCase):
 
         testImages = self.createTestDatasets()
         from eotimeseriesviewer.main import TimeSeriesViewer
-        TSV = TimeSeriesViewer(None)
+        TSV = TimeSeriesViewer()
         TSV.show()
 
         d = StackedBandInputDialog()
@@ -216,6 +193,9 @@ class testclassDialogTest(unittest.TestCase):
 
         self.assertTrue(len(TSV.mTimeSeries) == len(writtenFiles))
 
-        QGIS_APP.exec_()
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
 if __name__ == "__main__":
     unittest.main()
