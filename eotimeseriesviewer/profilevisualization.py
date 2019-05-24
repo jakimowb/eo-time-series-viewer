@@ -1038,15 +1038,15 @@ class SpectralTemporalVisualization(QObject):
 
         m = self.ui.tableView2DProfiles.model()
         for idx in selectedModelIndices(self.ui.tableView2DProfiles):
-            result.append(m.idx2plotStyle(idx))
+            result.append(m.data(idx, Qt.UserRole))
         return result
 
 
 
     def removePlotStyles2D(self, plotStyles):
         m = self.ui.tableView2DProfiles.model()
-        if isinstance(m, PlotSettingsModel2D):
-            m.removePlotStyles(plotStyles)
+        if isinstance(m.sourceModel(), PlotSettingsModel2D):
+            m.sourceModel().removePlotStyles(plotStyles)
 
     def removeTemporalProfiles(self, fids):
 
