@@ -1543,11 +1543,15 @@ class TimeSeries(QAbstractItemModel):
                     return len(tsd)
                 if cName == self.cnDate:
                     return str(tsd.date())
-            if role == Qt.CheckStateRole and index.column() == 0:
-                return Qt.Checked if tsd.isVisible() else Qt.Unchecked
 
             if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
                 return QColor('yellow')
+
+        if isinstance(node, TimeSeriesDatum) and index.column() == 0:
+            if role == Qt.CheckStateRole:
+                return Qt.Checked if tsd.isVisible() else Qt.Unchecked
+
+
 
         return None
 

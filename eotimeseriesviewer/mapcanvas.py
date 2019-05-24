@@ -190,9 +190,9 @@ class MapCanvas(QgsMapCanvas):
     saveFileDirectories = dict()
     sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
-    sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
-    sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
-    sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
+    #sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
+    #sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
+    #sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
     sigMapRefreshed = pyqtSignal([float, float], [float])
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
@@ -579,6 +579,8 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
 
+        from .main import TimeSeriesViewer
+        eotsv = TimeSeriesViewer.instance()
 
 
         menu = QMenu()
@@ -732,15 +734,25 @@ class MapCanvas(QgsMapCanvas):
                 classSchemes.append(classScheme)
         """
 
-        action = menu.addAction('Hide date')
-        action.triggered.connect(lambda : self.sigChangeDVRequest.emit(self, 'hide_date'))
-        action = menu.addAction('Remove date')
-        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'remove_date'))
-        menu.addSeparator()
-        action = menu.addAction('Hide map view')
-        action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'hide_mapview'))
-        action = menu.addAction('Remove map view')
-        action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
+
+        if isinstance(self.mTSD, TimeSeriesDatum):
+            menu.addSeparator()
+            action = menu.addAction('Hide date')
+            action.triggered.connect(lambda: self.mTSD.setVisibility(False))
+
+            if isinstance(eotsv, TimeSeriesViewer):
+                ts = eotsv.timeSeries()
+                action = menu.addAction('Remove date')
+                action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
+
+
+
+
+
+        #action = menu.addAction('Hide map view')
+        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'hide_mapview'))
+        #action = menu.addAction('Remove map view')
+        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
 
         return menu
 
