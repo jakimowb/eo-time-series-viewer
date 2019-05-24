@@ -167,10 +167,10 @@ class TimeSeriesViewerUI(QMainWindow,
         if a not in self.mMapToolActions:
             self.mMapToolActions.append(a)
         a.setCheckable(True)
-        a.toggled.connect(self.onMapToolActionToggled)
+        a.toggled.connect(lambda b, action=a: self.onMapToolActionToggled(b, action))
 
-    def onMapToolActionToggled(self, b:bool):
-        action = QApplication.instance().sender()
+    def onMapToolActionToggled(self, b:bool, action:QAction):
+
         assert isinstance(action, QAction)
         otherActions = [a for a in self.mMapToolActions if a != action]
 

@@ -500,14 +500,20 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         Enables / diables the map canvas crosshair.
         :param b: bool
         """
-        srcCanvas = self.sender()
-        if isinstance(srcCanvas, MapCanvas):
-            dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
-        else:
-            dstCanvases = [c for c in self.mapCanvases()]
 
-        for mapCanvas in dstCanvases:
-            mapCanvas.setCrosshairVisibility(b, emitSignal=False)
+        # set the action checked state first
+        if self.actionToggleCrosshairVisibility.isChecked() != b:
+            self.actionToggleCrosshairVisibility.setChecked(b)
+        else:
+            srcCanvas = self.sender()
+            if isinstance(srcCanvas, MapCanvas):
+                dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
+            else:
+                dstCanvases = [c for c in self.mapCanvases()]
+
+            for mapCanvas in dstCanvases:
+                mapCanvas.setCrosshairVisibility(b, emitSignal=False)
+
 
     def sensorProxyLayers(self)->list:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
@@ -1594,22 +1600,26 @@ class SpatialTemporalVisualization(QObject):
         assert isinstance(iface, QgisInterface)
 
         c = iface.mapCanvas()
-        assert isinstance(c, QgsMapCanvas)
+        if not isinstance(c, QgsMapCanvas):
+            return
+
         tsvCenter = self.spatialExtent().spatialCenter()
         qgsCenter = SpatialExtent.fromMapCanvas(c).spatialCenter()
 
         if qgisChanged:
-            # change TSV
+            # change EOTSV
             if tsvCenter.crs().isValid():
                 self.mSyncLock = True
                 qgsCenter = qgsCenter.toCrs(tsvCenter.crs())
-                self.setSpatialCenter(qgsCenter)
+                if isinstance(qgsCenter, SpatialPoint):
+                    self.setSpatialCenter(qgsCenter)
         else:
             # change QGIS
             if qgsCenter.crs().isValid():
                 self.mSyncLock = True
                 tsvCenter = tsvCenter.toCrs(qgsCenter.crs())
-                c.setCenter(tsvCenter)
+                if isinstance(tsvCenter, SpatialPoint):
+                    c.setCenter(tsvCenter)
             else:
                 pass
 
