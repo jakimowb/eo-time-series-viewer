@@ -94,12 +94,18 @@
            <property name="text">
             <string>...</string>
            </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item>
           <widget class="QToolButton" name="btnRemoveTSD">
            <property name="text">
             <string>...</string>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -108,6 +114,9 @@
            <property name="text">
             <string>...</string>
            </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item>
@@ -115,12 +124,18 @@
            <property name="text">
             <string>...</string>
            </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item>
           <widget class="QToolButton" name="btnClearTS">
            <property name="text">
             <string>...</string>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -187,7 +202,7 @@
          </widget>
         </item>
         <item>
-         <widget class="TimeSeriesTableView" name="tableView_TimeSeries">
+         <widget class="TimeSeriesTreeView" name="timeSeriesTreeView">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>1</horstretch>
@@ -202,6 +217,9 @@
           </property>
           <property name="alternatingRowColors">
            <bool>true</bool>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
           </property>
           <property name="sortingEnabled">
            <bool>true</bool>
@@ -246,32 +264,7 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QProgressBar" name="progressBar">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-           <horstretch>1</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>50</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>100</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="value">
-          <number>24</number>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="progressInfo">
+        <widget class="QLabel" name="summary">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
            <horstretch>2</horstretch>
@@ -304,19 +297,6 @@
          </property>
         </widget>
        </item>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
       </layout>
      </widget>
     </item>
@@ -325,8 +305,8 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>TimeSeriesTableView</class>
-   <extends>QTableView</extends>
+   <class>TimeSeriesTreeView</class>
+   <extends>QTreeView</extends>
    <header>eotimeseriesviewer.timeseries</header>
   </customwidget>
  </customwidgets>

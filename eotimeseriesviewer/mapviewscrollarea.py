@@ -26,6 +26,7 @@ from qgis.PyQt.QtWidgets import *
 class MapViewScrollArea(QScrollArea):
 
     sigResized = pyqtSignal()
+
     def __init__(self, *args, **kwds):
         super(MapViewScrollArea, self).__init__(*args, **kwds)
 

@@ -120,6 +120,8 @@ class TimeSeriesViewerUI(QMainWindow,
         # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
         self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
+        self.dockTimeSeries.initActions(self)
+
         from eotimeseriesviewer.profilevisualization import ProfileViewDockUI
         self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
         from eotimeseriesviewer.labeling import LabelingDock
@@ -292,13 +294,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setMapBackgroundColor)
         self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
+        self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.ui.actionIdentifyTemporalProfile.trigger)
 
 
-        tstv = self.ui.dockTimeSeries.tableView_TimeSeries
-        assert isinstance(tstv, TimeSeriesTableView)
+        tstv = self.ui.dockTimeSeries.timeSeriesTreeView
+        assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDatum)
 
         # init map tools
@@ -1020,17 +1023,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):
-        # remove views
 
-        M = self.ui.dockTimeSeries.tableView_TimeSeries.model()
-        M.beginResetModel()
+        self.mTimeSeries.beginResetModel()
         self.mTimeSeries.clear()
-        M.endResetModel()
-
-    def getSelectedTSDs(self):
-        TV = self.ui.tableView_TimeSeries
-        TVM = TV.model()
-        return [TVM.getTimeSeriesDatumFromIndex(idx) for idx in TV.selectionModel().selectedRows()]
+        self.mTimeSeries.endResetModel()
 
 
 def disconnect_signal(signal):

@@ -13,6 +13,8 @@ from eotimeseriesviewer.tests import initQgisApplication
 
 QAPP = initQgisApplication()
 
+SHOW_GUI = True and os.environ.get('CI') is None
+
 class TestInit(unittest.TestCase):
 
     def createTestDatasets(self):
@@ -107,6 +109,7 @@ class TestInit(unittest.TestCase):
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
 
         tss = TimeSeriesSource.create(file)
+        tss2 = TimeSeriesSource.create(example.Images.Img_2014_07_02_LE72270652014183CUB00_BOA)
         sensor = SensorInstrument(tss.sid())
 
         tsd = TimeSeriesDatum(None, tss.date(), sensor)
@@ -116,12 +119,26 @@ class TestInit(unittest.TestCase):
         self.assertEqual(tsd.sensor(), sensor)
         self.assertEqual(len(tsd), 0)
         tsd.addSource(tss)
+        tsd.addSource(tss)
         self.assertEqual(len(tsd), 1)
 
         self.assertTrue(tsd.year() == 2014)
         self.assertTrue(tsd.doy() == 79)
         self.assertIsInstance(tsd.decimalYear(), float)
         self.assertTrue(tsd.decimalYear() >= 2014 and tsd.decimalYear() < 2015)
+
+
+        self.assertIsInstance(tsd, QAbstractTableModel)
+        for r in range(len(tsd)):
+            for i in range(len(TimeSeriesDatum.ColumnNames)):
+                value = tsd.data(tsd.createIndex(r, i), role=Qt.DisplayRole)
+
+        TV = QTableView()
+        TV.setModel(tsd)
+        TV.show()
+
+        if SHOW_GUI:
+            QAPP.exec_()
 
     def test_timeseriessource(self):
         wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
@@ -237,9 +254,11 @@ class TestInit(unittest.TestCase):
 
         TS = TimeSeries()
         self.assertIsInstance(TS, TimeSeries)
+        self.assertIsInstance(TS, QAbstractItemModel)
+
         TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
         TS.sigTimeSeriesDatesRemoved.connect(lambda dates: removedDates.extend(dates))
-        TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
+        #TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
         TS.sigSensorAdded.connect(lambda sensor: addedSensors.append(sensor))
         TS.sigSensorRemoved.connect(lambda sensor:removedSensors.append(sensor))
         TS.addSources(files)
@@ -255,8 +274,9 @@ class TestInit(unittest.TestCase):
         self.assertEqual(len(files), len(TS))
         self.assertEqual(len(addedDates), len(TS))
 
-
-
+        self.assertTrue(len(TS) > 0)
+        self.assertEqual(TS.columnCount(), len(TS.mColumnNames))
+        self.assertEqual(TS.rowCount(), len(TS))
 
 
         self.assertEqual(len(removedDates), 0)
@@ -297,6 +317,36 @@ class TestInit(unittest.TestCase):
     def test_datematching(self):
         pass
 
+    def test_TimeSeriesTreeModel(self):
+
+        TS = TimeSeries()
+        TS.addSources(TestObjects.createMultiSourceTimeSeries())
+
+        self.assertTrue(len(TS) > 0)
+        self.assertIsInstance(TS, QAbstractItemModel)
+
+        self.assertEqual(len(TS), TS.rowCount())
+        M = QSortFilterProxyModel()
+        M.setSourceModel(TS)
+        TV = QTreeView()
+        TV.setSortingEnabled(True)
+        TV.setModel(M)
+        TV.show()
+
+        if SHOW_GUI:
+            QAPP.exec_()
+
+    def test_TimeSeriesDock(self):
+
+        TS = TimeSeries()
+        TS.addSources(TestObjects.createMultiSourceTimeSeries())
+
+        dock = TimeSeriesDockUI()
+        dock.setTimeSeries(TS)
+        dock.show()
+
+        if SHOW_GUI:
+            QAPP.exec_()
 
 
 if __name__ == '__main__':

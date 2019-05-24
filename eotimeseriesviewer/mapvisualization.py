@@ -1495,6 +1495,8 @@ class SpatialTemporalVisualization(QObject):
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
 
+    sigVisibleDatesChanged = pyqtSignal(list)
+
     def __init__(self, timeSeriesViewer):
         super(SpatialTemporalVisualization, self).__init__()
         # assert isinstance(timeSeriesViewer, TimeSeriesViewer), timeSeriesViewer
@@ -1507,12 +1509,15 @@ class SpatialTemporalVisualization(QObject):
         self.mMapCanvases = []
         self.ui = timeSeriesViewer.ui
 
+        self.mVisibleDates = set()
         # map-tool handling
         self.mMapTools = []
 
         self.scrollArea = self.ui.scrollAreaSubsets
         assert isinstance(self.scrollArea, MapViewScrollArea)
-
+        self.scrollArea.horizontalScrollBar().valueChanged.connect(self.onVisibleMapsChanged)
+        self.scrollArea.horizontalScrollBar().rangeChanged.connect(self.onVisibleMapsChanged)
+        # self.scrollArea.sigResized.connect(self.onVisibleMapsChanged)
         # self.scrollArea.sigResized.connect(self.refresh())
         # self.scrollArea.horizontalScrollBar().valueChanged.connect(self.mRefreshTimer.start)
 
@@ -1585,6 +1590,20 @@ class SpatialTemporalVisualization(QObject):
             else:
                 pass
 
+    def visibleMaps(self)->list:
+        """
+        Returns a list of mapcanvas visible to the user
+        :return: [list-of-MapCanvases
+        """
+        return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
+
+    def onVisibleMapsChanged(self, *args):
+
+        visibleDates = set([m.tsd() for m in self.visibleMaps()])
+        if visibleDates != self.mVisibleDates:
+            self.mVisibleDates.clear()
+            self.mVisibleDates.update(visibleDates)
+            self.sigVisibleDatesChanged.emit(list(self.mVisibleDates))
 
     def timedCanvasRefresh(self, *args, force:bool=False):
 
@@ -1593,7 +1612,7 @@ class SpatialTemporalVisualization(QObject):
         # do refresh maps
         assert isinstance(self.scrollArea, MapViewScrollArea)
 
-        visibleMaps = [m for m in self.mapCanvases() if m.isVisibleToViewport()]
+        visibleMaps = self.visibleMaps()
 
         hiddenMaps = sorted([m for m in self.mapCanvases() if not m.isVisibleToViewport()],
                             key = lambda c : self.scrollArea.distanceToCenter(c) )
