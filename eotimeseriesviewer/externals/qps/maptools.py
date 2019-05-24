@@ -683,7 +683,7 @@ class QgsFeatureAction(QAction):
                 self.mFeature = None
                 return True
 
-        dialog.exec_()
+            dialog.exec_()
 
 
         return self.mFeatureSaved

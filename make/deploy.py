@@ -535,7 +535,7 @@ def uploadDeveloperPlugin():
                             else:
 
                                 raise Exception('Need credentials to access {}'.format(url))
-                        elif not r.status_code in [200,201]:
+                        elif not r.status_code in [200, 201]:
                             print(info, file=sys.stderr)
                         else:
                             print(info)
