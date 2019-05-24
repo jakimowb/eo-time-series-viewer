@@ -54,13 +54,14 @@ KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 
 class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
-    def __init__(self, view: QgsLayerTreeView, canvas: QgsMapCanvas):
+    def __init__(self, mapView, view: QgsLayerTreeView, canvas: QgsMapCanvas):
         super(MapViewLayerTreeViewMenuProvider, self).__init__()
         assert isinstance(view, QgsLayerTreeView)
         assert isinstance(canvas, QgsMapCanvas)
         self.mLayerTreeView = view
         self.mDummyCanvas = canvas
         self.mDefActions = QgsLayerTreeViewDefaultActions(self.mLayerTreeView)
+        self.mMapView = mapView
 
         self.actionAddGroup = self.mDefActions.actionAddGroup()
         self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
@@ -75,6 +76,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
         self.actionAddEOTSVTemporalProfiles = QAction('Add Temporal Profile Layer')
 
+    def mapView(self):
+        return self.mMapView
 
     def layerTreeView(self)->QgsLayerTreeView:
         return self.mLayerTreeView
@@ -118,9 +121,22 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addAction(self.actionAddEOTSVTemporalProfiles)
 
         menu.addSeparator()
+
+        centerCanvas = None
+        if isinstance(self.mapView(), MapView):
+            visibleCanvases = self.mapView().visibleMapCanvases()
+            if len(visibleCanvases) > 0:
+                i = int(len(visibleCanvases) / 2)
+                centerCanvas = visibleCanvases[i]
+
+
         a = menu.addAction('Set Properties')
-        a.triggered.connect(lambda *args, lyr=l, canvas=self.mDummyCanvas: showLayerPropertiesDialog(lyr, canvas))
-        a.setEnabled(not isinstance(l, SensorProxyLayer))
+        a.triggered.connect(lambda *args, canvas=centerCanvas, lyr=l:
+                            showLayerPropertiesDialog(lyr, canvas))
+        a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
+
+
+
         #a = menu.addAction('Settings')
         #from qps.layerproperties import showLayerPropertiesDialog
         #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
@@ -228,7 +244,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self._createSensorNode()
 
         self.mLayerTreeView.setModel(self.mLayerTreeModel)
-        self.mMapLayerTreeViewMenuProvider = MapViewLayerTreeViewMenuProvider(self.mLayerTreeView, self.mDummyCanvas)
+        self.mMapLayerTreeViewMenuProvider = MapViewLayerTreeViewMenuProvider(self, self.mLayerTreeView, self.mDummyCanvas)
 
         # register some actions that interact with other GUI elements
         self.mMapLayerTreeViewMenuProvider.actionAddEOTSVSpectralProfiles.triggered.connect(self.addSpectralProfileLayer)
@@ -240,6 +256,13 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
 
         self.mIsVisible = True
         self.setTitle(name)
+
+    def visibleMapCanvases(self)->list:
+        """
+        Returns the currently visible mapcanvases
+        :return: [list-of-MapCanvases]
+        """
+        return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
 
     def onAddOgrLayer(self):
 
