@@ -1,9 +1,10 @@
 2019-05-24
-        - version 1.1
-        - TimeSeries dates and data sources are now shown in a TreeView
+        - increased version to 1.1
+        - Dates and data sources of the TimeSeries are now shown in a TreeView instead TableView
         - Observation dates of current visible mapcanvases are highlighted in the time series tree view
-        - fixed StackedInputDialog
-        - fixed MapCanvas context menu
+        - Sensor raster layer properties can be opened from MapView layer tree (#87). Stats will be related to center mapcanvas.
+        - fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85),
+          remove temporal profile (#86), draw new feature error (#84)
 
 2019-05-15
         - increased version to 1.0
