@@ -669,7 +669,8 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
                 lyr.startEditing()
             else:
                 if lyr.isModified():
-                    if QMessageBox.question(self, '{}'.format(lyr.name()), 'Save changes?') == QMessageBox.Ok:
+                    r = QMessageBox.question(self, '{}'.format(lyr.name()), 'Save changes?')
+                    if r == QMessageBox.Yes:
                         lyr.commitChanges()
                     else:
                         lyr.rollBack()
