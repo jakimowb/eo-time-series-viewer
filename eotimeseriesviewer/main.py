@@ -304,8 +304,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDatum)
 
-        # init map tools
-        self.mMapTools = []
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
 
@@ -595,34 +593,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param kwds:
         :return:
         """
-        # disconnect previous map-tools?
-        del self.mMapTools[:]
-
+        self.spatialTemporalVis.setMapTool(mapToolKey)
         kwds = {}
 
-        if mapToolKey == MapTools.SelectFeature:
-            if self.ui.optionSelectFeaturesRectangle.isChecked():
-                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
-            elif self.ui.optionSelectFeaturesPolygon.isChecked():
-                mode = QgsMapToolSelectionHandler.SelectionMode.SelectPolygon
-            elif self.ui.optionSelectFeaturesFreehand.isChecked():
-                mode = QgsMapToolSelectionHandler.SelectionMode.SelectFreehand
-            elif self.ui.optionSelectFeaturesRadius.isChecked():
-                mode = QgsMapToolSelectionHandler.SelectionMode.SelectRadius
-            else:
-                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
-
-        for canvas in self.mapCanvases():
-            from .mapcanvas import MapCanvas, MapCanvasMapTools
-
-            if isinstance(canvas, MapCanvas):
-
-                mapTools = canvas.mapTools()
-                mapTools.activate(mapToolKey)
-
-                mt = canvas.mapTool()
-                if isinstance(mt, QgsMapToolSelect):
-                    mt.setSelectionMode(mode)
 
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):

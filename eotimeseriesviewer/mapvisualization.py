@@ -32,14 +32,15 @@ from PyQt5.QtXml import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 import numpy as np
-from eotimeseriesviewer.utils import *
-from eotimeseriesviewer import Option, OptionListModel
-from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries, SensorProxyLayer
-from eotimeseriesviewer.utils import loadUI
-from eotimeseriesviewer.mapviewscrollarea import MapViewScrollArea
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle
-from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog
+from .utils import *
+from .import Option, OptionListModel
+from .timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries, SensorProxyLayer
+from .utils import loadUI
+from .mapviewscrollarea import MapViewScrollArea
+from .mapcanvas import MapCanvas, MapTools
+from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle
+from .externals.qps.layerproperties import showLayerPropertiesDialog
+from .externals.qps.maptools import *
 
 #assert os.path.isfile(dummyPath)
 #lyr = QgsRasterLayer(dummyPath)
@@ -1539,8 +1540,10 @@ class SpatialTemporalVisualization(QObject):
         self.ui = timeSeriesViewer.ui
 
         self.mVisibleDates = set()
+
         # map-tool handling
-        self.mMapTools = []
+        self.mMapToolKey = MapTools.Pan
+        self.mMapToolMode = None
 
         self.scrollArea = self.ui.scrollAreaSubsets
         assert isinstance(self.scrollArea, MapViewScrollArea)
@@ -1582,6 +1585,41 @@ class SpatialTemporalVisualization(QObject):
         self.mCurrentLayer = None
 
         self.mSyncLock = False
+
+    def setMapTool(self, mapToolKey):
+
+
+        mode = None
+
+        if mapToolKey == MapTools.SelectFeature:
+            if self.ui.optionSelectFeaturesRectangle.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
+            elif self.ui.optionSelectFeaturesPolygon.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectPolygon
+            elif self.ui.optionSelectFeaturesFreehand.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectFreehand
+            elif self.ui.optionSelectFeaturesRadius.isChecked():
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectRadius
+            else:
+                mode = QgsMapToolSelectionHandler.SelectionMode.SelectSimple
+
+        self.mMapToolKey = mapToolKey
+        self.mMapToolMode = mode
+
+
+        from .mapcanvas import MapCanvas, MapCanvasMapTools
+
+        for canvas in self.mapCanvases():
+
+            if isinstance(canvas, MapCanvas):
+
+                mapTools = canvas.mapTools()
+                mapTools.activate(mapToolKey)
+
+                mt = canvas.mapTool()
+                if isinstance(mt, QgsMapToolSelect):
+                    mt.setSelectionMode(mode)
+
 
     def setCurrentLayer(self, layer):
 
@@ -1708,15 +1746,16 @@ class SpatialTemporalVisualization(QObject):
         mapCanvas.setDestinationCrs(self.mCRS)
         mapCanvas.setSpatialExtent(self.mSpatialExtent)
 
-
-        # register on map canvas signals
-        def onChanged(e, mapCanvas0=None):
-            #self.setSpatialExtent(e, mapCanvas0=mapCanvas0)
-            self.setSpatialExtent(e)
-        #mapCanvas.sigSpatialExtentChanged.connect(lambda e: self.setSpatialExtent(e, mapCanvas0=mapCanvas))
-        #mapCanvas.sigSpatialExtentChanged.connect(lambda e: onChanged(e, mapCanvas0=mapCanvas))
         mapCanvas.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairChanged)
+
+        # activate the current map tool
+        mapTools = mapCanvas.mapTools()
+        mapTools.activate(self.mMapToolKey)
+
+        mt = mapCanvas.mapTool()
+        if isinstance(mt, QgsMapToolSelect):
+            mt.setSelectionMode(self.mMapToolMode)
 
     def onCrosshairChanged(self, spatialPoint:SpatialPoint):
         """
@@ -1828,36 +1867,6 @@ class SpatialTemporalVisualization(QObject):
 
         #print(sizeX, sizeY)
         self.targetLayout.parentWidget().resize(QSize(sizeX, sizeY))
-
-    def setMapTool(self, mapToolKey, *args, **kwds):
-        """
-        Create a maptool instance to each MapCanvas
-        :param mapToolKey: str which MapTool is to create, or QgsMapTool instance
-        :param args: optional maptool arguments
-        :param kwds: optional maptool keywords
-        :return: [list-of-QgsMapTools]
-        """
-
-        del self.mMapTools[:]
-
-        from eotimeseriesviewer import MapTools, CursorLocationMapTool, SpectralProfileMapTool, TemporalProfileMapTool
-        for canvas in self.mMapCanvases:
-            mt = None
-            if mapToolKey in MapTools.mapToolKeys():
-                mt = MapTools.create(mapToolKey, canvas, *args, **kwds)
-
-            if isinstance(mapToolKey, QgsMapTool):
-                mt = MapTools.copy(mapToolKey, canvas, *args, **kwds)
-
-            if isinstance(mt, QgsMapTool):
-                canvas.setMapTool(mt)
-                self.mMapTools.append(mt)
-
-                # if required, link map-tool with specific slots
-                if isinstance(mt, CursorLocationMapTool):
-                    mt.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.onLocationRequest)
-
-        return self.mMapTools
 
     def onLocationRequest(self, pt:SpatialPoint, canvas:QgsMapCanvas):
 
