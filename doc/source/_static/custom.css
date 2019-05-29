@@ -1,0 +1,29 @@
+.menuselection {
+  border:1px dashed #7fbbe366;
+  background:#f1f9ff;
+  font-size:95%;
+  font-weight:700;
+  border-radius:1px;
+  padding:2.4px 5px;
+  margin:auto 2px
+}
+
+.rst-content .guilabel {
+  border:1px solid #7fbbe366;
+  background:#f1f9ff;
+  font-size:95%;
+  font-weight:700;
+  border-radius:1px;
+  padding:2.4px 5px;
+  margin:auto 2px
+}
+
+.kbd {
+  font-weight: bold;
+  border: 1px solid #ddd;
+  background: #eee;
+  color: #E22;
+  border-radius:3px;
+  padding-left: 3px;
+  padding-right: 3px;
+}
