@@ -297,7 +297,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
 
-        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.ui.actionIdentifyTemporalProfile.trigger)
+
 
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
@@ -376,6 +376,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
 
+
+        def onActionIdentifyTemporalProfile():
+            self.ui.actionIdentify.trigger()
+            self.ui.optionIdentifyTemporalProfile.setChecked(True)
+
+        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(onActionIdentifyTemporalProfile)
+
+        def onActionIdentifySpectralProfile():
+            self.ui.actionIdentify.trigger()
+            self.ui.optionIdentifySpectralProfile.setChecked(True)
+
+        self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(onActionIdentifySpectralProfile)
+
+
         # connect buttons with actions
         from eotimeseriesviewer.widgets import AboutDialogUI
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
@@ -387,7 +401,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         assert isinstance(SLW, SpectralLibraryWidget)
-        SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+        #SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
         SLW.setMapInteraction(True)
         SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
         SLW.sigMapExtentRequested.connect(self.setSpatialExtent)

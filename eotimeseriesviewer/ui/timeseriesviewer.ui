@@ -613,18 +613,6 @@
     <string>Collect labels by clicking on related map windows</string>
    </property>
   </action>
-  <action name="actionIdentifyTemporalProfile">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Temporal profile</string>
-   </property>
-   <property name="toolTip">
-    <string>Identify pixel time series for specific coordinate</string>
-   </property>
-  </action>
   <action name="actionRefresh">
    <property name="icon">
     <iconset resource="resources.qrc">
@@ -653,19 +641,6 @@
    </property>
    <property name="text">
     <string>Show Crosshair</string>
-   </property>
-  </action>
-  <action name="actionIdentifySpectralProfile">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/pickrasterspectrum.svg</normaloff>
-     <normalon>:/enmapbox/png/icons/mActionIdentify.png</normalon>:/timeseriesviewer/icons/pickrasterspectrum.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Pixel profile</string>
-   </property>
-   <property name="toolTip">
-    <string>Select pixel profiles from map</string>
    </property>
   </action>
   <action name="actionImportExtent">
