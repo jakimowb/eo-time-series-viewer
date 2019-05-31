@@ -1125,7 +1125,16 @@ class SaveAllMapsDialog(QDialog, loadUI('saveallmapsdialog.ui')):
 
         self.fileWidget.setStorageMode(QgsFileWidget.GetDirectory)
 
-        formats = [('Portable Network Graphics (*.png)', 'PNG')]
+        formats = [('Portable Network Graphics (*.png)', 'PNG'),
+                   ('Joint Photographic Experts Group (*.jpg)', 'JPG'),
+                   ('Windows Bitmap (*.bmp)', 'BMP'),
+                   ('Portable Bitmap (*.pbm)', 'PBM'),
+                   ('Portable Graymap (*.pgm)', 'PGM'),
+                   ('Portable Pixmap (*.ppm)', 'PPM'),
+                   ('X11 Bitmap (*.xbm)', 'XBM'),
+                   ('X11 Pixmap (*.xpm)', 'XPM'),
+                   ]
+
 
 
         for t in formats:
