@@ -1,6 +1,16 @@
 ====
 News
 ====
+
+See for a detailed changelog
+
+2019-05-31:
+
+    * increased version to 1.2
+    * Added menu option to export all maps as image files.
+
+
+
 2019-05-15:
     * Major update: released version 1.0 with many new features:
     * labeling tools to modify vector layers.
@@ -9,7 +19,7 @@ News
     * SpectralLibrary can import SpectralProfiles from a raster image based on vector positions
     * simplified MapView control dock, each MapView has it's own layer tree.
     * improved MapTool organization
-    * removed PyQtGraph from list of required external python packages, no need to run a pip instalation first
+    * removed PyQtGraph from list of required external python packages, no need to run a pip installation first
 
 2019-03-01:
 

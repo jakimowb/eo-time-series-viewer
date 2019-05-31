@@ -2,6 +2,34 @@
 User Guide
 ==========
 
+Version 1.2
+-----------
+
+Added menu option to export all maps as image files.
+
+.. image:: img/changelog.1.2/exportmapimages.png
+
+.. image:: img/changelog.1.2/exportmapimagesdialog.png
+
+Fixes:
+
+* select Temporal Profile / Spectral Profile button activates the required map tools (#91).
+* map canvas context menu "copy to clipboard" options (#92).
+
+
+Version 1.1
+-----------
+
+Time Series data sources are shown in a tree view, which improves the overview in case multiple source images exists per observation date.
+
+Observation dates of visible Map Canvases are highlighted in the time series tree view.
+
+Fixes:
+
+* Sensor raster layer properties can be opened from MapView layer tree (#87). Stats will be related to center mapcanvas.
+* StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85),
+* remove temporal profile (#86), draw new feature error (#84), Crosshair button status (#90), and some more
+
 
 Version 1.0
 -----------

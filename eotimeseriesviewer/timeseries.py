@@ -941,10 +941,11 @@ class TimeSeries(QAbstractItemModel):
         self.mCurrentDates.extend(tsds)
         for tsd in tsds:
             assert isinstance(tsd, TimeSeriesDatum)
-            idx = self.tsdToIdx(tsd)
-            # forece reset of background color
-            idx2 = self.index(idx.row(), self.columnCount()-1)
-            self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
+            if tsd in self:
+                idx = self.tsdToIdx(tsd)
+                # force reset of background color
+                idx2 = self.index(idx.row(), self.columnCount()-1)
+                self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
     def sensor(self, sensorID:str)->SensorInstrument:
         """
