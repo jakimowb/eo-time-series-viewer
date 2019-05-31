@@ -87,11 +87,6 @@ class TestInit(TestCase):
         TSV = TimeSeriesViewer()
         TSV.show()
         TSV.loadExampleTimeSeries()
-        from example import exampleEvents
-        #lyr = QgsVectorLayer(exampleEvents)
-        #lyr.setName('Example Events')
-        #QgsProject.instance().addMapLayer(lyr)
-
         tsd = TSV.timeSeries()[-1]
         TSV.showTimeSeriesDatum(tsd)
         if SHOW_GUI:

@@ -831,18 +831,6 @@ class DatumView(QObject):
         #mapCanvas.sigChangeDVRequest.connect(self.onMapCanvasRequest)
 
 
-
-    def onMapCanvasRequest(self, mapCanvas, key):
-
-        if key == 'hide_date':
-            self.TSD.setVisibility(False)
-        if key == 'copy_sensor':
-            QApplication.clipboard().setText(self.TSD.mSensor.name())
-        if key == 'copy_date':
-            QApplication.clipboard().setText(str(self.TSD.date()))
-        if key == 'copy_path':
-            QApplication.clipboard().setText('\n'.join(self.TSD.sourceUris()))
-
     def __lt__(self, other):
         assert isinstance(other, DatumView)
         return self.TSD < other.TSD

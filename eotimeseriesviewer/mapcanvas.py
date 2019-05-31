@@ -660,17 +660,21 @@ class MapCanvas(QgsMapCanvas):
 
         action.triggered.connect(onCrosshairChange)
 
-        menu.addSeparator()
-
-        m = menu.addMenu('Copy...')
-        action = m.addAction('Date')
-        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_date'))
-        action = m.addAction('Sensor')
-        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_sensor'))
-        action = m.addAction('Path')
-        action.triggered.connect(lambda: self.sigChangeDVRequest.emit(self, 'copy_path'))
-        action = m.addAction('Map')
-        action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+        if isinstance(tsd, TimeSeriesDatum):
+            menu.addSeparator()
+            m = menu.addMenu('Copy...')
+            action = m.addAction('Date')
+            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
+            action.setToolTip('Sends "" to the clipboard.'.format(str(tsd.date())))
+            action = m.addAction('Sensor')
+            action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
+            action.setToolTip('Sends "" to the clipboard.'.format(tsd.sensor().name()))
+            action = m.addAction('Path')
+            action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(tsd.sourceUris())))
+            action.setToolTip('Sends the {} source URI(s) to the clipboard.'.format(len(tsd)))
+            action = m.addAction('Map')
+            action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
+            action.setToolTip('Copies this map into the clipboard.')
 
         m = menu.addMenu('Map Coordinates...')
 
@@ -794,8 +798,11 @@ class MapCanvas(QgsMapCanvas):
             gaussian: 'n' mean +- n* standard deviations
         :return:
         """
+        layers = [l for l in self.layers() if isinstance(l, SensorProxyLayer)]
 
-        for l in self.layers():
+
+
+        for l in layers:
             if isinstance(l, SensorProxyLayer):
                 r = l.renderer()
                 dp = l.dataProvider()
