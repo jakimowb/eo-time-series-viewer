@@ -239,7 +239,18 @@ class MapCanvas(QgsMapCanvas):
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
+    def mapView(self):
+        """
+        Returns the MapView this MapCanvas is linked to
+        :return:
+        """
+        return self.mMapView
+
     def mapTools(self)->MapCanvasMapTools:
+        """
+        Returns the map tools of this MapCanvas
+        :return: MapCanvasMapTools
+        """
         return self.mMapTools
 
     def initMapTools(self):

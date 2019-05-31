@@ -104,6 +104,24 @@ class TestInit(TestCase):
         if SHOW_GUI:
             QGIS_APP.exec_()
 
+
+    def test_exportMapsToImages(self):
+
+        from eotimeseriesviewer.main import TimeSeriesViewer, SaveAllMapsDialog
+
+        d = SaveAllMapsDialog()
+        self.assertEqual(d.fileType(), 'PNG')
+
+
+        TSV = TimeSeriesViewer()
+        TSV.show()
+        paths = TestObjects.createMultiSourceTimeSeries()
+        TSV.addTimeSeriesImages(paths)
+        TSV.exportMapsToImages()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
     def test_TimeSeriesViewerMassiveSources(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
 

@@ -375,7 +375,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
-
+        self.ui.actionExportMapsToImages.triggered.connect(lambda :self.exportMapsToImages())
 
         def onActionIdentifyTemporalProfile():
             self.ui.actionIdentify.trigger()
@@ -442,6 +442,68 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 assert isinstance(toolButton, QToolButton)
                 if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu):
                     toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+
+    def exportMapsToImages(self, path=None, format='PNG'):
+
+        from .mapcanvas import MapCanvas
+        from .mapvisualization import MapView
+        from .settings import Keys, setValue, value
+        import string
+
+
+        if path is None:
+            d = SaveAllMapsDialog()
+
+            path = value(Keys.MapImageExportDirectory, default=None)
+            if isinstance(path, str):
+                d.setDirectory(path)
+
+            if d.exec() != QDialog.Accepted:
+                s = ""
+                return
+
+            format = d.fileType().lower()
+            path = d.directory()
+
+
+
+        else:
+            format = format.lower()
+
+        mapCanvases = self.mapCanvases()
+        n = len(mapCanvases)
+        progressDialog = QProgressDialog()
+        progressDialog.setWindowTitle('Save Map Images...')
+
+        progressDialog.setRange(0, n)
+
+        valid_chars = "-_.() {}{}".format(string.ascii_letters, string.digits)
+
+        for i, mapCanvas in enumerate(mapCanvases):
+            if progressDialog.wasCanceled():
+                return
+
+            assert isinstance(mapCanvas, MapCanvas)
+            mapCanvas.timedRefresh()
+            tsd = mapCanvas.tsd()
+            mv = mapCanvas.mapView()
+            assert isinstance(mv, MapView)
+            mapCanvas.waitWhileRendering()
+            imgPath = '{}.{}.{}'.format(tsd.date(), mv.title(), format)
+
+            imgPath = ''.join(c for c in imgPath if c in valid_chars)
+            imgPath = imgPath.replace(' ', '_')
+            imgPath = os.path.join(path, imgPath)
+
+            mapCanvas.saveAsImage(imgPath, None, format)
+            progressDialog.setValue(i + 1)
+            progressDialog.setLabelText('{}/{} maps saved'.format(i+1, n))
+
+            if progressDialog.wasCanceled():
+                return
+
+        setValue(Keys.MapImageExportDirectory, path)
 
 
     def onMapViewAdded(self, mapView):
@@ -591,7 +653,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # the default values
         defaults = defaultValues()
         for key in list(Keys):
-            if value(key) == None:
+            if value(key) == None and key in defaults.keys():
                 setValue(key, defaults[key])
 
         self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
@@ -1049,9 +1111,65 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.endResetModel()
 
 
+
+class SaveAllMapsDialog(QDialog, loadUI('saveallmapsdialog.ui')):
+
+
+    def __init__(self, parent=None):
+
+        super(SaveAllMapsDialog, self).__init__(parent)
+        self.setupUi(self)
+        self.setWindowTitle('Save Maps')
+        assert isinstance(self.fileWidget, QgsFileWidget)
+        assert isinstance(self.cbFileType, QComboBox)
+
+        self.fileWidget.setStorageMode(QgsFileWidget.GetDirectory)
+
+        formats = [('Portable Network Graphics (*.png)', 'PNG')]
+
+
+        for t in formats:
+            self.cbFileType.addItem(t[0], userData=t[1])
+
+        self.fileWidget.fileChanged.connect(self.validate)
+
+        self.buttonBox.button(QDialogButtonBox.Save).clicked.connect(lambda : self.setResult(QDialog.Accepted))
+        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(lambda : self.setResult(QDialog.Rejected))
+        self.validate()
+
+    def validate(self, *args):
+
+        b = os.path.isdir(self.directory())
+        self.buttonBox.button(QDialogButtonBox.Save).setEnabled(b)
+
+
+    def setDirectory(self, path:str):
+        assert os.path.isdir(path)
+        self.fileWidget.setFilePath(path)
+
+
+    def directory(self)->str:
+        """
+        Returns the selected directory
+        :return: str
+        """
+        return self.fileWidget.filePath()
+
+    def fileType(self)->str:
+        """
+        Returns the selected file type
+        :return:
+        """
+        return self.cbFileType.currentData(Qt.UserRole)
+
+
+
 def disconnect_signal(signal):
     while True:
         try:
             signal.disconnect()
         except TypeError:
             break
+
+
+

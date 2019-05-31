@@ -191,6 +191,7 @@
     </widget>
     <addaction name="actionRefresh"/>
     <addaction name="actionAddMapView"/>
+    <addaction name="actionExportMapsToImages"/>
     <addaction name="separator"/>
     <addaction name="menuPanels"/>
    </widget>
@@ -883,6 +884,18 @@
    </property>
    <property name="shortcutVisibleInContextMenu">
     <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionExportMapsToImages">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Export Maps to Images </string>
+   </property>
+   <property name="toolTip">
+    <string>Saves all maps as image files as PNG or JPEG images.</string>
    </property>
   </action>
  </widget>

@@ -21,6 +21,7 @@ class Keys(enum.Enum):
     ScreenShotDirectory = 'screen_shot_directory'
     RasterSourceDirectory = 'raster_source_directory'
     VectorSourceDirectory = 'vector_source_directory'
+    MapImageExportDirectory = 'map_image_export_directory'
 
 _VALID_KEYS = list(Keys)
 _VALID_KEYSTRING = [k.value for k in _VALID_KEYS]
