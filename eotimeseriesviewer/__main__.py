@@ -21,15 +21,26 @@
 def run():
     # add site-packages to sys.path
     from eotimeseriesviewer.tests import initQgisApplication
-    qgsApp = initQgisApplication()
+
+    import qgis.utils
+    from qgis.gui import QgisInterface
+    qgisIface = isinstance(qgis.utils.iface, QgisInterface)
+
+    if not qgisIface:
+        qgsApp = initQgisApplication()
+
     from eotimeseriesviewer import initAll
     initAll()
+
     from eotimeseriesviewer.main import TimeSeriesViewer
-    import qgis.utils
-    ts = TimeSeriesViewer(qgis.utils.iface)
+
+    ts = TimeSeriesViewer()
     ts.run()
-    qgsApp.exec_()
-    qgsApp.exitQgis()
+
+    if not qgisIface:
+        qgsApp.exec_()
+        qgsApp.exitQgis()
+
 
 
 if __name__ == '__main__':
