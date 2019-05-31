@@ -2,16 +2,19 @@
 News
 ====
 
-See for a detailed changelog
 
 2019-05-31:
 
     * increased version to 1.2
     * Added menu option to export all maps as image files.
 
+2019-05-24
 
+    * increased version to 1.1
+    * dates of visible map canvases are highlighted in the time series tree
 
 2019-05-15:
+
     * Major update: released version 1.0 with many new features:
     * labeling tools to modify vector layers.
     * quick labeling for time-labels information

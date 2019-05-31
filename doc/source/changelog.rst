@@ -24,6 +24,8 @@ Time Series data sources are shown in a tree view, which improves the overview i
 
 Observation dates of visible Map Canvases are highlighted in the time series tree view.
 
+.. image:: img/changelog.1.1/visibleobservationdates.png
+
 Fixes:
 
 * Sensor raster layer properties can be opened from MapView layer tree (#87). Stats will be related to center mapcanvas.

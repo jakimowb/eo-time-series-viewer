@@ -66,6 +66,7 @@ This program is free software; you can redistribute it and/or modify it under th
     installation.rst
     User Guide <user_guide.rst>
     gallery.rst
+    Changelog <changelog.rst>
     License <LICENSE.md>
 
 
