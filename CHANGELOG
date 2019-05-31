@@ -1,3 +1,9 @@
+2019-05-31
+        - increased version to 1.2
+        - added SaveAllMapsDialog  and menu option to export all maps as image files.
+        - fixed #91: select Temporal Profile / Spectral Profile button activates the required map tools (#91).
+        - fixed #92: map canvas context menu "copy to clipboard" options.
+
 2019-05-24
         - increased version to 1.1
         - Dates and data sources of the TimeSeries are now shown in a TreeView instead TableView
