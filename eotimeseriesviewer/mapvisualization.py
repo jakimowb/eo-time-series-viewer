@@ -548,6 +548,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
             dummyLayer = sensor.proxyLayer()
+            assert isinstance(dummyLayer.renderer(), QgsRasterRenderer)
             dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
 
             #QgsProject.instance().addMapLayer(dummyLayer)
@@ -1026,8 +1027,6 @@ class MapViewListModel(QAbstractListModel):
         super(MapViewListModel, self).__init__(parent)
         self.mMapViewList = []
 
-
-
     def addMapView(self, mapView):
         i = len(self.mMapViewList)
         self.insertMapView(i, mapView)
@@ -1470,25 +1469,18 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
 
     def setCurrentMapView(self, mapView):
-        assert isinstance(mapView, MapView) and mapView in self.mMapViews
-        idx = self.stackedWidget.indexOf(mapView.ui)
-        if idx >= 0:
-            self.stackedWidget.setCurrentIndex(idx)
-            self.cbMapView.setCurrentIndex(self.mMapViews.mapView2idx(mapView).row())
-
+        assert isinstance(mapView, MapView) and mapView in self.mapViews()
+        self.toolBox.setCurrentWidget(mapView)
         self.updateTitle()
 
     def updateTitle(self, *args):
         # self.btnToggleMapViewVisibility.setChecked(mapView)
         mapView = self.currentMapView()
         if isinstance(mapView, MapView):
-            if mapView in self.mMapViews:
-                i = str(self.mMapViews.mapView2idx(mapView).row()+1)
-            else:
-                i = ''
-            #title = '{} | {} "{}"'.format(self.baseTitle, i, mapView.title())
-            title = '{} | {}'.format(self.baseTitle, i)
-            self.setWindowTitle(title)
+            title = '{} | {}'.format(self.baseTitle, mapView.title())
+        else:
+            title = self.baseTitle
+        self.setWindowTitle(title)
 
     def currentMapView(self):
         w = self.toolBox.currentWidget()

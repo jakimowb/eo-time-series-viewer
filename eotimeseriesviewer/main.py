@@ -435,18 +435,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda :self.exportMapsToImages())
 
-        def onActionIdentifyTemporalProfile():
-            self.ui.actionIdentify.trigger()
-            self.ui.optionIdentifyTemporalProfile.setChecked(True)
-
-        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(onActionIdentifyTemporalProfile)
-
-        def onActionIdentifySpectralProfile():
-            self.ui.actionIdentify.trigger()
-            self.ui.optionIdentifySpectralProfile.setChecked(True)
-
-        self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(onActionIdentifySpectralProfile)
-
+        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
+        self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
 
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
@@ -501,8 +491,26 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     toolButton.setPopupMode(QToolButton.MenuButtonPopup)
 
 
-    def exportMapsToImages(self, path=None, format='PNG'):
+    def activateIdentifyTemporalProfileMapTool(self, *args):
+        """
+        Activates the collection of temporal profiles
+        """
+        self.ui.actionIdentify.trigger()
+        self.ui.optionIdentifyTemporalProfile.setChecked(True)
 
+    def activateIdentifySpectralProfileMapTool(self, *args):
+        """
+        Activates the collection of spectral profiles
+        """
+        self.ui.actionIdentify.trigger()
+        self.ui.optionIdentifySpectralProfile.setChecked(True)
+
+    def exportMapsToImages(self, path=None, format='PNG'):
+        """
+        Exports the map canvases to local images.
+        :param path: directory to save the images in
+        :param format: rastr format, e.g. 'PNG' or 'JPG'
+        """
         from .mapcanvas import MapCanvas
         from .mapvisualization import MapView
         from .settings import Keys, setValue, value
@@ -610,7 +618,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(tsd, TimeSeriesDatum)
         self.spatialTemporalVis.navigateToTSD(tsd)
         self.ui.dockTimeSeries.showTSD(tsd)
-        # todo: move TableViews to as well
+
 
 
     def mapCanvases(self)->list:
@@ -834,7 +842,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
         elif mapToolKey == MapTools.SpectralProfile:
 
-            tsd = self.spatialTemporalVis.DVC.tsdFromMapCanvas(mapCanvas)
+            tsd = None
+            from .mapcanvas import MapCanvas
+            if isinstance(mapCanvas, MapCanvas):
+                tsd = mapCanvas.tsd()
 
             if not hasattr(self, 'cntSpectralProfile'):
                 self.cntSpectralProfile = 0
@@ -1047,7 +1058,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.addTimeSeriesImages(rasterFiles[0:n])
 
         if len(vectorFiles) > 0:
+
+            # make polygons transparent
+
             self.addVectorData(vectorFiles)
+
+            for lyr in QgsProject.instance().mapLayers().values():
+                if isinstance(lyr, QgsVectorLayer) and lyr.source() in vectorFiles:
+                    renderer = lyr.renderer()
+                    if lyr.geometryType() == QgsWkbTypes.PolygonGeometry and isinstance(renderer, QgsSingleSymbolRenderer):
+                        renderer = renderer.clone()
+                        symbol = renderer.symbol()
+                        if isinstance(symbol, QgsFillSymbol):
+                            symbol.setOpacity(0.25)
+                        lyr.setRenderer(renderer)
+                    s = ""
 
 
 
@@ -1135,7 +1160,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     for l in vectorLayers:
                         mapView.addLayer(l)
 
-                    break #add to first mapview only
+                    break # add to first mapview only
 
 
 

@@ -316,7 +316,7 @@ def build():
         f.close()
 
     # copy CHANGELOG to doc/source/changelog.rst
-    updateShpinxChangelog()
+    updateSphinxChangelog()
 
     # 5. create a zip
     print('Create zipfile...')
@@ -345,7 +345,7 @@ def build():
 
     print('Finished')
 
-def updateShpinxChangelog():
+def updateSphinxChangelog():
     from eotimeseriesviewer import PATH_CHANGELOG
     with open(PATH_CHANGELOG, 'r') as f:
         # replace (#1) with (https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/1)
@@ -570,5 +570,5 @@ def uploadDeveloperPlugin():
 
 
 if __name__ == "__main__":
-    updateShpinxChangelog()
+    updateSphinxChangelog()
     #build()

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>887</width>
-    <height>178</height>
+    <height>157</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -74,7 +74,7 @@
     <item>
      <widget class="MapViewScrollArea" name="scrollAreaSubsets">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
         <horstretch>1</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -103,7 +103,7 @@
          <x>0</x>
          <y>0</y>
          <width>885</width>
-         <height>90</height>
+         <height>69</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -882,7 +882,7 @@
    <property name="iconVisibleInMenu">
     <bool>false</bool>
    </property>
-   <property name="shortcutVisibleInContextMenu">
+   <property name="shortcutVisibleInContextMenu" stdset="0">
     <bool>true</bool>
    </property>
   </action>

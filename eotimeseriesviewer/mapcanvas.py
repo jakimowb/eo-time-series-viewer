@@ -439,8 +439,12 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor())
                             sourceLayer.setName(lyr.name())
                             sourceLayer.setCustomProperty('eotsv/sensorid', self.tsd().sensor().id())
-                            renderer = lyr.renderer().clone()
-                            sourceLayer.setRenderer(renderer)
+                            try:
+                                renderer = lyr.renderer()
+                                if isinstance(renderer, QgsRasterRenderer):
+                                    sourceLayer.setRenderer(renderer.clone())
+                            except Exception as exR:
+                                s = ""
                         assert isinstance(sourceLayer, QgsRasterLayer)
                         expected.append(sourceLayer)
                 else:
@@ -484,10 +488,12 @@ class MapCanvas(QgsMapCanvas):
                             for px in [px for px in self.mMapView.layers() if isinstance(px, SensorProxyLayer)]:
                                 for l in self.layers():
                                     if isinstance(l, SensorProxyLayer) and l.sensor() == px.sensor():
-                                        renderer = px.renderer().clone()
-                                        renderer.setInput(l.dataProvider())
-                                        l.setRenderer(renderer)
-
+                                        try:
+                                            renderer = px.renderer().clone()
+                                            renderer.setInput(l.dataProvider())
+                                            l.setRenderer(renderer)
+                                        except Exception as ex:
+                                            s = ""
                             pass
 
 
