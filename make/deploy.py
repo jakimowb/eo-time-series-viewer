@@ -41,10 +41,12 @@ import eotimeseriesviewer
 
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
+DIR_DOC_SOURCE = jp(DIR_REPO, *['doc','source'])
 
 QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
 PATH_ABOUT_TEXT = jp(DIR_REPO, 'ABOUT_Plugin.html')
+PATH_CHANGELOG = jp(DIR_REPO, 'CHANGELOG')
 
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
@@ -313,6 +315,9 @@ def build():
         f.flush()
         f.close()
 
+    # copy CHANGELOG to doc/source/changelog.rst
+    updateShpinxChangelog()
+
     # 5. create a zip
     print('Create zipfile...')
 
@@ -339,6 +344,22 @@ def build():
         print('## press ENTER\n')
 
     print('Finished')
+
+def updateShpinxChangelog():
+    from eotimeseriesviewer import PATH_CHANGELOG
+    with open(PATH_CHANGELOG, 'r') as f:
+        # replace (#1) with (https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/1)
+        urlPrefix = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
+        lines = f.readlines()
+        lines = [re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlPrefix), line) for line in lines]
+
+        pathChangelogRst = jp(DIR_DOC_SOURCE, 'changelog.rst')
+
+        with open(pathChangelogRst, 'w', encoding='utf-8') as f2:
+            f2.writelines(lines)
+
+        s = ""
+
 
 
 def updateRepositoryXML(MD:QGISMetadataFileWriter, path:str=None):
@@ -549,5 +570,5 @@ def uploadDeveloperPlugin():
 
 
 if __name__ == "__main__":
-
-    build()
+    updateShpinxChangelog()
+    #build()

@@ -189,7 +189,7 @@
           <enum>QFrame::NoFrame</enum>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="pageAbout">
           <property name="sizePolicy">
@@ -410,7 +410,11 @@ p, li { white-space: pre-wrap; }
             <number>0</number>
            </property>
            <item>
-            <widget class="QTextBrowser" name="tbChanges"/>
+            <widget class="QTextBrowser" name="tbChanges">
+             <property name="openExternalLinks">
+              <bool>true</bool>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>

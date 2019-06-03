@@ -105,6 +105,17 @@ class TestInit(TestCase):
             QGIS_APP.exec_()
 
 
+    def test_AboutDialog(self):
+
+        from eotimeseriesviewer.main import AboutDialogUI
+
+        dialog = AboutDialogUI()
+        dialog.show()
+        self.assertIsInstance(dialog, QDialog)
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
     def test_exportMapsToImages(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer, SaveAllMapsDialog

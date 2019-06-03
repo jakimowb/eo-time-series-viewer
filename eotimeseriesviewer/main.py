@@ -59,6 +59,64 @@ EXTRA_SPECLIB_FIELDS = [
 ]
 
 
+class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
+    def __init__(self, parent=None):
+        """Constructor."""
+        super(AboutDialogUI, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+
+        self.init()
+
+    def init(self):
+        self.mTitle = self.windowTitle()
+        self.listWidget.currentItemChanged.connect(lambda: self.setAboutTitle())
+        self.setAboutTitle()
+
+        # page About
+        from eotimeseriesviewer import PATH_LICENSE, __version__, PATH_CHANGELOG, PATH_ABOUT
+        self.labelVersion.setText('{}'.format(__version__))
+
+        def readTextFile(path):
+            if os.path.isfile(path):
+                f = open(path, encoding='utf-8')
+                txt = f.read()
+                f.close()
+            else:
+                txt = 'unable to read {}'.format(path)
+            return txt
+
+        # page Changed
+        self.tbAbout.setHtml(readTextFile(PATH_ABOUT))
+
+        aboutText = readTextFile(PATH_CHANGELOG)
+        urlPrefix = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
+        aboutText = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlPrefix), aboutText)
+        from docutils.core import publish_string
+        aboutHTML = publish_string(aboutText, writer_name='html')
+        self.tbChanges.setText(aboutHTML.decode())
+        self.tbLicense.setText(readTextFile(PATH_LICENSE))
+
+
+    def setAboutTitle(self, suffix=None):
+        item = self.listWidget.currentItem()
+
+        if item:
+            title = '{} | {}'.format(self.mTitle, item.text())
+        else:
+            title = self.mTitle
+        if suffix:
+            title += ' ' + suffix
+        self.setWindowTitle(title)
+
+
+
+
+
 class TimeSeriesViewerUI(QMainWindow,
                          loadUI('timeseriesviewer.ui')):
 
@@ -391,7 +449,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         # connect buttons with actions
-        from eotimeseriesviewer.widgets import AboutDialogUI
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
 
         self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
