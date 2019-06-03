@@ -901,7 +901,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         progressDialog.setParent(None)
 
 
-    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
+    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None, progressDialog:QProgressDialog=None):
         """
         Loads a time series definition file
         :param path:
@@ -923,16 +923,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
-            
-            progressDialog = QProgressDialog(parent=self.ui)
-            progressDialog.setWindowTitle('Load data')
-            progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
-            progressDialog.show()
+
+            b = isinstance(progressDialog, QProgressDialog)
+
+            if not b:
+                progressDialog = QProgressDialog(parent=self.ui)
+                progressDialog.setWindowTitle('Load data')
+                progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+                progressDialog.show()
 
             self.clearTimeSeries()
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
-            progressDialog.hide()
-            progressDialog.setParent(None)
+
+            if not b:
+                progressDialog.hide()
+                progressDialog.setParent(None)
 
     def createMapView(self):
         """

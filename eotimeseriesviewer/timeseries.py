@@ -1248,6 +1248,9 @@ class TimeSeries(QAbstractItemModel):
             if (i+1) % 10 == 0:
                 self.sigLoadingProgress.emit(i+1, nMax, msg)
 
+            if (i+1) % 50 == 0:
+                QGuiApplication.processEvents()
+
             if isinstance(newTSD, TimeSeriesDatum):
                 addedDates.append(newTSD)
         #if len(addedDates) > 0:
