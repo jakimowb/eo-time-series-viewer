@@ -686,7 +686,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 self.spatialTemporalVis.syncQGISCanvasCenter(qgisChanged)
 
         self.spatialTemporalVis.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
-        iface.mapCanvas().extentsChanged.connect(lambda: lambda : onSyncRequest(True))
+        iface.mapCanvas().extentsChanged.connect(lambda: onSyncRequest(True))
 
 
 
