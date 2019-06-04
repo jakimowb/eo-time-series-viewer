@@ -154,12 +154,15 @@ class QGISMetadataFileWriter(object):
         lines = ['[general]']
         lines.append('name={}'.format(self.mName))
         lines.append('author={}'.format(self.mAuthor))
+        if self.mEmail:
+            lines.append('email={}'.format(self.mEmail))
+
         lines.append('description={}'.format(self.mDescription))
         lines.append('version={}'.format(self.mVersion))
         lines.append('qgisMinimumVersion={}'.format(self.mQgisMinimumVersion))
         lines.append('qgisMaximumVersion={}'.format(self.mQgisMaximumVersion))
         lines.append('about={}'.format(re.sub('\n', '', self.mAbout)))
-        lines.append('email={}'.format(self.mEmail))
+
         lines.append('icon={}'.format(self.mIcon))
 
         lines.append('tags={}'.format(', '.join(self.mTags)))
@@ -247,6 +250,8 @@ def build():
     MD.mRepository = eotimeseriesviewer.REPOSITORY
     MD.mQgisMinimumVersion = QGIS_MIN
     MD.mQgisMaximumVersion = QGIS_MAX
+    MD.mAuthor = eotimeseriesviewer.AUTHOR
+    MD.mEmail = eotimeseriesviewer.MAIL
     MD.mIcon = 'eotimeseriesviewer/icon.png'
     MD.mTags = ['remote sensing', 'raster', 'time series', 'landsat', 'sentinel']
     print(MD.metadataString())
@@ -570,5 +575,5 @@ def uploadDeveloperPlugin():
 
 
 if __name__ == "__main__":
-    updateSphinxChangelog()
-    #build()
+    #updateSphinxChangelog()
+    build()

@@ -28,7 +28,8 @@ DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
 REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-
+AUTHOR = 'Benjamin Jakimow'
+MAIL = 'benjamin.jakimow@geo.hu-berlin.de'
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
