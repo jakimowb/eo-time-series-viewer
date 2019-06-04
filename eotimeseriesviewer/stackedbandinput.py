@@ -172,6 +172,7 @@ class InputStackTableModel(QAbstractTableModel):
         self.mColumnNames = [self.cn_source, self.cn_dates, self.cn_name, self.cn_wl, self.cn_ns, self.cn_nl, self.cn_nb, self.cn_crs]
 
         self.mColumnTooltips = {}
+
         self.mColumnTooltips[self.cn_source] = 'Stack source uri / file path'
         self.mColumnTooltips[self.cn_crs] = 'Geo-Transformation + Coordinate Reference System'
         self.mColumnTooltips[self.cn_ns] = 'Number of samples / pixel in horizontal direction'
@@ -191,8 +192,6 @@ class InputStackTableModel(QAbstractTableModel):
         if isinstance(i, QModelIndex):
             i = i.column()
         return self.mColumnNames[i]
-
-
 
     def dateInfo(self):
         """
@@ -239,7 +238,6 @@ class InputStackTableModel(QAbstractTableModel):
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col
         return None
-
 
     def rowCount(self, parent=None):
         return len(self.mStackImages)
@@ -342,13 +340,20 @@ class InputStackTableModel(QAbstractTableModel):
             if cname == self.cn_crs:
                 return '{} {}'.format(info.gt, info.wkt)
             elif cname == self.cn_wl:
-                return info.mMetaData[''].get('wavelength')
+                if '' in info.mMetaData.keys():
+                    return info.mMetaData[''].get('wavelength')
+                else:
+                    return None
             elif cname == self.cn_name:
                 return info.outputBandName
 
         if role == Qt.EditRole:
             if cname == self.cn_wl:
-                return info.mMetaData[''].get('wavelength')
+                if '' in info.mMetaData.keys():
+                    return info.mMetaData[''].get('wavelength')
+                else:
+                    return None
+
             elif cname == self.cn_name:
                 return info.outputBandName
 
@@ -735,8 +740,8 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
 
         if len(files) > 0:
             self.tableModelInputStacks.insertSources(files)
-        s = ""
-
+            defDir = os.path.dirname(files[0])
+            eotimeseriesviewer.settings.setValue(eotimeseriesviewer.settings.Keys.RasterSourceDirectory, defDir)
 
     def addSources(self, paths):
         """
@@ -747,7 +752,9 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.tableModelInputStacks.insertSources(paths)
 
     def onRemoveSources(self, *args):
-
+        """
+        :param args:
+        """
         model = self.tableViewSourceStacks.selectionModel()
         assert isinstance(model, QItemSelectionModel)
 
@@ -755,7 +762,10 @@ class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
         self.tableModelInputStacks.removeSources(infos)
 
     def onSourceStackSelectionChanged(self, selected, deselected):
-
+        """
+        :param selected:
+        :param deselected:
+        """
         self.actionRemoveSourceStack.setEnabled(len(selected) > 0)
 
 
