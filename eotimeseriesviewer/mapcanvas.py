@@ -599,6 +599,17 @@ class MapCanvas(QgsMapCanvas):
         from .main import TimeSeriesViewer
         eotsv = TimeSeriesViewer.instance()
 
+        viewPortRasterLayers = [l for l in self.layers() if isinstance(l, QgsRasterLayer)
+                                and SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
+        viewPortSensorLayers = [l for l in viewPortRasterLayers if isinstance(l, SensorProxyLayer)]
+
+        refSensorLayer = None
+        refRasterLayer = None
+
+        if len(viewPortRasterLayers) > 0:
+            refRasterLayer = viewPortRasterLayers[0]
+        if len(viewPortSensorLayers) > 0:
+            refSensorLayer = viewPortSensorLayers[0]
 
         menu = QMenu()
 
@@ -609,18 +620,36 @@ class MapCanvas(QgsMapCanvas):
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
             action.setEnabled(len(lyrWithSelectedFeatures) > 0)
             action.setToolTip('Write date/sensor values to {} features in {}.'.format(self.tsd().date(), layerNames))
-            action.triggered.connect(lambda *args, tsd=self.tsd(): applyShortcutsToRegisteredLayers(tsd, None))
+            action.triggered.connect(lambda *args, tsd =self.tsd(): applyShortcutsToRegisteredLayers(tsd, None))
 
             menu.addSeparator()
-        m = menu.addMenu('Optimize raster stretches...')
-        action = m.addAction('Linear')
-        action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.0))
 
-        action = m.addAction('Linear 5%')
-        action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', p=0.05))
+        if isinstance(refSensorLayer, SensorProxyLayer):
+            m = menu.addMenu('Raster stretch...')
+            action = m.addAction('Linear')
+            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.0))
 
-        action = m.addAction('Gaussian')
-        action.triggered.connect(lambda: self.stretchToExtent(self.spatialExtent(), 'gaussian', n=3))
+            action = m.addAction('Linear 5%')
+            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.05))
+
+            action = m.addAction('Gaussian')
+            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
+
+
+        menu.addSeparator()
+
+        from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
+
+        b = isinstance(refRasterLayer, QgsRasterLayer)
+        a = menu.addAction('Copy Style')
+        a.setEnabled(b)
+        a.setToolTip('Copy the current layer style to clipboard')
+        a.triggered.connect(lambda *args, lyr=refRasterLayer: pasteStyleToClipboard(lyr))
+
+        a = menu.addAction('Paste Style')
+        a.setEnabled(b)
+        a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+        a.triggered.connect(lambda *args, lyr=refRasterLayer: self.onPasteStyleFromClipboard(lyr))
 
         menu.addSeparator()
 
@@ -647,6 +676,15 @@ class MapCanvas(QgsMapCanvas):
             a = sub.addAction('Zoom to Layer')
             a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))
             a.triggered.connect(lambda *args, lyr=mapLayer: self.setSpatialExtent(SpatialExtent.fromLayer(lyr)))
+
+            a = sub.addAction('Copy Style')
+            a.setToolTip('Copy layer style to clipboard')
+            a.triggered.connect(lambda *args, lyr=mapLayer: pasteStyleToClipboard(lyr))
+
+            a = sub.addAction('Paste Style')
+            a.setToolTip('Paster layer style from clipboard')
+            a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+            a.triggered.connect(lambda *args, lyr=mapLayer: self.onPasteStyleFromClipboard(lyr))
 
         menu.addSeparator()
 
@@ -777,6 +815,13 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
+    def onPasteStyleFromClipboard(self, lyr):
+        from .externals.qps.layerproperties import pasteStyleFromClipboard
+        pasteStyleFromClipboard(lyr)
+        if isinstance(lyr, SensorProxyLayer):
+            self.mMapView.sensorProxyLayer(lyr.sensor()).setRenderer(lyr.renderer().clone())
+
+
     def contextMenuEvent(self, event:QContextMenuEvent):
         """
         Create and shows the MapCanvas context menu.
@@ -806,7 +851,7 @@ class MapCanvas(QgsMapCanvas):
         se = self.spatialExtent()
         self.stretchToExtent(se)
 
-    def stretchToExtent(self, spatialExtent:SpatialExtent, stretchType='linear_minmax', **stretchArgs):
+    def stretchToExtent(self, spatialExtent:SpatialExtent, stretchType='linear_minmax', layer:QgsRasterLayer=None, **stretchArgs):
         """
         :param spatialExtent: rectangle to get the image statistics for
         :param stretchType: ['linear_minmax' (default), 'gaussian']
@@ -815,76 +860,86 @@ class MapCanvas(QgsMapCanvas):
             gaussian: 'n' mean +- n* standard deviations
         :return:
         """
-        layers = [l for l in self.layers() if isinstance(l, SensorProxyLayer)]
+        if not isinstance(layer, QgsRasterLayer):
+            layers = [l for l in self.layers() if isinstance(l, SensorProxyLayer)]
+            if len(layers) > 0:
+                layer = layers[0]
+            else:
+                layers = [l for l in self.layers() if isinstance(l, SensorProxyLayer)]
+                if len(layers) > 0:
+                    layer = layers[0]
+
+        if not isinstance(layer, QgsRasterLayer):
+            return
+
+        r = layer.renderer()
+        dp = layer.dataProvider()
+        newRenderer = None
+        extent = spatialExtent.toCrs(layer.crs())
+
+        assert isinstance(dp, QgsRasterDataProvider)
+
+        def getCE(band):
+            stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 256)
+
+            ce = QgsContrastEnhancement(dp.dataType(band))
+            d = (stats.maximumValue - stats.minimumValue)
+            if stretchType == 'linear_minmax':
+                ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                ce.setMinimumValue(stats.minimumValue + d * stretchArgs.get('p', 0))
+                ce.setMaximumValue(stats.maximumValue - d * stretchArgs.get('p', 0))
+            elif stretchType == 'gaussian':
+                ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                ce.setMinimumValue(stats.mean - stats.stdDev * stretchArgs.get('n', 3))
+                ce.setMaximumValue(stats.mean + stats.stdDev * stretchArgs.get('n', 3))
+            else:
+                # stretchType == 'linear_minmax':
+                ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
+                ce.setMinimumValue(stats.minimumValue)
+                ce.setMaximumValue(stats.maximumValue)
+
+            return ce
+
+        if isinstance(r, QgsMultiBandColorRenderer):
+            newRenderer = r.clone()
+
+            ceR = getCE(r.redBand())
+            ceG = getCE(r.greenBand())
+            ceB = getCE(r.blueBand())
+
+            newRenderer.setRedContrastEnhancement(ceR)
+            newRenderer.setGreenContrastEnhancement(ceG)
+            newRenderer.setBlueContrastEnhancement(ceB)
+
+        elif isinstance(r, QgsSingleBandPseudoColorRenderer):
+            newRenderer = r.clone()
+            ce = getCE(newRenderer.band())
+
+            # stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
+
+            shader = newRenderer.shader()
+            newRenderer.setClassificationMax(ce.maximumValue())
+            newRenderer.setClassificationMin(ce.minimumValue())
+            shader.setMaximumValue(ce.maximumValue())
+            shader.setMinimumValue(ce.minimumValue())
+
+        elif isinstance(r, QgsSingleBandGrayRenderer):
+
+            newRenderer = r.clone()
+            ce = getCE(newRenderer.grayBand())
+            newRenderer.setContrastEnhancement(ce)
+
+        elif isinstance(r, QgsPalettedRasterRenderer):
+
+            newRenderer = r.clone()
 
 
+        if newRenderer is not None:
 
-        for l in layers:
-            if isinstance(l, SensorProxyLayer):
-                r = l.renderer()
-                dp = l.dataProvider()
-                newRenderer = None
-                extent = spatialExtent.toCrs(l.crs())
-
-                assert isinstance(dp, QgsRasterDataProvider)
-
-                def getCE(band):
-                    stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 500)
-
-                    ce = QgsContrastEnhancement(dp.dataType(band))
-                    d = (stats.maximumValue - stats.minimumValue)
-                    if stretchType == 'linear_minmax':
-                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
-                        ce.setMinimumValue(stats.minimumValue + d * stretchArgs.get('p', 0))
-                        ce.setMaximumValue(stats.maximumValue - d * stretchArgs.get('p', 0))
-                    elif stretchType == 'gaussian':
-                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
-                        ce.setMinimumValue(stats.mean - stats.stdDev * stretchArgs.get('n', 3))
-                        ce.setMaximumValue(stats.mean + stats.stdDev * stretchArgs.get('n', 3))
-                    else:
-                        # stretchType == 'linear_minmax':
-                        ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum)
-                        ce.setMinimumValue(stats.minimumValue)
-                        ce.setMaximumValue(stats.maximumValue)
-
-                    return ce
-
-                if isinstance(r, QgsMultiBandColorRenderer):
-
-                    newRenderer = r.clone()
-
-                    ceR = getCE(r.redBand())
-                    ceG = getCE(r.greenBand())
-                    ceB = getCE(r.blueBand())
-
-                    newRenderer.setRedContrastEnhancement(ceR)
-                    newRenderer.setGreenContrastEnhancement(ceG)
-                    newRenderer.setBlueContrastEnhancement(ceB)
-
-                elif isinstance(r, QgsSingleBandPseudoColorRenderer):
-                    newRenderer = r.clone()
-                    ce = getCE(newRenderer.band())
-
-                    # stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
-
-                    shader = newRenderer.shader()
-                    newRenderer.setClassificationMax(ce.maximumValue())
-                    newRenderer.setClassificationMin(ce.minimumValue())
-                    shader.setMaximumValue(ce.maximumValue())
-                    shader.setMinimumValue(ce.minimumValue())
-                elif isinstance(r, QgsSingleBandGrayRenderer):
-                    newRenderer = r.clone()
-                    ce = getCE(newRenderer.grayBand())
-                    newRenderer.setContrastEnhancement(ce)
-
-                elif isinstance(r, QgsPalettedRasterRenderer):
-                    newRenderer = r.clone()
-
-                if newRenderer is not None:
-                    self.mMapView.sensorProxyLayer(l.sensor()).setRenderer(newRenderer)
-
-                    return
-        s = ""
+            if isinstance(layer, SensorProxyLayer):
+                self.mMapView.sensorProxyLayer(layer.sensor()).setRenderer(newRenderer)
+            elif isinstance(layer, QgsRasterLayer):
+                layer.setRenderer(layer)
 
 
     def saveMapImageDialog(self, fileType):

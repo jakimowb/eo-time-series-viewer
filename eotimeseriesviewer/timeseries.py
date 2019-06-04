@@ -1135,7 +1135,8 @@ class TimeSeries(QAbstractItemModel):
             removed.append(tsd)
             self.endRemoveRows()
 
-        self.sigTimeSeriesDatesRemoved.emit(removed)
+        if len(removed) > 0:
+            self.sigTimeSeriesDatesRemoved.emit(removed)
 
 
 

@@ -136,14 +136,20 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
                             showLayerPropertiesDialog(lyr, canvas))
         a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
 
+        from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
+        a = menu.addAction('Copy Style')
+        a.setToolTip('Copy the current layer style to clipboard')
+        a.triggered.connect(lambda *args, lyr=l: pasteStyleToClipboard(lyr))
 
+        a = menu.addAction('Paste Style')
+        a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+        a.triggered.connect(lambda *args, lyr=l: pasteStyleFromClipboard(lyr))
 
         #a = menu.addAction('Settings')
         #from qps.layerproperties import showLayerPropertiesDialog
         #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
 
         return menu
-
 
 class MapViewLayerTreeModel(QgsLayerTreeModel):
     """
