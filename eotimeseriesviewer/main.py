@@ -322,15 +322,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
 
-        # map layer store
 
-        # init other GUI components
-
-
-        # self.ICP = D.scrollAreaSubsetContent.layout()
-        # D.scrollAreaMapViews.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-        # self.BVP = self.ui.scrollAreaMapViews.layout()
-        # D.dockNavigation.connectTimeSeries(self.TS)
         self.ui.dockTimeSeries.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
 
@@ -689,9 +681,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
         self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
 
+        def onSyncRequest(qgisChanged:bool):
+            if self.ui.optionSyncMapCenter.isChecked():
+                self.spatialTemporalVis.syncQGISCanvasCenter(qgisChanged)
 
-        self.spatialTemporalVis.sigSpatialExtentChanged.connect(lambda: self.spatialTemporalVis.syncQGISCanvasCenter(False))
-        iface.mapCanvas().extentsChanged.connect(lambda: self.spatialTemporalVis.syncQGISCanvasCenter(True))
+        self.spatialTemporalVis.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
+        iface.mapCanvas().extentsChanged.connect(lambda: lambda : onSyncRequest(True))
 
 
 
@@ -1080,13 +1075,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
                     s = ""
 
 
-
-
-
-    def qgs_handleMouseDown(self, pt, btn):
-        pass
-
-
     def timeSeries(self)->TimeSeries:
         """
         Returns the TimeSeries instance.
@@ -1108,7 +1096,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('HUBTSV', message)
-
 
 
     def unload(self):
