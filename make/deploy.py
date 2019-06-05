@@ -51,9 +51,7 @@ PATH_CHANGELOG = jp(DIR_REPO, 'CHANGELOG')
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
-buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__version__).group()
-                            , timestamp,
-                            re.sub(r'[\\/]','_', currentBranch))
+
 
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 pathCfg = jp(DIR_REPO, 'pb_tool.cfg')
@@ -87,7 +85,7 @@ buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__ver
 
 
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1])
-timestamp = re.sub('[-T]','', timestamp)
+timestamp = re.sub('[-T]', '', timestamp)
 
 eotimeseriesviewer.__version__ = buildID
 dirBuildPlugin = jp(DIR_BUILD, PLUGIN_FOLDER_NAME)
@@ -241,6 +239,13 @@ def build():
             aboutText[i] = '    ' + aboutText[i]
         aboutText = ''.join(aboutText)
     MD.mName = eotimeseriesviewer.TITLE
+
+    with open(PATH_CHANGELOG, 'r', encoding='utf-8') as f:
+        changelog = f.readlines()
+        changelog = ''.join(changelog[4:])
+
+        
+    MD.mChangelog = changelog
     MD.mCategory = 'Raster'
     MD.mAbout = aboutText
     MD.mDescription = eotimeseriesviewer.DESCRIPTION
