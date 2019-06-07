@@ -23,4 +23,5 @@ pipelines:
           - DISPLAY=:1.0
           - export DISPLAY
           - mkdir test-reports
+          - python make/setuprepository.py
           - python -m nose2 discover tests "test_*.py" > test-reports/test-report.txt

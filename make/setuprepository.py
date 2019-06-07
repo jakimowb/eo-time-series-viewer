@@ -11,6 +11,10 @@ DIR_QGIS_REPO = os.environ.get('DIR_QGIS_REPO', None)
 from os.path import dirname as dn
 from os.path import join as jn
 DIR_REPO = dn(dn(__file__))
+
+if not DIR_REPO in sys.path:
+    sys.path.append(DIR_REPO)
+
 DIR_SITEPACKAGES = jn(DIR_REPO, 'site-packages')
 DIR_QGISRESOURCES = jn(DIR_REPO, 'qgisresources')
 
