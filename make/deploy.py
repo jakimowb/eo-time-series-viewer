@@ -34,7 +34,7 @@ import git
 
 from eotimeseriesviewer.externals.qps.testing import initQgisApplication
 app = initQgisApplication()
-from eotimeseriesviewer import DIR_REPO
+from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG, PATH_LICENSE, PATH_ABOUT
 from eotimeseriesviewer.utils import file_search, jp, zipdir
 import eotimeseriesviewer
 
@@ -45,8 +45,7 @@ DIR_DOC_SOURCE = jp(DIR_REPO, *['doc','source'])
 
 QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
-PATH_ABOUT_TEXT = jp(DIR_REPO, 'ABOUT_Plugin.html')
-PATH_CHANGELOG = jp(DIR_REPO, 'CHANGELOG')
+
 
 REPO = git.Repo(DIR_REPO)
 currentBranch = REPO.active_branch.name
@@ -233,7 +232,7 @@ def build():
     # describe metadata
     import eotimeseriesviewer
     MD = QGISMetadataFileWriter()
-    with open(PATH_ABOUT_TEXT, 'r', encoding='utf-8') as f:
+    with open(PATH_ABOUT, 'r', encoding='utf-8') as f:
         aboutText = f.readlines()
         for i in range(1, len(aboutText)):
             aboutText[i] = '    ' + aboutText[i]
@@ -328,6 +327,9 @@ def build():
     # copy CHANGELOG to doc/source/changelog.rst
     updateSphinxChangelog()
 
+    # update the internal-used CHANGELOG.html
+    updateInfoHTMLs()
+
     # 5. create a zip
     print('Create zipfile...')
 
@@ -371,6 +373,51 @@ def updateSphinxChangelog():
         s = ""
 
 
+def updateInfoHTMLs():
+
+    from eotimeseriesviewer import PATH_CHANGELOG
+    from docutils.core import publish_string
+
+    urlIssueTracke = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
+
+    def readTextFile(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def doUpdate(path:str, content:str)->bool:
+
+        b = False
+        if not os.path.isfile(path):
+            b = True
+        else:
+            with open(path, 'r', encoding='utf-8') as f:
+                b = content != f.read()
+
+        if b:
+            print('update {}'.format(path))
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(content)
+        else:
+            print('{} already updated'.format(path))
+
+
+    # CHANGELOG -> CHANGELOG.html
+    txt = readTextFile(PATH_CHANGELOG)
+    txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracke), txt)
+
+    settings_overrides = {'input_encoding': 'unicode',
+                          'output_encoding': 'unicode'}
+
+    html = publish_string(txt, writer_name='html', settings_overrides=settings_overrides)
+
+    pathChangelogHtml = PATH_CHANGELOG + '.html'
+    doUpdate(pathChangelogHtml, html)
+
+    # LICENSE.md -> LICENSE.html
+    txt = readTextFile(PATH_LICENSE)
+    txt = publish_string(txt, writer_name='html').decode('utf-8')
+    pathLicenseHtml = os.path.splitext(PATH_LICENSE)[0]+'.html'
+    doUpdate(pathLicenseHtml, txt)
 
 def updateRepositoryXML(MD:QGISMetadataFileWriter, path:str=None):
     """
@@ -581,4 +628,5 @@ def uploadDeveloperPlugin():
 
 if __name__ == "__main__":
     #updateSphinxChangelog()
-    build()
+    updateInfoHTMLs()
+    #build()

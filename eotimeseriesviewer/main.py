@@ -92,14 +92,8 @@ class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
 
         # page Changed
         self.tbAbout.setHtml(readTextFile(PATH_ABOUT))
-
-        aboutText = readTextFile(PATH_CHANGELOG)
-        urlPrefix = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
-        aboutText = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlPrefix), aboutText)
-        from docutils.core import publish_string
-        aboutHTML = publish_string(aboutText, writer_name='html')
-        self.tbChanges.setText(aboutHTML.decode())
-        self.tbLicense.setText(readTextFile(PATH_LICENSE))
+        self.tbChanges.setHtml(readTextFile(PATH_CHANGELOG + '.html'))
+        self.tbLicense.setHtml(readTextFile(os.path.splitext(PATH_LICENSE)[0] + '.html'))
 
 
     def setAboutTitle(self, suffix=None):

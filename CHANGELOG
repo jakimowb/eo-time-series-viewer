@@ -2,6 +2,7 @@
 Changelog
 ==============
 
+
 2019-05-31 (version 1.2):
     * added SaveAllMapsDialog  and menu option to export all maps as image files.
     * fixed #91: select Temporal Profile / Spectral Profile button activates the required map tools.
@@ -14,6 +15,7 @@ Changelog
     * fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85), remove temporal profile (#86), draw new feature error (#84), Crosshair button status (#90), and some more
 
 2019-05-15 (version 1.0, major update):
+
     * labeling tools to modify vector layers.
     * quick labeling for time-labels information
     * synchronization with QGIS Map canvas center
