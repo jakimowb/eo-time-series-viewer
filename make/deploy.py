@@ -628,5 +628,5 @@ def uploadDeveloperPlugin():
 
 if __name__ == "__main__":
     #updateSphinxChangelog()
-    updateInfoHTMLs()
-    #build()
+    #updateInfoHTMLs()
+    build()

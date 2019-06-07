@@ -2,6 +2,7 @@
 Changelog
 ==============
 
+
 2019-05-31 (version 1.2):
     * added SaveAllMapsDialog  and menu option to export all maps as image files.
     * fixed `#91 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/91>`_: select Temporal Profile / Spectral Profile button activates the required map tools.
@@ -14,6 +15,7 @@ Changelog
     * fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (`#85 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/85>`_), remove temporal profile (`#86 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/86>`_), draw new feature error (`#84 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/84>`_), Crosshair button status (`#90 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/90>`_), and some more
 
 2019-05-15 (version 1.0, major update):
+
     * labeling tools to modify vector layers.
     * quick labeling for time-labels information
     * synchronization with QGIS Map canvas center

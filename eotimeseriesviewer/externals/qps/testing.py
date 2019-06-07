@@ -1,4 +1,3 @@
-
 import os, sys, re, io, importlib, uuid, warnings, pathlib, time, site
 import sip
 from qgis.core import *
@@ -13,12 +12,12 @@ from osgeo import gdal, ogr, osr
 
 from .utils import file_search, dn, jp, findUpwardPath
 
-
 URL_TESTDATA = r'https://bitbucket.org/hu-geomatics/enmap-box-testdata/get/master.zip'
 DIR_TESTDATA = findUpwardPath(__file__, 'enmapboxtestdata')
 if DIR_TESTDATA is None:
     try:
         import enmapboxtestdata
+
         DIR_TESTDATA = dn(enmapboxtestdata.__file__)
     except:
         try:
@@ -27,7 +26,6 @@ if DIR_TESTDATA is None:
         except:
             print('Unable to locate "enmapboxtestdata" directory.', file=sys.stderr)
 
-
 SHOW_GUI = True
 
 WMS_GMAPS = r'crs=EPSG:3857&format&type=xyz&url=https://mt1.google.com/vt/lyrs%3Ds%26x%3D%7Bx%7D%26y%3D%7By%7D%26z%3D%7Bz%7D&zmax=19&zmin=0'
@@ -35,7 +33,7 @@ WMS_OSM = r'referer=OpenStreetMap%20contributors,%20under%20ODbL&type=xyz&url=ht
 WFS_Berlin = r'restrictToRequestBBOX=''1'' srsname=''EPSG:25833'' typename=''fis:re_postleit'' url=''http://fbinter.stadt-berlin.de/fb/wfs/geometry/senstadt/re_postleit'' version=''auto'''
 
 
-def missingTestdata()->bool:
+def missingTestdata() -> bool:
     """
     Returns (True, message:str) if testdata can not be loaded,
      (False, None) else
@@ -58,7 +56,8 @@ def installTestdata(overwrite_existing=False):
         print('Testdata already installed and up to date.')
         return
 
-    btn = QMessageBox.question(None, 'Testdata is missing or outdated', 'Download testdata from \n{}\n?'.format(URL_TESTDATA))
+    btn = QMessageBox.question(None, 'Testdata is missing or outdated',
+                               'Download testdata from \n{}\n?'.format(URL_TESTDATA))
     if btn != QMessageBox.Yes:
         print('Canceled')
         return
@@ -83,13 +82,12 @@ def installTestdata(overwrite_existing=False):
         import zipfile
         zf = zipfile.ZipFile(pathLocalZip)
 
-
         names = zf.namelist()
         names = [n for n in names if re.search(r'[^/]/enmapboxtestdata/..*', n) and not n.endswith('/')]
         for name in names:
             # create directory if doesn't exist
 
-            pathRel = re.search(r'[^/]+/enmapboxtestdata/(.*)$',name).group(1)
+            pathRel = re.search(r'[^/]+/enmapboxtestdata/(.*)$', name).group(1)
             subDir, baseName = os.path.split(pathRel)
             fullDir = os.path.normpath(os.path.join(targetDir, subDir))
             os.makedirs(fullDir, exist_ok=True)
@@ -109,7 +107,6 @@ def installTestdata(overwrite_existing=False):
         spec.loader.exec_module(module)
         sys.modules['enmapboxtestdata'] = module
 
-
     def onDownloadError(messages):
         raise Exception('\n'.join(messages))
 
@@ -118,18 +115,16 @@ def installTestdata(overwrite_existing=False):
         pass
         # dirty patch for Issue #167
         #
-        #print('Remove {}...'.format(pathLocalZip))
-        #os.remove(pathLocalZip)
+        # print('Remove {}...'.format(pathLocalZip))
+        # os.remove(pathLocalZip)
 
     def onDownLoadExited():
 
         from qgis.PyQt.QtCore import QTimer
         QTimer.singleShot(5000, deleteFileDownloadedFile)
 
-
-
     def onDownloadProgress(received, total):
-        print('\r{:0.2f} %'.format(100.*received/total), end=' ', flush=True)
+        print('\r{:0.2f} %'.format(100. * received / total), end=' ', flush=True)
         time.sleep(0.1)
 
     dialog.downloadCanceled.connect(onCanceled)
@@ -142,13 +137,12 @@ def installTestdata(overwrite_existing=False):
     dialog.exec_()
 
 
-
-def initQgisApplication(*args, qgisResourceDir:str=None,
+def initQgisApplication(*args, qgisResourceDir: str = None,
                         loadProcessingFramework=True,
                         loadEditorWidgets=True,
                         loadPythonRunner=True,
                         minimal=False,
-                        **kwds)->QgsApplication:
+                        **kwds) -> QgsApplication:
     """
     Initializes a QGIS Environment
     :param qgisResourceDir: path to folder with QGIS resource modules. default = None
@@ -159,7 +153,7 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
     :return:
     """
     """
-    
+
     :return: QgsApplication instance of local QGIS installation
     """
 
@@ -174,7 +168,7 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
 
         QGIS_PREFIX_PATH = os.environ.get('QGIS_PREFIX_PATH')
         print('Initialize QGIS environment on {}'.format(QOperatingSystemVersion.current().name()))
-        if QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Windows:
+        if QOperatingSystemVersion.current().type() == QOperatingSystemVersion.MacOS:
             # add location of Qt Libraries
             assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
             PATH_QGIS_APP = re.search(r'.*\.app', qgis.__file__).group()
@@ -193,7 +187,6 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
 
         elif QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Unknown:
 
-
             qgsApp = qgis.testing.start_app()
 
             if not QgsProviderRegistry.instance().libraryDirectory().exists():
@@ -205,11 +198,7 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
 
             qgsApp = qgis.testing.start_app()
 
-
-
-
         assert QgsProviderRegistry.instance().libraryDirectory().exists()
-
 
         from .utils import check_vsimem
         assert check_vsimem()
@@ -233,10 +222,8 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
             r = PythonRunnerImpl()
             QgsPythonRunner.setInstance(r)
 
-
         from qgis.analysis import QgsNativeAlgorithms
         QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-
 
         # init standard EditorWidgets
 
@@ -267,15 +254,15 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
         #
         providers = QgsProviderRegistry.instance().providerList()
 
-        potentialProviders = ['DB2', 'WFS', 'arcgisfeatureserver', 'arcgismapserver', 'delimitedtext', 'gdal', 'geonode', 'gpx', 'mdal', 'memory', 'mesh_memory', 'mssql', 'ogr', 'oracle', 'ows', 'postgres', 'spatialite', 'virtual', 'wcs', 'wms']
+        potentialProviders = ['DB2', 'WFS', 'arcgisfeatureserver', 'arcgismapserver', 'delimitedtext', 'gdal',
+                              'geonode', 'gpx', 'mdal', 'memory', 'mesh_memory', 'mssql', 'ogr', 'oracle', 'ows',
+                              'postgres', 'spatialite', 'virtual', 'wcs', 'wms']
         missing = [p for p in potentialProviders if p not in providers]
 
         if len(missing) > 0:
             warnings.warn('Missing QGIS provider(s): {}'.format(', '.join(missing)))
 
-
         return qgsApp
-
 
 
 class QgisMockup(QgisInterface):
@@ -283,7 +270,7 @@ class QgisMockup(QgisInterface):
     A "fake" QGIS Desktop instance that should provide all the inferfaces a plugin developer might need (and nothing more)
     """
 
-    def pluginManagerInterface(self)->QgsPluginManagerInterface:
+    def pluginManagerInterface(self) -> QgsPluginManagerInterface:
         return self.mPluginManager
 
     def __init__(self, *args):
@@ -307,14 +294,11 @@ class QgisMockup(QgisInterface):
 
         self.ui = QMainWindow()
 
-
-
         self.mMessageBar = QgsMessageBar()
         mainFrame = QFrame()
 
         self.ui.setCentralWidget(mainFrame)
         self.ui.setWindowTitle('QGIS Mockup')
-
 
         l = QHBoxLayout()
         l.addWidget(self.mLayerTreeView)
@@ -332,18 +316,18 @@ class QgisMockup(QgisInterface):
     def activeLayer(self):
         return None
 
-    def cutSelectionToClipboard(self, mapLayer:QgsMapLayer):
+    def cutSelectionToClipboard(self, mapLayer: QgsMapLayer):
         if isinstance(mapLayer, QgsVectorLayer):
             self.mClipBoard.replaceWithCopyOf(mapLayer)
             mapLayer.beginEditCommand('Features cut')
             mapLayer.deleteSelectedFeatures()
             mapLayer.endEditCommand()
 
-    def copySelectionToClipboard(self, mapLayer:QgsMapLayer):
+    def copySelectionToClipboard(self, mapLayer: QgsMapLayer):
         if isinstance(mapLayer, QgsVectorLayer):
             self.mClipBoard.replaceWithCopyOf(mapLayer)
 
-    def pasteFromClipboard(self, pasteVectorLayer:QgsMapLayer):
+    def pasteFromClipboard(self, pasteVectorLayer: QgsMapLayer):
         if not isinstance(pasteVectorLayer, QgsVectorLayer):
             return
 
@@ -356,11 +340,8 @@ class QgisMockup(QgisInterface):
         compatibleFeatures = QgsVectorLayerUtils.makeFeatureCompatible(features, pasteVectorLayer)
         newFeatures
 
-
-
-
     def iconSize(self, dockedToolbar=False):
-        return QSize(30,30)
+        return QSize(30, 30)
 
     def testSlot(self, *args):
         # print('--canvas changes--')
@@ -369,13 +350,11 @@ class QgisMockup(QgisInterface):
     def mainWindow(self):
         return self.ui
 
-
     def addToolBarIcon(self, action):
         assert isinstance(action, QAction)
 
     def removeToolBarIcon(self, action):
         assert isinstance(action, QAction)
-
 
     def addVectorLayer(self, path, basename=None, providerkey=None):
         if basename is None:
@@ -394,10 +373,10 @@ class QgisMockup(QgisInterface):
     def legendInterface(self):
         return None
 
-    def layerTreeCanvasBridge(self)->QgsLayerTreeMapCanvasBridge:
+    def layerTreeCanvasBridge(self) -> QgsLayerTreeMapCanvasBridge:
         return self.mLayerTreeMapCanvasBridge
 
-    def layerTreeView(self)->QgsLayerTreeView:
+    def layerTreeView(self) -> QgsLayerTreeView:
         return self.mLayerTreeView
 
     def addRasterLayer(self, path, baseName=''):
@@ -405,7 +384,7 @@ class QgisMockup(QgisInterface):
         self.lyrs.append(l)
         QgsProject.instance().addMapLayer(l, True)
         self.mRootNode.addLayer(l)
-        #self.mCanvas.setLayers(self.mCanvas.layers() + l)
+        # self.mCanvas.setLayers(self.mCanvas.layers() + l)
 
     def createActions(self):
         m = self.ui.menuBar().addAction('Add Vector')
@@ -435,16 +414,16 @@ class QgisMockup(QgisInterface):
     def zoomFull(self, *args, **kwargs):
         super().zoomFull(*args, **kwargs)
 
+
 class TestObjects():
     """
     Creates objects to be used for testing. It is preferred to generate objects in-memory.
     """
 
     @staticmethod
-    def createDropEvent(mimeData: QMimeData)->QDropEvent:
+    def createDropEvent(mimeData: QMimeData) -> QDropEvent:
         """Creates a QDropEvent containing the provided QMimeData ``mimeData``"""
         return QDropEvent(QPointF(0, 0), Qt.CopyAction, mimeData, Qt.LeftButton, Qt.NoModifier)
-
 
     @staticmethod
     def spectralProfiles(n):
@@ -480,8 +459,9 @@ class TestObjects():
     """
     Class with static routines to create test objects
     """
+
     @staticmethod
-    def inMemoryImage(nl=10, ns=20, nb=1, crs='EPSG:32632', eType=gdal.GDT_Byte, nc:int=0, path:str=None):
+    def inMemoryImage(nl=10, ns=20, nb=1, crs='EPSG:32632', eType=gdal.GDT_Byte, nc: int = 0, path: str = None):
         from .classification.classificationscheme import ClassificationScheme
 
         scheme = None
@@ -506,8 +486,8 @@ class TestObjects():
         if isinstance(crs, str):
             c = QgsCoordinateReferenceSystem(crs)
             ds.SetProjection(c.toWkt())
-        ds.SetGeoTransform([0,1.0,0, \
-                            0,0,-1.0])
+        ds.SetGeoTransform([0, 1.0, 0, \
+                            0, 0, -1.0])
 
         assert isinstance(ds, gdal.Dataset)
         for b in range(1, nb + 1):
@@ -516,7 +496,6 @@ class TestObjects():
             if isinstance(scheme, ClassificationScheme) and b == 1:
                 array = np.zeros((nl, ns), dtype=np.uint8) - 1
                 y0 = 0
-
 
                 step = int(np.ceil(float(nl) / len(scheme)))
 
@@ -533,7 +512,7 @@ class TestObjects():
                     array = array * 256
                     array = array.astype(np.byte)
                 elif eType == gdal.GDT_Int16:
-                    array = array * 2**16
+                    array = array * 2 ** 16
                     array = array.astype(np.int16)
                 elif eType == gdal.GDT_Int32:
                     array = array * 2 ** 32
@@ -543,9 +522,8 @@ class TestObjects():
         ds.FlushCache()
         return ds
 
-
     @staticmethod
-    def createRasterLayer(*args, **kwds)->QgsRasterLayer:
+    def createRasterLayer(*args, **kwds) -> QgsRasterLayer:
         """
         Creates an in-memory raster layer.
         See arguments & keyword for `inMemoryImage()`
@@ -560,13 +538,12 @@ class TestObjects():
         return lyr
 
     @staticmethod
-    def createVectorDataSet(wkb=ogr.wkbPolygon)->ogr.DataSource:
+    def createVectorDataSet(wkb=ogr.wkbPolygon) -> ogr.DataSource:
         """
         Create an in-memory ogr.DataSource
         :return: ogr.DataSource
         """
         assert wkb in [ogr.wkbPoint, ogr.wkbPolygon, ogr.wkbLineString]
-
 
         pkgPath = QgsApplication.instance().pkgDataPath()
         pathSrc = os.path.join(pkgPath, *['resources', 'data', 'world_map.shp'])
@@ -586,8 +563,7 @@ class TestObjects():
         drv = dsSrc.GetDriver()
         assert isinstance(drv, ogr.Driver)
 
-
-        #set temp path
+        # set temp path
         if wkb == ogr.wkbPolygon:
             lname = 'polygons'
             pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.polygons.shp'
@@ -643,7 +619,7 @@ class TestObjects():
         return dsDst
 
     @staticmethod
-    def createVectorLayer(wkbType:QgsWkbTypes=QgsWkbTypes.Polygon) -> QgsVectorLayer:
+    def createVectorLayer(wkbType: QgsWkbTypes = QgsWkbTypes.Polygon) -> QgsVectorLayer:
         """
         Create a QgsVectorLayer
         :return: QgsVectorLayer
@@ -676,10 +652,9 @@ class TestObjects():
         return vl
 
     @staticmethod
-    def createDropEvent(mimeData:QMimeData):
+    def createDropEvent(mimeData: QMimeData):
         """Creates a QDropEvent conaining the provided QMimeData"""
         return QDropEvent(QPointF(0, 0), Qt.CopyAction, mimeData, Qt.LeftButton, Qt.NoModifier)
-
 
     @staticmethod
     def processingAlgorithm():
@@ -719,20 +694,16 @@ class TestObjects():
                 assert isinstance(context, QgsProcessingContext)
                 assert isinstance(feedback, QgsProcessingFeedback)
 
-
                 outputs = {}
                 return outputs
 
         return TestProcessingAlgorithm()
 
 
-
 class QgsPluginManagerMockup(QgsPluginManagerInterface):
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
     def addPluginMetadata(self, *args, **kwargs):
         super().addPluginMetadata(*args, **kwargs)
@@ -744,7 +715,7 @@ class QgsPluginManagerMockup(QgsPluginManagerInterface):
         super().childEvent(*args, **kwargs)
 
     def clearPythonPluginMetadata(self, *args, **kwargs):
-        #super().clearPythonPluginMetadata(*args, **kwargs)
+        # super().clearPythonPluginMetadata(*args, **kwargs)
         pass
 
     def clearRepositoryList(self, *args, **kwargs):
@@ -787,9 +758,7 @@ class QgsPluginManagerMockup(QgsPluginManagerInterface):
         super().timerEvent(*args, **kwargs)
 
 
-
 class QgsClipboardMockup(QObject):
-
     changed = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -818,7 +787,6 @@ class QgsClipboardMockup(QObject):
         elif isinstance(src, QgsFeatureStore):
             raise NotImplementedError()
 
-
     def setSystemClipBoard(self):
 
         raise NotImplementedError()
@@ -828,7 +796,7 @@ class QgsClipboardMockup(QObject):
         m = QMimeData()
         m.setText(textCopy)
 
-        #todo: set HTML
+        # todo: set HTML
 
     def generateClipboardText(self):
 
@@ -839,10 +807,9 @@ class QgsClipboardMockup(QObject):
         textLines = '\t'.join(textFields)
         textFields.clear()
 
-
-
     def systemClipboardChanged(self):
         pass
+
 
 class PythonRunnerImpl(QgsPythonRunner):
     """
@@ -852,8 +819,7 @@ class PythonRunnerImpl(QgsPythonRunner):
     def __init__(self):
         super(PythonRunnerImpl, self).__init__()
 
-
-    def evalCommand(self, cmd:str, result:str):
+    def evalCommand(self, cmd: str, result: str):
         try:
             o = compile(cmd)
         except Exception as ex:
@@ -867,7 +833,7 @@ class PythonRunnerImpl(QgsPythonRunner):
             exec(o)
         except Exception as ex:
             messageOnError = str(ex)
-            command = ['{}:{}'.format(i+1, l) for i,l in enumerate(command.splitlines())]
+            command = ['{}:{}'.format(i + 1, l) for i, l in enumerate(command.splitlines())]
             print('\n'.join(command), file=sys.stderr)
             raise ex
             return False
