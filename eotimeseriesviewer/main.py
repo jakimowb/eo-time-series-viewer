@@ -710,10 +710,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
             if value(key) == None and key in defaults.keys():
                 setValue(key, defaults[key])
 
-        self.mTimeSeries.setDateTimePrecision(value(Keys.DateTimePrecision))
-        self.spatialTemporalVis.mMapRefreshTimer.start(value(Keys.MapUpdateInterval))
-        self.spatialTemporalVis.setMapBackgroundColor(value(Keys.MapBackgroundColor))
-        self.spatialTemporalVis.setMapSize(value(Keys.MapSize))
+        v = value(Keys.DateTimePrecision)
+        if isinstance(v, DateTimePrecision):
+            self.mTimeSeries.setDateTimePrecision(v)
+
+        v = value(Keys.MapUpdateInterval)
+        if isinstance(v, int) and v > 0:
+            self.spatialTemporalVis.mMapRefreshTimer.start(v)
+
+        v = value(Keys.MapBackgroundColor)
+        if isinstance(v, QColor):
+            self.spatialTemporalVis.setMapBackgroundColor(v)
+
+        v = value(Keys.MapSize)
+        if isinstance(v, QSize):
+            self.spatialTemporalVis.setMapSize(v)
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
