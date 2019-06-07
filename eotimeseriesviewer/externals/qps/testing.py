@@ -174,7 +174,7 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
 
         QGIS_PREFIX_PATH = os.environ.get('QGIS_PREFIX_PATH')
         print('Initialize QGIS environment on {}'.format(QOperatingSystemVersion.current().name()))
-        if QOperatingSystemVersion.currentType() == QOperatingSystemVersion.Windows:
+        if QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Windows:
             # add location of Qt Libraries
             assert '.app' in qgis.__file__, 'Can not locate path of QGIS.app'
             PATH_QGIS_APP = re.search(r'.*\.app', qgis.__file__).group()
@@ -185,15 +185,22 @@ def initQgisApplication(*args, qgisResourceDir:str=None,
             qgsApp = qgis.testing.start_app()
             QgsProviderRegistry.instance().setLibraryDirectory(QDir(libraryPath2))
 
-        elif QOperatingSystemVersion.currentType() == QOperatingSystemVersion.Android:
-
-            qgsApp = qgis.testing.start_app()
-
-        elif QOperatingSystemVersion.currentType() == QOperatingSystemVersion.Windows:
+        elif QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Windows:
 
             qgsApp = qgis.testing.start_app()
             if not QgsProviderRegistry.instance().libraryDirectory().exists():
                 QgsProviderRegistry.instance().setLibraryDirectory(QDir(QApplication.instance().libraryPaths()[0]))
+
+        elif QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Unknown:
+
+
+            qgsApp = qgis.testing.start_app()
+
+            if not QgsProviderRegistry.instance().libraryDirectory().exists():
+                qdir = QDir(r'/usr/lib/qgis/plugins')
+                if qdir.exists():
+                    QgsProviderRegistry.instance().setLibraryDirectory(qdir)
+
         else:
 
             qgsApp = qgis.testing.start_app()
