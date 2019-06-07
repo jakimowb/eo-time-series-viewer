@@ -21,7 +21,7 @@ example/*.aux.xml
 example/*.gpkg-shm
 example/*.gpkg-wal
 eotimeseriesviewer/ui/tmp.ui
-.*
+
 !/.gitignore
 !/.gitattributes
 
