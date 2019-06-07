@@ -22,7 +22,7 @@ import mock
 
 
 if True:
-    MOCK_MODULES = ['qgis', 'qgis.core', 'qgis.gui', 'qgis.utils', 'numpy', 'scipy',
+    MOCK_MODULES = ['qgis', 'qgis.core', 'qgis.gui', 'qgis.utils', 'numpy', 'scipy', 'osgeo', 'gdal',
                 'vrtbuilder', 'vrtbuilder.virtualrasters',
                 'qgis.PyQt', 'qgis.PyQt.Qt', 'qgis.PyQt.QtCore', 'qgis.PyQt.QtGui', 'qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
                 'processing', 'processing.core', 'processing.core.ProcessingConfig']
