@@ -22,10 +22,10 @@ import mock
 
 
 if True:
-    MOCK_MODULES = ['qgis','qgis.core','qgis.gui','qgis.utils',
-                'vrtbuilder','vrtbuilder.virtualrasters',
-                'qgis.PyQt','qgis.PyQt.Qt','qgis.PyQt.QtCore','qgis.PyQt.QtGui','qgis.PyQt.QtWidgets','qgis.PyQt.QtXml',
-                'processing','processing.core','processing.core.ProcessingConfig']
+    MOCK_MODULES = ['qgis', 'qgis.core', 'qgis.gui', 'qgis.utils', 'numpy', 'scipy',
+                'vrtbuilder', 'vrtbuilder.virtualrasters',
+                'qgis.PyQt', 'qgis.PyQt.Qt', 'qgis.PyQt.QtCore', 'qgis.PyQt.QtGui', 'qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
+                'processing', 'processing.core', 'processing.core.ProcessingConfig']
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
