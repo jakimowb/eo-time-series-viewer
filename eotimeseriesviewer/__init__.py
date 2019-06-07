@@ -85,7 +85,7 @@ if not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
     from .externals.qps.layerproperties import LayerFieldConfigEditorWidget
     from .externals.qps.maptools import *
     from .externals.qps.utils import *
-    
+
     UI_DIRECTORIES.append(DIR_UI)
 
 def messageLog(msg, level=None):
