@@ -405,13 +405,10 @@ def updateInfoHTMLs():
     txt = readTextFile(PATH_CHANGELOG)
     txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracke), txt)
 
-    settings_overrides = {'input_encoding': 'unicode',
-                          'output_encoding': 'unicode'}
-
-    html = publish_string(txt, writer_name='html', settings_overrides=settings_overrides)
+    txt = publish_string(txt, writer_name='html').decode('utf-8')
 
     pathChangelogHtml = PATH_CHANGELOG + '.html'
-    doUpdate(pathChangelogHtml, html)
+    doUpdate(pathChangelogHtml, txt)
 
     # LICENSE.md -> LICENSE.html
     txt = readTextFile(PATH_LICENSE)
