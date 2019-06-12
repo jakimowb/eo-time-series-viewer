@@ -140,7 +140,7 @@ class TestInit(unittest.TestCase):
         if SHOW_GUI:
             QAPP.exec_()
 
-    def test_timeseriessource(self):
+    def test_TimeSeriesSource(self):
         wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
 
         if False:
@@ -177,6 +177,20 @@ class TestInit(unittest.TestCase):
             self.assertTrue(b)
             self.assertIsInstance(lyr, QgsRasterLayer)
             self.assertTrue(lyr.isValid())
+
+
+        import pickle, json
+
+        dump = pickle.dumps(tss)
+        tss2 = pickle.loads(dump)
+        self.assertIsInstance(tss2, TimeSeriesSource)
+        self.assertEqual(tss, tss2)
+
+        json = tss.json()
+        self.assertIsInstance(json, str)
+        tss3 = TimeSeriesSource.fromJson(json)
+        self.assertIsInstance(tss3, TimeSeriesSource)
+        self.assertEqual(tss, tss3)
 
 
     def test_datetimeprecision(self):

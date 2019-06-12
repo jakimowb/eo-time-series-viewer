@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import sys, re, collections, traceback, time, json, urllib, types, enum, typing
+import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json
 
 
 import bisect
@@ -316,6 +316,18 @@ class TimeSeriesSource(object):
     """Provides some information on source images"""
 
     @staticmethod
+    def fromJson(jsonData:str):
+        """
+        Returs a TimeSeriesSource from its JSON representation
+        :param json:
+        :return:
+        """
+        source = TimeSeriesSource(None)
+        state = json.loads(jsonData)
+        source.__setstatedictionary(state)
+        return source
+
+    @staticmethod
     def create(source):
         """
         Reads the argument and returns a TimeSeriesSource
@@ -358,41 +370,113 @@ class TimeSeriesSource(object):
 
         return TimeSeriesSource(ds)
 
-    def __init__(self, dataset:gdal.Dataset):
+    def __init__(self, dataset:gdal.Dataset=None):
 
-        assert isinstance(dataset, gdal.Dataset)
-        assert dataset.RasterCount > 0
-        assert dataset.RasterYSize > 0
-        assert dataset.RasterXSize > 0
-        self.mUri = dataset.GetFileList()[0]
-
-        self.mDate = parseDateFromDataSet(dataset)
-        assert self.mDate is not None, 'Unable to find acquisition date of {}'.format(self.mUri)
-
-        self.mDrv = dataset.GetDriver().ShortName
-        self.mGT = dataset.GetGeoTransform()
-        self.mWKT = dataset.GetProjection()
-        self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
-
-        self.mWL, self.mWLU = extractWavelengths(dataset)
-
-
-        self.nb, self.nl, self.ns = dataset.RasterCount, dataset.RasterYSize, dataset.RasterXSize
-        self.mGeoTransform = dataset.GetGeoTransform()
-        px_x = float(abs(self.mGeoTransform[1]))
-        px_y = float(abs(self.mGeoTransform[5]))
-        self.mGSD = (px_x, px_y)
-        self.mDataType = dataset.GetRasterBand(1).DataType
-        self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU)
-
-        self.mMetaData = collections.OrderedDict()
-        for domain in dataset.GetMetadataDomainList():
-            self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
-
-        self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
-        self.mLR = QgsPointXY(*px2geo(QPoint(self.ns + 1, self.nl + 1), self.mGeoTransform, pxCenter=False))
+        self.mUri = None
+        self.mDrv = None
+        self.mGT = None
+        self.mWKT = None
+        self.mCRS = None
+        self.mWL = None
+        self.mWLU = None
+        self.nb = self.ns = self.nl = None
+        self.mGeoTransform = None
+        self.mGSD = None
+        self.mDataType = None
+        self.mSid = None
+        self.mMetaData = None
+        self.mUL = self.LR = None
 
         self.mTimeSeriesDatum = None
+
+        if isinstance(dataset, gdal.Dataset):
+            assert dataset.RasterCount > 0
+            assert dataset.RasterYSize > 0
+            assert dataset.RasterXSize > 0
+            self.mUri = dataset.GetFileList()[0]
+
+            self.mDate = parseDateFromDataSet(dataset)
+            assert self.mDate is not None, 'Unable to find acquisition date of {}'.format(self.mUri)
+
+            self.mDrv = dataset.GetDriver().ShortName
+            self.mGT = dataset.GetGeoTransform()
+            self.mWKT = dataset.GetProjection()
+            self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
+
+            self.mWL, self.mWLU = extractWavelengths(dataset)
+
+
+            self.nb, self.nl, self.ns = dataset.RasterCount, dataset.RasterYSize, dataset.RasterXSize
+            self.mGeoTransform = dataset.GetGeoTransform()
+            px_x = float(abs(self.mGeoTransform[1]))
+            px_y = float(abs(self.mGeoTransform[5]))
+            self.mGSD = (px_x, px_y)
+            self.mDataType = dataset.GetRasterBand(1).DataType
+            self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU)
+
+            self.mMetaData = collections.OrderedDict()
+            for domain in dataset.GetMetadataDomainList():
+                self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
+
+            self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
+            self.mLR = QgsPointXY(*px2geo(QPoint(self.ns + 1, self.nl + 1), self.mGeoTransform, pxCenter=False))
+
+
+    def __reduce_ex__(self, protocol):
+
+        return self.__class__, (), self.__getstate__()
+
+    def __statedictionary(self):
+        """
+        Returns the internal state as serializable dictionary.
+
+        :return: dict
+        """
+        state = dict()
+        for name in dir(self):
+            if re.search('^(n|m).+', name):
+                value = getattr(self, name)
+                if isinstance(value, (str, int, float, dict, list, tuple)):
+                    state[name] = value
+                elif isinstance(value, QgsPointXY):
+                    state[name] = value.asWkt()
+                elif isinstance(value, np.datetime64):
+                    state[name] = str(value)
+                elif name in ['mCRS', 'mTimeSeriesDatum']:
+                    # will be derived from other variables
+                    continue
+                elif callable(value):
+                    continue
+                else:
+                     s = ""
+        return state
+
+    def __setstatedictionary(self, state:dict):
+        assert isinstance(state, dict)
+        for k, v in state.items():
+            self.__dict__[k] = v
+        self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
+        assert self.mCRS.isValid()
+        self.mUL = QgsPointXY(QgsGeometry.fromWkt(self.mUL).asPoint())
+        self.mLR = QgsPointXY(QgsGeometry.fromWkt(self.mLR).asPoint())
+        self.mDate = np.datetime64(self.mDate)
+
+    def __getstate__(self):
+
+        dump = pickle.dumps(self.__statedictionary())
+        return dump
+
+    def __setstate__(self, state):
+        d = pickle.loads(state)
+
+        self.__setstatedictionary(d)
+
+    def json(self)->str:
+        """
+        Returns a JSON representation
+        :return:
+        """
+        return json.dumps(self.__statedictionary())
 
     def name(self)->str:
         """
