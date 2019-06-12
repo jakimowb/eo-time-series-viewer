@@ -400,7 +400,6 @@ def updateInfoHTMLs():
         else:
             print('{} already updated'.format(path))
 
-
     # CHANGELOG -> CHANGELOG.html
     txt = readTextFile(PATH_CHANGELOG)
     txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracke), txt)

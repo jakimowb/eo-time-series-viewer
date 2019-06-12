@@ -3,7 +3,7 @@ Changelog
 ==============
 2019-06-12 (version 1.3):
     * fixed `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_: opening example closes QGIS on linux
-    # fixed `#96 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/96>`_ and `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_ : docutils not installed error when showing rst/md content
+    * fixed `#96 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/96>`_ and `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_ : docutils not installed error when showing rst/md content
     * fixed `#97 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/97>`_: TSV does not start (Linux)
 
 2019-05-31 (version 1.2):
