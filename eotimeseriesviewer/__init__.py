@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 
 
-__version__ = '1.2'  # sub-subversion number is added automatically
+__version__ = '1.3'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
