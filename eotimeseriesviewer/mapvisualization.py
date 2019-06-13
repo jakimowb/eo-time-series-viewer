@@ -1681,9 +1681,10 @@ class SpatialTemporalVisualization(QObject):
             c.timedRefresh()
             n += 1
 
-        if n < 10:
+        if False and n < 10:
             # refresh up to mNumberOfHiddenMapsToRefresh maps which are not visible to the user
             i = 0
+
             for c in hiddenMaps:
                 assert isinstance(c, MapCanvas)
                 c.timedRefresh()
