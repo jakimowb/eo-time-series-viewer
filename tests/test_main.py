@@ -141,7 +141,6 @@ class TestInit(TestCase):
     def test_TimeSeriesViewerMassiveSources(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
-
         TSV = TimeSeriesViewer()
         TSV.show()
         files = TestObjects.createArtificialTimeSeries(100)

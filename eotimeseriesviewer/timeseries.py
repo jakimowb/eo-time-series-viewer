@@ -1200,6 +1200,8 @@ class TimeSeries(QAbstractItemModel):
         tsd.rowsRemoved.connect(self.onSourcesRemoved)
         tsd.rowsAboutToBeInserted.connect(self.onSourcesAboutToBeInserted)
         tsd.rowsInserted.connect(self.onSourcesInserted)
+        tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
+        tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
 
         row = bisect.bisect(self.mTSDs, tsd)
         self.beginInsertRows(self.mRootIndex, row, row)
@@ -1356,6 +1358,7 @@ class TimeSeries(QAbstractItemModel):
 
                 if len(addedDates) > 0:
                     self.sigTimeSeriesDatesAdded.emit(addedDates)
+
 
             except Exception as ex:
                 s = ""
