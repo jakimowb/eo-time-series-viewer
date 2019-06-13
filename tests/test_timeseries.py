@@ -143,6 +143,12 @@ class TestInit(unittest.TestCase):
     def test_TimeSeriesSource(self):
         wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
 
+        p = r'Q:\Processing_BJ\01_Data\level2_overview\20180629_SEN2B_BOA.vrt'
+        if os.path.isfile(p):
+            tss = TimeSeriesSource.create(p)
+            self.assertIsInstance(tss, TimeSeriesSource)
+
+
         if False:
             webSources = [QgsRasterLayer(wcs, 'test', 'wcs')]
 
@@ -255,6 +261,25 @@ class TestInit(unittest.TestCase):
         self.assertTrue(len(TS) == 0.5 * len(paths))
         self.assertTrue(len(TS) == 0.5 * len(srcUris))
 
+
+    def test_timeseries_loadasync(self):
+
+        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+
+        w = QgsTaskManagerWidget(QgsApplication.taskManager())
+        w.show()
+
+        TS = TimeSeries()
+        TS.addSourcesAsync(files, nWorkers=1)
+
+        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
+            QCoreApplication.processEvents()
+
+        #self.assertTrue(len(TS) > 0)
+        #self.assertTrue(len(TS) == len(files))
+
+        if SHOW_GUI:
+            QAPP.exec_()
 
     def test_timeseries(self):
 

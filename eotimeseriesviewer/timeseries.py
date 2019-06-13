@@ -20,7 +20,7 @@
 """
 # noinspection PyPep8Naming
 
-import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json
+import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json, uuid
 
 
 import bisect
@@ -393,7 +393,8 @@ class TimeSeriesSource(object):
             assert dataset.RasterCount > 0
             assert dataset.RasterYSize > 0
             assert dataset.RasterXSize > 0
-            self.mUri = dataset.GetFileList()[0]
+            #self.mUri = dataset.GetFileList()[0]
+            self.mUri = dataset.GetDescription()
 
             self.mDate = parseDateFromDataSet(dataset)
             assert self.mDate is not None, 'Unable to find acquisition date of {}'.format(self.mUri)
@@ -596,7 +597,7 @@ class TimeSeriesDatum(QAbstractTableModel):
             return self.addSource(TimeSeriesSource.create(source))
         else:
             assert isinstance(source, TimeSeriesSource)
-            assert self.mDate == source.date()
+            # assert self.mDate == source.date()
             assert self.mSensor.id() == source.sid()
 
             source.setTimeSeriesDatum(self)
@@ -971,6 +972,23 @@ class DateTimePrecision(enum.Enum):
     Original = 0
 
 
+def doLoadTimeSeriesSourcesTask(taskWrapper:QgsTask, dump):
+
+    sources = pickle.loads(dump)
+    assert isinstance(taskWrapper, QgsTask)
+
+    results = []
+    n = len(sources)
+    for i, source in enumerate(sources):
+        s = TimeSeriesSource.create(source)
+        if isinstance(s, TimeSeriesSource):
+            results.append(s)
+
+        taskWrapper.setProgress(float(i+1) / n * 100.0)
+    resultDump = pickle.dumps(results)
+    return resultDump
+    s = ""
+
 class TimeSeries(QAbstractItemModel):
     """
     The sorted list of data sources that specify the time series
@@ -1013,6 +1031,8 @@ class TimeSeries(QAbstractItemModel):
 
         self.mRootIndex = QModelIndex()
 
+
+        self.mTasks = list()
 
         if imageFiles is not None:
             self.addSources(imageFiles)
@@ -1292,7 +1312,66 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
+    def addSourcesAsync(self, sources:list, nWorkers:int = 1):
 
+        tm = QgsApplication.taskManager()
+        assert isinstance(tm, QgsTaskManager)
+        assert isinstance(nWorkers, int) and nWorkers >= 1
+
+
+        # see https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+        def chunks(l, n):
+            """Yield successive n-sized chunks from l."""
+            for i in range(0, len(l), n):
+                yield l[i:i + n]
+
+        n = int(len(sources) / nWorkers)
+        #for subset in chunks(sources, n):
+        for source in sources:
+            subset = [source]
+            dump = pickle.dumps(subset)
+            #taskDescription = 'Load EOTSV {} sources {}'.format(len(subset), uuid.uuid4())
+            taskDescription = 'Load {}'.format(source)
+            qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
+            self.mTasks.append(qgsTask)
+
+            if False: # for debugging
+                resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
+                self.onAddSourcesAsyncFinished(None, resultDump)
+            else:
+                tm.addTask(qgsTask)
+
+    def onAddSourcesAsyncFinished(self, *args):
+        print(':: onAddSourcesAsyncFinished')
+        error = args[0]
+        if error is None:
+            try:
+                addedDates = []
+                dump = args[1]
+                sources = pickle.loads(dump)
+                for source in sources:
+                    newTSD = self._addSource(source)
+                    if isinstance(newTSD, TimeSeriesDatum):
+                        addedDates.append(newTSD)
+
+                if len(addedDates) > 0:
+                    self.sigTimeSeriesDatesAdded.emit(addedDates)
+
+            except Exception as ex:
+                s = ""
+        else:
+            s = ""
+        #self._cleanTasks()
+
+    def _cleanTasks(self):
+        toRemove = []
+        for task in self.mTasks:
+            if isinstance(task, QgsTask):
+                if task.status() in [QgsTask.Complete, QgsTask.Terminated]:
+                    toRemove.append(task)
+
+        for t in toRemove:
+            self.mTasks.remove(t)
 
     def addSources(self, sources:list, progressDialog:QProgressDialog=None):
         """
@@ -1338,7 +1417,9 @@ class TimeSeries(QAbstractItemModel):
 
             if isinstance(newTSD, TimeSeriesDatum):
                 addedDates.append(newTSD)
+
         #if len(addedDates) > 0:
+
         if isinstance(progressDialog, QProgressDialog):
             progressDialog.setLabelText('Create map widgets...')
 
@@ -1359,18 +1440,18 @@ class TimeSeries(QAbstractItemModel):
 
         newTSD = None
 
-        tss.mDate = self.date2date(tss.date())
-        date = tss.date()
+        tsdDate = self.date2date(tss.date())
+        tssDate = tss.date()
         sid = tss.sid()
         sensor = self.sensor(sid)
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = self.addSensor(SensorInstrument(sid))
         assert isinstance(sensor, SensorInstrument)
-        tsd = self.tsd(date, sensor)
+        tsd = self.tsd(tsdDate, sensor)
         # if necessary, add a new TimeSeriesDatum instance
         if not isinstance(tsd, TimeSeriesDatum):
-            tsd = self.insertTSD(TimeSeriesDatum(self, date, sensor))
+            tsd = self.insertTSD(TimeSeriesDatum(self, tsdDate, sensor))
             newTSD = tsd
             # addedDates.append(tsd)
         assert isinstance(tsd, TimeSeriesDatum)
@@ -1391,7 +1472,12 @@ class TimeSeries(QAbstractItemModel):
 
 
 
-    def date2date(self, date:np.datetime64):
+    def date2date(self, date:np.datetime64)->np.datetime64:
+        """
+        Converts a date of arbitrary precission into the date with precission according to the EOTSV settions.
+        :param date: numpy.datetime64
+        :return: numpy.datetime64
+        """
         assert isinstance(date, np.datetime64)
         if self.mDateTimePrecision == DateTimePrecision.Original:
             return date

@@ -80,6 +80,8 @@ class TestInit(TestCase):
 
             self.assertIn(expectation, dict(metadata), message)
 
+
+
     def test_TimeSeriesViewer(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
@@ -87,6 +89,9 @@ class TestInit(TestCase):
         TSV = TimeSeriesViewer()
         TSV.show()
         TSV.loadExampleTimeSeries()
+        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
+            QCoreApplication.processEvents()
+
         tsd = TSV.timeSeries()[-1]
         TSV.showTimeSeriesDatum(tsd)
         if SHOW_GUI:

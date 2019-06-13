@@ -113,7 +113,7 @@ class PixelLoaderTest(unittest.TestCase):
             print('Pixel loaded: {}'.format(taskResult))
             RESULTS.append(taskResult)
 
-        paths = [i.GetFileList()[0] for i in images]
+        paths = [i.GetDescription() for i in images]
         rl = QgsRasterLayer(paths[0])
 
         self.assertIsInstance(rl, QgsRasterLayer)

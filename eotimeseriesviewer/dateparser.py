@@ -148,7 +148,7 @@ class ImageDateReader(object):
     def __init__(self, dataSet):
         assert isinstance(dataSet, gdal.Dataset)
         self.dataSet = dataSet
-        self.filePath = dataSet.GetFileList()[0]
+        self.filePath = dataSet.GetDescription()
         self.dirName = os.path.dirname(self.filePath)
         self.baseName, self.extension = os.path.splitext(os.path.basename(self.filePath))
 

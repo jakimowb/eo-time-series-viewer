@@ -162,6 +162,7 @@ class TimeSeriesViewerUI(QMainWindow,
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews = addDockWidget(MapViewDock(self))
 
+
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
@@ -190,6 +191,7 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockSpectralLibrary = addDockWidget(panel)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
 
+
         #except Exception as ex:
         #    print('Unable to create SpectralLibrary panel', file=sys.stderr)
         #    print(ex, file=sys.stderr)
@@ -202,6 +204,12 @@ class TimeSeriesViewerUI(QMainWindow,
         area = Qt.RightDockWidgetArea
 
         from eotimeseriesviewer.systeminfo import SystemInfoDock
+
+        self.dockTaskManager = QgsDockWidget('Task Manager')
+        self.dockTaskManager.setWidget(QgsTaskManagerWidget(QgsApplication.taskManager()))
+        self.dockTaskManager.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        addDockWidget(self.dockTaskManager)
+
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
 
@@ -262,7 +270,6 @@ def showMessage(message, title, level):
         if message.startswith('<html>')
     else QgsMessageOutput.MessageText)
     v.showMessage(True)
-
 
 
 class TimeSeriesViewer(QgisInterface, QObject):
@@ -1044,7 +1051,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-    def loadExampleTimeSeries(self, n:int=None):
+    def loadExampleTimeSeries(self, n:int=None, loadAsync=True):
         """
         Loads an example time series
         :param n: int, max. number of images to load. Useful for developer test-cases
@@ -1181,7 +1188,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         if files:
-            self.mTimeSeries.addSources(files)
+            self.mTimeSeries.addSourcesAsync(files)
+            QCoreApplication.processEvents()
+            #self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):
 
