@@ -156,17 +156,12 @@ class TimeSeriesViewerUI(QMainWindow,
             self.dockLabeling = addDockWidget(LabelingDock(self))
             self.dockLabeling.setHidden(True)
 
-        from eotimeseriesviewer.sensorvisualization import SensorDockUI
-        self.dockSensors = addDockWidget(SensorDockUI(self))
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews = addDockWidget(MapViewDock(self))
 
-
-        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
-
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
-        self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
+        # self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
         area = Qt.BottomDockWidgetArea
         # from timeseriesviewer.mapvisualization import MapViewDockUI
@@ -183,13 +178,13 @@ class TimeSeriesViewerUI(QMainWindow,
         area = Qt.LeftDockWidgetArea
         self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.canvas(), self))
         self.dockAdvancedDigitizingDockWidget.setVisible(False)
-        self.tabifyDockWidget(self.dockSensors, self.dockAdvancedDigitizingDockWidget)
+
 
         area = Qt.BottomDockWidgetArea
         panel = SpectralLibraryPanel(None)
         panel.setParent(self)
         self.dockSpectralLibrary = addDockWidget(panel)
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+
 
 
         #except Exception as ex:
@@ -198,20 +193,31 @@ class TimeSeriesViewerUI(QMainWindow,
         #    self.dockSpectralLibrary = None
         #    self.dockSpectralLibrary = None
 
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
 
-        from eotimeseriesviewer.systeminfo import SystemInfoDock
+        from eotimeseriesviewer.sensorvisualization import SensorDockUI
+        self.dockSensors = addDockWidget(SensorDockUI(self))
+        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         self.dockTaskManager = QgsDockWidget('Task Manager')
         self.dockTaskManager.setWidget(QgsTaskManagerWidget(QgsApplication.taskManager()))
         self.dockTaskManager.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        addDockWidget(self.dockTaskManager)
+        self.dockTaskManager = addDockWidget(self.dockTaskManager)
 
+        from eotimeseriesviewer.systeminfo import SystemInfoDock
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
+
+
+        self.tabifyDockWidget(self.dockCursorLocation, self.dockSensors)
+        self.tabifyDockWidget(self.dockCursorLocation, self.dockTaskManager)
+        self.tabifyDockWidget(self.dockCursorLocation, self.dockSystemInfo)
+
+
 
         for dock in self.findChildren(QDockWidget):
 

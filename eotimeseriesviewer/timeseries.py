@@ -1344,7 +1344,7 @@ class TimeSeries(QAbstractItemModel):
                 tm.addTask(qgsTask)
 
     def onAddSourcesAsyncFinished(self, *args):
-        print(':: onAddSourcesAsyncFinished')
+        # print(':: onAddSourcesAsyncFinished')
         error = args[0]
         if error is None:
             try:
