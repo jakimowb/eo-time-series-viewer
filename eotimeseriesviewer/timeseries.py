@@ -687,6 +687,17 @@ class TimeSeriesDatum(QAbstractTableModel):
         """
         return int(self.mDOY)
 
+    def hasIntersectingSource(self, spatialExtent:SpatialExtent):
+        for source in self:
+            assert isinstance(source, TimeSeriesSource)
+            ext = source.spatialExtent()
+            if isinstance(ext, SpatialExtent):
+                ext = ext.toCrs(spatialExtent.crs())
+                if spatialExtent.intersects(ext):
+                    return True
+        return False
+
+
     def spatialExtent(self):
         """
         Returns the SpatialExtent of all data sources
@@ -845,9 +856,11 @@ class TimeSeriesTreeView(QTreeView):
         menu = QMenu(self)
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())
-        a = menu.addAction('Check')
+        a = menu.addAction('Hide')
+        a.setToolTip('Hides the selected dates.')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
-        a = menu.addAction('Uncheck')
+        a = menu.addAction('Show')
+        a.setToolTip('Shows the selected dates.')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
         if isinstance(tsd, TimeSeriesDatum):
             a = menu.addAction('Show {}'.format(tsd.date()))
@@ -1016,6 +1029,7 @@ class TimeSeries(QAbstractItemModel):
         self.mDateTimePrecision = DateTimePrecision.Original
 
         self.mCurrentDates = []
+        self.mCurrentSpatialExtent = None
 
         self.cnDate = 'Date'
         self.cnSensor = 'Sensor'
@@ -1036,8 +1050,40 @@ class TimeSeries(QAbstractItemModel):
         if imageFiles is not None:
             self.addSources(imageFiles)
 
+    def setCurrentSpatialExtent(self, spatialExtent:SpatialExtent):
+        """
+        Sets the spatial extent currently shown
+        :param spatialExtent:
+        """
+        if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
+            self.mCurrentSpatialExtent = spatialExtent
+
+            #
+            #idx1 = self.index(0, 0)
+            #idx2 = self.index(self.rowCount()-1, 0)
+            #self.dataChanged.emit(idx1, idx2, [Qt.DecorationRole])
+
+    def focusVisibilityToExtent(self):
+        ext = self.currentSpatialExtent()
+        if isinstance(ext, SpatialExtent):
+            for tsd in self:
+                assert isinstance(tsd, TimeSeriesDatum)
+                b = tsd.hasIntersectingSource(ext)
+                tsd.setVisibility(b)
+
+
+    def currentSpatialExtent(self)->SpatialExtent:
+        """
+        Returns the current spatial extent
+        :return: SpatialExtent
+        """
+        return self.mCurrentSpatialExtent
 
     def setCurrentDates(self, tsds:list):
+        """
+        Sets the TimeSeriesDates currently shown
+        :param tsds: [list-of-TimeSeriesDatum]
+        """
 
 
         self.mCurrentDates.clear()
@@ -1697,10 +1743,10 @@ class TimeSeries(QAbstractItemModel):
 
         cName = self.mColumnNames[index.column()]
 
-        if isinstance(tss, TimeSeriesSource):
+        if isinstance(node, TimeSeriesSource):
             if role in [Qt.DisplayRole]:
                 if cName == self.cnDate:
-                    return str(tsd.date())
+                    return str(tss.date())
                 if cName == self.cnImages:
                     return tss.uri()
                 if cName == self.cnNB:
@@ -1712,7 +1758,27 @@ class TimeSeries(QAbstractItemModel):
                 if cName == self.cnCRS:
                     return tss.crs().description()
 
-        if isinstance(tsd, TimeSeriesDatum):
+            if role == Qt.DecorationRole and index.column() == 0:
+
+                return None
+
+                ext = tss.spatialExtent()
+                if isinstance(self.mCurrentSpatialExtent, SpatialExtent) and isinstance(ext, SpatialExtent):
+                    ext = ext.toCrs(self.mCurrentSpatialExtent.crs())
+
+                    b = isinstance(ext, SpatialExtent) and ext.intersects(self.mCurrentSpatialExtent)
+                    if b:
+                        return QIcon(r':/timeseriesviewer/icons/mapview.svg')
+                    else:
+                        return QIcon(r':/timeseriesviewer/icons/mapviewHidden.svg')
+                else:
+                    print(ext)
+                    return None
+
+            if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
+                return QColor('yellow')
+
+        if isinstance(node, TimeSeriesDatum):
             if role in [Qt.DisplayRole]:
                 if cName == self.cnSensor:
                     return tsd.sensor().name()
@@ -1721,13 +1787,11 @@ class TimeSeries(QAbstractItemModel):
                 if cName == self.cnDate:
                     return str(tsd.date())
 
-            if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
-                return QColor('yellow')
-
-        if isinstance(node, TimeSeriesDatum) and index.column() == 0:
-            if role == Qt.CheckStateRole:
+            if role == Qt.CheckStateRole and index.column() == 0:
                 return Qt.Checked if tsd.isVisible() else Qt.Unchecked
 
+            if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
+                return QColor('yellow')
 
 
         return None

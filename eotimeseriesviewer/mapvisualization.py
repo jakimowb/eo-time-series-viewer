@@ -405,6 +405,12 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         for s in timeSeries.sensors():
             self.addSensor(s)
 
+    def timeSeries(self)->TimeSeries:
+        """
+        Returns the TimeSeries this mapview is connected with
+        :return: TimeSeries
+        """
+        return self.mTimeSeries
 
     def setTitle(self, title:str):
         """

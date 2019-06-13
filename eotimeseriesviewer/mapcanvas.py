@@ -796,6 +796,10 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(self.mTSD, TimeSeriesDatum):
             menu.addSeparator()
+
+            action = menu.addAction('Focus dates on spatial extent')
+            action.triggered.connect(self.onFocusToCurrentSpatialExtent)
+
             action = menu.addAction('Hide date')
             action.triggered.connect(lambda: self.mTSD.setVisibility(False))
 
@@ -815,12 +819,18 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
+    def onFocusToCurrentSpatialExtent(self):
+
+        mapView = self.mapView()
+        from .mapvisualization import MapView
+        if isinstance(mapView, MapView):
+            mapView.timeSeries().focusVisibilityToExtent()
+
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
         pasteStyleFromClipboard(lyr)
         if isinstance(lyr, SensorProxyLayer):
             self.mMapView.sensorProxyLayer(lyr.sensor()).setRenderer(lyr.renderer().clone())
-
 
     def contextMenuEvent(self, event:QContextMenuEvent):
         """

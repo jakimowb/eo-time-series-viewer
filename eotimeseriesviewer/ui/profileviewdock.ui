@@ -16,6 +16,12 @@
     <height>0</height>
    </size>
   </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>524287</height>
+   </size>
+  </property>
   <property name="features">
    <set>QDockWidget::AllDockWidgetFeatures</set>
   </property>

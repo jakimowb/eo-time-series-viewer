@@ -341,6 +341,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setMapBackgroundColor)
         self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
+        self.spatialTemporalVis.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
 
