@@ -523,7 +523,7 @@ class SpectralProfile(QgsFeature):
 
         profile.setValues(x=wl, y=y, xUnit=wlu)
         profile.setCoordinates(SpatialPoint(crs, px2geo(px, gt, pxCenter=True)))
-        profile.setSource('{}'.format(ds.GetFileList()[0]))
+        profile.setSource('{}'.format(ds.GetDescription()))
         return profile
 
 

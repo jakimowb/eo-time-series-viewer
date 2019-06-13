@@ -277,7 +277,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         data = ds.ReadAsArray()
 
         #remove the temporary VRT, as it was created internally only
-        ds.GetDriver().Delete(ds.GetFileList()[0])
+        ds.GetDriver().Delete(ds.GetDescription())
         #gdal.Unlink(ds)
 
 

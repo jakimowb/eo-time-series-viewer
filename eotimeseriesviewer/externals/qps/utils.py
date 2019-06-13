@@ -863,7 +863,7 @@ def defaultBands(dataset):
         if db != [0, 0, 0]:
             return db
 
-        rl = QgsRasterLayer(dataset.GetFileList()[0])
+        rl = QgsRasterLayer(dataset.GetDescription())
         defaultRenderer = rl.renderer()
         if isinstance(defaultRenderer, QgsRasterRenderer):
             db = defaultRenderer.usesBands()
