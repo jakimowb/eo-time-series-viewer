@@ -1096,9 +1096,9 @@ class TimeSeries(QAbstractItemModel):
 
         if n_max:
             n_max = min([len(images), n_max])
-            self.addSources(images[0:n_max], progressDialog=progressDialog)
+            self.addSourcesAsync(images[0:n_max], progressDialog=progressDialog)
         else:
-            self.addSources(images, progressDialog=progressDialog)
+            self.addSourcesAsync(images, progressDialog=progressDialog)
         #self.addMasks(masks)
 
 
@@ -1314,7 +1314,7 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
-    def addSourcesAsync(self, sources:list, nWorkers:int = 1):
+    def addSourcesAsync(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None):
 
         tm = QgsApplication.taskManager()
         assert isinstance(tm, QgsTaskManager)
@@ -1328,12 +1328,12 @@ class TimeSeries(QAbstractItemModel):
                 yield l[i:i + n]
 
         n = int(len(sources) / nWorkers)
-        #for subset in chunks(sources, n):
-        for source in sources:
-            subset = [source]
+        for subset in chunks(sources, 10):
+        #for source in sources:
+            #subset = [source]
             dump = pickle.dumps(subset)
             #taskDescription = 'Load EOTSV {} sources {}'.format(len(subset), uuid.uuid4())
-            taskDescription = 'Load {}'.format(source)
+            taskDescription = 'Load {} images'.format(len(subset))
             qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
             self.mTasks.append(qgsTask)
 
