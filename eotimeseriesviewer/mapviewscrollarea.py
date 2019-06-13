@@ -29,6 +29,8 @@ class MapViewScrollArea(QScrollArea):
 
     def __init__(self, *args, **kwds):
         super(MapViewScrollArea, self).__init__(*args, **kwds)
+        self.horizontalScrollBar().setTracking(False)
+        self.verticalScrollBar().setTracking(False)
 
     def resizeEvent(self, event):
         super(MapViewScrollArea, self).resizeEvent(event)

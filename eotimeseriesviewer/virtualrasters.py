@@ -219,7 +219,7 @@ class VRTRasterInputSourceBand(object):
             pathOrDataSet = gdal.Open(pathOrDataSet)
 
         if isinstance(pathOrDataSet, gdal.Dataset):
-            path = pathOrDataSet.GetFileList()[0]
+            path = pathOrDataSet.GetDescription()
             for b in range(pathOrDataSet.RasterCount):
                 srcBands.append(VRTRasterInputSourceBand(path, b))
         return srcBands

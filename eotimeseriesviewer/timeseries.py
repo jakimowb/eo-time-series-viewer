@@ -980,13 +980,14 @@ def doLoadTimeSeriesSourcesTask(taskWrapper:QgsTask, dump):
     results = []
     n = len(sources)
     for i, source in enumerate(sources):
+        if taskWrapper.isCanceled():
+            return pickle.dumps(results)
         s = TimeSeriesSource.create(source)
         if isinstance(s, TimeSeriesSource):
             results.append(s)
 
         taskWrapper.setProgress(float(i+1) / n * 100.0)
-    resultDump = pickle.dumps(results)
-    return resultDump
+    return pickle.dumps(results)
     s = ""
 
 class TimeSeries(QAbstractItemModel):
@@ -1328,7 +1329,7 @@ class TimeSeries(QAbstractItemModel):
                 yield l[i:i + n]
 
         n = int(len(sources) / nWorkers)
-        for subset in chunks(sources, 10):
+        for subset in chunks(sources, 50):
         #for source in sources:
             #subset = [source]
             dump = pickle.dumps(subset)
