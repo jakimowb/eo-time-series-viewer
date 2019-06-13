@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>885</width>
-    <height>442</height>
+    <width>773</width>
+    <height>235</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>0</width>
+    <height>0</height>
+   </size>
   </property>
   <property name="features">
    <set>QDockWidget::AllDockWidgetFeatures</set>

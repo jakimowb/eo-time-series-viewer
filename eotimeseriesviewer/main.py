@@ -305,9 +305,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
             application at run time.
         :type iface: QgsInterface
         """
-
-        # assert TimeSeriesViewer.instance() is None
-
         QObject.__init__(self)
         QgisInterface.__init__(self)
         QApplication.processEvents()
@@ -328,11 +325,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
-
-
         self.ui.dockTimeSeries.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
-
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
@@ -341,10 +335,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
-        # self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        # self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
-
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
         self.ui.dockMapViews.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
@@ -353,9 +343,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
-
-
-
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
@@ -371,8 +358,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
             action.triggered.connect(lambda: self.setMapTool(key))
             action.setProperty('eotsv/maptoolkey', key)
             self.ui.registerMapToolAction(action)
-
-
 
         initMapToolAction(self.ui.actionPan, MapTools.Pan)
         initMapToolAction(self.ui.actionZoomIn, MapTools.ZoomIn)
@@ -447,13 +432,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         assert isinstance(SLW, SpectralLibraryWidget)
-        #SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+
         SLW.setMapInteraction(True)
         SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
         SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
         SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
-
-        # add the cadDock
 
         # add time-specific fields
         sl = self.spectralLibrary()
@@ -473,7 +456,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
         self.spatialTemporalVis.sigMapViewAdded.connect(self.onMapViewAdded)
-        #QgsProject.instance().addMapLayer(temporalProfileLayer)
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()

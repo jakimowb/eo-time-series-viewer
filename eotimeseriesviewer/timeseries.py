@@ -833,8 +833,6 @@ class TimeSeriesTreeView(QTreeView):
     def __init__(self, parent=None):
         super(TimeSeriesTreeView, self).__init__(parent)
 
-
-
     def contextMenuEvent(self, event: QContextMenuEvent):
         """
         Creates and shows the QMenu
@@ -888,7 +886,7 @@ class TimeSeriesTreeView(QTreeView):
                 info.append(delimiter.join([str(v) for v in values]))
             info = '\n'.join(info)
             QApplication.clipboard().setText(info)
-        s = ""
+
 
 
 class TimeSeriesTableView(QTableView):
