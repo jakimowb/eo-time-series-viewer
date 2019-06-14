@@ -400,24 +400,31 @@ class TimeSeriesSource(object):
             assert self.mDate is not None, 'Unable to find acquisition date of {}'.format(self.mUri)
 
             self.mDrv = dataset.GetDriver().ShortName
-            self.mGT = dataset.GetGeoTransform()
-            self.mWKT = dataset.GetProjection()
-            self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
 
             self.mWL, self.mWLU = extractWavelengths(dataset)
 
 
             self.nb, self.nl, self.ns = dataset.RasterCount, dataset.RasterYSize, dataset.RasterXSize
             self.mGeoTransform = dataset.GetGeoTransform()
+            self.mMetaData = collections.OrderedDict()
+            for domain in dataset.GetMetadataDomainList():
+                self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
+
+            self.mWKT = dataset.GetProjection()
+            if self.mWKT == '':
+                # no CRS? try with QGIS API
+                lyr = QgsRasterLayer(self.mUri)
+                if lyr.crs().isValid():
+                    self.mWKT = lyr.crs().toWkt()
+
+            self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
+
             px_x = float(abs(self.mGeoTransform[1]))
             px_y = float(abs(self.mGeoTransform[5]))
             self.mGSD = (px_x, px_y)
             self.mDataType = dataset.GetRasterBand(1).DataType
             self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU)
 
-            self.mMetaData = collections.OrderedDict()
-            for domain in dataset.GetMetadataDomainList():
-                self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
 
             self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
             self.mLR = QgsPointXY(*px2geo(QPoint(self.ns + 1, self.nl + 1), self.mGeoTransform, pxCenter=False))

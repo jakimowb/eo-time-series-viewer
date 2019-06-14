@@ -148,6 +148,10 @@ class TestInit(unittest.TestCase):
             tss = TimeSeriesSource.create(p)
             self.assertIsInstance(tss, TimeSeriesSource)
 
+        p = r'Q:\Processing_BJ\99_OSARIS_Testdata\Loibl-2019-OSARIS-Ala-Archa\Amplitudes\20151207--20151231-amplitude.grd'
+        if os.path.isfile(p):
+            tss = TimeSeriesSource.create(p)
+            self.assertIsInstance(tss, TimeSeriesSource)
 
         if False:
             webSources = [QgsRasterLayer(wcs, 'test', 'wcs')]

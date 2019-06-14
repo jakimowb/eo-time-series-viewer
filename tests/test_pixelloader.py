@@ -142,6 +142,17 @@ class PixelLoaderTest(unittest.TestCase):
 
         self.assertTrue(len(RESULTS) == len(tasks))
 
+    def test_pixelLoader_netCDF(self):
+
+        p = r'Q:\Processing_BJ\99_OSARIS_Testdata\Loibl-2019-OSARIS-Ala-Archa\Amplitudes\20151207--20151231-amplitude.grd'
+        if os.path.isfile(p):
+            lyr = QgsRasterLayer(p)
+            task = PixelLoaderTask(p, [SpatialPoint.fromMapLayerCenter(lyr)])
+
+            result = doLoaderTask(None, task.toDump())
+
+            s = ""
+
     def test_pixelLoader(self):
         from eotimeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
         from eotimeseriesviewer import px2geo

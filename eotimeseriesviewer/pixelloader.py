@@ -186,9 +186,6 @@ def transformPoint2Px(trans, pt, gt):
     return geo2px(QgsPointXY(x, y), gt)
 
 
-
-
-
 def doLoaderTask(taskWrapper:QgsTask, dump):
 
     #assert isinstance(taskWrapper, QgsTask)
@@ -210,13 +207,12 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
     gt = ds.GetGeoTransform()
     result.resGeoTransformation = gt
     result.resCrsWkt = ds.GetProjection()
+    if result.resCrsWkt == '':
+        result.resCrsWkt = QgsRasterLayer(ds.GetDescription()).crs().toWkt()
     crsSrc = osr.SpatialReference(result.resCrsWkt)
 
-
-    #convert Geometries into pixel indices to be extracted
+    # convert Geometries into pixel indices to be extracted
     PX_SUBSETS = []
-
-
 
     for geom in task.geometries:
         crsRequest = osr.SpatialReference()
@@ -332,7 +328,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
 
 
 
-    #finally, ensure that there is on 2D array only
+    # finally, ensure that there is on 2D array only
     for i in range(len(PROFILE_DATA)):
         d = PROFILE_DATA[i]
         if isinstance(d, np.ndarray):

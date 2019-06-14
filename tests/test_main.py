@@ -149,7 +149,6 @@ class TestInit(TestCase):
         if SHOW_GUI:
             QGIS_APP.exec_()
 
-
     def test_TimeSeriesViewerNoSource(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
