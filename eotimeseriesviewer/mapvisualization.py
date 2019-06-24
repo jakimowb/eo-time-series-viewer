@@ -1887,7 +1887,7 @@ class SpatialTemporalVisualization(QObject):
         if isinstance(extent, SpatialExtent):
             centerOld = extent.center()
             center = center.toCrs(extent.crs())
-            if center != centerOld:
+            if center != centerOld and isinstance(center, SpatialPoint):
                 extent = extent.__copy__()
                 extent.setCenter(center)
                 self.setSpatialExtent(extent)

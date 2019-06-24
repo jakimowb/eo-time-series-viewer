@@ -266,7 +266,8 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
-        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() is None)
+        lw = dock.labelingWidget()
+        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() is None)
 
         lyr1 = self.createVectorLayer()
         lyr1.setName('in editing mode')
@@ -276,7 +277,7 @@ class testclassLabelingTest(unittest.TestCase):
 
         QgsProject.instance().addMapLayers([lyr1, lyr2])
 
-        dock.setCurrentVectorSource(lyr2)
+        lw.setCurrentVectorSource(lyr2)
 
         canvas = QgsMapCanvas()
         canvas.show()
@@ -287,9 +288,9 @@ class testclassLabelingTest(unittest.TestCase):
             canvas.setExtent(dock.canvas().extent())
             canvas.setLayers(dock.canvas().layers())
 
-        dock.sigVectorLayerChanged.connect(setLayers)
-        dock.sigMapCenterRequested.connect(setLayers)
-        dock.sigMapExtentRequested.connect(setLayers)
+        lw.sigVectorLayerChanged.connect(setLayers)
+        lw.sigMapCenterRequested.connect(setLayers)
+        lw.sigMapExtentRequested.connect(setLayers)
 
         if SHOW_GUI:
             QGIS_APP.exec_()
@@ -302,10 +303,13 @@ class testclassLabelingTest(unittest.TestCase):
 
         dock = LabelingDock()
         dock.show()
+        lw = dock.labelingWidget()
+
         self.assertIsInstance(dock, LabelingDock)
+        self.assertIsInstance(lw, LabelingWidget)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
-        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() is None)
+        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() is None)
 
         QgsProject.instance().addMapLayer(lyr)
 
@@ -342,9 +346,9 @@ class testclassLabelingTest(unittest.TestCase):
             self.assertEqual(feature.attribute('class2l'), classInfo2.label())
             self.assertEqual(feature.attribute('class2n'), classInfo2.name())
 
-        self.assertIsInstance(dock.mVectorLayerComboBox, QgsMapLayerComboBox)
-        dock.mVectorLayerComboBox.setCurrentIndex(1)
-        self.assertTrue(dock.mVectorLayerComboBox.currentLayer() == lyr)
+        self.assertIsInstance(lw.mVectorLayerComboBox, QgsMapLayerComboBox)
+        lw.mVectorLayerComboBox.setCurrentIndex(1)
+        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() == lyr)
 
         self.assertTrue(lyr.commitChanges())
 

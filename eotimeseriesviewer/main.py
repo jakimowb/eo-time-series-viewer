@@ -153,10 +153,6 @@ class TimeSeriesViewerUI(QMainWindow,
 
         # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
-        if DEBUG:
-            from eotimeseriesviewer.labeling import LabelingDock
-            self.dockLabeling = addDockWidget(LabelingDock(self))
-            self.dockLabeling.setHidden(True)
 
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
@@ -178,7 +174,7 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
         area = Qt.LeftDockWidgetArea
-        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.canvas(), self))
+        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
         self.dockAdvancedDigitizingDockWidget.setVisible(False)
 
 
@@ -388,16 +384,16 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # create edit toolbar
         tb = self.ui.toolBarEditing
         assert isinstance(tb, QToolBar)
-        tb.addAction(self.ui.dockLabeling.actionToggleEditing())
-        tb.addAction(self.ui.dockLabeling.actionSaveEdits())
-        tb.addAction(self.ui.dockLabeling.actionAddFeature())
-        self.ui.dockLabeling.sigMapExtentRequested.connect(self.setSpatialExtent)
-        self.ui.dockLabeling.sigMapCenterRequested.connect(self.setSpatialCenter)
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionToggleEditing())
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionSaveEdits())
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionAddFeature())
+        self.ui.dockLabeling.labelingWidget().sigMapExtentRequested.connect(self.setSpatialExtent)
+        self.ui.dockLabeling.labelingWidget().sigMapCenterRequested.connect(self.setSpatialCenter)
 
-        initMapToolAction(self.ui.dockLabeling.actionAddFeature(), MapTools.AddFeature)
+        initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
 
 
-        self.ui.dockLabeling.sigVectorLayerChanged.connect(lambda : self.spatialTemporalVis.setCurrentLayer(self.ui.dockLabeling.currentVectorSource()))
+        self.ui.dockLabeling.labelingWidget().sigVectorLayerChanged.connect(lambda : self.spatialTemporalVis.setCurrentLayer(self.ui.dockLabeling.labelingWidget().currentVectorSource()))
         #initMapToolAction(self.ui.dockLabeling., MapTools.AddFeature)
 
         # set default map tool
