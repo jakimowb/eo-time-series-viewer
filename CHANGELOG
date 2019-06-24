@@ -8,7 +8,6 @@ Changelog
     * added several convenience function to TimeSeriesViewer object
     * updated SpectralLibraryViewer
 
-
 2019-06-12 (version 1.3):
     * fixed #99: opening example closes QGIS on linux
     * fixed #96 and #99 : docutils not installed error when showing rst/md content
