@@ -797,15 +797,15 @@ class MapCanvas(QgsMapCanvas):
         if isinstance(self.mTSD, TimeSeriesDatum):
             menu.addSeparator()
 
-            action = menu.addAction('Focus dates on spatial extent')
+            action = menu.addAction('Focus on Spatial Extent')
             action.triggered.connect(self.onFocusToCurrentSpatialExtent)
 
-            action = menu.addAction('Hide date')
+            action = menu.addAction('Hide Date')
             action.triggered.connect(lambda: self.mTSD.setVisibility(False))
 
             if isinstance(eotsv, TimeSeriesViewer):
                 ts = eotsv.timeSeries()
-                action = menu.addAction('Remove date')
+                action = menu.addAction('Remove Date')
                 action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
 
 
