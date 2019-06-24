@@ -70,8 +70,6 @@ except:
     pass
 
 
-import eotimeseriesviewer.externals.qps
-
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
 # https://docs.readthedocs.io/en/stable/builds.html

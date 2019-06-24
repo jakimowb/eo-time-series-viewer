@@ -81,26 +81,49 @@ def rasterLayerProperties(bn:str):
     pass
 
 def temporalProfiles(bn:str):
+    path = jp(DIR_SCREENSHOTS, bn)
 
-    TSV.spectralTemporalVis.loadCoordinate()
 
     s = ""
     pass
 
 
+def mapViews(bn:str):
+
+    path = jp(DIR_SCREENSHOTS, bn)
+    widgetScreenshot(TSV.ui, path)
 
 
 if __name__ == '__main__':
     blankGUI('blank_gui.png')
 
-    TSV.loadExampleTimeSeries(loadAsync=False)
+
+    TSV.createMapView()
     TSV.createMapView()
     TSV.mapViews()[0].setTitle('True Color')
     TSV.mapViews()[1].setTitle('Near Infrared')
+    TSV.loadExampleTimeSeries(loadAsync=False)
 
+    vectorLayers = [l for l in QgsProject.instance().mapLayers().values() if isinstance(l, QgsVectorLayer)]
+    vlNames = [l.name() for l in vectorLayers]
+    # make testdata "exampleEvents" polygon fill-color transparent
+    vl = vectorLayers[vlNames.index('exampleEvents')]
+    assert isinstance(vl, QgsVectorLayer)
+    vl.renderer().symbol().symbolLayer(0).setBrushStyle(Qt.NoBrush)
     QApplication.processEvents()
 
+    for c in TSV.spatialTemporalVis.visibleMaps():
+        assert isinstance(c, MapCanvas)
+        c.timedRefresh()
+
+        c.stretchToExtent(c.spatialExtent(), 'linear_minmax', p=0.05)
+
+        c.timedRefresh()
+
+
+
     mapProperties('mapviewdock_map.png')
+    mapViews('mapviews.png')
     rasterLayerProperties('rasterlayer_properties.png')
     temporalProfiles('temporal_profiles.png')
 
