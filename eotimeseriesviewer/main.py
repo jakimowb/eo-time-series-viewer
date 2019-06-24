@@ -123,6 +123,8 @@ class TimeSeriesViewerUI(QMainWindow,
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+
+        self.setCentralWidget(self.mCentralWidget)
         self.addActions(self.findChildren(QAction))
         from eotimeseriesviewer import TITLE, icon, __version__
 
@@ -472,6 +474,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu):
                     toolButton.setPopupMode(QToolButton.MenuButtonPopup)
 
+
+        self.ui.dockTimeSeries.setFloating(True)
+        self.ui.dockTimeSeries.setFloating(False)
 
     def activateIdentifyTemporalProfileMapTool(self, *args):
         """

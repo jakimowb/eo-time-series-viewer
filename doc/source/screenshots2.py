@@ -112,13 +112,19 @@ if __name__ == '__main__':
     vl.renderer().symbol().symbolLayer(0).setBrushStyle(Qt.NoBrush)
     QApplication.processEvents()
 
-    for c in TSV.spatialTemporalVis.visibleMaps():
+    refDate = np.datetime64('2014-06-24')
+    for c in TSV.mapCanvases():
         assert isinstance(c, MapCanvas)
-        c.timedRefresh()
+        if c.tsd().date() == refDate:
+            c.timedRefresh()
 
-        c.stretchToExtent(c.spatialExtent(), 'linear_minmax', p=0.05)
+            c.stretchToExtent(c.spatialExtent(), 'linear_minmax', p=0.05)
 
-        c.timedRefresh()
+            c.timedRefresh()
+
+            TSV.showTimeSeriesDatum(c.tsd())
+
+    TSV.ui.centralWidget().resize(QSize(600,600))
 
 
 
