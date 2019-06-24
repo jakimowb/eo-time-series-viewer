@@ -1056,7 +1056,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         n = min(n, len(rasterFiles))
         n = max(1, n)
 
-        self.addTimeSeriesImages(rasterFiles[0:n])
+        self.addTimeSeriesImages(rasterFiles[0:n], loadAsync=loadAsync)
 
         if len(vectorFiles) > 0:
 
@@ -1141,10 +1141,26 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if files:
             from eotimeseriesviewer.mapvisualization import MapView
             for f in files:
-                l = QgsVectorLayer(f, os.path.basename(f))
+                try:
+                    ds = ogr.Open(f)
+                    if isinstance(ds, ogr.DataSource):
+                        for i in range(ds.GetLayerCount()):
+                            lyr = ds.GetLayer(i)
+                            assert isinstance(lyr, ogr.Layer)
 
-                if l.isValid():
-                    vectorLayers.append(l)
+                            p = f + '|layername={}'.format(lyr.GetName())
+                            l = QgsVectorLayer(p, lyr.GetName())
+                            if l.isValid():
+                                vectorLayers.append(l)
+
+                    else:
+                        l = QgsVectorLayer(f, os.path.basename(f))
+
+                        if l.isValid():
+                            vectorLayers.append(l)
+                except Exception as ex:
+                    pass
+
 
             if len(vectorLayers) > 0:
                 QgsProject.instance().addMapLayers(vectorLayers)
@@ -1159,7 +1175,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-    def addTimeSeriesImages(self, files: list):
+    def addTimeSeriesImages(self, files: list, loadAsync=True):
         """
         Adds images to the time series
         :param files:
@@ -1177,7 +1193,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         if files:
-            self.mTimeSeries.addSourcesAsync(files)
+            if loadAsync:
+                self.mTimeSeries.addSourcesAsync(files)
+            else:
+                self.mTimeSeries.addSources(files)
+
             QCoreApplication.processEvents()
             #self.mTimeSeries.addSources(files)
 
