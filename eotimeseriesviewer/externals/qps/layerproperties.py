@@ -327,6 +327,102 @@ def pasteStyleFromClipboard(layer:QgsMapLayer):
         layer.triggerRepaint()
 
 
+def subLayerDefinitions(mapLayer:QgsMapLayer)->list:
+    definitions = []
+    dp = mapLayer.dataProvider()
+
+    subLayers = dp.subLayers()
+    if len(subLayers) == 0:
+        return []
+
+    for i, sub in enumerate(subLayers):
+        ldef = QgsSublayersDialog.LayerDefinition()
+        assert isinstance(ldef, QgsSublayersDialog.LayerDefinition)
+        elements = sub.split(QgsDataProvider.SUBLAYER_SEPARATOR)
+
+
+        if dp.name() == 'ogr':
+            # <layer_index>:<name>:<feature_count>:<geom_type>
+            if len(elements) < 4:
+                continue
+
+            ldef.layerId = int(elements[0])
+            ldef.layerName = elements[1]
+            ldef.count = int(elements[2])
+            ldef.type = elements[3]
+
+            definitions.append(ldef)
+
+        elif dp.name() == 'gdal':
+            ldef.layerId = i
+
+            # remove driver name and file name
+            name = elements[0]
+            name = name.replace(mapLayer.source(), '')
+            name = re.sub('^(netcdf|hdf):', '', name, flags=re.I)
+            name = re.sub('^[:"]+', '', name)
+            name = re.sub('[:"]+$', '', name)
+            ldef.layerName = name
+
+            definitions.append(ldef)
+
+        else:
+            s = ""
+
+    return definitions
+
+def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->list:
+    """
+    Returns a list of QgsMapLayer instances extracted from the input QgsMapLayer.
+    Returns the "parent" QgsMapLayer in case no sublayers can be extracted
+    :param mapLayer: QgsMapLayer
+    :return: [list-of-QgsMapLayers]
+    """
+    layers = []
+    dp = mapLayer.dataProvider()
+
+
+    uriParts = QgsProviderRegistry.instance().decodeUri(mapLayer.providerType(), mapLayer.dataProvider().dataSourceUri())
+    uri = uriParts['path']
+    if subLayers is None:
+        ldefs = subLayerDefinitions(mapLayer)
+    else:
+        ldefs = subLayers
+
+    if len(ldefs) == 0:
+        layers = [mapLayer]
+    else:
+        uniqueNames = len(set([d.layerName for d in ldefs])) == len(ldefs)
+        options = QgsProject.instance().transformContext()
+        options.loadDefaultStyle = False
+
+        fileName = os.path.basename(uri)
+
+        if dp.name() == 'ogr':
+
+            for ldef in ldefs:
+                assert isinstance(ldef, QgsSublayersDialog.LayerDefinition)
+                if uniqueNames:
+                    composedURI = '{}|layername={}'.format(uri, ldef.layerName)
+                else:
+                    composedURI = '{}|layerid={}'.format(uri, ldef.layerId)
+
+                name = '{} {}'.format(fileName, ldef.layerName)
+
+                lyr = QgsVectorLayer(composedURI, name, dp.name())
+                layers.append(lyr)
+
+        elif dp.name() == 'gdal':
+            subLayers = dp.subLayers()
+            for ldef in ldefs:
+                name = '{} {}'.format(fileName, ldef.layerName)
+                lyr = QgsRasterLayer(subLayers[ldef.layerId], name, dp.name())
+                layers.append(lyr)
+
+        else:
+            layers.append(mapLayer)
+
+    return layers
 
 
 class LabelFieldModel(QgsFieldModel):

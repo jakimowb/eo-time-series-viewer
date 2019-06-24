@@ -1224,7 +1224,7 @@ class TimeSeries(QAbstractItemModel):
     def tsd(self, date: np.datetime64, sensor)->TimeSeriesDatum:
         """
         Returns the TimeSeriesDatum identified by date and sensorID
-        :param date:
+        :param date: numpy.datetime64
         :param sensor: SensorInstrument | str with sensor id
         :return:
         """
@@ -1234,6 +1234,10 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(sensor, SensorInstrument):
             for tsd in self.mTSDs:
                 if tsd.date() == date and tsd.sensor() == sensor:
+                    return tsd
+        else:
+            for tsd in self.mTSDs:
+                if tsd.date() == date:
                     return tsd
         return None
 

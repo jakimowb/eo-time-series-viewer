@@ -1340,7 +1340,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.actionHighlightMapView.setEnabled(b)
 
 
-    def createMapView(self)->MapView:
+    def createMapView(self, name:str=None)->MapView:
         """
         Create a new MapView
         :return: MapView
@@ -1349,12 +1349,15 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         mapView = MapView()
 
         n = len(self.mapViews()) + 1
-        title = 'Map View {}'.format(n)
-        while title in [m.title() for m in self.mapViews()]:
-            n += 1
+        if isinstance(name, str) and len(name) > 0:
+            title = name
+        else:
             title = 'Map View {}'.format(n)
-        mapView.setTitle(title)
-        mapView.sigShowProfiles.connect(self.sigShowProfiles)
+            while title in [m.title() for m in self.mapViews()]:
+                n += 1
+                title = 'Map View {}'.format(n)
+            mapView.setTitle(title)
+            mapView.sigShowProfiles.connect(self.sigShowProfiles)
 
         mapView.setTimeSeries(self.mTimeSeries)
         self.addMapView(mapView)
@@ -1713,12 +1716,13 @@ class SpatialTemporalVisualization(QObject):
     def onMapViewAdded(self, *args):
         self.adjustScrollArea()
         s = ""
-    def createMapView(self)->MapView:
+
+    def createMapView(self, name:str=None)->MapView:
         """
         Create a new MapWiew
         :return: MapView
         """
-        return self.MVC.createMapView()
+        return self.MVC.createMapView(name=name)
 
 
     def registerMapCanvas(self, mapCanvas:MapCanvas):
@@ -1797,7 +1801,12 @@ class SpatialTemporalVisualization(QObject):
 
 
 
-    def setMapSize(self, size):
+    def setMapSize(self, size:QSize):
+        """
+        Sets the MapCanvas size.
+        :param size: QSize
+        """
+
         assert isinstance(size, QSize)
         self.mSize = size
         from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -1987,7 +1996,7 @@ class SpatialTemporalVisualization(QObject):
         Returns the SpatialExtent
         :return: SpatialExtent
         """
-        return self.mSpatialExtent
+        return self.mSpatialExtent.__copy__()
 
 
 

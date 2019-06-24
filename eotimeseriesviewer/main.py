@@ -478,6 +478,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
 
+    def sensors(self)->list:
+        """
+        Returns the list of Sensors
+        :return: [list-of-Sensors]
+        """
+        return self.mTimeSeries.sensors()
+
+
     def activateIdentifyTemporalProfileMapTool(self, *args):
         """
         Activates the collection of temporal profiles
@@ -739,6 +747,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         kwds = {}
 
 
+    def setMapSize(self, size:QSize):
+        """
+        Sets the MapCanvas size.
+        :param size: QSize
+        """
+        self.spatialTemporalVis.setMapSize(size)
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
@@ -940,11 +954,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 progressDialog.hide()
                 progressDialog.setParent(None)
 
-    def createMapView(self):
+    def createMapView(self, name:str=None):
         """
-        Create a new MapView
+        Creates a new MapView.
+        :return: MapView
         """
-        self.spatialTemporalVis.createMapView()
+        return self.spatialTemporalVis.createMapView(name=name)
 
     def mapViews(self)->list:
         """
@@ -1145,27 +1160,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if files:
             from eotimeseriesviewer.mapvisualization import MapView
+            from .externals.qps.layerproperties import subLayers
+
             for f in files:
-                try:
-                    ds = ogr.Open(f)
-                    if isinstance(ds, ogr.DataSource):
-                        for i in range(ds.GetLayerCount()):
-                            lyr = ds.GetLayer(i)
-                            assert isinstance(lyr, ogr.Layer)
-
-                            p = f + '|layername={}'.format(lyr.GetName())
-                            l = QgsVectorLayer(p, lyr.GetName())
-                            if l.isValid():
-                                vectorLayers.append(l)
-
-                    else:
-                        l = QgsVectorLayer(f, os.path.basename(f))
-
-                        if l.isValid():
-                            vectorLayers.append(l)
-                except Exception as ex:
-                    pass
-
+                vectorLayers.extend(subLayers(QgsVectorLayer(f)))
 
             if len(vectorLayers) > 0:
                 QgsProject.instance().addMapLayers(vectorLayers)

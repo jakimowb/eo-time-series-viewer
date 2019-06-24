@@ -977,7 +977,7 @@ class SpectralTemporalVisualization(QObject):
         self.plotSettingsModel2D.sigPlotStylesRemoved.connect(on2DPlotStyleRemoved)
         self.plotSettingsModel3D.sigPlotStylesRemoved.connect(on3DPlotStyleRemoved)
 
-        #initialize the update loop
+        # initialize the update loop
         self.updateRequested = True
         self.updateTimer = QTimer(self)
         self.updateTimer.timeout.connect(self.onDataUpdate)

@@ -14,7 +14,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt import uic
-from osgeo import gdal
+from osgeo import gdal, ogr
 import numpy as np
 
 from . import resourcemockup
@@ -419,16 +419,40 @@ def showMessage(message:str, title:str, level):
     v.showMessage(True)
 
 
-def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
+def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
     """
-    Returns a gdal.Dataset
-    :param pathOrDataset: path or gdal.Dataset
+    Returns a gdal.Dataset object instance
+    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer
     :return: gdal.Dataset
     """
+
+    if isinstance(pathOrDataset, QgsRasterLayer):
+        return gdalDataset(pathOrDataset.source())
+
     if not isinstance(pathOrDataset, gdal.Dataset):
         pathOrDataset = gdal.Open(pathOrDataset, eAccess)
+
     assert isinstance(pathOrDataset, gdal.Dataset), 'Can not read {} as gdal.Dataset'.format(pathOrDataset)
+
     return pathOrDataset
+
+def ogrDataSource(pathOrDataSource)->ogr.DataSource:
+    """
+    Returns an OGR DataSource instance
+    :param pathOrDataSource: ogr.DataSource | str | QgsVectorLayer
+    :return: ogr.Datasource
+    """
+    if isinstance(pathOrDataSource, QgsVectorLayer):
+        uri = pathOrDataSource.source().split('|')[0]
+        return ogrDataSource(uri)
+
+    if not isinstance(pathOrDataSource, ogr.DataSource):
+        pathOrDataSource = ogr.Open(pathOrDataSource)
+
+    assert isinstance(pathOrDataSource, ogr.DataSource), 'Can not read {} as ogr.DataSource'.format(pathOrDataSource)
+    return pathOrDataSource
+
+
 
 
 def loadUI(basename: str):
