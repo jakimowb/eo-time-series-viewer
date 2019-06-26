@@ -604,7 +604,15 @@ class ClassificationScheme(QAbstractTableModel):
         if not isinstance(renderer, QgsCategorizedSymbolRenderer):
             return None
         classes = []
-        for cat in sorted(renderer.categories(), key = lambda c:c.value()):
+
+        # move a None element to first position
+        categories = renderer.categories()
+        cNames = [c.value() for c in categories]
+        if None in cNames:
+            i = cNames.index(None)
+            categories.insert(0, categories.pop(i))
+
+        for cat in categories:
             assert isinstance(cat, QgsRendererCategory)
             c = ClassInfo(name=cat.label(), color=QColor(cat.symbol().color()))
             classes.append(c)

@@ -1319,6 +1319,11 @@ class SpectralTemporalVisualization(QObject):
         """
         assert mode in SpectralTemporalVisualization.LOADING_MODES
 
+        if isinstance(spatialPoints, SpatialPoint):
+            spatialPoints = [spatialPoints]
+
+        assert isinstance(spatialPoints, list)
+
         if not isinstance(self.plotSettingsModel2D, PlotSettingsModel2D):
             return False
 
@@ -1346,9 +1351,7 @@ class SpectralTemporalVisualization(QObject):
         for sensor in self.TS.sensors():
             assert sensor in LUT_bandIndices.keys()
 
-        #update new / existing points
-        if isinstance(spatialPoints, SpatialPoint):
-            spatialPoints = [spatialPoints]
+        # update new / existing points
 
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)

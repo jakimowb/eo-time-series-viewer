@@ -352,8 +352,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         def initMapToolAction(action, key):
             assert isinstance(action, QAction)
-            assert isinstance(key, str)
-            assert key in MapTools.mapToolKeys()
+            assert isinstance(key, MapTools)
+
             action.triggered.connect(lambda: self.setMapTool(key))
             action.setProperty('eotsv/maptoolkey', key)
             self.ui.registerMapToolAction(action)

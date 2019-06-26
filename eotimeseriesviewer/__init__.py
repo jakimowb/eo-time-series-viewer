@@ -107,13 +107,13 @@ def initResources():
         import eotimeseriesviewer.ui.resources
         eotimeseriesviewer.ui.resources.qInitResources()
     except:
-        print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
+        print('Unable to initialize EO Time Series Viewer resources', file=sys.stderr)
 
     try:
         import eotimeseriesviewer.externals.qps.qpsresources
         eotimeseriesviewer.externals.qps.qpsresources.qInitResources()
     except Exception as ex:
-        print('Unable to import qps.resources', file=sys.stderr)
+        print('Unable to import qps resources', file=sys.stderr)
 
 def initEditorWidgets():
     """
