@@ -387,13 +387,19 @@ class TimeSeriesViewer(QgisInterface, QObject):
         tb.addAction(self.ui.dockLabeling.labelingWidget().actionToggleEditing())
         tb.addAction(self.ui.dockLabeling.labelingWidget().actionSaveEdits())
         tb.addAction(self.ui.dockLabeling.labelingWidget().actionAddFeature())
-        self.ui.dockLabeling.labelingWidget().sigMapExtentRequested.connect(self.setSpatialExtent)
-        self.ui.dockLabeling.labelingWidget().sigMapCenterRequested.connect(self.setSpatialCenter)
+        labelingWidget = self.ui.dockLabeling.labelingWidget()
+        from .labeling import LabelingWidget
+        assert isinstance(labelingWidget, LabelingWidget)
+        labelingWidget.sigMapExtentRequested.connect(self.setSpatialExtent)
+        labelingWidget.sigMapCenterRequested.connect(self.setSpatialCenter)
+        labelingWidget.sigVectorLayerChanged.connect(
+            lambda: self.spatialTemporalVis.setCurrentLayer(
+                self.ui.dockLabeling.labelingWidget().currentVectorSource()))
 
         initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
 
 
-        self.ui.dockLabeling.labelingWidget().sigVectorLayerChanged.connect(lambda : self.spatialTemporalVis.setCurrentLayer(self.ui.dockLabeling.labelingWidget().currentVectorSource()))
+
         #initMapToolAction(self.ui.dockLabeling., MapTools.AddFeature)
 
         # set default map tool
@@ -406,8 +412,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
-        self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages(None))
-        self.ui.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
+        self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
+        self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
@@ -416,7 +422,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
-        self.ui.actionExportMapsToImages.triggered.connect(lambda :self.exportMapsToImages())
+        self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
         self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)

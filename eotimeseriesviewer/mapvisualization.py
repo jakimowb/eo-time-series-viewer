@@ -284,7 +284,13 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
                 self.addLayer(l)
         else:
             s = ""
-    def setCurrentLayer(self, layer):
+
+    def setCurrentLayer(self, layer:QgsMapLayer):
+        """
+        Sets the QgsMapCanvas.currentLayer() that is used by some QgsMapTools
+        :param layer: QgsMapLayer | None
+        :return:
+        """
         assert layer is None or isinstance(layer, QgsMapLayer)
 
         self.mCurrentLayer = layer
@@ -1616,13 +1622,15 @@ class SpatialTemporalVisualization(QObject):
                     mt.setSelectionMode(mode)
 
 
-    def setCurrentLayer(self, layer):
-
+    def setCurrentLayer(self, layer:QgsMapLayer):
+        """
+        Sets the current map layer some map tools can operate on
+        :param layer: QgsMapLayer
+        """
         assert layer is None or isinstance(layer, QgsMapLayer)
         self.mCurrentLayer = layer
-        for canvas in self.mapCanvases():
-            assert isinstance(canvas, QgsMapCanvas)
-            canvas.setCurrentLayer(layer)
+        for mapView in self.mapViews():
+            mapView.setCurrentLayer(self.mCurrentLayer)
 
     def syncQGISCanvasCenter(self, qgisChanged:bool):
 
