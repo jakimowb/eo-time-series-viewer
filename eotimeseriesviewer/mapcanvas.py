@@ -135,7 +135,7 @@ class MapCanvasMapTools(QObject):
         self.mtFullExtentMapTool = FullExtentMapTool(canvas)
         self.mtCursorLocation = CursorLocationMapTool(canvas, True)
 
-        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CapturePoint, cadDock)
+        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CaptureNone, cadDock)
         self.mtSelectFeature = QgsMapToolSelect(canvas)
 
     def activate(self, mapToolKey, **kwds):
