@@ -28,6 +28,7 @@ REF_DATE_LS = np.datetime64('2014-06-24')
 REF_DATE_RE = np.datetime64('2014-06-25')
 
 TEMPORAL_PROFILE_LOCATIONS = 5
+TEMPORAL_PROFILE_LOCATIONS_PLOTTED = 2
 
 TSV = TimeSeriesViewer()
 TSV.show()
@@ -42,8 +43,6 @@ def widgetScreenshot(widget, path):
     #pixmap = QPixmap(rect.size())
     #widget.render(pixmap, QPoint(), QRegion(rect))
     pixmap.save(path, quality=100)
-
-
 
 def blankGUI(bn:str):
     path = jp(DIR_SCREENSHOTS, bn)
@@ -81,26 +80,23 @@ def rasterLayerProperties(bn:str):
 
             widgetScreenshot(d, path)
             break
-
-
-
-
-
     pass
 
 def temporalProfiles(bn:str):
-    path = jp(DIR_SCREENSHOTS, bn)
 
+    w = TSV.ui.dockProfiles
 
+    for i in range(w.listWidget.count()):
+        w.listWidget.setCurrentRow(i)
+        path = jp(DIR_SCREENSHOTS, re.sub(r'(\.[^.]+)$', r'.page{}\1'.format(i+1), bn))
+        widgetScreenshot(w, path)
     s = ""
     pass
-
 
 def mapViews(bn:str):
 
     path = jp(DIR_SCREENSHOTS, bn)
     widgetScreenshot(TSV.ui, path)
-
 
 if __name__ == '__main__':
     blankGUI('blank_gui.png')
@@ -189,17 +185,39 @@ if __name__ == '__main__':
 
     # load temporal profiles
 
-    points = []
 
-    for i, feature in enumerate(vlPOIs.getFeatures()):
-        if i >= TEMPORAL_PROFILE_LOCATIONS:
+    TSV.ui.dockProfiles.setFloating(False)
+    TSV.ui.dockProfiles.resize(QSize(1000, 400))
+    TSV.ui.dockProfiles.splitter2D.setSizes([75, 50])
+    TSV.ui.dockProfiles.show()
+
+    STV = TSV.spectralTemporalVis
+    assert isinstance(STV, SpectralTemporalVisualization)
+    # load temporal profiles for points
+    STV.temporalProfileLayer().createTemporalProfiles(vlPOIs)
+
+    styles = STV.plotStyles()
+    for s in styles:
+        STV.removePlotStyles2D(s)
+
+    for i, tp in enumerate(STV.temporalProfileLayer()):
+        if i >= TEMPORAL_PROFILE_LOCATIONS_PLOTTED:
             break
+        for sensor in TSV.sensors():
+            style = STV.createNewPlotStyle2D()
+            assert isinstance(style, TemporalProfile2DPlotStyle)
+            style.setSensor(sensor)
+            style.setTemporalProfile(tp)
 
-        assert isinstance(feature, QgsFeature)
-        pt = feature.geometry().centroid().asPoint()
-        points.append(SpatialPoint(vlPOIs.crs(), pt))
+            style.markerSymbol = None
 
-    TSV.spectralTemporalVis.loadCoordinate(points)
+            if sensor == sensorLS:
+                style.setExpression('(b4 - b3)/(b4 + b3)')
+                style.linePen.setStyle(Qt.SolidLine)
+            if sensor == sensorRE:
+                style.setExpression('(b5 - b3)/(b5 + b3)')
+                style.linePen.setStyle(Qt.DotLine)
+
 
     mapProperties('mapviewdock_map.png')
     mapViews('mapviews.png')
@@ -207,3 +225,4 @@ if __name__ == '__main__':
     temporalProfiles('temporal_profiles.png')
 
 
+app.exec_()

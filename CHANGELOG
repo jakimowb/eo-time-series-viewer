@@ -1,13 +1,15 @@
 ==============
 Changelog
 ==============
-2019-06-24 (verson 1.4):
+2019-06-28 (verson 1.4):
     * adding vector layers sublayers adds all sublayers
     * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
     * labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (#26)
     * added several convenience function to TimeSeriesViewer object
     * fixed a bug that did not allow to create new polygon features
+    * temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>", e.g. "42 Deforested"
     * updated SpectralLibraryViewer
+
 
 2019-06-12 (version 1.3):
     * fixed #99: opening example closes QGIS on linux
