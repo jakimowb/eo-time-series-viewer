@@ -487,13 +487,6 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
         self.dataChanged.connect(self.signaler)
 
-    def setIconSize(self, size:QSize):
-        assert isinstance(size, QSize)
-        self.mIconSize = size
-        tl = self.createIndex(0, self.columnIndex(self.cnStyle))
-        lr = self.createIndex(self.rowCount(), self.columnIndex(self.cnStyle))
-        self.dataChanged.emit(tl, lr, [Qt.DecorationRole])
-
     def __len__(self):
         return len(self.mPlotSettings)
 
@@ -658,15 +651,9 @@ class PlotSettingsModel2D(QAbstractTableModel):
                     else:
                         value = 'undefined'
 
-            if role == Qt.DecorationRole:
-                if columnName == self.cnStyle:
-                    value = plotStyle.createIcon(self.mIconSize)
-
             elif role == Qt.CheckStateRole:
                 if columnName == self.cnTemporalProfile:
                     value = Qt.Checked if plotStyle.isVisible() else Qt.Unchecked
-
-
 
             elif role == Qt.UserRole:
                 value = plotStyle
@@ -1607,13 +1594,15 @@ class SpectralTemporalVisualization(QObject):
 
 
     def onPointsClicked2D(self, pdi, spottedItems):
+
+        info = []
         if isinstance(pdi, TemporalProfilePlotDataItem) and isinstance(spottedItems, list):
             sensor = pdi.mPlotStyle.sensor()
             tp = pdi.mPlotStyle.temporalProfile()
             if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
                 c = tp.coordinate()
-                info = ['Sensor: {}'.format(sensor.name()),
-                        'Coordinate: {}, {}'.format(c.x(), c.y())]
+                info.append('Sensor: {}'.format(sensor.name()))
+                info.append('Coordinate: {}, {}'.format(c.x(), c.y()))
 
                 for item in spottedItems:
                     pos = item.pos()
@@ -1622,7 +1611,9 @@ class SpectralTemporalVisualization(QObject):
                     date = num2date(x)
                     info.append('Date: {}\nValue: {}'.format(date, y))
 
-                self.ui.tbInfo2D.setPlainText('\n'.join(info))
+
+        else:
+            self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
     def onTemporalProfilesAdded(self, profiles):
         # self.mTemporalProfileLayer.prune()
@@ -1644,6 +1635,9 @@ class SpectralTemporalVisualization(QObject):
     def onPlot2DSelectionChanged(self, selected, deselected):
 
         self.ui.actionRemoveStyle2D.setEnabled(len(selected) > 0)
+
+        # todo: highlight selected profiles in plot
+
 
     def onPlot3DSelectionChanged(self, selected, deselected):
 

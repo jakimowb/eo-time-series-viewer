@@ -24,7 +24,7 @@ from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
-SHOW_GUI = False and os.environ.get('CI') is None and not os.environ.get('CI')
+SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
 
 class testclassUtilityTests(unittest.TestCase):
     """Test temporal profiles"""
@@ -180,6 +180,24 @@ class testclassUtilityTests(unittest.TestCase):
 
         styles = PlotStyle()
 
+    def test_plotstyltable(self):
+
+
+        btn = PlotStyleButton()
+        style = btn.plotStyle()
+        style.linePen.setStyle(Qt.SolidLine)
+        btn.setPlotStyle(style)
+        btn.show()
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
+    def test_profilesettings(self):
+
+        from eotimeseriesviewer.profilevisualization import PlotSettingsTableView
+
+        tv = PlotSettingsTableView()
+        self.assertIsInstance(tv, QTableView)
 
     def test_widgets(self):
 
