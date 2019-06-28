@@ -45,8 +45,6 @@ from qgis.PyQt.QtGui import QIcon
 
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
 
-
-
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_UI = jp(DIR, *['ui'])

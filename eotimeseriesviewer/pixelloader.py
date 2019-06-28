@@ -199,7 +199,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
     nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
     bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
-    #ensure to load valid indices only
+    # ensure to load valid indices only
     bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
 
     task.bandIndices = bandIndices

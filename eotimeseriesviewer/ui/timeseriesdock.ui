@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>640</width>
-    <height>198</height>
+    <height>261</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -278,7 +278,7 @@
        <item>
         <widget class="QLabel" name="summary">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>2</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
