@@ -10,6 +10,7 @@ Changelog
     * temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>", e.g. "42 Deforested", fixed plot style preview
     * updated SpectralLibraryViewer
     * fixed spelling error in stacked band input dialog
+    * MapViews can add raster layers that have been opened in QGIS, e.g. XYZ Tile with OpenStreetMap data
 
 2019-06-12 (version 1.3):
     * fixed `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_: opening example closes QGIS on linux
