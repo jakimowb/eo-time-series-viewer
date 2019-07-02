@@ -130,10 +130,14 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
                 i = int(len(visibleCanvases) / 2)
                 centerCanvas = visibleCanvases[i]
 
-
         a = menu.addAction('Set Properties')
-        a.triggered.connect(lambda *args, canvas=centerCanvas, lyr=l, b=not isinstance(l, QgsRasterLayer):
+
+        a.triggered.connect(lambda *args,
+                                   canvas = centerCanvas,
+                                   lyr = l,
+                                   b = not isinstance(l, SensorProxyLayer):
                             showLayerPropertiesDialog(lyr, canvas, useQGISDialog=b))
+
         a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard

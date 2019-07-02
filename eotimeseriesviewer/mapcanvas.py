@@ -672,9 +672,9 @@ class MapCanvas(QgsMapCanvas):
 
             a = sub.addAction('Properties...')
             a.triggered.connect(lambda *args,
-                                       lyr=mapLayer,
-                                       c=self,
-                                       b = isinstance(mapLayer, QgsRasterLayer) == False:
+                                       lyr = mapLayer,
+                                       c = self,
+                                       b = isinstance(mapLayer, SensorProxyLayer) == False:
                                 showLayerPropertiesDialog(lyr, c, useQGISDialog=b))
 
             a = sub.addAction('Zoom to Layer')
