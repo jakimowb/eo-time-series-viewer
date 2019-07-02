@@ -106,7 +106,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QToolButton" name="btnAddOgrLayer">
+      <widget class="QToolButton" name="btnAddVectorLayer">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
          <horstretch>0</horstretch>
@@ -122,6 +122,38 @@
        <property name="icon">
         <iconset resource="resources.qrc">
          <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <property name="popupMode">
+        <enum>QToolButton::DelayedPopup</enum>
+       </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="btnAddRasterLayer">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Toggle map view visibility</string>
+       </property>
+       <property name="text">
+        <string>...</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../QGIS/images/images.qrc">
+         <normaloff>:/images/themes/default/mActionAddRasterLayer.svg</normaloff>:/images/themes/default/mActionAddRasterLayer.svg</iconset>
        </property>
        <property name="checkable">
         <bool>true</bool>
@@ -241,7 +273,7 @@
     <string>Click to highlight this map view</string>
    </property>
   </action>
-  <action name="actionAddOgrLayer">
+  <action name="actionAddVectorLayer">
    <property name="icon">
     <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
@@ -251,6 +283,18 @@
    </property>
    <property name="toolTip">
     <string>Add a vector layer</string>
+   </property>
+  </action>
+  <action name="actionAddRasterLayer">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAddRasterLayer.svg</normaloff>:/images/themes/default/mActionAddRasterLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Raster Layer</string>
+   </property>
+   <property name="toolTip">
+    <string>Add a raster layer</string>
    </property>
   </action>
  </widget>

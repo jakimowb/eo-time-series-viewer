@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>799</width>
-    <height>433</height>
+    <width>537</width>
+    <height>235</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -84,6 +84,12 @@
          <property name="enabled">
           <bool>true</bool>
          </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="maximumSize">
           <size>
            <width>35</width>
@@ -159,6 +165,12 @@
          </property>
          <item>
           <widget class="QToolBar" name="toolbar">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="styleSheet">
             <string notr="true"/>
            </property>
@@ -226,6 +238,12 @@
              </property>
              <item>
               <widget class="QSplitter" name="splitter2D">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>
                </property>
@@ -238,7 +256,7 @@
                 </property>
                 <property name="minimumSize">
                  <size>
-                  <width>100</width>
+                  <width>0</width>
                   <height>0</height>
                  </size>
                 </property>
@@ -267,7 +285,7 @@
                  <item>
                   <widget class="PlotSettingsTableView" name="tableView2DProfiles">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                      <horstretch>1</horstretch>
                      <verstretch>2</verstretch>
                     </sizepolicy>
@@ -337,7 +355,7 @@
                     <item>
                      <widget class="QPlainTextEdit" name="tbInfo2D">
                       <property name="sizePolicy">
-                       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
@@ -360,7 +378,7 @@
                </widget>
                <widget class="DateTimePlotWidget" name="plotWidget2D">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                   <horstretch>3</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
@@ -413,6 +431,12 @@
              </property>
              <item>
               <widget class="QSplitter" name="splitter3D">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>
                </property>
@@ -451,7 +475,7 @@
                  <item>
                   <widget class="QTableView" name="tableView3DProfiles">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                      <horstretch>0</horstretch>
                      <verstretch>0</verstretch>
                     </sizepolicy>
@@ -477,7 +501,7 @@
                </widget>
                <widget class="QFrame" name="frame3DPlot">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                   <horstretch>3</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
@@ -501,7 +525,7 @@
                  <item>
                   <widget class="QLabel" name="labelDummy3D">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                      <horstretch>3</horstretch>
                      <verstretch>2</verstretch>
                     </sizepolicy>
@@ -681,7 +705,7 @@ background-color: rgb(0, 0, 0);</string>
        <item>
         <widget class="QProgressBar" name="progressBar">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>1</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -706,7 +730,7 @@ background-color: rgb(0, 0, 0);</string>
        <item>
         <widget class="QLabel" name="progressInfo">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>2</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>

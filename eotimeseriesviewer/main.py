@@ -197,9 +197,6 @@ class TimeSeriesViewerUI(QMainWindow,
 
         area = Qt.RightDockWidgetArea
 
-        from eotimeseriesviewer.sensorvisualization import SensorDockUI
-        self.dockSensors = addDockWidget(SensorDockUI(self))
-        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
 
         self.dockTaskManager = QgsDockWidget('Task Manager')
         self.dockTaskManager.setWidget(QgsTaskManagerWidget(QgsApplication.taskManager()))
@@ -211,9 +208,15 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockSystemInfo.setVisible(False)
 
 
-        self.tabifyDockWidget(self.dockCursorLocation, self.dockSensors)
-        self.tabifyDockWidget(self.dockCursorLocation, self.dockTaskManager)
-        self.tabifyDockWidget(self.dockCursorLocation, self.dockSystemInfo)
+        #self.tabifyDockWidget(self.dockCursorLocation, self.dockSensors)
+
+        self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
+
+        from eotimeseriesviewer.sensorvisualization import SensorDockUI
+        self.dockSensors = addDockWidget(SensorDockUI(self))
+        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
+        self.tabifyDockWidget(self.dockTaskManager, self.dockCursorLocation)
+
 
 
 

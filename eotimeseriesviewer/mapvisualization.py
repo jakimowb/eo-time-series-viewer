@@ -226,8 +226,10 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.actionToggleMapViewHidden.toggled.connect(lambda isHidden: self.setVisibility(not isHidden))
         self.actionToggleCrosshairVisibility.toggled.connect(self.setCrosshairVisibility)
 
-        self.actionAddOgrLayer.triggered.connect(self.onAddOgrLayer)
-        self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
+        self.actionAddVectorLayer.triggered.connect(self.onAddVectorLayer)
+        self.actionAddRasterLayer.triggered.connect(self.onAddRasterLayer)
+        self.btnAddVectorLayer.setDefaultAction(self.actionAddVectorLayer)
+        self.btnAddRasterLayer.setDefaultAction(self.actionAddRasterLayer)
 
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
         self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
@@ -275,19 +277,30 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
 
-    def onAddOgrLayer(self):
-
+    def onAddVectorLayer(self):
+        """
+        Slot that opens a SelectMapLayersDialog to add a vector layer
+        """
         from .externals.qps.utils import SelectMapLayersDialog
-
         d = SelectMapLayersDialog()
         d.setWindowTitle('Select Vector Layer')
         d.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
-
         if d.exec() == QDialog.Accepted:
             for l in d.mapLayers():
                 self.addLayer(l)
-        else:
-            s = ""
+
+    def onAddRasterLayer(self):
+        """
+        Slot that opens a SelectMapLayersDialog to add a vector layer
+        """
+        from .externals.qps.utils import SelectMapLayersDialog
+        d = SelectMapLayersDialog()
+        d.setWindowTitle('Select Raster Layer')
+        d.addLayerDescription('Raster Layer', QgsMapLayerProxyModel.RasterLayer)
+        if d.exec() == QDialog.Accepted:
+            for l in d.mapLayers():
+                self.addLayer(l)
+
 
     def setCurrentLayer(self, layer:QgsMapLayer):
         """
