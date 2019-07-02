@@ -1616,7 +1616,15 @@ class SelectMapLayersDialog(QgsDialog):
     def addLayerDescription(self, info:str,
                             filters:QgsMapLayerProxyModel.Filters,
                             allowEmptyLayer = False,
-                            layerDescription=None):
+                            layerDescription=None)->QgsMapLayerComboBox:
+        """
+        Adds a map layer description
+        :param info: description text
+        :param filters: map layer filters
+        :param allowEmptyLayer: bool
+        :param layerDescription: SelectMapLayersDialog.LayerDescription (overwrites the other attributes)
+        :return: the QgsMapLayerComboBox that relates to this layer description
+        """
 
         if not isinstance(layerDescription, SelectMapLayersDialog.LayerDescription):
             layerDescription = SelectMapLayersDialog.LayerDescription(info, filters, allowEmptyLayer=allowEmptyLayer)
@@ -1629,6 +1637,8 @@ class SelectMapLayersDialog(QgsDialog):
         self.mMapLayerBoxes.append(layerbox)
         self.mGrid.addWidget(QLabel(layerDescription.labelText, self), i, 0)
         self.mGrid.addWidget(layerbox, i, 1)
+
+        return layerbox
 
 
 

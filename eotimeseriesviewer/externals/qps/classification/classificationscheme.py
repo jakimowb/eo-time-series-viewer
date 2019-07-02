@@ -39,6 +39,7 @@ MIMEDATA_KEY = 'hub-classscheme'
 MIMEDATA_KEY_TEXT = 'text/plain'
 MIMEDATA_INTERNAL_IDs = 'classinfo_ids'
 
+MAX_UNIQUE_CLASSES = 100
 
 def findMapLayersWithClassInfo()->list:
     """
@@ -996,6 +997,38 @@ class ClassificationScheme(QAbstractTableModel):
         return None
 
     @staticmethod
+    def fromUniqueFieldValues(layer:QgsVectorLayer, fieldIndex):
+        scheme = None
+
+        if not isinstance(layer, QgsVectorLayer):
+            return scheme
+
+        if isinstance(fieldIndex, str):
+            fieldIndex = layer.fields().indexFromName(fieldIndex)
+        elif isinstance(fieldIndex, QgsField):
+            fieldIndex = layer.fields().indexFromName(fieldIndex.name())
+
+        if not isinstance(fieldIndex, int) and fieldIndex >= 0 and fieldIndex < layer.fields().count():
+            return scheme
+
+        field = layer.fields().at(fieldIndex)
+        if re.search('int|string', field.typeName(), re.I):
+            values = layer.uniqueValues(fieldIndex, limit=MAX_UNIQUE_CLASSES)
+            values = sorted(values)
+
+            if len(values) > 0:
+                scheme = ClassificationScheme()
+                scheme.insertClass(ClassInfo(0, 'unclassified'))
+                if field.isNumeric():
+                    for v in values:
+                        scheme.insertClass(ClassInfo(int(v), name=str(v)))
+                else:
+                    for i, v in enumerate(values):
+                        scheme.insertClass(ClassInfo(i+1, name=str(v)))
+
+        return scheme
+
+    @staticmethod
     def fromMapLayer(layer:QgsMapLayer):
         """
 
@@ -1419,7 +1452,20 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
 
             s  =""
 
+    def onLoadClassesFromRenderer(self, layer):
+        cs = ClassificationScheme.fromMapLayer(layer)
+        if isinstance(cs, ClassificationScheme):
+            self.mScheme.insertClasses(cs[:])
 
+    def onLoadClassesFromField(self, layer, field):
+
+        if field is None:
+            raise NotImplementedError()
+
+        cs = ClassificationScheme.fromUniqueFieldValues(layer, field)
+        if isinstance(cs, ClassificationScheme):
+            self.mScheme.insertClasses(cs[:])
+        pass
 
     def onLoadClasses(self, mode:str):
         """
@@ -1483,6 +1529,22 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
         a.triggered.connect(lambda : self.onLoadClasses('layer'))
         a = m.addAction('Load from other textfile')
         a.triggered.connect(lambda : self.onLoadClasses('textfile'))
+
+
+        parent = self.parent()
+        if isinstance(parent, ClassificationSchemeEditorConfigWidget):
+            layer = parent.layer()
+            idx = parent.field()
+
+            if isinstance(layer, QgsVectorLayer) and idx >= 0:
+                field = layer.fields().at(idx)
+                m.addSeparator()
+                a = m.addAction('Unique values "{}"'.format(field.name()))
+                a.triggered.connect(lambda _, lyr=layer, f=idx: self.onLoadClassesFromField(lyr, idx))
+
+                if isinstance(layer.renderer(), QgsCategorizedSymbolRenderer):
+                    a = m.addAction('Current Symbology'.format(layer.name()))
+                    a.triggered.connect(lambda _, lyr=layer: self.onLoadClassesFromRenderer(lyr))
 
 
         self.btnLoadClasses.setMenu(m)
@@ -1709,10 +1771,16 @@ class ClassificationSchemeEditorConfigWidget(QgsEditorConfigWidget):
         self.setConfig(self.mLastConfig)
 
 def classSchemeToConfig(classScheme:ClassificationScheme)->dict:
+    """Converts a ClassificationScheme into a dictionary that can be used in an QgsEditorWidgetSetup"""
     config = {'classes': classScheme.json()}
     return config
 
 def classSchemeFromConfig(conf:dict)->ClassificationScheme:
+    """
+    Converts a configuration dictionary into a ClassificationScheme.
+    :param conf: dict
+    :return: ClassificationScheme
+    """
     cs = None
     if 'classes' in conf.keys():
         cs = ClassificationScheme.fromJson(conf['classes'])

@@ -671,7 +671,11 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args, lyr=mapLayer: showLayerPropertiesDialog(lyr, self))
+            a.triggered.connect(lambda *args,
+                                       lyr=mapLayer,
+                                       c=self,
+                                       b = isinstance(mapLayer, QgsRasterLayer) == False:
+                                showLayerPropertiesDialog(lyr, c, useQGISDialog=b))
 
             a = sub.addAction('Zoom to Layer')
             a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))

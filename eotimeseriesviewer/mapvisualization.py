@@ -132,8 +132,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
 
         a = menu.addAction('Set Properties')
-        a.triggered.connect(lambda *args, canvas=centerCanvas, lyr=l:
-                            showLayerPropertiesDialog(lyr, canvas))
+        a.triggered.connect(lambda *args, canvas=centerCanvas, lyr=l, b=not isinstance(l, QgsRasterLayer):
+                            showLayerPropertiesDialog(lyr, canvas, useQGISDialog=b))
         a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard

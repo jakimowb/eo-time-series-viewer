@@ -355,11 +355,11 @@ def createStandardFields():
         ogrType = f.GetType()
 
         if ogrType == ogr.OFTString:
-            a,b = QVariant.String, 'varchar'
+            a, b = QVariant.String, 'varchar'
         elif ogrType in [ogr.OFTInteger, ogr.OFTInteger64]:
-            a,b = QVariant.Int, 'int'
+            a, b = QVariant.Int, 'int'
         elif ogrType in [ogr.OFTReal]:
-            a,b = QVariant.Double, 'double'
+            a, b = QVariant.Double, 'double'
         else:
             raise NotImplementedError()
 
@@ -966,7 +966,10 @@ class SpectralLibrary(QgsVectorLayer):
 
     # thanks to Ann for providing https://bitbucket.org/jakimowb/qgispluginsupport/issues/6/speclib-spectrallibrariespy
     @staticmethod
-    def readFromVector(vector_qgs_layer:QgsVectorLayer=None, raster_qgs_layer:QgsRasterLayer=None, progressDialog:QProgressDialog=None):
+    def readFromVector(vector_qgs_layer:QgsVectorLayer=None,
+                       raster_qgs_layer:QgsRasterLayer=None,
+                       progressDialog:QProgressDialog=None,
+                       all_touched=False):
         """
         Reads SpectraProfiles from a raster source, based on the locations specified in a vector data set.
         Opens a Select Polygon Layer dialog to select the correct polygon and returns a Spectral Library with
@@ -974,7 +977,9 @@ class SpectralLibrary(QgsVectorLayer):
 
         :param vector_qgs_layer: QgsVectorLayer | str
         :param raster_qgs_layer: QgsRasterLayer | str
-        :param progressDialog: QProgressDialog
+        :param progressDialog: QProgressDialog (optional)
+        :param all_touched: bool, False (default) = extract only pixel entirely covered with a geometry
+                                  True = extract all pixels touched by a geometry
         :return: Spectral Library
         """
 
@@ -1067,7 +1072,7 @@ class SpectralLibrary(QgsVectorLayer):
         assert isinstance(trans, osr.CoordinateTransformation)
         for feature in vector_layer:
             assert isinstance(feature, ogr.Feature)
-            feature.SetField(fidName, feature.GetFID())
+            feature.SetField(fidName, feature.GetFID()+1) # let the smalled fid be 1
 
             # assert geom.Transform(trans) == ogr.OGRERR_NONE
             # wow! gdal.Rasterize considers SRS differences
@@ -1083,21 +1088,32 @@ class SpectralLibrary(QgsVectorLayer):
         assert isinstance(mem, gdal.Dataset)
         band = mem.GetRasterBand(1)
         assert isinstance(band, gdal.Band)
-        band.Fill(-1)
+        band.Fill(0)
         mem.SetGeoTransform(raster_dataset.GetGeoTransform())
         mem.SetProjection(raster_dataset.GetProjection())
         mem.FlushCache()
-
-        gdal.RasterizeLayer(mem, [1], vector_layer, options=['ALL_TOUCHED=TRUE', 'ATTRIBUTE={}'.format(fidName)])
+        all_touched = 'TRUE' if all_touched else 'FALSE'
+        gdal.RasterizeLayer(mem, [1], vector_layer,
+                            options=['ALL_TOUCHED={}'.format(all_touched),
+                                     'ATTRIBUTE={}'.format(fidName)])
         memory_array = mem.ReadAsArray()
         y, x = np.where(memory_array > 0)
         n_profiles = len(y)
+        memory_array = memory_array - 1 # decrease FID by 1 (we already got the right positions
+
+
 
         if n_profiles == 0:
             # no profiles to extract. Return an empty speclib
             if isinstance(progressDialog, QProgressDialog):
                 progressDialog.setValue(progressDialog.maximum())
             return spectral_library
+
+        if isinstance(progressDialog, QProgressDialog):
+
+            progressDialog.setRange(0, raster_dataset.RasterCount + n_profiles + 1)
+            progressDialog.setValue(0)
+            progressDialog.setLabelText('Read profiles...')
 
         fids = memory_array[y, x]
         unique_fids = list(np.unique(fids))
@@ -1110,9 +1126,32 @@ class SpectralLibrary(QgsVectorLayer):
         # save all profiles in a spectral library
         profiles = []
 
-
+        # transform x/y pixel position into speclib crs
         rasterCRS = raster_qgs_layer.crs()
         rasterGT = raster_dataset.GetGeoTransform()
+        rasterSRS = osr.SpatialReference()
+        speclibSRS = osr.SpatialReference()
+        rasterSRS.ImportFromWkt(rasterCRS.toWkt())
+        speclibSRS.ImportFromWkt(spectral_library.crs().toWkt())
+
+        transCRS = QgsCoordinateTransform()
+        transCRS.setSourceCrs(rasterCRS)
+        transCRS.setDestinationCrs(spectral_library.crs())
+
+        # transform many coordinates fast!
+        transSRS = osr.CoordinateTransformation(rasterSRS, speclibSRS)
+
+        # geo-coordinate in raster CRS
+        if True: # pixel center
+            x2, y2 = x+0.5, y+0.5
+        else:
+            x2, y2 = x, y
+
+        # transSRS.TransformPoints(np.ones((n_points, 2)))
+        geo_coordinates = np.empty((n_profiles, 2), dtype=np.float)
+        geo_coordinates[:, 0] = rasterGT[0] + x2 * rasterGT[1] + y2 * rasterGT[2]
+        geo_coordinates[:, 1] = rasterGT[3] + x2 * rasterGT[4] + y2 * rasterGT[5]
+        geo_coordinates = transSRS.TransformPoints(geo_coordinates)
 
         attr_idx_profile = []
         attr_idx_feature = []
@@ -1122,112 +1161,95 @@ class SpectralLibrary(QgsVectorLayer):
             attr_idx_feature.append(vector_fields.indexOf(fieldName))
 
 
-        # store relevant features in memory
+        # store relevant features in memory for faster accesss
         features = {}
         featureAttributes = {}
         for f in vector_qgs_layer.getFeatures(unique_fids):
             assert isinstance(f, QgsFeature)
             features[f.id()] = f
 
+        # 1. read raster values
 
-        if False:
+        xoff, yoff = int(min(x)), int(min(y))
+        maxx, maxy = int(max(x)), int(max(y))
+        win_xsize, win_ysize = maxx-xoff+1, maxy-yoff+1
 
-            for iProfile, (xx, yy, fid) in enumerate(zip(x, y, fids)):
-                if isinstance(progressDialog, QProgressDialog):
-                    if progressDialog.wasCanceled():
-                        return None
-                    progressDialog.setValue(iProfile)
+        x_win, y_win = x - xoff, y - yoff
 
-                profile = SpectralProfile.fromRasterSource(raster_dataset,
-                                                           QPoint(xx, yy),
-                                                           crs=rasterCRS, gt=rasterGT, fields=speclib_fields)  # also sets geometry
-                #feature = vector_qgs_layer.getFeature(int(fid))
-                feature = features[int(fid)]
-                assert isinstance(feature, QgsFeature)
-                for idx_p, idx_f in zip(attr_idx_profile, attr_idx_feature):
-                    profile.setAttribute(idx_p, feature.attribute(idx_f))
-                profiles.append(profile)
-        else:
+        profileData = None
 
+        # should we consider a band-band-list?
+
+        for b in range(raster_dataset.RasterCount):
             if isinstance(progressDialog, QProgressDialog):
+                if progressDialog.wasCanceled():
+                    return None
+                progressDialog.setValue(progressDialog.value()+1)
 
-                progressDialog.setRange(0, raster_dataset.RasterCount + n_profiles + 1)
-                progressDialog.setValue(0)
-                progressDialog.setLabelText('Read profiles...')
+            band = raster_dataset.GetRasterBand(b+1)
+            assert isinstance(band, gdal.Band)
+            bandData = band.ReadAsArray(xoff=xoff, yoff=yoff, win_xsize=win_xsize, win_ysize=win_ysize)
+            pxData = bandData[y_win, x_win]
 
-            # 1. read raster values
+            assert len(pxData) == n_profiles
 
-            xoff, yoff = int(min(x)), int(min(y))
-            maxx, maxy = int(max(x)), int(max(y))
-            win_xsize, win_ysize = maxx-xoff+1, maxy-yoff+1
+            if profileData is None:
+                profileData = np.ones((raster_dataset.RasterCount, n_profiles), dtype=pxData.dtype)
+            profileData[b, :] = pxData
 
-            x_win, y_win = x - xoff, y - yoff
-
-            profileData = None
-
-            # should we consider a band-band-list?
-
-            for b in range(raster_dataset.RasterCount):
-                if isinstance(progressDialog, QProgressDialog):
-                    if progressDialog.wasCanceled():
-                        return None
-                    progressDialog.setValue(progressDialog.value()+1)
-
-                band = raster_dataset.GetRasterBand(b+1)
-                assert isinstance(band, gdal.Band)
-                bandData = band.ReadAsArray(xoff=xoff, yoff=yoff, win_xsize=win_xsize, win_ysize=win_ysize)
-                pxData = bandData[y_win, x_win]
-
-                assert len(pxData) == n_profiles
-
-                if profileData is None:
-                    profileData = np.ones((raster_dataset.RasterCount, n_profiles), dtype=pxData.dtype)
-                profileData[b, :] = pxData
-
-            del raster_dataset, bandData
+        del raster_dataset, bandData
 
 
 
-            # 2. profiles with source vector metadata
-            for iProfile, fid in enumerate(fids):
-                if isinstance(progressDialog, QProgressDialog):
-                    if progressDialog.wasCanceled():
-                        return None
-                    progressDialog.setValue(progressDialog.value()+1)
+        # 2. profiles with source vector metadata
 
-                feature = features[fid]
-                profile = SpectralProfile(fields=speclib_fields)
-                assert isinstance(feature, QgsFeature)
-                # 2.1 set profile name
-                profile.setName('{} {},{}'.format(bn, x[iProfile], y[iProfile]))
-
-                # 2.2 copy vector feature attribute
-                for idx_p, idx_f in zip(attr_idx_profile, attr_idx_feature):
-                    profile.setAttribute(idx_p, feature.attribute(idx_f))
-
-                # 2.3 set the profile values
-                profile.setValues(x=wl, y=profileData[:, iProfile], xUnit=wlu)
-                profiles.append(profile)
+        wasPointGeometry = vector_qgs_layer.wkbType() in [QgsWkbTypes.Point, QgsWkbTypes.PointGeometry]
+        if wasPointGeometry:
+            pass
 
 
-        for iProfile, p in enumerate(profiles):
-            p.setId(iProfile)
+        for iProfile, fid, in enumerate(fids):
+            if isinstance(progressDialog, QProgressDialog):
+                if progressDialog.wasCanceled():
+                    return None
+                progressDialog.setValue(progressDialog.value()+1)
 
+            feature = features[fid]
+            assert isinstance(feature, QgsFeature)
+            profile = SpectralProfile(fields=speclib_fields)
+
+            # 2.1 set profile id + name
+            profile.setId(iProfile)
+            px_x, px_y = x[iProfile], y[iProfile]
+            profile.setName('{} {},{}'.format(bn, px_x, px_y))
+
+            # 2.2 set geometry
+            g = geo_coordinates[iProfile]
+            profile.setGeometry(QgsPoint(g[0], g[1]))
+
+            # 2.3 copy vector feature attribute
+            for idx_p, idx_f in zip(attr_idx_profile, attr_idx_feature):
+                profile.setAttribute(idx_p, feature.attribute(idx_f))
+
+            # 2.4 set the profile values
+            profile.setValues(x=wl, y=profileData[:, iProfile], xUnit=wlu)
+            profiles.append(profile)
+
+
+        if isinstance(progressDialog, QProgressDialog):
+            progressDialog.setLabelText('Create speclib...')
 
         spectral_library.startEditing()
         spectral_library.addMissingFields(vector_fields)
 
-        if isinstance(progressDialog, QProgressDialog):
-            progressDialog.setLabelText('Create speclib...')
-            progressDialog.setValue(progressDialog.value()+1)
-
         # spectral_library.addProfiles(profiles)
-        assert spectral_library.addFeatures(profiles, QgsFeatureSink.FastInsert)
+        if not spectral_library.addFeatures(profiles, QgsFeatureSink.FastInsert):
+            s = ""
         spectral_library.commitChanges()
 
         if isinstance(progressDialog, QProgressDialog):
             # print('{} {} {}'.format(progressDialog.minimum(), progressDialog.maximum(), progressDialog.value()))
-            progressDialog.setValue(progressDialog.maximum())
+            progressDialog.setValue(progressDialog.value()+1)
 
         return spectral_library
 
@@ -1413,6 +1435,8 @@ class SpectralLibrary(QgsVectorLayer):
         https://enmap-box.readthedocs.io/en/latest/usr_section/usr_manual.html#labelled-spectral-library
 
         :param pathJSON: file path (any) | JSON dictionary | str
+
+        :returns: None | JSON dictionary
         """
         jsonData = None
         try:
@@ -1433,7 +1457,7 @@ class SpectralLibrary(QgsVectorLayer):
             pass
 
         if not isinstance(jsonData, dict):
-            return
+            return None
         b = self.isEditable()
         self.startEditing()
         try:
@@ -1487,7 +1511,8 @@ class SpectralLibrary(QgsVectorLayer):
 
         if b:
             self.startEditing()
-        pass
+
+        return jsonData
 
     def writeJSONProperties(self, pathSPECLIB:str):
         """
@@ -1496,11 +1521,34 @@ class SpectralLibrary(QgsVectorLayer):
         :return:
         """
         assert isinstance(pathSPECLIB, str)
-        pathJSON = os.path.splitext(pathSPECLIB)[0]+'.json'
-
+        if not pathSPECLIB.endswith('.json'):
+            pathJSON = os.path.splitext(pathSPECLIB)[0]+'.json'
+        else:
+            pathJSON = pathSPECLIB
         jsonData = collections.OrderedDict()
 
+
+
         from ..classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY, classSchemeFromConfig, ClassificationScheme, ClassInfo
+
+        rendererCategories = None
+
+        # is this speclib rendered with a QgsCategorizedSymbolRenderer?
+        if isinstance(self.renderer(), QgsCategorizedSymbolRenderer):
+            rendererCategories = []
+            for i, c in enumerate(self.renderer().categories()):
+                assert isinstance(c, QgsRendererCategory)
+                symbol = c.symbol()
+                assert isinstance(symbol, QgsSymbol)
+                try:
+                    label = int(c.value())
+                except:
+                    label = i
+                category = [label, str(c.label()), symbol.color().name()]
+                rendererCategories.append(category)
+            jsonData[self.renderer().classAttribute()] = {'categories': rendererCategories}
+
+        # is any field described as Raster Renderer or QgsCategorizedSymbolRenderer?
         for fieldIdx, field in enumerate(self.fields()):
             assert isinstance(field, QgsField)
             attributeEntry = dict()
@@ -1525,6 +1573,9 @@ class SpectralLibrary(QgsVectorLayer):
                         category = [classInfo.label(), classInfo.name(), classInfo.color().name()]
                         categories.append(category)
                     attributeEntry['categories'] = categories
+
+            elif setup.type() == 'Classification' and isinstance(rendererCategories, list):
+                    attributeEntry['categories'] = rendererCategories
 
             if len(attributeEntry) > 0:
                 jsonData[field.name()] = attributeEntry
@@ -2922,12 +2973,26 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
         #self.setupUi(self)
         self.setWindowTitle('Read Spectral Profiles')
         self.addLayerDescription('Raster Layer', QgsMapLayerProxyModel.RasterLayer)
-        self.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
+        cb = self.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
+        cb.layerChanged.connect(self.onVectorLayerChanged)
         self.mSpeclib = None
+
+
+        self.mCbTouched = QCheckBox(self)
+        self.mCbTouched.setText('All touched')
+        self.mCbTouched.setToolTip('Activate to extract all touched pixels, not only thoose entirel covered by a geometry.')
+        i = self.mGrid.rowCount()
+        self.mGrid.addWidget(self.mCbTouched, i, 1)
 
         self.buttonBox().button(QDialogButtonBox.Ok).clicked.disconnect(self.accept)
         self.buttonBox().button(QDialogButtonBox.Ok).clicked.connect(self.run)
         self.buttonBox().button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+
+        self.onVectorLayerChanged(cb.currentLayer())
+
+    def onVectorLayerChanged(self, layer:QgsVectorLayer):
+        self.mCbTouched.setEnabled(isinstance(layer, QgsVectorLayer) and
+                                   QgsWkbTypes.geometryType(layer.wkbType()) == QgsWkbTypes.PolygonGeometry)
 
     def speclib(self)->SpectralLibrary:
         return self.mSpeclib
@@ -2950,7 +3015,10 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
         progressDialog.setWindowModality(Qt.WindowModal)
         progressDialog.setMinimumDuration(0)
 
-        slib = SpectralLibrary.readFromVector(self.vectorSource(), self.rasterSource(), progressDialog=progressDialog)
+        slib = SpectralLibrary.readFromVector(self.vectorSource(),
+                                              self.rasterSource(),
+                                              all_touched=self.allTouched(),
+                                              progressDialog=progressDialog)
 
         #slib = SpectralLibrary.readFromVectorPositions(self.rasterSource(), self.vectorSource(), progressDialog=progressDialog)
 
@@ -2961,6 +3029,8 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
             self.mSpeclib = None
             self.reject()
 
+    def allTouched(self)->bool:
+        return self.mCbTouched.isEnabled() and self.mCbTouched.isChecked()
 
     def rasterSource(self)->QgsVectorLayer:
         return self.mapLayers()[0]
@@ -3262,12 +3332,10 @@ class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui
 
     def showProperties(self, *args):
 
-        from ..layerproperties import VectorLayerProperties
+        from ..layerproperties import showLayerPropertiesDialog
 
-        self._propDialog = VectorLayerProperties(self.speclib(), None, parent=None)
-        self._propDialog.exec_()
-        self._propDialog.setParent(None)
-        del self._propDialog
+        showLayerPropertiesDialog(self.speclib(), None, parent=self, useQGISDialog=True)
+
         s = ""
 
     def importSpeclib(self, path=None):
