@@ -39,7 +39,7 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
         return True
 
     searchedKeys = []
-    searchedKeys.append(re.compile('aquisition[ ]*dates$', re.I))
+    searchedKeys.append(re.compile('acquisition[ ]*dates$', re.I))
     searchedKeys.append(re.compile('observation[ ]*dates$', re.I))
     searchedKeys.append(re.compile('wavelength$', re.I))
 
