@@ -484,24 +484,34 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
 
 
 
-class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
+
+class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
 
     sigVectorLayerChanged = pyqtSignal()
     sigMapExtentRequested = pyqtSignal(SpatialExtent)
     sigMapCenterRequested = pyqtSignal(SpatialPoint)
 
     def __init__(self, parent=None, canvas=None):
-        super(LabelingDock, self).__init__(parent)
+        super(LabelingWidget, self).__init__(parent)
         self.setupUi(self)
+
+        self.mVectorLayerComboBox = QgsMapLayerComboBox()
+        self.mVectorLayerComboBox.setAllowEmptyLayer(True)
+        self.mVectorLayerComboBox.setShowCrs(True)
+
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
 
-        self.mVectorLayerComboBox.setAllowEmptyLayer(True)
+
+
+
         allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
                    'postgres', 'spatialite', 'virtual']
 
         excluded = [k for k in QgsProviderRegistry.instance().providerList() if k not in allowed]
         self.mVectorLayerComboBox.setExcludedProviders(excluded)
         self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
+
+        self.toolBarSelectVectorSource.addWidget(self.mVectorLayerComboBox)
 
         self.mDualView = None
 
@@ -608,11 +618,10 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
 
     def updateActions(self, *args):
         if isinstance(self.currentVectorSource(), QgsVectorLayer):
-            self.mActionToggleEditing.setEnabled(True)
 
             b = self.currentVectorSource().isEditable()
-            self.mActionToggleEditing.setChecked(b)
 
+            self.mActionToggleEditing.setChecked(b)
             self.mActionAddFeature.setEnabled(b)
 
             gType = self.currentVectorSource().geometryType()
@@ -631,26 +640,19 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
             self.mActionCancelEdits.setEnabled(b2)
             self.mActionSaveEdits.setEnabled(b2)
 
-            self.mActionSelectAll.setEnabled(True)
-            self.mActionInvertSelection.setEnabled(True)
-            self.mActionRemoveSelection.setEnabled(True)
-            self.mActionPanMapToSelectedRows.setEnabled(True)
-            self.mActionZoomMapToSelectedRows.setEnabled(True)
+
+            self.mActionToggleEditing.setEnabled(True)
+            for action in self.toolBarSelectFeatures.actions():
+                action.setEnabled(True)
 
         else:
 
+            for action in self.toolBarSelectFeatures.actions():
+                action.setEnabled(False)
 
+            for action in self.toolBarModifyFeatures.actions():
+                action.setEnabled(False)
 
-            self.mActionToggleEditing.setEnabled(False)
-            self.mActionSaveEdits.setEnabled(False)
-            self.mActionCancelEdits.setEnabled(False)
-            self.mActionAddFeature.setEnabled(False)
-
-            self.mActionSelectAll.setEnabled(False)
-            self.mActionInvertSelection.setEnabled(False)
-            self.mActionRemoveSelection.setEnabled(False)
-            self.mActionPanMapToSelectedRows.setEnabled(False)
-            self.mActionZoomMapToSelectedRows.setEnabled(False)
 
     def actionAddFeature(self)->QAction:
         return self.mActionAddFeature
@@ -721,24 +723,50 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         self.mActionPanMapToSelectedRows.triggered.connect(self.panMapToSelectedRows)
         self.mActionZoomMapToSelectedRows.triggered.connect(self.zoomMapToSelectedRows)
 
-        self.btnAddFeature.setDefaultAction(self.mActionAddFeature)
-        self.btnSaveEdits.setDefaultAction(self.mActionSaveEdits)
-        self.btnCancelEdits.setDefaultAction(self.mActionCancelEdits)
-        self.btnToggleEditing.setDefaultAction(self.mActionToggleEditing)
 
-        self.btnSelectAll.setDefaultAction(self.mActionSelectAll)
-        self.btnInvertSelection.setDefaultAction(self.mActionInvertSelection)
-        self.btnRemoveSelection.setDefaultAction(self.mActionRemoveSelection)
-        self.btnPanMapToSelectedRows.setDefaultAction(self.mActionPanMapToSelectedRows)
-        self.btnZoomMapToSelectedRows.setDefaultAction(self.mActionZoomMapToSelectedRows)
-
-        self.btnAddOgrLayer.setDefaultAction(self.mActionAddOgrLayer)
-        self.btnAddOgrLayer.setVisible(False)
+        self.mActionNextFeature.triggered.connect(self.nextFeature)
+        self.mActionPreviousFeature.triggered.connect(self.previousFeature)
 
         # bottom button bar
         self.btnAttributeView.setDefaultAction(self.mActionSwitchToTableView)
         self.btnShowLayerProperties.setDefaultAction(self.mActionShowLayerProperties)
         self.btnFormView.setDefaultAction(self.mActionSwitchToFormView)
+
+    def nextFeature(self):
+        """
+        Selects the next feature and moves the map extent to.
+        """
+        vl = self.currentVectorSource()
+        if isinstance(vl, QgsVectorLayer) and vl.hasFeatures():
+            fids = vl.selectedFeatureIds()
+            if len(fids) == 0:
+                nextFID = 0
+            else:
+                nextFID = fids[-1]+1
+
+            if nextFID >= vl.featureCount():
+                nextFID = vl.featureCount()-1
+            vl.selectByIds([nextFID])
+            self.panMapToSelectedRows()
+
+
+
+    def previousFeature(self):
+        """
+        Selects the previous feature and moves the map extent to.
+        """
+        vl = self.currentVectorSource()
+        if isinstance(vl, QgsVectorLayer) and vl.hasFeatures():
+            fids = vl.selectedFeatureIds()
+            if len(fids) == 0:
+                nextFID = 0
+            else:
+                nextFID = fids[0]-1
+            if nextFID < 0:
+                nextFID = 0
+            vl.selectByIds([nextFID])
+            self.panMapToSelectedRows()
+
 
     def selectAll(self):
         if isinstance(self.currentVectorSource(), QgsVectorLayer):
@@ -760,7 +788,8 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         lyr = self.currentVectorSource()
         if isinstance(lyr, QgsVectorLayer):
             crs = self.canvas().mapSettings().destinationCrs()
-            center = SpatialPoint(lyr.crs(), lyr.boundingBoxOfSelected().center()).toCrs(crs)
+            bbox = lyr.boundingBoxOfSelected()
+            center = SpatialPoint(lyr.crs(), bbox.center()).toCrs(crs)
             self.mCanvas.setCenter(center)
             self.sigMapCenterRequested.emit(center)
 
@@ -770,12 +799,13 @@ class LabelingDock(QgsDockWidget, loadUI('labelingdock.ui')):
         Requires that external maps respond to sigMapExtentRequested
         """
         lyr = self.currentVectorSource()
-
         if isinstance(lyr, QgsVectorLayer):
             crs = self.canvas().mapSettings().destinationCrs()
             bbox = SpatialExtent(lyr.crs(), lyr.boundingBoxOfSelected()).toCrs(crs)
-            self.mCanvas.setExtent(bbox)
-            self.sigMapExtentRequested.emit(bbox)
+            if bbox.width() > 0 and bbox.height() > 0:
+                self.mCanvas.setExtent(bbox)
+                self.sigMapExtentRequested.emit(bbox)
+
 
     def showTableView(self):
         """
@@ -1127,6 +1157,19 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
 
 
 
+class LabelingDock(QgsDockWidget):
+    """
+    A QgsDockWidget with a LabelingWidget
+    """
+    def __init__(self, parent=None, canvas=None):
+        super(LabelingDock, self).__init__(parent=parent)
+
+        self.mLabelingWidget = LabelingWidget(canvas=canvas)
+        self.setWindowTitle(self.mLabelingWidget.windowTitle())
+        self.setWidget(self.mLabelingWidget)
+
+    def labelingWidget(self)->LabelingWidget:
+        return self.mLabelingWidget
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV_Labeling'
 labelEditorWidgetFactory = None

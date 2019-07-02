@@ -80,13 +80,20 @@ class TestInit(TestCase):
 
             self.assertIn(expectation, dict(metadata), message)
 
+
+
     def test_TimeSeriesViewer(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
         TSV.show()
+        TSV.createMapView('True Color')
+        TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()
+        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
+            QCoreApplication.processEvents()
+
         tsd = TSV.timeSeries()[-1]
         TSV.showTimeSeriesDatum(tsd)
         if SHOW_GUI:
@@ -136,7 +143,6 @@ class TestInit(TestCase):
     def test_TimeSeriesViewerMassiveSources(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
-
         TSV = TimeSeriesViewer()
         TSV.show()
         files = TestObjects.createArtificialTimeSeries(100)
@@ -144,7 +150,6 @@ class TestInit(TestCase):
 
         if SHOW_GUI:
             QGIS_APP.exec_()
-
 
     def test_TimeSeriesViewerNoSource(self):
 

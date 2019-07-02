@@ -1,8 +1,11 @@
 <RCC>
   <qresource prefix="qps">
-    <file>ui/icons/profile_reload.svg</file>
+    <file>ui/icons/poly2speclib.svg</file>
+    <file>ui/icons/speclib_add.svg</file>
     <file>ui/icons/speclib_clear.svg</file>
     <file>ui/icons/speclib_reload.svg</file>
+    <file>ui/icons/speclib_save.svg</file>
+    <file>ui/icons/profile_reload.svg</file>
     <file>ui/icons/profile_reload.svg</file>
     <file>ui/icons/plus_green_icon.svg</file>
     <file>ui/icons/center_map.svg</file>
@@ -31,15 +34,8 @@
     <file>ui/icons/select_location.svg</file>
     <file>ui/icons/selectcursor.svg</file>
     <file>ui/icons/speclib.svg</file>
-    <file>ui/icons/speclib_add.svg</file>
-    <file>ui/icons/speclib_save.svg</file>
     <file>ui/icons/temporalProfile.svg</file>
     <file>ui/icons/undo_green.svg</file>
     <file>ui/icons/undo_orange.svg</file>
-  </qresource>
-  <qresource prefix="newPrefix">
-    <file>ui/icons/poly2speclib.svg</file>
-    <file>ui/icons/speclib_clear.svg</file>
-    <file>ui/icons/speclib_reload.svg</file>
   </qresource>
 </RCC>

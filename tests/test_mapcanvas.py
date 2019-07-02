@@ -26,7 +26,7 @@ from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
 QGIS_APP = initQgisApplication()
-SHOW_GUI = False and os.environ.get('CI') is None
+SHOW_GUI = True and os.environ.get('CI') is None
 
 class testclassDialogTest(unittest.TestCase):
     """Test rerources work."""
@@ -47,10 +47,10 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(lyr1.isValid())
         QgsProject.instance().addMapLayer(lyr1)
 
+
         c = QgsMapCanvas()
         c.setWindowTitle('QgsMapCanvas test')
         self.assertIsInstance(c, QgsMapCanvas)
-
 
         bExtent = 0
 

@@ -11,4 +11,5 @@ import sys, os
 thisDir = os.path.dirname(__file__)
 # File path attributes:
 # Vector files:
-exampleEvents = os.path.join(thisDir, r'exampleEvents.gpkg|layername=exampleEvents')
+exampleGPKG = os.path.join(thisDir, r'exampleEvents.gpkg')
+exampleEvents = exampleGPKG + '|layername=exampleEvents'

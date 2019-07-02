@@ -46,7 +46,7 @@ OPENGL_AVAILABLE = False
 DEFAULT_SAVE_PATH = None
 DEFAULT_CRS = QgsCoordinateReferenceSystem('EPSG:4326')
 
-FN_ID = 'id'
+FN_ID = 'fid'
 FN_X = 'x'
 FN_Y = 'y'
 FN_NAME = 'name'
@@ -594,7 +594,7 @@ class TemporalProfile(QObject):
             assert isinstance(tsd, TimeSeriesDatum)
             meta = {'doy': tsd.mDOY,
                     'date': str(tsd.mDate),
-                    'nodata':False}
+                    'nodata': False}
 
             self.updateData(tsd, meta, skipStatusUpdate=True)
         #self.updateLoadingStatus()
@@ -620,9 +620,13 @@ class TemporalProfile(QObject):
     def geometry(self):
         return self.mLayer.getFeature(self.mID).geometry()
 
-    def coordinate(self):
-        x,y = self.geometry().asPoint()
-        return SpatialPoint(self.mLayer.crs(), x,y)
+    def coordinate(self)->SpatialPoint:
+        """
+        Returns the profile coordinate
+        :return:
+        """
+        x, y = self.geometry().asPoint()
+        return SpatialPoint(self.mLayer.crs(), x, y)
 
     def id(self):
         """Feature ID in connected QgsVectorLayer"""
@@ -865,7 +869,7 @@ class TemporalProfile(QObject):
         return tsd in self.mData.keys()
 
     def __repr__(self):
-        return 'TemporalProfile {}'.format(self.mID)
+        return 'TemporalProfile {} "{}"'.format(self.id(), self.name())
 
 
 class TemporalProfilePlotDataItem(pg.PlotDataItem):
@@ -1030,7 +1034,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             srs.ImportFromEPSG(4326)
             co = ['GEOMETRY_NAME=geom',
                   'GEOMETRY_NULLABLE=YES',
-                  'FID=fid'
+                  'FID={}'.format(FN_ID)
                   ]
 
             lyr = dsSrc.CreateLayer(name, srs=srs, geom_type=ogr.wkbPoint, options=co)
@@ -1066,13 +1070,13 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.mTimeSeries = timeSeries
         #symbol = QgsFillSymbol.createSimple({'style': 'no', 'color': 'red', 'outline_color': 'black'})
         #self.mLocations.renderer().setSymbol(symbol)
-        self.mNextID = 1
+        #self.mNextID = 1
 
         self.TS = None
         self.setName('EOTS Temporal Profiles')
         fields = QgsFields()
-        fields.append(createQgsField(FN_ID, self.mNextID))
-        fields.append(createQgsField(FN_NAME,''))
+        #fields.append(createQgsField(FN_ID, self.mNextID))
+        fields.append(createQgsField(FN_NAME, ''))
         fields.append(createQgsField(FN_X, 0.0, comment='Longitude'))
         fields.append(createQgsField(FN_Y, 0.0, comment='Latitude'))
         #fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
@@ -1094,8 +1098,6 @@ class TemporalProfileLayer(QgsVectorLayer):
         assert isinstance(self.mTimeSeries, TimeSeries)
 
         # Get or create the TimeSeriesProfiles which will store the loaded values
-
-
         tasks = []
 
         theGeometries = []
@@ -1226,6 +1228,8 @@ class TemporalProfileLayer(QgsVectorLayer):
         :param addedFeatures:
         :return:
         """
+        if layerID != self.id():
+            s = ""
 
         if len(addedFeatures) > 0:
 
@@ -1245,14 +1249,17 @@ class TemporalProfileLayer(QgsVectorLayer):
 
 
     def onFeaturesRemoved(self,  layerID, removedFIDs):
+        if layerID != self.id():
+            s = ""
+
         if len(removedFIDs) > 0:
 
-            toRemove = []
+            removed = []
 
             for fid in removedFIDs:
-                toRemove.append(self.mProfiles.pop(fid))
+                removed.append(self.mProfiles.pop(fid))
 
-            self.sigTemporalProfilesRemoved.emit(toRemove)
+            self.sigTemporalProfilesRemoved.emit(removed)
 
 
     def initConditionalStyles(self):
@@ -1266,49 +1273,95 @@ class TemporalProfileLayer(QgsVectorLayer):
         #styles.setRowStyles([red])
 
 
-    def createTemporalProfiles(self, coordinates)->list:
+    def createTemporalProfiles(self, coordinates, names:list=None)->list:
         """
         Creates temporal profiles
         :param coordinates:
         :return:
         """
-        if not isinstance(coordinates, list):
+
+        if isinstance(coordinates, QgsVectorLayer):
+            lyr = coordinates
+            coordinates = []
+            names = []
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(lyr.crs())
+            trans.setDestinationCrs(self.crs())
+
+            nameField = None
+            if isinstance(names, str) and names in lyr.fields().names():
+                nameField = names
+            else:
+                for name in lyr.fields().names():
+                    if re.search('names?', name, re.I):
+                        nameField = name
+                        break
+            if nameField is None:
+                nameField = lyr.fields().names()[0]
+
+            for f in lyr.getFeatures():
+                assert isinstance(f, QgsFeature)
+                g = f.geometry()
+                if g.isEmpty():
+                    continue
+                g = g.centroid()
+                assert g.transform(trans) == 0
+                coordinates.append(SpatialPoint(self.crs(), g.asPoint()))
+                names.append(f.attribute(nameField))
+
+            del trans
+
+        elif not isinstance(coordinates, list):
             coordinates = [coordinates]
+
+        assert isinstance(coordinates, list)
+
+        if not isinstance(names, list):
+            n = self.featureCount()
+            names = []
+            for i in range(len(coordinates)):
+                names.append('Profile {}'.format(n+i+1))
+
+        assert len(coordinates) == len(names)
 
         features = []
         n = self.dataProvider().featureCount()
-        for i, coordinate in enumerate(coordinates):
+        for i, (coordinate, name) in enumerate(zip(coordinates, names)):
             assert isinstance(coordinate, SpatialPoint)
 
             f = QgsFeature(self.fields())
             f.setGeometry(QgsGeometry.fromPointXY(coordinate.toCrs(self.crs())))
-            f.setAttribute(FN_ID, self.mNextID)
-            f.setAttribute(FN_NAME, 'TP {}'.format(self.mNextID))
+            #f.setAttribute(FN_ID, self.mNextID)
+            f.setAttribute(FN_NAME, name)
             f.setAttribute(FN_X, coordinate.x())
             f.setAttribute(FN_Y, coordinate.y())
             #f.setAttribute(FN_N_LOADED_PERCENT, 0.0)
             #f.setAttribute(FN_N_LOADED, 0)
             #f.setAttribute(FN_N_TOTAL, 0)
             #f.setAttribute(FN_N_NODATA, 0)
-            self.mNextID += 1
+            #self.mNextID += 1
             features.append(f)
 
-        b = self.isEditable()
-        tps_before = list(self.mProfiles.values())
-        self.startEditing()
-        success = self.addFeatures(features)
-        self.saveEdits(leaveEditable=b)
-
-
-        if success:
-            assert n+len(features) == self.featureCount()
-            assert self.featureCount() == len(self.mProfiles)
-            profiles = [tp for tp in self.mProfiles.values() if tp not in tps_before]
-            #for p in profiles:
-            #    p.updateLoadingStatus()
-            return profiles
-        else:
+        if len(features) == 0:
             return []
+
+        b = self.isEditable()
+        self.startEditing()
+
+        newFeatures = []
+        def onFeaturesAdded(lid, fids):
+            newFeatures.extend(fids)
+
+        self.committedFeaturesAdded.connect(onFeaturesAdded)
+        self.beginEditCommand('Add {} profile locations'.format(len(features)))
+        success = self.addFeatures(features)
+        self.endEditCommand()
+        self.saveEdits(leaveEditable=b)
+        self.committedFeaturesAdded.disconnect(onFeaturesAdded)
+
+        assert self.featureCount() == len(self.mProfiles)
+        profiles = [self.mProfiles[f.id()] for f in newFeatures]
+        return profiles
 
 
     def saveEdits(self, leaveEditable=False, triggerRepaint=True):

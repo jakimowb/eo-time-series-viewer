@@ -186,9 +186,6 @@ def transformPoint2Px(trans, pt, gt):
     return geo2px(QgsPointXY(x, y), gt)
 
 
-
-
-
 def doLoaderTask(taskWrapper:QgsTask, dump):
 
     #assert isinstance(taskWrapper, QgsTask)
@@ -202,7 +199,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
     nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
     bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
-    #ensure to load valid indices only
+    # ensure to load valid indices only
     bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
 
     task.bandIndices = bandIndices
@@ -210,13 +207,12 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
     gt = ds.GetGeoTransform()
     result.resGeoTransformation = gt
     result.resCrsWkt = ds.GetProjection()
+    if result.resCrsWkt == '':
+        result.resCrsWkt = QgsRasterLayer(ds.GetDescription()).crs().toWkt()
     crsSrc = osr.SpatialReference(result.resCrsWkt)
 
-
-    #convert Geometries into pixel indices to be extracted
+    # convert Geometries into pixel indices to be extracted
     PX_SUBSETS = []
-
-
 
     for geom in task.geometries:
         crsRequest = osr.SpatialReference()
@@ -276,8 +272,8 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
     PROFILE_DATA = []
 
     if bandIndices == range(ds.RasterCount):
-        #we have to extract all bands
-        #in this case we use gdal.Dataset.ReadAsArray()
+        # we have to extract all bands
+        # in this case we use gdal.Dataset.ReadAsArray()
         noData = ds.GetRasterBand(1).GetNoDataValue()
         for px in PX_SUBSETS:
             if px == INFO_OUT_OF_IMAGE:
@@ -290,7 +286,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
             if noData:
                 isValid = np.ones(bandData.shape[1], dtype=np.bool)
                 for b in range(bandData.shape[0]):
-                    isValid *= bandData[b,:] != ds.GetRasterBand(b+1).GetNoDataValue()
+                    isValid *= bandData[b, :] != ds.GetRasterBand(b+1).GetNoDataValue()
                 bandData = bandData[:, np.where(isValid)[0]]
             PROFILE_DATA.append(bandData)
     else:
@@ -298,8 +294,8 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
         # in this case we use gdal.Band.ReadAsArray()
         # and need to iterate over the requested band indices
 
-        #save the returned band values for each geometry in a separate list
-        #empty list == invalid geometry
+        # save the returned band values for each geometry in a separate list
+        # empty list == invalid geometry
         for i in range(len(PX_SUBSETS)):
             if PX_SUBSETS[i] == INFO_OUT_OF_IMAGE:
                 PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
@@ -332,7 +328,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
 
 
 
-    #finally, ensure that there is on 2D array only
+    # finally, ensure that there is on 2D array only
     for i in range(len(PROFILE_DATA)):
         d = PROFILE_DATA[i]
         if isinstance(d, np.ndarray):

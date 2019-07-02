@@ -39,7 +39,7 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
         return True
 
     searchedKeys = []
-    searchedKeys.append(re.compile('aquisition[ ]*dates$', re.I))
+    searchedKeys.append(re.compile('acquisition[ ]*dates$', re.I))
     searchedKeys.append(re.compile('observation[ ]*dates$', re.I))
     searchedKeys.append(re.compile('wavelength$', re.I))
 
@@ -101,7 +101,7 @@ class InputStackInfo(object):
         self.colorTable = dataset.GetRasterBand(1).GetColorTable()
         self.classNames = dataset.GetRasterBand(1).GetCategoryNames()
 
-        self.path = dataset.GetFileList()[0]
+        self.path = dataset.GetDescription()
 
         self.outputBandName = os.path.basename(self.path)
         if len(self.outputBandName) == 0:

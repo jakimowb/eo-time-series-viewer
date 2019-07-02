@@ -26,17 +26,14 @@ from ..utils import *
 from ..models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
 from ..externals import pyqtgraph as pg
 
-
 DEBUG = False
 
 MODULE_IMPORT_PATH = None
-#'timeseriesviewer.plotstyling'
+
 for name, module in sys.modules.items():
     if hasattr(module, '__file__') and module.__file__ == __file__:
         MODULE_IMPORT_PATH = name
         break
-
-
 
 
 def log(msg: str):
@@ -355,8 +352,18 @@ class PlotStyle(QObject):
 
         p = QPainter(pm)
         # draw the line
+
         p.setPen(self.linePen)
-        p.drawLine(2, pm.height() - 2, pm.width() - 2, 2)
+
+        w, h = pm.width(), pm.height()
+
+        hw, hh = int(w * 0.5), int(h * 0.5)
+        w2, h2 = int(w * 0.75), int(h * 0.75)
+        # p.drawLine(x1,y1,x2,y2)
+
+        p.drawLine(2, h - 2, hw, hh)
+        p.drawLine(hw, hh, w - 2, h * 0.3)
+
         p.translate(pm.width() / 2, pm.height() / 2)
         drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
         p.end()
@@ -585,51 +592,42 @@ class PlotStyleButton(QToolButton):
         # self.clicked.connect(self.showDialog)
         # self.setPlotStyle(PlotStyle())
         self._updateIcon()
-        self.mMenu = None
-        self.mWidget = None
-
-        self.prepareMenu()
-
-        self.clicked.connect(self.buttonClicked)
-
-    def buttonClicked(self):
-
-        self.activateWindow()
-
-    def prepareMenu(self):
 
         self.mMenu = QMenu()
-        self.mWidget = PlotStyleWidget()
-        self.mWidget.setPlotStyle(self.mPlotStyle)
-        self.mWidget.sigPlotStyleChanged.connect(self.setPlotStyle)
-
-        wa = QWidgetAction(self.mMenu)
-        wa.setDefaultWidget(self.mWidget)
-        self.mMenu.addAction(wa)
+        self.mMenu.triggered.connect(self.onAboutToShowMenu)
+        # self.mWidget = PlotStyleWidget()
+        self.mDialog = PlotStyleDialog()
+        self.mDialog.setModal(False)
+        self.mDialog.setPlotStyle(self.mPlotStyle)
+        # self.mWidget.sigPlotStyleChanged.connect(self.setPlotStyle)
+        self.mDialog.accepted.connect(self.onAccepted)
+        self.mDialog.rejected.connect(self.onCanceled)
+        self.mWA = QWidgetAction(self.mMenu)
+        self.mWA.setDefaultWidget(self.mDialog)
+        self.mMenu.addAction(self.mWA)
+        self.mMenu.aboutToShow.connect(self.onAboutToShowMenu)
         self.setMenu(self.mMenu)
-        self.mMenuIsOpen = False
         self.setPopupMode(QToolButton.MenuButtonPopup)
-        # self.setContextMenuPolicy(Qt.PreventContextMenu)
+        self.clicked.connect(lambda: self.activateWindow())
+        # self.clicked.connect(self.onTest)
 
-    def mousePressEvent(self, e: QMouseEvent):
+    def onAboutToShowMenu(self, *args):
+        self.mWA.setVisible(True)
+        self.mDialog.setVisible(True)
+        self.mDialog.setPlotStyle(self.mPlotStyle)
+        self.mDialog.activateWindow()
 
-        if isinstance(self.mWidget, PlotStyleWidget) and self.mWidget.isVisible():
-            e.accept()
-            return
+    def onAccepted(self, *args):
+        if isinstance(self.mDialog, PlotStyleDialog):
+            ps = self.mDialog.plotStyle()
+            if ps != self.mPlotStyle:
+                self.mPlotStyle = ps
+                self._updateIcon()
+                self.sigPlotStyleChanged.emit(ps)
+        self.mWA.setVisible(False)
 
-        if e.button() == Qt.RightButton:
-            self.showMenu()
-            return
-        if e.button() == Qt.LeftButton:
-            pass
-
-        if not self.mMenuIsOpen:
-            self.showMenu()
-            e.accept()
-        else:
-            pass
-
-        # self.activateWindow()
+    def onCanceled(self, *args):
+        self.mWA.setVisible(False)
 
     def plotStyle(self):
         return PlotStyle(plotStyle=self.mPlotStyle)
@@ -638,6 +636,7 @@ class PlotStyleButton(QToolButton):
         if isinstance(plotStyle, PlotStyle):
             log('setPlotStyle...')
             self.mPlotStyle.copyFrom(plotStyle)
+            self.mDialog.setPlotStyle(plotStyle)
             self._updateIcon()
             self.sigPlotStyleChanged.emit(self.mPlotStyle)
         else:
@@ -651,6 +650,9 @@ class PlotStyleButton(QToolButton):
         if self.mInitialButtonSize is None:
             self.mInitialButtonSize = self.sizeHint()
             self.setIconSize(self.mInitialButtonSize)
+
+        self.mInitialButtonSize = self.size()
+        self.setIconSize(self.mInitialButtonSize)
 
         if self.mPlotStyle != None:
             s = self.mInitialButtonSize
@@ -822,7 +824,7 @@ class PlotStyleEditorWidgetFactory(QgsEditorWidgetFactory):
         s = ""
 
     def configWidget(self, vl: QgsVectorLayer, fieldIdx: int, parent=QWidget) -> QgsEditorConfigWidget:
-        #print('configWidget()')
+        # print('configWidget()')
         w = PlotStyleEditorConfigWidget(vl, fieldIdx, parent)
         self._wrappers.append(w)
         return w
@@ -870,6 +872,7 @@ class PlotStyleEditorWidgetFactory(QgsEditorWidgetFactory):
 
 
 EDITOR_WIDGET_REGISTRY_KEY = 'Plot Settings'
+
 
 def registerPlotStyleEditorWidget():
     reg = QgsGui.editorWidgetRegistry()

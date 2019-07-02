@@ -173,7 +173,8 @@ class testclassDialogTest(unittest.TestCase):
         else:
             self.assertTrue(len(d.writtenFiles()) == 0)
 
-        #QGIS_APP.exec_()
+        if SHOW_GUI:
+            QGIS_APP.exec_()
         pass
 
     def test_withTSV(self):

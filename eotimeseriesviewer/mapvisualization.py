@@ -130,10 +130,14 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
                 i = int(len(visibleCanvases) / 2)
                 centerCanvas = visibleCanvases[i]
 
-
         a = menu.addAction('Set Properties')
-        a.triggered.connect(lambda *args, canvas=centerCanvas, lyr=l:
-                            showLayerPropertiesDialog(lyr, canvas))
+
+        a.triggered.connect(lambda *args,
+                                   canvas = centerCanvas,
+                                   lyr = l,
+                                   b = not isinstance(l, SensorProxyLayer):
+                            showLayerPropertiesDialog(lyr, canvas, useQGISDialog=b))
+
         a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
@@ -222,8 +226,10 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         self.actionToggleMapViewHidden.toggled.connect(lambda isHidden: self.setVisibility(not isHidden))
         self.actionToggleCrosshairVisibility.toggled.connect(self.setCrosshairVisibility)
 
-        self.actionAddOgrLayer.triggered.connect(self.onAddOgrLayer)
-        self.btnAddOgrLayer.setDefaultAction(self.actionAddOgrLayer)
+        self.actionAddVectorLayer.triggered.connect(self.onAddVectorLayer)
+        self.actionAddRasterLayer.triggered.connect(self.onAddRasterLayer)
+        self.btnAddVectorLayer.setDefaultAction(self.actionAddVectorLayer)
+        self.btnAddRasterLayer.setDefaultAction(self.actionAddRasterLayer)
 
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
         self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
@@ -271,20 +277,37 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
 
-    def onAddOgrLayer(self):
-
+    def onAddVectorLayer(self):
+        """
+        Slot that opens a SelectMapLayersDialog to add a vector layer
+        """
         from .externals.qps.utils import SelectMapLayersDialog
-
         d = SelectMapLayersDialog()
         d.setWindowTitle('Select Vector Layer')
         d.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
-
         if d.exec() == QDialog.Accepted:
             for l in d.mapLayers():
                 self.addLayer(l)
-        else:
-            s = ""
-    def setCurrentLayer(self, layer):
+
+    def onAddRasterLayer(self):
+        """
+        Slot that opens a SelectMapLayersDialog to add a vector layer
+        """
+        from .externals.qps.utils import SelectMapLayersDialog
+        d = SelectMapLayersDialog()
+        d.setWindowTitle('Select Raster Layer')
+        d.addLayerDescription('Raster Layer', QgsMapLayerProxyModel.RasterLayer)
+        if d.exec() == QDialog.Accepted:
+            for l in d.mapLayers():
+                self.addLayer(l)
+
+
+    def setCurrentLayer(self, layer:QgsMapLayer):
+        """
+        Sets the QgsMapCanvas.currentLayer() that is used by some QgsMapTools
+        :param layer: QgsMapLayer | None
+        :return:
+        """
         assert layer is None or isinstance(layer, QgsMapLayer)
 
         self.mCurrentLayer = layer
@@ -405,6 +428,12 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         for s in timeSeries.sensors():
             self.addSensor(s)
 
+    def timeSeries(self)->TimeSeries:
+        """
+        Returns the TimeSeries this mapview is connected with
+        :return: TimeSeries
+        """
+        return self.mTimeSeries
 
     def setTitle(self, title:str):
         """
@@ -1334,7 +1363,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.actionHighlightMapView.setEnabled(b)
 
 
-    def createMapView(self)->MapView:
+    def createMapView(self, name:str=None)->MapView:
         """
         Create a new MapView
         :return: MapView
@@ -1343,12 +1372,15 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         mapView = MapView()
 
         n = len(self.mapViews()) + 1
-        title = 'Map View {}'.format(n)
-        while title in [m.title() for m in self.mapViews()]:
-            n += 1
+        if isinstance(name, str) and len(name) > 0:
+            title = name
+        else:
             title = 'Map View {}'.format(n)
-        mapView.setTitle(title)
-        mapView.sigShowProfiles.connect(self.sigShowProfiles)
+            while title in [m.title() for m in self.mapViews()]:
+                n += 1
+                title = 'Map View {}'.format(n)
+            mapView.setTitle(title)
+            mapView.sigShowProfiles.connect(self.sigShowProfiles)
 
         mapView.setTimeSeries(self.mTimeSeries)
         self.addMapView(mapView)
@@ -1607,13 +1639,15 @@ class SpatialTemporalVisualization(QObject):
                     mt.setSelectionMode(mode)
 
 
-    def setCurrentLayer(self, layer):
-
+    def setCurrentLayer(self, layer:QgsMapLayer):
+        """
+        Sets the current map layer some map tools can operate on
+        :param layer: QgsMapLayer
+        """
         assert layer is None or isinstance(layer, QgsMapLayer)
         self.mCurrentLayer = layer
-        for canvas in self.mapCanvases():
-            assert isinstance(canvas, QgsMapCanvas)
-            canvas.setCurrentLayer(layer)
+        for mapView in self.mapViews():
+            mapView.setCurrentLayer(self.mCurrentLayer)
 
     def syncQGISCanvasCenter(self, qgisChanged:bool):
 
@@ -1681,9 +1715,10 @@ class SpatialTemporalVisualization(QObject):
             c.timedRefresh()
             n += 1
 
-        if n < 10:
+        if False and n < 10:
             # refresh up to mNumberOfHiddenMapsToRefresh maps which are not visible to the user
             i = 0
+
             for c in hiddenMaps:
                 assert isinstance(c, MapCanvas)
                 c.timedRefresh()
@@ -1706,12 +1741,13 @@ class SpatialTemporalVisualization(QObject):
     def onMapViewAdded(self, *args):
         self.adjustScrollArea()
         s = ""
-    def createMapView(self)->MapView:
+
+    def createMapView(self, name:str=None)->MapView:
         """
         Create a new MapWiew
         :return: MapView
         """
-        return self.MVC.createMapView()
+        return self.MVC.createMapView(name=name)
 
 
     def registerMapCanvas(self, mapCanvas:MapCanvas):
@@ -1790,7 +1826,12 @@ class SpatialTemporalVisualization(QObject):
 
 
 
-    def setMapSize(self, size):
+    def setMapSize(self, size:QSize):
+        """
+        Sets the MapCanvas size.
+        :param size: QSize
+        """
+
         assert isinstance(size, QSize)
         self.mSize = size
         from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -1871,7 +1912,7 @@ class SpatialTemporalVisualization(QObject):
         if isinstance(extent, SpatialExtent):
             centerOld = extent.center()
             center = center.toCrs(extent.crs())
-            if center != centerOld:
+            if center != centerOld and isinstance(center, SpatialPoint):
                 extent = extent.__copy__()
                 extent.setCenter(center)
                 self.setSpatialExtent(extent)
@@ -1980,7 +2021,7 @@ class SpatialTemporalVisualization(QObject):
         Returns the SpatialExtent
         :return: SpatialExtent
         """
-        return self.mSpatialExtent
+        return self.mSpatialExtent.__copy__()
 
 
 

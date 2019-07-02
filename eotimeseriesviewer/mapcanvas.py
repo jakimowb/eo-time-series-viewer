@@ -135,7 +135,7 @@ class MapCanvasMapTools(QObject):
         self.mtFullExtentMapTool = FullExtentMapTool(canvas)
         self.mtCursorLocation = CursorLocationMapTool(canvas, True)
 
-        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CapturePoint, cadDock)
+        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CaptureNone, cadDock)
         self.mtSelectFeature = QgsMapToolSelect(canvas)
 
     def activate(self, mapToolKey, **kwds):
@@ -671,7 +671,11 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args, lyr=mapLayer: showLayerPropertiesDialog(lyr, self))
+            a.triggered.connect(lambda *args,
+                                       lyr = mapLayer,
+                                       c = self,
+                                       b = isinstance(mapLayer, SensorProxyLayer) == False:
+                                showLayerPropertiesDialog(lyr, c, useQGISDialog=b))
 
             a = sub.addAction('Zoom to Layer')
             a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))
@@ -796,12 +800,16 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(self.mTSD, TimeSeriesDatum):
             menu.addSeparator()
-            action = menu.addAction('Hide date')
+
+            action = menu.addAction('Focus on Spatial Extent')
+            action.triggered.connect(self.onFocusToCurrentSpatialExtent)
+
+            action = menu.addAction('Hide Date')
             action.triggered.connect(lambda: self.mTSD.setVisibility(False))
 
             if isinstance(eotsv, TimeSeriesViewer):
                 ts = eotsv.timeSeries()
-                action = menu.addAction('Remove date')
+                action = menu.addAction('Remove Date')
                 action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
 
 
@@ -815,12 +823,18 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
+    def onFocusToCurrentSpatialExtent(self):
+
+        mapView = self.mapView()
+        from .mapvisualization import MapView
+        if isinstance(mapView, MapView):
+            mapView.timeSeries().focusVisibilityToExtent()
+
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
         pasteStyleFromClipboard(lyr)
         if isinstance(lyr, SensorProxyLayer):
             self.mMapView.sensorProxyLayer(lyr.sensor()).setRenderer(lyr.renderer().clone())
-
 
     def contextMenuEvent(self, event:QContextMenuEvent):
         """

@@ -1,6 +1,16 @@
 ==============
 Changelog
 ==============
+2019-06-28 (version 1.4):
+    * adding vector layers with sublayers will add all sublayers
+    * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
+    * labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (`#26 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/26>`_)
+    * added several convenience function to TimeSeriesViewer object
+    * fixed a bug that did not allow to create new polygon features
+    * temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>", e.g. "42 Deforested", fixed plot style preview
+    * updated SpectralLibraryViewer
+    * fixed spelling error in stacked band input dialog
+
 2019-06-12 (version 1.3):
     * fixed `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_: opening example closes QGIS on linux
     * fixed `#96 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/96>`_ and `#99 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/99>`_ : docutils not installed error when showing rst/md content

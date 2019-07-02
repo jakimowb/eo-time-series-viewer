@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 
 
-__version__ = '1.3'  # sub-subversion number is added automatically
+__version__ = '1.4'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
@@ -45,8 +45,6 @@ from qgis.PyQt.QtGui import QIcon
 
 mkdir = lambda p: os.makedirs(p, exist_ok=True)
 
-
-
 DIR = os.path.dirname(__file__)
 DIR_REPO = os.path.dirname(DIR)
 DIR_UI = jp(DIR, *['ui'])
@@ -69,8 +67,6 @@ try:
 except:
     pass
 
-
-import eotimeseriesviewer.externals.qps
 
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
@@ -109,13 +105,13 @@ def initResources():
         import eotimeseriesviewer.ui.resources
         eotimeseriesviewer.ui.resources.qInitResources()
     except:
-        print('Unable to initialize EO Time Series Viewer ressources', file=sys.stderr)
+        print('Unable to initialize EO Time Series Viewer resources', file=sys.stderr)
 
     try:
         import eotimeseriesviewer.externals.qps.qpsresources
         eotimeseriesviewer.externals.qps.qpsresources.qInitResources()
     except Exception as ex:
-        print('Unable to import qps.resources', file=sys.stderr)
+        print('Unable to import qps resources', file=sys.stderr)
 
 def initEditorWidgets():
     """

@@ -19,12 +19,10 @@ class GraphicsObject(GraphicsItem, QtGui.QGraphicsObject):
         
     def itemChange(self, change, value):
         from PyQt5.QtCore import QVariant
-
-        # fixes: BJ
-        if value in [QVariant(None)]:
+        if value == QVariant(None):
             value = None
-
         ret = QtGui.QGraphicsObject.itemChange(self, change, value)
+
         if change in [self.ItemParentHasChanged, self.ItemSceneHasChanged]:
             self.parentChanged()
         try:

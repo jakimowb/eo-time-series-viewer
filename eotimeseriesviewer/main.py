@@ -123,6 +123,8 @@ class TimeSeriesViewerUI(QMainWindow,
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+
+        self.setCentralWidget(self.mCentralWidget)
         self.addActions(self.findChildren(QAction))
         from eotimeseriesviewer import TITLE, icon, __version__
 
@@ -151,21 +153,13 @@ class TimeSeriesViewerUI(QMainWindow,
 
         # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
-        if DEBUG:
-            from eotimeseriesviewer.labeling import LabelingDock
-            self.dockLabeling = addDockWidget(LabelingDock(self))
-            self.dockLabeling.setHidden(True)
 
-        from eotimeseriesviewer.sensorvisualization import SensorDockUI
-        self.dockSensors = addDockWidget(SensorDockUI(self))
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews = addDockWidget(MapViewDock(self))
 
-        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
-
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
-        self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
+        # self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
 
         area = Qt.BottomDockWidgetArea
         # from timeseriesviewer.mapvisualization import MapViewDockUI
@@ -180,15 +174,16 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockLabeling = addDockWidget(LabelingDock(self))
 
         area = Qt.LeftDockWidgetArea
-        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.canvas(), self))
+        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
         self.dockAdvancedDigitizingDockWidget.setVisible(False)
-        self.tabifyDockWidget(self.dockSensors, self.dockAdvancedDigitizingDockWidget)
+
 
         area = Qt.BottomDockWidgetArea
         panel = SpectralLibraryPanel(None)
         panel.setParent(self)
         self.dockSpectralLibrary = addDockWidget(panel)
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+
+
 
         #except Exception as ex:
         #    print('Unable to create SpectralLibrary panel', file=sys.stderr)
@@ -196,14 +191,34 @@ class TimeSeriesViewerUI(QMainWindow,
         #    self.dockSpectralLibrary = None
         #    self.dockSpectralLibrary = None
 
+        self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
 
+
+        self.dockTaskManager = QgsDockWidget('Task Manager')
+        self.dockTaskManager.setWidget(QgsTaskManagerWidget(QgsApplication.taskManager()))
+        self.dockTaskManager.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.dockTaskManager = addDockWidget(self.dockTaskManager)
+
         from eotimeseriesviewer.systeminfo import SystemInfoDock
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
+
+
+        #self.tabifyDockWidget(self.dockCursorLocation, self.dockSensors)
+
+        self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
+
+        from eotimeseriesviewer.sensorvisualization import SensorDockUI
+        self.dockSensors = addDockWidget(SensorDockUI(self))
+        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
+        self.tabifyDockWidget(self.dockTaskManager, self.dockCursorLocation)
+
+
+
 
         for dock in self.findChildren(QDockWidget):
 
@@ -264,7 +279,6 @@ def showMessage(message, title, level):
     v.showMessage(True)
 
 
-
 class TimeSeriesViewer(QgisInterface, QObject):
 
     _instance = None
@@ -292,9 +306,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
             application at run time.
         :type iface: QgsInterface
         """
-
-        # assert TimeSeriesViewer.instance() is None
-
         QObject.__init__(self)
         QgisInterface.__init__(self)
         QApplication.processEvents()
@@ -315,11 +326,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
-
-
         self.ui.dockTimeSeries.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
-
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
@@ -328,21 +336,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
         self.spatialTemporalVis = SpatialTemporalVisualization(self)
-        # self.spatialTemporalVis.sigLoadingStarted.connect(self.ui.dockRendering.addStartedWork)
-        # self.spatialTemporalVis.sigLoadingFinished.connect(self.ui.dockRendering.addFinishedWork)
-        # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
-
         self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
         self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
         self.ui.dockMapViews.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
         self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setMapBackgroundColor)
         self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
+        self.spatialTemporalVis.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
         self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
-
-
-
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
@@ -353,13 +355,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         def initMapToolAction(action, key):
             assert isinstance(action, QAction)
-            assert isinstance(key, str)
-            assert key in MapTools.mapToolKeys()
+            assert isinstance(key, MapTools)
+
             action.triggered.connect(lambda: self.setMapTool(key))
             action.setProperty('eotsv/maptoolkey', key)
             self.ui.registerMapToolAction(action)
-
-
 
         initMapToolAction(self.ui.actionPan, MapTools.Pan)
         initMapToolAction(self.ui.actionZoomIn, MapTools.ZoomIn)
@@ -387,16 +387,22 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # create edit toolbar
         tb = self.ui.toolBarEditing
         assert isinstance(tb, QToolBar)
-        tb.addAction(self.ui.dockLabeling.actionToggleEditing())
-        tb.addAction(self.ui.dockLabeling.actionSaveEdits())
-        tb.addAction(self.ui.dockLabeling.actionAddFeature())
-        self.ui.dockLabeling.sigMapExtentRequested.connect(self.setSpatialExtent)
-        self.ui.dockLabeling.sigMapCenterRequested.connect(self.setSpatialCenter)
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionToggleEditing())
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionSaveEdits())
+        tb.addAction(self.ui.dockLabeling.labelingWidget().actionAddFeature())
+        labelingWidget = self.ui.dockLabeling.labelingWidget()
+        from .labeling import LabelingWidget
+        assert isinstance(labelingWidget, LabelingWidget)
+        labelingWidget.sigMapExtentRequested.connect(self.setSpatialExtent)
+        labelingWidget.sigMapCenterRequested.connect(self.setSpatialCenter)
+        labelingWidget.sigVectorLayerChanged.connect(
+            lambda: self.spatialTemporalVis.setCurrentLayer(
+                self.ui.dockLabeling.labelingWidget().currentVectorSource()))
 
-        initMapToolAction(self.ui.dockLabeling.actionAddFeature(), MapTools.AddFeature)
+        initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
 
 
-        self.ui.dockLabeling.sigVectorLayerChanged.connect(lambda : self.spatialTemporalVis.setCurrentLayer(self.ui.dockLabeling.currentVectorSource()))
+
         #initMapToolAction(self.ui.dockLabeling., MapTools.AddFeature)
 
         # set default map tool
@@ -409,8 +415,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
 
-        self.ui.actionAddTSD.triggered.connect(lambda : self.addTimeSeriesImages(None))
-        self.ui.actionAddVectorData.triggered.connect(lambda : self.addVectorData())
+        self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
+        self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
@@ -419,7 +425,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
-        self.ui.actionExportMapsToImages.triggered.connect(lambda :self.exportMapsToImages())
+        self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
         self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
@@ -434,13 +440,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         assert isinstance(SLW, SpectralLibraryWidget)
-        #SLW.sigLoadFromMapRequest.connect(self.ui.actionIdentifySpectralProfile.trigger)
+
         SLW.setMapInteraction(True)
         SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
         SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
         SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
-
-        # add the cadDock
 
         # add time-specific fields
         sl = self.spectralLibrary()
@@ -460,7 +464,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
         self.spatialTemporalVis.sigMapViewAdded.connect(self.onMapViewAdded)
-        #QgsProject.instance().addMapLayer(temporalProfileLayer)
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
@@ -475,6 +478,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 assert isinstance(toolButton, QToolButton)
                 if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu):
                     toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+
+        self.ui.dockTimeSeries.setFloating(True)
+        self.ui.dockTimeSeries.setFloating(False)
+
+    def sensors(self)->list:
+        """
+        Returns the list of Sensors
+        :return: [list-of-Sensors]
+        """
+        return self.mTimeSeries.sensors()
 
 
     def activateIdentifyTemporalProfileMapTool(self, *args):
@@ -738,6 +752,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         kwds = {}
 
 
+    def setMapSize(self, size:QSize):
+        """
+        Sets the MapCanvas size.
+        :param size: QSize
+        """
+        self.spatialTemporalVis.setMapSize(size)
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
@@ -939,11 +959,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 progressDialog.hide()
                 progressDialog.setParent(None)
 
-    def createMapView(self):
+    def createMapView(self, name:str=None):
         """
-        Create a new MapView
+        Creates a new MapView.
+        :return: MapView
         """
-        self.spatialTemporalVis.createMapView()
+        return self.spatialTemporalVis.createMapView(name=name)
 
     def mapViews(self)->list:
         """
@@ -1044,7 +1065,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-    def loadExampleTimeSeries(self, n:int=None):
+    def loadExampleTimeSeries(self, n:int=None, loadAsync=True):
         """
         Loads an example time series
         :param n: int, max. number of images to load. Useful for developer test-cases
@@ -1060,7 +1081,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         n = min(n, len(rasterFiles))
         n = max(1, n)
 
-        self.addTimeSeriesImages(rasterFiles[0:n])
+        self.addTimeSeriesImages(rasterFiles[0:n], loadAsync=loadAsync)
 
         if len(vectorFiles) > 0:
 
@@ -1144,11 +1165,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if files:
             from eotimeseriesviewer.mapvisualization import MapView
-            for f in files:
-                l = QgsVectorLayer(f, os.path.basename(f))
+            from .externals.qps.layerproperties import subLayers
 
-                if l.isValid():
-                    vectorLayers.append(l)
+            for f in files:
+                vectorLayers.extend(subLayers(QgsVectorLayer(f)))
 
             if len(vectorLayers) > 0:
                 QgsProject.instance().addMapLayers(vectorLayers)
@@ -1163,7 +1183,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-    def addTimeSeriesImages(self, files: list):
+    def addTimeSeriesImages(self, files: list, loadAsync=True):
         """
         Adds images to the time series
         :param files:
@@ -1181,7 +1201,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         if files:
-            self.mTimeSeries.addSources(files)
+            if loadAsync:
+                self.mTimeSeries.addSourcesAsync(files)
+            else:
+                self.mTimeSeries.addSources(files)
+
+            QCoreApplication.processEvents()
+            #self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):
 

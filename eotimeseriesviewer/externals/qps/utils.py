@@ -14,7 +14,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt import uic
-from osgeo import gdal
+from osgeo import gdal, ogr
 import numpy as np
 
 from . import resourcemockup
@@ -419,16 +419,40 @@ def showMessage(message:str, title:str, level):
     v.showMessage(True)
 
 
-def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly):
+def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
     """
-    Returns a gdal.Dataset
-    :param pathOrDataset: path or gdal.Dataset
+    Returns a gdal.Dataset object instance
+    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer
     :return: gdal.Dataset
     """
+
+    if isinstance(pathOrDataset, QgsRasterLayer):
+        return gdalDataset(pathOrDataset.source())
+
     if not isinstance(pathOrDataset, gdal.Dataset):
         pathOrDataset = gdal.Open(pathOrDataset, eAccess)
+
     assert isinstance(pathOrDataset, gdal.Dataset), 'Can not read {} as gdal.Dataset'.format(pathOrDataset)
+
     return pathOrDataset
+
+def ogrDataSource(pathOrDataSource)->ogr.DataSource:
+    """
+    Returns an OGR DataSource instance
+    :param pathOrDataSource: ogr.DataSource | str | QgsVectorLayer
+    :return: ogr.Datasource
+    """
+    if isinstance(pathOrDataSource, QgsVectorLayer):
+        uri = pathOrDataSource.source().split('|')[0]
+        return ogrDataSource(uri)
+
+    if not isinstance(pathOrDataSource, ogr.DataSource):
+        pathOrDataSource = ogr.Open(pathOrDataSource)
+
+    assert isinstance(pathOrDataSource, ogr.DataSource), 'Can not read {} as ogr.DataSource'.format(pathOrDataSource)
+    return pathOrDataSource
+
+
 
 
 def loadUI(basename: str):
@@ -863,7 +887,7 @@ def defaultBands(dataset):
         if db != [0, 0, 0]:
             return db
 
-        rl = QgsRasterLayer(dataset.GetFileList()[0])
+        rl = QgsRasterLayer(dataset.GetDescription())
         defaultRenderer = rl.renderer()
         if isinstance(defaultRenderer, QgsRasterRenderer):
             db = defaultRenderer.usesBands()
@@ -1592,7 +1616,15 @@ class SelectMapLayersDialog(QgsDialog):
     def addLayerDescription(self, info:str,
                             filters:QgsMapLayerProxyModel.Filters,
                             allowEmptyLayer = False,
-                            layerDescription=None):
+                            layerDescription=None)->QgsMapLayerComboBox:
+        """
+        Adds a map layer description
+        :param info: description text
+        :param filters: map layer filters
+        :param allowEmptyLayer: bool
+        :param layerDescription: SelectMapLayersDialog.LayerDescription (overwrites the other attributes)
+        :return: the QgsMapLayerComboBox that relates to this layer description
+        """
 
         if not isinstance(layerDescription, SelectMapLayersDialog.LayerDescription):
             layerDescription = SelectMapLayersDialog.LayerDescription(info, filters, allowEmptyLayer=allowEmptyLayer)
@@ -1605,6 +1637,8 @@ class SelectMapLayersDialog(QgsDialog):
         self.mMapLayerBoxes.append(layerbox)
         self.mGrid.addWidget(QLabel(layerDescription.labelText, self), i, 0)
         self.mGrid.addWidget(layerbox, i, 1)
+
+        return layerbox
 
 
 

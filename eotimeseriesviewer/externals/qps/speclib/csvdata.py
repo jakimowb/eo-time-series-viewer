@@ -188,7 +188,8 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
                 nProfiles += 1
 
             # find missing fields, detect data type for and them to the SpectralLibrary
-            bandValueColumnNames = sorted([n for n in R.fieldnames if re.search(r'^b\d+$', n, re.I)])
+            bandValueColumnNames = [n for n in R.fieldnames if re.search(r'^b\d+$', n, re.I)]
+            bandValueColumnNames = sorted(bandValueColumnNames, key = lambda n: int(n[1:]))
             specialHandlingColumns = bandValueColumnNames + ['WKT']
             addGeometry = 'WKT' in R.fieldnames
             addYValues = False
