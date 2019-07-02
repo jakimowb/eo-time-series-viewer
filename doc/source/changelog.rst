@@ -1,7 +1,7 @@
 ==============
 Changelog
 ==============
-2019-06-28 (version 1.4):
+2019-07-02 (version 1.4):
     * adding vector layers with sublayers will add all sublayers
     * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
     * labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (`#26 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/26>`_)
