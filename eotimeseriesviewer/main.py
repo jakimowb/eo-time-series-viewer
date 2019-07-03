@@ -183,14 +183,6 @@ class TimeSeriesViewerUI(QMainWindow,
         panel.setParent(self)
         self.dockSpectralLibrary = addDockWidget(panel)
 
-
-
-        #except Exception as ex:
-        #    print('Unable to create SpectralLibrary panel', file=sys.stderr)
-        #    print(ex, file=sys.stderr)
-        #    self.dockSpectralLibrary = None
-        #    self.dockSpectralLibrary = None
-
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
@@ -203,19 +195,20 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockTaskManager.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.dockTaskManager = addDockWidget(self.dockTaskManager)
 
+
+
         from eotimeseriesviewer.systeminfo import SystemInfoDock
+        from eotimeseriesviewer.sensorvisualization import SensorDockUI
+
         self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
 
-
-        #self.tabifyDockWidget(self.dockCursorLocation, self.dockSensors)
-
-        self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
-
-        from eotimeseriesviewer.sensorvisualization import SensorDockUI
         self.dockSensors = addDockWidget(SensorDockUI(self))
         self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
+
         self.tabifyDockWidget(self.dockTaskManager, self.dockCursorLocation)
+        self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
+        self.tabifyDockWidget(self.dockTaskManager, self.dockSensors)
 
 
 
