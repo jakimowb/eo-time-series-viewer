@@ -96,7 +96,6 @@ def layerClassSchemes(layer:QgsVectorLayer)->list:
     return schemes
 
 
-
 def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
     """
     Returns the ClassificationSchemes + QgsField used for labeling shortcuts
@@ -714,7 +713,10 @@ class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
     def cancelEdits(self, *args):
         lyr = self.currentVectorSource()
         if isinstance(lyr, QgsVectorLayer):
+            b = lyr.isEditable()
             lyr.rollBack()
+            if b:
+                lyr.startEditing()
 
     def saveEdits(self, *args):
         lyr = self.currentVectorSource()
