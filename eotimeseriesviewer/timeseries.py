@@ -863,14 +863,15 @@ class TimeSeriesTreeView(QTreeView):
         menu = QMenu(self)
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())
-        a = menu.addAction('Hide')
-        a.setToolTip('Hides the selected dates.')
+        a = menu.addAction('Hide date(s)')
+        a.setToolTip('Hides the selected time series dates.')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
-        a = menu.addAction('Show')
-        a.setToolTip('Shows the selected dates.')
+        a = menu.addAction('Show date(s)')
+        a.setToolTip('Shows the selected time series dates.')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
         if isinstance(tsd, TimeSeriesDate):
-            a = menu.addAction('Show {}'.format(tsd.date()))
+            a = menu.addAction('Show {} in map.'.format(tsd.date()))
+            a.setToolTip('Shows the map related to this time series date.')
             a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
 
         menu.popup(QCursor.pos())
@@ -906,72 +907,6 @@ class TimeSeriesTreeView(QTreeView):
                 info.append(delimiter.join([str(v) for v in values]))
             info = '\n'.join(info)
             QApplication.clipboard().setText(info)
-
-
-
-class TimeSeriesTableView(QTableView):
-
-    sigMoveToDateRequest = pyqtSignal(TimeSeriesDate)
-
-    def __init__(self, parent=None):
-        super(TimeSeriesTableView, self).__init__(parent)
-
-    def contextMenuEvent(self, event):
-        """
-        Creates and shows an QMenu
-        :param event:
-        """
-
-        idx = self.indexAt(event.pos())
-        tsd = self.model().data(idx, role=Qt.UserRole)
-
-
-        menu = QMenu(self)
-        a = menu.addAction('Copy value(s)')
-        a.triggered.connect(lambda: self.onCopyValues())
-        a = menu.addAction('Check')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
-        a = menu.addAction('Uncheck')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
-        if isinstance(tsd, TimeSeriesDate):
-            a = menu.addAction('Show {}'.format(tsd.date()))
-            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
-
-        menu.popup(QCursor.pos())
-
-    def onSetCheckState(self, checkState):
-        """
-        Sets a ChecState to all selected rows
-        :param checkState: Qt.CheckState
-        """
-        indices = self.selectionModel().selectedIndexes()
-        rows = sorted(list(set([i.row() for i in indices])))
-        model = self.model()
-        if isinstance(model, TimeSeriesTableModel):
-            for r in rows:
-                idx = model.index(r, 0)
-                model.setData(idx, checkState, Qt.CheckStateRole)
-
-    def onCopyValues(self, delimiter='\t'):
-        """
-        Copies selected cell values to the clipboard
-        """
-        indices = self.selectionModel().selectedIndexes()
-        model = self.model()
-        if isinstance(model, QSortFilterProxyModel):
-            from collections import OrderedDict
-            R = OrderedDict()
-            for idx in indices:
-                if not idx.row() in R.keys():
-                    R[idx.row()] = []
-                R[idx.row()].append(model.data(idx, Qt.DisplayRole))
-            info = []
-            for k, values in R.items():
-                info.append(delimiter.join([str(v) for v in values]))
-            info = '\n'.join(info)
-            QApplication.clipboard().setText(info)
-        s = ""
-
 
 
 class DateTimePrecision(enum.Enum):
@@ -1052,7 +987,7 @@ class TimeSeries(QAbstractItemModel):
         self.mRootIndex = QModelIndex()
 
 
-        self.mTasks = list()
+        self.mTasks = dict()
 
         if imageFiles is not None:
             self.addSources(imageFiles)
@@ -1251,11 +1186,13 @@ class TimeSeries(QAbstractItemModel):
         assert tsd.sensor() in self.mSensors
 
         tsd.mTimeSeries = self
-        tsd.sigRemoveMe.connect(lambda: self.removeTSDs([tsd]))
-        tsd.rowsAboutToBeRemoved.connect(self.onSourcesAboutToBeRemoved)
-        tsd.rowsRemoved.connect(self.onSourcesRemoved)
-        tsd.rowsAboutToBeInserted.connect(self.onSourcesAboutToBeInserted)
-        tsd.rowsInserted.connect(self.onSourcesInserted)
+        tsd.sigRemoveMe.connect(lambda tsd=tsd: self.removeTSDs([tsd]))
+
+
+        tsd.rowsAboutToBeRemoved.connect(lambda p, first, last, tsd=tsd: self.beginRemoveRows(self.tsdToIdx(tsd), first, last))
+        tsd.rowsRemoved.connect(self.endRemoveRows)
+        tsd.rowsAboutToBeInserted.connect(lambda p, first, last, tsd=tsd: self.beginInsertRows(self.tsdToIdx(tsd), first, last))
+        tsd.rowsInserted.connect(self.endInsertRows)
         tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
         tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
 
@@ -1267,18 +1204,7 @@ class TimeSeries(QAbstractItemModel):
 
         return tsd
 
-    def onSourcesAboutToBeRemoved(self, parent, first, last):
-        s = ""
-        pass
 
-    def onSourcesRemoved(self, parent, first, last):
-        s = ""
-    
-    def onSourcesAboutToBeInserted(self, parent, first, last):
-        s = ""
-        
-    def onSourcesInserted(self, parent, first, last):
-        s = ""
         
   
     def removeTSDs(self, tsds):
@@ -1391,13 +1317,19 @@ class TimeSeries(QAbstractItemModel):
             #taskDescription = 'Load EOTSV {} sources {}'.format(len(subset), uuid.uuid4())
             taskDescription = 'Load {} images'.format(len(subset))
             qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
-            self.mTasks.append(qgsTask)
+            tid = id(qgsTask)
+            self.mTasks[tid] = qgsTask
+            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
 
             if False: # for debugging
                 resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
                 self.onAddSourcesAsyncFinished(None, resultDump)
             else:
                 tm.addTask(qgsTask)
+
+    def onRemoveTask(self, key):
+        self.mTasks.pop(key)
 
     def onAddSourcesAsyncFinished(self, *args):
         # print(':: onAddSourcesAsyncFinished')
@@ -1768,6 +1700,8 @@ class TimeSeries(QAbstractItemModel):
                     return tss.ns
                 if cName == self.cnCRS:
                     return tss.crs().description()
+                if cName == self.cnSensor:
+                    return tsd.sensor().name()
 
             if role == Qt.DecorationRole and index.column() == 0:
 

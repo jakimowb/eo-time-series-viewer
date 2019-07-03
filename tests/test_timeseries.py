@@ -363,11 +363,18 @@ class TestInit(unittest.TestCase):
     def test_TimeSeriesTreeModel(self):
 
         TS = TimeSeries()
-        TS.addSources(TestObjects.createMultiSourceTimeSeries())
-
-        self.assertTrue(len(TS) > 0)
         self.assertIsInstance(TS, QAbstractItemModel)
+        sources = TestObjects.createMultiSourceTimeSeries()
 
+        TS.addSources(sources[0:1])
+        self.assertTrue(len(TS) == 1)
+        TS.addSources(sources[1:2])
+        self.assertTrue(len(TS) == 1)
+        self.assertTrue(len(TS[0]) == 2)
+        self.assertTrue(len(TS) > 0)
+        self.assertTrue(TS.rowCount(TS.index(0, 0)) == 2)
+
+        TS.addSources(sources[2:])
         self.assertEqual(len(TS), TS.rowCount())
         M = QSortFilterProxyModel()
         M.setSourceModel(TS)

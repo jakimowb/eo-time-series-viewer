@@ -188,5 +188,10 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
             dsDst = gdal.Open(pathDst)
             assert list(dsDst.GetGeoTransform()) == gt
             movedFiles.append(pathDst)
-        return files + movedFiles
+
+        final = []
+        for f1, f2 in zip(files, movedFiles):
+            final.append(f1)
+            final.append(f2)
+        return final
 
