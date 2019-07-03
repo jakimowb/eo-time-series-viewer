@@ -200,11 +200,11 @@ class testclassLabelingTest(unittest.TestCase):
         tsd = ts[5]
 
 
-        self.assertTrue(len(labelShortcutLayers()) == 0)
+        self.assertTrue(len(quickLabelLayers()) == 0)
         QgsProject.instance().addMapLayer(vl)
 
-        self.assertTrue(len(labelShortcutLayers()) == 1)
-        for lyr in labelShortcutLayers():
+        self.assertTrue(len(quickLabelLayers()) == 1)
+        for lyr in quickLabelLayers():
             assert isinstance(lyr, QgsVectorLayer)
         #    applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
 

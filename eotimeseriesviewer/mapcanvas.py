@@ -36,7 +36,7 @@ from PyQt5.QtXml import QDomDocument
 from .timeseries import TimeSeriesDate, SensorProxyLayer, SensorInstrument
 from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.maptools import *
-from .labeling import labelShortcutLayers, labelShortcutLayerClassificationSchemes, setQuickTSDLabelsForRegisteredLayers
+from .labeling import quickLabelLayers, labelShortcutLayerClassificationSchemes, setQuickTSDLabelsForRegisteredLayers
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .externals.qps.utils import *
 from .externals.qps.layerproperties import showLayerPropertiesDialog
@@ -615,15 +615,16 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(self.tsd(), TimeSeriesDate):
 
-            lyrWithSelectedFeatures = [l for l in labelShortcutLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
+            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
 
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
             m = menu.addMenu('Quick Labels'.format(self.tsd().date()))
+            m.setToolTipsVisible(True)
             nQuickLabelLayers = len(lyrWithSelectedFeatures)
             m.setEnabled(nQuickLabelLayers > 0)
 
-            a = m.addAction('Derive from {} "{}"'.format(tsd.date(), tsd.sensor().name()))
-            a.setToolTip('Writes date and sensor quick labels to selected features in {}.'.format(layerNames))
+            a = m.addAction('Set Date/Sensor attributes')
+            a.setToolTip('Writes the date ate and sensor quick labels of selected features in {}.'.format(layerNames))
             a.triggered.connect(lambda *args, tsd = self.tsd(): setQuickTSDLabelsForRegisteredLayers(tsd))
 
             from .labeling import EDITOR_WIDGET_REGISTRY_KEY as QUICK_LABEL_KEY

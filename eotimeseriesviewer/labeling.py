@@ -115,7 +115,7 @@ def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
 
     return classSchemes
 
-def labelShortcutLayers()->list:
+def quickLabelLayers()->list:
     """
     Returns a list of known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
@@ -141,7 +141,7 @@ def setQuickTSDLabelsForRegisteredLayers(tsd:TimeSeriesDate):
     :param tsd: TimeSeriesDate
     :param classInfos:
     """
-    for layer in labelShortcutLayers():
+    for layer in quickLabelLayers():
         assert isinstance(layer, QgsVectorLayer)
         setQuickTSDLabels(layer, tsd)
 
