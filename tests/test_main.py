@@ -95,7 +95,7 @@ class TestInit(TestCase):
             QCoreApplication.processEvents()
 
         tsd = TSV.timeSeries()[-1]
-        TSV.showTimeSeriesDatum(tsd)
+        TSV.showTimeSeriesDate(tsd)
         if SHOW_GUI:
             QGIS_APP.exec_()
 

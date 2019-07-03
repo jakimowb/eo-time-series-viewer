@@ -145,7 +145,7 @@ class testclassLabelingTest(unittest.TestCase):
         reg.initEditors()
         registerLabelShortcutEditorWidget()
 
-        classScheme1, classScheme2 = self.setupEditWidget(vl)
+        classScheme1, classScheme2 = self.setupEditWidgets(vl)
 
         for i in range(vl.fields().count()):
             setup = vl.editorWidgetSetup(i)
@@ -215,7 +215,7 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertTrue(vl.commitChanges())
         pass
 
-    def setupEditWidget(self, vl):
+    def setupEditWidgets(self, vl):
         from eotimeseriesviewer import ClassificationScheme
         classScheme1 = ClassificationScheme.create(5)
         classScheme1.setName('Schema1')
@@ -235,26 +235,22 @@ class testclassLabelingTest(unittest.TestCase):
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
                                                      {CONFKEY_LABELTYPE: LabelShortcutType.DecimalYear}))
 
-        vl = vl
+        # set different types of classifications
+        from eotimeseriesviewer.externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+        from eotimeseriesviewer.externals.qps.classification.classificationscheme import classSchemeToConfig
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
-                                                      CONFKEY_CLASSIFICATIONSCHEME: classScheme1}))
+                                QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1n'),
-                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
-                                                      CONFKEY_CLASSIFICATIONSCHEME: classScheme1}))
+                                QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class2l'),
-                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                      {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
-                                                       CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
+                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class2n'),
-                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                      {CONFKEY_LABELTYPE: LabelShortcutType.Classification,
-                                                       CONFKEY_CLASSIFICATIONSCHEME: classScheme2}))
+                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+
+
         return classScheme1, classScheme2
 
     def test_LabelingDockActions(self):
@@ -296,6 +292,25 @@ class testclassLabelingTest(unittest.TestCase):
             QGIS_APP.exec_()
 
 
+    def test_canvasMenu(self):
+
+        vl = self.createVectorLayer()
+        c1, c2 = self.setupEditWidgets(vl)
+        QgsProject.instance().addMapLayer(vl)
+
+        self.assertIsInstance(vl, QgsVectorLayer)
+        vl.startEditing()
+        vl.selectByIds([0, 1, 2])
+        ts = TestObjects.createTimeSeries()
+        canvas = MapCanvas()
+        canvas.setTSD(ts[0])
+        canvas.show()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
+
     def test_LabelingDock(self):
 
         registerLabelShortcutEditorWidget()
@@ -318,7 +333,7 @@ class testclassLabelingTest(unittest.TestCase):
 
         # set a ClassificationScheme to each class-specific column
 
-        classScheme1, classScheme2 = self.setupEditWidget(lyr)
+        classScheme1, classScheme2 = self.setupEditWidgets(lyr)
 
 
 
@@ -331,10 +346,14 @@ class testclassLabelingTest(unittest.TestCase):
         classInfo1 = classScheme1[2]
         classInfo2 = classScheme2[1]
 
-        classInfoDict = {classScheme1.name():classInfo1,
-                         classScheme2.name():classInfo2}
 
-        applyShortcuts(lyr, tsd, classInfos=classInfoDict)
+
+        setQuickTSDLabels(lyr, tsd)
+        fields = lyr.fields()
+        setQuickClassInfo(lyr, fields.lookupField('class1l'), classInfo1)
+        setQuickClassInfo(lyr, fields.lookupField('class1n'), classInfo1)
+        setQuickClassInfo(lyr, fields.lookupField('class2l'), classInfo2)
+        setQuickClassInfo(lyr, fields.lookupField('class2n'), classInfo2)
 
         for fid in fids:
             feature = lyr.getFeature(fid)

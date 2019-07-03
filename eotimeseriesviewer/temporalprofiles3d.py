@@ -289,7 +289,7 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         dataPos = []
         x0 = x1 = y0 = y1 = z0 = z1 = 0
         for iDate, tsd in enumerate(tp.mTimeSeries):
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             if tsd.mSensor != sensor:
                 continue
 

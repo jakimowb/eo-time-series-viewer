@@ -1307,7 +1307,7 @@ class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
 
 class SpectralTemporalVisualization(QObject):
 
-    sigShowPixel = pyqtSignal(TimeSeriesDatum, QgsPoint, QgsCoordinateReferenceSystem)
+    sigShowPixel = pyqtSignal(TimeSeriesDate, QgsPoint, QgsCoordinateReferenceSystem)
 
     """
     Signalizes to move to specific date of interest
@@ -1701,7 +1701,7 @@ class SpectralTemporalVisualization(QObject):
 
 
 
-    sigMoveToTSD = pyqtSignal(TimeSeriesDatum)
+    sigMoveToTSD = pyqtSignal(TimeSeriesDate)
 
     def onMoveToDate(self, date):
         dt = np.asarray([np.abs(tsd.date() - date) for tsd in self.TS])
@@ -1850,7 +1850,7 @@ class SpectralTemporalVisualization(QObject):
         s = ""
         # a Task defines which bands are to be loaded
         for tsd in self.TS:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
 
             # do not load from invisible TSDs
             if not tsd.isVisible():

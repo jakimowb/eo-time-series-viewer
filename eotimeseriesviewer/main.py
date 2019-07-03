@@ -344,11 +344,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spatialTemporalVis.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
-        self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDatum)
+        self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDate)
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
-        tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDatum)
+        tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDate)
 
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
@@ -610,12 +610,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         return self.ui.actionZoomOut
 
 
-    def showTimeSeriesDatum(self, tsd:TimeSeriesDatum):
+    def showTimeSeriesDate(self, tsd:TimeSeriesDate):
         """
-        Moves the viewport of the scroll window to a specific TimeSeriesDatum
-        :param tsd:  TimeSeriesDatum
+        Moves the viewport of the scroll window to a specific TimeSeriesDate
+        :param tsd:  TimeSeriesDate
         """
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         self.spatialTemporalVis.navigateToTSD(tsd)
         self.ui.dockTimeSeries.showTSD(tsd)
 
@@ -873,7 +873,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             profiles = SpectralProfile.fromMapCanvas(mapCanvas, spatialPoint)
 
             # add metadata
-            if isinstance(tsd, TimeSeriesDatum):
+            if isinstance(tsd, TimeSeriesDate):
                 profiles2 = []
                 sl = self.spectralLibrary()
                 if isinstance(sl, SpectralLibrary):

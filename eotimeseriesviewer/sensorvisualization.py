@@ -28,7 +28,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
-from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDatum, TimeSeriesSource
+from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.utils import loadUI
 
 class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
@@ -86,7 +86,7 @@ class SensorTableModel(QAbstractTableModel):
         """
         sensors = set()
         for tsd in timeSeriesDates:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             sensors.add(tsd.sensor())
 
         for sensor in sensors:
@@ -168,7 +168,7 @@ class SensorTableModel(QAbstractTableModel):
             elif columnName == self.mCN_Images:
                 n = 0
                 for tsd in self.TS.tsds(sensor=sensor):
-                    assert isinstance(tsd, TimeSeriesDatum)
+                    assert isinstance(tsd, TimeSeriesDate)
                     n += len(tsd.sources())
                 value = n
 

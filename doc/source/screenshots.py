@@ -72,7 +72,7 @@ QApplication.processEvents()
 
 toHide = ['2014-07-18', '2014-08-08', '2014-08-10', '2014-08-23', '2014-08-25', '2014-08-03', '2014-07-26', '2014-07-10']
 for tsd in TSV.timeSeries():
-    assert isinstance(tsd, TimeSeriesDatum)
+    assert isinstance(tsd, TimeSeriesDate)
     if str(tsd.date()) in toHide:
         tsd.setVisibility(False)
 
@@ -147,7 +147,7 @@ if True:
 
 
 tsd = [tsd for tsd in TSV.timeSeries() if tsd.date() == DATE_OF_INTEREST][0]
-TSV.showTimeSeriesDatum(tsd)
+TSV.showTimeSeriesDate(tsd)
 
 for c in TSV.mapCanvases():
     assert isinstance(c, MapCanvas)

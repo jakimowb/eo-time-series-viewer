@@ -17,7 +17,7 @@ from qgis import *
 from qgis.gui import *
 from PyQt5.QtGui import QIcon
 import example.Images
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.temporalprofiles2d import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.utils import *

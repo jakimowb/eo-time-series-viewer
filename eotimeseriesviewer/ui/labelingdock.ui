@@ -319,7 +319,7 @@
     <string>Next Feature</string>
    </property>
    <property name="toolTip">
-    <string>Go to next features</string>
+    <string>Go to next feature</string>
    </property>
   </action>
   <action name="mActionPreviousFeature">

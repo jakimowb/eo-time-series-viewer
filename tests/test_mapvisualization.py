@@ -25,7 +25,7 @@ from qgis.core import *
 from qgis.gui import *
 import unittest
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDatum, TimeSeriesSource
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA

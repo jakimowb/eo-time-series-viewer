@@ -104,7 +104,7 @@ class TestInit(unittest.TestCase):
         idx = TM.getIndexFromDate(tsd)
         self.assertIsInstance(idx, QModelIndex)
 
-    def test_timeseriesdatum(self):
+    def test_TimeSeriesDate(self):
 
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
 
@@ -112,9 +112,9 @@ class TestInit(unittest.TestCase):
         tss2 = TimeSeriesSource.create(example.Images.Img_2014_07_02_LE72270652014183CUB00_BOA)
         sensor = SensorInstrument(tss.sid())
 
-        tsd = TimeSeriesDatum(None, tss.date(), sensor)
-        tsd2 = TimeSeriesDatum(None, tss.date(), sensor)
-        self.assertIsInstance(tsd, TimeSeriesDatum)
+        tsd = TimeSeriesDate(None, tss.date(), sensor)
+        tsd2 = TimeSeriesDate(None, tss.date(), sensor)
+        self.assertIsInstance(tsd, TimeSeriesDate)
         self.assertEqual(tsd, tsd2)
         self.assertEqual(tsd.sensor(), sensor)
         self.assertEqual(len(tsd), 0)
@@ -130,7 +130,7 @@ class TestInit(unittest.TestCase):
 
         self.assertIsInstance(tsd, QAbstractTableModel)
         for r in range(len(tsd)):
-            for i in range(len(TimeSeriesDatum.ColumnNames)):
+            for i in range(len(TimeSeriesDate.ColumnNames)):
                 value = tsd.data(tsd.createIndex(r, i), role=Qt.DisplayRole)
 
         TV = QTableView()
@@ -254,7 +254,7 @@ class TestInit(unittest.TestCase):
         self.assertTrue(len(TS) == 1)
 
         tsd = TS[0]
-        self.assertIsInstance(tsd, TimeSeriesDatum)
+        self.assertIsInstance(tsd, TimeSeriesDate)
         self.assertTrue(len(tsd.sources()) == 2)
 
         paths = TestObjects.createMultiSourceTimeSeries()
@@ -308,7 +308,7 @@ class TestInit(unittest.TestCase):
 
         counts = dict()
         for i, tsd in enumerate(TS):
-            self.assertIsInstance(tsd, TimeSeriesDatum)
+            self.assertIsInstance(tsd, TimeSeriesDate)
             sensor = tsd.sensor()
             if sensor not in counts.keys():
                 counts[sensor] = 0

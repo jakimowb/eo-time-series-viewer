@@ -122,12 +122,12 @@ if __name__ == '__main__':
     TSV.ui.dockTimeSeries.setMaximumHeight(100)
     QApplication.processEvents()
 
-    TSV.showTimeSeriesDatum(TSV.timeSeries().tsd(REF_DATE_LS,  None))
+    TSV.showTimeSeriesDate(TSV.timeSeries().tsd(REF_DATE_LS,  None))
 
     REF_TSD_LS =TSV.timeSeries().tsd(REF_DATE_LS, None)
     REF_TSD_RE = TSV.timeSeries().tsd(REF_DATE_RE, None)
-    assert isinstance(REF_TSD_LS, TimeSeriesDatum)
-    assert isinstance(REF_TSD_RE, TimeSeriesDatum)
+    assert isinstance(REF_TSD_LS, TimeSeriesDate)
+    assert isinstance(REF_TSD_RE, TimeSeriesDate)
 
     # set sensor names
     sensorLS = None

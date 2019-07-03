@@ -34,7 +34,7 @@ from .externals import pyqtgraph as pg
 from .externals.pyqtgraph import functions as fn, AxisItem
 from .externals.qps.plotstyling.plotstyling import PlotStyle
 
-from .timeseries import TimeSeries, TimeSeriesDatum, SensorInstrument
+from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
 from .pixelloader import PixelLoader, PixelLoaderTask
 from .utils import *
 from .externals.qps.speclib.spectrallibraries import createQgsField
@@ -591,7 +591,7 @@ class TemporalProfile(QObject):
         self.mLoaded = self.mLoadedMax = self.mNoData = 0
 
         for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             meta = {'doy': tsd.mDOY,
                     'date': str(tsd.mDate),
                     'nodata': False}
@@ -661,7 +661,7 @@ class TemporalProfile(QObject):
         if d.success() and self.mID in d.temporalProfileIDs:
             i = d.temporalProfileIDs.index(self.mID)
             tsd = self.mTimeSeries.getTSD(d.sourcePath)
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
 
             values = {}
             if d.validPixelValues(i):
@@ -691,7 +691,7 @@ class TemporalProfile(QObject):
         from eotimeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
         tasks = []
         for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             missingIndices = self.missingBandIndices(tsd)
 
             if len(missingIndices) > 0:
@@ -712,11 +712,11 @@ class TemporalProfile(QObject):
     def missingBandIndices(self, tsd, requiredIndices=None):
         """
         Returns the band indices [0, sensor.nb) that have not been loaded yet.
-        :param tsd: TimeSeriesDatum of interest
+        :param tsd: TimeSeriesDate of interest
         :param requiredIndices: optional subset of possible band-indices to return the missing ones from.
         :return: [list-of-indices]
         """
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         if requiredIndices is None:
             requiredIndices = list(range(tsd.mSensor.nb))
         requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.mSensor.nb]
@@ -741,7 +741,7 @@ class TemporalProfile(QObject):
             pg.QAPP.exec_()
 
     def updateData(self, tsd, values, skipStatusUpdate=False):
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         assert isinstance(values, dict)
 
         if tsd not in self.mData.keys():
@@ -780,7 +780,7 @@ class TemporalProfile(QObject):
                     fields.append(createQgsField(k, v))
 
         for i, tsd in enumerate(sensorTSDs):
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             data = self.mData[tsd]
             context = QgsExpressionContext()
             context.setFields(fields)
@@ -809,7 +809,7 @@ class TemporalProfile(QObject):
         return x, y
 
     def data(self, tsd):
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         if self.hasData(tsd):
             return self.mData[tsd]
         else:
@@ -828,7 +828,7 @@ class TemporalProfile(QObject):
     #def updateLoadingStatus(self):
     #    """
     #    Calculates the loading status in terms of single pixel values.
-    #    nMax is the sum of all bands over each TimeSeriesDatum and Sensors
+    #    nMax is the sum of all bands over each TimeSeriesDate and Sensors
     #    """
     """
         self.mLoaded = 0
@@ -836,7 +836,7 @@ class TemporalProfile(QObject):
         self.mNoData = 0
 
         for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             nb = tsd.mSensor.nb
 
             self.mLoadedMax += nb
@@ -861,11 +861,11 @@ class TemporalProfile(QObject):
     """
 
     def isNoData(self, tsd):
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         return self.mData[tsd]['nodata']
 
     def hasData(self, tsd):
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         return tsd in self.mData.keys()
 
     def __repr__(self):
@@ -1112,7 +1112,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         # update new / existing points
 
         for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
 
 
             requiredIndices = LUT_bandIndices[tsd.mSensor]
@@ -1196,7 +1196,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             assert isinstance(tp, TemporalProfile)
             name = tp.name()
             for tsd, values in tp.mData.items():
-                assert isinstance(tsd, TimeSeriesDatum)
+                assert isinstance(tsd, TimeSeriesDate)
                 line = [fid, name, tsd.mSensor.name(), tsd.mDate, tsd.mDOY]
                 for b in range(tsd.mSensor.nb):
                     key = 'b{}'.format(b+1)

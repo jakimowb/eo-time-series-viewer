@@ -34,7 +34,7 @@ from PyQt5.QtGui import *
 import numpy as np
 from .utils import *
 from .import Option, OptionListModel
-from .timeseries import SensorInstrument, TimeSeriesDatum, TimeSeries, SensorProxyLayer
+from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
 from .utils import loadUI
 from .mapviewscrollarea import MapViewScrollArea
 from .mapcanvas import MapCanvas, MapTools
@@ -648,7 +648,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         assert isinstance(sensor, SensorInstrument)
         return sensor in self.sensors()
 
-class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
+class DatumViewUI(QFrame, loadUI('timeseriesdateview.ui')):
     """
     Widget to host the MapCanvases of all map views that relate to a single Datum-Sensor combinbation.
     """
@@ -722,12 +722,12 @@ class DatumViewUI(QFrame, loadUI('timeseriesdatumview.ui')):
 class DatumView(QObject):
 
     sigRenderProgress = pyqtSignal(int,int)
-    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
-    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
+    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDate)
+    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDate)
     sigVisibilityChanged = pyqtSignal(bool)
 
-    def __init__(self, timeSeriesDatum:TimeSeriesDatum, stv, parent=None):
-        assert isinstance(timeSeriesDatum, TimeSeriesDatum)
+    def __init__(self, timeSeriesDate:TimeSeriesDate, stv, parent=None):
+        assert isinstance(timeSeriesDate, TimeSeriesDate)
         assert isinstance(stv, SpatialTemporalVisualization)
 
 
@@ -743,7 +743,7 @@ class DatumView(QObject):
         assert isinstance(stv, SpatialTemporalVisualization)
         self.STV = stv
 
-        self.TSD = timeSeriesDatum
+        self.TSD = timeSeriesDate
         self.scrollArea = stv.scrollArea
         self.mSensor = self.TSD.mSensor
         self.mSensor.sigNameChanged.connect(lambda :self.setColumnInfo())
@@ -883,8 +883,8 @@ class DatumView(QObject):
 class DateViewCollection(QObject):
 
     sigResizeRequired = pyqtSignal()
-    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDatum)
-    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDatum)
+    sigLoadingStarted = pyqtSignal(MapView, TimeSeriesDate)
+    sigLoadingFinished = pyqtSignal(MapView, TimeSeriesDate)
     sigShowProfiles = pyqtSignal(SpatialPoint)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
 
@@ -995,7 +995,7 @@ class DateViewCollection(QObject):
         :return:
         """
         for tsd in tsdList:
-            assert isinstance(tsd, TimeSeriesDatum)
+            assert isinstance(tsd, TimeSeriesDate)
             DV = DatumView(tsd, self.STV, parent=self.ui)
 
             DV.sigLoadingStarted.connect(self.sigLoadingStarted.emit)
@@ -2025,12 +2025,12 @@ class SpatialTemporalVisualization(QObject):
 
 
 
-    def navigateToTSD(self, TSD:TimeSeriesDatum):
+    def navigateToTSD(self, TSD:TimeSeriesDate):
         """
-        Changes the viewport of the scroll window to show the requested TimeSeriesDatum
-        :param TSD: TimeSeriesDatum
+        Changes the viewport of the scroll window to show the requested TimeSeriesDate
+        :param TSD: TimeSeriesDate
         """
-        assert isinstance(TSD, TimeSeriesDatum)
+        assert isinstance(TSD, TimeSeriesDate)
         #get widget related to TSD
         tsdv = self.DVC.tsdView(TSD)
         assert isinstance(self.scrollArea, QScrollArea)

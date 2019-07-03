@@ -33,10 +33,10 @@ from PyQt5.QtXml import QDomDocument
 
 
 
-from .timeseries import TimeSeriesDatum, SensorProxyLayer, SensorInstrument
+from .timeseries import TimeSeriesDate, SensorProxyLayer, SensorInstrument
 from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.maptools import *
-from .labeling import LabelAttributeTableModel, labelShortcutLayers, layerClassSchemes, applyShortcutsToRegisteredLayers
+from .labeling import labelShortcutLayers, labelShortcutLayerClassificationSchemes, setQuickTSDLabelsForRegisteredLayers
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .externals.qps.utils import *
 from .externals.qps.layerproperties import showLayerPropertiesDialog
@@ -296,13 +296,13 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(mapView, MapView)
         self.mMapView = mapView
 
-    def setTSD(self, tsd:TimeSeriesDatum):
+    def setTSD(self, tsd:TimeSeriesDate):
         """
-        Sets the TimeSeriesDatum this map-canvas is linked to
+        Sets the TimeSeriesDate this map-canvas is linked to
         :param tsd:
         :return:
         """
-        assert isinstance(tsd, TimeSeriesDatum)
+        assert isinstance(tsd, TimeSeriesDate)
         self.mTSD = tsd
 
         scope = self.expressionContextScope()
@@ -312,10 +312,10 @@ class MapCanvas(QgsMapCanvas):
         tsd.sensor().sigNameChanged.connect(lambda name: scope.setVariable('map_sensor', name))
 
 
-    def tsd(self)->TimeSeriesDatum:
+    def tsd(self)->TimeSeriesDate:
         """
-        Returns the TimeSeriesDatum
-        :return: TimeSeriesDatum
+        Returns the TimeSeriesDate
+        :return: TimeSeriesDate
         """
         return self.mTSD
 
@@ -613,16 +613,39 @@ class MapCanvas(QgsMapCanvas):
 
         menu = QMenu()
 
-        if isinstance(self.tsd(), TimeSeriesDatum):
+        if isinstance(self.tsd(), TimeSeriesDate):
 
-            action = menu.addAction('Set Quick Labels'.format(self.tsd().date()))
             lyrWithSelectedFeatures = [l for l in labelShortcutLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
-            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            action.setEnabled(len(lyrWithSelectedFeatures) > 0)
-            action.setToolTip('Write date/sensor values to {} features in {}.'.format(self.tsd().date(), layerNames))
-            action.triggered.connect(lambda *args, tsd =self.tsd(): applyShortcutsToRegisteredLayers(tsd, None))
 
-            menu.addSeparator()
+            layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
+            m = menu.addMenu('Quick Labels'.format(self.tsd().date()))
+            nQuickLabelLayers = len(lyrWithSelectedFeatures)
+            m.setEnabled(nQuickLabelLayers > 0)
+
+            a = m.addAction('Derive from {} "{}"'.format(tsd.date(), tsd.sensor().name()))
+            a.setToolTip('Writes date and sensor quick labels to selected features in {}.'.format(layerNames))
+            a.triggered.connect(lambda *args, tsd = self.tsd(): setQuickTSDLabelsForRegisteredLayers(tsd))
+
+            from .labeling import EDITOR_WIDGET_REGISTRY_KEY as QUICK_LABEL_KEY
+            from .labeling import CONFKEY_CLASSIFICATIONSCHEME, layerClassSchemes, setQuickClassInfo
+
+            for layer in lyrWithSelectedFeatures:
+                assert isinstance(layer, QgsVectorLayer)
+
+                csf = layerClassSchemes(layer)
+                if len(csf) > 0:
+                    m.addSection(layer.name())
+                    for (cs, field) in csf:
+                        assert isinstance(cs, ClassificationScheme)
+                        assert isinstance(field, QgsField)
+
+                        classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
+                        for classInfo in cs:
+                            assert isinstance(classInfo, ClassInfo)
+                            a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
+                            a.setIcon(classInfo.icon())
+                            a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+
 
         if isinstance(refSensorLayer, SensorProxyLayer):
             m = menu.addMenu('Raster stretch...')
@@ -719,7 +742,7 @@ class MapCanvas(QgsMapCanvas):
 
         action.triggered.connect(onCrosshairChange)
 
-        if isinstance(tsd, TimeSeriesDatum):
+        if isinstance(tsd, TimeSeriesDate):
             menu.addSeparator()
             m = menu.addMenu('Copy...')
             action = m.addAction('Date')
@@ -798,7 +821,7 @@ class MapCanvas(QgsMapCanvas):
         """
 
 
-        if isinstance(self.mTSD, TimeSeriesDatum):
+        if isinstance(self.mTSD, TimeSeriesDate):
             menu.addSeparator()
 
             action = menu.addAction('Focus on Spatial Extent')
@@ -966,7 +989,7 @@ class MapCanvas(QgsMapCanvas):
         lastDir = eotimeseriesviewer.settings.value(eotimeseriesviewer.settings.Keys.ScreenShotDirectory, os.path.expanduser('~'))
         from eotimeseriesviewer.utils import filenameFromString
         from eotimeseriesviewer.mapvisualization import MapView
-        if isinstance(self.mTSD, TimeSeriesDatum) and isinstance(self.mMapView, MapView):
+        if isinstance(self.mTSD, TimeSeriesDate) and isinstance(self.mMapView, MapView):
             path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
         else:
             path = 'mapcanvas'
