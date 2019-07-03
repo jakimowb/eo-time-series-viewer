@@ -262,7 +262,7 @@ def writeCSVMetadata(pathCSV:str, profiles:list):
         for p in profiles:
             assert isinstance(p, SpectralProfile)
             d = {}
-            d['spectra names'] = p.name()
+            d['spectra names'] = p.name().replace(',', '-')
             d[CSV_GEOMETRY_COLUMN] = p.geometry().asWkt()
             for name in fieldNames:
                 v = p.attribute(name)
