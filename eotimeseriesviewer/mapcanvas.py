@@ -603,6 +603,8 @@ class MapCanvas(QgsMapCanvas):
                                 and SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
         viewPortSensorLayers = [l for l in viewPortRasterLayers if isinstance(l, SensorProxyLayer)]
 
+        viewPortVectorLayers = [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
+
         refSensorLayer = None
         refRasterLayer = None
 
@@ -678,8 +680,12 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         m = menu.addMenu('Layers...')
-        for mapLayer in self.layers():
-            sub = m.addMenu(mapLayer.name())
+        visibleLayers = viewPortRasterLayers + viewPortVectorLayers
+
+
+        for mapLayer in visibleLayers:
+            #sub = m.addMenu(mapLayer.name())
+            sub = m.addMenu(os.path.basename(mapLayer.source()))
 
             if isinstance(mapLayer, SensorProxyLayer):
                 sub.setIcon(QIcon(':/timeseriesviewer/icons/icon.svg'))

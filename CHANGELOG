@@ -1,6 +1,9 @@
 ==============
 Changelog
 ==============
+2019-07-04 (version 1.5):
+    *
+
 2019-07-02 (version 1.4):
     * adding vector layers with sublayers will add all sublayers
     * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent

@@ -140,12 +140,13 @@ class TimeSeriesViewerUI(QMainWindow,
 
         area = None
 
-        def addDockWidget(dock):
+        def addDockWidget(dock:QDockWidget):
             """
             shortcut to add a created dock and return it
             :param dock:
             :return:
             """
+            dock.setParent(self)
             self.addDockWidget(area, dock)
             return dock
 
@@ -179,8 +180,8 @@ class TimeSeriesViewerUI(QMainWindow,
 
 
         area = Qt.BottomDockWidgetArea
-        panel = SpectralLibraryPanel(None)
-        panel.setParent(self)
+        panel = SpectralLibraryPanel(self)
+
         self.dockSpectralLibrary = addDockWidget(panel)
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
@@ -415,7 +416,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
-        self.ui.actionAddTSExample.triggered.connect(self.loadExampleTimeSeries)
+        self.ui.actionAddTSExample.triggered.connect(lambda : self.loadExampleTimeSeries(loadAsync=False))
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
@@ -896,25 +897,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.messageBar
 
-    def loadImageFiles(self, files:list):
-        """
-        Loads image files to the time series.
-        :param files: [list-of-file-paths]
-        """
-        assert isinstance(files, list)
 
-        progressDialog = QProgressDialog(parent=self.ui)
-        progressDialog.setWindowTitle('Load data')
-        progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
-        progressDialog.show()
-        QApplication.processEvents()
-        self.mTimeSeries.addSources(files, progressDialog=progressDialog)
-
-        progressDialog.hide()
-        progressDialog.setParent(None)
-
-
-    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None, progressDialog:QProgressDialog=None):
+    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
         """
         Loads a time series definition file
         :param path:
@@ -936,21 +920,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
-
-            b = isinstance(progressDialog, QProgressDialog)
-
-            if not b:
-                progressDialog = QProgressDialog(parent=self.ui)
-                progressDialog.setWindowTitle('Load data')
-                progressDialog.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
-                progressDialog.show()
-
             self.clearTimeSeries()
+            progressDialog = QProgressDialog(self.ui)
+            progressDialog.setWindowTitle('Image Loading')
+            progressDialog.setMinimumDuration(2000)
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
 
-            if not b:
-                progressDialog.hide()
-                progressDialog.setParent(None)
 
     def createMapView(self, name:str=None):
         """
@@ -1192,14 +1167,19 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 dn = os.path.dirname(files[0])
                 s.setValue('dir_datasources', dn)
 
-
         if files:
-            if loadAsync:
-                self.mTimeSeries.addSourcesAsync(files)
-            else:
-                self.mTimeSeries.addSources(files)
+            progressDialog = QProgressDialog('Images Loading', 'Cancel', 0, len(files), parent=self.ui)
+            progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
+            progressDialog.setMinimumDuration(2000)
+            progressDialog.setValue(0)
 
-            QCoreApplication.processEvents()
+            if loadAsync:
+                self.mTimeSeries.addSourcesAsync(files, progressDialog=progressDialog)
+            else:
+                self.mTimeSeries.addSources(files, progressDialog=progressDialog)
+
+
+            #QCoreApplication.processEvents()
             #self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):

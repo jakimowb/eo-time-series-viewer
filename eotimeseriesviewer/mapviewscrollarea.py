@@ -45,3 +45,9 @@ class MapViewScrollArea(QScrollArea):
 
         diff = centerInParent - centerViewPort
         return diff.manhattanLength()
+
+    def sizeHint(self):
+        parent = self.parent()
+        hint = super(MapViewScrollArea, self).sizeHint()
+
+        return hint

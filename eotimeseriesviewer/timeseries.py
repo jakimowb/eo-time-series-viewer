@@ -861,6 +861,12 @@ class TimeSeriesTreeView(QTreeView):
         tsd = self.model().data(idx, role=Qt.UserRole)
 
         menu = QMenu(self)
+        if isinstance(tsd, TimeSeriesDate):
+            a = menu.addAction('Show map for {}'.format(tsd.date()))
+            a.setToolTip('Shows the map related to this time series date.')
+            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
+            menu.addSeparator()
+
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())
         a = menu.addAction('Hide date(s)')
@@ -869,10 +875,7 @@ class TimeSeriesTreeView(QTreeView):
         a = menu.addAction('Show date(s)')
         a.setToolTip('Shows the selected time series dates.')
         a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
-        if isinstance(tsd, TimeSeriesDate):
-            a = menu.addAction('Show {} in map.'.format(tsd.date()))
-            a.setToolTip('Shows the map related to this time series date.')
-            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
+
 
         menu.popup(QCursor.pos())
 
@@ -950,7 +953,7 @@ class TimeSeries(QAbstractItemModel):
 
     sigTimeSeriesDatesAdded = pyqtSignal(list)
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
-    sigLoadingProgress = pyqtSignal(int, int, str)
+    #sigLoadingProgress = pyqtSignal(int, int, str)
 
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
@@ -969,6 +972,8 @@ class TimeSeries(QAbstractItemModel):
         self.mSensors = []
         self.mShape = None
         self.mDateTimePrecision = DateTimePrecision.Original
+
+        self.mLoadingProgressDialog = None
 
         self.mCurrentDates = []
         self.mCurrentSpatialExtent = None
@@ -1080,12 +1085,19 @@ class TimeSeries(QAbstractItemModel):
                 if len(parts) > 1:
                     masks.append(parts[1])
 
-
         if n_max:
             n_max = min([len(images), n_max])
-            self.addSourcesAsync(images[0:n_max], progressDialog=progressDialog)
-        else:
-            self.addSourcesAsync(images, progressDialog=progressDialog)
+            images = images[0:n_max]
+
+        if isinstance(progressDialog, QProgressDialog):
+            progressDialog.setMaximum(len(images))
+            progressDialog.setMinimum(0)
+            progressDialog.setValue(0)
+            progressDialog.setLabelText('Start loading {} images....'.format(len(images)))
+
+        self.addSourcesAsync(images, progressDialog=progressDialog)
+
+
         #self.addMasks(masks)
 
 
@@ -1215,7 +1227,14 @@ class TimeSeries(QAbstractItemModel):
 
         removed = list()
         for tsd in tsds:
+
             assert isinstance(tsd, TimeSeriesDate)
+
+            tsd.sigSourcesRemoved.disconnect()
+            tsd.sigSourcesAdded.disconnect()
+            tsd.sigVisibilityChanged.disconnect()
+            tsd.sigRemoveMe.disconnect()
+
             row = self.mTSDs.index(tsd)
             self.beginRemoveRows(self.mRootIndex, row, row)
             self.mTSDs.remove(tsd)
@@ -1302,6 +1321,8 @@ class TimeSeries(QAbstractItemModel):
         assert isinstance(tm, QgsTaskManager)
         assert isinstance(nWorkers, int) and nWorkers >= 1
 
+        self.mLoadingProgressDialog = progressDialog
+
 
         # see https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
         def chunks(l, n):
@@ -1311,10 +1332,9 @@ class TimeSeries(QAbstractItemModel):
 
         n = int(len(sources) / nWorkers)
         for subset in chunks(sources, 50):
-        #for source in sources:
-            #subset = [source]
+
             dump = pickle.dumps(subset)
-            #taskDescription = 'Load EOTSV {} sources {}'.format(len(subset), uuid.uuid4())
+
             taskDescription = 'Load {} images'.format(len(subset))
             qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
             tid = id(qgsTask)
@@ -1322,7 +1342,7 @@ class TimeSeries(QAbstractItemModel):
             qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
             qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
 
-            if False: # for debugging
+            if False: # for debugging only
                 resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
                 self.onAddSourcesAsyncFinished(None, resultDump)
             else:
@@ -1340,6 +1360,9 @@ class TimeSeries(QAbstractItemModel):
                 dump = args[1]
                 sources = pickle.loads(dump)
                 for source in sources:
+                    if isinstance(self.mLoadingProgressDialog, QProgressDialog):
+                        self.increaseProgressBar()
+
                     newTSD = self._addSource(source)
                     if isinstance(newTSD, TimeSeriesDate):
                         addedDates.append(newTSD)
@@ -1347,22 +1370,25 @@ class TimeSeries(QAbstractItemModel):
                 if len(addedDates) > 0:
                     self.sigTimeSeriesDatesAdded.emit(addedDates)
 
-
             except Exception as ex:
                 s = ""
         else:
             s = ""
-        #self._cleanTasks()
 
-    def _cleanTasks(self):
-        toRemove = []
-        for task in self.mTasks:
-            if isinstance(task, QgsTask):
-                if task.status() in [QgsTask.Complete, QgsTask.Terminated]:
-                    toRemove.append(task)
+        if isinstance(self.mLoadingProgressDialog, QProgressDialog):
+            if self.mLoadingProgressDialog.wasCanceled() or self.mLoadingProgressDialog.value() == -1:
+                self.mLoadingProgressDialog = None
 
-        for t in toRemove:
-            self.mTasks.remove(t)
+    def increaseProgressBar(self):
+        if isinstance(self.mLoadingProgressDialog, QProgressDialog):
+            v = self.mLoadingProgressDialog.value() + 1
+            self.mLoadingProgressDialog.setValue(v)
+            self.mLoadingProgressDialog.setLabelText('{}/{}'.format(v, self.mLoadingProgressDialog.maximum()))
+
+            if v == 1 or v % 25 == 0:
+                QApplication.processEvents()
+
+
 
     def addSources(self, sources:list, progressDialog:QProgressDialog=None):
         """
@@ -1370,15 +1396,8 @@ class TimeSeries(QAbstractItemModel):
         :param sources: [list-of-TimeSeriesSources]
         """
         assert isinstance(sources, list)
-
+        self.mLoadingProgressDialog = progressDialog
         nMax = len(sources)
-        #self.sigTimeSeriesSourcesAboutToBeChanged.emit()
-
-        self.sigLoadingProgress.emit(0, nMax, 'Start loading {} sources...'.format(nMax))
-        
-        if isinstance(progressDialog, QProgressDialog):
-            progressDialog.setRange(0, nMax)
-            progressDialog.setLabelText('Load rasters...'.format(nMax))
         # 1. read sources
         # this could be excluded into a parallel process
         addedDates = []
@@ -1394,17 +1413,16 @@ class TimeSeries(QAbstractItemModel):
                     msg = 'Unable to add: {}\n{}'.format(str(source), str(ex))
                     print(msg, file=sys.stderr)
 
-            if isinstance(progressDialog, QProgressDialog):
-                if progressDialog.wasCanceled():
+            if isinstance(self.mLoadingProgressDialog, QProgressDialog):
+                if self.mLoadingProgressDialog.wasCanceled():
                     break
-                progressDialog.setValue(i)
-                progressDialog.setLabelText('{}/{}'.format(i+1, nMax))
+                self.increaseProgressBar()
 
-            if (i+1) % 10 == 0:
-                self.sigLoadingProgress.emit(i+1, nMax, msg)
+            #if (i+1) % 10 == 0:
+            #    self.sigLoadingProgress.emit(i+1, nMax, msg)
 
-            if (i+1) % 50 == 0:
-                QGuiApplication.processEvents()
+            #if (i+1) % 50 == 0:
+            #    QGuiApplication.processEvents()
 
             if isinstance(newTSD, TimeSeriesDate):
                 addedDates.append(newTSD)
@@ -1416,6 +1434,8 @@ class TimeSeries(QAbstractItemModel):
 
         if len(addedDates) > 0:
             self.sigTimeSeriesDatesAdded.emit(addedDates)
+        self.mLoadingProgressDialog = None
+
 
     def _addSource(self, source:TimeSeriesSource)->TimeSeriesDate:
         """
