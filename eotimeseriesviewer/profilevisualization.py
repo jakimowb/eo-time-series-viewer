@@ -754,6 +754,11 @@ class PlotSettingsTableView(QTableView):
     def __init__(self, *args, **kwds):
         super(PlotSettingsTableView, self).__init__(*args, **kwds)
 
+        pal = self.palette()
+        cSelected = pal.color(QPalette.Active, QPalette.Highlight)
+        pal.setColor(QPalette.Inactive, QPalette.Highlight, cSelected)
+        self.setPalette(pal)
+
     def contextMenuEvent(self, event: QContextMenuEvent):
         """
         Creates and shows the QMenu
