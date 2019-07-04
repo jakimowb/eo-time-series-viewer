@@ -193,6 +193,25 @@ class SensorInstrument(QObject):
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
 
+    def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
+        """
+        Returns the band index closets to a certain wavelength
+        :param wl: float | int
+        :param wl_unit: str
+        :return: int
+        """
+        if self.wlu is None or self.wl is None:
+            return 0
+
+        from .utils import convertMetricUnit, LUT_WAVELENGTH
+        if isinstance(wl, str):
+            assert wl.upper() in LUT_WAVELENGTH.keys()
+            wl = LUT_WAVELENGTH[wl.upper()]
+
+        if self.wlu != wl_unit:
+            wl = convertMetricUnit(wl, wl_unit, self.wlu)
+        return int(np.argmin(np.abs(self.wl - wl)))
+
     def proxyLayer(self)->QgsRasterLayer:
         """
         Creates an "empty" layer that can be used as proxy for band names, data types and render styles
@@ -517,7 +536,7 @@ class TimeSeriesSource(object):
         """
         return self.mSid
 
-    def TimeSeriesDate(self):
+    def timeSeriesDate(self):
         """
         Returns the parent TimeSeriesDate (if set)
         :return: TimeSeriesDate
@@ -1226,7 +1245,14 @@ class TimeSeries(QAbstractItemModel):
         """
 
         removed = list()
-        for tsd in tsds:
+        toRemove = set()
+        for t in tsds:
+            if isinstance(t, TimeSeriesDate):
+                toRemove.add(t)
+            if isinstance(t, TimeSeriesSource):
+                toRemove.add(t.timeSeriesDate())
+
+        for tsd in list(toRemove):
 
             assert isinstance(tsd, TimeSeriesDate)
 
@@ -1575,7 +1601,7 @@ class TimeSeries(QAbstractItemModel):
 
         elif isinstance(node, TimeSeriesSource):
             tss = node
-            tsd = node.TimeSeriesDate()
+            tsd = node.timeSeriesDate()
             return self.createIndex(self.mTSDs.index(tsd), 0, tsd)
 
     def rowCount(self, index: QModelIndex=None) -> int:
@@ -1677,7 +1703,7 @@ class TimeSeries(QAbstractItemModel):
             if isinstance(node, TimeSeriesDate):
                 return node
             elif isinstance(node, TimeSeriesSource):
-                return node.TimeSeriesDate()
+                return node.timeSeriesDate()
 
         return None
 
@@ -1696,7 +1722,7 @@ class TimeSeries(QAbstractItemModel):
         tsd = None
         tss = None
         if isinstance(node, TimeSeriesSource):
-            tsd = node.TimeSeriesDate()
+            tsd = node.timeSeriesDate()
             tss = node
         elif isinstance(node, TimeSeriesDate):
             tsd = node
@@ -2139,9 +2165,15 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
         Returns the TimeSeriesDate selected by a user.
         :return: [list-of-TimeSeriesDate]
         """
+        results = []
         if isinstance(self.mSelectionModel, QItemSelectionModel):
-            return [self.mTSProxyModel.data(idx, Qt.UserRole) for idx in self.mSelectionModel.selectedRows()]
-        return []
+            for idx in self.mSelectionModel.selectedRows():
+                tsd = self.mTSProxyModel.data(idx, Qt.UserRole)
+                if isinstance(tsd, TimeSeriesSource):
+                    tsd = tsd.timeSeriesDate()
+                if isinstance(tsd, TimeSeriesDate) and tsd not in results:
+                    results.append(tsd)
+        return results
 
     def setTimeSeries(self, TS:TimeSeries):
         """
