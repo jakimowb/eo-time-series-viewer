@@ -173,8 +173,6 @@ class PixelLoaderTask(object):
 
         return '\n'.join(info)
 
-LOADING_FINISHED = 'finished'
-LOADING_CANCELED = 'canceled'
 INFO_OUT_OF_IMAGE = 'out of image'
 INFO_NO_DATA = 'no data values'
 
@@ -188,7 +186,7 @@ def transformPoint2Px(trans, pt, gt):
 
 def doLoaderTask(taskWrapper:QgsTask, dump):
 
-    #assert isinstance(taskWrapper, QgsTask)
+    # assert isinstance(taskWrapper, QgsTask)
     if isinstance(dump, PixelLoaderTask):
         task = dump
     else:

@@ -59,12 +59,12 @@ class SensorTableModel(QAbstractTableModel):
         assert isinstance(TS, TimeSeries)
 
         # define column names
-        self.mCN_Name = "name"
-        self.mCN_Band = "bands"
-        self.mCN_Dates = "dates"
-        self.mCN_Images = "images"
-        self.mCN_WL = "wavelength"
-        self.mCN_ID = "id"
+        self.mCN_Name = "Name"
+        self.mCN_Band = "Band"
+        self.mCN_Dates = "Dates"
+        self.mCN_Images = "Images"
+        self.mCN_WL = "Wavelength"
+        self.mCN_ID = "ID"
 
         self.mColumNames = [self.mCN_Name, self.mCN_Band, self.mCN_Dates, self.mCN_Images,
                             self.mCN_WL, self.mCN_ID]
