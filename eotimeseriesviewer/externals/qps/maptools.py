@@ -1249,11 +1249,11 @@ class QgsMapToolSelectUtils(object):
         behavior = QgsVectorLayer.SetSelection
 
         # either shift or control modifier switches to "toggle" selection mode
-        if ( modifiers & Qt.ShiftModifier or modifiers & Qt.ControlModifier ):
+        if ( modifiers & Qt.ShiftModifier or modifiers & Qt.ControlModifier ) and not Qt.AltModifier:
 
             selectId = selectedFeatures[0]
             layerSelectedFeatures = vlayer.selectedFeatureIds()
-            if ( layerSelectedFeatures.contains( selectId ) ):
+            if selectId in layerSelectedFeatures:
                 behavior = QgsVectorLayer.RemoveFromSelection
             else:
                 behavior = QgsVectorLayer.AddToSelection
