@@ -899,7 +899,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                     w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
                     w.fieldChanged[str, bool].connect(lambda n, b: self.checkData(index, w, w.expression()))
                     w.setExpression(plotStyle.expression())
-                    plotStyle.sigSensorChanged.connect(lambda s: w.setLayer(self.exampleLyr(s)))
+
                     if isinstance(plotStyle.sensor(), SensorInstrument):
                         w.setLayer(self.exampleLyr(plotStyle.sensor()))
 
