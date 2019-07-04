@@ -69,7 +69,7 @@ class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.init()
 
     def init(self):
@@ -499,6 +499,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionIdentify.trigger()
         self.ui.optionIdentifySpectralProfile.setChecked(True)
 
+    def _createProgressDialog(self, title='Load Data')->QProgressDialog:
+        """
+        Creates a QProgressDialog to load image data
+        :return: QProgressDialog
+        """
+        progressDialog = QProgressDialog(self.ui)
+        progressDialog.setWindowTitle(title)
+        progressDialog.setMinimumDuration(500)
+        progressDialog.setValue(0)
+        progressDialog.setWindowFlags(progressDialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        return progressDialog
+
     def exportMapsToImages(self, path=None, format='PNG'):
         """
         Exports the map canvases to local images.
@@ -532,9 +544,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         mapCanvases = self.mapCanvases()
         n = len(mapCanvases)
-        progressDialog = QProgressDialog()
-        progressDialog.setWindowTitle('Save Map Images...')
-
+        progressDialog = self._createProgressDialog(title='Save Map Images...')
         progressDialog.setRange(0, n)
 
         valid_chars = "-_.() {}{}".format(string.ascii_letters, string.digits)
@@ -921,9 +931,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
             self.clearTimeSeries()
-            progressDialog = QProgressDialog(self.ui)
-            progressDialog.setWindowTitle('Image Loading')
-            progressDialog.setMinimumDuration(1000)
+            progressDialog = self._createProgressDialog()
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
 
 
@@ -1168,16 +1176,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 s.setValue('dir_datasources', dn)
 
         if files:
-            progressDialog = QProgressDialog('Image Loading', 'Cancel', 0, len(files), parent=self.ui)
+            progressDialog = self._createProgressDialog()
+            progressDialog.setRange(0, len(files))
             progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
-            progressDialog.setWindowTitle('Image Loading')
-            progressDialog.setMinimumDuration(1000)
-            progressDialog.setValue(0)
 
             if loadAsync:
                 self.mTimeSeries.addSourcesAsync(files, progressDialog=progressDialog)
             else:
                 self.mTimeSeries.addSources(files, progressDialog=progressDialog)
+                progressDialog.setParent(None)
 
 
             #QCoreApplication.processEvents()

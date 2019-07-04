@@ -1602,6 +1602,7 @@ class SpatialTemporalVisualization(QObject):
         self.mNumberOfHiddenMapsToRefresh = 2
         self.mCurrentLayer = None
 
+        self.mAdjustScrollAreaRequest = False
         self.mSyncLock = False
 
     def setMapTool(self, mapToolKey):
@@ -1699,6 +1700,10 @@ class SpatialTemporalVisualization(QObject):
     def timedCanvasRefresh(self, *args, force:bool=False):
 
         self.mSyncLock = False
+
+        if self.mAdjustScrollAreaRequest:
+            self.doAdjustScrollArea()
+            self.mAdjustScrollAreaRequest = False
 
         # do refresh maps
         assert isinstance(self.scrollArea, MapViewScrollArea)
@@ -1863,7 +1868,9 @@ class SpatialTemporalVisualization(QObject):
         """
         Adjusts the scroll area widget to fit all visible widgets
         """
+        self.mAdjustScrollAreaRequest = True
 
+    def doAdjustScrollArea(self):
         m = self.targetLayout.contentsMargins()
         nX = len(self.DVC)
         w = h = 0
