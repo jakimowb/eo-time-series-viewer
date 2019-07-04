@@ -599,11 +599,11 @@ class MapCanvas(QgsMapCanvas):
         from .main import TimeSeriesViewer
         eotsv = TimeSeriesViewer.instance()
 
-        viewPortRasterLayers = [l for l in self.layers() if isinstance(l, QgsRasterLayer)
-                                and SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
-        viewPortSensorLayers = [l for l in viewPortRasterLayers if isinstance(l, SensorProxyLayer)]
+        viewPortMapLayers = [l for l in self.layers() if isinstance(l, QgsMapLayer)]
 
-        viewPortVectorLayers = [l for l in self.layers() if isinstance(l, QgsVectorLayer)]
+        viewPortRasterLayers = [l for l in viewPortMapLayers if isinstance(l, QgsRasterLayer) and SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
+        viewPortSensorLayers = [l for l in viewPortRasterLayers if isinstance(l, SensorProxyLayer)]
+        viewPortVectorLayers = [l for l in viewPortMapLayers if isinstance(l, QgsVectorLayer)]
 
         refSensorLayer = None
         refRasterLayer = None
@@ -616,6 +616,12 @@ class MapCanvas(QgsMapCanvas):
         menu = QMenu()
 
         if isinstance(self.tsd(), TimeSeriesDate):
+            tss = None
+            sourceUris = self.tsd().sourceUris()
+            for sl in viewPortSensorLayers:
+                if sl.source() in sourceUris:
+                    tss = self.tsd()[sourceUris.index(sl.source())]
+                    break
 
             lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
 
@@ -627,7 +633,7 @@ class MapCanvas(QgsMapCanvas):
 
             a = m.addAction('Set Date/Sensor attributes')
             a.setToolTip('Writes the date ate and sensor quick labels of selected features in {}.'.format(layerNames))
-            a.triggered.connect(lambda *args, tsd = self.tsd(): setQuickTSDLabelsForRegisteredLayers(tsd))
+            a.triggered.connect(lambda *args, tsd = self.tsd(), tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss))
 
             from .labeling import EDITOR_WIDGET_REGISTRY_KEY as QUICK_LABEL_KEY
             from .labeling import CONFKEY_CLASSIFICATIONSCHEME, layerClassSchemes, setQuickClassInfo

@@ -923,7 +923,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.clearTimeSeries()
             progressDialog = QProgressDialog(self.ui)
             progressDialog.setWindowTitle('Image Loading')
-            progressDialog.setMinimumDuration(2000)
+            progressDialog.setMinimumDuration(1000)
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
 
 
@@ -1168,9 +1168,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 s.setValue('dir_datasources', dn)
 
         if files:
-            progressDialog = QProgressDialog('Images Loading', 'Cancel', 0, len(files), parent=self.ui)
+            progressDialog = QProgressDialog('Image Loading', 'Cancel', 0, len(files), parent=self.ui)
             progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
-            progressDialog.setMinimumDuration(2000)
+            progressDialog.setWindowTitle('Image Loading')
+            progressDialog.setMinimumDuration(1000)
             progressDialog.setValue(0)
 
             if loadAsync:

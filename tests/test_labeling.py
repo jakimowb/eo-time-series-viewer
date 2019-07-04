@@ -348,7 +348,7 @@ class testclassLabelingTest(unittest.TestCase):
 
 
 
-        setQuickTSDLabels(lyr, tsd)
+        setQuickTSDLabels(lyr, tsd, None)
         fields = lyr.fields()
         setQuickClassInfo(lyr, fields.lookupField('class1l'), classInfo1)
         setQuickClassInfo(lyr, fields.lookupField('class1n'), classInfo1)

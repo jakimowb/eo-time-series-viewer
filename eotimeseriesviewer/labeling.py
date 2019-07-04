@@ -12,7 +12,7 @@ from eotimeseriesviewer.utils import loadUI, qgisInstance
 from eotimeseriesviewer.externals.qps.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
-from eotimeseriesviewer.timeseries import TimeSeriesDate
+from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 
 #the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
@@ -28,6 +28,7 @@ class LabelShortcutType(enum.Enum):
     Year = 'Year'
     DecimalYear = 'Decimal Year'
     Sensor = 'Sensor Name'
+    SourceImage = 'Source Image'
     #Classification = 'Classification'
 
 def shortcuts(field:QgsField):
@@ -38,7 +39,7 @@ def shortcuts(field:QgsField):
     """
     assert isinstance(field, QgsField)
 
-    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date]
+    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date, LabelShortcutType.SourceImage]
     shortCutsInt = [LabelShortcutType.Year, LabelShortcutType.DOY]
     shortCutsFloat = [LabelShortcutType.Year, LabelShortcutType.DOY, LabelShortcutType.DecimalYear]
 
@@ -136,14 +137,14 @@ def quickLabelLayers()->list:
                         break
     return layers
 
-def setQuickTSDLabelsForRegisteredLayers(tsd:TimeSeriesDate):
+def setQuickTSDLabelsForRegisteredLayers(tsd:TimeSeriesDate, tss:TimeSeriesSource):
     """
     :param tsd: TimeSeriesDate
     :param classInfos:
     """
     for layer in quickLabelLayers():
         assert isinstance(layer, QgsVectorLayer)
-        setQuickTSDLabels(layer, tsd)
+        setQuickTSDLabels(layer, tsd, tss)
 
 def setQuickClassInfo(vectorLayer:QgsVectorLayer, field, classInfo:ClassInfo):
     """
@@ -177,10 +178,10 @@ def setQuickClassInfo(vectorLayer:QgsVectorLayer, field, classInfo:ClassInfo):
         vectorLayer.changeAttributeValue(feature.id(), idx, value, oldValue)
     vectorLayer.endEditCommand()
 
-def setQuickTSDLabels(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDate):
+def setQuickTSDLabels(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDate, tss:TimeSeriesSource):
     """
     Labels selected features with information related to TimeSeriesDate tsd, according to
-    the settings specified in this model.
+    the settings specified in this model. Note: this will not the any ClassInfo or the source image values
     :param tsd: TimeSeriesDate
     :param classInfos:
     """
@@ -209,6 +210,8 @@ def setQuickTSDLabels(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDate):
                     value = str(tsd.date())
                 elif labelType == LabelShortcutType.DecimalYear:
                     value = tsd.decimalYear()
+                elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
+                    value = tss.uri()
                 #elif labelType == LabelShortcutType.Classification:
                 #    pass
 

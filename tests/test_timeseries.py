@@ -279,9 +279,6 @@ class TestInit(unittest.TestCase):
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
             QCoreApplication.processEvents()
 
-        #self.assertTrue(len(TS) > 0)
-        #self.assertTrue(len(TS) == len(files))
-
         if SHOW_GUI:
             QAPP.exec_()
 

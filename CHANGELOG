@@ -2,7 +2,9 @@
 Changelog
 ==============
 2019-07-04 (version 1.5):
-    *
+    * fixed missing updates of time series tree view when adding / removing source images
+    * map canvas context menu lists layers with spatial extent intersecting the cursor position only
+    * fixes feature selection error
 
 2019-07-02 (version 1.4):
     * adding vector layers with sublayers will add all sublayers
