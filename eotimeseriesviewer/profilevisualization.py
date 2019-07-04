@@ -974,6 +974,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                 if isinstance(sensor, SensorInstrument):
                     idx = m.sensor2idx(sensor)
                     editor.setCurrentIndex(idx.row())
+
             elif cname == model.cnTemporalProfile:
                 assert isinstance(editor, QgsFeatureListComboBox)
                 value = editor.identifierValue()
@@ -1015,6 +1016,10 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                 assert isinstance(w, QgsFeatureListComboBox)
                 fid = w.identifierValue()
                 if isinstance(fid, int):
+                    # once set manually, do not update to last temporal profile any more
+                    oldStyle = index.data(role=Qt.UserRole)
+                    if isinstance(oldStyle, TemporalProfile2DPlotStyle):
+                        oldStyle.mShowLastLocation = False
                     TP = self.mTemporalProfileLayer.mProfiles.get(fid)
                     model.setData(index, TP, Qt.EditRole)
 
@@ -1839,12 +1844,25 @@ class SpectralTemporalVisualization(QObject):
             if not isinstance(TP, TemporalProfile):
                 TP = self.mTemporalProfileLayer.createTemporalProfiles(spatialPoint)[0]
 
+                # set existing plot style to current coordinate
+                for plotStyle in self.plotSettingsModel2D:
+                    assert isinstance(plotStyle, TemporalProfile2DPlotStyle)
+                    if plotStyle.showLastLocation():
+                        r = self.plotSettingsModel2D.plotStyle2idx(plotStyle).row()
+                        c = self.plotSettingsModel2D.columnIndex(self.plotSettingsModel2D.cnTemporalProfile)
+                        idx = self.plotSettingsModel2D.index(r, c)
+                        self.plotSettingsModel2D.setData(idx, TP, role=Qt.EditRole)
+                        plotStyle.setTemporalProfile(TP)
+
+                # create at least 1 plot style
                 if len(self.mTemporalProfileLayer) == 1:
                     if len(self.plotSettingsModel2D) == 0:
                         self.createNewPlotStyle2D()
 
                     if len(self.plotSettingsModel3D) == 0:
                         self.createNewPlotStyle3D()
+
+
 
             TPs.append(TP)
             theGeometries.append(TP.coordinate())

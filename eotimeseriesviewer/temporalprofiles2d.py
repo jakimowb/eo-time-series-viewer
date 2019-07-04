@@ -454,9 +454,15 @@ class TemporalProfilePlotStyleBase(PlotStyle):
         self.mExpression = 'b1'
         self.mPlotItems = []
         self.mIsVisible = True
+        self.mShowLastLocation = True
 
         if isinstance(temporalProfile, TemporalProfile):
             self.setTemporalProfile(temporalProfile)
+
+    def showLastLocation(self)->bool:
+        """
+        """
+        return self.mShowLastLocation
 
     def isPlotable(self):
         return self.isVisible() and isinstance(self.temporalProfile(), TemporalProfile) and isinstance(self.sensor(), SensorInstrument)
