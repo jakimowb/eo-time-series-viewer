@@ -367,11 +367,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
         self.spatialTemporalVis.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
-        self.spectralTemporalVis.sigMoveToTSD.connect(self.showTimeSeriesDate)
+        self.spectralTemporalVis.sigMoveToTSD.connect(self.setCurrentDate)
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
-        tstv.sigMoveToDateRequest.connect(self.showTimeSeriesDate)
+        tstv.sigMoveToDateRequest.connect(self.setCurrentDate)
 
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
@@ -643,7 +643,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         return self.ui.actionZoomOut
 
 
-    def showTimeSeriesDate(self, tsd:TimeSeriesDate):
+    def setCurrentDate(self, tsd:TimeSeriesDate):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate
@@ -977,30 +977,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :return: [list-of-MapViews]
         """
         return self.spatialTemporalVis.MVC[:]
-
-    def zoomTo(self, key):
-        if key == 'zoomMaxExtent':
-            ext = self.mTimeSeries.maxSpatialExtent(self.ui.dockRendering.crs())
-        elif key == 'zoomPixelScale':
-
-            extent = self.spatialTemporalVis.spatialExtent()
-            #calculate in web-mercator for metric distances
-            crs = self.spatialTemporalVis.crs()
-            crsWMC = QgsCoordinateReferenceSystem('EPSG:3857')
-
-            extentWMC = extent.toCrs(crsWMC)
-            pxSize = max(self.mTimeSeries.pixelSizes(), key= lambda s :s.width())
-            canvasSize = self.spatialTemporalVis.mapSize()
-            f = 0.05
-            width = f * canvasSize.width() * pxSize.width()  # width in map units
-            height = f * canvasSize.height() * pxSize.height()
-            ext = SpatialExtent(crsWMC, 0, 0, width, height)
-            ext.setCenter(extentWMC.center())
-            #return to original CRS
-            ext = ext.toCrs(crs)
-        else:
-            raise NotImplementedError(key)
-        self.spatialTemporalVis.setSpatialExtent(ext)
 
 
     def icon(self)->QIcon:

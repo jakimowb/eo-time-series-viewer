@@ -1689,6 +1689,13 @@ class SpatialTemporalVisualization(QObject):
         """
         return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
 
+    def visibleTSDs(self):
+        """
+        Returns an ordered list of visible time series dates.
+        :return: [list-of-TimeSeriesDates]
+        """
+        return sorted(list(self.mVisibleDates))
+
     def onVisibleMapsChanged(self, *args):
 
         visibleDates = set([m.tsd() for m in self.visibleMaps()])
@@ -1830,7 +1837,6 @@ class SpatialTemporalVisualization(QObject):
         self.MVC.setVectorLayer(lyr)
 
 
-
     def setMapSize(self, size:QSize):
         """
         Sets the MapCanvas size.
@@ -1839,12 +1845,21 @@ class SpatialTemporalVisualization(QObject):
 
         assert isinstance(size, QSize)
         self.mSize = size
+
+        currentTSD = None
+        visible = self.visibleTSDs()
+        if len(visible) > 0:
+            currentTSD = visible[int(len(visible) / 2)]
+
         from eotimeseriesviewer.mapcanvas import MapCanvas
         for mapCanvas in self.mMapCanvases:
             assert isinstance(mapCanvas, MapCanvas)
             mapCanvas.setFixedSize(size)
         self.sigMapSizeChanged.emit(self.mSize)
         self.adjustScrollArea()
+
+        if isinstance(currentTSD, TimeSeriesDate):
+            self.navigateToTSD(currentTSD)
 
     def mapSize(self)->QSize:
         """

@@ -80,6 +80,17 @@ class TestInit(TestCase):
 
             self.assertIn(expectation, dict(metadata), message)
 
+    def test_TimeSeriesViewerNoSource(self):
+
+        from eotimeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        TSV.show()
+
+        self.assertIsInstance(TSV, TimeSeriesViewer)
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+            s = ""
 
 
     def test_TimeSeriesViewer(self):
@@ -95,7 +106,7 @@ class TestInit(TestCase):
             QCoreApplication.processEvents()
 
         tsd = TSV.timeSeries()[-1]
-        TSV.showTimeSeriesDate(tsd)
+        TSV.setCurrentDate(tsd)
         if SHOW_GUI:
             QGIS_APP.exec_()
 
@@ -151,17 +162,7 @@ class TestInit(TestCase):
         if SHOW_GUI:
             QGIS_APP.exec_()
 
-    def test_TimeSeriesViewerNoSource(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
-
-        TSV = TimeSeriesViewer()
-        TSV.show()
-
-        self.assertIsInstance(TSV, TimeSeriesViewer)
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-            s = ""
 
 
 if __name__ == '__main__':
