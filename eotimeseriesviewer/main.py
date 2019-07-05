@@ -254,7 +254,6 @@ class TimeSeriesViewerUI(QMainWindow,
         self.optionIdentifyTemporalProfile.setEnabled(b)
         self.optionMoveCenter.setEnabled(b)
 
-
     def closeEvent(self, a0:QCloseEvent):
         self.sigAboutToBeClosed.emit()
 
@@ -265,7 +264,6 @@ LUT_MESSAGELOGLEVEL = {
                 Qgis.Warning: 'WARNING',
                 Qgis.Success: 'SUCCESS',
                 }
-
 
 def showMessage(message, title, level):
     v = QgsMessageViewer()
@@ -1189,7 +1187,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 self.mTimeSeries.addSourcesAsync(files, progressDialog=progressDialog)
             else:
                 self.mTimeSeries.addSources(files, progressDialog=progressDialog)
-                progressDialog.setParent(None)
+
 
 
             #QCoreApplication.processEvents()
