@@ -517,8 +517,8 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
                 self.mInfoLabelCursor.setPos(pos)
 
                 b = vb.mActionShowCrosshair.isChecked()
-                #self.mCrosshairLineH.setVisible(b)
-                #self.mCrosshairLineV.setVisible(b)
+                self.mCrosshairLineH.setVisible(b)
+                self.mCrosshairLineV.setVisible(b)
                 self.mCrosshairLineV.setPos(mousePoint.x())
                 self.mCrosshairLineH.setPos(mousePoint.y())
 
