@@ -127,9 +127,11 @@ class TimeSeriesViewerUI(QMainWindow,
         self.setupUi(self)
 
         self.setCentralWidget(self.mCentralWidget)
+
         self.addActions(self.findChildren(QAction))
         from eotimeseriesviewer import TITLE, icon, __version__
 
+        self.mInitResized = False
         self.mMapToolActions = []
         self.setWindowTitle('{} ({})'.format(TITLE, __version__))
         self.setWindowIcon(icon())
@@ -257,7 +259,26 @@ class TimeSeriesViewerUI(QMainWindow,
     def closeEvent(self, a0:QCloseEvent):
         self.sigAboutToBeClosed.emit()
 
+    """
+    def resizeEvent(self, event:QResizeEvent):
 
+        super(TimeSeriesViewerUI, self).resizeEvent(event)
+
+        if False and not self.mInitResized:
+            pass
+        w = 0.5
+        minH = int(self.size().height() * w)
+        print(minH)
+        #self.mCentralWidget.setMinimumHeight(minH)
+        for d in self.findChildren(QDockWidget):
+            w = d.widget()
+            assert isinstance(d, QDockWidget)
+            print((d.objectName(), d.minimumHeight(), d.sizePolicy().verticalPolicy()))
+            d.setMinimumHeight(0)
+            s = ""
+        #self.mCentralWidget.setMinimumWidth(int(self.size().width() * w))
+            #self.mInitResized = True
+    """
 LUT_MESSAGELOGLEVEL = {
                 Qgis.Info: 'INFO',
                 Qgis.Critical: 'INFO',
@@ -990,6 +1011,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         import eotimeseriesviewer
         return eotimeseriesviewer.icon()
 
+    def temporalProfiles(self)->list:
+        """
+        Returns collected temporal profiles
+        :return: [list-of-TemporalProfiles]
+        """
+        return self.spectralTemporalVis.temporalProfileLayer()[:]
+
     def logMessage(self, message, tag, level):
         m = message.split('\n')
         if '' in message.split('\n'):
@@ -1158,7 +1186,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
                     break # add to first mapview only
 
-
+        return vectorLayers
 
 
 

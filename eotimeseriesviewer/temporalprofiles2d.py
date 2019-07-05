@@ -1485,6 +1485,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         if isinstance(path, str) and len(path) > 0:
             sourceLyr = QgsVectorLayer(path)
+
             nameAttribute = None
 
             fieldNames = [n.lower() for n in sourceLyr.fields().names()]

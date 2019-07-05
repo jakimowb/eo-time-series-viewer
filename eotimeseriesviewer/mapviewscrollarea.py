@@ -25,16 +25,16 @@ from qgis.PyQt.QtWidgets import *
 
 class MapViewScrollArea(QScrollArea):
 
-    sigResized = pyqtSignal()
+    #sigResized = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(MapViewScrollArea, self).__init__(*args, **kwds)
         self.horizontalScrollBar().setTracking(False)
         self.verticalScrollBar().setTracking(False)
 
-    def resizeEvent(self, event):
-        super(MapViewScrollArea, self).resizeEvent(event)
-        self.sigResized.emit()
+    #def resizeEvent(self, event):
+        #super(MapViewScrollArea, self).resizeEvent(event)
+        #self.sigResized.emit()
 
     def distanceToCenter(self, widget:QWidget)->int:
         # self.visibleRegion().boundingRect().isValid()
@@ -46,8 +46,8 @@ class MapViewScrollArea(QScrollArea):
         diff = centerInParent - centerViewPort
         return diff.manhattanLength()
 
-    def sizeHint(self):
-        parent = self.parent()
-        hint = super(MapViewScrollArea, self).sizeHint()
+    #def sizeHint(self):
+    #    parent = self.parent()
+    #    hint = super(MapViewScrollArea, self).sizeHint()
 
-        return hint
+    #    return hint

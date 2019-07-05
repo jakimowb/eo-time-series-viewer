@@ -1667,7 +1667,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionReset2DPlot.triggered.connect(self.plot2D.resetViewBox)
         self.plot2D.resetTransform()
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
-        self.ui.actionLoadTPFromOgr.triggered.connect(lambda : self.mTemporalProfileLayer.loadCoordinatesFromOgr(None))
+        self.ui.actionLoadTPFromOgr.triggered.connect(self.onLoadFromVector)
         self.ui.actionLoadMissingValues.triggered.connect(lambda: self.loadMissingData())
         self.ui.actionSaveTemporalProfiles.triggered.connect(lambda *args : self.mTemporalProfileLayer.saveTemporalProfiles)
         #set actions to be shown in the TemporalProfileTableView context menu
@@ -1675,6 +1675,19 @@ class SpectralTemporalVisualization(QObject):
 
 
         self.onEditingToggled()
+
+    def onLoadFromVector(self):
+
+        from .externals.qps.layerproperties import SelectMapLayersDialog
+
+        d = SelectMapLayersDialog()
+        d.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
+        d.setWindowTitle('Select Vector Layer')
+        if d.exec() == QDialog.Accepted:
+            for l in d.mapLayers():
+                self.mTemporalProfileLayer.loadCoordinatesFromOgr(l.source())
+                break
+
 
     def onToggleEditing(self, b):
 
@@ -1836,6 +1849,7 @@ class SpectralTemporalVisualization(QObject):
 
 
 
+
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)
             TP = self.mTemporalProfileLayer.fromSpatialPoint(spatialPoint)
@@ -1867,6 +1881,13 @@ class SpectralTemporalVisualization(QObject):
             TPs.append(TP)
             theGeometries.append(TP.coordinate())
 
+        if len(theGeometries) == 0:
+            return
+
+        bbox = QgsRectangle()
+        for i, g in enumerate(theGeometries):
+            bbox.include(g)
+
 
         TP_ids = [TP.id() for TP in TPs]
         # each TSD is a Task
@@ -1897,11 +1918,15 @@ class SpectralTemporalVisualization(QObject):
                 missingIndices = requiredIndices
 
             if len(missingIndices) > 0:
-                for pathImg in tsd.sourceUris():
-                    task = PixelLoaderTask(pathImg, theGeometries,
-                                       bandIndices=missingIndices,
-                                       temporalProfileIDs=TP_ids)
-                tasks.append(task)
+                for tss in tsd.sources():
+                    assert isinstance(tss, TimeSeriesSource)
+                    if bbox.intersects(tss.spatialExtent().toCrs(TPs[0].coordinate().crs())):
+                        task = PixelLoaderTask(tss.uri(), theGeometries,
+                                           # bandIndices=missingIndices, load all indices!
+                                           temporalProfileIDs=TP_ids)
+                        tasks.append(task)
+                        break
+
 
         if len(tasks) > 0:
 
