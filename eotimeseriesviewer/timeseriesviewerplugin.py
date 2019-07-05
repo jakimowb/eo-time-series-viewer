@@ -32,8 +32,10 @@ from PyQt5.QtWidgets import *
 class TimeSeriesViewerPlugin:
 
     def __init__(self, iface):
+
         self.iface = iface
-        self.tsv = None
+        self.mEOTSV = None
+
         dirPlugin = os.path.dirname(__file__)
         site.addsitedir(dirPlugin)
 
@@ -46,7 +48,7 @@ class TimeSeriesViewerPlugin:
         eotimeseriesviewer.initAll()
 
     def initGui(self):
-        self.toolbarActions = []
+        self.mToolbarActions = []
 
         assert isinstance(self.iface, QgisInterface)
 
@@ -57,10 +59,9 @@ class TimeSeriesViewerPlugin:
         icon = eotimeseriesviewer.icon()
         action = QAction(icon, TITLE, self.iface)
         action.triggered.connect(self.run)
-        self.toolbarActions.append(action)
+        self.mToolbarActions.append(action)
 
-
-        for action in self.toolbarActions:
+        for action in self.mToolbarActions:
             self.iface.addToolBarIcon(action)
             self.iface.addPluginToRasterMenu(TITLE, action)
 
@@ -103,20 +104,24 @@ class TimeSeriesViewerPlugin:
 
     def run(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
-        self.tsv = TimeSeriesViewer()
-        self.tsv.run()
+        self.mEOTSV = TimeSeriesViewer()
+        self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
+        self.mEOTSV.show()
 
+
+    def onUiClosed(self):
+        self.mEOTSV = None
+        from eotimeseriesviewer.main import TimeSeriesViewer
+        TimeSeriesViewer._instance = None
 
     def unload(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
-        for action in self.toolbarActions:
+        for action in self.mToolbarActions:
             self.iface.removeToolBarIcon(action)
 
-        if isinstance(self.tsv, TimeSeriesViewer):
-            self.tsv.ui.close()
-            self.tsv = None
+        self.onUiClosed()
 
 
     def tr(self, message):
-        return QCoreApplication.translate('TimeSeriesViewerPlugin', message)
+        return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)

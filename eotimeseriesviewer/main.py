@@ -114,6 +114,8 @@ class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
 class TimeSeriesViewerUI(QMainWindow,
                          loadUI('timeseriesviewer.ui')):
 
+    sigAboutToBeClosed = pyqtSignal()
+
     def __init__(self, parent=None):
         """Constructor."""
         super(TimeSeriesViewerUI, self).__init__(parent)
@@ -253,6 +255,8 @@ class TimeSeriesViewerUI(QMainWindow,
         self.optionMoveCenter.setEnabled(b)
 
 
+    def closeEvent(self, a0:QCloseEvent):
+        self.sigAboutToBeClosed.emit()
 
 
 LUT_MESSAGELOGLEVEL = {
@@ -290,7 +294,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     sigCurrentSpectralProfilesChanged = pyqtSignal(list)
     sigCurrentTemporalProfilesChanged = pyqtSignal(list)
-
+    sigCloses = pyqtSignal()
 
     def __init__(self):
         """Constructor.
@@ -308,7 +312,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         import eotimeseriesviewer.utils
         eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
 
+        TimeSeriesViewer._instance = self
         self.ui = TimeSeriesViewerUI()
+
+        def onClosed():
+            TimeSeriesViewer._instance = None
+        self.ui.sigAboutToBeClosed.connect(onClosed)
+
 
         # Save reference to the QGIS interface
         import qgis.utils
@@ -463,7 +473,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
         self.applySettings()
 
-        TimeSeriesViewer._instance = self
+
 
         self.initQGISConnection()
 
@@ -1106,11 +1116,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     def show(self):
         self.ui.show()
-
-    def run(self):
-        #QApplication.processEvents()
-        self.ui.show()
-
 
     def clearLayoutWidgets(self, L):
         if L is not None:
