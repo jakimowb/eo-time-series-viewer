@@ -647,7 +647,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
                 elif columnName == self.cnTemporalProfile:
                     tp = plotStyle.temporalProfile()
                     if isinstance(tp, TemporalProfile):
-                        value = '{} {}'.format(tp.id(), tp.name())
+                        value = '{} "{}"'.format(tp.id(), tp.name())
                     else:
                         value = 'undefined'
 

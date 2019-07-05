@@ -161,6 +161,7 @@ class TestInit(TestCase):
         self.assertIsInstance(TSV, TimeSeriesViewer)
         if SHOW_GUI:
             QGIS_APP.exec_()
+            s = ""
 
 
 if __name__ == '__main__':
