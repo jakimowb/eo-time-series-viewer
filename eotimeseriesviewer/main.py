@@ -376,6 +376,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
 
+        self.ui.actionLockMapPanelSize.toggled.connect(self.lockCentralWidgetSize)
+
         def initMapToolAction(action, key):
             assert isinstance(action, QAction)
             assert isinstance(key, MapTools)
@@ -505,6 +507,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
+
+    def lockCentralWidgetSize(self, b:bool):
+        """
+        Locks or release the current central widget size
+        :param b:
+        """
+        w = self.ui.centralWidget()
+
+        size = w.size()
+        if b:
+            w.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
+            w.setMinimumSize(size)
+        else:
+            w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+            w.setMinimumSize(0, 0)
 
     def sensors(self)->list:
         """

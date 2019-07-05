@@ -197,6 +197,7 @@
     <addaction name="actionExportMapsToImages"/>
     <addaction name="separator"/>
     <addaction name="menuPanels"/>
+    <addaction name="actionLockMapPanelSize"/>
    </widget>
    <widget class="QMenu" name="menuNavigation">
     <property name="title">
@@ -623,7 +624,7 @@
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
-    <string>Refresh maps</string>
+    <string>Refresh Maps</string>
    </property>
    <property name="toolTip">
     <string>Refresh maps (F5)</string>
@@ -904,6 +905,21 @@
   <action name="actionToolbars">
    <property name="text">
     <string>Toolbars...</string>
+   </property>
+  </action>
+  <action name="actionLockMapPanelSize">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/lockedGray.svg</normaloff>:/images/themes/default/lockedGray.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Lock Map Panel Size</string>
+   </property>
+   <property name="toolTip">
+    <string>Activate to lock the current map panel size</string>
    </property>
   </action>
  </widget>
