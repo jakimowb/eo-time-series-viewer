@@ -147,7 +147,7 @@ if True:
 
 
 tsd = [tsd for tsd in TSV.timeSeries() if tsd.date() == DATE_OF_INTEREST][0]
-TSV.showTimeSeriesDate(tsd)
+TSV.setCurrentDate(tsd)
 
 for c in TSV.mapCanvases():
     assert isinstance(c, MapCanvas)

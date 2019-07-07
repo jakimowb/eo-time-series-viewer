@@ -122,7 +122,7 @@ if __name__ == '__main__':
     TSV.ui.dockTimeSeries.setMaximumHeight(100)
     QApplication.processEvents()
 
-    TSV.showTimeSeriesDate(TSV.timeSeries().tsd(REF_DATE_LS,  None))
+    TSV.setCurrentDate(TSV.timeSeries().tsd(REF_DATE_LS, None))
 
     REF_TSD_LS =TSV.timeSeries().tsd(REF_DATE_LS, None)
     REF_TSD_RE = TSV.timeSeries().tsd(REF_DATE_RE, None)
