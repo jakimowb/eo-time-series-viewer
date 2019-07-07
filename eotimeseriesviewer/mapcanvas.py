@@ -42,6 +42,8 @@ from .externals.qps.utils import *
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 import eotimeseriesviewer.settings
 
+PROGRESS_TIMER = QTimer()
+PROGRESS_TIMER.start(100)
 
 def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer):
 
@@ -56,6 +58,50 @@ def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer):
     else:
         raise NotImplementedError()
     return uri
+
+class MapLoadingInfoItem(QgsMapCanvasItem):
+
+    def __init__(self, mapCanvas):
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        super(MapLoadingInfoItem, self).__init__(mapCanvas)
+        self.mCanvas = mapCanvas
+        self.mProgressConnection = None
+
+        self.mCanvas.renderStarting.connect(lambda: self.showLoadingProgress(True))
+        #self.mCanvas.renderComplete.connect(lambda: self.showLoadingProgress(False))
+
+        PROGRESS_TIMER.timeout.connect(self.onProgressTimeOut)
+        self.mShowProgress = False
+        self.mIsVisible = True
+
+    def showLoadingProgress(self, showProgress: bool):
+        self.mShowProgress = showProgress
+        self.update()
+
+    def onProgressTimeOut(self):
+
+        if self.mShowProgress:
+            self.mCanvas.update()
+
+    def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
+            """
+            Paints the crosshair
+            :param painter:
+            :param QStyleOptionGraphicsItem:
+            :param QWidget_widget:
+            :return:
+            """
+            if self.mShowProgress:
+
+                if True:
+                    options = QStyleOptionProgressBar()
+                    options.rect = QRect(0, 0, painter.window().width(), 25)
+                    options.textAlignment = Qt.AlignCenter
+                    options.progress = 0
+                    options.maximum = 0
+                    options.minimum = 0
+                    QApplication.style().drawControl(QStyle.CE_ProgressBar, options, painter)
+                else:
 
 class MapCanvasInfoItem(QgsMapCanvasItem):
 
@@ -72,7 +118,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
 
     def setVisibility(self, b:bool):
         """
-        Sets the visibility of a Crosshair
+        Sets the visibility of the info item
         :param b:
         :return:
         """
@@ -83,7 +129,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             self.mCanvas.update()
 
     def visibility(self)->bool:
-        """Returns the Crosshair visibility"""
+        """Returns the info items's visibility"""
         return self.mVisibility
 
     def paintText(self, painter, text:str, position):
@@ -115,6 +161,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
+
             if self.mLRText:
                 self.paintText(painter, self.mLRText, QPoint(0, 0))
 
@@ -212,8 +259,18 @@ class MapCanvas(QgsMapCanvas):
 
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
         self.mInfoItem = MapCanvasInfoItem(self)
+        self.mProgressItem = MapLoadingInfoItem(self)
 
         self.mTSD = self.mMapView = None
+
+        self.mUserInputWidget = QgsUserInputWidget(self)
+        self.mUserInputWidget.setObjectName('UserInputDockWidget')
+        self.mUserInputWidget.setAnchorWidget(self)
+        self.mUserInputWidget.setAnchorWidgetPoint(QgsFloatingWidget.TopRight)
+        self.mUserInputWidget.setAnchorPoint(QgsFloatingWidget.TopRight)
+
+        #self.mProgressBar = QProgressBar()
+        #self.mUserInputWidget.addUserInputWidget(self.mProgressBar)
 
         self.mIsRefreshing = False
         self.mRenderingFinished = True
@@ -238,6 +295,14 @@ class MapCanvas(QgsMapCanvas):
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+
+
+    def userInputWidget(self)->QgsUserInputWidget:
+        """
+        Returns the mapcanvas QgsUserInputWidget
+        :return: QgsUserInputWidget
+        """
+        return self.mUserInputWidget
 
     def mapView(self):
         """
@@ -841,7 +906,7 @@ class MapCanvas(QgsMapCanvas):
             action.triggered.connect(self.onFocusToCurrentSpatialExtent)
 
             action = menu.addAction('Hide Date')
-            action.triggered.connect(lambda: self.mTSD.setVisibility(False))
+            action.triggered.connect(lambda: self.mTSD.setIsVisible(False))
 
             if isinstance(eotsv, TimeSeriesViewer):
                 ts = eotsv.timeSeries()

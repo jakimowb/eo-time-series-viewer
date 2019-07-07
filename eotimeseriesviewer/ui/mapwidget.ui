@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <action name="actionForward">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasNext.svg</normaloff>:/images/themes/default/mActionAtlasNext.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Forward</string>
+   </property>
+   <property name="toolTip">
+    <string>Moves to next date</string>
+   </property>
+  </action>
+  <action name="actionBackward">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasPrev.svg</normaloff>:/images/themes/default/mActionAtlasPrev.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Backward</string>
+   </property>
+   <property name="toolTip">
+    <string>Moves one date back.</string>
+   </property>
+  </action>
+  <action name="actionLastDate">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasLast.svg</normaloff>:/images/themes/default/mActionAtlasLast.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Last Date</string>
+   </property>
+  </action>
+  <action name="actionFirstDate">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasFirst.svg</normaloff>:/images/themes/default/mActionAtlasFirst.svg</iconset>
+   </property>
+   <property name="text">
+    <string>First Date</string>
+   </property>
+  </action>
+  <action name="actionFastForward">
+   <property name="text">
+    <string>Fast Forward</string>
+   </property>
+  </action>
+  <action name="actionFastBackward">
+   <property name="text">
+    <string>Fast Backward</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="../../../../QGIS/images/images.qrc"/>
+ </resources>
+ <connections/>
+</ui>

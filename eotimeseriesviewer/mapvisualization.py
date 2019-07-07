@@ -199,6 +199,7 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
 
         return f
 
+
 class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
     """
     A MapView defines how a single map canvas visualizes sensor specific EOTS data plus additional vector overlays
@@ -656,6 +657,9 @@ class DatumViewUI(QFrame, loadUI('timeseriesdateview.ui')):
         super(DatumViewUI, self).__init__(parent)
         self.setupUi(self)
 
+        # do not show progress bar
+        self.progressBar.setVisible(False)
+
     def sizeHint(self):
         m = self.layout().contentsMargins()
 
@@ -812,8 +816,8 @@ class DatumView(QObject):
         mapCanvas.setTSD(self.TSD)
         mapView.registerMapCanvas(mapCanvas)
         self.STV.registerMapCanvas(mapCanvas)
-        mapCanvas.renderComplete.connect(lambda : self.onRenderingChange(False))
-        mapCanvas.renderStarting.connect(lambda : self.onRenderingChange(True))
+        mapCanvas.renderComplete.connect(lambda: self.onRenderingChange(False))
+        mapCanvas.renderStarting.connect(lambda: self.onRenderingChange(True))
 
         #mapCanvas.sigMapRefreshed[float, float].connect(
         #    lambda dt: self.STV.TSV.ui.dockSystemInfo.addTimeDelta('Map {}'.format(self.mSensor.name()), dt))
@@ -1526,6 +1530,51 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             return w
         return None
 
+
+class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
+    """
+    This widget contains all maps
+    """
+
+    class ViewMode(enum.Enum):
+
+        MapViewByRows = 1,
+        MapViewByCols = 2
+
+
+
+
+    def __init__(self, *args, **kwds):
+        super(MapWidget, self).__init__(*args, **kwds)
+        self.setupUi(self)
+
+        self.mGrid = self.layout()
+        self.mViewMode = MapWidget.ViewMode.MapViewByRows
+        self.nMpMV = 3
+
+        self.mCanvases = dict()
+
+    def setMode(self, mode:ViewMode):
+
+        self.mViewMode = mode
+
+    def setMapsPerMapView(self, n:int):
+        assert n > 0
+
+        self.nMpMV = n
+
+    def setCurrentDate(self, tsd:TimeSeriesDate):
+        pass
+
+    def addMapView(self, mapView:MapView):
+        pass
+
+
+    def removeMapView(self, mapView:MapView):
+        pass
+
+    def updateCanvasWidgets(self):
+        pass
 
 
 class SpatialTemporalVisualization(QObject):
