@@ -34,7 +34,7 @@ QGIS_APP = initQgisApplication(loadProcessingFramework=False)
 from eotimeseriesviewer import initResources
 initResources()
 
-SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
+SHOW_GUI = True and os.environ.get('CI') is None
 
 
 def getChildElements(node):
@@ -80,14 +80,18 @@ def compareXML(element1, element2):
 class testclassMapVisualization(unittest.TestCase):
     """Test resources work."""
 
-    def setUp(self):
-        """Runs before each test."""
-        pass
 
-    def tearDown(self):
-        """Runs after each test."""
-        pass
+    def test_mapWidget(self):
 
+        w = MapWidget()
+        w.show()
+        mv = MapView()
+
+        w.addMapView(mv)
+
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
     def test_mapview(self):
 
@@ -366,5 +370,7 @@ if __name__ == "__main__":
     unittest.main()
     print('Done')
 
+TC = testclassMapVisualization()
+TC.test_mapWidget()
 QGIS_APP.quit()
 exit(0)

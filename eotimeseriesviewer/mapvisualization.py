@@ -1547,12 +1547,14 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     def __init__(self, *args, **kwds):
         super(MapWidget, self).__init__(*args, **kwds)
         self.setupUi(self)
-
+        self.setLayout(QGridLayout())
         self.mGrid = self.layout()
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
-        self.nMpMV = 3
-
+        self.nMpMV = 2
+        self.mMapViews = []
         self.mCanvases = dict()
+        self.mCurrentDate = None
+        self.mMapSize=  QSize(200, 200)
 
     def setMode(self, mode:ViewMode):
 
@@ -1561,19 +1563,68 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     def setMapsPerMapView(self, n:int):
         assert n > 0
 
-        self.nMpMV = n
+        if n != self.nMpMV:
+            self.nMpMV = n
+            self.updateCanvasWidgets()
+
+    def setMapSize(self, size:QSize):
+
+        if size != self.mMapSize:
+            for canvas in self.mapCanvases():
+                canvas.setFixedSize(size)
+
+            self.mMapSize = size
+
+    def mapCanvases(self)->list:
+        return self.mGrid.findChildren(MapCanvas)
 
     def setCurrentDate(self, tsd:TimeSeriesDate):
-        pass
+        assert isinstance(tsd, TimeSeriesDate)
+        self.mCurrentDate = tsd
+
+    def currentDate(self)->TimeSeriesDate:
+        return self.mCurrentDate
+
 
     def addMapView(self, mapView:MapView):
-        pass
 
+        if mapView not in self.mMapViews:
+            self.mMapViews.append(mapView)
+            self.updateCanvasWidgets()
 
     def removeMapView(self, mapView:MapView):
-        pass
+        if mapView in self.mMapViews:
+            self.mMapViews.remove(mapView)
+            self.updateCanvasWidgets()
+
 
     def updateCanvasWidgets(self):
+
+        oldCanvases = self.mGrid.findChildren(MapCanvas)
+        for c in oldCanvases:
+            assert isinstance(c, MapCanvas)
+            c.setParent(None)
+            c.setLayers([])
+            c.setTSD(None)
+
+
+        if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
+            for row, mv in enumerate(self.mMapViews):
+                assert isinstance(mv, MapView)
+                self.mCanvases[mv] = []
+                for col in range(self.nMpMV):
+                    c = MapCanvas()
+                    c.setFixedSize(self.mMapSize)
+                    self.mGrid.addWidget(c, row, col)
+                    self.mCanvases[mv].append(c)
+
+        else:
+            raise NotImplementedError()
+
+
+        self.updateCanvasDates()
+
+    def updateCanvasDates(self):
         pass
 
 

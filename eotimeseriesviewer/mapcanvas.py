@@ -91,7 +91,7 @@ class MapLoadingInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
-            if self.mShowProgress:
+            if False and self.mShowProgress:
 
                 if True:
                     options = QStyleOptionProgressBar()
@@ -101,7 +101,6 @@ class MapLoadingInfoItem(QgsMapCanvasItem):
                     options.maximum = 0
                     options.minimum = 0
                     QApplication.style().drawControl(QStyle.CE_ProgressBar, options, painter)
-                else:
 
 class MapCanvasInfoItem(QgsMapCanvasItem):
 
