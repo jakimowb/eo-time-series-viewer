@@ -1,6 +1,14 @@
 ==============
 Changelog
 ==============
+2019-07-07 (version 1.5):
+    * closing the EO Time Series Viewer instance will release all of its resources
+    * added "Lock Map Panel" to avoid unwanted resizing of central widget
+    * fixed missing updates of time series tree view when adding / removing source images
+    * map canvas context menu lists layers with spatial extent intersecting the cursor position only
+    * fixes feature selection error
+    * added quick label source image to label the path of raster layer
+
 2019-07-02 (version 1.4):
     * adding vector layers with sublayers will add all sublayers
     * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
