@@ -749,7 +749,7 @@ class DatumView(QObject):
         self.mSensor.sigNameChanged.connect(lambda :self.setColumnInfo())
         self.TSD.sigVisibilityChanged.connect(self.setVisibility)
         self.setColumnInfo()
-        self.MVC = stv.MVC
+        self.MVC = stv.mMapViewDock
         self.DVC = stv.DVC
         self.mMapCanvases = dict()
         self.mRenderState = dict()
@@ -903,8 +903,8 @@ class DateViewCollection(QObject):
         #we reduce the number of layout refresh calls by
         #suspending signals, adding the new map view canvases, and sending sigResizeRequired
 
-        self.STV.MVC.sigMapViewAdded.connect(self.addMapView)
-        self.STV.MVC.sigMapViewRemoved.connect(self.removeMapView)
+        self.STV.mMapViewDock.sigMapViewAdded.connect(self.addMapView)
+        self.STV.mMapViewDock.sigMapViewRemoved.connect(self.removeMapView)
 
         self.setFocusView(None)
 
@@ -1002,7 +1002,7 @@ class DateViewCollection(QObject):
             DV.sigLoadingFinished.connect(self.sigLoadingFinished.emit)
             DV.sigVisibilityChanged.connect(lambda: self.STV.adjustScrollArea())
 
-            for i, mapView in enumerate(self.STV.MVC):
+            for i, mapView in enumerate(self.STV.mMapViewDock):
                 DV.insertMapView(mapView)
 
             bisect.insort(self.mViews, DV)
@@ -1576,12 +1576,12 @@ class SpatialTemporalVisualization(QObject):
         self.ui.dockMapViews.setTimeSeries(self.TS)
         self.targetLayout = self.ui.scrollAreaSubsetContent.layout()
 
-        self.MVC = self.ui.dockMapViews
-        assert isinstance(self.MVC, MapViewDock)
-        self.MVC.sigShowProfiles.connect(self.sigShowProfiles.emit)
-        self.MVC.sigMapViewAdded.connect(self.onMapViewAdded)
-        self.MVC.sigMapViewAdded.connect(self.sigMapViewAdded.emit)
-        self.MVC.sigMapViewRemoved.connect(self.sigMapViewRemoved.emit)
+        self.mMapViewDock = self.ui.dockMapViews
+        assert isinstance(self.mMapViewDock, MapViewDock)
+        self.mMapViewDock.sigShowProfiles.connect(self.sigShowProfiles.emit)
+        self.mMapViewDock.sigMapViewAdded.connect(self.onMapViewAdded)
+        self.mMapViewDock.sigMapViewAdded.connect(self.sigMapViewAdded.emit)
+        self.mMapViewDock.sigMapViewRemoved.connect(self.sigMapViewRemoved.emit)
         self.vectorOverlay = None
 
         self.DVC = DateViewCollection(self)
@@ -1744,7 +1744,7 @@ class SpatialTemporalVisualization(QObject):
         :param mapCanvas: MapCanvas
         :return: MapView
         """
-        for mapView in self.MVC:
+        for mapView in self.mMapViewDock:
             assert isinstance(mapView, MapView)
             if mapCanvas in mapView.mapCanvases():
                 return mapView
@@ -1759,7 +1759,7 @@ class SpatialTemporalVisualization(QObject):
         Create a new MapWiew
         :return: MapView
         """
-        return self.MVC.createMapView(name=name)
+        return self.mMapViewDock.createMapView(name=name)
 
 
     def registerMapCanvas(self, mapCanvas:MapCanvas):
@@ -1834,7 +1834,7 @@ class SpatialTemporalVisualization(QObject):
         Sets a QgsVectorLaye to be shown on top of raster images
         :param lyr: QgsVectorLayer
         """
-        self.MVC.setVectorLayer(lyr)
+        self.mMapViewDock.setVectorLayer(lyr)
 
 
     def setMapSize(self, size:QSize):
@@ -1893,7 +1893,7 @@ class SpatialTemporalVisualization(QObject):
         s = QSize()
         r = None
         tsdViews = [v for v in self.DVC if v.ui.isVisible()]
-        mapViews = [v for v in self.MVC if v.isVisible()]
+        mapViews = [v for v in self.mMapViewDock if v.isVisible()]
         nX = len(tsdViews)
         nY = len(mapViews)
         spacing = self.targetLayout.spacing()
@@ -1979,15 +1979,15 @@ class SpatialTemporalVisualization(QObject):
         Returns the MapViewDock that controls all MapViews
         :return: MapViewDock
         """
-        return self.MVC
+        return self.mMapViewDock
 
     def setMapBackgroundColor(self, color:QColor):
         """
         Sets the MapCanvas background color
         :param color: QColor
         """
-        assert isinstance(self.MVC, MapViewDock)
-        self.MVC.setMapBackgroundColor(color)
+        assert isinstance(self.mMapViewDock, MapViewDock)
+        self.mMapViewDock.setMapBackgroundColor(color)
 
 
 
@@ -2006,7 +2006,7 @@ class SpatialTemporalVisualization(QObject):
         Returns a list of all mapviews
         :return [list-of-MapViews]:
         """
-        return self.MVC[:]
+        return self.mMapViewDock[:]
 
     def setCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)

@@ -438,7 +438,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
 
         # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
-        self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.MVC.createMapView)
+        self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.mMapViewDock.createMapView)
 
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
@@ -993,7 +993,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns all MapViews
         :return: [list-of-MapViews]
         """
-        return self.spatialTemporalVis.MVC[:]
+        return self.spatialTemporalVis.mMapViewDock[:]
 
 
     def icon(self)->QIcon:
@@ -1029,7 +1029,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         if not self.mSpatialMapExtentInitialized:
             if len(self.mTimeSeries) > 0:
-                if len(self.spatialTemporalVis.MVC) == 0:
+                if len(self.spatialTemporalVis.mMapViewDock) == 0:
                     # add an empty MapView by default
                     self.spatialTemporalVis.createMapView()
                     #self.spatialTemporalVis.createMapView()
