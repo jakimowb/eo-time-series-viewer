@@ -110,10 +110,20 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mCanvas = mapCanvas
 
         self.mULText = None
+        self.mLLText = None
         self.mLRText = None
         self.mURText = None
+        self.mUCText = None
+        self.mLCText = None
 
+        self.mPenColor = QColor('yellow')
         self.mVisibility = True
+
+    def setColor(self, color:QColor):
+        self.mPenColor = color
+
+    def color(self)->QColor:
+        return self.mPenColor
 
     def setVisibility(self, b:bool):
         """
@@ -131,10 +141,10 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         """Returns the info items's visibility"""
         return self.mVisibility
 
-    def paintText(self, painter, text:str, position):
+    def paintText(self, painter, text:str, flags, width=10, color=QColor('black') ):
         pen = QPen(Qt.SolidLine)
-        pen.setWidth(self.mCrosshairStyle.mThickness)
-        pen.setColor(self.mCrosshairStyle.mColor)
+        pen.setWidth(width)
+        pen.setColor(self.mPenColor)
 
         nLines = len(text.splitlines())
 
@@ -149,7 +159,11 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         #background = QPolygonF(QRectF(backGroundPos, backGroundSize))
         #painter.drawPolygon(background)
         painter.setPen(pen)
-        painter.drawText(position, text)
+
+        rect = painter.viewport()
+        painter.drawText(rect, flags, text)
+        #painter.drawText(position, text)
+
         painter.setFont(QFont('Courier', pointSize=10))
 
     def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
@@ -160,9 +174,26 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
+            h = painter.viewport().height()
+            w = painter.viewport().width()
+            if self.mLLText:
+                self.paintText(painter, self.mLLText, Qt.AlignBottom | Qt.AlignLeft )
 
             if self.mLRText:
-                self.paintText(painter, self.mLRText, QPoint(0, 0))
+                self.paintText(painter, self.mLRText, Qt.AlignBottom | Qt.AlignRight)
+
+            if self.mULText:
+                self.paintText(painter, self.mULText, Qt.AlignTop | Qt.AlignRight)
+
+            if self.mURText:
+                self.paintText(painter, self.mURText, Qt.AlignTop | Qt.AlignLeft)
+
+            if self.mUCText:
+                self.paintText(painter, self.mUCText, Qt.AlignTop | Qt.AlignHCenter)
+
+            if self.mLCText:
+                self.paintText(painter, self.mLCText, Qt.AlignBottom | Qt.AlignHCenter)
+
 
 class MapCanvasMapTools(QObject):
 
@@ -366,14 +397,29 @@ class MapCanvas(QgsMapCanvas):
         :param tsd:
         :return:
         """
-        assert isinstance(tsd, TimeSeriesDate)
-        self.mTSD = tsd
 
+        # disconnect old TSD
+        if isinstance(self.mTSD, TimeSeriesDate):
+            self.mTSD.sensor().sigNameChanged.disconnect(self.updateScope)
+
+        if isinstance(tsd, TimeSeriesDate):
+            self.mTSD = tsd
+            self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
+
+    def updateScope(self):
+        """
+        Updates map-canvas TSD variables
+        """
         scope = self.expressionContextScope()
-        scope.setVariable('map_date', str(tsd.date()), isStatic=True)
-        scope.setVariable('map_doy', tsd.doy(), isStatic=True)
-        scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
-        tsd.sensor().sigNameChanged.connect(lambda name: scope.setVariable('map_sensor', name))
+        tsd = self.tsd()
+        if isinstance(tsd, TimeSeriesDate):
+            scope.setVariable('map_date', str(tsd.date()), isStatic=False)
+            scope.setVariable('map_doy', tsd.doy(), isStatic=False)
+            scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
+        else:
+            scope.setVariable('map_date', None, isStatic=False)
+            scope.setVariable('map_doy', None, isStatic=False)
+            scope.setVariable('map_sensor', None, isStatic=False)
 
 
     def tsd(self)->TimeSeriesDate:

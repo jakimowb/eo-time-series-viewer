@@ -277,10 +277,8 @@
    <addaction name="optionIdentifyCursorLocation"/>
    <addaction name="optionIdentifySpectralProfile"/>
    <addaction name="optionIdentifyTemporalProfile"/>
-   <addaction name="separator"/>
-   <addaction name="actionSelectFeatures"/>
   </widget>
-  <widget class="QToolBar" name="toolBarEditing">
+  <widget class="QToolBar" name="toolBarVectorFeatures">
    <property name="windowTitle">
     <string>Modify &amp; Label Toolbar</string>
    </property>
@@ -290,6 +288,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionSelectFeatures"/>
+   <addaction name="actionDeselect"/>
   </widget>
   <action name="actionMoveCenter">
    <property name="icon">
@@ -920,6 +920,18 @@
    </property>
    <property name="toolTip">
     <string>Activate to lock the current map panel size</string>
+   </property>
+  </action>
+  <action name="actionDeselect">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Deselect</string>
+   </property>
+   <property name="toolTip">
+    <string>Deselect </string>
    </property>
   </action>
  </widget>

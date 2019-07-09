@@ -1547,14 +1547,24 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     def __init__(self, *args, **kwds):
         super(MapWidget, self).__init__(*args, **kwds)
         self.setupUi(self)
-        self.setLayout(QGridLayout())
-        self.mGrid = self.layout()
+
+        self.mGrid = QGridLayout()
+        self.setLayout(self.mGrid)
+        self.mGrid.setSpacing(1)
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
-        self.nMpMV = 2
+        self.nMpMV = 3
         self.mMapViews = []
         self.mCanvases = dict()
         self.mCurrentDate = None
-        self.mMapSize=  QSize(200, 200)
+        self.mMapSize = QSize(200, 200)
+        self.mTimeSeries = None
+
+    def setTimeSeries(self, ts:TimeSeries):
+        assert ts == None or isinstance(ts, TimeSeries)
+        self.mTimeSeries = ts
+
+    def timeSeries(self)->TimeSeries:
+        return self.mTimeSeries
 
     def setMode(self, mode:ViewMode):
 
@@ -1565,7 +1575,7 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
         if n != self.nMpMV:
             self.nMpMV = n
-            self.updateCanvasWidgets()
+            self.updateGrid()
 
     def setMapSize(self, size:QSize):
 
@@ -1580,7 +1590,12 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
     def setCurrentDate(self, tsd:TimeSeriesDate):
         assert isinstance(tsd, TimeSeriesDate)
+
+        b = tsd != self.mCurrentDate
         self.mCurrentDate = tsd
+
+        if b:
+            self.updateCanvasDates()
 
     def currentDate(self)->TimeSeriesDate:
         return self.mCurrentDate
@@ -1590,42 +1605,99 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
         if mapView not in self.mMapViews:
             self.mMapViews.append(mapView)
-            self.updateCanvasWidgets()
+            self.updateGrid()
 
     def removeMapView(self, mapView:MapView):
         if mapView in self.mMapViews:
             self.mMapViews.remove(mapView)
-            self.updateCanvasWidgets()
+            self.updateGrid()
+
+    def mapViews(self)->list:
+        return self.mMapViews[:]
 
 
-    def updateCanvasWidgets(self):
+    def cropGrid(self):
+        if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
 
-        oldCanvases = self.mGrid.findChildren(MapCanvas)
-        for c in oldCanvases:
-            assert isinstance(c, MapCanvas)
-            c.setParent(None)
-            c.setLayers([])
-            c.setTSD(None)
+            nc = self.nMpMV
+            nr = len(self.mapViews())
+        else:
+            raise NotImplementedError()
 
+        toRemove = []
+        for row in range(nr, self.mGrid.rowCount()):
+            for col in range(self.mGrid.columnCount()):
+                item = self.mGrid.itemAtPosition(row, col)
+                if isinstance(item.widget(), QWidget):
+                    toRemove.append(item.widget())
+
+        for col in range(nc, self.mGrid.columnCount()):
+            for row in range(self.mGrid.rowCount()):
+                item = self.mGrid.itemAtPosition(row, col)
+                if isinstance(item.widget(), QWidget):
+                    toRemove.append(item.widget())
+
+        for w in toRemove:
+            self.mGrid.removeWidget(w)
+            w.setParent(None)
+            w.setVisible(False)
+
+    def updateGrid(self):
+
+        self.cropGrid() #remove canvases that we do not need
+
+        self.mCanvases.clear()
 
         if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
             for row, mv in enumerate(self.mMapViews):
                 assert isinstance(mv, MapView)
                 self.mCanvases[mv] = []
                 for col in range(self.nMpMV):
-                    c = MapCanvas()
+                    item = self.mGrid.itemAtPosition(row, col)
+                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
+                        c = item.widget()
+                    else:
+                        c = MapCanvas()
+
+                        # debug only
+                        c.mInfoItem.mULText = 'HELLO'
+
+                        self.mGrid.addWidget(c, row, col)
+                    assert isinstance(c, MapCanvas)
                     c.setFixedSize(self.mMapSize)
-                    self.mGrid.addWidget(c, row, col)
                     self.mCanvases[mv].append(c)
 
         else:
             raise NotImplementedError()
 
-
         self.updateCanvasDates()
 
     def updateCanvasDates(self):
-        pass
+        if not (isinstance(self.mCurrentDate, TimeSeriesDate) and isinstance(self.timeSeries(), TimeSeries)):
+            for c in self.findChildren(MapCanvas):
+                assert isinstance(c, MapCanvas)
+                c.setTSD(None)
+        else:
+
+            visible = [tsd for tsd in self.timeSeries() if tsd.isVisible()]
+            if len(visible) == 0:
+                return
+
+            t = self.mCurrentDate.date()
+            visible = sorted(visible, key=lambda tsd: abs(tsd.date() - t))
+            visible = visible[0:min(len(visible), self.nMpMV)]
+            visible = sorted(visible)
+
+            for mapView in self.mapViews():
+                for tsd, canvas in zip(visible, self.mCanvases[mapView]):
+                    assert isinstance(tsd, TimeSeriesDate)
+                    assert isinstance(canvas, MapCanvas)
+                    canvas.setTSD(tsd)
+                    #canvas.setLayers()
+
+
+
+
 
 
 class SpatialTemporalVisualization(QObject):

@@ -85,9 +85,25 @@ class testclassMapVisualization(unittest.TestCase):
 
         w = MapWidget()
         w.show()
-        mv = MapView()
+        mv1 = MapView()
+        mv2 = MapView()
+        mv3 = MapView()
+        w.addMapView(mv1)
+        w.addMapView(mv2)
 
-        w.addMapView(mv)
+        self.assertEqual(w.mGrid.rowCount(), 2)
+        w.addMapView(mv1)
+        self.assertEqual(w.mGrid.rowCount(), 2)
+        w.addMapView(mv3)
+        self.assertEqual(w.mGrid.rowCount(), 3)
+        #w.removeMapView(mv2)
+        #self.assertEqual(w.mGrid.rowCount(), 2)
+        #self.assertListEqual(w.mMapViews, [mv1, mv3])
+
+        TS = TestObjects.createTimeSeries()
+        w.setTimeSeries(TS)
+        w.setCurrentDate(TS[0])
+
 
 
         if SHOW_GUI:

@@ -92,6 +92,20 @@ class testclassDialogTest(unittest.TestCase):
         event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
         canvas.contextMenuEvent(event)
 
+    def test_mapcanvasInfoItem(self):
+
+        mc = MapCanvas()
+        mc.mInfoItem.mULText = 'Upper Left'
+        mc.mInfoItem.mLRText = 'Lower Right'
+        mc.mInfoItem.mURText = 'Upper Right'
+        mc.mInfoItem.mLLText = 'Lower Left'
+        mc.mInfoItem.mUCText = 'Upper Center'
+        mc.mInfoItem.mLCText = 'Lower Center'
+        mc.show()
+        mc.update()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
     def test_mapcanvas(self):
         files = testRasterFiles()
