@@ -825,6 +825,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
+    sigCurrentLocationChanged = pyqtSignal(SpatialPoint, MapCanvas)
     sigVisibleDatesChanged = pyqtSignal(list)
     sigViewModeChanged = pyqtSignal(ViewMode)
 
@@ -842,6 +843,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mMapLayerStore = QgsMapLayerStore()
         self.mMapViews = []
         self.mCanvases = dict()
+        self.mCanvasSignals = dict()
         self.mTimeSeries = None
 
         self.mMapToolKey = MapTools.Pan
@@ -1236,11 +1238,15 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         mapCanvas.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairPositionChanged)
+        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.sigCurrentLocationChanged)
 
     def _disconnectCanvasSignals(self, mapCanvas:MapCanvas):
         mapCanvas.sigSpatialExtentChanged.disconnect(self.setSpatialExtent)
         mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.disconnect(self.onCrosshairPositionChanged)
+        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].disconnect(
+            self.sigCurrentLocationChanged)
+
 
     def onCrosshairPositionChanged(self, spatialPoint:SpatialPoint):
         canvas = self.sender()
@@ -1267,9 +1273,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     def _updateGrid(self):
         import time
         t0 = time.time()
+        oldCanvases = self.findChildren(MapCanvas)
+
         self._cropGrid() #remove canvases that we do not need
 
-        oldCanvases = self.findChildren(MapCanvas)
+
 
         usedCanvases = []
         self.mCanvases.clear()
@@ -1353,9 +1361,16 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
         visibleBefore = self.visibleTSDs()
         bTSDChanged = False
+
+
+        layerCache = dict()
+        for c in self.findChildren(MapCanvas):
+            layerCache[(c.tsd(), c.mapView())] = c.layers()
+
         if not (isinstance(self.mCurrentDate, TimeSeriesDate) and isinstance(self.timeSeries(), TimeSeries)):
             for c in self.findChildren(MapCanvas):
                 assert isinstance(c, MapCanvas)
+
                 c.setTSD(None)
             bTSDChanged = True
         else:
@@ -1377,6 +1392,9 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
                     assert isinstance(canvas, MapCanvas)
                     if canvas.tsd() != tsd:
                         canvas.setTSD(tsd)
+                        key = (tsd, mapView)
+                        if key in layerCache.keys():
+                            canvas.setLayers(layerCache.pop(key))
                         bTSDChanged = True
 
                     # canvas.setLayers()
@@ -1887,217 +1905,3 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         if isinstance(w, MapView):
             return w
         return None
-
-class SpatialTemporalVisualization(QObject):
-    """
-
-    """
-    sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
-    sigShowMapLayerInfo = pyqtSignal(dict)
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
-    sigMapSizeChanged = pyqtSignal(QSize)
-    sigCRSChanged = pyqtSignal(QgsCoordinateReferenceSystem)
-    sigActivateMapTool = pyqtSignal(str)
-    sigMapViewAdded = pyqtSignal(MapView)
-    sigMapViewRemoved = pyqtSignal(MapView)
-
-    sigVisibleDatesChanged = pyqtSignal(list)
-
-    def __init__(self, timeSeriesViewer):
-        super(SpatialTemporalVisualization, self).__init__()
-        # assert isinstance(timeSeriesViewer, TimeSeriesViewer), timeSeriesViewer
-
-        # default map settings
-        self.mSpatialExtent = SpatialExtent.world()
-        #self.mCRS = self.mSpatialExtent.crs()
-        self.ui = timeSeriesViewer.ui
-        self.TSV = timeSeriesViewer
-        self.TS = timeSeriesViewer.timeSeries()
-
-        self.mMapWidget = self.ui.mapWidget
-        assert isinstance(self.mMapWidget, MapWidget)
-        self.mMapWidget.mMapLayerStore = self.TSV.mapLayerStore()
-        self.mMapViewDock = self.ui.dockMapViews
-        assert isinstance(self.mMapViewDock, MapViewDock)
-
-        self.mMapViewDock.setTimeSeries(self.TS)
-        self.mMapWidget.setTimeSeries(self.TS)
-        self.mMapWidget.setMapSize(self.mapSize())
-
-        # map-tool handling
-        self.mMapToolKey = MapTools.Pan
-        self.mMapToolMode = None
-
-        for mv in self.mMapViewDock:
-            self.mMapWidget.addMapView(mv)
-
-        self.mMapViewDock.sigShowProfiles.connect(self.sigShowProfiles.emit)
-
-        self.mMapViewDock.sigMapViewAdded.connect(self.mMapWidget.addMapView)
-        self.mMapViewDock.sigMapViewRemoved.connect(self.mMapWidget.removeMapView)
-        self.mMapViewDock.sigMapViewAdded.connect(self.sigMapViewAdded.emit)
-        self.mMapViewDock.sigMapViewRemoved.connect(self.sigMapViewRemoved.emit)
-        self.mMapViewDock.sigMapsPerMapViewChanged.connect(self.mMapWidget.setMapsPerMapView)
-        self.mMapViewDock.sigCrsChanged.connect(self.mMapWidget.setCrs)
-
-        self.vectorOverlay = None
-
-        if len(self.TS) > 0:
-            self.setSpatialExtent(self.TS.maxSpatialExtent())
-
-        self.mCurrentLayer = None
-
-        self.mSyncLock = False
-
-    def setMapTool(self, mapToolKey, mode):
-        self.mMapWidget.setMapTool(mapToolKey, mode)
-
-
-
-    def setCurrentLayer(self, layer:QgsMapLayer):
-        """
-        Sets the current map layer some map tools can operate on
-        :param layer: QgsMapLayer
-        """
-        assert layer is None or isinstance(layer, QgsMapLayer)
-        self.mCurrentLayer = layer
-        for mapView in self.mapViews():
-            mapView.setCurrentLayer(self.mCurrentLayer)
-
-    def visibleMaps(self)->list:
-        """
-        Returns a list of mapcanvas visible to the user
-        :return: [list-of-MapCanvases
-        """
-        return [m for m in self.mapCanvases() if m.isVisibleToViewport()]
-
-    def visibleTSDs(self):
-        """
-        Returns an ordered list of visible time series dates.
-        :return: [list-of-TimeSeriesDates]
-        """
-
-        return self.mMapWidget.visibleTSDs()
-
-    def timedCanvasRefresh(self, *args, force:bool=False):
-        self.mMapWidget.timedRefresh()
-
-
-    def createMapView(self, name:str=None)->MapView:
-        """
-        Create a new MapWiew
-        :return: MapView
-        """
-        return self.mMapViewDock.createMapView(name=name)
-
-
-    def onCrosshairChanged(self, spatialPoint:SpatialPoint):
-        """
-        Synchronizes all crosshair positions. Takes care of CRS differences.
-        :param spatialPoint: SpatialPoint of new Crosshair position
-        """
-        from eotimeseriesviewer import CrosshairStyle
-
-        srcCanvas = self.sender()
-        if isinstance(srcCanvas, MapCanvas):
-            dstCanvases = [c for c in self.mapCanvases() if c != srcCanvas]
-        else:
-            dstCanvases = [c for c in self.mapCanvases()]
-
-        if isinstance(spatialPoint, SpatialPoint):
-            for mapCanvas in dstCanvases:
-                mapCanvas.setCrosshairPosition(spatialPoint, emitSignal=False)
-
-
-    def setCrosshairStyle(self, crosshairStyle:CrosshairStyle):
-        """
-        Sets a crosshair style to all map canvas
-        :param crosshairStyle: CrosshairStyle
-
-        """
-        for mapView in self.mapViews():
-            assert isinstance(mapView, MapView)
-            mapView.setCrosshairStyle(crosshairStyle)
-
-
-    def setCrosshairVisibility(self, b:bool):
-        """
-        Sets the Crosshair visiblity
-        :param b: bool
-        """
-        assert isinstance(b, bool)
-        self.onCrosshairChanged(b)
-
-
-    def setMapSize(self, size:QSize):
-        """
-        Sets the MapCanvas size.
-        :param size: QSize
-        """
-        self.mMapWidget.setMapSize(size)
-
-
-    def mapSize(self)->QSize:
-        """
-        Returns the MapCanvas size
-        :return: QSize
-        """
-        return self.mMapViewDock.mapSize()
-
-
-    def refresh(self):
-        """
-        Refreshes all visible MapCanvases
-        """
-        for c in self.mapCanvases():
-            assert isinstance(c, MapCanvas)
-            c.refresh()
-
-        #self.mMapRefreshTimer.stop()
-
-    def doAdjustScrollArea(self):
-        m = self.targetLayout.contentsMargins()
-        nX = len(self.DVC)
-        w = h = 0
-
-        s = QSize()
-        r = None
-        tsdViews = [v for v in self.DVC if v.ui.isVisible()]
-        mapViews = [v for v in self.mMapViewDock if v.isVisible()]
-        nX = len(tsdViews)
-        nY = len(mapViews)
-        spacing = self.targetLayout.spacing()
-        margins = self.targetLayout.contentsMargins()
-
-        sizeX = 1
-        sizeY = 50
-        if nX > 0:
-            s = tsdViews[0].ui.sizeHint().width()
-            s = nX * (s + spacing) + margins.left() + margins.right()
-            sizeX = s
-        if nY > 0 and nX > 0:
-                s = tsdViews[0].ui.sizeHint().height()
-                s = s + margins.top() + margins.bottom()
-                sizeY = s
-
-            #s = tsdViews[0].ui.sizeHint()
-            #s = QSize(nX * (s.width() + spacing) + margins.left() + margins.right(),
-            #          s.height() + margins.top() + margins.bottom())
-
-        #print(sizeX, sizeY)
-        self.targetLayout.parentWidget().resize(QSize(sizeX, sizeY))
-
-    def onLocationRequest(self, pt:SpatialPoint, canvas:QgsMapCanvas):
-
-        self.sigShowProfiles.emit(pt, canvas, "")
-
-
-
-
-    def navigateToTSD(self, tsd:TimeSeriesDate):
-        """
-        Changes the viewport of the scroll window to show the requested TimeSeriesDate
-        :param TSD: TimeSeriesDate
-        """
-        self.mMapWidget.setCurrentDate(tsd)
-

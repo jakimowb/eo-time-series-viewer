@@ -385,6 +385,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
+        mw.sigCurrentLocationChanged.connect(self.setCurrentLocation)
+
 
         self.ui.actionNextTSD.triggered.connect(mw.moveToNextTSD)
         self.ui.actionPreviousTSD.triggered.connect(mw.moveToPreviousTSD)

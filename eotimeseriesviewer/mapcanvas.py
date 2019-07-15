@@ -292,7 +292,7 @@ class MapCanvas(QgsMapCanvas):
 
 
     saveFileDirectories = dict()
-    sigShowProfiles = pyqtSignal(SpatialPoint, str)
+    #sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     #sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     #sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
