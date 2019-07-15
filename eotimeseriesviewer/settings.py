@@ -18,6 +18,7 @@ class Keys(enum.Enum):
     MapSize = 'map_size'
     MapUpdateInterval = 'map_update_interval'
     MapBackgroundColor = 'map_background_color'
+    MapTextColor = 'map_text_color'
     ScreenShotDirectory = 'screen_shot_directory'
     RasterSourceDirectory = 'raster_source_directory'
     VectorSourceDirectory = 'vector_source_directory'
@@ -45,8 +46,9 @@ def defaultValues() -> dict:
 
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
-    d[Keys.MapSize] = QSize(300, 300)
+    d[Keys.MapSize] = QSize(150, 150)
     d[Keys.MapBackgroundColor] = QColor('black')
+    d[Keys.MapTextColor] = QColor('yellow')
     # tbd. other settings
 
     return d
@@ -192,7 +194,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())
         d[Keys.MapUpdateInterval] = self.sbMapRefreshIntervall.value()
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
-
+        d[Keys.MapTextColor] = self.mCanvasTextColorButton.color()
         return d
 
     def setValues(self, values: dict):
@@ -235,6 +237,10 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
 
             if checkKey(key, Keys.MapBackgroundColor) and isinstance(value, QColor):
                 self.mCanvasColorButton.setColor(value)
+
+            if checkKey(key, Keys.MapTextColor) and isinstance(value, QColor):
+                self.mCanvasTextColorButton.setColor(value)
+
 
 
 
