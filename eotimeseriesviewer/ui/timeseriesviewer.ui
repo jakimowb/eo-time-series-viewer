@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>877</width>
-    <height>475</height>
+    <width>325</width>
+    <height>240</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -75,73 +75,13 @@
      </widget>
     </item>
     <item>
-     <widget class="MapViewScrollArea" name="scrollAreaSubsets">
+     <widget class="MapWidget" name="mapWidget" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
         <horstretch>3</horstretch>
         <verstretch>3</verstretch>
        </sizepolicy>
       </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-      <property name="horizontalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-      <property name="widgetResizable">
-       <bool>true</bool>
-      </property>
-      <widget class="QWidget" name="scrollAreaSubsetContent">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>875</width>
-         <height>387</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>2</horstretch>
-         <verstretch>2</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-       <layout class="QHBoxLayout" name="scrollAreaLayout">
-        <property name="spacing">
-         <number>1</number>
-        </property>
-        <property name="sizeConstraint">
-         <enum>QLayout::SetNoConstraint</enum>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-       </layout>
-      </widget>
      </widget>
     </item>
    </layout>
@@ -152,8 +92,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>877</width>
-     <height>21</height>
+     <width>325</width>
+     <height>22</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -943,9 +883,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>MapViewScrollArea</class>
-   <extends>QScrollArea</extends>
-   <header>eotimeseriesviewer.mapviewscrollarea</header>
+   <class>MapWidget</class>
+   <extends>QWidget</extends>
+   <header>eotimeseriesviewer.mapvisualization</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

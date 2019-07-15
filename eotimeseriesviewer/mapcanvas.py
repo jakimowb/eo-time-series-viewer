@@ -120,9 +120,17 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mVisibility = True
 
     def setColor(self, color:QColor):
+        """
+        Sets the map info color
+        :param color: QColor
+        """
         self.mPenColor = color
 
     def color(self)->QColor:
+        """
+        Returns the info text color
+        :return: QColor
+        """
         return self.mPenColor
 
     def setVisibility(self, b:bool):
@@ -240,7 +248,9 @@ class MapCanvasMapTools(QObject):
             self.mCanvas.setMapTool(self.mtAddFeature)
         elif mapToolKey == MapTools.SelectFeature:
             self.mCanvas.setMapTool(self.mtSelectFeature)
-
+            if 'mode' in kwds.keys():
+                mt = self.mCanvas.mapTool()
+                assert isinstance(mt, QgsF)
             s = ""
 
         else:
@@ -274,7 +284,7 @@ class MapCanvas(QgsMapCanvas):
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
-
+    sigDestinationCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, parent=None):
@@ -326,6 +336,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
+        self.destinationCrsChanged.connect(lambda : self.sigDestinationCrsChanged.emit(self.crs()))
 
     def userInputWidget(self)->QgsUserInputWidget:
         """
@@ -333,6 +344,14 @@ class MapCanvas(QgsMapCanvas):
         :return: QgsUserInputWidget
         """
         return self.mUserInputWidget
+
+
+    def infoItem(self)->MapCanvasInfoItem:
+        """
+        Returns the MapCanvasInfoItem, e.g. to plot text on top of the map canvas
+        :return: MapCanvasInfoItem
+        """
+        return self.mInfoItem
 
     def mapView(self):
         """
@@ -397,13 +416,17 @@ class MapCanvas(QgsMapCanvas):
         :param tsd:
         :return:
         """
+        if self.mTSD == tsd:
+            return
 
         # disconnect old TSD
         if isinstance(self.mTSD, TimeSeriesDate):
             self.mTSD.sensor().sigNameChanged.disconnect(self.updateScope)
 
+        self.mTSD = tsd
+
         if isinstance(tsd, TimeSeriesDate):
-            self.mTSD = tsd
+
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
 
     def updateScope(self):
@@ -534,6 +557,11 @@ class MapCanvas(QgsMapCanvas):
 
         existing = self.layers()
         existingSources = [l.source() for l in existing]
+
+        if not self.mapView():
+            return
+        if not self.tsd():
+            return
 
         for lyr in self.mMapView.layers():
             assert isinstance(lyr, QgsMapLayer)

@@ -83,28 +83,109 @@ class testclassMapVisualization(unittest.TestCase):
 
     def test_mapWidget(self):
 
-        w = MapWidget()
-        w.show()
-        mv1 = MapView()
-        mv2 = MapView()
-        mv3 = MapView()
-        w.addMapView(mv1)
-        w.addMapView(mv2)
+        TS = TestObjects.createTimeSeries()
 
-        self.assertEqual(w.mGrid.rowCount(), 2)
+        w = MapWidget()
+        w.mMpMV = 1
+        w.show()
+
+        controllW = QWidget()
+        controllW.setLayout(QGridLayout())
+        g = controllW.layout()
+        assert isinstance(g, QGridLayout)
+
+        scroll = QScrollBar()
+        scroll.setOrientation(Qt.Horizontal)
+        scroll.setMinimum(0)
+        scroll.setMaximum(len(TS)-1)
+        scroll.setValue(0)
+        def onTSDChanged(value):
+            w.setCurrentDate(TS[value])
+            for c in w.mapCanvases():
+                c.update()
+        scroll.valueChanged.connect(onTSDChanged)
+
+
+        def onNMapViews(n):
+            mvs = w.mapViews()
+
+            if n < 0:
+                return
+
+            if n < len(mvs):
+                toRemove = mvs[n:]
+                for mv in toRemove:
+                    w.removeMapView(mv)
+            elif n > len(mvs):
+                while len(w.mapViews()) < n:
+                    mv = MapView()
+                    mv.setTitle('MV {}'.format(len(w.mapViews())))
+                    w.addMapView(mv)
+
+        btnAMV = QPushButton('Add MapView')
+        btnRMV = QPushButton('Remove MapView')
+        btnAMV.clicked.connect(lambda : onNMapViews(len(w.mapViews()) + 1))
+        btnRMV.clicked.connect(lambda : onNMapViews(len(w.mapViews()) - 1))
+
+        sb = QSpinBox()
+        sb.setMinimum(1)
+        sb.setMaximum(100)
+        sb.setValue(w.mMpMV)
+        sb.valueChanged.connect(lambda v: w.setMapsPerMapView(v))
+
+        sbX = QSpinBox()
+        sbX.setRange(50,1000)
+        sbX.setSingleStep(50)
+        sbX.setValue(w.mMapSize.width())
+        sbY = QSpinBox()
+        sbY.setRange(50, 1000)
+        sbY.setSingleStep(50)
+        sbY.setValue(w.mMapSize.height())
+        def onMapSizeChanged():
+
+            s = QSize(sbX.value(), sbY.value())
+            w.setMapSize(s)
+        sbY.valueChanged.connect(onMapSizeChanged)
+        sbX.valueChanged.connect(onMapSizeChanged)
+
+        g.addWidget(scroll, 0, 0, 1, 2)
+        g.addWidget(QLabel('n dates'), 1, 0)
+        g.addWidget(sb, 1,1)
+        g.addWidget(btnAMV,2,0)
+        g.addWidget(btnRMV,2,1)
+
+        g.addWidget(QLabel('Map Size'), 3,0)
+        g.addWidget(sbX, 3,1)
+        g.addWidget(sbY, 3, 2)
+        controllW.show()
+
+
+
+        mv1 = MapView(name='mv1')
+        mv2 = MapView(name='mv2')
+        mv3 = MapView(name='mv3')
         w.addMapView(mv1)
-        self.assertEqual(w.mGrid.rowCount(), 2)
-        w.addMapView(mv3)
-        self.assertEqual(w.mGrid.rowCount(), 3)
+
+        if False:
+            w.addMapView(mv2)
+
+            self.assertEqual(w.mGrid.rowCount(), 2)
+            w.addMapView(mv1)
+            self.assertEqual(w.mGrid.rowCount(), 2)
+            w.addMapView(mv3)
+            self.assertEqual(w.mGrid.rowCount(), 3)
         #w.removeMapView(mv2)
         #self.assertEqual(w.mGrid.rowCount(), 2)
         #self.assertListEqual(w.mMapViews, [mv1, mv3])
 
-        TS = TestObjects.createTimeSeries()
+
         w.setTimeSeries(TS)
         w.setCurrentDate(TS[0])
 
-
+        for c in w.mapCanvases():
+            self.assertIsInstance(c, MapCanvas)
+            c.mInfoItem.mUCText = '{}:{}'.format(c.tsd().date(), c.mapView().title())
+            c.update()
 
         if SHOW_GUI:
             QGIS_APP.exec_()
@@ -169,7 +250,6 @@ class testclassMapVisualization(unittest.TestCase):
         mapView.setTimeSeries(TS)
         canvas = MapCanvas()
         canvas.setTSD(TS[0])
-        mapView.registerMapCanvas(canvas)
         tss = TS[0][0]
         self.assertIsInstance(tss, TimeSeriesSource)
         canvas.setCrs(tss.crs())

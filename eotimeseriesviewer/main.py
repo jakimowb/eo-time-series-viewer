@@ -410,7 +410,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionSelectFeatures.setMenu(m)
 
         # create edit toolbar
-        tb = self.ui.toolBarEditing
+        tb = self.ui.toolBarVectorFeatures
         assert isinstance(tb, QToolBar)
         tb.addAction(self.ui.dockLabeling.labelingWidget().actionToggleEditing())
         tb.addAction(self.ui.dockLabeling.labelingWidget().actionSaveEdits())
@@ -498,11 +498,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.initQGISConnection()
 
+
         for toolBar in self.ui.findChildren(QToolBar):
-            for toolButton in toolBar.findChildren(QToolButton):
-                assert isinstance(toolButton, QToolButton)
-                if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu):
-                    toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+            fixMenuButtons(toolBar)
 
 
         self.ui.dockTimeSeries.setFloating(True)
@@ -704,6 +702,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         a = self.sender()
         m = self.ui.actionSelectFeatures.menu()
+
         if isinstance(a, QAction) and isinstance(m, QMenu) and a in m.actions():
             for ca in m.actions():
                 assert isinstance(ca, QAction)
@@ -780,15 +779,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         v = value(Keys.MapUpdateInterval)
         if isinstance(v, int) and v > 0:
-            self.spatialTemporalVis.mMapRefreshTimer.start(v)
+            self.ui.mapWidget.mMapRefreshTimer.start(v)
 
         v = value(Keys.MapBackgroundColor)
         if isinstance(v, QColor):
-            self.spatialTemporalVis.setMapBackgroundColor(v)
+            self.ui.dockMapViews.setMapBackgroundColor(v)
 
         v = value(Keys.MapSize)
         if isinstance(v, QSize):
-            self.spatialTemporalVis.setMapSize(v)
+            self.ui.mapWidget.setMapSize(v)
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
@@ -798,7 +797,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param kwds:
         :return:
         """
-        self.spatialTemporalVis.setMapTool(mapToolKey)
+        self.ui.mapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
 
