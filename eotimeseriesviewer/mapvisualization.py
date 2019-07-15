@@ -1282,7 +1282,7 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
                 canvas.setFixedSize(size)
 
             self.mMapSize = size
-            self._updateGridSize()
+            self._updateWidgetSize()
             self.sigMapSizeChanged.emit(size)
 
 
@@ -1430,7 +1430,7 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
                     self.mCanvases[mv].append(c)
         else:
             raise NotImplementedError()
-        self._updateGridSize()
+        self._updateWidgetSize()
         self._updateCanvasDates()
 
         # remove old canvases
@@ -1441,7 +1441,7 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
 
 
-    def _updateGridSize(self):
+    def _updateWidgetSize(self):
 
         self.mGrid.update()
         # self.resize(self.sizeHint())
@@ -1450,7 +1450,15 @@ class MapWidget(QWidget, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         if self.parentWidget():
             w = self.parentWidget()
             assert isinstance(w, QWidget)
-            w.setFixedSize(self.sizeHint())
+
+            rect = QGuiApplication.primaryScreen().geometry()
+
+            maxw, maxh = 0.66*rect.width(), 0.66*rect.height()
+            hint = self.sizeHint()
+            minw, minh = min(hint.width(), maxw), min(hint.height(), maxh)
+
+            w.setMinimumSize(minw, minh)
+            #w.setFixedSize(self.sizeHint())
             w.layout().update()
             w.update()
 
