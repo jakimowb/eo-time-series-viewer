@@ -119,6 +119,8 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mPenColor = QColor('yellow')
         self.mVisibility = True
 
+
+
     def setColor(self, color:QColor):
         """
         Sets the map info color
@@ -154,9 +156,10 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         pen.setWidth(width)
         pen.setColor(self.mPenColor)
 
-        nLines = len(text.splitlines())
+        text = text.replace('\\n', '\n')
 
-        font = QFont('Courier', pointSize=10)
+        font = QFont('Helvetica', pointSize=10)
+        painter.setFont(font)
         brush = self.mCanvas.backgroundBrush()
         c = brush.color()
         c.setAlpha(170)
@@ -172,7 +175,10 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         painter.drawText(rect, flags, text)
         #painter.drawText(position, text)
 
-        painter.setFont(QFont('Courier', pointSize=10))
+    def clearText(self):
+
+        self.mULText = self.mUCText = self.mURText = None
+        self.mLLText = self.mLCText = self.mLRText = None
 
     def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
             """
@@ -248,16 +254,26 @@ class MapCanvasMapTools(QObject):
             self.mCanvas.setMapTool(self.mtAddFeature)
         elif mapToolKey == MapTools.SelectFeature:
             self.mCanvas.setMapTool(self.mtSelectFeature)
-            if 'mode' in kwds.keys():
-                mt = self.mCanvas.mapTool()
-                assert isinstance(mt, QgsF)
-            s = ""
-
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectSimple)
+        elif mapToolKey == MapTools.SelectFeatureByPolygon:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectPolygon)
+        elif mapToolKey == MapTools.SelectFeatureByFreehand:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectFreehand)
+        elif mapToolKey == MapTools.SelectFeatureByRadius:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectRadius)
         else:
-
             print('Unknown MapTool key: {}'.format(mapToolKey))
 
-
+        # if undefined, set a current vector layer
+        if mapToolKey in [MapTools.SelectFeature, MapTools.SelectFeatureByPolygon, MapTools.SelectFeatureByRadius, MapTools.SelectFeatureByFreehand] \
+                and self.mCanvas.currentLayer() is None:
+            for vl in self.mCanvas.layers():
+                if isinstance(vl, QgsVectorLayer):
+                    self.mCanvas.setCurrentLayer(vl)
+                    break
 
 
 class MapCanvas(QgsMapCanvas):
@@ -271,6 +287,7 @@ class MapCanvas(QgsMapCanvas):
         RefreshRenderer = 1
         Clear = 3
         UpdateLayers = 4
+        UpdateMapItems = 5
 
 
 
@@ -405,10 +422,18 @@ class MapCanvas(QgsMapCanvas):
             self.setCrosshairPosition(spatialPoint)
 
     def setMapView(self, mapView):
+        """
+        Sets the map canvas MapView
+        :param mapView: MapView
+        """
         from eotimeseriesviewer.mapvisualization import MapView
 
         assert isinstance(mapView, MapView)
+
         self.mMapView = mapView
+        self.mInfoItem.setColor(mapView.mapTextColor())
+        self.addToRefreshPipeLine(mapView.mapBackgroundColor())
+        self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def setTSD(self, tsd:TimeSeriesDate):
         """
@@ -426,8 +451,10 @@ class MapCanvas(QgsMapCanvas):
         self.mTSD = tsd
 
         if isinstance(tsd, TimeSeriesDate):
-
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
+
+        self.updateScope()
+
 
     def updateScope(self):
         """
@@ -532,7 +559,7 @@ class MapCanvas(QgsMapCanvas):
                 self.mTimedRefreshPipeLine[SpatialExtent] = a
 
             elif isinstance(a, SpatialPoint):
-                self.mTimedRefreshPipeLine[SpatialExtent] = a
+                self.mTimedRefreshPipeLine[SpatialPoint] = a
 
             elif isinstance(a, QColor):
                 self.mTimedRefreshPipeLine[QColor] = a
@@ -558,9 +585,10 @@ class MapCanvas(QgsMapCanvas):
         existing = self.layers()
         existingSources = [l.source() for l in existing]
 
-        if not self.mapView():
-            return
-        if not self.tsd():
+        if self.mapView() is None or self.tsd() is None:
+            self.setLayers([])
+            self.mInfoItem.clearText()
+            self.update()
             return
 
         for lyr in self.mMapView.layers():
@@ -632,6 +660,8 @@ class MapCanvas(QgsMapCanvas):
                                             l.setRenderer(renderer)
                                         except Exception as ex:
                                             s = ""
+                        if command == MapCanvas.Command.UpdateMapItems:
+                            #self.update()
                             pass
 
 
@@ -676,16 +706,17 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mCrosshairItem.crosshairStyle
 
-    def setCrosshairPosition(self, spatialPoint:SpatialPoint, emitSignal=True):
+    def setCrosshairPosition(self, spatialPoint:SpatialPoint):
         """
         Sets the position of the Crosshair.
         :param spatialPoint: SpatialPoint
         :param emitSignal: True (default). Set False to avoid emitting sigCrosshairPositionChanged
         :return:
         """
+
         point = spatialPoint.toCrs(self.mapSettings().destinationCrs())
-        self.mCrosshairItem.setPosition(point)
-        if emitSignal:
+        if self.mCrosshairItem.mPosition != point:
+            self.mCrosshairItem.setPosition(point)
             self.sigCrosshairPositionChanged.emit(point)
 
     def crosshairPosition(self)->SpatialPoint:
@@ -972,37 +1003,22 @@ class MapCanvas(QgsMapCanvas):
         """
 
 
-        if isinstance(self.mTSD, TimeSeriesDate):
+        if isinstance(self.tsd(), TimeSeriesDate) and isinstance(eotsv, TimeSeriesViewer):
             menu.addSeparator()
 
+            ts = eotsv.timeSeries()
+
             action = menu.addAction('Focus on Spatial Extent')
-            action.triggered.connect(self.onFocusToCurrentSpatialExtent)
+            action.triggered.connect(ts.focusVisibilityToExtent)
 
             action = menu.addAction('Hide Date')
-            action.triggered.connect(lambda: self.mTSD.setIsVisible(False))
+            action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))
 
-            if isinstance(eotsv, TimeSeriesViewer):
-                ts = eotsv.timeSeries()
-                action = menu.addAction('Remove Date')
-                action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
-
-
-
-
-
-        #action = menu.addAction('Hide map view')
-        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'hide_mapview'))
-        #action = menu.addAction('Remove map view')
-        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
+            action = menu.addAction('Remove Date')
+            action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
 
         return menu
 
-    def onFocusToCurrentSpatialExtent(self):
-
-        mapView = self.mapView()
-        from .mapvisualization import MapView
-        if isinstance(mapView, MapView):
-            mapView.timeSeries().focusVisibilityToExtent()
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard

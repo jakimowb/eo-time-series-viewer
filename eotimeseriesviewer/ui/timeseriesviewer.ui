@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>325</width>
+    <width>858</width>
     <height>240</height>
    </rect>
   </property>
@@ -92,8 +92,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>325</width>
-     <height>22</height>
+     <width>858</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -230,6 +230,23 @@
    </attribute>
    <addaction name="actionSelectFeatures"/>
    <addaction name="actionDeselect"/>
+  </widget>
+  <widget class="QToolBar" name="toolBarTimeControl">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionFirstTSD"/>
+   <addaction name="actionPreviousTSDFast"/>
+   <addaction name="actionPreviousTSD"/>
+   <addaction name="actionNextTSD"/>
+   <addaction name="actionNextTSDFast"/>
+   <addaction name="actionLastTSD"/>
   </widget>
   <action name="actionMoveCenter">
    <property name="icon">
@@ -872,6 +889,30 @@
    </property>
    <property name="toolTip">
     <string>Deselect </string>
+   </property>
+  </action>
+  <action name="actionNextTSDFast">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasNext.svg</normaloff>:/images/themes/default/mActionAtlasNext.svg</iconset>
+   </property>
+   <property name="text">
+    <string>nextTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>Go to Next Time Series Dates (fast)</string>
+   </property>
+  </action>
+  <action name="actionPreviousTSDFast">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAtlasPrev.svg</normaloff>:/images/themes/default/mActionAtlasPrev.svg</iconset>
+   </property>
+   <property name="text">
+    <string>previousTSD</string>
+   </property>
+   <property name="toolTip">
+    <string>Got to previous Time Series Date (fast).</string>
    </property>
   </action>
  </widget>

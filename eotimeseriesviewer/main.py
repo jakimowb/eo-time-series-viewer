@@ -45,6 +45,7 @@ import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
+from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
@@ -170,7 +171,7 @@ class TimeSeriesViewerUI(QMainWindow,
         # from timeseriesviewer.mapvisualization import MapViewDockUI
         # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
-        self.dockTimeSeries = addDockWidget(TimeSeriesDockUI(self))
+        self.dockTimeSeries = addDockWidget(TimeSeriesDock(self))
         self.dockTimeSeries.initActions(self)
 
         from eotimeseriesviewer.profilevisualization import ProfileViewDockUI
@@ -227,15 +228,26 @@ class TimeSeriesViewerUI(QMainWindow,
         self.dockTimeSeries.raise_()
 
 
-    def registerMapToolAction(self, a:QAction):
+    def registerMapToolAction(self, a:QAction)->QAction:
+        """
+        Registers this action as map tools action. If triggered, all other mapt tool actions with be set unchecked
+        :param a: QAction
+        :return: QAction
+        """
+
         assert isinstance(a, QAction)
         if a not in self.mMapToolActions:
             self.mMapToolActions.append(a)
         a.setCheckable(True)
         a.toggled.connect(lambda b, action=a: self.onMapToolActionToggled(b, action))
+        return a
 
     def onMapToolActionToggled(self, b:bool, action:QAction):
-
+        """
+        Reacts on togglinga map tool
+        :param b:
+        :param action:
+        """
         assert isinstance(action, QAction)
         otherActions = [a for a in self.mMapToolActions if a != action]
 
@@ -334,6 +346,15 @@ class TimeSeriesViewer(QgisInterface, QObject):
         TimeSeriesViewer._instance = self
         self.ui = TimeSeriesViewerUI()
 
+        mvd = self.ui.dockMapViews
+        dts = self.ui.dockTimeSeries
+        mw = self.ui.mapWidget
+        from eotimeseriesviewer.timeseries import TimeSeriesDock
+        from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
+        assert isinstance(mvd, MapViewDock)
+        assert isinstance(mw, MapWidget)
+        assert isinstance(dts, TimeSeriesDock)
+
         def onClosed():
             TimeSeriesViewer._instance = None
         self.ui.sigAboutToBeClosed.connect(onClosed)
@@ -349,25 +370,28 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
 
-        self.ui.dockTimeSeries.setTimeSeries(self.mTimeSeries)
+        dts.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
+        mw.setTimeSeries(self.mTimeSeries)
+        mvd.setTimeSeries(self.mTimeSeries)
+        mvd.setMapWidget(mw)
+
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
             lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
 
-        from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
-        self.spatialTemporalVis = SpatialTemporalVisualization(self)
-        self.spatialTemporalVis.sigShowProfiles.connect(self.onShowProfile)
-        self.ui.dockMapViews.sigCrsChanged.connect(self.spatialTemporalVis.setCrs)
-        self.ui.dockMapViews.sigMapSizeChanged.connect(self.spatialTemporalVis.setMapSize)
-        self.ui.dockMapViews.sigMapCanvasColorChanged.connect(self.spatialTemporalVis.setMapBackgroundColor)
-        self.spatialTemporalVis.sigCRSChanged.connect(self.ui.dockMapViews.setCrs)
-        self.spatialTemporalVis.sigMapSizeChanged.connect(self.ui.dockMapViews.setMapSize)
-        self.spatialTemporalVis.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
-        self.spatialTemporalVis.sigVisibleDatesChanged.connect(self.timeSeries().setCurrentDates)
-        self.spectralTemporalVis.sigMoveToTSD.connect(self.setCurrentDate)
+        mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
+        mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
+        mw.sigMapViewAdded.connect(self.onMapViewAdded)
+
+        self.ui.actionNextTSD.triggered.connect(mw.moveToNextTSD)
+        self.ui.actionPreviousTSD.triggered.connect(mw.moveToPreviousTSD)
+        self.ui.actionNextTSDFast.triggered.connect(mw.moveToNextTSDFast)
+        self.ui.actionPreviousTSDFast.triggered.connect(mw.moveToPreviousTSDFast)
+        self.ui.actionFirstTSD.triggered.connect(mw.moveToFirstTSD)
+        self.ui.actionLastTSD.triggered.connect(mw.moveToLastTSD)
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
@@ -428,7 +452,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-        #initMapToolAction(self.ui.dockLabeling., MapTools.AddFeature)
 
         # set default map tool
         self.ui.actionPan.toggle()
@@ -438,18 +461,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
 
         # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
-        self.ui.actionAddMapView.triggered.connect(self.spatialTemporalVis.mMapViewDock.createMapView)
+        self.ui.actionAddMapView.triggered.connect(mvd.createMapView)
 
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
-        self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(self.ui.dockTimeSeries.selectedTimeSeriesDates()))
-        self.ui.actionRefresh.triggered.connect(self.spatialTemporalVis.refresh)
+        self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(dts.selectedTimeSeriesDates()))
+        self.ui.actionRefresh.triggered.connect(mw.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
-        self.ui.actionAddTSExample.triggered.connect(lambda : self.loadExampleTimeSeries(loadAsync=False))
+        self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=False))
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
-        self.ui.actionShowCrosshair.toggled.connect(self.spatialTemporalVis.setCrosshairVisibility)
+        #self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
         self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
@@ -488,7 +511,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         temporalProfileLayer.setName('EOTS Temporal Profiles')
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
-        self.spatialTemporalVis.sigMapViewAdded.connect(self.onMapViewAdded)
+
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
@@ -619,7 +642,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         setValue(Keys.MapImageExportDirectory, path)
 
 
-    def onMapViewAdded(self, mapView):
+    def onMapViewAdded(self, mapView:MapView):
+        """
+
+        :param mapView:
+        :return:
+        """
         mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
         mapView.addLayer(self.spectralLibrary())
 
@@ -663,10 +691,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate
         """
-        assert isinstance(tsd, TimeSeriesDate)
-        self.spatialTemporalVis.navigateToTSD(tsd)
-        self.ui.dockTimeSeries.showTSD(tsd)
-
+        self.ui.mapWidget.setCurrentDate(tsd)
 
 
     def mapCanvases(self)->list:
@@ -674,7 +699,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns all MapCanvases of the spatial visualization
         :return: [list-of-MapCanvases]
         """
-        return self.spatialTemporalVis.mapCanvases()
+        return self.ui.mapWidget.mapCanvases()
 
     def mapLayerStore(self)->QgsMapLayerStore:
         """
@@ -695,7 +720,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             x, y = c.asPoint()
             crs = layer.crs()
             center = SpatialPoint(crs, x, y)
-            self.spatialTemporalVis.setSpatialCenter(center)
+            self.ui.mapWidget.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
 
     def onSelectFeatureOptionTriggered(self):
@@ -704,24 +729,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
         m = self.ui.actionSelectFeatures.menu()
 
         if isinstance(a, QAction) and isinstance(m, QMenu) and a in m.actions():
-            for ca in m.actions():
-                assert isinstance(ca, QAction)
-                if ca == a:
+            for option in m.actions():
+                assert isinstance(option, QAction)
+                if option == a:
                     self.ui.actionSelectFeatures.setIcon(a.icon())
                     self.ui.actionSelectFeatures.setToolTip(a.toolTip())
-                ca.setChecked(ca == a)
-        self.setMapTool(MapTools.SelectFeature)
+                option.setChecked(option == a)
+        self.onSelectFeatureTriggered()
 
-    def onCrosshairPositionChanged(self, spatialPoint:SpatialPoint):
-        """
-        Synchronizes all crosshair positions. Takes care of CRS differences.
-        :param spatialPoint: SpatialPoint of the new Crosshair position
-        """
-        sender = self.sender()
-        from .mapcanvas import MapCanvas
-        for mapCanvas in self.mapCanvases():
-            if isinstance(mapCanvas, MapCanvas) and mapCanvas != sender:
-                mapCanvas.setCrosshairPosition(spatialPoint, emitSignal=False)
+    def onSelectFeatureTriggered(self):
+
+        self.setMapTool(MapTools.SelectFeature)
 
 
     def initQGISConnection(self):
@@ -740,11 +758,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         def onSyncRequest(qgisChanged:bool):
             if self.ui.optionSyncMapCenter.isChecked():
-                self.spatialTemporalVis.syncQGISCanvasCenter(qgisChanged)
+                self.ui.mapWidget.syncQGISCanvasCenter(qgisChanged)
 
-        self.spatialTemporalVis.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
+        self.ui.mapWidget.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
         iface.mapCanvas().extentsChanged.connect(lambda: onSyncRequest(True))
-
 
 
     def onShowSettingsDialog(self):
@@ -785,6 +802,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if isinstance(v, QColor):
             self.ui.dockMapViews.setMapBackgroundColor(v)
 
+        v = value(Keys.MapTextColor)
+        if isinstance(v, QColor):
+            self.ui.dockMapViews.setMapTextColor(v)
+
         v = value(Keys.MapSize)
         if isinstance(v, QSize):
             self.ui.mapWidget.setMapSize(v)
@@ -797,6 +818,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
         :param kwds:
         :return:
         """
+
+        if mapToolKey == MapTools.SelectFeature:
+            if self.ui.optionSelectFeaturesRectangle.isChecked():
+                mapToolKey = MapTools.SelectFeature
+            elif self.ui.optionSelectFeaturesPolygon.isChecked():
+                mapToolKey = MapTools.SelectFeatureByPolygon
+            elif self.ui.optionSelectFeaturesFreehand.isChecked():
+                mapToolKey = MapTools.SelectFeatureByFreehand
+            elif self.ui.optionSelectFeaturesRadius.isChecked():
+                mapToolKey = MapTools.SelectFeatureByRadius
+
         self.ui.mapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
@@ -985,14 +1017,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Creates a new MapView.
         :return: MapView
         """
-        return self.spatialTemporalVis.createMapView(name=name)
+        return self.ui.dockMapViews.createMapView(name=name)
 
     def mapViews(self)->list:
         """
         Returns all MapViews
         :return: [list-of-MapViews]
         """
-        return self.spatialTemporalVis.mMapViewDock[:]
+        return self.ui.dockMapViews[:]
 
 
     def icon(self)->QIcon:
@@ -1024,19 +1056,19 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.ui.messageBar.pushMessage(tag, message, level=level)
             print(r'{}({}): {}'.format(tag, level, message))
 
+
+
     def onTimeSeriesChanged(self, *args):
 
         if not self.mSpatialMapExtentInitialized:
             if len(self.mTimeSeries) > 0:
-                if len(self.spatialTemporalVis.mMapViewDock) == 0:
-                    # add an empty MapView by default
-                    self.spatialTemporalVis.createMapView()
-                    #self.spatialTemporalVis.createMapView()
+                if len(self.ui.dockMapViews) == 0:
+                    self.ui.dockMapViews.createMapView()
 
                 extent = self.mTimeSeries.maxSpatialExtent()
 
-                self.spatialTemporalVis.setCrs(extent.crs())
-                self.spatialTemporalVis.setSpatialExtent(extent)
+                self.ui.mapWidget.setCrs(extent.crs())
+                self.ui.mapWidget.setSpatialExtent(extent)
                 self.mSpatialMapExtentInitialized = True
 
 
