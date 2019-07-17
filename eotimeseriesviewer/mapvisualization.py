@@ -885,7 +885,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.actionBackwardFast.triggered.connect(self.moveToPreviousTSDFast)
         self.actionForwardFast.triggered.connect(self.moveToNextTSDFast)
 
-        self.mTimeSlider.setTickInterval(1)
+        self.mTimeSlider.setTickInterval(0)
         self.mTimeSlider.valueChanged.connect(self.onSliderReleased)
 
 
