@@ -42,6 +42,8 @@ from .externals.qps.utils import *
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 import eotimeseriesviewer.settings
 
+PROGRESS_TIMER = QTimer()
+PROGRESS_TIMER.start(100)
 
 def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer):
 
@@ -57,55 +59,29 @@ def toQgsMimeDataUtilsUri(mapLayer:QgsMapLayer):
         raise NotImplementedError()
     return uri
 
-class MapCanvasInfoItem(QgsMapCanvasItem):
+class MapLoadingInfoItem(QgsMapCanvasItem):
 
     def __init__(self, mapCanvas):
         assert isinstance(mapCanvas, QgsMapCanvas)
-        super(MapCanvasInfoItem, self).__init__(mapCanvas)
+        super(MapLoadingInfoItem, self).__init__(mapCanvas)
         self.mCanvas = mapCanvas
+        self.mProgressConnection = None
 
-        self.mULText = None
-        self.mLRText = None
-        self.mURText = None
+        self.mCanvas.renderStarting.connect(lambda: self.showLoadingProgress(True))
+        #self.mCanvas.renderComplete.connect(lambda: self.showLoadingProgress(False))
 
-        self.mVisibility = True
+        PROGRESS_TIMER.timeout.connect(self.onProgressTimeOut)
+        self.mShowProgress = False
+        self.mIsVisible = True
 
-    def setVisibility(self, b:bool):
-        """
-        Sets the visibility of a Crosshair
-        :param b:
-        :return:
-        """
-        assert isinstance(b, bool)
-        old = self.mShow
-        self.mVisibility = b
-        if old != b:
+    def showLoadingProgress(self, showProgress: bool):
+        self.mShowProgress = showProgress
+        self.update()
+
+    def onProgressTimeOut(self):
+
+        if self.mShowProgress:
             self.mCanvas.update()
-
-    def visibility(self)->bool:
-        """Returns the Crosshair visibility"""
-        return self.mVisibility
-
-    def paintText(self, painter, text:str, position):
-        pen = QPen(Qt.SolidLine)
-        pen.setWidth(self.mCrosshairStyle.mThickness)
-        pen.setColor(self.mCrosshairStyle.mColor)
-
-        nLines = len(text.splitlines())
-
-        font = QFont('Courier', pointSize=10)
-        brush = self.mCanvas.backgroundBrush()
-        c = brush.color()
-        c.setAlpha(170)
-        brush.setColor(c)
-        painter.setBrush(brush)
-        painter.setPen(Qt.NoPen)
-        fm = QFontMetrics(font)
-        #background = QPolygonF(QRectF(backGroundPos, backGroundSize))
-        #painter.drawPolygon(background)
-        painter.setPen(pen)
-        painter.drawText(position, text)
-        painter.setFont(QFont('Courier', pointSize=10))
 
     def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
             """
@@ -115,8 +91,192 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
-            if self.mLRText:
-                self.paintText(painter, self.mLRText, QPoint(0, 0))
+            if False and self.mShowProgress:
+
+                if True:
+                    options = QStyleOptionProgressBar()
+                    options.rect = QRect(0, 0, painter.window().width(), 25)
+                    options.textAlignment = Qt.AlignCenter
+                    options.progress = 0
+                    options.maximum = 0
+                    options.minimum = 0
+                    QApplication.style().drawControl(QStyle.CE_ProgressBar, options, painter)
+
+class MapCanvasInfoItem(QgsMapCanvasItem):
+    """
+    A QgsMapCanvasItem to show text
+    """
+    def __init__(self, mapCanvas):
+        assert isinstance(mapCanvas, QgsMapCanvas)
+        super(MapCanvasInfoItem, self).__init__(mapCanvas)
+        self.mCanvas = mapCanvas
+
+        self.mText = dict()
+        self.mWrapChar = '\n'
+        self.mTextFormat = QgsTextFormat()
+        self.mTextFormat.setSizeUnit(QgsUnitTypes.RenderPixels)
+        self.mTextFormat.setFont(QFont('Helvetica', pointSize=10))
+        self.mTextFormat.setColor(QColor('yellow'))
+
+    def setWrapChar(self, c:str)->str:
+        """
+        Sets a Wrap Character
+        :param c:
+        :return:
+        """
+        self.mWrapChar = c
+        return self.wrapChar()
+
+    def wrapChar(self)->str:
+        return self.mWrapChar
+
+    def setText(self, text:str, alignment:Qt.Alignment=Qt.AlignTop | Qt.AlignHCenter):
+
+        self.mText[alignment] = text
+
+
+    def setTextFormat(self, format:QgsTextFormat):
+        assert isinstance(format, QgsTextFormat)
+        self.mTextFormat = format
+        self.updateCanvas()
+
+    def textFormat(self)->QgsTextFormat:
+        """
+        Returns the text format.
+        :return: QgsTextFormat
+        """
+        return self.mTextFormat
+
+    def font(self)->QFont:
+        """
+        Returns the font used to write text on the map canvas.
+        :return: QFont
+        """
+        return self.mTextFormat.font()
+
+    def setFont(self, font:QFont):
+        self.mTextFormat.setFont(font)
+
+    def setColor(self, color:QColor):
+        """
+        Sets the map info color
+        :param color: QColor
+        """
+        self.mTextFormat.setColor(color)
+
+    def color(self)->QColor:
+        """
+        Returns the info text color
+        :return: QColor
+        """
+        return self.mTextFormat.color()
+
+    def paintText(self, painter, text:str, flags, rotation=0):
+        padding = 5
+        text = text.replace('\\n', '\n')
+        text = text.split(self.wrapChar())
+
+        nl = len(text)
+        #text = text.split('\\n')
+        r = QgsTextRenderer()
+
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(Qt.NoPen)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        context = QgsRenderContext()
+
+        # taken from QGIS Repo src/core/qgspallabeling.cpp
+        m2p = QgsMapToPixel(1, 0, 0, 0, 0, 0)
+        context.setMapToPixel(m2p)
+        context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
+        context.setUseAdvancedEffects(True)
+        context.setPainter(painter)
+        #context.setExtent(self.mCanvas.extent())
+        #context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
+
+        vp = QRectF(painter.viewport())
+        #rect = self.mCanvas.extent().toRectF()
+
+        textFormat = self.mTextFormat
+        assert isinstance(textFormat, QgsTextFormat)
+        th = r.textHeight(context, textFormat, text,  QgsTextRenderer.Rect)
+        tw = r.textWidth(context, textFormat, text)
+
+        # area to place the text inside
+        rect = QRectF()
+        x = 0.5*vp.width()
+        y = 0.5*vp.height()
+        hAlign = QgsTextRenderer.AlignCenter
+
+        # horizontal position
+        if bool(flags & Qt.AlignLeft):
+            x = padding
+            hAlign = QgsTextRenderer.AlignLeft
+
+        elif bool(flags & Qt.AlignHCenter):
+            x = 0.5 * vp.width()
+            hAlign = QgsTextRenderer.AlignCenter
+
+        elif bool(flags & Qt.AlignRight):
+            x = vp.width() - padding
+            hAlign = QgsTextRenderer.AlignRight
+
+        # vertical position
+        if bool(flags & Qt.AlignTop):
+            y = padding + th - 0.5* (th / nl)
+
+        elif bool(flags & Qt.AlignVCenter):
+            y = 0.5 * (vp.height() + th)
+
+        elif bool(flags & Qt.AlignBottom):
+            y = vp.height() - padding #- th
+
+        poo = QPointF(x, y)
+        r.drawText(poo, rotation, hAlign, text, context, textFormat)
+
+    def setUpperLeft(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignLeft)
+
+    def setMiddleLeft(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignLeft)
+
+    def setLowerLeft(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignLeft)
+
+
+    def setUpperCenter(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignHCenter)
+
+    def setMiddleCenter(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignHCenter)
+
+    def setLowerCenter(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignHCenter)
+
+    def setUpperRight(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignRight)
+
+    def setMiddleRight(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignRight)
+
+    def setLowerRight(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignRight)
+
+    def clearText(self):
+        self.mText.clear()
+
+    def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
+            """
+            Paints the crosshair
+            :param painter:
+            :param QStyleOptionGraphicsItem:
+            :param QWidget_widget:
+            :return:
+            """
+            for alignment, text in self.mText.items():
+                if isinstance(text, str) and len(text) > 0:
+                    self.paintText(painter, text, alignment)
 
 class MapCanvasMapTools(QObject):
 
@@ -163,14 +323,26 @@ class MapCanvasMapTools(QObject):
             self.mCanvas.setMapTool(self.mtAddFeature)
         elif mapToolKey == MapTools.SelectFeature:
             self.mCanvas.setMapTool(self.mtSelectFeature)
-
-            s = ""
-
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectSimple)
+        elif mapToolKey == MapTools.SelectFeatureByPolygon:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectPolygon)
+        elif mapToolKey == MapTools.SelectFeatureByFreehand:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectFreehand)
+        elif mapToolKey == MapTools.SelectFeatureByRadius:
+            self.mCanvas.setMapTool(self.mtSelectFeature)
+            self.mtSelectFeature.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectRadius)
         else:
-
             print('Unknown MapTool key: {}'.format(mapToolKey))
 
-
+        # if undefined, set a current vector layer
+        if mapToolKey in [MapTools.SelectFeature, MapTools.SelectFeatureByPolygon, MapTools.SelectFeatureByRadius, MapTools.SelectFeatureByFreehand] \
+                and self.mCanvas.currentLayer() is None:
+            for vl in self.mCanvas.layers():
+                if isinstance(vl, QgsVectorLayer):
+                    self.mCanvas.setCurrentLayer(vl)
+                    break
 
 
 class MapCanvas(QgsMapCanvas):
@@ -184,11 +356,12 @@ class MapCanvas(QgsMapCanvas):
         RefreshRenderer = 1
         Clear = 3
         UpdateLayers = 4
+        UpdateMapItems = 5
 
 
 
     saveFileDirectories = dict()
-    sigShowProfiles = pyqtSignal(SpatialPoint, str)
+    #sigShowProfiles = pyqtSignal(SpatialPoint, str)
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     #sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
     #sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
@@ -197,7 +370,7 @@ class MapCanvas(QgsMapCanvas):
 
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
-
+    sigDestinationCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
 
     def __init__(self, parent=None):
@@ -212,8 +385,18 @@ class MapCanvas(QgsMapCanvas):
 
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
         self.mInfoItem = MapCanvasInfoItem(self)
+        self.mProgressItem = MapLoadingInfoItem(self)
 
         self.mTSD = self.mMapView = None
+
+        self.mUserInputWidget = QgsUserInputWidget(self)
+        self.mUserInputWidget.setObjectName('UserInputDockWidget')
+        self.mUserInputWidget.setAnchorWidget(self)
+        self.mUserInputWidget.setAnchorWidgetPoint(QgsFloatingWidget.TopRight)
+        self.mUserInputWidget.setAnchorPoint(QgsFloatingWidget.TopRight)
+
+        #self.mProgressBar = QProgressBar()
+        #self.mUserInputWidget.addUserInputWidget(self.mProgressBar)
 
         self.mIsRefreshing = False
         self.mRenderingFinished = True
@@ -238,6 +421,23 @@ class MapCanvas(QgsMapCanvas):
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
         self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+
+        self.destinationCrsChanged.connect(lambda : self.sigDestinationCrsChanged.emit(self.crs()))
+
+    def userInputWidget(self)->QgsUserInputWidget:
+        """
+        Returns the mapcanvas QgsUserInputWidget
+        :return: QgsUserInputWidget
+        """
+        return self.mUserInputWidget
+
+
+    def infoItem(self)->MapCanvasInfoItem:
+        """
+        Returns the MapCanvasInfoItem, e.g. to plot text on top of the map canvas
+        :return: MapCanvasInfoItem
+        """
+        return self.mInfoItem
 
     def mapView(self):
         """
@@ -291,10 +491,18 @@ class MapCanvas(QgsMapCanvas):
             self.setCrosshairPosition(spatialPoint)
 
     def setMapView(self, mapView):
+        """
+        Sets the map canvas MapView
+        :param mapView: MapView
+        """
         from eotimeseriesviewer.mapvisualization import MapView
 
         assert isinstance(mapView, MapView)
+
         self.mMapView = mapView
+        self.mInfoItem.setTextFormat(mapView.mapTextFormat())
+        self.addToRefreshPipeLine(mapView.mapBackgroundColor())
+        self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def setTSD(self, tsd:TimeSeriesDate):
         """
@@ -302,14 +510,35 @@ class MapCanvas(QgsMapCanvas):
         :param tsd:
         :return:
         """
-        assert isinstance(tsd, TimeSeriesDate)
+        if self.mTSD == tsd:
+            return
+
+        # disconnect old TSD
+        if isinstance(self.mTSD, TimeSeriesDate):
+            self.mTSD.sensor().sigNameChanged.disconnect(self.updateScope)
+
         self.mTSD = tsd
 
+        if isinstance(tsd, TimeSeriesDate):
+            self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
+
+        self.updateScope()
+
+
+    def updateScope(self):
+        """
+        Updates map-canvas TSD variables
+        """
         scope = self.expressionContextScope()
-        scope.setVariable('map_date', str(tsd.date()), isStatic=True)
-        scope.setVariable('map_doy', tsd.doy(), isStatic=True)
-        scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
-        tsd.sensor().sigNameChanged.connect(lambda name: scope.setVariable('map_sensor', name))
+        tsd = self.tsd()
+        if isinstance(tsd, TimeSeriesDate):
+            scope.setVariable('map_date', str(tsd.date()), isStatic=False)
+            scope.setVariable('map_doy', tsd.doy(), isStatic=False)
+            scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
+        else:
+            scope.setVariable('map_date', None, isStatic=False)
+            scope.setVariable('map_doy', None, isStatic=False)
+            scope.setVariable('map_sensor', None, isStatic=False)
 
 
     def tsd(self)->TimeSeriesDate:
@@ -399,7 +628,7 @@ class MapCanvas(QgsMapCanvas):
                 self.mTimedRefreshPipeLine[SpatialExtent] = a
 
             elif isinstance(a, SpatialPoint):
-                self.mTimedRefreshPipeLine[SpatialExtent] = a
+                self.mTimedRefreshPipeLine[SpatialPoint] = a
 
             elif isinstance(a, QColor):
                 self.mTimedRefreshPipeLine[QColor] = a
@@ -424,6 +653,12 @@ class MapCanvas(QgsMapCanvas):
 
         existing = self.layers()
         existingSources = [l.source() for l in existing]
+
+        if self.mapView() is None or self.tsd() is None:
+            self.setLayers([])
+            self.mInfoItem.clearText()
+            self.update()
+            return
 
         for lyr in self.mMapView.layers():
             assert isinstance(lyr, QgsMapLayer)
@@ -494,6 +729,8 @@ class MapCanvas(QgsMapCanvas):
                                             l.setRenderer(renderer)
                                         except Exception as ex:
                                             s = ""
+                        if command == MapCanvas.Command.UpdateMapItems:
+                            #self.update()
                             pass
 
 
@@ -538,16 +775,17 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mCrosshairItem.crosshairStyle
 
-    def setCrosshairPosition(self, spatialPoint:SpatialPoint, emitSignal=True):
+    def setCrosshairPosition(self, spatialPoint:SpatialPoint):
         """
         Sets the position of the Crosshair.
         :param spatialPoint: SpatialPoint
         :param emitSignal: True (default). Set False to avoid emitting sigCrosshairPositionChanged
         :return:
         """
+
         point = spatialPoint.toCrs(self.mapSettings().destinationCrs())
-        self.mCrosshairItem.setPosition(point)
-        if emitSignal:
+        if self.mCrosshairItem.mPosition != point:
+            self.mCrosshairItem.setPosition(point)
             self.sigCrosshairPositionChanged.emit(point)
 
     def crosshairPosition(self)->SpatialPoint:
@@ -834,37 +1072,22 @@ class MapCanvas(QgsMapCanvas):
         """
 
 
-        if isinstance(self.mTSD, TimeSeriesDate):
+        if isinstance(self.tsd(), TimeSeriesDate) and isinstance(eotsv, TimeSeriesViewer):
             menu.addSeparator()
 
+            ts = eotsv.timeSeries()
+
             action = menu.addAction('Focus on Spatial Extent')
-            action.triggered.connect(self.onFocusToCurrentSpatialExtent)
+            action.triggered.connect(ts.focusVisibilityToExtent)
 
             action = menu.addAction('Hide Date')
-            action.triggered.connect(lambda: self.mTSD.setVisibility(False))
+            action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))
 
-            if isinstance(eotsv, TimeSeriesViewer):
-                ts = eotsv.timeSeries()
-                action = menu.addAction('Remove Date')
-                action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
-
-
-
-
-
-        #action = menu.addAction('Hide map view')
-        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'hide_mapview'))
-        #action = menu.addAction('Remove map view')
-        #action.triggered.connect(lambda: self.sigChangeMVRequest.emit(self, 'remove_mapview'))
+            action = menu.addAction('Remove Date')
+            action.triggered.connect(lambda *args, : ts.removeTSDs([tsd]))
 
         return menu
 
-    def onFocusToCurrentSpatialExtent(self):
-
-        mapView = self.mapView()
-        from .mapvisualization import MapView
-        if isinstance(mapView, MapView):
-            mapView.timeSeries().focusVisibilityToExtent()
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard

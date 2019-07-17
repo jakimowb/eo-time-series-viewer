@@ -67,3 +67,9 @@ def settings():
     return QSettings('HU-Berlin', 'EO Time Series Viewer')
 
 
+def fixMenuButtons(w:QWidget):
+    for toolButton in w.findChildren(QToolButton):
+        assert isinstance(toolButton, QToolButton)
+        if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu)\
+                or isinstance(toolButton.menu(), QMenu):
+            toolButton.setPopupMode(QToolButton.MenuButtonPopup)

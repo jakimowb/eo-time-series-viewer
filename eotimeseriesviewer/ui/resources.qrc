@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="timeseriesviewer">
+    <file>icons/mActionArrowLeftEnd.svg</file>
+    <file>icons/mActionArrowRightEnd.svg</file>
     <file>icons/qgsMapCenter.svg</file>
     <file>icons/mIconTemporalProfileRefresh.svg</file>
     <file>icons/profile2speclib_auto.svg</file>
@@ -22,25 +24,16 @@
     <file>icons/IconTimeSeries.svg</file>
     <file>icons/copyright_label.svg</file>
     <file>icons/crosshair.svg</file>
-    <file>icons/general.svg</file>
     <file>icons/icon.svg</file>
-    <file>icons/locked.svg</file>
-    <file>icons/lockedGray.svg</file>
     <file>icons/logo_hub.svg</file>
     <file>icons/mActionAdd.svg</file>
     <file>icons/mActionAddMapView.svg</file>
     <file>icons/mActionAddRasterLayer.svg</file>
     <file>icons/mActionAddTS.svg</file>
     <file>icons/mActionAddVirtualRaster.svg</file>
-    <file>icons/mActionAtlasFirst.svg</file>
-    <file>icons/mActionAtlasLast.svg</file>
-    <file>icons/mActionAtlasNext.svg</file>
-    <file>icons/mActionAtlasPrev.svg</file>
-    <file>icons/mActionCollapseTree.svg</file>
     <file>icons/mActionCopySelected.png</file>
     <file>icons/mActionEditCopy.svg</file>
     <file>icons/mActionEditPaste.svg</file>
-    <file>icons/mActionExpandTree.svg</file>
     <file>icons/mActionFileSave.svg</file>
     <file>icons/mActionFileSaveAs.svg</file>
     <file>icons/mActionIdentify.svg</file>
@@ -62,13 +55,7 @@
     <file>icons/mActionZoomToArea.svg</file>
     <file>icons/mActionZoomToLayer.svg</file>
     <file>icons/mActionZoomToSelected.svg</file>
-    <file>icons/mIconClear.svg</file>
-    <file>icons/mIconClearText.svg</file>
-    <file>icons/mIconClose.svg</file>
-    <file>icons/mIconCollapse.svg</file>
-    <file>icons/mIconExpand.svg</file>
     <file>icons/mIconFieldTime.svg</file>
-    <file>icons/mIconPolygonLayer.svg</file>
     <file>icons/mIconRaster.svg</file>
     <file>icons/mIconRasterClassification.svg</file>
     <file>icons/mIconRasterImage.svg</file>

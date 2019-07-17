@@ -88,6 +88,9 @@ class MapTools(enum.Enum):
     MoveToCenter = 'MOVE_CENTER'
     AddFeature = 'ADD_FEATURE'
     SelectFeature = 'SELECT_FEATURE'
+    SelectFeatureByPolygon = 'SELECT_FEATURE_POLYGON'
+    SelectFeatureByFreehand = 'SELECT_FEATURE_FREEHAND'
+    SelectFeatureByRadius = 'SELECT_FEATURE_RADIUS'
 
     @staticmethod
     def toMapToolEnum(arg):
@@ -142,6 +145,16 @@ class MapTools(enum.Enum):
             mapTool = QgsMapToolAddFeature(canvas, *args, **kwds)
         elif mapToolEnum == MapTools.SelectFeature:
             mapTool = QgsMapToolSelect(canvas)
+            mapTool.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectSimple)
+        elif mapToolEnum == MapTools.SelectFeatureByFreehand:
+            mapTool = QgsMapToolSelect(canvas)
+            mapTool.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectFreehand)
+        elif mapToolEnum == MapTools.SelectFeatureByPolygon:
+            mapTool = QgsMapToolSelect(canvas)
+            mapTool.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectPolygon)
+        elif mapToolEnum == MapTools.SelectFeatureByRadius:
+            mapTool = QgsMapToolSelect(canvas)
+            mapTool.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectRadius)
         else:
             raise NotImplementedError('Unknown MapTool "{}"'.format(mapToolEnum))
 

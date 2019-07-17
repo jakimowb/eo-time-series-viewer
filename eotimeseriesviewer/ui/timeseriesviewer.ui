@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>877</width>
-    <height>475</height>
+    <width>858</width>
+    <height>240</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
   <property name="dockOptions">
    <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks</set>
   </property>
-  <widget class="QWidget" name="mCentralWidget">
+  <widget class="MapWidget" name="mMapWidget">
    <property name="sizePolicy">
     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>1</horstretch>
@@ -64,86 +64,6 @@
     <property name="bottomMargin">
      <number>0</number>
     </property>
-    <item>
-     <widget class="QgsMessageBar" name="messageBar">
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="MapViewScrollArea" name="scrollAreaSubsets">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>3</horstretch>
-        <verstretch>3</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>0</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="verticalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-      <property name="horizontalScrollBarPolicy">
-       <enum>Qt::ScrollBarAsNeeded</enum>
-      </property>
-      <property name="widgetResizable">
-       <bool>true</bool>
-      </property>
-      <widget class="QWidget" name="scrollAreaSubsetContent">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>0</y>
-         <width>875</width>
-         <height>387</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>2</horstretch>
-         <verstretch>2</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-       <layout class="QHBoxLayout" name="scrollAreaLayout">
-        <property name="spacing">
-         <number>1</number>
-        </property>
-        <property name="sizeConstraint">
-         <enum>QLayout::SetNoConstraint</enum>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-       </layout>
-      </widget>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -152,7 +72,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>877</width>
+     <width>858</width>
      <height>21</height>
     </rect>
    </property>
@@ -277,12 +197,23 @@
    <addaction name="optionIdentifyCursorLocation"/>
    <addaction name="optionIdentifySpectralProfile"/>
    <addaction name="optionIdentifyTemporalProfile"/>
-   <addaction name="separator"/>
-   <addaction name="actionSelectFeatures"/>
   </widget>
-  <widget class="QToolBar" name="toolBarEditing">
+  <widget class="QToolBar" name="toolBarVectorFeatures">
    <property name="windowTitle">
     <string>Modify &amp; Label Toolbar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionSelectFeatures"/>
+   <addaction name="actionDeselect"/>
+  </widget>
+  <widget class="QToolBar" name="toolBarTimeControl">
+   <property name="windowTitle">
+    <string>toolBar</string>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -313,54 +244,6 @@
    </property>
    <property name="toolTip">
     <string>Select coordinate reference system</string>
-   </property>
-  </action>
-  <action name="actionNextTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</iconset>
-   </property>
-   <property name="text">
-    <string>nextTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>go to next time series datum</string>
-   </property>
-  </action>
-  <action name="actionPreviousTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</iconset>
-   </property>
-   <property name="text">
-    <string>previousTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to prevoius time series datum</string>
-   </property>
-  </action>
-  <action name="actionFirstTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</iconset>
-   </property>
-   <property name="text">
-    <string>first TSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to first time series datum</string>
-   </property>
-  </action>
-  <action name="actionLastTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</iconset>
-   </property>
-   <property name="text">
-    <string>lastTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to last time series datum</string>
    </property>
   </action>
   <action name="actionLoadTS">
@@ -575,7 +458,7 @@
   </action>
   <action name="actionClearLabelList">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/timeseriesviewer/icons/mIconClose.svg</normaloff>:/timeseriesviewer/icons/mIconClose.svg</iconset>
    </property>
    <property name="text">
@@ -922,18 +805,24 @@
     <string>Activate to lock the current map panel size</string>
    </property>
   </action>
+  <action name="actionDeselect">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Deselect</string>
+   </property>
+   <property name="toolTip">
+    <string>Deselect </string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QgsMessageBar</class>
-   <extends>QFrame</extends>
-   <header>qgis.gui</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>MapViewScrollArea</class>
-   <extends>QScrollArea</extends>
-   <header>eotimeseriesviewer.mapviewscrollarea</header>
+   <class>MapWidget</class>
+   <extends>QWidget</extends>
+   <header>eotimeseriesviewer.mapvisualization</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

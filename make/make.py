@@ -44,5 +44,5 @@ if __name__ == '__main__':
 
     compileResourceFiles()
     print('Compiling finished')
-    deleteCompiledResourceFiles()
+    #deleteCompiledResourceFiles()
     exit(0)

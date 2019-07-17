@@ -88,22 +88,6 @@ class TestInit(unittest.TestCase):
             c2 = sensorIDtoProperties(sid)
             self.assertListEqual(list(conf), list(c2))
 
-    def test_TimeSeriesTableModel(self):
-
-        TS = self.createTimeSeries()
-        TM = TimeSeriesTableModel(TS)
-
-        self.assertTrue(len(TS) > 0)
-        self.assertIsInstance(TM, TimeSeriesTableModel)
-        self.assertIsInstance(TM, QAbstractTableModel)
-
-        self.assertTrue(TM.rowCount(None) == len(TS))
-
-        tsd = TS[2]
-
-        idx = TM.getIndexFromDate(tsd)
-        self.assertIsInstance(idx, QModelIndex)
-
     def test_TimeSeriesDate(self):
 
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
@@ -388,7 +372,7 @@ class TestInit(unittest.TestCase):
         TS = TimeSeries()
         TS.addSources(TestObjects.createMultiSourceTimeSeries())
 
-        dock = TimeSeriesDockUI()
+        dock = TimeSeriesDock()
         dock.setTimeSeries(TS)
         dock.show()
 
