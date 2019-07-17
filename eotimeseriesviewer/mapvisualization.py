@@ -1076,6 +1076,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         if n != self.mMpMV:
             self.mMpMV = n
             self._updateGrid()
+            self.timeSlider().setPageStep(max(1, n))
             self.sigMapsPerMapViewChanged.emit(n)
 
     def setMapSize(self, size:QSize)->QSize:
