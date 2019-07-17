@@ -1335,6 +1335,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self.setCrosshairPosition(spatialPoint)
             self.sigCrosshairPositionChanged[SpatialPoint, MapCanvas].emit(self.mCrosshairPosition, canvas)
 
+    def setCurrentLayer(self, layer:QgsMapLayer):
+
+        for mapView in self.mapViews():
+            mapView.setCurrentLayer(layer)
+
     def setCrosshairPosition(self, spatialPoint)->SpatialPoint:
         spatialPoint = spatialPoint.toCrs(self.crs())
         if self.mCrosshairPosition != spatialPoint:

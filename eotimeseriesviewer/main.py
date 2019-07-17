@@ -448,7 +448,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         labelingWidget.sigMapExtentRequested.connect(self.setSpatialExtent)
         labelingWidget.sigMapCenterRequested.connect(self.setSpatialCenter)
         labelingWidget.sigVectorLayerChanged.connect(
-            lambda: self.spatialTemporalVis.setCurrentLayer(
+            lambda: self.mapWidget().setCurrentLayer(
                 self.ui.dockLabeling.labelingWidget().currentVectorSource()))
 
         initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
@@ -843,24 +843,24 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Sets the MapCanvas size.
         :param size: QSize
         """
-        self.spatialTemporalVis.setMapSize(size)
+        self.mapWidget().setMapSize(size)
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
         Sets the map canvas extent
         :param spatialExtent: SpatialExtent
         """
-        self.spatialTemporalVis.setSpatialExtent(spatialExtent)
+        self.mapWidget().setSpatialExtent(spatialExtent)
 
     def setSpatialCenter(self, spatialPoint:SpatialPoint):
         """
         Sets the center of map canvases
         :param spatialPoint: SpatialPoint
         """
-        self.spatialTemporalVis.setSpatialCenter(spatialPoint)
+        self.mapWidget().setSpatialCenter(spatialPoint)
 
     def spatialCenter(self)->SpatialPoint:
-        return self.spatialTemporalVis.spatialCenter()
+        return self.mapWidget().spatialCenter()
 
     def setCurrentLocation(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas=None):
         """
@@ -938,7 +938,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spectralTemporalVis.loadCoordinate(spatialPoint)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
-        # self.spatialTemporalVis.sigShowProfiles.connect(self.spectralTemporalVis.loadCoordinate)
+
         assert isinstance(spatialPoint, SpatialPoint)
         assert isinstance(mapCanvas, QgsMapCanvas)
         from eotimeseriesviewer.mapcanvas import MapTools
