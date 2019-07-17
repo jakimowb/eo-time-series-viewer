@@ -127,7 +127,7 @@ class TimeSeriesViewerUI(QMainWindow,
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
 
-        self.setCentralWidget(self.mCentralWidget)
+        self.setCentralWidget(self.mMapWidget)
 
         self.addActions(self.findChildren(QAction))
         from eotimeseriesviewer import TITLE, icon, __version__
@@ -348,7 +348,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         mvd = self.ui.dockMapViews
         dts = self.ui.dockTimeSeries
-        mw = self.ui.mapWidget
+        mw = self.ui.mMapWidget
         from eotimeseriesviewer.timeseries import TimeSeriesDock
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
         assert isinstance(mvd, MapViewDock)
@@ -387,13 +387,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
         mw.sigCurrentLocationChanged.connect(self.setCurrentLocation)
 
-
-        self.ui.actionNextTSD.triggered.connect(mw.moveToNextTSD)
-        self.ui.actionPreviousTSD.triggered.connect(mw.moveToPreviousTSD)
-        self.ui.actionNextTSDFast.triggered.connect(mw.moveToNextTSDFast)
-        self.ui.actionPreviousTSDFast.triggered.connect(mw.moveToPreviousTSDFast)
-        self.ui.actionFirstTSD.triggered.connect(mw.moveToFirstTSD)
-        self.ui.actionLastTSD.triggered.connect(mw.moveToLastTSD)
+        tb = self.ui.toolBarTimeControl
+        assert isinstance(tb, QToolBar)
+        tb.addAction(mw.actionFirstDate)
+        tb.addAction(mw.actionBackwardFast)
+        tb.addAction(mw.actionBackward)
+        tb.addAction(mw.actionForward)
+        tb.addAction(mw.actionForwardFast)
+        tb.addAction(mw.actionLastDate)
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
@@ -693,7 +694,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate
         """
-        self.ui.mapWidget.setCurrentDate(tsd)
+        self.ui.mMapWidget.setCurrentDate(tsd)
 
 
     def mapCanvases(self)->list:
@@ -701,7 +702,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns all MapCanvases of the spatial visualization
         :return: [list-of-MapCanvases]
         """
-        return self.ui.mapWidget.mapCanvases()
+        return self.ui.mMapWidget.mapCanvases()
 
     def mapLayerStore(self)->QgsMapLayerStore:
         """
@@ -722,7 +723,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             x, y = c.asPoint()
             crs = layer.crs()
             center = SpatialPoint(crs, x, y)
-            self.ui.mapWidget.setSpatialCenter(center)
+            self.ui.mMapWidget.setSpatialCenter(center)
             self.ui.actionRefresh.trigger()
 
     def onSelectFeatureOptionTriggered(self):
@@ -760,9 +761,9 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         def onSyncRequest(qgisChanged:bool):
             if self.ui.optionSyncMapCenter.isChecked():
-                self.ui.mapWidget.syncQGISCanvasCenter(qgisChanged)
+                self.ui.mMapWidget.syncQGISCanvasCenter(qgisChanged)
 
-        self.ui.mapWidget.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
+        self.ui.mMapWidget.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
         iface.mapCanvas().extentsChanged.connect(lambda: onSyncRequest(True))
 
 
@@ -780,7 +781,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     def applySettings(self):
         """
-        Reads the QSettings object and applies its value to related widget components
+        Reads the QSettings object and applies its values to related widget components
         """
 
 
@@ -798,19 +799,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         v = value(Keys.MapUpdateInterval)
         if isinstance(v, int) and v > 0:
-            self.ui.mapWidget.mMapRefreshTimer.start(v)
+            self.ui.mMapWidget.mMapRefreshTimer.start(v)
 
         v = value(Keys.MapBackgroundColor)
         if isinstance(v, QColor):
             self.ui.dockMapViews.setMapBackgroundColor(v)
 
-        v = value(Keys.MapTextColor)
-        if isinstance(v, QColor):
-            self.ui.dockMapViews.setMapTextColor(v)
+        v = value(Keys.MapTextFormat)
+        if isinstance(v, QgsTextFormat):
+            self.ui.dockMapViews.setMapTextFormat(v)
 
         v = value(Keys.MapSize)
         if isinstance(v, QSize):
-            self.ui.mapWidget.setMapSize(v)
+            self.ui.mMapWidget.setMapSize(v)
+
+
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
@@ -831,7 +834,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             elif self.ui.optionSelectFeaturesRadius.isChecked():
                 mapToolKey = MapTools.SelectFeatureByRadius
 
-        self.ui.mapWidget.setMapTool(mapToolKey, *args)
+        self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
 
@@ -984,7 +987,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the QgsMessageBar that is used to show messages in the TimeSeriesViewer UI.
         :return: QgsMessageBar
         """
-        return self.ui.messageBar
+        return self.ui.mMapWidget.messageBar()
 
 
     def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
@@ -1069,8 +1072,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
                 extent = self.mTimeSeries.maxSpatialExtent()
 
-                self.ui.mapWidget.setCrs(extent.crs())
-                self.ui.mapWidget.setSpatialExtent(extent)
+                self.ui.mMapWidget.setCrs(extent.crs())
+                self.ui.mMapWidget.setSpatialExtent(extent)
                 self.mSpatialMapExtentInitialized = True
 
 
@@ -1078,6 +1081,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False
 
+    def mapWidget(self):
+        return self.ui.mMapWidget
 
     def saveTimeSeriesDefinition(self):
         s = settings()

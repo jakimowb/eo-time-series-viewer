@@ -32,7 +32,7 @@
   <property name="dockOptions">
    <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks</set>
   </property>
-  <widget class="QWidget" name="mCentralWidget">
+  <widget class="MapWidget" name="mMapWidget">
    <property name="sizePolicy">
     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>1</horstretch>
@@ -64,26 +64,6 @@
     <property name="bottomMargin">
      <number>0</number>
     </property>
-    <item>
-     <widget class="QgsMessageBar" name="messageBar">
-      <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="MapWidget" name="mapWidget" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>3</horstretch>
-        <verstretch>3</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -241,12 +221,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionFirstTSD"/>
-   <addaction name="actionPreviousTSDFast"/>
-   <addaction name="actionPreviousTSD"/>
-   <addaction name="actionNextTSD"/>
-   <addaction name="actionNextTSDFast"/>
-   <addaction name="actionLastTSD"/>
   </widget>
   <action name="actionMoveCenter">
    <property name="icon">
@@ -270,54 +244,6 @@
    </property>
    <property name="toolTip">
     <string>Select coordinate reference system</string>
-   </property>
-  </action>
-  <action name="actionNextTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasNext.svg</iconset>
-   </property>
-   <property name="text">
-    <string>nextTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>go to next time series datum</string>
-   </property>
-  </action>
-  <action name="actionPreviousTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasPrev.svg</iconset>
-   </property>
-   <property name="text">
-    <string>previousTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to prevoius time series datum</string>
-   </property>
-  </action>
-  <action name="actionFirstTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasFirst.svg</iconset>
-   </property>
-   <property name="text">
-    <string>first TSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to first time series datum</string>
-   </property>
-  </action>
-  <action name="actionLastTSD">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</normaloff>:/timeseriesviewer/icons/mActionAtlasLast.svg</iconset>
-   </property>
-   <property name="text">
-    <string>lastTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>got to last time series datum</string>
    </property>
   </action>
   <action name="actionLoadTS">
@@ -532,7 +458,7 @@
   </action>
   <action name="actionClearLabelList">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset>
      <normaloff>:/timeseriesviewer/icons/mIconClose.svg</normaloff>:/timeseriesviewer/icons/mIconClose.svg</iconset>
    </property>
    <property name="text">
@@ -891,38 +817,8 @@
     <string>Deselect </string>
    </property>
   </action>
-  <action name="actionNextTSDFast">
-   <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionAtlasNext.svg</normaloff>:/images/themes/default/mActionAtlasNext.svg</iconset>
-   </property>
-   <property name="text">
-    <string>nextTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>Go to Next Time Series Dates (fast)</string>
-   </property>
-  </action>
-  <action name="actionPreviousTSDFast">
-   <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionAtlasPrev.svg</normaloff>:/images/themes/default/mActionAtlasPrev.svg</iconset>
-   </property>
-   <property name="text">
-    <string>previousTSD</string>
-   </property>
-   <property name="toolTip">
-    <string>Got to previous Time Series Date (fast).</string>
-   </property>
-  </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>QgsMessageBar</class>
-   <extends>QFrame</extends>
-   <header>qgis.gui</header>
-   <container>1</container>
-  </customwidget>
   <customwidget>
    <class>MapWidget</class>
    <extends>QWidget</extends>

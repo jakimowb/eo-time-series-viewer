@@ -81,11 +81,39 @@ class testclassMapVisualization(unittest.TestCase):
     """Test resources work."""
 
 
+    def test_FontButton(self):
+
+        btn = QgsFontButton()
+        #c = QgsMapCanvas()
+        #c.setCanvasColor(QColor('black'))
+        #c.show()
+        #btn.setMapCanvas(c)
+        tf = btn.textFormat()
+        #tf.background().setFillColor(QColor('black'))
+        #tf.background().setEnabled(True)
+        tf.previewBackgroundColor = lambda : QColor('black')
+        btn.setTextFormat(tf)
+        btn.show()
+        c = QColor('black')
+        btn.setStyleSheet('background-color: rgb({}, {}, {});'.format(*c.getRgb()))
+        def onChanged():
+
+            tf = btn.textFormat()
+
+            font = btn.font()
+
+            s = ""
+        btn.changed.connect(onChanged)
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
     def test_mapWidget(self):
 
         TS = TestObjects.createTimeSeries()
-
+        from eotimeseriesviewer.settings import Keys, DEFAULT_VALUES
         w = MapWidget()
+        w.setTimeSeries(TS)
+        w.setMapTextFormat(DEFAULT_VALUES[Keys.MapTextFormat])
         w.mMpMV = 1
         w.show()
 
@@ -93,17 +121,6 @@ class testclassMapVisualization(unittest.TestCase):
         controllW.setLayout(QGridLayout())
         g = controllW.layout()
         assert isinstance(g, QGridLayout)
-
-        scroll = QScrollBar()
-        scroll.setOrientation(Qt.Horizontal)
-        scroll.setMinimum(0)
-        scroll.setMaximum(len(TS)-1)
-        scroll.setValue(0)
-        def onTSDChanged(value):
-            w.setCurrentDate(TS[value])
-            for c in w.mapCanvases():
-                c.update()
-        scroll.valueChanged.connect(onTSDChanged)
 
 
         def onNMapViews(n):
@@ -119,6 +136,10 @@ class testclassMapVisualization(unittest.TestCase):
             elif n > len(mvs):
                 while len(w.mapViews()) < n:
                     mv = MapView()
+                    mv.optionShowSensorName.setChecked(True)
+                    mv.optionShowMapViewName.setChecked(True)
+
+
                     mv.setTitle('MV {}'.format(len(w.mapViews())))
                     w.addMapView(mv)
 
@@ -148,7 +169,7 @@ class testclassMapVisualization(unittest.TestCase):
         sbY.valueChanged.connect(onMapSizeChanged)
         sbX.valueChanged.connect(onMapSizeChanged)
 
-        g.addWidget(scroll, 0, 0, 1, 2)
+
         g.addWidget(QLabel('n dates'), 1, 0)
         g.addWidget(sb, 1,1)
         g.addWidget(btnAMV,2,0)
@@ -178,13 +199,13 @@ class testclassMapVisualization(unittest.TestCase):
         #self.assertEqual(w.mGrid.rowCount(), 2)
         #self.assertListEqual(w.mMapViews, [mv1, mv3])
 
+        for mv in w.mapViews():
+            mv.optionShowMapViewName.setChecked(True)
+            mv.optionShowSensorName.setChecked(True)
 
-        w.setTimeSeries(TS)
         w.setCurrentDate(TS[0])
 
         for c in w.mapCanvases():
-            self.assertIsInstance(c, MapCanvas)
-            c.mInfoItem.mUCText = '{}:{}'.format(c.tsd().date(), c.mapView().title())
             c.update()
 
         if SHOW_GUI:
@@ -199,6 +220,8 @@ class testclassMapVisualization(unittest.TestCase):
         lyr2 = TestObjects.createVectorLayer()
         lyr2.setName('Layer2 name')
 
+        QgsProject.instance().addMapLayers([lyr, lyr2])
+
         mapview = MapView()
 
         self.assertEqual([], mapview.sensors())
@@ -211,26 +234,35 @@ class testclassMapVisualization(unittest.TestCase):
         self.assertEqual(TS.sensors(), mapview.sensors())
 
         from eotimeseriesviewer.mapcanvas import MapCanvas
-        canvas = MapCanvas()
+        MW = MapWidget()
+        MW.setTimeSeries(TS)
         tsd = TS[0]
-        canvas.setTSD(tsd)
-        mapview.registerMapCanvas(canvas)
 
-        self.assertTrue(canvas in mapview.mapCanvases())
-        canvas.show()
+        MW.setMapsPerMapView(1)
+        MW.addMapView(mapview)
+        MW.setCurrentDate(tsd)
+        self.assertTrue(len(MW.mapCanvases()) == 1)
+
+        canvas = MW.mapCanvases()[0]
+        self.assertIsInstance(canvas, MapCanvas)
+        self.assertEqual(canvas.tsd(), tsd)
+        self.assertEqual(canvas.mapView(), mapview)
+
+
         self.assertEqual([], canvas.layers())
         canvas.timedRefresh()
         self.assertNotEqual([], canvas.layers())
         l = canvas.layers()[-1]
-        canvas.setCrs(l.crs())
-        canvas.setExtent(l.extent())
+        MW.setCrs(l.crs())
+        MW.setSpatialExtent(SpatialExtent.fromLayer(l))
 
         if SHOW_GUI:
             w = QWidget()
             w.setLayout(QHBoxLayout())
             w.layout().addWidget(mapview)
-            w.layout().addWidget(canvas)
+            w.layout().addWidget(MW)
             w.show()
+
 
             timer = QTimer()
             timer.timeout.connect(canvas.timedRefresh)
@@ -241,29 +273,32 @@ class testclassMapVisualization(unittest.TestCase):
     def test_mapViewDock(self):
 
         TS = TestObjects.createTimeSeries()
-
+        mw = MapWidget()
+        mw.setTimeSeries(TS)
+        mw.setMapsPerMapView(1)
+        mw.setMapTool(MapTools.CursorLocation)
         dock = MapViewDock()
         self.assertIsInstance(dock, MapViewDock)
         dock.setTimeSeries(TS)
+
+        dock.setMapWidget(mw)
         mapView = dock.createMapView()
         self.assertIsInstance(mapView, MapView)
         mapView.setTimeSeries(TS)
-        canvas = MapCanvas()
-        canvas.setTSD(TS[0])
-        tss = TS[0][0]
-        self.assertIsInstance(tss, TimeSeriesSource)
-        canvas.setCrs(tss.crs())
-        canvas.setSpatialExtent(tss.spatialExtent())
+
+        tsd = TS[0]
+        tss = tsd[0]
+
+        mw.setCurrentDate(tsd)
+        mw.setCrs(tss.crs())
+        mw.setSpatialExtent(tss.spatialExtent())
+
 
 
         if SHOW_GUI:
             dock.show()
-            canvas.show()
+            mw.show()
 
-            timer = QTimer()
-            timer.timeout.connect(canvas.timedRefresh)
-            timer.setInterval(500)
-            timer.start()
 
             QGIS_APP.exec_()
 
@@ -461,12 +496,3 @@ class testclassMapVisualization(unittest.TestCase):
         s = ""
 
 
-
-if __name__ == "__main__":
-    unittest.main()
-    print('Done')
-
-TC = testclassMapVisualization()
-TC.test_mapWidget()
-QGIS_APP.quit()
-exit(0)

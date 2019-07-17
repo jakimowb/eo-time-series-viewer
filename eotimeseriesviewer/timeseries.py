@@ -180,9 +180,10 @@ class SensorInstrument(QObject):
             self.wl = np.asarray(self.wl)
 
         if sensor_name is None:
-            sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
-            import eotimeseriesviewer.settings
-            sensor_name = eotimeseriesviewer.settings.value(self._sensorSettingsKey(), sensor_name)
+            from eotimeseriesviewer.settings import value, Keys
+            sensorNames = value(Keys.SensorNames)
+            sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
+
         self.mName = ''
         self.setName(sensor_name)
 
@@ -240,8 +241,12 @@ class SensorInstrument(QObject):
         """
         if name != self.mName:
             self.mName = name
-            import eotimeseriesviewer.settings
-            eotimeseriesviewer.settings.setValue(self._sensorSettingsKey(), name)
+            from eotimeseriesviewer.settings import Keys, value, setValue
+
+            sensorNames = value(Keys.SensorNames)
+            sensorNames[self.id()] = name
+            setValue(Keys.SensorNames, sensorNames)
+
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
@@ -1416,6 +1421,8 @@ class TimeSeries(QAbstractItemModel):
                     self.sigTimeSeriesDatesAdded.emit(addedDates)
 
             except Exception as ex:
+                import traceback
+                traceback.print_exc()
                 s = ""
         else:
             s = ""
@@ -1520,7 +1527,7 @@ class TimeSeries(QAbstractItemModel):
 
     def date2date(self, date:np.datetime64)->np.datetime64:
         """
-        Converts a date of arbitrary precission into the date with precission according to the EOTSV settions.
+        Converts a date of arbitrary precision into the date with precision according to the EOTSV settions.
         :param date: numpy.datetime64
         :return: numpy.datetime64
         """
@@ -1817,6 +1824,26 @@ class TimeSeries(QAbstractItemModel):
             self.sigVisibilityChanged.emit()
 
         return result
+
+    def findDate(self, date)->TimeSeriesDate:
+        """
+        Returns a TimeSeriesDate closes to that in date
+        :param date: numpy.datetime64 | str | TimeSeriesDate
+        :return: TimeSeriesDate
+        """
+        if isinstance(date, str):
+            date = np.datetime64(date)
+        if isinstance(date, TimeSeriesDate):
+            date = date.date()
+        assert isinstance(date, np.datetime64)
+
+        if len(self) == 0:
+            return None
+        dtAbs = np.abs(date - np.asarray([tsd.date() for tsd in self.mTSDs]))
+
+        i = np.argmin(dtAbs)
+        return self.mTSDs[i]
+
 
     def flags(self, index):
         assert isinstance(index, QModelIndex)

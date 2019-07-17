@@ -103,82 +103,168 @@ class MapLoadingInfoItem(QgsMapCanvasItem):
                     QApplication.style().drawControl(QStyle.CE_ProgressBar, options, painter)
 
 class MapCanvasInfoItem(QgsMapCanvasItem):
-
+    """
+    A QgsMapCanvasItem to show text
+    """
     def __init__(self, mapCanvas):
         assert isinstance(mapCanvas, QgsMapCanvas)
         super(MapCanvasInfoItem, self).__init__(mapCanvas)
         self.mCanvas = mapCanvas
 
-        self.mULText = None
-        self.mLLText = None
-        self.mLRText = None
-        self.mURText = None
-        self.mUCText = None
-        self.mLCText = None
+        self.mText = dict()
+        self.mWrapChar = '\n'
+        self.mTextFormat = QgsTextFormat()
+        self.mTextFormat.setSizeUnit(QgsUnitTypes.RenderPixels)
+        self.mTextFormat.setFont(QFont('Helvetica', pointSize=10))
+        self.mTextFormat.setColor(QColor('yellow'))
 
-        self.mPenColor = QColor('yellow')
-        self.mVisibility = True
+    def setWrapChar(self, c:str)->str:
+        """
+        Sets a Wrap Character
+        :param c:
+        :return:
+        """
+        self.mWrapChar = c
+        return self.wrapChar()
+
+    def wrapChar(self)->str:
+        return self.mWrapChar
+
+    def setText(self, text:str, alignment:Qt.Alignment=Qt.AlignTop | Qt.AlignHCenter):
+
+        self.mText[alignment] = text
 
 
+    def setTextFormat(self, format:QgsTextFormat):
+        assert isinstance(format, QgsTextFormat)
+        self.mTextFormat = format
+        self.updateCanvas()
+
+    def textFormat(self)->QgsTextFormat:
+        """
+        Returns the text format.
+        :return: QgsTextFormat
+        """
+        return self.mTextFormat
+
+    def font(self)->QFont:
+        """
+        Returns the font used to write text on the map canvas.
+        :return: QFont
+        """
+        return self.mTextFormat.font()
+
+    def setFont(self, font:QFont):
+        self.mTextFormat.setFont(font)
 
     def setColor(self, color:QColor):
         """
         Sets the map info color
         :param color: QColor
         """
-        self.mPenColor = color
+        self.mTextFormat.setColor(color)
 
     def color(self)->QColor:
         """
         Returns the info text color
         :return: QColor
         """
-        return self.mPenColor
+        return self.mTextFormat.color()
 
-    def setVisibility(self, b:bool):
-        """
-        Sets the visibility of the info item
-        :param b:
-        :return:
-        """
-        assert isinstance(b, bool)
-        old = self.mShow
-        self.mVisibility = b
-        if old != b:
-            self.mCanvas.update()
-
-    def visibility(self)->bool:
-        """Returns the info items's visibility"""
-        return self.mVisibility
-
-    def paintText(self, painter, text:str, flags, width=10, color=QColor('black') ):
-        pen = QPen(Qt.SolidLine)
-        pen.setWidth(width)
-        pen.setColor(self.mPenColor)
-
+    def paintText(self, painter, text:str, flags, rotation=0):
+        padding = 5
         text = text.replace('\\n', '\n')
+        text = text.split(self.wrapChar())
 
-        font = QFont('Helvetica', pointSize=10)
-        painter.setFont(font)
-        brush = self.mCanvas.backgroundBrush()
-        c = brush.color()
-        c.setAlpha(170)
-        brush.setColor(c)
-        painter.setBrush(brush)
+        nl = len(text)
+        #text = text.split('\\n')
+        r = QgsTextRenderer()
+
+        painter.setBrush(Qt.NoBrush)
         painter.setPen(Qt.NoPen)
-        fm = QFontMetrics(font)
-        #background = QPolygonF(QRectF(backGroundPos, backGroundSize))
-        #painter.drawPolygon(background)
-        painter.setPen(pen)
+        painter.setRenderHint(QPainter.Antialiasing)
 
-        rect = painter.viewport()
-        painter.drawText(rect, flags, text)
-        #painter.drawText(position, text)
+        context = QgsRenderContext()
+
+        # taken from QGIS Repo src/core/qgspallabeling.cpp
+        m2p = QgsMapToPixel(1, 0, 0, 0, 0, 0)
+        context.setMapToPixel(m2p)
+        context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
+        context.setUseAdvancedEffects(True)
+        context.setPainter(painter)
+        #context.setExtent(self.mCanvas.extent())
+        #context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
+
+        vp = QRectF(painter.viewport())
+        #rect = self.mCanvas.extent().toRectF()
+
+        textFormat = self.mTextFormat
+        assert isinstance(textFormat, QgsTextFormat)
+        th = r.textHeight(context, textFormat, text,  QgsTextRenderer.Rect)
+        tw = r.textWidth(context, textFormat, text)
+
+        # area to place the text inside
+        rect = QRectF()
+        x = 0.5*vp.width()
+        y = 0.5*vp.height()
+        hAlign = QgsTextRenderer.AlignCenter
+
+        # horizontal position
+        if bool(flags & Qt.AlignLeft):
+            x = padding
+            hAlign = QgsTextRenderer.AlignLeft
+
+        elif bool(flags & Qt.AlignHCenter):
+            x = 0.5 * vp.width()
+            hAlign = QgsTextRenderer.AlignCenter
+
+        elif bool(flags & Qt.AlignRight):
+            x = vp.width() - padding
+            hAlign = QgsTextRenderer.AlignRight
+
+        # vertical position
+        if bool(flags & Qt.AlignTop):
+            y = padding + th - 0.5* (th / nl)
+
+        elif bool(flags & Qt.AlignVCenter):
+            y = 0.5 * (vp.height() + th)
+
+        elif bool(flags & Qt.AlignBottom):
+            y = vp.height() - padding #- th
+
+        poo = QPointF(x, y)
+        r.drawText(poo, rotation, hAlign, text, context, textFormat)
+
+    def setUpperLeft(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignLeft)
+
+    def setMiddleLeft(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignLeft)
+
+    def setLowerLeft(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignLeft)
+
+
+    def setUpperCenter(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignHCenter)
+
+    def setMiddleCenter(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignHCenter)
+
+    def setLowerCenter(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignHCenter)
+
+    def setUpperRight(self, text:str):
+        self.setText(text, Qt.AlignTop | Qt.AlignRight)
+
+    def setMiddleRight(self, text: str):
+        self.setText(text, Qt.AlignVCenter | Qt.AlignRight)
+
+    def setLowerRight(self, text: str):
+        self.setText(text, Qt.AlignBottom | Qt.AlignRight)
 
     def clearText(self):
-
-        self.mULText = self.mUCText = self.mURText = None
-        self.mLLText = self.mLCText = self.mLRText = None
+        self.mText.clear()
 
     def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
             """
@@ -188,26 +274,9 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
-            h = painter.viewport().height()
-            w = painter.viewport().width()
-            if self.mLLText:
-                self.paintText(painter, self.mLLText, Qt.AlignBottom | Qt.AlignLeft )
-
-            if self.mLRText:
-                self.paintText(painter, self.mLRText, Qt.AlignBottom | Qt.AlignRight)
-
-            if self.mULText:
-                self.paintText(painter, self.mULText, Qt.AlignTop | Qt.AlignRight)
-
-            if self.mURText:
-                self.paintText(painter, self.mURText, Qt.AlignTop | Qt.AlignLeft)
-
-            if self.mUCText:
-                self.paintText(painter, self.mUCText, Qt.AlignTop | Qt.AlignHCenter)
-
-            if self.mLCText:
-                self.paintText(painter, self.mLCText, Qt.AlignBottom | Qt.AlignHCenter)
-
+            for alignment, text in self.mText.items():
+                if isinstance(text, str) and len(text) > 0:
+                    self.paintText(painter, text, alignment)
 
 class MapCanvasMapTools(QObject):
 
@@ -431,7 +500,7 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(mapView, MapView)
 
         self.mMapView = mapView
-        self.mInfoItem.setColor(mapView.mapTextColor())
+        self.mInfoItem.setTextFormat(mapView.mapTextFormat())
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
         self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
