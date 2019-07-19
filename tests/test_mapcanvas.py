@@ -26,10 +26,10 @@ from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
+    """Test resources work."""
 
     def setUp(self):
         """Runs before each test."""
@@ -196,31 +196,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(lastPos == p2)
 
 
-    def test_rendering_flags(self):
-        #img = TestObjects.inMemoryImage(ns=10000,nl=10000, nb=3)
-        #need a large image on file!
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
-        TSV = TimeSeriesViewer(None)
-        self.assertIsInstance(TSV, TimeSeriesViewer)
-        TSV.loadExampleTimeSeries()
-        self.assertIsInstance(TSV.timeSeries(), TimeSeries)
-        self.assertTrue(len(TSV.timeSeries()) > 0)
-        TSV.show()
-        QApplication.processEvents()
-
-        stv = TSV.spatialTemporalVis
-        self.assertIsInstance(stv, SpatialTemporalVisualization)
-
-        maps = stv.mapCanvases()
-        hidden = [m for m in maps if not m.isVisibleToViewport()]
-        visible = [m for m in maps if m.isVisibleToViewport()]
-
-        self.assertTrue(len(maps) == len(visible) + len(hidden))
-        self.assertTrue(len(hidden) > 0)
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
 
 
 
