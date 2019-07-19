@@ -45,7 +45,7 @@ import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
-from eotimeseriesviewer.mapvisualization import MapView
+from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
@@ -837,6 +837,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
+    def setMapsPerMapView(self, n:int):
+        """
+        Sets the number of map canvases that is shown per map view
+        :param n: int
+        """
+        self.mapWidget().setMapsPerMapView(n)
 
     def setMapSize(self, size:QSize):
         """
@@ -1081,7 +1087,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False
 
-    def mapWidget(self):
+    def mapWidget(self)->MapWidget:
+        """
+        Returns the MapWidget that contains all map canvases.
+        :return: MapWidget
+        """
         return self.ui.mMapWidget
 
     def saveTimeSeriesDefinition(self):

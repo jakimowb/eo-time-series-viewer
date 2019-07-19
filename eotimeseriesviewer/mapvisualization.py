@@ -650,7 +650,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         :return:
         """
         assert isinstance(sensor, SensorInstrument)
-        return [c for c in self.mapCanvases() if isinstance(c, MapCanvas) and c.tsd().sensor() == sensor]
+        return [c for c in self.mapCanvases() if isinstance(c, MapCanvas) and \
+                isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor() == sensor]
 
 
     def sensorLayer(self, sensor: SensorInstrument):
@@ -1034,9 +1035,19 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self._updateSliderRange)
 
+            if len(self.mTimeSeries) > 0:
+                self.mCurrentDate = self.mTimeSeries[0]
+            else:
+                self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onSetInitialCurrentDate)
             self._updateSliderRange()
 
         return self.timeSeries()
+
+
+    def onSetInitialCurrentDate(self):
+        if len(self.timeSeries()) > 0:
+            self.setCurrentDate(self.timeSeries()[0])
+            self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self.onSetInitialCurrentDate)
 
     def _updateSliderRange(self):
 
@@ -1120,6 +1131,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
 
     def moveToNextTSD(self):
+
         for tsd in self.timeSeries()[:]:
             assert isinstance(tsd, TimeSeriesDate)
             if tsd > self.currentDate() and tsd.isVisible():

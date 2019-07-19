@@ -40,8 +40,10 @@ def widgetScreenshot(widget, path):
     QApplication.processEvents()
     rect = widget.rect()
     pixmap = widget.grab()
+    
     #pixmap = QPixmap(rect.size())
     #widget.render(pixmap, QPoint(), QRegion(rect))
+    
     pixmap.save(path, quality=100)
 
 def blankGUI(bn:str):

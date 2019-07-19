@@ -530,6 +530,8 @@ class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
         self.mVectorLayerComboBox.setCurrentIndex(0)
         self.mVectorLayerComboBox.setShowCrs(True)
+        self.mVectorLayerComboBox.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+        self.mVectorLayerComboBox.setMinimumWidth(150)
 
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
 

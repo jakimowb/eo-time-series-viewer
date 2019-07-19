@@ -1034,7 +1034,7 @@ class TimeSeries(QAbstractItemModel):
             if changed:
                 ul = self.index(0, 0)
                 lr = self.index(self.rowCount()-1, 0)
-                self.dataChanged.emit(ul, lr, roles=[Qt.CheckStateRole])
+                self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
                 self.sigVisibilityChanged.emit()
 
     def currentSpatialExtent(self)->SpatialExtent:
