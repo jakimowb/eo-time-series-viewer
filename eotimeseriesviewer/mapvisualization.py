@@ -1432,7 +1432,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         # remove old canvases
         for c in oldCanvases:
             if c not in usedCanvases:
-                self._disconnectCanvasSignals(c)
+                try:
+                    self._disconnectCanvasSignals(c)
+                except:
+                    pass
+
         t4 = time.time()
 
         if False:
@@ -1446,12 +1450,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
     def _updateWidgetSize(self):
 
         self.mGrid.update()
-        # self.resize(self.sizeHint())
+        #self.resize(self.sizeHint())
         # self.setMaximumSize(self.sizeHint())
-        self.setFixedSize(self.sizeHint())
+        # self.setFixedSize(self.sizeHint())
         #if False and self.parentWidget():
         if True:
-            w = self.parentWidget()
             w = self
             assert isinstance(w, QWidget)
 
