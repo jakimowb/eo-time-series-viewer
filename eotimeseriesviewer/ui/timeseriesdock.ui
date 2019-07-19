@@ -18,8 +18,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>0</width>
-    <height>0</height>
+    <width>152</width>
+    <height>139</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -217,7 +217,7 @@
          <widget class="TimeSeriesTreeView" name="timeSeriesTreeView">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-            <horstretch>1</horstretch>
+            <horstretch>0</horstretch>
             <verstretch>1</verstretch>
            </sizepolicy>
           </property>
@@ -225,7 +225,7 @@
            <enum>QFrame::NoFrame</enum>
           </property>
           <property name="sizeAdjustPolicy">
-           <enum>QAbstractScrollArea::AdjustToContents</enum>
+           <enum>QAbstractScrollArea::AdjustIgnored</enum>
           </property>
           <property name="alternatingRowColors">
            <bool>true</bool>

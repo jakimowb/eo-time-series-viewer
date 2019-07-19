@@ -18,14 +18,12 @@ class Keys(enum.Enum):
     MapSize = 'map_size'
     MapUpdateInterval = 'map_update_interval'
     MapBackgroundColor = 'map_background_color'
+    MapTextFormat = 'map_text_format'
+    SensorNames = 'sensor_names'
     ScreenShotDirectory = 'screen_shot_directory'
     RasterSourceDirectory = 'raster_source_directory'
     VectorSourceDirectory = 'vector_source_directory'
     MapImageExportDirectory = 'map_image_export_directory'
-
-_VALID_KEYS = list(Keys)
-_VALID_KEYSTRING = [k.value for k in _VALID_KEYS]
-_VALID_KEYNAMES = [k.name for k in _VALID_KEYS]
 
 
 def defaultValues() -> dict:
@@ -42,17 +40,35 @@ def defaultValues() -> dict:
     d[Keys.RasterSourceDirectory] = str(home)
     d[Keys.VectorSourceDirectory] = str(home)
     d[Keys.DateTimePrecision] = DateTimePrecision.Day
+    d[Keys.SensorNames] = dict()
 
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
-    d[Keys.MapSize] = QSize(300, 300)
+    d[Keys.MapSize] = QSize(150, 150)
     d[Keys.MapBackgroundColor] = QColor('black')
+
+    textFormat = QgsTextFormat()
+    textFormat.setColor(QColor('yellow'))
+    textFormat.setSizeUnit(QgsUnitTypes.RenderPoints)
+    textFormat.setFont(QFont('Helvetica'))
+    textFormat.setSize(11)
+
+    buffer = QgsTextBufferSettings()
+    buffer.setColor(QColor('black'))
+    buffer.setSize(1)
+    buffer.setSizeUnit(QgsUnitTypes.RenderPixels)
+    buffer.setEnabled(True)
+    textFormat.setBuffer(buffer)
+
+    d[Keys.MapTextFormat] = textFormat
+
+
     # tbd. other settings
 
     return d
 
 
-_DEFAULTS = defaultValues()
+DEFAULT_VALUES = defaultValues()
 
 
 
@@ -65,52 +81,45 @@ def settings()->QSettings:
 
     return settings
 
-def keyString(obj)->str:
-    """
-    Converts a string or key into the appropriate key string accessor for the QSettings object.
-
-    :param obj:
-    :return:
-    """
-    keyString = None
-    if isinstance(obj, str):
-        if obj in _VALID_KEYSTRING:
-            keyString = _VALID_KEYS[_VALID_KEYSTRING.index(obj)].value
-        elif obj in _VALID_KEYNAMES:
-            keyString = _VALID_KEYS[_VALID_KEYNAMES.index(obj)].value
-        else:
-            keyString = obj
-    elif isinstance(obj, Keys):
-        keyString = obj.value
-    return keyString
-
 
 def value(key:Keys, default=None):
     """
     Provides direct access to a settings value
-    :param key: str | Keys
+    :param key: Keys
     :param default: default value, defaults to None
     :return: value | None
     """
-    ks = keyString(key)
+    assert isinstance(key, Keys)
     value = None
     try:
-        value = settings().value(ks, defaultValue=default)
+        value = settings().value(key.value, defaultValue=default)
+
+        if value == QVariant():
+            value = None
+
+        if value and key == Keys.MapTextFormat:
+           s = ""
+
     except TypeError as error:
         value = None
-        settings().setValue(ks, None)
+        settings().setValue(key.value, None)
         print(error, file=sys.stderr)
     return value
 
 
-def setValue(key, value):
+def setValue(key:Keys, value):
     """
     Shortcut to save a value into the EOTSV settings
     :param key: str | Key
     :param value: any value
     """
-    ks = keyString(key)
-    settings().setValue(ks, value)
+    assert isinstance(key, Keys)
+
+    if isinstance(value, QgsTextFormat):
+        value = value.toMimeData()
+
+    settings().setValue(key.value, value)
+
 
 
 def setValues(values: dict):
@@ -119,15 +128,9 @@ def setValues(values: dict):
     :param values: dict
     :return:
     """
-    S = settings()
-    assert isinstance(S, QSettings)
     assert isinstance(values, dict)
-
     for key, val in values.items():
-        ks = keyString(key)
-        if isinstance(ks, str):
-            S.setValue(ks, values[key])
-    pass
+        setValue(key, val)
 
 
 class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
@@ -153,6 +156,8 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         self.sbMapSizeX.valueChanged.connect(self.validate)
         self.sbMapSizeY.valueChanged.connect(self.validate)
         self.sbMapRefreshIntervall.valueChanged.connect(self.validate)
+
+        self.mMapTextFormatButton.changed.connect(self.validate)
 
         assert isinstance(self.buttonBox, QDialogButtonBox)
         self.buttonBox.button(QDialogButtonBox.RestoreDefaults).clicked.connect(lambda: self.setValues(defaultValues()))
@@ -192,6 +197,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())
         d[Keys.MapUpdateInterval] = self.sbMapRefreshIntervall.value()
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
+        d[Keys.MapTextFormat] = self.mMapTextFormatButton.textFormat()
 
         return d
 
@@ -235,6 +241,11 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
 
             if checkKey(key, Keys.MapBackgroundColor) and isinstance(value, QColor):
                 self.mCanvasColorButton.setColor(value)
+
+            if checkKey(key, Keys.MapTextFormat) and isinstance(value, QgsTextFormat):
+                self.mMapTextFormatButton.setTextFormat(value)
+
+
 
 
 

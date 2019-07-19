@@ -26,10 +26,10 @@ from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
+    """Test resources work."""
 
     def setUp(self):
         """Runs before each test."""
@@ -92,12 +92,66 @@ class testclassDialogTest(unittest.TestCase):
         event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
         canvas.contextMenuEvent(event)
 
+    def test_mapcanvasInfoItem(self):
+
+        mc = MapCanvas()
+        vl = TestObjects.createVectorLayer(QgsWkbTypes.Polygon)
+        mc.setLayers([vl])
+        mc.setDestinationCrs(vl.crs())
+        mc.setExtent(mc.fullExtent())
+
+        from eotimeseriesviewer.settings import Keys, DEFAULT_VALUES
+        mc.mInfoItem.setTextFormat(DEFAULT_VALUES[Keys.MapTextFormat])
+        mc.mInfoItem.setUpperLeft('Upper\nLeft')
+        if True:
+            mc.mInfoItem.setMiddleLeft('Middle\nLeft')
+            mc.mInfoItem.setLowerLeft('Lower\nLeft')
+
+
+            mc.mInfoItem.setUpperCenter('Upper\nCenter')
+            mc.mInfoItem.setMiddleCenter('Middle\nCenter')
+            mc.mInfoItem.setLowerCenter('Lower\nCenter')
+
+            mc.mInfoItem.setUpperRight('Upper\nRight')
+            mc.mInfoItem.setMiddleRight('Middle\nRight')
+            mc.mInfoItem.setLowerRight('Lower\nRight')
+
+        if False:
+            for k in mc.mInfoItem.mText.keys():
+                v = mc.mInfoItem.mText[k]
+                mc.mInfoItem.mText[k] = v.replace('\n' ,' ')
+
+        mc.show()
+
+        item = mc.mInfoItem
+        self.assertIsInstance(item, MapCanvasInfoItem)
+        btn = QgsFontButton()
+        btn.setMapCanvas(mc)
+        btn.setTextFormat(item.textFormat())
+
+
+        def onChanged():
+            mc.mInfoItem.setTextFormat(btn.textFormat())
+            mc.update()
+        btn.changed.connect(onChanged)
+
+        if False:
+            w= QWidget()
+            w.setLayout(QVBoxLayout())
+            w.layout().addWidget(btn)
+            w.layout().addWidget(mc)
+            w.show()
+        else:
+            mc.show()
+            btn.show()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
     def test_mapcanvas(self):
         files = testRasterFiles()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
-
 
 
         canvas = MapCanvas()
@@ -142,31 +196,6 @@ class testclassDialogTest(unittest.TestCase):
         self.assertTrue(lastPos == p2)
 
 
-    def test_rendering_flags(self):
-        #img = TestObjects.inMemoryImage(ns=10000,nl=10000, nb=3)
-        #need a large image on file!
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        from eotimeseriesviewer.mapvisualization import SpatialTemporalVisualization
-        TSV = TimeSeriesViewer(None)
-        self.assertIsInstance(TSV, TimeSeriesViewer)
-        TSV.loadExampleTimeSeries()
-        self.assertIsInstance(TSV.timeSeries(), TimeSeries)
-        self.assertTrue(len(TSV.timeSeries()) > 0)
-        TSV.show()
-        QApplication.processEvents()
-
-        stv = TSV.spatialTemporalVis
-        self.assertIsInstance(stv, SpatialTemporalVisualization)
-
-        maps = stv.mapCanvases()
-        hidden = [m for m in maps if not m.isVisibleToViewport()]
-        visible = [m for m in maps if m.isVisibleToViewport()]
-
-        self.assertTrue(len(maps) == len(visible) + len(hidden))
-        self.assertTrue(len(hidden) > 0)
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
 
 
 

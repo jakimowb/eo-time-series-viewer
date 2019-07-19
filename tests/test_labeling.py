@@ -24,9 +24,10 @@ from eotimeseriesviewer.labeling import *
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.tests import TestObjects
+from eotimeseriesviewer.mapvisualization import MapView
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 reg = QgsGui.editorWidgetRegistry()
 if len(reg.factories()) == 0:
@@ -57,6 +58,8 @@ class testclassLabelingTest(unittest.TestCase):
 
         ts = TestObjects.createTimeSeries()
 
+        mv = MapView()
+
         lyr = self.createVectorLayer()
         model = LabelAttributeTableModel()
         model.setVectorLayer(lyr)
@@ -74,26 +77,17 @@ class testclassLabelingTest(unittest.TestCase):
 
         canvas = MapCanvas()
         canvas.setTSD(tsd)
-        menu = canvas.contextMenu()
+        canvas.setMapView(mv)
+        pos = QPoint(canvas.width()*0.5, canvas.height()*0.5)
+        menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
 
         def findLabelAction(menu)->QAction:
             for a in menu.actions():
-                if a.text().startswith('Label '):
+                if a.text().startswith('Quick Labels'):
                     return a
         m = findLabelAction(menu).menu()
-        for a in m.actions():
-            self.assertTrue(a.isEnabled() == False)
-        lyr.selectByIds([1, 2, 3, 4, 5])
-        menu = canvas.contextMenu()
-        m = findLabelAction(menu).menu()
-        for a in m.actions():
-            self.assertTrue(a.isEnabled() == True)
-            if a.text().startswith('Shortcuts'):
-                a.trigger()
 
-        for feature in lyr:
-            assert isinstance(feature, QgsFeature)
 
 
         if SHOW_GUI:
@@ -116,10 +110,10 @@ class testclassLabelingTest(unittest.TestCase):
                 for t in list(LabelShortcutType):
                     self.assertTrue(t in possibleTypes)
             elif re.search('integer', field.typeName(), re.I):
-                for t in [LabelShortcutType.Classification, LabelShortcutType.Off, LabelShortcutType.DOY]:
+                for t in [LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
             elif re.search('real', field.typeName(), re.I):
-                for t in [LabelShortcutType.Classification, LabelShortcutType.Off, LabelShortcutType.DOY]:
+                for t in [LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
             else:
                 self.fail('Unhandled QgsField typeName: {}'.format(field.typeName()))
@@ -324,7 +318,7 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertIsInstance(lw, LabelingWidget)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
-        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() is None)
+        self.assertTrue(lw.currentVectorSource() is None)
 
         QgsProject.instance().addMapLayer(lyr)
 
@@ -365,9 +359,8 @@ class testclassLabelingTest(unittest.TestCase):
             self.assertEqual(feature.attribute('class2l'), classInfo2.label())
             self.assertEqual(feature.attribute('class2n'), classInfo2.name())
 
-        self.assertIsInstance(lw.mVectorLayerComboBox, QgsMapLayerComboBox)
-        lw.mVectorLayerComboBox.setCurrentIndex(1)
-        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() == lyr)
+        lw.setCurrentVectorSource(lyr)
+        self.assertTrue(lw.currentVectorSource() == lyr)
 
         self.assertTrue(lyr.commitChanges())
 

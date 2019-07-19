@@ -2152,6 +2152,9 @@ class SpectralLibrary(QgsVectorLayer):
                 return False
         return True
 
+    def __hash__(self):
+        return super(SpectralLibrary, self).__hash__()
+
 
 
 

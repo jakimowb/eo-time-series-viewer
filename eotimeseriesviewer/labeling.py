@@ -528,7 +528,10 @@ class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
 
         self.mVectorLayerComboBox = QgsMapLayerComboBox()
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
+        self.mVectorLayerComboBox.setCurrentIndex(0)
         self.mVectorLayerComboBox.setShowCrs(True)
+        self.mVectorLayerComboBox.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+        self.mVectorLayerComboBox.setMinimumWidth(150)
 
         assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
 
@@ -1191,6 +1194,13 @@ class LabelingDock(QgsDockWidget):
 
     def labelingWidget(self)->LabelingWidget:
         return self.mLabelingWidget
+
+    def canvas(self)->QgsMapCanvas:
+        """
+        Returns the QgsMapCanvase
+        :return:
+        """
+        return self.mLabelingWidget.canvas()
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV_Quick Label'
 labelEditorWidgetFactory = None

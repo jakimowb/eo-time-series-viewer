@@ -180,9 +180,10 @@ class SensorInstrument(QObject):
             self.wl = np.asarray(self.wl)
 
         if sensor_name is None:
-            sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
-            import eotimeseriesviewer.settings
-            sensor_name = eotimeseriesviewer.settings.value(self._sensorSettingsKey(), sensor_name)
+            from eotimeseriesviewer.settings import value, Keys
+            sensorNames = value(Keys.SensorNames)
+            sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
+
         self.mName = ''
         self.setName(sensor_name)
 
@@ -240,8 +241,12 @@ class SensorInstrument(QObject):
         """
         if name != self.mName:
             self.mName = name
-            import eotimeseriesviewer.settings
-            eotimeseriesviewer.settings.setValue(self._sensorSettingsKey(), name)
+            from eotimeseriesviewer.settings import Keys, value, setValue
+
+            sensorNames = value(Keys.SensorNames)
+            sensorNames[self.id()] = name
+            setValue(Keys.SensorNames, sensorNames)
+
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
@@ -569,7 +574,6 @@ class TimeSeriesDate(QAbstractTableModel):
     """
     A containe to store all image source related to a single observation date and sensor.
     """
-    sigVisibilityChanged = pyqtSignal(bool)
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
     sigRemoveMe = pyqtSignal()
@@ -643,10 +647,8 @@ class TimeSeriesDate(QAbstractTableModel):
         Sets the visibility of the TimeSeriesDate, i.e. whether linked MapCanvases will be shown to the user
         :param b: bool
         """
-        old = self.mVisibility
         self.mVisibility = b
-        if old != self.mVisibility:
-            self.sigVisibilityChanged.emit(b)
+
 
     def isVisible(self):
         """
@@ -890,10 +892,10 @@ class TimeSeriesTreeView(QTreeView):
         a.triggered.connect(lambda: self.onCopyValues())
         a = menu.addAction('Hide date(s)')
         a.setToolTip('Hides the selected time series dates.')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
+        a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
         a = menu.addAction('Show date(s)')
         a.setToolTip('Shows the selected time series dates.')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
+        a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
 
 
         menu.popup(QCursor.pos())
@@ -960,8 +962,7 @@ def doLoadTimeSeriesSourcesTask(taskWrapper:QgsTask, dump):
         s = TimeSeriesSource.create(source)
         if isinstance(s, TimeSeriesSource):
             results.append(s)
-
-        taskWrapper.setProgress(float(i+1) / n * 100.0)
+        taskWrapper.setProgress(i+1)
     return pickle.dumps(results)
     s = ""
 
@@ -972,8 +973,6 @@ class TimeSeries(QAbstractItemModel):
 
     sigTimeSeriesDatesAdded = pyqtSignal(list)
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
-    #sigLoadingProgress = pyqtSignal(int, int, str)
-
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
@@ -981,7 +980,7 @@ class TimeSeries(QAbstractItemModel):
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
 
-
+    sigVisibilityChanged = pyqtSignal()
 
     _sep = ';'
 
@@ -994,7 +993,7 @@ class TimeSeries(QAbstractItemModel):
 
         self.mLoadingProgressDialog = None
 
-        self.mCurrentDates = []
+        self.mVisibleDate = []
         self.mCurrentSpatialExtent = None
 
         self.cnDate = 'Date'
@@ -1007,10 +1006,7 @@ class TimeSeries(QAbstractItemModel):
         self.mColumnNames = [self.cnDate, self.cnSensor,
                              self.cnNS, self.cnNL, self.cnNB,
                              self.cnCRS, self.cnImages]
-
         self.mRootIndex = QModelIndex()
-
-
         self.mTasks = dict()
 
         if imageFiles is not None:
@@ -1024,19 +1020,22 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-            #
-            #idx1 = self.index(0, 0)
-            #idx2 = self.index(self.rowCount()-1, 0)
-            #self.dataChanged.emit(idx1, idx2, [Qt.DecorationRole])
-
     def focusVisibilityToExtent(self):
         ext = self.currentSpatialExtent()
         if isinstance(ext, SpatialExtent):
+            changed = False
             for tsd in self:
                 assert isinstance(tsd, TimeSeriesDate)
                 b = tsd.hasIntersectingSource(ext)
+                if b != tsd.isVisible():
+                    changed = True
                 tsd.setVisibility(b)
 
+            if changed:
+                ul = self.index(0, 0)
+                lr = self.index(self.rowCount()-1, 0)
+                self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
+                self.sigVisibilityChanged.emit()
 
     def currentSpatialExtent(self)->SpatialExtent:
         """
@@ -1045,15 +1044,13 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mCurrentSpatialExtent
 
-    def setCurrentDates(self, tsds:list):
+    def setVisibleDates(self, tsds:list):
         """
         Sets the TimeSeriesDates currently shown
         :param tsds: [list-of-TimeSeriesDate]
         """
-
-
-        self.mCurrentDates.clear()
-        self.mCurrentDates.extend(tsds)
+        self.mVisibleDate.clear()
+        self.mVisibleDate.extend(tsds)
         for tsd in tsds:
             assert isinstance(tsd, TimeSeriesDate)
             if tsd in self:
@@ -1115,10 +1112,6 @@ class TimeSeries(QAbstractItemModel):
             progressDialog.setLabelText('Start loading {} images....'.format(len(images)))
 
         self.addSourcesAsync(images, progressDialog=progressDialog)
-
-
-        #self.addMasks(masks)
-
 
     def saveToFile(self, path):
         """
@@ -1219,7 +1212,6 @@ class TimeSeries(QAbstractItemModel):
         tsd.mTimeSeries = self
         tsd.sigRemoveMe.connect(lambda tsd=tsd: self.removeTSDs([tsd]))
 
-
         tsd.rowsAboutToBeRemoved.connect(lambda p, first, last, tsd=tsd: self.beginRemoveRows(self.tsdToIdx(tsd), first, last))
         tsd.rowsRemoved.connect(self.endRemoveRows)
         tsd.rowsAboutToBeInserted.connect(lambda p, first, last, tsd=tsd: self.beginInsertRows(self.tsdToIdx(tsd), first, last))
@@ -1231,19 +1223,41 @@ class TimeSeries(QAbstractItemModel):
         self.beginInsertRows(self.mRootIndex, row, row)
         self.mTSDs.insert(row, tsd)
         self.endInsertRows()
-        #self.rowsInserted()
-
         return tsd
 
 
-        
-  
+    def showTSDs(self, tsds:list, b:bool=True):
+
+        tsds = [t for t in tsds if t in self]
+
+        minRow = None
+        maxRow = None
+        for t in tsds:
+
+            idx = self.tsdToIdx(t)
+            if minRow is None:
+                minRow = idx.row()
+                maxRow = idx.row()
+            else:
+                minRow = min(minRow, idx.row())
+                maxRow = min(maxRow, idx.row())
+
+            assert isinstance(t, TimeSeriesDate)
+            t.setVisibility(b)
+        if minRow:
+            ul = self.index(minRow, 0)
+            lr = self.index(maxRow, 0)
+            self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
+            self.sigVisibilityChanged.emit()
+
+    def hideTSDs(self, tsds):
+        self.showTSDs(tsds, False)
+
     def removeTSDs(self, tsds):
         """
         Removes a list of TimeSeriesDate
         :param tsds: [list-of-TimeSeriesDate]
         """
-
         removed = list()
         toRemove = set()
         for t in tsds:
@@ -1258,7 +1272,6 @@ class TimeSeries(QAbstractItemModel):
 
             tsd.sigSourcesRemoved.disconnect()
             tsd.sigSourcesAdded.disconnect()
-            tsd.sigVisibilityChanged.disconnect()
             tsd.sigRemoveMe.disconnect()
 
             row = self.mTSDs.index(tsd)
@@ -1270,10 +1283,6 @@ class TimeSeries(QAbstractItemModel):
 
         if len(removed) > 0:
             self.sigTimeSeriesDatesRemoved.emit(removed)
-
-
-
-
 
     def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->list:
 
@@ -1295,11 +1304,6 @@ class TimeSeries(QAbstractItemModel):
         Removes all data sources from the TimeSeries (which will be empty after calling this routine).
         """
         self.removeTSDs(self[:])
-
-
-
-
-
 
     def addSensor(self, sensor:SensorInstrument):
         """
@@ -1350,29 +1354,49 @@ class TimeSeries(QAbstractItemModel):
         self.mLoadingProgressDialog = progressDialog
 
 
-        # see https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
-        def chunks(l, n):
-            """Yield successive n-sized chunks from l."""
-            for i in range(0, len(l), n):
-                yield l[i:i + n]
-
-        n = int(len(sources) / nWorkers)
-        for subset in chunks(sources, 50):
-
-            dump = pickle.dumps(subset)
-
-            taskDescription = 'Load {} images'.format(len(subset))
-            qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
+        if True:
+            n = len(sources)
+            taskDescription = 'Load {} images'.format(n)
+            dump = pickle.dumps(sources)
+            qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump,
+                                on_finished = self.onAddSourcesAsyncFinished)
             tid = id(qgsTask)
-            self.mTasks[tid] = qgsTask
             qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
             qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            self.mTasks[tid] = qgsTask
 
-            if False: # for debugging only
+            if False:  # for debugging only
                 resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
                 self.onAddSourcesAsyncFinished(None, resultDump)
             else:
                 tm.addTask(qgsTask)
+
+        else:
+            # see https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+
+            def chunks(l, n):
+                """Yield successive n-sized chunks from l."""
+                for i in range(0, len(l), n):
+                    yield l[i:i + n]
+
+            n = int(len(sources) / nWorkers)
+            for subset in chunks(sources, 50):
+
+                dump = pickle.dumps(subset)
+
+                taskDescription = 'Load {} images'.format(len(subset))
+                qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
+                tid = id(qgsTask)
+                self.mTasks[tid] = qgsTask
+                qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+                qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+
+                if False: # for debugging only
+                    resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
+                    self.onAddSourcesAsyncFinished(None, resultDump)
+                else:
+                    tm.addTask(qgsTask)
+        s  = ""
 
     def onRemoveTask(self, key):
         self.mTasks.pop(key)
@@ -1397,6 +1421,8 @@ class TimeSeries(QAbstractItemModel):
                     self.sigTimeSeriesDatesAdded.emit(addedDates)
 
             except Exception as ex:
+                import traceback
+                traceback.print_exc()
                 s = ""
         else:
             s = ""
@@ -1413,8 +1439,6 @@ class TimeSeries(QAbstractItemModel):
 
             if v == 1 or v % 25 == 0:
                 QApplication.processEvents()
-
-
 
     def addSources(self, sources:list, progressDialog:QProgressDialog=None):
         """
@@ -1443,12 +1467,6 @@ class TimeSeries(QAbstractItemModel):
                 if self.mLoadingProgressDialog.wasCanceled():
                     break
                 self.increaseProgressBar()
-
-            #if (i+1) % 10 == 0:
-            #    self.sigLoadingProgress.emit(i+1, nMax, msg)
-
-            #if (i+1) % 50 == 0:
-            #    QGuiApplication.processEvents()
 
             if isinstance(newTSD, TimeSeriesDate):
                 addedDates.append(newTSD)
@@ -1507,11 +1525,9 @@ class TimeSeries(QAbstractItemModel):
         #do we like to update existing sources?
 
 
-
-
     def date2date(self, date:np.datetime64)->np.datetime64:
         """
-        Converts a date of arbitrary precission into the date with precission according to the EOTSV settions.
+        Converts a date of arbitrary precision into the date with precision according to the EOTSV settions.
         :param date: numpy.datetime64
         :return: numpy.datetime64
         """
@@ -1766,7 +1782,7 @@ class TimeSeries(QAbstractItemModel):
                     print(ext)
                     return None
 
-            if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
+            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
                 return QColor('yellow')
 
         if isinstance(node, TimeSeriesDate):
@@ -1781,7 +1797,7 @@ class TimeSeries(QAbstractItemModel):
             if role == Qt.CheckStateRole and index.column() == 0:
                 return Qt.Checked if tsd.isVisible() else Qt.Unchecked
 
-            if role == Qt.BackgroundColorRole and tsd in self.mCurrentDates:
+            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
                 return QColor('yellow')
 
 
@@ -1793,17 +1809,41 @@ class TimeSeries(QAbstractItemModel):
             return False
 
         result = False
-
+        bVisibilityChanged = False
         node = index.internalPointer()
         if isinstance(node, TimeSeriesDate):
             if role == Qt.CheckStateRole and index.column() == 0:
                 node.setVisibility(value == Qt.Checked)
                 result = True
+                bVisibilityChanged = True
 
         if result == True:
             self.dataChanged.emit(index, index, [role])
 
+        if bVisibilityChanged:
+            self.sigVisibilityChanged.emit()
+
         return result
+
+    def findDate(self, date)->TimeSeriesDate:
+        """
+        Returns a TimeSeriesDate closes to that in date
+        :param date: numpy.datetime64 | str | TimeSeriesDate
+        :return: TimeSeriesDate
+        """
+        if isinstance(date, str):
+            date = np.datetime64(date)
+        if isinstance(date, TimeSeriesDate):
+            date = date.date()
+        assert isinstance(date, np.datetime64)
+
+        if len(self) == 0:
+            return None
+        dtAbs = np.abs(date - np.asarray([tsd.date() for tsd in self.mTSDs]))
+
+        i = np.argmin(dtAbs)
+        return self.mTSDs[i]
+
 
     def flags(self, index):
         assert isinstance(index, QModelIndex)
@@ -1814,202 +1854,6 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(index.internalPointer(), TimeSeriesDate) and index.column() == 0:
             flags = flags | Qt.ItemIsUserCheckable
         return flags
-
-
-class TimeSeriesTableModel(QAbstractTableModel):
-
-    def __init__(self, TS:TimeSeries, parent=None, *args):
-
-        super(TimeSeriesTableModel, self).__init__()
-        assert isinstance(TS, TimeSeries)
-
-        self.cnDate = 'Date'
-        self.cnSensor = 'Sensor'
-        self.cnNS = 'ns'
-        self.cnNL = 'nl'
-        self.cnNB = 'nb'
-        self.cnCRS = 'CRS'
-        self.cnImages = 'Image(s)'
-        self.mColumnNames = [self.cnDate, self.cnSensor,
-                             self.cnNS, self.cnNL, self.cnNB,
-                             self.cnCRS, self.cnImages]
-        self.mTimeSeries = TS
-        self.mSensors = set()
-        self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.removeTSDs)
-        self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.addTSDs)
-
-        self.items = []
-
-        self.addTSDs([tsd for tsd in self.mTimeSeries])
-
-    def timeSeries(self)->TimeSeries:
-        """
-        :return: TimeSeries
-        """
-        return self.mTimeSeries
-
-    def removeTSDs(self, tsds:list):
-        """
-        Removes TimeSeriesDate instances
-        :param tsds: list
-        """
-        for tsd in tsds:
-            if tsd in self.mTimeSeries:
-                self.mTimeSeries.removeTSDs([tsd])
-            elif tsd in self.items:
-                idx = self.getIndexFromDate(tsd)
-                self.removeRows(idx.row(), 1)
-
-    def tsdChanged(self, tsd:TimeSeriesDate):
-        idx = self.getIndexFromDate(tsd)
-        self.dataChanged.emit(idx, idx)
-
-    def sensorsChanged(self, sensor):
-        i = self.mColumnNames.index(self.cnSensor)
-        idx0 = self.createIndex(0, i)
-        idx1 = self.createIndex(self.rowCount(), i)
-        self.dataChanged.emit(idx0, idx1)
-
-    def addTSDs(self, tsds):
-
-        for tsd in tsds:
-            assert isinstance(tsd, TimeSeriesDate)
-            row = bisect.bisect_left(self.items, tsd)
-            self.beginInsertRows(QModelIndex(), row, row)
-            self.items.insert(row, tsd)
-            self.endInsertRows()
-
-            #self.sort(self.sortColumnIndex, self.sortOrder)
-
-        for tsd in tsds:
-            assert isinstance(tsd, TimeSeriesDate)
-            tsd.sigVisibilityChanged.connect(lambda: self.tsdChanged(tsd))
-
-        for sensor in set([tsd.sensor() for tsd in tsds]):
-            if sensor not in self.mSensors:
-                self.mSensors.add(sensor)
-                sensor.sigNameChanged.connect(self.sensorsChanged)
-
-    def rowCount(self, parent = QModelIndex())->int:
-        return len(self.items)
-
-
-    def removeRows(self, row, count , parent=QModelIndex()):
-        self.beginRemoveRows(parent, row, row+count-1)
-        toRemove = self.items[row:row+count]
-        for tsd in toRemove:
-            self.items.remove(tsd)
-        self.endRemoveRows()
-
-    def getIndexFromDate(self, tsd:TimeSeriesDate)->QModelIndex:
-        assert isinstance(tsd, TimeSeriesDate)
-        return self.createIndex(self.items.index(tsd),0)
-
-    def getDateFromIndex(self, index:QModelIndex)->TimeSeriesDate:
-        assert isinstance(index, QModelIndex)
-        if index.isValid():
-            return self.items[index.row()]
-        return None
-
-    def getTimeSeriesDateFromIndex(self, index:QModelIndex)->TimeSeriesDate:
-        assert isinstance(index, QModelIndex)
-        if index.isValid():
-            i = index.row()
-            if i >= 0 and i < len(self.items):
-                return self.items[i]
-
-        return None
-
-    def columnCount(self, parent = QModelIndex())->int:
-        return len(self.mColumnNames)
-
-    def data(self, index, role = Qt.DisplayRole):
-        if role is None or not index.isValid():
-            return None
-
-        value = None
-        columnName = self.mColumnNames[index.column()]
-
-        TSD = self.getTimeSeriesDateFromIndex(index)
-        assert isinstance(TSD, TimeSeriesDate)
-        keys = list(TSD.__dict__.keys())
-        tssList = TSD.sources()
-
-        if role == Qt.DisplayRole or role == Qt.ToolTipRole:
-            if columnName == self.cnSensor:
-                if role == Qt.ToolTipRole:
-                    value = TSD.sensor().description()
-                else:
-                    value = TSD.sensor().name()
-            elif columnName == self.cnDate:
-                value = '{}'.format(TSD.date())
-            elif columnName == self.cnImages:
-                value = '\n'.join(TSD.sourceUris())
-            elif columnName == self.cnCRS:
-                value = '\n'.join([tss.crs().description() for tss in tssList])
-            elif columnName == self.cnNB:
-                value = TSD.sensor().nb
-            elif columnName == self.cnNL:
-                value = '\n'.join([str(tss.nl) for tss in tssList])
-            elif columnName == self.cnNS:
-                value = '\n'.join([str(tss.ns) for tss in tssList])
-            elif columnName == self.cnSensor:
-                value = TSD.sensor().name()
-
-            elif columnName in keys:
-                value = TSD.__dict__[columnName]
-            else:
-                s = ""
-        elif role == Qt.CheckStateRole:
-            if columnName == self.cnDate:
-                value = Qt.Checked if TSD.isVisible() else Qt.Unchecked
-
-        elif role == Qt.BackgroundColorRole:
-            value = None
-        elif role == Qt.UserRole:
-            value = TSD
-
-        return value
-
-    def setData(self, index, value, role=None):
-        if role is None or not index.isValid():
-            return None
-
-        if role is Qt.UserRole:
-
-            s = ""
-
-        columnName = self.mColumnNames[index.column()]
-
-        TSD = self.getTimeSeriesDateFromIndex(index)
-        if columnName == self.cnDate and role == Qt.CheckStateRole:
-            TSD.setVisibility(value != Qt.Unchecked)
-            return True
-        else:
-            return False
-
-        return False
-
-    def flags(self, index):
-        if index.isValid():
-            columnName = self.mColumnNames[index.column()]
-            flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName == self.cnDate: # allow check state
-                flags = flags | Qt.ItemIsUserCheckable
-
-            return flags
-            # return item.qt_flags(index.column())
-        return None
-
-    def headerData(self, col, orientation, role):
-        if Qt is None:
-            return None
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.mColumnNames[col]
-        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
-        return None
-
 
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
@@ -2091,12 +1935,12 @@ def extractWavelengths(ds):
 
 
 
-class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
+class TimeSeriesDock(QgsDockWidget, loadUI('timeseriesdock.ui')):
     """
     QgsDockWidget that shows the TimeSeries
     """
     def __init__(self, parent=None):
-        super(TimeSeriesDockUI, self).__init__(parent)
+        super(TimeSeriesDock, self).__init__(parent)
         self.setupUi(self)
 
         #self.progressBar.setMinimum(0)
@@ -2135,12 +1979,13 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
                 self.timeSeriesTreeView.setCurrentIndex(idx2)
                 self.timeSeriesTreeView.scrollTo(idx2, QAbstractItemView.PositionAtCenter)
 
+
     def updateSummary(self):
 
 
         if isinstance(self.mTimeSeries, TimeSeries):
             if len(self.mTimeSeries) == 0:
-                info = 'Empty Timeseries. Please add source images.'
+                info = 'Empty TimeSeries. Please add source images.'
             else:
                 nDates = self.mTimeSeries.rowCount()
                 nSensors = len(self.mTimeSeries.sensors())
@@ -2174,6 +2019,13 @@ class TimeSeriesDockUI(QgsDockWidget, loadUI('timeseriesdock.ui')):
                 if isinstance(tsd, TimeSeriesDate) and tsd not in results:
                     results.append(tsd)
         return results
+
+    def timeSeries(self)->TimeSeries:
+        """
+        Returns the connected TimeSeries
+        :return: TimeSeries
+        """
+        return self.mTimeSeries
 
     def setTimeSeries(self, TS:TimeSeries):
         """

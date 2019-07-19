@@ -1,6 +1,21 @@
 ==============
 Changelog
 ==============
+2019-07-16 (version 1.6):
+    * re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views
+    * date, sensor or map view information can be plotted within each map and become available in screenshots
+    * releases map layers that are not required any more
+    * slider + buttons to navigate over time series
+    * fixed preview in crosshair dialog
+
+2019-07-07 (version 1.5):
+    * closing the EO Time Series Viewer instance will release all of its resources
+    * added "Lock Map Panel" to avoid unwanted resizing of central widget
+    * fixed missing updates of time series tree view when adding / removing source images
+    * map canvas context menu lists layers with spatial extent intersecting the cursor position only
+    * fixes feature selection error
+    * added quick label source image to label the path of raster layer
+
 2019-07-07 (version 1.5):
     * closing the EO Time Series Viewer instance will release all of its resources
     * added "Lock Map Panel" to avoid unwanted resizing of central widget
