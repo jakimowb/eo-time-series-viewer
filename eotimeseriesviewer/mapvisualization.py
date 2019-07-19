@@ -1935,7 +1935,12 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
             self.sigMapCanvasTextFormatChanged.connect(mapView.setMapTextFormat)
             i = self.toolBox.addItem(mapView, mapView.windowIcon(), mapView.title())
             self.toolBox.setCurrentIndex(i)
+
             self.onMapViewUpdated(mapView)
+
+            if len(self.mapViews()) == 1:
+                self.setMapTextFormat(mapView.mapTextFormat())
+
             self.sigMapViewAdded.emit(mapView)
 
     def onToolboxIndexChanged(self):

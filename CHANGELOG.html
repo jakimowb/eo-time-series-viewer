@@ -364,9 +364,19 @@ ul.auto-toc {
 <h1 class="title">Changelog</h1>
 
 <dl class="docutils">
-<dt>2019-07-05 (version 1.5):</dt>
+<dt>2019-07-16 (version 1.6):</dt>
 <dd><ul class="first last simple">
-<li>fix: closed EO Time Series Viewer instance release all resources</li>
+<li>re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views</li>
+<li>date, sensor or map view information can be plotted within each map and become available in screenshots</li>
+<li>releases map layers that are not required any more</li>
+<li>slider + buttons to navigate over time series</li>
+<li>fixed preview in crosshair dialog</li>
+</ul>
+</dd>
+<dt>2019-07-07 (version 1.5):</dt>
+<dd><ul class="first last simple">
+<li>closing the EO Time Series Viewer instance will release all of its resources</li>
+<li>added &quot;Lock Map Panel&quot; to avoid unwanted resizing of central widget</li>
 <li>fixed missing updates of time series tree view when adding / removing source images</li>
 <li>map canvas context menu lists layers with spatial extent intersecting the cursor position only</li>
 <li>fixes feature selection error</li>

@@ -1247,7 +1247,7 @@ class TimeSeries(QAbstractItemModel):
         if minRow:
             ul = self.index(minRow, 0)
             lr = self.index(maxRow, 0)
-            self.dataChanged.emit(ul, lr, roles=[Qt.CheckStateRole])
+            self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
             self.sigVisibilityChanged.emit()
 
     def hideTSDs(self, tsds):
