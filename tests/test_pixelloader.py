@@ -175,36 +175,38 @@ class PixelLoaderTest(unittest.TestCase):
 
         #test a valid pixels
         plt = PixelLoaderTask(source, [ptValid1, ptValid2])
+        dump = pickle.dumps([plt])
         task = QgsTask.fromFunction('', doLoaderTask, plt)
         try:
-            result = doLoaderTask(task, plt.toDump())
-            result = PixelLoaderTask.fromDump(result)
+            results = doLoaderTask(task, dump)
+            results = pickle.loads(results)
         except Exception as ex:
             self.fail('Failed to return the pixels for two geometries')
+        for result in results:
 
-        self.assertIsInstance(result, PixelLoaderTask)
-        self.assertTrue(result.success())
-        self.assertEqual(result.sourcePath, source)
-        self.assertSequenceEqual(result.bandIndices, [0,1,2,3,4,5])
-        self.assertIs(result.exception, None)
+            self.assertIsInstance(result, PixelLoaderTask)
+            self.assertTrue(result.success())
+            self.assertEqual(result.sourcePath, source)
+            self.assertSequenceEqual(result.bandIndices, [0,1,2,3,4,5])
+            self.assertIs(result.exception, None)
 
 
 
-        self.assertEqual(result.resCrsWkt, wkt)
-        self.assertEqual(result.resGeoTransformation, gt)
-        self.assertEqual(result.resNoDataValues, None)
-        self.assertIsInstance(result.resProfiles, list)
-        self.assertEqual(len(result.resProfiles), 2, msg='did not return results for two geometries.')
+            self.assertEqual(result.resCrsWkt, wkt)
+            self.assertEqual(result.resGeoTransformation, gt)
+            self.assertEqual(result.resNoDataValues, None)
+            self.assertIsInstance(result.resProfiles, list)
+            self.assertEqual(len(result.resProfiles), 2, msg='did not return results for two geometries.')
 
-        for i in range(len(result.resProfiles)):
-            dn, stdDev = result.resProfiles[i]
-            self.assertIsInstance(dn, np.ndarray)
-            self.assertIsInstance(stdDev, np.ndarray)
+            for i in range(len(result.resProfiles)):
+                dn, stdDev = result.resProfiles[i]
+                self.assertIsInstance(dn, np.ndarray)
+                self.assertIsInstance(stdDev, np.ndarray)
 
-            self.assertEqual(len(dn), len(stdDev))
-            self.assertEqual(len(dn), 6)
-            self.assertEqual(stdDev.max(), 0) #std deviation of a single pixel is always zero
-            self.assertEqual(stdDev.min(), 0)
+                self.assertEqual(len(dn), len(stdDev))
+                self.assertEqual(len(dn), 6)
+                self.assertEqual(stdDev.max(), 0) #std deviation of a single pixel is always zero
+                self.assertEqual(stdDev.min(), 0)
 
 
 
