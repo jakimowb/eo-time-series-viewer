@@ -879,14 +879,42 @@ class TimeSeriesTreeView(QTreeView):
         """
 
         idx = self.indexAt(event.pos())
-        tsd = self.model().data(idx, role=Qt.UserRole)
+        node = self.model().data(idx, role=Qt.UserRole)
 
         menu = QMenu(self)
-        if isinstance(tsd, TimeSeriesDate):
-            a = menu.addAction('Show map for {}'.format(tsd.date()))
+
+        def setUri(paths):
+            urls = []
+            paths2 = []
+            for p in paths:
+                if os.path.isfile(p):
+                    url = QUrl.fromLocalFile(p)
+                    paths2.append(QDir.toNativeSeparators(p))
+                else:
+                    url = QUrl(p)
+                    paths2.append(p)
+                urls.append(url)
+            md = QMimeData()
+            md.setText('\n'.join(paths2))
+            md.setUrls(urls)
+
+            QApplication.clipboard().setMimeData(md)
+
+
+        if isinstance(node, TimeSeriesDate):
+            a = menu.addAction('Show map for {}'.format(node.date()))
             a.setToolTip('Shows the map related to this time series date.')
-            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
+            a.triggered.connect(lambda _, tsd=node: self.sigMoveToDateRequest.emit(tsd))
             menu.addSeparator()
+
+            a = menu.addAction('Copy path(s)')
+            a.triggered.connect(lambda _, paths=node.sourceUris(): setUri(paths))
+            a.setToolTip('Copy path to cliboard')
+
+        if isinstance(node, TimeSeriesSource):
+            a = menu.addAction('Copy path')
+            a.triggered.connect(lambda _, paths=[node.uri()]: setUri(paths))
+            a.setToolTip('Copy path to cliboard')
 
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())

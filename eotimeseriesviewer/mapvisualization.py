@@ -1055,6 +1055,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         n = len(self.timeSeries())
         self.mTimeSlider.setRange(0, n)
         self.mTimeSlider.setEnabled(n > 0)
+        if n > 10:
+            pageStep = int(n/100)*10
+        else:
+            pageStep = 5
+        self.timeSlider().setPageStep(pageStep)
         if n > 0:
             tsd = self.currentDate()
 

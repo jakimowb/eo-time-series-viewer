@@ -1003,7 +1003,10 @@ class MapCanvas(QgsMapCanvas):
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
             action.setToolTip('Sends "{}" to the clipboard.'.format(tsd.sensor().name()))
             action = m.addAction('Path')
-            action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(tsd.sourceUris())))
+
+            paths = [QDir.toNativeSeparators(p) for p in tsd.sourceUris()]
+
+            action.triggered.connect(lambda _, paths=paths: QApplication.clipboard().setText('\n'.join(paths)))
             action.setToolTip('Sends {} source URI(s) to the clipboard.'.format(len(tsd)))
             action = m.addAction('Map')
             action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
