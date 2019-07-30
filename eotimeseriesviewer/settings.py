@@ -48,14 +48,14 @@ def defaultValues() -> dict:
     d[Keys.MapBackgroundColor] = QColor('black')
 
     textFormat = QgsTextFormat()
-    textFormat.setColor(QColor('yellow'))
+    textFormat.setColor(QColor('black'))
     textFormat.setSizeUnit(QgsUnitTypes.RenderPoints)
     textFormat.setFont(QFont('Helvetica'))
     textFormat.setSize(11)
 
     buffer = QgsTextBufferSettings()
-    buffer.setColor(QColor('black'))
-    buffer.setSize(1)
+    buffer.setColor(QColor('white'))
+    buffer.setSize(5)
     buffer.setSizeUnit(QgsUnitTypes.RenderPixels)
     buffer.setEnabled(True)
     textFormat.setBuffer(buffer)

@@ -998,16 +998,25 @@ class MapCanvas(QgsMapCanvas):
             m = menu.addMenu('Copy...')
             action = m.addAction('Date')
             action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
-            action.setToolTip('Sends "" to the clipboard.'.format(str(tsd.date())))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
-            action.setToolTip('Sends "" to the clipboard.'.format(tsd.sensor().name()))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(tsd.sensor().name()))
             action = m.addAction('Path')
             action.triggered.connect(lambda: QApplication.clipboard().setText('\n'.join(tsd.sourceUris())))
-            action.setToolTip('Sends the {} source URI(s) to the clipboard.'.format(len(tsd)))
+            action.setToolTip('Sends {} source URI(s) to the clipboard.'.format(len(tsd)))
             action = m.addAction('Map')
             action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
             action.setToolTip('Copies this map into the clipboard.')
+
+            from .utils import findParent
+            from .mapvisualization import MapWidget
+            mw = findParent(self, MapWidget)
+            if isinstance(mw, MapWidget):
+                action = m.addAction('All Maps')
+                action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.grab()))
+                action.setToolTip('Copies all maps into the clipboard.')
+
 
         m = menu.addMenu('Map Coordinates...')
 

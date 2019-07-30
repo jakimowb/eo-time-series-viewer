@@ -1657,7 +1657,6 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda: self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
 
-
         self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
@@ -1671,8 +1670,6 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     def onApplyButtonClicked(self):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
         self.sigMapsPerMapViewChanged.emit(self.mapsPerMapView())
-
-
 
     def setMapWidget(self, mw)->MapWidget:
         """
