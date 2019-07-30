@@ -626,6 +626,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
+            sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
             dummyLayer = sensor.proxyLayer()
             assert isinstance(dummyLayer.renderer(), QgsRasterRenderer)
             dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
