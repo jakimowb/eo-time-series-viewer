@@ -21,6 +21,7 @@
 # noinspection PyPep8Naming
 
 import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json, uuid
+from xml.etree import ElementTree
 
 
 import bisect
@@ -31,6 +32,17 @@ from qgis.gui import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
+
+
+LUT_WAVELENGTH_UNITS = {}
+for siUnit in ['nm', r'μm', 'mm', 'cm', 'dm']:
+    LUT_WAVELENGTH_UNITS[siUnit] = siUnit
+LUT_WAVELENGTH_UNITS['nanometers'] = 'nm'
+LUT_WAVELENGTH_UNITS['micrometers'] = 'μm'
+LUT_WAVELENGTH_UNITS['um'] = 'μm'
+LUT_WAVELENGTH_UNITS['millimeters'] = 'mm'
+LUT_WAVELENGTH_UNITS['centimeters'] = 'cm'
+LUT_WAVELENGTH_UNITS['decimeters'] = 'dm'
 
 
 from osgeo import gdal
@@ -1898,16 +1910,12 @@ def getSpatialPropertiesFromDataset(ds):
     return nb, nl, ns, crs, px_x, px_y
 
 
-
-
-
-
-
-
-
-
-
 def extractWavelengths(ds):
+    """
+    Returns the wavelength and wavelength units
+    :param ds: gdal.Dataset
+    :return: ([list-of-wavelength floats], stt of wavelength unit)
+    """
     wl = None
     wlu = None
 
@@ -1936,13 +1944,74 @@ def extractWavelengths(ds):
                 if match:
                     wlu = match.group()
 
-                names = ['nanometers','micrometers','millimeters','centimeters','decimenters']
-                si   = ['nm','um','mm','cm','dm']
-                if wlu in names:
-                    wlu = si[names.index(wlu)]
-    elif isinstance(ds, gdal.Dataset):
 
-        for domain in ds.GetMetadataDomainList():
+                if wlu in LUT_WAVELENGTH_UNITS.keys():
+                    wlu = LUT_WAVELENGTH_UNITS[wlu]
+
+    elif isinstance(ds, gdal.Dataset):
+        domains = ds.GetMetadataDomainList()
+        from qgis.PyQt.QtXml import QDomDocument
+        # DIMAP XML metadata?
+        xmlData = None
+        if 'xml:dimap' in domains:
+            md = ds.GetMetadata_Dict('xml:dimap')
+            xml = '<?xml version'
+            if xml in md.keys():
+                xmlData = xml + md[xml]
+                lines = xmlData.splitlines()
+                xmlData = '\n'.join(lines[2:])
+
+        else:
+            for path in ds.GetFileList():
+                if re.search(r'\.xml$', path, re.I) and not re.search(r'\.aux.xml$', path, re.I):
+                    with open(path, encoding='utf-8') as f:
+                        xmlData = f.read()
+
+
+            s = ""
+
+
+        if xmlData is not None:
+            dom = QDomDocument()
+            dom.setContent(xmlData)
+
+            # try DIMAP XML
+            nodes = dom.elementsByTagName('Band_Spectral_Range')
+            if nodes.count() > 0:
+                candidates = []
+                for element in [nodes.item(i).toElement() for i in range(nodes.count())]:
+                    _band = element.firstChildElement('BAND_ID').text()
+                    _wlu = element.firstChildElement('MEASURE_UNIT').text()
+                    wlMin = float(element.firstChildElement('MIN').text())
+                    wlMax = float(element.firstChildElement('MAX').text())
+                    _wl = 0.5*wlMin+wlMax
+                    candidates.append((_band, _wl, _wlu))
+
+                if len(candidates) == ds.RasterCount:
+                    candidates = sorted(candidates, key=lambda t:t[0])
+
+                    wlu = candidates[0][2]
+                    wlu = LUT_WAVELENGTH_UNITS[wlu]
+                    wl = [c[1] for c in candidates]
+                    return wl, wlu
+
+            nodes = dom.elementsByTagName('re:bandSpecificMetadata')
+
+            # test for RapidEye XML
+            # see http://schemas.rapideye.de/products/re/4.0/RapidEye_ProductMetadata_GeocorrectedLevel.xsd
+            # wavelength and units not given in the XML
+            # -> use values from https://www.satimagingcorp.com/satellite-sensors/other-satellite-sensors/rapideye/
+            if nodes.count() == ds.RasterCount and ds.RasterCount == 5:
+                wlu = r'nm'
+                wl = [0.5 * (440 + 510),
+                      0.5 * (520 + 590),
+                      0.5 * (630 + 685),
+                      0.5 * (760 + 850),
+                      0.5 * (760 - 850)
+                ]
+                return wl, wlu
+
+        for domain in domains:
             md = ds.GetMetadata_Dict(domain)
             for key, value in md.items():
                 if wl is None and regWLkey.search(key):
@@ -1954,10 +2023,9 @@ def extractWavelengths(ds):
                     match = regWLU.search(value)
                     if match:
                         wlu = match.group().lower()
-                    names = ['nanometers', 'micrometers', 'millimeters', 'centimeters', 'decimeters']
-                    si = ['nm', 'um', 'mm', 'cm', 'dm']
-                    if wlu in names:
-                        wlu = si[names.index(wlu)]
+
+                    if wlu in LUT_WAVELENGTH_UNITS.keys():
+                        wlu = LUT_WAVELENGTH_UNITS[wlu]
 
     return wl, wlu
 

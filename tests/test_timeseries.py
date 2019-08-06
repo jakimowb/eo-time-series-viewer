@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
 
 import os
@@ -318,6 +318,50 @@ class TestInit(unittest.TestCase):
         self.assertIsInstance(extent, SpatialExtent)
 
 
+    def test_pleiades(self):
+
+        p = r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
+        #p = r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
+        if not os.path.isfile(p):
+            return
+
+        ds = gdal.Open(p)
+        self.assertIsInstance(ds, gdal.Dataset)
+        band = ds.GetRasterBand(1)
+        self.assertIsInstance(band, gdal.Band)
+
+
+        tss = TimeSeriesSource(ds)
+        self.assertIsInstance(tss, TimeSeriesSource)
+        self.assertEqual(tss.mWLU, r'μm')
+        self.assertListEqual(tss.mWL, [0.775, 0.867, 1.017, 1.315])
+
+    def test_rapideye(self):
+
+        p = r'Y:\RapidEye\3A\2135821_2014-06-25_RE2_3A_328202\2135821_2014-06-25_RE2_3A_328202.tif'
+
+        if not os.path.isfile(p):
+            return
+
+        ds = gdal.Open(p)
+        self.assertIsInstance(ds, gdal.Dataset)
+        band = ds.GetRasterBand(1)
+        self.assertIsInstance(band, gdal.Band)
+
+
+        tss = TimeSeriesSource(ds)
+        self.assertIsInstance(tss, TimeSeriesSource)
+
+        # see https://www.satimagingcorp.com/satellite-sensors/other-satellite-sensors/rapideye/
+        wlu = r'nm'
+        wl = [0.5 * (440 + 510),
+              0.5 * (520 + 590),
+              0.5 * (630 + 685),
+              0.5 * (760 + 850),
+              0.5 * (760 - 850)
+              ]
+        self.assertEqual(tss.mWLU, wlu)
+        self.assertListEqual(tss.mWL, wl)
 
 
     def test_sensors(self):
