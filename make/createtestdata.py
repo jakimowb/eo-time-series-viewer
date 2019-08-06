@@ -136,7 +136,7 @@ def groupLandsat(dirIn, dirOut, pattern='L*_sr_band*.img'):
             raise NotImplementedError()
 
         #https://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html
-        dsVRT.SetMetadataItem('wavelength units','Micrometers', 'ENVI')
+        dsVRT.SetMetadataItem('wavelength units', 'Micrometers', 'ENVI')
         dsVRT.SetMetadataItem('wavelength', '{{{}}}'.format(','.join([str(w) for w in cwl])), 'ENVI')
         dsVRT.SetMetadataItem('sensor type', 'Landsat-8 OLI', 'ENVI')
         from eotimeseriesviewer.dateparser import datetime64FromYYYYDOY
