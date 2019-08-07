@@ -15,6 +15,14 @@ QAPP = initQgisApplication()
 
 SHOW_GUI = False and os.environ.get('CI') is None
 
+import eotimeseriesviewer.settings
+
+s = eotimeseriesviewer.settings.settings()
+s.clear()
+s.sync()
+
+s  = ""
+
 class TestInit(unittest.TestCase):
 
     def createTestDatasets(self):
@@ -352,6 +360,9 @@ class TestInit(unittest.TestCase):
             ds = gdal.Open(p)
             self.assertIsInstance(ds, gdal.Dataset)
             band = ds.GetRasterBand(1)
+
+
+
             self.assertIsInstance(band, gdal.Band)
 
 

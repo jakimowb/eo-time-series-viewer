@@ -255,7 +255,7 @@ class SensorInstrument(QObject):
             self.mName = name
             from eotimeseriesviewer.settings import Keys, value, setValue
 
-            sensorNames = value(Keys.SensorNames)
+            sensorNames = value(Keys.SensorNames, default={})
             sensorNames[self.id()] = name
             setValue(Keys.SensorNames, sensorNames)
 
