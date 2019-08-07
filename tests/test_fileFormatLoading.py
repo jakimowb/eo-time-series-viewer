@@ -81,7 +81,7 @@ class TestFileFormatLoading(TestCase):
             print('DIR_RAPIDEYE undefined. skip test.')
             return
         files = file_search(searchDir, '*.tif', recursive=True)
-        files = [f for f in files if not re.search('_(udm|browse)\.tif$', f)]
+        files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
         self.TS.addSources(files)
         self.assertEqual(len(files), len(self.TS))
 
