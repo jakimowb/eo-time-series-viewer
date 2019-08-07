@@ -193,7 +193,7 @@ class SensorInstrument(QObject):
 
         if sensor_name is None:
             from eotimeseriesviewer.settings import value, Keys
-            sensorNames = value(Keys.SensorNames)
+            sensorNames = value(Keys.SensorNames, default={})
             sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
 
         self.mName = ''
