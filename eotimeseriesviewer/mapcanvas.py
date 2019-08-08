@@ -999,15 +999,22 @@ class MapCanvas(QgsMapCanvas):
             action = m.addAction('Date')
             action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
             action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
+
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
             action.setToolTip('Sends "{}" to the clipboard.'.format(tsd.sensor().name()))
+
             action = m.addAction('Path')
-
             paths = [QDir.toNativeSeparators(p) for p in tsd.sourceUris()]
-
             action.triggered.connect(lambda _, paths=paths: QApplication.clipboard().setText('\n'.join(paths)))
             action.setToolTip('Sends {} source URI(s) to the clipboard.'.format(len(tsd)))
+
+            extent = self.extent()
+            assert isinstance(extent, QgsRectangle)
+            action = m.addAction('Extent')
+            action.triggered.connect(lambda _, extent=extent: QApplication.clipboard().setText(extent.toString()))
+            action.setToolTip('Sends the map extent to the clipboard.')
+
             action = m.addAction('Map')
             action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
             action.setToolTip('Copies this map into the clipboard.')
@@ -1134,7 +1141,7 @@ class MapCanvas(QgsMapCanvas):
     def stretchToCurrentExtent(self):
 
         se = self.spatialExtent()
-        self.stretchToExtent(se)
+        self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
 
     def stretchToExtent(self, spatialExtent:SpatialExtent, stretchType='linear_minmax', layer:QgsRasterLayer=None, **stretchArgs):
         """
