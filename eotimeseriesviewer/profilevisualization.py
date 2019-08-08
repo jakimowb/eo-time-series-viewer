@@ -1376,9 +1376,9 @@ class SpectralTemporalVisualization(QObject):
 
         self.pixelLoader = PixelLoader()
         self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
-        self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
-        # self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
-        self.pixelLoader.sigLoadingFinished.connect(lambda: self.plot2D.enableAutoRange('x', False))
+        self.pixelLoader.sigLoadingStarted.connect(self.onLoadingStarted)
+        self.pixelLoader.sigLoadingFinished.connect(self.onLoadingFinished)
+        self.pixelLoader.sigProgressChanged.connect(self.onLoadingProgressChanged)
 
         # set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
@@ -1407,7 +1407,6 @@ class SpectralTemporalVisualization(QObject):
         if not ENABLE_OPENGL:
             self.ui.listWidget.item(1).setHidden(True)
             self.ui.page3D.setHidden(True)
-
 
 
         def onTemporalProfilesRemoved(removedProfiles):
@@ -1462,6 +1461,21 @@ class SpectralTemporalVisualization(QObject):
         #self.ui.stackedWidget.setCurrentPage(self.ui.pagePixel)
         self.ui.onStackPageChanged(self.ui.stackedWidget.currentIndex())
 
+    def onLoadingStarted(self):
+        self.ui.progressInfo.setText('Start loading...')
+        self.ui.progressBar.setRange(0, 0)
+        self.ui.progressBar.setValue(0)
+
+    def onLoadingProgressChanged(self, progress):
+        if self.ui.progressBar.maximum() == 0:
+            self.ui.progressBar.setRange(0, 100)
+        self.ui.progressBar.setValue(int(progress))
+
+    def onLoadingFinished(self):
+
+        self.plot2D.enableAutoRange('x', False)
+        self.ui.progressInfo.setText('')
+        self.ui.progressBar.setValue(0)
 
     def plotStyles(self):
         return self.plotSettingsModel2D[:]

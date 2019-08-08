@@ -148,8 +148,9 @@ class PixelLoaderTest(unittest.TestCase):
         if os.path.isfile(p):
             lyr = QgsRasterLayer(p)
             task = PixelLoaderTask(p, [SpatialPoint.fromMapLayerCenter(lyr)])
+            from eotimeseriesviewer.utils import TaskMock
+            result = doLoaderTask(TaskMock(), task.toDump())
 
-            result = doLoaderTask(None, task.toDump())
 
             s = ""
 

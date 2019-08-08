@@ -1052,20 +1052,26 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
     def _updateSliderRange(self):
 
+        slider = self.timeSlider()
+        assert isinstance(slider, QSlider)
         n = len(self.timeSeries())
-        self.mTimeSlider.setRange(0, n)
-        self.mTimeSlider.setEnabled(n > 0)
+        slider.setRange(0, n)
+        slider.setEnabled(n > 0)
+
         if n > 10:
             pageStep = int(n/100)*10
+            slider.setTickInterval(pageStep)
         else:
             pageStep = 5
-        self.timeSlider().setPageStep(pageStep)
+            slider.setTickInterval(0)
+
+        slider.setPageStep(pageStep)
+
         if n > 0:
             tsd = self.currentDate()
-
             if isinstance(tsd, TimeSeriesDate) and tsd in self.timeSeries():
                 i = self.timeSeries()[:].index(tsd)
-                self.mTimeSlider.setValue(i+1)
+                slider.setValue(i+1)
 
     def onSliderReleased(self):
 

@@ -51,8 +51,8 @@ FN_X = 'x'
 FN_Y = 'y'
 FN_NAME = 'name'
 
-FN_DOY = 'doy'
-FN_DTG = 'dtg'
+FN_DOY = 'DOY'
+FN_DTG = 'DTG'
 
 #FN_N_TOTAL = 'n'
 #FN_N_NODATA = 'no_data'
@@ -392,7 +392,7 @@ class DateTimeViewBox(pg.ViewBox):
         self.menu.removeAction(xAction)
 
         self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
-        self.mActionMoveToDate.triggered.connect(lambda : self.sigMoveToDate.emit(self.mCurrentDate))
+        self.mActionMoveToDate.triggered.connect(lambda *args : self.sigMoveToDate.emit(self.mCurrentDate))
         self.mActionShowCrosshair = self.menu.addAction('Show Crosshair')
         self.mActionShowCrosshair.setCheckable(True)
         self.mActionShowCrosshair.setChecked(True)
@@ -721,7 +721,6 @@ class TemporalProfile(QObject):
                                            temporalProfileIDs=[self.mID])
                     tasks.append(task)
 
-        from .pixelloader import TaskMock
         results = doLoaderTask(TaskMock(), pickle.dumps(tasks))
         for result in pickle.loads(results):
             self.pullDataUpdate(result)
@@ -809,16 +808,18 @@ class TemporalProfile(QObject):
 
             context.setFeature(f)
 
-            value = expression.evaluate(context)
+            yValue = expression.evaluate(context)
 
-            if value in [None, QVariant()]:
-                pass
-            else:
-                if dateType == 'date':
-                    x.append(date2num(tsd.mDate))
-                elif dateType == 'doy':
-                    x.append(tsd.mDOY)
-                y.append(value)
+            if dateType == 'date':
+                xValue = date2num(tsd.mDate)
+            elif dateType == 'doy':
+                xValue = tsd.mDOY
+
+            if yValue in [None, QVariant()]:
+                yValue = np.NaN
+
+            y.append(yValue)
+            x.append(xValue)
 
         #return np.asarray(x), np.asarray(y)
         assert len(x) == len(y)
@@ -956,10 +957,9 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
         if isinstance(TP, TemporalProfile) and isinstance(sensor, SensorInstrument):
             x, y = TP.dataFromExpression(self.mPlotStyle.sensor(), self.mPlotStyle.expression(), dateType='date')
-            if len(y) > 0:
-                #x = np.asarray(x, dtype=np.float)
-                #y = np.asarray(y, dtype=np.float)
-                self.setData(x=x, y=y)
+
+            if np.any(np.isfinite(y)):
+                self.setData(x=x, y=y, connect='finite')
             else:
                 self.setData(x=[], y=[]) # dummy
         else:
@@ -1125,6 +1125,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         PL = PixelLoader()
         PL.sigPixelLoaded.connect(self.addPixelLoaderResult)
+
         # update new / existing points
 
         for tsd in self.mTimeSeries:

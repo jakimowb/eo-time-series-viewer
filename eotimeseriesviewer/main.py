@@ -378,8 +378,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
-        self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
-            lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
         self.spectralTemporalVis.sigMoveToDate.connect(self.setCurrentDate)
 

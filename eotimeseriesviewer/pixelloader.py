@@ -183,13 +183,16 @@ def transformPoint2Px(trans, pt, gt):
     return geo2px(QgsPointXY(x, y), gt)
 
 
-def doLoaderTask(taskWrapper:QgsTask, dump):
+def doLoaderTask(qgsTask:QgsTask, dump):
 
-    assert isinstance(taskWrapper, QgsTask)
+    assert isinstance(qgsTask, QgsTask)
 
     tasks = pickle.loads(dump)
     results = []
-    for task in tasks:
+    nTasks = len(tasks)
+    qgsTask.setProgress(0)
+
+    for iTask, task in enumerate(tasks):
         assert isinstance(task, PixelLoaderTask)
 
         result = task
@@ -351,6 +354,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
         task.resProfiles = PROFILE_DATA
         task.mIsDone = True
         results.append(task)
+        qgsTask.setProgress(100 * (iTask + 1) / nTasks)
     return pickle.dumps(results)
 
 
@@ -395,7 +399,7 @@ class PixelLoader(QObject):
     sigPixelLoaded = pyqtSignal(PixelLoaderTask)
     sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal()
-
+    sigProgressChanged = pyqtSignal(float)
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
@@ -419,23 +423,19 @@ class PixelLoader(QObject):
 
         dump = pickle.dumps(tasks)
 
+        self.sigLoadingStarted.emit()
 
+        qgsTask = QgsTask.fromFunction('Load band values', doLoaderTask, dump, on_finished=self.onLoadingFinished)
+        assert isinstance(qgsTask, QgsTask)
 
-        if False:
-            from .utils import TaskMock
-            qgsTask = TaskMock()
-            resultDump = doLoaderTask(qgsTask, dump)
-            self.onLoadingFinished(TaskMock(), resultDump)
+        tid = id(qgsTask)
 
-        else:
-            qgsTask = QgsTask.fromFunction('Load band values', doLoaderTask, dump, on_finished=self.onLoadingFinished)
-            tid = id(qgsTask)
-            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            # todo: progress changed?
-            self.mTasks[tid] = qgsTask
-            tm = self.taskManager()
-            tm.addTask(qgsTask)
+        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.progressChanged.connect(self.sigProgressChanged.emit)
+        self.mTasks[tid] = qgsTask
+        tm = self.taskManager()
+        tm.addTask(qgsTask)
 
     def onRemoveTask(self, tid):
         if tid in self.mTasks.keys():
@@ -451,6 +451,7 @@ class PixelLoader(QObject):
                 assert isinstance(plt, PixelLoaderTask)
                 #self.mTasks.pop(plt.id())
                 self.sigPixelLoaded.emit(plt)
+        self.sigLoadingFinished.emit()
 
 
     def status(self)->tuple:
