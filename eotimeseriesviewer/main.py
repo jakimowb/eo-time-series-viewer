@@ -381,6 +381,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.spectralTemporalVis.pixelLoader.sigLoadingFinished.connect(
             lambda dt: self.ui.dockSystemInfo.addTimeDelta('Pixel Profile', dt))
         assert isinstance(self, TimeSeriesViewer)
+        self.spectralTemporalVis.sigMoveToDate.connect(self.setCurrentDate)
 
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -689,12 +690,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
         return self.ui.actionZoomOut
 
 
-    def setCurrentDate(self, tsd:TimeSeriesDate):
+    def setCurrentDate(self, tsd):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
-        :param tsd:  TimeSeriesDate
+        :param tsd:  TimeSeriesDate or numpy.datetime64
         """
-        self.ui.mMapWidget.setCurrentDate(tsd)
+        tsd = self.timeSeries().findDate(tsd)
+        if isinstance(tsd, TimeSeriesDate):
+            self.ui.mMapWidget.setCurrentDate(tsd)
 
 
     def mapCanvases(self)->list:
@@ -1264,7 +1267,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
 
             if loadAsync:
-                self.mTimeSeries.addSourcesAsync(files, progressDialog=progressDialog)
+                self.mTimeSeries.addSources(files, progressDialog=progressDialog)
             else:
                 self.mTimeSeries.addSources(files, progressDialog=progressDialog)
 
