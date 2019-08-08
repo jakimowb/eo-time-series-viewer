@@ -67,7 +67,7 @@ class TestInit(unittest.TestCase):
         model = SensorListModel(TS)
         self.assertTrue(model.rowCount() == 0)
 
-        TS.addSources(pathes)
+        TS.addSources(pathes, runAsync=False)
         self.assertTrue(len(TS) == len(pathes))
 
         self.assertTrue(model.rowCount() == 2)

@@ -50,6 +50,10 @@ FN_ID = 'fid'
 FN_X = 'x'
 FN_Y = 'y'
 FN_NAME = 'name'
+
+FN_DOY = 'doy'
+FN_DTG = 'dtg'
+
 #FN_N_TOTAL = 'n'
 #FN_N_NODATA = 'no_data'
 #FN_N_LOADED = 'loaded'
@@ -69,7 +73,13 @@ except:
 
 
 
-def sensorExampleQgsFeature(sensor, singleBandOnly=False):
+def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False)->QgsFeature:
+    """
+    Returns an exemplary QgsFeature with value for a specific sensor
+    :param sensor: SensorInstrument
+    :param singleBandOnly:
+    :return:
+    """
     # populate with exemplary band values (generally stored as floats)
 
     if sensor is None:
@@ -86,14 +96,14 @@ def sensorExampleQgsFeature(sensor, singleBandOnly=False):
 
     date = datetime.date.today()
     doy = dateDOY(date)
-    fieldValues['doy'] = doy
-    fieldValues['date'] = str(date)
-
+    fieldValues[FN_DOY] = doy
+    fieldValues[FN_DTG] = str(date)
 
     fields = QgsFields()
     for k, v in fieldValues.items():
-        fields.append(createQgsField(k,v))
+        fields.append(createQgsField(k, v))
     f = QgsFeature(fields)
+    #f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1.0, 1.0)))
     for k, v in fieldValues.items():
         f.setAttribute(k, v)
     return f
@@ -583,11 +593,13 @@ class TemporalProfile(QObject):
     sigNameChanged = pyqtSignal(str)
     sigDataChanged = pyqtSignal()
 
-    def __init__(self, layer, fid):
+    def __init__(self, layer, fid:int, geometry:QgsGeometry):
         super(TemporalProfile, self).__init__()
+        assert isinstance(geometry, QgsGeometry)
         assert isinstance(layer, TemporalProfileLayer)
         assert fid >= 0
 
+        self.mGeometry = geometry
         self.mID = fid
         self.mLayer = layer
         self.mTimeSeries = layer.timeSeries()
@@ -598,8 +610,8 @@ class TemporalProfile(QObject):
 
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDate)
-            meta = {'doy': tsd.mDOY,
-                    'date': str(tsd.mDate),
+            meta = {FN_DOY: tsd.mDOY,
+                    FN_DTG: str(tsd.mDate),
                     'nodata': False}
 
             self.updateData(tsd, meta, skipStatusUpdate=True)
@@ -662,7 +674,7 @@ class TemporalProfile(QObject):
     def timeSeries(self):
         return self.mTimeSeries
 
-    def pullDataUpdate(self, d):
+    def pullDataUpdate(self, d:PixelLoaderTask):
         assert isinstance(d, PixelLoaderTask)
         if d.success() and self.mID in d.temporalProfileIDs:
             i = d.temporalProfileIDs.index(self.mID)
@@ -709,10 +721,9 @@ class TemporalProfile(QObject):
                                            temporalProfileIDs=[self.mID])
                     tasks.append(task)
 
-
-        for task in tasks:
-            result = PixelLoaderTask.fromDump(doLoaderTask(None, task))
-            assert isinstance(result, PixelLoaderTask)
+        from .pixelloader import TaskMock
+        results = doLoaderTask(TaskMock(), pickle.dumps(tasks))
+        for result in pickle.loads(results):
             self.pullDataUpdate(result)
 
     def missingBandIndices(self, tsd, requiredIndices=None):
@@ -791,8 +802,8 @@ class TemporalProfile(QObject):
             context = QgsExpressionContext()
             context.setFields(fields)
 
-             #scope = QgsExpressionContextScope()
             f = QgsFeature(fields)
+            f.setGeometry(self.mGeometry)
             for k, v in data.items():
                 setQgsFieldValue(f, k, v)
 
@@ -800,9 +811,8 @@ class TemporalProfile(QObject):
 
             value = expression.evaluate(context)
 
-
             if value in [None, QVariant()]:
-                s = ""
+                pass
             else:
                 if dateType == 'date':
                     x.append(date2num(tsd.mDate))
@@ -1150,8 +1160,8 @@ class TemporalProfileLayer(QgsVectorLayer):
                 PL.startLoading(tasks)
             else:
                 import eotimeseriesviewer.pixelloader
-                tasks = [PixelLoaderTask.fromDump(eotimeseriesviewer.pixelloader.doLoaderTask(None, task.toDump())) for task in tasks]
-                l = len(tasks)
+                dump = pickle.dumps(tasks)
+                tasks =pickle.loads(eotimeseriesviewer.pixelloader.doLoaderTask(eotimeseriesviewer.pixelloader.TaskMock(), dump))
                 for i, task in enumerate(tasks):
                     PL.sigPixelLoaded.emit(task)
 
@@ -1244,7 +1254,7 @@ class TemporalProfileLayer(QgsVectorLayer):
                 fid = feature.id()
                 if fid < 0:
                     continue
-                tp = TemporalProfile(self, fid)
+                tp = TemporalProfile(self, fid, feature.geometry())
 
                 self.mProfiles[fid] = tp
                 temporalProfiles.append(tp)

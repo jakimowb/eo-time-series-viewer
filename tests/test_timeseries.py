@@ -20,8 +20,7 @@ import eotimeseriesviewer.settings
 s = eotimeseriesviewer.settings.settings()
 s.clear()
 s.sync()
-
-s  = ""
+s = ""
 
 class TestInit(unittest.TestCase):
 
@@ -267,7 +266,7 @@ class TestInit(unittest.TestCase):
         w.show()
 
         TS = TimeSeries()
-        TS.addSourcesAsync(files, nWorkers=1)
+        TS.addSources(files, nWorkers=1)
 
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
             QCoreApplication.processEvents()

@@ -50,7 +50,7 @@ class TestFileFormatLoading(TestCase):
             print('data directory undefined. skip test.')
             return
         files = list(file_search(searchDir, 're_*.bsq', recursive=True))
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadLandsat(self):
@@ -59,7 +59,7 @@ class TestFileFormatLoading(TestCase):
             print('DIR_LANDSAT undefined. skip test.')
             return
         files = list(file_search(searchDir, '*_L*_BOA.bsq'))[0:3]
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
 
         self.assertEqual(len(files), len(self.TS))
         s = ""
@@ -71,7 +71,7 @@ class TestFileFormatLoading(TestCase):
             print('DIR_VRT undefined. skip test.')
             return
         files = list(file_search(searchDir, '*BOA.vrt', recursive=True))[0:3]
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadRapidEye(self):
@@ -82,7 +82,7 @@ class TestFileFormatLoading(TestCase):
             return
         files = file_search(searchDir, '*.tif', recursive=True)
         files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
 
@@ -95,7 +95,7 @@ class TestFileFormatLoading(TestCase):
             return
         #files = file_search(searchDir, 'DIM*.xml', recursive=True)
         files = list(file_search(searchDir, '*.jp2', recursive=True))[0:3]
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadSentinel2(self):
@@ -105,7 +105,7 @@ class TestFileFormatLoading(TestCase):
             print('DIR_SENTINEL undefined. skip test.')
             return
         files = list(file_search(searchDir, '*MSIL1C.xml', recursive=True))
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
 
         #self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
         self.assertEqual(0, len(self.TS))  # do not add a containers
@@ -113,7 +113,7 @@ class TestFileFormatLoading(TestCase):
         for file in files:
             subs = gdal.Open(file).GetSubDatasets()
             subdatasets.extend(s[0] for s in subs)
-        self.TS.addSources(subdatasets)
+        self.TS.addSources(subdatasets, runAsync=False)
         self.assertEqual(len(subdatasets), len(self.TS))  # add subdatasets
 
 

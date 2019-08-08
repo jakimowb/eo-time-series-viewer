@@ -38,10 +38,6 @@ if DEBUG:
     logger = multiprocessing.log_to_stderr()
     logger.setLevel(multiprocessing.SUBDEBUG)
 
-class TaskMock(QgsTask):
-    def __init__(self):
-        super(TaskMock, self).__init__()
-
 def dprint(msg):
     if DEBUG:
         print('PixelLoader: {}'.format(msg))
@@ -426,6 +422,7 @@ class PixelLoader(QObject):
 
 
         if False:
+            from .utils import TaskMock
             qgsTask = TaskMock()
             resultDump = doLoaderTask(qgsTask, dump)
             self.onLoadingFinished(TaskMock(), resultDump)
