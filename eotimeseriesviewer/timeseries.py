@@ -1932,7 +1932,7 @@ def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument)->(list,
               0.5 * (520 + 590),
               0.5 * (630 + 685),
               0.5 * (760 + 850),
-              0.5 * (760 - 850)
+              0.5 * (760 + 850)
               ]
         return wl, wlu
     return None, None

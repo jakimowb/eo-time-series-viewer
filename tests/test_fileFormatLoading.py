@@ -6,12 +6,12 @@ import qgis.testing
 from unittest import TestCase
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries import *
 
 
 DIR_SENTINEL = r''
 DIR_PLEIADES = r'H:\Pleiades'
-DIR_RAPIDEYE = jp(DIR_EXAMPLES, 'Images')
+DIR_RAPIDEYE = r'Y:\RapidEye\3A'
 DIR_LANDSAT = jp(DIR_EXAMPLES, 'Images')
 DIR_VRT = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
 
@@ -84,6 +84,14 @@ class TestFileFormatLoading(TestCase):
         files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
         self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
+
+        tsd = self.TS[0]
+        self.assertIsInstance(tsd, TimeSeriesDate)
+        for wl in tsd.sensor().wl:
+            self.assertTrue(wl > 0)
+        tss = tsd[0]
+        self.assertIsInstance(tss, TimeSeriesSource)
+
 
 
 

@@ -1266,15 +1266,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
             progressDialog.setRange(0, len(files))
             progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
 
-            if loadAsync:
-                self.mTimeSeries.addSources(files, progressDialog=progressDialog)
-            else:
-                self.mTimeSeries.addSources(files, progressDialog=progressDialog)
+            self.mTimeSeries.addSources(files, progressDialog=progressDialog, runAsync=loadAsync)
 
-
-
-            #QCoreApplication.processEvents()
-            #self.mTimeSeries.addSources(files)
 
     def clearTimeSeries(self):
 
