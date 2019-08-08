@@ -195,7 +195,8 @@ class ImageDateReaderDefault(ImageDateReader):
             for key, value in md.items():
                 if self.regDateKeys.search(key):
                     try:
-                        dtg = np.datetime64(value)
+                        # remove timezone characters from end of string, e.g. 'Z' in '2013-03-25T13:45:03.0Z'
+                        dtg = np.datetime64(re.sub(r'\D+$', '', value))
                         return dtg
                     except Exception as ex:
                         pass
