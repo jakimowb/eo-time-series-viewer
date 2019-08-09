@@ -4,6 +4,9 @@ Changelog
 2019-08-06 (version 1.7):
     * increased contrast for default map view text
     * improved detect of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+    * temporal profile plot: data gaps are shown by breaks in a profile line
+    * current extent can be copied via MapCanvas context menu
+    * fixed `#102 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/102>`_: move maps to date of interest selected in a temporal profile plot
 
 2019-07-16 (version 1.6):
     * re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views

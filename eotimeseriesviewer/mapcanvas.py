@@ -929,7 +929,11 @@ class MapCanvas(QgsMapCanvas):
 
         for mapLayer in visibleLayers:
             #sub = m.addMenu(mapLayer.name())
-            sub = m.addMenu(os.path.basename(mapLayer.source()))
+            if isinstance(mapLayer, SensorProxyLayer):
+                name = os.path.basename(mapLayer.source())
+            else:
+                name = mapLayer.name()
+            sub = m.addMenu(name)
 
             if isinstance(mapLayer, SensorProxyLayer):
                 sub.setIcon(QIcon(':/timeseriesviewer/icons/icon.svg'))
