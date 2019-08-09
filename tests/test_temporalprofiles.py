@@ -34,7 +34,8 @@ class testclassUtilityTests(unittest.TestCase):
         self.TS = TimeSeries()
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
+        self.assertTrue(len(self.TS) > 0)
         self.dirTmp = tempfile.mkdtemp(prefix='EOTSV_Test')
 
     def tearDown(self):
