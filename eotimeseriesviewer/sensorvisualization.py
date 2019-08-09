@@ -231,7 +231,7 @@ class SensorTableModel(QAbstractTableModel):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             return self.mColumNames[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
+            return col + 1
         return None
 
 
