@@ -53,6 +53,11 @@ FN_NAME = 'name'
 
 FN_DOY = 'DOY'
 FN_DTG = 'DTG'
+FN_IS_NODATA ='is_nodata'
+FN_GEO_X = 'geo_x'
+FN_GEO_Y = 'geo_y'
+FN_PX_X = 'px_x'
+FN_PX_Y = 'px_y'
 
 #FN_N_TOTAL = 'n'
 #FN_N_NODATA = 'no_data'
@@ -72,6 +77,26 @@ except:
     pass
 
 
+def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False) -> QgsFields:
+    """
+    Returns the fields of a single temporal profile
+    :return:
+    """
+    assert isinstance(sensor, SensorInstrument)
+    fields = QgsFields()
+    fields.append(createQgsField(FN_DTG, '2011-09-12', comment='Date-time-group'))
+    fields.append(createQgsField(FN_DOY, 42, comment='Day-of-year'))
+    fields.append(createQgsField(FN_GEO_X, 12.1233, comment='geo-coordinate x/east value'))
+    fields.append(createQgsField(FN_GEO_Y, 12.1233, comment='geo-coordinate y/north value'))
+    fields.append(createQgsField(FN_PX_X, 42, comment='pixel-coordinate x index'))
+    fields.append(createQgsField(FN_PX_Y, 24, comment='pixel-coordinate y index'))
+
+
+    for b in range(sensor.nb):
+        bandKey = bandIndex2bandKey(b)
+        fields.append(createQgsField(bandKey, 1.0, comment='value band {}'.format(b+1)))
+
+    return fields
 
 def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False)->QgsFeature:
     """
@@ -82,31 +107,26 @@ def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False)->QgsF
     """
     # populate with exemplary band values (generally stored as floats)
 
-    if sensor is None:
-        singleBandOnly = True
-
-    fieldValues = collections.OrderedDict()
-    if singleBandOnly:
-        fieldValues['b'] = 1.0
-    else:
-        assert isinstance(sensor, SensorInstrument)
-        for b in range(sensor.nb):
-            fn = bandIndex2bandKey(b)
-            fieldValues[fn] = 1.0
-
-    date = datetime.date.today()
-    doy = dateDOY(date)
-    fieldValues[FN_DOY] = doy
-    fieldValues[FN_DTG] = str(date)
-
-    fields = QgsFields()
-    for k, v in fieldValues.items():
-        fields.append(createQgsField(k, v))
+    fields = temporalProfileFeatureFields(sensor)
     f = QgsFeature(fields)
-    #f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(1.0, 1.0)))
-    for k, v in fieldValues.items():
-        f.setAttribute(k, v)
+    pt = QgsPointXY(12.34567, 12.34567)
+    f.setGeometry(QgsGeometry.fromPointXY(pt))
+    f.setAttribute(FN_GEO_X, pt.x())
+    f.setAttribute(FN_GEO_Y, pt.y())
+    f.setAttribute(FN_PX_X, 1)
+    f.setAttribute(FN_PX_Y, 1)
+    dtg = datetime.date.today()
+    doy = dateDOY(dtg)
+    f.setAttribute(FN_DTG, str(dtg))
+    f.setAttribute(FN_DOY, doy)
+
+    for b in range(sensor.nb):
+        bandKey = bandIndex2bandKey(b)
+        f.setAttribute(bandKey, 1.0)
+
     return f
+
+
 
 
 def dateDOY(date):
@@ -612,7 +632,7 @@ class TemporalProfile(QObject):
             assert isinstance(tsd, TimeSeriesDate)
             meta = {FN_DOY: tsd.mDOY,
                     FN_DTG: str(tsd.mDate),
-                    'nodata': False}
+                    FN_IS_NODATA: False}
 
             self.updateData(tsd, meta, skipStatusUpdate=True)
         #self.updateLoadingStatus()
@@ -688,6 +708,12 @@ class TemporalProfile(QObject):
                 vMean, vStd = profileData
 
                 validValues = not isinstance(vMean, str)
+
+                pxUL, pxLR, _, _ = d.resPixelCoordinates[i]
+                values[FN_PX_X] = pxUL.x()
+                values[FN_PX_Y] = pxUL.y()
+
+
                 # 1. add the pixel values per returned band
 
                 for iBand, bandIndex in enumerate(d.bandIndices):
@@ -696,7 +722,7 @@ class TemporalProfile(QObject):
                     key = 'std{}'.format(bandIndex + 1)
                     values[key] = vStd[iBand] if validValues else None
             else:
-                values['nodata'] = True
+                values[FN_IS_NODATA] = True
 
             self.updateData(tsd, values)
 
@@ -736,7 +762,12 @@ class TemporalProfile(QObject):
         if requiredIndices is None:
             requiredIndices = list(range(tsd.mSensor.nb))
         requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.mSensor.nb]
+
         existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
+
+        if FN_PX_X not in self.data(tsd).keys() and len(requiredIndices) == 0:
+            requiredIndices.append(0)
+
         return [i for i in requiredIndices if i not in existingBandIndices]
 
 
@@ -786,14 +817,15 @@ class TemporalProfile(QObject):
         assert isinstance(expression, QgsExpression)
         expression = QgsExpression(expression)
 
-        # define required QgsFields
-        fields = QgsFields()
+
+
         sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor() == sensor])
-        for tsd in sensorTSDs:
-            data = self.mData[tsd]
-            for k, v in data.items():
-                if v is not None and fields.indexFromName(k) == -1:
-                    fields.append(createQgsField(k, v))
+
+        # define required QgsFields
+        fields = temporalProfileFeatureFields(sensor)
+
+        geo_x = self.mGeometry.centroid().get().x()
+        geo_y = self.mGeometry.centroid().get().y()
 
         for i, tsd in enumerate(sensorTSDs):
             assert isinstance(tsd, TimeSeriesDate)
@@ -802,9 +834,19 @@ class TemporalProfile(QObject):
             context.setFields(fields)
 
             f = QgsFeature(fields)
-            f.setGeometry(self.mGeometry)
-            for k, v in data.items():
-                setQgsFieldValue(f, k, v)
+
+            # set static properties (same for all TSDs)
+            f.setGeometry(QgsGeometry(self.mGeometry))
+            f.setAttribute(FN_GEO_X, geo_x)
+            f.setAttribute(FN_GEO_Y, geo_y)
+
+            # set TSD specific properties
+            f.setAttribute(FN_DOY, tsd.doy())
+            f.setAttribute(FN_DTG, str(tsd.date()))
+
+            for fn in fields.names():
+                if fn in data.keys():
+                    setQgsFieldValue(f, fn, data[fn])
 
             context.setFeature(f)
 
@@ -879,7 +921,7 @@ class TemporalProfile(QObject):
 
     def isNoData(self, tsd):
         assert isinstance(tsd, TimeSeriesDate)
-        return self.mData[tsd]['nodata']
+        return self.mData[tsd][FN_IS_NODATA]
 
     def hasData(self, tsd):
         assert isinstance(tsd, TimeSeriesDate)

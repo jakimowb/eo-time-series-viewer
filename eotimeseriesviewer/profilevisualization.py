@@ -519,7 +519,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
 
 
-    def requiredBandsIndices(self, sensor):
+    def requiredBandsIndices(self, sensor)->list:
         """
         Returns the band indices required to calculate the values for
         the different PlotStyle expressions making use of sensor
@@ -1948,14 +1948,10 @@ class SpectralTemporalVisualization(QObject):
                 print('Start loading for {} geometries from {} sources...'.format(
                     len(theGeometries), len(tasks)
                 ))
-            if backgroundProcess:
-                self.pixelLoader.startLoading(tasks)
-            else:
-                import eotimeseriesviewer.pixelloader
-                tasks = [PixelLoaderTask.fromDump(eotimeseriesviewer.pixelloader.doLoaderTask(None, task.toDump())) for task in tasks]
-                l = len(tasks)
-                for i, task in enumerate(tasks):
-                    self.pixelLoader.sigPixelLoaded.emit(task)
+
+            self.pixelLoader.startLoading(tasks)
+            if not backgroundProcess:
+                QApplication.processEvents()
 
         else:
             if DEBUG:

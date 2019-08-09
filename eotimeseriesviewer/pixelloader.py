@@ -59,7 +59,7 @@ def isOutOfImage(ds, px):
 
 class PixelLoaderTask(object):
     """
-    An object to store the results of an loading from a single raster source.
+    An object to store the loading results from a *single* raster source.
     """
 
     @staticmethod
@@ -88,6 +88,7 @@ class PixelLoaderTask(object):
         self.resGeoTransformation = None
         self.resProfiles = None
         self.resNoDataValues = None
+        self.resPixelCoordinates = None
         self.exception = None
         self.info = None
 
@@ -265,8 +266,10 @@ def doLoaderTask(qgsTask:QgsTask, dump):
                 size_x = abs(pxUL.x() - pxLR.x())
                 size_y = abs(pxUL.y() - pxLR.y())
 
-            if size_x < 1: size_x = 1
-            if size_y < 1: size_y = 1
+            if size_x < 1:
+                size_x = 1
+            if size_y < 1:
+                size_y = 1
 
             PX_SUBSETS.append((pxUL, pxUL, size_x, size_y))
 
@@ -327,8 +330,6 @@ def doLoaderTask(qgsTask:QgsTask, dump):
                         #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
                         PROFILE_DATA[i] = np.vstack(pd)
 
-
-
         # finally, ensure that there is on 2D array only
         for i in range(len(PROFILE_DATA)):
             d = PROFILE_DATA[i]
@@ -352,6 +353,7 @@ def doLoaderTask(qgsTask:QgsTask, dump):
 
                 s = ""
         task.resProfiles = PROFILE_DATA
+        task.resPixelCoordinates = PX_SUBSETS
         task.mIsDone = True
         results.append(task)
         qgsTask.setProgress(100 * (iTask + 1) / nTasks)
