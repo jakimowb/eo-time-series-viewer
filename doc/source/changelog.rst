@@ -1,6 +1,10 @@
 ==============
 Changelog
 ==============
+2019-08-06 (version 1.7):
+    * increased contrast for default map view text
+    * improved detect of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+
 2019-07-16 (version 1.6):
     * re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views
     * date, sensor or map view information can be plotted within each map and become available in screenshots

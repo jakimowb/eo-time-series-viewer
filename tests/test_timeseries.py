@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
 
 import os
@@ -13,7 +13,7 @@ from eotimeseriesviewer.tests import initQgisApplication
 
 QAPP = initQgisApplication()
 
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class TestInit(unittest.TestCase):
 
@@ -87,6 +87,7 @@ class TestInit(unittest.TestCase):
 
             c2 = sensorIDtoProperties(sid)
             self.assertListEqual(list(conf), list(c2))
+        s = ""
 
     def test_TimeSeriesDate(self):
 
@@ -318,6 +319,82 @@ class TestInit(unittest.TestCase):
         self.assertIsInstance(extent, SpatialExtent)
 
 
+    def test_pleiades(self):
+
+        paths = [r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
+                ,r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
+                    ]
+        for p in paths:
+            if not os.path.isfile(p):
+                continue
+
+            ds = gdal.Open(p)
+            self.assertIsInstance(ds, gdal.Dataset)
+            band = ds.GetRasterBand(1)
+            self.assertIsInstance(band, gdal.Band)
+
+
+            tss = TimeSeriesSource(ds)
+            self.assertIsInstance(tss, TimeSeriesSource)
+            self.assertEqual(tss.mWLU, r'μm')
+            self.assertListEqual(tss.mWL, [0.775, 0.867, 1.017, 1.315])
+
+        s = ""
+
+    def test_rapideye(self):
+        from example.Images import re_2014_06_25
+        paths = [r'Y:\RapidEye\3A\2135821_2014-06-25_RE2_3A_328202\2135821_2014-06-25_RE2_3A_328202.tif']
+
+        for p in paths:
+            if not os.path.isfile(p):
+                continue
+
+            ds = gdal.Open(p)
+            self.assertIsInstance(ds, gdal.Dataset)
+            band = ds.GetRasterBand(1)
+            self.assertIsInstance(band, gdal.Band)
+
+
+            tss = TimeSeriesSource(ds)
+            self.assertIsInstance(tss, TimeSeriesSource)
+
+            # see https://www.satimagingcorp.com/satellite-sensors/other-satellite-sensors/rapideye/
+            wlu = r'nm'
+            wl = [0.5 * (440 + 510),
+                  0.5 * (520 + 590),
+                  0.5 * (630 + 685),
+                  0.5 * (760 + 850),
+                  0.5 * (760 - 850)
+                  ]
+            self.assertEqual(tss.mWLU, wlu)
+            self.assertListEqual(tss.mWL, wl)
+
+    def test_sentinel2(self):
+
+        p = r'Q:\Processing_BJ\01_Data\Sentinel\T21LXL\S2A_MSIL1C_20161221T141042_N0204_R110_T21LXL_20161221T141040.SAFE\MTD_MSIL1C.xml'
+
+        if not os.path.isfile(p):
+            return
+
+        dsC = gdal.Open(p)
+        self.assertIsInstance(dsC, gdal.Dataset)
+        for item in dsC.GetSubDatasets():
+            path = item[0]
+            ds = gdal.Open(path)
+            gt =  ds.GetGeoTransform()
+            self.assertIsInstance(ds, gdal.Dataset)
+
+            band = ds.GetRasterBand(1)
+            self.assertIsInstance(band, gdal.Band)
+
+            wlu = ds.GetRasterBand(1).GetMetadata_Dict()['WAVELENGTH_UNIT']
+            wl = [float(ds.GetRasterBand(b+1).GetMetadata_Dict()['WAVELENGTH']) for b in range(ds.RasterCount)]
+
+            tss = TimeSeriesSource(ds)
+            self.assertIsInstance(tss, TimeSeriesSource)
+
+            self.assertEqual(tss.mWLU, wlu)
+            self.assertEqual(tss.mWL, wl)
 
 
     def test_sensors(self):

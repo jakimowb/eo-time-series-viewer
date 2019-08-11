@@ -754,10 +754,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         iface = qgis.utils.iface
         assert isinstance(iface, QgisInterface)
 
-        self.ui.actionImportExtent.triggered.connect(lambda: self.spatialTemporalVis.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
-        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(self.spatialTemporalVis.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
-        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialTemporalVis.spatialExtent().spatialCenter()))
-        self.ui.actionImportCenter.triggered.connect(lambda: self.spatialTemporalVis.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
+        self.ui.actionImportExtent.triggered.connect(lambda: self.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
+        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(self.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialCenter().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionImportCenter.triggered.connect(lambda: self.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
 
         def onSyncRequest(qgisChanged:bool):
             if self.ui.optionSyncMapCenter.isChecked():
@@ -865,7 +865,18 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         self.mapWidget().setSpatialCenter(spatialPoint)
 
+    def spatialExtent(self)->SpatialExtent:
+        """
+        Returns the map extent
+        :return: SpatialExtent
+        """
+        return self.mapWidget().spatialExtent()
+
     def spatialCenter(self)->SpatialPoint:
+        """
+        Returns the map center
+        :return: SpatialPoint
+        """
         return self.mapWidget().spatialCenter()
 
     def setCurrentLocation(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas=None):

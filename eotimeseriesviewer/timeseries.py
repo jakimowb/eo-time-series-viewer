@@ -21,8 +21,9 @@
 # noinspection PyPep8Naming
 
 import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json, uuid
+from xml.etree import ElementTree
 
-
+from qgis.PyQt.QtXml import QDomDocument
 import bisect
 
 from qgis import *
@@ -31,6 +32,17 @@ from qgis.gui import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
+
+
+LUT_WAVELENGTH_UNITS = {}
+for siUnit in [r'nm', r'μm', r'mm', r'cm', r'dm']:
+    LUT_WAVELENGTH_UNITS[siUnit] = siUnit
+LUT_WAVELENGTH_UNITS[r'nanometers'] = r'nm'
+LUT_WAVELENGTH_UNITS[r'micrometers'] = r'μm'
+LUT_WAVELENGTH_UNITS[r'um'] = r'μm'
+LUT_WAVELENGTH_UNITS[r'millimeters'] = r'mm'
+LUT_WAVELENGTH_UNITS[r'centimeters'] = r'cm'
+LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
 
 
 from osgeo import gdal
@@ -879,14 +891,42 @@ class TimeSeriesTreeView(QTreeView):
         """
 
         idx = self.indexAt(event.pos())
-        tsd = self.model().data(idx, role=Qt.UserRole)
+        node = self.model().data(idx, role=Qt.UserRole)
 
         menu = QMenu(self)
-        if isinstance(tsd, TimeSeriesDate):
-            a = menu.addAction('Show map for {}'.format(tsd.date()))
+
+        def setUri(paths):
+            urls = []
+            paths2 = []
+            for p in paths:
+                if os.path.isfile(p):
+                    url = QUrl.fromLocalFile(p)
+                    paths2.append(QDir.toNativeSeparators(p))
+                else:
+                    url = QUrl(p)
+                    paths2.append(p)
+                urls.append(url)
+            md = QMimeData()
+            md.setText('\n'.join(paths2))
+            md.setUrls(urls)
+
+            QApplication.clipboard().setMimeData(md)
+
+
+        if isinstance(node, TimeSeriesDate):
+            a = menu.addAction('Show map for {}'.format(node.date()))
             a.setToolTip('Shows the map related to this time series date.')
-            a.triggered.connect(lambda _, tsd=tsd: self.sigMoveToDateRequest.emit(tsd))
+            a.triggered.connect(lambda _, tsd=node: self.sigMoveToDateRequest.emit(tsd))
             menu.addSeparator()
+
+            a = menu.addAction('Copy path(s)')
+            a.triggered.connect(lambda _, paths=node.sourceUris(): setUri(paths))
+            a.setToolTip('Copy path to cliboard')
+
+        if isinstance(node, TimeSeriesSource):
+            a = menu.addAction('Copy path')
+            a.triggered.connect(lambda _, paths=[node.uri()]: setUri(paths))
+            a.setToolTip('Copy path to cliboard')
 
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())
@@ -1869,69 +1909,180 @@ def getSpatialPropertiesFromDataset(ds):
 
     return nb, nl, ns, crs, px_x, px_y
 
+def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
+    """
+    Reads the wavelength info from standard metadata strings
+    :param ds: gdal.Dataset
+    :return: (list, str)
+    """
+
+    regWLkey = re.compile('^(center )?wavelength[_ ]*$', re.I)
+    regWLUkey = re.compile('^wavelength[_ ]*units?$', re.I)
+    regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)", re.I)
+
+    def findKey(d:dict, regex)->str:
+        for key in d.keys():
+            if regex.search(key):
+                return key
+
+    # 1. try band level
+    wlu = []
+    wl = []
+    for b in range(ds.RasterCount):
+        band = ds.GetRasterBand(b + 1)
+        assert isinstance(band, gdal.Band)
+        md = band.GetMetadata_Dict()
+
+        keyWLU = findKey(md, regWLUkey)
+        keyWL = findKey(md, regWLkey)
+
+        if isinstance(keyWL, str) and isinstance(keyWLU, str):
+            wl.append(float(md[keyWL]))
+            wlu.append(LUT_WAVELENGTH_UNITS[md[keyWLU].lower()])
+
+    if len(wlu) == len(wl) and len(wl) == ds.RasterCount:
+        return wl, wlu[0]
+
+    # 2. try data set level
+    for domain in ds.GetMetadataDomainList():
+        md = ds.GetMetadata_Dict(domain)
+
+        keyWLU = findKey(md, regWLUkey)
+        keyWL = findKey(md, regWLkey)
+
+        if isinstance(keyWL, str) and isinstance(keyWLU, str):
+
+
+            wlu = LUT_WAVELENGTH_UNITS[md[keyWLU].lower()]
+            matches = regNumeric.findall(md[keyWL])
+            wl = [float(n) for n in matches]
 
 
 
+            if len(wl) == ds.RasterCount:
+                return wl, wlu
+
+    return None, None
 
 
 
+def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument)->(list, str):
+    nodes = dom.elementsByTagName('re:bandSpecificMetadata')
+    # see http://schemas.rapideye.de/products/re/4.0/RapidEye_ProductMetadata_GeocorrectedLevel.xsd
+    # wavelength and units not given in the XML
+    # -> use values from https://www.satimagingcorp.com/satellite-sensors/other-satellite-sensors/rapideye/
+    if nodes.count() == ds.RasterCount and ds.RasterCount == 5:
+        wlu = r'nm'
+        wl = [0.5 * (440 + 510),
+              0.5 * (520 + 590),
+              0.5 * (630 + 685),
+              0.5 * (760 + 850),
+              0.5 * (760 - 850)
+              ]
+        return wl, wlu
+    return None, None
 
 
+def extractWavelengthsFromDIMAPXML(ds:gdal.Dataset, dom:QDomDocument)->(list, str):
+    """
+    :param dom: QDomDocument | gdal.Dataset
+    :return: (list of wavelengths, str wavelength unit)
+    """
+    # DIMAP XML metadata?
+    assert isinstance(dom, QDomDocument)
+    nodes = dom.elementsByTagName('Band_Spectral_Range')
+    if nodes.count() > 0:
+        candidates = []
+        for element in [nodes.item(i).toElement() for i in range(nodes.count())]:
+            _band = element.firstChildElement('BAND_ID').text()
+            _wlu = element.firstChildElement('MEASURE_UNIT').text()
+            wlMin = float(element.firstChildElement('MIN').text())
+            wlMax = float(element.firstChildElement('MAX').text())
+            _wl = 0.5 * wlMin + wlMax
+            candidates.append((_band, _wl, _wlu))
 
+        if len(candidates) == ds.RasterCount:
+            candidates = sorted(candidates, key=lambda t: t[0])
+
+            wlu = candidates[0][2]
+            wlu = LUT_WAVELENGTH_UNITS[wlu]
+            wl = [c[1] for c in candidates]
+            return wl, wlu
+    return None, None
 
 def extractWavelengths(ds):
-    wl = None
-    wlu = None
-
-    # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
-    regWLkey = re.compile('.*wavelength[_ ]*$', re.I)
-    regWLUkey = re.compile('.*wavelength[_ ]*units?$', re.I)
-    regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)", re.I)
-    regWLU = re.compile('((micro|nano|centi)meters)|(um|nm|mm|cm|m|GHz|MHz)', re.I)
+    """
+    Returns the wavelength and wavelength units
+    :param ds: gdal.Dataset
+    :return: (float [list-of-wavelengths], str with wavelength unit)
+    """
 
     if isinstance(ds, QgsRasterLayer):
-        lyr = ds
-        md = [l.split('=') for l in str(lyr.metadata()).splitlines() if 'wavelength' in l.lower()]
-        #see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
-        for kv in md:
-            key, value = kv
-            key = key.lower()
-            if key == 'center wavelength':
-                tmp = re.findall(r'\d*\.\d+|\d+', value) #find floats
-                if len(tmp) == 0:
-                    tmp = re.findall(r'\d+', value) #find integers
-                if len(tmp) == lyr.bandCount():
-                    wl = [float(w) for w in tmp]
 
-            if key == 'wavelength units':
-                match = regWLU.search(value)
-                if match:
-                    wlu = match.group()
+        if ds.dataProvider().name() == 'gdal':
+            uri = ds.source()
+            return extractWavelengths(gdal.Open(uri))
+        else:
 
-                names = ['nanometers','micrometers','millimeters','centimeters','decimenters']
-                si   = ['nm','um','mm','cm','dm']
-                if wlu in names:
-                    wlu = si[names.index(wlu)]
+            md = [l.split('=') for l in str(ds.metadata()).splitlines() if 'wavelength' in l.lower()]
+
+            wl = wlu = None
+            for kv in md:
+                key, value = kv
+                key = key.lower()
+                value = value.strip()
+
+                if key == 'wavelength':
+                    tmp = re.findall(r'\d*\.\d+|\d+', value) #find floats
+                    if len(tmp) == 0:
+                        tmp = re.findall(r'\d+', value) #find integers
+                    if len(tmp) == ds.bandCount():
+                        wl = [float(w) for w in tmp]
+
+                if key == 'wavelength units':
+                    wlu = value
+                    if wlu in LUT_WAVELENGTH_UNITS.keys():
+                        wlu = LUT_WAVELENGTH_UNITS[wlu]
+
+                if isinstance(wl, list) and isinstance(wlu, str):
+                    return wl, wlu
+
     elif isinstance(ds, gdal.Dataset):
 
-        for domain in ds.GetMetadataDomainList():
-            md = ds.GetMetadata_Dict(domain)
-            for key, value in md.items():
-                if wl is None and regWLkey.search(key):
-                    numbers = regNumeric.findall(value)
-                    if len(numbers) == ds.RasterCount:
-                        wl = [float(n) for n in numbers]
+        def testWavelLengthInfo(wl, wlu)->bool:
+            return isinstance(wl, list) and len(wl) == ds.RasterCount and isinstance(wlu, str) and wlu in LUT_WAVELENGTH_UNITS.keys()
 
-                if wlu is None and regWLUkey.search(key):
-                    match = regWLU.search(value)
-                    if match:
-                        wlu = match.group().lower()
-                    names = ['nanometers', 'micrometers', 'millimeters', 'centimeters', 'decimeters']
-                    si = ['nm', 'um', 'mm', 'cm', 'dm']
-                    if wlu in names:
-                        wlu = si[names.index(wlu)]
+        # try band-specific metadata
+        wl, wlu = extractWavelengthsFromGDALMetaData(ds)
+        if testWavelLengthInfo(wl, wlu):
+            return wl, wlu
 
-    return wl, wlu
+        # try internal locations with XML info
+        # SPOT DIMAP
+        if 'xml:dimap' in ds.GetMetadataDomainList():
+            md = ds.GetMetadata_Dict('xml:dimap')
+            for key in md.keys():
+                dom = QDomDocument()
+                dom.setContent(key + '=' + md[key])
+                wl, wlu = extractWavelengthsFromDIMAPXML(ds, dom)
+                if testWavelLengthInfo(wl, wlu):
+                    return wl, wlu
+
+        # try separate XML files
+        xmlReaders = [extractWavelengthsFromDIMAPXML, extractWavelengthsFromRapidEyeXML]
+        for path in ds.GetFileList():
+            if re.search(r'\.xml$', path, re.I) and not re.search(r'\.aux.xml$', path, re.I):
+                dom = QDomDocument()
+                with open(path, encoding='utf-8') as f:
+                    dom.setContent(f.read())
+
+                if dom.hasChildNodes():
+                    for xmlReader in xmlReaders:
+                        wl, wlu = xmlReader(ds, dom)
+                        if testWavelLengthInfo(wl, wlu):
+                            return wl, wlu
+
+    return None, None
 
 
 

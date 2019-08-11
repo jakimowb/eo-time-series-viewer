@@ -626,6 +626,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
+            sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
             dummyLayer = sensor.proxyLayer()
             assert isinstance(dummyLayer.renderer(), QgsRasterRenderer)
             dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
@@ -1054,6 +1055,11 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         n = len(self.timeSeries())
         self.mTimeSlider.setRange(0, n)
         self.mTimeSlider.setEnabled(n > 0)
+        if n > 10:
+            pageStep = int(n/100)*10
+        else:
+            pageStep = 5
+        self.timeSlider().setPageStep(pageStep)
         if n > 0:
             tsd = self.currentDate()
 
@@ -1657,7 +1663,6 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(lambda: self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
 
-
         self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
@@ -1671,8 +1676,6 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
     def onApplyButtonClicked(self):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
         self.sigMapsPerMapViewChanged.emit(self.mapsPerMapView())
-
-
 
     def setMapWidget(self, mw)->MapWidget:
         """

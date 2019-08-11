@@ -38,6 +38,9 @@ if DEBUG:
     logger = multiprocessing.log_to_stderr()
     logger.setLevel(multiprocessing.SUBDEBUG)
 
+class TaskMock(QgsTask):
+    def __init__(self):
+        super(TaskMock, self).__init__()
 
 def dprint(msg):
     if DEBUG:
@@ -186,171 +189,173 @@ def transformPoint2Px(trans, pt, gt):
 
 def doLoaderTask(taskWrapper:QgsTask, dump):
 
-    # assert isinstance(taskWrapper, QgsTask)
-    if isinstance(dump, PixelLoaderTask):
-        task = dump
-    else:
-        task = PixelLoaderTask.fromDump(dump)
-    assert isinstance(task, PixelLoaderTask)
-    result = task
-    ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
-    nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
+    assert isinstance(taskWrapper, QgsTask)
 
-    bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
-    # ensure to load valid indices only
-    bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
+    tasks = pickle.loads(dump)
+    results = []
+    for task in tasks:
+        assert isinstance(task, PixelLoaderTask)
 
-    task.bandIndices = bandIndices
+        result = task
+        ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
+        nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
-    gt = ds.GetGeoTransform()
-    result.resGeoTransformation = gt
-    result.resCrsWkt = ds.GetProjection()
-    if result.resCrsWkt == '':
-        result.resCrsWkt = QgsRasterLayer(ds.GetDescription()).crs().toWkt()
-    crsSrc = osr.SpatialReference(result.resCrsWkt)
+        bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
+        # ensure to load valid indices only
+        bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
 
-    # convert Geometries into pixel indices to be extracted
-    PX_SUBSETS = []
+        task.bandIndices = bandIndices
 
-    for geom in task.geometries:
-        crsRequest = osr.SpatialReference()
+        gt = ds.GetGeoTransform()
+        result.resGeoTransformation = gt
+        result.resCrsWkt = ds.GetProjection()
+        if result.resCrsWkt == '':
+            result.resCrsWkt = QgsRasterLayer(ds.GetDescription()).crs().toWkt()
+        crsSrc = osr.SpatialReference(result.resCrsWkt)
 
-        if geom.crs().isValid():
-            crsRequest.ImportFromWkt(geom.crs().toWkt())
-        else:
-            crsRequest.ImportFromWkt(crsSrc.ExportToWkt())
-        trans = osr.CoordinateTransformation(crsRequest, crsSrc)
+        # convert Geometries into pixel indices to be extracted
+        PX_SUBSETS = []
 
-        if isinstance(geom, QgsPointXY):
-            ptUL = ptLR = QgsPointXY(geom)
-        elif isinstance(geom, QgsRectangle):
-            TYPE = 'RECTANGLE'
-            ptUL = QgsPointXY(geom.xMinimum(), geom.yMaximum())
-            ptLR = QgsPointXY(geom.xMaximum(), geom.yMinimum())
-        else:
-            raise NotImplementedError('Unsupported geometry {} {}'.format(type(geom), str(geom)))
+        for geom in task.geometries:
+            crsRequest = osr.SpatialReference()
 
-        pxUL = transformPoint2Px(trans, ptUL, gt)
-        pxLR = transformPoint2Px(trans, ptLR, gt)
+            if geom.crs().isValid():
+                crsRequest.ImportFromWkt(geom.crs().toWkt())
+            else:
+                crsRequest.ImportFromWkt(crsSrc.ExportToWkt())
+            trans = osr.CoordinateTransformation(crsRequest, crsSrc)
 
-        bUL = isOutOfImage(ds, pxUL)
-        bLR = isOutOfImage(ds, pxLR)
+            if isinstance(geom, QgsPointXY):
+                ptUL = ptLR = QgsPointXY(geom)
+            elif isinstance(geom, QgsRectangle):
+                TYPE = 'RECTANGLE'
+                ptUL = QgsPointXY(geom.xMinimum(), geom.yMaximum())
+                ptLR = QgsPointXY(geom.xMaximum(), geom.yMinimum())
+            else:
+                raise NotImplementedError('Unsupported geometry {} {}'.format(type(geom), str(geom)))
 
-        if all([bUL, bLR]):
-            PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
-            continue
+            pxUL = transformPoint2Px(trans, ptUL, gt)
+            pxLR = transformPoint2Px(trans, ptLR, gt)
 
+            bUL = isOutOfImage(ds, pxUL)
+            bLR = isOutOfImage(ds, pxLR)
 
-        def shiftIntoImageBounds(pt, xMax, yMax):
-            assert isinstance(pt, QPoint)
-            if pt.x() < 0:
-                pt.setX(0)
-            elif pt.x() > xMax:
-                pt.setX(xMax)
-            if pt.y() < 0:
-                pt.setY(0)
-            elif pt.y() > yMax:
-                pt.setY(yMax)
-
-
-        shiftIntoImageBounds(pxUL, ds.RasterXSize, ds.RasterYSize)
-        shiftIntoImageBounds(pxLR, ds.RasterXSize, ds.RasterYSize)
-
-        if pxUL == pxLR:
-            size_x = size_y = 1
-        else:
-            size_x = abs(pxUL.x() - pxLR.x())
-            size_y = abs(pxUL.y() - pxLR.y())
-
-        if size_x < 1: size_x = 1
-        if size_y < 1: size_y = 1
-
-        PX_SUBSETS.append((pxUL, pxUL, size_x, size_y))
-
-    PROFILE_DATA = []
-
-    if bandIndices == range(ds.RasterCount):
-        # we have to extract all bands
-        # in this case we use gdal.Dataset.ReadAsArray()
-        noData = ds.GetRasterBand(1).GetNoDataValue()
-        for px in PX_SUBSETS:
-            if px == INFO_OUT_OF_IMAGE:
-                PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
+            if all([bUL, bLR]):
+                PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
                 continue
 
-            pxUL, pxUL, size_x, size_y = px
 
-            bandData = ds.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).reshape((nb, size_x*size_y))
-            if noData:
-                isValid = np.ones(bandData.shape[1], dtype=np.bool)
-                for b in range(bandData.shape[0]):
-                    isValid *= bandData[b, :] != ds.GetRasterBand(b+1).GetNoDataValue()
-                bandData = bandData[:, np.where(isValid)[0]]
-            PROFILE_DATA.append(bandData)
-    else:
-        # access band values band-by-band
-        # in this case we use gdal.Band.ReadAsArray()
-        # and need to iterate over the requested band indices
+            def shiftIntoImageBounds(pt, xMax, yMax):
+                assert isinstance(pt, QPoint)
+                if pt.x() < 0:
+                    pt.setX(0)
+                elif pt.x() > xMax:
+                    pt.setX(xMax)
+                if pt.y() < 0:
+                    pt.setY(0)
+                elif pt.y() > yMax:
+                    pt.setY(yMax)
 
-        # save the returned band values for each geometry in a separate list
-        # empty list == invalid geometry
-        for i in range(len(PX_SUBSETS)):
-            if PX_SUBSETS[i] == INFO_OUT_OF_IMAGE:
-                PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
+
+            shiftIntoImageBounds(pxUL, ds.RasterXSize, ds.RasterYSize)
+            shiftIntoImageBounds(pxLR, ds.RasterXSize, ds.RasterYSize)
+
+            if pxUL == pxLR:
+                size_x = size_y = 1
             else:
-                PROFILE_DATA.append([])
+                size_x = abs(pxUL.x() - pxLR.x())
+                size_y = abs(pxUL.y() - pxLR.y())
 
+            if size_x < 1: size_x = 1
+            if size_y < 1: size_y = 1
 
-        for bandIndex in bandIndices:
-            band = ds.GetRasterBand(bandIndex+1)
-            noData = band.GetNoDataValue()
-            assert isinstance(band, gdal.Band)
+            PX_SUBSETS.append((pxUL, pxUL, size_x, size_y))
 
-            for i, px in enumerate(PX_SUBSETS):
+        PROFILE_DATA = []
+
+        if bandIndices == range(ds.RasterCount):
+            # we have to extract all bands
+            # in this case we use gdal.Dataset.ReadAsArray()
+            noData = ds.GetRasterBand(1).GetNoDataValue()
+            for px in PX_SUBSETS:
                 if px == INFO_OUT_OF_IMAGE:
+                    PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
                     continue
+
                 pxUL, pxUL, size_x, size_y = px
-                bandData = band.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).flatten()
+
+                bandData = ds.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).reshape((nb, size_x*size_y))
                 if noData:
-                    bandData = bandData[np.where(bandData != noData)[0]]
-                PROFILE_DATA[i].append(bandData)
+                    isValid = np.ones(bandData.shape[1], dtype=np.bool)
+                    for b in range(bandData.shape[0]):
+                        isValid *= bandData[b, :] != ds.GetRasterBand(b+1).GetNoDataValue()
+                    bandData = bandData[:, np.where(isValid)[0]]
+                PROFILE_DATA.append(bandData)
+        else:
+            # access band values band-by-band
+            # in this case we use gdal.Band.ReadAsArray()
+            # and need to iterate over the requested band indices
 
-        for i in range(len(PX_SUBSETS)):
-            pd = PROFILE_DATA[i]
-            if isinstance(pd, list):
-                if len(pd) == 0:
-                    PROFILE_DATA[i] = INFO_OUT_OF_IMAGE
+            # save the returned band values for each geometry in a separate list
+            # empty list == invalid geometry
+            for i in range(len(PX_SUBSETS)):
+                if PX_SUBSETS[i] == INFO_OUT_OF_IMAGE:
+                    PROFILE_DATA.append(INFO_OUT_OF_IMAGE)
                 else:
-                    #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
-                    PROFILE_DATA[i] = np.vstack(pd)
+                    PROFILE_DATA.append([])
+
+
+            for bandIndex in bandIndices:
+                band = ds.GetRasterBand(bandIndex+1)
+                noData = band.GetNoDataValue()
+                assert isinstance(band, gdal.Band)
+
+                for i, px in enumerate(PX_SUBSETS):
+                    if px == INFO_OUT_OF_IMAGE:
+                        continue
+                    pxUL, pxUL, size_x, size_y = px
+                    bandData = band.ReadAsArray(pxUL.x(), pxUL.y(), size_x, size_y).flatten()
+                    if noData:
+                        bandData = bandData[np.where(bandData != noData)[0]]
+                    PROFILE_DATA[i].append(bandData)
+
+            for i in range(len(PX_SUBSETS)):
+                pd = PROFILE_DATA[i]
+                if isinstance(pd, list):
+                    if len(pd) == 0:
+                        PROFILE_DATA[i] = INFO_OUT_OF_IMAGE
+                    else:
+                        #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
+                        PROFILE_DATA[i] = np.vstack(pd)
 
 
 
-    # finally, ensure that there is on 2D array only
-    for i in range(len(PROFILE_DATA)):
-        d = PROFILE_DATA[i]
-        if isinstance(d, np.ndarray):
-            assert d.ndim == 2
-            b, yx = d.shape
-            assert b == len(bandIndices)
+        # finally, ensure that there is on 2D array only
+        for i in range(len(PROFILE_DATA)):
+            d = PROFILE_DATA[i]
+            if isinstance(d, np.ndarray):
+                assert d.ndim == 2
+                b, yx = d.shape
+                assert b == len(bandIndices)
 
-            _, _, size_x, size_y = PX_SUBSETS[i]
+                _, _, size_x, size_y = PX_SUBSETS[i]
 
-            if yx > 0:
-                d = d.reshape((b, yx))
-                vMean = d.mean(axis=1)
-                vStd = d.std(axis=1)
+                if yx > 0:
+                    d = d.reshape((b, yx))
+                    vMean = d.mean(axis=1)
+                    vStd = d.std(axis=1)
 
-                assert len(vMean) == len(bandIndices)
-                assert len(vStd) == len(bandIndices)
-                PROFILE_DATA[i] = (vMean, vStd)
-            else:
-                PROFILE_DATA[i] = INFO_NO_DATA
+                    assert len(vMean) == len(bandIndices)
+                    assert len(vStd) == len(bandIndices)
+                    PROFILE_DATA[i] = (vMean, vStd)
+                else:
+                    PROFILE_DATA[i] = INFO_NO_DATA
 
-            s = ""
-    task.resProfiles = PROFILE_DATA
-    task.mIsDone = True
-    return task.toDump()
+                s = ""
+        task.resProfiles = PROFILE_DATA
+        task.mIsDone = True
+        results.append(task)
+    return pickle.dumps(results)
 
 
 
@@ -416,31 +421,38 @@ class PixelLoader(QObject):
 
         assert isinstance(tasks, list)
 
-        tm = self.taskManager()
+        dump = pickle.dumps(tasks)
 
-        #self.sigLoadingStarted.emit()
 
-        #todo: create chuncks
-        import uuid
-        for plt in tasks:
-            assert isinstance(plt, PixelLoaderTask)
 
-            taskName = 'pltTask.{}'.format(uuid.uuid4())
-            plt.setId(taskName)
-            dump = plt.toDump()
-            qgsTask = QgsTask.fromFunction(taskName, doLoaderTask, dump, on_finished=self.onLoadingFinished)
+        if False:
+            qgsTask = TaskMock()
+            resultDump = doLoaderTask(qgsTask, dump)
+            self.onLoadingFinished(TaskMock(), resultDump)
+
+        else:
+            qgsTask = QgsTask.fromFunction('Load band values', doLoaderTask, dump, on_finished=self.onLoadingFinished)
+            tid = id(qgsTask)
+            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            # todo: progress changed?
+            self.mTasks[tid] = qgsTask
+            tm = self.taskManager()
             tm.addTask(qgsTask)
-            self.mTasks[taskName] = qgsTask
 
+    def onRemoveTask(self, tid):
+        if tid in self.mTasks.keys():
+            del self.mTasks[tid]
 
     def onLoadingFinished(self, *args, **kwds):
 
         error = args[0]
         if error is None:
             dump = args[1]
-            plt = PixelLoaderTask.fromDump(dump)
-            if isinstance(plt, PixelLoaderTask):
-                self.mTasks.pop(plt.id())
+            tasks = pickle.loads(dump)
+            for plt in tasks:
+                assert isinstance(plt, PixelLoaderTask)
+                #self.mTasks.pop(plt.id())
                 self.sigPixelLoaded.emit(plt)
 
 
