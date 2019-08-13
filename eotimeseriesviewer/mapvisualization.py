@@ -1716,7 +1716,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         return self.mMapWidget
 
-    def mapWidget(self):
+    def mapWidget(self)->MapWidget:
         """
         Returns the connected MapWidget
         :return: MapWidget

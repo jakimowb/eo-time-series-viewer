@@ -1060,8 +1060,13 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self):
-        ext = self.currentSpatialExtent()
+    def focusVisibilityToExtent(self, ext:SpatialExtent=None):
+        """
+        Changes TSDs visibility according to its intersection with a SpatialExtent
+        :param ext: SpatialExtent
+        """
+        if ext is None:
+            ext = self.currentSpatialExtent()
         if isinstance(ext, SpatialExtent):
             changed = False
             for tsd in self:

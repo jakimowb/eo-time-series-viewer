@@ -529,16 +529,38 @@ class MapCanvas(QgsMapCanvas):
         """
         Updates map-canvas TSD variables
         """
-        scope = self.expressionContextScope()
+        from .mapvisualization import MapView
+        from .main import TimeSeriesViewer
+
+
+        varMVNumber = None
+        varMVName = None
+        varDate = None
+        varDOY = None
+        varSensor = None
+
+        
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            scope.setVariable('map_date', str(tsd.date()), isStatic=False)
-            scope.setVariable('map_doy', tsd.doy(), isStatic=False)
-            scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
-        else:
-            scope.setVariable('map_date', None, isStatic=False)
-            scope.setVariable('map_doy', None, isStatic=False)
-            scope.setVariable('map_sensor', None, isStatic=False)
+            varDate = str(tsd.date())
+            varDOY = tsd.doy()
+            varSensor = tsd.sensor().name()
+
+        mv = self.mapView()
+        if isinstance(mv, MapView):
+            varMVName = mv.name()
+            if isinstance(TimeSeriesViewer.instance(), TimeSeriesViewer):
+                mapViews = TimeSeriesViewer.instance().mapViews()
+                if mv in mapViews:
+                    varMVNumber = mapViews.index(mv) + 1
+
+        scope = self.expressionContextScope()
+        scope.setVariable('map_view_num', varMVNumber, isStatic=False)
+        scope.setVariable('map_view', varMVName, isStatic=False)
+        scope.setVariable('map_date', varDate, isStatic=False)
+        scope.setVariable('map_doy', varDOY, isStatic=False)
+        scope.setVariable('map_sensor', varSensor, isStatic=False)
+
 
 
     def tsd(self)->TimeSeriesDate:
@@ -822,7 +844,7 @@ class MapCanvas(QgsMapCanvas):
 
     def contextMenu(self, pos:QPoint)->QMenu:
         """
-        Create the MapCanvas context menu with options relevant for pixel position ``pos``.
+        Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
         :return: QMenu
         """
@@ -864,34 +886,37 @@ class MapCanvas(QgsMapCanvas):
             lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
 
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            m = menu.addMenu('Quick Labels'.format(self.tsd().date()))
+            m = menu.addMenu('Quick Labels')
             m.setToolTipsVisible(True)
             nQuickLabelLayers = len(lyrWithSelectedFeatures)
             m.setEnabled(nQuickLabelLayers > 0)
 
             a = m.addAction('Set Date/Sensor attributes')
-            a.setToolTip('Writes the date ate and sensor quick labels of selected features in {}.'.format(layerNames))
+            a.setToolTip('Writes the dates and sensor quick labels of selected features in {}.'.format(layerNames))
             a.triggered.connect(lambda *args, tsd = self.tsd(), tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss))
 
-            from .labeling import EDITOR_WIDGET_REGISTRY_KEY as QUICK_LABEL_KEY
             from .labeling import CONFKEY_CLASSIFICATIONSCHEME, layerClassSchemes, setQuickClassInfo
+            if len(lyrWithSelectedFeatures) == 0:
+                a = m.addAction('No features selected.')
+                a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
+                a.setEnabled(False)
+            else:
+                for layer in lyrWithSelectedFeatures:
+                    assert isinstance(layer, QgsVectorLayer)
 
-            for layer in lyrWithSelectedFeatures:
-                assert isinstance(layer, QgsVectorLayer)
+                    csf = layerClassSchemes(layer)
+                    if len(csf) > 0:
+                        m.addSection(layer.name())
+                        for (cs, field) in csf:
+                            assert isinstance(cs, ClassificationScheme)
+                            assert isinstance(field, QgsField)
 
-                csf = layerClassSchemes(layer)
-                if len(csf) > 0:
-                    m.addSection(layer.name())
-                    for (cs, field) in csf:
-                        assert isinstance(cs, ClassificationScheme)
-                        assert isinstance(field, QgsField)
-
-                        classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
-                        for classInfo in cs:
-                            assert isinstance(classInfo, ClassInfo)
-                            a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
-                            a.setIcon(classInfo.icon())
-                            a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+                            classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
+                            for classInfo in cs:
+                                assert isinstance(classInfo, ClassInfo)
+                                a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
+                                a.setIcon(classInfo.icon())
+                                a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
 
 
         if isinstance(refSensorLayer, SensorProxyLayer):
@@ -904,6 +929,7 @@ class MapCanvas(QgsMapCanvas):
 
             action = m.addAction('Gaussian')
             action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
+
 
 
         menu.addSeparator()
@@ -986,7 +1012,7 @@ class MapCanvas(QgsMapCanvas):
         action.setChecked(self.mCrosshairItem.visibility())
         action.toggled.connect(self.setCrosshairVisibility)
 
-        action = m.addAction('Style')
+        action = m.addAction('Set Style')
         def onCrosshairChange(*args):
 
             style = CrosshairDialog.getCrosshairStyle(parent=self,
@@ -1144,7 +1170,9 @@ class MapCanvas(QgsMapCanvas):
                     lqgis.setRenderer(l.renderer().clone())
 
     def stretchToCurrentExtent(self):
-
+        """
+        Stretches the top-raster layer band to the current spatial extent
+        """
         se = self.spatialExtent()
         self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
 
