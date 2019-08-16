@@ -504,6 +504,7 @@ class TimeSeriesSource(object):
         self.mUL = QgsPointXY(QgsGeometry.fromWkt(self.mUL).asPoint())
         self.mLR = QgsPointXY(QgsGeometry.fromWkt(self.mLR).asPoint())
         self.mDate = np.datetime64(self.mDate)
+        self.mSpatialExtent = None
 
     def __getstate__(self):
 
@@ -574,7 +575,9 @@ class TimeSeriesSource(object):
         return self.mCRS
 
     def spatialExtent(self)->SpatialExtent:
-        return SpatialExtent(self.mCRS, self.mUL, self.mLR)
+        if not isinstance(self.mSpatialExtent, SpatialExtent):
+            self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
+        return self.mSpatialExtent
 
     def __eq__(self, other):
         if not isinstance(other, TimeSeriesSource):

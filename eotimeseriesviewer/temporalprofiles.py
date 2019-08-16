@@ -64,9 +64,10 @@ FN_PX_Y = 'px_y'
 #FN_N_LOADED = 'loaded'
 #FN_N_LOADED_PERCENT = 'percent'
 
-
 regBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
 regBandKeyExact = re.compile(r'^' + regBandKey.pattern + '$', re.IGNORECASE)
+
+
 
 try:
     import OpenGL
@@ -619,7 +620,7 @@ class TemporalProfile(QObject):
         assert isinstance(layer, TemporalProfileLayer)
         assert fid >= 0
 
-        self.mGeometry = geometry
+
         self.mID = fid
         self.mLayer = layer
         self.mTimeSeries = layer.timeSeries()
@@ -635,10 +636,21 @@ class TemporalProfile(QObject):
                     FN_IS_NODATA: False}
 
             self.updateData(tsd, meta, skipStatusUpdate=True)
-        #self.updateLoadingStatus()
-        s = ""
 
+        self.mGEOM_CACHE = dict()
 
+    def printData(self, sensor:SensorInstrument=None):
+        """
+        Prints the entire temporal profile. For debug purposes.
+        """
+        for tsd in sorted(self.mData.keys()):
+            assert isinstance(tsd, TimeSeriesDate)
+            data = self.mData[tsd]
+            if isinstance(sensor, SensorInstrument) and tsd.sensor() != sensor:
+                continue
+            assert isinstance(data, dict)
+            info = '{}:{}={}'.format(tsd.date(), tsd.sensor().name(), str(data))
+            print(info)
 
     def __hash__(self):
         return hash('{}{}'.format(self.mID, self.mLayer.layerId()))
@@ -655,8 +667,21 @@ class TemporalProfile(QObject):
 
         return other.mID == self.mID and self.mLayer == other.mLayer
 
-    def geometry(self):
-        return self.mLayer.getFeature(self.mID).geometry()
+    def geometry(self, crs:QgsCoordinateReferenceSystem=None)->QgsGeometry:
+        """
+        Returns the geometry
+        :param crs:
+        :return: QgsGeometry. usually a  QgsPoint
+        """
+        g = self.mLayer.getFeature(self.mID).geometry()
+
+        if isinstance(crs, QgsCoordinateReferenceSystem) and crs != self.mLayer.crs():
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(self.mLayer.crs())
+            trans.setDestinationCrs(crs)
+            g = trans.transform(g)
+        return g
+
 
     def coordinate(self)->SpatialPoint:
         """
@@ -698,7 +723,7 @@ class TemporalProfile(QObject):
         assert isinstance(d, PixelLoaderTask)
         if d.success() and self.mID in d.temporalProfileIDs:
             i = d.temporalProfileIDs.index(self.mID)
-            tsd = self.mTimeSeries.getTSD(d.sourcePath)
+            tsd = self.mTimeSeries.getTSD(d.mSourcePath)
             assert isinstance(tsd, TimeSeriesDate)
 
             values = {}
@@ -716,7 +741,7 @@ class TemporalProfile(QObject):
 
                 # 1. add the pixel values per returned band
 
-                for iBand, bandIndex in enumerate(d.bandIndices):
+                for iBand, bandIndex in enumerate(d.mBandIndices):
                     key = 'b{}'.format(bandIndex + 1)
                     values[key] = vMean[iBand] if validValues else None
                     key = 'std{}'.format(bandIndex + 1)
@@ -806,7 +831,7 @@ class TemporalProfile(QObject):
     def updated(self):
         return self.mUpdated
 
-    def dataFromExpression(self, sensor, expression:str, dateType='date'):
+    def dataFromExpression(self, sensor:SensorInstrument, expression:str, dateType='date'):
         assert dateType in ['date', 'doy']
         x = []
         y = []
@@ -824,41 +849,45 @@ class TemporalProfile(QObject):
         # define required QgsFields
         fields = temporalProfileFeatureFields(sensor)
 
-        geo_x = self.mGeometry.centroid().get().x()
-        geo_y = self.mGeometry.centroid().get().y()
+        geo_x = self.geometry().centroid().get().x()
+        geo_y = self.geometry().centroid().get().y()
 
         for i, tsd in enumerate(sensorTSDs):
             assert isinstance(tsd, TimeSeriesDate)
             data = self.mData[tsd]
-            context = QgsExpressionContext()
-            context.setFields(fields)
-
-            f = QgsFeature(fields)
-
-            # set static properties (same for all TSDs)
-            f.setGeometry(QgsGeometry(self.mGeometry))
-            f.setAttribute(FN_GEO_X, geo_x)
-            f.setAttribute(FN_GEO_Y, geo_y)
-
-            # set TSD specific properties
-            f.setAttribute(FN_DOY, tsd.doy())
-            f.setAttribute(FN_DTG, str(tsd.date()))
-
-            for fn in fields.names():
-                if fn in data.keys():
-                    setQgsFieldValue(f, fn, data[fn])
-
-            context.setFeature(f)
-
-            yValue = expression.evaluate(context)
 
             if dateType == 'date':
                 xValue = date2num(tsd.mDate)
             elif dateType == 'doy':
                 xValue = tsd.mDOY
 
-            if yValue in [None, QVariant()]:
+            if data['is_nodata']:
                 yValue = np.NaN
+            else:
+                context = QgsExpressionContext()
+                context.setFields(fields)
+
+                f = QgsFeature(fields)
+
+                # set static properties (same for all TSDs)
+                f.setGeometry(QgsGeometry(self.geometry()))
+                f.setAttribute(FN_GEO_X, geo_x)
+                f.setAttribute(FN_GEO_Y, geo_y)
+
+                # set TSD specific properties
+                f.setAttribute(FN_DOY, tsd.doy())
+                f.setAttribute(FN_DTG, str(tsd.date()))
+
+                for fn in fields.names():
+                    if fn in data.keys():
+                        setQgsFieldValue(f, fn, data[fn])
+
+                context.setFeature(f)
+
+                yValue = expression.evaluate(context)
+
+                if yValue in [None, QVariant()]:
+                    yValue = np.NaN
 
             y.append(yValue)
             x.append(xValue)
@@ -1580,6 +1609,8 @@ class TemporalProfileLayer(QgsVectorLayer):
                 else:
                     pass
                     s = ""
+        else:
+            s = ""
 
     def clear(self):
         #todo: remove TS Profiles

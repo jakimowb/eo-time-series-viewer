@@ -27,7 +27,7 @@ from PyQt5.QtGui import *
 from eotimeseriesviewer.externals.qps.models import Option, OptionListModel
 
 
-from eotimeseriesviewer.temporalprofiles2d import *
+from eotimeseriesviewer.temporalprofiles import *
 
 LABEL_EXPRESSION_3D = 'Scaling'
 

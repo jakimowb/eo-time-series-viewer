@@ -34,9 +34,9 @@ from .utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from .externals import pyqtgraph as pg
 from .sensorvisualization import SensorListModel
-from .temporalprofiles2d import *
+from .temporalprofiles import *
 from .temporalprofiles3d import *
-
+from .pixelloader import PixelLoaderTask, doLoaderTask
 
 
 import numpy as np
@@ -1750,7 +1750,7 @@ class SpectralTemporalVisualization(QObject):
 
         if isinstance(d, PixelLoaderTask):
 
-            bn = os.path.basename(d.sourcePath)
+            bn = os.path.basename(d.mSourcePath)
             if d.success():
 
                 t = 'Loaded {} pixel from {}.'.format(len(d.resProfiles), bn)
@@ -1934,14 +1934,35 @@ class SpectralTemporalVisualization(QObject):
             if len(missingIndices) > 0:
                 for tss in tsd.sources():
                     assert isinstance(tss, TimeSeriesSource)
-                    if bbox.intersects(tss.spatialExtent().toCrs(TPs[0].coordinate().crs())):
-                        task = PixelLoaderTask(tss.uri(), theGeometries,
+
+                    intersectingTPs = []
+                    tssExtent = tss.spatialExtent()
+                    for TP in TPs:
+                        assert isinstance(TP, TemporalProfile)
+                        if tssExtent.contains(TP.coordinate().toCrs(tssExtent.crs())):
+                            intersectingTPs.append(TP)
+
+                    if len(intersectingTPs) > 0:
+                        task = PixelLoaderTask(tss.uri(), intersectingTPs,
                                            # bandIndices=missingIndices, load all indices!
-                                           temporalProfileIDs=TP_ids)
+                                           )
+
+                        if True and '20150729' in tss.uri():
+                            from eotimeseriesviewer.utils import TaskMock
+
+
+                            task2 = PixelLoaderTask(tss.uri(), geoms, temporalProfileIDs=TPids)
+                            results = pickle.loads(doLoaderTask(TaskMock(), pickle.dumps([task2])))
+                            for r in results:
+                                assert isinstance(r, PixelLoaderTask)
+
+                                print(r)
+                            s = ""
+
                         tasks.append(task)
                         break
 
-
+                    # pickle.loads(doLoaderTask(mock, pickle.dumps([t])))[0]
         if len(tasks) > 0:
 
             if DEBUG:

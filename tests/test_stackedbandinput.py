@@ -38,7 +38,7 @@ class testclassStackedInputTests(unittest.TestCase):
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 

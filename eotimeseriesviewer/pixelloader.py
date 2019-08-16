@@ -56,29 +56,31 @@ def isOutOfImage(ds, px):
     return False
 
 
-
 class PixelLoaderTask(object):
     """
     An object to store the loading results from a *single* raster source.
     """
 
-    @staticmethod
-    def fromDump(byte_object):
-        return pickle.loads(byte_object)
+    def __init__(self, source:str, temporalProfiles:list, bandIndices=None):
 
-    def __init__(self, source:str, geometries, bandIndices=None, **kwargs):
+        assert isinstance(temporalProfiles, list)
 
-        if not isinstance(geometries, list):
-            geometries = [geometries]
-        assert isinstance(geometries, list)
         geometries = [g for g in geometries if isinstance(g, (SpatialExtent, SpatialPoint))]
 
         self.mId = ''
 
         # assert isinstance(source, str) or isinstance(source, unicode)
-        self.sourcePath = source
-        self.geometries = geometries
-        self.bandIndices = bandIndices
+        self.mSourcePath = source
+        self.mGeometries = []
+        self.mTemporalProfileIDs = []
+
+        from .temporalprofiles import TemporalProfile
+        for tp in temporalProfiles:
+            assert isinstance(tp, TemporalProfile)
+            self.mTemporalProfileIDs.append(tp.id())
+            self.mGeometries.append(tp.geometry())
+
+        self.mBandIndices = bandIndices
 
         # for internal use only
         self.mIsDone = False
@@ -91,13 +93,6 @@ class PixelLoaderTask(object):
         self.resPixelCoordinates = None
         self.exception = None
         self.info = None
-
-        # other, free keywords
-        for k in kwargs.keys():
-            assert isinstance(k, str)
-            assert not k.startswith('_')
-            if not k in self.__dict__.keys():
-                self.__dict__[k] = kwargs[k]
 
     def setId(self, idStr:str):
         self.mId = idStr
@@ -151,15 +146,17 @@ class PixelLoaderTask(object):
 
     def __repr__(self):
         info = ['PixelLoaderTask:']
+        info.append('\t' + self.mSourcePath)
+        info.append('\t' + ','.join(str(g) for g in self.mGeometries))
         if not self.mIsDone:
             info.append('not started...')
         else:
-            if self.bandIndices:
-                info.append('\tBandIndices {}:{}'.format(len(self.bandIndices), self.bandIndices))
+            if self.mBandIndices:
+                info.append('\tBandIndices {}:{}'.format(len(self.mBandIndices), self.mBandIndices))
             if self.resProfiles:
                 info.append('\tProfileData: {}'.format(len(self.resProfiles)))
                 for i, p in enumerate(self.resProfiles):
-                    g = self.geometries[i]
+                    g = self.mGeometries[i]
                     d = self.resProfiles[i]
                     if d in [INFO_OUT_OF_IMAGE, INFO_NO_DATA]:
                         info.append('\t{}: {}:{}'.format(i + 1, g, d))
@@ -197,14 +194,14 @@ def doLoaderTask(qgsTask:QgsTask, dump):
         assert isinstance(task, PixelLoaderTask)
 
         result = task
-        ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
+        ds = gdal.Open(task.mSourcePath, gdal.GA_ReadOnly)
         nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
-        bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
+        bandIndices = list(range(nb)) if task.mBandIndices is None else list(task.mBandIndices)
         # ensure to load valid indices only
         bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
 
-        task.bandIndices = bandIndices
+        task.mBandIndices = bandIndices
 
         gt = ds.GetGeoTransform()
         result.resGeoTransformation = gt
@@ -216,7 +213,7 @@ def doLoaderTask(qgsTask:QgsTask, dump):
         # convert Geometries into pixel indices to be extracted
         PX_SUBSETS = []
 
-        for geom in task.geometries:
+        for geom in task.mGeometries:
             crsRequest = osr.SpatialReference()
 
             if geom.crs().isValid():
@@ -224,6 +221,12 @@ def doLoaderTask(qgsTask:QgsTask, dump):
             else:
                 crsRequest.ImportFromWkt(crsSrc.ExportToWkt())
             trans = osr.CoordinateTransformation(crsRequest, crsSrc)
+
+            trans2 = QgsCoordinateTransform()
+            trans2.setSourceCrs(QgsCoordinateReferenceSystem(crsRequest.ExportToWkt()))
+            trans2.setDestinationCrs(QgsCoordinateReferenceSystem(crsSrc.ExportToWkt()))
+            lyr = QgsRasterLayer(task.mSourcePath)
+            geom2 = trans2.transform(geom)
 
             if isinstance(geom, QgsPointXY):
                 ptUL = ptLR = QgsPointXY(geom)
@@ -241,6 +244,7 @@ def doLoaderTask(qgsTask:QgsTask, dump):
             bLR = isOutOfImage(ds, pxLR)
 
             if all([bUL, bLR]):
+
                 PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
                 continue
 
@@ -360,39 +364,6 @@ def doLoaderTask(qgsTask:QgsTask, dump):
     return pickle.dumps(results)
 
 
-
-class LoadingProgress(object):
-
-    def __init__(self, id, nFiles):
-        assert isinstance(nFiles, int)
-        assert isinstance(id, int)
-        self.mID = id
-        self.mSuccess = 0
-        self.mTotal = nFiles
-        self.mFailed = 0
-
-    def addResult(self, success=True):
-        assert self.done() <= self.mTotal
-        if success:
-            self.mSuccess += 1
-        else:
-            self.mFailed += 1
-
-    def id(self):
-        return self.mID
-
-    def failed(self):
-        return self.mFailed
-
-
-    def done(self):
-        return self.mSuccess + self.mFailed
-
-    def total(self):
-        return self.mTotal
-
-
-
 class PixelLoader(QObject):
     """
     Loads pixel from raster images
@@ -441,7 +412,8 @@ class PixelLoader(QObject):
 
     def onRemoveTask(self, tid):
         if tid in self.mTasks.keys():
-            del self.mTasks[tid]
+            pass
+            #del self.mTasks[tid]
 
     def onLoadingFinished(self, *args, **kwds):
 

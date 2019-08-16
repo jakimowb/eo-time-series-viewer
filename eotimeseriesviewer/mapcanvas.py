@@ -539,7 +539,7 @@ class MapCanvas(QgsMapCanvas):
         varDOY = None
         varSensor = None
 
-        
+
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
             varDate = str(tsd.date())
