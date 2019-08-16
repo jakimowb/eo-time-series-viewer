@@ -34,10 +34,11 @@ from .externals import pyqtgraph as pg
 from .externals.pyqtgraph import functions as fn, AxisItem
 from .externals.qps.plotstyling.plotstyling import PlotStyle
 
-from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
+from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
 from .pixelloader import PixelLoader, PixelLoaderTask
 from .utils import *
 from .externals.qps.speclib.spectrallibraries import createQgsField
+
 
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
@@ -76,6 +77,7 @@ try:
 
 except:
     pass
+
 
 
 def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False) -> QgsFields:
@@ -471,6 +473,339 @@ class DateTimeViewBox(pg.ViewBox):
         menu.exec_(ev.screenPos().toPoint())
 
 
+
+class TemporalProfile(QObject):
+
+
+    sigNameChanged = pyqtSignal(str)
+    #sigDataChanged = pyqtSignal()
+
+    def __init__(self, layer, fid:int, geometry:QgsGeometry):
+        super(TemporalProfile, self).__init__()
+        assert isinstance(geometry, QgsGeometry)
+        assert isinstance(layer, TemporalProfileLayer)
+        assert fid >= 0
+
+
+        self.mID = fid
+        self.mLayer = layer
+        self.mTimeSeries = layer.timeSeries()
+        assert isinstance(self.mTimeSeries, TimeSeries)
+        self.mData = {}
+        self.mUpdated = False
+        self.mLoaded = self.mLoadedMax = self.mNoData = 0
+
+        for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDate)
+            meta = {FN_DOY: tsd.mDOY,
+                    FN_DTG: str(tsd.mDate),
+                    FN_IS_NODATA: False}
+
+            self.updateData(tsd, meta, skipStatusUpdate=True)
+
+        self.mGEOM_CACHE = dict()
+
+    def printData(self, sensor:SensorInstrument=None):
+        """
+        Prints the entire temporal profile. For debug purposes.
+        """
+        for tsd in sorted(self.mData.keys()):
+            assert isinstance(tsd, TimeSeriesDate)
+            data = self.mData[tsd]
+            if isinstance(sensor, SensorInstrument) and tsd.sensor() != sensor:
+                continue
+            assert isinstance(data, dict)
+            info = '{}:{}={}'.format(tsd.date(), tsd.sensor().name(), str(data))
+            print(info)
+
+    def __hash__(self):
+        return hash('{}{}'.format(self.mID, self.mLayer.layerId()))
+
+    def __eq__(self, other):
+        """
+        Two temporal profiles are equal if they have the same feature id and source layer
+        :param other:
+        :return:
+        """
+
+        if not isinstance(other, TemporalProfile):
+            return False
+
+        return other.mID == self.mID and self.mLayer == other.mLayer
+
+    def geometry(self, crs:QgsCoordinateReferenceSystem=None)->QgsGeometry:
+        """
+        Returns the geometry
+        :param crs:
+        :return: QgsGeometry. usually a  QgsPoint
+        """
+        g = self.mLayer.getFeature(self.mID).geometry()
+
+        if not isinstance(g, QgsGeometry):
+            return None
+
+        if isinstance(crs, QgsCoordinateReferenceSystem) and crs != self.mLayer.crs():
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(self.mLayer.crs())
+            trans.setDestinationCrs(crs)
+            g.transform(trans)
+        return g
+
+
+    def coordinate(self)->SpatialPoint:
+        """
+        Returns the profile coordinate
+        :return:
+        """
+        x, y = self.geometry().asPoint()
+        return SpatialPoint(self.mLayer.crs(), x, y)
+
+    def id(self):
+        """Feature ID in connected QgsVectorLayer"""
+        return self.mID
+
+    def attribute(self, key:str):
+        f = self.mLayer.getFeature(self.mID)
+        return f.attribute(f.fieldNameIndex(key))
+
+    def setAttribute(self, key:str, value):
+        f = self.mLayer.getFeature(self.id())
+
+        b = self.mLayer.isEditable()
+        self.mLayer.startEditing()
+        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(key), value)
+        self.mLayer.saveEdits(leaveEditable=b)
+
+    def name(self):
+        return self.attribute('name')
+
+    def setName(self, name:str):
+        self.setAttribute('name', name)
+
+    def data(self):
+        return self.mData
+
+    def timeSeries(self):
+        return self.mTimeSeries
+
+
+    def loadMissingData(self, showGUI=False):
+        """
+        Loads the missing data for this profile.
+        :return:
+        """
+        from eotimeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
+        tasks = []
+        for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDate)
+            missingIndices = self.missingBandIndices(tsd)
+
+            if len(missingIndices) > 0:
+
+                for pathImg in tsd.sourceUris():
+
+                    task = PixelLoaderTask(pathImg, [self.coordinate()],
+                                           bandIndices=missingIndices,
+                                           temporalProfileIDs=[self.mID])
+                    tasks.append(task)
+
+        results = doLoaderTask(TaskMock(), pickle.dumps(tasks))
+        for result in pickle.loads(results):
+            self.pullDataUpdate(result)
+
+    def missingBandIndices(self, tsd, requiredIndices=None):
+        """
+        Returns the band indices [0, sensor.nb) that have not been loaded yet.
+        :param tsd: TimeSeriesDate of interest
+        :param requiredIndices: optional subset of possible band-indices to return the missing ones from.
+        :return: [list-of-indices]
+        """
+        assert isinstance(tsd, TimeSeriesDate)
+        if requiredIndices is None:
+            requiredIndices = list(range(tsd.mSensor.nb))
+        requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.mSensor.nb]
+
+        existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
+
+        if FN_PX_X not in self.data(tsd).keys() and len(requiredIndices) == 0:
+            requiredIndices.append(0)
+
+        return [i for i in requiredIndices if i not in existingBandIndices]
+
+
+    def plot(self):
+
+
+        for sensor in self.mTimeSeries.sensors():
+            assert isinstance(sensor, SensorInstrument)
+
+            plotStyle = TemporalProfile2DPlotStyle(self)
+            plotStyle.setSensor(sensor)
+
+            pi = TemporalProfilePlotDataItem(plotStyle)
+            pi.setClickable(True)
+            pw = pg.plot(title=self.name())
+            pw.plotItem().addItem(pi)
+            pi.setColor('green')
+            pg.QAPP.exec_()
+
+    def updateData(self, tsd, values, skipStatusUpdate=False):
+        assert isinstance(tsd, TimeSeriesDate)
+        assert isinstance(values, dict)
+
+        if tsd not in self.mData.keys():
+            self.mData[tsd] = dict()
+
+        values2 = self.mData.get(tsd)
+        assert isinstance(values2, dict)
+        for k, v in values.items():
+            if v in [None, np.NaN] and k not in values2.keys():
+                    values2[k] = v
+            else:
+                values2[k] = v
+
+        #self.mData[tsd].update(values)
+
+        if not skipStatusUpdate:
+            #self.updateLoadingStatus()
+            self.mUpdated = True
+            #self.sigDataChanged.emit()
+
+    def resetUpdatedFlag(self):
+        self.mUpdated = False
+
+    def updated(self):
+        return self.mUpdated
+
+    def dataFromExpression(self, sensor:SensorInstrument, expression:str, dateType='date'):
+        assert dateType in ['date', 'doy']
+        x = []
+        y = []
+
+
+        if not isinstance(expression, QgsExpression):
+            expression = QgsExpression(expression)
+        assert isinstance(expression, QgsExpression)
+        expression = QgsExpression(expression)
+
+
+
+        sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor() == sensor])
+
+        # define required QgsFields
+        fields = temporalProfileFeatureFields(sensor)
+
+        geo_x = self.geometry().centroid().get().x()
+        geo_y = self.geometry().centroid().get().y()
+
+        for i, tsd in enumerate(sensorTSDs):
+            assert isinstance(tsd, TimeSeriesDate)
+            data = self.mData[tsd]
+
+            if dateType == 'date':
+                xValue = date2num(tsd.mDate)
+            elif dateType == 'doy':
+                xValue = tsd.mDOY
+
+            if data['is_nodata']:
+                yValue = np.NaN
+            else:
+                context = QgsExpressionContext()
+                context.setFields(fields)
+
+                f = QgsFeature(fields)
+
+                # set static properties (same for all TSDs)
+                f.setGeometry(QgsGeometry(self.geometry()))
+                f.setAttribute(FN_GEO_X, geo_x)
+                f.setAttribute(FN_GEO_Y, geo_y)
+
+                # set TSD specific properties
+                f.setAttribute(FN_DOY, tsd.doy())
+                f.setAttribute(FN_DTG, str(tsd.date()))
+
+                for fn in fields.names():
+                    if fn in data.keys():
+                        setQgsFieldValue(f, fn, data[fn])
+
+                context.setFeature(f)
+
+                yValue = expression.evaluate(context)
+
+                if yValue in [None, QVariant()]:
+                    yValue = np.NaN
+
+            y.append(yValue)
+            x.append(xValue)
+
+        #return np.asarray(x), np.asarray(y)
+        assert len(x) == len(y)
+        return x, y
+
+    def data(self, tsd):
+        assert isinstance(tsd, TimeSeriesDate)
+        if self.hasData(tsd):
+            return self.mData[tsd]
+        else:
+            return {}
+
+
+    def loadingStatus(self):
+        """
+        Returns the loading status in terms of single pixel values.
+        nLoaded = sum of single band values
+        nLoadedMax = potential maximum of band values that might be loaded
+        :return: (nLoaded, nLoadedMax)
+        """
+        return self.mLoaded, self.mNoData, self.mLoadedMax
+
+    #def updateLoadingStatus(self):
+    #    """
+    #    Calculates the loading status in terms of single pixel values.
+    #    nMax is the sum of all bands over each TimeSeriesDate and Sensors
+    #    """
+    """
+        self.mLoaded = 0
+        self.mLoadedMax = 0
+        self.mNoData = 0
+
+        for tsd in self.mTimeSeries:
+            assert isinstance(tsd, TimeSeriesDate)
+            nb = tsd.mSensor.nb
+
+            self.mLoadedMax += nb
+            if self.hasData(tsd):
+                if self.isNoData(tsd):
+                    self.mNoData += nb
+                else:
+                    self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
+
+        f = self.mLayer.getFeature(self.id())
+
+        b = self.mLayer.isEditable()
+        self.mLayer.startEditing()
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
+        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
+        # if self.mLoadedMax > 0:
+        #     self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax, 2))
+
+        self.mLayer.saveEdits(leaveEditable=b)
+        s = ""
+    """
+
+    def isNoData(self, tsd):
+        assert isinstance(tsd, TimeSeriesDate)
+        return self.mData[tsd][FN_IS_NODATA]
+
+    def hasData(self, tsd):
+        assert isinstance(tsd, TimeSeriesDate)
+        return tsd in self.mData.keys()
+
+    def __repr__(self):
+        return 'TemporalProfile {} "{}"'.format(self.id(), self.name())
+
+
 class TemporalProfilePlotStyleBase(PlotStyle):
 
     sigStyleUpdated = pyqtSignal()
@@ -608,356 +943,106 @@ class TemporalProfile2DPlotStyle(TemporalProfilePlotStyleBase):
             pdi.updateDataAndStyle()
 
 
-class TemporalProfile(QObject):
 
 
-    sigNameChanged = pyqtSignal(str)
-    sigDataChanged = pyqtSignal()
 
-    def __init__(self, layer, fid:int, geometry:QgsGeometry):
-        super(TemporalProfile, self).__init__()
-        assert isinstance(geometry, QgsGeometry)
-        assert isinstance(layer, TemporalProfileLayer)
-        assert fid >= 0
 
 
-        self.mID = fid
-        self.mLayer = layer
-        self.mTimeSeries = layer.timeSeries()
-        assert isinstance(self.mTimeSeries, TimeSeries)
-        self.mData = {}
-        self.mUpdated = False
-        self.mLoaded = self.mLoadedMax = self.mNoData = 0
 
-        for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDate)
-            meta = {FN_DOY: tsd.mDOY,
-                    FN_DTG: str(tsd.mDate),
-                    FN_IS_NODATA: False}
 
-            self.updateData(tsd, meta, skipStatusUpdate=True)
-
-        self.mGEOM_CACHE = dict()
-
-    def printData(self, sensor:SensorInstrument=None):
-        """
-        Prints the entire temporal profile. For debug purposes.
-        """
-        for tsd in sorted(self.mData.keys()):
-            assert isinstance(tsd, TimeSeriesDate)
-            data = self.mData[tsd]
-            if isinstance(sensor, SensorInstrument) and tsd.sensor() != sensor:
-                continue
-            assert isinstance(data, dict)
-            info = '{}:{}={}'.format(tsd.date(), tsd.sensor().name(), str(data))
-            print(info)
-
-    def __hash__(self):
-        return hash('{}{}'.format(self.mID, self.mLayer.layerId()))
-
-    def __eq__(self, other):
-        """
-        Two temporal profiles are equal if they have the same feature id and source layer
-        :param other:
-        :return:
-        """
-
-        if not isinstance(other, TemporalProfile):
-            return False
-
-        return other.mID == self.mID and self.mLayer == other.mLayer
-
-    def geometry(self, crs:QgsCoordinateReferenceSystem=None)->QgsGeometry:
-        """
-        Returns the geometry
-        :param crs:
-        :return: QgsGeometry. usually a  QgsPoint
-        """
-        g = self.mLayer.getFeature(self.mID).geometry()
-
-        if isinstance(crs, QgsCoordinateReferenceSystem) and crs != self.mLayer.crs():
-            trans = QgsCoordinateTransform()
-            trans.setSourceCrs(self.mLayer.crs())
-            trans.setDestinationCrs(crs)
-            g = trans.transform(g)
-        return g
-
-
-    def coordinate(self)->SpatialPoint:
-        """
-        Returns the profile coordinate
-        :return:
-        """
-        x, y = self.geometry().asPoint()
-        return SpatialPoint(self.mLayer.crs(), x, y)
-
-    def id(self):
-        """Feature ID in connected QgsVectorLayer"""
-        return self.mID
-
-    def attribute(self, key:str):
-        f = self.mLayer.getFeature(self.mID)
-        return f.attribute(f.fieldNameIndex(key))
-
-    def setAttribute(self, key:str, value):
-        f = self.mLayer.getFeature(self.id())
-
-        b = self.mLayer.isEditable()
-        self.mLayer.startEditing()
-        self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(key), value)
-        self.mLayer.saveEdits(leaveEditable=b)
-
-    def name(self):
-        return self.attribute('name')
-
-    def setName(self, name:str):
-        self.setAttribute('name', name)
-
-    def data(self):
-        return self.mData
-
-    def timeSeries(self):
-        return self.mTimeSeries
-
-    def pullDataUpdate(self, d:PixelLoaderTask):
-        assert isinstance(d, PixelLoaderTask)
-        if d.success() and self.mID in d.temporalProfileIDs:
-            i = d.temporalProfileIDs.index(self.mID)
-            tsd = self.mTimeSeries.getTSD(d.mSourcePath)
-            assert isinstance(tsd, TimeSeriesDate)
-
-            values = {}
-            if d.validPixelValues(i):
-                profileData = d.resProfiles[i]
-
-                vMean, vStd = profileData
-
-                validValues = not isinstance(vMean, str)
-
-                pxUL, pxLR, _, _ = d.resPixelCoordinates[i]
-                values[FN_PX_X] = pxUL.x()
-                values[FN_PX_Y] = pxUL.y()
-
-
-                # 1. add the pixel values per returned band
-
-                for iBand, bandIndex in enumerate(d.mBandIndices):
-                    key = 'b{}'.format(bandIndex + 1)
-                    values[key] = vMean[iBand] if validValues else None
-                    key = 'std{}'.format(bandIndex + 1)
-                    values[key] = vStd[iBand] if validValues else None
-            else:
-                values[FN_IS_NODATA] = True
-
-            self.updateData(tsd, values)
-
-
-    def loadMissingData(self, showGUI=False):
-        """
-        Loads the missing data for this profile.
-        :return:
-        """
-        from eotimeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
-        tasks = []
-        for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDate)
-            missingIndices = self.missingBandIndices(tsd)
-
-            if len(missingIndices) > 0:
-
-                for pathImg in tsd.sourceUris():
-
-                    task = PixelLoaderTask(pathImg, [self.coordinate()],
-                                           bandIndices=missingIndices,
-                                           temporalProfileIDs=[self.mID])
-                    tasks.append(task)
-
-        results = doLoaderTask(TaskMock(), pickle.dumps(tasks))
-        for result in pickle.loads(results):
-            self.pullDataUpdate(result)
-
-    def missingBandIndices(self, tsd, requiredIndices=None):
-        """
-        Returns the band indices [0, sensor.nb) that have not been loaded yet.
-        :param tsd: TimeSeriesDate of interest
-        :param requiredIndices: optional subset of possible band-indices to return the missing ones from.
-        :return: [list-of-indices]
-        """
-        assert isinstance(tsd, TimeSeriesDate)
-        if requiredIndices is None:
-            requiredIndices = list(range(tsd.mSensor.nb))
-        requiredIndices = [i for i in requiredIndices if i >= 0 and i < tsd.mSensor.nb]
-
-        existingBandIndices = [bandKey2bandIndex(k) for k in self.data(tsd).keys() if regBandKeyExact.search(k)]
-
-        if FN_PX_X not in self.data(tsd).keys() and len(requiredIndices) == 0:
-            requiredIndices.append(0)
-
-        return [i for i in requiredIndices if i not in existingBandIndices]
-
-
-    def plot(self):
-
-
-        for sensor in self.mTimeSeries.sensors():
-            assert isinstance(sensor, SensorInstrument)
-
-            plotStyle = TemporalProfile2DPlotStyle(self)
-            plotStyle.setSensor(sensor)
-
-            pi = TemporalProfilePlotDataItem(plotStyle)
-            pi.setClickable(True)
-            pw = pg.plot(title=self.name())
-            pw.plotItem().addItem(pi)
-            pi.setColor('green')
-            pg.QAPP.exec_()
-
-    def updateData(self, tsd, values, skipStatusUpdate=False):
-        assert isinstance(tsd, TimeSeriesDate)
-        assert isinstance(values, dict)
-
-        if tsd not in self.mData.keys():
-            self.mData[tsd] = {}
-
-        self.mData[tsd].update(values)
-        if not skipStatusUpdate:
-            #self.updateLoadingStatus()
-            self.mUpdated = True
-            self.sigDataChanged.emit()
-
-    def resetUpdatedFlag(self):
-        self.mUpdated = False
-
-    def updated(self):
-        return self.mUpdated
-
-    def dataFromExpression(self, sensor:SensorInstrument, expression:str, dateType='date'):
-        assert dateType in ['date', 'doy']
-        x = []
-        y = []
-
-
-        if not isinstance(expression, QgsExpression):
-            expression = QgsExpression(expression)
-        assert isinstance(expression, QgsExpression)
-        expression = QgsExpression(expression)
-
-
-
-        sensorTSDs = sorted([tsd for tsd in self.mData.keys() if tsd.sensor() == sensor])
-
-        # define required QgsFields
-        fields = temporalProfileFeatureFields(sensor)
-
-        geo_x = self.geometry().centroid().get().x()
-        geo_y = self.geometry().centroid().get().y()
-
-        for i, tsd in enumerate(sensorTSDs):
-            assert isinstance(tsd, TimeSeriesDate)
-            data = self.mData[tsd]
-
-            if dateType == 'date':
-                xValue = date2num(tsd.mDate)
-            elif dateType == 'doy':
-                xValue = tsd.mDOY
-
-            if data['is_nodata']:
-                yValue = np.NaN
-            else:
-                context = QgsExpressionContext()
-                context.setFields(fields)
-
-                f = QgsFeature(fields)
-
-                # set static properties (same for all TSDs)
-                f.setGeometry(QgsGeometry(self.geometry()))
-                f.setAttribute(FN_GEO_X, geo_x)
-                f.setAttribute(FN_GEO_Y, geo_y)
-
-                # set TSD specific properties
-                f.setAttribute(FN_DOY, tsd.doy())
-                f.setAttribute(FN_DTG, str(tsd.date()))
-
-                for fn in fields.names():
-                    if fn in data.keys():
-                        setQgsFieldValue(f, fn, data[fn])
-
-                context.setFeature(f)
-
-                yValue = expression.evaluate(context)
-
-                if yValue in [None, QVariant()]:
-                    yValue = np.NaN
-
-            y.append(yValue)
-            x.append(xValue)
-
-        #return np.asarray(x), np.asarray(y)
-        assert len(x) == len(y)
-        return x, y
-
-    def data(self, tsd):
-        assert isinstance(tsd, TimeSeriesDate)
-        if self.hasData(tsd):
-            return self.mData[tsd]
-        else:
-            return {}
-
-
-    def loadingStatus(self):
-        """
-        Returns the loading status in terms of single pixel values.
-        nLoaded = sum of single band values
-        nLoadedMax = potential maximum of band values that might be loaded
-        :return: (nLoaded, nLoadedMax)
-        """
-        return self.mLoaded, self.mNoData, self.mLoadedMax
-
-    #def updateLoadingStatus(self):
-    #    """
-    #    Calculates the loading status in terms of single pixel values.
-    #    nMax is the sum of all bands over each TimeSeriesDate and Sensors
-    #    """
+class TemporalProfileLoaderTask(object):
     """
-        self.mLoaded = 0
-        self.mLoadedMax = 0
-        self.mNoData = 0
-
-        for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDate)
-            nb = tsd.mSensor.nb
-
-            self.mLoadedMax += nb
-            if self.hasData(tsd):
-                if self.isNoData(tsd):
-                    self.mNoData += nb
-                else:
-                    self.mLoaded += len([k for k in self.mData[tsd].keys() if regBandKey.search(k)])
-
-        f = self.mLayer.getFeature(self.id())
-
-        b = self.mLayer.isEditable()
-        self.mLayer.startEditing()
-        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_NODATA), self.mNoData)
-        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_TOTAL), self.mLoadedMax)
-        # self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED), self.mLoaded)
-        # if self.mLoadedMax > 0:
-        #     self.mLayer.changeAttributeValue(f.id(), f.fieldNameIndex(FN_N_LOADED_PERCENT), round(100. * float(self.mLoaded + self.mNoData) / self.mLoadedMax, 2))
-
-        self.mLayer.saveEdits(leaveEditable=b)
-        s = ""
+    An object to loading temporal profile values from a *single* raster source.
     """
 
-    def isNoData(self, tsd):
-        assert isinstance(tsd, TimeSeriesDate)
-        return self.mData[tsd][FN_IS_NODATA]
+    def __init__(self, tss:TimeSeriesSource, temporalProfiles: list, bandIndices=None):
 
-    def hasData(self, tsd):
-        assert isinstance(tsd, TimeSeriesDate)
-        return tsd in self.mData.keys()
+        assert isinstance(temporalProfiles, list)
 
-    def __repr__(self):
-        return 'TemporalProfile {} "{}"'.format(self.id(), self.name())
+        self.mId = ''
+        self.mTSS = tss
+        # assert isinstance(source, str) or isinstance(source, unicode)
+        self.mSourcePath = tss.uri()
+        self.mGeometries = {}
+        self.mRESULTS = {}
+        self.mERRORS = []
+
+        for tp in temporalProfiles:
+            assert isinstance(tp, TemporalProfile)
+            # save geometry as WKT to be pickable
+            self.mGeometries[tp.id()] = tp.geometry(tss.crs()).asWkt()
+
+        if bandIndices is None:
+            bandIndices = list(range(tss.nb))
+        self.mBandIndices = bandIndices
+
+
+
+
+def doLoadTemporalProfileTasks(qgsTask:QgsTask, dump):
+
+    assert isinstance(qgsTask, QgsTask)
+    tasks = pickle.loads(dump)
+    assert isinstance(tasks, list)
+    n = len(tasks)
+    qgsTask.setProgress(0)
+    results = []
+
+    for i, task in enumerate(tasks):
+        assert isinstance(task, TemporalProfileLoaderTask)
+        try:
+            ds = gdal.Open(task.mSourcePath)
+            assert isinstance(ds, gdal.Dataset)
+            nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
+            gt = ds.GetGeoTransform()
+            pxIndices = {}
+
+
+
+            # calculate pixel indices to load
+            for tpId, wkt in task.mGeometries.items():
+                geom = QgsGeometry.fromWkt(wkt)
+                assert isinstance(geom, QgsGeometry)
+                pt = geom.centroid().asPoint()
+
+                px = geo2px(pt, gt)
+                if px.x() < 0 or px.x() > ns or px.y() < 0  or px.y() > nl:
+                    task.mERRORS.append('TemporalProfile {} is out of image bounds: {} = pixel {}'.format(tpId, geom, px))
+                    continue
+
+                task.mRESULTS[tpId] = {'px_x':px.x(),
+                                       'px_y':px.y(),
+                                       'geo_x':pt.x(),
+                                       'geo_y':px.y(),
+                                       'gt':gt}
+                pxIndices[tpId] = px
+
+            # todo: implement load balancing
+
+            for j, bandIndex in enumerate([b for b in task.mBandIndices if b >= 0 and b < nb]):
+
+                band = ds.GetRasterBand(bandIndex + 1)
+                assert isinstance(band, gdal.Band)
+                no_data = band.GetNoDataValue()
+
+                bandName = 'b{}'.format(bandIndex + 1)
+
+                for tpId, px in pxIndices.items():
+                    assert isinstance(px, QPoint)
+
+                    value = band.ReadAsArray(px.x(), px.y(), 1, 1).flatten()[0]
+                    if no_data and value == no_data:
+                        value = np.NaN
+
+                    task.mRESULTS[tpId][bandName] = value
+
+
+        except Exception as ex:
+            task.mERRORS.append('Error source image {}:\n{}'.format(task.mSourcePath, ex))
+        results.append(task)
+        qgsTask.setProgress(100 * (i + 1) / n)
+    return pickle.dumps(results)
+
 
 
 class TemporalProfilePlotDataItem(pg.PlotDataItem):

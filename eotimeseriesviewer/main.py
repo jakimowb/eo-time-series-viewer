@@ -960,7 +960,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(spatialPoint, SpatialPoint)
         assert isinstance(mapCanvas, QgsMapCanvas)
         from eotimeseriesviewer.mapcanvas import MapTools
-        assert mapToolKey in MapTools.mapToolKeys()
+        assert mapToolKey in MapTools.mapToolValues()
 
         if mapToolKey == MapTools.TemporalProfile:
             self.spectralTemporalVis.loadCoordinate(spatialPoint)
