@@ -24,7 +24,7 @@ from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassUtilityTests(unittest.TestCase):
     """Test temporal profiles"""

@@ -1458,6 +1458,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         self.committedFeaturesAdded.connect(onFeaturesAdded)
         self.beginEditCommand('Add {} profile locations'.format(len(features)))
+        self.addFeatures(features)
         self.endEditCommand()
         self.saveEdits(leaveEditable=b)
         self.committedFeaturesAdded.disconnect(onFeaturesAdded)

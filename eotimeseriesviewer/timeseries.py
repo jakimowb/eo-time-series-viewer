@@ -1441,14 +1441,12 @@ class TimeSeries(QAbstractItemModel):
 
         self.mTasks[tid] = qgsTask
 
-        if runAsync: # for debugging only
+        if runAsync:
             tm.addTask(qgsTask)
         else:
-
+            # for debugging only
             resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
             self.onAddSourcesAsyncFinished(None, resultDump)
-
-
 
     def onRemoveTask(self, key):
         self.mTasks.pop(key)
