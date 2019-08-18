@@ -369,6 +369,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.setDateTimePrecision(DateTimePrecision.Day)
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
+        self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
 
         dts.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
@@ -1082,7 +1083,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
     def onTimeSeriesChanged(self, *args):
-
         if not self.mSpatialMapExtentInitialized:
             if len(self.mTimeSeries) > 0:
                 if len(self.ui.dockMapViews) == 0:
@@ -1092,6 +1092,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
                 self.ui.mMapWidget.setCrs(extent.crs())
                 self.ui.mMapWidget.setSpatialExtent(extent)
+
+                lastDate = self.ui.mMapWidget.currentDate()
+                if lastDate:
+                    tsd = self.timeSeries().findDate(lastDate)
+                else:
+                    tsd = self.timeSeries()[0]
+                self.setCurrentDate(tsd)
                 self.mSpatialMapExtentInitialized = True
 
 

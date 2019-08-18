@@ -1194,7 +1194,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         """
         assert isinstance(tsd, TimeSeriesDate)
 
-        b = tsd != self.mCurrentDate
+        b = tsd != self.mCurrentDate or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
         self.mCurrentDate = tsd
 
         if b:
