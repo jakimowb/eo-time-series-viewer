@@ -165,7 +165,6 @@ class TestInit(unittest.TestCase):
             self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
             self.assertIsInstance(tss, TimeSeriesSource)
 
-
             if not isinstance(ref, TimeSeriesSource):
                 ref = tss
             else:

@@ -33,7 +33,6 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 
-
 LUT_WAVELENGTH_UNITS = {}
 for siUnit in [r'nm', r'μm', r'mm', r'cm', r'dm']:
     LUT_WAVELENGTH_UNITS[siUnit] = siUnit
@@ -47,7 +46,7 @@ LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
 
 from osgeo import gdal
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
-from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo
+from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo, geo2px, SpatialPoint
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
@@ -410,7 +409,6 @@ class TimeSeriesSource(object):
 
         self.mUri = None
         self.mDrv = None
-        self.mGT = None
         self.mWKT = None
         self.mCRS = None
         self.mWL = None
@@ -546,6 +544,28 @@ class TimeSeriesSource(object):
         uri.uri = self.uri()
         uri.layerType = 'raster'
         return uri
+
+
+    def pixelCoordinate(self, geometry)->QPoint:
+        """
+
+        :param QgsGeometry | QgsPoint | SpatialPoint:
+        :return: QPoint, if coordinate interects with source raster, None else
+        """
+
+        if isinstance(geometry, QgsGeometry):
+            geometry = geometry.asPoint()
+        if isinstance(geometry, QgsPoint):
+            geometry = QgsPointXY(geometry.x(), geometry.y())
+        if isinstance(geometry, SpatialPoint):
+            geometry = geometry.toCrs(self.crs())
+        assert isinstance(geometry, QgsPointXY)
+        px = geo2px(geometry, self.mGeoTransform)
+        assert isinstance(px, QPoint)
+
+        if px.x() < 0 or px.y() < 0 or px.x() >= self.ns or px.y() > self.nl:
+            return None
+        return px
 
     def sid(self)->str:
         """

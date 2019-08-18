@@ -1921,10 +1921,6 @@ class SpectralTemporalVisualization(QObject):
                 assert isinstance(tm, QgsTaskManager)
                 tm.addTask(qgsTask, 1000)
 
-
-            if not backgroundProcess:
-                QApplication.processEvents()
-
         else:
             if DEBUG:
                 print('Data for geometries already loaded')
