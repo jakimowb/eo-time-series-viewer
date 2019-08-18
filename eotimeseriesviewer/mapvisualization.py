@@ -850,9 +850,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mCanvasSignals = dict()
         self.mTimeSeries = None
 
-
         self.mMapToolKey = MapTools.Pan
-
 
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
         self.mMpMV = 3
@@ -869,9 +867,6 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)
         self.mMapRefreshTimer.setInterval(500)
         self.mMapRefreshTimer.start()
-
-        #self.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
-
 
         self.btnFirst.setDefaultAction(self.actionFirstDate)
         self.btnLast.setDefaultAction(self.actionLastDate)
