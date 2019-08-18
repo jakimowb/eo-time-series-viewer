@@ -964,9 +964,10 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert mapToolKey in MapTools.mapToolValues()
 
         if mapToolKey == MapTools.TemporalProfile:
-            self.spectralTemporalVis.loadCoordinate(spatialPoint)
-        elif mapToolKey == MapTools.SpectralProfile:
 
+            self.spectralTemporalVis.loadCoordinate(spatialPoint)
+
+        elif mapToolKey == MapTools.SpectralProfile:
             tsd = None
             from .mapcanvas import MapCanvas
             if isinstance(mapCanvas, MapCanvas):

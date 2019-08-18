@@ -126,7 +126,6 @@ class testclassUtilityTests(unittest.TestCase):
         lyr = TemporalProfileLayer(self.TS)
         tp = lyr.createTemporalProfiles(center)[0]
 
-
         self.assertIsInstance(tp, TemporalProfile)
         tp.loadMissingData()
         temporalProfiles = [tp]

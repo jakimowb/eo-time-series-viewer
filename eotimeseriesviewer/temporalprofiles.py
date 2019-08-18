@@ -709,33 +709,30 @@ class TemporalProfile(QObject):
             elif dateType == 'doy':
                 xValue = tsd.mDOY
 
-            if data['is_nodata']:
+            context = QgsExpressionContext()
+            context.setFields(fields)
+
+            f = QgsFeature(fields)
+
+            # set static properties (same for all TSDs)
+            f.setGeometry(QgsGeometry(self.geometry()))
+            f.setAttribute(FN_GEO_X, geo_x)
+            f.setAttribute(FN_GEO_Y, geo_y)
+
+            # set TSD specific properties
+            f.setAttribute(FN_DOY, tsd.doy())
+            f.setAttribute(FN_DTG, str(tsd.date()))
+
+            for fn in fields.names():
+                if fn in data.keys():
+                    setQgsFieldValue(f, fn, data[fn])
+
+            context.setFeature(f)
+
+            yValue = expression.evaluate(context)
+
+            if yValue in [None, QVariant()]:
                 yValue = np.NaN
-            else:
-                context = QgsExpressionContext()
-                context.setFields(fields)
-
-                f = QgsFeature(fields)
-
-                # set static properties (same for all TSDs)
-                f.setGeometry(QgsGeometry(self.geometry()))
-                f.setAttribute(FN_GEO_X, geo_x)
-                f.setAttribute(FN_GEO_Y, geo_y)
-
-                # set TSD specific properties
-                f.setAttribute(FN_DOY, tsd.doy())
-                f.setAttribute(FN_DTG, str(tsd.date()))
-
-                for fn in fields.names():
-                    if fn in data.keys():
-                        setQgsFieldValue(f, fn, data[fn])
-
-                context.setFeature(f)
-
-                yValue = expression.evaluate(context)
-
-                if yValue in [None, QVariant()]:
-                    yValue = np.NaN
 
             y.append(yValue)
             x.append(xValue)
@@ -1268,69 +1265,6 @@ class TemporalProfileLayer(QgsVectorLayer):
     def __getitem__(self, slice):
         return list(self.mProfiles.values())[slice]
 
-    def loadMissingData(self, backgroundProcess=False):
-        assert isinstance(self.mTimeSeries, TimeSeries)
-
-        # Get or create the TimeSeriesProfiles which will store the loaded values
-        tasks = []
-
-        theGeometries = []
-
-        # Define which (new) bands need to be loaded for each sensor
-        LUT_bandIndices = dict()
-        for sensor in self.mTimeSeries.sensors():
-                LUT_bandIndices[sensor] = list(range(sensor.nb))
-
-        PL = PixelLoader()
-        PL.sigPixelLoaded.connect(self.addPixelLoaderResult)
-
-        # update new / existing points
-
-        for tsd in self.mTimeSeries:
-            assert isinstance(tsd, TimeSeriesDate)
-
-
-            requiredIndices = LUT_bandIndices[tsd.mSensor]
-            requiredIndexKeys = [bandIndex2bandKey(b) for b in requiredIndices]
-            TPs = []
-            missingIndices = set()
-            for TP in self.mProfiles.values():
-                assert isinstance(TP, TemporalProfile)
-                dataValues = TP.mData[tsd]
-                existingKeys = list(dataValues.keys())
-                missingIdx = [bandKey2bandIndex(k) for k in requiredIndexKeys if k not in existingKeys]
-                if len(missingIdx) > 0:
-                    TPs.append(TP)
-                    missingIndices.union(set(missingIdx))
-
-            if len(TPs) > 0:
-                theGeometries = [tp.coordinate() for tp in TPs]
-                theIDs = [tp.id() for tp in TPs]
-                for pathImg in tsd.sourceUris():
-                    task = PixelLoaderTask(pathImg, theGeometries,
-                                           bandIndices=requiredIndices,
-                                           temporalProfileIDs=theIDs)
-                    tasks.append(task)
-
-
-        if len(tasks) > 0:
-
-            if backgroundProcess:
-                PL.startLoading(tasks)
-            else:
-                import eotimeseriesviewer.pixelloader
-                dump = pickle.dumps(tasks)
-                tasks =pickle.loads(eotimeseriesviewer.pixelloader.doLoaderTask(eotimeseriesviewer.pixelloader.TaskMock(), dump))
-                for i, task in enumerate(tasks):
-                    PL.sigPixelLoaded.emit(task)
-
-
-        else:
-            if DEBUG:
-                print('Data for geometries already loaded')
-
-        s = ""
-
     def saveTemporalProfiles(self, pathVector, sep='\t'):
         if pathVector is None or len(pathVector) == 0:
             global DEFAULT_SAVE_PATH
@@ -1524,7 +1458,6 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         self.committedFeaturesAdded.connect(onFeaturesAdded)
         self.beginEditCommand('Add {} profile locations'.format(len(features)))
-        success = self.addFeatures(features)
         self.endEditCommand()
         self.saveEdits(leaveEditable=b)
         self.committedFeaturesAdded.disconnect(onFeaturesAdded)
@@ -1532,7 +1465,6 @@ class TemporalProfileLayer(QgsVectorLayer):
         assert self.featureCount() == len(self.mProfiles)
         profiles = [self.mProfiles[f.id()] for f in newFeatures]
         return profiles
-
 
     def saveEdits(self, leaveEditable=False, triggerRepaint=True):
         """
@@ -1566,7 +1498,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             self.dataProvider().addAttributes(missingFields)
             self.saveEdits(leaveEditable=b)
 
-
     def __len__(self):
         return self.dataProvider().featureCount()
 
@@ -1578,7 +1509,6 @@ class TemporalProfileLayer(QgsVectorLayer):
     def __contains__(self, item):
         return item in self.mProfiles.values()
 
-
     def temporalProfileToLocationFeature(self, tp:TemporalProfile):
 
         self.mLocations.selectByIds([tp.id()])
@@ -1588,29 +1518,12 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         return None
 
-
     def fromSpatialPoint(self, spatialPoint):
         """ Tests if a Temporal Profile already exists for the given spatialPoint"""
-
-
         for p in list(self.mProfiles.values()):
             assert isinstance(p, TemporalProfile)
             if p.coordinate() == spatialPoint:
                 return p
-        """
-        spatialPoint = spatialPoint.toCrs(self.crs())
-        unit = QgsUnitTypes.toAbbreviatedString(self.crs().mapUnits()).lower()
-        x = spatialPoint.x() + 0.00001
-        y = spatialPoint.y() + 0.
-
-        if 'degree' in unit:
-            dx = dy = 0.000001
-        else:
-            dx = dy = 0.1
-        rect = QgsRectangle(x-dx,y-dy, x+dy,y+dy)
-        for f  in self.getFeatures(rect):
-            return self.mProfiles[f.id()]
-        """
         return None
 
     def removeTemporalProfiles(self, temporalProfiles):

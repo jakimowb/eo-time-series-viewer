@@ -1489,43 +1489,6 @@ class SpectralTemporalVisualization(QObject):
         """
         return self.mTemporalProfileLayer
 
-    def onTemporalProfilesContextMenu(self, event):
-        assert isinstance(event, QContextMenuEvent)
-        tableView = self.ui.tableViewTemporalProfiles
-        selectionModel = self.ui.tableViewTemporalProfiles.selectionModel()
-        assert isinstance(selectionModel, QItemSelectionModel)
-
-        model = self.ui.tableViewTemporalProfiles.model()
-        assert isinstance(model, TemporalProfileLayer)
-
-        temporalProfiles = []
-
-        if len(selectionModel.selectedIndexes()) > 0:
-            for idx in selectionModel.selectedIndexes():
-                tp = model.idx2tp(idx)
-                if isinstance(tp, TemporalProfile) and not tp in temporalProfiles:
-                    temporalProfiles.append(tp)
-        else:
-            temporalProfiles = model[:]
-
-        spatialPoints = [tp.coordinate() for tp in temporalProfiles]
-
-
-        menu = QMenu()
-
-        a = menu.addAction('Load missing')
-        a.setToolTip('Loads missing band-pixels.')
-        a.triggered.connect(lambda : self.loadCoordinate(spatialPoints=spatialPoints, mode='all'))
-        s = ""
-
-        a = menu.addAction('Reload')
-        a.setToolTip('Reloads all band-pixels.')
-        a.triggered.connect(lambda: self.loadCoordinate(spatialPoints=spatialPoints, mode='reload'))
-
-        menu.popup(tableView.viewport().mapToGlobal(event.pos()))
-        self.menu = menu
-
-
     def selected2DPlotStyles(self):
         result = []
 
@@ -1533,8 +1496,6 @@ class SpectralTemporalVisualization(QObject):
         for idx in selectedModelIndices(self.ui.tableView2DProfiles):
             result.append(m.data(idx, Qt.UserRole))
         return result
-
-
 
     def removePlotStyles2D(self, plotStyles):
         m = self.ui.tableView2DProfiles.model()
@@ -1808,7 +1769,7 @@ class SpectralTemporalVisualization(QObject):
             #print(tsd)
 
 
-    def loadMissingData(self, backgroundProcess=False):
+    def loadMissingData(self, backgroundProcess=True):
         """
         Loads all band values of collected locations that have not been loaded until now
         """
@@ -1834,9 +1795,6 @@ class SpectralTemporalVisualization(QObject):
         :param spatialPoints: SpatialPoint | [list-of-SpatialPoints]
         """
         assert mode in SpectralTemporalVisualization.LOADING_MODES
-
-
-
         if isinstance(spatialPoints, SpatialPoint):
             spatialPoints = [spatialPoints]
 

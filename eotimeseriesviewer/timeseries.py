@@ -1318,7 +1318,7 @@ class TimeSeries(QAbstractItemModel):
             if isinstance(t, TimeSeriesSource):
                 toRemove.add(t.timeSeriesDate())
 
-        for tsd in list(toRemove):
+        for tsd in list(sorted(list(toRemove), reverse=True)):
 
             assert isinstance(tsd, TimeSeriesDate)
 
@@ -1329,16 +1329,16 @@ class TimeSeries(QAbstractItemModel):
             row = self.mTSDs.index(tsd)
             self.beginRemoveRows(self.mRootIndex, row, row)
             self.mTSDs.remove(tsd)
-
-            toRemove = [path for path, tsd in self.mLUT_Path2TSD.items() if tsd == tsd]
-            for path in toRemove:
-                self.mLUT_Path2TSD.pop(path)
-
             tsd.mTimeSeries = None
             removed.append(tsd)
             self.endRemoveRows()
 
         if len(removed) > 0:
+            pathsToRemove = [path for path, tsd in self.mLUT_Path2TSD.items() if tsd in removed]
+            for path in pathsToRemove:
+                self.mLUT_Path2TSD.pop(path)
+
+            self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
     def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->list:

@@ -676,14 +676,14 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         :param sensor:
         :return:
         """
-        pair = None
-        for i, t in enumerate(self.mSensorLayerList):
+        toRemove = []
+        for t in self.mSensorLayerList:
             if t[0] == sensor:
-                pair = t
-                break
-        assert pair is not None, 'Sensor "{}" not found'.format(sensor.name())
-        self.mLayerTreeSensorNode.removeLayer(pair[1])
-        self.mSensorLayerList.remove(pair)
+                toRemove.append(t)
+
+        for t in toRemove:
+            self.mLayerTreeSensorNode.removeLayer(t[1])
+            self.mSensorLayerList.remove(t)
 
 
     def hasSensor(self, sensor)->bool:
@@ -2039,7 +2039,8 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         Removes a Sensor
         :param sensor: SensorInstrument
         """
-        for mapView in self.mMapViews:
+        for mapView in self.mapViews():
+            assert isinstance(mapView, MapView)
             mapView.removeSensor(sensor)
 
     def applyStyles(self):
