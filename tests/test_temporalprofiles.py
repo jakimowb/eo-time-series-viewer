@@ -234,7 +234,7 @@ class testclassUtilityTests(unittest.TestCase):
             for sensor in self.TS.sensors():
                 self.assertIsInstance(sensor, SensorInstrument)
                 for expression in expressions:
-                    x , y = tp.dataFromExpression(sensor, expression)
+                    x, y = tp.dataFromExpression(sensor, expression)
                     self.assertIsInstance(x, list)
                     self.assertIsInstance(y, list)
                     self.assertEqual(len(x), len(y))
