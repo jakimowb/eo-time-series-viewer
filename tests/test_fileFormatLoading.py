@@ -83,7 +83,7 @@ class TestFileFormatLoading(TestCase):
         files = file_search(searchDir, '*.tif', recursive=True)
         files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
         self.TS.addSources(files, runAsync=False)
-        self.assertEqual(len(files), len(self.TS))
+        self.assertEqual(len(files), len(self.TS.sourceUris()))
 
         tsd = self.TS[0]
         self.assertIsInstance(tsd, TimeSeriesDate)
