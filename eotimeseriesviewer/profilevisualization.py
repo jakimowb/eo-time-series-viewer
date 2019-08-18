@@ -1771,7 +1771,7 @@ class SpectralTemporalVisualization(QObject):
 
 
                 s = ""
-        if True:
+        if False:
             print('WRESULTS {}'.format(time.time() - t0))
 
     def requestUpdate(self, *args):
@@ -1956,7 +1956,7 @@ class SpectralTemporalVisualization(QObject):
             self.mTasks[tid] = qgsTask
 
             if not backgroundProcess:
-                self.onPixelLoaded(qgsTask, doLoaderTask(qgsTask, dump))
+                self.onPixelLoaded(qgsTask, doLoadTemporalProfileTasks(qgsTask, dump))
             else:
 
                 tm = QgsApplication.taskManager()

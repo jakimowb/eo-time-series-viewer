@@ -1035,7 +1035,7 @@ class TimeSeries(QAbstractItemModel):
         self.mDateTimePrecision = DateTimePrecision.Original
 
         self.mLoadingProgressDialog = None
-
+        self.mLUT_Path2TSD = {}
         self.mVisibleDate = []
         self.mCurrentSpatialExtent = None
 
@@ -1222,10 +1222,14 @@ class TimeSeries(QAbstractItemModel):
         :param pathOfInterest: str, image source uri
         :return: TimeSeriesDate
         """
-        for tsd in self.mTSDs:
-            assert isinstance(tsd, TimeSeriesDate)
-            if pathOfInterest in tsd.sourceUris():
-                return tsd
+        tsd = self.mLUT_Path2TSD.get(pathOfInterest)
+        if isinstance(tsd, TimeSeriesDate):
+            return tsd
+        else:
+            for tsd in self.mTSDs:
+                assert isinstance(tsd, TimeSeriesDate)
+                if pathOfInterest in tsd.sourceUris():
+                    return tsd
         return None
 
     def tsd(self, date: np.datetime64, sensor)->TimeSeriesDate:
@@ -1325,6 +1329,11 @@ class TimeSeries(QAbstractItemModel):
             row = self.mTSDs.index(tsd)
             self.beginRemoveRows(self.mRootIndex, row, row)
             self.mTSDs.remove(tsd)
+
+            toRemove = [path for path, tsd in self.mLUT_Path2TSD.items() if tsd == tsd]
+            for path in toRemove:
+                self.mLUT_Path2TSD.pop(path)
+
             tsd.mTimeSeries = None
             removed.append(tsd)
             self.endRemoveRows()
@@ -1515,6 +1524,7 @@ class TimeSeries(QAbstractItemModel):
         assert isinstance(tsd, TimeSeriesDate)
         # add the source
         tsd.addSource(tss)
+        self.mLUT_Path2TSD[tss.uri()] = tsd
         return newTSD
 
     def setDateTimePrecision(self, mode:DateTimePrecision):

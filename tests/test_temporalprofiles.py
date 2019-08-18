@@ -128,7 +128,7 @@ class testclassUtilityTests(unittest.TestCase):
 
 
         self.assertIsInstance(tp, TemporalProfile)
-        tp.loadMissingData(False)
+        tp.loadMissingData()
         temporalProfiles = [tp]
         temporalProfiles.extend(lyr.createTemporalProfiles((SpatialPoint(center.crs(), center.x() - 50, center.y() + 50))))
 
@@ -181,7 +181,7 @@ class testclassUtilityTests(unittest.TestCase):
         self.assertEqual(tp, tp2)
 
         p = tempfile.mktemp('.shp', 'testtemporalprofiles')
-        writtenFiles = lyr1.saveTemporalProfiles(p, loadMissingValues=True)
+        writtenFiles = lyr1.saveTemporalProfiles(p)
         self.assertTrue(len(writtenFiles) == 2)
         for f in writtenFiles:
             self.assertTrue(os.path.isfile(f))

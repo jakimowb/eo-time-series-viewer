@@ -589,29 +589,31 @@ class TemporalProfile(QObject):
         return self.mTimeSeries
 
 
-    def loadMissingData(self, showGUI=False):
+    def loadMissingData(self):
         """
-        Loads the missing data for this profile.
-        :return:
+        Loads the missing data for this profile (synchronous eexecution, may take some time).
         """
-        from eotimeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
         tasks = []
         for tsd in self.mTimeSeries:
             assert isinstance(tsd, TimeSeriesDate)
             missingIndices = self.missingBandIndices(tsd)
 
             if len(missingIndices) > 0:
+                for tss in tsd:
+                    assert isinstance(tss, TimeSeriesSource)
+                    if tss.spatialExtent().contains(self.coordinate().toCrs(tss.crs())):
+                        task = TemporalProfileLoaderTask(tss, [self], bandIndices=missingIndices)
+                        tasks.append(task)
 
-                for pathImg in tsd.sourceUris():
-
-                    task = PixelLoaderTask(pathImg, [self.coordinate()],
-                                           bandIndices=missingIndices,
-                                           temporalProfileIDs=[self.mID])
-                    tasks.append(task)
-
-        results = doLoaderTask(TaskMock(), pickle.dumps(tasks))
+        results = doLoadTemporalProfileTasks(TaskMock(), pickle.dumps(tasks))
+        ts = self.timeSeries()
         for result in pickle.loads(results):
-            self.pullDataUpdate(result)
+            assert isinstance(result, TemporalProfileLoaderTask)
+            tsd = ts.getTSD(result.mSourcePath)
+            assert isinstance(tsd, TimeSeriesDate)
+            for tpId, data in result.mRESULTS.items():
+                if tpId == self.id():
+                    self.updateData(tsd, data)
 
     def missingBandIndices(self, tsd, requiredIndices=None):
         """
@@ -1329,7 +1331,7 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         s = ""
 
-    def saveTemporalProfiles(self, pathVector, loadMissingValues=False, sep='\t'):
+    def saveTemporalProfiles(self, pathVector, sep='\t'):
         if pathVector is None or len(pathVector) == 0:
             global DEFAULT_SAVE_PATH
             if DEFAULT_SAVE_PATH == None:
@@ -1344,11 +1346,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             else:
                 DEFAULT_SAVE_PATH = pathVector
 
-        if loadMissingValues:
-            self.loadMissingData(backgroundProcess=False)
-            for p in self.mProfiles.values():
-                assert isinstance(p, TemporalProfile)
-                p.loadMissingData()
 
         drvName = QgsVectorFileWriter.driverForExtension(os.path.splitext(pathVector)[-1])
         QgsVectorFileWriter.writeAsVectorFormat(self, pathVector, 'utf-8', destCRS=self.crs(), driverName=drvName)
