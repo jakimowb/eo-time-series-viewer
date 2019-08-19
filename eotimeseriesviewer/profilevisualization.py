@@ -32,6 +32,8 @@ from qgis.PyQt.QtGui import *
 from .timeseries import *
 from .utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
+from .externals.pyqtgraph import ScatterPlotItem, SpotItem, GraphicsScene
+from .externals.qps.externals.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent, MouseDragEvent
 from .externals import pyqtgraph as pg
 from .sensorvisualization import SensorListModel
 from .temporalprofiles import *
@@ -1341,13 +1343,15 @@ class SpectralTemporalVisualization(QObject):
         self.plot_initialized = False
 
         self.plot2D = self.ui.plotWidget2D
+        assert isinstance(self.plot2D, DateTimePlotWidget)
         self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
+        self.plot2D.getViewBox().scene().sigMouseClicked.connect(self.onPointsClicked2D)
         self.plot3D = self.ui.plotWidget3D
+        self.mLast2DMouseClickPosition = None
 
         # temporal profile collection to store loaded values
         self.mTemporalProfileLayer = TemporalProfileLayer(self.TS)
         self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
-        #self.mTemporalProfileLayer.startEditing()
         self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
 
         # fix to not loose C++ reference on temporal profile layer in case it is removed from QGIS mapcanvas
@@ -1534,8 +1538,8 @@ class SpectralTemporalVisualization(QObject):
         pdi = plotStyle.createPlotItem(self.plot2D)
 
         assert isinstance(pdi, TemporalProfilePlotDataItem)
-        pdi.sigClicked.connect(self.onProfileClicked2D)
-        pdi.sigPointsClicked.connect(self.onPointsClicked2D)
+        #pdi.sigClicked.connect(self.onProfileClicked2D)
+        #pdi.sigPointsClicked.connect(self.onPointsClicked2D)
         self.plot2D.plotItem.addItem(pdi)
         #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
         #plotItem.addDataItem(pdi)
@@ -1580,27 +1584,39 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
 
-    def onPointsClicked2D(self, pdi, spottedItems):
-
+    def onPointsClicked2D(self, event: MouseClickEvent):
         info = []
-        if isinstance(pdi, TemporalProfilePlotDataItem) and isinstance(spottedItems, list):
-            sensor = pdi.mPlotStyle.sensor()
-            tp = pdi.mPlotStyle.temporalProfile()
-            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
+        assert isinstance(event, MouseClickEvent)
+        for item in self.plot2D.scene().itemsNearEvent(event):
+
+            if isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(), TemporalProfilePlotDataItem):
+                pdi = item.parentItem()
+                assert isinstance(pdi, TemporalProfilePlotDataItem)
+                tp = pdi.mPlotStyle.temporalProfile()
+                assert isinstance(tp, TemporalProfile)
                 c = tp.coordinate()
-                info.append('Sensor: {}'.format(sensor.name()))
-                info.append('Coordinate: {}, {}'.format(c.x(), c.y()))
 
-                for item in spottedItems:
-                    pos = item.pos()
-                    x = pos.x()
-                    y = pos.y()
-                    date = num2date(x)
-                    info.append('Date: {}\nValue: {}'.format(date, y))
+                spottedItems = item.pointsAt(event.pos())
+                if len(spottedItems) > 0:
+                    info.append('Sensor: {}'.format(pdi.mPlotStyle.sensor().name()))
+                    info.append('Coordinate: {}, {}'.format(c.x(), c.y()))
+                    for item in spottedItems:
+                        if isinstance(item, SpotItem):
+                            brush1 = item.brush()
+                            brush2 = item.brush()
+                            brush2.setColor(QColor('yellow'))
+                            item.setBrush(brush2)
+                            QTimer.singleShot(500, lambda *args, spotItem=item, brush=brush1: spotItem.setBrush(brush))
 
+                            pos = item.pos()
+                            self.mLast2DMouseClickPosition = pos
+                            x = pos.x()
+                            y = pos.y()
+                            date = num2date(x)
+                            info.append('{};{}'.format(date, y))
 
-        else:
-            self.ui.tbInfo2D.setPlainText('\n'.join(info))
+        self.ui.tbInfo2D.setPlainText('\n'.join(info))
+
 
     def onTemporalProfilesAdded(self, profiles):
         # self.mTemporalProfileLayer.prune()
@@ -1762,12 +1778,6 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tableView3DProfiles.openPersistentEditor(idxStyle)
                 self.ui.tableView3DProfiles.openPersistentEditor(idxExpr)
                 start += 1
-
-    def onObservationClicked(self, plotDataItem, points):
-        for p in points:
-            tsd = p.data()
-            #print(tsd)
-
 
     def loadMissingData(self, backgroundProcess=True):
         """
