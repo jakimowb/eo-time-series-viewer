@@ -212,6 +212,7 @@ class DateTimePlotWidget(pg.PlotWidget):
     """
     Subclass of PlotWidget
     """
+
     def __init__(self, parent=None):
         """
         Constructor of the widget
@@ -241,10 +242,12 @@ class DateTimePlotWidget(pg.PlotWidget):
         pi.addItem(self.mCrosshairLineV, ignoreBounds=True)
         pi.addItem(self.mCrosshairLineH, ignoreBounds=True)
 
+        assert isinstance(self.scene(), pg.GraphicsScene)
         self.proxy2D = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
 
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
+
 
 
     def onMouseMoved2D(self, evt):
