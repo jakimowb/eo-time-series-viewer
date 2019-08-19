@@ -1325,9 +1325,9 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         mapTools = mapCanvas.mapTools()
         mapTools.activate(self.mMapToolKey)
 
-        mt = mapCanvas.mapTool()
-        if isinstance(mt, QgsMapToolSelect):
-            mt.setSelectionMode(self.mMapToolMode)
+        # mt = mapCanvas.mapTool()
+        # if isinstance(mt, QgsMapToolSelect):
+        #     mt.setSelectionMode(self.mMapToolMode)
 
         # connect signals
         self._connectCanvasSignals(mapCanvas)
