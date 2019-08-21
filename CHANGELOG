@@ -3,8 +3,8 @@ Changelog
 ==============
 2019-08-06 (version 1.7):
     * increased contrast for default map view text
-    * improved detect of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
-    * temporal profile plot: data gaps are shown by breaks in a profile line
+    * improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+    * temporal profile plot: data gaps can be shown by breaks in the profile line, data source information is correctly shown for selected points only
     * current extent can be copied via MapCanvas context menu
     * fixed #102: move maps to date of interest selected in a temporal profile plot
 

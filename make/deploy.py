@@ -127,7 +127,7 @@ class QGISMetadataFileWriter(object):
 
         self.mDescription = None
         self.mVersion = None
-        self.mQgisMinimumVersion = '3.4'
+        self.mQgisMinimumVersion = '3.8'
         self.mQgisMaximumVersion = '3.99'
         self.mAuthor = None
         self.mAbout = None

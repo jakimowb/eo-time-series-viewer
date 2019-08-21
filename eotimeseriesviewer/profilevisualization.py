@@ -1573,16 +1573,6 @@ class SpectralTemporalVisualization(QObject):
         self.plot3D.addItems(plotItems)
         #self.updatePlot3D()
 
-    def onProfileClicked2D(self, pdi):
-        if isinstance(pdi, TemporalProfilePlotDataItem):
-            sensor = pdi.mPlotStyle.sensor()
-            tp = pdi.mPlotStyle.temporalProfile()
-            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
-                c = tp.coordinate()
-                info = ['Sensor:{}'.format(sensor.name()),
-                        'Coordinate:{}, {}'.format(c.x(), c.y())]
-                self.ui.tbInfo2D.setPlainText('\n'.join(info))
-
 
     def onPointsClicked2D(self, event: MouseClickEvent):
         info = []

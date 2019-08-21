@@ -31,7 +31,7 @@ from qgis.PyQt.QtWidgets import *
 import numpy as np
 from osgeo import ogr, osr, gdal
 from .externals import pyqtgraph as pg
-from .externals.pyqtgraph import functions as fn, AxisItem
+from .externals.pyqtgraph import functions as fn, AxisItem, ScatterPlotItem, SpotItem, GraphicsScene
 from .externals.qps.plotstyling.plotstyling import PlotStyle
 
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
@@ -364,6 +364,7 @@ class DateTimeViewBox(pg.ViewBox):
     Subclass of ViewBox
     """
     sigMoveToDate = pyqtSignal(np.datetime64)
+    sigMoveToLocation = pyqtSignal(SpatialPoint)
     def __init__(self, parent=None):
         """
         Constructor of the CustomViewBox
@@ -373,6 +374,7 @@ class DateTimeViewBox(pg.ViewBox):
         #self.menu = self.getMenu() # Create the menu
         #self.menu = None
         self.mCurrentDate = np.datetime64('today')
+
         self.mXAxisUnit = 'date'
         xAction = [a for a in self.menu.actions() if a.text() == 'X Axis'][0]
         yAction = [a for a in self.menu.actions() if a.text() == 'Y Axis'][0]
@@ -419,6 +421,10 @@ class DateTimeViewBox(pg.ViewBox):
 
         self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
         self.mActionMoveToDate.triggered.connect(lambda *args : self.sigMoveToDate.emit(self.mCurrentDate))
+
+        #self.mActionMoveToProfile = self.menu.addAction('Move to profile location')
+        #self.mActionMoveToProfile.triggered.connect(lambda *args: self.sigM.emit(self.mCurrentDate))
+
         self.mActionShowCrosshair = self.menu.addAction('Show Crosshair')
         self.mActionShowCrosshair.setCheckable(True)
         self.mActionShowCrosshair.setChecked(True)
@@ -465,6 +471,9 @@ class DateTimeViewBox(pg.ViewBox):
         pt = self.mapDeviceToView(ev.pos())
         self.updateCurrentDate(num2date(pt.x(), dt64=True))
 
+        plotDataItems = [item for item in self.scene().itemsNearEvent(ev) if isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(), TemporalProfilePlotDataItem)]
+
+
         xRange, yRange = self.viewRange()
         t0 = num2date(xRange[0], qDate=True)
         t1 = num2date(xRange[1], qDate=True)
@@ -472,6 +481,10 @@ class DateTimeViewBox(pg.ViewBox):
         self.dateEditX1.setDate(t1)
 
         menu = self.getMenu(ev)
+
+        if len(plotDataItems) > 0:
+            s = ""
+
         self.scene().addParentContextMenus(self, menu, ev)
         menu.exec_(ev.screenPos().toPoint())
 
