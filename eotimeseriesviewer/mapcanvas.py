@@ -664,7 +664,7 @@ class MapCanvas(QgsMapCanvas):
                 self.mTimedRefreshPipeLine[MapCanvas.Command].append(a)
 
             else:
-                raise NotImplementedError('Unsupported argument: {}'.format(str(a)))
+                print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
 
     def timedRefresh(self):

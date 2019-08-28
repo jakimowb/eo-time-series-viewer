@@ -1089,18 +1089,21 @@ class TimeSeriesViewer(QgisInterface, QObject):
                 if len(self.ui.dockMapViews) == 0:
                     self.ui.dockMapViews.createMapView()
 
-                extent = self.mTimeSeries.maxSpatialExtent()
-
-                self.ui.mMapWidget.setCrs(extent.crs())
-                self.ui.mMapWidget.setSpatialExtent(extent)
-
+                extent = self.timeSeries().maxSpatialExtent()
+                if isinstance(extent, SpatialExtent):
+                    self.ui.dockMapViews.setCrs(extent.crs())
+                    self.ui.mMapWidget.setSpatialExtent(extent)
+                    self.mSpatialMapExtentInitialized = True
+                else:
+                    self.mSpatialMapExtentInitialized = False
+                    print('Failed to calculate max. spatial extent of TimeSeries with length {}'.format(len(self.timeSeries())))
                 lastDate = self.ui.mMapWidget.currentDate()
                 if lastDate:
                     tsd = self.timeSeries().findDate(lastDate)
                 else:
                     tsd = self.timeSeries()[0]
                 self.setCurrentDate(tsd)
-                self.mSpatialMapExtentInitialized = True
+
 
 
 

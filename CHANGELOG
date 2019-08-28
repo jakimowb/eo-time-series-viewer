@@ -1,6 +1,12 @@
 ==============
 Changelog
 ==============
+
+2019-08-28 (version 1.8):
+    * fixed #104: error in case of wrong spatial extent
+    * default CRS properly shown in map view settings
+    * user-defined CRS visible
+
 2019-08-06 (version 1.7):
     * increased contrast for default map view text
     * improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data

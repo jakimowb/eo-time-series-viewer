@@ -952,7 +952,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
-
+        assert isinstance(extent, SpatialExtent)
         if self.mSpatialExtent != extent:
             self.mSpatialExtent = extent
 
@@ -1651,6 +1651,13 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
+
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, True)
+        #self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CrsNotSet, True)
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
