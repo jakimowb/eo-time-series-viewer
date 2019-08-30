@@ -693,7 +693,8 @@ class MapCanvas(QgsMapCanvas):
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]
                         else:
-                            sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor())
+                            loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+                            sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor(), options=loptions)
                             sourceLayer.setName(lyr.name())
                             sourceLayer.setCustomProperty('eotsv/sensorid', self.tsd().sensor().id())
                             try:

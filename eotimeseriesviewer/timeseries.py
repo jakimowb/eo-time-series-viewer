@@ -205,6 +205,7 @@ class SensorInstrument(QObject):
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
 
+
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
         """
         Returns the band index closets to a certain wavelength
@@ -447,7 +448,8 @@ class TimeSeriesSource(object):
             self.mWKT = dataset.GetProjection()
             if self.mWKT == '':
                 # no CRS? try with QGIS API
-                lyr = QgsRasterLayer(self.mUri)
+                loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+                lyr = QgsRasterLayer(self.mUri, options=loptions)
                 if lyr.crs().isValid():
                     self.mWKT = lyr.crs().toWkt()
 
@@ -1148,7 +1150,7 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None):
+    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None, runAsync=True):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -1179,7 +1181,7 @@ class TimeSeries(QAbstractItemModel):
             progressDialog.setValue(0)
             progressDialog.setLabelText('Start loading {} images....'.format(len(images)))
 
-        self.addSources(images, progressDialog=progressDialog)
+        self.addSources(images, progressDialog=progressDialog, runAsync=runAsync)
 
     def saveToFile(self, path):
         """
@@ -1596,7 +1598,7 @@ class TimeSeries(QAbstractItemModel):
     def __len__(self):
         return len(self.mTSDs)
 
-    def __iter__(self):
+    def __iter__(self)->typing.Iterator[TimeSeriesDate]:
         return iter(self.mTSDs)
 
     def __getitem__(self, slice):
