@@ -204,6 +204,7 @@ class SensorInstrument(QObject):
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
+        s = ""
 
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
@@ -377,6 +378,7 @@ class TimeSeriesSource(object):
 
             if provider == 'gdal':
                 ds = gdal.Open(lyr.source())
+                s = ""
             elif provider == 'wcs':
                 parts = urllib.parse.parse_qs(lyr.source())
                 url = re.search(r'^[^?]+', parts['url'][0]).group()
@@ -397,6 +399,7 @@ class TimeSeriesSource(object):
 
         elif isinstance(source, str):
             ds = gdal.Open(source)
+            s = ""
 
         elif isinstance(source, gdal.Dataset):
             ds = source
@@ -701,7 +704,7 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mSensor
 
-    def sources(self)->list:
+    def sources(self)->typing.List[TimeSeriesSource]:
         """
         Returns the source images
         :return: [list-of-TimeSeriesSource]
@@ -709,7 +712,7 @@ class TimeSeriesDate(QAbstractTableModel):
         return self.mSources
 
 
-    def sourceUris(self)->list:
+    def sourceUris(self)->typing.List[str]:
         """
         Returns all source URIs  as list of strings-
         :return: [list-of-str]

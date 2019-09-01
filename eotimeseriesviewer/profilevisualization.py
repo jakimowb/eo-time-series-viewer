@@ -1715,12 +1715,18 @@ class SpectralTemporalVisualization(QObject):
         self.sigMoveToTSD.emit(self.TS[i])
 
 
-    def onPixelLoaded(self, qgsTask ,dump):
-
+    def onPixelLoaded(self, qgsTask ,dump)->typing.List[TemporalProfile]:
+        """
+        Updates TemporalProfiles
+        :param qgsTask:
+        :param dump:
+        :return: [updated TemporalProfiles]
+        """
         tasks = pickle.loads(dump)
         assert isinstance(tasks, list)
         s = ""
         t0 = time.time()
+        updatedTemporalProfiles = []
         for task in tasks:
             assert isinstance(task, TemporalProfileLoaderTask)
 
@@ -1732,12 +1738,14 @@ class SpectralTemporalVisualization(QObject):
                         tsd = tp.timeSeries().getTSD(task.mSourcePath)
                         if isinstance(tsd, TimeSeriesDate):
                             tp.updateData(tsd, data)
-
+                        if tp not in updatedTemporalProfiles:
+                            updatedTemporalProfiles.append(tp)
 
             if len(task.mERRORS) > 0:
 
 
                 s = ""
+        return updatedTemporalProfiles
         if False:
             print('WRESULTS {}'.format(time.time() - t0))
 
@@ -1900,30 +1908,39 @@ class SpectralTemporalVisualization(QObject):
 
                     # pickle.loads(doLoaderTask(mock, pickle.dumps([t])))[0]
         if len(tasks) > 0:
-            dump = pickle.dumps(tasks)
-            if not backgroundProcess:
-                qgsTask = TaskMock()
-            else:
-                qgsTask = QgsTask.fromFunction('Load Profiles', doLoadTemporalProfileTasks, dump,
-                          on_finished = self.onPixelLoaded)
-
-            tid = id(qgsTask)
-            qgsTask.progressChanged.connect(self.onLoadingProgressChanged)
-            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            self.mTasks[tid] = qgsTask
-
-            if not backgroundProcess:
-                self.onPixelLoaded(qgsTask, doLoadTemporalProfileTasks(qgsTask, dump))
-            else:
-
-                tm = QgsApplication.taskManager()
-                assert isinstance(tm, QgsTaskManager)
-                tm.addTask(qgsTask, 1000)
+            self.loadTemporalProfileTasks(tasks, runAsync=backgroundProcess)
 
         else:
             if DEBUG:
                 print('Data for geometries already loaded')
+
+    def loadTemporalProfileTasks(self, tasks:typing.Iterable[TemporalProfileLoaderTask], runAsync=True)->typing.List[TemporalProfile]:
+        """
+        Loads data into TemporalProfiles
+        :param tasks:
+        :param runAsync:
+        :return: [list-of-updated TemporalProfiles], empty if runAsyn
+        """
+        dump = pickle.dumps(tasks)
+        if runAsync:
+            qgsTask = QgsTask.fromFunction('Load Profiles', doLoadTemporalProfileTasks, dump,
+                                           on_finished=self.onPixelLoaded)
+        else:
+            qgsTask = TaskMock()
+
+        tid = id(qgsTask)
+        qgsTask.progressChanged.connect(self.onLoadingProgressChanged)
+        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        self.mTasks[tid] = qgsTask
+
+        if runAsync:
+            tm = QgsApplication.taskManager()
+            assert isinstance(tm, QgsTaskManager)
+            tm.addTask(qgsTask, 1000)
+            return []
+        else:
+            return self.onPixelLoaded(qgsTask, doLoadTemporalProfileTasks(qgsTask, dump))
 
     def onRemoveTask(self, tid):
         if tid in self.mTasks.keys():

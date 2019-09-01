@@ -1625,6 +1625,17 @@ class TemporalProfileLayer(QgsVectorLayer):
             s = ""
 
     def clear(self):
+        """
+        Removes all temporal profiles
+        """
+        b = self.isEditable()
+        self.startEditing()
+        fids = self.allFeatureIds()
+        self.deleteFeatures(fids)
+        self.commitChanges()
+
+        if b:
+            self.startEditing()
         #todo: remove TS Profiles
         #self.mTemporalProfiles.clear()
         #self.sensorPxLayers.clear()

@@ -1088,7 +1088,12 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self._updateGrid()
             self.sigViewModeChanged.emit(self.mViewMode)
 
-    def setMapsPerMapView(self, n:int):
+    def setMapsPerMapView(self, n:int)->int:
+        """
+        Sets the number of maps per map viewe
+        :param n: int
+        :return: int, number of maps per map view
+        """
         assert n >= 0
 
         if n != self.mMpMV:
@@ -1096,6 +1101,15 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self._updateGrid()
             self.timeSlider().setPageStep(max(1, n))
             self.sigMapsPerMapViewChanged.emit(n)
+        return self.mapsPerMapView()
+
+
+    def mapsPerMapView(self)->int:
+        """
+        Returns the number of maps per map view
+        :return: int
+        """
+        return self.mMpMV
 
     def setMapSize(self, size:QSize)->QSize:
         """

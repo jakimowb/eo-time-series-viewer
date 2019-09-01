@@ -44,7 +44,9 @@ from qgis.gui import *
 import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
+from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
@@ -547,7 +549,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
             w.setMinimumSize(0, 0)
 
-    def sensors(self)->list:
+    def sensors(self)->typing.List[SensorInstrument]:
         """
         Returns the list of Sensors
         :return: [list-of-Sensors]
@@ -654,7 +656,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
         mapView.addLayer(self.spectralLibrary())
 
-    def temporalProfileLayer(self)->QgsVectorLayer:
+    def temporalProfileLayer(self)->TemporalProfileLayer:
         """
         Returns the TemporalProfileLayer
         :return:
@@ -699,7 +701,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.ui.mMapWidget.setCurrentDate(tsd)
 
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self)->typing.List[MapCanvas]:
         """
         Returns all MapCanvases of the spatial visualization
         :return: [list-of-MapCanvases]
@@ -1010,7 +1012,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         return self.ui.mMapWidget.messageBar()
 
 
-    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None):
+    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None, runAsync=True):
         """
         Loads a time series definition file
         :param path:
@@ -1034,7 +1036,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
             s.setValue('file_ts_definition', path)
             self.clearTimeSeries()
             progressDialog = self._createProgressDialog()
-            self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog)
+            self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog, runAsync=runAsync)
 
 
     def createMapView(self, name:str=None):
