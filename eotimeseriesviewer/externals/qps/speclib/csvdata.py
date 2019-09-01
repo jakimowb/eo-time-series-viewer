@@ -45,6 +45,40 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
     REGEX_BANDVALUE_COLUMN = re.compile(r'^(?P<bandprefix>\D+)?(?P<band>\d+)[ _]*(?P<xvalue>-?\d+\.?\d*)?[ _]*(?P<xunit>\D+)?', re.IGNORECASE)
 
     @staticmethod
+    def addImportActions(spectralLibrary:SpectralLibrary, menu:QMenu)->list:
+
+        def read(speclib:SpectralLibrary, dialect):
+
+            path, ext = QFileDialog.getOpenFileName(caption='Import CSV File', filter='All type (*.*);;Text files (*.txt);; CSV (*.csv)')
+            if isinstance(path, str) and os.path.isfile(path):
+
+                sl = CSVSpectralLibraryIO.readFrom(path, dialect)
+                if isinstance(sl, SpectralLibrary):
+                    speclib.addSpeclib(sl, True)
+        m = menu.addMenu('CSV Textfiles')
+
+        a = m.addAction('Excel (TAB)')
+        a.setToolTip('Imports Spectral Profiles from a Excel CSV sheet.')
+        a.triggered.connect(lambda *args, sl=spectralLibrary: read(sl, pycsv.excel_tab))
+
+        a = m.addAction('Excel (,)')
+        a.setToolTip('Imports Spectral Profiles from a Excel CSV sheet.')
+        a.triggered.connect(lambda *args, sl=spectralLibrary: read(sl, pycsv.excel))
+
+    @staticmethod
+    def addExportActions(spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+
+        def write(speclib: SpectralLibrary):
+            path, filter = QFileDialog.getSaveFileName(caption='Write to CSV File',
+                                                       filter='CSV (*.csv);;Text files (*.txt)')
+            if os.path.isfile(path):
+                CSVSpectralLibraryIO.write(spectralLibrary, path)
+
+
+        m = menu.addAction('CSV Table')
+        m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
+
+    @staticmethod
     def isHeaderLine(line: str) -> str:
         """
         Returns True if str ``line`` could be a CSV header

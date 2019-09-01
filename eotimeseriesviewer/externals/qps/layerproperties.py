@@ -1327,22 +1327,38 @@ class RasterLayerProperties(QgsOptionsDialogBase, loadUI('rasterlayerpropertiesd
 
         self.mRenderTypeComboBox.setModel(RASTERRENDERER_CREATE_FUNCTIONSV2)
         renderer = self.mRasterLayer.renderer()
-
-        for func in RASTERRENDERER_CREATE_FUNCTIONSV2.optionValues():
+        iCurrent = None
+        for i, constructor in enumerate(RASTERRENDERER_CREATE_FUNCTIONSV2.optionValues()):
             extent = self.canvas.extent()
-            w = func(self.mRasterLayer, extent)
+            w = constructor(self.mRasterLayer, extent)
             w.setMapCanvas(self.canvas)
             #w.sizePolicy().setVerticalPolicy(QSizePolicy.Maximum)
             assert isinstance(w, QgsRasterRendererWidget)
+            w.setRasterLayer(self.mRasterLayer)
             minMaxWidget = w.minMaxWidget()
             if isinstance(minMaxWidget, QgsRasterMinMaxWidget):
                 minMaxWidget.setCollapsed(False)
             w.setParent(self.mRendererStackedWidget)
             w.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
             self.mRendererStackedWidget.addWidget(w)
-            f2 = getattr(w, 'setFromRenderer', None)
-            if f2:
-                f2(renderer)
+
+            if type(w.renderer()) == type(renderer):
+                iCurrent = i
+
+            try:
+                w.setFromRenderer(renderer)
+
+                if isinstance(w, QgsSingleBandPseudoColorRendererWidget) and isinstance(renderer, QgsSingleBandPseudoColorRenderer):
+                    w.setMin(renderer.classificationMin())
+                    w.setMax(renderer.classificationMax())
+                elif isinstance(w, QgsSingleBandPseudoColorRendererWidget) and isinstance(renderer, QgsSingleBandGrayRenderer):
+                    pass
+
+            except Exception as ex:
+                s = ""
+
+        if isinstance(iCurrent, int):
+            self.mRenderTypeComboBox.setCurrentIndex(iCurrent)
 
 
 
@@ -1383,7 +1399,7 @@ class RasterLayerProperties(QgsOptionsDialogBase, loadUI('rasterlayerpropertiesd
             renderer = mRendererWidget.renderer()
             assert isinstance(renderer, QgsRasterRenderer)
             renderer.setOpacity(self.sliderOpacity.value() / 100.)
-            self.mRasterLayer.setRenderer(renderer)
+            self.mRasterLayer.setRenderer(renderer.clone())
             self.mRasterLayer.triggerRepaint()
             self.setResult(QDialog.Accepted)
         s = ""
@@ -1562,12 +1578,14 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
         result = dialog.exec_()
     return result
 
+
+
 RASTERRENDERER_CREATE_FUNCTIONSV2 = OptionListModel()
 #RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(MultiBandColorRendererWidget.create, name='multibandcolor'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsMultiBandColorRendererWidget.create, name='multibandcolor (QGIS)'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsPalettedRendererWidget.create, name='paletted'))
+RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsMultiBandColorRendererWidget, name='multibandcolor (QGIS)'))
+RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsPalettedRendererWidget, name='paletted'))
 #RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(SingleBandGrayRendererWidget.create, name='singlegray'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandGrayRendererWidget.create, name='singlegray (QGIS)'))
+RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandGrayRendererWidget, name='singlegray (QGIS)'))
 #RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(SingleBandPseudoColorRendererWidget.create, name='singlebandpseudocolor'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandPseudoColorRendererWidget.create, name='singlebandpseudocolor (QGIS)'))
+RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandPseudoColorRendererWidget, name='singlebandpseudocolor (QGIS)'))
 

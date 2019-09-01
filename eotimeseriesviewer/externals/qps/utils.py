@@ -281,6 +281,29 @@ def findMapLayer(layer)->QgsMapLayer:
     return None
 
 
+def gdalFileSize(path) -> int:
+    """
+    Returns the size of a local gdal readible file (including metadata files etc.)
+    :param path: str
+    :return: int
+    """
+    ds = gdal.Open(path)
+    if not isinstance(ds, gdal.Dataset):
+        return 0
+    else:
+        size = 0
+        for file in ds.GetFileList():
+            size += os.stat(file).st_size
+
+            # recursively inspect VRT sources
+            if file.endswith('.vrt') and file != path:
+                size += gdalFileSize(file)
+
+        return size
+
+
+        s = ""
+
 
 def qgisLayerTreeLayers() -> list:
     """
@@ -315,6 +338,8 @@ def createQgsField(name : str, exampleValue, comment:str=None):
     elif t in [float, np.double, np.float, np.double, np.float16, np.float32, np.float64]:
         return QgsField(name, QVariant.Double, 'double', comment=comment)
     elif isinstance(exampleValue, np.ndarray):
+        return QgsField(name, QVariant.String, 'varchar', comment=comment)
+    elif isinstance(exampleValue, np.datetime64):
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
     elif isinstance(exampleValue, list):
         assert len(exampleValue) > 0, 'need at least one value in provided list'

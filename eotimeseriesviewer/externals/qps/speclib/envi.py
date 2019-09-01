@@ -282,6 +282,42 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
     REQUIRED_TAGS = ['byte order', 'data type', 'header offset', 'lines', 'samples', 'bands']
     SINGLE_VALUE_TAGS = REQUIRED_TAGS + ['description', 'wavelength', 'wavelength units']
 
+
+    @staticmethod
+    def addImportActions(spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+
+        def read(speclib: SpectralLibrary):
+
+            path, filter = QFileDialog.getOpenFileName(caption='ENVI Spectral Library',
+                                               filter='All types (*.*);;Spectral Library files (*.sli)')
+            if os.path.isfile(path):
+
+                sl = EnviSpectralLibraryIO.readFrom(path)
+                if isinstance(sl, SpectralLibrary):
+                    speclib.startEditing()
+                    speclib.beginEditCommand('Add ENVI Spectral Library from {}'.format(path))
+                    speclib.addSpeclib(sl, True)
+                    speclib.endEditCommand()
+                    speclib.commitChanges()
+
+        m = menu.addAction('ENVI Spectral Library')
+        m.triggered.connect(lambda *args, sl=spectralLibrary: read(sl))
+
+
+
+    @staticmethod
+    def addExportActions(spectralLibrary:SpectralLibrary, menu:QMenu) -> list:
+
+        def write(speclib: SpectralLibrary):
+
+            path, filter = QFileDialog.getSaveFileName(caption='Write ENVI Spectral Library ',
+                                                    filter='ENVI Spectral Library (*.sli)')
+            if os.path.isfile(path):
+                sl = EnviSpectralLibraryIO.write(spectralLibrary, path)
+
+        m = menu.addAction('ENVI Spectral Library')
+        m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
+
     @staticmethod
     def canRead(pathESL):
         """

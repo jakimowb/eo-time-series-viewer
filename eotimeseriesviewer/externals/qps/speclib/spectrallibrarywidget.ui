@@ -94,7 +94,8 @@
    </attribute>
    <addaction name="actionSelectProfilesFromMap"/>
    <addaction name="actionAddProfiles"/>
-   <addaction name="actionSaveSpeclib"/>
+   <addaction name="actionImportSpeclib"/>
+   <addaction name="actionExportSpeclib"/>
   </widget>
   <widget class="QToolBar" name="toolBarFeatureSelections">
    <property name="windowTitle">
@@ -150,7 +151,7 @@
     <string>Import Spectral Library</string>
    </property>
   </action>
-  <action name="actionSaveSpeclib">
+  <action name="actionExportSpeclib">
    <property name="icon">
     <iconset resource="../qpsresources.qrc">
      <normaloff>:/qps/ui/icons/speclib_save.svg</normaloff>:/qps/ui/icons/speclib_save.svg</iconset>

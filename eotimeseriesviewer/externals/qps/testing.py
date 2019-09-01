@@ -314,7 +314,12 @@ class QgisMockup(QgisInterface):
         self.mClipBoard = QgsClipboardMockup()
 
     def activeLayer(self):
-        return None
+        return self.mapCanvas().currentLayer()
+
+    def setActiveLayer(self, mapLayer:QgsMapLayer):
+        if mapLayer in self.mapCanvas().layers():
+            self.mapCanvas().setCurrentLayer(mapLayer)
+
 
     def cutSelectionToClipboard(self, mapLayer: QgsMapLayer):
         if isinstance(mapLayer, QgsVectorLayer):
