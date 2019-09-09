@@ -1652,7 +1652,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
         self.ui.actionLoadTPFromOgr.triggered.connect(self.onLoadFromVector)
         self.ui.actionLoadMissingValues.triggered.connect(lambda: self.loadMissingData())
-        self.ui.actionSaveTemporalProfiles.triggered.connect(lambda *args : self.mTemporalProfileLayer.saveTemporalProfiles)
+        self.ui.actionSaveTemporalProfiles.triggered.connect(lambda *args : self.mTemporalProfileLayer.saveTemporalProfiles(None))
         #set actions to be shown in the TemporalProfileTableView context menu
         ma = [self.ui.actionSaveTemporalProfiles, self.ui.actionLoadMissingValues]
 

@@ -1304,7 +1304,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         # write a flat list of profiles
         csvLines = ['Temporal Profiles']
         nBands = max([s.nb for s in self.mTimeSeries.sensors()])
-        csvLines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy', 'sensor'] + ['b{}'.format(b+1) for b in range(nBands)]))
+        csvLines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy'] + ['b{}'.format(b+1) for b in range(nBands)]))
 
         for p in list(self.getFeatures()):
 
