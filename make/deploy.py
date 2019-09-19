@@ -41,7 +41,7 @@ import eotimeseriesviewer
 
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
-DIR_DOC_SOURCE = jp(DIR_REPO, *['doc','source'])
+DIR_DOC_SOURCE = jp(DIR_REPO, *['doc', 'source'])
 
 QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
@@ -378,7 +378,7 @@ def updateInfoHTMLs():
     from eotimeseriesviewer import PATH_CHANGELOG
     from docutils.core import publish_string
 
-    urlIssueTracke = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
+    urlIssueTracker = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
 
     def readTextFile(path):
         with open(path, 'r', encoding='utf-8') as f:
@@ -402,7 +402,7 @@ def updateInfoHTMLs():
 
     # CHANGELOG -> CHANGELOG.html
     txt = readTextFile(PATH_CHANGELOG)
-    txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracke), txt)
+    txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracker), txt)
 
     txt = publish_string(txt, writer_name='html').decode('utf-8')
 
