@@ -20,9 +20,10 @@ import numpy as np
 from . import resourcemockup
 
 try:
-    import qps
-except:
+
     from .. import qps
+except:
+    import qps
 
 jp = os.path.join
 dn = os.path.dirname
@@ -1677,3 +1678,9 @@ class SelectMapLayersDialog(QgsDialog):
 
 
 
+class QgsTaskMock(QgsTask):
+    """
+    A mocked QgsTask
+    """
+    def __init__(self):
+        super(QgsTaskMock, self).__init__()

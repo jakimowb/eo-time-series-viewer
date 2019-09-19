@@ -21,7 +21,7 @@
 import collections
 import os
 import re
-
+import typing
 from osgeo import gdal, ogr, osr
 import numpy as np
 from qgis.gui import *
@@ -73,6 +73,58 @@ DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
 
 MDF_QGIS_LAYER_STYLE = 'application/qgis.style'
 MDF_TEXT_PLAIN = 'text/plain'
+
+def openRasterLayerSilent(uri, name, provider)->QgsRasterLayer:
+    """
+    Opens a QgsRasterLayer without asking for its CRS in case it is undefined.
+    :param uri: path
+    :param name: name of layer
+    :param provider: provider string
+    :return: QgsRasterLayer
+    """
+    key = '/Projections/defaultBehavior'
+    v = QgsSettings().value(key)
+    isPrompt = v == 'prompt'
+
+    if isPrompt:
+        # do not ask!
+        QgsSettings().setValue(key, 'useProject')
+
+    lyr = QgsRasterLayer(uri, name, provider)
+
+    if isPrompt:
+        QgsSettings().setValue(key, v)
+    return lyr
+
+class SubDataSetInputTableModel(QAbstractTableModel):
+
+    def __init__(self, *args, **kwds):
+        super(SubDataSetInputTableModel, self).__init__(*args, **kwds)
+
+        self.cnID = '#'
+        self.cnName = 'name'
+        self.cnPath = 'path'
+
+        self.cnSamples = 'ns'
+        self.cnLines = 'nl'
+        self.cnBands = 'nb'
+
+        self.mInputBands = []
+
+
+
+
+
+    def setSourceDataSet(self, ds:gdal.Dataset):
+        pass
+
+
+
+class SubDataSetSelectionDialog(QDialog, loadUI('subdatasetselectiondialog.ui')):
+
+
+    pass
+
 
 def rendererFromXml(xml):
     """
@@ -327,7 +379,12 @@ def pasteStyleFromClipboard(layer:QgsMapLayer):
         layer.triggerRepaint()
 
 
-def subLayerDefinitions(mapLayer:QgsMapLayer)->list:
+def subLayerDefinitions(mapLayer:QgsMapLayer)->typing.List[QgsSublayersDialog.LayerDefinition]:
+    """
+
+    :param mapLayer:QgsMapLayer
+    :return: list of sublayer definitions
+    """
     definitions = []
     dp = mapLayer.dataProvider()
 
@@ -371,7 +428,7 @@ def subLayerDefinitions(mapLayer:QgsMapLayer)->list:
 
     return definitions
 
-def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->list:
+def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->typing.List[QgsMapLayer]:
     """
     Returns a list of QgsMapLayer instances extracted from the input QgsMapLayer.
     Returns the "parent" QgsMapLayer in case no sublayers can be extracted

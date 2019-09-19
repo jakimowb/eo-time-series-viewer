@@ -6,7 +6,10 @@ from ..utils import *
 from osgeo import gdal, ogr, osr
 
 DIR_QGIS_REPO = r'C:\Users\geo_beja\Repositories\QGIS'
-DIR_REPO = dn(findUpwardPath(__file__, '.git'))
+
+DIR_REPO = findUpwardPath(__file__, '.git')
+if not DIR_REPO is None:
+    DIR_REPO = dn(DIR_REPO)
 
 
 def rasterize_vector_labels(pathRef, pathDst, pathShp, label_field, band_ref=1, label_layer=0):

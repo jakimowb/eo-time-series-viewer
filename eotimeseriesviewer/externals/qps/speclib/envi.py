@@ -300,7 +300,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
                     speclib.endEditCommand()
                     speclib.commitChanges()
 
-        m = menu.addAction('ENVI Spectral Library')
+        m = menu.addAction('ENVI')
         m.triggered.connect(lambda *args, sl=spectralLibrary: read(sl))
 
 
@@ -315,7 +315,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             if os.path.isfile(path):
                 sl = EnviSpectralLibraryIO.write(spectralLibrary, path)
 
-        m = menu.addAction('ENVI Spectral Library')
+        m = menu.addAction('ENVI')
         m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
 
     @staticmethod

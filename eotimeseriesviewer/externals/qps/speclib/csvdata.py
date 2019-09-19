@@ -55,7 +55,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
                 sl = CSVSpectralLibraryIO.readFrom(path, dialect)
                 if isinstance(sl, SpectralLibrary):
                     speclib.addSpeclib(sl, True)
-        m = menu.addMenu('CSV Textfiles')
+        m = menu.addMenu('CSV')
 
         a = m.addAction('Excel (TAB)')
         a.setToolTip('Imports Spectral Profiles from a Excel CSV sheet.')

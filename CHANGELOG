@@ -2,7 +2,8 @@
 Changelog
 ==============
 
-2019-08-28 (version 1.8):
+2019-09-19 (version 1.8):
+    * updated spectral library module
     * fixed #104: error in case of wrong spatial extent
     * default CRS properly shown in map view settings
     * user-defined CRS visible

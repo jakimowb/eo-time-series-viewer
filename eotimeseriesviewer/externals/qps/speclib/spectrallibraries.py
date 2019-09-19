@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 # noinspection PyPep8Naming
 """
@@ -392,6 +393,29 @@ class SpectralProfile(QgsFeature):
     crs = SPECLIB_CRS
 
     @staticmethod
+    def profileName(basename:str, pxPosition:QPoint=None, geoPosition:QgsPointXY=None, index:int=None):
+        """
+        Unified method to generate the name of a single profile
+        :param basename: base name
+        :param pxPosition: optional, pixel position in source image
+        :param geoPosition: optional, pixel position in geo-coordinates
+        :param index: index, e.g. n'th-1 profile that was sampled from a data set
+        :return: name
+        """
+
+
+        name = basename
+
+        if isinstance(index, int):
+            name += str(index)
+
+        if isinstance(pxPosition, QPoint):
+            name += '({}:{})'.format(pxPosition.x(), pxPosition.y())
+        elif isinstance(geoPosition, QgsPoint):
+            name += '({}:{})'.format(geoPosition.x(), geoPosition.y())
+        return name.replace(' ', ':')
+
+    @staticmethod
     def fromMapCanvas(mapCanvas, position)->list:
         """
         Returns a list of Spectral Profiles the raster layers in QgsMapCanvas mapCanvas.
@@ -434,7 +458,7 @@ class SpectralProfile(QgsFeature):
                 return None
 
         profile = SpectralProfile()
-        profile.setName('{} {}'.format(layer.name(), position))
+        profile.setName(SpectralProfile.profileName(layer.name(), geoPosition=position))
 
         profile.setValues(x=wl, y=y, xUnit=wlu)
 
@@ -509,7 +533,7 @@ class SpectralProfile(QgsFeature):
         wl, wlu = parseWavelength(ds)
 
         profile = SpectralProfile(fields=fields)
-        profile.setName('{} {},{}'.format(baseName, px.x(), px.y()))
+        profile.setName(SpectralProfile.profileName(baseName, pxPosition=px))
         profile.setValues(x=wl, y=y, xUnit=wlu)
         profile.setCoordinates(geoCoordinate)
         profile.setSource('{}'.format(ds.GetDescription()))
@@ -553,16 +577,20 @@ class SpectralProfile(QgsFeature):
 
 
 
-    def fieldNames(self):
+    def fieldNames(self)->typing.List[str]:
+        """
+        Returns all field names
+        :return:
+        """
         return self.fields().names()
 
     def setName(self, name:str):
         if name != self.name():
-            self.setAttribute('name', name)
+            self.setAttribute(FIELD_NAME, name)
             #self.sigNameChanged.emit(name)
 
-    def name(self):
-        return self.metadata('name')
+    def name(self)->str:
+        return self.metadata(FIELD_NAME)
 
     def setSource(self, uri: str):
         self.setAttribute('source', uri)
@@ -579,28 +607,6 @@ class SpectralProfile(QgsFeature):
 
     def geoCoordinate(self):
         return self.geometry()
-
-    #def style(self)->PlotStyle:
-    #    """
-    #    Returns this features's PlotStyle
-    #    :return: PlotStyle
-    #    """
-    #    styleJson = self.metadata(FIELD_STYLE)
-    #    try:
-    #        style = PlotStyle.fromJSON(styleJson)
-    #    except Exception as ex:
-    #        style = DEFAULT_SPECTRUM_STYLE
-    #    return style
-
-    #def setStyle(self, style:PlotStyle):
-    #    """
-    #    Sets a Spectral Profiles's plot style
-    #    :param style: PLotStyle
-    #    """
-    #    if isinstance(style, PlotStyle):
-    #        self.setMetadata(FIELD_STYLE, style.json())
-    #    else:
-    #        self.setMetadata(FIELD_STYLE, None)
 
     def updateMetadata(self, metaData):
         if isinstance(metaData, dict):
@@ -796,10 +802,10 @@ class SpectralProfile(QgsFeature):
         pi = SpectralProfilePlotDataItem(self)
         pi.setClickable(True)
         pw = pg.plot( title=self.name())
-        pw.plotItem().addItem(pi)
+        pw.getPlotItem().addItem(pi)
 
         pi.setColor('green')
-        pg.QAPP.exec_()
+        #pg.QAPP.exec_()
 
 
     def __reduce_ex__(self, protocol):
@@ -1305,7 +1311,7 @@ class SpectralLibrary(QgsVectorLayer):
         :param mode:
         :return:
         """
-
+        warnings.warn(DeprecationWarning('Use readFromVector instread'))
         assert mode in ['CENTROIDS', 'AVERAGES', 'PIXELS']
 
         if isinstance(rasterSource, str):
@@ -3023,14 +3029,6 @@ def registerSpectralProfileEditorWidget():
         reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, SPECTRAL_PROFILE_EDITOR_WIDGET_FACTORY)
 
 
-def registerAbstractLibraryIOs():
-    try:
-        import asd
-    except:
-        s = ""
-
-
-
 from ..utils import SelectMapLayersDialog
 class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
 
@@ -3137,7 +3135,7 @@ class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui
         # set spacer into menu
         # empty = QWidget(self.mToolbar)
          #empty.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        from .plotting import SpectralLibraryPlotWidget
+        from ..speclib.plotting import SpectralLibraryPlotWidget
         assert isinstance(self.mPlotWidget, SpectralLibraryPlotWidget)
         #self.mToolbar.insertWidget(self.actionReload, empty)
 
@@ -3151,14 +3149,19 @@ class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui
         from .asd import ASDSpectralLibraryIO
         from .ecosis import EcoSISSpectralLibraryIO
         from .specchio import SPECCHIOSpectralLibraryIO
+        from .artmo import ARTMOSpectralLibraryIO
 
         self.mSpeclibIOInterfaces = [
             EnviSpectralLibraryIO(),
             CSVSpectralLibraryIO(),
+            ARTMOSpectralLibraryIO(),
             ASDSpectralLibraryIO(),
             EcoSISSpectralLibraryIO(),
-            SPECCHIOSpectralLibraryIO()
+            SPECCHIOSpectralLibraryIO(),
         ]
+
+        self.mSpeclibIOInterfaces = sorted(self.mSpeclibIOInterfaces, key=lambda c:c.__class__.__name__)
+
 
         self.mSelectionModel = None
 
@@ -3173,7 +3176,7 @@ class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui
         self.mSpeclib.editingStarted.connect(self.onIsEditableChanged)
         self.mSpeclib.editingStopped.connect(self.onIsEditableChanged)
         self.mSpeclib.selectionChanged.connect(self.onSelectionChanged)
-
+        self.mSpeclib.nameChanged.connect(lambda *args, sl=self.mSpeclib: self.setWindowTitle(sl.name()))
 
         from .plotting import SpectralLibraryPlotWidget
         assert isinstance(self.mPlotWidget, SpectralLibraryPlotWidget)
@@ -3858,4 +3861,7 @@ class SpectralLibraryPanel(QgsDockWidget):
         self.SLW.setCurrentProfilesMode(mode)
 
 
-registerAbstractLibraryIOs()
+class SpectralLibraryLayerStyleWidget(QgsMapLayerConfigWidget):
+
+    pass
+
