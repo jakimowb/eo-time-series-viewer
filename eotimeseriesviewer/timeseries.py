@@ -1927,14 +1927,19 @@ def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
     for b in range(ds.RasterCount):
         band = ds.GetRasterBand(b + 1)
         assert isinstance(band, gdal.Band)
-        md = band.GetMetadata_Dict()
+        domains = band.GetMetadataDomainList()
+        if not isinstance(domains, list):
+            continue
+        for domain in domains:
+            md = band.GetMetadata_Dict(domain)
 
-        keyWLU = findKey(md, regWLUkey)
-        keyWL = findKey(md, regWLkey)
+            keyWLU = findKey(md, regWLUkey)
+            keyWL = findKey(md, regWLkey)
 
-        if isinstance(keyWL, str) and isinstance(keyWLU, str):
-            wl.append(float(md[keyWL]))
-            wlu.append(LUT_WAVELENGTH_UNITS[md[keyWLU].lower()])
+            if isinstance(keyWL, str) and isinstance(keyWLU, str):
+                wl.append(float(md[keyWL]))
+                wlu.append(LUT_WAVELENGTH_UNITS[md[keyWLU].lower()])
+                break
 
     if len(wlu) == len(wl) and len(wl) == ds.RasterCount:
         return wl, wlu[0]

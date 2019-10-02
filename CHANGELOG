@@ -4,6 +4,7 @@ Changelog
 2019-10-02 (version 1.9):
     * includes several smaller updates
     * fixed error 'shortcutVisibleInContextMenu' error that occured with Qt < 5.10
+    * enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band
 
 2019-09-19 (version 1.8):
     * updated spectral library module
