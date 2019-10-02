@@ -768,9 +768,6 @@
    <property name="iconVisibleInMenu">
     <bool>false</bool>
    </property>
-   <property name="shortcutVisibleInContextMenu">
-    <bool>true</bool>
-   </property>
   </action>
   <action name="actionExportMapsToImages">
    <property name="icon">

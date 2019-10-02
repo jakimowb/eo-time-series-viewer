@@ -167,7 +167,7 @@ def updateRemoteLocations(locationsToUpdate:list):
 
     for id in locationsToUpdate:
         assert isinstance(id, str)
-        assert id in REMOTEINFOS.keys()
+        assert id in REMOTEINFOS.keys(), 'Unknown remote location key "{}"'.format(id)
 
     # check existing remotes
     print('Remotes:')

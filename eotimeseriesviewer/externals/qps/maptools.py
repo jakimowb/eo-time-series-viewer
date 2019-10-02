@@ -292,7 +292,7 @@ class PixelScaleExtentMapTool(QgsMapTool):
     """
     def __init__(self, canvas):
         super(PixelScaleExtentMapTool, self).__init__(canvas)
-        #see defintion getThemePixmap(const QString &):QPixmap in qgsapplication.cpp
+
         self.mCursor = createCursor(':/qps/ui/icons/cursor_zoom_pixelscale.svg')
         self.setCursor(self.mCursor)
         canvas.setCursor(self.mCursor)

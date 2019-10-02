@@ -3,6 +3,8 @@ import os, sys, re, pathlib, json, io, re, linecache
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
+from qgis.core import *
+
 
 import csv as pycsv
 from .spectrallibraries import SpectralProfile, SpectralLibrary, AbstractSpectralLibraryIO, FIELD_FID, FIELD_VALUES, FIELD_NAME, findTypeFromString, createQgsField
@@ -71,7 +73,9 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
         :param path: source of SpectralLibrary
         :return: SpectralLibrary
         """
-        with open(path, 'r', encoding='utf-8') as f:
+
+        # the EcoSIS CSV outputs are encoded as UTF-8 with BOM
+        with open(path, 'r', encoding='utf-8-sig') as f:
 
             bn = os.path.basename(path)
 
@@ -79,6 +83,10 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             reader = pycsv.DictReader(f, dialect=dialect)
             fieldnames = reader.fieldnames
+            if fieldnames[0].startswith('\ufeff'):
+                s = ""
+
+
 
             xUnit = yUnit = None
             xValueNames = []
@@ -113,6 +121,8 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
 
                         qgsField = createQgsField(fieldName, fieldType(fieldValue))
                         speclib.addAttribute(qgsField)
+                        assert speclib.commitChanges()
+                        speclib.startEditing()
                         missing_field_definitions.remove(fieldName)
 
                 profile = SpectralProfile(fields=speclib.fields())
@@ -132,7 +142,7 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             s = ""
         s = ""
-        speclib.commitChanges()
+        assert speclib.commitChanges()
         return speclib
 
     @staticmethod

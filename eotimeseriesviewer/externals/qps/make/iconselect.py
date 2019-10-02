@@ -3,7 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from qgis.gui import QgsCollapsibleGroupBox
-from ..testing import initQgisApplication
+from qps.testing import initQgisApplication
 
 STANDARD_ICONS = [
             'SP_ArrowBack',
@@ -150,7 +150,7 @@ class AvailableIcons(QWidget):
     def findResourceDirs(self, resource:QResource)->list:
         dirs = []
         for path in resource.children():
-            r = QResource(resource.fileName() +'/'+ path)
+            r = QResource(resource.fileName() + '/' + path)
             assert isinstance(r, QResource)
             if r.isDir():
                 dirs.append(r.fileName())

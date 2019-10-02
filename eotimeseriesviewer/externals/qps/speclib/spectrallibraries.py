@@ -855,6 +855,8 @@ class SpectralProfile(QgsFeature):
                     return False
                 if self.yValues() != other.yValues():
                     return False
+                if self.xUnit() != other.xUnit():
+                    return False
             else:
                 i2 = names2.index(n)
                 if self.attribute(i1) != other.attribute(i2):
@@ -1311,7 +1313,7 @@ class SpectralLibrary(QgsVectorLayer):
         :param mode:
         :return:
         """
-        warnings.warn(DeprecationWarning('Use readFromVector instread'))
+        warnings.warn(DeprecationWarning(r'Use readFromVector instead'))
         assert mode in ['CENTROIDS', 'AVERAGES', 'PIXELS']
 
         if isinstance(rasterSource, str):
