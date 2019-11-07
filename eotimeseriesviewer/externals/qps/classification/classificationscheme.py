@@ -1892,7 +1892,7 @@ class ClassificationSchemeWidgetFactory(QgsEditorWidgetFactory):
         assert isinstance(field, QgsField)
         if re.search('(int|float|double|text|string)', field.typeName(), re.I):
             if re.search('class', field.name(), re.I):
-                return 10
+                return 5 # should we return 10 for showing specialized support?
             else:
                 return 5
         else:

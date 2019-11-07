@@ -71,7 +71,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         def write(speclib: SpectralLibrary):
             path, filter = QFileDialog.getSaveFileName(caption='Write to CSV File',
                                                        filter='CSV (*.csv);;Text files (*.txt)')
-            if os.path.isfile(path):
+            if isinstance(path, str) and len(path) > 0:
                 CSVSpectralLibraryIO.write(spectralLibrary, path)
 
 

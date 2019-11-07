@@ -235,7 +235,7 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             path, filter = QFileDialog.getSaveFileName(caption='Write to EcoSIS CSV File',
                                                     filter='EcoSIS CSV (*.csv);;Text files (*.txt)')
-            if os.path.isfile(path):
+            if isinstance(path, str) and len(path) > 0:
                 sl = EcoSISSpectralLibraryIO.write(spectralLibrary, path)
 
         m = menu.addAction('EcoSIS CSV')

@@ -3173,7 +3173,7 @@ class SpectralLibraryWidget(QMainWindow, loadSpeclibUI('spectrallibrarywidget.ui
         assert isinstance(speclib, SpectralLibrary)
         self.mSpeclib = speclib
 
-        MAP_LAYER_STORES[0].addMapLayer(speclib)
+        QPS_MAPLAYER_STORE.addMapLayer(speclib)
 
         self.mSpeclib.editingStarted.connect(self.onIsEditableChanged)
         self.mSpeclib.editingStopped.connect(self.onIsEditableChanged)

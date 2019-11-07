@@ -270,17 +270,13 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
 
 class QgisMockup(QgisInterface):
     """
-    A "fake" QGIS Desktop instance that should provide all the inferfaces a plugin developer might need (and nothing more)
+    A "fake" QGIS Desktop instance that should provide all the interfaces a plugin developer might need (and nothing more)
     """
-
-    def pluginManagerInterface(self) -> QgsPluginManagerInterface:
-        return self.mPluginManager
-
     def __init__(self, *args):
-
         super(QgisMockup, self).__init__()
 
         #mock.MagicMock.__init__(self, spec=QgisInterface, name='QgisMockup')
+
 
         #super(QgisMockup, self).__init__(spec=QgisInterface, name='QgisMockup')
         #mock.MagicMock.__init__(self, spec=QgisInterface)
@@ -322,6 +318,23 @@ class QgisMockup(QgisInterface):
         self.createActions()
 
         self.mClipBoard = QgsClipboardMockup()
+
+        # mock other functions
+        excluded = QObject.__dict__.keys()
+
+        self._mock = mock.Mock(spec=QgisInterface)
+        for n in self._mock._mock_methods:
+            assert isinstance(n, str)
+            if not n.startswith('_') and n not in excluded:
+                try:
+                    inspect.getfullargspec(getattr(self, n))
+                except:
+                    setattr(self, n, getattr(self._mock, n))
+
+
+
+    def pluginManagerInterface(self) -> QgsPluginManagerInterface:
+        return self.mPluginManager
 
     def activeLayer(self):
         return self.mapCanvas().currentLayer()

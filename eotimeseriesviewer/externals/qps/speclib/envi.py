@@ -56,6 +56,7 @@ LUT_GDT_NAME = {gdal.GDT_Byte:'Byte',
                 gdal.GDT_CFloat32:'Float32',
                 gdal.GDT_CFloat64:'Float64'}
 
+FILTER_SLI = 'ENVI Spectral Library (*.sli)'
 
 CSV_PROFILE_NAME_COLUMN_NAMES = ['spectra names', 'name']
 CSV_GEOMETRY_COLUMN = 'wkt'
@@ -311,9 +312,9 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         def write(speclib: SpectralLibrary):
 
             path, filter = QFileDialog.getSaveFileName(caption='Write ENVI Spectral Library ',
-                                                    filter='ENVI Spectral Library (*.sli)')
-            if os.path.isfile(path):
-                sl = EnviSpectralLibraryIO.write(spectralLibrary, path)
+                                                    filter=FILTER_SLI)
+            if isinstance(path, str) and len(path) > 0:
+                EnviSpectralLibraryIO.write(spectralLibrary, path)
 
         m = menu.addAction('ENVI')
         m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))

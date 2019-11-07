@@ -68,7 +68,12 @@ def mkDir(d, delete=False):
 
 # for python development only. try to find a qgisresources directory
 DIR_QGISRESOURCES = None
-MAP_LAYER_STORES = [QgsProject.instance()]
+
+# a QPS internal map layer store
+QPS_MAPLAYER_STORE = QgsMapLayerStore()
+
+# a list of all known maplayer stores.
+MAP_LAYER_STORES = [QPS_MAPLAYER_STORE, QgsProject.instance()]
 
 
 def findUpwardPath(basepath, name, isDirectory=True):

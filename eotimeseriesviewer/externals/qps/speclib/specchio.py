@@ -198,10 +198,11 @@ class SPECCHIOSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             path, filter = QFileDialog.getSaveFileName(caption='Write SPECCHIO CSV Spectral Library ',
                                                     filter='Textfile (*.csv)')
-            if os.path.isfile(path):
-                sl = SPECCHIOSpectralLibraryIO.write(spectralLibrary, path)
+            if isinstance(path, str) and len(path) > 0:
+                SPECCHIOSpectralLibraryIO.write(spectralLibrary, path)
 
-        m = menu.addAction('SPECCHIO Spectral Library')
+        m = menu.addAction('SPECCHIO')
+        m.setToolTip('Exports the profiles into the SPECCIO text file format.')
         m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
 
     @staticmethod

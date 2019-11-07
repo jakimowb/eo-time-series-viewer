@@ -185,7 +185,7 @@ def searchAndCompileResourceFiles(dirRoot:str, targetDir:str=None):
            Defaults to the *.qrc's directory
     """
     # find ui files
-    assert os.path.isdir(dirRoot)
+    assert os.path.isdir(dirRoot), '"dirRoot" is not a directory: {}'.format(dirRoot)
     ui_files = list(file_search(dirRoot, '*.ui', recursive=True))
 
     qrcs = set()
