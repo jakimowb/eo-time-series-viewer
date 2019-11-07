@@ -176,7 +176,12 @@ class SensorInstrument(QObject):
         super(SensorInstrument, self).__init__()
 
         self.mId = sid
-
+        self.nb:int
+        self.px_size_x:float
+        self.px_size_y:float
+        self.dataType:int
+        self.wl:list
+        self.wlu:str
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu = sensorIDtoProperties(self.mId)
 
         if not isinstance(band_names, list):
@@ -1937,8 +1942,16 @@ def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
             keyWL = findKey(md, regWLkey)
 
             if isinstance(keyWL, str) and isinstance(keyWLU, str):
-                wl.append(float(md[keyWL]))
-                wlu.append(LUT_WAVELENGTH_UNITS[md[keyWLU].lower()])
+
+                valueWL = float(md[keyWL])
+                valueWLU = str(md[keyWLU]).lower()
+
+                if valueWL > 0:
+                    wl.append(valueWL)
+
+                if valueWLU in LUT_WAVELENGTH_UNITS.keys():
+                    wlu.append(LUT_WAVELENGTH_UNITS[valueWLU])
+
                 break
 
     if len(wlu) == len(wl) and len(wl) == ds.RasterCount:

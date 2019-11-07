@@ -64,19 +64,26 @@ class TestFileFormatLoading(TestCase):
         self.assertEqual(len(files), len(self.TS))
         s = ""
 
+
+
     def test_ForceLevel2(self):
 
         path = r'J:\diss_bj\level2\s-america\X0050_Y0025\20140601_LEVEL2_LND08_BOA.tif'
-        if os.path.isfile(path):
+        path = r'J:\diss_bj\level2\s-america\X0049_Y0025\20140531_LEVEL2_LND07_BOA.tif'
 
-            self.TS.addSources([path], runAsync=False)
-            self.assertEqual(len(self.TS), 1)
-            
-            tss = self.TS[0][0]
-            self.assertIsInstance(tss, TimeSeriesSource)
-            sensor = self.TS[0].sensor()
-            self.assertIsInstance(sensor, SensorInstrument)
-            self.assertFalse(sensor.wl is None)
+        testData = r'J:\diss_bj\level2\s-america\X0049_Y0025'
+        if os.path.isdir(testData):
+            files = file_search(testData, '*IMP.tif')
+            for path in files:
+
+                self.TS.addSources([path], runAsync=False)
+                self.assertEqual(len(self.TS), 1)
+
+                tss = self.TS[0][0]
+                self.assertIsInstance(tss, TimeSeriesSource)
+                sensor = self.TS[0].sensor()
+                self.assertIsInstance(sensor, SensorInstrument)
+
             s = ""
 
     def test_nestedVRTs(self):
