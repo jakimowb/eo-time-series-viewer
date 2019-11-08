@@ -361,6 +361,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
             TimeSeriesViewer._instance = None
         self.ui.sigAboutToBeClosed.connect(onClosed)
 
+        QgsApplication.instance().messageLog().messageReceived.connect(self.logMessage)
+
 
         # Save reference to the QGIS interface
         import qgis.utils
@@ -1069,19 +1071,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         return self.spectralTemporalVis.temporalProfileLayer()[:]
 
-    def logMessage(self, message, tag, level):
-        m = message.split('\n')
-        if '' in message.split('\n'):
-            m = m[0:m.index('')]
-        m = '\n'.join(m)
-        if DEBUG: print(message)
-        if not re.search('timeseriesviewer', m):
-            return
+    def logMessage(self, message:str, tag:str, level):
+        """
 
-        if level in [Qgis.Critical, Qgis.Warning]:
-
-            self.ui.messageBar.pushMessage(tag, message, level=level)
-            print(r'{}({}): {}'.format(tag, level, message))
+        """
+        if tag == LOG_MESSAGE_TAG and level in [Qgis.Critical, Qgis.Warning]:
+            self.messageBar().pushMessage(tag, message, level)
 
 
 

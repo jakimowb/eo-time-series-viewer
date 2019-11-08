@@ -6,10 +6,10 @@ from qgis import *
 from qgis.PyQt.QtCore import QDate
 
 
-#regular expression. compile them only once
+# regular expression. compile them only once
 
-#thanks user "funkwurm" in
-#http://stackoverflow.com/questions/28020805/regex-validate-correct-iso8601-date-string-with-time
+# thanks to user "funkwurm" in
+# http://stackoverflow.com/questions/28020805/regex-validate-correct-iso8601-date-string-with-time
 regISODate1 = re.compile(r'(?:[1-9]\d{3}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1\d|2[0-8])|(?:0[13-9]|1[0-2])-(?:29|30)|(?:0[13578]|1[02])-31)|(?:[1-9]\d(?:0[48]|[2468][048]|[13579][26])|(?:[2468][048]|[13579][26])00)-02-29)T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)')
 regISODate3 = re.compile(r'([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
 regISODate2 = re.compile(r'(19|20|21\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?')
@@ -283,12 +283,3 @@ def parseDateFromDataSet(dataSet:gdal.Dataset)->np.datetime64:
             return dtg
     return None
 
-
-if __name__ == '__main__':
-
-    p = r'E:\_EnMAP\temp\temp_bj\landsat\37S\EB\LE71720342015009SG100\LE71720342015009SG100_sr.tif'
-    p = r'D:\Repositories\QGIS_Plugins\hub-timeseriesviewer\example\Images\2012-04-07_LE72270652012098EDC00_BOA.bsq'
-    ds = gdal.Open(p)
-
-    print(datetime64FromYYYYMMDD('20141212'))
-    print(parseDateFromDataSet(ds))

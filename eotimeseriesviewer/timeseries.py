@@ -45,6 +45,7 @@ LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
 
 
 from osgeo import gdal
+from eotimeseriesviewer import LOG_MESSAGE_TAG
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
 from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo, geo2px, SpatialPoint
 
@@ -113,7 +114,7 @@ def getDS(pathOrDataset)->gdal.Dataset:
 
 
 
-def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str)->str:
+def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str, name:str)->str:
     """
     Create a sensor ID
     :param nb: number of bands
@@ -135,7 +136,10 @@ def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str)
     if wlu != None:
         assert isinstance(wlu, str)
 
-    return json.dumps((nb, px_size_x, px_size_y, dt, wl, wlu))
+    if name != None:
+        assert isinstance(name, str)
+
+    return json.dumps((nb, px_size_x, px_size_y, dt, wl, wlu, name))
 
 def sensorIDtoProperties(idString:str)->tuple:
     """
@@ -143,17 +147,18 @@ def sensorIDtoProperties(idString:str)->tuple:
     :param idString: str
     :return: (ns, px_size_x, px_size_y, [wl], wlu)
     """
-    nb, px_size_x, px_size_y, dt, wl, wlu = json.loads(idString)
+    nb, px_size_x, px_size_y, dt, wl, wlu, name = json.loads(idString)
     assert isinstance(dt, int) and dt >= 0
     assert isinstance(nb, int)
-    assert isinstance(px_size_x, (int,float)) and px_size_x > 0
+    assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
     if wl != None:
         assert isinstance(wl, list)
     if wlu != None:
         assert isinstance(wlu, str)
-
-    return nb, px_size_x, px_size_y, dt, wl, wlu
+    if name != None:
+        assert isinstance(name, str)
+    return nb, px_size_x, px_size_y, dt, wl, wlu, name
 
 
 class SensorInstrument(QObject):
@@ -172,7 +177,7 @@ class SensorInstrument(QObject):
                             'swIR2': 2150
                             })
 
-    def __init__(self, sid:str, sensor_name:str=None, band_names:list = None):
+    def __init__(self, sid:str, band_names:list = None):
         super(SensorInstrument, self).__init__()
 
         self.mId = sid
@@ -182,7 +187,7 @@ class SensorInstrument(QObject):
         self.dataType:int
         self.wl:list
         self.wlu:str
-        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu = sensorIDtoProperties(self.mId)
+        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, sensor_name = sensorIDtoProperties(self.mId)
 
         if not isinstance(band_names, list):
             band_names = ['Band {}'.format(b+1) for b in range(self.nb)]
@@ -195,7 +200,8 @@ class SensorInstrument(QObject):
         else:
             self.wl = np.asarray(self.wl)
 
-        if sensor_name is None:
+
+        if sensor_name in [None, '']:
             from eotimeseriesviewer.settings import value, Keys
             sensorNames = value(Keys.SensorNames, default={})
             sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
@@ -409,7 +415,7 @@ class TimeSeriesSource(object):
         elif isinstance(source, gdal.Dataset):
             ds = source
 
-        else:
+        if not isinstance(ds, gdal.Dataset):
             raise Exception('Unsupported source: {}'.format(source))
 
         return TimeSeriesSource(ds)
@@ -467,7 +473,9 @@ class TimeSeriesSource(object):
             px_y = float(abs(self.mGeoTransform[5]))
             self.mGSD = (px_x, px_y)
             self.mDataType = dataset.GetRasterBand(1).DataType
-            self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU)
+
+            sName = sensorName(dataset)
+            self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
 
 
             self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
@@ -1028,15 +1036,22 @@ def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
     assert isinstance(qgsTask, QgsTask)
 
     results = []
+    invalidSources = list()
     n = len(sources)
     for i, source in enumerate(sources):
         if qgsTask.isCanceled():
             return pickle.dumps(results)
-        s = TimeSeriesSource.create(source)
-        if isinstance(s, TimeSeriesSource):
-            results.append(s)
+
+        try:
+            tss = TimeSeriesSource.create(source)
+            assert isinstance(tss, TimeSeriesSource)
+            results.append(tss)
+        except Exception as ex:
+            invalidSources.append((source, ex))
+
         qgsTask.setProgress(i + 1)
-    return pickle.dumps(results)
+
+    return pickle.dumps(results), pickle.dumps(invalidSources)
 
 
 class TimeSeries(QAbstractItemModel):
@@ -1489,25 +1504,35 @@ class TimeSeries(QAbstractItemModel):
 
         if error is None:
             try:
-                addedDates = []
-                dump = args[1]
-                sources = pickle.loads(dump)
 
-                if hasProgressDialog:
-                    self.mLoadingProgressDialog.setLabelText('Add Images')
-                    self.mLoadingProgressDialog.setRange(0, len(sources))
-                    self.mLoadingProgressDialog.setValue(0)
+                sources, invalidSources = args[1]
+                sources = pickle.loads(sources)
+                invalidSources = pickle.loads(invalidSources)
 
-                for i, source in enumerate(sources):
-                    newTSD = self._addSource(source)
-                    if isinstance(newTSD, TimeSeriesDate):
-                        addedDates.append(newTSD)
+                if len(invalidSources) > 0:
+                    info = ['Unable to load {} data source(s):'.format(len(invalidSources))]
+                    for s, ex in invalidSources:
+                        info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
+                    info = '\n'.join(info)
+                    messageLog(info, Qgis.Critical)
 
+                if len(sources) > 0:
+                    addedDates = []
                     if hasProgressDialog:
-                        self.mLoadingProgressDialog.setValue(i+1)
+                        self.mLoadingProgressDialog.setLabelText('Add Images')
+                        self.mLoadingProgressDialog.setRange(0, len(sources))
+                        self.mLoadingProgressDialog.setValue(0)
 
-                if len(addedDates) > 0:
-                    self.sigTimeSeriesDatesAdded.emit(addedDates)
+                    for i, source in enumerate(sources):
+                        newTSD = self._addSource(source)
+                        if isinstance(newTSD, TimeSeriesDate):
+                            addedDates.append(newTSD)
+
+                        if hasProgressDialog:
+                            self.mLoadingProgressDialog.setValue(i+1)
+
+                    if len(addedDates) > 0:
+                        self.sigTimeSeriesDatesAdded.emit(addedDates)
 
             except Exception as ex:
                 import traceback
@@ -1895,6 +1920,38 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(index.internalPointer(), TimeSeriesDate) and index.column() == 0:
             flags = flags | Qt.ItemIsUserCheckable
         return flags
+
+regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type|product[ _]?type)', re.IGNORECASE)
+
+def sensorName(dataset:gdal.Dataset)->str:
+    """
+    Reads the sensor/product name. Returns None if a proper name can not be extracted.
+    :param dataset: gdal.Dataset
+    :return: str
+    """
+    assert isinstance(dataset, gdal.Dataset)
+    for domain in dataset.GetMetadataDomainList():
+        md = dataset.GetMetadata_Dict(domain)
+        if isinstance(md, dict):
+            for key, value in md.items():
+                if regSensorName.search(key):
+                    return str(value)
+
+    for b in range(dataset.RasterCount):
+        band = dataset.GetRasterBand(b+1)
+        if isinstance(band, gdal.Band):
+            for domain in band.GetMetadataDomainList():
+                md = band.GetMetadata_Dict(domain)
+                if isinstance(md, dict):
+                    for key, value in md.items():
+                        if regSensorName.search(key):
+                            return str(value)
+
+    return None
+
+
+
+
 
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)

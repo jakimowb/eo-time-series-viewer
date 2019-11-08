@@ -110,6 +110,21 @@ class TestInit(TestCase):
         if SHOW_GUI:
             QGIS_APP.exec_()
 
+
+    def test_TimeSeriesViewerInvalidSource(self):
+
+        from eotimeseriesviewer.main import TimeSeriesViewer
+
+        TSV = TimeSeriesViewer()
+        imgages = ['not-existing-source']
+        TSV.addTimeSeriesImages(imgages, loadAsync=False)
+        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
+            QCoreApplication.processEvents()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
+
+
     def test_TimeSeriesViewerMultiSource(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer

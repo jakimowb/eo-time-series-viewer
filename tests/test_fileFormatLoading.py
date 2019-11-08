@@ -86,6 +86,17 @@ class TestFileFormatLoading(TestCase):
 
             s = ""
 
+    def test_badtimeformat(self):
+
+        p = r'C:\Users\geo_beja\Desktop\23042014_LEVEL2_LND08_VZN.tif'
+
+        if os.path.isfile(p):
+            tss = TimeSeriesSource.create(p)
+            s = ""
+
+
+
+
     def test_nestedVRTs(self):
         # load VRTs pointing to another VRT pointing to Landsat imagery
         searchDir = DIR_VRT
