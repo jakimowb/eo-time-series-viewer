@@ -33,6 +33,8 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 
+DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
+
 LUT_WAVELENGTH_UNITS = {}
 for siUnit in [r'nm', r'μm', r'mm', r'cm', r'dm']:
     LUT_WAVELENGTH_UNITS[siUnit] = siUnit
@@ -466,6 +468,10 @@ class TimeSeriesSource(object):
                 lyr = QgsRasterLayer(self.mUri, options=loptions)
                 if lyr.crs().isValid():
                     self.mWKT = lyr.crs().toWkt()
+
+            if self.mWKT == '':
+                # default to WGS-84 lat lon
+                self.mWKT = str(DEFAULT_WKT)
 
             self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
 
