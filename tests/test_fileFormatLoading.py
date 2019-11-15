@@ -49,7 +49,10 @@ class TestFileFormatLoading(TestCase):
         if not os.path.isdir(searchDir):
             print('data directory undefined. skip test.')
             return
-        files = list(file_search(searchDir, 're_*.bsq', recursive=True))
+        files = list(file_search(searchDir, 're_*.tif', recursive=True))
+        for file in files:
+            tss = TimeSeriesSource.create(file)
+            self.assertIsInstance(tss, TimeSeriesSource)
         self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
@@ -64,6 +67,24 @@ class TestFileFormatLoading(TestCase):
         self.assertEqual(len(files), len(self.TS))
         s = ""
 
+
+    def test_loadOSARIS_GRD(self):
+
+        testDir = r'Q:\Processing_BJ\99_OSARIS_Testdata\Loibl-2019-OSARIS-Ala-Archa\Coherences'
+        if os.path.isdir(testDir):
+            files = file_search(testDir, re.compile(r'.*\.grd$'))
+            for i, path in enumerate(files):
+
+                tss = TimeSeriesSource.create(path)
+                self.assertIsInstance(tss, TimeSeriesSource)
+                self.assertTrue(tss.crs().isValid())
+                self.TS.addSources([path], runAsync=False)
+                self.assertEqual(len(self.TS), i+1)
+
+                tss = self.TS[0][0]
+                self.assertIsInstance(tss, TimeSeriesSource)
+                sensor = self.TS[0].sensor()
+                self.assertIsInstance(sensor, SensorInstrument)
 
 
     def test_ForceLevel2(self):

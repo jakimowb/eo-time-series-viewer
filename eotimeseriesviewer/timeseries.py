@@ -189,7 +189,8 @@ class SensorInstrument(QObject):
         self.dataType:int
         self.wl:list
         self.wlu:str
-        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, sensor_name = sensorIDtoProperties(self.mId)
+        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu,  self.mNameOriginal = sensorIDtoProperties(self.mId)
+        self.mName = ''
 
         if not isinstance(band_names, list):
             band_names = ['Band {}'.format(b+1) for b in range(self.nb)]
@@ -203,13 +204,15 @@ class SensorInstrument(QObject):
             self.wl = np.asarray(self.wl)
 
 
-        if sensor_name in [None, '']:
+
+        if self.mNameOriginal in [None, '']:
             from eotimeseriesviewer.settings import value, Keys
             sensorNames = value(Keys.SensorNames, default={})
             sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
+            self.setName(sensor_name)
+        else:
+            self.setName(self.mNameOriginal)
 
-        self.mName = ''
-        self.setName(sensor_name)
 
         self.hashvalue = hash(self.mId)
 
@@ -481,7 +484,7 @@ class TimeSeriesSource(object):
             self.mDataType = dataset.GetRasterBand(1).DataType
 
             sName = sensorName(dataset)
-            self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
+            self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
 
 
             self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
@@ -1035,6 +1038,15 @@ class DateTimePrecision(enum.Enum):
     Milisecond = 'ms'
     Original = 0
 
+class SensorMatching(enum.Enum):
+    """
+    Describes when two different sources should be considered to be from the same sensor
+    """
+    DIMS = 'Image Dimensions'
+    DIMS_WL = 'Img. Dims. + Wavelength'
+    DIMS_Name = 'Img. Dims. + Name'
+    DIMS_WL_Name = 'Img. Dims. +  Wavelength + Name'
+
 
 def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
 
@@ -1083,7 +1095,9 @@ class TimeSeries(QAbstractItemModel):
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None
+
         self.mDateTimePrecision = DateTimePrecision.Original
+        self.mProductSimilarity = SensorMatching.DIMS
 
         self.mLoadingProgressDialog = None
         self.mLUT_Path2TSD = {}
@@ -1158,6 +1172,32 @@ class TimeSeries(QAbstractItemModel):
                 idx2 = self.index(idx.row(), self.columnCount()-1)
                 self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
+    def findMatchingSensor(self, sensorID:str)->SensorInstrument:
+        if isinstance(sensorID, str):
+            nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+        else:
+            assert isinstance(sensorID, tuple) and len(sensorID) == 7
+            nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorID
+
+        if self.mProductSimilarity == SensorMatching.DIMS:
+            for sensor in self.sensors():
+                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType) == (nb, px_size_y, px_size_x, dt):
+                    return sensor
+        elif self.mProductSimilarity == SensorMatching.DIMS_Name:
+            for sensor in self.sensors():
+                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.mNameOriginal) == (nb, px_size_y, px_size_x, dt, name):
+                    return sensor
+        elif self.mProductSimilarity == SensorMatching.DIMS_WL:
+            for sensor in self.sensors():
+                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu) == (nb, px_size_y, px_size_x, dt, wl, wlu):
+                    return sensor
+        elif self.mProductSimilarity == SensorMatching.DIMS_WL_Name:
+            for sensor in self.sensors():
+                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu, sensor.mNameOriginal) == (
+                nb, px_size_y, px_size_x, dt, wl, wlu, name):
+                    return sensor
+        return None
+
     def sensor(self, sensorID:str)->SensorInstrument:
         """
         Returns the sensor with sid = sid
@@ -1165,14 +1205,19 @@ class TimeSeries(QAbstractItemModel):
         :return: SensorInstrument
         """
         assert isinstance(sensorID, str)
-        for sensor in self.mSensors:
-            assert isinstance(sensor, SensorInstrument)
-            if sensor.id() == sensorID:
+
+        nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+
+        for sensor in self.sensors():
+            if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu,
+                sensor.mNameOriginal) == (
+                    nb, px_size_y, px_size_x, dt, wl, wlu, name):
                 return sensor
+
         return None
 
 
-    def sensors(self)->list:
+    def sensors(self)->typing.List[SensorInstrument]:
         """
         Returns the list of sensors derived from the TimeSeries data sources
         :return: [list-of-SensorInstruments]
@@ -1569,19 +1614,37 @@ class TimeSeries(QAbstractItemModel):
         tsdDate = self.date2date(tss.date())
         tssDate = tss.date()
         sid = tss.sid()
-        sensor = self.sensor(sid)
+
+
+        sensor = self.findMatchingSensor(sid)
+
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = self.addSensor(SensorInstrument(sid))
+
+            from eotimeseriesviewer.settings import value, Keys
+
+            userNames = value(Keys.SensorNames)
+            assert isinstance(userNames, dict)
+            if sensor.id() in userNames.keys():
+                sensor.setName(userNames[sensor.id()])
+
+
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsdDate, sensor)
+
         # if necessary, add a new TimeSeriesDate instance
         if not isinstance(tsd, TimeSeriesDate):
             tsd = self.insertTSD(TimeSeriesDate(self, tsdDate, sensor))
             newTSD = tsd
             # addedDates.append(tsd)
         assert isinstance(tsd, TimeSeriesDate)
+
+        # ensure that the source refers to the sensor ID of the linked sensor (which might be different from its orginal sensor id)
+        tss.mSid = sensor.id()
+
         # add the source
+
         tsd.addSource(tss)
         self.mLUT_Path2TSD[tss.uri()] = tsd
         return newTSD
@@ -1595,6 +1658,15 @@ class TimeSeries(QAbstractItemModel):
         self.mDateTimePrecision = mode
 
         #do we like to update existing sources?
+
+    def setSensorMatching(self, mode:SensorMatching):
+        """
+        Sets the mode under which two source images can be considered as to be from the same sensor/product
+        :param mode:
+        :return:
+        """
+        assert isinstance(mode, SensorMatching)
+        self.mProductSimilarity = mode
 
 
     def date2date(self, date:np.datetime64)->np.datetime64:
@@ -1928,6 +2000,7 @@ class TimeSeries(QAbstractItemModel):
         return flags
 
 regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type|product[ _]?type)', re.IGNORECASE)
+#regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type)', re.IGNORECASE)
 
 def sensorName(dataset:gdal.Dataset)->str:
     """
@@ -1936,22 +2009,26 @@ def sensorName(dataset:gdal.Dataset)->str:
     :return: str
     """
     assert isinstance(dataset, gdal.Dataset)
-    for domain in dataset.GetMetadataDomainList():
-        md = dataset.GetMetadata_Dict(domain)
-        if isinstance(md, dict):
-            for key, value in md.items():
-                if regSensorName.search(key):
-                    return str(value)
+    domains = dataset.GetMetadataDomainList()
+    if isinstance(domains, list):
+        for domain in domains:
+            md = dataset.GetMetadata_Dict(domain)
+            if isinstance(md, dict):
+                for key, value in md.items():
+                    if regSensorName.search(key):
+                        return str(value)
 
     for b in range(dataset.RasterCount):
         band = dataset.GetRasterBand(b+1)
         if isinstance(band, gdal.Band):
-            for domain in band.GetMetadataDomainList():
-                md = band.GetMetadata_Dict(domain)
-                if isinstance(md, dict):
-                    for key, value in md.items():
-                        if regSensorName.search(key):
-                            return str(value)
+            domains = band.GetMetadataDomainList()
+            if isinstance(domains, list):
+                for domain in domains:
+                    md = band.GetMetadata_Dict(domain)
+                    if isinstance(md, dict):
+                        for key, value in md.items():
+                            if regSensorName.search(key):
+                                return str(value)
 
     return None
 

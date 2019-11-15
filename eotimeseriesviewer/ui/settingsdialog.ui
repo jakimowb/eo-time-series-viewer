@@ -51,7 +51,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -69,8 +69,8 @@
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetScreenshots">
-              <property name="fileWidgetButtonVisible">
+             <widget class="QgsFileWidget" name="mFileWidgetScreenshots" native="true">
+              <property name="fileWidgetButtonVisible" stdset="0">
                <bool>true</bool>
               </property>
              </widget>
@@ -90,10 +90,10 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetRasterSources"/>
+             <widget class="QgsFileWidget" name="mFileWidgetRasterSources" native="true"/>
             </item>
             <item row="2" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetVectorSources"/>
+             <widget class="QgsFileWidget" name="mFileWidgetVectorSources" native="true"/>
             </item>
            </layout>
           </widget>
@@ -113,6 +113,20 @@
             </item>
             <item row="0" column="1">
              <widget class="QComboBox" name="cbDateTimePrecission">
+              <property name="whatsThis">
+               <string>Selects the precission used to extract time stamps from raster meta data.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_10">
+              <property name="text">
+               <string>Sensor/Product Matching</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="cbSensorMatching">
               <property name="whatsThis">
                <string>Selects the precission used to extract time stamps from raster meta data.</string>
               </property>
@@ -235,9 +249,6 @@
           <widget class="QgsFontButton" name="mMapTextFormatButton">
            <property name="styleSheet">
             <string notr="true">);</string>
-           </property>
-           <property name="mode">
-            <enum>QgsFontButton::ModeTextRenderer</enum>
            </property>
           </widget>
          </item>

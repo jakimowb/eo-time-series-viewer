@@ -8,6 +8,9 @@ from qgis.PyQt.QtGui import *
 
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import loadUI
+from eotimeseriesviewer.timeseries import SensorMatching
+
+
 
 
 class Keys(enum.Enum):
@@ -20,10 +23,12 @@ class Keys(enum.Enum):
     MapBackgroundColor = 'map_background_color'
     MapTextFormat = 'map_text_format'
     SensorNames = 'sensor_names'
+    SensorMatching = 'sensor_matching'
     ScreenShotDirectory = 'screen_shot_directory'
     RasterSourceDirectory = 'raster_source_directory'
     VectorSourceDirectory = 'vector_source_directory'
     MapImageExportDirectory = 'map_image_export_directory'
+
 
 
 def defaultValues() -> dict:
@@ -41,6 +46,7 @@ def defaultValues() -> dict:
     d[Keys.VectorSourceDirectory] = str(home)
     d[Keys.DateTimePrecision] = DateTimePrecision.Day
     d[Keys.SensorNames] = dict()
+    d[Keys.SensorMatching] = SensorMatching.DIMS_WL_Name
 
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
@@ -148,11 +154,16 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
             assert isinstance(e, enum.Enum)
             self.cbDateTimePrecission.addItem(e.name, e)
 
+        for e in SensorMatching:
+            assert isinstance(e, enum.Enum)
+            self.cbSensorMatching.addItem(e.name, e)
+
         self.mFileWidgetScreenshots.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetRasterSources.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetVectorSources.setStorageMode(QgsFileWidget.GetDirectory)
 
         self.cbDateTimePrecission.currentIndexChanged.connect(self.validate)
+        self.cbSensorMatching.currentIndexChanged.connect(self.validate)
         self.sbMapSizeX.valueChanged.connect(self.validate)
         self.sbMapSizeY.valueChanged.connect(self.validate)
         self.sbMapRefreshIntervall.valueChanged.connect(self.validate)
@@ -194,6 +205,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         d[Keys.VectorSourceDirectory] = self.mFileWidgetVectorSources.filePath()
 
         d[Keys.DateTimePrecision] = self.cbDateTimePrecission.currentData()
+        d[Keys.SensorMatching] = self.cbSensorMatching.currentData()
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())
         d[Keys.MapUpdateInterval] = self.sbMapRefreshIntervall.value()
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
@@ -229,6 +241,10 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
 
             if checkKey(key, Keys.DateTimePrecision):
                 i = self.cbDateTimePrecission.findData(value)
+                if i > -1:
+                    self.cbDateTimePrecission.setCurrentIndex(i)
+            if checkKey(key, Keys.SensorMatching):
+                i = self.cbSensorMatching.findData(value)
                 if i > -1:
                     self.cbDateTimePrecission.setCurrentIndex(i)
 

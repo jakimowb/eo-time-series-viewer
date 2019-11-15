@@ -101,12 +101,13 @@ class TestInit(TestCase):
         TSV.show()
         TSV.createMapView('True Color')
         TSV.createMapView('Near Infrared')
-        TSV.loadExampleTimeSeries()
+        #TSV.loadExampleTimeSeries()
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
             QCoreApplication.processEvents()
 
-        tsd = TSV.timeSeries()[-1]
-        TSV.setCurrentDate(tsd)
+        if len(TSV.timeSeries()) > 0:
+            tsd = TSV.timeSeries()[-1]
+            TSV.setCurrentDate(tsd)
         if SHOW_GUI:
             QGIS_APP.exec_()
 
