@@ -108,7 +108,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
         menu = QMenu(view)
         isSensorGroup = isinstance(g, QgsLayerTreeGroup) and g.customProperty(KEY_SENSOR_GROUP) in [True, 'true']
-        isSensorLayer = isinstance(l, QgsRasterLayer) and l.customProperty(KEY_SENSOR_LAYER) in [True, 'true']
+
+        if isinstance(self.mapView(), MapView):isSensorLayer = isinstance(l, QgsRasterLayer) and l.customProperty(KEY_SENSOR_LAYER) in [True, 'true']
         self.actionRemove.setEnabled(not (isSensorGroup or isSensorLayer))
         self.actionAddGroup.setEnabled(not (isSensorGroup or isSensorLayer))
         menu.addAction(self.actionAddGroup)
@@ -127,26 +128,22 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addSeparator()
 
         centerCanvas = None
-        if isinstance(self.mapView(), MapView):
-            visibleCanvases = self.mapView().visibleMapCanvases()
-            if len(visibleCanvases) > 0:
-                i = int(len(visibleCanvases) / 2)
-                centerCanvas = visibleCanvases[i]
+        visibleCanvases = self.mapView().visibleMapCanvases()
+        if len(visibleCanvases) > 0:
+            i = int(len(visibleCanvases) / 2)
+            centerCanvas = visibleCanvases[i]
 
         a = menu.addAction('Set Properties')
 
-        a.triggered.connect(lambda *args,
-                                   canvas = centerCanvas,
-                                   lyr = l,
-                                   b = not isinstance(l, SensorProxyLayer):
-                            showLayerPropertiesDialog(lyr, canvas, useQGISDialog=b))
+        a.triggered.connect(lambda *args, canvas = centerCanvas, lyr = l: self.onSetLayerProperties(lyr, canvas))
 
-        a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
+        a.setEnabled(isinstance(centerCanvas, MapCanvas))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
         a = menu.addAction('Copy Style')
         a.setToolTip('Copy the current layer style to clipboard')
-        a.triggered.connect(lambda *args, lyr=l: pasteStyleToClipboard(lyr))
+
+        a.triggered.connect(lambda *args, c=centerCanvas, lyr=l: pasteStyleToClipboard(lyr))
 
         a = menu.addAction('Paste Style')
         a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
@@ -157,6 +154,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
 
         return menu
+
+    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
+        if isinstance(canvas, MapCanvas):
+            canvas.onSetLayerProperties(lyr)
 
 class MapViewLayerTreeModel(QgsLayerTreeModel):
     """
@@ -469,7 +470,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         return not self.actionToggleMapViewHidden.isChecked()
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self)->typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to this map view. Requires that this mapview was added to a MapWidget
         :return: [list-of-MapCanvases]
@@ -595,7 +596,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
             self.sigCrosshairChanged.emit()
 
 
-    def sensorProxyLayers(self)->list:
+    def sensorProxyLayers(self)->typing.List[SensorProxyLayer]:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
         return [l for l in layers if isinstance(l, SensorProxyLayer)]
 

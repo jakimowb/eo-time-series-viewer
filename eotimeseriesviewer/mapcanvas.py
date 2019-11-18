@@ -976,7 +976,7 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args, lyr = mapLayer, canvas = self: self.onSetLayerProperties(lyr, canvas))
+            a.triggered.connect(lambda *args, lyr = mapLayer: self.onSetLayerProperties(lyr))
 
 
             a = sub.addAction('Zoom to Layer')
@@ -1135,10 +1135,10 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
-    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
+    def onSetLayerProperties(self, lyr:QgsRasterLayer):
         # b = isinstance(mapLayer, SensorProxyLayer) == False:
 
-        result = showLayerPropertiesDialog(lyr, canvas, useQGISDialog=True)
+        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
 
         if result == QDialog.Accepted and isinstance(lyr, SensorProxyLayer):
             r = lyr.renderer().clone()
