@@ -976,12 +976,8 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args,
-                                       lyr = mapLayer,
-                                       c = self,
-                                       #b = isinstance(mapLayer, SensorProxyLayer) == False:
-                                       b = True:
-                                showLayerPropertiesDialog(lyr, c, useQGISDialog=b))
+            a.triggered.connect(lambda *args, lyr = mapLayer, canvas = self: self.onSetLayerProperties(lyr, canvas))
+
 
             a = sub.addAction('Zoom to Layer')
             a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))
@@ -1018,7 +1014,7 @@ class MapCanvas(QgsMapCanvas):
 
             style = CrosshairDialog.getCrosshairStyle(parent=self,
                                                       mapCanvas=self,
-                                                      crosshairStyle=self.mCrosshairItem.crosshairStyle)
+                                                      crosshair=self.mCrosshairItem.crosshairStyle)
 
             if isinstance(style, CrosshairStyle):
                 self.setCrosshairStyle(style)
@@ -1139,12 +1135,27 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
+    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
+        # b = isinstance(mapLayer, SensorProxyLayer) == False:
+
+        result = showLayerPropertiesDialog(lyr, canvas, useQGISDialog=True)
+
+        if result == QDialog.Accepted and isinstance(lyr, SensorProxyLayer):
+            r = lyr.renderer().clone()
+            proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
+            r.setInput(proxyLayer.dataProvider())
+            proxyLayer.setRenderer(r)
+
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
         pasteStyleFromClipboard(lyr)
         if isinstance(lyr, SensorProxyLayer):
-            self.mMapView.sensorProxyLayer(lyr.sensor()).setRenderer(lyr.renderer().clone())
+            r = lyr.renderer().clone()
+            proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
+            r.setInput(proxyLayer.dataProvider())
+            proxyLayer.setRenderer(r)
+
 
     def contextMenuEvent(self, event:QContextMenuEvent):
         """
