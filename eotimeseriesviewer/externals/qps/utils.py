@@ -1018,7 +1018,7 @@ def parseWavelength(dataset):
                               .format(key, len(tmp), dataset.RasterCount), file=sys.stderr)
 
                 if re.search(r'wavelength.units?', key):
-                    if re.search(r'(Micrometers?|um)', values, re.I):
+                    if re.search(r'(Micrometers?|um|μm)', values, re.I):
                         wlu = 'um'  # fix with python 3 UTF
                     elif re.search(r'(Nanometers?|nm)', values, re.I):
                         wlu = 'nm'

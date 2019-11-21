@@ -1209,6 +1209,9 @@ class MapCanvas(QgsMapCanvas):
         if not isinstance(layer, QgsRasterLayer):
             return
 
+        if not isinstance(spatialExtent, SpatialExtent):
+            spatialExtent = SpatialExtent.fromLayer(layer)
+
         r = layer.renderer()
         dp = layer.dataProvider()
         newRenderer = None
@@ -1276,7 +1279,7 @@ class MapCanvas(QgsMapCanvas):
             if isinstance(layer, SensorProxyLayer):
                 self.mMapView.sensorProxyLayer(layer.sensor()).setRenderer(newRenderer)
             elif isinstance(layer, QgsRasterLayer):
-                layer.setRenderer(layer)
+                layer.setRenderer(newRenderer)
 
 
     def saveMapImageDialog(self, fileType):

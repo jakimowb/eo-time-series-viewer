@@ -48,6 +48,7 @@ from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
+import eotimeseriesviewer.settings as eotsvSettings
 from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
 from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
@@ -341,9 +342,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         QgisInterface.__init__(self)
         QApplication.processEvents()
 
-        self.mMapLayerStore = QgsMapLayerStore()
-        import eotimeseriesviewer.utils
-        eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
+
 
         TimeSeriesViewer._instance = self
         self.ui = TimeSeriesViewerUI()
@@ -351,6 +350,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         mvd = self.ui.dockMapViews
         dts = self.ui.dockTimeSeries
         mw = self.ui.mMapWidget
+
+        self.mMapLayerStore = self.mapWidget().mMapLayerStore
+        import eotimeseriesviewer.utils
+        eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
+
+
         from eotimeseriesviewer.timeseries import TimeSeriesDock
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
         assert isinstance(mvd, MapViewDock)
@@ -374,6 +379,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mSpatialMapExtentInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
+        self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
 
         dts.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
@@ -1041,14 +1047,14 @@ class TimeSeriesViewer(QgisInterface, QObject):
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog, runAsync=runAsync)
 
 
-    def createMapView(self, name:str=None):
+    def createMapView(self, name:str=None)->MapView:
         """
         Creates a new MapView.
         :return: MapView
         """
         return self.ui.dockMapViews.createMapView(name=name)
 
-    def mapViews(self)->list:
+    def mapViews(self)->typing.List[MapView]:
         """
         Returns all MapViews
         :return: [list-of-MapViews]
@@ -1078,6 +1084,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if tag == LOG_MESSAGE_TAG and level in [Qgis.Critical, Qgis.Warning]:
             self.messageBar().pushMessage(tag, message, level)
 
+
+    def onSensorAdded(self, sensor:SensorInstrument):
+
+        sensorNames = eotsvSettings.value(eotsvSettings.Keys.SensorNames, default=dict())
+        assert isinstance(sensorNames, dict)
+        if sensor.id() in sensorNames.keys():
+            sensor.setName(sensorNames[sensor.id()])
 
 
     def onTimeSeriesChanged(self, *args):

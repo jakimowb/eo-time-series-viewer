@@ -101,7 +101,7 @@ class TestInit(TestCase):
         TSV.show()
         TSV.createMapView('True Color')
         TSV.createMapView('Near Infrared')
-        #TSV.loadExampleTimeSeries()
+        TSV.loadExampleTimeSeries()
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
             QCoreApplication.processEvents()
 

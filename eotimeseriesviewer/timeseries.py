@@ -206,8 +206,8 @@ class SensorInstrument(QObject):
 
 
         if self.mNameOriginal in [None, '']:
-            from eotimeseriesviewer.settings import value, Keys
-            sensorNames = value(Keys.SensorNames, default={})
+            import eotimeseriesviewer.settings as settings
+            sensorNames = settings.value(settings.Keys.SensorNames, default={})
             sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
             self.setName(sensor_name)
         else:
@@ -220,6 +220,11 @@ class SensorInstrument(QObject):
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
+        if self.wl is not None:
+            self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
+        if self.wlu is not None:
+            self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
+        self.mMockupDS.FlushCache()
         s = ""
 
 
@@ -572,6 +577,8 @@ class TimeSeriesSource(object):
         uri.layerType = 'raster'
         return uri
 
+    def asRasterLayer(self)->QgsRasterLayer:
+        return QgsRasterLayer(self.uri(), self.name(), 'gdal')
 
     def pixelCoordinate(self, geometry)->QPoint:
         """
@@ -1042,10 +1049,10 @@ class SensorMatching(enum.Enum):
     """
     Describes when two different sources should be considered to be from the same sensor
     """
-    DIMS = 'Image Dimensions'
-    DIMS_WL = 'Img. Dims. + Wavelength'
-    DIMS_Name = 'Img. Dims. + Name'
-    DIMS_WL_Name = 'Img. Dims. +  Wavelength + Name'
+    DIMS = 'Image Dimensions only'
+    DIMS_WL = 'Image Dimensions + Wavelength'
+    DIMS_Name = 'Image Dimensions + Name'
+    DIMS_WL_Name = 'Image Dimensions + Wavelength + Name'
 
 
 def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
@@ -1175,27 +1182,34 @@ class TimeSeries(QAbstractItemModel):
     def findMatchingSensor(self, sensorID:str)->SensorInstrument:
         if isinstance(sensorID, str):
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+
         else:
             assert isinstance(sensorID, tuple) and len(sensorID) == 7
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorID
 
-        if self.mProductSimilarity == SensorMatching.DIMS:
-            for sensor in self.sensors():
-                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType) == (nb, px_size_y, px_size_x, dt):
-                    return sensor
-        elif self.mProductSimilarity == SensorMatching.DIMS_Name:
-            for sensor in self.sensors():
-                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.mNameOriginal) == (nb, px_size_y, px_size_x, dt, name):
-                    return sensor
-        elif self.mProductSimilarity == SensorMatching.DIMS_WL:
-            for sensor in self.sensors():
-                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu) == (nb, px_size_y, px_size_x, dt, wl, wlu):
-                    return sensor
-        elif self.mProductSimilarity == SensorMatching.DIMS_WL_Name:
-            for sensor in self.sensors():
-                if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu, sensor.mNameOriginal) == (
-                nb, px_size_y, px_size_x, dt, wl, wlu, name):
-                    return sensor
+        DIMS = (nb, px_size_y, px_size_x, dt)
+        for sensor in self.sensors():
+            DIMS2 = (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType)
+
+            bName = sensor.mNameOriginal == name
+            bWL = wlu == sensor.wlu and np.array_equal(wl, sensor.wl)
+
+            if DIMS != DIMS2:
+                # self.mProductSimilarity == SensorMatching.DIMS:
+                continue
+
+            if self.mProductSimilarity == SensorMatching.DIMS:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_Name and bName:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_WL and bWL:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_WL_Name and bName and bWL:
+                return sensor
+
         return None
 
     def sensor(self, sensorID:str)->SensorInstrument:

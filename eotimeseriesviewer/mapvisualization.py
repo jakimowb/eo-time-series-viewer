@@ -1136,14 +1136,14 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         """
         return self.mMapSize
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self)->typing.List[MapCanvas]:
         """
         Returns all MapCanvases
         :return: [list-of-MapCanvases]
         """
         return self.findChildren(MapCanvas)
 
-    def mapViewCanvases(self, mapView:MapView)->list:
+    def mapViewCanvases(self, mapView:MapView)->typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to a MapView
         :param mapView: MapView

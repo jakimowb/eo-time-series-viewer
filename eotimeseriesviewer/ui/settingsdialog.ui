@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>411</width>
+    <width>592</width>
     <height>326</height>
    </rect>
   </property>
@@ -51,7 +51,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -113,6 +113,9 @@
             </item>
             <item row="0" column="1">
              <widget class="QComboBox" name="cbDateTimePrecission">
+              <property name="toolTip">
+               <string>Defines the accuracy with which source images of same sensor but different time stamps are combined into the same image group.</string>
+              </property>
               <property name="whatsThis">
                <string>Selects the precission used to extract time stamps from raster meta data.</string>
               </property>
@@ -127,6 +130,9 @@
             </item>
             <item row="1" column="1">
              <widget class="QComboBox" name="cbSensorMatching">
+              <property name="toolTip">
+               <string>Specifies when source images should be considered to be from the same sensor/image product.</string>
+              </property>
               <property name="whatsThis">
                <string>Selects the precission used to extract time stamps from raster meta data.</string>
               </property>
@@ -219,6 +225,19 @@
              </property>
             </widget>
            </item>
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
           </layout>
          </item>
          <item row="1" column="0">
@@ -267,6 +286,9 @@
              <height>16777215</height>
             </size>
            </property>
+           <property name="toolTip">
+            <string>Intervall to check if updates are available for map canvases, e.g. to render new layers or apply renderer changes.</string>
+           </property>
            <property name="suffix">
             <string>msec</string>
            </property>
@@ -304,15 +326,15 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>QgsFileWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfilewidget.h</header>
+  </customwidget>
+  <customwidget>
    <class>QgsColorButton</class>
    <extends>QToolButton</extends>
    <header>qgscolorbutton.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>QgsFileWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsfilewidget.h</header>
   </customwidget>
   <customwidget>
    <class>QgsFontButton</class>
