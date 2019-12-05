@@ -119,7 +119,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
 
 
     @staticmethod
-    def write(speclib, path, dialect=pycsv.excel_tab)->list:
+    def write(speclib, path, progressDialog:QProgressDialog=None, dialect=pycsv.excel_tab)->list:
         """
         Writes the speclib into a CSv file
         :param speclib: SpectralLibrary
@@ -136,7 +136,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         return [path]
 
     @staticmethod
-    def readFrom(path=None, dialect=pycsv.excel_tab):
+    def readFrom(path=None, progressDialog:QProgressDialog=None, dialect=pycsv.excel_tab):
         f = open(path, 'r', encoding='utf-8')
         text = f.read()
         f.close()

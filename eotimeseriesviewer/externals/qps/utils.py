@@ -454,15 +454,16 @@ def showMessage(message:str, title:str, level):
     v.showMessage(True)
 
 
-def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
+def gdalDataset(pathOrDataset:typing.Union[str, QgsRasterLayer, QgsRasterDataProvider, gdal.Dataset], eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
     """
     Returns a gdal.Dataset object instance
-    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer
+    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer | QgsRasterDataProvider
     :return: gdal.Dataset
     """
-
     if isinstance(pathOrDataset, QgsRasterLayer):
         return gdalDataset(pathOrDataset.source())
+    elif isinstance(pathOrDataset, QgsRasterDataProvider):
+        return gdalDataset(pathOrDataset.dataSourceUri())
 
     if not isinstance(pathOrDataset, gdal.Dataset):
         pathOrDataset = gdal.Open(pathOrDataset, eAccess)
@@ -488,6 +489,37 @@ def ogrDataSource(pathOrDataSource)->ogr.DataSource:
     return pathOrDataSource
 
 
+def qgsVectorLayer(source)->QgsVectorLayer:
+    """
+    Returns a QgsVectorLayer from different source types
+    :param source: QgsVectorLayer | ogr.DataSource | file path
+    :return: QgsVectorLayer
+    :rtype: QgsVectorLayer
+    """
+    if isinstance(source, QgsVectorLayer):
+        return source
+    if isinstance(source, str):
+        return QgsVectorLayer(source)
+    if isinstance(source, ogr.DataSource):
+        return QgsVectorLayer(source.GetDescription())
+
+    raise Exception('Unable to transform {} into QgsVectorLayer'.format(source))
+
+def qgsRasterLayer(source)->QgsRasterLayer:
+    """
+    Returns a QgsVectorLayer from different source types
+    :param source: QgsVectorLayer | ogr.DataSource | file path
+    :return: QgsVectorLayer
+    :rtype: QgsVectorLayer
+    """
+    if isinstance(source, QgsRasterLayer):
+        return source
+    if isinstance(source, str):
+        return QgsRasterLayer(source)
+    if isinstance(source, gdal.Dataset):
+        return QgsRasterLayer(source.GetDescription())
+
+    raise Exception('Unable to transform {} into QgsRasterLayer'.format(source))
 
 
 def loadUI(basename: str):
@@ -978,6 +1010,38 @@ def bandClosestToWavelength(dataset, wl, wl_unit='nm')->int:
             pass
     return 0
 
+def parseBadBandList(dataset)->typing.List[int]:
+    """
+    Returns the bad-band-list if it is specified explicitly
+    :param dataset:
+    :type dataset:
+    :return: list of booleans. True = valid band, False = excluded / bad band
+    :rtype:
+    """
+    bbl = None
+
+    try:
+        dataset = gdalDataset(dataset)
+    except:
+        pass
+
+    if not isinstance(dataset, gdal.Dataset):
+        return None
+
+
+
+    # 1. search for ENVI style definition of band band list
+    bblStr1 = dataset.GetMetadataItem('bbl')
+    bblStr2 = dataset.GetMetadataItem('bbl', 'ENVI')
+
+    for bblStr in  [bblStr1, bblStr2]:
+        if isinstance(bblStr, str) and len(bblStr) > 0:
+            parts = bblStr.split(',')
+            if len(parts) == dataset.RasterCount:
+                bbl = [int(p) for p in parts]
+
+    return bbl
+
 
 def parseWavelength(dataset):
     """
@@ -988,18 +1052,12 @@ def parseWavelength(dataset):
 
     wl = None
     wlu = None
+    try:
+        dataset = gdalDataset(dataset)
+    except:
+        pass
 
-    if isinstance(dataset, str):
-        return parseWavelength(gdal.Open(dataset))
-    elif isinstance(dataset, QgsRasterDataProvider):
-        return parseWavelength(dataset.dataSourceUri())
-    elif isinstance(dataset, QgsRasterLayer):
-        if dataset.dataProvider().name() == 'gdal':
-            return parseWavelength(gdal.Open(dataset.source()))
-        else:
-            return None, None
-    elif isinstance(dataset, gdal.Dataset):
-
+    if isinstance(dataset, gdal.Dataset):
         for domain in dataset.GetMetadataDomainList():
             # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
 

@@ -201,12 +201,13 @@ def readCSVMetadata(pathESL):
     for i, row in enumerate(reader):
         METADATA_LINES.append(tuple(row.values()))
 
-    #set emtpy value to None
+    # set an emtpy value to None
     def stripped(value:str):
         if value is None:
             return None
         value = value.strip()
         return None if len(value) == 0 else value
+
     METADATA_LINES = [tuple([stripped(v) for v in row]) for row in METADATA_LINES]
 
 
@@ -214,30 +215,40 @@ def readCSVMetadata(pathESL):
     QGSFIELD_PYTHON_TYPES = []
     QGSFIELDS = QgsFields()
     for i, fieldName in enumerate(fieldNames):
-        fieldValues = [row[i] for row in METADATA_LINES if row[i] is not None]
-        fieldTypes = [findTypeFromString(v) for v in fieldValues]
-        if len(fieldTypes) == 0:
-            fieldTypes = [str]
+        refValue = None
+        for lineValues in METADATA_LINES:
 
-        if str in fieldTypes:
-            t = str
+            if lineValues[i] not in ['', None, 'NA']:
+                refValue = lineValues[i]
+                break
+        if refValue is None:
+            refValue = ''
+        fieldType = findTypeFromString(refValue)
+
+        if fieldType is str:
             a, b = QVariant.String, 'varchar'
-        elif float in fieldTypes:
-            t = float
+        elif fieldType is float:
             a, b = QVariant.Double, 'double'
-        elif int in fieldTypes:
-            t = int
+        elif fieldType is int:
             a, b = QVariant.Int, 'int'
         else:
             raise NotImplementedError()
-        QGSFIELD_PYTHON_TYPES.append(t)
+
+        QGSFIELD_PYTHON_TYPES.append(fieldType)
         QGSFIELDS.append(QgsField(fieldName, a, b))
+
 
     # convert metadata string values to basic python type
     def typeOrNone(value:str, t:type):
         return value if value is None else t(value)
 
-    METADATA_LINES = [tuple(typeOrNone(v, QGSFIELD_PYTHON_TYPES[i]) for i, v in enumerate(line)) for line in METADATA_LINES]
+
+    for i in range(len(METADATA_LINES)):
+        line = METADATA_LINES[i]
+        lineTuple = tuple(typeOrNone(cellValue, cellType) for cellValue, cellType in zip(line, QGSFIELD_PYTHON_TYPES))
+        METADATA_LINES[i] = lineTuple
+
+    #METADATA_LINES = [tuple(typeOrNone(v, QGSFIELD_PYTHON_TYPES[i]) for i, v in enumerate(line)) for line in METADATA_LINES]
 
     return (METADATA_LINES, QGSFIELDS)
 
@@ -263,7 +274,10 @@ def writeCSVMetadata(pathCSV:str, profiles:list):
         for p in profiles:
             assert isinstance(p, SpectralProfile)
             d = {}
-            d['spectra names'] = p.name().replace(',', '-')
+            spectrumName = p.name()
+            if spectrumName is None:
+                spectrumName = ''
+            d['spectra names'] = spectrumName.replace(',', '-')
             d[CSV_GEOMETRY_COLUMN] = p.geometry().asWkt()
             for name in fieldNames:
                 v = p.attribute(name)
@@ -343,7 +357,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         return 0
 
     @staticmethod
-    def readFrom(path):
+    def readFrom(path, progressDialog:QProgressDialog=None):
         """
         Reads an ENVI Spectral Library (ESL).
         :param path: path to ENVI Spectral Library
@@ -376,13 +390,10 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         spectraNames = md.get('spectra names', ['Spectrum {}'.format(i+1) for i in range(nSpectra)])
 
         # thanks to Ann for https://bitbucket.org/jakimowb/qgispluginsupport/issues/3/speclib-envypy
-        try:
-            gbl = np.where(np.asarray(md.get('bbl'), dtype=int))[0]
-            if xValues is not None:
-                xValues = np.asarray(xValues, dtype=float)[gbl]
-        except TypeError:
-            gbl = range(nbands)
 
+        bbl = md.get('bbl', None)
+        if bbl:
+            bbl = np.asarray(bbl, dtype=np.byte).tolist()
 
         speclibFields = createStandardFields()
 
@@ -393,6 +404,9 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         except Exception as ex:
             print(str(ex), file=sys.stderr)
 
+        PROFILE2CSVLine = {}
+
+
         if CSV_METADATA is not None:
             CSV_DATA, CSV_FIELDS = CSV_METADATA
 
@@ -402,6 +416,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
                     speclibFields.append(csvField)
 
             CSVLine2ESLProfile = {}
+
             # look if we can match a CSV column with names to profile names
             for profileNameColumnName in CSV_PROFILE_NAME_COLUMN_NAMES:
                 if profileNameColumnName in CSV_FIELDS.names():
@@ -409,67 +424,69 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
                     for r, row in enumerate(CSV_DATA):
                         nameCSV = row[c]
                         if nameCSV in spectraNames:
-                            CSVLine2ESLProfile[r] = spectraNames.index(nameCSV)
+                            iProfile = spectraNames.index(nameCSV)
+                            CSVLine2ESLProfile[r] = iProfile
+                            PROFILE2CSVLine[iProfile] = r
                     break
-            #backup: match csv line with profile index
-            if len(CSVLine2ESLProfile) == 0:
+            # backup: match csv line with profile index
+            if len(PROFILE2CSVLine) == 0:
                 indices = range(min(nSpectra, len(CSV_DATA)))
-                CSVLine2ESLProfile = dict(zip(indices, indices))
-
-        profiles = []
-        for i in range(nSpectra):
-            p = SpectralProfile(fields=speclibFields)
-
-            p.setValues(x=xValues, y=data[i, gbl].tolist(), xUnit=xUnit, yUnit=yUnit)
-            name = spectraNames[i]
-            p.setName(name)
-            profiles.append(p)
-
-
-
-        if CSV_METADATA is not None:
-            #find which column index from CSV table matches which QgsFeature attribute index
-            for fieldIndex, csvField in enumerate(CSV_FIELDS):
-                assert isinstance(csvField, QgsField)
-                fieldName = csvField.name()
-                #is this a geometry field?
-
-                if fieldName == CSV_GEOMETRY_COLUMN:
-                    # copy CSV values to profile geometry attribute
-                    for iCSV, iProfile in CSVLine2ESLProfile.items():
-                        value = CSV_DATA[iCSV][fieldIndex]
-                        if isinstance(value, str):
-                            g = QgsGeometry.fromWkt(value)
-                            if g.wkbType() == QgsWkbTypes.Point:
-                                profile = profiles[iProfile]
-                                assert isinstance(profile, SpectralProfile)
-                                profile.setGeometry(g)
-                else:
-                    #set normal value fields
-                    if fieldName in CSV_PROFILE_NAME_COLUMN_NAMES:
-                        #map CSV field "spectrum names" or "name" to speclib "name" columns
-                        aSpeclib = speclibFields.lookupField(FIELD_NAME)
-                    else:
-                        aSpeclib = speclibFields.lookupField(fieldName)
-
-                    if aSpeclib < 0:
-                        s = ""
-                    aCSV = CSV_FIELDS.lookupField(fieldName)
-
-                    #copy CSV values to profile attribute
-                    for iCSV, iProfile in CSVLine2ESLProfile.items():
-                        profile = profiles[iProfile]
-                        assert isinstance(profile, SpectralProfile)
-                        value = CSV_DATA[iCSV][aCSV]
-                        if value not in EMPTY_VALUES:
-                            assert profile.setAttribute(aSpeclib, value)
-                            s = ""
-
+                CSVLine2ESLProfile = PROFILE2CSVLine = dict(zip(indices, indices))
 
         SLIB = SpectralLibrary()
-        SLIB.startEditing()
+        assert SLIB.startEditing()
         SLIB.addMissingFields(speclibFields)
-        SLIB.addProfiles(profiles)
+
+        if CSV_METADATA is not None:
+            sliceCSV = []
+            sliceAttr = []
+            for slibField in SLIB.fields():
+                fieldName = slibField.name()
+
+                iSLIB = SLIB.fields().lookupField(fieldName)
+                iCSV = CSV_FIELDS.lookupField(fieldName)
+
+                if iCSV >= 0:
+                    sliceCSV.append(iCSV)
+                    sliceAttr.append(iSLIB)
+
+            iCSVGeometry = CSV_FIELDS.lookupField(CSV_GEOMETRY_COLUMN)
+
+        profiles = []
+        import datetime
+        t0 = datetime.datetime.now()
+        for i in range(nSpectra):
+
+            f = QgsFeature(SLIB.fields())
+
+            valueDict = {'x': xValues, 'y': data[i, :].tolist(), 'xUnit': xUnit, 'yUnit': yUnit, 'bbl': bbl}
+
+            if CSV_METADATA is not None:
+                j = PROFILE2CSVLine.get(i)
+                if j:
+                    csvLine = CSV_DATA[j]
+                    attr = f.attributes()
+                    for iCSV, iAttr in zip(sliceCSV, sliceAttr):
+                        attr[iAttr] = csvLine[iCSV]
+                    f.setAttributes(attr)
+
+                    if iCSVGeometry > 0:
+                        wkt = csvLine[iCSVGeometry]
+                        if isinstance(wkt, str):
+                            g = QgsGeometry.fromWkt(wkt)
+                            if g.wkbType() == QgsWkbTypes.Point:
+                                f.setGeometry(g)
+
+            f.setAttribute(FIELD_VALUES, encodeProfileValueDict(valueDict))
+            f.setAttribute(FIELD_NAME, spectraNames[i])
+
+            profiles.append(f)
+
+        #print('Creation: {}'.format(datetime.datetime.now() - t0))
+        t0 = datetime.datetime.now()
+        SLIB.addFeatures(profiles)
+        #print('Adding: {}'.format(datetime.datetime.now() - t0))
+
         assert SLIB.commitChanges()
         assert SLIB.featureCount() == nSpectra
 
@@ -478,7 +495,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         return SLIB
 
     @staticmethod
-    def write(speclib:SpectralLibrary, path:str):
+    def write(speclib:SpectralLibrary, path:str, progressDialog:QProgressDialog):
         """
         Writes a SpectralLibrary as ENVI Spectral Library (ESL).
         See http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for ESL definition
@@ -498,7 +515,9 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
 
         dn = os.path.dirname(path)
         bn, ext = os.path.splitext(os.path.basename(path))
-        assert ext in ['.sli', '.esl'], "Path needs extension .sli or .esl: {}".format(path)
+        if not re.search(r'\.(sli|esl)', ext, re.I):
+            ext = '.sli'
+
 
         writtenFiles = []
 

@@ -119,7 +119,7 @@
   </widget>
   <widget class="QStatusBar" name="mStatusBar">
    <property name="sizeGripEnabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
   </widget>
   <action name="actionImportSpeclib">

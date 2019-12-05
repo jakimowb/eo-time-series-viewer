@@ -21,7 +21,11 @@
 # noinspection PyPep8Naming
 
 import os, json, sys
+
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtCore import *
 from ..externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
+from ..externals.pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
 from ..utils import *
 from ..models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
 from ..externals import pyqtgraph as pg
@@ -191,9 +195,26 @@ class PlotStyle(QObject):
     """
     sigUpdated = pyqtSignal()
 
+    @staticmethod
+    def fromPlotDataItem( pdi:PlotDataItem):
+
+        ps = PlotStyle()
+        linePen = pg.mkPen(pdi.opts['pen'])
+
+        ps.linePen = linePen
+        ps.markerSymbol = pdi.opts['symbol']
+        ps.markerBrush = pg.mkBrush(pdi.opts['symbolBrush'])
+        ps.markerSize = pdi.opts['symbolSize']
+        ps.markerPen = pg.mkPen(pdi.opts['symbolPen'])
+        ps.mIsVisible = pdi.isVisible()
+
+        return ps
+
+
     def __init__(self, **kwds):
         plotStyle = kwds.get('plotStyle')
-        if plotStyle: kwds.pop('plotStyle')
+        if plotStyle:
+            kwds.pop('plotStyle')
         super(PlotStyle, self).__init__()
 
         self.markerSymbol = MARKERSYMBOLS[0].mValue
@@ -220,6 +241,38 @@ class PlotStyle(QObject):
 
         if plotStyle:
             self.copyFrom(plotStyle)
+
+    def lineWidth(self)->int:
+        return self.linePen.width()
+
+    def setLineWidth(self, width:int):
+        self.linePen.setWidth(width)
+
+    def lineColor(self)->QColor:
+        return self.linePen.color()
+
+    def setLineColor(self, color:QColor):
+        if not isinstance(color, QColor):
+            color = QColor(color)
+        self.linePen.setColor(color)
+
+    def apply(self, pdi:PlotDataItem, updateItem:bool=True):
+
+        assert isinstance(pdi, PlotDataItem)
+
+        pdi.opts['pen'] = pg.mkPen(self.linePen)
+        pdi.opts['symbol'] = self.markerSymbol
+        pdi.opts['symbolPen'] = pg.mkPen(self.markerPen)
+        pdi.opts['symbolBrush'] = pg.mkBrush(self.markerBrush)
+        pdi.opts['symbolSize'] = self.markerSize
+
+        pdi.setVisible(self.mIsVisible)
+        if updateItem:
+            pdi.updateItems()
+
+
+
+
 
     @staticmethod
     def fromJSON(jsonString: str):
@@ -311,6 +364,14 @@ class PlotStyle(QObject):
         :return: bool
         """
         return self.mIsVisible
+
+    def __copy__(self):
+        style = PlotStyle()
+        style.copyFrom(self)
+        return style
+
+    def clone(self):
+        return copy.copy(self)
 
     def copyFrom(self, plotStyle):
         """
@@ -434,7 +495,7 @@ class PlotStyle(QObject):
 class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
-    def __init__(self, title='<#>', parent=None, x=None, y=None):
+    def __init__(self, title='<#>', parent=None, x=None, y=None, plotStyle:PlotStyle=PlotStyle()):
         super(PlotStyleWidget, self).__init__(parent)
         self.setupUi(self)
         assert isinstance(self.plotWidget, pg.PlotWidget)
@@ -487,7 +548,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         self.sbLinePenWidth.valueChanged.connect(self.refreshPreview)
         self.mLastPlotStyle = None
         self.cbIsVisible.toggled.connect(self.refreshPreview)
-        self.setPlotStyle(PlotStyle())
+        self.setPlotStyle(plotStyle)
         self.refreshPreview()
 
     def toggleWidgetEnabled(self, cb: QComboBox, widgets: list):
@@ -501,6 +562,16 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
         for w in widgets:
             assert isinstance(w, QWidget)
             w.setEnabled(enabled)
+
+    def setPreviewVisible(self, b:bool):
+        """
+        Sets the visibility of the preview window.
+        :param b:
+        :type b:
+        """
+        assert isinstance(b, bool)
+        self.plotWidget.setVisible(b)
+
 
     def refreshPreview(self, *args):
         if not self.mBlockUpdates:
@@ -570,7 +641,7 @@ class PlotStyleWidget(QWidget, loadUI('plotstylewidget.ui')):
 
         style.markerBrush.setColor(self.btnMarkerBrushColor.color())
 
-        # style.linePen = pg.mkPen(color=self.btnLinePenColor.color(),
+        # style.linePen = pg.mkPen(plotStyle=self.btnLinePenColor.plotStyle(),
         #                         width=self.sbLinePenWidth.value(),
         #                         style=currentComboBoxValue(self.cbLinePenStyle))
         style.linePen.setColor(self.btnLinePenColor.color())

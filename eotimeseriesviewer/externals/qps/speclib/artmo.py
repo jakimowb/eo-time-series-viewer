@@ -34,7 +34,7 @@ class ARTMOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return False
 
     @staticmethod
-    def readFrom(path)->SpectralLibrary:
+    def readFrom(path, progressDialog:QProgressDialog=None)->SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
         :param path: source of SpectralLibrary

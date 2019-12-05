@@ -25,7 +25,7 @@ class SPECCHIOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return False
 
     @staticmethod
-    def readFrom(path, wlu='nm', delimiter=',')->SpectralLibrary:
+    def readFrom(path, wlu='nm', delimiter=',', progressDialog:QProgressDialog=None)->SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
         :param path: source of SpectralLibrary
@@ -120,7 +120,7 @@ class SPECCHIOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return sl
 
     @staticmethod
-    def write(speclib:SpectralLibrary, path:str, delimiter:str=',')->list:
+    def write(speclib:SpectralLibrary, path:str, progressDialog:QProgressDialog=None, delimiter:str=',')->list:
         """
         Writes the SpectralLibrary to path and returns a list of written files that can be used to open the spectral library with readFrom(...)
         :param speclib: SpectralLibrary
