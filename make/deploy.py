@@ -270,13 +270,16 @@ def build():
 
     if True:
         # 1. clean an existing directory = plugin folder
-        pb_tool.clean_deployment(ask_first=False)
+        try:
+            pb_tool.clean_deployment(ask_first=False)
+        except:
+            pass
 
         import make
         make.compileResourceFiles()
 
         # 3. Deploy = write the data to the new plugin folder
-        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
+        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, 'default', quick=True, confirm=False)
 
         # 4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
         # we need to remove them afterwards.

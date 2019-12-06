@@ -364,10 +364,20 @@ ul.auto-toc {
 <h1 class="title">Changelog</h1>
 
 <dl class="docutils">
+<dt>2019-11-25 (version 1.10):</dt>
+<dd><ul class="first last simple">
+<li>improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
+based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name</li>
+<li>fixed copying of layer styles to maps of same sensor and map view type</li>
+<li>improved speed of mapping and layer buffering</li>
+<li>failed image sources are logged in teh EO Time Series Viewer log panel</li>
+<li>Spectral Library Viewer better handles large collections of spectral profiles</li>
+</ul>
+</dd>
 <dt>2019-10-02 (version 1.9):</dt>
 <dd><ul class="first last simple">
 <li>includes several smaller updates</li>
-<li>fixed error 'shortcutVisibleInContextMenu' error that occured with Qt &lt; 5.10</li>
+<li>fixed error 'shortcutVisibleInContextMenu' error that occurred with Qt &lt; 5.10</li>
 <li>enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band</li>
 </ul>
 </dd>
@@ -429,7 +439,7 @@ ul.auto-toc {
 </dd>
 <dt>2019-05-31 (version 1.2):</dt>
 <dd><ul class="first last simple">
-<li>added SaveAllMapsDialog  and menu option to export all maps as image files.</li>
+<li>added SaveAllMapsDialog and menu option to export all maps as image files.</li>
 <li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/91">#91</a>: select Temporal Profile / Spectral Profile button activates the required map tools.</li>
 <li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/92">#92</a>: map canvas context menu &quot;copy to clipboard&quot; options.</li>
 </ul>

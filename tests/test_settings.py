@@ -24,7 +24,7 @@ from PyQt5.QtCore import *
 import unittest, tempfile
 
 from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.crosshair import *
+from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
 QGIS_APP = initQgisApplication()
@@ -78,6 +78,15 @@ class testclassSettingsTest(unittest.TestCase):
                 self.assertIsInstance(defaults, dict)
 
 
+    def test_SensorModel(self):
+
+        tb = QTableView()
+        m = SensorSettingsTableModel()
+        tb.setModel(m)
+        tb.show()
+
+        if SHOW_GUI:
+            QGIS_APP.exec_()
 
 
 if __name__ == "__main__":

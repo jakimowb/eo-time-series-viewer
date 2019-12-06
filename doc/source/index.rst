@@ -6,14 +6,21 @@
 EO Time Series Viewer
 ======================
 
+The Earth Observation Time Series Viewer (EOTSV) is a free-and-open source QGIS Plugin to visualize and label
+raster-based earth observation time series data.
+
 .. image:: img/screenshot1.png
 
 
-The Earth Observation Time Series Viewer (EOTSV) is a free-and-open source QGIS Plugin to visualize raster-based earth observation time series data.
 
-* `Online documentation https://eo-time-series-viewer.readthedocs.io/en/latest/ <https://eo-time-series-viewer.readthedocs.io/en/latest/>`_
-* `Source Code https://bitbucket.org/jakimowb/eo-time-series-viewer <https://bitbucket.org/jakimowb/eo-time-series-viewer>`_
-* `Issue tracker https://bitbucket.org/jakimowb/eo-time-series-viewer/issues <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues?status=new&status=open>`_
+
+.. table::
+
+   ==================== ================================================================================================
+   Online documentation https://eo-time-series-viewer.readthedocs.io/en/latest
+   Source Code          https://bitbucket.org/jakimowb/eo-time-series-viewer
+   Issue tracker        https://bitbucket.org/jakimowb/eo-time-series-viewer/issues
+   ==================== ================================================================================================
 
 
 Features
@@ -28,7 +35,10 @@ Features
 
 
 
-.. seealso:: `EnMAP Box 3 <https://bitbucket.org/hu-geomatics/enmap-box/wiki/Home>`_ - Another QGIS Plugin developed at Humboldt-Universität zu Berlin
+.. seealso::
+   `Virtual Raster Builder <https://virtual-raster-builder.readthedocs.io/en/latest/>`_ - A QGIS Plugin to create Virtual Raster images.
+
+   `EnMAP Box 3 <https://enmap-box.readthedocs.io/en/latest/>`_ - A QGIS Plugin to visualize and process Multi- and Hyperspectral raster images.
 
 
 License and Use
@@ -44,8 +54,7 @@ This program is free software; you can redistribute it and/or modify it under th
 
     installation.rst
     User Guide <user_guide.rst>
-    Visual Changelog <changelog_visual.rst>
-    Changelog <changelog.rst>
+    Changelog <changelog_visual.rst>
     gallery.rst
     License <LICENSE.md>
 
