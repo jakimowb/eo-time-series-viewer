@@ -33,7 +33,7 @@ from pyqtgraph.opengl import *
 from pyqtgraph.opengl.GLGraphicsItem import GLGraphicsItem
 from pyqtgraph.Vector import Vector
 
-from eotimeseriesviewer.temporalprofiles2d import *
+from eotimeseriesviewer.temporalprofiles import *
 
 
 

@@ -38,10 +38,17 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
                 return False
         return True
 
-    searchedKeys = []
-    searchedKeys.append(re.compile('acquisition[ ]*dates$', re.I))
-    searchedKeys.append(re.compile('observation[ ]*dates$', re.I))
-    searchedKeys.append(re.compile('wavelength$', re.I))
+    searchedKeysDataSet = []
+    searchedKeysDataSet.append(re.compile('acquisition[ ]*dates$', re.I))
+    searchedKeysDataSet.append(re.compile('observation[ ]*dates$', re.I))
+    searchedKeysDataSet.append(re.compile('dates$', re.I))
+    searchedKeysDataSet.append(re.compile('wavelength$', re.I))
+
+    searchedKeysBand = []
+    searchedKeysBand.append(re.compile('acquisition[ ]*date$', re.I))
+    searchedKeysBand.append(re.compile('observation[ ]*date$', re.I))
+    searchedKeysBand.append(re.compile('date$', re.I))
+    searchedKeysBand.append(re.compile('wavelength$', re.I))
 
     #1. Check Metadata
     for domain in dataset.GetMetadataDomainList():
@@ -49,7 +56,7 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
         assert isinstance(domainData, dict)
 
         for key, values in domainData.items():
-            for regex in searchedKeys:
+            for regex in searchedKeysDataSet:
                 if regex.search(key.strip()):
                     values = re.sub('[{}]', '', values)
                     values = values.split(',')
@@ -58,11 +65,45 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
                         return dateValues
 
 
-    #2. Check Band Names
+    # 2. Search in band metadata
+    # 2.1. via GetDescription
     bandDates = [extractDateTimeGroup(dataset.GetRasterBand(b+1).GetDescription()) for b in range(nb)]
     bandDates = [b for b in bandDates if isinstance(b, np.datetime64)]
     if checkDates(bandDates):
         return bandDates
+
+    # 2.2 via Band Metadata
+    bandDates = []
+    for b in range(nb):
+        band = dataset.GetRasterBand(b+1)
+        assert isinstance(band, gdal.Band)
+        bandDate = None
+        for domain in band.GetMetadataDomainList():
+
+            md = band.GetMetadata_Dict(domain)
+
+            candidates = []
+            for k in md.keys():
+                for rx in searchedKeysBand:
+                    if rx.search(k):
+                        candidates.append(k)
+
+            for key in candidates:
+                assert isinstance(key, str)
+                DTG = extractDateTimeGroup(md[key])
+                if isinstance(DTG, np.datetime64):
+                    bandDate = DTG
+                    break
+
+            if isinstance(bandDate, np.datetime64):
+                break
+
+        if isinstance(bandDate, np.datetime64):
+            bandDates.append(bandDate)
+
+    if checkDates(bandDates):
+        return bandDates
+
 
     return []
 
@@ -109,6 +150,7 @@ class InputStackInfo(object):
 
         self.bandnames = []
         self.nodatavalues = []
+
         for b in range(self.nb):
             band = dataset.GetRasterBand(b+1)
             assert isinstance(band, gdal.Band)

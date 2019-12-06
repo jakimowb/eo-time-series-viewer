@@ -32,11 +32,13 @@ from qgis.PyQt.QtGui import *
 from .timeseries import *
 from .utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
+from .externals.pyqtgraph import ScatterPlotItem, SpotItem, GraphicsScene
+from .externals.qps.externals.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent, MouseDragEvent
 from .externals import pyqtgraph as pg
 from .sensorvisualization import SensorListModel
-from .temporalprofiles2d import *
+from .temporalprofiles import *
 from .temporalprofiles3d import *
-
+from .pixelloader import PixelLoaderTask, doLoaderTask
 
 
 import numpy as np
@@ -519,7 +521,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
 
 
-    def requiredBandsIndices(self, sensor):
+    def requiredBandsIndices(self, sensor)->list:
         """
         Returns the band indices required to calculate the values for
         the different PlotStyle expressions making use of sensor
@@ -1330,10 +1332,10 @@ class SpectralTemporalVisualization(QObject):
 
         assert isinstance(profileDock, ProfileViewDockUI)
         self.ui = profileDock
-
-        import eotimeseriesviewer.pixelloader
-        if DEBUG:
-            eotimeseriesviewer.pixelloader.DEBUG = True
+        self.mTasks = dict()
+        #import eotimeseriesviewer.pixelloader
+        #if DEBUG:
+        #    eotimeseriesviewer.pixelloader.DEBUG = True
 
         #the timeseries. will be set later
         assert isinstance(timeSeries, TimeSeries)
@@ -1341,13 +1343,15 @@ class SpectralTemporalVisualization(QObject):
         self.plot_initialized = False
 
         self.plot2D = self.ui.plotWidget2D
+        assert isinstance(self.plot2D, DateTimePlotWidget)
         self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
+        self.plot2D.getViewBox().scene().sigMouseClicked.connect(self.onPointsClicked2D)
         self.plot3D = self.ui.plotWidget3D
+        self.mLast2DMouseClickPosition = None
 
         # temporal profile collection to store loaded values
         self.mTemporalProfileLayer = TemporalProfileLayer(self.TS)
         self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
-        #self.mTemporalProfileLayer.startEditing()
         self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
 
         # fix to not loose C++ reference on temporal profile layer in case it is removed from QGIS mapcanvas
@@ -1374,11 +1378,11 @@ class SpectralTemporalVisualization(QObject):
         self.mTemporalProfilesTableConfig = config
         self.mTemporalProfileLayer.setAttributeTableConfig(self.mTemporalProfilesTableConfig)
 
-        self.pixelLoader = PixelLoader()
-        self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
-        self.pixelLoader.sigLoadingStarted.connect(lambda: self.ui.progressInfo.setText('Start loading...'))
-        # self.pixelLoader.sigLoadingStarted.connect(self.tpCollection.prune)
-        self.pixelLoader.sigLoadingFinished.connect(lambda: self.plot2D.enableAutoRange('x', False))
+        #self.pixelLoader = PixelLoader()
+        #self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
+        #self.pixelLoader.sigLoadingStarted.connect(self.onLoadingStarted)
+        #self.pixelLoader.sigLoadingFinished.connect(self.onLoadingFinished)
+        #self.pixelLoader.sigProgressChanged.connect(self.onLoadingProgressChanged)
 
         # set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
@@ -1407,7 +1411,6 @@ class SpectralTemporalVisualization(QObject):
         if not ENABLE_OPENGL:
             self.ui.listWidget.item(1).setHidden(True)
             self.ui.page3D.setHidden(True)
-
 
 
         def onTemporalProfilesRemoved(removedProfiles):
@@ -1462,6 +1465,23 @@ class SpectralTemporalVisualization(QObject):
         #self.ui.stackedWidget.setCurrentPage(self.ui.pagePixel)
         self.ui.onStackPageChanged(self.ui.stackedWidget.currentIndex())
 
+    def onLoadingStarted(self):
+        self.ui.progressInfo.setText('Start loading...')
+        self.ui.progressBar.setRange(0, 0)
+        self.ui.progressBar.setValue(0)
+
+    def onLoadingProgressChanged(self, progress):
+        if self.ui.progressBar.maximum() == 0:
+            self.ui.progressBar.setRange(0, 100)
+
+        value = int(progress)
+        self.ui.progressBar.setValue(value)
+
+        if value == 100:
+            self.plot2D.enableAutoRange('x', False)
+            self.ui.progressInfo.setText('')
+            self.ui.progressBar.setValue(0)
+
 
     def plotStyles(self):
         return self.plotSettingsModel2D[:]
@@ -1473,43 +1493,6 @@ class SpectralTemporalVisualization(QObject):
         """
         return self.mTemporalProfileLayer
 
-    def onTemporalProfilesContextMenu(self, event):
-        assert isinstance(event, QContextMenuEvent)
-        tableView = self.ui.tableViewTemporalProfiles
-        selectionModel = self.ui.tableViewTemporalProfiles.selectionModel()
-        assert isinstance(selectionModel, QItemSelectionModel)
-
-        model = self.ui.tableViewTemporalProfiles.model()
-        assert isinstance(model, TemporalProfileLayer)
-
-        temporalProfiles = []
-
-        if len(selectionModel.selectedIndexes()) > 0:
-            for idx in selectionModel.selectedIndexes():
-                tp = model.idx2tp(idx)
-                if isinstance(tp, TemporalProfile) and not tp in temporalProfiles:
-                    temporalProfiles.append(tp)
-        else:
-            temporalProfiles = model[:]
-
-        spatialPoints = [tp.coordinate() for tp in temporalProfiles]
-
-
-        menu = QMenu()
-
-        a = menu.addAction('Load missing')
-        a.setToolTip('Loads missing band-pixels.')
-        a.triggered.connect(lambda : self.loadCoordinate(spatialPoints=spatialPoints, mode='all'))
-        s = ""
-
-        a = menu.addAction('Reload')
-        a.setToolTip('Reloads all band-pixels.')
-        a.triggered.connect(lambda: self.loadCoordinate(spatialPoints=spatialPoints, mode='reload'))
-
-        menu.popup(tableView.viewport().mapToGlobal(event.pos()))
-        self.menu = menu
-
-
     def selected2DPlotStyles(self):
         result = []
 
@@ -1517,8 +1500,6 @@ class SpectralTemporalVisualization(QObject):
         for idx in selectedModelIndices(self.ui.tableView2DProfiles):
             result.append(m.data(idx, Qt.UserRole))
         return result
-
-
 
     def removePlotStyles2D(self, plotStyles):
         m = self.ui.tableView2DProfiles.model()
@@ -1557,8 +1538,8 @@ class SpectralTemporalVisualization(QObject):
         pdi = plotStyle.createPlotItem(self.plot2D)
 
         assert isinstance(pdi, TemporalProfilePlotDataItem)
-        pdi.sigClicked.connect(self.onProfileClicked2D)
-        pdi.sigPointsClicked.connect(self.onPointsClicked2D)
+        #pdi.sigClicked.connect(self.onProfileClicked2D)
+        #pdi.sigPointsClicked.connect(self.onPointsClicked2D)
         self.plot2D.plotItem.addItem(pdi)
         #self.plot2D.getPlotItem().addItem(pg.PlotDataItem(x=[1, 2, 3], y=[1, 2, 3]))
         #plotItem.addDataItem(pdi)
@@ -1592,38 +1573,40 @@ class SpectralTemporalVisualization(QObject):
         self.plot3D.addItems(plotItems)
         #self.updatePlot3D()
 
-    def onProfileClicked2D(self, pdi):
-        if isinstance(pdi, TemporalProfilePlotDataItem):
-            sensor = pdi.mPlotStyle.sensor()
-            tp = pdi.mPlotStyle.temporalProfile()
-            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
-                c = tp.coordinate()
-                info = ['Sensor:{}'.format(sensor.name()),
-                        'Coordinate:{}, {}'.format(c.x(), c.y())]
-                self.ui.tbInfo2D.setPlainText('\n'.join(info))
 
-
-    def onPointsClicked2D(self, pdi, spottedItems):
-
+    def onPointsClicked2D(self, event: MouseClickEvent):
         info = []
-        if isinstance(pdi, TemporalProfilePlotDataItem) and isinstance(spottedItems, list):
-            sensor = pdi.mPlotStyle.sensor()
-            tp = pdi.mPlotStyle.temporalProfile()
-            if isinstance(tp, TemporalProfile) and isinstance(sensor, SensorInstrument):
+        assert isinstance(event, MouseClickEvent)
+        for item in self.plot2D.scene().itemsNearEvent(event):
+
+            if isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(), TemporalProfilePlotDataItem):
+                pdi = item.parentItem()
+                assert isinstance(pdi, TemporalProfilePlotDataItem)
+                tp = pdi.mPlotStyle.temporalProfile()
+                assert isinstance(tp, TemporalProfile)
                 c = tp.coordinate()
-                info.append('Sensor: {}'.format(sensor.name()))
-                info.append('Coordinate: {}, {}'.format(c.x(), c.y()))
 
-                for item in spottedItems:
-                    pos = item.pos()
-                    x = pos.x()
-                    y = pos.y()
-                    date = num2date(x)
-                    info.append('Date: {}\nValue: {}'.format(date, y))
+                spottedItems = item.pointsAt(event.pos())
+                if len(spottedItems) > 0:
+                    info.append('Sensor: {}'.format(pdi.mPlotStyle.sensor().name()))
+                    info.append('Coordinate: {}, {}'.format(c.x(), c.y()))
+                    for item in spottedItems:
+                        if isinstance(item, SpotItem):
+                            brush1 = item.brush()
+                            brush2 = item.brush()
+                            brush2.setColor(QColor('yellow'))
+                            item.setBrush(brush2)
+                            QTimer.singleShot(500, lambda *args, spotItem=item, brush=brush1: spotItem.setBrush(brush))
 
+                            pos = item.pos()
+                            self.mLast2DMouseClickPosition = pos
+                            x = pos.x()
+                            y = pos.y()
+                            date = num2date(x)
+                            info.append('{};{}'.format(date, y))
 
-        else:
-            self.ui.tbInfo2D.setPlainText('\n'.join(info))
+        self.ui.tbInfo2D.setPlainText('\n'.join(info))
+
 
     def onTemporalProfilesAdded(self, profiles):
         # self.mTemporalProfileLayer.prune()
@@ -1669,7 +1652,7 @@ class SpectralTemporalVisualization(QObject):
         self.ui.actionReset3DCamera.triggered.connect(self.reset3DCamera)
         self.ui.actionLoadTPFromOgr.triggered.connect(self.onLoadFromVector)
         self.ui.actionLoadMissingValues.triggered.connect(lambda: self.loadMissingData())
-        self.ui.actionSaveTemporalProfiles.triggered.connect(lambda *args : self.mTemporalProfileLayer.saveTemporalProfiles)
+        self.ui.actionSaveTemporalProfiles.triggered.connect(lambda *args : self.mTemporalProfileLayer.saveTemporalProfiles(None))
         #set actions to be shown in the TemporalProfileTableView context menu
         ma = [self.ui.actionSaveTemporalProfiles, self.ui.actionLoadMissingValues]
 
@@ -1732,23 +1715,39 @@ class SpectralTemporalVisualization(QObject):
         self.sigMoveToTSD.emit(self.TS[i])
 
 
-    def onPixelLoaded(self, d):
+    def onPixelLoaded(self, qgsTask ,dump)->typing.List[TemporalProfile]:
+        """
+        Updates TemporalProfiles
+        :param qgsTask:
+        :param dump:
+        :return: [updated TemporalProfiles]
+        """
+        tasks = pickle.loads(dump)
+        assert isinstance(tasks, list)
+        s = ""
+        t0 = time.time()
+        updatedTemporalProfiles = []
+        for task in tasks:
+            assert isinstance(task, TemporalProfileLoaderTask)
 
-        if isinstance(d, PixelLoaderTask):
+            if len(task.mRESULTS) > 0:
+                for tpId, data in task.mRESULTS.items():
+                    tp = self.mTemporalProfileLayer.mProfiles.get(tpId)
 
-            bn = os.path.basename(d.sourcePath)
-            if d.success():
+                    if isinstance(tp, TemporalProfile):
+                        tsd = tp.timeSeries().getTSD(task.mSourcePath)
+                        if isinstance(tsd, TimeSeriesDate):
+                            tp.updateData(tsd, data)
+                        if tp not in updatedTemporalProfiles:
+                            updatedTemporalProfiles.append(tp)
 
-                t = 'Loaded {} pixel from {}.'.format(len(d.resProfiles), bn)
-                self.mTemporalProfileLayer.addPixelLoaderResult(d)
-                self.updateRequested = True
-            else:
-                t = 'Failed loading from {}.'.format(bn)
-                if d.info and d.info != '':
-                    t += '({})'.format(d.info)
+            if len(task.mERRORS) > 0:
 
-            # QgsApplication.processEvents()
-            self.ui.progressInfo.setText(t)
+
+                s = ""
+        return updatedTemporalProfiles
+        if False:
+            print('WRESULTS {}'.format(time.time() - t0))
 
     def requestUpdate(self, *args):
         self.updateRequested = True
@@ -1778,13 +1777,7 @@ class SpectralTemporalVisualization(QObject):
                 self.ui.tableView3DProfiles.openPersistentEditor(idxExpr)
                 start += 1
 
-    def onObservationClicked(self, plotDataItem, points):
-        for p in points:
-            tsd = p.data()
-            #print(tsd)
-
-
-    def loadMissingData(self, backgroundProcess=False):
+    def loadMissingData(self, backgroundProcess=True):
         """
         Loads all band values of collected locations that have not been loaded until now
         """
@@ -1810,9 +1803,6 @@ class SpectralTemporalVisualization(QObject):
         :param spatialPoints: SpatialPoint | [list-of-SpatialPoints]
         """
         assert mode in SpectralTemporalVisualization.LOADING_MODES
-
-
-
         if isinstance(spatialPoints, SpatialPoint):
             spatialPoints = [spatialPoints]
 
@@ -1827,10 +1817,8 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(self.TS, TimeSeries)
 
         # Get or create the TimeSeriesProfiles which will store the loaded values
-
         tasks = []
-        TPs = []
-        theGeometries = []
+        TemporalProfiles = []
 
         # Define which (new) bands need to be loaded for each sensor
         if LUT_bandIndices is None:
@@ -1847,14 +1835,11 @@ class SpectralTemporalVisualization(QObject):
 
         # update new / existing points
 
-
-
-
         for spatialPoint in spatialPoints:
             assert isinstance(spatialPoint, SpatialPoint)
             TP = self.mTemporalProfileLayer.fromSpatialPoint(spatialPoint)
 
-            # if no TemporaProfile existed before, create an empty one
+            # if no TemporalProfile existed before, create an empty one
             if not isinstance(TP, TemporalProfile):
                 TP = self.mTemporalProfileLayer.createTemporalProfiles(spatialPoint)[0]
 
@@ -1876,20 +1861,8 @@ class SpectralTemporalVisualization(QObject):
                     if len(self.plotSettingsModel3D) == 0:
                         self.createNewPlotStyle3D()
 
+            TemporalProfiles.append(TP)
 
-
-            TPs.append(TP)
-            theGeometries.append(TP.coordinate())
-
-        if len(theGeometries) == 0:
-            return
-
-        bbox = QgsRectangle()
-        for i, g in enumerate(theGeometries):
-            bbox.include(g)
-
-
-        TP_ids = [TP.id() for TP in TPs]
         # each TSD is a Task
         s = ""
         # a Task defines which bands are to be loaded
@@ -1908,7 +1881,7 @@ class SpectralTemporalVisualization(QObject):
             if mode == 'missing':
                 missingIndices = set()
 
-                for TP in TPs:
+                for TP in TemporalProfiles:
                     assert isinstance(TP, TemporalProfile)
                     need2load = TP.missingBandIndices(tsd, requiredIndices=requiredIndices)
                     missingIndices = missingIndices.union(need2load)
@@ -1920,34 +1893,58 @@ class SpectralTemporalVisualization(QObject):
             if len(missingIndices) > 0:
                 for tss in tsd.sources():
                     assert isinstance(tss, TimeSeriesSource)
-                    if bbox.intersects(tss.spatialExtent().toCrs(TPs[0].coordinate().crs())):
-                        task = PixelLoaderTask(tss.uri(), theGeometries,
-                                           # bandIndices=missingIndices, load all indices!
-                                           temporalProfileIDs=TP_ids)
+
+                    intersectingTPs = []
+                    tssExtent = tss.spatialExtent()
+                    for TP in TemporalProfiles:
+                        assert isinstance(TP, TemporalProfile)
+                        if tssExtent.contains(TP.coordinate().toCrs(tssExtent.crs())):
+                            intersectingTPs.append(TP)
+
+                    if len(intersectingTPs) > 0:
+                        task = TemporalProfileLoaderTask(tss, intersectingTPs)
                         tasks.append(task)
-                        break
 
 
+                    # pickle.loads(doLoaderTask(mock, pickle.dumps([t])))[0]
         if len(tasks) > 0:
-
-            if DEBUG:
-                print('Start loading for {} geometries from {} sources...'.format(
-                    len(theGeometries), len(tasks)
-                ))
-            if backgroundProcess:
-                self.pixelLoader.startLoading(tasks)
-            else:
-                import eotimeseriesviewer.pixelloader
-                tasks = [PixelLoaderTask.fromDump(eotimeseriesviewer.pixelloader.doLoaderTask(None, task.toDump())) for task in tasks]
-                l = len(tasks)
-                for i, task in enumerate(tasks):
-                    self.pixelLoader.sigPixelLoaded.emit(task)
+            self.loadTemporalProfileTasks(tasks, runAsync=backgroundProcess)
 
         else:
             if DEBUG:
                 print('Data for geometries already loaded')
 
+    def loadTemporalProfileTasks(self, tasks:typing.Iterable[TemporalProfileLoaderTask], runAsync=True)->typing.List[TemporalProfile]:
+        """
+        Loads data into TemporalProfiles
+        :param tasks:
+        :param runAsync:
+        :return: [list-of-updated TemporalProfiles], empty if runAsyn
+        """
+        dump = pickle.dumps(tasks)
+        if runAsync:
+            qgsTask = QgsTask.fromFunction('Load Profiles', doLoadTemporalProfileTasks, dump,
+                                           on_finished=self.onPixelLoaded)
+        else:
+            qgsTask = TaskMock()
 
+        tid = id(qgsTask)
+        qgsTask.progressChanged.connect(self.onLoadingProgressChanged)
+        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        self.mTasks[tid] = qgsTask
+
+        if runAsync:
+            tm = QgsApplication.taskManager()
+            assert isinstance(tm, QgsTaskManager)
+            tm.addTask(qgsTask, 1000)
+            return []
+        else:
+            return self.onPixelLoaded(qgsTask, doLoadTemporalProfileTasks(qgsTask, dump))
+
+    def onRemoveTask(self, tid):
+        if tid in self.mTasks.keys():
+            del self.mTasks[tid]
 
     @QtCore.pyqtSlot()
     def onDataUpdate(self):

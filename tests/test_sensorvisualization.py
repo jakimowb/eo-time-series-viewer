@@ -19,7 +19,7 @@ class TestInit(unittest.TestCase):
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 
@@ -67,7 +67,7 @@ class TestInit(unittest.TestCase):
         model = SensorListModel(TS)
         self.assertTrue(model.rowCount() == 0)
 
-        TS.addSources(pathes)
+        TS.addSources(pathes, runAsync=False)
         self.assertTrue(len(TS) == len(pathes))
 
         self.assertTrue(model.rowCount() == 2)

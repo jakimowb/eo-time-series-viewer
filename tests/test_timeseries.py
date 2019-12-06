@@ -15,12 +15,19 @@ QAPP = initQgisApplication()
 
 SHOW_GUI = False and os.environ.get('CI') is None
 
+import eotimeseriesviewer.settings
+
+s = eotimeseriesviewer.settings.settings()
+s.clear()
+s.sync()
+s = ""
+
 class TestInit(unittest.TestCase):
 
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 
@@ -158,7 +165,6 @@ class TestInit(unittest.TestCase):
             self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
             self.assertIsInstance(tss, TimeSeriesSource)
 
-
             if not isinstance(ref, TimeSeriesSource):
                 ref = tss
             else:
@@ -259,7 +265,7 @@ class TestInit(unittest.TestCase):
         w.show()
 
         TS = TimeSeries()
-        TS.addSourcesAsync(files, nWorkers=1)
+        TS.addSources(files, nWorkers=1)
 
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
             QCoreApplication.processEvents()
@@ -352,6 +358,9 @@ class TestInit(unittest.TestCase):
             ds = gdal.Open(p)
             self.assertIsInstance(ds, gdal.Dataset)
             band = ds.GetRasterBand(1)
+
+
+
             self.assertIsInstance(band, gdal.Band)
 
 

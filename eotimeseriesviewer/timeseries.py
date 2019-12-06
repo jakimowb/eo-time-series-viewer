@@ -33,6 +33,7 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 
+DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
 LUT_WAVELENGTH_UNITS = {}
 for siUnit in [r'nm', r'μm', r'mm', r'cm', r'dm']:
@@ -46,8 +47,9 @@ LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
 
 
 from osgeo import gdal
+from eotimeseriesviewer import LOG_MESSAGE_TAG
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
-from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo
+from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo, geo2px, SpatialPoint
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
@@ -114,7 +116,7 @@ def getDS(pathOrDataset)->gdal.Dataset:
 
 
 
-def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str)->str:
+def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str, name:str)->str:
     """
     Create a sensor ID
     :param nb: number of bands
@@ -136,7 +138,10 @@ def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str)
     if wlu != None:
         assert isinstance(wlu, str)
 
-    return json.dumps((nb, px_size_x, px_size_y, dt, wl, wlu))
+    if name != None:
+        assert isinstance(name, str)
+
+    return json.dumps((nb, px_size_x, px_size_y, dt, wl, wlu, name))
 
 def sensorIDtoProperties(idString:str)->tuple:
     """
@@ -144,17 +149,24 @@ def sensorIDtoProperties(idString:str)->tuple:
     :param idString: str
     :return: (ns, px_size_x, px_size_y, [wl], wlu)
     """
-    nb, px_size_x, px_size_y, dt, wl, wlu = json.loads(idString)
+    try:
+        nb, px_size_x, px_size_y, dt, wl, wlu, name = json.loads(idString)
+    except ValueError as ex:
+        if ex.args[0] == 'not enough values to unpack (expected 7, got 6)':
+            nb, px_size_x, px_size_y, dt, wl, wlu = json.loads(idString)
+            name = None
+
     assert isinstance(dt, int) and dt >= 0
     assert isinstance(nb, int)
-    assert isinstance(px_size_x, (int,float)) and px_size_x > 0
+    assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
     if wl != None:
         assert isinstance(wl, list)
     if wlu != None:
         assert isinstance(wlu, str)
-
-    return nb, px_size_x, px_size_y, dt, wl, wlu
+    if name != None:
+        assert isinstance(name, str)
+    return nb, px_size_x, px_size_y, dt, wl, wlu, name
 
 
 class SensorInstrument(QObject):
@@ -173,12 +185,18 @@ class SensorInstrument(QObject):
                             'swIR2': 2150
                             })
 
-    def __init__(self, sid:str, sensor_name:str=None, band_names:list = None):
+    def __init__(self, sid:str, band_names:list = None):
         super(SensorInstrument, self).__init__()
 
         self.mId = sid
-
-        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu = sensorIDtoProperties(self.mId)
+        self.nb:int
+        self.px_size_x:float
+        self.px_size_y:float
+        self.dataType:int
+        self.wl:list
+        self.wlu:str
+        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu,  self.mNameOriginal = sensorIDtoProperties(self.mId)
+        self.mName = ''
 
         if not isinstance(band_names, list):
             band_names = ['Band {}'.format(b+1) for b in range(self.nb)]
@@ -191,13 +209,17 @@ class SensorInstrument(QObject):
         else:
             self.wl = np.asarray(self.wl)
 
-        if sensor_name is None:
-            from eotimeseriesviewer.settings import value, Keys
-            sensorNames = value(Keys.SensorNames)
-            sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
 
-        self.mName = ''
-        self.setName(sensor_name)
+
+        if self.mNameOriginal in [None, '']:
+            from eotimeseriesviewer.settings import sensorName
+            sensor_name = sensorName(sid)
+            if sensor_name is None:
+                sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
+            self.setName(sensor_name)
+        else:
+            self.setName(self.mNameOriginal)
+
 
         self.hashvalue = hash(self.mId)
 
@@ -205,6 +227,14 @@ class SensorInstrument(QObject):
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
+        if self.wl is not None:
+            self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
+        if self.wlu is not None:
+            self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
+        self.mMockupDS.FlushCache()
+        s = ""
+
+
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
         """
@@ -251,14 +281,12 @@ class SensorInstrument(QObject):
         Sets the sensor/product name
         :param name: str
         """
+
         if name != self.mName:
+            assert isinstance(name, str)
             self.mName = name
-            from eotimeseriesviewer.settings import Keys, value, setValue
-
-            sensorNames = value(Keys.SensorNames)
-            sensorNames[self.id()] = name
-            setValue(Keys.SensorNames, sensorNames)
-
+            from eotimeseriesviewer.settings import saveSensorName
+            saveSensorName(self)
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
@@ -377,6 +405,7 @@ class TimeSeriesSource(object):
 
             if provider == 'gdal':
                 ds = gdal.Open(lyr.source())
+                s = ""
             elif provider == 'wcs':
                 parts = urllib.parse.parse_qs(lyr.source())
                 url = re.search(r'^[^?]+', parts['url'][0]).group()
@@ -397,11 +426,12 @@ class TimeSeriesSource(object):
 
         elif isinstance(source, str):
             ds = gdal.Open(source)
+            s = ""
 
         elif isinstance(source, gdal.Dataset):
             ds = source
 
-        else:
+        if not isinstance(ds, gdal.Dataset):
             raise Exception('Unsupported source: {}'.format(source))
 
         return TimeSeriesSource(ds)
@@ -410,7 +440,6 @@ class TimeSeriesSource(object):
 
         self.mUri = None
         self.mDrv = None
-        self.mGT = None
         self.mWKT = None
         self.mCRS = None
         self.mWL = None
@@ -449,9 +478,14 @@ class TimeSeriesSource(object):
             self.mWKT = dataset.GetProjection()
             if self.mWKT == '':
                 # no CRS? try with QGIS API
-                lyr = QgsRasterLayer(self.mUri)
+                loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+                lyr = QgsRasterLayer(self.mUri, options=loptions)
                 if lyr.crs().isValid():
                     self.mWKT = lyr.crs().toWkt()
+
+            if self.mWKT == '':
+                # default to WGS-84 lat lon
+                self.mWKT = str(DEFAULT_WKT)
 
             self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
 
@@ -459,7 +493,9 @@ class TimeSeriesSource(object):
             px_y = float(abs(self.mGeoTransform[5]))
             self.mGSD = (px_x, px_y)
             self.mDataType = dataset.GetRasterBand(1).DataType
-            self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU)
+
+            sName = sensorName(dataset)
+            self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
 
 
             self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
@@ -504,6 +540,7 @@ class TimeSeriesSource(object):
         self.mUL = QgsPointXY(QgsGeometry.fromWkt(self.mUL).asPoint())
         self.mLR = QgsPointXY(QgsGeometry.fromWkt(self.mLR).asPoint())
         self.mDate = np.datetime64(self.mDate)
+        self.mSpatialExtent = None
 
     def __getstate__(self):
 
@@ -546,6 +583,30 @@ class TimeSeriesSource(object):
         uri.layerType = 'raster'
         return uri
 
+    def asRasterLayer(self)->QgsRasterLayer:
+        return QgsRasterLayer(self.uri(), self.name(), 'gdal')
+
+    def pixelCoordinate(self, geometry)->QPoint:
+        """
+
+        :param QgsGeometry | QgsPoint | SpatialPoint:
+        :return: QPoint, if coordinate interects with source raster, None else
+        """
+
+        if isinstance(geometry, QgsGeometry):
+            geometry = geometry.asPoint()
+        if isinstance(geometry, QgsPoint):
+            geometry = QgsPointXY(geometry.x(), geometry.y())
+        if isinstance(geometry, SpatialPoint):
+            geometry = geometry.toCrs(self.crs())
+        assert isinstance(geometry, QgsPointXY)
+        px = geo2px(geometry, self.mGeoTransform)
+        assert isinstance(px, QPoint)
+
+        if px.x() < 0 or px.y() < 0 or px.x() >= self.ns or px.y() > self.nl:
+            return None
+        return px
+
     def sid(self)->str:
         """
         Returns the sensor id
@@ -574,7 +635,9 @@ class TimeSeriesSource(object):
         return self.mCRS
 
     def spatialExtent(self)->SpatialExtent:
-        return SpatialExtent(self.mCRS, self.mUL, self.mLR)
+        if not isinstance(self.mSpatialExtent, SpatialExtent):
+            self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
+        return self.mSpatialExtent
 
     def __eq__(self, other):
         if not isinstance(other, TimeSeriesSource):
@@ -584,7 +647,7 @@ class TimeSeriesSource(object):
 
 class TimeSeriesDate(QAbstractTableModel):
     """
-    A containe to store all image source related to a single observation date and sensor.
+    A container to store all source images related to a single observation date and sensor.
     """
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
@@ -676,7 +739,7 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mSensor
 
-    def sources(self)->list:
+    def sources(self)->typing.List[TimeSeriesSource]:
         """
         Returns the source images
         :return: [list-of-TimeSeriesSource]
@@ -684,7 +747,7 @@ class TimeSeriesDate(QAbstractTableModel):
         return self.mSources
 
 
-    def sourceUris(self)->list:
+    def sourceUris(self)->typing.List[str]:
         """
         Returns all source URIs  as list of strings-
         :return: [list-of-str]
@@ -988,23 +1051,39 @@ class DateTimePrecision(enum.Enum):
     Milisecond = 'ms'
     Original = 0
 
+class SensorMatching(enum.Enum):
+    """
+    Describes when two different sources should be considered to be from the same sensor
+    """
+    DIMS = 'Image Dimensions only'
+    DIMS_WL = 'Image Dimensions + Wavelength'
+    DIMS_Name = 'Image Dimensions + Name'
+    DIMS_WL_Name = 'Image Dimensions + Wavelength + Name'
 
-def doLoadTimeSeriesSourcesTask(taskWrapper:QgsTask, dump):
+
+def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
 
     sources = pickle.loads(dump)
-    assert isinstance(taskWrapper, QgsTask)
+    assert isinstance(qgsTask, QgsTask)
 
     results = []
+    invalidSources = list()
     n = len(sources)
     for i, source in enumerate(sources):
-        if taskWrapper.isCanceled():
+        if qgsTask.isCanceled():
             return pickle.dumps(results)
-        s = TimeSeriesSource.create(source)
-        if isinstance(s, TimeSeriesSource):
-            results.append(s)
-        taskWrapper.setProgress(i+1)
-    return pickle.dumps(results)
-    s = ""
+
+        try:
+            tss = TimeSeriesSource.create(source)
+            assert isinstance(tss, TimeSeriesSource)
+            results.append(tss)
+        except Exception as ex:
+            invalidSources.append((source, ex))
+
+        qgsTask.setProgress(i + 1)
+
+    return pickle.dumps(results), pickle.dumps(invalidSources)
+
 
 class TimeSeries(QAbstractItemModel):
     """
@@ -1029,10 +1108,12 @@ class TimeSeries(QAbstractItemModel):
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None
+
         self.mDateTimePrecision = DateTimePrecision.Original
+        self.mProductSimilarity = SensorMatching.DIMS
 
         self.mLoadingProgressDialog = None
-
+        self.mLUT_Path2TSD = {}
         self.mVisibleDate = []
         self.mCurrentSpatialExtent = None
 
@@ -1060,8 +1141,13 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self):
-        ext = self.currentSpatialExtent()
+    def focusVisibilityToExtent(self, ext:SpatialExtent=None):
+        """
+        Changes TSDs visibility according to its intersection with a SpatialExtent
+        :param ext: SpatialExtent
+        """
+        if ext is None:
+            ext = self.currentSpatialExtent()
         if isinstance(ext, SpatialExtent):
             changed = False
             for tsd in self:
@@ -1099,6 +1185,39 @@ class TimeSeries(QAbstractItemModel):
                 idx2 = self.index(idx.row(), self.columnCount()-1)
                 self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
+    def findMatchingSensor(self, sensorID:str)->SensorInstrument:
+        if isinstance(sensorID, str):
+            nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+
+        else:
+            assert isinstance(sensorID, tuple) and len(sensorID) == 7
+            nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorID
+
+        DIMS = (nb, px_size_y, px_size_x, dt)
+        for sensor in self.sensors():
+            DIMS2 = (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType)
+
+            bName = sensor.mNameOriginal == name
+            bWL = wlu == sensor.wlu and np.array_equal(wl, sensor.wl)
+
+            if DIMS != DIMS2:
+                # self.mProductSimilarity == SensorMatching.DIMS:
+                continue
+
+            if self.mProductSimilarity == SensorMatching.DIMS:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_Name and bName:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_WL and bWL:
+                return sensor
+
+            elif self.mProductSimilarity == SensorMatching.DIMS_WL_Name and bName and bWL:
+                return sensor
+
+        return None
+
     def sensor(self, sensorID:str)->SensorInstrument:
         """
         Returns the sensor with sid = sid
@@ -1106,21 +1225,26 @@ class TimeSeries(QAbstractItemModel):
         :return: SensorInstrument
         """
         assert isinstance(sensorID, str)
-        for sensor in self.mSensors:
-            assert isinstance(sensor, SensorInstrument)
-            if sensor.id() == sensorID:
+
+        nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+
+        for sensor in self.sensors():
+            if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu,
+                sensor.mNameOriginal) == (
+                    nb, px_size_y, px_size_x, dt, wl, wlu, name):
                 return sensor
+
         return None
 
 
-    def sensors(self)->list:
+    def sensors(self)->typing.List[SensorInstrument]:
         """
         Returns the list of sensors derived from the TimeSeries data sources
         :return: [list-of-SensorInstruments]
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None):
+    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None, runAsync=True):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -1151,7 +1275,7 @@ class TimeSeries(QAbstractItemModel):
             progressDialog.setValue(0)
             progressDialog.setLabelText('Start loading {} images....'.format(len(images)))
 
-        self.addSourcesAsync(images, progressDialog=progressDialog)
+        self.addSources(images, progressDialog=progressDialog, runAsync=runAsync)
 
     def saveToFile(self, path):
         """
@@ -1214,10 +1338,14 @@ class TimeSeries(QAbstractItemModel):
         :param pathOfInterest: str, image source uri
         :return: TimeSeriesDate
         """
-        for tsd in self.mTSDs:
-            assert isinstance(tsd, TimeSeriesDate)
-            if pathOfInterest in tsd.sourceUris():
-                return tsd
+        tsd = self.mLUT_Path2TSD.get(pathOfInterest)
+        if isinstance(tsd, TimeSeriesDate):
+            return tsd
+        else:
+            for tsd in self.mTSDs:
+                assert isinstance(tsd, TimeSeriesDate)
+                if pathOfInterest in tsd.sourceUris():
+                    return tsd
         return None
 
     def tsd(self, date: np.datetime64, sensor)->TimeSeriesDate:
@@ -1306,7 +1434,7 @@ class TimeSeries(QAbstractItemModel):
             if isinstance(t, TimeSeriesSource):
                 toRemove.add(t.timeSeriesDate())
 
-        for tsd in list(toRemove):
+        for tsd in list(sorted(list(toRemove), reverse=True)):
 
             assert isinstance(tsd, TimeSeriesDate)
 
@@ -1322,6 +1450,11 @@ class TimeSeries(QAbstractItemModel):
             self.endRemoveRows()
 
         if len(removed) > 0:
+            pathsToRemove = [path for path, tsd in self.mLUT_Path2TSD.items() if tsd in removed]
+            for path in pathsToRemove:
+                self.mLUT_Path2TSD.pop(path)
+
+            self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
     def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->list:
@@ -1385,7 +1518,14 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
-    def addSourcesAsync(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None):
+    def addSources(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
+        """
+        Adds source images to the TimeSeries
+        :param sources: list of source images, e.g. a list of file paths
+        :param nWorkers: not used yet
+        :param progressDialog: QProgressDialog
+        :param runAsync: bool
+        """
 
         tm = QgsApplication.taskManager()
         assert isinstance(tm, QgsTaskManager)
@@ -1394,49 +1534,35 @@ class TimeSeries(QAbstractItemModel):
         self.mLoadingProgressDialog = progressDialog
 
 
-        if True:
-            n = len(sources)
-            taskDescription = 'Load {} images'.format(n)
-            dump = pickle.dumps(sources)
+        n = len(sources)
+        taskDescription = 'Load {} images'.format(n)
+        dump = pickle.dumps(sources)
+
+
+        if runAsync:
             qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump,
                                 on_finished = self.onAddSourcesAsyncFinished)
-            tid = id(qgsTask)
-            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            self.mTasks[tid] = qgsTask
-
-            if False:  # for debugging only
-                resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
-                self.onAddSourcesAsyncFinished(None, resultDump)
-            else:
-                tm.addTask(qgsTask)
-
         else:
-            # see https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+            from .utils import TaskMock
+            qgsTask = TaskMock()
 
-            def chunks(l, n):
-                """Yield successive n-sized chunks from l."""
-                for i in range(0, len(l), n):
-                    yield l[i:i + n]
+        tid = id(qgsTask)
+        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        if isinstance(progressDialog, QProgressDialog):
+            qgsTask.progressChanged.connect(progressDialog.setValue)
+            progressDialog.setLabelText('Read images')
+            progressDialog.setRange(0, n)
+            progressDialog.setValue(0)
 
-            n = int(len(sources) / nWorkers)
-            for subset in chunks(sources, 50):
+        self.mTasks[tid] = qgsTask
 
-                dump = pickle.dumps(subset)
-
-                taskDescription = 'Load {} images'.format(len(subset))
-                qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump, on_finished=self.onAddSourcesAsyncFinished)
-                tid = id(qgsTask)
-                self.mTasks[tid] = qgsTask
-                qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-                qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-
-                if False: # for debugging only
-                    resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
-                    self.onAddSourcesAsyncFinished(None, resultDump)
-                else:
-                    tm.addTask(qgsTask)
-        s  = ""
+        if runAsync:
+            tm.addTask(qgsTask)
+        else:
+            # for debugging only
+            resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
+            self.onAddSourcesAsyncFinished(None, resultDump)
 
     def onRemoveTask(self, key):
         self.mTasks.pop(key)
@@ -1444,21 +1570,40 @@ class TimeSeries(QAbstractItemModel):
     def onAddSourcesAsyncFinished(self, *args):
         # print(':: onAddSourcesAsyncFinished')
         error = args[0]
+
+        hasProgressDialog = isinstance(self.mLoadingProgressDialog, QProgressDialog)
+
         if error is None:
             try:
-                addedDates = []
-                dump = args[1]
-                sources = pickle.loads(dump)
-                for source in sources:
-                    if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-                        self.increaseProgressBar()
 
-                    newTSD = self._addSource(source)
-                    if isinstance(newTSD, TimeSeriesDate):
-                        addedDates.append(newTSD)
+                sources, invalidSources = args[1]
+                sources = pickle.loads(sources)
+                invalidSources = pickle.loads(invalidSources)
 
-                if len(addedDates) > 0:
-                    self.sigTimeSeriesDatesAdded.emit(addedDates)
+                if len(invalidSources) > 0:
+                    info = ['Unable to load {} data source(s):'.format(len(invalidSources))]
+                    for s, ex in invalidSources:
+                        info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
+                    info = '\n'.join(info)
+                    messageLog(info, Qgis.Critical)
+
+                if len(sources) > 0:
+                    addedDates = []
+                    if hasProgressDialog:
+                        self.mLoadingProgressDialog.setLabelText('Add Images')
+                        self.mLoadingProgressDialog.setRange(0, len(sources))
+                        self.mLoadingProgressDialog.setValue(0)
+
+                    for i, source in enumerate(sources):
+                        newTSD = self._addSource(source)
+                        if isinstance(newTSD, TimeSeriesDate):
+                            addedDates.append(newTSD)
+
+                        if hasProgressDialog:
+                            self.mLoadingProgressDialog.setValue(i+1)
+
+                    if len(addedDates) > 0:
+                        self.sigTimeSeriesDatesAdded.emit(addedDates)
 
             except Exception as ex:
                 import traceback
@@ -1468,57 +1613,8 @@ class TimeSeries(QAbstractItemModel):
             s = ""
 
         if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-            if self.mLoadingProgressDialog.wasCanceled() or self.mLoadingProgressDialog.value() == -1:
-                self.mLoadingProgressDialog = None
-
-    def increaseProgressBar(self):
-        if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-            v = self.mLoadingProgressDialog.value() + 1
-            self.mLoadingProgressDialog.setValue(v)
-            self.mLoadingProgressDialog.setLabelText('{}/{}'.format(v, self.mLoadingProgressDialog.maximum()))
-
-            if v == 1 or v % 25 == 0:
-                QApplication.processEvents()
-
-    def addSources(self, sources:list, progressDialog:QProgressDialog=None):
-        """
-        Adds new data sources to the TimeSeries
-        :param sources: [list-of-TimeSeriesSources]
-        """
-        assert isinstance(sources, list)
-        self.mLoadingProgressDialog = progressDialog
-        nMax = len(sources)
-        # 1. read sources
-        # this could be excluded into a parallel process
-        addedDates = []
-        for i, source in enumerate(sources):
-            newTSD = None
-            msg = None
-            if False: #debug
-                newTSD = self._addSource(source)
-            else:
-                try:
-                    newTSD = self._addSource(source)
-                except Exception as ex:
-                    msg = 'Unable to add: {}\n{}'.format(str(source), str(ex))
-                    print(msg, file=sys.stderr)
-
-            if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-                if self.mLoadingProgressDialog.wasCanceled():
-                    break
-                self.increaseProgressBar()
-
-            if isinstance(newTSD, TimeSeriesDate):
-                addedDates.append(newTSD)
-
-        #if len(addedDates) > 0:
-
-        if isinstance(progressDialog, QProgressDialog):
-            progressDialog.setLabelText('Create map widgets...')
-
-        if len(addedDates) > 0:
-            self.sigTimeSeriesDatesAdded.emit(addedDates)
-        self.mLoadingProgressDialog = None
+            self.mLoadingProgressDialog.hide()
+            self.mLoadingProgressDialog = None
 
 
     def _addSource(self, source:TimeSeriesSource)->TimeSeriesDate:
@@ -1538,20 +1634,31 @@ class TimeSeries(QAbstractItemModel):
         tsdDate = self.date2date(tss.date())
         tssDate = tss.date()
         sid = tss.sid()
-        sensor = self.sensor(sid)
+
+
+        sensor = self.findMatchingSensor(sid)
+
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = self.addSensor(SensorInstrument(sid))
+
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsdDate, sensor)
+
         # if necessary, add a new TimeSeriesDate instance
         if not isinstance(tsd, TimeSeriesDate):
             tsd = self.insertTSD(TimeSeriesDate(self, tsdDate, sensor))
             newTSD = tsd
             # addedDates.append(tsd)
         assert isinstance(tsd, TimeSeriesDate)
+
+        # ensure that the source refers to the sensor ID of the linked sensor (which might be different from its orginal sensor id)
+        tss.mSid = sensor.id()
+
         # add the source
+
         tsd.addSource(tss)
+        self.mLUT_Path2TSD[tss.uri()] = tsd
         return newTSD
 
     def setDateTimePrecision(self, mode:DateTimePrecision):
@@ -1563,6 +1670,15 @@ class TimeSeries(QAbstractItemModel):
         self.mDateTimePrecision = mode
 
         #do we like to update existing sources?
+
+    def setSensorMatching(self, mode:SensorMatching):
+        """
+        Sets the mode under which two source images can be considered as to be from the same sensor/product
+        :param mode:
+        :return:
+        """
+        assert isinstance(mode, SensorMatching)
+        self.mProductSimilarity = mode
 
 
     def date2date(self, date:np.datetime64)->np.datetime64:
@@ -1605,7 +1721,7 @@ class TimeSeries(QAbstractItemModel):
     def __len__(self):
         return len(self.mTSDs)
 
-    def __iter__(self):
+    def __iter__(self)->typing.Iterator[TimeSeriesDate]:
         return iter(self.mTSDs)
 
     def __getitem__(self, slice):
@@ -1867,7 +1983,7 @@ class TimeSeries(QAbstractItemModel):
 
     def findDate(self, date)->TimeSeriesDate:
         """
-        Returns a TimeSeriesDate closes to that in date
+        Returns a TimeSeriesDate closest to that in date
         :param date: numpy.datetime64 | str | TimeSeriesDate
         :return: TimeSeriesDate
         """
@@ -1894,6 +2010,43 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(index.internalPointer(), TimeSeriesDate) and index.column() == 0:
             flags = flags | Qt.ItemIsUserCheckable
         return flags
+
+regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type|product[ _]?type)', re.IGNORECASE)
+#regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type)', re.IGNORECASE)
+
+def sensorName(dataset:gdal.Dataset)->str:
+    """
+    Reads the sensor/product name. Returns None if a proper name can not be extracted.
+    :param dataset: gdal.Dataset
+    :return: str
+    """
+    assert isinstance(dataset, gdal.Dataset)
+    domains = dataset.GetMetadataDomainList()
+    if isinstance(domains, list):
+        for domain in domains:
+            md = dataset.GetMetadata_Dict(domain)
+            if isinstance(md, dict):
+                for key, value in md.items():
+                    if regSensorName.search(key):
+                        return str(value)
+
+    for b in range(dataset.RasterCount):
+        band = dataset.GetRasterBand(b+1)
+        if isinstance(band, gdal.Band):
+            domains = band.GetMetadataDomainList()
+            if isinstance(domains, list):
+                for domain in domains:
+                    md = band.GetMetadata_Dict(domain)
+                    if isinstance(md, dict):
+                        for key, value in md.items():
+                            if regSensorName.search(key):
+                                return str(value)
+
+    return None
+
+
+
+
 
 def getSpatialPropertiesFromDataset(ds):
     assert isinstance(ds, gdal.Dataset)
@@ -1931,14 +2084,27 @@ def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
     for b in range(ds.RasterCount):
         band = ds.GetRasterBand(b + 1)
         assert isinstance(band, gdal.Band)
-        md = band.GetMetadata_Dict()
+        domains = band.GetMetadataDomainList()
+        if not isinstance(domains, list):
+            continue
+        for domain in domains:
+            md = band.GetMetadata_Dict(domain)
 
-        keyWLU = findKey(md, regWLUkey)
-        keyWL = findKey(md, regWLkey)
+            keyWLU = findKey(md, regWLUkey)
+            keyWL = findKey(md, regWLkey)
 
-        if isinstance(keyWL, str) and isinstance(keyWLU, str):
-            wl.append(float(md[keyWL]))
-            wlu.append(LUT_WAVELENGTH_UNITS[md[keyWLU].lower()])
+            if isinstance(keyWL, str) and isinstance(keyWLU, str):
+
+                valueWL = float(md[keyWL])
+                valueWLU = str(md[keyWLU]).lower()
+
+                if valueWL > 0:
+                    wl.append(valueWL)
+
+                if valueWLU in LUT_WAVELENGTH_UNITS.keys():
+                    wlu.append(LUT_WAVELENGTH_UNITS[valueWLU])
+
+                break
 
     if len(wlu) == len(wl) and len(wl) == ds.RasterCount:
         return wl, wlu[0]
@@ -1977,7 +2143,7 @@ def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument)->(list,
               0.5 * (520 + 590),
               0.5 * (630 + 685),
               0.5 * (760 + 850),
-              0.5 * (760 - 850)
+              0.5 * (760 + 850)
               ]
         return wl, wlu
     return None, None

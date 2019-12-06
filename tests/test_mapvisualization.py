@@ -34,7 +34,7 @@ QGIS_APP = initQgisApplication(loadProcessingFramework=False)
 from eotimeseriesviewer import initResources
 initResources()
 
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 
 def getChildElements(node):
@@ -390,109 +390,22 @@ class testclassMapVisualization(unittest.TestCase):
 
             rClone = r1.clone()
             self.assertTrue(type(r1), type(rClone))
-            xmlClone =  rendererToXml(rClone)
+            xmlClone = rendererToXml(rClone)
             self.assertIsInstance(xmlClone, QDomDocument)
 
             similar = compareXML(xml1.firstChild(), xml2.firstChild())
             self.assertTrue(similar)
-
-
-
-
-
+            del rClone, xmlClone
 
         for path in styleFiles:
             with open(path, encoding='utf8') as f:
                 xml = ''.join(f.readlines())
-
-
                 renderer = rendererFromXml(xml)
                 self.assertTrue(renderer != None)
-
-        s  =""
-
+                self.assertIsInstance(renderer, (QgsRasterRenderer, QgsFeatureRenderer))
 
 
-
-    def test_spatialTemporalVisualization(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
-
-        TSV = TimeSeriesViewer()
-        TSV.loadExampleTimeSeries()
-        TSV.show()
-
-        SV = TSV.spatialTemporalVis
-        self.assertIsInstance(SV, SpatialTemporalVisualization)
-        QApplication.processEvents()
-        # TSV.createMapView()
-
-        import time
-        time.sleep(5)
-
-        SV.timedCanvasRefresh()
-
-
-        visibleCanvases = []
-        withLayers = []
-        empty = []
-        extent = None
-        for mapCanvas in SV.mapCanvases():
-            self.assertIsInstance(mapCanvas, MapCanvas)
-            self.assertIsInstance(mapCanvas.spatialExtent(), SpatialExtent)
-
-            if extent is None:
-                extent = mapCanvas.spatialExtent()
-            else:
-                self.assertTrue(mapCanvas.spatialExtent() == extent)
-
-            if len(mapCanvas.layers()) == 0:
-                empty.append(mapCanvas)
-            else:
-                withLayers.append(mapCanvas)
-
-        if True:
-            QGIS_APP.exec_()
-
-        self.assertTrue(len(withLayers) > 0)
-        self.assertTrue(len(empty) > 0)
-
-        # shift spatial extent
-        extent2 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x()-100, extent.center().y()))
-        SV.setSpatialExtent(extent2)
-        SV.timedCanvasRefresh()
-        for mapCanvas in SV.mapCanvases():
-            self.assertIsInstance(mapCanvas, MapCanvas)
-            if mapCanvas.isVisibleToViewport():
-                self.assertTrue(mapCanvas.spatialExtent() == extent2)
-
-
-        # shift spatial extent of single map canvas
-        extent3 = extent.setCenter(SpatialPoint(extent.crs(), extent.center().x() + 100, extent.center().y()))
-        canvas = SV.mapCanvases()[0]
-        self.assertIsInstance(canvas, MapCanvas)
-        canvas.setSpatialExtent(extent3)
-        SV.timedCanvasRefresh()
-        for mapCanvas in SV.mapCanvases():
-            if mapCanvas.isVisibleToViewport():
-                self.assertTrue(mapCanvas.spatialExtent() == extent3)
-
-        # test map render changes
-        for canvas in SV.mapCanvases():
-            self.assertIsInstance(canvas, MapCanvas)
-            menu = canvas.contextMenu()
-            self.assertIsInstance(menu, QMenu)
-            if canvas.isVisibleToViewport():
-
-                for action in menu.findChildren(QAction):
-                    self.assertIsInstance(action, QAction)
-                    text = action.text()
-                    if text in ['', 'Style', 'PNG', 'JPEG']:
-                        # skip menu / blocking dialog options
-                        continue
-                    else:
-                        print('Test QAction "{}"'.format(action.text()))
-                        action.trigger()
-                break
-        s = ""
-
+if __name__ == '__main__':
+    os.environ['CI'] = True
+    unittest.main()
 

@@ -56,7 +56,7 @@ class ClipboardIO(AbstractSpectralLibraryIO):
         return False
 
     @staticmethod
-    def readFrom(path=None):
+    def readFrom(path=None, progressDialog:QProgressDialog=None):
         clipboard = QApplication.clipboard()
         mimeData = clipboard.mimeData()
         assert isinstance(mimeData, QMimeData)
@@ -70,7 +70,7 @@ class ClipboardIO(AbstractSpectralLibraryIO):
         return SpectralLibrary()
 
     @staticmethod
-    def write(speclib, path=None, mode=None, sep=None, newline=None):
+    def write(speclib, path=None, mode=None, sep=None, newline=None, progressDialog:QProgressDialog):
         if mode is None:
             mode = ClipboardIO.WritingModes.ALL
         assert isinstance(speclib, SpectralLibrary)

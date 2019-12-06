@@ -148,10 +148,35 @@ class PixelLoaderTest(unittest.TestCase):
         if os.path.isfile(p):
             lyr = QgsRasterLayer(p)
             task = PixelLoaderTask(p, [SpatialPoint.fromMapLayerCenter(lyr)])
+            from eotimeseriesviewer.utils import TaskMock
+            result = doLoaderTask(TaskMock(), task.toDump())
 
-            result = doLoaderTask(None, task.toDump())
 
             s = ""
+
+    def test_pixelLoader_OOImg(self):
+
+        from eotimeseriesviewer.utils import TaskMock
+        from eotimeseriesviewer.pixelloader import PixelLoaderTask, doLoaderTask
+
+        if os.path.isfile(path):
+            crs = QgsCoordinateReferenceSystem('EPSG:4326')
+            pt = SpatialPoint(crs, -55.41314771195199995, -6.92449242268311593)
+
+            lyr = QgsRasterLayer(path)
+            ext = lyr.extent()
+            pt2 = pt.toCrs(lyr.crs())
+
+
+
+            task = PixelLoaderTask(path, [p])
+            result = doLoaderTask(TaskMock(), task.toDump())
+
+            s = ""
+
+
+            PixelLoaderTask()
+
 
     def test_pixelLoader(self):
         from eotimeseriesviewer.pixelloader import doLoaderTask, PixelLoaderTask, INFO_OUT_OF_IMAGE, INFO_NO_DATA
@@ -186,8 +211,8 @@ class PixelLoaderTest(unittest.TestCase):
 
             self.assertIsInstance(result, PixelLoaderTask)
             self.assertTrue(result.success())
-            self.assertEqual(result.sourcePath, source)
-            self.assertSequenceEqual(result.bandIndices, [0,1,2,3,4,5])
+            self.assertEqual(result.mSourcePath, source)
+            self.assertSequenceEqual(result.mBandIndices, [0, 1, 2, 3, 4, 5])
             self.assertIs(result.exception, None)
 
 

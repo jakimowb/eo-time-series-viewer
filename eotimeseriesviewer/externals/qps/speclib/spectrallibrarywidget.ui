@@ -60,23 +60,6 @@
        <property name="acceptDrops">
         <bool>true</bool>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <property name="spacing">
-         <number>2</number>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="rightMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-       </layout>
       </widget>
      </widget>
     </item>
@@ -94,7 +77,8 @@
    </attribute>
    <addaction name="actionSelectProfilesFromMap"/>
    <addaction name="actionAddProfiles"/>
-   <addaction name="actionSaveSpeclib"/>
+   <addaction name="actionImportSpeclib"/>
+   <addaction name="actionExportSpeclib"/>
   </widget>
   <widget class="QToolBar" name="toolBarFeatureSelections">
    <property name="windowTitle">
@@ -135,7 +119,7 @@
   </widget>
   <widget class="QStatusBar" name="mStatusBar">
    <property name="sizeGripEnabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
   </widget>
   <action name="actionImportSpeclib">
@@ -150,7 +134,7 @@
     <string>Import Spectral Library</string>
    </property>
   </action>
-  <action name="actionSaveSpeclib">
+  <action name="actionExportSpeclib">
    <property name="icon">
     <iconset resource="../qpsresources.qrc">
      <normaloff>:/qps/ui/icons/speclib_save.svg</normaloff>:/qps/ui/icons/speclib_save.svg</iconset>

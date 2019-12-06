@@ -21,9 +21,10 @@
 # noinspection PyPep8Naming
 
 
-__version__ = '1.7'  # sub-subversion number is added automatically
+__version__ = '1.10'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
+LOG_MESSAGE_TAG = TITLE
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
@@ -84,17 +85,13 @@ if not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
 
     UI_DIRECTORIES.append(DIR_UI)
 
-def messageLog(msg, level=None):
+def messageLog(msg, level=Qgis.Info):
     """
     Writes a log message to the QGIS EO TimeSeriesViewer log
     :param msg: log message string
     :param level: QgsMessageLog::MessageLevel with MessageLevel =[INFO |  ALL | WARNING | CRITICAL | NONE]
     """
-
-    if level is None:
-        level = Qgis.Warning
-
-        QgsApplication.instance().messageLog().logMessage(msg, 'EO TSV', level)
+    QgsApplication.instance().messageLog().logMessage(msg, LOG_MESSAGE_TAG, level)
 
 def initResources():
     """

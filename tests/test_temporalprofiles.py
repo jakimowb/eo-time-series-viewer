@@ -18,13 +18,13 @@ from qgis.gui import *
 from PyQt5.QtGui import QIcon
 import example.Images
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
-from eotimeseriesviewer.temporalprofiles2d import *
+from eotimeseriesviewer.temporalprofiles import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import initQgisApplication
 from osgeo import ogr, osr
 QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None and not os.environ.get('CI')
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassUtilityTests(unittest.TestCase):
     """Test temporal profiles"""
@@ -34,7 +34,8 @@ class testclassUtilityTests(unittest.TestCase):
         self.TS = TimeSeries()
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
-        self.TS.addSources(files)
+        self.TS.addSources(files, runAsync=False)
+        self.assertTrue(len(self.TS) > 0)
         self.dirTmp = tempfile.mkdtemp(prefix='EOTSV_Test')
 
     def tearDown(self):
@@ -56,6 +57,68 @@ class testclassUtilityTests(unittest.TestCase):
             self.assertIsInstance(p, TemporalProfile)
         return results
 
+    def test_loadTemporalProfiles(self):
+
+        center = self.TS.maxSpatialExtent().spatialCenter()
+
+        lyr = TemporalProfileLayer(self.TS)
+        tp1 = lyr.createTemporalProfiles(center)[0]
+        tp2 = lyr.createTemporalProfiles(center)[0]
+        tProfiles = [tp1, tp2]
+
+        tss = self.TS[0][0]
+        self.assertIsInstance(tss, TimeSeriesSource)
+
+        tasks = []
+        for tss in self.TS[0]:
+            tasks.append(TemporalProfileLoaderTask(tss, tProfiles))
+
+        self.lastProgress = -1
+        def onProgress(p):
+            self.lastProgress = p
+
+        qgsTask = TaskMock()
+        qgsTask.progressChanged.connect(onProgress)
+        dump = doLoadTemporalProfileTasks(qgsTask, pickle.dumps(tasks))
+        tasks = pickle.loads(dump)
+        self.assertIsInstance(tasks, list)
+
+
+        for task in tasks:
+            self.assertIsInstance(task, TemporalProfileLoaderTask)
+            self.assertTrue(len(task.mERRORS) > 0 or len(task.mRESULTS) > 0)
+            self.assertTrue(len(task.mRESULTS) == len(tProfiles))
+        self.assertAlmostEqual(self.lastProgress, 100)
+
+
+        tasks = []
+        bandIndices = [-12, 0, 4, 999]
+        tasks.append(TemporalProfileLoaderTask(tss, tProfiles, bandIndices=bandIndices))
+        dump = doLoadTemporalProfileTasks(qgsTask, pickle.dumps(tasks))
+        tasks = pickle.loads(dump)
+        self.assertIsInstance(tasks, list)
+        for task in tasks:
+            self.assertIsInstance(task, TemporalProfileLoaderTask)
+            self.assertTrue(task.mTSS, TimeSeriesSource)
+            for tpId, data in task.mRESULTS.items():
+                # check returned data
+                self.assertIsInstance(data, dict)
+                self.assertTrue('px_x' in data.keys())
+                self.assertTrue('px_y' in data.keys())
+
+                for idx in bandIndices:
+                    bandName = 'b{}'.format(idx+1)
+                    if idx < 0 or idx >= task.mTSS.nb - 1:
+                        self.assertTrue(bandName not in data.keys())
+                    else:
+                        self.assertTrue(bandName in data.keys())
+
+            self.assertTrue(len(task.mRESULTS) == len(tProfiles))
+
+
+        # todo: test-nodata values
+
+
     def test_createTemporalProfile(self):
 
         center = self.TS.maxSpatialExtent().spatialCenter()
@@ -63,9 +126,8 @@ class testclassUtilityTests(unittest.TestCase):
         lyr = TemporalProfileLayer(self.TS)
         tp = lyr.createTemporalProfiles(center)[0]
 
-
         self.assertIsInstance(tp, TemporalProfile)
-        tp.loadMissingData(False)
+        tp.loadMissingData()
         temporalProfiles = [tp]
         temporalProfiles.extend(lyr.createTemporalProfiles((SpatialPoint(center.crs(), center.x() - 50, center.y() + 50))))
 
@@ -118,7 +180,7 @@ class testclassUtilityTests(unittest.TestCase):
         self.assertEqual(tp, tp2)
 
         p = tempfile.mktemp('.shp', 'testtemporalprofiles')
-        writtenFiles = lyr1.saveTemporalProfiles(p, loadMissingValues=True)
+        writtenFiles = lyr1.saveTemporalProfiles(p)
         self.assertTrue(len(writtenFiles) == 2)
         for f in writtenFiles:
             self.assertTrue(os.path.isfile(f))
@@ -172,7 +234,7 @@ class testclassUtilityTests(unittest.TestCase):
             for sensor in self.TS.sensors():
                 self.assertIsInstance(sensor, SensorInstrument)
                 for expression in expressions:
-                    x , y = tp.dataFromExpression(sensor, expression)
+                    x, y = tp.dataFromExpression(sensor, expression)
                     self.assertIsInstance(x, list)
                     self.assertIsInstance(y, list)
                     self.assertEqual(len(x), len(y))

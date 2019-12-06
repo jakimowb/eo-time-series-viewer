@@ -41,7 +41,7 @@ import eotimeseriesviewer
 
 DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
-DIR_DOC_SOURCE = jp(DIR_REPO, *['doc','source'])
+DIR_DOC_SOURCE = jp(DIR_REPO, *['doc', 'source'])
 
 QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
@@ -127,7 +127,7 @@ class QGISMetadataFileWriter(object):
 
         self.mDescription = None
         self.mVersion = None
-        self.mQgisMinimumVersion = '3.4'
+        self.mQgisMinimumVersion = '3.8'
         self.mQgisMaximumVersion = '3.99'
         self.mAuthor = None
         self.mAbout = None
@@ -270,13 +270,16 @@ def build():
 
     if True:
         # 1. clean an existing directory = plugin folder
-        pb_tool.clean_deployment(ask_first=False)
+        try:
+            pb_tool.clean_deployment(ask_first=False)
+        except:
+            pass
 
         import make
         make.compileResourceFiles()
 
         # 3. Deploy = write the data to the new plugin folder
-        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, quick=True, confirm=False)
+        pb_tool.deploy_files(pathCfg, DIR_DEPLOY, 'default', quick=True, confirm=False)
 
         # 4. As long as we can not specify in the pb_tool.cfg which file types are not to deploy,
         # we need to remove them afterwards.
@@ -378,7 +381,7 @@ def updateInfoHTMLs():
     from eotimeseriesviewer import PATH_CHANGELOG
     from docutils.core import publish_string
 
-    urlIssueTracke = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
+    urlIssueTracker = r'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/'
 
     def readTextFile(path):
         with open(path, 'r', encoding='utf-8') as f:
@@ -402,7 +405,7 @@ def updateInfoHTMLs():
 
     # CHANGELOG -> CHANGELOG.html
     txt = readTextFile(PATH_CHANGELOG)
-    txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracke), txt)
+    txt = re.sub(r'(#(\d+))', r'`#\2 <{}\2>`_'.format(urlIssueTracker), txt)
 
     txt = publish_string(txt, writer_name='html').decode('utf-8')
 

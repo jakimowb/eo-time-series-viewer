@@ -108,7 +108,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
         menu = QMenu(view)
         isSensorGroup = isinstance(g, QgsLayerTreeGroup) and g.customProperty(KEY_SENSOR_GROUP) in [True, 'true']
-        isSensorLayer = isinstance(l, QgsRasterLayer) and l.customProperty(KEY_SENSOR_LAYER) in [True, 'true']
+
+        if isinstance(self.mapView(), MapView):isSensorLayer = isinstance(l, QgsRasterLayer) and l.customProperty(KEY_SENSOR_LAYER) in [True, 'true']
         self.actionRemove.setEnabled(not (isSensorGroup or isSensorLayer))
         self.actionAddGroup.setEnabled(not (isSensorGroup or isSensorLayer))
         menu.addAction(self.actionAddGroup)
@@ -127,26 +128,22 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addSeparator()
 
         centerCanvas = None
-        if isinstance(self.mapView(), MapView):
-            visibleCanvases = self.mapView().visibleMapCanvases()
-            if len(visibleCanvases) > 0:
-                i = int(len(visibleCanvases) / 2)
-                centerCanvas = visibleCanvases[i]
+        visibleCanvases = self.mapView().visibleMapCanvases()
+        if len(visibleCanvases) > 0:
+            i = int(len(visibleCanvases) / 2)
+            centerCanvas = visibleCanvases[i]
 
         a = menu.addAction('Set Properties')
 
-        a.triggered.connect(lambda *args,
-                                   canvas = centerCanvas,
-                                   lyr = l,
-                                   b = not isinstance(l, SensorProxyLayer):
-                            showLayerPropertiesDialog(lyr, canvas, useQGISDialog=b))
+        a.triggered.connect(lambda *args, canvas = centerCanvas, lyr = l: self.onSetLayerProperties(lyr, canvas))
 
-        a.setEnabled(isinstance(centerCanvas, QgsMapCanvas))
+        a.setEnabled(isinstance(centerCanvas, MapCanvas))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
         a = menu.addAction('Copy Style')
         a.setToolTip('Copy the current layer style to clipboard')
-        a.triggered.connect(lambda *args, lyr=l: pasteStyleToClipboard(lyr))
+
+        a.triggered.connect(lambda *args, c=centerCanvas, lyr=l: pasteStyleToClipboard(lyr))
 
         a = menu.addAction('Paste Style')
         a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
@@ -157,6 +154,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
 
         return menu
+
+    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
+        if isinstance(canvas, MapCanvas):
+            canvas.onSetLayerProperties(lyr)
 
 class MapViewLayerTreeModel(QgsLayerTreeModel):
     """
@@ -469,7 +470,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         """
         return not self.actionToggleMapViewHidden.isChecked()
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self)->typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to this map view. Requires that this mapview was added to a MapWidget
         :return: [list-of-MapCanvases]
@@ -595,7 +596,7 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
             self.sigCrosshairChanged.emit()
 
 
-    def sensorProxyLayers(self)->list:
+    def sensorProxyLayers(self)->typing.List[SensorProxyLayer]:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
         return [l for l in layers if isinstance(l, SensorProxyLayer)]
 
@@ -676,14 +677,14 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         :param sensor:
         :return:
         """
-        pair = None
-        for i, t in enumerate(self.mSensorLayerList):
+        toRemove = []
+        for t in self.mSensorLayerList:
             if t[0] == sensor:
-                pair = t
-                break
-        assert pair is not None, 'Sensor "{}" not found'.format(sensor.name())
-        self.mLayerTreeSensorNode.removeLayer(pair[1])
-        self.mSensorLayerList.remove(pair)
+                toRemove.append(t)
+
+        for t in toRemove:
+            self.mLayerTreeSensorNode.removeLayer(t[1])
+            self.mSensorLayerList.remove(t)
 
 
     def hasSensor(self, sensor)->bool:
@@ -850,9 +851,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mCanvasSignals = dict()
         self.mTimeSeries = None
 
-
         self.mMapToolKey = MapTools.Pan
-
 
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
         self.mMpMV = 3
@@ -869,9 +868,6 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)
         self.mMapRefreshTimer.setInterval(500)
         self.mMapRefreshTimer.start()
-
-        #self.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
-
 
         self.btnFirst.setDefaultAction(self.actionFirstDate)
         self.btnLast.setDefaultAction(self.actionLastDate)
@@ -957,7 +953,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
-
+        assert isinstance(extent, SpatialExtent)
         if self.mSpatialExtent != extent:
             self.mSpatialExtent = extent
 
@@ -1052,20 +1048,26 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
     def _updateSliderRange(self):
 
+        slider = self.timeSlider()
+        assert isinstance(slider, QSlider)
         n = len(self.timeSeries())
-        self.mTimeSlider.setRange(0, n)
-        self.mTimeSlider.setEnabled(n > 0)
+        slider.setRange(0, n)
+        slider.setEnabled(n > 0)
+
         if n > 10:
             pageStep = int(n/100)*10
+            slider.setTickInterval(pageStep)
         else:
             pageStep = 5
-        self.timeSlider().setPageStep(pageStep)
+            slider.setTickInterval(0)
+
+        slider.setPageStep(pageStep)
+
         if n > 0:
             tsd = self.currentDate()
-
             if isinstance(tsd, TimeSeriesDate) and tsd in self.timeSeries():
                 i = self.timeSeries()[:].index(tsd)
-                self.mTimeSlider.setValue(i+1)
+                slider.setValue(i+1)
 
     def onSliderReleased(self):
 
@@ -1087,7 +1089,12 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self._updateGrid()
             self.sigViewModeChanged.emit(self.mViewMode)
 
-    def setMapsPerMapView(self, n:int):
+    def setMapsPerMapView(self, n:int)->int:
+        """
+        Sets the number of maps per map viewe
+        :param n: int
+        :return: int, number of maps per map view
+        """
         assert n >= 0
 
         if n != self.mMpMV:
@@ -1095,6 +1102,15 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
             self._updateGrid()
             self.timeSlider().setPageStep(max(1, n))
             self.sigMapsPerMapViewChanged.emit(n)
+        return self.mapsPerMapView()
+
+
+    def mapsPerMapView(self)->int:
+        """
+        Returns the number of maps per map view
+        :return: int
+        """
+        return self.mMpMV
 
     def setMapSize(self, size:QSize)->QSize:
         """
@@ -1120,14 +1136,14 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         """
         return self.mMapSize
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self)->typing.List[MapCanvas]:
         """
         Returns all MapCanvases
         :return: [list-of-MapCanvases]
         """
         return self.findChildren(MapCanvas)
 
-    def mapViewCanvases(self, mapView:MapView)->list:
+    def mapViewCanvases(self, mapView:MapView)->typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to a MapView
         :param mapView: MapView
@@ -1188,7 +1204,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         """
         assert isinstance(tsd, TimeSeriesDate)
 
-        b = tsd != self.mCurrentDate
+        b = tsd != self.mCurrentDate or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
         self.mCurrentDate = tsd
 
         if b:
@@ -1323,10 +1339,6 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         # activate the current map tool
         mapTools = mapCanvas.mapTools()
         mapTools.activate(self.mMapToolKey)
-
-        mt = mapCanvas.mapTool()
-        if isinstance(mt, QgsMapToolSelect):
-            mt.setSelectionMode(self.mMapToolMode)
 
         # connect signals
         self._connectCanvasSignals(mapCanvas)
@@ -1655,6 +1667,13 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
 
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, True)
+        self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, True)
+        #self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CrsNotSet, True)
+
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
         self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
@@ -1710,7 +1729,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
         return self.mMapWidget
 
-    def mapWidget(self):
+    def mapWidget(self)->MapWidget:
         """
         Returns the connected MapWidget
         :return: MapWidget
@@ -2033,7 +2052,8 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
         Removes a Sensor
         :param sensor: SensorInstrument
         """
-        for mapView in self.mMapViews:
+        for mapView in self.mapViews():
+            assert isinstance(mapView, MapView)
             mapView.removeSensor(sensor)
 
     def applyStyles(self):

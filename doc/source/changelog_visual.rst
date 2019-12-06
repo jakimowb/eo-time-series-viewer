@@ -2,6 +2,88 @@
 Visual Changelog
 ================
 
+Version 1.10
+------------
+
+* improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
+  based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name
+
+  .. figure:: img/settings_sensor_matching.png
+
+* fixed copying of layer styles to maps of same sensor and map view type
+* improved speed of mapping and layer buffering
+* failed image sources are logged in teh EO Time Series Viewer log panel
+
+  .. figure:: img/changelog.1.10/logpanel_failed_datasource_message.png
+
+Version 1.9
+-----------
+* includes several smaller updates
+* fixed error 'shortcutVisibleInContextMenu' error that occurred with Qt < 5.10
+* enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band
+
+Version 1.8
+-----------
+
+* updated spectral library module
+* fixed `#104 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/104>`_: error in case of wrong spatial extent
+* default CRS properly shown in map view settings
+* user-defined CRS visible
+
+
+Version 1.7
+-----------
+
+* increased contrast for default map view text
+* improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+* temporal profile plot: data gaps can be shown by breaks in the profile line, data source information is correctly shown for selected points only
+* current extent can be copied via MapCanvas context menu
+* fixed `#102 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/102>`_: move maps to date of interest selected in a temporal profile plot
+
+
+Version 1.6
+-----------
+
+* re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views
+* date, sensor or map view information can be plotted within each map and become available in screenshots
+* releases map layers that are not required any more
+* slider + buttons to navigate over time series
+* fixed preview in crosshair dialog
+
+Version 1.5
+-----------
+
+* closing the EO Time Series Viewer instance will release all of its resources
+* added "Lock Map Panel" to avoid unwanted resizing of central widget
+* fixed missing updates of time series tree view when adding / removing source images
+* map canvas context menu lists layers with spatial extent intersecting the cursor position only
+* fixes feature selection error
+* added quick label source image to label the path of raster layer
+
+Version 1.4
+-----------
+
+* adding vector layers with sublayers will add all sublayers
+* map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
+
+.. image:: img/changelog.1.4/mapcanvas_contextmenu_focus_spatial_extent.png
+
+* labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (`#26 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/26>`_)
+
+.. image:: img/changelog.1.4/quick_labeling_goto_next_feature.png
+
+* added several convenience function to TimeSeriesViewer object
+* fixed a bug that did not allow to create new polygon features
+* temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>", e.g. "42 Deforested", fixed plot style preview
+* updated SpectralLibraryViewer
+* fixed spelling error in stacked band input dialog
+* MapViews can add raster layers that have been opened in QGIS, e.g. XYZ Tile with OpenStreetMap data
+
+
+Version 1.3
+-----------
+
+Bugfixes only
 
 Version 1.2
 -----------

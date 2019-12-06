@@ -64,3 +64,8 @@ def registerEditorWidgets():
         print(ex, file=sys.stderr)
 
 
+
+def initAll():
+
+    initResources()
+    registerEditorWidgets()

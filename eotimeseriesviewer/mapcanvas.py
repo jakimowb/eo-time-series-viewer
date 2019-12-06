@@ -529,16 +529,38 @@ class MapCanvas(QgsMapCanvas):
         """
         Updates map-canvas TSD variables
         """
-        scope = self.expressionContextScope()
+        from .mapvisualization import MapView
+        from .main import TimeSeriesViewer
+
+
+        varMVNumber = None
+        varMVName = None
+        varDate = None
+        varDOY = None
+        varSensor = None
+
+
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            scope.setVariable('map_date', str(tsd.date()), isStatic=False)
-            scope.setVariable('map_doy', tsd.doy(), isStatic=False)
-            scope.setVariable('map_sensor', tsd.sensor().name(), isStatic=False)
-        else:
-            scope.setVariable('map_date', None, isStatic=False)
-            scope.setVariable('map_doy', None, isStatic=False)
-            scope.setVariable('map_sensor', None, isStatic=False)
+            varDate = str(tsd.date())
+            varDOY = tsd.doy()
+            varSensor = tsd.sensor().name()
+
+        mv = self.mapView()
+        if isinstance(mv, MapView):
+            varMVName = mv.name()
+            if isinstance(TimeSeriesViewer.instance(), TimeSeriesViewer):
+                mapViews = TimeSeriesViewer.instance().mapViews()
+                if mv in mapViews:
+                    varMVNumber = mapViews.index(mv) + 1
+
+        scope = self.expressionContextScope()
+        scope.setVariable('map_view_num', varMVNumber, isStatic=False)
+        scope.setVariable('map_view', varMVName, isStatic=False)
+        scope.setVariable('map_date', varDate, isStatic=False)
+        scope.setVariable('map_doy', varDOY, isStatic=False)
+        scope.setVariable('map_sensor', varSensor, isStatic=False)
+
 
 
     def tsd(self)->TimeSeriesDate:
@@ -642,7 +664,7 @@ class MapCanvas(QgsMapCanvas):
                 self.mTimedRefreshPipeLine[MapCanvas.Command].append(a)
 
             else:
-                raise NotImplementedError('Unsupported argument: {}'.format(str(a)))
+                print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
 
     def timedRefresh(self):
@@ -671,7 +693,8 @@ class MapCanvas(QgsMapCanvas):
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]
                         else:
-                            sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor())
+                            loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+                            sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor(), options=loptions)
                             sourceLayer.setName(lyr.name())
                             sourceLayer.setCustomProperty('eotsv/sensorid', self.tsd().sensor().id())
                             try:
@@ -822,7 +845,7 @@ class MapCanvas(QgsMapCanvas):
 
     def contextMenu(self, pos:QPoint)->QMenu:
         """
-        Create the MapCanvas context menu with options relevant for pixel position ``pos``.
+        Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
         :return: QMenu
         """
@@ -864,34 +887,37 @@ class MapCanvas(QgsMapCanvas):
             lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
 
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
-            m = menu.addMenu('Quick Labels'.format(self.tsd().date()))
+            m = menu.addMenu('Quick Labels')
             m.setToolTipsVisible(True)
             nQuickLabelLayers = len(lyrWithSelectedFeatures)
             m.setEnabled(nQuickLabelLayers > 0)
 
             a = m.addAction('Set Date/Sensor attributes')
-            a.setToolTip('Writes the date ate and sensor quick labels of selected features in {}.'.format(layerNames))
+            a.setToolTip('Writes the dates and sensor quick labels of selected features in {}.'.format(layerNames))
             a.triggered.connect(lambda *args, tsd = self.tsd(), tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss))
 
-            from .labeling import EDITOR_WIDGET_REGISTRY_KEY as QUICK_LABEL_KEY
             from .labeling import CONFKEY_CLASSIFICATIONSCHEME, layerClassSchemes, setQuickClassInfo
+            if len(lyrWithSelectedFeatures) == 0:
+                a = m.addAction('No features selected.')
+                a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
+                a.setEnabled(False)
+            else:
+                for layer in lyrWithSelectedFeatures:
+                    assert isinstance(layer, QgsVectorLayer)
 
-            for layer in lyrWithSelectedFeatures:
-                assert isinstance(layer, QgsVectorLayer)
+                    csf = layerClassSchemes(layer)
+                    if len(csf) > 0:
+                        m.addSection(layer.name())
+                        for (cs, field) in csf:
+                            assert isinstance(cs, ClassificationScheme)
+                            assert isinstance(field, QgsField)
 
-                csf = layerClassSchemes(layer)
-                if len(csf) > 0:
-                    m.addSection(layer.name())
-                    for (cs, field) in csf:
-                        assert isinstance(cs, ClassificationScheme)
-                        assert isinstance(field, QgsField)
-
-                        classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
-                        for classInfo in cs:
-                            assert isinstance(classInfo, ClassInfo)
-                            a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
-                            a.setIcon(classInfo.icon())
-                            a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
+                            classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
+                            for classInfo in cs:
+                                assert isinstance(classInfo, ClassInfo)
+                                a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
+                                a.setIcon(classInfo.icon())
+                                a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
 
 
         if isinstance(refSensorLayer, SensorProxyLayer):
@@ -904,6 +930,7 @@ class MapCanvas(QgsMapCanvas):
 
             action = m.addAction('Gaussian')
             action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
+
 
 
         menu.addSeparator()
@@ -929,7 +956,11 @@ class MapCanvas(QgsMapCanvas):
 
         for mapLayer in visibleLayers:
             #sub = m.addMenu(mapLayer.name())
-            sub = m.addMenu(os.path.basename(mapLayer.source()))
+            if isinstance(mapLayer, SensorProxyLayer):
+                name = os.path.basename(mapLayer.source())
+            else:
+                name = mapLayer.name()
+            sub = m.addMenu(name)
 
             if isinstance(mapLayer, SensorProxyLayer):
                 sub.setIcon(QIcon(':/timeseriesviewer/icons/icon.svg'))
@@ -945,11 +976,8 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args,
-                                       lyr = mapLayer,
-                                       c = self,
-                                       b = isinstance(mapLayer, SensorProxyLayer) == False:
-                                showLayerPropertiesDialog(lyr, c, useQGISDialog=b))
+            a.triggered.connect(lambda *args, lyr = mapLayer: self.onSetLayerProperties(lyr))
+
 
             a = sub.addAction('Zoom to Layer')
             a.setIcon(QIcon(':/images/themes/default/mActionZoomToLayer.svg'))
@@ -981,12 +1009,12 @@ class MapCanvas(QgsMapCanvas):
         action.setChecked(self.mCrosshairItem.visibility())
         action.toggled.connect(self.setCrosshairVisibility)
 
-        action = m.addAction('Style')
+        action = m.addAction('Set Style')
         def onCrosshairChange(*args):
 
             style = CrosshairDialog.getCrosshairStyle(parent=self,
                                                       mapCanvas=self,
-                                                      crosshairStyle=self.mCrosshairItem.crosshairStyle)
+                                                      crosshair=self.mCrosshairItem.crosshairStyle)
 
             if isinstance(style, CrosshairStyle):
                 self.setCrosshairStyle(style)
@@ -999,15 +1027,22 @@ class MapCanvas(QgsMapCanvas):
             action = m.addAction('Date')
             action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
             action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
+
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
             action.setToolTip('Sends "{}" to the clipboard.'.format(tsd.sensor().name()))
+
             action = m.addAction('Path')
-
             paths = [QDir.toNativeSeparators(p) for p in tsd.sourceUris()]
-
             action.triggered.connect(lambda _, paths=paths: QApplication.clipboard().setText('\n'.join(paths)))
             action.setToolTip('Sends {} source URI(s) to the clipboard.'.format(len(tsd)))
+
+            extent = self.extent()
+            assert isinstance(extent, QgsRectangle)
+            action = m.addAction('Extent')
+            action.triggered.connect(lambda _, extent=extent: QApplication.clipboard().setText(extent.toString()))
+            action.setToolTip('Sends the map extent to the clipboard.')
+
             action = m.addAction('Map')
             action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
             action.setToolTip('Copies this map into the clipboard.')
@@ -1100,12 +1135,27 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
+    def onSetLayerProperties(self, lyr:QgsRasterLayer):
+        # b = isinstance(mapLayer, SensorProxyLayer) == False:
+
+        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
+
+        if result == QDialog.Accepted and isinstance(lyr, SensorProxyLayer):
+            r = lyr.renderer().clone()
+            proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
+            r.setInput(proxyLayer.dataProvider())
+            proxyLayer.setRenderer(r)
+
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
         pasteStyleFromClipboard(lyr)
         if isinstance(lyr, SensorProxyLayer):
-            self.mMapView.sensorProxyLayer(lyr.sensor()).setRenderer(lyr.renderer().clone())
+            r = lyr.renderer().clone()
+            proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
+            r.setInput(proxyLayer.dataProvider())
+            proxyLayer.setRenderer(r)
+
 
     def contextMenuEvent(self, event:QContextMenuEvent):
         """
@@ -1132,9 +1182,11 @@ class MapCanvas(QgsMapCanvas):
                     lqgis.setRenderer(l.renderer().clone())
 
     def stretchToCurrentExtent(self):
-
+        """
+        Stretches the top-raster layer band to the current spatial extent
+        """
         se = self.spatialExtent()
-        self.stretchToExtent(se)
+        self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
 
     def stretchToExtent(self, spatialExtent:SpatialExtent, stretchType='linear_minmax', layer:QgsRasterLayer=None, **stretchArgs):
         """
@@ -1156,6 +1208,9 @@ class MapCanvas(QgsMapCanvas):
 
         if not isinstance(layer, QgsRasterLayer):
             return
+
+        if not isinstance(spatialExtent, SpatialExtent):
+            spatialExtent = SpatialExtent.fromLayer(layer)
 
         r = layer.renderer()
         dp = layer.dataProvider()
@@ -1224,7 +1279,7 @@ class MapCanvas(QgsMapCanvas):
             if isinstance(layer, SensorProxyLayer):
                 self.mMapView.sensorProxyLayer(layer.sensor()).setRenderer(newRenderer)
             elif isinstance(layer, QgsRasterLayer):
-                layer.setRenderer(layer)
+                layer.setRenderer(newRenderer)
 
 
     def saveMapImageDialog(self, fileType):

@@ -27,10 +27,21 @@
 *                                                                         *
 ***************************************************************************
 """
-import sys
+import sys, enum
 from qgis.core import *
 from qgis.gui import *
+
 from qgis.PyQt.QtCore import QSettings
+
+class SpectralLibrarySettingsKey(enum.Enum):
+    CURRENT_PROFILE_STYLE = 1
+    DEFAULT_PROFILE_STYLE = 2
+    BACKGROUND_COLOR = 3
+    FOREGROUND_COLOR = 4
+    INFO_COLOR = 5
+    USE_VECTOR_RENDER_COLORS = 6
+
+
 
 
 def speclibSettings()->QSettings:

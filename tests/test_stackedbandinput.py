@@ -33,14 +33,12 @@ from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05
 QGIS_APP = initQgisApplication()
 
 
-class testclassDialogTest(unittest.TestCase):
-    """Test rerources work."""
-
+class testclassStackedInputTests(unittest.TestCase):
 
     def createTestDatasets(self):
 
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 
@@ -104,6 +102,19 @@ class testclassDialogTest(unittest.TestCase):
                 datasets.append(ds)
         return datasets
 
+
+    def test_FORCEStacks(self):
+
+        pathStack = r'T:\4BJ\2018-2018_000-000_LEVEL4_TSA_SEN2L_EVI_C0_S0_TSS.tif'
+
+        if os.path.isfile(pathStack):
+            d = StackedBandInputDialog()
+            d.show()
+            d.addSources([pathStack])
+
+            if SHOW_GUI:
+                QGIS_APP.exec_()
+            s  =""
 
 
     def test_inputmodel(self):

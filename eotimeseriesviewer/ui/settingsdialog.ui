@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>411</width>
+    <width>606</width>
     <height>326</height>
    </rect>
   </property>
@@ -46,12 +46,17 @@
          <string>Maps</string>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>Sensors</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>1</number>
+        <number>2</number>
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -69,8 +74,8 @@
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetScreenshots">
-              <property name="fileWidgetButtonVisible">
+             <widget class="QgsFileWidget" name="mFileWidgetScreenshots" native="true">
+              <property name="fileWidgetButtonVisible" stdset="0">
                <bool>true</bool>
               </property>
              </widget>
@@ -90,10 +95,10 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetRasterSources"/>
+             <widget class="QgsFileWidget" name="mFileWidgetRasterSources" native="true"/>
             </item>
             <item row="2" column="1">
-             <widget class="QgsFileWidget" name="mFileWidgetVectorSources"/>
+             <widget class="QgsFileWidget" name="mFileWidgetVectorSources" native="true"/>
             </item>
            </layout>
           </widget>
@@ -113,6 +118,26 @@
             </item>
             <item row="0" column="1">
              <widget class="QComboBox" name="cbDateTimePrecission">
+              <property name="toolTip">
+               <string>Defines the accuracy with which source images of same sensor but different time stamps are combined into the same image group.</string>
+              </property>
+              <property name="whatsThis">
+               <string>Selects the precission used to extract time stamps from raster meta data.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_10">
+              <property name="text">
+               <string>Sensor/Product Matching</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="cbSensorMatching">
+              <property name="toolTip">
+               <string>Specifies when source images should be considered to be from the same sensor/image product.</string>
+              </property>
               <property name="whatsThis">
                <string>Selects the precission used to extract time stamps from raster meta data.</string>
               </property>
@@ -205,6 +230,19 @@
              </property>
             </widget>
            </item>
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
           </layout>
          </item>
          <item row="1" column="0">
@@ -236,9 +274,6 @@
            <property name="styleSheet">
             <string notr="true">);</string>
            </property>
-           <property name="mode">
-            <enum>QgsFontButton::ModeTextRenderer</enum>
-           </property>
           </widget>
          </item>
          <item row="3" column="0">
@@ -255,6 +290,9 @@
              <width>75</width>
              <height>16777215</height>
             </size>
+           </property>
+           <property name="toolTip">
+            <string>Intervall to check if updates are available for map canvases, e.g. to render new layers or apply renderer changes.</string>
            </property>
            <property name="suffix">
             <string>msec</string>
@@ -275,6 +313,75 @@
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="pageSensors">
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QLabel" name="label_12">
+             <property name="text">
+              <string>Sensor Names </string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnReloadSensorSettings">
+             <property name="text">
+              <string>Reload</string>
+             </property>
+             <property name="icon">
+              <iconset resource="../../../../QGIS/images/images.qrc">
+               <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+             </property>
+             <property name="autoRaise">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="btnDeleteSelectedSensors">
+             <property name="text">
+              <string>Clear</string>
+             </property>
+             <property name="icon">
+              <iconset resource="../../../../QGIS/images/images.qrc">
+               <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
+             </property>
+             <property name="autoRaise">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QTableView" name="tableViewSensorSettings">
+           <property name="styleSheet">
+            <string notr="true"/>
+           </property>
+           <property name="sortingEnabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
       </widget>
      </item>
     </layout>
@@ -290,8 +397,31 @@
     </widget>
    </item>
   </layout>
+  <action name="actionRefreshSensorList">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+   </property>
+   <property name="text">
+    <string>RefreshSensorList</string>
+   </property>
+  </action>
+  <action name="actionDeleteSelectedSensors">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>DeleteSelectedSensors</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QgsFileWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfilewidget.h</header>
+  </customwidget>
   <customwidget>
    <class>QgsColorButton</class>
    <extends>QToolButton</extends>
@@ -299,17 +429,14 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>QgsFileWidget</class>
-   <extends>QWidget</extends>
-   <header>qgsfilewidget.h</header>
-  </customwidget>
-  <customwidget>
    <class>QgsFontButton</class>
    <extends>QToolButton</extends>
    <header>qgsfontbutton.h</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../../../../QGIS/images/images.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

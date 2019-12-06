@@ -17,9 +17,15 @@
 ***************************************************************************
 """
 
+import sys, os, pathlib
+
+
 
 def run():
     # add site-packages to sys.path
+    pluginDir = pathlib.Path(__file__).parents[1]
+    sys.path.append(pluginDir.as_posix())
+    print(pluginDir)
     from eotimeseriesviewer.tests import initQgisApplication
 
     import qgis.utils
@@ -35,7 +41,7 @@ def run():
     from eotimeseriesviewer.main import TimeSeriesViewer
 
     ts = TimeSeriesViewer()
-    ts.run()
+    ts.show()
 
     if not qgisIface:
         qgsApp.exec_()

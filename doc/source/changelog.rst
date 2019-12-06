@@ -1,9 +1,31 @@
 ==============
 Changelog
 ==============
+2019-11-25 (version 1.10):
+    * improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
+      based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name
+    * fixed copying of layer styles to maps of same sensor and map view type
+    * improved speed of mapping and layer buffering
+    * failed image sources are logged in teh EO Time Series Viewer log panel
+    * Spectral Library Viewer better handles large collections of spectral profiles
+
+2019-10-02 (version 1.9):
+    * includes several smaller updates
+    * fixed error 'shortcutVisibleInContextMenu' error that occurred with Qt < 5.10
+    * enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band
+
+2019-09-19 (version 1.8):
+    * updated spectral library module
+    * fixed `#104 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/104>`_: error in case of wrong spatial extent
+    * default CRS properly shown in map view settings
+    * user-defined CRS visible
+
 2019-08-06 (version 1.7):
     * increased contrast for default map view text
-    * improved detect of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+    * improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data
+    * temporal profile plot: data gaps can be shown by breaks in the profile line, data source information is correctly shown for selected points only
+    * current extent can be copied via MapCanvas context menu
+    * fixed `#102 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/102>`_: move maps to date of interest selected in a temporal profile plot
 
 2019-07-16 (version 1.6):
     * re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views
@@ -37,7 +59,7 @@ Changelog
     * fixed `#97 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/97>`_: TSV does not start (Linux)
 
 2019-05-31 (version 1.2):
-    * added SaveAllMapsDialog  and menu option to export all maps as image files.
+    * added SaveAllMapsDialog and menu option to export all maps as image files.
     * fixed `#91 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/91>`_: select Temporal Profile / Spectral Profile button activates the required map tools.
     * fixed `#92 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/92>`_: map canvas context menu "copy to clipboard" options.
 

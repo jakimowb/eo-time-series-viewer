@@ -292,7 +292,7 @@ class PixelScaleExtentMapTool(QgsMapTool):
     """
     def __init__(self, canvas):
         super(PixelScaleExtentMapTool, self).__init__(canvas)
-        #see defintion getThemePixmap(const QString &):QPixmap in qgsapplication.cpp
+
         self.mCursor = createCursor(':/qps/ui/icons/cursor_zoom_pixelscale.svg')
         self.setCursor(self.mCursor)
         canvas.setCursor(self.mCursor)
@@ -363,7 +363,7 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
     sigSpatialExtentSelected = pyqtSignal(SpatialExtent)
 
     def __init__(self, canvas:QgsMapCanvas):
-        QgsMapToolEmitPoint.__init__(self, self.canvas)
+        super(SpatialExtentMapTool, self).__init__(canvas)
         self.isEmittingPoint = False
         self.rubberBand = QgsRubberBand(self.canvas(), QgsWkbTypes.PolygonGeometry)
         self.setStyle(Qt.red, 1)
@@ -402,7 +402,7 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
 
         if crs is not None and rect is not None:
             extent = SpatialExtent(crs, rect)
-            self.rectangleDrawed.emit(extent)
+            self.sigSpatialExtentSelected.emit(extent)
 
 
     def canvasMoveEvent(self, e):

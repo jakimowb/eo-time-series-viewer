@@ -73,7 +73,7 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
 
         TS = TimeSeries()
         files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
-        TS.addSources(list(files))
+        TS.addSources(list(files), runAsync=False)
         assert len(TS) > 0
         return TS
 
@@ -108,7 +108,7 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
     @staticmethod
     def createTimeSeriesStacks():
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles2d import date2num
+        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 

@@ -73,3 +73,7 @@ def fixMenuButtons(w:QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu)\
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+class TaskMock(QgsTask):
+    def __init__(self):
+        super(TaskMock, self).__init__()

@@ -38,10 +38,6 @@ if DEBUG:
     logger = multiprocessing.log_to_stderr()
     logger.setLevel(multiprocessing.SUBDEBUG)
 
-class TaskMock(QgsTask):
-    def __init__(self):
-        super(TaskMock, self).__init__()
-
 def dprint(msg):
     if DEBUG:
         print('PixelLoader: {}'.format(msg))
@@ -60,29 +56,31 @@ def isOutOfImage(ds, px):
     return False
 
 
-
 class PixelLoaderTask(object):
     """
-    An object to store the results of an loading from a single raster source.
+    An object to store the loading results from a *single* raster source.
     """
 
-    @staticmethod
-    def fromDump(byte_object):
-        return pickle.loads(byte_object)
+    def __init__(self, source:str, temporalProfiles:list, bandIndices=None):
 
-    def __init__(self, source:str, geometries, bandIndices=None, **kwargs):
+        assert isinstance(temporalProfiles, list)
 
-        if not isinstance(geometries, list):
-            geometries = [geometries]
-        assert isinstance(geometries, list)
         geometries = [g for g in geometries if isinstance(g, (SpatialExtent, SpatialPoint))]
 
         self.mId = ''
 
         # assert isinstance(source, str) or isinstance(source, unicode)
-        self.sourcePath = source
-        self.geometries = geometries
-        self.bandIndices = bandIndices
+        self.mSourcePath = source
+        self.mGeometries = []
+        self.mTemporalProfileIDs = []
+
+        from .temporalprofiles import TemporalProfile
+        for tp in temporalProfiles:
+            assert isinstance(tp, TemporalProfile)
+            self.mTemporalProfileIDs.append(tp.id())
+            self.mGeometries.append(tp.geometry())
+
+        self.mBandIndices = bandIndices
 
         # for internal use only
         self.mIsDone = False
@@ -92,15 +90,9 @@ class PixelLoaderTask(object):
         self.resGeoTransformation = None
         self.resProfiles = None
         self.resNoDataValues = None
+        self.resPixelCoordinates = None
         self.exception = None
         self.info = None
-
-        # other, free keywords
-        for k in kwargs.keys():
-            assert isinstance(k, str)
-            assert not k.startswith('_')
-            if not k in self.__dict__.keys():
-                self.__dict__[k] = kwargs[k]
 
     def setId(self, idStr:str):
         self.mId = idStr
@@ -154,15 +146,17 @@ class PixelLoaderTask(object):
 
     def __repr__(self):
         info = ['PixelLoaderTask:']
+        info.append('\t' + self.mSourcePath)
+        info.append('\t' + ','.join(str(g) for g in self.mGeometries))
         if not self.mIsDone:
             info.append('not started...')
         else:
-            if self.bandIndices:
-                info.append('\tBandIndices {}:{}'.format(len(self.bandIndices), self.bandIndices))
+            if self.mBandIndices:
+                info.append('\tBandIndices {}:{}'.format(len(self.mBandIndices), self.mBandIndices))
             if self.resProfiles:
                 info.append('\tProfileData: {}'.format(len(self.resProfiles)))
                 for i, p in enumerate(self.resProfiles):
-                    g = self.geometries[i]
+                    g = self.mGeometries[i]
                     d = self.resProfiles[i]
                     if d in [INFO_OUT_OF_IMAGE, INFO_NO_DATA]:
                         info.append('\t{}: {}:{}'.format(i + 1, g, d))
@@ -187,24 +181,27 @@ def transformPoint2Px(trans, pt, gt):
     return geo2px(QgsPointXY(x, y), gt)
 
 
-def doLoaderTask(taskWrapper:QgsTask, dump):
+def doLoaderTask(qgsTask:QgsTask, dump):
 
-    assert isinstance(taskWrapper, QgsTask)
+    assert isinstance(qgsTask, QgsTask)
 
     tasks = pickle.loads(dump)
     results = []
-    for task in tasks:
+    nTasks = len(tasks)
+    qgsTask.setProgress(0)
+
+    for iTask, task in enumerate(tasks):
         assert isinstance(task, PixelLoaderTask)
 
         result = task
-        ds = gdal.Open(task.sourcePath, gdal.GA_ReadOnly)
+        ds = gdal.Open(task.mSourcePath, gdal.GA_ReadOnly)
         nb, ns, nl = ds.RasterCount, ds.RasterXSize, ds.RasterYSize
 
-        bandIndices = list(range(nb)) if task.bandIndices is None else list(task.bandIndices)
+        bandIndices = list(range(nb)) if task.mBandIndices is None else list(task.mBandIndices)
         # ensure to load valid indices only
         bandIndices = [i for i in bandIndices if i >= 0 and i < nb]
 
-        task.bandIndices = bandIndices
+        task.mBandIndices = bandIndices
 
         gt = ds.GetGeoTransform()
         result.resGeoTransformation = gt
@@ -216,7 +213,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
         # convert Geometries into pixel indices to be extracted
         PX_SUBSETS = []
 
-        for geom in task.geometries:
+        for geom in task.mGeometries:
             crsRequest = osr.SpatialReference()
 
             if geom.crs().isValid():
@@ -224,6 +221,12 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
             else:
                 crsRequest.ImportFromWkt(crsSrc.ExportToWkt())
             trans = osr.CoordinateTransformation(crsRequest, crsSrc)
+
+            trans2 = QgsCoordinateTransform()
+            trans2.setSourceCrs(QgsCoordinateReferenceSystem(crsRequest.ExportToWkt()))
+            trans2.setDestinationCrs(QgsCoordinateReferenceSystem(crsSrc.ExportToWkt()))
+            lyr = QgsRasterLayer(task.mSourcePath)
+            geom2 = trans2.transform(geom)
 
             if isinstance(geom, QgsPointXY):
                 ptUL = ptLR = QgsPointXY(geom)
@@ -241,6 +244,7 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
             bLR = isOutOfImage(ds, pxLR)
 
             if all([bUL, bLR]):
+
                 PX_SUBSETS.append(INFO_OUT_OF_IMAGE)
                 continue
 
@@ -266,8 +270,10 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
                 size_x = abs(pxUL.x() - pxLR.x())
                 size_y = abs(pxUL.y() - pxLR.y())
 
-            if size_x < 1: size_x = 1
-            if size_y < 1: size_y = 1
+            if size_x < 1:
+                size_x = 1
+            if size_y < 1:
+                size_y = 1
 
             PX_SUBSETS.append((pxUL, pxUL, size_x, size_y))
 
@@ -328,8 +334,6 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
                         #PROFILE_DATA[i] = np.dstack(pd).transpose(2,0,1)
                         PROFILE_DATA[i] = np.vstack(pd)
 
-
-
         # finally, ensure that there is on 2D array only
         for i in range(len(PROFILE_DATA)):
             d = PROFILE_DATA[i]
@@ -353,42 +357,11 @@ def doLoaderTask(taskWrapper:QgsTask, dump):
 
                 s = ""
         task.resProfiles = PROFILE_DATA
+        task.resPixelCoordinates = PX_SUBSETS
         task.mIsDone = True
         results.append(task)
+        qgsTask.setProgress(100 * (iTask + 1) / nTasks)
     return pickle.dumps(results)
-
-
-
-class LoadingProgress(object):
-
-    def __init__(self, id, nFiles):
-        assert isinstance(nFiles, int)
-        assert isinstance(id, int)
-        self.mID = id
-        self.mSuccess = 0
-        self.mTotal = nFiles
-        self.mFailed = 0
-
-    def addResult(self, success=True):
-        assert self.done() <= self.mTotal
-        if success:
-            self.mSuccess += 1
-        else:
-            self.mFailed += 1
-
-    def id(self):
-        return self.mID
-
-    def failed(self):
-        return self.mFailed
-
-
-    def done(self):
-        return self.mSuccess + self.mFailed
-
-    def total(self):
-        return self.mTotal
-
 
 
 class PixelLoader(QObject):
@@ -399,7 +372,7 @@ class PixelLoader(QObject):
     sigPixelLoaded = pyqtSignal(PixelLoaderTask)
     sigLoadingStarted = pyqtSignal()
     sigLoadingFinished = pyqtSignal()
-
+    sigProgressChanged = pyqtSignal(float)
 
     def __init__(self, *args, **kwds):
         super(PixelLoader, self).__init__(*args, **kwds)
@@ -423,26 +396,24 @@ class PixelLoader(QObject):
 
         dump = pickle.dumps(tasks)
 
+        self.sigLoadingStarted.emit()
 
+        qgsTask = QgsTask.fromFunction('Load band values', doLoaderTask, dump, on_finished=self.onLoadingFinished)
+        assert isinstance(qgsTask, QgsTask)
 
-        if False:
-            qgsTask = TaskMock()
-            resultDump = doLoaderTask(qgsTask, dump)
-            self.onLoadingFinished(TaskMock(), resultDump)
+        tid = id(qgsTask)
 
-        else:
-            qgsTask = QgsTask.fromFunction('Load band values', doLoaderTask, dump, on_finished=self.onLoadingFinished)
-            tid = id(qgsTask)
-            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            # todo: progress changed?
-            self.mTasks[tid] = qgsTask
-            tm = self.taskManager()
-            tm.addTask(qgsTask)
+        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.progressChanged.connect(self.sigProgressChanged.emit)
+        self.mTasks[tid] = qgsTask
+        tm = self.taskManager()
+        tm.addTask(qgsTask)
 
     def onRemoveTask(self, tid):
         if tid in self.mTasks.keys():
-            del self.mTasks[tid]
+            pass
+            #del self.mTasks[tid]
 
     def onLoadingFinished(self, *args, **kwds):
 
@@ -454,6 +425,7 @@ class PixelLoader(QObject):
                 assert isinstance(plt, PixelLoaderTask)
                 #self.mTasks.pop(plt.id())
                 self.sigPixelLoaded.emit(plt)
+        self.sigLoadingFinished.emit()
 
 
     def status(self)->tuple:

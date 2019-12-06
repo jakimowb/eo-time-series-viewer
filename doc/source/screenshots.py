@@ -25,15 +25,15 @@ DATE_OF_INTEREST = np.datetime64('2014-07-02')
 
 TSV = TimeSeriesViewer()
 TSV.show()
-TSV.spatialTemporalVis.setMapSize(QSize(300, 150))
+TSV.setMapSize(QSize(300, 150))
 QApplication.processEvents()
 
 
 #set up example settings
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA, re_2014_06_25
 if True:
-    TSV.loadExampleTimeSeries()
-    center = TSV.mTimeSeries.maxSpatialExtent().spatialCenter()
+    TSV.loadExampleTimeSeries(loadAsync=False)
+    center = TSV.timeSeries().maxSpatialExtent().spatialCenter()
 else:
     dirTestData = r'F:\TSData'
     files = list(file_search(dirTestData, re.compile('\.tif$')))

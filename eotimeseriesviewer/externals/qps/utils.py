@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-import os, sys, importlib, re, fnmatch, io, zipfile, pathlib, warnings, collections, copy, shutil
+import os, sys, importlib, re, fnmatch, io, zipfile, pathlib, warnings, collections, copy, shutil, typing
 
 from qgis.core import *
 from qgis.core import QgsFeature, QgsPointXY, QgsRectangle
@@ -17,12 +17,17 @@ from qgis.PyQt import uic
 from osgeo import gdal, ogr
 import numpy as np
 
+from qgis.PyQt.QtWidgets import QAction
+
+REMOVE_setShortcutVisibleInContextMenu = hasattr(QAction, 'setShortcutVisibleInContextMenu')
+
 from . import resourcemockup
 
 try:
-    import qps
-except:
+
     from .. import qps
+except:
+    import qps
 
 jp = os.path.join
 dn = os.path.dirname
@@ -63,7 +68,12 @@ def mkDir(d, delete=False):
 
 # for python development only. try to find a qgisresources directory
 DIR_QGISRESOURCES = None
-MAP_LAYER_STORES = [QgsProject.instance()]
+
+# a QPS internal map layer store
+QPS_MAPLAYER_STORE = QgsMapLayerStore()
+
+# a list of all known maplayer stores.
+MAP_LAYER_STORES = [QPS_MAPLAYER_STORE, QgsProject.instance()]
 
 
 def findUpwardPath(basepath, name, isDirectory=True):
@@ -281,6 +291,29 @@ def findMapLayer(layer)->QgsMapLayer:
     return None
 
 
+def gdalFileSize(path) -> int:
+    """
+    Returns the size of a local gdal readible file (including metadata files etc.)
+    :param path: str
+    :return: int
+    """
+    ds = gdal.Open(path)
+    if not isinstance(ds, gdal.Dataset):
+        return 0
+    else:
+        size = 0
+        for file in ds.GetFileList():
+            size += os.stat(file).st_size
+
+            # recursively inspect VRT sources
+            if file.endswith('.vrt') and file != path:
+                size += gdalFileSize(file)
+
+        return size
+
+
+        s = ""
+
 
 def qgisLayerTreeLayers() -> list:
     """
@@ -315,6 +348,8 @@ def createQgsField(name : str, exampleValue, comment:str=None):
     elif t in [float, np.double, np.float, np.double, np.float16, np.float32, np.float64]:
         return QgsField(name, QVariant.Double, 'double', comment=comment)
     elif isinstance(exampleValue, np.ndarray):
+        return QgsField(name, QVariant.String, 'varchar', comment=comment)
+    elif isinstance(exampleValue, np.datetime64):
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
     elif isinstance(exampleValue, list):
         assert len(exampleValue) > 0, 'need at least one value in provided list'
@@ -419,15 +454,16 @@ def showMessage(message:str, title:str, level):
     v.showMessage(True)
 
 
-def gdalDataset(pathOrDataset, eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
+def gdalDataset(pathOrDataset:typing.Union[str, QgsRasterLayer, QgsRasterDataProvider, gdal.Dataset], eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
     """
     Returns a gdal.Dataset object instance
-    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer
+    :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer | QgsRasterDataProvider
     :return: gdal.Dataset
     """
-
     if isinstance(pathOrDataset, QgsRasterLayer):
         return gdalDataset(pathOrDataset.source())
+    elif isinstance(pathOrDataset, QgsRasterDataProvider):
+        return gdalDataset(pathOrDataset.dataSourceUri())
 
     if not isinstance(pathOrDataset, gdal.Dataset):
         pathOrDataset = gdal.Open(pathOrDataset, eAccess)
@@ -453,6 +489,37 @@ def ogrDataSource(pathOrDataSource)->ogr.DataSource:
     return pathOrDataSource
 
 
+def qgsVectorLayer(source)->QgsVectorLayer:
+    """
+    Returns a QgsVectorLayer from different source types
+    :param source: QgsVectorLayer | ogr.DataSource | file path
+    :return: QgsVectorLayer
+    :rtype: QgsVectorLayer
+    """
+    if isinstance(source, QgsVectorLayer):
+        return source
+    if isinstance(source, str):
+        return QgsVectorLayer(source)
+    if isinstance(source, ogr.DataSource):
+        return QgsVectorLayer(source.GetDescription())
+
+    raise Exception('Unable to transform {} into QgsVectorLayer'.format(source))
+
+def qgsRasterLayer(source)->QgsRasterLayer:
+    """
+    Returns a QgsVectorLayer from different source types
+    :param source: QgsVectorLayer | ogr.DataSource | file path
+    :return: QgsVectorLayer
+    :rtype: QgsVectorLayer
+    """
+    if isinstance(source, QgsRasterLayer):
+        return source
+    if isinstance(source, str):
+        return QgsRasterLayer(source)
+    if isinstance(source, gdal.Dataset):
+        return QgsRasterLayer(source.GetDescription())
+
+    raise Exception('Unable to transform {} into QgsRasterLayer'.format(source))
 
 
 def loadUI(basename: str):
@@ -547,6 +614,20 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
 
         doc = QDomDocument()
         doc.setContent(txt)
+
+        if REMOVE_setShortcutVisibleInContextMenu and 'shortcutVisibleInContextMenu' in txt:
+            toRemove = []
+            actions = doc.elementsByTagName('action')
+            for iAction in range(actions.count()):
+                properties = actions.item(iAction).toElement().elementsByTagName('property')
+                for iProperty in range(properties.count()):
+                    prop = properties.item(iProperty).toElement()
+                    if prop.attribute('name') == 'shortcutVisibleInContextMenu':
+                        toRemove.append(prop)
+            for prop in toRemove:
+                prop.parentNode().removeChild(prop)
+            del toRemove
+
 
         elem = doc.elementsByTagName('customwidget')
         for child in [elem.item(i) for i in range(elem.count())]:
@@ -855,7 +936,7 @@ def displayBandNames(rasterSource, bands=None, leadingBandNumber=True):
     return None
 
 
-def defaultBands(dataset):
+def defaultBands(dataset)->list:
     """
     Returns a list of 3 default bands
     :param dataset:
@@ -902,13 +983,13 @@ def defaultBands(dataset):
         raise Exception()
 
 
-def bandClosestToWavelength(dataset, wl, wl_unit='nm'):
+def bandClosestToWavelength(dataset, wl, wl_unit='nm')->int:
     """
     Returns the band index of an image dataset closest to wavelength `wl`.
     :param dataset: str | gdal.Dataset
     :param wl: wavelength to search the closed band for
     :param wl_unit: unit of wavelength. Default = nm
-    :return: band index | 0 of wavelength information is not provided
+    :return: band index | 0 if wavelength information is not provided
     """
     if isinstance(wl, str):
         assert wl.upper() in LUT_WAVELENGTH.keys(), wl
@@ -929,6 +1010,38 @@ def bandClosestToWavelength(dataset, wl, wl_unit='nm'):
             pass
     return 0
 
+def parseBadBandList(dataset)->typing.List[int]:
+    """
+    Returns the bad-band-list if it is specified explicitly
+    :param dataset:
+    :type dataset:
+    :return: list of booleans. True = valid band, False = excluded / bad band
+    :rtype:
+    """
+    bbl = None
+
+    try:
+        dataset = gdalDataset(dataset)
+    except:
+        pass
+
+    if not isinstance(dataset, gdal.Dataset):
+        return None
+
+
+
+    # 1. search for ENVI style definition of band band list
+    bblStr1 = dataset.GetMetadataItem('bbl')
+    bblStr2 = dataset.GetMetadataItem('bbl', 'ENVI')
+
+    for bblStr in  [bblStr1, bblStr2]:
+        if isinstance(bblStr, str) and len(bblStr) > 0:
+            parts = bblStr.split(',')
+            if len(parts) == dataset.RasterCount:
+                bbl = [int(p) for p in parts]
+
+    return bbl
+
 
 def parseWavelength(dataset):
     """
@@ -939,18 +1052,12 @@ def parseWavelength(dataset):
 
     wl = None
     wlu = None
+    try:
+        dataset = gdalDataset(dataset)
+    except:
+        pass
 
-    if isinstance(dataset, str):
-        return parseWavelength(gdal.Open(dataset))
-    elif isinstance(dataset, QgsRasterDataProvider):
-        return parseWavelength(dataset.dataSourceUri())
-    elif isinstance(dataset, QgsRasterLayer):
-        if dataset.dataProvider().name() == 'gdal':
-            return parseWavelength(gdal.Open(dataset.source()))
-        else:
-            return None, None
-    elif isinstance(dataset, gdal.Dataset):
-
+    if isinstance(dataset, gdal.Dataset):
         for domain in dataset.GetMetadataDomainList():
             # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
 
@@ -969,7 +1076,7 @@ def parseWavelength(dataset):
                               .format(key, len(tmp), dataset.RasterCount), file=sys.stderr)
 
                 if re.search(r'wavelength.units?', key):
-                    if re.search(r'(Micrometers?|um)', values, re.I):
+                    if re.search(r'(Micrometers?|um|μm)', values, re.I):
                         wlu = 'um'  # fix with python 3 UTF
                     elif re.search(r'(Nanometers?|nm)', values, re.I):
                         wlu = 'nm'
@@ -1022,7 +1129,7 @@ def qgisAppQgisInterface()->QgisInterface:
         return None
 
 
-def getDOMAttributes(elem):
+def getDOMAttributes(elem)->dict:
     assert isinstance(elem, QDomElement)
     values = dict()
     attributes = elem.attributes()
@@ -1032,7 +1139,7 @@ def getDOMAttributes(elem):
     return values
 
 
-def fileSizeString(num, suffix='B', div=1000):
+def fileSizeString(num, suffix='B', div=1000)->str:
     """
     Returns a human-readable file size string.
     thanks to Fred Cirera
@@ -1049,7 +1156,7 @@ def fileSizeString(num, suffix='B', div=1000):
     return "{:.1f} {}{}".format(num, unit, suffix)
 
 
-def geo2pxF(geo, gt):
+def geo2pxF(geo, gt)->QPointF:
     """
     Returns the pixel position related to a Geo-Coordinate in floating point precision.
     :param geo: Geo-Coordinate as QgsPoint
@@ -1062,7 +1169,7 @@ def geo2pxF(geo, gt):
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
     return QPointF(px, py)
 
-def geo2px(geo, gt):
+def geo2px(geo, gt)->QPoint:
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
     Floating-point coordinate are casted to integer coordinate, e.g. the pixel coordinate (0.815, 23.42) is returned as (0,23)
@@ -1115,7 +1222,7 @@ def check_vsimem()->bool:
         return False
     return result
 
-def layerGeoTransform(rasterLayer:QgsRasterLayer)->tuple:
+def layerGeoTransform(rasterLayer:QgsRasterLayer)->typing.Tuple[float, float, float, float, float, float]:
     """
     Returns the geo-transform vector from a QgsRasterLayer.
     See https://www.gdal.org/gdal_datamodel.html
@@ -1131,7 +1238,7 @@ def layerGeoTransform(rasterLayer:QgsRasterLayer)->tuple:
                 0, -1 * rasterLayer.rasterUnitsPerPixelY())
     return gt
 
-def px2geo(px, gt, pxCenter=True):
+def px2geo(px:QPoint, gt, pxCenter=True)->QgsPointXY:
     """
     Converts a pixel coordinate into a geo-coordinate
     :param px: QPoint() with pixel coordinates
@@ -1652,3 +1759,9 @@ class SelectMapLayersDialog(QgsDialog):
 
 
 
+class QgsTaskMock(QgsTask):
+    """
+    A mocked QgsTask
+    """
+    def __init__(self):
+        super(QgsTaskMock, self).__init__()

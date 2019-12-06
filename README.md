@@ -3,7 +3,7 @@
 The EO Time Series Viewer is a [http://www.qgis.org](QGIS) plugin to visualize time series of remote sensing images.
 Its major purpose is to ease the visualization and labeling of images from multiple sensors.
 
-Please visit [Wiki](https://bitbucket.org/jakimowb/eo-time-series-viewer) for more information.
+Please visit http://eo-time-series-viewer.readthedocs.io/en/latest/ for more information.
 
 ## Licence and Use ##
 

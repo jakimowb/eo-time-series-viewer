@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.14: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.15.2: http://docutils.sourceforge.net/" />
 <title>Changelog</title>
 <style type="text/css">
 
@@ -364,6 +364,40 @@ ul.auto-toc {
 <h1 class="title">Changelog</h1>
 
 <dl class="docutils">
+<dt>2019-11-25 (version 1.10):</dt>
+<dd><ul class="first last simple">
+<li>improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
+based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name</li>
+<li>fixed copying of layer styles to maps of same sensor and map view type</li>
+<li>improved speed of mapping and layer buffering</li>
+<li>failed image sources are logged in teh EO Time Series Viewer log panel</li>
+<li>Spectral Library Viewer better handles large collections of spectral profiles</li>
+</ul>
+</dd>
+<dt>2019-10-02 (version 1.9):</dt>
+<dd><ul class="first last simple">
+<li>includes several smaller updates</li>
+<li>fixed error 'shortcutVisibleInContextMenu' error that occurred with Qt &lt; 5.10</li>
+<li>enhanced wavelength extraction from GDAL metadata: wavelength can be specified per band</li>
+</ul>
+</dd>
+<dt>2019-09-19 (version 1.8):</dt>
+<dd><ul class="first last simple">
+<li>updated spectral library module</li>
+<li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/104">#104</a>: error in case of wrong spatial extent</li>
+<li>default CRS properly shown in map view settings</li>
+<li>user-defined CRS visible</li>
+</ul>
+</dd>
+<dt>2019-08-06 (version 1.7):</dt>
+<dd><ul class="first last simple">
+<li>increased contrast for default map view text</li>
+<li>improved reading of wavelength information, e.g. from Pleiades, Sentinel-2 and RapidEye data</li>
+<li>temporal profile plot: data gaps can be shown by breaks in the profile line, data source information is correctly shown for selected points only</li>
+<li>current extent can be copied via MapCanvas context menu</li>
+<li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/102">#102</a>: move maps to date of interest selected in a temporal profile plot</li>
+</ul>
+</dd>
 <dt>2019-07-16 (version 1.6):</dt>
 <dd><ul class="first last simple">
 <li>re-design of map visualization: faster and more compact, the number of maps is fixed to n dates x m map views</li>
@@ -405,7 +439,7 @@ ul.auto-toc {
 </dd>
 <dt>2019-05-31 (version 1.2):</dt>
 <dd><ul class="first last simple">
-<li>added SaveAllMapsDialog  and menu option to export all maps as image files.</li>
+<li>added SaveAllMapsDialog and menu option to export all maps as image files.</li>
 <li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/91">#91</a>: select Temporal Profile / Spectral Profile button activates the required map tools.</li>
 <li>fixed <a class="reference external" href="https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/92">#92</a>: map canvas context menu &quot;copy to clipboard&quot; options.</li>
 </ul>

@@ -1,4 +1,4 @@
-import os, sys, re, io, importlib, uuid, warnings, pathlib, time, site
+import os, sys, re, io, importlib, uuid, warnings, pathlib, time, site, mock, inspect, types
 import sip
 from qgis.core import *
 from qgis.gui import *
@@ -163,6 +163,7 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
         loadPythonRunner = False
 
     if isinstance(QgsApplication.instance(), QgsApplication):
+        print('Found existing QgsApplication.instance()')
         return QgsApplication.instance()
     else:
 
@@ -209,12 +210,14 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
             if isinstance(resourceDir, str) and os.path.exists(resourceDir):
                 qgisResourceDir = resourceDir
 
+        # try to find a directory "qgisresources" that contains python modules mit a qInitResources method
         if isinstance(qgisResourceDir, str) and os.path.isdir(qgisResourceDir):
             modules = [m for m in os.listdir(qgisResourceDir) if re.search(r'[^_].*\.py', m)]
             modules = [m[0:-3] for m in modules]
             for m in modules:
                 mod = importlib.import_module('qgisresources.{}'.format(m))
                 if "qInitResources" in dir(mod):
+                    print('Loads Qt resources from {}'.format(m))
                     mod.qInitResources()
 
         # initiate a PythonRunner instance if None exists
@@ -255,7 +258,7 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
         providers = QgsProviderRegistry.instance().providerList()
 
         potentialProviders = ['DB2', 'WFS', 'arcgisfeatureserver', 'arcgismapserver', 'delimitedtext', 'gdal',
-                              'geonode', 'gpx', 'mdal', 'memory', 'mesh_memory', 'mssql', 'ogr', 'oracle', 'ows',
+                              'geonode', 'gpx', 'mdal', 'memory', 'mesh_memory', 'mssql', 'ogr', 'ows',
                               'postgres', 'spatialite', 'virtual', 'wcs', 'wms']
         missing = [p for p in potentialProviders if p not in providers]
 
@@ -267,15 +270,18 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
 
 class QgisMockup(QgisInterface):
     """
-    A "fake" QGIS Desktop instance that should provide all the inferfaces a plugin developer might need (and nothing more)
+    A "fake" QGIS Desktop instance that should provide all the interfaces a plugin developer might need (and nothing more)
     """
-
-    def pluginManagerInterface(self) -> QgsPluginManagerInterface:
-        return self.mPluginManager
-
     def __init__(self, *args):
-        # QgisInterface.__init__(self)
         super(QgisMockup, self).__init__()
+
+        #mock.MagicMock.__init__(self, spec=QgisInterface, name='QgisMockup')
+
+
+        #super(QgisMockup, self).__init__(spec=QgisInterface, name='QgisMockup')
+        #mock.MagicMock.__init__(self, spec=QgisInterface)
+        #QgisInterface.__init__(self)
+
 
         self.mCanvas = QgsMapCanvas()
         self.mCanvas.blockSignals(False)
@@ -313,8 +319,30 @@ class QgisMockup(QgisInterface):
 
         self.mClipBoard = QgsClipboardMockup()
 
+        # mock other functions
+        excluded = QObject.__dict__.keys()
+
+        self._mock = mock.Mock(spec=QgisInterface)
+        for n in self._mock._mock_methods:
+            assert isinstance(n, str)
+            if not n.startswith('_') and n not in excluded:
+                try:
+                    inspect.getfullargspec(getattr(self, n))
+                except:
+                    setattr(self, n, getattr(self._mock, n))
+
+
+
+    def pluginManagerInterface(self) -> QgsPluginManagerInterface:
+        return self.mPluginManager
+
     def activeLayer(self):
-        return None
+        return self.mapCanvas().currentLayer()
+
+    def setActiveLayer(self, mapLayer:QgsMapLayer):
+        if mapLayer in self.mapCanvas().layers():
+            self.mapCanvas().setCurrentLayer(mapLayer)
+
 
     def cutSelectionToClipboard(self, mapLayer: QgsMapLayer):
         if isinstance(mapLayer, QgsVectorLayer):
@@ -543,11 +571,22 @@ class TestObjects():
         Create an in-memory ogr.DataSource
         :return: ogr.DataSource
         """
+        ogr.UseExceptions()
         assert wkb in [ogr.wkbPoint, ogr.wkbPolygon, ogr.wkbLineString]
 
+        # find the QGIS world_map.shp
         pkgPath = QgsApplication.instance().pkgDataPath()
-        pathSrc = os.path.join(pkgPath, *['resources', 'data', 'world_map.shp'])
-        assert os.path.isfile(pathSrc), 'Unable to find QGIS "world_map.shp"'
+        pathSrc = None
+        potentialPathes = [
+            os.path.join(os.path.dirname(__file__), 'testpolygons.geojson'),
+            os.path.join(pkgPath, *['resources', 'data', 'world_map.shp']),
+        ]
+        for p in potentialPathes:
+            if os.path.isfile(p):
+                pathSrc = p
+                break
+
+        assert os.path.isfile(pathSrc), 'Unable to find QGIS "world_map.shp". QGIS Pkg path = {}'.format(pkgPath)
 
         dsSrc = ogr.Open(pathSrc)
         assert isinstance(dsSrc, ogr.DataSource)
@@ -560,19 +599,19 @@ class TestObjects():
         srs = lyrSrc.GetSpatialRef()
         assert isinstance(srs, osr.SpatialReference)
 
-        drv = dsSrc.GetDriver()
+        drv = ogr.GetDriverByName('ESRI Shapefile')
         assert isinstance(drv, ogr.Driver)
 
         # set temp path
         if wkb == ogr.wkbPolygon:
             lname = 'polygons'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.polygons.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.polygons.shp'
         elif wkb == ogr.wkbPoint:
             lname = 'points'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.centroids.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.centroids.shp'
         elif wkb == ogr.wkbLineString:
             lname = 'lines'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.world_map.line.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.line.shp'
         else:
             raise NotImplementedError()
 
@@ -612,7 +651,7 @@ class TestObjects():
                 for i in range(ldef.GetFieldCount()):
                     fDst.SetField(i, fSrc.GetField(i))
 
-                lyrDst.CreateFeature(fDst)
+                assert lyrDst.CreateFeature(fDst) == ogr.OGRERR_NONE
 
         assert isinstance(dsDst, ogr.DataSource)
         dsDst.FlushCache()
