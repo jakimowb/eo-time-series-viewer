@@ -149,7 +149,13 @@ def sensorIDtoProperties(idString:str)->tuple:
     :param idString: str
     :return: (ns, px_size_x, px_size_y, [wl], wlu)
     """
-    nb, px_size_x, px_size_y, dt, wl, wlu, name = json.loads(idString)
+    try:
+        nb, px_size_x, px_size_y, dt, wl, wlu, name = json.loads(idString)
+    except ValueError as ex:
+        if ex.args[0] == 'not enough values to unpack (expected 7, got 6)':
+            nb, px_size_x, px_size_y, dt, wl, wlu = json.loads(idString)
+            name = None
+
     assert isinstance(dt, int) and dt >= 0
     assert isinstance(nb, int)
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
@@ -206,9 +212,10 @@ class SensorInstrument(QObject):
 
 
         if self.mNameOriginal in [None, '']:
-            import eotimeseriesviewer.settings as settings
-            sensorNames = settings.value(settings.Keys.SensorNames, default={})
-            sensor_name = sensorNames.get(sid, '{}bands@{}m'.format(self.nb, self.px_size_x))
+            from eotimeseriesviewer.settings import sensorName
+            sensor_name = sensorName(sid)
+            if sensor_name is None:
+                sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
             self.setName(sensor_name)
         else:
             self.setName(self.mNameOriginal)
@@ -226,6 +233,7 @@ class SensorInstrument(QObject):
             self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
         self.mMockupDS.FlushCache()
         s = ""
+
 
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
@@ -273,14 +281,12 @@ class SensorInstrument(QObject):
         Sets the sensor/product name
         :param name: str
         """
+
         if name != self.mName:
+            assert isinstance(name, str)
             self.mName = name
-            from eotimeseriesviewer.settings import Keys, value, setValue
-
-            sensorNames = value(Keys.SensorNames, default={})
-            sensorNames[self.id()] = name
-            setValue(Keys.SensorNames, sensorNames)
-
+            from eotimeseriesviewer.settings import saveSensorName
+            saveSensorName(self)
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
@@ -641,7 +647,7 @@ class TimeSeriesSource(object):
 
 class TimeSeriesDate(QAbstractTableModel):
     """
-    A containe to store all image source related to a single observation date and sensor.
+    A container to store all source images related to a single observation date and sensor.
     """
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
@@ -1635,14 +1641,6 @@ class TimeSeries(QAbstractItemModel):
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = self.addSensor(SensorInstrument(sid))
-
-            from eotimeseriesviewer.settings import value, Keys
-
-            userNames = value(Keys.SensorNames)
-            assert isinstance(userNames, dict)
-            if sensor.id() in userNames.keys():
-                sensor.setName(userNames[sensor.id()])
-
 
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsdDate, sensor)

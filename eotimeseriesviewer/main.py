@@ -1087,11 +1087,17 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
     def onSensorAdded(self, sensor:SensorInstrument):
 
-        sensorNames = eotsvSettings.value(eotsvSettings.Keys.SensorNames, default=dict())
-        assert isinstance(sensorNames, dict)
-        if sensor.id() in sensorNames.keys():
-            sensor.setName(sensorNames[sensor.id()])
+        knownName = eotsvSettings.sensorName(sensor.id())
+        if isinstance(knownName, str) and len(knownName) > 0:
+            sensor.setName(knownName)
 
+        sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
+
+    def onSensorNameChanged(self, sensor:SensorInstrument):
+        # save changed names to settings
+        from eotimeseriesviewer.settings import saveSensorName
+        if sensor in self.sensors():
+            saveSensorName(sensor)
 
     def onTimeSeriesChanged(self, *args):
         if not self.mSpatialMapExtentInitialized:
