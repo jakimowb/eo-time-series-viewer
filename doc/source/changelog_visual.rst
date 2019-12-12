@@ -10,6 +10,8 @@ Version 1.10
 
   .. figure:: img/settings_sensor_matching.png
 
+* settings dialog allows to change the names of known sensors / image product specifications
+
 * fixed copying of layer styles to maps of same sensor and map view type
 * improved speed of mapping and layer buffering
 * failed image sources are logged in teh EO Time Series Viewer log panel
