@@ -100,8 +100,8 @@ class testclassDialogTest(unittest.TestCase):
         mc.setDestinationCrs(vl.crs())
         mc.setExtent(mc.fullExtent())
 
-        from eotimeseriesviewer.settings import Keys, DEFAULT_VALUES
-        mc.mInfoItem.setTextFormat(DEFAULT_VALUES[Keys.MapTextFormat])
+        from eotimeseriesviewer.settings import Keys, defaultValues
+        mc.mInfoItem.setTextFormat(defaultValues()[Keys.MapTextFormat])
         mc.mInfoItem.setUpperLeft('Upper\nLeft')
         if True:
             mc.mInfoItem.setMiddleLeft('Middle\nLeft')

@@ -11,7 +11,7 @@ from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import loadUI
 from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
 
-
+from osgeo import gdal, gdalconst, gdal_array
 
 
 class Keys(enum.Enum):
@@ -46,8 +46,8 @@ def defaultValues() -> dict:
     d[Keys.RasterSourceDirectory] = str(home)
     d[Keys.VectorSourceDirectory] = str(home)
     d[Keys.DateTimePrecision] = DateTimePrecision.Day
-    d[Keys.SensorSpecs] = dict()
-    d[Keys.SensorMatching] = SensorMatching.DIMS_WL_Name
+    # d[Keys.SensorSpecs] = dict() # no default sensors
+    d[Keys.SensorMatching] = SensorMatching.PX_DIMS
 
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
@@ -75,10 +75,6 @@ def defaultValues() -> dict:
     return d
 
 
-DEFAULT_VALUES = defaultValues()
-
-
-
 def settings()->QSettings:
     """
     Returns the EOTSV settings.
@@ -89,6 +85,7 @@ def settings()->QSettings:
     return settings
 
 
+
 def value(key:Keys, default=None):
     """
     Provides direct access to a settings value
@@ -97,6 +94,7 @@ def value(key:Keys, default=None):
     :return: value | None
     """
     assert isinstance(key, Keys)
+    assert isinstance(key.value, str)
     value = None
     try:
         value = settings().value(key.value, defaultValue=default)
@@ -107,12 +105,25 @@ def value(key:Keys, default=None):
         if value and key == Keys.MapTextFormat:
            s = ""
 
-        if isinstance(value, str) and key == Keys.SensorSpecs:
-            value = json.loads(value)
+        if key == Keys.SensorSpecs:
+            # check sensor specs
+            if value is None:
+                value = dict()
+
             assert isinstance(value, dict)
-            for k in value.keys():
-                if not isinstance(value[k], dict):
-                    value[k] = {'name': None}
+            from .timeseries import sensorIDtoProperties
+            from json.decoder import JSONDecodeError
+
+            for sensorID in list(value.keys()):
+                assert isinstance(sensorID, str)
+                try:
+                    sensorSpecs = value[sensorID]
+                    if not isinstance(sensorSpecs, dict):
+                        value[sensorSpecs] = {'name': None}
+                except (AssertionError, JSONDecodeError) as ex:
+                    # delete old-style settings
+                    del value[sensorID]
+
 
 
     except TypeError as error:
@@ -140,7 +151,7 @@ def saveSensorName(sensor:SensorInstrument):
 
     setValue(Keys.SensorSpecs, sensorSpecs)
 
-def sensorName(id:str)->str:
+def sensorName(id:typing.Union[str, SensorInstrument])->str:
     """
     Retuns the sensor name stored for a certain sensor id
     :param id: str
@@ -164,12 +175,14 @@ def setValue(key:Keys, value):
     :param value: any value
     """
     assert isinstance(key, Keys)
-
+    assert isinstance(key.value, str)
     if isinstance(value, QgsTextFormat):
         value = value.toMimeData()
 
-    if isinstance(value, dict) and key == Keys.SensorSpecs:
-        settings().setValue(key.value, json.dumps(value))
+    if key == Keys.SensorSpecs:
+        s = ""
+    #if isinstance(value, dict) and key == Keys.SensorSpecs:
+    #   settings().setValue(key.value, value)
 
     settings().setValue(key.value, value)
 
@@ -184,6 +197,20 @@ def setValues(values: dict):
     assert isinstance(values, dict)
     for key, val in values.items():
         setValue(key, val)
+    settings().sync()
+
+def values()->dict:
+    """
+    Returns all settings in a dictionary
+    :return: dict
+    :rtype: dict
+    """
+    d = dict()
+    s = settings()
+    for key in Keys:
+        assert isinstance(key, Keys)
+        d[key] = value(key)
+    return d
 
 class SensorSettingsTableModel(QAbstractTableModel):
     """
@@ -193,7 +220,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
         super(SensorSettingsTableModel, self).__init__()
 
         self.mSensors = []
-        self.mCNKey = 'Key'
+        self.mCNKey = 'Specification'
         self.mCNName = 'Name'
         self.loadSettings()
 
@@ -232,30 +259,54 @@ class SensorSettingsTableModel(QAbstractTableModel):
 
     def removeSensors(self, sensors:typing.List[SensorInstrument]):
         assert isinstance(sensors, list)
-        n = len(sensors)
 
-        if n > 0:
-            self.beginInsertRows(QModelIndex(), self.rowCount() - 1, self.rowCount() - 1 + n)
-            self.mSensors.extend(sensors)
-            self.endInsertRows()
+        for sensor in sensors:
+            assert isinstance(sensor, SensorInstrument)
+            idx = self.sensor2idx(sensor)
+            self.beginRemoveRows(QModelIndex(), idx.row(), idx.row())
+            self.mSensors.remove(sensor)
+            self.endRemoveRows()
 
+    def sensor2idx(self, sensor:SensorInstrument)->QModelIndex:
+
+        if not sensor in self.mSensors:
+            return QModelIndex()
+        row = self.mSensors.index(sensor)
+        return self.createIndex(row, 0, sensor)
 
     def addSensors(self, sensors:typing.List[SensorInstrument]):
         assert isinstance(sensors, list)
         n = len(sensors)
 
         if n > 0:
-            self.beginInsertRows(QModelIndex(), self.rowCount()-1, self.rowCount() -1 + n)
+            self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount() + n - 1)
             self.mSensors.extend(sensors)
             self.endInsertRows()
 
-    def saveSettings(self):
+    def setSpecs(self, specs:dict):
+        sensors = []
+        for sid, sensorSpecs in specs.items():
+            assert isinstance(sid, str)
+            assert isinstance(sensorSpecs, dict)
+            sensor = SensorInstrument(sid)
+            # apply specs to sensor instance
+            sensor.setName(sensorSpecs.get('name', sensor.name()))
+            sensors.append(sensor)
+        self.clear()
+        self.addSensors(sensors)
 
+    def specs(self)->dict:
+        """
+        Returns the specifications for each stored sensor
+        :return:
+        :rtype:
+        """
         specs = dict()
         for sensor in self.mSensors:
             assert isinstance(sensor, SensorInstrument)
-            specs[sensor.id()] = sensor.name()
-        setValue(Keys.SensorSpecs, specs)
+            s = {'name': sensor.name()}
+            specs[sensor.id()] = s
+        return specs
 
     def rowCount(self, parent: QModelIndex = QModelIndex())->int:
         return len(self.mSensors)
@@ -289,6 +340,24 @@ class SensorSettingsTableModel(QAbstractTableModel):
         else:
             return self.mSensors[index.row()]
 
+    def sensorIDDisplayString(self, sensor:SensorInstrument)->str:
+        """
+        Returns a short representation of the sensor id, e.g. "6bands(Int16)@30m"
+        :param sensor:
+        :type sensor:
+        :return:
+        :rtype:
+        """
+        assert isinstance(sensor, SensorInstrument)
+
+        s = '{}band({})@{}m'.format(sensor.nb, gdal.GetDataTypeName(sensor.dataType), sensor.px_size_x)
+        if sensor.wl is not None and sensor.wlu is not None:
+            if sensor.nb == 1:
+                s += ',{}{}'.format(sensor.wl[0], sensor.wlu)
+            else:
+                s += ',{}-{}{}'.format(sensor.wl[0], sensor.wl[-1], sensor.wlu)
+        return s
+
     def data(self, index: QModelIndex, role: int):
 
         if not index.isValid():
@@ -301,11 +370,19 @@ class SensorSettingsTableModel(QAbstractTableModel):
             if cn == self.mCNName:
                 return sensor.name()
             if cn == self.mCNKey:
-                return sensor.id()
+                return self.sensorIDDisplayString(sensor)
+
+        if role in [Qt.ToolTipRole]:
+            if cn == self.mCNName:
+                return sensor.name()
+            if cn == self.mCNKey:
+                return sensor.id().replace(', "', '\n "')
 
         if role == Qt.BackgroundColorRole and not (self.flags(index) & Qt.ItemIsEditable):
             return QColor('gray')
 
+        if role == Qt.UserRole:
+            return sensor
 
         return None
 
@@ -343,16 +420,19 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
             assert isinstance(e, enum.Enum)
             self.cbDateTimePrecission.addItem(e.name, e)
 
-        for e in SensorMatching:
-            assert isinstance(e, enum.Enum)
-            self.cbSensorMatching.addItem(e.value, e)
+        self.cbSensorMatchingPxDims.setToolTip(SensorMatching.tooltip(SensorMatching.PX_DIMS))
+        self.cbSensorMatchingWavelength.setToolTip(SensorMatching.tooltip(SensorMatching.WL))
+        self.cbSensorMatchingSensorName.setToolTip(SensorMatching.tooltip(SensorMatching.NAME))
+        self.cbSensorMatchingPxDims.stateChanged.connect(self.validate)
+        self.cbSensorMatchingWavelength.stateChanged.connect(self.validate)
+        self.cbSensorMatchingSensorName.stateChanged.connect(self.validate)
 
         self.mFileWidgetScreenshots.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetRasterSources.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetVectorSources.setStorageMode(QgsFileWidget.GetDirectory)
 
         self.cbDateTimePrecission.currentIndexChanged.connect(self.validate)
-        self.cbSensorMatching.currentIndexChanged.connect(self.validate)
+
         self.sbMapSizeX.valueChanged.connect(self.validate)
         self.sbMapSizeY.valueChanged.connect(self.validate)
         self.sbMapRefreshIntervall.valueChanged.connect(self.validate)
@@ -364,7 +444,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         self.buttonBox.button(QDialogButtonBox.Ok).clicked.connect(self.onAccept)
         self.buttonBox.button(QDialogButtonBox.Cancel)
 
-        self.mLastValues = dict()
+        self.mLastValues = values()
 
         self.mSensorSpecsModel = SensorSettingsTableModel()
         self.mSensorSpecsProxyModel = QSortFilterProxyModel()
@@ -382,7 +462,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         self.actionDeleteSelectedSensors.triggered.connect(self.onRemoveSelectedSensors)
         self.actionDeleteSelectedSensors.setEnabled(len(sm.selectedRows()) > 0)
         self.mSensorSpecsModel.clear()
-        self.setValues(settings())
+        self.setValues(self.mLastValues)
 
 
     def onRemoveSelectedSensors(self):
@@ -390,8 +470,15 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         sm = self.tableViewSensorSettings.selectionModel()
         assert isinstance(sm, QItemSelectionModel)
 
+        toRemove = []
         for r in sm.selectedRows():
-            s = ""
+            srcIdx = self.tableViewSensorSettings.model().mapToSource(r)
+            sensor = srcIdx.data(role=Qt.UserRole)
+            if isinstance(sensor, SensorInstrument):
+                toRemove.append(sensor)
+        if len(toRemove) > 0:
+            self.mSensorSpecsModel.removeSensors(toRemove)
+
 
     def onSensorSettingsSelectionChanged(self, selected:QItemSelection, deselected:QItemSelection):
         self.actionDeleteSelectedSensors.setEnabled(len(selected) > 0)
@@ -407,7 +494,7 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         values = self.values()
         setValues(values)
 
-        self.mSensorSpecsModel.saveSettings()
+        #self.mSensorSpecsModel.saveSettings()
 
         if values != self.mLastValues:
 
@@ -425,11 +512,24 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
         d[Keys.VectorSourceDirectory] = self.mFileWidgetVectorSources.filePath()
 
         d[Keys.DateTimePrecision] = self.cbDateTimePrecission.currentData()
-        d[Keys.SensorMatching] = self.cbSensorMatching.currentData()
+
+        flags = SensorMatching.PX_DIMS
+        if self.cbSensorMatchingWavelength.isChecked():
+            flags = flags | SensorMatching.WL
+        if self.cbSensorMatchingSensorName.isChecked():
+            flags = flags | SensorMatching.NAME
+
+        d[Keys.SensorMatching] = flags
+        d[Keys.SensorSpecs] = self.mSensorSpecsModel.specs()
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())
         d[Keys.MapUpdateInterval] = self.sbMapRefreshIntervall.value()
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
         d[Keys.MapTextFormat] = self.mMapTextFormatButton.textFormat()
+
+
+        for k in self.mLastValues.keys():
+            if k not in d.keys():
+                d[k] = self.mLastValues[k]
 
         return d
 
@@ -468,9 +568,14 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
                     self.cbDateTimePrecission.setCurrentIndex(i)
 
             if checkKey(key, Keys.SensorMatching):
-                i = self.cbSensorMatching.findData(value)
-                if i > -1:
-                    self.cbSensorMatching.setCurrentIndex(i)
+                assert isinstance(value, SensorMatching)
+                self.cbSensorMatchingPxDims.setChecked(bool(value & SensorMatching.PX_DIMS))
+                self.cbSensorMatchingWavelength.setChecked(bool(value & SensorMatching.WL))
+                self.cbSensorMatchingSensorName.setChecked(bool(value & SensorMatching.NAME))
+
+            if checkKey(key, Keys.SensorSpecs):
+                assert isinstance(value, dict)
+                self.mSensorSpecsModel.setSpecs(value)
 
             if checkKey(key, Keys.MapSize) and isinstance(value, QSize):
                 self.sbMapSizeX.setValue(value.width())

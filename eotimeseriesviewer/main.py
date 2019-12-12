@@ -617,8 +617,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
             format = d.fileType().lower()
             path = d.directory()
 
-
-
         else:
             format = format.lower()
 
@@ -809,6 +807,24 @@ class TimeSeriesViewer(QgisInterface, QObject):
         if isinstance(v, DateTimePrecision):
             self.mTimeSeries.setDateTimePrecision(v)
 
+        v = value(Keys.SensorMatching)
+        if isinstance(v, SensorMatching):
+            self.mTimeSeries.setSensorMatching(v)
+
+        v = value(Keys.SensorSpecs)
+        if isinstance(v, dict):
+            sensors = dict()
+            for s in self.sensors():
+                sensors[s.id()] = s
+
+            for sid, specs in v.items():
+                assert isinstance(sid, str)
+                assert isinstance(specs, dict)
+                sensor = sensors.get(sid)
+                if isinstance(sensor, SensorInstrument):
+                    if 'name' in specs.keys():
+                        sensor.setName(specs['name'])
+
         v = value(Keys.MapUpdateInterval)
         if isinstance(v, int) and v > 0:
             self.ui.mMapWidget.mMapRefreshTimer.start(v)
@@ -824,6 +840,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
         v = value(Keys.MapSize)
         if isinstance(v, QSize):
             self.ui.mMapWidget.setMapSize(v)
+
+
 
 
 
@@ -1088,10 +1106,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
     def onSensorAdded(self, sensor:SensorInstrument):
 
         knownName = eotsvSettings.sensorName(sensor.id())
+        sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
+
         if isinstance(knownName, str) and len(knownName) > 0:
             sensor.setName(knownName)
+        else:
+            self.onSensorNameChanged(sensor) # save the sensor name to the settings
 
-        sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
 
     def onSensorNameChanged(self, sensor:SensorInstrument):
         # save changed names to settings

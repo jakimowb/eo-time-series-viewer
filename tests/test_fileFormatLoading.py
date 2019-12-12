@@ -94,11 +94,11 @@ class TestFileFormatLoading(TestCase):
 
         testData = r'J:\diss_bj\level2\s-america\X0049_Y0025'
         if os.path.isdir(testData):
-            files = file_search(testData, '*IMP.tif')
-            for path in files:
+            files = list(file_search(testData, '*IMP.tif'))
+            for i, path in enumerate(files):
 
                 self.TS.addSources([path], runAsync=False)
-                self.assertEqual(len(self.TS), 1)
+                self.assertEqual(len(self.TS), i + 1)
 
                 tss = self.TS[0][0]
                 self.assertIsInstance(tss, TimeSeriesSource)

@@ -60,6 +60,21 @@
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>2</number>
+         </property>
+         <property name="topMargin">
+          <number>2</number>
+         </property>
+         <property name="rightMargin">
+          <number>2</number>
+         </property>
+         <property name="bottomMargin">
+          <number>2</number>
+         </property>
          <item>
           <widget class="QGroupBox" name="groupBox_3">
            <property name="title">
@@ -108,7 +123,14 @@
            <property name="title">
             <string>Data Loading</string>
            </property>
-           <layout class="QFormLayout" name="formLayout">
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="2" column="1">
+             <widget class="QCheckBox" name="cbSensorMatchingWavelength">
+              <property name="text">
+               <string>Wavelength</string>
+              </property>
+             </widget>
+            </item>
             <item row="0" column="0">
              <widget class="QLabel" name="label">
               <property name="text">
@@ -116,13 +138,19 @@
               </property>
              </widget>
             </item>
-            <item row="0" column="1">
-             <widget class="QComboBox" name="cbDateTimePrecission">
-              <property name="toolTip">
-               <string>Defines the accuracy with which source images of same sensor but different time stamps are combined into the same image group.</string>
+            <item row="1" column="1">
+             <widget class="QCheckBox" name="cbSensorMatchingPxDims">
+              <property name="enabled">
+               <bool>false</bool>
               </property>
-              <property name="whatsThis">
-               <string>Selects the precission used to extract time stamps from raster meta data.</string>
+              <property name="text">
+               <string>Pixel Dimensions</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -133,10 +161,17 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="1">
-             <widget class="QComboBox" name="cbSensorMatching">
+            <item row="2" column="2">
+             <widget class="QCheckBox" name="cbSensorMatchingSensorName">
+              <property name="text">
+               <string>Sensor Name</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" colspan="2">
+             <widget class="QComboBox" name="cbDateTimePrecission">
               <property name="toolTip">
-               <string>Specifies when source images should be considered to be from the same sensor/image product.</string>
+               <string>Defines the accuracy with which source images of same sensor but different time stamps are combined into the same image group.</string>
               </property>
               <property name="whatsThis">
                <string>Selects the precission used to extract time stamps from raster meta data.</string>
@@ -163,6 +198,24 @@
        </widget>
        <widget class="QWidget" name="pageMaps">
         <layout class="QFormLayout" name="formLayout_4">
+         <property name="horizontalSpacing">
+          <number>2</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>2</number>
+         </property>
+         <property name="topMargin">
+          <number>2</number>
+         </property>
+         <property name="rightMargin">
+          <number>2</number>
+         </property>
+         <property name="bottomMargin">
+          <number>2</number>
+         </property>
          <item row="0" column="0">
           <widget class="QLabel" name="label_3">
            <property name="text">
@@ -315,69 +368,101 @@
        </widget>
        <widget class="QWidget" name="pageSensors">
         <layout class="QVBoxLayout" name="verticalLayout_2">
+         <property name="spacing">
+          <number>2</number>
+         </property>
+         <property name="leftMargin">
+          <number>2</number>
+         </property>
+         <property name="topMargin">
+          <number>2</number>
+         </property>
+         <property name="rightMargin">
+          <number>2</number>
+         </property>
+         <property name="bottomMargin">
+          <number>2</number>
+         </property>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_3">
-           <property name="topMargin">
-            <number>0</number>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Sensor Names</string>
            </property>
-           <item>
-            <widget class="QLabel" name="label_12">
-             <property name="text">
-              <string>Sensor Names </string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="horizontalSpacer_2">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QToolButton" name="btnReloadSensorSettings">
-             <property name="text">
-              <string>Reload</string>
-             </property>
-             <property name="icon">
-              <iconset resource="../../../../QGIS/images/images.qrc">
-               <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QToolButton" name="btnDeleteSelectedSensors">
-             <property name="text">
-              <string>Clear</string>
-             </property>
-             <property name="icon">
-              <iconset resource="../../../../QGIS/images/images.qrc">
-               <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
-             </property>
-             <property name="autoRaise">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QTableView" name="tableViewSensorSettings">
-           <property name="styleSheet">
-            <string notr="true"/>
-           </property>
-           <property name="sortingEnabled">
-            <bool>true</bool>
-           </property>
+           <layout class="QVBoxLayout" name="verticalLayout_4">
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="leftMargin">
+             <number>2</number>
+            </property>
+            <property name="topMargin">
+             <number>2</number>
+            </property>
+            <property name="rightMargin">
+             <number>2</number>
+            </property>
+            <property name="bottomMargin">
+             <number>2</number>
+            </property>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <spacer name="horizontalSpacer_2">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QToolButton" name="btnReloadSensorSettings">
+                <property name="text">
+                 <string>Reload</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../QGIS/images/images.qrc">
+                  <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+                </property>
+                <property name="autoRaise">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="btnDeleteSelectedSensors">
+                <property name="text">
+                 <string>Clear</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="../../../../QGIS/images/images.qrc">
+                  <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
+                </property>
+                <property name="autoRaise">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QTableView" name="tableViewSensorSettings">
+              <property name="styleSheet">
+               <string notr="true"/>
+              </property>
+              <property name="sortingEnabled">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
         </layout>

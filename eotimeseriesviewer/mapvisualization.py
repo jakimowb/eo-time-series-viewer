@@ -220,8 +220,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
         super(MapView, self).__init__(parent)
         self.setupUi(self)
 
-        from eotimeseriesviewer.settings import DEFAULT_VALUES, Keys
-
+        from eotimeseriesviewer.settings import defaultValues, Keys
+        DEFAULT_VALUES = defaultValues()
         self.mMapBackgroundColor = DEFAULT_VALUES[Keys.MapBackgroundColor]
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mCurrentLayer = None
@@ -862,7 +862,8 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         self.mCrosshairPosition = None
 
         self.mMapSize = QSize(200, 200)
-        from eotimeseriesviewer.settings import DEFAULT_VALUES, Keys
+        from eotimeseriesviewer.settings import defaultValues, Keys
+        DEFAULT_VALUES = defaultValues()
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mMapRefreshTimer = QTimer(self)
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)

@@ -118,7 +118,7 @@ def getDS(pathOrDataset)->gdal.Dataset:
 
 def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str, name:str)->str:
     """
-    Create a sensor ID
+    Creates a sensor ID str
     :param nb: number of bands
     :param px_size_x: pixel size x
     :param px_size_y: pixel size y
@@ -140,8 +140,15 @@ def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str,
 
     if name != None:
         assert isinstance(name, str)
-
-    return json.dumps((nb, px_size_x, px_size_y, dt, wl, wlu, name))
+    jsonDict = {'nb': nb,
+                'px_size_x': px_size_x,
+                'px_size_y': px_size_y,
+                'dt': dt,
+                'wl': wl,
+                'wlu': wlu,
+                'name': name
+                }
+    return json.dumps(jsonDict)
 
 def sensorIDtoProperties(idString:str)->tuple:
     """
@@ -149,12 +156,19 @@ def sensorIDtoProperties(idString:str)->tuple:
     :param idString: str
     :return: (ns, px_size_x, px_size_y, [wl], wlu)
     """
-    try:
-        nb, px_size_x, px_size_y, dt, wl, wlu, name = json.loads(idString)
-    except ValueError as ex:
-        if ex.args[0] == 'not enough values to unpack (expected 7, got 6)':
-            nb, px_size_x, px_size_y, dt, wl, wlu = json.loads(idString)
-            name = None
+
+    jsonDict = json.loads(idString)
+    assert isinstance(jsonDict, dict)
+    # must haves
+    nb = jsonDict.get('nb')
+    px_size_x = jsonDict.get('px_size_x')
+    px_size_y = jsonDict.get('px_size_y')
+    dt = jsonDict.get('dt')
+
+    # can haves
+    wl = jsonDict.get('wl', None)
+    wlu = jsonDict.get('wlu', None)
+    name = jsonDict.get('name', None)
 
     assert isinstance(dt, int) and dt >= 0
     assert isinstance(nb, int)
@@ -196,7 +210,14 @@ class SensorInstrument(QObject):
         self.wl:list
         self.wlu:str
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu,  self.mNameOriginal = sensorIDtoProperties(self.mId)
-        self.mName = ''
+        if self.mNameOriginal in [None, '']:
+            self.mNameOriginal = '{}bands@{}m'.format(self.nb, self.px_size_x)
+
+        self.mName = self.mNameOriginal
+        import eotimeseriesviewer.settings
+        storedName = eotimeseriesviewer.settings.sensorName(self.mId)
+        if isinstance(storedName, str):
+            self.mName = storedName
 
         if not isinstance(band_names, list):
             band_names = ['Band {}'.format(b+1) for b in range(self.nb)]
@@ -208,18 +229,6 @@ class SensorInstrument(QObject):
             self.wl = None
         else:
             self.wl = np.asarray(self.wl)
-
-
-
-        if self.mNameOriginal in [None, '']:
-            from eotimeseriesviewer.settings import sensorName
-            sensor_name = sensorName(sid)
-            if sensor_name is None:
-                sensor_name = '{}bands@{}m'.format(self.nb, self.px_size_x)
-            self.setName(sensor_name)
-        else:
-            self.setName(self.mNameOriginal)
-
 
         self.hashvalue = hash(self.mId)
 
@@ -285,8 +294,6 @@ class SensorInstrument(QObject):
         if name != self.mName:
             assert isinstance(name, str)
             self.mName = name
-            from eotimeseriesviewer.settings import saveSensorName
-            saveSensorName(self)
             self.sigNameChanged.emit(self.name())
 
     def name(self)->str:
@@ -315,7 +322,7 @@ class SensorInstrument(QObject):
         info = []
         info.append(self.name())
         info.append('{} Bands'.format(self.nb))
-        info.append('Band\tName\tWavelength')
+        info.append('Band\tNAME\tWavelength')
         for b in range(self.nb):
             if self.wl is not None:
                 wl = str(self.wl[b])
@@ -1051,15 +1058,63 @@ class DateTimePrecision(enum.Enum):
     Milisecond = 'ms'
     Original = 0
 
-class SensorMatching(enum.Enum):
+class SensorMatching(enum.Flag):
     """
     Describes when two different sources should be considered to be from the same sensor
     """
-    DIMS = 'Image Dimensions only'
-    DIMS_WL = 'Image Dimensions + Wavelength'
-    DIMS_Name = 'Image Dimensions + Name'
-    DIMS_WL_Name = 'Image Dimensions + Wavelength + Name'
 
+
+    PX_DIMS = enum.auto() #'Pixel Dimensions (GSD + Bands + Datatype)'
+    WL = enum.auto()     #'Pixel Dims. + Wavelength'
+    NAME = enum.auto()   #'Pixel Dims. + NAME'
+
+
+    @staticmethod
+    def name(flags) -> str:
+        """
+        Returns a description of the flag set
+        :param flags:
+        :type flags:
+        :return:
+        :rtype:
+        """
+        assert isinstance(flags, SensorMatching)
+        parts = []
+        if bool(flags & SensorMatching.PX_DIMS):
+            parts.append('Pixel Dims.')
+        if bool(flags & SensorMatching.WL):
+            parts.append('Wavelength')
+        if bool(flags & SensorMatching.NAME):
+            parts.append('Name')
+
+        if len(parts) == 0:
+            return ''
+        if len(parts) == 1 and bool(flags & SensorMatching.PX_DIMS):
+            parts[0] = 'Pixel Dimensions (GSD + Bands + Datatype)'
+
+        return ' + '.join(parts)
+
+        assert isinstance(flags, SensorMatching)
+
+    @staticmethod
+    def tooltip(flags)->str:
+        """
+        Returns a multi-line tooltip for the flag set
+        :param flags:
+        :type flags:
+        :return:
+        :rtype:
+        """
+        assert isinstance(flags, SensorMatching)
+        parts = []
+        if bool(flags & SensorMatching.PX_DIMS):
+            parts.append('Source images of same sensor/product must have same ground sampling distance ("pixel size"), number of bands and data type.')
+        if bool(flags & SensorMatching.WL):
+            parts.append('Source images of same sensor/product must have same wavelength definition, e.g. nanometer value for each raster band.')
+        if bool(flags & SensorMatching.NAME):
+            parts.append('Source images of same sensor/product must have the same name, e.g. defined by a "sensor type = Landsat 8" metadata entry.')
+
+        return '\n'.join(parts)
 
 def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
 
@@ -1071,7 +1126,7 @@ def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
     n = len(sources)
     for i, source in enumerate(sources):
         if qgsTask.isCanceled():
-            return pickle.dumps(results)
+            return pickle.dumps(results), pickle.dumps(invalidSources)
 
         try:
             tss = TimeSeriesSource.create(source)
@@ -1110,7 +1165,7 @@ class TimeSeries(QAbstractItemModel):
         self.mShape = None
 
         self.mDateTimePrecision = DateTimePrecision.Original
-        self.mProductSimilarity = SensorMatching.DIMS
+        self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
         self.mLoadingProgressDialog = None
         self.mLUT_Path2TSD = {}
@@ -1193,28 +1248,25 @@ class TimeSeries(QAbstractItemModel):
             assert isinstance(sensorID, tuple) and len(sensorID) == 7
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorID
 
-        DIMS = (nb, px_size_y, px_size_x, dt)
+        PX_DIMS = (nb, px_size_y, px_size_x, dt)
         for sensor in self.sensors():
-            DIMS2 = (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType)
+            PX_DIMS2 = (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType)
 
-            bName = sensor.mNameOriginal == name
-            bWL = wlu == sensor.wlu and np.array_equal(wl, sensor.wl)
+            samePxDims = PX_DIMS == PX_DIMS2
+            sameName = sensor.mNameOriginal == name
+            sameWL = wlu == sensor.wlu and np.array_equal(wl, sensor.wl)
 
-            if DIMS != DIMS2:
-                # self.mProductSimilarity == SensorMatching.DIMS:
+
+            if bool(self.mSensorMatchingFlags & SensorMatching.PX_DIMS) and not samePxDims:
                 continue
 
-            if self.mProductSimilarity == SensorMatching.DIMS:
-                return sensor
+            if bool(self.mSensorMatchingFlags & SensorMatching.NAME) and not sameName:
+                continue
 
-            elif self.mProductSimilarity == SensorMatching.DIMS_Name and bName:
-                return sensor
+            if bool(self.mSensorMatchingFlags & SensorMatching.WL) and not sameWL:
+                continue
 
-            elif self.mProductSimilarity == SensorMatching.DIMS_WL and bWL:
-                return sensor
-
-            elif self.mProductSimilarity == SensorMatching.DIMS_WL_Name and bName and bWL:
-                return sensor
+            return sensor
 
         return None
 
@@ -1483,7 +1535,7 @@ class TimeSeries(QAbstractItemModel):
         Adds a Sensor
         :param sensor: SensorInstrument
         """
-
+        assert isinstance(sensor, SensorInstrument)
         if not sensor in self.mSensors:
             self.mSensors.append(sensor)
             self.sigSensorAdded.emit(sensor)
@@ -1518,7 +1570,7 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
-    def addSources(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
+    def addSources(self, sources:typing.List[str], nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
@@ -1572,6 +1624,10 @@ class TimeSeries(QAbstractItemModel):
         error = args[0]
 
         hasProgressDialog = isinstance(self.mLoadingProgressDialog, QProgressDialog)
+        loadingProgress = 0
+        if hasProgressDialog:
+            loadingProgress = self.mLoadingProgressDialog.value()
+
 
         if error is None:
             try:
@@ -1580,12 +1636,16 @@ class TimeSeries(QAbstractItemModel):
                 sources = pickle.loads(sources)
                 invalidSources = pickle.loads(invalidSources)
 
+                progressValue = 0
                 if len(invalidSources) > 0:
                     info = ['Unable to load {} data source(s):'.format(len(invalidSources))]
                     for s, ex in invalidSources:
                         info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
                     info = '\n'.join(info)
                     messageLog(info, Qgis.Critical)
+                    if hasProgressDialog:
+                        loadingProgress += len(invalidSources)
+                        self.mLoadingProgressDialog.setValue(loadingProgress)
 
                 if len(sources) > 0:
                     addedDates = []
@@ -1600,7 +1660,8 @@ class TimeSeries(QAbstractItemModel):
                             addedDates.append(newTSD)
 
                         if hasProgressDialog:
-                            self.mLoadingProgressDialog.setValue(i+1)
+                            progressValue += 1
+                            self.mLoadingProgressDialog.setValue(progressValue)
 
                     if len(addedDates) > 0:
                         self.sigTimeSeriesDatesAdded.emit(addedDates)
@@ -1613,7 +1674,7 @@ class TimeSeries(QAbstractItemModel):
             s = ""
 
         if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-            self.mLoadingProgressDialog.hide()
+            self.mLoadingProgressDialog.close()
             self.mLoadingProgressDialog = None
 
 
@@ -1632,7 +1693,6 @@ class TimeSeries(QAbstractItemModel):
         newTSD = None
 
         tsdDate = self.date2date(tss.date())
-        tssDate = tss.date()
         sid = tss.sid()
 
 
@@ -1641,7 +1701,7 @@ class TimeSeries(QAbstractItemModel):
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
             sensor = self.addSensor(SensorInstrument(sid))
-
+            assert isinstance(sensor, SensorInstrument)
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsdDate, sensor)
 
@@ -1671,14 +1731,15 @@ class TimeSeries(QAbstractItemModel):
 
         #do we like to update existing sources?
 
-    def setSensorMatching(self, mode:SensorMatching):
+    def setSensorMatching(self, flags:SensorMatching):
         """
         Sets the mode under which two source images can be considered as to be from the same sensor/product
-        :param mode:
+        :param flags:
         :return:
         """
-        assert isinstance(mode, SensorMatching)
-        self.mProductSimilarity = mode
+        assert isinstance(flags, SensorMatching)
+        assert bool(flags & SensorMatching.PX_DIMS), 'SensorMatching flags PX_DIMS needs to be set'
+        self.mSensorMatchingFlags = flags
 
 
     def date2date(self, date:np.datetime64)->np.datetime64:
@@ -2011,9 +2072,7 @@ class TimeSeries(QAbstractItemModel):
             flags = flags | Qt.ItemIsUserCheckable
         return flags
 
-regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type|product[ _]?type)', re.IGNORECASE)
-#regSensorName = re.compile(r'(SATELLITEID|sensor[ _]?type)', re.IGNORECASE)
-
+regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
 def sensorName(dataset:gdal.Dataset)->str:
     """
     Reads the sensor/product name. Returns None if a proper name can not be extracted.

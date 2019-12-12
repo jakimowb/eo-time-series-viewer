@@ -48,6 +48,7 @@ class TestInit(TestCase):
 
     """
 
+
     def test_read_init(self):
         """Test that the plugin __init__ will validate on plugins.qgis.org."""
 
@@ -92,7 +93,6 @@ class TestInit(TestCase):
             QGIS_APP.exec_()
             s = ""
 
-
     def test_TimeSeriesViewer(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
@@ -108,23 +108,20 @@ class TestInit(TestCase):
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
+
         if SHOW_GUI:
             QGIS_APP.exec_()
-
 
     def test_TimeSeriesViewerInvalidSource(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        imgages = ['not-existing-source']
-        TSV.addTimeSeriesImages(imgages, loadAsync=False)
-        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
-            QCoreApplication.processEvents()
+        images = ['not-existing-source']
+        TSV.addTimeSeriesImages(images, loadAsync=False)
 
         if SHOW_GUI:
             QGIS_APP.exec_()
-
 
     def test_TimeSeriesViewerMultiSource(self):
 
@@ -157,12 +154,13 @@ class TestInit(TestCase):
         d = SaveAllMapsDialog()
         self.assertEqual(d.fileType(), 'PNG')
 
+        pathTestOutput = tempfile.mkdtemp(prefix='EOTSTTestOutput')
 
         TSV = TimeSeriesViewer()
         TSV.show()
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
-        TSV.exportMapsToImages()
+        TSV.exportMapsToImages(path=pathTestOutput)
 
         if SHOW_GUI:
             QGIS_APP.exec_()

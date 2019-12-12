@@ -194,6 +194,41 @@ class TestInit(unittest.TestCase):
         self.assertEqual(tss, tss3)
 
 
+    def test_sensorMatching(self):
+
+
+
+
+
+        testDir = r'Q:\Processing_BJ\99_EOTSV_RapidEye'
+        if os.path.isdir(testDir):
+            sensors = set()
+            files = list(file_search(testDir, re.compile(r'.*RE.*\d+\.tif$'), recursive=True))
+            tssList = []
+            for file in files:
+                tss = TimeSeriesSource.create(file)
+                self.assertIsInstance(tss, TimeSeriesSource)
+                sid = tss.sid()
+                sensor = SensorInstrument(sid)
+                self.assertIsInstance(sensor, SensorInstrument)
+                sensors.add(sensor)
+                tssList.append(tss)
+
+            TS = TimeSeries()
+            TS.setSensorMatching(SensorMatching.PX_DIMS)
+            TS.addSources(files, runAsync=False)
+            self.assertTrue(len(TS.sensors()) == 1)
+
+            TS = TimeSeries()
+            TS.setSensorMatching(SensorMatching.PX_DIMS | SensorMatching.NAME | SensorMatching.WL)
+            TS.addSources(files, runAsync=False)
+            self.assertTrue(len(TS.sensors()) == len(sensors))
+
+
+
+            s = ""
+
+
     def test_datetimeprecision(self):
 
         img1 = TestObjects.inMemoryImage()

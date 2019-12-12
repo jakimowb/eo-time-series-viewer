@@ -110,10 +110,11 @@ class testclassMapVisualization(unittest.TestCase):
     def test_mapWidget(self):
 
         TS = TestObjects.createTimeSeries()
-        from eotimeseriesviewer.settings import Keys, DEFAULT_VALUES
+        from eotimeseriesviewer.settings import Keys, defaultValues
         w = MapWidget()
         w.setTimeSeries(TS)
-        w.setMapTextFormat(DEFAULT_VALUES[Keys.MapTextFormat])
+
+        w.setMapTextFormat(defaultValues()[Keys.MapTextFormat])
         w.mMpMV = 1
         w.show()
 
@@ -215,7 +216,7 @@ class testclassMapVisualization(unittest.TestCase):
 
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
-        lyr.setName('Layer1 Name')
+        lyr.setName('Layer1 NAME')
         lyr.setTitle('Layer1 title')
         lyr2 = TestObjects.createVectorLayer()
         lyr2.setName('Layer2 name')
