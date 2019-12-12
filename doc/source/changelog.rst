@@ -4,9 +4,10 @@ Changelog
 2019-11-25 (version 1.10):
     * improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
       based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name
+    * settings dialog shows known sensor / product specification and allows to modify their default "sensor name"
     * fixed copying of layer styles to maps of same sensor and map view type
     * improved speed of mapping and layer buffering
-    * failed image sources are logged in teh EO Time Series Viewer log panel
+    * failed image sources are logged in the EO Time Series Viewer log panel
     * Spectral Library Viewer better handles large collections of spectral profiles
 
 2019-10-02 (version 1.9):
