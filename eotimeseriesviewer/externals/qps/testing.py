@@ -185,6 +185,9 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
             qgsApp = qgis.testing.start_app()
             if not QgsProviderRegistry.instance().libraryDirectory().exists():
                 QgsProviderRegistry.instance().setLibraryDirectory(QDir(QApplication.instance().libraryPaths()[0]))
+                s = ""
+
+            qgsApp.setPkgDataPath(re.sub(r'(/envs/[^/]+)/\.$', r'\1/Library', qgsApp.pkgDataPath()))
 
         elif QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Unknown:
 
@@ -407,12 +410,13 @@ class QgisMockup(QgisInterface):
     def layerTreeView(self) -> QgsLayerTreeView:
         return self.mLayerTreeView
 
-    def addRasterLayer(self, path, baseName=''):
+    def addRasterLayer(self, path, baseName:str='')->QgsRasterLayer:
         l = QgsRasterLayer(path, os.path.basename(path))
         self.lyrs.append(l)
         QgsProject.instance().addMapLayer(l, True)
         self.mRootNode.addLayer(l)
         # self.mCanvas.setLayers(self.mCanvas.layers() + l)
+        return l
 
     def createActions(self):
         m = self.ui.menuBar().addAction('Add Vector')

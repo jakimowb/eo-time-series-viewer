@@ -50,6 +50,100 @@ URL_WIKI = r'https://api.bitbucket.org/2.0/repositories/hu-geomatics/enmap-box/w
 
 
 
+class QGISMetadataFileWriter(object):
+
+    def __init__(self):
+        self.mName = None
+
+        self.mDescription = None
+        self.mVersion = None
+        self.mQgisMinimumVersion = '3.8'
+        self.mQgisMaximumVersion = '3.99'
+        self.mAuthor = None
+        self.mAbout = None
+        self.mEmail = None
+        self.mHomepage = None
+        self.mIcon = None
+        self.mTracker = None
+        self.mRepository = None
+        self.mIsExperimental = False
+        self.mTags = None
+        self.mCategory = None
+        self.mChangelog = ''
+
+    def validate(self)->bool:
+
+        return True
+
+    def metadataString(self)->str:
+        assert self.validate()
+
+        lines = ['[general]']
+        lines.append('name={}'.format(self.mName))
+        lines.append('author={}'.format(self.mAuthor))
+        if self.mEmail:
+            lines.append('email={}'.format(self.mEmail))
+
+        lines.append('description={}'.format(self.mDescription))
+        lines.append('version={}'.format(self.mVersion))
+        lines.append('qgisMinimumVersion={}'.format(self.mQgisMinimumVersion))
+        lines.append('qgisMaximumVersion={}'.format(self.mQgisMaximumVersion))
+        lines.append('about={}'.format(re.sub('\n', '', self.mAbout)))
+
+        lines.append('icon={}'.format(self.mIcon))
+
+        lines.append('tags={}'.format(', '.join(self.mTags)))
+        lines.append('category={}'.format(self.mRepository))
+
+        lines.append('homepage={}'.format(self.mHomepage))
+        if self.mTracker:
+            lines.append('tracker={}'.format(self.mTracker))
+        if self.mRepository:
+            lines.append('repository={}'.format(self.mRepository))
+        if isinstance(self.mIsExperimental, bool):
+            lines.append('experimental={}'.format(self.mIsExperimental))
+
+
+        #lines.append('deprecated={}'.format(self.mIsDeprecated))
+        lines.append('')
+        lines.append('changelog={}'.format(self.mChangelog))
+
+        return '\n'.join(lines)
+    """
+    [general]
+    name=dummy
+    description=dummy
+    version=dummy
+    qgisMinimumVersion=dummy
+    qgisMaximumVersion=dummy
+    author=dummy
+    about=dummy
+    email=dummy
+    icon=dummy
+    homepage=dummy
+    tracker=dummy
+    repository=dummy
+    experimental=False
+    deprecated=False
+    tags=remote sensing, raster, time series, data cube, landsat, sentinel
+    category=Raster
+    """
+
+    def writeMetadataTxt(self, path:str):
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(self.metadataString())
+        # read again and run checks
+        import pyplugin_installer.installer_data
+
+        # test if we could read the plugin
+        import pyplugin_installer.installer_data
+        P = pyplugin_installer.installer_data.Plugins()
+        plugin = P.getInstalledPlugin(self.mName, os.path.dirname(path), True)
+
+        #if hasattr(pyplugin_installer.installer_data, 'errorDetails'):
+        #    raise Exception('plugin structure/metadata error:\n{}'.format(pyplugin_installer.installer_data.errorDetails))
+        s = ""
+
 
 
 def buildId()->str:

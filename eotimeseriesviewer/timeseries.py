@@ -33,6 +33,8 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 
+from osgeo import osr, ogr, gdal, gdal_array
+
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
 LUT_WAVELENGTH_UNITS = {}
@@ -386,20 +388,20 @@ def verifyInputImage(datasource):
 class TimeSeriesSource(object):
     """Provides some information on source images"""
 
-    @staticmethod
-    def fromJson(jsonData:str):
+    @classmethod
+    def fromJson(cls, jsonData:str):
         """
         Returs a TimeSeriesSource from its JSON representation
         :param json:
         :return:
         """
-        source = TimeSeriesSource(None)
+        source = cls(None)
         state = json.loads(jsonData)
         source.__setstatedictionary(state)
         return source
 
-    @staticmethod
-    def create(source):
+    @classmethod
+    def create(cls, source):
         """
         Reads the argument and returns a TimeSeriesSource
         :param source: gdal.Dataset, str, QgsRasterLayer
@@ -441,7 +443,11 @@ class TimeSeriesSource(object):
         if not isinstance(ds, gdal.Dataset):
             raise Exception('Unsupported source: {}'.format(source))
 
-        return TimeSeriesSource(ds)
+        srs = osr.SpatialReference()
+        assert srs.ImportFromWkt(ds.GetProjection()) == ogr.OGRERR_NONE, 'Can not read spatial reference from {}'.format(ds.GetDescription())
+
+
+        return cls(ds)
 
     def __init__(self, dataset:gdal.Dataset=None):
 
@@ -543,7 +549,9 @@ class TimeSeriesSource(object):
         for k, v in state.items():
             self.__dict__[k] = v
         self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
-        assert self.mCRS.isValid()
+        if not self.mCRS.isValid():
+            srs = osr.SpatialReference()
+            assert srs.ImportFromWkt(self.mCRS.toWkt()) == ogr.OGRERR_NONE, 'Unable to import spatial reference of {}'.format(self.mUri)
         self.mUL = QgsPointXY(QgsGeometry.fromWkt(self.mUL).asPoint())
         self.mLR = QgsPointXY(QgsGeometry.fromWkt(self.mLR).asPoint())
         self.mDate = np.datetime64(self.mDate)
@@ -636,20 +644,58 @@ class TimeSeriesSource(object):
         self.mTimeSeriesDate = tsd
 
     def date(self)->np.datetime64:
+        """
+        Returns the date-time-group of the source image
+        :return:
+        :rtype:
+        """
         return self.mDate
 
     def crs(self)->QgsCoordinateReferenceSystem:
+        """
+        Returns the coordinate system as QgsCoordinateReferenceSystem
+        :return:
+        :rtype:
+        """
         return self.mCRS
 
     def spatialExtent(self)->SpatialExtent:
+        """
+        Returns the SpatialExtent
+        :return:
+        :rtype:
+        """
         if not isinstance(self.mSpatialExtent, SpatialExtent):
             self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
         return self.mSpatialExtent
+
+    def asDataset(self)->gdal.Dataset:
+        """
+        Returns the source as gdal.Dataset
+        :return:
+        :rtype:
+        """
+        return gdal.Open(self.uri())
+
+    def asArray(self)->np.ndarray:
+        """
+        Returns the entire image as numpy array
+        :return:
+        :rtype:
+        """
+        return gdal_array.LoadFile(self.uri())
 
     def __eq__(self, other):
         if not isinstance(other, TimeSeriesSource):
             return False
         return self.mUri == other.mUri
+
+    def __lt__(self, other):
+        assert isinstance(other, TimeSeriesSource)
+        return self.date() < other.date()
+
+    def __hash__(self):
+        return hash(self.mUri)
 
 
 class TimeSeriesDate(QAbstractTableModel):
@@ -1509,7 +1555,7 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->list:
+    def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->typing.List[TimeSeriesDate]:
 
         """
         Returns a list of  TimeSeriesDate of the TimeSeries. By default all TimeSeriesDate will be returned.

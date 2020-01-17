@@ -31,13 +31,20 @@ def matchOrNone(regex, text):
     else:
         return None
 
-def dateDOY(date):
+def dateDOY(date:datetime.date)->int:
+    """
+    Returns the DOY
+    :param date:
+    :type date:
+    :return:
+    :rtype:
+    """
     if isinstance(date, np.datetime64):
         date = date.astype(datetime.date)
     return date.timetuple().tm_yday
 
-def daysPerYear(year):
-
+def daysPerYear(year)->int:
+    """Returns the days per year"""
     if isinstance(year, np.datetime64):
         year = year.astype(datetime.date)
     if isinstance(year, datetime.date):

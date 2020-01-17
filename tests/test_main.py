@@ -32,8 +32,9 @@ import eotimeseriesviewer
 eotimeseriesviewer.initResources()
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects
-
+from qgis.testing import start_app
 QGIS_APP = initQgisApplication()
+
 SHOW_GUI = True and os.environ.get('CI') is None
 
 

@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="qps">
+    <file>ui/icons/raster_flagimage.svg</file>
     <file>ui/icons/poly2speclib.svg</file>
     <file>ui/icons/speclib_add.svg</file>
     <file>ui/icons/speclib_clear.svg</file>
