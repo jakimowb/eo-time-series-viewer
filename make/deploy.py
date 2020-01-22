@@ -45,7 +45,7 @@ DIR_BUILD = jp(DIR_REPO, 'build')
 DIR_DEPLOY = jp(DIR_REPO, 'deploy')
 DIR_DOC_SOURCE = jp(DIR_REPO, *['doc', 'source'])
 
-QGIS_MIN = '3.4'
+QGIS_MIN = '3.8'
 QGIS_MAX = '3.99'
 
 
