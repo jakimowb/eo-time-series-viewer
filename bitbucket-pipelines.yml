@@ -32,4 +32,8 @@ pipelines:
           - git lfs pull
           - git lfs checkout
           - python3 make/setuprepository.py
-          - python3 -m nose2 discover tests "test_*.py" > test-reports/test-report.txt
+          #- python3 -m nose2 discover tests "test_*.py" > test-reports/test-report.txt
+          - CI=True
+          - export CI
+          - python3 tests/test_init.py
+          - python3 tests/test_fileFormatLoading.py
