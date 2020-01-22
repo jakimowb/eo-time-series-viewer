@@ -113,6 +113,47 @@ class testclassSettingsTest(unittest.TestCase):
         if SHOW_GUI:
             QGIS_APP.exec_()
 
+    def test_MapTextFormat(self):
+
+        from qgis.core import QgsTextFormat
+        from qgis.PyQt.Qt import QSettings
+        from qgis.PyQt.QtXml import QDomDocument
+        key = Keys.MapTextFormat
+
+        format1 = defaultValues()[key]
+        self.assertIsInstance(format1, QgsTextFormat)
+        color1 = QColor('yellow')
+        format1.setColor(color1)
+
+        doc = QDomDocument()
+        doc.appendChild(format1.writeXml(doc, QgsReadWriteContext()))
+        docBA = doc.toByteArray()
+        docStr = doc.toString()
+
+        doc2 = QDomDocument()
+        doc2.setContent(docBA)
+        format2 = QgsTextFormat()
+        format2.readXml(doc2.documentElement(), QgsReadWriteContext())
+        color2 = format2.color()
+        self.assertEqual(color1, color2)
+
+        QS = QSettings('TEST')
+        QS.setValue(key.value, doc.toByteArray())
+
+        docBA3 = QS.value(key.value)
+        self.assertIsInstance(docBA3, QByteArray)
+        doc3 = QDomDocument()
+        doc3.setContent(docBA3)
+        format3 = QgsTextFormat()
+        format3.readXml(doc3.documentElement(), QgsReadWriteContext())
+        self.assertEqual(color1, format3.color())
+
+        setValue(key, format1)
+        self.assertEqual(format1.color(), value(key).color())
+
+        s = ""
+
+
     def test_saveAndRestoreSensorNames(self):
 
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA

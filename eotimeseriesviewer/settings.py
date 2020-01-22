@@ -1,5 +1,5 @@
 
-import os, enum, pathlib, re, json
+import os, enum, pathlib, re, json, pickle
 from collections import namedtuple
 from qgis.core import *
 from qgis.gui import *
@@ -102,8 +102,14 @@ def value(key:Keys, default=None):
         if value == QVariant():
             value = None
 
-        if value and key == Keys.MapTextFormat:
-           s = ""
+        if key == Keys.MapTextFormat:
+            if isinstance(value, QByteArray):
+                doc = QDomDocument()
+                doc.setContent(value)
+                value = QgsTextFormat()
+                value.readXml(doc.documentElement(), QgsReadWriteContext())
+
+
 
         if key == Keys.SensorSpecs:
             # check sensor specs
@@ -130,6 +136,8 @@ def value(key:Keys, default=None):
         value = None
         settings().setValue(key.value, None)
         print(error, file=sys.stderr)
+    except Exception as otherError:
+        s = ""
     return value
 
 
@@ -176,9 +184,13 @@ def setValue(key:Keys, value):
     """
     assert isinstance(key, Keys)
     assert isinstance(key.value, str)
-    if isinstance(value, QgsTextFormat):
-        value = value.toMimeData()
 
+    if isinstance(value, QgsTextFormat):
+        # make QgsTextFormat pickable
+        doc = QDomDocument()
+        doc.appendChild(value.writeXml(doc, QgsReadWriteContext()))
+        value = doc.toByteArray()
+        
     if key == Keys.SensorSpecs:
         s = ""
     #if isinstance(value, dict) and key == Keys.SensorSpecs:
@@ -206,7 +218,6 @@ def values()->dict:
     :rtype: dict
     """
     d = dict()
-    s = settings()
     for key in Keys:
         assert isinstance(key, Keys)
         d[key] = value(key)
