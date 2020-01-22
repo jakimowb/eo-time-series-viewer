@@ -104,7 +104,7 @@ class TestInit(TestCase):
         TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
-            QCoreApplication.processEvents()
+            QCoreApplication.processEvents(QEventLoop.AllEvents)
 
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]

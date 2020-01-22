@@ -192,11 +192,6 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
         elif QOperatingSystemVersion.current().type() == QOperatingSystemVersion.Unknown:
 
             qgsApp = qgis.testing.start_app()
-            if not QgsProviderRegistry.instance().libraryDirectory().exists():
-                for path in QApplication.instance().libraryPaths():
-                    if os.path.isdir(path):
-                        QgsProviderRegistry.instance().setLibraryDirectory(QDir(path))
-                        break
 
             if not QgsProviderRegistry.instance().libraryDirectory().exists():
                 qdir = QDir(r'/usr/lib/qgis/plugins')

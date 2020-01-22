@@ -1181,7 +1181,7 @@ def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
         except Exception as ex:
             invalidSources.append((source, ex))
 
-        qgsTask.setProgress(i + 1)
+        qgsTask.setProgress(int(i + 1))
 
     return pickle.dumps(results), pickle.dumps(invalidSources)
 
