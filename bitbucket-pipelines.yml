@@ -17,15 +17,14 @@ pipelines:
           - python3 -m pip install -r requirements.txt
           - python3 -m pip install nose2
           - apt-get update
-
           - apt-get -y install git-lfs
           - apt-get -y install xvfb
-          #- Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
-          #- ps aux | grep X
-          #- DISPLAY=:1.0
-          #- export DISPLAY
-          - QT_QPA_PLATFORM=offscreen
-          - export QT_QPA_PLATFORM
+          - Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
+          - ps aux | grep X
+          - DISPLAY=:1.0
+          - export DISPLAY
+          #- QT_QPA_PLATFORM=offscreen
+          #- export QT_QPA_PLATFORM
           - mkdir test-reports
           - git lfs install
           - git lfs fetch
