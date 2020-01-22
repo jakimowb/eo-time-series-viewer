@@ -8,6 +8,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
 
 from eotimeseriesviewer import *
+from eotimeseriesviewer import __version__ as EOTSV_VERSION
 from eotimeseriesviewer.utils import loadUI
 from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
 
@@ -29,6 +30,7 @@ class Keys(enum.Enum):
     RasterSourceDirectory = 'raster_source_directory'
     VectorSourceDirectory = 'vector_source_directory'
     MapImageExportDirectory = 'map_image_export_directory'
+    SettingsVersion = 'settings_version'
 
 
 
@@ -54,6 +56,7 @@ def defaultValues() -> dict:
     d[Keys.MapSize] = QSize(150, 150)
     d[Keys.MapBackgroundColor] = QColor('black')
 
+    d[Keys.SettingsVersion] = EOTSV_VERSION
     textFormat = QgsTextFormat()
     textFormat.setColor(QColor('black'))
     textFormat.setSizeUnit(QgsUnitTypes.RenderPoints)
@@ -84,6 +87,12 @@ def settings()->QSettings:
 
     return settings
 
+
+if (not settings().contains(Keys.SettingsVersion.value)) or \
+    str(settings().value(Keys.SettingsVersion.value)) < '1.10.2020':
+        # addresses issue https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/103/tsv-crashes-qgis-on-linux
+        # which was caused by a wrong serialization of a QgsTextFormat object
+        settings().setValue(Keys.MapTextFormat.value, None)
 
 
 def value(key:Keys, default=None):
@@ -600,6 +609,4 @@ class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
 
             if checkKey(key, Keys.MapTextFormat) and isinstance(value, QgsTextFormat):
                 self.mMapTextFormatButton.setTextFormat(value)
-
-
 

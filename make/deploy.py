@@ -32,8 +32,10 @@ import numpy as np
 from pb_tool import pb_tool
 import git
 
-from eotimeseriesviewer.externals.qps.testing import initQgisApplication
-app = initQgisApplication()
+#from eotimeseriesviewer.externals.qps.testing import initQgisApplication
+#app = initQgisApplication()
+import qgis.testing
+app = qgis.testing.start_app()
 from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG, PATH_LICENSE, PATH_ABOUT
 from eotimeseriesviewer.utils import file_search, jp, zipdir
 import eotimeseriesviewer
@@ -47,8 +49,14 @@ QGIS_MIN = '3.4'
 QGIS_MAX = '3.99'
 
 
-REPO = git.Repo(DIR_REPO)
-currentBranch = REPO.active_branch.name
+try:
+    REPO = git.Repo(DIR_REPO)
+    currentBranch = REPO.active_branch.name
+except Exception as ex:
+    currentBranch = 'TEST'
+    print('Unable to find git repo. Set currentBranch to "{}"'.format(currentBranch))
+
+
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
 
 
@@ -75,8 +83,7 @@ PLAIN_COPY_SUBDIRS = ['site-packages']
 ########## End of config section
 
 
-REPO = git.Repo(DIR_REPO)
-currentBranch = REPO.active_branch.name
+
 timestamp = ''.join(np.datetime64(datetime.datetime.now()).astype(str).split(':')[0:-1]).replace('-','')
 buildID = '{}.{}.{}'.format(re.search(r'(\.?[^.]*){2}', eotimeseriesviewer.__version__).group()
                             , timestamp,
