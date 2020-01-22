@@ -1,7 +1,9 @@
 
 import xml.etree.ElementTree as ET
-from ..testing import initQgisApplication
-app = initQgisApplication()
+#from ..testing import initQgisApplication
+#app = initQgisApplication()
+import qgis.testing
+qgis.testing.start_app()
 from ..utils import *
 from osgeo import gdal, ogr, osr
 

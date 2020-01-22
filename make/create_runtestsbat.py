@@ -20,8 +20,7 @@ python3 make/setuprepository.py
 """
 
 PREFACE_SH = \
-"""
-#!/bin/bash
+"""#!/bin/bash
 # use this script to run unit tests locally
 #
 QT_QPA_PLATFORM=offscreen
@@ -45,7 +44,7 @@ for file in os.scandir(DIR_TESTS):
         bn = os.path.basename(file)
         bn = os.path.splitext(bn)[0]
         lineBat = 'python3 -m nose2 -s {3} {0} & move {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
-        lineSh = 'python3 -m nose2 -s {3} {0} | mv {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
+        lineSh = 'python3 -m nose2 -s {3} {0} #| mv {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
         linesBat.append(lineBat)
         linesSh.append(lineSh)
 
@@ -53,6 +52,6 @@ for file in os.scandir(DIR_TESTS):
 with open(PATH_RUNTESTS_BAT, 'w', encoding='utf-8') as f:
     f.write('\n'.join(linesBat))
 
-with open(PATH_RUNTESTS_SH, 'w', encoding='utf-8') as f:
+with open(PATH_RUNTESTS_SH, 'w', encoding='utf-8', newline='\n') as f:
     f.write('\n'.join(linesSh))
 
