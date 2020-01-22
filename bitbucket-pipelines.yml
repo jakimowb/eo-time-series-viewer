@@ -24,17 +24,19 @@ pipelines:
           - ps aux | grep X
           - DISPLAY=:1.0
           - export DISPLAY
-          #- QT_QPA_PLATFORM=offscreen
-          #- export QT_QPA_PLATFORM
           - mkdir test-reports
           - git lfs install
           - git lfs fetch
           - git lfs pull
           - git lfs checkout
-          - python3 make/setuprepository.py
+          #- python3 make/setuprepository.py
           #- python3 -m nose2 discover tests "test_*.py" > test-reports/test-report.txt
+          #- QT_QPA_PLATFORM=offscreen
+          #- export QT_QPA_PLATFORM
+
           - CI=True
           - export CI
+          - chmod +x runtests.sh
           - ./runtests.sh
           #- python3 tests/test_init.py
           #- CI=True

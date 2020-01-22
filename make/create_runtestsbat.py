@@ -21,8 +21,14 @@ python3 make/setuprepository.py
 
 PREFACE_SH = \
 """
+#!/bin/bash
 # use this script to run unit tests locally
 #
+QT_QPA_PLATFORM=offscreen
+export QT_QPA_PLATFORM
+CI=True
+export CI
+          
 python3 make/setuprepository.py
 """
 
