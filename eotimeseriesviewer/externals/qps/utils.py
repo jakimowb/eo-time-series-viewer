@@ -260,7 +260,7 @@ def nextColor(color, mode='cat')->QColor:
         value = 128
         alpha = 255
         s = ""
-    while hue > 360:
+    while hue >= 360:
         hue -= 360
 
     return QColor.fromHsl(hue, sat, value, alpha)
@@ -579,6 +579,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
 
             if not os.path.isfile(p):
                 missing.append(t)
+
         match = re.search(r'resource="[^:].*/QGIS[^/"]*/images/images.qrc"',txt)
         if match:
             txt = txt.replace(match.group(), 'resource=":/images/images.qrc"')
@@ -672,9 +673,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
         buffer.flush()
         buffer.seek(0)
 
-
-
-        #if existent, make resource file directories available to the python path (sys.path)
+        # if existent, make resource file directories available to the python path (sys.path)
         baseDir = os.path.dirname(pathUi)
         tmpDirs = []
         if True:
@@ -685,8 +684,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
                     tmpDirs.append(d)
             sys.path.extend(tmpDirs)
 
-        #create requried mockups
-
+        # create requried mockups
         if True:
             FORM_CLASS_MOCKUP_MODULES = [os.path.splitext(os.path.basename(p))[0] for p in qrcPaths]
             FORM_CLASS_MOCKUP_MODULES = [m for m in FORM_CLASS_MOCKUP_MODULES if m not in sys.modules.keys()]
@@ -695,8 +693,7 @@ def loadUIFormClass(pathUi:str, from_imports=False, resourceSuffix:str='', fixQG
 
                 sys.modules[mockupModule] = resourcemockup
 
-
-        #load form class
+        # load form class
         try:
             FORM_CLASS, _ = uic.loadUiType(buffer, resource_suffix=RC_SUFFIX)
         except Exception as ex1:
