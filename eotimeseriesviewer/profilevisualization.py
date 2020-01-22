@@ -38,7 +38,7 @@ from .externals import pyqtgraph as pg
 from .sensorvisualization import SensorListModel
 from .temporalprofiles import *
 from .temporalprofiles3d import *
-from .pixelloader import PixelLoaderTask, doLoaderTask
+
 
 
 import numpy as np
@@ -1333,9 +1333,6 @@ class SpectralTemporalVisualization(QObject):
         assert isinstance(profileDock, ProfileViewDockUI)
         self.ui = profileDock
         self.mTasks = dict()
-        #import eotimeseriesviewer.pixelloader
-        #if DEBUG:
-        #    eotimeseriesviewer.pixelloader.DEBUG = True
 
         #the timeseries. will be set later
         assert isinstance(timeSeries, TimeSeries)
@@ -1377,12 +1374,6 @@ class SpectralTemporalVisualization(QObject):
 
         self.mTemporalProfilesTableConfig = config
         self.mTemporalProfileLayer.setAttributeTableConfig(self.mTemporalProfilesTableConfig)
-
-        #self.pixelLoader = PixelLoader()
-        #self.pixelLoader.sigPixelLoaded.connect(self.onPixelLoaded)
-        #self.pixelLoader.sigLoadingStarted.connect(self.onLoadingStarted)
-        #self.pixelLoader.sigLoadingFinished.connect(self.onLoadingFinished)
-        #self.pixelLoader.sigProgressChanged.connect(self.onLoadingProgressChanged)
 
         # set the plot models for 2D
         self.plotSettingsModel2D = PlotSettingsModel2D()
@@ -2044,85 +2035,3 @@ class SpectralTemporalVisualization(QObject):
             # https://github.com/pyqtgraph/pyqtgraph/blob/5195d9dd6308caee87e043e859e7e553b9887453/examples/customPlot.py
             return
 
-
-def examplePixelLoader():
-
-    # prepare QGIS environment
-    if sys.platform == 'darwin':
-        PATH_QGS = r'/Applications/QGIS.app/Contents/MacOS'
-        os.environ['GDAL_DATA'] = r'/usr/local/Cellar/gdal/1.11.3_1/share'
-    else:
-        # assume OSGeo4W startup
-        PATH_QGS = os.environ['QGIS_PREFIX_PATH']
-    assert os.path.exists(PATH_QGS)
-
-    qgsApp = QgsApplication([], True)
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns')
-    QApplication.addLibraryPath(r'/Applications/QGIS.app/Contents/PlugIns/qgis')
-    qgsApp.setPrefixPath(PATH_QGS, True)
-    qgsApp.initQgis()
-
-
-    gb = QGroupBox()
-    gb.setTitle('Sandbox')
-
-    PL = PixelLoader()
-
-
-    if False:
-        files = ['observationcloud/testdata/2014-07-26_LC82270652014207LGN00_BOA.bsq',
-                 'observationcloud/testdata/2014-08-03_LE72270652014215CUB00_BOA.bsq'
-                 ]
-    else:
-        from eotimeseriesviewer.utils import file_search
-        searchDir = r'H:\LandsatData\Landsat_NovoProgresso'
-        files = list(file_search(searchDir, '*227065*band4.img', recursive=True))
-        #files = files[0:3]
-
-    lyr = QgsRasterLayer(files[0])
-    coord = lyr.extent().center()
-    crs = lyr.crs()
-
-    l = QVBoxLayout()
-
-    btnStart = QPushButton()
-    btnStop = QPushButton()
-    prog = QProgressBar()
-    tboxResults = QPlainTextEdit()
-    tboxResults.setMaximumHeight(300)
-    tboxThreads = QPlainTextEdit()
-    tboxThreads.setMaximumHeight(200)
-    label = QLabel()
-    label.setText('Progress')
-
-    def showProgress(n,m,md):
-        prog.setMinimum(0)
-        prog.setMaximum(m)
-        prog.setValue(n)
-
-        info = []
-        for k, v in md.items():
-            info.append('{} = {}'.format(k,str(v)))
-        tboxResults.setPlainText('\n'.join(info))
-        #tboxThreads.setPlainText(PL.threadInfo())
-        qgsApp.processEvents()
-
-    PL.sigPixelLoaded.connect(showProgress)
-    btnStart.setText('Start loading')
-    btnStart.clicked.connect(lambda : PL.startLoading(files, coord, crs))
-    btnStop.setText('Cancel')
-    btnStop.clicked.connect(lambda: PL.cancelLoading())
-    lh = QHBoxLayout()
-    lh.addWidget(btnStart)
-    lh.addWidget(btnStop)
-    l.addLayout(lh)
-    l.addWidget(prog)
-    l.addWidget(tboxThreads)
-    l.addWidget(tboxResults)
-
-    gb.setLayout(l)
-    gb.show()
-    #rs.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
-    #rs.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
-    qgsApp.exec_()
-    qgsApp.exitQgis()

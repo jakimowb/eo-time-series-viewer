@@ -71,8 +71,8 @@ class RemoteInfo(object):
         assert uri.endswith('.git')
         self.uri = uri
         self.key = key if key is not None else os.path.splitext(os.path.basename(self.uri))[0]
-        assert prefixLocal is not ''
-        assert prefixRemote is not ''
+        assert prefixLocal != ''
+        assert prefixRemote != ''
         self.prefixLocal = self.key if prefixLocal is None else prefixLocal
         self.prefixRemote = prefixRemote
         self.remoteBranch = remoteBranch

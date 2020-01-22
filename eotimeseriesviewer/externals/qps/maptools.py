@@ -50,8 +50,8 @@ def createCursor(resourcePath:str):
     if icon.isNull():
         print('Unable to load icon from {}. Maybe resources not initialized?'.format(resourcePath))
     scale = Qgis.UI_SCALE_FACTOR * app.fontMetrics().height() / 32.
-    size = QSize(scale * 32, scale * 32)
-    cursor = QCursor(icon.pixmap(size), scale * activeX, scale * activeY)
+    size = QSize(int(scale * 32), int(scale * 32))
+    cursor = QCursor(icon.pixmap(size), int(scale * activeX), int(scale * activeY))
     return cursor
 
 

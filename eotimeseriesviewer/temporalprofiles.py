@@ -35,7 +35,6 @@ from .externals.pyqtgraph import functions as fn, AxisItem, ScatterPlotItem, Spo
 from .externals.qps.plotstyling.plotstyling import PlotStyle
 
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
-from .pixelloader import PixelLoader, PixelLoaderTask
 from .utils import *
 from .externals.qps.speclib.spectrallibraries import createQgsField
 
@@ -1610,19 +1609,6 @@ class TemporalProfileLayer(QgsVectorLayer):
                             newProfiles.append(TP)
                     except Exception as ex:
                         print(ex)
-
-    def addPixelLoaderResult(self, d):
-        assert isinstance(d, PixelLoaderTask)
-        if d.success():
-            for fid in d.temporalProfileIDs:
-                TP = self.mProfiles.get(fid)
-                if isinstance(TP, TemporalProfile):
-                    TP.pullDataUpdate(d)
-                else:
-                    pass
-                    s = ""
-        else:
-            s = ""
 
     def clear(self):
         """

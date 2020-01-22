@@ -19,7 +19,6 @@ python3 -m nose2 -s tests test_main | mv nose2-junit.xml test-reports/today/test
 python3 -m nose2 -s tests test_mapcanvas | mv nose2-junit.xml test-reports/today/test_mapcanvas.xml
 python3 -m nose2 -s tests test_maptools | mv nose2-junit.xml test-reports/today/test_maptools.xml
 python3 -m nose2 -s tests test_mapvisualization | mv nose2-junit.xml test-reports/today/test_mapvisualization.xml
-python3 -m nose2 -s tests test_pixelloader | mv nose2-junit.xml test-reports/today/test_pixelloader.xml
 python3 -m nose2 -s tests test_qgis_environment | mv nose2-junit.xml test-reports/today/test_qgis_environment.xml
 python3 -m nose2 -s tests test_qgis_interaction | mv nose2-junit.xml test-reports/today/test_qgis_interaction.xml
 python3 -m nose2 -s tests test_resources | mv nose2-junit.xml test-reports/today/test_resources.xml
