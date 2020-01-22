@@ -27,10 +27,14 @@ from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-QGIS_APP = initQgisApplication()
+from qgis.testing import start_app
+#QGIS_APP = initQgisApplication()
+QGIS_APP = start_app(cleanup=True)
+
+assert os.path.isfile(QGIS_APP.srsDatabaseFilePath())
 
 from eotimeseriesviewer.settings import *
-SHOW_GUI = True and os.environ.get('CI') is None
+SHOW_GUI = False and os.environ.get('CI') is None
 
 class testclassSettingsTest(unittest.TestCase):
     """Test resources work."""
@@ -57,7 +61,12 @@ class testclassSettingsTest(unittest.TestCase):
         for k in Keys:
             a, b = allValues[k], dialogValues[k]
             if not a is None:
+                if isinstance(a, QgsTextFormat):
+                    self.assertIsInstance(b, QgsTextFormat)
+                    a = a.toMimeData().text()
+                    b = b.toMimeData().text()
                 self.assertEqual(a, b, msg='Dialog returns {} instead {} for settings key {}'.format(a, b, k))
+
         defaultMapColor = dialogValues[Keys.MapBackgroundColor]
         dialogValues[Keys.MapBackgroundColor] = QColor('yellow')
         d.setValues(dialogValues)
@@ -179,14 +188,9 @@ class testclassSettingsTest(unittest.TestCase):
         name1 = 'S1'+str(uuid.uuid4())
         sensor.setName(name1)
 
-        savedName = sensorName(sensorID)
-        self.assertIsInstance(savedName, str)
-        self.assertEqual(savedName, name1)
-
-
-        #sensor.setName(oldname)
-        #name2 = sensorName(sensorID)
-        #self.assertEqual(oldname, name2)
+        sensor.setName(oldname)
+        name2 = sensorName(sensorID)
+        self.assertEqual(oldname, name2)
 
 
 
