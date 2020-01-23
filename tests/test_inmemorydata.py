@@ -20,12 +20,13 @@
 
 import os, sys, unittest, configparser
 
-from eotimeseriesviewer.tests import initQgisApplication
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
-
-QGIS_APP = initQgisApplication()
+from qgis.testing import start_app, stop_app
+print('START TEST {}'.format(__file__))
+QGIS_APP = start_app(True)
+print('QGIS STARTED {}'.format(__file__))
 
 class TestInMemoryData(unittest.TestCase):
     """
@@ -87,9 +88,7 @@ class TestInMemoryData(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    print('start tests')
     unittest.main()
     print('all tests done in '.format(__file__))
 
-
-
-QGIS_APP.quit()

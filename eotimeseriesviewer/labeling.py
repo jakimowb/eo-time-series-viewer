@@ -116,7 +116,7 @@ def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
 
     return classSchemes
 
-def quickLabelLayers()->list:
+def quickLabelLayers()->typing.List[QgsVectorLayer]:
     """
     Returns a list of known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]

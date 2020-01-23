@@ -18,22 +18,44 @@
 """
 
 from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
-import unittest, tempfile
+import unittest, tempfile, os
+import qgis.testing
+
 
 from eotimeseriesviewer.labeling import *
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.mapvisualization import MapView
-resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-QGIS_APP = initQgisApplication(qgisResourceDir=resourceDir)
+
+from osgeo import ogr
+assert ogr.GetDriverCount() > 0
+
 SHOW_GUI = False and os.environ.get('CI') is None
+
 
 reg = QgsGui.editorWidgetRegistry()
 if len(reg.factories()) == 0:
     reg.initEditors()
 
-class testclassLabelingTest(unittest.TestCase):
+class testclassLabelingTest(qgis.testing.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('## setUpClass')
+        app = qgis.testing.start_app(cleanup=True)
+        import eotimeseriesviewer.labeling
+        print('## setUpClass - cleanup')
+        for store in eotimeseriesviewer.MAP_LAYER_STORES:
+            store.removeAllMapLayers()
+        print('## setUpClass - done')
+    @classmethod
+    def tearDownClass(cls):
+        app = QgsApplication.instance()
+        if isinstance(app, QgsApplication):
+            pass
+
+
 
     def createVectorLayer(self)->QgsVectorLayer:
 
@@ -55,7 +77,7 @@ class testclassLabelingTest(unittest.TestCase):
         return lyr
 
     def test_menu(self):
-
+        print('## test_menu')
         ts = TestObjects.createTimeSeries()
 
         mv = MapView()
@@ -78,7 +100,7 @@ class testclassLabelingTest(unittest.TestCase):
         canvas = MapCanvas()
         canvas.setTSD(tsd)
         canvas.setMapView(mv)
-        pos = QPoint(canvas.width()*0.5, canvas.height()*0.5)
+        pos = QPoint(int(canvas.width()*0.5), int(canvas.height()*0.5))
         menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
 
@@ -94,7 +116,7 @@ class testclassLabelingTest(unittest.TestCase):
             menu.exec_()
 
     def test_shortcuts(self):
-
+        print('## test_shortcuts')
         vl = self.createVectorLayer()
 
         fields = vl.fields()
@@ -120,7 +142,7 @@ class testclassLabelingTest(unittest.TestCase):
 
 
     def test_LabelShortcutEditorConfigWidget(self):
-
+        print('## test_LabelShortcutEditorConfigWidget')
         vl = self.createVectorLayer()
 
         self.assertIsInstance(vl, QgsVectorLayer)
@@ -136,7 +158,8 @@ class testclassLabelingTest(unittest.TestCase):
         self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
 
         reg = QgsGui.editorWidgetRegistry()
-        reg.initEditors()
+        if len(reg.factories()) == 0:
+            reg.initEditors()
         registerLabelShortcutEditorWidget()
 
         classScheme1, classScheme2 = self.setupEditWidgets(vl)
@@ -172,7 +195,7 @@ class testclassLabelingTest(unittest.TestCase):
         parent.layout().addWidget(dv)
         parent.layout().addWidget(panel)
 
-        parent.show()
+
 
         #randomly click into table cells
         vl.startEditing()
@@ -181,30 +204,36 @@ class testclassLabelingTest(unittest.TestCase):
         w = size.width()
         h = size.height()
         from random import randint
-        for i in range(500):
+        for i in range(5):
+            print('Test mouse press {}'.format(i+1))
             x = randint(0, w-1)
             y = randint(0, h-1)
-            localPos = QPointF(x,y)
+            localPos = QPointF(x, y)
             event = QMouseEvent(QEvent.MouseButtonPress, localPos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
             dv.mousePressEvent(event)
-            s = ""
+
 
         vl.selectByIds([1, 2, 3])
         ts = TestObjects.createTimeSeries()
         tsd = ts[5]
 
-
-        self.assertTrue(len(quickLabelLayers()) == 0)
+        if len(quickLabelLayers())> 0:
+            print('Found QuickLabelLayers:')
+            for l in quickLabelLayers():
+                print('{}={}'.format(l.name(), l.source()))
+        assert vl not in quickLabelLayers()
+        n = len(quickLabelLayers())
         QgsProject.instance().addMapLayer(vl)
 
-        self.assertTrue(len(quickLabelLayers()) == 1)
+        self.assertTrue(len(quickLabelLayers()) == n + 1)
         for lyr in quickLabelLayers():
             assert isinstance(lyr, QgsVectorLayer)
         #    applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
 
         if SHOW_GUI:
+            parent.show()
             dv.show()
-            QGIS_APP.exec_()
+            QgsApplication.instance().exec_()
 
         self.assertTrue(vl.commitChanges())
         pass
@@ -248,11 +277,12 @@ class testclassLabelingTest(unittest.TestCase):
         return classScheme1, classScheme2
 
     def test_LabelingDockActions(self):
+        print('## test_LabelingDockActions')
         registerLabelShortcutEditorWidget()
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
 
         dock = LabelingDock()
-        dock.show()
+
         self.assertIsInstance(dock, LabelingDock)
         lyr = self.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
@@ -270,7 +300,6 @@ class testclassLabelingTest(unittest.TestCase):
         lw.setCurrentVectorSource(lyr2)
 
         canvas = QgsMapCanvas()
-        canvas.show()
 
 
         def setLayers():
@@ -283,11 +312,14 @@ class testclassLabelingTest(unittest.TestCase):
         lw.sigMapExtentRequested.connect(setLayers)
 
         if SHOW_GUI:
-            QGIS_APP.exec_()
+            dock.show()
+            canvas.show()
+
+            QgsApplication.instance().exec_()
 
 
     def test_canvasMenu(self):
-
+        print('## test_canvasMenu')
         vl = self.createVectorLayer()
         c1, c2 = self.setupEditWidgets(vl)
         QgsProject.instance().addMapLayer(vl)
@@ -298,20 +330,21 @@ class testclassLabelingTest(unittest.TestCase):
         ts = TestObjects.createTimeSeries()
         canvas = MapCanvas()
         canvas.setTSD(ts[0])
-        canvas.show()
+
 
         if SHOW_GUI:
-            QGIS_APP.exec_()
+            canvas.show()
+            QgsApplication.instance().exec_()
 
 
 
     def test_LabelingDock(self):
-
+        print('## test_LabelingDock')
         registerLabelShortcutEditorWidget()
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
 
         dock = LabelingDock()
-        dock.show()
+
         lw = dock.labelingWidget()
 
         self.assertIsInstance(dock, LabelingDock)
@@ -364,12 +397,14 @@ class testclassLabelingTest(unittest.TestCase):
 
         self.assertTrue(lyr.commitChanges())
 
-
+        print('FINISHED')
         if SHOW_GUI:
-            QGIS_APP.exec_()
+            dock.show()
+            QgsApplication.instance().exec_()
+
 
 if __name__ == "__main__":
     SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()
 
-QGIS_APP.quit()
+# QgsApplication.instance().exitQgis()

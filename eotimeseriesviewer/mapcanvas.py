@@ -944,8 +944,13 @@ class MapCanvas(QgsMapCanvas):
         a.triggered.connect(lambda *args, lyr=refRasterLayer: pasteStyleToClipboard(lyr))
 
         a = menu.addAction('Paste Style')
-        a.setEnabled(b)
-        a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
+
+
+        a.setEnabled(False)
+        clipBoardMime = QApplication.clipboard().mimeData()
+        if isinstance(clipBoardMime, QMimeData) and 'application/qgis.style' in clipBoardMime.formats():
+            a.setEnabled(True)
+
         a.triggered.connect(lambda *args, lyr=refRasterLayer: self.onPasteStyleFromClipboard(lyr))
 
         menu.addSeparator()
