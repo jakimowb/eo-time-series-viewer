@@ -179,7 +179,7 @@ class SensorTableModel(QAbstractTableModel):
                 value = sensor.id()
 
             elif columnName == self.mCN_WL:
-                if sensor.wl is None or sensor.wl.ndim == 0:
+                if sensor.wl is None or len(sensor.wl) == 0:
                     value = 'undefined'
                 else:
                     value = ','.join([str(w) for w in sensor.wl])
