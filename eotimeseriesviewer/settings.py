@@ -118,7 +118,8 @@ def value(key:Keys, default=None):
                 value = QgsTextFormat()
                 value.readXml(doc.documentElement(), QgsReadWriteContext())
 
-
+        if key == Keys.MapUpdateInterval:
+            value = int(value)
 
         if key == Keys.SensorSpecs:
             # check sensor specs
