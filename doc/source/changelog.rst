@@ -1,8 +1,12 @@
 ==============
 Changelog
 ==============
-2019-11-25 (version 1.10):
+2020-01-23 (version 1.11):
+    * revised unit tests for CI pipelines
+    * fixed smaller issues in SensorModel
     * fixed `#103 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/103>`_: EOTSV crashed on Linux, caused by an attempt to storing a unpickable QgsTextFormat to QSettings
+
+2019-11-25 (version 1.10):
     * improved matching of source images to sensors: matching can be specified in the settings dialog. Sensor matching
       based on ground sampling distance + number of bands + data type and optionally wavelength and/or sensor name
     * settings dialog shows known sensor / product specification and allows to modify their default "sensor name"
