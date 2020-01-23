@@ -23,12 +23,9 @@ import os, sys, unittest, configparser
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
-from qgis.testing import start_app, stop_app
-print('START TEST {}'.format(__file__))
-QGIS_APP = start_app(True)
-print('QGIS STARTED {}'.format(__file__))
+from eotimeseriesviewer.tests import TestCase
 
-class TestInMemoryData(unittest.TestCase):
+class TestInMemoryData(TestCase):
     """
     Tests for the GDAL/OGR VSI in-memory data
     """
@@ -88,7 +85,6 @@ class TestInMemoryData(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print('start tests')
     unittest.main()
-    print('all tests done in '.format(__file__))
+
 

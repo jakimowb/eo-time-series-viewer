@@ -27,16 +27,16 @@ from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
 resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-from qgis.testing import start_app
+from eotimeseriesviewer.tests import TestCase
 #QGIS_APP = initQgisApplication()
-QGIS_APP = start_app(cleanup=True)
 
-assert os.path.isfile(QGIS_APP.srsDatabaseFilePath())
 
 from eotimeseriesviewer.settings import *
-SHOW_GUI = False and os.environ.get('CI') is None
 
-class testclassSettingsTest(unittest.TestCase):
+os.environ['CI'] = 'True'
+
+
+class testclassSettingsTest(TestCase):
     """Test resources work."""
     def setUp(self):
         """Runs before each test."""
@@ -83,14 +83,7 @@ class testclassSettingsTest(unittest.TestCase):
         dialogValues = d.values()
         self.assertTrue(dialogValues[Keys.MapBackgroundColor] == defaultMapColor)
 
-        if SHOW_GUI:
-            r = d.exec_()
-
-            self.assertTrue(r in [QDialog.Accepted, QDialog.Rejected])
-
-            if r == QDialog.Accepted:
-                defaults = d.values()
-                self.assertIsInstance(defaults, dict)
+        self.showGui(d)
 
 
     def test_SensorMatching(self):
@@ -119,8 +112,7 @@ class testclassSettingsTest(unittest.TestCase):
         tb.setModel(m)
         tb.show()
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(tb)
 
     def test_MapTextFormat(self):
 
@@ -197,5 +189,4 @@ class testclassSettingsTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()

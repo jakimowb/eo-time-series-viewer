@@ -30,13 +30,13 @@ import unittest, tempfile
 import eotimeseriesviewer
 eotimeseriesviewer.initResources()
 from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects
-
-QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+from eotimeseriesviewer.tests import TestObjects, TestCase
 
 
-class TestInit(unittest.TestCase):
+os.environ['CI'] = 'True'
+
+
+class TestInit(TestCase):
     """Test that the plugin init is usable for QGIS.
 
     Based heavily on the validator class by Alessandro
@@ -86,7 +86,7 @@ class TestInit(unittest.TestCase):
 
         TSV = TimeSeriesViewer()
         TSV.show()
-        TSV.loadExampleTimeSeries()
+        TSV.loadExampleTimeSeries(loadAsync=False)
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
@@ -127,8 +127,6 @@ class TestInit(unittest.TestCase):
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolSelect)
 
 
-
-        TSV.setMapTool()
 
 if __name__ == '__main__':
     unittest.main()

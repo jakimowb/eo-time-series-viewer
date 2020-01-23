@@ -43,8 +43,8 @@ for file in os.scandir(DIR_TESTS):
     if file.is_file() and re.search(r'^test_.*\.py$', file.name):
         bn = os.path.basename(file)
         bn = os.path.splitext(bn)[0]
-        lineBat = 'python3 -m nose2 -s {3} {0} & move {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
-        lineSh = 'python3 -m nose2 -s {3} {0} #| mv {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
+        lineBat = 'python -m nose2 -s {3} {0} #& move {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
+        lineSh = 'python -m nose2 -s {3} {0} #| mv {1} {2}/{0}.xml'.format(bn, jUnitXML, dirOut, bnDirTests)
         linesBat.append(lineBat)
         linesSh.append(lineSh)
 

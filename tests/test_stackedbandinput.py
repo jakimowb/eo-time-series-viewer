@@ -18,22 +18,20 @@
 """
 # noinspection PyPep8Naming
 import os, sys
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import initQgisApplication, TestCase
 from eotimeseriesviewer.utils import nextColor
 from osgeo import gdal_array
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-SHOW_GUI = True and os.environ.get('CI') is None
+os.environ['CI'] = 'True'
 
 from eotimeseriesviewer.stackedbandinput import *
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
 
-QGIS_APP = initQgisApplication()
 
-
-class testclassStackedInputTests(unittest.TestCase):
+class testclassStackedInputTests(TestCase):
 
     def createTestDatasets(self):
 
@@ -112,9 +110,7 @@ class testclassStackedInputTests(unittest.TestCase):
             d.show()
             d.addSources([pathStack])
 
-            if SHOW_GUI:
-                QGIS_APP.exec_()
-            s  =""
+            self.showGui()
 
 
     def test_inputmodel(self):
@@ -167,26 +163,25 @@ class testclassStackedInputTests(unittest.TestCase):
         d = StackedBandInputDialog()
         d.addSources(self.createTestDatasets())
 
-        r = d.exec_()
+        if not os.environ.get('CI'):
+            r = d.exec_()
 
-        self.assertTrue(r in [QDialog.Rejected, QDialog.Accepted])
-        if r == QDialog.Accepted:
-            d.saveImages()
-            images = d.writtenFiles()
-            self.assertTrue(len(images) > 0)
+            self.assertTrue(r in [QDialog.Rejected, QDialog.Accepted])
+            if r == QDialog.Accepted:
+                d.saveImages()
+                images = d.writtenFiles()
+                self.assertTrue(len(images) > 0)
 
-            for p in images:
-                ds = gdal.Open(p)
-                self.assertIsInstance(ds, gdal.Dataset)
-                lyr = QgsRasterLayer(p)
-                self.assertIsInstance(lyr, QgsRasterLayer)
-                self.assertTrue(lyr.isValid())
-        else:
-            self.assertTrue(len(d.writtenFiles()) == 0)
+                for p in images:
+                    ds = gdal.Open(p)
+                    self.assertIsInstance(ds, gdal.Dataset)
+                    lyr = QgsRasterLayer(p)
+                    self.assertIsInstance(lyr, QgsRasterLayer)
+                    self.assertTrue(lyr.isValid())
+            else:
+                self.assertTrue(len(d.writtenFiles()) == 0)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-        pass
+        self.showGui()
 
     def test_withTSV(self):
 
@@ -201,12 +196,11 @@ class testclassStackedInputTests(unittest.TestCase):
         d.addSources(self.createTestDatasets())
         writtenFiles = d.saveImages()
         self.assertTrue(len(writtenFiles) > 0)
-        TSV.loadImageFiles(writtenFiles)
+        TSV.addTimeSeriesImages(writtenFiles, loadAsync=False)
 
         self.assertTrue(len(TSV.mTimeSeries) == len(writtenFiles))
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(d)
 
 
 if __name__ == "__main__":

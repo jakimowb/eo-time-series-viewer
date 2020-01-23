@@ -18,26 +18,18 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects, TestCase
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
-QGIS_APP = initQgisApplication()
-SHOW_GUI = False and os.environ.get('CI') is None
 
-class testclassDialogTest(unittest.TestCase):
+os.environ['CI'] = 'True' # set to False to show GUI elements
+
+class testclassDialogTest(TestCase):
     """Test resources work."""
-
-    def setUp(self):
-        """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
 
 
     def test_basic_behaviour(self):
@@ -68,9 +60,7 @@ class testclassDialogTest(unittest.TestCase):
         c.setDestinationCrs(lyr1.crs())
         c.setExtent(lyr1.extent())
 
-        if SHOW_GUI:
-            c.show()
-            QGIS_APP.exec_()
+        self.showGui(c)
 
     def test_contextMenu(self):
         files = testRasterFiles()
@@ -87,10 +77,12 @@ class testclassDialogTest(unittest.TestCase):
 
         menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
-        menu.exec_()
 
-        event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
-        canvas.contextMenuEvent(event)
+
+        if not os.environ.get('CI'):
+            event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
+            canvas.contextMenuEvent(event)
+        self.showGui(menu)
 
     def test_mapcanvasInfoItem(self):
 
@@ -121,7 +113,6 @@ class testclassDialogTest(unittest.TestCase):
                 v = mc.mInfoItem.mText[k]
                 mc.mInfoItem.mText[k] = v.replace('\n' ,' ')
 
-        mc.show()
 
         item = mc.mInfoItem
         self.assertIsInstance(item, MapCanvasInfoItem)
@@ -141,12 +132,8 @@ class testclassDialogTest(unittest.TestCase):
             w.layout().addWidget(btn)
             w.layout().addWidget(mc)
             w.show()
-        else:
-            mc.show()
-            btn.show()
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui([mc, btn])
 
     def test_mapcanvas(self):
         files = testRasterFiles()
@@ -159,17 +146,17 @@ class testclassDialogTest(unittest.TestCase):
         canvas.setDestinationCrs(lyr1.crs())
         canvas.setExtent(lyr1.extent())
 
-        self.assertIsInstance(canvas, QgsMapCanvas)
-        self.assertFalse(canvas.isVisible())
-        self.assertFalse(canvas.isVisibleToViewport())
-        canvas.show()
-        self.assertTrue(canvas.isVisible())
-        self.assertTrue(canvas.isVisibleToViewport())
+        if False:
+            self.assertIsInstance(canvas, QgsMapCanvas)
+            self.assertFalse(canvas.isVisible())
+            self.assertFalse(canvas.isVisibleToViewport())
 
+            self.assertTrue(canvas.isVisible())
+            self.assertTrue(canvas.isVisibleToViewport())
 
-        if SHOW_GUI:
-            canvas.setExtent(canvas.fullExtent())
-            QGIS_APP.exec_()
+        canvas.setExtent(canvas.fullExtent())
+
+        self.showGui([canvas])
 
 
     def test_mapTools(self):
@@ -204,5 +191,3 @@ if __name__ == "__main__":
 
     SHOW_GUI = False and os.environ.get('CI') is None
     unittest.main()
-
-QGIS_APP.quit()

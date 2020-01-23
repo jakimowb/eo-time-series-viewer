@@ -18,21 +18,10 @@ from qgis.core import QgsProject
 from qgis.gui import *
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import TestCase
 
-QGIS_APP = initQgisApplication()
 
-class testclassUtilityTests(unittest.TestCase):
-    """Test rerources work."""
-
-    def setUp(self):
-        """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
-
+class testclassUtilityTests(TestCase):
 
     def test_spatialExtent(self):
         canvas = QgsMapCanvas()
@@ -66,5 +55,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-
-QGIS_APP.quit()

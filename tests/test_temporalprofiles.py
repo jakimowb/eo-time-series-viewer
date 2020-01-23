@@ -21,16 +21,17 @@ from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.temporalprofiles import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import TestCase
 from osgeo import ogr, osr
-QGIS_APP = initQgisApplication()
-SHOW_GUI = False and os.environ.get('CI') is None
 
-class testclassUtilityTests(unittest.TestCase):
+os.environ['CI'] = 'True'
+
+class testclassUtilityTests(TestCase):
     """Test temporal profiles"""
 
     def setUp(self):
         """Runs before each test."""
+        super(testclassUtilityTests, self).setUp()
         self.TS = TimeSeries()
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
@@ -185,7 +186,7 @@ class testclassUtilityTests(unittest.TestCase):
         for f in writtenFiles:
             self.assertTrue(os.path.isfile(f))
 
-        if SHOW_GUI:
+        if not os.environ.get('CI'):
             # test save-file-dialog
             writtenFiles = lyr1.saveTemporalProfiles(None)
             self.assertTrue(len(writtenFiles) == 2)
@@ -208,14 +209,12 @@ class testclassUtilityTests(unittest.TestCase):
 
         cb = QgsFeatureListComboBox()
         cb.setSourceLayer(lyr1)
-        cb.setIdentifierField(FN_ID)
-        cb.setIdentifierValue(tp.id())
+        cb.setIdentifierFields([FN_ID])
+        cb.setIdentifierValues([tp.id()])
         cb.setDisplayExpression('to_string("id") + \'  \' + "name"')
 
-        cb.show()
         s = ""
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(cb)
 
 
     def test_expressions(self):
@@ -249,9 +248,7 @@ class testclassUtilityTests(unittest.TestCase):
         style = btn.plotStyle()
         style.linePen.setStyle(Qt.SolidLine)
         btn.setPlotStyle(style)
-        btn.show()
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(btn)
 
 
     def test_profilesettings(self):
@@ -285,7 +282,7 @@ class testclassUtilityTests(unittest.TestCase):
         self.assertEqual(fmodel.rowCount(), n)
         tv = TemporalProfileTableView()
         tv.setModel(fmodel)
-        tv.show()
+
 
         pd = ProfileViewDockUI()
 
@@ -304,10 +301,9 @@ class testclassUtilityTests(unittest.TestCase):
 
         svis.loadCoordinate(point3)
         svis.loadCoordinate(point2)
-        svis.ui.show()
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+
+        self.showGui([tv, svis.ui])
 
 
 if __name__ == "__main__":
@@ -316,5 +312,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-
-QGIS_APP.quit()

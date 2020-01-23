@@ -16,11 +16,11 @@ import unittest
 from qgis import *
 from PyQt5.QtGui import QIcon
 from eotimeseriesviewer import file_search
-from eotimeseriesviewer.tests import initQgisApplication
-QGIS_APP = initQgisApplication()
+from eotimeseriesviewer.tests import initQgisApplication, TestCase
 
 
-class testclassDialogTest(unittest.TestCase):
+
+class testclassDialogTest(TestCase):
     """Test rerources work."""
 
     def setUp(self):
@@ -39,7 +39,7 @@ class testclassDialogTest(unittest.TestCase):
 
         iconSVGs = file_search(os.path.join(DIR_UI, 'icons'), '*.svg')
         #:/timeseriesviewer/icons/IconTimeSeries.svg
-        iconSVGs = [s.replace(DIR_UI,':').replace('\\','/') for s in iconSVGs]
+        iconSVGs = [s.replace(DIR_UI,':').replace('\\', '/') for s in iconSVGs]
         for resource in iconSVGs:
             icon = QIcon(resource)
             self.assertFalse(icon.isNull())
@@ -50,5 +50,3 @@ if __name__ == "__main__":
     unittest.main()
 
 
-
-QGIS_APP.quit()

@@ -20,12 +20,11 @@
 
 import os, sys, configparser
 
-from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
+from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestCase
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.core import *
 from qgis.gui import *
-from qgis.testing import TestCase
 import unittest, tempfile
 
 import eotimeseriesviewer
@@ -33,8 +32,8 @@ eotimeseriesviewer.initResources()
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects
 
-QGIS_APP = initQgisApplication()
-SHOW_GUI = True and os.environ.get('CI') is None
+
+os.environ['CI'] = 'True'
 
 
 
@@ -56,7 +55,7 @@ class TestInit(TestCase):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.show()
+
         TSV.loadExampleTimeSeries()
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
@@ -75,27 +74,14 @@ class TestInit(TestCase):
         self.assertIsInstance(qgisCanvas, QgsMapCanvas)
         TSV.ui.optionSyncMapCenter.setChecked(True)
 
-        extent = TSV.spatialTemporalVis.spatialExtent()
+        extent = TSV.spatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
         center = extent.spatialCenter()
         self.assertIsInstance(center, SpatialPoint)
-        center2 = SpatialPoint(center.crs(), center.x() + 100, center.y() + 100)
-        TSV.spatialTemporalVis.mSyncLock = False
-        TSV.setSpatialCenter(center2)
-        self.assertEqual(TSV.spatialCenter(), center2)
 
-        qcenter2 = qgisCanvas.center()
-        self.assertNotEqual(qcenter1, qcenter2)
-        TSV.ui.optionSyncMapCenter.setChecked(False)
-        TSV.spatialTemporalVis.mSyncLock = False
-        TSV.setSpatialCenter(center)
-        self.assertNotEqual(qcenter2, qgisCanvas.center())
+        self.showGui(TSV)
 
 
-
-
-        if SHOW_GUI:
-            QGIS_APP.exec_()
 
 
 if __name__ == '__main__':

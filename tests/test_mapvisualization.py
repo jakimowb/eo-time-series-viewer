@@ -18,7 +18,7 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer.tests import initQgisApplication, createTimeSeries, testRasterFiles, TestObjects
+from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, TestCase
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from qgis.core import *
@@ -29,12 +29,11 @@ from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeries
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
-QGIS_APP = initQgisApplication(loadProcessingFramework=False)
 
-from eotimeseriesviewer import initResources
-initResources()
+#from eotimeseriesviewer import initResources
+#initResources()
 
-SHOW_GUI = False and os.environ.get('CI') is None
+os.environ['CI'] = 'true'
 
 
 def getChildElements(node):
@@ -77,7 +76,7 @@ def compareXML(element1, element2):
         return True
 
 
-class testclassMapVisualization(unittest.TestCase):
+class testclassMapVisualization(TestCase):
     """Test resources work."""
 
 
@@ -104,8 +103,7 @@ class testclassMapVisualization(unittest.TestCase):
 
             s = ""
         btn.changed.connect(onChanged)
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui()
 
     def test_mapWidget(self):
 
@@ -209,8 +207,7 @@ class testclassMapVisualization(unittest.TestCase):
         for c in w.mapCanvases():
             c.update()
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui()
 
     def test_mapview(self):
 
@@ -257,19 +254,8 @@ class testclassMapVisualization(unittest.TestCase):
         MW.setCrs(l.crs())
         MW.setSpatialExtent(SpatialExtent.fromLayer(l))
 
-        if SHOW_GUI:
-            w = QWidget()
-            w.setLayout(QHBoxLayout())
-            w.layout().addWidget(mapview)
-            w.layout().addWidget(MW)
-            w.show()
+        self.showGui()
 
-
-            timer = QTimer()
-            timer.timeout.connect(canvas.timedRefresh)
-            timer.setInterval(500)
-            timer.start()
-            QGIS_APP.exec_()
 
     def test_mapViewDock(self):
 
@@ -295,13 +281,7 @@ class testclassMapVisualization(unittest.TestCase):
         mw.setSpatialExtent(tss.spatialExtent())
 
 
-
-        if SHOW_GUI:
-            dock.show()
-            mw.show()
-
-
-            QGIS_APP.exec_()
+        self.showGui([dock, mw])
 
 
 
@@ -346,9 +326,12 @@ class testclassMapVisualization(unittest.TestCase):
 
     def test_renderer(self):
 
+
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')
 
         lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
+        self.assertIsInstance(lyr, QgsRasterLayer)
+        self.assertTrue(lyr.isValid())
 
         r0 = lyr.renderer()
         from eotimeseriesviewer.externals.qps.layerproperties import rendererFromXml, rendererToXml
@@ -358,17 +341,25 @@ class testclassMapVisualization(unittest.TestCase):
 
 
 
-        rasterRenderer = [QgsMultiBandColorRenderer(r0, 3,2,1, QgsContrastEnhancement(), QgsContrastEnhancement(), QgsContrastEnhancement()),
-                          QgsPalettedRasterRenderer(r0,0, [
+        self.assertIsInstance(r0, QgsMultiBandColorRenderer)
+
+        rasterRenderer = [QgsSingleBandGrayRenderer(r0, 0),
+                          r0,
+                          QgsPalettedRasterRenderer(r0, 0, [
                               QgsPalettedRasterRenderer.Class(0, QColor('black'), 'class1'),
                               QgsPalettedRasterRenderer.Class(1, QColor('green'), 'class2'),
-                          ] ),
+                          ]),
                           QgsHillshadeRenderer(r0, 0, 0.0, 100.0),
                           QgsSingleBandPseudoColorRenderer(r0, 0, QgsRasterShader(0.0, 255.0)),
                           QgsSingleBandColorDataRenderer(r0, 0),
-                          QgsSingleBandGrayRenderer(r0, 0)]
+                          ]
 
+
+        for r in rasterRenderer:
+            r.setInput(lyr.dataProvider())
         vectorRenderer = []#[QgsSingleSymbolRenderer(QgsLineSymbol()), QgsPointDistanceRenderer()]
+
+
 
         for r1 in rasterRenderer + vectorRenderer:
             print('Test {}'.format(r1.__class__.__name__))
@@ -398,12 +389,18 @@ class testclassMapVisualization(unittest.TestCase):
             self.assertTrue(similar)
             del rClone, xmlClone
 
+
+        print('Read style files')
         for path in styleFiles:
+
             with open(path, encoding='utf8') as f:
+                print(path)
                 xml = ''.join(f.readlines())
                 renderer = rendererFromXml(xml)
                 self.assertTrue(renderer != None)
                 self.assertIsInstance(renderer, (QgsRasterRenderer, QgsFeatureRenderer))
+        print('Render tests finished')
+        lyr.deleteLater()
 
 
 if __name__ == '__main__':

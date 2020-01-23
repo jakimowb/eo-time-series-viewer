@@ -28,14 +28,12 @@ from qgis.gui import *
 from qgis.testing import TestCase
 import unittest, tempfile
 
-import eotimeseriesviewer
-eotimeseriesviewer.initResources()
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects
-from qgis.testing import start_app
-QGIS_APP = initQgisApplication()
 
-SHOW_GUI = True and os.environ.get('CI') is None
+from eotimeseriesviewer.mapcanvas import *
+from eotimeseriesviewer.tests import TestObjects, TestCase
+
+os.environ['CI'] = 'True'
+#SHOW_GUI = False and os.environ.get('CI') is None
 
 
 class TestInit(TestCase):
@@ -48,7 +46,6 @@ class TestInit(TestCase):
              plugins/validator.py
 
     """
-
 
     def test_read_init(self):
         """Test that the plugin __init__ will validate on plugins.qgis.org."""
@@ -87,19 +84,16 @@ class TestInit(TestCase):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.show()
 
         self.assertIsInstance(TSV, TimeSeriesViewer)
-        if SHOW_GUI:
-            QGIS_APP.exec_()
-            s = ""
+        self.showGui(TSV)
 
     def test_TimeSeriesViewer(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.show()
+
         TSV.createMapView('True Color')
         TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()
@@ -110,8 +104,7 @@ class TestInit(TestCase):
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(TSV)
 
     def test_TimeSeriesViewerInvalidSource(self):
 
@@ -121,20 +114,18 @@ class TestInit(TestCase):
         images = ['not-existing-source']
         TSV.addTimeSeriesImages(images, loadAsync=False)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(TSV)
 
     def test_TimeSeriesViewerMultiSource(self):
 
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.show()
+
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(TSV)
 
 
     def test_AboutDialog(self):
@@ -142,10 +133,9 @@ class TestInit(TestCase):
         from eotimeseriesviewer.main import AboutDialogUI
 
         dialog = AboutDialogUI()
-        dialog.show()
+
         self.assertIsInstance(dialog, QDialog)
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui([dialog])
 
 
     def test_exportMapsToImages(self):
@@ -158,24 +148,22 @@ class TestInit(TestCase):
         pathTestOutput = tempfile.mkdtemp(prefix='EOTSTTestOutput')
 
         TSV = TimeSeriesViewer()
-        TSV.show()
+
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
         TSV.exportMapsToImages(path=pathTestOutput)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(TSV)
 
     def test_TimeSeriesViewerMassiveSources(self):
         from eotimeseriesviewer.main import TimeSeriesViewer
 
         TSV = TimeSeriesViewer()
-        TSV.show()
+
         files = TestObjects.createArtificialTimeSeries(100)
         TSV.addTimeSeriesImages(files)
 
-        if SHOW_GUI:
-            QGIS_APP.exec_()
+        self.showGui(TSV)
 
 
 
