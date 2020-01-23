@@ -230,7 +230,7 @@ class SensorInstrument(QObject):
         if self.wl is None:
             self.wl = None
         else:
-            self.wl = np.asarray(self.wl)
+            self.wl = np.asarray(self.wl).tolist()
 
         self.hashvalue = hash(self.mId)
 
@@ -444,8 +444,16 @@ class TimeSeriesSource(object):
             raise Exception('Unsupported source: {}'.format(source))
 
         srs = osr.SpatialReference()
-        assert srs.ImportFromWkt(ds.GetProjection()) == ogr.OGRERR_NONE, 'Can not read spatial reference from {}'.format(ds.GetDescription())
+        proj = ds.GetProjection()
+        if proj in ['', None]:
+            # try to find another SRS definition
+            mdDict = ds.GetMetadata_Dict()
+            if mdDict.get('lat#long_name') == 'latitude' and \
+               mdDict.get('lon#long_name') == 'longitude':
+                srs.ImportFromEPSG(4326)
+                proj = srs.ExportToWkt()
 
+        assert srs.ImportFromWkt(proj) == ogr.OGRERR_NONE, 'Can not read spatial reference from {}'.format(ds.GetDescription())
 
         return cls(ds)
 
@@ -465,6 +473,8 @@ class TimeSeriesSource(object):
         self.mMetaData = None
         self.mUL = self.LR = None
 
+        self.mSpatialExtent: SpatialExtent
+        self.mSpatialExtent = None
         self.mTimeSeriesDate = None
 
         if isinstance(dataset, gdal.Dataset):
@@ -1326,10 +1336,10 @@ class TimeSeries(QAbstractItemModel):
 
         nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
 
+        refValues = (nb, px_size_y, px_size_x, dt, wl, wlu, name)
         for sensor in self.sensors():
-            if (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu,
-                sensor.mNameOriginal) == (
-                    nb, px_size_y, px_size_x, dt, wl, wlu, name):
+            sValues = (sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu, sensor.mNameOriginal)
+            if refValues == sValues:
                 return sensor
 
         return None
@@ -1611,12 +1621,13 @@ class TimeSeries(QAbstractItemModel):
         if sensor in self.mSensors:
             tsds = [tsd for tsd in self.mTSDs if tsd.sensor() == sensor]
             self.removeTSDs(tsds)
-            self.mSensors.remove(sensor)
+            if sensor in self.mSensors:
+                self.mSensors.remove(sensor)
             self.sigSensorRemoved.emit(sensor)
             return sensor
         return None
 
-    def addSources(self, sources:typing.List[str], nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
+    def addSources(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
@@ -1631,10 +1642,21 @@ class TimeSeries(QAbstractItemModel):
 
         self.mLoadingProgressDialog = progressDialog
 
+        sourcePaths = []
+        for s in sources:
+            path = None
+            if isinstance(s, gdal.Dataset):
+                path = s.GetDescription()
+            if isinstance(s, QgsRasterLayer):
+                path = s.source()
+            if isinstance(s, str):
+                path = s
+            if isinstance(path, str):
+                sourcePaths.append(path)
 
-        n = len(sources)
+        n = len(sourcePaths)
         taskDescription = 'Load {} images'.format(n)
-        dump = pickle.dumps(sources)
+        dump = pickle.dumps(sourcePaths)
 
 
         if runAsync:

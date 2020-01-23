@@ -919,7 +919,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
                 elif cname == model.cnTemporalProfile:
                     w = QgsFeatureListComboBox(parent=parent)
                     w.setSourceLayer(self.mTemporalProfileLayer)
-                    w.setIdentifierField(FN_ID)
+                    w.setIdentifierFields([FN_ID])
                     w.setDisplayExpression('to_string("{}")+\'  \'+"name"'.format(FN_ID))
                     w.setAllowNull(False)
                 else:
@@ -1103,7 +1103,7 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
                 elif cname == model.cnTemporalProfile:
                     w = QgsFeatureListComboBox(parent=parent)
                     w.setSourceLayer(self.mTemporalProfileLayer)
-                    w.setIdentifierField('id')
+                    w.setIdentifierFields(['id'])
                     w.setDisplayExpression('to_string("id")+\'  \'+"name"')
                     w.setAllowNull(False)
                 else:
