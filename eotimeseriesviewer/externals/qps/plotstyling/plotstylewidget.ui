@@ -136,10 +136,10 @@
        <height>16777215</height>
       </size>
      </property>
-     <property name="colorDialogTitle" stdset="0">
+     <property name="colorDialogTitle">
       <string>Select Map Canvas Background Color</string>
      </property>
-     <property name="color" stdset="0">
+     <property name="color">
       <color>
        <red>255</red>
        <green>0</green>
@@ -149,10 +149,10 @@
     </widget>
    </item>
    <item row="1" column="1">
-    <widget class="QComboBox" name="cbMarkerSymbol"/>
+    <widget class="MarkerSymbolComboBox" name="cbMarkerSymbol"/>
    </item>
    <item row="3" column="1">
-    <widget class="QComboBox" name="cbLinePenStyle"/>
+    <widget class="QgsPenStyleComboBox" name="cbLinePenStyle"/>
    </item>
    <item row="3" column="0">
     <widget class="QLabel" name="label_16">
@@ -181,10 +181,10 @@
        <height>16777215</height>
       </size>
      </property>
-     <property name="colorDialogTitle" stdset="0">
+     <property name="colorDialogTitle">
       <string>Select Map Canvas Background Color</string>
      </property>
-     <property name="color" stdset="0">
+     <property name="color">
       <color>
        <red>255</red>
        <green>0</green>
@@ -204,10 +204,10 @@
        <height>16777215</height>
       </size>
      </property>
-     <property name="colorDialogTitle" stdset="0">
+     <property name="colorDialogTitle">
       <string>Select Map Canvas Background Color</string>
      </property>
-     <property name="color" stdset="0">
+     <property name="color">
       <color>
        <red>255</red>
        <green>0</green>
@@ -217,7 +217,7 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <widget class="QComboBox" name="cbMarkerPenStyle"/>
+    <widget class="QgsPenStyleComboBox" name="cbMarkerPenStyle"/>
    </item>
    <item row="1" column="0">
     <widget class="QLabel" name="label_15">
@@ -268,6 +268,16 @@
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>qps.externals.pyqtgraph</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsPenStyleComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgis.gui</header>
+  </customwidget>
+  <customwidget>
+   <class>MarkerSymbolComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qps.plotstyling.plotstyling</header>
   </customwidget>
  </customwidgets>
  <resources/>

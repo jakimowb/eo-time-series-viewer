@@ -1,6 +1,4 @@
-import os, sys
-
-DIR_QGIS_REPO = os.environ.get('DIR_QGIS_REPO')
+import os, sys, pathlib
 
 def compileQPSResources():
     pathQPSDir = os.path.dirname(__file__)
@@ -10,15 +8,11 @@ def compileQPSResources():
     if addSysPath:
         sys.path.append(pathQPSRoot)
 
-    from qps.make.make import searchAndCompileResourceFiles, compileQGISResourceFiles
-    searchAndCompileResourceFiles(pathQPSDir)
-    if os.path.isdir(DIR_QGIS_REPO):
-        compileQGISResourceFiles(DIR_QGIS_REPO, None)
+    from .make.make import compileResourceFiles, compileQGISResourceFiles
+    compileResourceFiles(pathQPSDir)
 
     if addSysPath:
         sys.path.remove(pathQPSRoot)
-
-
 
 if __name__ == "__main__":
     compileQPSResources()

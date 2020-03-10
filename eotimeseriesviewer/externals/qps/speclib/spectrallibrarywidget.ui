@@ -498,7 +498,7 @@
   <customwidget>
    <class>SpectralLibraryPlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>qps.speclib.plotting</header>
+   <header>qps.speclib.gui</header>
   </customwidget>
  </customwidgets>
  <resources>

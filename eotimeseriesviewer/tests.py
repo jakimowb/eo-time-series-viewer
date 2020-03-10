@@ -70,7 +70,6 @@ class TestCase(qgis.testing.TestCase):
         eotimeseriesviewer.initResources()
         QgsGui.editorWidgetRegistry().initEditors()
 
-        import eotimeseriesviewer.labeling
         print('## setUpClass - cleanup')
         for store in eotimeseriesviewer.MAP_LAYER_STORES:
             store.removeAllMapLayers()

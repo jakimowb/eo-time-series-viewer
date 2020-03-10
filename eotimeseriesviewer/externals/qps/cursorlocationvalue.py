@@ -25,6 +25,7 @@ from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
+from . import DIR_UI_FILES
 from .utils import *
 from .models import *
 from .classification.classificationscheme import ClassInfo, ClassificationScheme
@@ -284,21 +285,16 @@ class ComboBoxOptionModel(QAbstractListModel):
         return value
 
 
-class CursorLocationInfoDock(QDockWidget,
-                             loadUI('cursorlocationinfodock.ui')):
+class CursorLocationInfoDock(QDockWidget):
     sigLocationRequest = pyqtSignal()
     sigCursorLocationInfoAdded = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, *args, **kwds):
         """Constructor."""
-        QWidget.__init__(self, parent)
-        # super(CursorLocationValueWidget, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
+        super().__init__(*args, **kwds)
+
+        path_ui = DIR_UI_FILES / 'cursorlocationinfodock.ui'
+        loadUi(path_ui, self)
 
         self.mMaxPoints = 1
         self.mLocationHistory = []

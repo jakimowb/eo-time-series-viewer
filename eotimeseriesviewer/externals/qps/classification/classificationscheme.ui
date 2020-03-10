@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>352</width>
+    <width>408</width>
     <height>297</height>
    </rect>
   </property>
@@ -114,6 +114,9 @@
         <iconset resource="../../../../QGIS/images/images.qrc">
          <normaloff>:/images/themes/default/mActionEditCopy.svg</normaloff>:/images/themes/default/mActionEditCopy.svg</iconset>
        </property>
+       <property name="popupMode">
+        <enum>QToolButton::MenuButtonPopup</enum>
+       </property>
        <property name="autoRaise">
         <bool>true</bool>
        </property>
@@ -217,6 +220,31 @@
    </property>
    <property name="text">
     <string>Save classes</string>
+   </property>
+  </action>
+  <action name="actionLoadFromRasterFile">
+   <property name="text">
+    <string>Load from raster file</string>
+   </property>
+  </action>
+  <action name="actionLoadFromMapLayer">
+   <property name="text">
+    <string>Load from Map Layer</string>
+   </property>
+  </action>
+  <action name="actionLoadfromTextFile">
+   <property name="text">
+    <string>Load from Text File</string>
+   </property>
+  </action>
+  <action name="actionCopyToVectorLayer">
+   <property name="text">
+    <string>Copy to Vector Layer</string>
+   </property>
+  </action>
+  <action name="actionCopyToRasterLayer">
+   <property name="text">
+    <string>Copy to Raster Layer</string>
    </property>
   </action>
  </widget>
