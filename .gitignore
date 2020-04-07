@@ -9,18 +9,21 @@ doc/build/
 doc/build/*
 eotimeseriesviewer/ui/eotv_resources.py
 eotimeseriesviewer/externals/qps/qpsresources.py
+test-reports/
+
 tests/outputs
 tests/outputs/*
 qgisresources/
 qgisresources/*
-enmapboxtestdata/
-enmapboxtestdata/*
 screenshots/
 screenshots/*
 example/*.aux.xml
 example/*.gpkg-shm
 example/*.gpkg-wal
 eotimeseriesviewer/ui/tmp.ui
+
+*_rc.py
+.coverage
 
 !/.gitignore
 !/.gitattributes
