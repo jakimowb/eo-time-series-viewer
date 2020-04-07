@@ -17,31 +17,25 @@
 ***************************************************************************
 """
 
-from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
-import unittest, tempfile, os
+from eotimeseriesviewer.tests import start_app, testRasterFiles
+import unittest
+import tempfile
+import os
 import qgis.testing
-
+import xmlrunner
 
 from eotimeseriesviewer.labeling import *
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.tests import TestObjects
+from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
 from eotimeseriesviewer.mapvisualization import MapView
-
 from osgeo import ogr
-assert ogr.GetDriverCount() > 0
 
-SHOW_GUI = False and os.environ.get('CI') is None
-
-
-reg = QgsGui.editorWidgetRegistry()
-if len(reg.factories()) == 0:
-    reg.initEditors()
-
-class testclassLabelingTest(qgis.testing.TestCase):
+class TestLabeling(EOTSVTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         print('## setUpClass')
         app = qgis.testing.start_app(cleanup=True)
         import eotimeseriesviewer.labeling
@@ -49,13 +43,6 @@ class testclassLabelingTest(qgis.testing.TestCase):
         for store in eotimeseriesviewer.MAP_LAYER_STORES:
             store.removeAllMapLayers()
         print('## setUpClass - done')
-    @classmethod
-    def tearDownClass(cls):
-        app = QgsApplication.instance()
-        if isinstance(app, QgsApplication):
-            pass
-
-
 
     def createVectorLayer(self)->QgsVectorLayer:
 
@@ -110,10 +97,7 @@ class testclassLabelingTest(qgis.testing.TestCase):
                     return a
         m = findLabelAction(menu).menu()
 
-
-
-        if SHOW_GUI:
-            menu.exec_()
+        self.showGui(menu)
 
     def test_shortcuts(self):
         print('## test_shortcuts')
@@ -230,11 +214,7 @@ class testclassLabelingTest(qgis.testing.TestCase):
             assert isinstance(lyr, QgsVectorLayer)
         #    applyShortcuts(lyr, tsd, [classScheme1[2], classScheme1[1]])
 
-        if SHOW_GUI:
-            parent.show()
-            dv.show()
-            QgsApplication.instance().exec_()
-
+        self.showGui([dv, parent])
         self.assertTrue(vl.commitChanges())
         pass
 
@@ -279,6 +259,7 @@ class testclassLabelingTest(qgis.testing.TestCase):
     def test_LabelingDockActions(self):
         print('## test_LabelingDockActions')
         registerLabelShortcutEditorWidget()
+        reg = QgsGui.editorWidgetRegistry()
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
 
         dock = LabelingDock()
@@ -311,12 +292,7 @@ class testclassLabelingTest(qgis.testing.TestCase):
         lw.sigMapCenterRequested.connect(setLayers)
         lw.sigMapExtentRequested.connect(setLayers)
 
-        if SHOW_GUI:
-            dock.show()
-            canvas.show()
-
-            QgsApplication.instance().exec_()
-
+        self.showGui([dock, canvas])
 
     def test_canvasMenu(self):
         print('## test_canvasMenu')
@@ -331,16 +307,12 @@ class testclassLabelingTest(qgis.testing.TestCase):
         canvas = MapCanvas()
         canvas.setTSD(ts[0])
 
-
-        if SHOW_GUI:
-            canvas.show()
-            QgsApplication.instance().exec_()
-
-
+        self.showGui(canvas)
 
     def test_LabelingDock(self):
         print('## test_LabelingDock')
         registerLabelShortcutEditorWidget()
+        reg = QgsGui.editorWidgetRegistry()
         self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
 
         dock = LabelingDock()
@@ -397,14 +369,9 @@ class testclassLabelingTest(qgis.testing.TestCase):
 
         self.assertTrue(lyr.commitChanges())
 
-        print('FINISHED')
-        if SHOW_GUI:
-            dock.show()
-            QgsApplication.instance().exec_()
+        self.showGui(dock)
 
 
 if __name__ == "__main__":
-    SHOW_GUI = False and os.environ.get('CI') is None
-    unittest.main()
-
-# QgsApplication.instance().exitQgis()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

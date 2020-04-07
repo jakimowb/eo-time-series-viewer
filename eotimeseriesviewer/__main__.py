@@ -26,14 +26,14 @@ def run():
     pluginDir = pathlib.Path(__file__).parents[1]
     sys.path.append(pluginDir.as_posix())
     print(pluginDir)
-    from eotimeseriesviewer.tests import initQgisApplication
+    from eotimeseriesviewer.tests import start_app
 
     import qgis.utils
     from qgis.gui import QgisInterface
     qgisIface = isinstance(qgis.utils.iface, QgisInterface)
 
     if not qgisIface:
-        qgsApp = initQgisApplication()
+        qgsApp = start_app()
 
     from eotimeseriesviewer import initAll
     initAll()

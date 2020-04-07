@@ -9,15 +9,10 @@ from osgeo import gdal, ogr, osr
 from eotimeseriesviewer.utils import file_search
 from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.timeseries import *
-from eotimeseriesviewer.tests import TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
+import xmlrunner
 
-
-os.environ['CI'] = 'True'
-
-import eotimeseriesviewer.settings
-
-
-class TestInit(TestCase):
+class TestTimeSeries(EOTSVTestCase):
 
     def createTestDatasets(self):
 
@@ -210,8 +205,8 @@ class TestInit(TestCase):
 
     def test_datetimeprecision(self):
 
-        img1 = TestObjects.inMemoryImage()
-        img2 = TestObjects.inMemoryImage()
+        img1 = TestObjects.createRasterDataset()
+        img2 = TestObjects.createRasterDataset()
         self.assertIsInstance(img1, gdal.Dataset)
         self.assertIsInstance(img2, gdal.Dataset)
         t0 = np.datetime64('now')
@@ -245,8 +240,8 @@ class TestInit(TestCase):
 
 
 
-        p1 = TestObjects.inMemoryImage()
-        p2 = TestObjects.inMemoryImage()
+        p1 = TestObjects.createRasterDataset()
+        p2 = TestObjects.createRasterDataset()
 
         sources = [p1, p2]
         for p in sources:
@@ -476,4 +471,5 @@ class TestInit(TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

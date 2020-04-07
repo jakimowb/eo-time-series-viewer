@@ -20,11 +20,24 @@
 """
 # noinspection PyPep8Naming
 
-import sys, re, collections, traceback, time, json, urllib, types, enum, typing, pickle, json, uuid
+import sys
+import re
+import collections
+import traceback
+import time
+import json
+import urllib
+import types
+import enum
+import typing
+import pickle
+import json
+import uuid
+import bisect
 from xml.etree import ElementTree
 
 from qgis.PyQt.QtXml import QDomDocument
-import bisect
+
 
 from qgis import *
 from qgis.core import *
@@ -34,6 +47,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 
 from osgeo import osr, ogr, gdal, gdal_array
+from eotimeseriesviewer import DIR_UI
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
@@ -51,7 +65,7 @@ LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
 from osgeo import gdal
 from eotimeseriesviewer import LOG_MESSAGE_TAG
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
-from eotimeseriesviewer.utils import SpatialExtent, loadUI, px2geo, geo2px, SpatialPoint
+from eotimeseriesviewer.utils import SpatialExtent, loadUi, px2geo, geo2px, SpatialPoint
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0') #!important. really. do not change this.
 
@@ -237,7 +251,7 @@ class SensorInstrument(QObject):
         from eotimeseriesviewer.tests import TestObjects
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
-        self.mMockupDS = TestObjects.inMemoryImage(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
+        self.mMockupDS = TestObjects.createRasterDataset(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
         if self.wl is not None:
             self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
         if self.wlu is not None:
@@ -2379,14 +2393,14 @@ def extractWavelengths(ds):
 
 
 
-class TimeSeriesDock(QgsDockWidget, loadUI('timeseriesdock.ui')):
+class TimeSeriesDock(QgsDockWidget):
     """
     QgsDockWidget that shows the TimeSeries
     """
     def __init__(self, parent=None):
         super(TimeSeriesDock, self).__init__(parent)
-        self.setupUi(self)
-
+        
+        loadUi(DIR_UI / 'timeseriesdock.ui', self)
         #self.progressBar.setMinimum(0)
         #self.setProgressInfo(0, 100, 'Add images to fill time series')
         #self.progressBar.setValue(0)

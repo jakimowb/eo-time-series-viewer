@@ -7,7 +7,7 @@ deploy/*
 temp/
 doc/build/
 doc/build/*
-eotimeseriesviewer/ui/resources.py
+eotimeseriesviewer/ui/eotv_resources.py
 eotimeseriesviewer/externals/qps/qpsresources.py
 tests/outputs
 tests/outputs/*

@@ -1,10 +1,10 @@
 
 from qgis.core import *
 from qgis.gui import *
-from eotimeseriesviewer.tests import initQgisApplication, TestObjects
+from eotimeseriesviewer.tests import start_app, TestObjects
 
 
-app = initQgisApplication()
+app = start_app()
 
 lyr = TestObjects.createRasterLayer()
 QgsProject.instance().addMapLayer(lyr)

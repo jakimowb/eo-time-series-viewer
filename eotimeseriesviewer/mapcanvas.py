@@ -1172,8 +1172,8 @@ class MapCanvas(QgsMapCanvas):
         menu.exec_(event.globalPos())
 
     def addLayers2QGIS(self, mapLayers):
-        from eotimeseriesviewer.utils import qgisInstance
-        iface = qgisInstance()
+        import qgis.utils
+        iface = qgis.utils.iface
         if isinstance(iface, QgisInterface):
             grpNode= iface.layerTreeView().currentGroupNode()
             assert isinstance(grpNode, QgsLayerTreeGroup)

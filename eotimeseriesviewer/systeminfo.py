@@ -29,7 +29,8 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 import numpy as np
-from eotimeseriesviewer.utils import loadUI, SpatialExtent
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.utils import loadUi, SpatialExtent
 
 PSUTIL_AVAILABLE = False
 try:
@@ -307,12 +308,12 @@ class DataLoadingModel(QAbstractTableModel):
 
 
 
-class SystemInfoDock(QgsDockWidget, loadUI('systeminfo.ui')):
+class SystemInfoDock(QgsDockWidget):
 
 
     def __init__(self, parent=None):
         super(SystemInfoDock, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'systeminfo.ui', self)
 
         self.lyrModel = MapLayerRegistryModel()
         self.tableViewMapLayerRegistry.setModel(self.lyrModel)

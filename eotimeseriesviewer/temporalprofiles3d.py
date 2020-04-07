@@ -25,7 +25,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from eotimeseriesviewer.externals.qps.models import Option, OptionListModel
-
+from eotimeseriesviewer import DIR_UI
 
 from eotimeseriesviewer.temporalprofiles import *
 
@@ -362,12 +362,12 @@ class TemporalProfile3DPlotStyle(TemporalProfilePlotStyleBase):
         return plotItems
 
 
-class TemporalProfilePlotStyle3DWidget(QWidget, loadUI('plotstyle3Dwidget.ui')):
+class TemporalProfilePlotStyle3DWidget(QWidget):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
     def __init__(self, title='<#>', parent=None):
         super(TemporalProfilePlotStyle3DWidget, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'plotstyle3Dwidget.ui', self)
 
         self.mBlockUpdates = False
 

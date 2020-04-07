@@ -1,14 +1,14 @@
 # noinspection PyPep8Naming
-import os, sys, re
+import os
+import sys
+import re
+import xmlrunner
 from qgis.core import *
 from qgis.gui import *
-from eotimeseriesviewer.tests import TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
 import unittest
-os.environ['CI'] = 'True'
 
-
-
-class TestLayerproperties(TestCase):
+class TestLayerProperties(EOTSVTestCase):
 
 
     def test_selectSubLayers(self):
@@ -24,7 +24,8 @@ class TestLayerproperties(TestCase):
 
         self.showGui(d)
 
-if __name__ == "__main__":
 
-    unittest.main()
+if __name__ == "__main__":
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 

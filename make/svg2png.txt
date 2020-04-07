@@ -1,3 +1,0 @@
-# this file lists the SVG image that need to be
-# converted into PNG files, because of Qt render problem (e.g. with colour gradients)
-

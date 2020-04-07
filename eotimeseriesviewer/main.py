@@ -63,7 +63,7 @@ EXTRA_SPECLIB_FIELDS = [
 ]
 
 
-class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
+class AboutDialogUI(QDialog):
     def __init__(self, parent=None):
         """Constructor."""
         super(AboutDialogUI, self).__init__(parent)
@@ -72,7 +72,7 @@ class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
         # self.<objectname>, and you can use autoconnect slots - see
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
+        loadUi(DIR_UI / 'aboutdialog.ui', self)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.init()
 
@@ -115,20 +115,14 @@ class AboutDialogUI(QDialog, loadUI('aboutdialog.ui')):
 
 
 
-class TimeSeriesViewerUI(QMainWindow,
-                         loadUI('timeseriesviewer.ui')):
+class TimeSeriesViewerUI(QMainWindow):
 
     sigAboutToBeClosed = pyqtSignal()
 
     def __init__(self, parent=None):
         """Constructor."""
         super(TimeSeriesViewerUI, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
+        loadUi(DIR_UI / 'timeseriesviewer.ui', self)
 
         self.setCentralWidget(self.mMapWidget)
 
@@ -676,7 +670,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the SpectraLibrary of the SpectralLibrary dock
         :return: SpectraLibrary
         """
-        from .externals.qps.speclib.spectrallibraries import SpectralLibraryPanel
+        from .externals.qps.speclib.gui import SpectralLibraryPanel
         if isinstance(self.ui.dockSpectralLibrary, SpectralLibraryPanel):
             return self.ui.dockSpectralLibrary.SLW.speclib()
         else:
@@ -1323,13 +1317,13 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-class SaveAllMapsDialog(QDialog, loadUI('saveallmapsdialog.ui')):
+class SaveAllMapsDialog(QDialog):
 
 
     def __init__(self, parent=None):
 
         super(SaveAllMapsDialog, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'saveallmapsdialog.ui', self)
         self.setWindowTitle('Save Maps')
         assert isinstance(self.fileWidget, QgsFileWidget)
         assert isinstance(self.cbFileType, QComboBox)

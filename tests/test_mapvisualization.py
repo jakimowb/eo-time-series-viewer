@@ -18,12 +18,13 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, TestCase
+from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, EOTSVTestCase
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from qgis.core import *
 from qgis.gui import *
 import unittest
+import xmlrunner
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.mapcanvas import *
@@ -33,7 +34,6 @@ from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 #from eotimeseriesviewer import initResources
 #initResources()
 
-os.environ['CI'] = 'true'
 
 
 def getChildElements(node):
@@ -76,7 +76,7 @@ def compareXML(element1, element2):
         return True
 
 
-class testclassMapVisualization(TestCase):
+class TestMapVisualization(EOTSVTestCase):
     """Test resources work."""
 
 
@@ -405,5 +405,6 @@ class testclassMapVisualization(TestCase):
 
 if __name__ == '__main__':
     os.environ['CI'] = True
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 

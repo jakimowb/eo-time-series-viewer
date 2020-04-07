@@ -5,12 +5,12 @@ import unittest
 from qgis import *
 from qgis.core import *
 from qgis.gui import *
-
+import xmlrunner
 from eotimeseriesviewer.tests import *
 
-os.environ['CI'] = 'True'
 
-class QGISTest(TestCase):
+
+class TestQGISEnvironment(EOTSVTestCase):
     """Test the QGIS Environment"""
 
     def test_QgsLayerTreeViewDefaultActions(self):
@@ -159,4 +159,5 @@ class QGISTest(TestCase):
         self.assertEqual(auth_id, 'EPSG:32621')
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

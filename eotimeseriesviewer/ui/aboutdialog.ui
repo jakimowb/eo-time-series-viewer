@@ -29,7 +29,7 @@
    <string>About EO Time Series Viewer</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="resources.qrc">
+   <iconset resource="eotsv_resources.qrc">
     <normaloff>:/timeseriesviewer/icons/icon.svg</normaloff>:/timeseriesviewer/icons/icon.svg</iconset>
   </property>
   <property name="sizeGripEnabled">
@@ -246,7 +246,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="resources.qrc">:/timeseriesviewer/icons/IconTimeSeries.svg</pixmap>
+                <pixmap resource="eotsv_resources.qrc">:/timeseriesviewer/icons/IconTimeSeries.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -344,7 +344,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="resources.qrc">:/timeseriesviewer/icons/logo_hub.svg</pixmap>
+                <pixmap resource="eotsv_resources.qrc">:/timeseriesviewer/icons/logo_hub.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -469,7 +469,7 @@ p, li { white-space: pre-wrap; }
   </action>
  </widget>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
  </resources>
  <connections>
   <connection>

@@ -13,15 +13,16 @@ __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
+import xmlrunner
 from qgis import *
 from qgis.core import QgsProject
 from qgis.gui import *
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.tests import TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
 
 
-class testclassUtilityTests(TestCase):
+class TestUtils(EOTSVTestCase):
 
     def test_spatialExtent(self):
         canvas = QgsMapCanvas()
@@ -51,7 +52,9 @@ class testclassUtilityTests(TestCase):
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
         self.assertTrue(len(files) > 0)
 
+
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 
 

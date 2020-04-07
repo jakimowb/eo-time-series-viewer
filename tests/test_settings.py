@@ -18,33 +18,20 @@
 """
 # noinspection PyPep8Naming
 import uuid
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import start_app
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import unittest, tempfile
+import unittest
+import tempfile
+import xmlrunner
 
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
-resourceDir = os.path.join(DIR_REPO, 'qgisresources')
-from eotimeseriesviewer.tests import TestCase
-#QGIS_APP = initQgisApplication()
-
+from eotimeseriesviewer.tests import EOTSVTestCase
 
 from eotimeseriesviewer.settings import *
-
-os.environ['CI'] = 'True'
-
-
-class testclassSettingsTest(TestCase):
-    """Test resources work."""
-    def setUp(self):
-        """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
+class TestSettings(EOTSVTestCase):
 
     def test_Dialog(self):
         allValues = values()
@@ -185,8 +172,6 @@ class testclassSettingsTest(TestCase):
         self.assertEqual(oldname, name2)
 
 
-
-
-
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

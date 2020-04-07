@@ -21,7 +21,7 @@
 # noinspection PyPep8Naming
 
 
-__version__ = '1.11'  # sub-subversion number is added automatically
+__version__ = '1.12'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
@@ -38,36 +38,26 @@ DEPENDENCIES = ['numpy', 'gdal']
 URL_TESTDATA = r''
 
 
-import os, sys, fnmatch, site, re, site
-jp = os.path.join
-dn = os.path.dirname
+import os
+import sys
+import fnmatch
+import site
+import re
+import pathlib
 from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
 
-mkdir = lambda p: os.makedirs(p, exist_ok=True)
-
-DIR = os.path.dirname(__file__)
-DIR_REPO = os.path.dirname(DIR)
-DIR_UI = jp(DIR, *['ui'])
-DIR_DOCS = jp(DIR, 'docs')
-DIR_EXAMPLES = jp(DIR_REPO, 'example')
-PATH_EXAMPLE_TIMESERIES = jp(DIR_EXAMPLES,'ExampleTimeSeries.csv')
-PATH_LICENSE = jp(DIR_REPO, 'LICENSE.md')
-PATH_CHANGELOG = jp(DIR_REPO, 'CHANGELOG')
-PATH_ABOUT = jp(DIR_REPO, 'ABOUT.html')
-DIR_QGIS_RESOURCES = jp(DIR_REPO, 'qgisresources')
-
-DIR_SITE_PACKAGES = jp(DIR_REPO, 'site-packages')
-
-OPENGL_AVAILABLE = False
-
-try:
-    import OpenGL
-
-    OPENGL_AVAILABLE = True
-except:
-    pass
-
+DIR = pathlib.Path(__file__).parent
+DIR_REPO = DIR.parent
+DIR_UI = DIR / 'ui'
+DIR_DOCS = DIR / 'docs'
+DIR_EXAMPLES = DIR_REPO / 'example'
+PATH_EXAMPLE_TIMESERIES = DIR_EXAMPLES / 'ExampleTimeSeries.csv'
+PATH_LICENSE = DIR_REPO / 'LICENSE.md'
+PATH_CHANGELOG = DIR_REPO / 'CHANGELOG'
+PATH_ABOUT = DIR_REPO / 'ABOUT.html'
+DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
+URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
 
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
@@ -78,12 +68,12 @@ if not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
     from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
     from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
     from .externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-    from .externals.qps.speclib.spectrallibraries import SpectralLibrary, SpectralProfile, SpectralLibraryPanel, SpectralLibraryWidget
-    from .externals.qps.layerproperties import LayerFieldConfigEditorWidget
+    from .externals.qps.speclib.core import SpectralLibrary, SpectralProfile
+    from .externals.qps.speclib.gui import SpectralLibraryPanel, SpectralLibraryWidget
+    from .externals.qps.layerconfigwidgets.vectorlayerfields import LayerFieldsConfigWidget
     from .externals.qps.maptools import *
     from .externals.qps.utils import *
 
-    UI_DIRECTORIES.append(DIR_UI)
 
 def messageLog(msg, level=Qgis.Info):
     """
@@ -98,17 +88,8 @@ def initResources():
     Loads (or reloads) required Qt resources
     :return:
     """
-    try:
-        import eotimeseriesviewer.ui.resources
-        eotimeseriesviewer.ui.resources.qInitResources()
-    except:
-        print('Unable to initialize EO Time Series Viewer resources', file=sys.stderr)
-
-    try:
-        import eotimeseriesviewer.externals.qps.qpsresources
-        eotimeseriesviewer.externals.qps.qpsresources.qInitResources()
-    except Exception as ex:
-        print('Unable to import qps resources', file=sys.stderr)
+    from eotimeseriesviewer.externals.qps.resources import initQtResources
+    initQtResources(pathlib.Path(__file__).parent)
 
 def initEditorWidgets():
     """

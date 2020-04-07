@@ -42,9 +42,6 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
-from eotimeseriesviewer import DIR_UI
-UI_DIRECTORIES.append(DIR_UI)
-
 MAP_LAYER_STORES = MAP_LAYER_STORES# [QgsProject.instance()]
 
 

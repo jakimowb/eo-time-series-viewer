@@ -9,7 +9,7 @@ from qgis.PyQt.QtGui import *
 
 from eotimeseriesviewer import *
 from eotimeseriesviewer import __version__ as EOTSV_VERSION
-from eotimeseriesviewer.utils import loadUI
+from eotimeseriesviewer.utils import loadUi
 from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
 
 from osgeo import gdal, gdalconst, gdal_array
@@ -426,14 +426,14 @@ class SensorSettingsTableModel(QAbstractTableModel):
 
 
 
-class SettingsDialog(QDialog, loadUI('settingsdialog.ui')):
+class SettingsDialog(QDialog):
     """
     A widget to change settings
     """
 
     def __init__(self, title='<#>', parent=None):
         super(SettingsDialog, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'settingsdialog.ui', self)
 
         assert isinstance(self.cbDateTimePrecission, QComboBox)
         from eotimeseriesviewer.timeseries import DateTimePrecision

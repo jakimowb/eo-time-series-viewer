@@ -36,7 +36,7 @@ from .externals.qps.plotstyling.plotstyling import PlotStyle
 
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
 from .utils import *
-from .externals.qps.speclib.spectrallibraries import createQgsField
+from .externals.qps.speclib.core import createQgsField
 
 
 LABEL_EXPRESSION_2D = 'DN or Index'

@@ -28,13 +28,14 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
+from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.utils import loadUI
+from eotimeseriesviewer.utils import loadUi
 
-class SensorDockUI(QgsDockWidget, loadUI('sensordock.ui')):
+class SensorDockUI(QgsDockWidget):
     def __init__(self, parent=None):
         super(SensorDockUI, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'sensordock.ui', self)
 
         self.TS = None
 

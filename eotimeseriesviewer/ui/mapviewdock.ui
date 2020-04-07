@@ -59,7 +59,7 @@
          <string>...</string>
         </property>
         <property name="icon">
-         <iconset resource="resources.qrc">
+         <iconset resource="eotsv_resources.qrc">
           <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
         </property>
         <property name="autoRaise">
@@ -79,7 +79,7 @@
          <string>...</string>
         </property>
         <property name="icon">
-         <iconset resource="resources.qrc">
+         <iconset resource="eotsv_resources.qrc">
           <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
         </property>
         <property name="autoRaise">
@@ -590,7 +590,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
   </widget>
   <action name="actionRemoveMapView">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
@@ -602,7 +602,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
   </action>
   <action name="actionAddMapView">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
@@ -638,7 +638,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
   <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>

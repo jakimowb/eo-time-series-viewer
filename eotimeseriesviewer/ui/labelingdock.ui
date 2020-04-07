@@ -336,7 +336,7 @@
   </action>
  </widget>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
   <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>

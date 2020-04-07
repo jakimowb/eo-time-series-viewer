@@ -13,24 +13,16 @@ __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
+import xmlrunner
 from qgis import *
 from PyQt5.QtGui import QIcon
 from eotimeseriesviewer import file_search
-from eotimeseriesviewer.tests import initQgisApplication, TestCase
+from eotimeseriesviewer.tests import start_app, EOTSVTestCase
 
 
 
-class testclassDialogTest(TestCase):
+class TestResources(EOTSVTestCase):
     """Test rerources work."""
-
-    def setUp(self):
-        """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
-
 
     def test_icon(self):
         """Test we can click OK."""
@@ -45,8 +37,8 @@ class testclassDialogTest(TestCase):
             self.assertFalse(icon.isNull())
 
 
-
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 
 

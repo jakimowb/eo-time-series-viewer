@@ -18,17 +18,19 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles, TestObjects, TestCase
+from eotimeseriesviewer.tests import start_app, testRasterFiles, TestObjects, EOTSVTestCase
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import unittest, tempfile
+import unittest
+import tempfile
+import xmlrunner
 from eotimeseriesviewer import SpatialPoint
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.timeseries import *
 
-os.environ['CI'] = 'True' # set to False to show GUI elements
+ # set to False to show GUI elements
 
-class testclassDialogTest(TestCase):
+class TestMapCanvas(EOTSVTestCase):
     """Test resources work."""
 
 
@@ -183,11 +185,6 @@ class testclassDialogTest(TestCase):
         self.assertTrue(lastPos == p2)
 
 
-
-
-
-
 if __name__ == "__main__":
-
-    SHOW_GUI = False and os.environ.get('CI') is None
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

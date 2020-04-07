@@ -7,8 +7,9 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from osgeo import gdal
 
+from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.externals.qps.layerproperties import *
-from eotimeseriesviewer.utils import loadUI, qgisInstance
+from eotimeseriesviewer.utils import loadUi
 from eotimeseriesviewer.externals.qps.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
@@ -512,11 +513,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
             if cname == model.cnLabel and isinstance(w, QComboBox):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
-
-
-
-
-class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
+class LabelingWidget(QMainWindow):
 
     sigVectorLayerChanged = pyqtSignal()
     sigMapExtentRequested = pyqtSignal(SpatialExtent)
@@ -524,7 +521,7 @@ class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
 
     def __init__(self, parent=None, canvas=None):
         super(LabelingWidget, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'labelingdock.ui', self)
 
         self.mVectorLayerComboBox = QgsMapLayerComboBox()
         self.mVectorLayerComboBox.setAllowEmptyLayer(True)
@@ -734,8 +731,8 @@ class LabelingWidget(QMainWindow, loadUI('labelingdock.ui')):
 
 
     def initActions(self):
-
-        iface = qgisInstance()
+        import qgis.utils
+        iface = qgis.utils.iface
 
         # if isinstance(iface, QgisInterface):
         # self.mActionAddFeature = iface.actionAddFeature()

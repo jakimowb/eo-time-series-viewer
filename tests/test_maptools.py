@@ -18,9 +18,12 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, unittest, configparser
-
-from eotimeseriesviewer.tests import initQgisApplication, testRasterFiles
+import os
+import sys
+import unittest
+import configparser
+import xmlrunner
+from eotimeseriesviewer.tests import start_app, testRasterFiles
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.core import *
@@ -28,15 +31,14 @@ from qgis.gui import *
 import unittest, tempfile
 
 import eotimeseriesviewer
-eotimeseriesviewer.initResources()
 from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects, TestCase
+from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
 
 
-os.environ['CI'] = 'True'
 
 
-class TestInit(TestCase):
+
+class TestMapTools(EOTSVTestCase):
     """Test that the plugin init is usable for QGIS.
 
     Based heavily on the validator class by Alessandro
@@ -129,4 +131,5 @@ class TestInit(TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

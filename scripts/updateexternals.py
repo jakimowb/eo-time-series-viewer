@@ -13,7 +13,7 @@ RemoteInfo.create(r'https://bitbucket.org/jakimowb/qgispluginsupport.git',
                   #prefixLocal='site-packages/qps',
                   prefixLocal='eotimeseriesviewer/externals/qps',
                   prefixRemote=r'qps',
-                  remoteBranch='master')
+                  remoteBranch='develop')
 
 def updateRemotes(remoteLocations):
     """
@@ -25,9 +25,11 @@ def updateRemotes(remoteLocations):
         remoteLocations = [remoteLocations]
     updateexternals.updateRemoteLocations(remoteLocations)
 
+
 def run():
 
     updateRemotes('qps')
+
 
 if __name__ == "__main__":
 
@@ -38,8 +40,8 @@ if __name__ == "__main__":
     updateRemotes(to_update)
 
     if 'qps' in to_update:
-        import make
+        import scripts
         path = os.path.join(DIR_REPO, r'eotimeseriesviewer/externals/qps/qpsresources.qrc')
-        make.compileResourceFile(path)
+        scripts.compileResourceFile(path)
 
-    exit()
+    exit(0)

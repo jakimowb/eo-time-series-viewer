@@ -21,7 +21,16 @@
 """
 
 
-import os, sys, re, fnmatch, collections, copy, traceback, bisect
+import os
+import sys
+import re
+import fnmatch
+import collections
+import copy
+import traceback
+import bisect
+
+from eotimeseriesviewer import DIR_UI
 from qgis.core import *
 from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader,  QgsProject, QgsCoordinateReferenceSystem, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
@@ -35,7 +44,7 @@ import numpy as np
 from .utils import *
 from .import Option, OptionListModel
 from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
-from .utils import loadUI
+from .utils import loadUi
 from .mapviewscrollarea import MapViewScrollArea
 from .mapcanvas import MapCanvas, MapTools, MapCanvasInfoItem, MapCanvasMapTools
 
@@ -204,7 +213,7 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
         return f
 
 
-class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
+class MapView(QFrame):
     """
     A MapView defines how a single map canvas visualizes sensor specific EOTS data plus additional vector overlays
     """
@@ -218,7 +227,8 @@ class MapView(QFrame, loadUIFormClass(jp(DIR_UI, 'mapview.ui'))):
 
     def __init__(self, name='Map View', parent=None):
         super(MapView, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'mapview.ui', self)
+        #self.setupUi(self)
 
         from eotimeseriesviewer.settings import defaultValues, Keys
         DEFAULT_VALUES = defaultValues()
@@ -801,7 +811,7 @@ class MapViewListModel(QAbstractListModel):
         return value
 
 
-class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
+class MapWidget(QFrame):
     """
     This widget contains all maps
     """
@@ -831,7 +841,8 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
     def __init__(self, *args, **kwds):
         super(MapWidget, self).__init__(*args, **kwds)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'mapwidget.ui', self)
+
         self.setContentsMargins(1, 1, 1, 1)
         self.mGrid = self.gridFrame.layout()
         assert isinstance(self.mGrid, QGridLayout)
@@ -954,7 +965,13 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
-        assert isinstance(extent, SpatialExtent)
+        try:
+            assert isinstance(extent, SpatialExtent), 'Expected SpatialExtent, but got {} {}'.format(type(extent), extent)
+        except Exception as ex:
+
+            traceback.print_exception(*sys.exc_info())
+            raise ex
+
         if self.mSpatialExtent != extent:
             self.mSpatialExtent = extent
 
@@ -1639,7 +1656,7 @@ class MapWidget(QFrame, loadUIFormClass(jp(DIR_UI, 'mapwidget.ui'))):
 
 
 
-class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
+class MapViewDock(QgsDockWidget):
 
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
@@ -1661,7 +1678,7 @@ class MapViewDock(QgsDockWidget, loadUI('mapviewdock.ui')):
 
     def __init__(self, parent=None):
         super(MapViewDock, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'mapviewdock.ui', self)
 
         self.baseTitle = self.windowTitle()
 

@@ -18,14 +18,17 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, unittest, configparser
-
+import os
+import sys
+import unittest
+import configparser
+import xmlrunner
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
-from eotimeseriesviewer.tests import TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
 
-class TestInMemoryData(TestCase):
+class TestInMemoryData(EOTSVTestCase):
     """
     Tests for the GDAL/OGR VSI in-memory data
     """
@@ -35,7 +38,7 @@ class TestInMemoryData(TestCase):
         from osgeo import gdal
         from eotimeseriesviewer.tests import TestObjects
         from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
-        TestObjects.inMemoryImage()
+        TestObjects.createRasterDataset()
         # create an in-memory raster
         driver = gdal.GetDriverByName('GTiff')
         self.assertIsInstance(driver, gdal.Driver)
@@ -85,6 +88,7 @@ class TestInMemoryData(TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 
 

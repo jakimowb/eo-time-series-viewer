@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>602</width>
-    <height>432</height>
+    <height>483</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -81,7 +81,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset resource="eotsv_resources.qrc">
          <normaloff>:/timeseriesviewer/icons/mActionArrowLeftEnd.svg</normaloff>:/timeseriesviewer/icons/mActionArrowLeftEnd.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -95,7 +95,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -109,7 +109,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -139,7 +139,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -153,7 +153,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -167,7 +167,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset resource="eotsv_resources.qrc">
          <normaloff>:/timeseriesviewer/icons/mActionArrowRightEnd.svg</normaloff>:/timeseriesviewer/icons/mActionArrowRightEnd.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -180,7 +180,7 @@
   </layout>
   <action name="actionForward">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -192,7 +192,7 @@
   </action>
   <action name="actionBackward">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
    </property>
    <property name="text">
@@ -204,7 +204,7 @@
   </action>
   <action name="actionLastDate">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionArrowRightEnd.svg</normaloff>:/timeseriesviewer/icons/mActionArrowRightEnd.svg</iconset>
    </property>
    <property name="text">
@@ -213,7 +213,7 @@
   </action>
   <action name="actionFirstDate">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionArrowLeftEnd.svg</normaloff>:/timeseriesviewer/icons/mActionArrowLeftEnd.svg</iconset>
    </property>
    <property name="text">
@@ -222,7 +222,7 @@
   </action>
   <action name="actionForwardFast">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -231,7 +231,7 @@
   </action>
   <action name="actionBackwardFast">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
    </property>
    <property name="text">
@@ -249,7 +249,7 @@
  </customwidgets>
  <resources>
   <include location="../../../../QGIS/images/images.qrc"/>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
  </resources>
  <connections/>
 </ui>

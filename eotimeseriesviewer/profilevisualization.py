@@ -29,8 +29,9 @@ from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtGui import *
 
 
+from eotimeseriesviewer import DIR_UI
 from .timeseries import *
-from .utils import SpatialExtent, SpatialPoint, px2geo, loadUI, nextColor
+from .utils import SpatialExtent, SpatialPoint, px2geo, loadUi, nextColor
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from .externals.pyqtgraph import ScatterPlotItem, SpotItem, GraphicsScene
 from .externals.qps.externals.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent, MouseDragEvent
@@ -1225,12 +1226,12 @@ class PlotSettingsModel3DWidgetDelegate(QStyledItemDelegate):
 
 
 
-class ProfileViewDockUI(QgsDockWidget, loadUI('profileviewdock.ui')):
+class ProfileViewDockUI(QgsDockWidget):
 
 
     def __init__(self, parent=None):
         super(ProfileViewDockUI, self).__init__(parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'profileviewdock.ui', self)
 
         self.addActions(self.findChildren(QAction))
 

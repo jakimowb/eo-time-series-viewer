@@ -13,32 +13,40 @@ pipelines:
         caches:
           - docker
           - pip
+          - qgisresourcecache
         script: # Modify the commands below to build your repository.
-          - python3 -m pip install -r requirements.txt
-          - python3 -m pip install nose2
           - apt-get update
-          - apt-get -y install xvfb
           - apt-get -y install git-lfs
-          - apt-get -y install xvfb
-          - Xvfb :1 -screen 0 1024x768x16 &> xvfb.log  &
-          - ps aux | grep X
-          - DISPLAY=:1.0
-          - export DISPLAY
           - mkdir test-reports
           - git lfs install
           - git lfs fetch
           - git lfs pull
           - git lfs checkout
-          #- python3 make/setuprepository.py
-          #- python3 -m nose2 discover tests "test_*.py" > test-reports/test-report.txt
-          #- QT_QPA_PLATFORM=offscreen
-          #- export QT_QPA_PLATFORM
-
+          - QT_QPA_PLATFORM=offscreen
           - CI=True
+          - export QT_QPA_PLATFORM
           - export CI
-          - chmod +x runtests.sh
-          - ./runtests.sh
-          #- python3 tests/test_init.py
-          #- CI=True
-          #- export CI
-          #- python3 -m nose2 discover tests "test_*.py" > test-reports/test-report.txt
+          - export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+          - python3 -m pip install -r requirements_dev.txt
+          - python3 scripts/setup_repository.py
+          - python3 -m coverage run --rcfile=.coveragec   tests/test_fileFormatLoading.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_inmemorydata.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_labeling.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_layerproperties.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_main.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_mapcanvas.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_maptools.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_mapvisualization.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_qgis_environment.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_qgis_interaction.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_resources.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_settings.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_stackedbandinput.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_temporalprofiles.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_timeseries.py
+          - python3 -m coverage run --rcfile=.coveragec --append  tests/test_utils.py
+          - python3 -m coverage report
+
+definitions:
+  caches:
+    qgisresourcecache: /opt/atlassian/pipelines/agent/build/qgisresources

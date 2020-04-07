@@ -2,8 +2,8 @@
 import os, re, io, importlib, uuid, unittest
 
 import qgis.testing
-
-from unittest import TestCase
+import xmlrunner
+from eotimeseriesviewer.tests import EOTSVTestCase
 from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
@@ -15,32 +15,19 @@ DIR_RAPIDEYE = r'Y:\RapidEye\3A'
 DIR_LANDSAT = jp(DIR_EXAMPLES, 'Images')
 DIR_VRT = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
 
-class TestFileFormatLoading(TestCase):
+class TestFileFormatLoading(EOTSVTestCase):
 
     @classmethod
     def setUpClass(cls):
-
+        super().setUpClass()
         cls.TS = TimeSeries()
 
-        if False:
-            cls.savedStdOut = sys.stdout
-            cls.savedStdIn = sys.stdin
-
-            cls.stdout = io.StringIO()
-            cls.stderr = io.StringIO()
-            sys.stdout = cls.stdout
-            sys.stderr = cls.stderr
-
-    @classmethod
-    def tearDownClass(cls):
-        pass
-        #sys.stdout = cls.stdout
-        #sys.stderr = cls.stderr
-
     def setUp(self):
+        super().setUp()
         self.TS.clear()
 
     def tearDown(self):
+        super().tearDown()
         self.TS.clear()
 
     def test_loadRapidEyeLocal(self):
@@ -179,6 +166,6 @@ class TestFileFormatLoading(TestCase):
         self.assertEqual(len(subdatasets), len(self.TS))  # add subdatasets
 
 
-
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

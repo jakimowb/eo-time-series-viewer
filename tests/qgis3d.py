@@ -1,7 +1,7 @@
 
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import start_app
 
-app = initQgisApplication()
+app = start_app()
 
 from qgis._3d import *
 

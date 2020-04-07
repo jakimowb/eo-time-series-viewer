@@ -24,7 +24,7 @@
 from .utils import *
 from .virtualrasters import *
 from .dateparser import *
-
+from eotimeseriesviewer import DIR_UI
 
 def datesFromDataset(dataset:gdal.Dataset)->list:
 
@@ -58,7 +58,7 @@ def datesFromDataset(dataset:gdal.Dataset)->list:
         for key, values in domainData.items():
             for regex in searchedKeysDataSet:
                 if regex.search(key.strip()):
-                    values = re.sub('[{}]', '', values)
+                    values = re.sub(r'[{}]', '', values)
                     values = values.split(',')
                     dateValues = [extractDateTimeGroup(t) for t in values]
                     if checkDates(dateValues):
@@ -663,12 +663,12 @@ class OutputImageModel(QAbstractTableModel):
 
 
 
-class StackedBandInputDialog(QDialog, loadUI('stackedinputdatadialog.ui')):
+class StackedBandInputDialog(QDialog):
 
     def __init__(self, parent=None):
 
         super(StackedBandInputDialog, self).__init__(parent=parent)
-        self.setupUi(self)
+        loadUi(DIR_UI / 'stackedinputdatadialog.ui', self)
         self.setWindowTitle('Stacked Time Series Data Input')
         self.mWrittenFiles = []
 

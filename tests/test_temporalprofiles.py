@@ -12,7 +12,11 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
-import unittest, tempfile, sys, os
+import unittest
+import tempfile
+import sys
+import os
+import xmlrunner
 from qgis import *
 from qgis.gui import *
 from PyQt5.QtGui import QIcon
@@ -21,17 +25,17 @@ from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.temporalprofiles import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.tests import TestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
 from osgeo import ogr, osr
 
-os.environ['CI'] = 'True'
 
-class testclassUtilityTests(TestCase):
+
+class TestTemporalProfiles(EOTSVTestCase):
     """Test temporal profiles"""
 
     def setUp(self):
         """Runs before each test."""
-        super(testclassUtilityTests, self).setUp()
+        super().setUp()
         self.TS = TimeSeries()
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
@@ -307,8 +311,6 @@ class testclassUtilityTests(TestCase):
 
 
 if __name__ == "__main__":
-
-
-    unittest.main()
-
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)
 

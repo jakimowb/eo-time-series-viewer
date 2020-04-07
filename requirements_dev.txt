@@ -18,3 +18,5 @@ sphinx-argparse
 sphinx-markdown
 sphinx-rtd-theme
 sphinx-autobuild
+xmlrunner
+coverage

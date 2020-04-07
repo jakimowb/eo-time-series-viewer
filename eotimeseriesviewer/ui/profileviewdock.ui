@@ -125,7 +125,7 @@
            <string>2D</string>
           </property>
           <property name="icon">
-           <iconset resource="resources.qrc">
+           <iconset resource="eotsv_resources.qrc">
             <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile2D.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile2D.svg</iconset>
           </property>
          </item>
@@ -137,7 +137,7 @@
            <string>3D (OpenGL)</string>
           </property>
           <property name="icon">
-           <iconset resource="resources.qrc">
+           <iconset resource="eotsv_resources.qrc">
             <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile3D.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile3D.svg</iconset>
           </property>
          </item>
@@ -149,7 +149,7 @@
            <string>Overview on Temporal profile locations</string>
           </property>
           <property name="icon">
-           <iconset resource="resources.qrc">
+           <iconset resource="eotsv_resources.qrc">
             <normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</iconset>
           </property>
          </item>
@@ -778,7 +778,7 @@ background-color: rgb(0, 0, 0);</string>
   </widget>
   <action name="actionRefresh2D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
@@ -790,7 +790,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionAddStyle2D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
@@ -802,7 +802,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionRemoveStyle2D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
    </property>
    <property name="text">
@@ -814,7 +814,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionLoadProfileRequest">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
    </property>
    <property name="text">
@@ -826,7 +826,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionRefresh3D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
@@ -850,7 +850,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionReset3DCamera">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
@@ -859,7 +859,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionAddStyle3D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
@@ -871,7 +871,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionRemoveStyle3D">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
    </property>
    <property name="text">
@@ -883,7 +883,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionLoadTPFromOgr">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
@@ -895,7 +895,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionReset2DPlot">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
@@ -907,7 +907,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionLoadMissingValues">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
    </property>
    <property name="text">
@@ -919,7 +919,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionSaveTemporalProfiles">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
    </property>
    <property name="text">
@@ -973,7 +973,7 @@ background-color: rgb(0, 0, 0);</string>
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
   <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>

@@ -1,6 +1,7 @@
 ==============
 Changelog
 ==============
+
 2020-01-23 (version 1.11):
     * revised unit tests for CI pipelines
     * fixed smaller issues in SensorModel

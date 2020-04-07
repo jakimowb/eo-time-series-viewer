@@ -1,0 +1,11 @@
+[run]
+include =
+    */eotimeseriesviewer/*
+
+
+omit =
+    *eotimeseriesviewer/externals/*
+
+
+
+

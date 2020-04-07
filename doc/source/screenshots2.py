@@ -3,9 +3,9 @@ from qgis.gui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
-from eotimeseriesviewer.tests import initQgisApplication
+from eotimeseriesviewer.tests import start_app
 
-app = initQgisApplication()
+app = start_app()
 
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.main import TimeSeriesViewer

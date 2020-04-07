@@ -20,7 +20,11 @@
 """
 # noinspection PyPep8Naming
 
-import os, re, io, importlib, uuid
+import os
+import re
+import io
+import importlib
+import uuid
 from qgis.core import *
 import numpy as np
 from qgis.gui import *
@@ -33,71 +37,17 @@ from eotimeseriesviewer.utils import file_search
 from osgeo import ogr, osr, gdal, gdal_array
 import qgis.testing
 import example
-from eotimeseriesviewer import DIR_EXAMPLES
+from eotimeseriesviewer import DIR_EXAMPLES, DIR_REPO
 from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles
+from eotimeseriesviewer.externals.qps.testing import *
+from eotimeseriesviewer.externals.qps.resources import initQtResources
 
-
-def initQgisApplication(*args, **kwds)->QgsApplication:
-    """
-    Initializes a QGIS Environment
-    :return: QgsApplication instance of local QGIS installation
-    """
-    if isinstance(QgsApplication.instance(), QgsApplication):
-        return QgsApplication.instance()
-    else:
-
-        import eotimeseriesviewer.externals.qps.testing
-        app = eotimeseriesviewer.externals.qps.testing.initQgisApplication(*args, **kwds)
-
-        import eotimeseriesviewer
-        eotimeseriesviewer.initAll()
-        return app
-
-
-class TestCase(qgis.testing.TestCase):
-
-
+class EOTSVTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
-        print('## setUpClass')
-        # app = qgis.testing.start_app(cleanup=True)
-        import eotimeseriesviewer
-        import qgis.testing.mocked
-        iface = qgis.testing.mocked.get_iface()
-        import qgis.utils
-        qgis.utils.iface = iface
-
-        eotimeseriesviewer.initResources()
-        QgsGui.editorWidgetRegistry().initEditors()
-
-        import eotimeseriesviewer.labeling
-        print('## setUpClass - cleanup')
-        for store in eotimeseriesviewer.MAP_LAYER_STORES:
-            store.removeAllMapLayers()
-        print('## setUpClass - done')
-
-
-    def setUp(self):
-        print('## Start {}'.format(self._testMethodName))
-
-    @classmethod
-    def tearDownClass(cls):
-        app = QgsApplication.instance()
-        if isinstance(app, QgsApplication):
-            pass
-
-    def showGui(self, widgets=None, execute=None):
-        app = QgsApplication.instance()
-        if isinstance(app, QgsApplication) and not str(os.environ.get('CI')).lower() in ['true', '1', 'yes']:
-            if widgets != None:
-                if not isinstance(widgets, list):
-                    widgets = [widgets]
-                for w in widgets:
-                    if isinstance(w, (QMainWindow, QWidget)):
-                        w.show()
-
-            app.exec_()
-
+        initQtResources(DIR_REPO)
+        super().setUpClass()
 
 def testRasterFiles()->list:
     return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))

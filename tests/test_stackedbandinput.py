@@ -17,21 +17,23 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-import os, sys
-from eotimeseriesviewer.tests import initQgisApplication, TestCase
+import os
+import sys
+import xmlrunner
+from eotimeseriesviewer.tests import start_app, EOTSVTestCase
 from eotimeseriesviewer.utils import nextColor
 from osgeo import gdal_array
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import unittest, tempfile
 
-os.environ['CI'] = 'True'
+
 
 from eotimeseriesviewer.stackedbandinput import *
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
 
 
-class testclassStackedInputTests(TestCase):
+class TestStackedInputs(EOTSVTestCase):
 
     def createTestDatasets(self):
 
@@ -204,4 +206,5 @@ class testclassStackedInputTests(TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

@@ -26,7 +26,7 @@
    <string>Frame</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="resources.qrc">
+   <iconset resource="eotsv_resources.qrc">
     <normaloff>:/timeseriesviewer/icons/mapview.svg</normaloff>:/timeseriesviewer/icons/mapview.svg</iconset>
   </property>
   <property name="frameShape">
@@ -71,7 +71,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset resource="eotsv_resources.qrc">
          <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
        </property>
        <property name="checkable">
@@ -109,7 +109,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="resources.qrc">
+        <iconset resource="eotsv_resources.qrc">
          <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
        </property>
        <property name="checkable">
@@ -247,7 +247,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
    </property>
    <property name="text">
@@ -265,7 +265,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
@@ -277,7 +277,7 @@
   </action>
   <action name="actionSetCrosshairStyle">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/symbology.svg</normaloff>:/timeseriesviewer/icons/symbology.svg</iconset>
    </property>
    <property name="text">
@@ -370,7 +370,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
   <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>

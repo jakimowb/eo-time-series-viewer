@@ -48,7 +48,7 @@
          <string>...</string>
         </property>
         <property name="icon">
-         <iconset resource="resources.qrc">
+         <iconset resource="eotsv_resources.qrc">
           <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
         </property>
         <property name="autoRaise">
@@ -240,7 +240,7 @@
   </widget>
   <action name="actionRequestCursorLocation">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
@@ -249,7 +249,7 @@
   </action>
   <action name="actionReload">
    <property name="icon">
-    <iconset resource="resources.qrc">
+    <iconset resource="eotsv_resources.qrc">
      <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
@@ -285,7 +285,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="resources.qrc"/>
+  <include location="eotsv_resources.qrc"/>
  </resources>
  <connections/>
 </ui>
