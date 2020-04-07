@@ -27,11 +27,13 @@
 *                                                                         *
 ***************************************************************************
 """
-import sys, enum
+import enum
 from qgis.core import *
-from qgis.gui import *
 
 from qgis.PyQt.QtCore import QSettings
+
+
+EDITOR_WIDGET_REGISTRY_KEY = 'Spectral Profile'
 
 class SpectralLibrarySettingsKey(enum.Enum):
     CURRENT_PROFILE_STYLE = 1
@@ -40,6 +42,7 @@ class SpectralLibrarySettingsKey(enum.Enum):
     FOREGROUND_COLOR = 4
     INFO_COLOR = 5
     USE_VECTOR_RENDER_COLORS = 6
+    SELECTION_COLOR = 7
 
 
 
@@ -52,7 +55,7 @@ def speclibSettings()->QSettings:
     return QgsSettings('HUB', 'speclib')
 
 try:
-    from .envi import EnviSpectralLibraryIO
+    from ..speclib.io.envi import EnviSpectralLibraryIO
 except:
     pass
 

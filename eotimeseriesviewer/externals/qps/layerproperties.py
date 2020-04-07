@@ -21,7 +21,7 @@
 import collections
 import os
 import re
-import typing
+import typing, enum
 from osgeo import gdal, ogr, osr
 import numpy as np
 from qgis.gui import *
@@ -30,11 +30,11 @@ from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtXml import QDomDocument
-
+from . import DIR_UI_FILES
 from .utils import *
 from .models import OptionListModel, Option
 from .classification.classificationscheme import ClassificationScheme, ClassInfo
-
+from .vectorlayertools import VectorLayerTools
 """
 class RasterLayerProperties(QgsOptionsDialogBase):
     def __init__(self, lyr, canvas, parent, fl=Qt.Widget):
@@ -74,6 +74,214 @@ DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
 MDF_QGIS_LAYER_STYLE = 'application/qgis.style'
 MDF_TEXT_PLAIN = 'text/plain'
 
+
+class AddAttributeDialog(QDialog):
+    """
+    A dialog to set up a new QgsField.
+    """
+    def __init__(self, layer, parent=None, case_sensitive: bool = False):
+        assert isinstance(layer, QgsVectorLayer)
+        super(AddAttributeDialog, self).__init__(parent)
+
+        assert isinstance(layer, QgsVectorLayer)
+        self.mLayer = layer
+        self.mCaseSensitive = case_sensitive
+        self.setWindowTitle('Add Field')
+        l = QGridLayout()
+
+        self.tbName = QLineEdit('Name')
+        self.tbName.setPlaceholderText('Name')
+        self.tbName.textChanged.connect(self.validate)
+
+        l.addWidget(QLabel('Name'), 0,0)
+        l.addWidget(self.tbName, 0, 1)
+
+        self.tbComment = QLineEdit()
+        self.tbComment.setPlaceholderText('Comment')
+        l.addWidget(QLabel('Comment'), 1, 0)
+        l.addWidget(self.tbComment, 1, 1)
+
+        self.cbType = QComboBox()
+        self.typeModel = OptionListModel()
+
+        for ntype in self.mLayer.dataProvider().nativeTypes():
+            assert isinstance(ntype, QgsVectorDataProvider.NativeType)
+            o = Option(ntype, name=ntype.mTypeName, toolTip=ntype.mTypeDesc)
+            self.typeModel.addOption(o)
+        self.cbType.setModel(self.typeModel)
+        self.cbType.currentIndexChanged.connect(self.onTypeChanged)
+        l.addWidget(QLabel('Type'), 2, 0)
+        l.addWidget(self.cbType, 2, 1)
+
+        self.sbLength = QSpinBox()
+        self.sbLength.setRange(0, 99)
+        self.sbLength.valueChanged.connect(lambda : self.setPrecisionMinMax())
+        self.lengthLabel = QLabel('Length')
+        l.addWidget(self.lengthLabel, 3, 0)
+        l.addWidget(self.sbLength, 3, 1)
+
+        self.sbPrecision = QSpinBox()
+        self.sbPrecision.setRange(0, 99)
+        self.precisionLabel = QLabel('Precision')
+        l.addWidget(self.precisionLabel, 4, 0)
+        l.addWidget(self.sbPrecision, 4, 1)
+
+        self.tbValidationInfo = QLabel()
+        self.tbValidationInfo.setStyleSheet("QLabel { color : red}")
+        l.addWidget(self.tbValidationInfo, 5, 0, 1, 2)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttons.button(QDialogButtonBox.Ok).clicked.connect(self.accept)
+        self.buttons.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+        l.addWidget(self.buttons, 6, 1)
+        self.setLayout(l)
+        self.mLayer = layer
+        self.onTypeChanged()
+
+        self.validate()
+
+    def setCaseSensitive(self, is_sensitive: bool):
+        assert isinstance(is_sensitive, bool)
+        self.mCaseSensitive = is_sensitive
+        self.validate()
+
+    def setName(self, name: str):
+        """
+        Sets the field name
+        """
+        self.tbName.setText(name)
+
+    def name(self) -> str:
+        """
+        Returns the field name
+        :return: str
+        """
+        return self.tbName.text()
+
+    def accept(self):
+        isValid, msg = self.validate()
+        if isValid:
+            super(AddAttributeDialog, self).accept()
+        else:
+            QMessageBox.warning(self, "Add Field", msg)
+
+
+    def field(self):
+        """
+        Returns the new QgsField
+        :return:
+        """
+        ntype = self.currentNativeType()
+        return QgsField(name=self.tbName.text(),
+                        type=QVariant(ntype.mType).type(),
+                        typeName=ntype.mTypeName,
+                        len=self.sbLength.value(),
+                        prec=self.sbPrecision.value(),
+                        comment=self.tbComment.text())
+
+    def currentNativeType(self):
+        return self.cbType.currentData().value()
+
+    def onTypeChanged(self, *args):
+        ntype = self.currentNativeType()
+        vMin , vMax = ntype.mMinLen, ntype.mMaxLen
+        assert isinstance(ntype, QgsVectorDataProvider.NativeType)
+
+        isVisible = vMin < vMax
+        self.sbLength.setVisible(isVisible)
+        self.lengthLabel.setVisible(isVisible)
+        self.setSpinBoxMinMax(self.sbLength, vMin , vMax)
+        self.setPrecisionMinMax()
+
+    def setPrecisionMinMax(self):
+        ntype = self.currentNativeType()
+        vMin, vMax = ntype.mMinPrec, ntype.mMaxPrec
+        isVisible = vMin < vMax
+        self.sbPrecision.setVisible(isVisible)
+        self.precisionLabel.setVisible(isVisible)
+
+        vMax = max(ntype.mMinPrec, min(ntype.mMaxPrec, self.sbLength.value()))
+        self.setSpinBoxMinMax(self.sbPrecision, vMin, vMax)
+
+    def setSpinBoxMinMax(self, sb, vMin, vMax):
+        assert isinstance(sb, QSpinBox)
+        value = sb.value()
+        sb.setRange(vMin, vMax)
+
+        if value > vMax:
+            sb.setValue(vMax)
+        elif value < vMin:
+            sb.setValue(vMin)
+
+    def validate(self, *args) -> typing.Union[bool, str]:
+        """
+        Validates the inputs
+        :return: (bool, str with error message(s))
+        """
+        errors = []
+        name = self.tbName.text()
+        existing_names = self.mLayer.fields().names()
+        if self.mCaseSensitive and name in existing_names or \
+           not self.mCaseSensitive and name.lower() in [n.lower() for n in existing_names]:
+            errors.append('Field name "{}" already exists.'.format(name))
+        elif name == '':
+            errors.append('Missing field name')
+        elif name == 'shape':
+            errors.append('Field name "{}" already reserved.'.format(name))
+        errors = '\n'.join(errors)
+        self.buttons.button(QDialogButtonBox.Ok).setEnabled(len(errors) == 0)
+        self.tbValidationInfo.setText(errors)
+
+        return len(errors) == 0, errors
+
+
+class RemoveAttributeDialog(QDialog):
+
+    def __init__(self, layer:QgsVectorLayer, *args, fieldNames = None, **kwds):
+        super().__init__(*args, **kwds)
+        assert isinstance(layer, QgsVectorLayer)
+        self.mLayer = layer
+        self.setWindowTitle('Remove Field')
+
+        from .layerconfigwidgets.vectorlayerfields import LayerFieldsListModel
+        self.fieldModel = LayerFieldsListModel()
+        self.fieldModel.setLayer(self.mLayer)
+        self.fieldModel.setAllowEmptyFieldName(False)
+        self.fieldModel.setAllowExpression(False)
+
+        self.tvFieldNames = QTableView()
+        self.tvFieldNames.setModel(self.fieldModel)
+
+        self.btnBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, parent=self)
+        self.btnBox.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+        self.btnBox.button(QDialogButtonBox.Ok).clicked.connect(self.accept)
+
+        self.label = QLabel('Select')
+
+        l = QVBoxLayout()
+        l.addWidget(self.label)
+        l.addWidget(self.tvFieldNames)
+        l.addWidget(self.btnBox)
+        self.setLayout(l)
+
+    def fields(self) -> typing.List[QgsField]:
+        """
+        Returns the selected QgsFields
+        """
+        fields = []
+        for idx in self.tvFieldNames.selectionModel().selectedRows():
+            i = idx.data(Qt.UserRole + 2)
+            fields.append(self.mLayer.fields().at(i))
+
+        return fields
+
+    def fieldIndices(self) -> typing.List[int]:
+        return [self.mLayer.fields().lookupField(f.name()) for f in self.fields()]
+
+    def fieldNames(self) -> typing.List[str]:
+
+        return [f.name() for f in self.fields()]
+
 def openRasterLayerSilent(uri, name, provider)->QgsRasterLayer:
     """
     Opens a QgsRasterLayer without asking for its CRS in case it is undefined.
@@ -96,36 +304,6 @@ def openRasterLayerSilent(uri, name, provider)->QgsRasterLayer:
     if isPrompt:
         QgsSettings().setValue(key, v)
     return lyr
-
-class SubDataSetInputTableModel(QAbstractTableModel):
-
-    def __init__(self, *args, **kwds):
-        super(SubDataSetInputTableModel, self).__init__(*args, **kwds)
-
-        self.cnID = '#'
-        self.cnName = 'name'
-        self.cnPath = 'path'
-
-        self.cnSamples = 'ns'
-        self.cnLines = 'nl'
-        self.cnBands = 'nb'
-
-        self.mInputBands = []
-
-
-
-
-
-    def setSourceDataSet(self, ds:gdal.Dataset):
-        pass
-
-
-
-class SubDataSetSelectionDialog(QDialog, loadUI('subdatasetselectiondialog.ui')):
-
-
-    pass
-
 
 def rendererFromXml(xml):
     """
@@ -164,11 +342,11 @@ def rendererFromXml(xml):
                     context = QgsReadWriteContext()
                     return rClass.load(elem, context)
             else:
-                print(typeName)
+                #print(typeName)
                 s =""
     return None
 
-def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSize:int=256)->QgsRasterRenderer:
+def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSize:int=256, readQml:bool=True)->QgsRasterRenderer:
     """
     Returns a default Raster Renderer.
     See https://bitbucket.org/hu-geomatics/enmap-box/issues/166/default-raster-visualization
@@ -185,6 +363,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
 
     nb = layer.bandCount()
 
+    # band names are defined explicitley
     if isinstance(bandIndices, list):
         bandIndices = [b for b in bandIndices if b >=0 and b < nb]
         l = len(bandIndices)
@@ -196,6 +375,25 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
             bandIndices = bandIndices[0:1]
 
     if not isinstance(bandIndices, list):
+
+        # check for *.qml file with default styling information
+        if readQml:
+            qmlUri = pathlib.Path(layer.styleURI())
+            is_file = False
+            try:
+                is_file = qmlUri.is_file()
+            except OSError:
+                is_file = False
+
+            if is_file and re.search(r'\.(qml)$', qmlUri.name):
+                msg, success = layer.loadDefaultStyle()
+                if success:
+                    r = layer.renderer().clone()
+                    r.setInput(layer.dataProvider())
+                    return r
+                else:
+                    print(msg, file=sys.stderr)
+
         if nb >= 3:
 
             if isinstance(defaultRenderer, QgsMultiBandColorRenderer):
@@ -284,7 +482,6 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
         pass
 
     return defaultRenderer
-
 
 def rendererToXml(layerOrRenderer, geomType:QgsWkbTypes=None):
     """
@@ -377,7 +574,6 @@ def pasteStyleFromClipboard(layer:QgsMapLayer):
     elif isinstance(renderer, QgsFeatureRenderer) and isinstance(layer, QgsVectorLayer):
         layer.setRenderer(renderer)
         layer.triggerRepaint()
-
 
 def subLayerDefinitions(mapLayer:QgsMapLayer)->typing.List[QgsSublayersDialog.LayerDefinition]:
     """
@@ -481,1099 +677,216 @@ def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->typing.List[QgsMapLaye
 
     return layers
 
+class LayerPropertiesDialog(QgsOptionsDialogBase):
 
-class LabelFieldModel(QgsFieldModel):
-    """
-    A model to show the QgsFields of an QgsVectorLayer.
-    Inherits QgsFieldModel and allows to change the name of the 1st column.
-    """
-    def __init__(self, parent):
-        """
-        Constructor
-        :param parent:
-        """
-        super(LabelFieldModel, self).__init__(parent)
-        self.mColumnNames = ['Fields']
-
-    def headerData(self, col, orientation, role=Qt.DisplayRole):
-        """
-        Returns header data
-        :param col: int
-        :param orientation: Qt.Horizontal | Qt.Vertical
-        :param role:
-        :return: value
-        """
-        if Qt is None:
-            return None
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.mColumnNames[col]
-        elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
-        return None
-
-    def setHeaderData(self, col, orientation, value, role=Qt.EditRole):
-        """
-        Sets the header data.
-        :param col: int
-        :param orientation:
-        :param value: any
-        :param role:
-        """
-        result = False
-
-        if role == Qt.EditRole:
-            if orientation == Qt.Horizontal and col < len(self.mColumnNames) and isinstance(value, str):
-                self.mColumnNames[col] = value
-                result = True
-
-        if result == True:
-            self.headerDataChanged.emit(orientation, col, col)
-        return result
-
-class FieldConfigEditorWidget(QWidget):
-
-    class ConfigInfo(QStandardItem):
-        """
-        Describes a QgsEditorWidgetFactory configuration.
-        """
-        def __init__(self, key:str, factory:QgsEditorWidgetFactory, configWidget:QgsEditorConfigWidget):
-            super(FieldConfigEditorWidget.ConfigInfo, self).__init__()
-
-            assert isinstance(key, str)
-            assert isinstance(factory, QgsEditorWidgetFactory)
-            assert isinstance(configWidget, QgsEditorConfigWidget)
-            self.mKey = key
-            self.mFactory = factory
-            self.mConfigWidget = configWidget
-            self.setText(factory.name())
-            self.setToolTip(factory.name())
-            self.mInitialConfig = dict(configWidget.config())
-
-
-        def resetConfig(self):
-            """
-            Resets the widget to its initial values
-            """
-            self.mConfigWidget.setConfig(dict(self.mInitialConfig))
-
-        def factoryKey(self)->str:
-            """
-            Returns the QgsEditorWidgetFactory key, e.g. "CheckBox"
-            :return: str
-            """
-            return self.mKey
-
-        def factoryName(self)->str:
-            """
-            Returns the QgsEditorWidgetFactory name, e.g. "Checkbox"
-            :return: str
-            """
-            return self.factory().name()
-
-        def config(self)->dict:
-            """
-            Returns the config dictionary
-            :return: dict
-            """
-            return self.mConfigWidget.config()
-
-        def configWidget(self)->QgsEditorConfigWidget:
-            """
-            Returns the QgsEditorConfigWidget
-            :return: QgsEditorConfigWidget
-            """
-            return self.mConfigWidget
-
-        def factory(self)->QgsEditorWidgetFactory:
-            """
-            Returns the QgsEditorWidgetFactory
-            :return: QgsEditorWidgetFactory
-            """
-            return self.mFactory
-
-        def editorWidgetSetup(self)->QgsEditorWidgetSetup:
-            """
-            Creates a QgsEditorWidgetSetup
-            :return: QgsEditorWidgetSetup
-            """
-            return QgsEditorWidgetSetup(self.factoryKey(), self.config())
-
-
-    sigChanged = pyqtSignal(object)
-
-    def __init__(self, parent, layer:QgsVectorLayer, index:int):
-        super(FieldConfigEditorWidget, self).__init__(parent)
-
-        self.setLayout(QVBoxLayout())
-
-        assert isinstance(layer, QgsVectorLayer)
-        assert isinstance(index, int)
-
-        self.mLayer = layer
-        self.mField = layer.fields().at(index)
-        assert isinstance(self.mField, QgsField)
-        self.mFieldIndex = index
-
-        self.mFieldNameLabel = QLabel(parent)
-        self.mFieldNameLabel.setText(self.mField.name())
-
-        self.layout().addWidget(self.mFieldNameLabel)
-
-        self.gbWidgetType = QgsCollapsibleGroupBox(self)
-        self.gbWidgetType.setTitle('Widget Type')
-        self.gbWidgetType.setLayout(QVBoxLayout())
-        self.cbWidgetType = QComboBox(self.gbWidgetType)
-
-        self.stackedWidget = QStackedWidget(self.gbWidgetType)
-        self.gbWidgetType.layout().addWidget(self.cbWidgetType)
-        self.gbWidgetType.layout().addWidget(self.stackedWidget)
-
-
-
-
-        currentSetup = self.mLayer.editorWidgetSetup(self.mFieldIndex)
-        #self.mInitialConf = currentSetup.config()
-        refkey = currentSetup.type()
-        if refkey == '':
-            refkey = QgsGui.editorWidgetRegistry().findBest(self.mLayer, self.mField.name()).type()
-
-        self.mItemModel = QStandardItemModel(parent=self.cbWidgetType)
-
-        iCurrent = -1
-        i = 0
-        factories = QgsGui.editorWidgetRegistry().factories()
-        for key, fac in factories.items():
-            assert isinstance(key, str)
-            assert isinstance(fac, QgsEditorWidgetFactory)
-            score = fac.fieldScore(self.mLayer, self.mFieldIndex)
-            configWidget = fac.configWidget(self.mLayer, self.mFieldIndex, self.stackedWidget)
-
-            if isinstance(configWidget, QgsEditorConfigWidget):
-                configWidget.changed.connect(lambda: self.sigChanged.emit(self))
-                self.stackedWidget.addWidget(configWidget)
-                confItem = FieldConfigEditorWidget.ConfigInfo(key, fac, configWidget)
-                if key == refkey:
-                    iCurrent = i
-                confItem.setEnabled(score > 0)
-                confItem.setData(self, role=Qt.UserRole)
-                self.mItemModel.appendRow(confItem)
-
-                i += 1
-
-        self.cbWidgetType.setModel(self.mItemModel)
-        self.cbWidgetType.currentIndexChanged.connect(self.updateConfigWidget)
-
-        self.layout().addWidget(self.gbWidgetType)
-        self.layout().addStretch()
-        self.cbWidgetType.setCurrentIndex(iCurrent)
-
-
-        conf = self.currentFieldConfig()
-        if isinstance(conf, FieldConfigEditorWidget.ConfigInfo):
-            self.mInitialFactoryKey = conf.factoryKey()
-            self.mInitialConf = conf.config()
-        else:
-            s = ""
-
-
-    def setFactory(self, factoryKey:str):
-        """
-        Shows the QgsEditorConfigWidget of QgsEditorWidgetFactory `factoryKey`
-        :param factoryKey: str
-        """
-        for i in range(self.mItemModel.rowCount()):
-            confItem = self.mItemModel.item(i)
-            assert isinstance(confItem, FieldConfigEditorWidget.ConfigInfo)
-            if confItem.factoryKey() == factoryKey:
-                self.cbWidgetType.setCurrentIndex(i)
-                break
-
-
-    def changed(self)->bool:
-        """
-        Returns True if the QgsEditorWidgetFactory or its configuration has been changed
-        :return: bool
-        """
-        w = self.currentEditorConfigWidget()
-        assert isinstance(w, QgsEditorConfigWidget)
-
-        recentConfigInfo = self.currentFieldConfig()
-
-        if self.mInitialFactoryKey != recentConfigInfo.factoryKey():
-            return True
-        elif self.mInitialConf != recentConfigInfo.config():
-            return True
-
-        return False
-
-    def apply(self):
-        """
-        Applies the
-        :return:
-        """
-        if self.changed():
-            configInfo = self.currentFieldConfig()
-            self.mInitialConf = configInfo.config()
-            self.mInitialFactoryKey = configInfo.factoryKey()
-            setup = QgsEditorWidgetSetup(self.mInitialFactoryKey, self.mInitialConf)
-            self.mLayer.setEditorWidgetSetup(self.mFieldIndex, setup)
-
-    def reset(self):
-        """
-        Resets the widget to its initial status
-        """
-        if self.changed():
-
-            self.setFactory(self.mInitialFactoryKey)
-            self.currentEditorConfigWidget().setConfig(self.mInitialConf)
-
-    def currentFieldConfig(self)->ConfigInfo:
-        i = self.cbWidgetType.currentIndex()
-        return self.mItemModel.item(i)
-
-    def currentEditorConfigWidget(self)->QgsEditorConfigWidget:
-        return self.currentFieldConfig().configWidget()
-
-
-    def updateConfigWidget(self, index):
-        self.stackedWidget.setCurrentIndex(index)
-        fieldConfig = self.currentFieldConfig()
-        if isinstance(fieldConfig, FieldConfigEditorWidget.ConfigInfo):
-
-            self.sigChanged.emit(self)
-
-
-class LayerFieldConfigEditorWidget(QWidget, loadUI('layerfieldconfigeditorwidget.ui')):
-    """
-    A widget to set QgsVetorLayer field settings
-    """
-    def __init__(self, parent, *args, **kwds):
-        super(LayerFieldConfigEditorWidget, self).__init__(parent,  *args, **kwds)
-        self.setupUi(self)
-
-        self.scrollArea.resizeEvent = self.onScrollAreaResize
-        self.mFieldModel = LabelFieldModel(self)
-        self.treeView.setModel(self.mFieldModel)
-        self.treeView.selectionModel().currentRowChanged.connect(self.onSelectedFieldChanged)
-
-        self.btnApply = self.buttonBox.button(QDialogButtonBox.Apply)
-        self.btnReset = self.buttonBox.button(QDialogButtonBox.Reset)
-        self.btnApply.clicked.connect(self.onApply)
-        self.btnReset.clicked.connect(self.onReset)
-
-    def onSelectedFieldChanged(self, index1:QModelIndex, index2:QModelIndex):
-        """
-        Shows the widget for the selected QgsField
-        :param index1:
-        :param index2:
-        """
-        if isinstance(index1, QModelIndex) and index1.isValid():
-            r = index1.row()
-            if r < 0 or r >= self.stackedWidget.count():
-                s = ""
-            self.stackedWidget.setCurrentIndex(r)
-
-    def onScrollAreaResize(self, resizeEvent:QResizeEvent):
-        """
-        Forces the stackedWidget's width to fit into the scrollAreas viewport
-        :param resizeEvent: QResizeEvent
-        """
-        assert isinstance(resizeEvent, QResizeEvent)
-        self.stackedWidget.setMaximumWidth(resizeEvent.size().width())
-        s  =""
-
-    def onReset(self):
-
-        sw = self.stackedWidget
-        assert isinstance(sw, QStackedWidget)
-
-        for i in range(sw.count()):
-            w = sw.widget(i)
-            assert isinstance(w, FieldConfigEditorWidget)
-            w.reset()
-        self.onSettingsChanged()
-
-    def onApply(self):
-        """
-        Applies all changes to the QgsVectorLayer
-        :return:
-        """
-
-        sw = self.stackedWidget
-        assert isinstance(sw, QStackedWidget)
-
-        for i in range(sw.count()):
-            w = sw.widget(i)
-            assert isinstance(w, FieldConfigEditorWidget)
-            w.apply()
-        self.onSettingsChanged()
-
-
-    def setLayer(self, layer:QgsVectorLayer):
-        """
-        Sets the QgsVectorLayer
-        :param layer:
-        """
-        self.mFieldModel.setLayer(layer)
-        self.updateFieldWidgets()
-
-    def layer(self)->QgsVectorLayer:
-        """
-        Returns the current QgsVectorLayer
-        :return:
-        """
-        return self.mFieldModel.layer()
-
-    def updateFieldWidgets(self):
-        """
-        Empties the stackedWidget and populates it with a FieldConfigEditor
-        for each QgsVectorLayer field.
-        """
-        sw = self.stackedWidget
-        assert isinstance(sw, QStackedWidget)
-        i = sw.count() - 1
-        while i >= 0:
-            w = sw.widget(i)
-            w.setParent(None)
-            i -= 1
-
-        lyr = self.layer()
-        if isinstance(lyr, QgsVectorLayer):
-            for i in range(lyr.fields().count()):
-                w = FieldConfigEditorWidget(sw, lyr, i)
-                w.sigChanged.connect(self.onSettingsChanged)
-                sw.addWidget(w)
-
-        self.onSettingsChanged()
-
-    def onSettingsChanged(self):
-        """
-        Enables/disables buttons
-        :return:
-        """
-        b = False
-        for i in range(self.stackedWidget.count()):
-            w = self.stackedWidget.widget(i)
-            assert isinstance(w, FieldConfigEditorWidget)
-            if w.changed():
-                b = True
-                break
-
-        self.btnReset.setEnabled(b)
-        self.btnApply.setEnabled(b)
-
-
-
-class RendererWidgetModifications(object):
-
-
-    def __init__(self):
-        self.mBandComboBoxes = []
-
-    def modifyGridLayout(self):
-        gridLayoutOld = self.layout().children()[0]
-        self.gridLayout = QGridLayout()
-        while gridLayoutOld.count() > 0:
-            w = gridLayoutOld.takeAt(0)
-            w = w.widget()
-            gridLayoutOld.removeWidget(w)
-            w.setVisible(False)
-            setattr(self, w.objectName(), w)
-        self.layout().removeItem(gridLayoutOld)
-        self.layout().insertItem(0, self.gridLayout)
-        self.gridLayout.setSpacing(2)
-        self.layout().addStretch()
-
-    def connectSliderWithBandComboBox(self, slider, combobox):
-        """
-        Connects a band-selection slider with a band-selection combobox
-        :param widget: QgsRasterRendererWidget
-        :param slider: QSlider to show the band number
-        :param combobox: QComboBox to show the band name
-        :return:
-        """
-        assert isinstance(self, QgsRasterRendererWidget)
-        assert isinstance(slider, QSlider)
-        assert isinstance(combobox, QComboBox)
-
-        # init the slider
-        nb = self.rasterLayer().dataProvider().bandCount()
-        slider.setTickPosition(QSlider.TicksAbove)
-        slider.valueChanged.connect(combobox.setCurrentIndex)
-        slider.setMinimum(1)
-        slider.setMaximum(nb)
-        intervals = [1, 2, 5, 10, 25, 50]
-        for interval in intervals:
-            if nb / interval < 10:
-                break
-        slider.setTickInterval(interval)
-        slider.setPageStep(interval)
-
-        def onBandValueChanged(self, idx, slider):
-            assert isinstance(self, QgsRasterRendererWidget)
-            assert isinstance(idx, int)
-            assert isinstance(slider, QSlider)
-
-            # i = slider.value()
-            slider.blockSignals(True)
-            slider.setValue(idx)
-            slider.blockSignals(False)
-
-            # self.minMaxWidget().setBands(myBands)
-            # self.widgetChanged.emit()
-
-        if self.comboBoxWithNotSetItem(combobox):
-            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx, slider))
-        else:
-            combobox.currentIndexChanged[int].connect(lambda idx: onBandValueChanged(self, idx + 1, slider))
-
-    def comboBoxWithNotSetItem(self, cb):
-        assert isinstance(cb, QComboBox)
-        return cb.itemData(0, role=Qt.DisplayRole).lower() == 'not set'
-
-    def setLayoutItemVisibility(self, grid, isVisible):
-        assert isinstance(self, QgsRasterRendererWidget)
-        for i in range(grid.count()):
-            item = grid.itemAt(i)
-            if isinstance(item, QLayout):
-                s = ""
-            elif isinstance(item, QWidgetItem):
-                item.widget().setVisible(isVisible)
-                item.widget().setParent(self)
-            else:
-                s = ""
-
-    def setBandSelection(self, key):
-        if key == 'default':
-            bands = defaultBands(self.rasterLayer())
-        else:
-            colors = re.split('[ ,;:]', key)
-
-            bands = [bandClosestToWavelength(self.rasterLayer(), c) for c in colors]
-
-        n = min(len(bands), len(self.mBandComboBoxes))
-        for i in range(n):
-            cb = self.mBandComboBoxes[i]
-            bandIndex = bands[i]
-            if self.comboBoxWithNotSetItem(cb):
-                cb.setCurrentIndex(bandIndex+1)
-            else:
-                cb.setCurrentIndex(bandIndex)
-
-
-    def fixBandNames(self, comboBox):
-        """
-        Changes the QGIS default bandnames ("Band 001") to more meaning ful information including gdal.Dataset.Descriptions.
-        :param widget:
-        :param comboBox:
-        """
-        assert isinstance(self, QgsRasterRendererWidget)
-        if type(comboBox) is QComboBox:
-            bandNames = displayBandNames(self.rasterLayer())
-            for i in range(comboBox.count()):
-                # text = cb.itemText(i)
-                if i > 0:
-                    comboBox.setItemText(i, bandNames[i - 1])
-        else:
-            raise NotImplementedError()
-
-
-class SingleBandGrayRendererWidget(QgsSingleBandGrayRendererWidget, RendererWidgetModifications):
     @staticmethod
-    def create(layer, extent):
-        return SingleBandGrayRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(SingleBandGrayRendererWidget, self).__init__(layer, extent)
-
-        self.modifyGridLayout()
-        self.mGrayBandSlider = QSlider(Qt.Horizontal)
-        self.mBandComboBoxes.append(self.mGrayBandComboBox)
-        self.fixBandNames(self.mGrayBandComboBox)
-        self.connectSliderWithBandComboBox(self.mGrayBandSlider, self.mGrayBandComboBox)
-
-        self.mBtnBar = QFrame()
-        self.initActionButtons()
-
-        self.gridLayout.addWidget(self.mGrayBandLabel, 0, 0)
-        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 4, Qt.AlignLeft)
-
-        self.gridLayout.addWidget(self.mGrayBandSlider, 1, 1, 1, 2)
-        self.gridLayout.addWidget(self.mGrayBandComboBox, 1, 3,1,2)
-
-        self.gridLayout.addWidget(self.label, 2, 0)
-        self.gridLayout.addWidget(self.mGradientComboBox, 2, 1, 1, 4)
-
-        self.gridLayout.addWidget(self.mMinLabel, 3, 1)
-        self.gridLayout.addWidget(self.mMinLineEdit, 3, 2)
-        self.gridLayout.addWidget(self.mMaxLabel, 3, 3)
-        self.gridLayout.addWidget(self.mMaxLineEdit, 3, 4)
-
-        self.gridLayout.addWidget(self.mContrastEnhancementLabel, 4, 0)
-        self.gridLayout.addWidget(self.mContrastEnhancementComboBox, 4, 1, 1 ,4)
-        self.gridLayout.setSpacing(2)
-
-        self.setLayoutItemVisibility(self.gridLayout, True)
-
-        self.mDefaultRenderer = layer.renderer()
-
-
-    def initActionButtons(self):
-            wl, wlu = parseWavelength(self.rasterLayer())
-            self.wavelengths = wl
-            self.wavelengthUnit = wlu
-
-            self.mBtnBar.setLayout(QHBoxLayout())
-            self.mBtnBar.layout().addStretch()
-            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-            self.mBtnBar.layout().setSpacing(2)
-
-            self.actionSetDefault = QAction('Default', None)
-            self.actionSetRed = QAction('R', None)
-            self.actionSetGreen = QAction('G', None)
-            self.actionSetBlue = QAction('B', None)
-            self.actionSetNIR = QAction('nIR', None)
-            self.actionSetSWIR = QAction('swIR', None)
-
-            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
-            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
-            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
-            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
-            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
-
-
-            def addBtnAction(action):
-
-                btn = QToolButton()
-                btn.setDefaultAction(action)
-                self.mBtnBar.layout().addWidget(btn)
-                self.insertAction(None, action)
-                return btn
-
-            self.btnDefault = addBtnAction(self.actionSetDefault)
-            self.btnRed = addBtnAction(self.actionSetRed)
-            self.btnGreen = addBtnAction(self.actionSetGreen)
-            self.btnBlue = addBtnAction(self.actionSetRed)
-            self.btnNIR = addBtnAction(self.actionSetNIR)
-            self.btnSWIR = addBtnAction(self.actionSetSWIR)
-
-            b = self.wavelengths is not None
-            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
-                a.setEnabled(b)
-
-
-
-class SingleBandPseudoColorRendererWidget(QgsSingleBandPseudoColorRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return SingleBandPseudoColorRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(SingleBandPseudoColorRendererWidget, self).__init__(layer, extent)
-
-        self.gridLayout = self.layout().children()[0]
-        assert isinstance(self.gridLayout, QGridLayout)
-        for i in range(self.gridLayout.count()):
-            w = self.gridLayout.itemAt(i)
-            w = w.widget()
-            if isinstance(w, QWidget):
-                setattr(self, w.objectName(), w)
-
-        toReplace = [self.mBandComboBox,self.mMinLabel,self.mMaxLabel, self.mMinLineEdit, self.mMaxLineEdit ]
-        for w in toReplace:
-            self.gridLayout.removeWidget(w)
-            w.setVisible(False)
-        self.mBandSlider = QSlider(Qt.Horizontal)
-        self.mBandComboBoxes.append(self.mBandComboBox)
-        self.fixBandNames(self.mBandComboBox)
-        self.connectSliderWithBandComboBox(self.mBandSlider, self.mBandComboBox)
-
-        self.mBtnBar = QFrame()
-        self.initActionButtons()
-        grid = QGridLayout()
-        grid.addWidget(self.mBtnBar,0,0,1,4, Qt.AlignLeft)
-        grid.addWidget(self.mBandSlider, 1,0, 1,2)
-        grid.addWidget(self.mBandComboBox, 1,2, 1,2)
-        grid.addWidget(self.mMinLabel, 2, 0)
-        grid.addWidget(self.mMinLineEdit, 2, 1)
-        grid.addWidget(self.mMaxLabel, 2, 2)
-        grid.addWidget(self.mMaxLineEdit, 2, 3)
-        #grid.setContentsMargins(2, 2, 2, 2, )
-        grid.setColumnStretch(0, 0)
-        grid.setColumnStretch(1, 2)
-        grid.setColumnStretch(2, 0)
-        grid.setColumnStretch(3, 2)
-        grid.setSpacing(2)
-        self.gridLayout.addItem(grid, 0,1,2,4)
-        self.gridLayout.setSpacing(2)
-        self.setLayoutItemVisibility(grid, True)
-
-
-    def initActionButtons(self):
-            wl, wlu = parseWavelength(self.rasterLayer())
-            self.wavelengths = wl
-            self.wavelengthUnit = wlu
-
-            self.mBtnBar.setLayout(QHBoxLayout())
-            self.mBtnBar.layout().addStretch()
-            self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-            self.mBtnBar.layout().setSpacing(2)
-
-            self.actionSetDefault = QAction('Default', None)
-            self.actionSetRed = QAction('R', None)
-            self.actionSetGreen = QAction('G', None)
-            self.actionSetBlue = QAction('B', None)
-            self.actionSetNIR = QAction('nIR', None)
-            self.actionSetSWIR = QAction('swIR', None)
-
-            self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-            self.actionSetRed.triggered.connect(lambda: self.setBandSelection('R'))
-            self.actionSetGreen.triggered.connect(lambda: self.setBandSelection('G'))
-            self.actionSetBlue.triggered.connect(lambda: self.setBandSelection('B'))
-            self.actionSetNIR.triggered.connect(lambda: self.setBandSelection('nIR'))
-            self.actionSetSWIR.triggered.connect(lambda: self.setBandSelection('swIR'))
-
-
-            def addBtnAction(action):
-                btn = QToolButton()
-                btn.setDefaultAction(action)
-                self.mBtnBar.layout().addWidget(btn)
-                self.insertAction(None, action)
-                return btn
-
-            self.btnDefault = addBtnAction(self.actionSetDefault)
-            self.btnRed = addBtnAction(self.actionSetRed)
-            self.btnGreen = addBtnAction(self.actionSetGreen)
-            self.btnBlue = addBtnAction(self.actionSetRed)
-            self.btnNIR = addBtnAction(self.actionSetNIR)
-            self.btnSWIR = addBtnAction(self.actionSetSWIR)
-
-            b = self.wavelengths is not None
-            for a in [self.actionSetRed, self.actionSetGreen, self.actionSetBlue, self.actionSetNIR, self.actionSetSWIR]:
-                a.setEnabled(b)
-
-
-
-
-class MultiBandColorRendererWidget(QgsMultiBandColorRendererWidget, RendererWidgetModifications):
-    @staticmethod
-    def create(layer, extent):
-        return MultiBandColorRendererWidget(layer, extent)
-
-    def __init__(self, layer, extent):
-        super(MultiBandColorRendererWidget, self).__init__(layer, extent)
-
-        self.modifyGridLayout()
-
-        self.mRedBandSlider = QSlider(Qt.Horizontal)
-        self.mGreenBandSlider = QSlider(Qt.Horizontal)
-        self.mBlueBandSlider = QSlider(Qt.Horizontal)
-
-        self.mBandComboBoxes.extend([self.mRedBandComboBox, self.mGreenBandComboBox, self.mBlueBandComboBox])
-        self.mSliders = [self.mRedBandSlider, self.mGreenBandSlider, self.mBlueBandSlider]
-        nb = self.rasterLayer().dataProvider().bandCount()
-        for cbox, slider in zip(self.mBandComboBoxes, self.mSliders):
-            self.connectSliderWithBandComboBox(slider, cbox)
-
-
-        self.fixBandNames(self.mRedBandComboBox)
-        self.fixBandNames(self.mGreenBandComboBox)
-        self.fixBandNames(self.mBlueBandComboBox)
-
-        self.mBtnBar = QFrame()
-        self.mBtnBar.setLayout(QHBoxLayout())
-        self.initActionButtons()
-        self.mBtnBar.layout().addStretch()
-        self.mBtnBar.layout().setContentsMargins(0, 0, 0, 0)
-        self.mBtnBar.layout().setSpacing(2)
-
-        #self.gridLayout.deleteLater()
-#        self.gridLayout = newGrid
-        self.gridLayout.addWidget(self.mBtnBar, 0, 1, 1, 3)
-        self.gridLayout.addWidget(self.mRedBandLabel, 1, 0)
-        self.gridLayout.addWidget(self.mRedBandSlider, 1, 1)
-        self.gridLayout.addWidget(self.mRedBandComboBox, 1, 2)
-        self.gridLayout.addWidget(self.mRedMinLineEdit, 1, 3)
-        self.gridLayout.addWidget(self.mRedMaxLineEdit, 1, 4)
-
-        self.gridLayout.addWidget(self.mGreenBandLabel, 2, 0)
-        self.gridLayout.addWidget(self.mGreenBandSlider, 2, 1)
-        self.gridLayout.addWidget(self.mGreenBandComboBox, 2, 2)
-        self.gridLayout.addWidget(self.mGreenMinLineEdit, 2, 3)
-        self.gridLayout.addWidget(self.mGreenMaxLineEdit, 2, 4)
-
-        self.gridLayout.addWidget(self.mBlueBandLabel, 3, 0)
-        self.gridLayout.addWidget(self.mBlueBandSlider, 3, 1)
-        self.gridLayout.addWidget(self.mBlueBandComboBox, 3, 2)
-        self.gridLayout.addWidget(self.mBlueMinLineEdit, 3, 3)
-        self.gridLayout.addWidget(self.mBlueMaxLineEdit, 3, 4)
-
-        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmLabel, 4, 0, 1, 2)
-        self.gridLayout.addWidget(self.mContrastEnhancementAlgorithmComboBox, 4, 2, 1, 3)
-
-        self.setLayoutItemVisibility(self.gridLayout, True)
-
-
-        self.mRedBandLabel.setText('R')
-        self.mGreenBandLabel.setText('G')
-        self.mBlueBandLabel.setText('B')
-
-        self.mDefaultRenderer = layer.renderer()
-
-        self.minMaxWidget().resizeEvent = self.onMinMaxResize
-
-    def onMinMaxResize(self, resizeEvent:QResizeEvent):
-
-        s = ""
-
-
-
-    def initActionButtons(self):
-
-        wl, wlu = parseWavelength(self.rasterLayer())
-        self.wavelengths = wl
-        self.wavelengthUnit = wlu
-
-        self.actionSetDefault = QAction('Default', None)
-        self.actionSetTrueColor = QAction('RGB', None)
-        self.actionSetCIR = QAction('nIR', None)
-        self.actionSet453 = QAction('swIR', None)
-
-        self.actionSetDefault.triggered.connect(lambda: self.setBandSelection('default'))
-        self.actionSetTrueColor.triggered.connect(lambda: self.setBandSelection('R,G,B'))
-        self.actionSetCIR.triggered.connect(lambda: self.setBandSelection('nIR,R,G'))
-        self.actionSet453.triggered.connect(lambda: self.setBandSelection('nIR,swIR,R'))
-
-
-        def addBtnAction(action):
-            btn = QToolButton()
-            btn.setDefaultAction(action)
-            self.mBtnBar.layout().addWidget(btn)
-            self.insertAction(None, action)
-            return btn
-
-        self.btnDefault = addBtnAction(self.actionSetDefault)
-        self.btnTrueColor = addBtnAction(self.actionSetTrueColor)
-        self.btnCIR = addBtnAction(self.actionSetCIR)
-        self.btn453 = addBtnAction(self.actionSet453)
-
-        b = self.wavelengths is not None
-        for a in [self.actionSetCIR, self.actionSet453, self.actionSetTrueColor]:
-            a.setEnabled(b)
-
-
-
-class MapLayerModel(QgsMapLayerModel):
-
-    def __init__(self, *args, **kwds):
-        super(MapLayerModel, self).__init__(*args, **kwds)
-
-    def data(self, index, role):
-        assert isinstance(index, QModelIndex)
-        if not index.isValid():
-            return None
-
-        if role == Qt.DisplayRole:
-            s = ""
-        else:
-
-            return super(MapLayerModel, self).data(index, role)
-
-
-class RasterLayerProperties(QgsOptionsDialogBase, loadUI('rasterlayerpropertiesdialog.ui')):
-    def __init__(self, lyr, canvas, parent=None):
-        """Constructor."""
-        title = 'RasterLayerProperties'
-        super(RasterLayerProperties, self).__init__(title, parent, Qt.Dialog, settings=None)
-        #super(RasterLayerProperties, self).__init__(parent, Qt.Dialog)
-
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use auto connect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
-
-        #self.restoreOptionsBaseUi('TITLE')
-        self.mRasterLayer = lyr
-        self.mRendererWidget = None
+    def defaultFactories()->typing.List[QgsMapLayerConfigWidgetFactory]:
+        """
+        Returns a list of default QgsMapLayerConfigWidgetFactory
+        """
+        from .layerconfigwidgets.core import \
+            MetadataConfigWidgetFactory, \
+            SourceConfigWidgetFactory, \
+            SymbologyConfigWidgetFactory, \
+            TransparencyConfigWidgetFactory, \
+            RenderingConfigWidgetFactory, LegendConfigWidgetFactory
+        from .layerconfigwidgets.vectorlabeling import LabelingConfigWidgetFactory
+        from .layerconfigwidgets.rasterbands import RasterBandConfigWidgetFactory
+        from .layerconfigwidgets.gdalmetadata import GDALMetadataConfigWidgetFactory
+        from .layerconfigwidgets.vectorlayerfields import \
+            LayerAttributeFormConfigWidgetFactory, \
+            LayerFieldsConfigWidgetFactory
+        factories = [
+            MetadataConfigWidgetFactory(),
+            SourceConfigWidgetFactory(),
+            SymbologyConfigWidgetFactory(),
+            RasterBandConfigWidgetFactory(),
+            LabelingConfigWidgetFactory(),
+            TransparencyConfigWidgetFactory(),
+            RenderingConfigWidgetFactory(),
+            GDALMetadataConfigWidgetFactory(),
+            LayerFieldsConfigWidgetFactory(),
+            LayerAttributeFormConfigWidgetFactory(),
+            LegendConfigWidgetFactory()
+        ]
+        return factories
+
+    def __init__(self,
+                 lyr:typing.Union[QgsRasterLayer, QgsVectorLayer],
+                 canvas:QgsMapCanvas=None,
+                 parent=None,
+                 mapLayerConfigFactories:typing.List[QgsMapLayerConfigWidgetFactory] = None):
+
+        super(QgsOptionsDialogBase, self).__init__('QPS_LAYER_PROPERTIES', parent, Qt.Dialog, settings=None)
+        pathUi = pathlib.Path(__file__).parent / 'ui' / 'layerpropertiesdialog.ui'
+        loadUi(pathUi.as_posix(), self)
+        self.initOptionsBase(False, 'Layer Properties - {}'.format(lyr.name()))
+        self.mOptionsListWidget: QListWidget
+        self.mOptionsStackedWidget : QStackedWidget
+        assert isinstance(self.mOptionsListWidget, QListWidget)
+        assert isinstance(self.mOptionsStackedWidget, QStackedWidget)
+        assert isinstance(lyr, QgsMapLayer)
+        self.btnConfigWidgetMenu: QPushButton = QPushButton('<menu>')
+        assert isinstance(self.btnConfigWidgetMenu, QPushButton)
+        self.mOptionsListWidget.currentRowChanged.connect(self.onPageChanged)
+        self.mLayer: QgsMapLayer = lyr
+
+        assert isinstance(self.btnConfigWidgetMenu, QPushButton)
+        self.buttonBox: QDialogButtonBox
 
         if not isinstance(canvas, QgsMapCanvas):
-            canvas = QgsMapCanvas(self)
-            canvas.setVisible(False)
+            canvas = QgsMapCanvas()
+            canvas.setDestinationCrs(lyr.crs())
+            canvas.setExtent(lyr.extent())
             canvas.setLayers([lyr])
-            canvas.setExtent(canvas.fullExtent())
 
-        self.canvas = canvas
-
-        self.oldStyle = self.mRasterLayer.styleManager().style(self.mRasterLayer.styleManager().currentStyle())
-
-        self.accepted.connect(self.apply)
-        self.rejected.connect(self.onCancel)
-        self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply)
-        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
-
-        # connect controls
-        self.initOptionsBase(False, title)
-        self.initOptsGeneral()
-        self.initOptsStyle()
-        self.initOptsTransparency()
-        self.initOptsMetadata()
-
-    def setRendererWidget(self, rendererName:str):
-        pass
-
-
-    def initOptsGeneral(self):
-        rl = self.mRasterLayer
-
-        assert isinstance(rl, QgsRasterLayer)
-        dp = rl.dataProvider()
-        name = rl.name()
-        if name == '':
-            name = os.path.basename(rl.source())
-
-        self.tb_layername.setText(name)
-        self.tb_layersource.setText(rl.source())
-
-        self.tb_columns.setText('{}'.format(dp.xSize()))
-        self.tb_rows.setText('{}'.format(dp.ySize()))
-        self.tb_bands.setText('{}'.format(dp.bandCount()))
-
-        #mapUnits = ['m','km','ft','nmi','yd','mi','deg','ukn']
-        #mapUnit = rl.crs().mapUnits()
-        #mapUnit = mapUnits[mapUnit] if mapUnit < len(mapUnits) else 'ukn'
-        mapUnit = QgsUnitTypes.toString(rl.crs().mapUnits())
-
-        self.tb_pixelsize.setText('{0}{2} x {1}{2}'.format(rl.rasterUnitsPerPixelX(),rl.rasterUnitsPerPixelY(), mapUnit))
-        self.tb_nodata.setText('{}'.format(dp.sourceNoDataValue(1)))
-
-
-        se = SpatialExtent.fromLayer(rl)
-        pt2str = lambda xy: '{} ; {}'.format(xy[0], xy[1])
-        self.tb_upperLeft.setText(pt2str(se.upperLeft()))
-        self.tb_upperRight.setText(pt2str(se.upperRight()))
-        self.tb_lowerLeft.setText(pt2str(se.lowerLeft()))
-        self.tb_lowerRight.setText(pt2str(se.lowerRight()))
-
-        self.tb_width.setText('{} {}'.format(se.width(), mapUnit))
-        self.tb_height.setText('{} {}'.format(se.height(), mapUnit))
-        self.tb_center.setText(pt2str((se.center().x(), se.center().y())))
-
-        self.mCrsSelector.setCrs(self.mRasterLayer.crs())
-        s = ""
-
-
-    def onCurrentRendererWidgetChanged(self, *args):
-        self.mRendererStackedWidget
-        assert isinstance(self.mRendererStackedWidget, QStackedWidget)
-        cw = self.mRendererStackedWidget.currentWidget()
-
-        assert isinstance(cw, QgsRasterRendererWidget)
-        cw.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        cw.adjustSize()
-        self.mRendererStackedWidget.adjustSize()
-
-
-
-    def initOptsStyle(self):
-
-
-        self.mRendererStackedWidget.currentChanged.connect(self.onCurrentRendererWidgetChanged)
-
-        self.mRenderTypeComboBox.setModel(RASTERRENDERER_CREATE_FUNCTIONSV2)
-        renderer = self.mRasterLayer.renderer()
-        iCurrent = None
-        for i, constructor in enumerate(RASTERRENDERER_CREATE_FUNCTIONSV2.optionValues()):
-            extent = self.canvas.extent()
-            w = constructor(self.mRasterLayer, extent)
-            w.setMapCanvas(self.canvas)
-            #w.sizePolicy().setVerticalPolicy(QSizePolicy.Maximum)
-            assert isinstance(w, QgsRasterRendererWidget)
-            w.setRasterLayer(self.mRasterLayer)
-            minMaxWidget = w.minMaxWidget()
-            if isinstance(minMaxWidget, QgsRasterMinMaxWidget):
-                minMaxWidget.setCollapsed(False)
-            w.setParent(self.mRendererStackedWidget)
-            w.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-            self.mRendererStackedWidget.addWidget(w)
-
-            if type(w.renderer()) == type(renderer):
-                iCurrent = i
-
-            try:
-                w.setFromRenderer(renderer)
-
-                if isinstance(w, QgsSingleBandPseudoColorRendererWidget) and isinstance(renderer, QgsSingleBandPseudoColorRenderer):
-                    w.setMin(renderer.classificationMin())
-                    w.setMax(renderer.classificationMax())
-                elif isinstance(w, QgsSingleBandPseudoColorRendererWidget) and isinstance(renderer, QgsSingleBandGrayRenderer):
-                    pass
-
-            except Exception as ex:
-                s = ""
-
-        if isinstance(iCurrent, int):
-            self.mRenderTypeComboBox.setCurrentIndex(iCurrent)
-
-
-
-
-    def initOptsTransparency(self):
-
-        r = self.mRasterLayer.renderer()
-        if isinstance(r, QgsRasterRenderer):
-            self.sliderOpacity.setValue(r.opacity()*100)
-
-
-        def updateOpactiyText():
-            self.lblTransparencyPercent.setText(r'{}%'.format(self.sliderOpacity.value()))
-
-        self.sliderOpacity.valueChanged.connect(updateOpactiyText)
-        updateOpactiyText()
-
-    def initOptsMetadata(self):
-
-        s = ""
-
-
-
-    def onCancel(self):
-        #restore style
-        if self.oldStyle.xmlData() != self.mRasterLayer.styleManager().style(
-                self.mRasterLayer.styleManager().currentStyle()
-        ).xmlData():
-
-            s = ""
-        self.setResult(QDialog.Rejected)
-
-    def apply(self):
-
-        mRendererWidget = self.mRendererStackedWidget.currentWidget()
-        if isinstance(mRendererWidget, QgsRasterRendererWidget):
-            mRendererWidget.doComputations()
-            renderer = mRendererWidget.renderer()
-            assert isinstance(renderer, QgsRasterRenderer)
-            renderer.setOpacity(self.sliderOpacity.value() / 100.)
-            self.mRasterLayer.setRenderer(renderer.clone())
-            self.mRasterLayer.triggerRepaint()
-            self.setResult(QDialog.Accepted)
-        s = ""
-
-
-
-
-class VectorLayerProperties(QgsOptionsDialogBase, loadUI('vectorlayerpropertiesdialog.ui')):
-
-    def __init__(self, lyr:QgsVectorLayer, canvas:QgsMapCanvas, parent=None, fl=Qt.Widget):
-        super(VectorLayerProperties, self).__init__("VectorLayerProperties", parent, fl)
-        title = "Layer Properties - {}".format(lyr.name())
-        #self.restoreOptionsBaseUi(title)
-        self.setupUi(self)
-        self.initOptionsBase(False, title)
-        self.mRendererDialog = None
-
-        if not isinstance(canvas, QgsMapCanvas):
-            canvas = QgsMapCanvas(self)
-            canvas.setVisible(False)
-            canvas.setLayers([lyr])
-            canvas.setExtent(canvas.fullExtent())
-
-        assert isinstance(lyr, QgsVectorLayer)
-        assert isinstance(canvas, QgsMapCanvas)
-        self.mLayer = lyr
+        self.mCanvas: QgsMapCanvas
         self.mCanvas = canvas
-        self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.syncToLayer)
 
-        self.pbnQueryBuilder.clicked.connect(self.on_pbnQueryBuilder_clicked)
+        self.buttonBox.layout().insertWidget(0, self.btnConfigWidgetMenu)
 
-        self.accepted.connect(self.syncToLayer)
-        self.rejected.connect(self.onCancel)
+        self.btnApply: QPushButton = self.buttonBox.button(QDialogButtonBox.Apply)
+        self.btnCancel: QPushButton = self.buttonBox.button(QDialogButtonBox.Cancel)
+        self.btnOk: QPushButton = self.buttonBox.button(QDialogButtonBox.Ok)
 
-        self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.syncToLayer)
-        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(self.reject)
+        s = ""
+
+        assert isinstance(self.mOptionsListWidget, QListWidget)
+
+        if mapLayerConfigFactories is None:
+            mapLayerConfigFactories = LayerPropertiesDialog.defaultFactories()
+
+        for f in mapLayerConfigFactories:
+            assert isinstance(f, QgsMapLayerConfigWidgetFactory)
+            if f.supportsLayer(self.mapLayer()) and f.supportLayerPropertiesDialog():
+                pageWidget = f.createWidget(self.mapLayer(), self.canvas(), dockWidget=False)
+                assert isinstance(pageWidget, QgsMapLayerConfigWidget)
+                title = f.title()
+                icon = f.icon()
+                pageItem = QListWidgetItem(icon, title)
+                assert isinstance(pageItem, QListWidgetItem)
+                pageItem.setToolTip(pageWidget.toolTip())
+                self.mOptionsListWidget.addItem(pageItem)
+                self.mOptionsStackedWidget.addWidget(pageWidget)
 
 
-        self.syncFromLayer()
+        self.btnApply.clicked.connect(self.apply)
+        self.btnOk.clicked.connect(self.onOk)
+        self.btnCancel.clicked.connect(self.onCancel)
+
+        # select the first item
+        self.mOptionsListWidget.setCurrentRow(0)
+
+    def onPageChanged(self, row):
+        page = self.currentPage()
+        menu = None
+
+        if isinstance(page, QgsMapLayerConfigWidget):
+            # comes with QIS 3.12
+
+            if hasattr(page, 'menuButtonMenu'):
+                menu = page.menuButtonMenu()
+
+            if hasattr(page, 'menuButtonToolTip'):
+                self.btnConfigWidgetMenu.setToolTip(page.menuButtonToolTip())
+
+        self.btnConfigWidgetMenu.setMenu(menu)
+        if isinstance(menu, QMenu):
+            self.btnConfigWidgetMenu.setVisible(True)
+            self.btnConfigWidgetMenu.setText(menu.title())
+        else:
+            self.btnConfigWidgetMenu.setVisible(False)
+            self.btnConfigWidgetMenu.setText('<empty>')
+
+
+
+
+
+
+    def onOk(self):
+        self.apply()
+        self.accept()
 
     def onCancel(self):
-        # todo: restore anything else?
-        self.setResult(QDialog.Rejected)
+        # do restore previous settings?
 
-    def syncFromLayer(self):
-        lyr = self.mLayer
-        if isinstance(lyr, QgsVectorLayer):
-            self.mLayerOrigNameLineEdit.setText(lyr.name())
-            self.txtLayerSource.setText(lyr.publicSource())
-            gtype = ['Point','Line','Polygon','Unknown','Undefined'][lyr.geometryType()]
-            self.txtGeometryType.setText(gtype)
-            self.txtnFeatures.setText('{}'.format(self.mLayer.featureCount()))
-            self.txtnFields.setText('{}'.format(self.mLayer.fields().count()))
-
-            self.mCrsSelector.setCrs(lyr.crs())
-
-            self.txtSubsetSQL.setText(self.mLayer.subsetString())
-            self.txtSubsetSQL.setEnabled(False)
+        #self.setResult(QDialog.Rejected)
+        self.reject()
 
 
-        self.updateSymbologyPage()
+    def currentPage(self)->QWidget:
+        return self.mOptionsStackedWidget.currentWidget()
 
-        self.mLayerFieldConfigEditorWidget.setLayer(lyr)
-        pass
+    def apply(self):
 
-
-    def syncToLayer(self):
-
-        if isinstance(self.mRendererDialog, QgsRendererPropertiesDialog):
-            self.mRendererDialog.apply()
-
-        if self.txtSubsetSQL.toPlainText() != self.mLayer.subsetString():
-            self.mLayer.setSubsetString(self.txtSubsetSQL.toPlainText())
-
-        if isinstance(self.mLayerFieldConfigEditorWidget, LayerFieldConfigEditorWidget):
-            self.mLayerFieldConfigEditorWidget.onApply()
-
-        if self.mLayerOrigNameLineEdit.text() != self.mLayer.name():
-            self.mLayer.setName(self.mLayerOrigNameLineEdit.text())
-
-        self.mLayer.triggerRepaint()
-        pass
-
-    def on_pbnQueryBuilder_clicked(self):
-        qb = QgsQueryBuilder(self.mLayer, self)
-        qb.setSql(self.txtSubsetSQL.toPlainText())
-
-        if qb.exec_():
-            self.txtSubsetSQL.setText(qb.sql())
-
-    def updateSymbologyPage(self):
-
-        while self.widgetStackRenderers.count() > 0:
-            self.widgetStackRenderers.removeWidget(self.widgetStackRenderers.widget(0))
-
-        self.mRendererDialog = None
-        if self.mLayer.renderer():
-            self.mRendererDialog = QgsRendererPropertiesDialog(self.mLayer, QgsStyle.defaultStyle(), True, self)
-            self.mRendererDialog.setDockMode(False)
-            self.mRendererDialog.setMapCanvas(self.mCanvas)
-
-            self.mRendererDialog.layout().setContentsMargins(0, 0, 0, 0)
-            self.widgetStackRenderers.addWidget(self.mRendererDialog)
-            self.widgetStackRenderers.setCurrentWidget(self.mRendererDialog)
-
-            self.mOptsPage_Style.setEnabled(True)
+        page = self.currentPage()
+        if isinstance(page, QgsMapLayerConfigWidget) and hasattr(page, 'apply'):
+            page.apply()
         else:
-            self.mOptsPage_Style.setEnabled(False)
+
+            s = ""
+
+        self.mapLayer().triggerRepaint()
+        self.sync()
+
+
+    def setPage(self, page:typing.Union[QgsMapLayerConfigWidget, int]):
+        if isinstance(page, QgsMapLayerConfigWidget):
+            pages = list(self.pages())
+            assert page in pages
+            i = pages.index(page)
+            self.setPage(i)
+        else:
+            assert isinstance(page, int) and page >= 0 and page < self.mOptionsListWidget.count()
+            self.mOptionsListWidget.setCurrentRow(page)
+
+    def pages(self)->typing.List[QgsMapLayerConfigWidget]:
+        for i in range(self.mOptionsStackedWidget.count()):
+            w = self.mOptionsStackedWidget.widget(i)
+            if isinstance(w, QgsMapLayerConfigWidget):
+                yield w
+
+    def canvas(self)->QgsMapCanvas:
+        return self.mCanvas
+
+    def mapLayer(self)->QgsMapLayer:
+        """
+        Returns the QgsMapLayer
+        :return:
+        :rtype:
+        """
+        return self.mLayer
+
+    def sync(self):
+        """
+        Call to reload properties
+        """
+        lyr = self.mapLayer()
+        w = self.currentPage()
+
+        if isinstance(w, QgsMapLayerConfigWidget) and hasattr(w, 'syncToLayer'):
+            if isinstance(w, QgsRasterTransparencyWidget):
+                # skip, until this issue is solved in QGIS https://github.com/qgis/QGIS/pull/34969
+                # w.syncToLayer()
+                pass
+            else:
+                w.syncToLayer()
+
+        for page in self.pages():
+            if page != w:
+                if hasattr(w, 'syncToLayer'):
+                    page.syncToLayer()
+
+        s =""
 
 
 def showLayerPropertiesDialog(layer:QgsMapLayer,
-                              canvas:QgsMapCanvas,
+                              canvas:QgsMapCanvas=None,
                               parent:QObject=None,
                               modal:bool=True,
-                              useQGISDialog:bool=False)->QDialog.DialogCode:
+                              useQGISDialog:bool=False)->typing.Union[QDialog.DialogCode, QDialog]:
     """
-    Opens a dialog to adjust map layer settiongs.
+    Opens a dialog to adjust map layer settings.
     :param layer: QgsMapLayer of type QgsVectorLayer or QgsRasterLayer
     :param canvas: QgsMapCanvas
     :param parent:
@@ -1594,7 +907,6 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
             lastActiveLayer = iface.activeLayer()
 
             if root.findLayer(layer) is None:
-
                 temporaryGroup = root.addGroup('.')
                 assert isinstance(temporaryGroup, QgsLayerTreeGroup)
                 temporaryGroup.setItemVisibilityChecked(False)
@@ -1602,6 +914,7 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
                 assert isinstance(lyrNode, QgsLayerTreeLayer)
             iface.setActiveLayer(layer)
             iface.showLayerProperties(layer)
+
             if isinstance(temporaryGroup, QgsLayerTreeGroup):
                 root.removeChildNode(temporaryGroup)
             iface.setActiveLayer(lastActiveLayer)
@@ -1609,40 +922,647 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
             return QDialog.Accepted
 
         except Exception as ex:
-            print(ex)
+            print(ex, file=sys.stderr)
 
-    if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)):
+    else:
 
-        if canvas is None:
-            canvas = QgsMapCanvas()
-            canvas.setVisible(False)
-            canvas.setDestinationCrs(layer.crs())
-            canvas.setExtent(layer.extent())
-            canvas.setLayers([layer])
-
-        if isinstance(layer, QgsRasterLayer):
-            dialog = RasterLayerProperties(layer, canvas, parent=parent)
-        elif isinstance(layer, QgsVectorLayer):
-            dialog = VectorLayerProperties(layer, canvas, parent=parent)
-        else:
-            raise NotImplementedError()
+        dialog = LayerPropertiesDialog(layer, canvas=canvas)
 
         if modal == True:
             dialog.setModal(True)
+            return dialog.exec_()
         else:
             dialog.setModal(False)
+            dialog.show()
+            return dialog
 
-        result = dialog.exec_()
-    return result
+    return None
+
+
+def tr(t:str) -> str:
+    return t
+
+class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
+
+    def __init__(self, mLayer: QgsVectorLayer, *args,
+                 initialMode: QgsAttributeTableFilterModel.FilterMode=QgsAttributeTableFilterModel.ShowVisible, **kwds):
+        super().__init__(*args, **kwds)
+        loadUi(pathlib.Path(DIR_UI_FILES) / 'attributetablewidget.ui', self)
+        settings = QgsSettings()
+
+        self.mActionCutSelectedRows.triggered.connect(self.mActionCutSelectedRows_triggered)
+        self.mActionCopySelectedRows.triggered.connect(self.mActionCopySelectedRows_triggered)
+        self.mActionPasteFeatures.triggered.connect(self.mActionPasteFeatures_triggered)
+        self.mActionToggleEditing.toggled.connect(self.mActionToggleEditing_toggled)
+        self.mActionSaveEdits.triggered.connect(self.mActionSaveEdits_triggered)
+        self.mActionReload.triggered.connect(self.mActionReload_triggered)
+        self.mActionInvertSelection.triggered.connect(self.mActionInvertSelection_triggered)
+        self.mActionRemoveSelection.triggered.connect(self.mActionRemoveSelection_triggered)
+        self.mActionSelectAll.triggered.connect(self.mActionSelectAll_triggered)
+        self.mActionZoomMapToSelectedRows.triggered.connect(self.mActionZoomMapToSelectedRows_triggered)
+        self.mActionPanMapToSelectedRows.triggered.connect(self.mActionPanMapToSelectedRows_triggered)
+        self.mActionSelectedToTop.toggled.connect(self.mMainView.setSelectedOnTop)
+        self.mActionAddAttribute.triggered.connect(self.mActionAddAttribute_triggered)
+        self.mActionRemoveAttribute.triggered.connect(self.mActionRemoveAttribute_triggered)
+        #self.mActionOpenFieldCalculator.triggered.connect(self.mActionOpenFieldCalculator_triggered)
+        self.mActionDeleteSelected.triggered.connect(self.mActionDeleteSelected_triggered)
+        self.mMainView.currentChanged.connect(self.mMainView_currentChanged)
+        self.mActionAddFeature.triggered.connect(self.mActionAddFeature_triggered)
+        self.mActionExpressionSelect.triggered.connect(self.mActionExpressionSelect_triggered)
+        self.mMainView.showContextMenuExternally.connect(self.showContextMenu)
+
+        assert isinstance(self.mMainView, QgsDualView)
+        pal = self.mMainView.tableView().palette()
+        css = r"""QTableView {{
+                       selection-background-color: {};
+                       selection-color: {};
+                        }}""".format(pal.highlight().color().name(),
+                                     pal.highlightedText().color().name())
+        self.mMainView.setStyleSheet(css)
+        self.mDock: QgsDockWidget = None
+        self.mEditorContext = QgsAttributeEditorContext()
+        self.mLayer: QgsVectorLayer = mLayer
+
+        self.mMapCanvas = QgsMapCanvas()
+        self.mMapCanvas.setLayers([self.mLayer])
+        # Initialize the window geometry
+        #geom = settings.value("Windows/BetterAttributeTable/geometry")
+        #self.restoreGeometry(geom)
+        
+        da = QgsDistanceArea()
+        da.setSourceCrs(mLayer.crs(), QgsProject.instance().transformContext())
+        da.setEllipsoid(QgsProject.instance().ellipsoid())
+
+        self.mEditorContext.setDistanceArea(da)
+        self.mVectorLayerTools: VectorLayerTools = None
+        self.setVectorLayerTools(VectorLayerTools())
+
+        r = QgsFeatureRequest()
+        needsGeom = False
+        if mLayer.geometryType() != QgsWkbTypes.NullGeometry and \
+            initialMode == QgsAttributeTableFilterModel.ShowVisible:
+            mc = self.mMapCanvas
+            extent = QgsRectangle(mc.mapSettings().mapToLayerCoordinates(mLayer, mc.extent()))
+            r.setFilterRect(extent)
+            needsGeom = True
+        elif initialMode == QgsAttributeTableFilterModel.ShowSelected:
+
+            r.setFilterFids(mLayer.selectedFeatureIds())
+
+        if not needsGeom:
+            r.setFlags(QgsFeatureRequest.NoGeometry)
+        
+        # Initialize dual view
+        #self.mMainView.init(mLayer, self.mMapCanvas, r, self.mEditorContext, False)
+        self.mMainView.init(mLayer, self.mMapCanvas)
+        
+        config = mLayer.attributeTableConfig()
+        self.mMainView.setAttributeTableConfig(config)
+        
+        #self.mFeatureFilterWidget.init(mLayer, self.mEditorContext, self.mMainView, None, QgisApp.instance().messageTimeout())
+        
+        self.mActionFeatureActions = QToolButton()
+        self.mActionFeatureActions.setAutoRaise(False)
+        self.mActionFeatureActions.setPopupMode(QToolButton.InstantPopup)
+        self.mActionFeatureActions.setIcon(QgsApplication.getThemeIcon("/mAction.svg"))
+        self.mActionFeatureActions.setText(tr("Actions"))
+        self.mActionFeatureActions.setToolTip(tr("Actions"))
+        
+        self.mToolbar.addWidget(self.mActionFeatureActions)
+        self.mActionSetStyles.triggered.connect(self.openConditionalStyles)
 
 
 
-RASTERRENDERER_CREATE_FUNCTIONSV2 = OptionListModel()
-#RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(MultiBandColorRendererWidget.create, name='multibandcolor'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsMultiBandColorRendererWidget, name='multibandcolor (QGIS)'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsPalettedRendererWidget, name='paletted'))
-#RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(SingleBandGrayRendererWidget.create, name='singlegray'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandGrayRendererWidget, name='singlegray (QGIS)'))
-#RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(SingleBandPseudoColorRendererWidget.create, name='singlebandpseudocolor'))
-RASTERRENDERER_CREATE_FUNCTIONSV2.addOption(Option(QgsSingleBandPseudoColorRendererWidget, name='singlebandpseudocolor (QGIS)'))
+        # info from layer to table
+        mLayer.editingStarted.connect(self.editingToggled)
+        mLayer.editingStopped.connect(self.editingToggled)
+        mLayer.destroyed.connect(self.mMainView.cancelProgress)
+        mLayer.selectionChanged.connect(self.updateTitle)
+        mLayer.featureAdded.connect(self.updateTitle)
+        mLayer.featuresDeleted.connect(self.updateTitle)
+        mLayer.editingStopped.connect(self.updateTitle)
+        mLayer.readOnlyChanged.connect(self.editingToggled)
+        
+        # connect table info to window
+        self.mMainView.filterChanged.connect(self.updateTitle)
+        self.mMainView.filterExpressionSet.connect(self.formFilterSet)
+        self.mMainView.formModeChanged.connect(self.viewModeChanged)
+        
+        # info from table to application
+        #self.saveEdits.connect(QgisApp::instance()->saveEdits() })
 
+        """
+        dockTable: bool = bool(settings.value("qgis/dockAttributeTable" , False )
+        if dockTable:
+            self.mDock = new QgsAttributeTableDock( QString(), QgisApp::instance() );
+            mDock->setWidget( this );
+            connect( this, &QObject::destroyed, mDock, &QWidget::close );
+            QgisApp::instance()->addDockWidget( Qt::BottomDockWidgetArea, mDock );
+        mActionDockUndock->setChecked( dockTable );
+        connect( mActionDockUndock, &QAction::toggled, this, &QgsAttributeTableDialog::toggleDockMode );
+        installEventFilter( this );
+        """
+
+        self.updateTitle()
+
+        # set icons
+        self.mActionRemoveSelection.setIcon(QgsApplication.getThemeIcon("/mActionDeselectAll.svg"))
+        self.mActionSelectAll.setIcon(QgsApplication.getThemeIcon("/mActionSelectAll.svg"))
+        self.mActionSelectedToTop.setIcon(QgsApplication.getThemeIcon("/mActionSelectedToTop.svg"))
+        self.mActionCopySelectedRows.setIcon(QgsApplication.getThemeIcon("/mActionEditCopy.svg"))
+        self.mActionPasteFeatures.setIcon(QgsApplication.getThemeIcon("/mActionEditPaste.svg"))
+        self.mActionZoomMapToSelectedRows.setIcon(QgsApplication.getThemeIcon("/mActionZoomToSelected.svg"))
+        self.mActionPanMapToSelectedRows.setIcon(QgsApplication.getThemeIcon("/mActionPanToSelected.svg"))
+        self.mActionInvertSelection.setIcon(QgsApplication.getThemeIcon("/mActionInvertSelection.svg"))
+        self.mActionToggleEditing.setIcon(QgsApplication.getThemeIcon("/mActionToggleEditing.svg"))
+        self.mActionSaveEdits.setIcon(QgsApplication.getThemeIcon("/mActionSaveEdits.svg"))
+        self.mActionDeleteSelected.setIcon(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"))
+        self.mActionOpenFieldCalculator.setIcon(QgsApplication.getThemeIcon("/mActionCalculateField.svg"))
+        self.mActionAddAttribute.setIcon(QgsApplication.getThemeIcon("/mActionNewAttribute.svg"))
+        self.mActionRemoveAttribute.setIcon(QgsApplication.getThemeIcon("/mActionDeleteAttribute.svg"))
+        self.mTableViewButton.setIcon(QgsApplication.getThemeIcon("/mActionOpenTable.svg"))
+        self.mAttributeViewButton.setIcon(QgsApplication.getThemeIcon("/mActionFormView.svg"))
+        self.mActionExpressionSelect.setIcon(QgsApplication.getThemeIcon("/mIconExpressionSelect.svg"))
+        self.mActionAddFeature.setIcon(QgsApplication.getThemeIcon("/mActionNewTableRow.svg"))
+        self.mActionFeatureActions.setIcon(QgsApplication.getThemeIcon("/mAction.svg"))
+
+        # toggle editing
+        canChangeAttributes = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues
+        canDeleteFeatures = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures
+        canAddAttributes = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddAttributes
+        canDeleteAttributes = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteAttributes
+        canAddFeatures = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures
+        
+        self.mActionToggleEditing.blockSignals(True)
+        self.mActionToggleEditing.setCheckable(True)
+        self.mActionToggleEditing.setChecked(mLayer.isEditable())
+        self.mActionToggleEditing.blockSignals(False)
+        
+        self.mActionSaveEdits.setEnabled(self.mActionToggleEditing.isEnabled() and mLayer.isEditable())
+        self.mActionReload.setEnabled(not mLayer.isEditable())
+        self.mActionAddAttribute.setEnabled((canChangeAttributes or canAddAttributes) and mLayer.isEditable())
+        self.mActionRemoveAttribute.setEnabled(canDeleteAttributes and mLayer.isEditable())
+        if not canDeleteFeatures:
+            self.mToolbar.removeAction(self.mActionDeleteSelected)
+            self.mToolbar.removeAction(self.mActionCutSelectedRows)
+
+        self.mActionAddFeature.setEnabled(canAddFeatures and mLayer.isEditable())
+        self.mActionPasteFeatures.setEnabled(canAddFeatures and mLayer.isEditable())
+        if not canAddFeatures:
+            self.mToolbar.removeAction(self.mActionAddFeature)
+            self.mToolbar.removeAction(self.mActionPasteFeatures)
+
+        assert isinstance(self.mMainViewButtonGroup, QButtonGroup)
+        self.mMainViewButtonGroup.setId(self.mTableViewButton, QgsDualView.AttributeTable)
+        self.mMainViewButtonGroup.setId(self.mAttributeViewButton, QgsDualView.AttributeEditor)
+        self.mTableViewButton.clicked.connect(lambda: self.setViewMode(QgsDualView.AttributeTable))
+        self.mAttributeViewButton.clicked.connect(lambda: self.setViewMode(QgsDualView.AttributeEditor))
+
+        self.setFilterMode(initialMode)
+
+        if isinstance(mLayer, QgsVectorLayer) and mLayer.isValid():
+
+            #self.mUpdateExpressionText.registerExpressionContextGenerator(self)
+            self.mFieldCombo.setFilters(QgsFieldProxyModel.AllTypes | QgsFieldProxyModel.HideReadOnly)
+            self.mFieldCombo.setLayer(mLayer)
+
+            self.mRunFieldCalc.clicked.connect(self.updateFieldFromExpression)
+            self.mRunFieldCalcSelected.clicked.connect(self.updateFieldFromExpressionSelected)
+            self.mUpdateExpressionText.fieldChanged.connect(lambda fieldName: self.updateButtonStatus(fieldName, True))
+            self.mUpdateExpressionText.setLayer(mLayer)
+            self.mUpdateExpressionText.setLeftHandButtonStyle(True)
+
+            initialView = int(settings.value("qgis/attributeTableView", -1))
+            if initialView < 0:
+                initialView = int(settings.value("qgis/attributeTableLastView", int(QgsDualView.AttributeTable)))
+            for m in [QgsDualView.AttributeTable, QgsDualView.AttributeEditor]:
+                if initialView == int(m):
+                    self.setViewMode(m)
+
+            self.mActionToggleMultiEdit.toggled.connect(self.mMainView.setMultiEditEnabled)
+            self.mActionSearchForm.toggled.connect(self.mMainView.toggleSearchMode)
+            self.updateMultiEditButtonState()
+
+            if mLayer.editFormConfig().layout() == QgsEditFormConfig.UiFileLayout:
+                #not supported with custom UI
+                self.mActionToggleMultiEdit.setEnabled(false)
+                self.mActionToggleMultiEdit.setToolTip(tr("Multiedit is not supported when using custom UI forms"))
+                self.mActionSearchForm.setEnabled(False)
+                self.mActionSearchForm.setToolTip(tr("Search is not supported when using custom UI forms"))
+
+            self.editingToggled();
+
+        self._hide_unconnected_widgets()
+
+    def setVectorLayerTools(self, tools:VectorLayerTools):
+        assert isinstance(tools, VectorLayerTools)
+        self.mVectorLayerTools = tools
+
+        self.mEditorContext.setVectorLayerTools(tools)
+
+    def vectorLayerTools(self) -> VectorLayerTools:
+        return self.mVectorLayerTools
+        #return self.mEditorContext.vectorLayerTools()
+
+    def setMapCanvas(self, canvas: QgsMapCanvas):
+        self.mEditorContext.setMapCanvas(canvas)
+
+    def createExpressionContext(self) -> QgsExpressionContext:
+        return QgsExpressionContext()
+
+    def updateButtonStatus(self, fieldName: str, isValid: bool):
+        self.mRunFieldCalc.setEnabled(isValid)
+
+    def updateMultiEditButtonState(self):
+        if not isinstance(self.mLayer, QgsVectorLayer) or \
+                (self.mLayer.editFormConfig().layout() == QgsEditFormConfig.UiFileLayout):
+            return
+
+        self.mActionToggleMultiEdit.setEnabled(self.mLayer.isEditable() )
+
+        if not self.mLayer.isEditable() or \
+              ( self.mLayer.isEditable() and self.mMainView.view() != QgsDualView.AttributeEditor ):
+            self.mActionToggleMultiEdit.setChecked( False )
+
+    def openConditionalStyles(self):
+        self.mMainView.openConditionalStyles()
+
+    def mActionCutSelectedRows_triggered(self):
+
+        pass
+
+        #QgisApp:: instance()->cutSelectionToClipboard(mLayer);
+    
+    def mActionCopySelectedRows_triggered(self):
+        self.vectorLayerTools().copySelectionToClipboard(self.mLayer)
+
+    def setMainMessageBar(self, messageBar: QgsMessageBar):
+        self.mEditorContext.setMainMessageBar(messageBar)
+
+    def mainMessageBar(self) -> QgsMessageBar:
+        return self.mEditorContext.mainMessageBar()
+
+    def updateFieldFromExpression(self):
+
+        filtered = self.mMainView.filterMode() != QgsAttributeTableFilterModel.ShowAll
+        filteredIds = self.mMainView.filteredFeatures() if filtered else []
+        self.runFieldCalculation(self.mLayer, self.mFieldCombo.currentField(), self.mUpdateExpressionText.asExpression(), filteredIds )
+
+
+    def updateFieldFromExpressionSelected(self):
+
+        filteredIds = self.mLayer.selectedFeatureIds()
+        self.runFieldCalculation(self.mLayer, self.mFieldCombo.currentField(),
+                                 self.mUpdateExpressionText.asExpression(), filteredIds )
+
+
+    def runFieldCalculation(self, layer: QgsVectorLayer, 
+                            fieldName: str,
+                            expression: str,
+                            filteredIds: list):
+        fieldindex = layer.fields().indexFromName(fieldName)
+        if fieldindex < 0:
+
+            #// this shouldn't happen... but it did. There's probably some deeper underlying issue
+            #// but we may as well play it safe here.
+            QMessageBox.critical(None, tr("Update Attributes" ), "An error occurred while trying to update the field {}".format(fieldName ) )
+            return
+
+        #cursorOverride = QgsTemporaryCursorOverride(Qt.WaitCursor)
+        self.mLayer.beginEditCommand("Field calculator" )
+        
+        calculationSuccess = True
+        error = None
+
+        exp = QgsExpression(expression)
+        da = QgsDistanceArea()
+        da.setSourceCrs(self.mLayer.crs(), QgsProject.instance().transformContext())
+        da.setEllipsoid(QgsProject.instance().ellipsoid())
+        exp.setGeomCalculator(da)
+        exp.setDistanceUnits(QgsProject.instance().distanceUnits())
+        exp.setAreaUnits(QgsProject.instance().areaUnits())
+        useGeometry: bool = exp.needsGeometry()
+
+        request = QgsFeatureRequest (self.mMainView.masterModel().request())
+        useGeometry = useGeometry or not request.filterRect().isNull()
+        request.setFlags(QgsFeatureRequest.NoFlags if useGeometry else QgsFeatureRequest.NoGeometry )
+        
+        rownum = 1
+        
+        context = QgsExpressionContext(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
+        exp.prepare(context)
+
+        fld:QgsField = layer.fields().at(fieldindex)
+
+        referencedColumns = exp.referencedColumns()
+        referencedColumns.add(fld.name()) # need existing column value to store old attribute when changing field values
+        request.setSubsetOfAttributes(referencedColumns, layer.fields())
+
+        task = QgsScopedProxyProgressTask(tr("Calculating field" ))
+
+        count = len(filteredIds) if len(filteredIds) > 0 else layer.featureCount()
+        i = 0
+
+        for feature in layer.getFeatures(request):
+
+            if len(filteredIds) > 0 and feature.id() not in filteredIds:
+                continue
+
+            i += 1
+            task.setProgress(i / count * 100)
+            context.setFeature(feature )
+            context.lastScope().addVariable(QgsExpressionContextScope.StaticVariable("row_number", rownum, True))
+        
+            value = exp.evaluate(context)
+            convertError = None
+            try:
+                value = fld.convertCompatible(value)
+            except SystemError as ex:
+                error = 'Unable to convert "{}" to type {}'.format(value, fld.typeName())
+            # Bail if we have a update error
+            if exp.hasEvalError():
+                calculationSuccess = False
+                error = exp.evalErrorString()
+                break
+            elif isinstance(error, str):
+                calculationSuccess = False
+                break
+            else:
+                oldvalue = feature.attributes()[fieldindex]
+                self.mLayer.changeAttributeValue(feature.id(), fieldindex, value, oldvalue)
+            rownum += 1
+
+        #cursorOverride.release()
+        #task.reset()
+        
+        if not calculationSuccess:
+            QMessageBox.critical(None,
+                                 tr("Update Attributes" ),
+                                 "An error occurred while evaluating the calculation string:\n{}".format(error))
+            self.mLayer.destroyEditCommand()
+
+        else:
+            self.mLayer.endEditCommand()
+        
+            # refresh table with updated values
+            # fixes https:#github.com/qgis/QGIS/issues/25210
+            masterModel: QgsAttributeTableModel = self.mMainView.masterModel()
+            modelColumn: int = masterModel.fieldCol(fieldindex )
+            masterModel.reload(masterModel.index(0, modelColumn ), masterModel.index(masterModel.rowCount() - 1, modelColumn ))
+
+    def layerActionTriggered(self):
+        action = self.sender()
+        if isinstance(action, QAction):
+        
+            action : QgsAction  = action.data()
+        
+            context: QgsExpressionContext = self.mLayer.createExpressionContext()
+            scope = QgsExpressionContextScope()
+            scope.addVariable(QgsExpressionContextScope.StaticVariable("action_scope" , "AttributeTable" ))
+            context.appendScope(scope)
+            action.run(context)
+
+
+    def formFilterSet(self, filter: str, filterType: QgsAttributeForm.FilterType):
+        self.setFilterExpression(filter, filterType, True)
+
+    def setFilterExpression(self, filterString: str, filterType: QgsAttributeForm.FilterType, alwaysShowFilter: bool):
+        pass
+        #mFeatureFilterWidget->setFilterExpression(filterString, type, alwaysShowFilter );
+
+    def viewModeChanged(self, mode: QgsAttributeEditorContext.Mode):
+        if mode != QgsAttributeEditorContext.SearchMode:
+            self.mActionSearchForm.setChecked(False)
+
+    def updateTitle(self):
+        if not isinstance(self.mLayer, QgsVectorLayer):
+            return 
+        
+        w = self.mDock if isinstance(self.mDock, QWidget) else self
+        w.setWindowTitle(" {0} :: Features Total: {1} Filtered: {2}, Selected: {3}".format(
+                         self.mLayer.name(),
+                         max(self.mMainView.featureCount(), self.mLayer.featureCount()),
+                         self.mMainView.filteredFeatureCount(),
+                         self.mLayer.selectedFeatureCount())
+                         )
+
+        if self.mMainView.filterMode() == QgsAttributeTableFilterModel.ShowAll:
+            self.mRunFieldCalc.setText(tr("Update All"))
+        else:
+            self.mRunFieldCalc.setText(tr("Update Filtered"))
+
+        canDeleteFeatures = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures
+        enabled = self.mLayer.selectedFeatureCount() > 0
+        self.mRunFieldCalcSelected.setEnabled(enabled)
+        self.mActionDeleteSelected.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled )
+        self.mActionCutSelectedRows.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled )
+        self.mActionCopySelectedRows.setEnabled(enabled )
+
+    def editingToggled(self):
+        self.mActionToggleEditing.blockSignals(True)
+        self.mActionToggleEditing.setChecked(self.mLayer.isEditable())
+        self.mActionSaveEdits.setEnabled(self.mLayer.isEditable())
+        self.mActionReload.setEnabled(not self.mLayer.isEditable())
+        self.updateMultiEditButtonState()
+        if self.mLayer.isEditable():
+            self.mActionSearchForm.setChecked(False)
+
+        self.mActionToggleEditing.blockSignals(False)
+
+        canChangeAttributes = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.ChangeAttributeValues
+        canDeleteFeatures = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures
+        canAddAttributes = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddAttributes
+        canDeleteAttributes = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteAttributes
+        canAddFeatures = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures
+        self.mActionAddAttribute.setEnabled((canChangeAttributes or canAddAttributes) and self.mLayer.isEditable())
+        self.mActionRemoveAttribute.setEnabled(canDeleteAttributes and self.mLayer.isEditable())
+        self.mActionDeleteSelected.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
+        self.mActionCutSelectedRows.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
+        self.mActionAddFeature.setEnabled(canAddFeatures and self.mLayer.isEditable())
+        self.mActionPasteFeatures.setEnabled(canAddFeatures and self.mLayer.isEditable())
+        self.mActionToggleEditing.setEnabled((canChangeAttributes or
+                                            canDeleteFeatures or
+                                            canAddAttributes or
+                                            canDeleteAttributes or
+                                            canAddFeatures) and not self.mLayer.readOnly())
+
+        self.mUpdateExpressionBox.setVisible(self.mLayer.isEditable())
+        if self.mLayer.isEditable() and self.mFieldCombo.currentIndex() == -1:
+            self.mFieldCombo.setCurrentIndex(0)
+
+        # not necessary to set table read only if layer is not editable
+        # because model always reflects actual state when returning item flags
+        actions = self.mLayer.actions().actions("Layer")
+
+        if len(actions) == 0:
+            self.mActionFeatureActions.setVisible(True)
+        else:
+            actionMenu = QMenu()
+            constActions = actions
+            for action in constActions:
+
+                if not self.mLayer.isEditable() and action.isEnabledOnlyWhenEditable():
+                    continue
+
+                    qAction: QAction = actionMenu.addAction(action.icon(), action.shortTitle())
+                    qAction.setToolTip(action.name())
+                    qAction.setData(QVariant.fromValue<QgsAction>(action))
+                    qAction.triggered.connect(selflayerActionTriggered)
+
+            self.mActionFeatureActions.setMenu(actionMenu)
+        
+    def setCadDockWidget(self, cadDockWidget):
+        self.mEditorContext.setCadDockWidget(cadDockWidget)
+
+    def mActionPasteFeatures_triggered(self):
+        self.vectorLayerTools().pasteFromClipboard(self.mLayer)
+
+    def mActionReload_triggered(self):
+        self.mMainView.masterModel().layer().dataProvider().reloadData()
+
+    def mActionInvertSelection_triggered(self):
+        self.vectorLayerTools().invertSelection(self.mLayer)
+
+    def mActionRemoveSelection_triggered(self):
+        self.vectorLayerTools().removeSelection(self.mLayer)
+
+    def mActionSelectAll_triggered(self):
+        self.vectorLayerTools().selectAll(self.mLayer)
+
+    def mActionZoomMapToSelectedRows_triggered(self):
+        self.vectorLayerTools().zoomToSelected(self.mLayer)
+
+    def mActionPanMapToSelectedRows_triggered(self):
+        self.vectorLayerTools().panToSelected(self.mLayer)
+
+    def mActionDeleteSelected_triggered(self):
+        self.vectorLayerTools().deleteSelected(self.mLayer)
+
+    def reloadModel(self):
+        """
+        Reloads the table model
+        """
+        masterModel = self.mMainView.masterModel()
+        # // update model - a field has been added or updated
+        masterModel.reload(masterModel.index(0, 0),
+                           masterModel.index(masterModel.rowCount() - 1,
+                                             masterModel.columnCount() - 1))
+
+    def mActionAddAttribute_triggered(self):
+        if isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.isEditable():
+            d = AddAttributeDialog(self.mLayer)
+            d.exec_()
+            if d.result() == QDialog.Accepted:
+                field = d.field()
+                self.mLayer.addAttribute(field)
+                self.reloadModel()
+
+    def mActionRemoveAttribute_triggered(self):
+        if not (isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.isEditable()):
+            return
+
+        d = RemoveAttributeDialog(self.mLayer)
+
+        if d.exec_() == QDialog.Accepted:
+            fieldIndices = d.fieldIndices()
+            self.mLayer.beginEditCommand('Delete attributes')
+            if self.mLayer.deleteAttributes(fieldIndices):
+                self.mLayer.endEditCommand()
+            else:
+                self.mainMessageBar().pushMessage(tr("Attribute error"),
+                                                  tr("The attribute(s) could not be deleted"),
+                                                  Qgis.Warning)
+            self.reloadModel()
+
+    def mMainView_currentChanged(self, viewMode: QgsDualView.ViewMode):
+        if isinstance(viewMode, int):
+            for m in [QgsDualView.AttributeTable, QgsDualView.AttributeEditor]:
+                if int(m) == viewMode:
+                    viewMode = m
+                    break
+
+        assert isinstance(viewMode, QgsDualView.ViewMode)
+        self.mMainViewButtonGroup.button(viewMode).click()
+        self.updateMultiEditButtonState()
+
+        if viewMode == QgsDualView.AttributeTable:
+            self.mActionSearchForm.setChecked(False)
+
+        s = QgsSettings()
+        s.setValue("/qgis/attributeTableLastView", int(viewMode))
+
+    def showContextMenu(self, menu: QgsActionMenu, fid: int):
+        if self.mLayer.isEditable():
+            qAction = menu.addAction( QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"),
+                                                                  tr( "Delete Feature" ) )
+            qAction.triggered.connect(lambda *args, f=fid: self.deleteFeature(fid))
+
+    def deleteFeature(self, fid: int):
+        self.mLayer.deleteFeature(fid)
+
+    def mActionAddFeature_triggered(self):
+
+        if not self.mLayer.isEditable():
+            return
+
+        masterModel = self.mMainView.masterModel()
+        f = QgsFeature(self.mLayer.fields())
+        if self.vectorLayerTools().addFeature(
+            self.mLayer,
+            f=f
+        ):
+            masterModel.reload(masterModel.index(0, 0), masterModel.index(
+                masterModel.rowCount() - 1, masterModel.columnCount() - 1 ) )
+
+
+    def mActionExpressionSelect_triggered(self):
+        dlg = QgsExpressionSelectionDialog(self.mLayer)
+        dlg.setMessageBar(self.mainMessageBar())
+        dlg.setAttribute(Qt.WA_DeleteOnClose)
+        dlg.exec_()
+
+
+    def mActionCutSelectedRows_triggered(self):
+        self.vectorLayerTools().cutSelectionToClipboard(self.mLayer)
+
+
+    def mActionToggleEditing_toggled(self, b:bool):
+        if not isinstance(self.mLayer, QgsVectorLayer):
+            return
+
+        # this has to be done, because in case only one cell has been changed and is still enabled, the change
+        # would not be added to the mEditBuffer. By disabling, it looses focus and the change will be stored.
+        s = ""
+        if self.mLayer.isEditable() and \
+            self.mMainView.tableView().indexWidget(self.mMainView.tableView().currentIndex()) is not None:
+
+            self.mMainView.tableView().indexWidget(self.mMainView.tableView().currentIndex()).setEnabled(False)
+
+        self.vectorLayerTools().toggleEditing(self.mLayer)
+        self.editingToggled()
+
+    def mActionSaveEdits_triggered(self):
+        self.vectorLayerTools().saveEdits(self.mLayer, leave_editable=True, trigger_repaint=True)
+
+    def setViewMode(self, mode: QgsDualView.ViewMode):
+        assert isinstance(mode, QgsDualView.ViewMode)
+        self.mMainView.setView(mode)
+        for m in [QgsDualView.AttributeEditor, QgsDualView.AttributeTable]:
+            self.mMainViewButtonGroup.button(m).setChecked(m == mode)
+
+    def setFilterMode(self, mode: QgsAttributeTableFilterModel.FilterMode):
+
+        return
+        #todo: re-implement QgsFeatureFilterWidget
+
+        if mode == QgsAttributeTableFilterModel.ShowVisible:
+            self.mFeatureFilterWidget.filterVisible()
+        elif mode == QgsAttributeTableFilterModel.ShowSelected:
+            self.mFeatureFilterWidget.filterSelected()
+        else:
+            self.mFeatureFilterWidget.filterShowAll()
+
+
+    def _hide_unconnected_widgets(self):
+        self.mActionOpenFieldCalculator.setVisible(False)
+        self.mActionDockUndock.setVisible(False)

@@ -50,7 +50,7 @@
       <string>...</string>
      </property>
      <property name="icon">
-      <iconset resource="../qpsresources.qrc">
+      <iconset>
        <normaloff>:/qps/ui/icons/undo_orange.svg</normaloff>:/qps/ui/icons/undo_orange.svg</iconset>
      </property>
     </widget>
@@ -113,17 +113,11 @@
    </item>
   </layout>
   <action name="actionReset">
-   <property name="icon">
-    <iconset resource="../qpsresources.qrc">
-     <normaloff>:/qps/ui/icons/undo_orange.svg</normaloff>:/qps/ui/icons/undo_orange.svg</iconset>
-   </property>
    <property name="text">
     <string>Reset</string>
    </property>
   </action>
  </widget>
- <resources>
-  <include location="../qpsresources.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

@@ -19,7 +19,7 @@
 ***************************************************************************
 """
 
-import os, json, pickle, warnings, csv, re, sys, typing
+import os, json, pickle, warnings, csv, re, sys, typing, pathlib
 from qgis.core import *
 from qgis.gui import *
 from qgis.PyQt.QtCore import *
@@ -28,10 +28,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtXml import *
 import numpy as np
 from osgeo import gdal
-from ..utils import gdalDataset, nextColor, loadUIFormClass, findMapLayer, registeredMapLayers
-
-
-loadClassificationUI = lambda name: loadUIFormClass(os.path.join(os.path.dirname(__file__), name))
+from ..utils import gdalDataset, nextColor, findMapLayer, registeredMapLayers, loadUi
 
 DEFAULT_UNCLASSIFIEDCOLOR = QColor('black')
 DEFAULT_FIRST_COLOR = QColor('#a6cee3')
@@ -39,10 +36,10 @@ DEFAULT_FIRST_COLOR = QColor('#a6cee3')
 MIMEDATA_KEY = 'hub-classscheme'
 MIMEDATA_KEY_TEXT = 'text/plain'
 MIMEDATA_INTERNAL_IDs = 'classinfo_ids'
-MIMEDATA_KEY_QGIS_STYLE = 'application/qgis.style'
+MIMEDATA_KEY_QGIS_STYLE = QGSCLIPBOARD_STYLE_MIME =  'application/qgis.style'
 MAX_UNIQUE_CLASSES = 100
 
-def findMapLayersWithClassInfo()->list:
+def findMapLayersWithClassInfo() -> list:
     """
     Returns QgsMapLayers from which a ClassificationScheme can be derived.
     Searches in all QgsMapLayerStores known to classification.MAP_LAYER_STORES
@@ -58,8 +55,6 @@ def findMapLayersWithClassInfo()->list:
     return results
 
 
-
-
 def hasClassification(pathOrDataset):
     """
     This function tests if a gdal-readable raster data set contains
@@ -68,6 +63,7 @@ def hasClassification(pathOrDataset):
     :return: True | False
     """
     ds = None
+    from qps.utils import gdalDataset
     try:
         if isinstance(pathOrDataset, gdal.Dataset):
             ds = pathOrDataset
@@ -89,7 +85,7 @@ def hasClassification(pathOrDataset):
     return False
 
 
-def getTextColorWithContrast(c:QColor)->QColor:
+def getTextColorWithContrast(c:QColor) -> QColor:
     """
     Returns a QColor with good contrast to c
     :param c: QColor
@@ -136,21 +132,21 @@ class ClassInfo(QObject):
         self.mLabel = label
         self.sigSettingsChanged.emit()
 
-    def label(self)->int:
+    def label(self) -> int:
         """
         Returns the class label values
         :return: int
         """
         return self.mLabel
 
-    def color(self)->QColor:
+    def color(self) -> QColor:
         """
         Returns the class color.
         :return: QColor
         """
         return QColor(self.mColor)
 
-    def name(self)->str:
+    def name(self) -> str:
         """
         Returns the class name
         :return: str
@@ -176,7 +172,7 @@ class ClassInfo(QObject):
         self.sigSettingsChanged.emit()
 
 
-    def pixmap(self, *args)->QPixmap:
+    def pixmap(self, *args) -> QPixmap:
         """
         Returns a QPixmap. Default size is 20x20px
         :param args: QPixmap arguments.
@@ -189,7 +185,7 @@ class ClassInfo(QObject):
         pm.fill(self.mColor)
         return pm
 
-    def icon(self, *args)->QIcon:
+    def icon(self, *args) -> QIcon:
         """
         Returns the class color as QIcon
         :param args: QPixmap arguments
@@ -203,6 +199,9 @@ class ClassInfo(QObject):
         :return: ClassInfo
         """
         return ClassInfo(name=self.mName, color=self.mColor)
+
+    def __hash__(self):
+        return hash(id(self))
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -220,7 +219,7 @@ class ClassInfo(QObject):
     def __str__(self):
         return '{} "{}" ({})'.format(self.mLabel, self.mName, self.mColor.name())
 
-    def json(self)->str:
+    def json(self) -> str:
         return json.dumps([self.label(), self.name(), self.color().name()])
 
     def fromJSON(self, jsonString:str):
@@ -240,6 +239,8 @@ class ClassificationScheme(QAbstractTableModel):
     sigClassesAdded = pyqtSignal(list)
     sigNameChanged = pyqtSignal(str)
 
+    sigIsEditableChanged = pyqtSignal(bool)
+
     def __init__(self, name : str = None):
         super(ClassificationScheme, self).__init__()
         self.mClasses = []
@@ -253,24 +254,25 @@ class ClassificationScheme(QAbstractTableModel):
         self.mColName = 'Name'
         self.mColLabel = 'Label'
 
-    def setIsEditable(self, b:bool):
+    def setIsEditable(self, b: bool):
         """
         Sets if class names and colors can be changed
         :param b: bool
         """
         if b != self.mIsEditable:
-            self.mIsEditable = True
-            self.dataChanged(self.createIndex(0,0),
+            self.mIsEditable = b
+            self.dataChanged.emit(self.createIndex(0, 0),
                              self.createIndex(self.rowCount()-1, self.columnCount()-1))
+            self.sigIsEditableChanged.emit(self.mIsEditable)
 
-    def isEditable(self)->bool:
+    def isEditable(self) -> bool:
         """
         Returns if class names and colors can be changed.
         :return: bool
         """
         return self.mIsEditable
 
-    def columnNames(self)->list:
+    def columnNames(self) -> list:
         """
         Returns the column names.
         :return: [list-of-str]
@@ -305,7 +307,7 @@ class ClassificationScheme(QAbstractTableModel):
 
         return False
 
-    def mimeData(self, indexes)->QMimeData:
+    def mimeData(self, indexes, vector_layer: bool = True, vector_attr:str = None) -> QMimeData:
         """
         Returns class infos as QMimeData.
         :param indexes:
@@ -323,30 +325,39 @@ class ClassificationScheme(QAbstractTableModel):
         mimeData.setData(MIMEDATA_INTERNAL_IDs, QByteArray(pickle.dumps([id(c) for c in classes])))
         mimeData.setText(cs.toString())
 
-        renderer = self.featureRenderer()
+        featureRenderer = self.featureRenderer()
+        rasterRenderer = self.rasterRenderer()
 
-        doc = QDomDocument()
-        err = ''
-        for typeName in ['POLYGON']:
-            lyr = QgsVectorLayer('{}?crs=epsg:4326&field=id:integer'.format(typeName), cs.name(), 'memory')
-            assert isinstance(lyr, QgsVectorLayer) and lyr.isValid()
-            lyr.setRenderer(renderer.clone())
-            err = lyr.exportNamedStyle(doc)
-            xml = doc.toString()
-            s = ""
+        docType = QDomImplementation().createDocumentType('qgis', 'http://mrcc.com/qgis.dtd', 'SYSTEM')
+        doc = QDomDocument(docType)
+        root = doc.createElement('qgis')
+        root.setAttribute('version', Qgis.QGIS_VERSION)
+        doc.appendChild(root)
+
+        if vector_layer:
+            root.setAttribute('styleCategories', "Symbology")
+
+            node = featureRenderer.save(doc, QgsReadWriteContext())
+            if isinstance(vector_attr, str):
+                node.setAttribute('attr', vector_attr)
+            root.appendChild(node)
+        else:
+            pipe = doc.createElement('pipe')
+            root.appendChild(pipe)
+            rasterRenderer.writeXml(doc, pipe)
+
         mimeData.setData(MIMEDATA_KEY_QGIS_STYLE, doc.toByteArray())
         mimeData.setText(doc.toString())
         return mimeData
 
-    def mimeTypes(self)->list:
+    def mimeTypes(self) -> list:
         """
         Returns a list of supported mimeTypes.
         :return: [list-of-str]
         """
         return [MIMEDATA_KEY, MIMEDATA_INTERNAL_IDs, MIMEDATA_KEY_TEXT]
 
-
-    def rowCount(self, parent:QModelIndex=None):
+    def rowCount(self, parent: QModelIndex = None):
         """
         Returns the number of row / ClassInfos.
         :param parent: QModelIndex
@@ -354,16 +365,15 @@ class ClassificationScheme(QAbstractTableModel):
         """
         return len(self.mClasses)
 
-    def columnCount(self, parent: QModelIndex=None):
+    def columnCount(self, parent: QModelIndex = None):
         return len(self.columnNames())
 
-
-    def index2ClassInfo(self, index)->ClassInfo:
+    def index2ClassInfo(self, index) -> ClassInfo:
         if isinstance(index, QModelIndex):
             index = index.row()
         return self.mClasses[index]
 
-    def classInfo2index(self, classInfo:ClassInfo)->QModelIndex:
+    def classInfo2index(self, classInfo: ClassInfo) -> QModelIndex:
         row = self.mClasses.index(classInfo)
         return self.createIndex(row, 0)
 
@@ -453,7 +463,7 @@ class ClassificationScheme(QAbstractTableModel):
         flags = Qt.ItemIsSelectable | Qt.ItemIsEnabled
         if self.mIsEditable:
             flags |= Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled
-            if col == 1:
+            if col == 1 and self.isEditable():
                 flags |= Qt.ItemIsEditable
         return flags
 
@@ -467,7 +477,7 @@ class ClassificationScheme(QAbstractTableModel):
         return super(ClassificationScheme, self).headerData(section, orientation, role)
 
 
-    def setName(self, name:str='')->str:
+    def setName(self, name:str='') -> str:
         """
         Sets ClassificationScheme name
         :param name: str
@@ -479,14 +489,14 @@ class ClassificationScheme(QAbstractTableModel):
             self.sigNameChanged.emit(self.mName)
         return self.mName
 
-    def name(self)->str:
+    def name(self) -> str:
         """
         Returns the ClassificationScheme name
         :return:
         """
         return self.mName
 
-    def json(self)->str:
+    def json(self) -> str:
         """
         Returns a JSON string of this ClassificationScheme which can be deserialized with ClassificationScheme.fromJSON()
         :return: str, JSON string
@@ -497,14 +507,14 @@ class ClassificationScheme(QAbstractTableModel):
 
         return json.dumps(data)
 
-    def pickle(self)->bytes:
+    def pickle(self) -> bytes:
         """
         Serializes this ClassificationScheme a byte object, which can be deserializes with ClassificationScheme.fromPickle()
         :return: bytes
         """
         return pickle.dumps(self.json())
 
-    def qByteArray(self)->QByteArray:
+    def qByteArray(self) -> QByteArray:
         """
         Serializes this ClassicationScheme as QByteArray.
         Can be deserialized with ClassificationScheme.fromQByteArray()
@@ -552,15 +562,11 @@ class ClassificationScheme(QAbstractTableModel):
             print(ex, file=sys.stderr)
             return None
 
-
-    def rasterRenderer(self, band=0)->QgsPalettedRasterRenderer:
+    def rasterRenderer(self, band: int = 1) -> QgsPalettedRasterRenderer:
         """
         Returns the ClassificationScheme as QgsPalettedRasterRenderer
         :return: ClassificationScheme
         """
-        #DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
-
-
         classes = []
         for classInfo in self:
             qgsClass = QgsPalettedRasterRenderer.Class(
@@ -588,12 +594,15 @@ class ClassificationScheme(QAbstractTableModel):
                                   color=QColor(qgsClass.color))
             classes.append(classInfo)
 
+        if len(classes) == 0:
+            return None
+
         cs = ClassificationScheme()
         cs.insertClasses(classes)
 
         return cs
 
-    def featureRenderer(self, symbolType:typing.Union[QgsMarkerSymbol, QgsFillSymbol, QgsLineSymbol]=QgsFillSymbol)->QgsCategorizedSymbolRenderer:
+    def featureRenderer(self, symbolType:typing.Union[QgsMarkerSymbol, QgsFillSymbol, QgsLineSymbol]=QgsFillSymbol) -> QgsCategorizedSymbolRenderer:
         """
         Returns the ClassificationScheme as QgsCategorizedSymbolRenderer
         :return: ClassificationScheme
@@ -613,29 +622,42 @@ class ClassificationScheme(QAbstractTableModel):
     @staticmethod
     def fromFeatureRenderer(renderer:QgsCategorizedSymbolRenderer):
         """
-        Extracts a ClassificatonScheme from a QgsCategorizedSymbolRenderer
+        Extracts a ClassificationScheme from a QgsCategorizedSymbolRenderer
         :param renderer: QgsCategorizedSymbolRenderer
         :return: ClassificationScheme
         """
         if not isinstance(renderer, QgsCategorizedSymbolRenderer):
             return None
-        classes = []
 
         # move a None element to first position
-        categories = renderer.categories()
-        cNames = [c.value() for c in categories]
-        if None in cNames:
-            i = cNames.index(None)
-            categories.insert(0, categories.pop(i))
 
-        for cat in categories:
+
+        no_data_class = None
+        classes = []
+        class_values = []
+        for cat in renderer.categories():
             assert isinstance(cat, QgsRendererCategory)
-            c = ClassInfo(name=cat.label(), color=QColor(cat.symbol().color()))
-            classes.append(c)
+            name = cat.label()
+            value = cat.value()
+            color = QColor(cat.symbol().color())
+            class_values.append(value)
+            if name.lower().strip() in [None, '', 'unclassified'] and value in [None, '', 0]:
+                if no_data_class is None:
+                    no_data_class = ClassInfo(0, name, color)
+            else:
+                c = ClassInfo(value, name, color)
+                classes.append(c)
+
+        if len(classes) == 0 and no_data_class is None:
+            return None
+
+        if no_data_class is None:
+            no_data_class = ClassInfo(0, 'Unclassified', QColor('black'))
+
+        classes.insert(0, no_data_class)
         cs = ClassificationScheme()
         cs.insertClasses(classes)
         return cs
-
 
     def clear(self):
         """
@@ -710,21 +732,21 @@ class ClassificationScheme(QAbstractTableModel):
         """
         return [QColor(c.color()) for c in self.mClasses]
 
-    def classLabels(self)->list:
+    def classLabels(self) -> list:
         """
         Returns the list of class labels [0,...,n-1]
         :return: [list-of-int]
         """
         return [c.label() for c in self.mClasses]
 
-    def classColorArray(self)->np.ndarray:
+    def classColorArray(self) -> np.ndarray:
         """
         Returns the RGBA class-colors as array
         :return: numpy.ndarray([nClasses,4])
         """
         return np.asarray([c.color().getRgb() for c in self])
 
-    def gdalColorTable(self)->gdal.ColorTable:
+    def gdalColorTable(self) -> gdal.ColorTable:
         """
         Returns the class colors as GDAL Color Table
         :return: gdal.Colortable
@@ -830,7 +852,6 @@ class ClassificationScheme(QAbstractTableModel):
         #negative index? insert to beginning
         index = max(index, 0)
 
-
         self.beginInsertRows(QModelIndex(), index, index+len(classes)-1)
         for i, c in enumerate(classes):
             assert isinstance(c, ClassInfo)
@@ -846,7 +867,7 @@ class ClassificationScheme(QAbstractTableModel):
     #def onClassInfoSettingChanged(self, *args):
     #    self.sigClassInfoChanged.emit(self.sender())
 
-    def classIndexFromValue(self, value, matchSimilarity=False)->int:
+    def classIndexFromValue(self, value, matchSimilarity=False) -> int:
         """
         Get a values and returns the index of ClassInfo that matches best to.
         :param value: any
@@ -874,7 +895,7 @@ class ClassificationScheme(QAbstractTableModel):
             pass
         return i
 
-    def classFromValue(self, value, matchSimilarity=False)->ClassInfo:
+    def classFromValue(self, value, matchSimilarity=False) -> ClassInfo:
         i = self.classIndexFromValue(value, matchSimilarity=matchSimilarity)
         if i != -1:
             return self[i]
@@ -902,8 +923,10 @@ class ClassificationScheme(QAbstractTableModel):
         :param band: gdal.Band
         """
         assert isinstance(band, gdal.Band)
+
         ct = gdal.ColorTable()
         cat = []
+
         for i, classInfo in enumerate(self.mClasses):
             c = classInfo.mColor
             cat.append(classInfo.mName)
@@ -911,31 +934,34 @@ class ClassificationScheme(QAbstractTableModel):
             rgba = (c.red(), c.green(), c.blue(), c.alpha())
             ct.SetColorEntry(i, rgba)
 
-        band.SetColorTable(ct)
-        band.SetCategoryNames(cat)
+        try:
+            band.SetCategoryNames(cat)
+        except Exception as ex:
+            print(ex, file=sys.stderr)
+
+        try:
+            band.SetColorTable(ct)
+        except Exception as ex:
+            print(ex, file=sys.stderr)
 
 
-    def saveToRaster(self, path, bandIndex=0):
+
+    def saveToRaster(self, raster:typing.Union[str, gdal.Dataset, QgsRasterLayer], bandIndex=0):
         """
         Saves this ClassificationScheme to an raster image
-        :param path: path (str) of raster image or gdal.Dataset instance
+        :param raster: path (str) of raster image or gdal.Dataset instance
         :param bandIndex: band index of raster band to set this ClassificationScheme.
                           Defaults to 0 = the first band
         """
-        if isinstance(path, str):
-            ds = gdal.Open(path)
-        elif isinstance(path, gdal.Dataset):
-            ds = path
-
+        from ..utils import gdalDataset
+        ds = gdalDataset(raster)
         assert isinstance(ds, gdal.Dataset)
-        assert ds.RasterCount < bandIndex
+        assert ds.RasterCount > bandIndex
         band = ds.GetRasterBand(bandIndex + 1)
         self.saveToRasterBand(band)
+        ds.FlushCache()
 
-
-        ds = None
-
-    def toString(self, sep=';')->str:
+    def toString(self, sep=';') -> str:
         """
         A quick dump of all ClassInfos
         :param sep: value separator, ';' by default
@@ -950,7 +976,7 @@ class ClassificationScheme(QAbstractTableModel):
             lines.append(sep.join(info))
         return '\n'.join(lines)
 
-    def saveToCsv(self, path:str, sep:str=';', mode:str = None)->str:
+    def saveToCsv(self, path:str, sep:str=';', mode:str = None) -> str:
         """
         Saves the ClassificationScheme as CSV table.
         :param path: str, path of CSV file
@@ -967,7 +993,7 @@ class ClassificationScheme(QAbstractTableModel):
         return None
 
 
-    def saveToJson(self, path:str, mode:str=None)->str:
+    def saveToJson(self, path:str, mode:str=None) -> str:
         """
         Save the ClassificationScheme as JSON file.
         :param path: str, path of JSON file
@@ -1003,12 +1029,31 @@ class ClassificationScheme(QAbstractTableModel):
             ba = ClassificationScheme.fromQByteArray(mimeData.data(MIMEDATA_KEY))
             if isinstance(ba, ClassificationScheme):
                 return ba
+
+        if MIMEDATA_KEY_QGIS_STYLE in mimeData.formats():
+
+            ba = mimeData.data(MIMEDATA_KEY_QGIS_STYLE)
+            doc = QDomDocument()
+            doc.setContent(ba)
+            #print(doc.toString())
+            rasterRenderers = doc.elementsByTagName('rasterrenderer')
+            for i in range(rasterRenderers.count()):
+                node = rasterRenderers.at(i).toElement()
+                if node.attribute('type') == 'paletted':
+                    return ClassificationScheme.fromRasterRenderer(QgsPalettedRasterRenderer.create(node, None))
+
+            vectorRenderers = doc.elementsByTagName('renderer-v2')
+            for i in range(vectorRenderers.count()):
+                node = vectorRenderers.at(i).toElement()
+                if node.attribute('type') == 'categorizedSymbol':
+                    context = QgsReadWriteContext()
+                    return ClassificationScheme.fromFeatureRenderer(QgsCategorizedSymbolRenderer.create(node, context))
+
         if MIMEDATA_KEY_TEXT in mimeData.formats():
             ba = ClassificationScheme.fromQByteArray(mimeData.data(MIMEDATA_KEY_TEXT))
             if isinstance(ba, ClassificationScheme):
                 return ba
-        if MIMEDATA_KEY_QGIS_STYLE in mimeData.formats():
-            s = ""
+
 
         return None
 
@@ -1045,9 +1090,8 @@ class ClassificationScheme(QAbstractTableModel):
         return scheme
 
     @staticmethod
-    def fromMapLayer(layer:QgsMapLayer):
+    def fromMapLayer(layer: QgsMapLayer):
         """
-
         :param layer:
         :return:
         """
@@ -1057,7 +1101,6 @@ class ClassificationScheme(QAbstractTableModel):
             if not isinstance(scheme, ClassificationScheme):
                 if layer.dataProvider().name() == 'gdal':
                     scheme = ClassificationScheme.fromRasterImage(layer.source())
-
 
         if isinstance(layer, QgsVectorLayer):
             scheme = ClassificationScheme.fromFeatureRenderer(layer.renderer())
@@ -1083,6 +1126,8 @@ class ClassificationScheme(QAbstractTableModel):
             if ct is not None:
                 cli.setColor(QColor(*ct.GetColorEntry(i)))
             classes.append(cli)
+        if len(classes) == 0:
+            return None
         scheme.insertClasses(classes)
         return scheme
 
@@ -1095,7 +1140,8 @@ class ClassificationScheme(QAbstractTableModel):
         :return: ClassificationScheme
         """
         ds = gdalDataset(path)
-        assert ds is not None
+        if not isinstance(ds, gdal.Dataset):
+            return None
 
         if bandIndex is None:
             for b in range(ds.RasterCount):
@@ -1238,7 +1284,7 @@ class ClassificationSchemeComboBoxModel(QAbstractListModel):
 
 
 
-    def allowEmptyField(self)->bool:
+    def allowEmptyField(self) -> bool:
         return self.mAllowEmptyField
 
     def setClassificationScheme(self, classScheme:ClassificationScheme):
@@ -1247,10 +1293,10 @@ class ClassificationSchemeComboBoxModel(QAbstractListModel):
         self.mClassScheme = classScheme
         self.endResetModel()
 
-    def classificationScheme(self)->ClassificationScheme:
+    def classificationScheme(self) -> ClassificationScheme:
         return self.mClassScheme
 
-    def rowCount(self, parent)->int:
+    def rowCount(self, parent) -> int:
         if not isinstance(self.mClassScheme, ClassificationScheme):
             return 0
 
@@ -1316,24 +1362,29 @@ class ClassificationSchemeComboBoxModel(QAbstractListModel):
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
 
-class ClassificationSourceComboBox(QgsMapLayerComboBox):
+class ClassificationMapLayerComboBox(QgsMapLayerComboBox):
+    """
+    A QgsMapLayerComboBox that shows map layers from which a ClassificationScheme can be derived.
+    """
 
-    def __init__(self, parent):
-        super(ClassificationSourceComboBox, self).__init__(parent)
+    def __init__(self, parent=None):
+        super(ClassificationMapLayerComboBox, self).__init__(parent)
 
+        self.updateExceptedLayerList()
 
-    def addClassificationSource(self, source):
+    def updateExceptedLayerList(self):
 
-        if hasClassification(source):
-            pass
+        toExclude = [l for l in QgsProject.instance().mapLayers().values()
+                     if ClassificationScheme.fromMapLayer(l) is None
+                     ]
+        self.setExceptedLayerList(toExclude)
 
-    def currentClassificationScheme(self)->ClassificationScheme:
-
-        raise NotImplementedError()
-
-    def currentClassificationSource(self)->str:
-
-        raise NotImplementedError()
+    def currentClassification(self) -> ClassificationScheme:
+        lyr = self.currentLayer()
+        if isinstance(lyr, QgsMapLayer):
+            return ClassificationScheme.fromMapLayer(self.currentLayer())
+        else:
+            return None
 
 
 class ClassificationSchemeComboBox(QComboBox):
@@ -1347,7 +1398,7 @@ class ClassificationSchemeComboBox(QComboBox):
         model.setClassificationScheme(classification)
         self.setModel(model)
 
-    def classIndexFromValue(self, value)->int:
+    def classIndexFromValue(self, value) -> int:
         """
         Returns the index
         :param value:
@@ -1369,7 +1420,7 @@ class ClassificationSchemeComboBox(QComboBox):
         super(ClassificationSchemeComboBox, self).setModel(model)
         self.mModel = model
 
-    def classificationScheme(self)->ClassificationScheme:
+    def classificationScheme(self) -> ClassificationScheme:
         """
         Returns the ClassificationScheme
         :return: ClassificationScheme
@@ -1383,7 +1434,7 @@ class ClassificationSchemeComboBox(QComboBox):
         """
         self.mModel.setClassificationScheme(classificationScheme)
 
-    def currentClassInfo(self)->ClassInfo:
+    def currentClassInfo(self) -> ClassInfo:
         """
         Returns the currently selected ClassInfo
         :return: ClassInfo
@@ -1394,43 +1445,82 @@ class ClassificationSchemeComboBox(QComboBox):
             classInfo = self.itemData(i, role=Qt.UserRole)
         return classInfo
 
-class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationscheme.ui')):
+    def setCurrentClassInfo(self, classInfo: ClassInfo) -> bool:
+        """
+        Sets the current ClassInfo
+        :param classInfo: ClassInfo
+        :return: bool, True, if class was found and set.
+        """
+        for i in range(self.count()):
+            if self.itemData(i, role=Qt.UserRole) == classInfo:
+                self.setCurrentIndex(i)
+                return True
+        return False
+
+class ClassificationSchemeWidget(QWidget):
 
     sigValuesChanged = pyqtSignal()
 
-    def __init__(self, parent=None, classificationScheme=None):
+    def __init__(self, parent=None, classificationScheme:ClassificationScheme=None):
         super(ClassificationSchemeWidget, self).__init__(parent)
-        self.setupUi(self)
+        pathUi = pathlib.Path(__file__).parent / 'classificationscheme.ui'
+        loadUi(pathUi, self)
 
         self.mScheme = ClassificationScheme()
+        self.mScheme.sigClassesAdded.connect(self.validateButtons)
+        self.mScheme.sigClassesRemoved.connect(self.validateButtons)
         if classificationScheme is not None:
             self.setClassificationScheme(classificationScheme)
-
-
-
-
+        self.mScheme.sigIsEditableChanged.connect(self.onIsEditableChanged)
         assert isinstance(self.tableClassificationScheme, QTableView)
-        #self.tableClassificationScheme.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         self.tableClassificationScheme.setModel(self.mScheme)
         self.tableClassificationScheme.doubleClicked.connect(self.onTableDoubleClick)
         self.tableClassificationScheme.resizeColumnsToContents()
         self.selectionModel = QItemSelectionModel(self.mScheme)
-        self.selectionModel.selectionChanged.connect(self.onSelectionChanged)
-        self.onSelectionChanged()  # enable/disable widgets depending on a selection
+        self.selectionModel.selectionChanged.connect(self.validateButtons)
+
         self.tableClassificationScheme.setSelectionModel(self.selectionModel)
 
         self.initActions()
+        self.setIsEditable(True)
+        self.validateButtons()  # enable/disable widgets depending on a selection and state of classification scheme
 
-    def onCopyClasses(self):
+    def isEditable(self) -> bool:
+        return self.mScheme.isEditable()
 
-        classes = self.selectedClasses()
+    def setIsEditable(self, b:bool):
+        self.mScheme.setIsEditable(b)
+
+    def onIsEditableChanged(self, b:bool):
+
+        # hide/show buttons to edit the scheme
+        setE = True
+        setV = True
+
+        buttons = [self.btnAddClasses, self.btnLoadClasses, self.btnPasteClasses, self.btnRemoveClasses]
+
+        if setE:
+            for btn in buttons:
+                btn.setEnabled(b)
+
+                a = btn.defaultAction()
+                if isinstance(a, QAction):
+                    a.setEnabled(b)
+
+        if setV:
+            for btn in buttons:
+                btn.setVisible(b)
+
+
+    def copyClassesToClipboard(self, vector_layer:bool = False):
+        classes = self.selectedClasses(allIfNone=True)
         if len(classes) == 0:
             return
         cs = ClassificationScheme()
         cs.insertClasses(classes)
         cb = QApplication.clipboard()
         assert isinstance(cb, QClipboard)
-        cb.setMimeData(cs.mimeData(None))
+        cb.setMimeData(cs.mimeData(None, vector_layer=vector_layer))
 
     def onPasteClasses(self):
         cb = QApplication.clipboard()
@@ -1442,8 +1532,7 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
             self.mScheme.insertClasses(cs[:])
 
     def onSaveClasses(self):
-
-        classes = self.selectedClasses()
+        classes = self.selectedClasses(allIfNone=True)
         if len(classes) == 0:
             return
 
@@ -1483,7 +1572,7 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
             self.mScheme.insertClasses(cs[:])
         pass
 
-    def onLoadClasses(self, mode:str):
+    def onLoadClasses(self, mode: str):
         """
         Opens a dialog to add ClassInfos from other sources, like raster images, text files and QgsMapLayers.
         :param mode: 'raster', 'layer', 'textfile'
@@ -1497,7 +1586,6 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
                 cs = ClassificationScheme.fromRasterImage(path)
                 if isinstance(cs, ClassificationScheme):
                     self.mScheme.insertClasses(cs[:])
-
 
         if mode == 'layer':
             possibleLayers = findMapLayersWithClassInfo()
@@ -1539,13 +1627,14 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
 
         m = QMenu('Load classes')
         m.setToolTip('Load classes ...')
-        a = m.addAction('Load from raster')
-        a.triggered.connect(lambda : self.onLoadClasses('raster'))
-        a = m.addAction('Load from map layer')
-        a.triggered.connect(lambda : self.onLoadClasses('layer'))
-        a = m.addAction('Load from other textfile')
-        a.triggered.connect(lambda : self.onLoadClasses('textfile'))
+        self.actionLoadFromRasterFile.triggered.connect(lambda: self.onLoadClasses('raster'))
+        m.addAction(self.actionLoadFromRasterFile)
 
+        self.actionLoadFromMapLayer.triggered.connect(lambda: self.onLoadClasses('layer'))
+        m.addAction(self.actionLoadFromMapLayer)
+
+        self.actionLoadfromTextFile.triggered.connect(lambda: self.onLoadClasses('textfile'))
+        m.addAction(self.actionLoadfromTextFile)
 
         parent = self.parent()
         if isinstance(parent, ClassificationSchemeEditorConfigWidget):
@@ -1559,14 +1648,13 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
                 a.triggered.connect(lambda _, lyr=layer, f=idx: self.onLoadClassesFromField(lyr, idx))
 
                 if isinstance(layer.renderer(), QgsCategorizedSymbolRenderer):
-                    a = m.addAction('Current Symbols'.format(layer.name()))
+                    a = m.addAction('Current Renderer'.format(layer.name()))
                     a.triggered.connect(lambda _, lyr=layer: self.onLoadClassesFromRenderer(lyr))
-
 
         self.btnLoadClasses.setMenu(m)
 
         self.actionRemoveClasses.triggered.connect(self.removeSelectedClasses)
-        self.actionAddClasses.triggered.connect(lambda : self.createClasses(1))
+        self.actionAddClasses.triggered.connect(lambda: self.createClasses(1))
 
         self.actionSaveClasses.setIcon(QIcon(r'://images/themes/default/mActionFileSaveAs.svg'))
         self.actionSaveClasses.triggered.connect(self.onSaveClasses)
@@ -1575,12 +1663,20 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
         self.actionPasteClasses.setIcon(QIcon(r'://images/themes/default/mActionEditPaste.svg'))
         self.actionPasteClasses.triggered.connect(self.onPasteClasses)
 
-        self.actionCopyClasses.setIcon(QIcon(r'://images/themes/default/mActionEditCopy.svg'))
-        self.actionCopyClasses.triggered.connect(self.onCopyClasses)
+
 
         self.btnSaveClasses.setDefaultAction(self.actionSaveClasses)
         self.btnRemoveClasses.setDefaultAction(self.actionRemoveClasses)
         self.btnAddClasses.setDefaultAction(self.actionAddClasses)
+
+        self.actionCopyClasses.triggered.connect(lambda *args: self.copyClassesToClipboard(vector_layer=False))
+        self.actionCopyToVectorLayer.triggered.connect(lambda *args: self.copyClassesToClipboard(vector_layer=True))
+        self.actionCopyToRasterLayer.triggered.connect(lambda *args: self.copyClassesToClipboard(vector_layer=False))
+        m = QMenu('Copy classes')
+        m.addAction(self.actionCopyToVectorLayer)
+        m.addAction(self.actionCopyToRasterLayer)
+
+        self.btnCopyClasses.setMenu(m)
         self.btnCopyClasses.setDefaultAction(self.actionCopyClasses)
         self.btnPasteClasses.setDefaultAction(self.actionPasteClasses)
 
@@ -1601,25 +1697,39 @@ class ClassificationSchemeWidget(QWidget, loadClassificationUI('classificationsc
                                       'Set color for "{}"'.format(classInfo.name()))
             model.setData(idx, c, role=Qt.EditRole)
 
-    def onSelectionChanged(self, *args):
-        b = self.selectionModel is not None and len(self.selectionModel.selectedRows()) > 0
+    def validateButtons(self, *args):
+        n = len(self.selectionModel.selectedRows())
+
+        self.actionRemoveClasses.setEnabled(n > 0)
+
+        infix = '{} selected class(es)'.format(n) if n > 0 else 'all classes'
+
+        self.actionRemoveClasses.setToolTip('Remove {}'.format(infix))
+        self.actionCopyClasses.setToolTip('Copy {}'.format(infix))
+        self.actionSaveClasses.setToolTip('Save {}'.format(infix))
+
+        b = len(self.mScheme) > 0
         self.actionRemoveClasses.setEnabled(b)
         self.actionCopyClasses.setEnabled(b)
         self.actionSaveClasses.setEnabled(b)
 
-    def createClasses(self, n):
+
+    def createClasses(self, n) -> typing.List[ClassInfo]:
         self.mScheme.createClasses(n)
 
-
-
-
-    def selectedClasses(self)->list:
+    def selectedClasses(self, allIfNone:bool=False) -> typing.List[ClassInfo]:
         """
         Returns the list of selected ClassInfos
         :return: [list-of-ClassInfo]
+        :param allIfNone: if True, returns all classes in case none is selected.
+        :return: [list-of-ClassInfo]
+        :rtype:
         """
-        indices = reversed(self.selectionModel.selectedRows())
-        return [self.mScheme.index2ClassInfo(idx) for idx in indices]
+        indices = list(reversed(self.selectionModel.selectedRows()))
+        if len(indices) == 0 and allIfNone:
+            return self.mScheme[:]
+        else:
+            return [self.mScheme.index2ClassInfo(idx) for idx in indices]
 
     def removeSelectedClasses(self):
         classes = self.selectedClasses()
@@ -1728,7 +1838,7 @@ class ClassificationSchemeEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.valueChanged.emit(self.value())
         s = ""
 
-    def valid(self, *args, **kwargs)->bool:
+    def valid(self, *args, **kwargs) -> bool:
         return isinstance(self.mComboBox, ClassificationSchemeComboBox)
 
     def value(self, *args, **kwargs):
@@ -1775,7 +1885,7 @@ class ClassificationSchemeEditorConfigWidget(QgsEditorConfigWidget):
         self.mLastConfig = {}
 
 
-    def config(self, *args, **kwargs)->dict:
+    def config(self, *args, **kwargs) -> dict:
         return classSchemeToConfig(self.mSchemeWidget.classificationScheme())
 
     def setConfig(self, config:dict):
@@ -1787,12 +1897,12 @@ class ClassificationSchemeEditorConfigWidget(QgsEditorConfigWidget):
     def resetClassificationScheme(self):
         self.setConfig(self.mLastConfig)
 
-def classSchemeToConfig(classScheme:ClassificationScheme)->dict:
+def classSchemeToConfig(classScheme:ClassificationScheme) -> dict:
     """Converts a ClassificationScheme into a dictionary that can be used in an QgsEditorWidgetSetup"""
     config = {'classes': classScheme.json()}
     return config
 
-def classSchemeFromConfig(conf:dict)->ClassificationScheme:
+def classSchemeFromConfig(conf:dict) -> ClassificationScheme:
     """
     Converts a configuration dictionary into a ClassificationScheme.
     :param conf: dict
@@ -1815,7 +1925,7 @@ class ClassificationSchemeWidgetFactory(QgsEditorWidgetFactory):
 
         self.mConfigurations = {}
 
-    def configWidget(self, layer:QgsVectorLayer, fieldIdx:int, parent=QWidget)->ClassificationSchemeEditorConfigWidget:
+    def configWidget(self, layer:QgsVectorLayer, fieldIdx:int, parent=QWidget) -> ClassificationSchemeEditorConfigWidget:
         """
         Returns a SpectralProfileEditorConfigWidget
         :param layer: QgsVectorLayer
@@ -1843,7 +1953,7 @@ class ClassificationSchemeWidgetFactory(QgsEditorWidgetFactory):
         """
         return (layer.id(), fieldIdx)
 
-    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget)->ClassificationSchemeEditorWidgetWrapper:
+    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget) -> ClassificationSchemeEditorWidgetWrapper:
         """
         Create a ClassificationSchemeEditorWidgetWrapper
         :param layer: QgsVectorLayer
@@ -1874,7 +1984,7 @@ class ClassificationSchemeWidgetFactory(QgsEditorWidgetFactory):
             conf = {}
         return conf
 
-    def fieldScore(self, vl:QgsVectorLayer, fieldIdx:int)->int:
+    def fieldScore(self, vl:QgsVectorLayer, fieldIdx:int) -> int:
         """
         This method allows disabling this editor widget type for a certain field.
         0: not supported: none String fields

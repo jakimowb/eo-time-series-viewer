@@ -31,47 +31,10 @@ import pickle
 
 from qgis.core import *
 
-from .spectrallibraries import FIELD_VALUES, decodeProfileValueDict
+from .core import FIELD_VALUES, decodeProfileValueDict
 
 QGS_FUNCTION_GROUP = "Spectral Libraries"
-"""
-@qgsfunction(0, QGS_FUNCTION_GROUP)
-def plotStyleSymbolFillColor(values, feature, parent):
-    if isinstance(feature, QgsFeature):
-        i = feature.fieldNameIndex(FIELD_STYLE)
-        if i >= 0:
-            style = pickle.loads(feature.attribute(i))
-            if isinstance(style, PlotStyle):
-                r,g,b,a = style.markerBrush.color().getRgb()
-                return '{},{},{},{}'.format(r,g,b, a)
 
-    return None
-
-@qgsfunction(0, "Spectral Libraries")
-def plotStyleSymbol(values, feature, parent):
-    if isinstance(feature, QgsFeature):
-        i = feature.fieldNameIndex(FIELD_STYLE)
-        if i >= 0:
-            style = pickle.loads(feature.attribute(i))
-            if isinstance(style, PlotStyle):
-                symbol = style.markerSymbol
-
-                qgisSymbolString =  MARKERSYMBOLS2QGIS_SYMBOLS.get(symbol)
-                if isinstance(qgisSymbolString, str):
-                    return qgisSymbolString
-
-    return None
-
-@qgsfunction(0, QGS_FUNCTION_GROUP)
-def plotStyleSymbolSize(values, feature, parent):
-    if isinstance(feature, QgsFeature):
-        i = feature.fieldNameIndex(FIELD_STYLE)
-        if i >= 0:
-            style = pickle.loads(feature.attribute(i))
-            if isinstance(style, PlotStyle):
-                return style.markerSize
-    return None
-"""
 @qgsfunction(0, QGS_FUNCTION_GROUP)
 def spectralValues(values, feature, parent):
     """

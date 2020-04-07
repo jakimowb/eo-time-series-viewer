@@ -3,7 +3,7 @@
 # noinspection PyPep8Naming
 
 
-import os, pickle, copy
+import os, pickle, copy, enum
 
 from collections import OrderedDict
 
@@ -128,6 +128,8 @@ class OptionListModel(QAbstractListModel):
     def insertOptions(self, options, i=None):
         if options is None:
             return
+        elif isinstance(options, enum.Enum):
+            options = [Option(e.value, name=str(e.name)) for e in options]
         if not isinstance(options, list):
             options = [options]
         assert isinstance(options, list)
@@ -149,7 +151,7 @@ class OptionListModel(QAbstractListModel):
             self.sigOptionsInserted.emit(options)
 
 
-    def o2o(self,  value):
+    def o2o(self, value):
         if not isinstance(value, Option):
             value = Option(value, '{}'.format(value))
         return value
