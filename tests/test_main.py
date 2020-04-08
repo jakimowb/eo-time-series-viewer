@@ -117,7 +117,6 @@ class TestMain(EOTSVTestCase):
 
         self.showGui(TSV)
 
-
     def test_AboutDialog(self):
 
         from eotimeseriesviewer.main import AboutDialogUI

@@ -195,7 +195,7 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
                     return f
 
                 if role == Qt.DecorationRole:
-                    return QIcon(':/timeseriesviewer/icons/icon.svg')
+                    return QIcon(':/eotimeseriesviewer/icons/icon.svg')
 
         return super(MapViewLayerTreeModel, self).data(index, role=role)
 
@@ -2004,9 +2004,9 @@ class MapViewDock(QgsDockWidget):
             if item == mapView:
 
                 if mapView.isVisible():
-                    icon = QIcon(":/timeseriesviewer/icons/mapview.svg")
+                    icon = QIcon(":/eotimeseriesviewer/icons/mapview.svg")
                 else:
-                    icon = QIcon(":/timeseriesviewer/icons/mapviewHidden.svg")
+                    icon = QIcon(":/eotimeseriesviewer/icons/mapviewHidden.svg")
 
                 self.toolBox.setItemIcon(i, icon)
                 self.toolBox.setItemText(i, 'Map View {} "{}"'.format(numMV, mapView.title()))

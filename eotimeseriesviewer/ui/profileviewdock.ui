@@ -126,7 +126,7 @@
           </property>
           <property name="icon">
            <iconset resource="eotsv_resources.qrc">
-            <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile2D.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile2D.svg</iconset>
+            <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile2D.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile2D.svg</iconset>
           </property>
          </item>
          <item>
@@ -138,7 +138,7 @@
           </property>
           <property name="icon">
            <iconset resource="eotsv_resources.qrc">
-            <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile3D.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile3D.svg</iconset>
+            <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile3D.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile3D.svg</iconset>
           </property>
          </item>
          <item>
@@ -150,7 +150,7 @@
           </property>
           <property name="icon">
            <iconset resource="eotsv_resources.qrc">
-            <normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</normaloff>:/timeseriesviewer/icons/mActionOpenTable.svg</iconset>
+            <normaloff>:/eotimeseriesviewer/icons/mActionOpenTable.svg</normaloff>:/eotimeseriesviewer/icons/mActionOpenTable.svg</iconset>
           </property>
          </item>
         </widget>
@@ -779,7 +779,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionRefresh2D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Refresh 2D Plot</string>
@@ -791,7 +791,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionAddStyle2D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
     <string>Add 2D profile visualization</string>
@@ -803,7 +803,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionRemoveStyle2D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</iconset>
    </property>
    <property name="text">
     <string>Remove 2D profiles</string>
@@ -815,7 +815,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionLoadProfileRequest">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
    </property>
    <property name="text">
     <string>Select Profile</string>
@@ -827,7 +827,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionRefresh3D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Refresh 3D Plot</string>
@@ -851,7 +851,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionReset3DCamera">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
     <string>Reset 3D Camera</string>
@@ -860,7 +860,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionAddStyle3D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</iconset>
    </property>
    <property name="text">
     <string>Add 3D visualization</string>
@@ -872,7 +872,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionRemoveStyle3D">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</iconset>
    </property>
    <property name="text">
     <string>Remove 3D visualization</string>
@@ -884,7 +884,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionLoadTPFromOgr">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Load Coordinates</string>
@@ -896,7 +896,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionReset2DPlot">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
     <string>Reset 3D Plot</string>
@@ -908,7 +908,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionLoadMissingValues">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Load Missing Values</string>
@@ -920,7 +920,7 @@ background-color: rgb(0, 0, 0);</string>
   <action name="actionSaveTemporalProfiles">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/timeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionFileSaveAs.svg</normaloff>:/eotimeseriesviewer/icons/mActionFileSaveAs.svg</iconset>
    </property>
    <property name="text">
     <string>Save Temporal Profiles</string>

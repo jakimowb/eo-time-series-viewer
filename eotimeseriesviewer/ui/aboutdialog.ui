@@ -30,7 +30,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="eotsv_resources.qrc">
-    <normaloff>:/timeseriesviewer/icons/icon.svg</normaloff>:/timeseriesviewer/icons/icon.svg</iconset>
+    <normaloff>:/eotimeseriesviewer/icons/icon.svg</normaloff>:/eotimeseriesviewer/icons/icon.svg</iconset>
   </property>
   <property name="sizeGripEnabled">
    <bool>false</bool>
@@ -246,7 +246,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="eotsv_resources.qrc">:/timeseriesviewer/icons/IconTimeSeries.svg</pixmap>
+                <pixmap resource="eotsv_resources.qrc">:/eotimeseriesviewer/icons/IconTimeSeries.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -344,7 +344,7 @@
                 <string/>
                </property>
                <property name="pixmap">
-                <pixmap resource="eotsv_resources.qrc">:/timeseriesviewer/icons/logo_hub.svg</pixmap>
+                <pixmap resource="eotsv_resources.qrc">:/eotimeseriesviewer/icons/logo_hub.svg</pixmap>
                </property>
                <property name="scaledContents">
                 <bool>true</bool>
@@ -385,7 +385,7 @@ p, li { white-space: pre-wrap; }
              </property>
              <property name="source">
               <url>
-               <string>qrc:/timeseriesviewer/ABOUT.txt</string>
+               <string>qrc:/eotimeseriesviewer/ABOUT.txt</string>
               </url>
              </property>
              <property name="openExternalLinks">
@@ -456,7 +456,7 @@ p, li { white-space: pre-wrap; }
   <action name="actionShowCreditsQgis">
    <property name="icon">
     <iconset>
-     <normaloff>:/timeseriesviewer/icons/qgis-icon.svg</normaloff>:/timeseriesviewer/icons/qgis-icon.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/qgis-icon.svg</normaloff>:/eotimeseriesviewer/icons/qgis-icon.svg</iconset>
    </property>
    <property name="text">
     <string>showCreditsQgis</string>

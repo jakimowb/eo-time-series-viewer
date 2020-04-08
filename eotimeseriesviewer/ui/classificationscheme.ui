@@ -26,7 +26,7 @@
        </property>
        <property name="icon">
         <iconset resource="eotsv_resources.qrc">
-         <normaloff>:/timeseriesviewer/icons/copyright_label.svg</normaloff>:/timeseriesviewer/icons/copyright_label.svg</iconset>
+         <normaloff>:/eotimeseriesviewer/icons/copyright_label.svg</normaloff>:/eotimeseriesviewer/icons/copyright_label.svg</iconset>
        </property>
       </widget>
      </item>
@@ -37,7 +37,7 @@
        </property>
        <property name="icon">
         <iconset resource="eotsv_resources.qrc">
-         <normaloff>:/timeseriesviewer/icons/mActionRemove.svg</normaloff>:/timeseriesviewer/icons/mActionRemove.svg</iconset>
+         <normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemove.svg</iconset>
        </property>
       </widget>
      </item>
@@ -48,7 +48,7 @@
        </property>
        <property name="icon">
         <iconset resource="eotsv_resources.qrc">
-         <normaloff>:/timeseriesviewer/icons/mActionAdd.svg</normaloff>:/timeseriesviewer/icons/mActionAdd.svg</iconset>
+         <normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</normaloff>:/eotimeseriesviewer/icons/mActionAdd.svg</iconset>
        </property>
       </widget>
      </item>

@@ -370,7 +370,7 @@
   <action name="actionAddSourceStack">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
     <string>AddSourceStack</string>
@@ -379,7 +379,7 @@
   <action name="actionRemoveSourceStack">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
    </property>
    <property name="text">
     <string>removeSourceStack</string>

@@ -2074,9 +2074,9 @@ class TimeSeries(QAbstractItemModel):
 
                     b = isinstance(ext, SpatialExtent) and ext.intersects(self.mCurrentSpatialExtent)
                     if b:
-                        return QIcon(r':/timeseriesviewer/icons/mapview.svg')
+                        return QIcon(r':/eotimeseriesviewer/icons/mapview.svg')
                     else:
-                        return QIcon(r':/timeseriesviewer/icons/mapviewHidden.svg')
+                        return QIcon(r':/eotimeseriesviewer/icons/mapviewHidden.svg')
                 else:
                     print(ext)
                     return None

@@ -38,10 +38,6 @@ if __name__ == "__main__":
     to_update = ['qps']
 
     updateRemotes(to_update)
-
-    if 'qps' in to_update:
-        import scripts
-        path = os.path.join(DIR_REPO, r'eotimeseriesviewer/externals/qps/qpsresources.qrc')
-        scripts.compileResourceFile(path)
-
+    import scripts.compile_resourcefiles
+    scripts.compile_resourcefiles.compileEOTSVResourceFiles()
     exit(0)

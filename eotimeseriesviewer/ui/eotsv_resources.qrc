@@ -1,5 +1,5 @@
 <RCC>
-  <qresource prefix="timeseriesviewer">
+  <qresource prefix="eotimeseriesviewer">
     <file>icons/mActionArrowLeftEnd.svg</file>
     <file>icons/mActionArrowRightEnd.svg</file>
     <file>icons/qgsMapCenter.svg</file>

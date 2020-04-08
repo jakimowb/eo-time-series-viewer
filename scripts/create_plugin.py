@@ -125,6 +125,7 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
     files.append(DIR_REPO / '__init__.py')
     files.append(DIR_REPO / 'CHANGELOG.rst')
+    files.append(DIR_REPO / 'ABOUT.html')
     files.append(DIR_REPO / 'CONTRIBUTORS.rst')
     files.append(DIR_REPO / 'LICENSE.md')
     files.append(DIR_REPO / 'requirements.txt')
@@ -158,6 +159,7 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
 
     createCHANGELOG(PLUGIN_DIR)
 
+
     # 5. create a zip
     print('Create zipfile...')
     from eotimeseriesviewer.utils import zipdir
@@ -185,20 +187,12 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
 
     print('Finished')
 
-
-def createCHANGELOG(dirPlugin):
+def rst2html(pathMD: pathlib.Path) -> str:
     """
-    Reads the CHANGELOG.rst and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
-    :return:
+    Converst a rst file to html
     """
-
-    pathMD = os.path.join(DIR_REPO, 'CHANGELOG.rst')
-    pathCL = os.path.join(dirPlugin, 'CHANGELOG')
-
-    os.makedirs(os.path.dirname(pathCL), exist_ok=True)
-    assert os.path.isfile(pathMD)
-    import sphinx.transforms
     import docutils.core
+    assert pathMD.is_file()
 
     overrides = {'stylesheet': None,
                  'embed_stylesheet': False,
@@ -236,15 +230,23 @@ def createCHANGELOG(dirPlugin):
         line = line.strip()
         if line != '':
             html_cleaned.append(line)
+    return html
+
+def createCHANGELOG(dirPlugin:pathlib.Path):
+    """
+    Reads the CHANGELOG.rst and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
+    :return:
+    """
+
+    pathMD = DIR_REPO / 'CHANGELOG.rst'
+    pathCL = dirPlugin / 'CHANGELOG'
+    os.makedirs(pathCL.parent, exist_ok=True)
+
     # make html compact
-
+    html_cleaned = rst2html(pathMD)
     with open(pathCL, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(html_cleaned))
+        f.write(''.join(html_cleaned))
 
-    if False:
-        with open(pathCL+'.html', 'w', encoding='utf-8') as f:
-            f.write('\n'.join(html_cleaned))
-    s = ""
 
 
 if __name__ == "__main__":

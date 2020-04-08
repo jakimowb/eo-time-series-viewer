@@ -27,7 +27,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="eotsv_resources.qrc">
-    <normaloff>:/timeseriesviewer/icons/mapview.svg</normaloff>:/timeseriesviewer/icons/mapview.svg</iconset>
+    <normaloff>:/eotimeseriesviewer/icons/mapview.svg</normaloff>:/eotimeseriesviewer/icons/mapview.svg</iconset>
   </property>
   <property name="frameShape">
    <enum>QFrame::StyledPanel</enum>
@@ -72,7 +72,7 @@
        </property>
        <property name="icon">
         <iconset resource="eotsv_resources.qrc">
-         <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
+         <normaloff>:/eotimeseriesviewer/icons/mapviewHidden.svg</normaloff>:/eotimeseriesviewer/icons/mapviewHidden.svg</iconset>
        </property>
        <property name="checkable">
         <bool>true</bool>
@@ -110,7 +110,7 @@
        </property>
        <property name="icon">
         <iconset resource="eotsv_resources.qrc">
-         <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
+         <normaloff>:/eotimeseriesviewer/icons/crosshair.svg</normaloff>:/eotimeseriesviewer/icons/crosshair.svg</iconset>
        </property>
        <property name="checkable">
         <bool>true</bool>
@@ -248,7 +248,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</normaloff>:/timeseriesviewer/icons/mapviewHidden.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mapviewHidden.svg</normaloff>:/eotimeseriesviewer/icons/mapviewHidden.svg</iconset>
    </property>
    <property name="text">
     <string>Hide Map View</string>
@@ -266,7 +266,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/crosshair.svg</normaloff>:/eotimeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
     <string>Show/hide Crosshair</string>
@@ -278,7 +278,7 @@
   <action name="actionSetCrosshairStyle">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/symbology.svg</normaloff>:/timeseriesviewer/icons/symbology.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/symbology.svg</normaloff>:/eotimeseriesviewer/icons/symbology.svg</iconset>
    </property>
    <property name="text">
     <string>Set crosshair style</string>

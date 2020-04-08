@@ -67,11 +67,6 @@ class AboutDialogUI(QDialog):
     def __init__(self, parent=None):
         """Constructor."""
         super(AboutDialogUI, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
         loadUi(DIR_UI / 'aboutdialog.ui', self)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.init()
@@ -96,8 +91,8 @@ class AboutDialogUI(QDialog):
 
         # page Changed
         self.tbAbout.setHtml(readTextFile(PATH_ABOUT))
-        self.tbChanges.setHtml(readTextFile(PATH_CHANGELOG + '.html'))
-        self.tbLicense.setHtml(readTextFile(os.path.splitext(PATH_LICENSE)[0] + '.html'))
+        self.tbChanges.setHtml(readTextFile(PATH_CHANGELOG))
+        self.tbLicense.setHtml(readTextFile(PATH_LICENSE))
 
 
     def setAboutTitle(self, suffix=None):

@@ -49,7 +49,7 @@
         </property>
         <property name="icon">
          <iconset resource="eotsv_resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+          <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -66,7 +66,7 @@
         </property>
         <property name="icon">
          <iconset>
-          <normaloff>:/timeseriesviewer/icons/mActionRefresh.png</normaloff>:/timeseriesviewer/icons/mActionRefresh.png</iconset>
+          <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.png</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.png</iconset>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -241,7 +241,7 @@
   <action name="actionRequestCursorLocation">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Select Cursor Location</string>
@@ -250,7 +250,7 @@
   <action name="actionReload">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Reload</string>

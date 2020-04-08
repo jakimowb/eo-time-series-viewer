@@ -968,7 +968,7 @@ class MapCanvas(QgsMapCanvas):
             sub = m.addMenu(name)
 
             if isinstance(mapLayer, SensorProxyLayer):
-                sub.setIcon(QIcon(':/timeseriesviewer/icons/icon.svg'))
+                sub.setIcon(QIcon(':/eotimeseriesviewer/icons/icon.svg'))
             elif isinstance(mapLayer, QgsRasterLayer):
                 sub.setIcon(QIcon(''))
             elif isinstance(mapLayer, QgsVectorLayer):

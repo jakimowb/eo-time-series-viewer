@@ -244,7 +244,7 @@
   <action name="actionImportSpeclib">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/speclib_add.svg</normaloff>:/timeseriesviewer/icons/speclib_add.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/speclib_add.svg</normaloff>:/eotimeseriesviewer/icons/speclib_add.svg</iconset>
    </property>
    <property name="text">
     <string>importSpeclib</string>
@@ -256,7 +256,7 @@
   <action name="actionSaveSpeclib">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/speclib_save.svg</normaloff>:/timeseriesviewer/icons/speclib_save.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/speclib_save.svg</normaloff>:/eotimeseriesviewer/icons/speclib_save.svg</iconset>
    </property>
    <property name="text">
     <string>Save Spectral Library</string>
@@ -361,7 +361,7 @@
   <action name="actionSelectProfilesFromMap">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/pickrasterspectrum.svg</normaloff>:/timeseriesviewer/icons/pickrasterspectrum.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/pickrasterspectrum.svg</normaloff>:/eotimeseriesviewer/icons/pickrasterspectrum.svg</iconset>
    </property>
    <property name="text">
     <string>Select Profiles from Map</string>
@@ -376,7 +376,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/profile2speclib.svg</normaloff>:/timeseriesviewer/icons/profile2speclib.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/profile2speclib.svg</normaloff>:/eotimeseriesviewer/icons/profile2speclib.svg</iconset>
    </property>
    <property name="text">
     <string>Save current profiles</string>
@@ -391,7 +391,7 @@
   <action name="actionReload">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Reload the table</string>
@@ -529,7 +529,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/profile2speclib_auto.svg</normaloff>:/timeseriesviewer/icons/profile2speclib_auto.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/profile2speclib_auto.svg</normaloff>:/eotimeseriesviewer/icons/profile2speclib_auto.svg</iconset>
    </property>
    <property name="text">
     <string>AddCurrentProfilesAutomatically</string>

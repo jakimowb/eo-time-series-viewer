@@ -60,7 +60,7 @@
         </property>
         <property name="icon">
          <iconset resource="eotsv_resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
+          <normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -80,7 +80,7 @@
         </property>
         <property name="icon">
          <iconset resource="eotsv_resources.qrc">
-          <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
+          <normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</iconset>
         </property>
         <property name="autoRaise">
          <bool>true</bool>
@@ -591,7 +591,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
   <action name="actionRemoveMapView">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Remove view</string>
@@ -603,7 +603,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
   <action name="actionAddMapView">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
     <string>ApplyStyles</string>

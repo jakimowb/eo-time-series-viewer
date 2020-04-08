@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="eotsv_resources.qrc">
-    <normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</normaloff>:/timeseriesviewer/icons/IconTimeSeries.svg</iconset>
+    <normaloff>:/eotimeseriesviewer/icons/IconTimeSeries.svg</normaloff>:/eotimeseriesviewer/icons/IconTimeSeries.svg</iconset>
   </property>
   <property name="toolButtonStyle">
    <enum>Qt::ToolButtonFollowStyle</enum>
@@ -224,7 +224,7 @@
   <action name="actionMoveCenter">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</normaloff>:/timeseriesviewer/icons/mActionZoomPoint.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomPoint.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomPoint.svg</iconset>
    </property>
    <property name="text">
     <string>SelectCenter</string>
@@ -236,7 +236,7 @@
   <action name="actionSelectCRS">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/CRS.svg</normaloff>:/timeseriesviewer/icons/CRS.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/CRS.svg</normaloff>:/eotimeseriesviewer/icons/CRS.svg</iconset>
    </property>
    <property name="text">
     <string>Select CRS</string>
@@ -248,7 +248,7 @@
   <action name="actionLoadTS">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</iconset>
    </property>
    <property name="text">
     <string>Load time series</string>
@@ -260,7 +260,7 @@
   <action name="actionAddTSD">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/timeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
     <string>Add images</string>
@@ -272,7 +272,7 @@
   <action name="actionRemoveTSD">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveTSD.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveTSD.svg</iconset>
    </property>
    <property name="text">
     <string>Remove images</string>
@@ -284,7 +284,7 @@
   <action name="actionSaveTS">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</normaloff>:/timeseriesviewer/icons/mActionSaveTS.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionSaveTS.svg</normaloff>:/eotimeseriesviewer/icons/mActionSaveTS.svg</iconset>
    </property>
    <property name="text">
     <string>Save time serie</string>
@@ -296,7 +296,7 @@
   <action name="actionAddMapView">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/timeseriesviewer/icons/mActionAddMapView.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Add Map View</string>
@@ -308,7 +308,7 @@
   <action name="actionRemoveMapView">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Remove Map View</string>
@@ -320,7 +320,7 @@
   <action name="actionAddTSExample">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</normaloff>:/timeseriesviewer/icons/mActionAddTS.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</iconset>
    </property>
    <property name="text">
     <string>Add example</string>
@@ -332,7 +332,7 @@
   <action name="actionAbout">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/metadata.svg</normaloff>:/eotimeseriesviewer/icons/metadata.svg</iconset>
    </property>
    <property name="text">
     <string>About</string>
@@ -349,7 +349,7 @@
   <action name="actionClearTS">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</normaloff>:/timeseriesviewer/icons/mActionRemoveTS.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveTS.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveTS.svg</iconset>
    </property>
    <property name="text">
     <string>Clear Time Series</string>
@@ -369,7 +369,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/timeseriesviewer/icons/mActionZoomIn.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomIn.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom in</string>
@@ -384,7 +384,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/timeseriesviewer/icons/mActionZoomOut.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomOut.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom out</string>
@@ -399,7 +399,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/timeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
     <string>Max. Extent</string>
@@ -414,7 +414,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/timeseriesviewer/icons/mActionZoomActual.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomActual.svg</iconset>
    </property>
    <property name="text">
     <string>Pixel Scale</string>
@@ -429,7 +429,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionPan.svg</normaloff>:/timeseriesviewer/icons/mActionPan.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionPan.svg</normaloff>:/eotimeseriesviewer/icons/mActionPan.svg</iconset>
    </property>
    <property name="text">
     <string>Pan Map</string>
@@ -446,7 +446,7 @@
   <action name="actionIdentifyCursorLocationValues">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Identify</string>
@@ -458,7 +458,7 @@
   <action name="actionClearLabelList">
    <property name="icon">
     <iconset>
-     <normaloff>:/timeseriesviewer/icons/mIconClose.svg</normaloff>:/timeseriesviewer/icons/mIconClose.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mIconClose.svg</normaloff>:/eotimeseriesviewer/icons/mIconClose.svg</iconset>
    </property>
    <property name="text">
     <string>Clear labels</string>
@@ -470,7 +470,7 @@
   <action name="actionCopyLabelList">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/timeseriesviewer/icons/mActionEditCopy.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/eotimeseriesviewer/icons/mActionEditCopy.svg</iconset>
    </property>
    <property name="text">
     <string>Copy labels</string>
@@ -482,7 +482,7 @@
   <action name="actionSettings">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/system.svg</normaloff>:/timeseriesviewer/icons/system.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/system.svg</normaloff>:/eotimeseriesviewer/icons/system.svg</iconset>
    </property>
    <property name="text">
     <string>Settings</string>
@@ -491,7 +491,7 @@
   <action name="actionCollectLabels">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</normaloff>:/timeseriesviewer/icons/mActionIdentify.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
     <string>Collect Labels</string>
@@ -503,7 +503,7 @@
   <action name="actionRefresh">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</normaloff>:/timeseriesviewer/icons/mActionRefresh.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
    </property>
    <property name="text">
     <string>Refresh Maps</string>
@@ -524,7 +524,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/crosshair.svg</normaloff>:/timeseriesviewer/icons/crosshair.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/crosshair.svg</normaloff>:/eotimeseriesviewer/icons/crosshair.svg</iconset>
    </property>
    <property name="text">
     <string>Show Crosshair</string>
@@ -533,7 +533,7 @@
   <action name="actionImportExtent">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</normaloff>:/timeseriesviewer/icons/mapExtentImport.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mapExtentImport.svg</normaloff>:/eotimeseriesviewer/icons/mapExtentImport.svg</iconset>
    </property>
    <property name="text">
     <string>Import extent</string>
@@ -545,7 +545,7 @@
   <action name="actionExportExtent">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</normaloff>:/timeseriesviewer/icons/mapExtentExport.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mapExtentExport.svg</normaloff>:/eotimeseriesviewer/icons/mapExtentExport.svg</iconset>
    </property>
    <property name="text">
     <string>Set extent</string>
@@ -557,7 +557,7 @@
   <action name="actionImportCenter">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</normaloff>:/timeseriesviewer/icons/mapCenterImport.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mapCenterImport.svg</normaloff>:/eotimeseriesviewer/icons/mapCenterImport.svg</iconset>
    </property>
    <property name="text">
     <string>Import center</string>
@@ -569,7 +569,7 @@
   <action name="actionExportCenter">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</normaloff>:/timeseriesviewer/icons/mapCenterExport.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mapCenterExport.svg</normaloff>:/eotimeseriesviewer/icons/mapCenterExport.svg</iconset>
    </property>
    <property name="text">
     <string>Set center</string>
@@ -593,7 +593,7 @@
   <action name="actionShowOnlineHelp">
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/metadata.svg</normaloff>:/timeseriesviewer/icons/metadata.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/metadata.svg</normaloff>:/eotimeseriesviewer/icons/metadata.svg</iconset>
    </property>
    <property name="text">
     <string>Help (online)</string>
@@ -679,7 +679,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/timeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
    </property>
    <property name="text">
     <string>TP</string>
@@ -691,7 +691,7 @@
    </property>
    <property name="icon">
     <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/timeseriesviewer/icons/qgsMapCenter.svg</normaloff>:/timeseriesviewer/icons/qgsMapCenter.svg</iconset>
+     <normaloff>:/eotimeseriesviewer/icons/qgsMapCenter.svg</normaloff>:/eotimeseriesviewer/icons/qgsMapCenter.svg</iconset>
    </property>
    <property name="text">
     <string>Sync. with QGIS map canvas </string>
