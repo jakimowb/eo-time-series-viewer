@@ -129,7 +129,6 @@ class TestMapTools(EOTSVTestCase):
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolSelect)
 
 
-
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)

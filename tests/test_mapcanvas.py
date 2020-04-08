@@ -80,7 +80,6 @@ class TestMapCanvas(EOTSVTestCase):
         menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
 
-
         if not os.environ.get('CI'):
             event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
             canvas.contextMenuEvent(event)

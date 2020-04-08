@@ -404,7 +404,6 @@ class TestMapVisualization(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    os.environ['CI'] = True
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)
 
