@@ -29,6 +29,7 @@ pipelines:
           - export PYTHONPATH="${PYTHONPATH}:$(pwd)"
           - python3 -m pip install -r requirements_dev.txt
           - python3 scripts/setup_repository.py
+          - set +e # remove or set -e to exit at first error
           - python3 -m coverage run --rcfile=.coveragec   tests/test_fileFormatLoading.py
           - python3 -m coverage run --rcfile=.coveragec --append  tests/test_inmemorydata.py
           - python3 -m coverage run --rcfile=.coveragec --append  tests/test_labeling.py

@@ -297,24 +297,17 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertIsInstance(m, MapCanvas)
         m.show()
 
-
     def test_virtualLayers(self):
-
         lyr = TestObjects.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
         VL = QgsVirtualLayerDefinition()
-        s = ""
-        self.assertTrue(1==1)
-
 
     def test_bandselection(self):
-
         lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
-
         wl, wlu = parseWavelength(lyr)
         self.assertIsInstance(wl, np.ndarray)
         self.assertIsInstance(wlu, str)
-        self.assertEqual(wlu, 'um')
+        self.assertEqual(wlu, 'μm')
         refWL = [0.49,  0.56,  0.66,  0.84,  1.65,  2.2]
 
         self.assertEqual(len(wl), len(refWL))
@@ -325,8 +318,6 @@ class TestMapVisualization(EOTSVTestCase):
         s = ""
 
     def test_renderer(self):
-
-
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')
 
         lyr = QgsRasterLayer(Img_2014_05_07_LC82270652014127LGN00_BOA)
