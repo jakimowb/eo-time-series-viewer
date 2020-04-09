@@ -850,6 +850,9 @@ class MapWidget(QFrame):
         self.mGrid.setContentsMargins(0, 0, 0, 0)
 
         self.mSyncLock = False
+        self.mSyncQGISMapCanvasCenter: bool = False
+        self.mLastQGISMapCanvasCenter: SpatialPoint = None
+        self.mLastEOTSVMapCanvasCenter: SpatialPoint = None
 
         self.mMaxNumberOfCachedLayers = 0
 
@@ -1024,6 +1027,9 @@ class MapWidget(QFrame):
         """
         Calls the timedRefresh() routine for all MapCanvases
         """
+        if self.mSyncQGISMapCanvasCenter:
+            self.syncQGISCanvasCenter()
+
         for c in self.mapCanvases():
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
@@ -1308,41 +1314,68 @@ class MapWidget(QFrame):
         """
         return self.mMapViews[:]
 
-    def syncQGISCanvasCenter(self, qgisChanged:bool):
+    def setSyncWithQGISMapCanvas(self, b: bool):
+        assert isinstance(b, bool)
+        self.mSyncQGISMapCanvasCenter = b
 
+    def syncQGISCanvasCenter(self):
         if self.mSyncLock:
             return
 
-        iface = qgis.utils.iface
-        assert isinstance(iface, QgisInterface)
 
-        c = iface.mapCanvas()
-        if not isinstance(c, QgsMapCanvas):
+        iface = qgis.utils.iface
+        if not isinstance(iface, QgisInterface):
             return
 
-        tsvCenter = self.spatialExtent().spatialCenter()
-        qgsCenter = SpatialExtent.fromMapCanvas(c).spatialCenter()
+        c = iface.mapCanvas()
+        if not isinstance(c, QgsMapCanvas) or len(self.mapCanvases()) == 0:
+            return
 
-        if qgisChanged:
-            # change EOTSV
-            if tsvCenter.crs().isValid():
-                self.mSyncLock = True
-                qgsCenter = qgsCenter.toCrs(tsvCenter.crs())
-                if isinstance(qgsCenter, SpatialPoint):
-                    self.setSpatialCenter(qgsCenter)
-                QApplication.processEvents()
-                self.mSyncLock = False
+        def mapTolerance(canvas: QgsMapCanvas) -> QgsVector:
+            m2p = canvas.mapSettings().mapToPixel()
+            return m2p.toMapCoordinates(1, 1) - m2p.toMapCoordinates(0, 0)
 
+        recentQGISCenter = SpatialPoint.fromMapCanvasCenter(c)
+        recentEOTSVCenter = self.spatialCenter()
 
+        if not isinstance(self.mLastQGISMapCanvasCenter, SpatialPoint):
+            self.mLastQGISMapCanvasCenter = SpatialPoint.fromMapCanvasCenter(c)
         else:
-            # change QGIS
-            if qgsCenter.crs().isValid():
-                self.mSyncLock = True
-                tsvCenter = tsvCenter.toCrs(qgsCenter.crs())
-                if isinstance(tsvCenter, SpatialPoint):
-                    c.setCenter(tsvCenter)
-                QApplication.processEvents()
-                self.mSyncLock = False
+            self.mLastEOTSVMapCanvasCenter = self.mLastEOTSVMapCanvasCenter.toCrs(c.mapSettings().destinationCrs())
+        if not isinstance(self.mLastEOTSVMapCanvasCenter, SpatialPoint):
+            self.mLastEOTSVMapCanvasCenter = self.spatialCenter()
+        else:
+            self.mLastEOTSVMapCanvasCenter = self.mLastEOTSVMapCanvasCenter.toCrs(self.crs())
+
+        shiftQGIS = recentQGISCenter - self.mLastQGISMapCanvasCenter
+        shiftEOTSV = recentEOTSVCenter - self.mLastEOTSVMapCanvasCenter
+        tolQGIS  = mapTolerance(c)
+        tolEOTS = mapTolerance(self.mapCanvases()[0])
+
+        shiftedQGIS = shiftQGIS.length() > tolQGIS.length()
+        shiftedEOTSV = shiftEOTSV.length() > tolEOTS.length()
+
+        if not (shiftedEOTSV or shiftedQGIS):
+            return
+
+        self.mSyncLock = True
+        if shiftedQGIS:
+            # apply change to EOTSV
+            self.mLastQGISMapCanvasCenter = recentQGISCenter
+            newCenterEOTSV = recentQGISCenter.toCrs(self.crs())
+            self.mLastEOTSVMapCanvasCenter = newCenterEOTSV
+            if isinstance(newCenterEOTSV, SpatialPoint):
+                self.setSpatialCenter(newCenterEOTSV)
+
+        elif shiftedEOTSV:
+            # apply change to QGIS
+            self.mLastEOTSVMapCanvasCenter = recentEOTSVCenter
+            newCenterQGIS = recentEOTSVCenter.toCrs(c.mapSettings().destinationCrs())
+            self.mLastQGISMapCanvasCenter = newCenterQGIS
+            if isinstance(newCenterQGIS, SpatialPoint):
+                c.setCenter(newCenterQGIS)
+
+        self.mSyncLock = False
 
     def _createMapCanvas(self)->MapCanvas:
         mapCanvas = MapCanvas()

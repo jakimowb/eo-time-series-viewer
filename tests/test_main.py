@@ -88,13 +88,13 @@ class TestMain(EOTSVTestCase):
         TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
-            QCoreApplication.processEvents(QEventLoop.AllEvents)
+            QCoreApplication.processEvents()
 
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
 
-        self.showGui(TSV.ui)
+        self.showGui([TSV.ui])
 
     def test_TimeSeriesViewerInvalidSource(self):
 

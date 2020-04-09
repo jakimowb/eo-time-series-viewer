@@ -1890,7 +1890,8 @@ class SpectralTemporalVisualization(QObject):
                     tssExtent = tss.spatialExtent()
                     for TP in TemporalProfiles:
                         assert isinstance(TP, TemporalProfile)
-                        if tssExtent.contains(TP.coordinate().toCrs(tssExtent.crs())):
+                        tpCoord = TP.coordinate().toCrs(tssExtent.crs())
+                        if isinstance(tpCoord, SpatialPoint) and tssExtent.contains(tpCoord):
                             intersectingTPs.append(TP)
 
                     if len(intersectingTPs) > 0:

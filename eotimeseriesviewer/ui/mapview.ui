@@ -178,7 +178,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../QGIS/images/images.qrc">
+        <iconset resource="../../../QGIS/images/images.qrc">
          <normaloff>:/images/themes/default/mActionDataSourceManager.svg</normaloff>:/images/themes/default/mActionDataSourceManager.svg</iconset>
        </property>
        <property name="checkable">
@@ -294,7 +294,7 @@
   </action>
   <action name="actionAddVectorLayer">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
@@ -306,7 +306,7 @@
   </action>
   <action name="actionAddRasterLayer">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAddRasterLayer.svg</normaloff>:/images/themes/default/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
@@ -351,7 +351,7 @@
   </action>
   <action name="actionAddMapLayer">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDataSourceManager.svg</normaloff>:/images/themes/default/mActionDataSourceManager.svg</iconset>
    </property>
    <property name="text">
@@ -371,7 +371,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
-  <include location="../../../../QGIS/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>

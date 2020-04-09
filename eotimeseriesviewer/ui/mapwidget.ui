@@ -248,7 +248,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../../../QGIS/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
   <include location="eotsv_resources.qrc"/>
  </resources>
  <connections/>

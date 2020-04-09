@@ -251,7 +251,8 @@ class SensorInstrument(QObject):
         from eotimeseriesviewer.tests import TestObjects
         import uuid
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
-        self.mMockupDS = TestObjects.createRasterDataset(path=path, nb=self.nb, eType=self.dataType, ns=2, nl=2)
+        drv: gdal.Driver = gdal.GetDriverByName('ENVI')
+        self.mMockupDS = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
         if self.wl is not None:
             self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
         if self.wlu is not None:
@@ -1017,101 +1018,6 @@ class TimeSeriesDate(QAbstractTableModel):
         return hash(self.id())
 
 
-class TimeSeriesTreeView(QTreeView):
-
-    sigMoveToDateRequest = pyqtSignal(TimeSeriesDate)
-
-    def __init__(self, parent=None):
-        super(TimeSeriesTreeView, self).__init__(parent)
-
-    def contextMenuEvent(self, event: QContextMenuEvent):
-        """
-        Creates and shows the QMenu
-        :param event: QContextMenuEvent
-        """
-
-        idx = self.indexAt(event.pos())
-        node = self.model().data(idx, role=Qt.UserRole)
-
-        menu = QMenu(self)
-
-        def setUri(paths):
-            urls = []
-            paths2 = []
-            for p in paths:
-                if os.path.isfile(p):
-                    url = QUrl.fromLocalFile(p)
-                    paths2.append(QDir.toNativeSeparators(p))
-                else:
-                    url = QUrl(p)
-                    paths2.append(p)
-                urls.append(url)
-            md = QMimeData()
-            md.setText('\n'.join(paths2))
-            md.setUrls(urls)
-
-            QApplication.clipboard().setMimeData(md)
-
-
-        if isinstance(node, TimeSeriesDate):
-            a = menu.addAction('Show map for {}'.format(node.date()))
-            a.setToolTip('Shows the map related to this time series date.')
-            a.triggered.connect(lambda _, tsd=node: self.sigMoveToDateRequest.emit(tsd))
-            menu.addSeparator()
-
-            a = menu.addAction('Copy path(s)')
-            a.triggered.connect(lambda _, paths=node.sourceUris(): setUri(paths))
-            a.setToolTip('Copy path to cliboard')
-
-        if isinstance(node, TimeSeriesSource):
-            a = menu.addAction('Copy path')
-            a.triggered.connect(lambda _, paths=[node.uri()]: setUri(paths))
-            a.setToolTip('Copy path to cliboard')
-
-        a = menu.addAction('Copy value(s)')
-        a.triggered.connect(lambda: self.onCopyValues())
-        a = menu.addAction('Hide date(s)')
-        a.setToolTip('Hides the selected time series dates.')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Unchecked))
-        a = menu.addAction('Show date(s)')
-        a.setToolTip('Shows the selected time series dates.')
-        a.triggered.connect(lambda: self.onSetCheckState(Qt.Checked))
-
-
-        menu.popup(QCursor.pos())
-
-    def onSetCheckState(self, checkState):
-        """
-        Sets a ChecState to all selected rows
-        :param checkState: Qt.CheckState
-        """
-        indices = self.selectionModel().selectedIndexes()
-        rows = sorted(list(set([i.row() for i in indices])))
-        model = self.model()
-        if isinstance(model, QSortFilterProxyModel):
-            for r in rows:
-                idx = model.index(r, 0)
-                model.setData(idx, checkState, Qt.CheckStateRole)
-
-    def onCopyValues(self, delimiter='\t'):
-        """
-        Copies selected cell values to the clipboard
-        """
-        indices = self.selectionModel().selectedIndexes()
-        model = self.model()
-        if isinstance(model, QSortFilterProxyModel):
-            from collections import OrderedDict
-            R = OrderedDict()
-            for idx in indices:
-                if not idx.row() in R.keys():
-                    R[idx.row()] = []
-                R[idx.row()].append(model.data(idx, Qt.DisplayRole))
-            info = []
-            for k, values in R.items():
-                info.append(delimiter.join([str(v) for v in values]))
-            info = '\n'.join(info)
-            QApplication.clipboard().setText(info)
-
 
 class DateTimePrecision(enum.Enum):
     """
@@ -1515,29 +1421,25 @@ class TimeSeries(QAbstractItemModel):
         self.endInsertRows()
         return tsd
 
-
-    def showTSDs(self, tsds:list, b:bool=True):
-
+    def showTSDs(self, tsds: list, b: bool = True):
         tsds = [t for t in tsds if t in self]
 
-        minRow = None
-        maxRow = None
-        for t in tsds:
+        col = 0
+        idxMin = None
+        idxMax = None
+        for row, tsd in enumerate(self):
+            if tsd not in tsds:
+                continue
 
-            idx = self.tsdToIdx(t)
-            if minRow is None:
-                minRow = idx.row()
-                maxRow = idx.row()
+            idx = self.index(row, col)
+            if idxMin is None:
+                idxMin = idxMax = idx
             else:
-                minRow = min(minRow, idx.row())
-                maxRow = min(maxRow, idx.row())
+                idxMax = idx
+            tsd.setVisibility(b)
 
-            assert isinstance(t, TimeSeriesDate)
-            t.setVisibility(b)
-        if minRow:
-            ul = self.index(minRow, 0)
-            lr = self.index(maxRow, 0)
-            self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
+        if isinstance(idxMin, QModelIndex):
+            self.dataChanged.emit(idxMin, idxMax, [Qt.CheckStateRole])
             self.sigVisibilityChanged.emit()
 
     def hideTSDs(self, tsds):
@@ -2099,7 +2001,6 @@ class TimeSeries(QAbstractItemModel):
             if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
                 return QColor('yellow')
 
-
         return None
 
     def setData(self, index: QModelIndex, value: typing.Any, role: int):
@@ -2123,6 +2024,16 @@ class TimeSeries(QAbstractItemModel):
             self.sigVisibilityChanged.emit()
 
         return result
+
+    def findSource(self, tss: TimeSeriesSource) -> TimeSeriesSource:
+        """
+        Returns the first TimeSeriesSource instance that is equal to the TimeSeriesSource.
+        """
+        for tsd in self:
+            for tssCandidate in tsd:
+                if tssCandidate == tss:
+                    return tssCandidate
+        return None
 
     def findDate(self, date)->TimeSeriesDate:
         """
@@ -2153,6 +2064,129 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(index.internalPointer(), TimeSeriesDate) and index.column() == 0:
             flags = flags | Qt.ItemIsUserCheckable
         return flags
+
+
+
+class TimeSeriesTreeView(QTreeView):
+
+    sigMoveToDateRequest = pyqtSignal(TimeSeriesDate)
+    sigMoveToSource = pyqtSignal(TimeSeriesSource)
+
+    def __init__(self, parent=None):
+        super(TimeSeriesTreeView, self).__init__(parent)
+
+    def contextMenuEvent(self, event: QContextMenuEvent):
+        """
+        Creates and shows the QMenu
+        :param event: QContextMenuEvent
+        """
+
+        idx = self.indexAt(event.pos())
+        node = self.model().data(idx, role=Qt.UserRole)
+
+        selectedTSDs = []
+        selectedTSSs = []
+        for idx in self.selectionModel().selectedRows():
+            node = idx.data(Qt.UserRole)
+            if isinstance(node, TimeSeriesDate):
+                selectedTSDs.append(node)
+                selectedTSSs.extend(node[:])
+            if isinstance(node, TimeSeriesSource):
+                selectedTSSs.append(node)
+        selectedTSSs = sorted(set(selectedTSSs))
+
+        menu = QMenu(self)
+
+        a = menu.addAction('Copy path(s)')
+        a.setEnabled(len(selectedTSSs) > 0)
+        a.triggered.connect(lambda _, tss=selectedTSSs: self.setClipboardUris(tss))
+        a.setToolTip('Copy path(s) to clipboard.')
+
+        a = menu.addAction('Copy value(s)')
+        a.triggered.connect(lambda: self.onCopyValues())
+
+        menu.addSeparator()
+        if isinstance(node, TimeSeriesDate):
+            a = menu.addAction('Show map for {}'.format(node.date()))
+            a.setToolTip('Shows the map related to this time series date.')
+            a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDateRequest.emit(tsd))
+            menu.addSeparator()
+        elif isinstance(node, TimeSeriesSource):
+            a = menu.addAction('Show {}'.format(node.name()))
+            a.setToolTip('Shows the map with {} and zooms to'.format(node.uri()))
+            a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
+            menu.addSeparator()
+
+        a = menu.addAction('Hide date(s)')
+        a.setToolTip('Hides the selected time series dates.')
+        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, False))
+        a = menu.addAction('Show date(s)')
+        a.setToolTip('Shows the selected time series dates.')
+        a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, True))
+
+        menu.addSeparator()
+        a = menu.addAction('Open in QGIS')
+        a.setToolTip('Adds the selected images to the QGIS map canvas')
+        a.triggered.connect(lambda *args, tss=selectedTSSs: self.openInQGIS(tss))
+
+        menu.popup(QCursor.pos())
+
+    def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
+        import qgis.utils
+        iface = qgis.utils.iface
+
+        if isinstance(iface, QgisInterface):
+            layers = [QgsRasterLayer(tss.uri(), tss.name()) for tss in tssList]
+            QgsProject.instance().addMapLayers(layers, True)
+
+    def setClipboardUris(self, tssList: typing.List[TimeSeriesSource]):
+
+        urls = []
+        paths = []
+        for tss in tssList:
+            uri = tss.uri()
+            if os.path.isfile(uri):
+                url = QUrl.fromLocalFile(uri)
+                paths.append(QDir.toNativeSeparators(uri))
+            else:
+                url = QUrl(uri)
+                paths.append(uri)
+            urls.append(url)
+        md = QMimeData()
+        md.setText('\n'.join(paths))
+        md.setUrls(urls)
+
+        QApplication.clipboard().setMimeData(md)
+
+    def timeseries(self) -> TimeSeries:
+        return self.model().sourceModel()
+
+    def onSetCheckState(self, tsds: typing.List[TimeSeriesDate], checkState: Qt.CheckStateRole):
+        """
+        Sets a ChecState to all selected rows
+        :param checkState: Qt.CheckState
+        """
+
+
+    def onCopyValues(self, delimiter='\t'):
+        """
+        Copies selected cell values to the clipboard
+        """
+        indices = self.selectionModel().selectedIndexes()
+        model = self.model()
+        if isinstance(model, QSortFilterProxyModel):
+            from collections import OrderedDict
+            R = OrderedDict()
+            for idx in indices:
+                if not idx.row() in R.keys():
+                    R[idx.row()] = []
+                R[idx.row()].append(model.data(idx, Qt.DisplayRole))
+            info = []
+            for k, values in R.items():
+                info.append(delimiter.join([str(v) for v in values]))
+            info = '\n'.join(info)
+            QApplication.clipboard().setText(info)
+
 
 regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
 def sensorName(dataset:gdal.Dataset)->str:

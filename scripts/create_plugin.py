@@ -123,6 +123,7 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
     files = list(scantree(DIR_REPO / 'eotimeseriesviewer', pattern=pattern))
     # add unit tests
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
+    files.extend(list(scantree(DIR_REPO / 'example', pattern=re.compile(r'\.(gpkg|csv|tif|xml|py)$'))))
     files.append(DIR_REPO / '__init__.py')
     files.append(DIR_REPO / 'CHANGELOG.rst')
     files.append(DIR_REPO / 'ABOUT.html')

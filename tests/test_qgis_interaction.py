@@ -32,7 +32,7 @@ import tempfile
 
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects
-
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 
 
 class TestQGISInteraction(EOTSVTestCase):
@@ -49,12 +49,10 @@ class TestQGISInteraction(EOTSVTestCase):
 
     def test_syncExtents(self):
 
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
-
         TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+        QApplication.processEvents()
 
-        TSV.loadExampleTimeSeries()
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
         QgsProject.instance().addMapLayer(lyr)
@@ -67,10 +65,54 @@ class TestQGISInteraction(EOTSVTestCase):
         qgisCanvas.setDestinationCrs(world.crs())
         qgisCanvas.setExtent(world)
 
-        qcenter1 = qgisCanvas.center()
+
+        def moveCanvasToCorner(canvas: QgsMapCanvas, pos:str) -> SpatialPoint:
+            pos = pos.upper()
+            assert pos in ['UL', 'LR', 'UR', 'LL']
+            assert isinstance(canvas, QgsMapCanvas)
+            m2p: QgsMapToPixel = canvas.mapSettings().mapToPixel()
+            tol = m2p.toMapCoordinates(0,0) - m2p.toMapCoordinates(1,1)
+            center = canvas.center()
+            crs: QgsCoordinateReferenceSystem = canvas.mapSettings().destinationCrs()
+            bounds : QgsRectangle = crs.bounds()
+            w = canvas.width()
+            h = canvas.height()
+            if pos == 'UL':
+                newCenter = m2p.toMapCoordinates(1, 1)
+            elif pos == 'LR':
+                newCenter = m2p.toMapCoordinates(w-1, h-1)
+            elif pos == 'UR':
+                newCenter = m2p.toMapCoordinates(w-1, 0)
+            elif pos == 'LL':
+                newCenter = m2p.toMapCoordinates(0, h-1)
+            else:
+                raise NotImplementedError()
+
+            if newCenter.x() < bounds.xMinimum():
+                newCenter.setX(bounds.xMinimum() + tol.x())
+            elif newCenter.x() > bounds.xMaximum():
+                newCenter.setX(bounds.xMaximum() - tol.x())
+
+            if newCenter.y() < bounds.yMinimum():
+                newCenter.setX(bounds.yMinimum() + tol.y())
+            elif newCenter.y() > bounds.yMaximum():
+                newCenter.setX(bounds.yMaximum() - tol.y())
+
+            canvas.setCenter(newCenter)
+            return SpatialPoint.fromMapCanvasCenter(canvas)
+
+        TSV.ui.optionSyncMapCenter.setChecked(True)
+        TSV.mapWidget().timedRefresh()
+        # 1. move QGIS
+        pt = moveCanvasToCorner(qgisCanvas, 'UL')
         self.assertTrue(qgisCanvas.mapSettings().destinationCrs().isValid())
         self.assertIsInstance(qgisCanvas, QgsMapCanvas)
-        TSV.ui.optionSyncMapCenter.setChecked(True)
+
+        TSV.mapWidget().timedRefresh()
+        pt2 = TSV.spatialCenter().toCrs(pt.crs())
+
+        s = ""
+
 
         extent = TSV.spatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
@@ -79,6 +121,7 @@ class TestQGISInteraction(EOTSVTestCase):
 
         self.showGui(TSV)
 
+        TSV.close()
 
 
 

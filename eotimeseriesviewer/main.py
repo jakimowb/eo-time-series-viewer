@@ -314,7 +314,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     sigCurrentSpectralProfilesChanged = pyqtSignal(list)
     sigCurrentTemporalProfilesChanged = pyqtSignal(list)
-    sigCloses = pyqtSignal()
 
     def __init__(self):
         """Constructor.
@@ -328,8 +327,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         QgisInterface.__init__(self)
         QApplication.processEvents()
 
-
-
+        assert EOTimeSeriesViewer.instance() is None, 'EOTimeSeriesViewer instance already exists.'
         EOTimeSeriesViewer._instance = self
         self.ui = EOTimeSeriesViewerUI()
 
@@ -348,6 +346,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         def onClosed():
             EOTimeSeriesViewer._instance = None
+
         self.ui.sigAboutToBeClosed.connect(onClosed)
 
         QgsApplication.instance().messageLog().messageReceived.connect(self.logMessage)
@@ -382,6 +381,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
         mw.sigCurrentLocationChanged.connect(self.setCurrentLocation)
 
+        self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
         tb = self.ui.toolBarTimeControl
         assert isinstance(tb, QToolBar)
         tb.addAction(mw.actionFirstDate)
@@ -394,7 +394,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDateRequest.connect(self.setCurrentDate)
-
+        tstv.sigMoveToSource.connect(self.setCurrentSource)
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
 
@@ -684,6 +684,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(files) > 0:
                 self.addTimeSeriesImages(files)
 
+    def close(self):
+        self.ui.close()
+
     def actionZoomActualSize(self):
         return self.ui.actionZoomPixelScale
 
@@ -696,8 +699,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def actionZoomOut(self):
         return self.ui.actionZoomOut
 
+    def setCurrentSource(self, tss: TimeSeriesSource):
+        """
+        Moves the map view to a TimeSeriesSource
+        """
+        tss = self.timeSeries().findSource(tss)
+        if isinstance(tss, TimeSeriesSource):
+            self.ui.mMapWidget.setCurrentDate(tss.timeSeriesDate())
+            self.ui.mMapWidget.setSpatialExtent(tss.spatialExtent())
 
-    def setCurrentDate(self, tsd):
+    def setCurrentDate(self, tsd: TimeSeriesDate):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate or numpy.datetime64
@@ -773,8 +784,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if self.ui.optionSyncMapCenter.isChecked():
                 self.ui.mMapWidget.syncQGISCanvasCenter(qgisChanged)
 
-        self.ui.mMapWidget.sigSpatialExtentChanged.connect(lambda: onSyncRequest(False))
-        iface.mapCanvas().extentsChanged.connect(lambda: onSyncRequest(True))
 
 
     def onShowSettingsDialog(self):
@@ -1183,6 +1192,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Loads an example time series
         :param n: int, max. number of images to load. Useful for developer test-cases
         """
+
         import example.Images
         exampleDataDir = os.path.dirname(example.__file__)
         rasterFiles = list(file_search(exampleDataDir, '*.tif', recursive=True))

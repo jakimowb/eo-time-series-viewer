@@ -428,7 +428,7 @@
                  <string>Reload</string>
                 </property>
                 <property name="icon">
-                 <iconset resource="../../../../QGIS/images/images.qrc">
+                 <iconset resource="../../../QGIS/images/images.qrc">
                   <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
                 </property>
                 <property name="autoRaise">
@@ -442,7 +442,7 @@
                  <string>Clear</string>
                 </property>
                 <property name="icon">
-                 <iconset resource="../../../../QGIS/images/images.qrc">
+                 <iconset resource="../../../QGIS/images/images.qrc">
                   <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
                 </property>
                 <property name="autoRaise">
@@ -484,7 +484,7 @@
   </layout>
   <action name="actionRefreshSensorList">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
    </property>
    <property name="text">
@@ -493,7 +493,7 @@
   </action>
   <action name="actionDeleteSelectedSensors">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">
@@ -520,7 +520,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../../../QGIS/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>

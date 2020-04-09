@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>858</width>
+    <width>908</width>
     <height>190</height>
    </rect>
   </property>
@@ -72,7 +72,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>858</width>
+     <width>908</width>
      <height>26</height>
     </rect>
    </property>
@@ -341,7 +341,7 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/metadata.svg</normaloff>:/eotimeseriesviewer/icons/metadata.svg</iconset>
    </property>
    <property name="text">
@@ -378,8 +378,8 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionZoomIn.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomIn.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomIn.svg</normaloff>:/images/themes/default/mActionZoomIn.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom in</string>
@@ -393,8 +393,8 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionZoomOut.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomOut.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomOut.svg</normaloff>:/images/themes/default/mActionZoomOut.svg</iconset>
    </property>
    <property name="text">
     <string>Zoom out</string>
@@ -408,8 +408,8 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomFullExtent.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomFullExtent.svg</normaloff>:/images/themes/default/mActionZoomFullExtent.svg</iconset>
    </property>
    <property name="text">
     <string>Max. Extent</string>
@@ -423,8 +423,8 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionZoomActual.svg</normaloff>:/eotimeseriesviewer/icons/mActionZoomActual.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomActual.svg</normaloff>:/images/themes/default/mActionZoomActual.svg</iconset>
    </property>
    <property name="text">
     <string>Pixel Scale</string>
@@ -438,8 +438,8 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionPan.svg</normaloff>:/eotimeseriesviewer/icons/mActionPan.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionPan.svg</normaloff>:/images/themes/default/mActionPan.svg</iconset>
    </property>
    <property name="text">
     <string>Pan Map</string>
@@ -455,7 +455,7 @@
   </action>
   <action name="actionIdentifyCursorLocationValues">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
@@ -479,7 +479,7 @@
   </action>
   <action name="actionCopyLabelList">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/mActionEditCopy.svg</normaloff>:/eotimeseriesviewer/icons/mActionEditCopy.svg</iconset>
    </property>
    <property name="text">
@@ -491,7 +491,7 @@
   </action>
   <action name="actionSettings">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/system.svg</normaloff>:/eotimeseriesviewer/icons/system.svg</iconset>
    </property>
    <property name="text">
@@ -500,7 +500,7 @@
   </action>
   <action name="actionCollectLabels">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</normaloff>:/eotimeseriesviewer/icons/mActionIdentify.svg</iconset>
    </property>
    <property name="text">
@@ -512,8 +512,8 @@
   </action>
   <action name="actionRefresh">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
-     <normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mActionRefresh.svg</iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
    </property>
    <property name="text">
     <string>Refresh Maps</string>
@@ -590,7 +590,7 @@
   </action>
   <action name="actionAddVectorData">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
@@ -602,7 +602,7 @@
   </action>
   <action name="actionShowOnlineHelp">
    <property name="icon">
-    <iconset resource="eotsv_resources.qrc">
+    <iconset>
      <normaloff>:/eotimeseriesviewer/icons/metadata.svg</normaloff>:/eotimeseriesviewer/icons/metadata.svg</iconset>
    </property>
    <property name="text">
@@ -643,7 +643,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionPropertiesWidget.svg</normaloff>:/images/themes/default/mActionPropertiesWidget.svg</iconset>
    </property>
    <property name="text">
@@ -715,7 +715,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
    </property>
    <property name="text">
@@ -730,7 +730,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSelectPolygon.svg</normaloff>:/images/themes/default/mActionSelectPolygon.svg</iconset>
    </property>
    <property name="text">
@@ -745,7 +745,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSelectFreehand.svg</normaloff>:/images/themes/default/mActionSelectFreehand.svg</iconset>
    </property>
    <property name="text">
@@ -757,7 +757,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSelectRadius.svg</normaloff>:/images/themes/default/mActionSelectRadius.svg</iconset>
    </property>
    <property name="text">
@@ -766,7 +766,7 @@
   </action>
   <action name="actionSelectFeatures">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
    </property>
    <property name="text">
@@ -781,7 +781,7 @@
   </action>
   <action name="actionExportMapsToImages">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</iconset>
    </property>
    <property name="text">
@@ -801,7 +801,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/lockedGray.svg</normaloff>:/images/themes/default/lockedGray.svg</iconset>
    </property>
    <property name="text">
@@ -813,7 +813,7 @@
   </action>
   <action name="actionDeselect">
    <property name="icon">
-    <iconset>
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
    </property>
    <property name="text">
@@ -850,6 +850,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
   <include location="../externals/qps/qpsresources.qrc"/>
  </resources>
  <connections/>

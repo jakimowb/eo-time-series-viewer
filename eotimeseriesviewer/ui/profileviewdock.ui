@@ -628,7 +628,7 @@ background-color: rgb(0, 0, 0);</string>
                      <string>...</string>
                     </property>
                     <property name="icon">
-                     <iconset resource="../../../../QGIS/images/images.qrc">
+                     <iconset resource="../../../QGIS/images/images.qrc">
                       <normaloff>:/images/themes/default/propertyicons/system.svg</normaloff>:/images/themes/default/propertyicons/system.svg</iconset>
                     </property>
                    </widget>
@@ -639,7 +639,7 @@ background-color: rgb(0, 0, 0);</string>
                      <string>...</string>
                     </property>
                     <property name="icon">
-                     <iconset resource="../../../../QGIS/images/images.qrc">
+                     <iconset resource="../../../QGIS/images/images.qrc">
                       <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
                     </property>
                    </widget>
@@ -650,7 +650,7 @@ background-color: rgb(0, 0, 0);</string>
                      <string>...</string>
                     </property>
                     <property name="icon">
-                     <iconset resource="../../../../QGIS/images/images.qrc">
+                     <iconset resource="../../../QGIS/images/images.qrc">
                       <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
                     </property>
                    </widget>
@@ -838,7 +838,7 @@ background-color: rgb(0, 0, 0);</string>
   </action>
   <action name="actionRemoveTemporalProfile">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">
@@ -934,7 +934,7 @@ background-color: rgb(0, 0, 0);</string>
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
    </property>
    <property name="text">
@@ -974,7 +974,7 @@ background-color: rgb(0, 0, 0);</string>
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
-  <include location="../../../../QGIS/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
