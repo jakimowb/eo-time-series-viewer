@@ -1862,7 +1862,7 @@ class SpectralTemporalVisualization(QObject):
             assert isinstance(tsd, TimeSeriesDate)
 
             # do not load from invisible TSDs
-            if not tsd.isVisible():
+            if not tsd.checkState():
                 continue
 
             # which bands do we need to load?

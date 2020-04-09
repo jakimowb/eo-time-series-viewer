@@ -472,15 +472,18 @@ class TimeSeriesSource(object):
 
         return cls(ds)
 
-    def __init__(self, dataset:gdal.Dataset=None):
+    def __init__(self, dataset: gdal.Dataset = None):
 
+        self.mIsVisible: bool = True
         self.mUri = None
         self.mDrv = None
         self.mWKT = None
         self.mCRS = None
         self.mWL = None
         self.mWLU = None
-        self.nb = self.ns = self.nl = None
+        self.nb: int = None
+        self.ns: int = None
+        self.nl: int = None
         self.mGeoTransform = None
         self.mGSD = None
         self.mDataType = None
@@ -708,6 +711,13 @@ class TimeSeriesSource(object):
         """
         return gdal_array.LoadFile(self.uri())
 
+    def isVisible(self) -> bool:
+        return self.mIsVisible
+
+    def setIsVisible(self, b:bool):
+        assert isinstance(b, bool)
+        self.mIsVisible = b
+
     def __eq__(self, other):
         if not isinstance(other, TimeSeriesSource):
             return False
@@ -755,7 +765,6 @@ class TimeSeriesDate(QAbstractTableModel):
         self.mDOY = DOYfromDatetime64(self.mDate)
         self.mSources = []
         self.mMasks = []
-        self.mVisibility = True
         self.mTimeSeries = timeSeries
     
     def removeSource(self, source:TimeSeriesSource):
@@ -793,20 +802,18 @@ class TimeSeriesDate(QAbstractTableModel):
             else:
                 return None
 
-    def setVisibility(self, b:bool):
+    def checkState(self) -> Qt.CheckState:
         """
-        Sets the visibility of the TimeSeriesDate, i.e. whether linked MapCanvases will be shown to the user
-        :param b: bool
+        Returns the checkstate accorrding to the visibility of the TSDs TimeSeriesSources
+        :return: Qt.CheckState
         """
-        self.mVisibility = b
+        visible = [tss.isVisible() for tss in self]
+        if all(visible):
+            return Qt.Checked
+        if any(visible):
+            return Qt.PartiallyChecked
+        return Qt.Unchecked
 
-
-    def isVisible(self):
-        """
-        Returns whether the TimeSeriesDate is visible as MapCanvas
-        :return: bool
-        """
-        return self.mVisibility
 
     def sensor(self) -> SensorInstrument:
         """
@@ -822,10 +829,9 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mSources
 
-
     def sourceUris(self) -> typing.List[str]:
         """
-        Returns all source URIs  as list of strings-
+        Returns all source URIs as list of strings-
         :return: [list-of-str]
         """
         return [tss.uri() for tss in self.sources()]
@@ -923,7 +929,7 @@ class TimeSeriesDate(QAbstractTableModel):
     def __getitem__(self, slice):
         return self.mSources[slice]
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[TimeSeriesSource]:
         """
         Iterator over all sources
         """
@@ -1182,7 +1188,7 @@ class TimeSeries(QAbstractItemModel):
             for tsd in self:
                 assert isinstance(tsd, TimeSeriesDate)
                 b = tsd.hasIntersectingSource(ext)
-                if b != tsd.isVisible():
+                if b != tsd.checkState():
                     changed = True
                 tsd.setVisibility(b)
 
@@ -1924,7 +1930,6 @@ class TimeSeries(QAbstractItemModel):
 
     def data(self, index, role):
         """
-
         :param index: QModelIndex
         :param role: Qt.ItemRole
         :return: object
@@ -1964,6 +1969,9 @@ class TimeSeries(QAbstractItemModel):
                 if cName == self.cnSensor:
                     return tsd.sensor().name()
 
+            if role == Qt.CheckStateRole and index.column() == 0:
+                return Qt.Checked if node.isVisible() else Qt.Unchecked
+
             if role == Qt.DecorationRole and index.column() == 0:
 
                 return None
@@ -1994,7 +2002,7 @@ class TimeSeries(QAbstractItemModel):
                     return str(tsd.date())
 
             if role == Qt.CheckStateRole and index.column() == 0:
-                return Qt.Checked if tsd.isVisible() else Qt.Unchecked
+                return node.checkState()
 
             if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
                 return QColor('yellow')
@@ -2011,11 +2019,30 @@ class TimeSeries(QAbstractItemModel):
         node = index.internalPointer()
         if isinstance(node, TimeSeriesDate):
             if role == Qt.CheckStateRole and index.column() == 0:
-                node.setVisibility(value == Qt.Checked)
-                result = True
-                bVisibilityChanged = True
+                # update all TSS
+                tssVisible = value == Qt.Checked
 
-        if result == True:
+                n = len(node)
+                if n > 0:
+                    for tss in node:
+                        tss.setIsVisible(tssVisible)
+                    self.dataChanged.emit(self.index(0, 0, index),
+                                          self.index(self.rowCount(index) -1 , 0, index),
+                                          [role])
+
+                result = bVisibilityChanged = True
+
+        if isinstance(node, TimeSeriesSource):
+            if role == Qt.CheckStateRole and index.column() == 0:
+                b = node.isVisible()
+                node.setIsVisible(value == Qt.Checked)
+                result = bVisibilityChanged = b != node.isVisible()
+
+                if bVisibilityChanged:
+                    # update parent TSD node
+                    self.dataChanged.emit(index.parent(), index.parent(), [role])
+
+        if result:
             self.dataChanged.emit(index, index, [role])
 
         if bVisibilityChanged:
@@ -2052,14 +2079,13 @@ class TimeSeries(QAbstractItemModel):
         i = np.argmin(dtAbs)
         return self.mTSDs[i]
 
-
     def flags(self, index):
         assert isinstance(index, QModelIndex)
         if not index.isValid():
             return Qt.NoItemFlags
-        #cName = self.mColumnNames.index(index.column())
+
         flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-        if isinstance(index.internalPointer(), TimeSeriesDate) and index.column() == 0:
+        if index.column() == 0:
             flags = flags | Qt.ItemIsUserCheckable
         return flags
 

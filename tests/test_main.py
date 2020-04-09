@@ -115,7 +115,7 @@ class TestMain(EOTSVTestCase):
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
 
-        self.showGui(TSV)
+        self.showGui(TSV.ui)
 
     def test_AboutDialog(self):
 

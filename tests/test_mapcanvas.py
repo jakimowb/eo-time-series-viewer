@@ -149,10 +149,10 @@ class TestMapCanvas(EOTSVTestCase):
 
         if False:
             self.assertIsInstance(canvas, QgsMapCanvas)
-            self.assertFalse(canvas.isVisible())
+            self.assertFalse(canvas.checkState())
             self.assertFalse(canvas.isVisibleToViewport())
 
-            self.assertTrue(canvas.isVisible())
+            self.assertTrue(canvas.checkState())
             self.assertTrue(canvas.isVisibleToViewport())
 
         canvas.setExtent(canvas.fullExtent())

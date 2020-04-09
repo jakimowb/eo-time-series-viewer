@@ -33,7 +33,7 @@ from PyQt5.QtXml import QDomDocument
 
 
 
-from .timeseries import TimeSeriesDate, SensorProxyLayer, SensorInstrument
+from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer, SensorInstrument
 from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.maptools import *
 from .labeling import quickLabelLayers, labelShortcutLayerClassificationSchemes, setQuickTSDLabelsForRegisteredLayers
@@ -561,8 +561,6 @@ class MapCanvas(QgsMapCanvas):
         scope.setVariable('map_doy', varDOY, isStatic=False)
         scope.setVariable('map_sensor', varSensor, isStatic=False)
 
-
-
     def tsd(self) -> TimeSeriesDate:
         """
         Returns the TimeSeriesDate
@@ -666,7 +664,6 @@ class MapCanvas(QgsMapCanvas):
             else:
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
-
     def timedRefresh(self):
         """
         Called to refresh the map canvas with all things needed to be done with lazy evaluation
@@ -687,8 +684,10 @@ class MapCanvas(QgsMapCanvas):
 
             if isinstance(lyr, SensorProxyLayer):
                 if self.tsd().sensor() == lyr.sensor():
-                    for source in self.tsd().sourceUris():
-                        sourceLayer = None
+                    for tss in self.tsd():
+                        if not tss.isVisible():
+                            continue
+                        source = tss.uri()
 
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]

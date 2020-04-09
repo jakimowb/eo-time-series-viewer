@@ -143,10 +143,12 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             centerCanvas = visibleCanvases[i]
 
         a = menu.addAction('Set Properties')
-
         a.triggered.connect(lambda *args, canvas = centerCanvas, lyr = l: self.onSetLayerProperties(lyr, canvas))
-
         a.setEnabled(isinstance(centerCanvas, MapCanvas))
+
+        if False and isinstance(l, QgsVectorLayer):
+            a = menu.addAction('Open Attribute Table')
+            a.triggered.connect(lambda *args, lyr=l: self.showAttributeTable(lyr))
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
         a = menu.addAction('Copy Style')
@@ -164,6 +166,14 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
         return menu
 
+    def showAttributeTable(self, lyr: QgsVectorLayer):
+
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        tsv = EOTimeSeriesViewer.instance()
+        if isinstance(tsv, EOTimeSeriesViewer):
+            tsv.showAttributeTable(lyr)
+        s = ""
+
     def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
         if isinstance(canvas, MapCanvas):
             canvas.onSetLayerProperties(lyr)
@@ -174,43 +184,6 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
     """
     def __init__(self, rootNode, parent=None):
         super(MapViewLayerTreeModel, self).__init__(rootNode, parent=parent)
-
-    def dataXXX(self, index:QModelIndex, role=Qt.DisplayRole):
-        node = self.index2node(index)
-        # if node.name() == 'testlayer':
-        #     s = ""
-
-        if True:
-            if isinstance(node, QgsLayerTreeGroup) and node.customProperty(KEY_SENSOR_GROUP) in ['true', True]:
-                if role == Qt.FontRole:
-                    f = super(MapViewLayerTreeModel, self).data(index, role=role)
-                    f.setBold(True)
-                    return f
-            if isinstance(node, QgsLayerTreeLayer) and node.customProperty(KEY_SENSOR_LAYER) in ['true', True]:
-
-                if role == Qt.FontRole:
-                    f = super(MapViewLayerTreeModel, self).data(index, role=role)
-                    assert isinstance(f, QFont)
-                    f.setItalic(True)
-                    return f
-
-                if role == Qt.DecorationRole:
-                    return QIcon(':/eotimeseriesviewer/icons/icon.svg')
-
-        return super(MapViewLayerTreeModel, self).data(index, role=role)
-
-    def flagsXXX(self, index:QModelIndex):
-
-        f = super(MapViewLayerTreeModel, self).flags(index)
-
-        node = self.index2node(index)
-        if isinstance(node, QgsLayerTreeNode) and ( \
-                node.customProperty(KEY_SENSOR_LAYER) in ['true', True] or \
-                node.customProperty(KEY_SENSOR_GROUP) in ['true', True]):
-            f = f ^ Qt.ItemIsDragEnabled
-            f = f ^ Qt.ItemIsDropEnabled
-
-        return f
 
 
 class MapView(QFrame):
@@ -901,8 +874,6 @@ class MapWidget(QFrame):
         self.mTimeSlider.setTickInterval(0)
         self.mTimeSlider.valueChanged.connect(self.onSliderReleased)
 
-
-
     def messageBar(self) -> QgsMessageBar:
         """
         Returns the QgsMessageBar
@@ -1180,34 +1151,34 @@ class MapWidget(QFrame):
 
         for tsd in self.timeSeries()[:]:
             assert isinstance(tsd, TimeSeriesDate)
-            if tsd > self.currentDate() and tsd.isVisible():
+            if tsd > self.currentDate() and tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s = ""
 
     def moveToPreviousTSD(self):
         for tsd in reversed(self.timeSeries()[:]):
-            if tsd < self.currentDate() and tsd.isVisible():
+            if tsd < self.currentDate() and tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s = ""
 
     def moveToNextTSDFast(self):
-        visible = list([tsd for tsd in self.timeSeries() if tsd.isVisible() and tsd > self.currentDate()])
+        visible = list([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd > self.currentDate()])
         if len(visible) > 0 and self.mMpMV > 0:
             i = min(self.mMpMV-1, len(visible)-1)
             self.setCurrentDate(visible[i])
 
 
     def moveToPreviousTSDFast(self):
-        visible = list(reversed([tsd for tsd in self.timeSeries() if tsd.isVisible() and tsd < self.currentDate()]))
+        visible = list(reversed([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd < self.currentDate()]))
         if len(visible) > 0 and self.mMpMV > 0:
             i = min(self.mMpMV - 1, len(visible)-1)
             self.setCurrentDate(visible[i])
 
     def moveToFirstTSD(self):
         for tsd in self.timeSeries()[:]:
-            if tsd.isVisible():
+            if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s = ""
@@ -1215,7 +1186,7 @@ class MapWidget(QFrame):
 
     def moveToLastTSD(self):
         for tsd in reversed(self.timeSeries()[:]):
-            if tsd.isVisible():
+            if tsd.checkState():
                 self.setCurrentDate(tsd)
                 return
         s  = ""
@@ -1563,7 +1534,7 @@ class MapWidget(QFrame):
             bTSDChanged = True
         else:
 
-            visible = [tsd for tsd in self.timeSeries() if tsd.isVisible()]
+            visible = [tsd for tsd in self.timeSeries() if tsd.checkState()]
 
             t = self.mCurrentDate.date()
             visible = sorted(visible, key=lambda tsd: abs(tsd.date() - t))

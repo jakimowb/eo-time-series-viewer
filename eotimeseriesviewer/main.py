@@ -49,9 +49,11 @@ from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualizatio
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 import eotimeseriesviewer.settings as eotsvSettings
-from eotimeseriesviewer import SpectralProfile, SpectralLibrary, SpectralLibraryPanel
-from eotimeseriesviewer.externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
-from eotimeseriesviewer.externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
+from .externals.qps.speclib.core import SpectralProfile, SpectralLibrary
+from .externals.qps.speclib.gui import SpectralLibraryPanel
+from .externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
+from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
+from .externals.qps.vectorlayertools import VectorLayerTools
 import eotimeseriesviewer.labeling
 
 DEBUG = False
@@ -205,9 +207,6 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
         self.tabifyDockWidget(self.dockTaskManager, self.dockSensors)
 
-
-
-
         for dock in self.findChildren(QDockWidget):
 
             if len(dock.actions()) > 0:
@@ -331,6 +330,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         EOTimeSeriesViewer._instance = self
         self.ui = EOTimeSeriesViewerUI()
 
+
         mvd = self.ui.dockMapViews
         dts = self.ui.dockTimeSeries
         mw = self.ui.mMapWidget
@@ -353,6 +353,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
+        self.mVectorLayerTools: VectorLayerTools = VectorLayerTools()
+
         # Save reference to the QGIS interface
         import qgis.utils
         assert isinstance(qgis.utils.iface, QgisInterface)
@@ -370,7 +372,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mw.setTimeSeries(self.mTimeSeries)
         mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
-
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
         assert isinstance(self, EOTimeSeriesViewer)
@@ -1253,6 +1254,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def show(self):
         self.ui.show()
+
+    def showAttributeTable(self, lyr: QgsVectorLayer, filterExpression: str = ""):
+        assert isinstance(lyr, QgsVectorLayer)
+
+        from .labeling import LabelWidget2
+        w = LabelWidget2(lyr)
+
+        dock = QgsDockWidget()
+        dock.setWidget(w)
+        dock.setParent(self.ui)
+        self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
+
 
     def clearLayoutWidgets(self, L):
         if L is not None:

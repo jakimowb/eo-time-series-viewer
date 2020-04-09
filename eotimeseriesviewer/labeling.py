@@ -513,6 +513,15 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
             if cname == model.cnLabel and isinstance(w, QComboBox):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
+from .externals.qps.layerproperties import AttributeTableWidget
+class LabelWidget2(AttributeTableWidget):
+
+    def __init__(self, *args, **kwds):
+
+        super().__init__(*args, *kwds)
+
+
+
 class LabelingWidget(QMainWindow):
 
     sigVectorLayerChanged = pyqtSignal()
