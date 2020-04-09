@@ -217,7 +217,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.dockTimeSeries.raise_()
 
 
-    def registerMapToolAction(self, a:QAction)->QAction:
+    def registerMapToolAction(self, a:QAction) -> QAction:
         """
         Registers this action as map tools action. If triggered, all other mapt tool actions with be set unchecked
         :param a: QAction
@@ -544,7 +544,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
             w.setMinimumSize(0, 0)
 
-    def sensors(self)->typing.List[SensorInstrument]:
+    def sensors(self) -> typing.List[SensorInstrument]:
         """
         Returns the list of Sensors
         :return: [list-of-Sensors]
@@ -566,7 +566,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionIdentify.trigger()
         self.ui.optionIdentifySpectralProfile.setChecked(True)
 
-    def _createProgressDialog(self, title='Load Data')->QProgressDialog:
+    def _createProgressDialog(self, title='Load Data') -> QProgressDialog:
         """
         Creates a QProgressDialog to load image data
         :return: QProgressDialog
@@ -649,7 +649,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
         mapView.addLayer(self.spectralLibrary())
 
-    def temporalProfileLayer(self)->TemporalProfileLayer:
+    def temporalProfileLayer(self) -> TemporalProfileLayer:
         """
         Returns the TemporalProfileLayer
         :return:
@@ -658,7 +658,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         return self.spectralTemporalVis.temporalProfileLayer()
 
 
-    def spectralLibrary(self)->SpectralLibrary:
+    def spectralLibrary(self) -> SpectralLibrary:
         """
         Returns the SpectraLibrary of the SpectralLibrary dock
         :return: SpectraLibrary
@@ -718,14 +718,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.ui.mMapWidget.setCurrentDate(tsd)
 
 
-    def mapCanvases(self)->typing.List[MapCanvas]:
+    def mapCanvases(self) -> typing.List[MapCanvas]:
         """
         Returns all MapCanvases of the spatial visualization
         :return: [list-of-MapCanvases]
         """
         return self.ui.mMapWidget.mapCanvases()
 
-    def mapLayerStore(self)->QgsMapLayerStore:
+    def mapLayerStore(self) -> QgsMapLayerStore:
         """
         Returns the QgsMapLayerStore which is used to register QgsMapLayers
         :return: QgsMapLayerStore
@@ -904,14 +904,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         self.mapWidget().setSpatialCenter(spatialPoint)
 
-    def spatialExtent(self)->SpatialExtent:
+    def spatialExtent(self) -> SpatialExtent:
         """
         Returns the map extent
         :return: SpatialExtent
         """
         return self.mapWidget().spatialExtent()
 
-    def spatialCenter(self)->SpatialPoint:
+    def spatialCenter(self) -> SpatialPoint:
         """
         Returns the map center
         :return: SpatialPoint
@@ -1039,7 +1039,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             s = ""
         pass
 
-    def messageBar(self)->QgsMessageBar:
+    def messageBar(self) -> QgsMessageBar:
         """
         Returns the QgsMessageBar that is used to show messages in the TimeSeriesViewer UI.
         :return: QgsMessageBar
@@ -1074,14 +1074,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog, runAsync=runAsync)
 
 
-    def createMapView(self, name:str=None)->MapView:
+    def createMapView(self, name:str=None) -> MapView:
         """
         Creates a new MapView.
         :return: MapView
         """
         return self.ui.dockMapViews.createMapView(name=name)
 
-    def mapViews(self)->typing.List[MapView]:
+    def mapViews(self) -> typing.List[MapView]:
         """
         Returns all MapViews
         :return: [list-of-MapViews]
@@ -1089,7 +1089,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         return self.ui.dockMapViews[:]
 
 
-    def icon(self)->QIcon:
+    def icon(self) -> QIcon:
         """
         Returns the EO Time Series Viewer icon
         :return: QIcon
@@ -1097,7 +1097,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         import eotimeseriesviewer
         return eotimeseriesviewer.icon()
 
-    def temporalProfiles(self)->list:
+    def temporalProfiles(self) -> list:
         """
         Returns collected temporal profiles
         :return: [list-of-TemporalProfiles]
@@ -1156,7 +1156,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False
 
-    def mapWidget(self)->MapWidget:
+    def mapWidget(self) -> MapWidget:
         """
         Returns the MapWidget that contains all map canvases.
         :return: MapWidget
@@ -1224,7 +1224,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     s = ""
 
 
-    def timeSeries(self)->TimeSeries:
+    def timeSeries(self) -> TimeSeries:
         """
         Returns the TimeSeries instance.
         :return: TimeSeries
@@ -1264,7 +1264,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
-    def addVectorData(self, files=None)->list:
+    def addVectorData(self, files=None) -> list:
         """
         Adds vector data
         :param files: vector layer sources
@@ -1378,14 +1378,14 @@ class SaveAllMapsDialog(QDialog):
         self.fileWidget.setFilePath(path)
 
 
-    def directory(self)->str:
+    def directory(self) -> str:
         """
         Returns the selected directory
         :return: str
         """
         return self.fileWidget.filePath()
 
-    def fileType(self)->str:
+    def fileType(self) -> str:
         """
         Returns the selected file type
         :return:

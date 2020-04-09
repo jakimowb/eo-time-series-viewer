@@ -118,7 +118,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mTextFormat.setFont(QFont('Helvetica', pointSize=10))
         self.mTextFormat.setColor(QColor('yellow'))
 
-    def setWrapChar(self, c:str)->str:
+    def setWrapChar(self, c:str) -> str:
         """
         Sets a Wrap Character
         :param c:
@@ -127,7 +127,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mWrapChar = c
         return self.wrapChar()
 
-    def wrapChar(self)->str:
+    def wrapChar(self) -> str:
         return self.mWrapChar
 
     def setText(self, text:str, alignment:Qt.Alignment=Qt.AlignTop | Qt.AlignHCenter):
@@ -140,14 +140,14 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         self.mTextFormat = format
         self.updateCanvas()
 
-    def textFormat(self)->QgsTextFormat:
+    def textFormat(self) -> QgsTextFormat:
         """
         Returns the text format.
         :return: QgsTextFormat
         """
         return self.mTextFormat
 
-    def font(self)->QFont:
+    def font(self) -> QFont:
         """
         Returns the font used to write text on the map canvas.
         :return: QFont
@@ -164,7 +164,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         """
         self.mTextFormat.setColor(color)
 
-    def color(self)->QColor:
+    def color(self) -> QColor:
         """
         Returns the info text color
         :return: QColor
@@ -424,7 +424,7 @@ class MapCanvas(QgsMapCanvas):
 
         self.destinationCrsChanged.connect(lambda : self.sigDestinationCrsChanged.emit(self.crs()))
 
-    def userInputWidget(self)->QgsUserInputWidget:
+    def userInputWidget(self) -> QgsUserInputWidget:
         """
         Returns the mapcanvas QgsUserInputWidget
         :return: QgsUserInputWidget
@@ -432,7 +432,7 @@ class MapCanvas(QgsMapCanvas):
         return self.mUserInputWidget
 
 
-    def infoItem(self)->MapCanvasInfoItem:
+    def infoItem(self) -> MapCanvasInfoItem:
         """
         Returns the MapCanvasInfoItem, e.g. to plot text on top of the map canvas
         :return: MapCanvasInfoItem
@@ -446,7 +446,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mMapView
 
-    def mapTools(self)->MapCanvasMapTools:
+    def mapTools(self) -> MapCanvasMapTools:
         """
         Returns the map tools of this MapCanvas
         :return: MapCanvasMapTools
@@ -467,7 +467,7 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(store, (QgsMapLayerStore, QgsProject))
         self.mMapLayerStore = store
 
-    def renderingFinished(self)->bool:
+    def renderingFinished(self) -> bool:
         """
         Returns whether the MapCanvas is processing a rendering task
         :return: bool
@@ -563,7 +563,7 @@ class MapCanvas(QgsMapCanvas):
 
 
 
-    def tsd(self)->TimeSeriesDate:
+    def tsd(self) -> TimeSeriesDate:
         """
         Returns the TimeSeriesDate
         :return: TimeSeriesDate
@@ -607,7 +607,7 @@ class MapCanvas(QgsMapCanvas):
         if self.crs() != crs:
             self.setDestinationCrs(crs)
 
-    def crs(self)->QgsCoordinateReferenceSystem:
+    def crs(self) -> QgsCoordinateReferenceSystem:
         """
         Shortcut to return self.mapSettings().destinationCrs()
         :return: QgsCoordinateReferenceSystem
@@ -625,10 +625,10 @@ class MapCanvas(QgsMapCanvas):
         super(MapCanvas, self).setLayers(mapLayers)
 
 
-    def isRefreshing(self)->bool:
+    def isRefreshing(self) -> bool:
         return self.mIsRefreshing
 
-    def isVisibleToViewport(self)->bool:
+    def isVisibleToViewport(self) -> bool:
         """
         Returns whether the MapCanvas is visible to a user and not hidden behind the invisible regions of a scroll area.
         :return: bool
@@ -791,7 +791,7 @@ class MapCanvas(QgsMapCanvas):
         if emitSignal:
             self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
 
-    def crosshairStyle(self)->CrosshairStyle:
+    def crosshairStyle(self) -> CrosshairStyle:
         """
         Returns the style of the Crosshair.
         :return: CrosshairStyle
@@ -811,7 +811,7 @@ class MapCanvas(QgsMapCanvas):
             self.mCrosshairItem.setPosition(point)
             self.sigCrosshairPositionChanged.emit(point)
 
-    def crosshairPosition(self)->SpatialPoint:
+    def crosshairPosition(self) -> SpatialPoint:
         """Returns the last crosshair position"""
         return self.mCrosshairItem.mPosition
 
@@ -843,7 +843,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.grab()
 
-    def contextMenu(self, pos:QPoint)->QMenu:
+    def contextMenu(self, pos:QPoint) -> QMenu:
         """
         Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
@@ -1327,14 +1327,14 @@ class MapCanvas(QgsMapCanvas):
         if isinstance(center, SpatialPoint):
             self.setCenter(center)
 
-    def spatialExtent(self)->SpatialExtent:
+    def spatialExtent(self) -> SpatialExtent:
         """
         Returns the map extent as SpatialExtent (extent + CRS)
         :return: SpatialExtent
         """
         return SpatialExtent.fromMapCanvas(self)
 
-    def spatialCenter(self)->SpatialPoint:
+    def spatialCenter(self) -> SpatialPoint:
         """
         Returns the map center as SpatialPoint (QgsPointXY + CRS)
         :return: SpatialPoint
@@ -1342,7 +1342,7 @@ class MapCanvas(QgsMapCanvas):
         return SpatialPoint.fromMapCanvasCenter(self)
 
 
-    def spatialExtentHint(self)->SpatialExtent:
+    def spatialExtentHint(self) -> SpatialExtent:
         """
         Returns a hint for a SpatialExtent, derived from the first raster layer
         :return: SpatialExtent

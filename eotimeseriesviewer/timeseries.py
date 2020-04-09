@@ -115,7 +115,7 @@ def convertMetricUnit(value, u1, u2):
     return value * 10**(e1-e2)
 
 
-def getDS(pathOrDataset)->gdal.Dataset:
+def getDS(pathOrDataset) -> gdal.Dataset:
     """
     Returns a gdal.Dataset
     :param pathOrDataset: str | gdal.Dataset | QgsRasterLayer
@@ -132,7 +132,7 @@ def getDS(pathOrDataset)->gdal.Dataset:
 
 
 
-def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str, name:str)->str:
+def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str, name:str) -> str:
     """
     Creates a sensor ID str
     :param nb: number of bands
@@ -166,7 +166,7 @@ def sensorID(nb:int, px_size_x:float, px_size_y:float, dt:int, wl:list, wlu:str,
                 }
     return json.dumps(jsonDict)
 
-def sensorIDtoProperties(idString:str)->tuple:
+def sensorIDtoProperties(idString:str) -> tuple:
     """
     Reads a sensor id string and returns the sensor properties. See sensorID().
     :param idString: str
@@ -262,7 +262,7 @@ class SensorInstrument(QObject):
 
 
 
-    def bandIndexClosestToWavelength(self, wl, wl_unit='nm')->int:
+    def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
         Returns the band index closets to a certain wavelength
         :param wl: float | int
@@ -281,7 +281,7 @@ class SensorInstrument(QObject):
             wl = convertMetricUnit(wl, wl_unit, self.wlu)
         return int(np.argmin(np.abs(self.wl - wl)))
 
-    def proxyLayer(self)->QgsRasterLayer:
+    def proxyLayer(self) -> QgsRasterLayer:
         """
         Creates an "empty" layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
@@ -292,7 +292,7 @@ class SensorInstrument(QObject):
         self.sigNameChanged.connect(lyr.setName)
         return lyr
 
-    def id(self)->str:
+    def id(self) -> str:
         """
         Returns the Sensor id
         :return: str
@@ -313,7 +313,7 @@ class SensorInstrument(QObject):
             self.mName = name
             self.sigNameChanged.emit(self.name())
 
-    def name(self)->str:
+    def name(self) -> str:
         """
         Returns the sensor name
         :return: str
@@ -331,7 +331,7 @@ class SensorInstrument(QObject):
     def __repr__(self):
         return str(self.__class__) +' ' + self.name()
 
-    def description(self)->str:
+    def description(self) -> str:
         """
         Returns a human-readable description
         :return: str
@@ -357,7 +357,7 @@ class SensorProxyLayer(QgsRasterLayer):
         super(SensorProxyLayer, self).__init__(*args, **kwds)
         self.mSensor = sensor
 
-    def sensor(self)->SensorInstrument:
+    def sensor(self) -> SensorInstrument:
         """
         Returns the SensorInstrument this layer relates to
         :return: SensorInstrument
@@ -535,10 +535,8 @@ class TimeSeriesSource(object):
             sName = sensorName(dataset)
             self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
 
-
             self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
             self.mLR = QgsPointXY(*px2geo(QPoint(self.ns + 1, self.nl + 1), self.mGeoTransform, pxCenter=False))
-
 
     def __reduce_ex__(self, protocol):
 
@@ -592,14 +590,14 @@ class TimeSeriesSource(object):
 
         self.__setstatedictionary(d)
 
-    def json(self)->str:
+    def json(self) -> str:
         """
         Returns a JSON representation
         :return:
         """
         return json.dumps(self.__statedictionary())
 
-    def name(self)->str:
+    def name(self) -> str:
         """
         Returns a name for this data source
         :return:
@@ -608,14 +606,14 @@ class TimeSeriesSource(object):
         return '{} {}'.format(bn, self.date())
 
 
-    def uri(self)->str:
+    def uri(self) -> str:
         """
         URI that can be used with GDAL to open a dataset
         :return: str
         """
         return self.mUri
 
-    def qgsMimeDataUtilsUri(self)->QgsMimeDataUtils.Uri:
+    def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
         uri = QgsMimeDataUtils.Uri()
         uri.name = self.name()
         uri.providerKey = 'gdal'
@@ -623,10 +621,10 @@ class TimeSeriesSource(object):
         uri.layerType = 'raster'
         return uri
 
-    def asRasterLayer(self)->QgsRasterLayer:
+    def asRasterLayer(self) -> QgsRasterLayer:
         return QgsRasterLayer(self.uri(), self.name(), 'gdal')
 
-    def pixelCoordinate(self, geometry)->QPoint:
+    def pixelCoordinate(self, geometry) -> QPoint:
         """
 
         :param QgsGeometry | QgsPoint | SpatialPoint:
@@ -647,7 +645,7 @@ class TimeSeriesSource(object):
             return None
         return px
 
-    def sid(self)->str:
+    def sid(self) -> str:
         """
         Returns the sensor id
         :return: str
@@ -668,7 +666,7 @@ class TimeSeriesSource(object):
         """
         self.mTimeSeriesDate = tsd
 
-    def date(self)->np.datetime64:
+    def date(self) -> np.datetime64:
         """
         Returns the date-time-group of the source image
         :return:
@@ -676,7 +674,7 @@ class TimeSeriesSource(object):
         """
         return self.mDate
 
-    def crs(self)->QgsCoordinateReferenceSystem:
+    def crs(self) -> QgsCoordinateReferenceSystem:
         """
         Returns the coordinate system as QgsCoordinateReferenceSystem
         :return:
@@ -684,7 +682,7 @@ class TimeSeriesSource(object):
         """
         return self.mCRS
 
-    def spatialExtent(self)->SpatialExtent:
+    def spatialExtent(self) -> SpatialExtent:
         """
         Returns the SpatialExtent
         :return:
@@ -694,7 +692,7 @@ class TimeSeriesSource(object):
             self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
         return self.mSpatialExtent
 
-    def asDataset(self)->gdal.Dataset:
+    def asDataset(self) -> gdal.Dataset:
         """
         Returns the source as gdal.Dataset
         :return:
@@ -702,7 +700,7 @@ class TimeSeriesSource(object):
         """
         return gdal.Open(self.uri())
 
-    def asArray(self)->np.ndarray:
+    def asArray(self) -> np.ndarray:
         """
         Returns the entire image as numpy array
         :return:
@@ -810,14 +808,14 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mVisibility
 
-    def sensor(self)->SensorInstrument:
+    def sensor(self) -> SensorInstrument:
         """
         Returns the SensorInstrument
         :return: SensorInsturment
         """
         return self.mSensor
 
-    def sources(self)->typing.List[TimeSeriesSource]:
+    def sources(self) -> typing.List[TimeSeriesSource]:
         """
         Returns the source images
         :return: [list-of-TimeSeriesSource]
@@ -825,28 +823,28 @@ class TimeSeriesDate(QAbstractTableModel):
         return self.mSources
 
 
-    def sourceUris(self)->typing.List[str]:
+    def sourceUris(self) -> typing.List[str]:
         """
         Returns all source URIs  as list of strings-
         :return: [list-of-str]
         """
         return [tss.uri() for tss in self.sources()]
 
-    def qgsMimeDataUtilsUris(self)->list:
+    def qgsMimeDataUtilsUris(self) -> list:
         """
         Returns all source URIs as list of QgsMimeDataUtils.Uri
         :return: [list-of-QgsMimedataUtils.Uris]
         """
         return [s.qgsMimeDataUtilsUri() for s in self.sources()]
 
-    def date(self)->np.datetime64:
+    def date(self) -> np.datetime64:
         """
         Returns the observation date
         :return: numpy.datetime64
         """
         return np.datetime64(self.mDate)
 
-    def decimalYear(self)->float:
+    def decimalYear(self) -> float:
         """
         Returns the observation date as decimal year (year + doy / (366+1) )
         :return: float
@@ -854,14 +852,14 @@ class TimeSeriesDate(QAbstractTableModel):
 
         return self.year() + self.doy() / (366+1)
 
-    def year(self)->int:
+    def year(self) -> int:
         """
         Returns the observation year
         :return: int
         """
         return self.mDate.astype(object).year
 
-    def doy(self)->int:
+    def doy(self) -> int:
         """
         Returns the day of Year (DOY)
         :return: int
@@ -893,7 +891,7 @@ class TimeSeriesDate(QAbstractTableModel):
                 ext.combineExtentWith(tss.spatialExtent())
         return ext
 
-    def imageBorders(self)->QgsGeometry:
+    def imageBorders(self) -> QgsGeometry:
         """
         Retunrs the exact border polygon
         :return: QgsGeometry
@@ -901,14 +899,14 @@ class TimeSeriesDate(QAbstractTableModel):
 
         return None
 
-    def __repr__(self)->str:
+    def __repr__(self) -> str:
         """
         String representation
         :return:
         """
         return 'TimeSeriesDate({},{})'.format(str(self.mDate), str(self.mSensor))
 
-    def __eq__(self, other)->bool:
+    def __eq__(self, other) -> bool:
         """
         Tow TimeSeriesDate instances are equal if they have the same date, sensor and sources.
         :param other: TimeSeriesDate
@@ -931,14 +929,14 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return iter(self.mSources)
 
-    def __len__(self)->int:
+    def __len__(self) -> int:
         """
         Returns the number of source images.
         :return: int
         """
         return len(self.mSources)
 
-    def __lt__(self, other)->bool:
+    def __lt__(self, other) -> bool:
         """
         :param other: TimeSeriesDate
         :return: bool
@@ -996,14 +994,14 @@ class TimeSeriesDate(QAbstractTableModel):
         return None   
             
         
-    def id(self)->tuple:
+    def id(self) -> tuple:
         """
         :return: tuple
         """
         return (self.mDate, self.mSensor.id())
 
 
-    def mimeDataUris(self)->list:
+    def mimeDataUris(self) -> list:
         """
         Returns the sources of this TSD as list of QgsMimeDataUtils.Uris
         :return: [list-of-QgsMimeDataUtils]
@@ -1073,7 +1071,7 @@ class SensorMatching(enum.Flag):
         assert isinstance(flags, SensorMatching)
 
     @staticmethod
-    def tooltip(flags)->str:
+    def tooltip(flags) -> str:
         """
         Returns a multi-line tooltip for the flag set
         :param flags:
@@ -1194,7 +1192,7 @@ class TimeSeries(QAbstractItemModel):
                 self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
                 self.sigVisibilityChanged.emit()
 
-    def currentSpatialExtent(self)->SpatialExtent:
+    def currentSpatialExtent(self) -> SpatialExtent:
         """
         Returns the current spatial extent
         :return: SpatialExtent
@@ -1216,7 +1214,7 @@ class TimeSeries(QAbstractItemModel):
                 idx2 = self.index(idx.row(), self.columnCount()-1)
                 self.dataChanged.emit(idx, idx2, [Qt.BackgroundColorRole])
 
-    def findMatchingSensor(self, sensorID:str)->SensorInstrument:
+    def findMatchingSensor(self, sensorID:str) -> SensorInstrument:
         if isinstance(sensorID, str):
             nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
 
@@ -1246,7 +1244,7 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-    def sensor(self, sensorID:str)->SensorInstrument:
+    def sensor(self, sensorID:str) -> SensorInstrument:
         """
         Returns the sensor with sid = sid
         :param sensorID: str, sensor id
@@ -1265,7 +1263,7 @@ class TimeSeries(QAbstractItemModel):
         return None
 
 
-    def sensors(self)->typing.List[SensorInstrument]:
+    def sensors(self) -> typing.List[SensorInstrument]:
         """
         Returns the list of sensors derived from the TimeSeries data sources
         :return: [list-of-SensorInstruments]
@@ -1343,7 +1341,7 @@ class TimeSeries(QAbstractItemModel):
         return r
 
 
-    def maxSpatialExtent(self, crs=None)->SpatialExtent:
+    def maxSpatialExtent(self, crs=None) -> SpatialExtent:
         """
         Returns the maximum SpatialExtent of all images of the TimeSeries
         :param crs: QgsCoordinateSystem to express the SpatialExtent coordinates.
@@ -1376,7 +1374,7 @@ class TimeSeries(QAbstractItemModel):
                     return tsd
         return None
 
-    def tsd(self, date: np.datetime64, sensor)->TimeSeriesDate:
+    def tsd(self, date: np.datetime64, sensor) -> TimeSeriesDate:
         """
         Returns the TimeSeriesDate identified by date and sensorID
         :param date: numpy.datetime64
@@ -1396,7 +1394,7 @@ class TimeSeries(QAbstractItemModel):
                     return tsd
         return None
 
-    def insertTSD(self, tsd: TimeSeriesDate)->TimeSeriesDate:
+    def insertTSD(self, tsd: TimeSeriesDate) -> TimeSeriesDate:
         """
         Inserts a TimeSeriesDate
         :param tsd: TimeSeriesDate
@@ -1481,7 +1479,7 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None)->typing.List[TimeSeriesDate]:
+    def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None) -> typing.List[TimeSeriesDate]:
 
         """
         Returns a list of  TimeSeriesDate of the TimeSeries. By default all TimeSeriesDate will be returned.
@@ -1527,7 +1525,7 @@ class TimeSeries(QAbstractItemModel):
         for sensor in to_remove:
             self.removeSensor(sensor)
 
-    def removeSensor(self, sensor:SensorInstrument)->SensorInstrument:
+    def removeSensor(self, sensor:SensorInstrument) -> SensorInstrument:
         """
         Removes a sensor and all linked images
         :param sensor: SensorInstrument
@@ -1662,7 +1660,7 @@ class TimeSeries(QAbstractItemModel):
             self.mLoadingProgressDialog = None
 
 
-    def _addSource(self, source:TimeSeriesSource)->TimeSeriesDate:
+    def _addSource(self, source:TimeSeriesSource) -> TimeSeriesDate:
         """
         :param source:
         :return: TimeSeriesDate (if new created)
@@ -1726,7 +1724,7 @@ class TimeSeries(QAbstractItemModel):
         self.mSensorMatchingFlags = flags
 
 
-    def date2date(self, date:np.datetime64)->np.datetime64:
+    def date2date(self, date:np.datetime64) -> np.datetime64:
         """
         Converts a date of arbitrary precision into the date with precision according to the EOTSV settions.
         :param date: numpy.datetime64
@@ -1752,7 +1750,7 @@ class TimeSeries(QAbstractItemModel):
 
 
 
-    def sourceUris(self)->list:
+    def sourceUris(self) -> list:
         """
         Returns the uris of all sources
         :return: [list-of-str]
@@ -1766,7 +1764,7 @@ class TimeSeries(QAbstractItemModel):
     def __len__(self):
         return len(self.mTSDs)
 
-    def __iter__(self)->typing.Iterator[TimeSeriesDate]:
+    def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
         return iter(self.mTSDs)
 
     def __getitem__(self, slice):
@@ -1895,7 +1893,7 @@ class TimeSeries(QAbstractItemModel):
 
         return QModelIndex()
 
-    def tsdToIdx(self, tsd:TimeSeriesDate)->QModelIndex:
+    def tsdToIdx(self, tsd:TimeSeriesDate) -> QModelIndex:
         """
         Returns an QModelIndex pointing on a TimeSeriesDate of interest
         :param tsd: TimeSeriesDate
@@ -2035,7 +2033,7 @@ class TimeSeries(QAbstractItemModel):
                     return tssCandidate
         return None
 
-    def findDate(self, date)->TimeSeriesDate:
+    def findDate(self, date) -> TimeSeriesDate:
         """
         Returns a TimeSeriesDate closest to that in date
         :param date: numpy.datetime64 | str | TimeSeriesDate
@@ -2189,7 +2187,7 @@ class TimeSeriesTreeView(QTreeView):
 
 
 regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
-def sensorName(dataset:gdal.Dataset)->str:
+def sensorName(dataset:gdal.Dataset) -> str:
     """
     Reads the sensor/product name. Returns None if a proper name can not be extracted.
     :param dataset: gdal.Dataset
@@ -2237,7 +2235,7 @@ def getSpatialPropertiesFromDataset(ds):
 
     return nb, nl, ns, crs, px_x, px_y
 
-def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
+def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset) -> (list, str):
     """
     Reads the wavelength info from standard metadata strings
     :param ds: gdal.Dataset
@@ -2248,7 +2246,7 @@ def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
     regWLUkey = re.compile('^wavelength[_ ]*units?$', re.I)
     regNumeric = re.compile(r"([-+]?\d*\.\d+|[-+]?\d+)", re.I)
 
-    def findKey(d:dict, regex)->str:
+    def findKey(d:dict, regex) -> str:
         for key in d.keys():
             if regex.search(key):
                 return key
@@ -2307,7 +2305,7 @@ def extractWavelengthsFromGDALMetaData(ds:gdal.Dataset)->(list, str):
 
 
 
-def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument)->(list, str):
+def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument) -> (list, str):
     nodes = dom.elementsByTagName('re:bandSpecificMetadata')
     # see http://schemas.rapideye.de/products/re/4.0/RapidEye_ProductMetadata_GeocorrectedLevel.xsd
     # wavelength and units not given in the XML
@@ -2324,7 +2322,7 @@ def extractWavelengthsFromRapidEyeXML(ds:gdal.Dataset, dom:QDomDocument)->(list,
     return None, None
 
 
-def extractWavelengthsFromDIMAPXML(ds:gdal.Dataset, dom:QDomDocument)->(list, str):
+def extractWavelengthsFromDIMAPXML(ds:gdal.Dataset, dom:QDomDocument) -> (list, str):
     """
     :param dom: QDomDocument | gdal.Dataset
     :return: (list of wavelengths, str wavelength unit)
@@ -2390,7 +2388,7 @@ def extractWavelengths(ds):
 
     elif isinstance(ds, gdal.Dataset):
 
-        def testWavelLengthInfo(wl, wlu)->bool:
+        def testWavelLengthInfo(wl, wlu) -> bool:
             return isinstance(wl, list) and len(wl) == ds.RasterCount and isinstance(wlu, str) and wlu in LUT_WAVELENGTH_UNITS.keys()
 
         # try band-specific metadata
@@ -2497,7 +2495,7 @@ class TimeSeriesDock(QgsDockWidget):
             isinstance(self.mSelectionModel, QItemSelectionModel) and
             len(self.mSelectionModel.selectedRows()) > 0)
 
-    def selectedTimeSeriesDates(self)->list:
+    def selectedTimeSeriesDates(self) -> list:
         """
         Returns the TimeSeriesDate selected by a user.
         :return: [list-of-TimeSeriesDate]
@@ -2512,7 +2510,7 @@ class TimeSeriesDock(QgsDockWidget):
                     results.append(tsd)
         return results
 
-    def timeSeries(self)->TimeSeries:
+    def timeSeries(self) -> TimeSeries:
         """
         Returns the connected TimeSeries
         :return: TimeSeries

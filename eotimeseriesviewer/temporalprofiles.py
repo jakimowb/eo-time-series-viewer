@@ -100,7 +100,7 @@ def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False)
 
     return fields
 
-def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False)->QgsFeature:
+def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False) -> QgsFeature:
     """
     Returns an exemplary QgsFeature with value for a specific sensor
     :param sensor: SensorInstrument
@@ -548,7 +548,7 @@ class TemporalProfile(QObject):
 
         return other.mID == self.mID and self.mLayer == other.mLayer
 
-    def geometry(self, crs:QgsCoordinateReferenceSystem=None)->QgsGeometry:
+    def geometry(self, crs:QgsCoordinateReferenceSystem=None) -> QgsGeometry:
         """
         Returns the geometry
         :param crs:
@@ -567,7 +567,7 @@ class TemporalProfile(QObject):
         return g
 
 
-    def coordinate(self)->SpatialPoint:
+    def coordinate(self) -> SpatialPoint:
         """
         Returns the profile coordinate
         :return:
@@ -839,7 +839,7 @@ class TemporalProfilePlotStyleBase(PlotStyle):
         if isinstance(temporalProfile, TemporalProfile):
             self.setTemporalProfile(temporalProfile)
 
-    def showLastLocation(self)->bool:
+    def showLastLocation(self) -> bool:
         """
         """
         return self.mShowLastLocation
@@ -1392,7 +1392,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         #styles.setRowStyles([red])
 
 
-    def createTemporalProfiles(self, coordinates, names:list=None)->list:
+    def createTemporalProfiles(self, coordinates, names:list=None) -> list:
         """
         Creates temporal profiles
         :param coordinates:

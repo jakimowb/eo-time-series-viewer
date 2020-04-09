@@ -106,7 +106,7 @@ def initAll():
     initResources()
     initEditorWidgets()
 
-def icon()->QIcon:
+def icon() -> QIcon:
     """
     Returns the EO Time Series Viewer icon
     :return: QIcon

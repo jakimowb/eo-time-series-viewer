@@ -522,7 +522,7 @@ class PlotSettingsModel2D(QAbstractTableModel):
 
 
 
-    def requiredBandsIndices(self, sensor)->list:
+    def requiredBandsIndices(self, sensor) -> list:
         """
         Returns the band indices required to calculate the values for
         the different PlotStyle expressions making use of sensor
@@ -837,10 +837,10 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
         else:
             super(PlotSettingsModel2DWidgetDelegate, self).paint(painter, option, index)
 
-    def sortFilterProxyModel(self)->QSortFilterProxyModel:
+    def sortFilterProxyModel(self) -> QSortFilterProxyModel:
         return self.mTableView.model()
 
-    def plotSettingsModel(self)->PlotSettingsModel2D:
+    def plotSettingsModel(self) -> PlotSettingsModel2D:
         return self.sortFilterProxyModel().sourceModel()
 
     def setItemDelegates(self, tableView):
@@ -946,7 +946,7 @@ class PlotSettingsModel2DWidgetDelegate(QStyledItemDelegate):
 
                 self.commitData.emit(w)
 
-    def style(self, proxyIndex:QModelIndex)->PlotStyle:
+    def style(self, proxyIndex:QModelIndex) -> PlotStyle:
         model = self.plotSettingsModel()
         index = self.sortFilterProxyModel().mapToSource(proxyIndex)
         return model.data(index, role=Qt.UserRole)
@@ -1478,7 +1478,7 @@ class SpectralTemporalVisualization(QObject):
     def plotStyles(self):
         return self.plotSettingsModel2D[:]
 
-    def temporalProfileLayer(self)->TemporalProfileLayer:
+    def temporalProfileLayer(self) -> TemporalProfileLayer:
         """
         Returns a QgsVectorLayer that is used to store profile coordinates.
         :return:
@@ -1707,7 +1707,7 @@ class SpectralTemporalVisualization(QObject):
         self.sigMoveToTSD.emit(self.TS[i])
 
 
-    def onPixelLoaded(self, qgsTask ,dump)->typing.List[TemporalProfile]:
+    def onPixelLoaded(self, qgsTask ,dump) -> typing.List[TemporalProfile]:
         """
         Updates TemporalProfiles
         :param qgsTask:
@@ -1907,7 +1907,7 @@ class SpectralTemporalVisualization(QObject):
             if DEBUG:
                 print('Data for geometries already loaded')
 
-    def loadTemporalProfileTasks(self, tasks:typing.Iterable[TemporalProfileLoaderTask], runAsync=True)->typing.List[TemporalProfile]:
+    def loadTemporalProfileTasks(self, tasks:typing.Iterable[TemporalProfileLoaderTask], runAsync=True) -> typing.List[TemporalProfile]:
         """
         Loads data into TemporalProfiles
         :param tasks:

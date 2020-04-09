@@ -78,7 +78,7 @@ def defaultValues() -> dict:
     return d
 
 
-def settings()->QSettings:
+def settings() -> QSettings:
     """
     Returns the EOTSV settings.
     :return: QSettings
@@ -169,7 +169,7 @@ def saveSensorName(sensor:SensorInstrument):
 
     setValue(Keys.SensorSpecs, sensorSpecs)
 
-def sensorName(id:typing.Union[str, SensorInstrument])->str:
+def sensorName(id:typing.Union[str, SensorInstrument]) -> str:
     """
     Retuns the sensor name stored for a certain sensor id
     :param id: str
@@ -221,7 +221,7 @@ def setValues(values: dict):
         setValue(key, val)
     settings().sync()
 
-def values()->dict:
+def values() -> dict:
     """
     Returns all settings in a dictionary
     :return: dict
@@ -288,7 +288,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
             self.mSensors.remove(sensor)
             self.endRemoveRows()
 
-    def sensor2idx(self, sensor:SensorInstrument)->QModelIndex:
+    def sensor2idx(self, sensor:SensorInstrument) -> QModelIndex:
 
         if not sensor in self.mSensors:
             return QModelIndex()
@@ -316,7 +316,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
         self.clear()
         self.addSensors(sensors)
 
-    def specs(self)->dict:
+    def specs(self) -> dict:
         """
         Returns the specifications for each stored sensor
         :return:
@@ -329,10 +329,10 @@ class SensorSettingsTableModel(QAbstractTableModel):
             specs[sensor.id()] = s
         return specs
 
-    def rowCount(self, parent: QModelIndex = QModelIndex())->int:
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.mSensors)
 
-    def columnNames(self)->typing.List[str]:
+    def columnNames(self) -> typing.List[str]:
         return [self.mCNKey, self.mCNName]
 
     def columnCount(self, parent: QModelIndex):
@@ -355,13 +355,13 @@ class SensorSettingsTableModel(QAbstractTableModel):
         else:
             return None
 
-    def sensor(self, index)->SensorInstrument:
+    def sensor(self, index) -> SensorInstrument:
         if isinstance(index, int):
             return self.mSensors[index]
         else:
             return self.mSensors[index.row()]
 
-    def sensorIDDisplayString(self, sensor:SensorInstrument)->str:
+    def sensorIDDisplayString(self, sensor:SensorInstrument) -> str:
         """
         Returns a short representation of the sensor id, e.g. "6bands(Int16)@30m"
         :param sensor:
@@ -521,7 +521,7 @@ class SettingsDialog(QDialog):
 
             pass
 
-    def values(self)->dict:
+    def values(self) -> dict:
         """
         Returns the settings as dictionary
         :return: dict

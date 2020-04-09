@@ -36,7 +36,7 @@ class MapViewScrollArea(QScrollArea):
         #super(MapViewScrollArea, self).resizeEvent(event)
         #self.sigResized.emit()
 
-    def distanceToCenter(self, widget:QWidget)->int:
+    def distanceToCenter(self, widget:QWidget) -> int:
         # self.visibleRegion().boundingRect().isValid()
         halfSize = widget.size() * 0.5
         centerInParent = widget.mapToParent(QPoint(halfSize.width(), halfSize.height()))

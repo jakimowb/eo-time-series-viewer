@@ -49,7 +49,7 @@ class EOTSVTestCase(TestCase):
         initQtResources(DIR_REPO)
         super().setUpClass()
 
-def testRasterFiles()->list:
+def testRasterFiles() -> list:
     return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
 
 
@@ -75,7 +75,7 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
         return TS
 
     @staticmethod
-    def createArtificialTimeSeries(n=100)->list:
+    def createArtificialTimeSeries(n=100) -> list:
         vsiDir = '/vsimem/tmp'
         d1 = np.datetime64('2000-01-01')
         print('Create in-memory test timeseries of length {}...'.format(n))

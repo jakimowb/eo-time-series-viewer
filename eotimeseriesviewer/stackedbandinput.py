@@ -26,7 +26,7 @@ from .virtualrasters import *
 from .dateparser import *
 from eotimeseriesviewer import DIR_UI
 
-def datesFromDataset(dataset:gdal.Dataset)->list:
+def datesFromDataset(dataset:gdal.Dataset) -> list:
 
     nb = dataset.RasterCount
 
@@ -163,7 +163,7 @@ class InputStackInfo(object):
     def __len__(self):
         return len(self.mDates)
 
-    def dates(self)->list:
+    def dates(self) -> list:
         """Returns a list of dates"""
         return self.mDates
 
@@ -598,7 +598,7 @@ class OutputImageModel(QAbstractTableModel):
             i = i.column()
         return self.mColumnNames[i]
 
-    def columnIndex(self, columnName:str)-> QModelIndex:
+    def columnIndex(self, columnName:str) ->  QModelIndex:
         c = self.mColumnNames.index(columnName)
         return self.createIndex(0, c)
 

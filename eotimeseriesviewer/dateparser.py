@@ -31,7 +31,7 @@ def matchOrNone(regex, text):
     else:
         return None
 
-def dateDOY(date:datetime.date)->int:
+def dateDOY(date:datetime.date) -> int:
     """
     Returns the DOY
     :param date:
@@ -43,7 +43,7 @@ def dateDOY(date:datetime.date)->int:
         date = date.astype(datetime.date)
     return date.timetuple().tm_yday
 
-def daysPerYear(year)->int:
+def daysPerYear(year) -> int:
     """Returns the days per year"""
     if isinstance(year, np.datetime64):
         year = year.astype(datetime.date)
@@ -85,7 +85,7 @@ def num2date(n, dt64=True, qDate=False):
         return date
 
 
-def extractDateTimeGroup(text:str)->np.datetime64:
+def extractDateTimeGroup(text:str) -> np.datetime64:
     """
     Extracts a date-time-group from a text string
     :param text: a string
@@ -282,7 +282,7 @@ class ImageDateParserLandsat(ImageDateReader):
 dateParserList = [c for c in ImageDateReader.__subclasses__()]
 dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault))) # set to first position
 
-def parseDateFromDataSet(dataSet:gdal.Dataset)->np.datetime64:
+def parseDateFromDataSet(dataSet:gdal.Dataset) -> np.datetime64:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()

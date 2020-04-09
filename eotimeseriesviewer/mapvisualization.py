@@ -62,7 +62,7 @@ KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
 KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 
 
-def equalTextFormats(tf1:QgsTextFormat, tf2:QgsTextFormat)->True:
+def equalTextFormats(tf1:QgsTextFormat, tf2:QgsTextFormat) -> True:
     return tf1.toMimeData().text() == tf2.toMimeData().text()
 
 class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
@@ -92,16 +92,16 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
     def mapView(self):
         return self.mMapView
 
-    def layerTreeView(self)->QgsLayerTreeView:
+    def layerTreeView(self) -> QgsLayerTreeView:
         return self.mLayerTreeView
 
-    def layerTree(self)->QgsLayerTree:
+    def layerTree(self) -> QgsLayerTree:
         return self.layerTreeModel().rootGroup()
 
-    def layerTreeModel(self)->QgsLayerTreeModel:
+    def layerTreeModel(self) -> QgsLayerTreeModel:
         return self.layerTreeView().model()
 
-    def createContextMenu(self)->QMenu:
+    def createContextMenu(self) -> QMenu:
 
         model = self.layerTreeModel()
         ltree = self.layerTree()
@@ -318,27 +318,27 @@ class MapView(QFrame):
     def setName(self, name:str):
         self.setTitle(name)
 
-    def name(self)->str:
+    def name(self) -> str:
         return self.title()
 
-    def setMapTextFormat(self, textformat:QgsTextFormat)->QgsTextFormat:
+    def setMapTextFormat(self, textformat:QgsTextFormat) -> QgsTextFormat:
 
         if not equalTextFormats(self.mapTextFormat(), textformat):
             self.mMapTextFormat = textformat
             self.sigCanvasAppearanceChanged.emit()
         return self.mapTextFormat()
 
-    def mapTextFormat(self)->QgsTextFormat:
+    def mapTextFormat(self) -> QgsTextFormat:
         return self.mMapTextFormat
 
-    def mapBackgroundColor(self)->QColor:
+    def mapBackgroundColor(self) -> QColor:
         """
         Returns the map background color
         :return: QColor
         """
         return self.mMapBackgroundColor
 
-    def setMapBackgroundColor(self, color:QColor)->QColor:
+    def setMapBackgroundColor(self, color:QColor) -> QColor:
         """
         Sets the map background color
         :param color: QColor
@@ -350,7 +350,7 @@ class MapView(QFrame):
         return self.mMapBackgroundColor
 
 
-    def visibleMapCanvases(self)->list:
+    def visibleMapCanvases(self) -> list:
         """
         Returns the currently visible mapcanvases
         :return: [list-of-MapCanvases]
@@ -433,7 +433,7 @@ class MapView(QFrame):
         self.mLayerTreeSensorNode.setCustomProperty(KEY_SENSOR_GROUP, True)
         self.mLayerTree.addChildNode(self.mLayerTreeSensorNode)
 
-    def _containsSensorNode(self, root:QgsLayerTreeGroup)->bool:
+    def _containsSensorNode(self, root:QgsLayerTreeGroup) -> bool:
         assert isinstance(root, QgsLayerTreeGroup)
         if root.customProperty(KEY_SENSOR_GROUP) in [True, 'true']:
             return True
@@ -473,14 +473,14 @@ class MapView(QFrame):
         if changed:
             self.sigCanvasAppearanceChanged.emit()
 
-    def isVisible(self)->bool:
+    def isVisible(self) -> bool:
         """
         Returns the map view visibility
         :return: bool
         """
         return not self.actionToggleMapViewHidden.isChecked()
 
-    def mapCanvases(self)->typing.List[MapCanvas]:
+    def mapCanvases(self) -> typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to this map view. Requires that this mapview was added to a MapWidget
         :return: [list-of-MapCanvases]
@@ -520,7 +520,7 @@ class MapView(QFrame):
         for s in timeSeries.sensors():
             self.addSensor(s)
 
-    def timeSeries(self)->TimeSeries:
+    def timeSeries(self) -> TimeSeries:
         """
         Returns the TimeSeries this mapview is connected with
         :return: TimeSeries
@@ -537,14 +537,14 @@ class MapView(QFrame):
             self.tbName.setText(title)
 
 
-    def layers(self)->list:
+    def layers(self) -> list:
         """
         Returns the visible layers, including proxy layer for time-series data
         :return: [list-of-QgsMapLayers]
         """
         return [l for l in self.mLayerTree.checkedLayers() if isinstance(l, QgsMapLayer)]
 
-    def title(self, maskNewLines=True)->str:
+    def title(self, maskNewLines=True) -> str:
         """
         Returns the MapView title
         :return: str
@@ -554,7 +554,7 @@ class MapView(QFrame):
         else:
             return self.tbName.text().strip()
 
-    def setCrosshairStyle(self, crosshairStyle:CrosshairStyle)->CrosshairStyle:
+    def setCrosshairStyle(self, crosshairStyle:CrosshairStyle) -> CrosshairStyle:
         """
         Seths the CrosshairStyle of this MapView
         :param crosshairStyle: CrosshairStyle
@@ -587,7 +587,7 @@ class MapView(QFrame):
             for mapCanvas in self.mapCanvases():
                 mapCanvas.setStyleSheet(styleOff)
 
-    def crosshairStyle(self)->CrosshairStyle:
+    def crosshairStyle(self) -> CrosshairStyle:
         """
         Returns the CrosshairStyle
         :return: CrosshairStyle
@@ -606,11 +606,11 @@ class MapView(QFrame):
             self.sigCrosshairChanged.emit()
 
 
-    def sensorProxyLayers(self)->typing.List[SensorProxyLayer]:
+    def sensorProxyLayers(self) -> typing.List[SensorProxyLayer]:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
         return [l for l in layers if isinstance(l, SensorProxyLayer)]
 
-    def sensorProxyLayer(self, sensor:SensorInstrument)->SensorProxyLayer:
+    def sensorProxyLayer(self, sensor:SensorInstrument) -> SensorProxyLayer:
         """
         Returns the proxy layer related to a SensorInstrument
         :param sensor: SensorInstrument
@@ -621,7 +621,7 @@ class MapView(QFrame):
                 return l
         return None
 
-    def sensors(self)->list:
+    def sensors(self) -> list:
         """
         Returns a list of SensorsInstruments
         :return: [list-of-SensorInstruments]
@@ -655,7 +655,7 @@ class MapView(QFrame):
             assert isinstance(c, MapCanvas)
             c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
 
-    def sensorCanvases(self, sensor:SensorInstrument)->list:
+    def sensorCanvases(self, sensor:SensorInstrument) -> list:
         """
         Returns the MapCanvases that show a layer with data for the given ``sensor``
         :param sensor: SensorInstrument
@@ -697,7 +697,7 @@ class MapView(QFrame):
             self.mSensorLayerList.remove(t)
 
 
-    def hasSensor(self, sensor)->bool:
+    def hasSensor(self, sensor) -> bool:
         """
         :param sensor:
         :return:
@@ -903,7 +903,7 @@ class MapWidget(QFrame):
 
 
 
-    def messageBar(self)->QgsMessageBar:
+    def messageBar(self) -> QgsMessageBar:
         """
         Returns the QgsMessageBar
         :return: QgsMessageBar
@@ -915,7 +915,7 @@ class MapWidget(QFrame):
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
 
-    def setMapTextFormat(self, textFormat:QgsTextFormat)->QgsTextFormat:
+    def setMapTextFormat(self, textFormat:QgsTextFormat) -> QgsTextFormat:
 
         if not equalTextFormats(textFormat, self.mMapTextFormat):
             self.mMapTextFormat = textFormat
@@ -925,7 +925,7 @@ class MapWidget(QFrame):
             self.sigMapTextFormatChanged.emit(self.mapTextFormat())
         return self.mapTextFormat()
 
-    def mapTextFormat(self)->QgsTextFormat:
+    def mapTextFormat(self) -> QgsTextFormat:
         return self.mMapTextFormat
 
 
@@ -940,7 +940,7 @@ class MapWidget(QFrame):
                 mts = c.mapTools()
                 mts.activate(self.mMapToolKey)
 
-    def visibleTSDs(self)->list:
+    def visibleTSDs(self) -> list:
         """
         Returns the list of currently shown TimeSeriesDates.
         :return: [list-of-TimeSeriesDates]
@@ -955,14 +955,14 @@ class MapWidget(QFrame):
             return sorted(tsds)
         return []
 
-    def spatialExtent(self)->SpatialExtent:
+    def spatialExtent(self) -> SpatialExtent:
         """
         Returns the current SpatialExtent
         :return: SpatialExtent
         """
         return self.mSpatialExtent
 
-    def setSpatialExtent(self, extent:SpatialExtent)->SpatialExtent:
+    def setSpatialExtent(self, extent:SpatialExtent) -> SpatialExtent:
         """
         Sets a SpatialExtent to all MapCanvases.
         :param extent: SpatialExtent
@@ -1001,7 +1001,7 @@ class MapWidget(QFrame):
                 self.setSpatialExtent(extent)
 
 
-    def spatialCenter(self)->SpatialPoint:
+    def spatialCenter(self) -> SpatialPoint:
         """
         Return the center of all map canvas
         :return: SpatialPoint
@@ -1009,7 +1009,7 @@ class MapWidget(QFrame):
         return self.spatialExtent().spatialCenter()
 
 
-    def setCrs(self, crs:QgsCoordinateReferenceSystem)->QgsCoordinateReferenceSystem:
+    def setCrs(self, crs:QgsCoordinateReferenceSystem) -> QgsCoordinateReferenceSystem:
         """
         Sets the MapCanvas CRS.
         :param crs: QgsCoordinateReferenceSystem
@@ -1043,10 +1043,10 @@ class MapWidget(QFrame):
         return list(layers)
 
 
-    def crs(self)->QgsCoordinateReferenceSystem:
+    def crs(self) -> QgsCoordinateReferenceSystem:
         return self.mCrs
 
-    def setTimeSeries(self, ts:TimeSeries)->TimeSeries:
+    def setTimeSeries(self, ts:TimeSeries) -> TimeSeries:
         assert ts == None or isinstance(ts, TimeSeries)
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
@@ -1103,7 +1103,7 @@ class MapWidget(QFrame):
             self.setCurrentDate(tsd)
 
 
-    def timeSeries(self)->TimeSeries:
+    def timeSeries(self) -> TimeSeries:
         return self.mTimeSeries
 
     def setMode(self, mode:ViewMode):
@@ -1113,7 +1113,7 @@ class MapWidget(QFrame):
             self._updateGrid()
             self.sigViewModeChanged.emit(self.mViewMode)
 
-    def setMapsPerMapView(self, n:int)->int:
+    def setMapsPerMapView(self, n:int) -> int:
         """
         Sets the number of maps per map viewe
         :param n: int
@@ -1129,14 +1129,14 @@ class MapWidget(QFrame):
         return self.mapsPerMapView()
 
 
-    def mapsPerMapView(self)->int:
+    def mapsPerMapView(self) -> int:
         """
         Returns the number of maps per map view
         :return: int
         """
         return self.mMpMV
 
-    def setMapSize(self, size:QSize)->QSize:
+    def setMapSize(self, size:QSize) -> QSize:
         """
         Sets the MapCanvas size
         :param size: QSite
@@ -1153,21 +1153,21 @@ class MapWidget(QFrame):
 
         return self.mMapSize
 
-    def mapSize(self)->QSize:
+    def mapSize(self) -> QSize:
         """
         Returns the MapCanvas size
         :return: QSize
         """
         return self.mMapSize
 
-    def mapCanvases(self)->typing.List[MapCanvas]:
+    def mapCanvases(self) -> typing.List[MapCanvas]:
         """
         Returns all MapCanvases
         :return: [list-of-MapCanvases]
         """
         return self.findChildren(MapCanvas)
 
-    def mapViewCanvases(self, mapView:MapView)->typing.List[MapCanvas]:
+    def mapViewCanvases(self, mapView:MapView) -> typing.List[MapCanvas]:
         """
         Returns the MapCanvases related to a MapView
         :param mapView: MapView
@@ -1220,7 +1220,7 @@ class MapWidget(QFrame):
                 return
         s  = ""
 
-    def setCurrentDate(self, tsd:TimeSeriesDate)->TimeSeriesDate:
+    def setCurrentDate(self, tsd:TimeSeriesDate) -> TimeSeriesDate:
         """
         Sets the current TimeSeriesDate, i.e. the "center" date of all dates to be shown
         :param tsd: TimeSeriesDate
@@ -1256,17 +1256,17 @@ class MapWidget(QFrame):
 
         return self.mCurrentDate
 
-    def timeSlider(self)->QSlider:
+    def timeSlider(self) -> QSlider:
         return self.mTimeSlider
 
-    def currentDate(self)->TimeSeriesDate:
+    def currentDate(self) -> TimeSeriesDate:
         """
         Returns the current TimeSeriesDate
         :return: TimeSeriesDate
         """
         return self.mCurrentDate
 
-    def addMapView(self, mapView:MapView)->MapView:
+    def addMapView(self, mapView:MapView) -> MapView:
         """
         Adds a MapView
         :param mapView: MapView
@@ -1290,7 +1290,7 @@ class MapWidget(QFrame):
 
         return mapView
 
-    def removeMapView(self, mapView:MapView)->MapView:
+    def removeMapView(self, mapView:MapView) -> MapView:
         """
         Removes a MapView
         :param mapView: Mapview
@@ -1307,7 +1307,7 @@ class MapWidget(QFrame):
             self.sigMapViewRemoved.emit(mapView)
         return mapView
 
-    def mapViews(self)->list:
+    def mapViews(self) -> list:
         """
         Returns a list of all MapViews
         :return: [list-of-MapViews]
@@ -1377,7 +1377,7 @@ class MapWidget(QFrame):
 
         self.mSyncLock = False
 
-    def _createMapCanvas(self)->MapCanvas:
+    def _createMapCanvas(self) -> MapCanvas:
         mapCanvas = MapCanvas()
         mapCanvas.setMapLayerStore(self.mMapLayerStore)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
@@ -1421,7 +1421,7 @@ class MapWidget(QFrame):
         for mapView in self.mapViews():
             mapView.setCurrentLayer(layer)
 
-    def setCrosshairPosition(self, spatialPoint)->SpatialPoint:
+    def setCrosshairPosition(self, spatialPoint) -> SpatialPoint:
         spatialPoint = spatialPoint.toCrs(self.crs())
         if self.mCrosshairPosition != spatialPoint:
             self.mCrosshairPosition = spatialPoint
@@ -1433,7 +1433,7 @@ class MapWidget(QFrame):
             self.sigCrosshairPositionChanged[SpatialPoint].emit(self.mCrosshairPosition)
         return self.crosshairPosition()
 
-    def crosshairPosition(self)->SpatialPoint:
+    def crosshairPosition(self) -> SpatialPoint:
         return self.mCrosshairPosition
 
     def _updateGrid(self):
@@ -1538,7 +1538,7 @@ class MapWidget(QFrame):
             w.layout().update()
             w.update()
 
-    def _updateLayerCache(self)->list:
+    def _updateLayerCache(self) -> list:
         canvases = self.findChildren(MapCanvas)
         for c in canvases:
             assert isinstance(c, MapCanvas)
@@ -1747,7 +1747,7 @@ class MapViewDock(QgsDockWidget):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
         self.sigMapsPerMapViewChanged.emit(self.mapsPerMapView())
 
-    def setMapWidget(self, mw)->MapWidget:
+    def setMapWidget(self, mw) -> MapWidget:
         """
         Connects this MapViewDock with a MapWidget
         :param mw: MapWidget
@@ -1780,14 +1780,14 @@ class MapViewDock(QgsDockWidget):
 
         return self.mMapWidget
 
-    def mapWidget(self)->MapWidget:
+    def mapWidget(self) -> MapWidget:
         """
         Returns the connected MapWidget
         :return: MapWidget
         """
         return self.mMapWidget
 
-    def mapViews(self)->list:
+    def mapViews(self) -> list:
         """
         Returns the defined MapViews
         :return: [list-of-MapViews]
@@ -1800,7 +1800,7 @@ class MapViewDock(QgsDockWidget):
                 mapViews.append(item)
         return mapViews
 
-    def mapCanvases(self)->list:
+    def mapCanvases(self) -> list:
         """
         Returns all MapCanvases from all MapViews
         :return: [list-of-MapCanvases]
@@ -1819,7 +1819,7 @@ class MapViewDock(QgsDockWidget):
                 self.btnCrs.setCrs(crs)
                 self.btnCrs.setLayerCrs(crs)
 
-    def mapsPerMapView(self)->int:
+    def mapsPerMapView(self) -> int:
         return self.sbMpMV.value()
 
     def setMapsPerMapView(self, n:int):
@@ -1834,7 +1834,7 @@ class MapViewDock(QgsDockWidget):
         if not equalTextFormats(textFormat, self.mapTextFormat()):
             self.btnTextFormat.setTextFormat(textFormat)
 
-    def mapTextFormat(self)->QgsTextFormat:
+    def mapTextFormat(self) -> QgsTextFormat:
         return self.btnTextFormat.textFormat()
 
     def setMapSize(self, size):
@@ -1879,7 +1879,7 @@ class MapViewDock(QgsDockWidget):
             self.btnApplySizeChanges.setEnabled(False)
         self.setMapSize(newSize)
 
-    def mapSize(self)->QSize:
+    def mapSize(self) -> QSize:
         return QSize(self.spinBoxMapSizeX.value(),
                      self.spinBoxMapSizeY.value())
 
@@ -1901,7 +1901,7 @@ class MapViewDock(QgsDockWidget):
         self.actionRemoveMapView.setEnabled(len(self.mMapViews) > 0)
 
 
-    def mapBackgroundColor(self)->QColor:
+    def mapBackgroundColor(self) -> QColor:
         """
         Returns the map canvas background color
         :return: QColor
@@ -1927,7 +1927,7 @@ class MapViewDock(QgsDockWidget):
             self.btnMapTextColor.setColor(color)
         return self.mapTextColor()
 
-    def mapTextColor(self)->QColor:
+    def mapTextColor(self) -> QColor:
         """
         Returns the map text color.
         :return: QColor
@@ -1964,7 +1964,7 @@ class MapViewDock(QgsDockWidget):
         self.actionHighlightMapView.setEnabled(b)
 
 
-    def createMapView(self, name:str=None)->MapView:
+    def createMapView(self, name:str=None) -> MapView:
         """
         Create a new MapView
         :return: MapView
@@ -2045,7 +2045,7 @@ class MapViewDock(QgsDockWidget):
                 self.toolBox.setItemText(i, 'Map View {} "{}"'.format(numMV, mapView.title()))
                 break
 
-    def removeMapView(self, mapView:MapView)->MapView:
+    def removeMapView(self, mapView:MapView) -> MapView:
         """
         Removes a MapView
         :param mapView: MapView
@@ -2065,7 +2065,7 @@ class MapViewDock(QgsDockWidget):
 
 
 
-    def __len__(self)->int:
+    def __len__(self) -> int:
         """
         Returns the number of MapViews
         :return: int

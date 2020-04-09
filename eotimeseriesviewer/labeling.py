@@ -64,7 +64,7 @@ def shortcuts(field:QgsField):
     return result
 
 
-def layerClassSchemes(layer:QgsVectorLayer)->list:
+def layerClassSchemes(layer:QgsVectorLayer) -> list:
     """
     Returns a list of (ClassificationScheme, QgsField) for all QgsFields with QgsEditorWidget being QgsClassificationWidgetWrapper or RasterClassification.
     :param layer: QgsVectorLayer
@@ -117,7 +117,7 @@ def labelShortcutLayerClassificationSchemes(layer:QgsVectorLayer):
 
     return classSchemes
 
-def quickLabelLayers()->typing.List[QgsVectorLayer]:
+def quickLabelLayers() -> typing.List[QgsVectorLayer]:
     """
     Returns a list of known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
@@ -259,7 +259,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
         self.resetModel()
 
-    def hasVectorLayer(self)->bool:
+    def hasVectorLayer(self) -> bool:
         """
         Returns true if a QgsVectorLayer is specified.
         :return: bool
@@ -279,14 +279,14 @@ class LabelAttributeTableModel(QAbstractTableModel):
 
         self.endResetModel()
 
-    def rowCount(self, parent = QModelIndex())->int:
+    def rowCount(self, parent = QModelIndex()) -> int:
         if isinstance(self.mVectorLayer, QgsVectorLayer):
             return self.mVectorLayer.fields().count()
         else:
             return 0
 
 
-    def fieldName2Index(self, fieldName:str)->str:
+    def fieldName2Index(self, fieldName:str) -> str:
         assert isinstance(fieldName, str)
 
         if isinstance(self.mVectorLayer, QgsVectorLayer):
@@ -298,7 +298,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             return QModelIndex()
 
 
-    def field2index(self, field:QgsField)->QModelIndex:
+    def field2index(self, field:QgsField) -> QModelIndex:
         assert isinstance(field, QgsField)
         return self.fieldName2Index(field.name())
 
@@ -310,7 +310,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             return None
 
 
-    def index2field(self, index:QModelIndex)->QgsField:
+    def index2field(self, index:QModelIndex) -> QgsField:
         if index.isValid() and isinstance(self.mVectorLayer, QgsVectorLayer):
             fields = self.mVectorLayer.fields()
             assert isinstance(fields, QgsFields)
@@ -318,7 +318,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
         else:
             return None
 
-    def columnCount(self, parent = QModelIndex())->int:
+    def columnCount(self, parent = QModelIndex()) -> int:
         return len(self.mColumnNames)
 
 
@@ -410,7 +410,7 @@ class LabelAttributeTableModel(QAbstractTableModel):
             self.dataChanged.emit(index, index, [role])
         return changed
 
-    def columnName(self, index: int)->str:
+    def columnName(self, index: int) -> str:
         if isinstance(index, QModelIndex):
             if not index.isValid():
                 return None
@@ -449,7 +449,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
         self.mLabelAttributeTableModel = labelAttributeTableModel
         self.setItemDelegates(tableView)
 
-    def model(self)->LabelAttributeTableModel:
+    def model(self) -> LabelAttributeTableModel:
         return self.mTableView.model()
 
     def setItemDelegates(self, tableView):
@@ -459,7 +459,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
             i = model.mColumnNames.index(c)
             tableView.setItemDelegateForColumn(i, self)
 
-    def columnName(self, index:QModelIndex)->str:
+    def columnName(self, index:QModelIndex) -> str:
         if not index.isValid():
             return None
         return self.model().mColumnNames[index.column()]
@@ -555,7 +555,7 @@ class LabelingWidget(QMainWindow):
         self.initActions()
         self.onVectorLayerChanged()
 
-    def canvas(self)->QgsMapCanvas:
+    def canvas(self) -> QgsMapCanvas:
         """
         Returns the internal map canvas
         :return: QgsMapCanvas
@@ -597,7 +597,7 @@ class LabelingWidget(QMainWindow):
                     lyr.setEditFormConfig(config.index(), config.editorWidgetSetup())
         self.onVectorLayerChanged()
 
-    def isModified(self)->bool:
+    def isModified(self) -> bool:
         return isinstance(self.currentVectorSource(), QgsVectorLayer) and self.currentVectorSource().isModified()
 
     def onVectorLayerChanged(self):
@@ -685,13 +685,13 @@ class LabelingWidget(QMainWindow):
                 action.setEnabled(False)
 
 
-    def actionAddFeature(self)->QAction:
+    def actionAddFeature(self) -> QAction:
         return self.mActionAddFeature
 
-    def actionSaveEdits(self)->QAction:
+    def actionSaveEdits(self) -> QAction:
         return self.mActionSaveEdits
 
-    def actionToggleEditing(self)->QAction:
+    def actionToggleEditing(self) -> QAction:
         return self.mActionToggleEditing
 
     def onToggleEditing(self, b: bool):
@@ -874,7 +874,7 @@ class LabelingWidget(QMainWindow):
         if layer in cboxLayers:
             self.mVectorLayerComboBox.setCurrentIndex(cboxLayers.index(layer))
 
-    def currentVectorSource(self)->QgsVectorLayer:
+    def currentVectorSource(self) -> QgsVectorLayer:
         """
         Returns the current QgsVectorLayer
         :return: QgsVectorLayer
@@ -913,7 +913,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
         self.onIndexChanged()
 
-    def config(self, *args, **kwargs)->dict:
+    def config(self, *args, **kwargs) -> dict:
 
         conf = dict()
         conf[CONFKEY_LABELTYPE] = self.mCBShortCutType.currentData()
@@ -954,14 +954,14 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         #    self.mClassWidget.setVisible(False)
         self.changed.emit()
 
-    #def classificationScheme(self)->ClassificationScheme:
+    #def classificationScheme(self) -> ClassificationScheme:
     #    return self.mClassWidget.classificationScheme()
 
     #def setClassificationScheme(self, classScheme:ClassificationScheme):
     #    assert isinstance(classScheme, ClassificationScheme)
     #    self.mClassWidget.setClassificationScheme(classScheme)
 
-    def shortcutType(self)->LabelShortcutType:
+    def shortcutType(self) -> LabelShortcutType:
         return self.mCBShortCutType.currentData(Qt.UserRole)
 
 
@@ -974,10 +974,10 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.mEditor = None
         self.mValidator = None
 
-    def configLabelType(self)->LabelShortcutType:
+    def configLabelType(self) -> LabelShortcutType:
         return self.config(CONFKEY_LABELTYPE)
 
-    #def configClassificationScheme(self)->ClassificationScheme:
+    #def configClassificationScheme(self) -> ClassificationScheme:
     #    return self.config(CONFKEY_CLASSIFICATIONSCHEME)
 
     def createWidget(self, parent: QWidget):
@@ -1013,7 +1013,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.valueChanged.emit(self.value())
         s = ""
 
-    def valid(self, *args, **kwargs)->bool:
+    def valid(self, *args, **kwargs) -> bool:
         """
         Returns True if a valid editor widget exists
         :param args:
@@ -1086,10 +1086,10 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         self.mConfigurations = {}
 
 
-    def name(self)->str:
+    def name(self) -> str:
         return EDITOR_WIDGET_REGISTRY_KEY
 
-    def configWidget(self, layer:QgsVectorLayer, fieldIdx:int, parent=QWidget)->LabelShortcutEditorConfigWidget:
+    def configWidget(self, layer:QgsVectorLayer, fieldIdx:int, parent=QWidget) -> LabelShortcutEditorConfigWidget:
         """
         Returns a SpectralProfileEditorConfigWidget
         :param layer: QgsVectorLayer
@@ -1113,7 +1113,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         """
         return (layer.id(), fieldIdx)
 
-    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget)->LabelShortcutEditorWidgetWrapper:
+    def create(self, layer:QgsVectorLayer, fieldIdx:int, editor:QWidget, parent:QWidget) -> LabelShortcutEditorWidgetWrapper:
         """
         Create a ClassificationSchemeEditorWidgetWrapper
         :param layer: QgsVectorLayer
@@ -1144,7 +1144,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
             conf = {}
         return conf
 
-    def fieldScore(self, vl:QgsVectorLayer, fieldIdx:int)->int:
+    def fieldScore(self, vl:QgsVectorLayer, fieldIdx:int) -> int:
         """
         This method allows disabling this editor widget type for a certain field.
         0: not supported: none String fields
@@ -1165,7 +1165,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         else:
             return 0 # no support
 
-    def supportsField(self, vl:QgsVectorLayer, idx:int)->True:
+    def supportsField(self, vl:QgsVectorLayer, idx:int) -> True:
         """
         :param vl: vectorlayers
         :param idx:
@@ -1189,10 +1189,10 @@ class LabelingDock(QgsDockWidget):
         self.setWindowTitle(self.mLabelingWidget.windowTitle())
         self.setWidget(self.mLabelingWidget)
 
-    def labelingWidget(self)->LabelingWidget:
+    def labelingWidget(self) -> LabelingWidget:
         return self.mLabelingWidget
 
-    def canvas(self)->QgsMapCanvas:
+    def canvas(self) -> QgsMapCanvas:
         """
         Returns the QgsMapCanvase
         :return:

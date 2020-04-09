@@ -137,10 +137,10 @@ class SensorTableModel(QAbstractTableModel):
             self.mSensors.remove(tsd)
         self.endRemoveRows()
 
-    def getIndexFromSensor(self, sensor)->QModelIndex:
+    def getIndexFromSensor(self, sensor) -> QModelIndex:
         return self.createIndex(self.mSensors.index(sensor), 0)
 
-    def getSensorFromIndex(self, index)->SensorInstrument:
+    def getSensorFromIndex(self, index) -> SensorInstrument:
         if index.isValid():
             return self.mSensors[index.row()]
         return None
