@@ -17,7 +17,7 @@ import pathlib
 import re
 import xmlrunner
 from qgis import *
-from PyQt5.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon
 from eotimeseriesviewer import file_search
 from eotimeseriesviewer.tests import start_app, EOTSVTestCase
 

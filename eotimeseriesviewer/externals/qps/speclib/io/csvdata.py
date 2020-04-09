@@ -46,7 +46,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
     REGEX_BANDVALUE_COLUMN = re.compile(r'^(?P<bandprefix>\D+)?(?P<band>\d+)[ _]*(?P<xvalue>-?\d+\.?\d*)?[ _]*(?P<xunit>\D+)?', re.IGNORECASE)
 
     @staticmethod
-    def addImportActions(spectralLibrary:SpectralLibrary, menu:QMenu)->list:
+    def addImportActions(spectralLibrary:SpectralLibrary, menu:QMenu) -> list:
 
         def read(speclib:SpectralLibrary, dialect):
 
@@ -94,7 +94,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         return None
 
     @staticmethod
-    def canRead(path=None)->bool:
+    def canRead(path=None) -> bool:
         if not isinstance(path, str):
             return False
 
@@ -148,7 +148,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         return CSVSpectralLibraryIO.fromString(text, dialect=dialect)
 
     @staticmethod
-    def extractDataBlocks(text:str)->(list, list):
+    def extractDataBlocks(text:str) -> (list, list):
         # divides a text into blocks of CSV rows with same column structure
         lines = text.splitlines(keepends=True)
         # lines = [l.strip() for l in lines]
@@ -158,7 +158,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         currentBlock = None
         iBlockStart = None
 
-        def headerLineMetadata(iLine)->dict:
+        def headerLineMetadata(iLine) -> dict:
             # check for #META tag
             metadata = {}
             if isinstance(iLine, int) and iBlockStart > 0:
@@ -202,7 +202,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
         return BLOCKDATA, BLOCKMETADATA
 
     @staticmethod
-    def fromString(text:str, dialect=pycsv.excel_tab)->SpectralLibrary:
+    def fromString(text:str, dialect=pycsv.excel_tab) -> SpectralLibrary:
         """
         Reads oneCSV
         :param text:
@@ -309,7 +309,7 @@ class CSVSpectralLibraryIO(AbstractSpectralLibraryIO):
 
 
     @staticmethod
-    def asString(speclib:SpectralLibrary, dialect=pycsv.excel_tab, skipValues=False, skipGeometry=False)->str:
+    def asString(speclib:SpectralLibrary, dialect=pycsv.excel_tab, skipValues=False, skipGeometry=False) -> str:
         """
         Returns a SpectralLibrary as CSV string
         :param speclib:

@@ -23,8 +23,8 @@ import sys
 import unittest
 import configparser
 import xmlrunner
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtCore import *
 import unittest, tempfile
 from eotimeseriesviewer.tests import EOTSVTestCase
 

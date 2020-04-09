@@ -20,16 +20,16 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, site
+import os
+import sys
+import site
 from qgis.gui import *
 from qgis.core import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
-
-
-class TimeSeriesViewerPlugin:
+class EOTimeSeriesViewerPlugin:
 
     def __init__(self, iface):
 
@@ -40,11 +40,13 @@ class TimeSeriesViewerPlugin:
         site.addsitedir(dirPlugin)
 
         import eotimeseriesviewer
-
+        eotimeseriesviewer.debugLog('initial Dependency Check')
         # run a dependency check
         self.initialDependencyCheck()
 
         # initialize required settings
+        eotimeseriesviewer.debugLog('initial all')
+
         eotimeseriesviewer.initAll()
 
     def initGui(self):
@@ -64,7 +66,6 @@ class TimeSeriesViewerPlugin:
         for action in self.mToolbarActions:
             self.iface.addToolBarIcon(action)
             self.iface.addPluginToRasterMenu(TITLE, action)
-
 
     def initialDependencyCheck(self):
         """
@@ -100,14 +101,11 @@ class TimeSeriesViewerPlugin:
             messageLog(longText)
             raise Exception(longText)
 
-
-
     def run(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         self.mEOTSV = EOTimeSeriesViewer()
         self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
         self.mEOTSV.show()
-
 
     def onUiClosed(self):
         self.mEOTSV = None
@@ -121,7 +119,6 @@ class TimeSeriesViewerPlugin:
             self.iface.removeToolBarIcon(action)
 
         self.onUiClosed()
-
 
     def tr(self, message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)

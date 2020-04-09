@@ -37,9 +37,9 @@ from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShade
 
 from qgis.gui import *
 from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox
-from PyQt5.QtXml import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtXml import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 import numpy as np
 from .utils import *
 from .import Option, OptionListModel

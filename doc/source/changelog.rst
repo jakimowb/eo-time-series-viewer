@@ -1,6 +1,12 @@
 ==============
 Changelog
 ==============
+
+2020-04-09 (version 1.12):
+    * TimeSeries tree view allows to change the visibility of single source images, e.g. to hide clouded observations
+    * several updates to the Spectral Library Widget, e.g. import / export of profiles from ASD, ARTMO, EcoSYS or SPECCHIO
+    * EOTSV allows to open images from sources with subdatasets, e.g. from Sentinel-2 or HDF images.
+
 2020-01-23 (version 1.11):
     * revised unit tests for CI pipelines
     * fixed smaller issues in SensorModel
@@ -51,7 +57,7 @@ Changelog
 2019-07-02 (version 1.4):
     * adding vector layers with sublayers will add all sublayers
     * map canvas context menu "Focus on Spatial Extent" will hide maps without time series data for the current spatial extent
-    * labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (`#26 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/26>`_)
+    * labeling dock allows to iterate over vector features. the spatial map extent will be centered to each feature (#26)
     * added several convenience function to TimeSeriesViewer object
     * fixed a bug that did not allow to create new polygon features
     * temporal profile visualization: fixed icons to preview selected plot style, coordinate described by "<fid> <name>", e.g. "42 Deforested", fixed plot style preview
@@ -73,7 +79,7 @@ Changelog
     * dates and data sources of the TimeSeries are now shown in a TreeView instead TableView
     * observation dates of current visible map canvases are highlighted in the time series tree view
     * sensor raster layer properties can be opened from MapView layer tree `#87 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/87>`_. Stats will be related to center mapcanvas.
-    * fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (`#85 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/85>`_), remove temporal profile (`#86 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/86>`_), draw new feature error (`#84 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/84>`_), Crosshair button status (`#90 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/90>`_), and some more
+    * fixed: StackedInputDialog, MapCanvas context menu, "Save Changes?" labeling dialog (#85), remove temporal profile (#86), draw new feature error (#84), Crosshair button status (#90), and some more
 
 2019-05-15 (version 1.0, major update):
 

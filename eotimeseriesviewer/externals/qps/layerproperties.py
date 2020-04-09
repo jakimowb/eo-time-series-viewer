@@ -282,7 +282,7 @@ class RemoveAttributeDialog(QDialog):
 
         return [f.name() for f in self.fields()]
 
-def openRasterLayerSilent(uri, name, provider)->QgsRasterLayer:
+def openRasterLayerSilent(uri, name, provider) -> QgsRasterLayer:
     """
     Opens a QgsRasterLayer without asking for its CRS in case it is undefined.
     :param uri: path
@@ -346,7 +346,7 @@ def rendererFromXml(xml):
                 s =""
     return None
 
-def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSize:int=256, readQml:bool=True)->QgsRasterRenderer:
+def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSize:int=256, readQml:bool=True) -> QgsRasterRenderer:
     """
     Returns a default Raster Renderer.
     See https://bitbucket.org/hu-geomatics/enmap-box/issues/166/default-raster-visualization
@@ -575,7 +575,7 @@ def pasteStyleFromClipboard(layer:QgsMapLayer):
         layer.setRenderer(renderer)
         layer.triggerRepaint()
 
-def subLayerDefinitions(mapLayer:QgsMapLayer)->typing.List[QgsSublayersDialog.LayerDefinition]:
+def subLayerDefinitions(mapLayer:QgsMapLayer) -> typing.List[QgsSublayersDialog.LayerDefinition]:
     """
 
     :param mapLayer:QgsMapLayer
@@ -624,7 +624,7 @@ def subLayerDefinitions(mapLayer:QgsMapLayer)->typing.List[QgsSublayersDialog.La
 
     return definitions
 
-def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->typing.List[QgsMapLayer]:
+def subLayers(mapLayer:QgsMapLayer, subLayers:list=None) -> typing.List[QgsMapLayer]:
     """
     Returns a list of QgsMapLayer instances extracted from the input QgsMapLayer.
     Returns the "parent" QgsMapLayer in case no sublayers can be extracted
@@ -680,7 +680,7 @@ def subLayers(mapLayer:QgsMapLayer, subLayers:list=None)->typing.List[QgsMapLaye
 class LayerPropertiesDialog(QgsOptionsDialogBase):
 
     @staticmethod
-    def defaultFactories()->typing.List[QgsMapLayerConfigWidgetFactory]:
+    def defaultFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
         """
         Returns a list of default QgsMapLayerConfigWidgetFactory
         """
@@ -814,7 +814,7 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         self.reject()
 
 
-    def currentPage(self)->QWidget:
+    def currentPage(self) -> QWidget:
         return self.mOptionsStackedWidget.currentWidget()
 
     def apply(self):
@@ -840,16 +840,16 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
             assert isinstance(page, int) and page >= 0 and page < self.mOptionsListWidget.count()
             self.mOptionsListWidget.setCurrentRow(page)
 
-    def pages(self)->typing.List[QgsMapLayerConfigWidget]:
+    def pages(self) -> typing.List[QgsMapLayerConfigWidget]:
         for i in range(self.mOptionsStackedWidget.count()):
             w = self.mOptionsStackedWidget.widget(i)
             if isinstance(w, QgsMapLayerConfigWidget):
                 yield w
 
-    def canvas(self)->QgsMapCanvas:
+    def canvas(self) -> QgsMapCanvas:
         return self.mCanvas
 
-    def mapLayer(self)->QgsMapLayer:
+    def mapLayer(self) -> QgsMapLayer:
         """
         Returns the QgsMapLayer
         :return:
@@ -884,7 +884,7 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
                               canvas:QgsMapCanvas=None,
                               parent:QObject=None,
                               modal:bool=True,
-                              useQGISDialog:bool=False)->typing.Union[QDialog.DialogCode, QDialog]:
+                              useQGISDialog:bool=False) -> typing.Union[QDialog.DialogCode, QDialog]:
     """
     Opens a dialog to adjust map layer settings.
     :param layer: QgsMapLayer of type QgsVectorLayer or QgsRasterLayer
@@ -1049,7 +1049,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.mMainView.formModeChanged.connect(self.viewModeChanged)
         
         # info from table to application
-        #self.saveEdits.connect(QgisApp::instance()->saveEdits() })
+        #self.saveEdits.connect(QgisApp::instance() -> saveEdits() })
 
         """
         dockTable: bool = bool(settings.value("qgis/dockAttributeTable" , False )
@@ -1057,7 +1057,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
             self.mDock = new QgsAttributeTableDock( QString(), QgisApp::instance() );
             mDock->setWidget( this );
             connect( this, &QObject::destroyed, mDock, &QWidget::close );
-            QgisApp::instance()->addDockWidget( Qt::BottomDockWidgetArea, mDock );
+            QgisApp::instance() -> addDockWidget( Qt::BottomDockWidgetArea, mDock );
         mActionDockUndock->setChecked( dockTable );
         connect( mActionDockUndock, &QAction::toggled, this, &QgsAttributeTableDialog::toggleDockMode );
         installEventFilter( this );
@@ -1191,7 +1191,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         pass
 
-        #QgisApp:: instance()->cutSelectionToClipboard(mLayer);
+        #QgisApp:: instance() -> cutSelectionToClipboard(mLayer);
     
     def mActionCopySelectedRows_triggered(self):
         self.vectorLayerTools().copySelectionToClipboard(self.mLayer)

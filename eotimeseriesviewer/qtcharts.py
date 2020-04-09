@@ -9,8 +9,8 @@ a high number of points, using OpenGL accelerated series
 """
 
 import PyQt5.QtChart
-from PyQt5.QtGui import QPolygonF, QPainter
-from PyQt5.QtWidgets import QMainWindow
+from qgis.PyQt.QtGui import QPolygonF, QPainter
+from qgis.PyQt.QtWidgets import QMainWindow
 
 import numpy as np
 
@@ -60,9 +60,9 @@ class TestWindow(QMainWindow):
 
 if __name__ == '__main__':
     import sys
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5.QtCore import Qt
-    from PyQt5.QtChart import *
+    from qgis.PyQt.QtWidgets import QApplication
+    from qgis.PyQt.QtCore import Qt
+    from qgis.PyQt.QtChart import *
     app = QApplication(sys.argv)
 
     window = TestWindow()

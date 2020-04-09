@@ -808,7 +808,7 @@
   </action>
   <action name="actionAddSentinel2">
    <property name="text">
-    <string>Sentinel 2</string>
+    <string>Sentinel-2</string>
    </property>
    <property name="toolTip">
     <string>Add Sentinel2 image products</string>
@@ -816,7 +816,7 @@
   </action>
   <action name="actionAddSubDatasets">
    <property name="text">
-    <string>Subdatasets</string>
+    <string>Sub-Datasets</string>
    </property>
    <property name="toolTip">
     <string>Open Subdatasets, e.g. from HDF files</string>

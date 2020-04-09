@@ -19,7 +19,7 @@ import os
 import xmlrunner
 from qgis import *
 from qgis.gui import *
-from PyQt5.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon
 import example.Images
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
 from eotimeseriesviewer.temporalprofiles import *

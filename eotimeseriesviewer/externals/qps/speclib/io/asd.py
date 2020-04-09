@@ -153,19 +153,19 @@ class TM_STRUCT(object):
     def time(self):
         return datetime.time(hour=self.tm_hour, minute=self.tm_min, second=self.tm_sec)
 
-    def datetime64(self)->np.datetime64:
+    def datetime64(self) -> np.datetime64:
         return np.datetime64('{:04}-{:02}-{:02}T{:02}:{:02}:{:02}'.format(self.year(), self.month(), self.day(), self.tm_hour, self.tm_min, self.tm_sec))
 
-    def doy(self)->int:
+    def doy(self) -> int:
         return self.tm_yday
 
-    def day(self)->int:
+    def day(self) -> int:
         return self.tm_mday
 
-    def month(self)->int:
+    def month(self) -> int:
         return self.tm_mon + 1
 
-    def year(self)->int:
+    def year(self) -> int:
         return self.tm_year + 1900
 
 

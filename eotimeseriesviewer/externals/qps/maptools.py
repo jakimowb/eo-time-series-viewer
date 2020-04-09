@@ -646,7 +646,7 @@ class QgsFeatureAction(QAction):
 
             name = "featureactiondlg:{}:{}".format(self.mLayer.id(), self.mFeatureid())
 
-            # QgsAttributeDialog *dialog = QgisApp::instance()->findChild<QgsAttributeDialog *>( name );
+            # QgsAttributeDialog *dialog = QgisApp::instance() -> findChild<QgsAttributeDialog *>( name );
             # if ( dialog )
             # {
             #  dialog->raise();
@@ -1616,7 +1616,7 @@ class QgsMapToolSelectionHandler(QObject):
 
         self.mDistanceWidget = QgsDistanceWidget("Selection radius:")
         # emulate
-        # QgisApp::instance()->addUserInputWidget( mDistanceWidget );
+        # QgisApp::instance() -> addUserInputWidget( mDistanceWidget );
         # by adding the distance widget to the MapTool's QgsMapCanvas directly
         self.mUserInputWidget.addUserInputWidget(self.mDistanceWidget)
 

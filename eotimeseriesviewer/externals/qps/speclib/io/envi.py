@@ -81,7 +81,7 @@ def flushCacheWithoutException(dataset: gdal.Dataset):
 
 
 
-def findENVIHeader(path:str)->(str, str):
+def findENVIHeader(path:str) -> (str, str):
     """
     Get a path and returns the ENVI header (*.hdr) and the ENVI binary file (e.g. *.sli) for
     :param path: str
@@ -338,7 +338,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
 
     @staticmethod
-    def canRead(pathESL)->bool:
+    def canRead(pathESL) -> bool:
         """
         Checks if a file can be read as SpectraLibrary
         :param pathESL: path to ENVI Spectral Library (ESL)
@@ -361,7 +361,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         return 0
 
     @staticmethod
-    def readFrom(path, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None)->SpectralLibrary:
+    def readFrom(path, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None) -> SpectralLibrary:
         """
         Reads an ENVI Spectral Library (ESL).
         :param path: path to ENVI Spectral Library
@@ -722,7 +722,7 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
                     eType = gdal.GDT_Byte,
                     interleave='bsq',
                     byteOrder='LSB',
-                    headerOffset=0)->gdal.Dataset:
+                    headerOffset=0) -> gdal.Dataset:
     """
     Creates a VRT to describe a raw binary file
     :param pathRaw: path of raw image

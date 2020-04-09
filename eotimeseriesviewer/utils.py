@@ -27,10 +27,10 @@ from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
 import qgis.utils
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtXml import QDomDocument
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtXml import QDomDocument
 from PyQt5 import uic
 from osgeo import gdal, ogr
 

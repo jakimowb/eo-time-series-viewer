@@ -11,7 +11,7 @@ from ..utils import loadUi, parseWavelength, convertMetricUnit
 class RasterBandConfigWidget(QgsMapLayerConfigWidget):
 
     @staticmethod
-    def icon()->QIcon:
+    def icon() -> QIcon:
         return QIcon(':/qps/ui/icons/rasterband_select.svg')
 
     def __init__(self, layer:QgsRasterLayer, canvas:QgsMapCanvas, parent:QWidget=None):
@@ -82,7 +82,7 @@ class RasterBandConfigWidget(QgsMapLayerConfigWidget):
         renderer = self.mLayer.renderer()
         self.setRenderer(renderer)
 
-    def renderer(self)->QgsRasterRenderer:
+    def renderer(self) -> QgsRasterRenderer:
         oldRenderer = self.mLayer.renderer()
         newRenderer = None
         if isinstance(oldRenderer, QgsSingleBandGrayRenderer):
@@ -157,7 +157,7 @@ class RasterBandConfigWidget(QgsMapLayerConfigWidget):
 
 
 
-    def shouldTriggerLayerRepaint(self)->bool:
+    def shouldTriggerLayerRepaint(self) -> bool:
         return True
 
     def apply(self):
@@ -169,7 +169,7 @@ class RasterBandConfigWidget(QgsMapLayerConfigWidget):
             self.mLayer.setRenderer(newRenderer)
             self.widgetChanged.emit()
 
-    def wlBand(self, wlKey:str)->int:
+    def wlBand(self, wlKey:str) -> int:
         """
         Returns the band number for a wavelength
         :param wlKey:
@@ -223,7 +223,7 @@ class RasterBandConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def supportsStyleDock(self):
         return True
 
-    def createWidget(self, layer, canvas, dockWidget=True, parent=None)->QgsMapLayerConfigWidget:
+    def createWidget(self, layer, canvas, dockWidget=True, parent=None) -> QgsMapLayerConfigWidget:
         w = RasterBandConfigWidget(layer, canvas, parent=parent)
         return w
 

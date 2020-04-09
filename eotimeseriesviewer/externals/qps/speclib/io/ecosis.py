@@ -20,7 +20,7 @@ class EcoSISCSVDialect(pycsv.Dialect):
     quoting = pycsv.QUOTE_NONE
 
 
-def findDialect(file)->pycsv.Dialect:
+def findDialect(file) -> pycsv.Dialect:
 
     if isinstance(file, str):
         file = open(file, 'r', encoding='utf-8')
@@ -48,7 +48,7 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
     See https://ecosis.org for details.
     """
     @staticmethod
-    def canRead(path:str)->bool:
+    def canRead(path:str) -> bool:
         """
         Returns true if it can read the source defined by path
         :param path: source uri
@@ -70,7 +70,7 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
         return False
 
     @staticmethod
-    def readFrom(path, progressDialog:typing.Union[QProgressDialog, ProgressHandler]=None)->SpectralLibrary:
+    def readFrom(path, progressDialog:typing.Union[QProgressDialog, ProgressHandler]=None) -> SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
         :param path: source of SpectralLibrary
@@ -205,7 +205,7 @@ class EcoSISSpectralLibraryIO(AbstractSpectralLibraryIO):
         return writtenFiles
 
     @staticmethod
-    def score(uri:str)->int:
+    def score(uri:str) -> int:
         """
         Returns a score value for the give uri. E.g. 0 for unlikely/unknown, 20 for yes, probalby thats the file format the reader can read.
 

@@ -47,7 +47,7 @@ class SpectralLibrarySettingsKey(enum.Enum):
 
 
 
-def speclibSettings()->QSettings:
+def speclibSettings() -> QSettings:
     """
     Returns SpectralLibrary relevant QSettings
     :return: QSettings

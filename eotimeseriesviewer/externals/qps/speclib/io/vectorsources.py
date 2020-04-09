@@ -113,7 +113,7 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
         return writtenFiles
 
     @staticmethod
-    def score(uri:str)->int:
+    def score(uri:str) -> int:
         """
         Returns a score value for the give uri. E.g. 0 for unlikely/unknown, 20 for yes, probably thats the file format the reader can read.
 

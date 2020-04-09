@@ -9,7 +9,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import QIcon
 from ..utils import loadUi
 
-def configWidgetUi(name:str)->str:
+def configWidgetUi(name:str) -> str:
     """
     Returns the full path to a '*.ui' file
     :param name:
@@ -143,7 +143,7 @@ class SourceConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def createWidget(self, layer, canvas, dockWidget=False, parent=None):
         return SourceConfigWidget(layer, canvas, parent=parent)
 
-    def supportsLayer(self, layer)->bool:
+    def supportsLayer(self, layer) -> bool:
         return isinstance(layer, QgsMapLayer)
 
     def supportLayerPropertiesDialog(self):
@@ -167,7 +167,7 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
 
         self.syncToLayer()
 
-    def symbologyWidget(self)->typing.Union[QgsRendererRasterPropertiesWidget, QgsRendererPropertiesDialog]:
+    def symbologyWidget(self) -> typing.Union[QgsRendererRasterPropertiesWidget, QgsRendererPropertiesDialog]:
         return self.scrollArea.widget()
 
     def menuButtonMenu(self) ->QMenu:

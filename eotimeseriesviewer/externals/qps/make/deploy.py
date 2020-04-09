@@ -40,11 +40,11 @@ class QGISMetadataFileWriter(object):
         self.mCategory = ''
         self.mChangelog = ''
 
-    def validate(self)->bool:
+    def validate(self) -> bool:
 
         return True
 
-    def metadataString(self)->str:
+    def metadataString(self) -> str:
         assert self.validate()
 
         lines = ['[general]']

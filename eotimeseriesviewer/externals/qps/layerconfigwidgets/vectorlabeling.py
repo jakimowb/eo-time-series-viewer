@@ -69,12 +69,12 @@ class LabelingConfigWidget(QpsMapLayerConfigWidget):
             else:
                 self.setLabeling(None)
 
-    def labelingGui(self)->QWidget:
+    def labelingGui(self) -> QWidget:
         return self.stackedWidget.currentWidget()
 
 
 
-    def labeling(self)->QgsAbstractVectorLayerLabeling:
+    def labeling(self) -> QgsAbstractVectorLayerLabeling:
         page = self.labelingGui()
         lyr = self.mapLayer()
         if not isinstance(lyr, QgsVectorLayer):
@@ -114,7 +114,7 @@ class LabelingConfigWidget(QpsMapLayerConfigWidget):
 
         self.comboBox.setCurrentIndex(self.comboBox.findData(mode))
 
-    def labeling_single(self)->QgsVectorLayerSimpleLabeling:
+    def labeling_single(self) -> QgsVectorLayerSimpleLabeling:
         p = self.panelSingleLabels
         assert isinstance(p, QgsTextFormatPanelWidget)
         settings = QgsPalLayerSettings()
@@ -151,13 +151,13 @@ class LabelingConfigWidget(QpsMapLayerConfigWidget):
         s = ""
 
 
-    def labeling_rulebased(self)->QgsRuleBasedLabeling:
+    def labeling_rulebased(self) -> QgsRuleBasedLabeling:
         return None
 
     def set_labeling_rulebased(self, labeling:QgsRuleBasedLabeling):
         pass
 
-    def labeling_blocking(self)->QgsVectorLayerSimpleLabeling:
+    def labeling_blocking(self) -> QgsVectorLayerSimpleLabeling:
         return None
 
     def set_labeling_blocking(self, labeling:QgsVectorLayerSimpleLabeling):

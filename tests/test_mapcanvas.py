@@ -19,8 +19,8 @@
 # noinspection PyPep8Naming
 
 from eotimeseriesviewer.tests import start_app, testRasterFiles, TestObjects, EOTSVTestCase
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtCore import *
 import unittest
 import tempfile
 import xmlrunner

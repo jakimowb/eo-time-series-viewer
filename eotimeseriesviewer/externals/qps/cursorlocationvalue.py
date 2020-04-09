@@ -130,7 +130,7 @@ class CursorLocationInfoModel(TreeModel):
             return
 
         # get-or-create node
-        def gocn(root, name)->TreeNode:
+        def gocn(root, name) -> TreeNode:
             assert isinstance(root, TreeNode)
             n = TreeNode(root, name)
             weakId = self.weakNodeId(n)
@@ -520,7 +520,7 @@ class CursorLocationInfoDock(QDockWidget):
             self.btnCrs.setCrs(crs)
         self.updateCursorLocationInfo()
 
-    def cursorLocation(self)->SpatialPoint:
+    def cursorLocation(self) -> SpatialPoint:
         """
         Returns the last location that was set.
         """

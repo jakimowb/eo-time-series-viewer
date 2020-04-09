@@ -72,7 +72,7 @@ QPS_MAPLAYER_STORE = QgsMapLayerStore()
 MAP_LAYER_STORES = [QPS_MAPLAYER_STORE, QgsProject.instance()]
 
 
-def findUpwardPath(basepath, name, isDirectory=True)->pathlib.Path:
+def findUpwardPath(basepath, name, isDirectory=True) -> pathlib.Path:
     """
     Searches for an file or directory in an upward path of the base path
 
@@ -178,7 +178,7 @@ def registerMapLayerStore(store):
         MAP_LAYER_STORES.append(store)
 
 
-def registeredMapLayers()->list:
+def registeredMapLayers() -> list:
     """
     Returns the QgsMapLayers which are stored in known QgsMapLayerStores
     :return: [list-of-QgsMapLayers]
@@ -224,7 +224,7 @@ def mkdir(path):
 NEXT_COLOR_HUE_DELTA_CON = 10
 NEXT_COLOR_HUE_DELTA_CAT = 100
 
-def nextColor(color, mode='cat')->QColor:
+def nextColor(color, mode='cat') -> QColor:
     """
     Returns another color.
     :param color: QColor
@@ -250,7 +250,7 @@ def nextColor(color, mode='cat')->QColor:
     return QColor.fromHsl(hue, sat, value, alpha)
 
 
-def findMapLayerStores()->typing.List[typing.Union[QgsProject, QgsMapLayerStore]]:
+def findMapLayerStores() -> typing.List[typing.Union[QgsProject, QgsMapLayerStore]]:
 
     import gc
     yield QgsProject.instance()
@@ -260,7 +260,7 @@ def findMapLayerStores()->typing.List[typing.Union[QgsProject, QgsMapLayerStore]
 
 
 
-def findMapLayer(layer)->QgsMapLayer:
+def findMapLayer(layer) -> QgsMapLayer:
     """
     Returns the first QgsMapLayer out of all layers stored in MAP_LAYER_STORES that matches layer
     :param layer: str layer id or layer name or QgsMapLayer
@@ -450,7 +450,7 @@ def showMessage(message:str, title:str, level):
     v.showMessage(True)
 
 
-def gdalDataset(pathOrDataset:typing.Union[str, QgsRasterLayer, QgsRasterDataProvider, gdal.Dataset], eAccess=gdal.GA_ReadOnly)->gdal.Dataset:
+def gdalDataset(pathOrDataset:typing.Union[str, QgsRasterLayer, QgsRasterDataProvider, gdal.Dataset], eAccess=gdal.GA_ReadOnly) -> gdal.Dataset:
     """
     Returns a gdal.Dataset object instance
     :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer | QgsRasterDataProvider
@@ -468,7 +468,7 @@ def gdalDataset(pathOrDataset:typing.Union[str, QgsRasterLayer, QgsRasterDataPro
 
     return pathOrDataset
 
-def ogrDataSource(pathOrDataSource)->ogr.DataSource:
+def ogrDataSource(pathOrDataSource) -> ogr.DataSource:
     """
     Returns an OGR DataSource instance
     :param pathOrDataSource: ogr.DataSource | str | QgsVectorLayer
@@ -485,7 +485,7 @@ def ogrDataSource(pathOrDataSource)->ogr.DataSource:
     return pathOrDataSource
 
 
-def qgsVectorLayer(source)->QgsVectorLayer:
+def qgsVectorLayer(source) -> QgsVectorLayer:
     """
     Returns a QgsVectorLayer from different source types
     :param source: QgsVectorLayer | ogr.DataSource | file path
@@ -501,7 +501,7 @@ def qgsVectorLayer(source)->QgsVectorLayer:
 
     raise Exception('Unable to transform {} into QgsVectorLayer'.format(source))
 
-def qgsRasterLayer(source)->QgsRasterLayer:
+def qgsRasterLayer(source) -> QgsRasterLayer:
     """
     Returns a QgsVectorLayer from different source types
     :param source: QgsVectorLayer | ogr.DataSource | file path
@@ -800,7 +800,7 @@ def zipdir(pathDir, pathZip):
                     arcname = os.path.join(os.path.relpath(root, relroot), file)
                     zip.write(filename, arcname)
 
-def scanResources(path=':')->typing.Iterator[str]:
+def scanResources(path=':') -> typing.Iterator[str]:
     """
     Returns all resource-paths of the Qt Resource system
     :param path:
@@ -818,7 +818,7 @@ def scanResources(path=':')->typing.Iterator[str]:
 
 
 
-def convertMetricUnit(value: float, u1: str, u2: str)->float:
+def convertMetricUnit(value: float, u1: str, u2: str) -> float:
     """
     Converts value `value` from unit `u1` into unit `u2`
     :param value: float | int | might work with numpy.arrays as well
@@ -901,7 +901,7 @@ def displayBandNames(rasterSource, bands=None, leadingBandNumber=True):
     return None
 
 
-def defaultBands(dataset)->list:
+def defaultBands(dataset) -> list:
     """
     Returns a list of 3 default bands
     :param dataset:
@@ -948,7 +948,7 @@ def defaultBands(dataset)->list:
         raise Exception()
 
 
-def bandClosestToWavelength(dataset, wl, wl_unit='nm')->int:
+def bandClosestToWavelength(dataset, wl, wl_unit='nm') -> int:
     """
     Returns the band index of an image dataset closest to wavelength `wl`.
     :param dataset: str | gdal.Dataset
@@ -975,7 +975,7 @@ def bandClosestToWavelength(dataset, wl, wl_unit='nm')->int:
             pass
     return 0
 
-def parseBadBandList(dataset)->typing.List[int]:
+def parseBadBandList(dataset) -> typing.List[int]:
     """
     Returns the bad-band-list if it is specified explicitly
     :param dataset:
@@ -1008,7 +1008,7 @@ def parseBadBandList(dataset)->typing.List[int]:
     return bbl
 
 
-def parseWavelength(dataset)->typing.Tuple[np.ndarray, str]:
+def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     """
     Returns the wavelength + wavelength unit of a dataset
     :param dataset:
@@ -1077,7 +1077,7 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-def qgisAppQgisInterface()->QgisInterface:
+def qgisAppQgisInterface() -> QgisInterface:
     """
     Returns the QgisInterface of the QgisApp in case everything was started from within the QGIS Main Application
     :return: QgisInterface | None in case the qgis.utils.iface points to another QgisInterface (e.g. the EnMAP-Box itself)
@@ -1094,7 +1094,7 @@ def qgisAppQgisInterface()->QgisInterface:
         return None
 
 
-def getDOMAttributes(elem)->dict:
+def getDOMAttributes(elem) -> dict:
     assert isinstance(elem, QDomElement)
     values = dict()
     attributes = elem.attributes()
@@ -1104,7 +1104,7 @@ def getDOMAttributes(elem)->dict:
     return values
 
 
-def fileSizeString(num, suffix='B', div=1000)->str:
+def fileSizeString(num, suffix='B', div=1000) -> str:
     """
     Returns a human-readable file size string.
     thanks to Fred Cirera
@@ -1121,7 +1121,7 @@ def fileSizeString(num, suffix='B', div=1000)->str:
     return "{:.1f} {}{}".format(num, unit, suffix)
 
 
-def geo2pxF(geo, gt)->QPointF:
+def geo2pxF(geo, gt) -> QPointF:
     """
     Returns the pixel position related to a Geo-Coordinate in floating point precision.
     :param geo: Geo-Coordinate as QgsPoint
@@ -1134,7 +1134,7 @@ def geo2pxF(geo, gt)->QPointF:
     py = (geo.y() - gt[3]) / gt[5]  # y pixel
     return QPointF(px, py)
 
-def geo2px(geo, gt)->QPoint:
+def geo2px(geo, gt) -> QPoint:
     """
     Returns the pixel position related to a Geo-Coordinate as integer number.
     Floating-point coordinate are casted to integer coordinate, e.g. the pixel coordinate (0.815, 23.42) is returned as (0,23)
@@ -1152,7 +1152,7 @@ def geo2px(geo, gt)->QPoint:
         px = geo2pxF(geo, gt)
         return QPoint(int(px.x()), int(px.y()))
 
-def check_vsimem()->bool:
+def check_vsimem() -> bool:
     """
     Checks if the gdal/ogr vsimem is available to the QGIS API
     (might be not the case for QGIS
@@ -1187,7 +1187,7 @@ def check_vsimem()->bool:
         return False
     return result
 
-def layerGeoTransform(rasterLayer:QgsRasterLayer)->typing.Tuple[float, float, float, float, float, float]:
+def layerGeoTransform(rasterLayer:QgsRasterLayer) -> typing.Tuple[float, float, float, float, float, float]:
     """
     Returns the geo-transform vector from a QgsRasterLayer.
     See https://www.gdal.org/gdal_datamodel.html
@@ -1203,7 +1203,7 @@ def layerGeoTransform(rasterLayer:QgsRasterLayer)->typing.Tuple[float, float, fl
                 0, -1 * rasterLayer.rasterUnitsPerPixelY())
     return gt
 
-def px2geo(px:QPoint, gt, pxCenter=True)->QgsPointXY:
+def px2geo(px:QPoint, gt, pxCenter=True) -> QgsPointXY:
     """
     Converts a pixel coordinate into a geo-coordinate
     :param px: QPoint() with pixel coordinates
@@ -1509,28 +1509,28 @@ class SpatialExtent(QgsRectangle):
             return 1
         s = ""
 
-    def upperRightPt(self)->QgsPointXY:
+    def upperRightPt(self) -> QgsPointXY:
         """
         Returns the upper-right coordinate as QgsPointXY.
         :return: QgsPointXY
         """
         return QgsPointXY(*self.upperRight())
 
-    def upperLeftPt(self)->QgsPointXY:
+    def upperLeftPt(self) -> QgsPointXY:
         """
         Returns the upper-left coordinate as QgsPointXY.
         :return: QgsPointXY
         """
         return QgsPointXY(*self.upperLeft())
 
-    def lowerRightPt(self)->QgsPointXY:
+    def lowerRightPt(self) -> QgsPointXY:
         """
         Returns the lower-left coordinate as QgsPointXY.
         :return: QgsPointXY
         """
         return QgsPointXY(*self.lowerRight())
 
-    def lowerLeftPt(self)->QgsPointXY:
+    def lowerLeftPt(self) -> QgsPointXY:
         """
         Returns the lower-left coordinate as QgsPointXY.
         :return: QgsPointXY
@@ -1538,28 +1538,28 @@ class SpatialExtent(QgsRectangle):
         return QgsPointXY(*self.lowerLeft())
 
 
-    def upperRight(self)->tuple:
+    def upperRight(self) -> tuple:
         """
         Returns the upper-right coordinate as tuple (x,y)
         :return: tuple (x,y)
         """
         return self.xMaximum(), self.yMaximum()
 
-    def upperLeft(self)->tuple:
+    def upperLeft(self) -> tuple:
         """
         Returns the upper-left coordinate as tuple (x,y)
         :return: tuple (x,y)
         """
         return self.xMinimum(), self.yMaximum()
 
-    def lowerRight(self)->tuple:
+    def lowerRight(self) -> tuple:
         """
         Returns the lower-right coordinate as tuple (x,y)
         :return: tuple (x,y)
         """
         return self.xMaximum(), self.yMinimum()
 
-    def lowerLeft(self)->tuple:
+    def lowerLeft(self) -> tuple:
         """
         Returns the lower-left coordinate as tuple (x,y)
         :return: tuple (x,y)
@@ -1567,7 +1567,7 @@ class SpatialExtent(QgsRectangle):
         return self.xMinimum(), self.yMinimum()
 
 
-    def __eq__(self, other)->bool:
+    def __eq__(self, other) -> bool:
         """
         Checks for equality
         :param other: SpatialExtent
@@ -1599,7 +1599,7 @@ class SpatialExtent(QgsRectangle):
     def __str__(self):
         return self.__repr__()
 
-    def __repr__(self)->str:
+    def __repr__(self) -> str:
         """
         Returns a representation string
         :return: str
@@ -1688,7 +1688,7 @@ class SelectMapLayersDialog(QgsDialog):
     def addLayerDescription(self, info:str,
                             filters:QgsMapLayerProxyModel.Filters,
                             allowEmptyLayer = False,
-                            layerDescription=None)->QgsMapLayerComboBox:
+                            layerDescription=None) -> QgsMapLayerComboBox:
         """
         Adds a map layer description
         :param info: description text
@@ -1715,7 +1715,7 @@ class SelectMapLayersDialog(QgsDialog):
 
 
 
-    def mapLayers(self)->list:
+    def mapLayers(self) -> list:
         """
         Returns the user's list of map layers
         :return: [list-of-QgsMapLayers]

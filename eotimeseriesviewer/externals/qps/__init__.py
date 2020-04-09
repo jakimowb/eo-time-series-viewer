@@ -34,7 +34,7 @@ def unregisterMapLayerConfigWidgetFactory(factory:QgsMapLayerConfigWidgetFactory
     while factory in MAPLAYER_CONFIGWIDGET_FACTORIES:
         MAPLAYER_CONFIGWIDGET_FACTORIES.remove(factory)
 
-def mapLayerConfigWidgetFactories()->typing.List[QgsMapLayerConfigWidgetFactory]:
+def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
     """
     Returns registered QgsMapLayerConfigWidgetFactories
     :return: list of QgsMapLayerConfigWidgetFactories

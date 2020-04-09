@@ -462,9 +462,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionAddSubDatasets.triggered.connect(self.openAddSubdatasetsDialog)
+
+        # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
-            lambda : self.openAddSubdatasetsDialog(
-            title='Open Sentinel-2 Datasets', filter='MTD_MSIL2*.xml'))
+            lambda: self.openAddSubdatasetsDialog(
+            title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
 
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(dts.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)

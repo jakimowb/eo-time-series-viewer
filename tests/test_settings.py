@@ -19,8 +19,8 @@
 # noinspection PyPep8Naming
 import uuid
 from eotimeseriesviewer.tests import start_app
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtCore import *
 import unittest
 import tempfile
 import xmlrunner
@@ -104,7 +104,7 @@ class TestSettings(EOTSVTestCase):
     def test_MapTextFormat(self):
 
         from qgis.core import QgsTextFormat
-        from qgis.PyQt.Qt import QSettings
+        from qgis.PyQt.QtCore import QSettings
         from qgis.PyQt.QtXml import QDomDocument
         key = Keys.MapTextFormat
 

@@ -136,7 +136,7 @@ class SPECCHIOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return sl
 
     @staticmethod
-    def write(speclib:SpectralLibrary, path:str, progressDialog:typing.Union[QProgressDialog, ProgressHandler]=None, delimiter:str=',')->list:
+    def write(speclib:SpectralLibrary, path:str, progressDialog:typing.Union[QProgressDialog, ProgressHandler]=None, delimiter:str=',') -> list:
         """
         Writes the SpectralLibrary to path and returns a list of written files that can be used to open the spectral library with readFrom(...)
         :param speclib: SpectralLibrary
@@ -197,7 +197,7 @@ class SPECCHIOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return writtenFiles
 
     @staticmethod
-    def score(uri:str)->int:
+    def score(uri:str) -> int:
         """
         Returns a score value for the give uri. E.g. 0 for unlikely/unknown, 20 for yes, probalby thats the file format the reader can read.
 

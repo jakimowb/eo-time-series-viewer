@@ -276,7 +276,7 @@ def findQGISResourceFiles():
     return results
 
 
-def scanResources(path=':')->str:
+def scanResources(path=':') -> str:
     """Recursively returns file paths in directory"""
     D = QDirIterator(path)
     while D.hasNext():
@@ -318,7 +318,7 @@ class ResourceTableModel(QAbstractTableModel):
     def rowCount(self, parent: QModelIndex = ...) -> int:
         return len(self.RESOURCES)
 
-    def columnNames(self)->typing.List[str]:
+    def columnNames(self) -> typing.List[str]:
         return [self.cnUri, self.cnIcon]
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = ...) -> typing.Any:
@@ -488,12 +488,12 @@ class ResourceBrowser(QWidget):
 
 
 
-    def useFilterRegex(self)->bool:
+    def useFilterRegex(self) -> bool:
         return self.optionUseRegex.isChecked()
 
 
 
-def showResources()->ResourceBrowser:
+def showResources() -> ResourceBrowser:
     """
     A simple way to list available Qt resources
     :return:

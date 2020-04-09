@@ -14,9 +14,7 @@ from . import DIR_UI_FILES
 
 # read https://gdal.org/user/raster_data_model.html#subdatasets-domain
 
-
-
-class SubDatasetDescription(object):
+class SubDatasetType(object):
     def __init__(self, name: str, checked: bool = False):
         assert isinstance(name, str)
         self.name: str = name
@@ -26,11 +24,11 @@ class SubDatasetDescription(object):
         return hash(self.name)
 
     def __eq__(self, other):
-        if not isinstance(other, SubDatasetDescription):
+        if not isinstance(other, SubDatasetType):
             return False
         return self.name == other.name
 
-class SubDatasetInfo(object):
+class DatasetInfo(object):
 
     @staticmethod
     def fromRaster(obj):
@@ -44,7 +42,7 @@ class SubDatasetInfo(object):
         if isinstance(obj, gdal.Dataset):
             subs = obj.GetSubDatasets()
             if isinstance(subs, list) and len(subs) > 0:
-                return SubDatasetInfo(obj.GetDescription(), subs)
+                return DatasetInfo(obj.GetDescription(), subs)
 
         return None
 
@@ -57,13 +55,19 @@ class SubDatasetInfo(object):
         self.mSubDescriptions: typing.List[str] = [s[1] for s in subs]
         self.mSubNames: typing.List[str] = [s[0] for s in subs]
 
+    def __hash__(self):
+        return hash(self.mReferenceFile)
+
     def reference_file(self) -> str:
         return self.mReferenceFile
 
-    def subset_descriptions(self) -> typing.List[SubDatasetDescription]:
-        return [SubDatasetDescription(d) for d in self.mSubDescriptions[:]]
+    def subdataset_types(self) -> typing.List[SubDatasetType]:
+        return [SubDatasetType(d) for d in self.mSubDescriptions[:]]
 
-    def subset_names(self) -> typing.List[str]:
+    def subdataset_descriptions(self) -> typing.List[str]:
+        return self.mSubDescriptions[:]
+
+    def subdataset_names(self) -> typing.List[str]:
         return self.mSubNames[:]
 
     def contains_name(self, name: str) -> bool:
@@ -72,13 +76,24 @@ class SubDatasetInfo(object):
     def contains_description(self, description: str) -> bool:
         return description in self.mSubDescriptions
 
+    def contains_subdataset_type(self, subdataset_type: SubDatasetType) -> bool:
+        return subdataset_type in self.subdataset_types()
+
+    def equal_descriptions(self, other) -> bool:
+        assert isinstance(other, DatasetInfo)
+        return self.mSubDescriptions == other.mSubDescriptions
+
+    def __gt__(self, other):
+        assert isinstance(other, DatasetInfo)
+        return self.mReferenceFile > other.mReferenceFile
+
     def __eq__(self, other):
         """
-        Two subset infos are equal if they have the same subset description
+        Two subset infos are equal if they point to the same ref file
         """
-        if not isinstance(other, SubDatasetInfo):
+        if not isinstance(other, DatasetInfo):
             return False
-        return self.mSubDescriptions == other.mSubDescriptions
+        return self.mReferenceFile == other.mReferenceFile
 
 class SubDatasetLoadingTask(QgsTask):
 
@@ -105,8 +120,8 @@ class SubDatasetLoadingTask(QgsTask):
         for i, path in enumerate(self.mFiles):
             assert isinstance(path, str)
             try:
-                info = SubDatasetInfo.fromRaster(path)
-                if isinstance(info, SubDatasetInfo):
+                info = DatasetInfo.fromRaster(path)
+                if isinstance(info, DatasetInfo):
                     result_block.append(info)
             except Exception as ex:
                 self.sigMessage.emit(str(ex), True)
@@ -133,7 +148,7 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
-        self.mSubDatasetDescriptions: typing.List[SubDatasetDescription] = []
+        self.mSubDatasetDescriptions: typing.List[SubDatasetType] = []
         self.mColumnNames = ['Subsets']
 
     def clear(self):
@@ -141,11 +156,11 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
         self.mSubDatasetDescriptions.clear()
         self.endResetModel()
 
-    def addSubDatasetDescriptions(self, descriptions: typing.List[SubDatasetDescription]):
+    def addSubDatasetDescriptions(self, descriptions: typing.List[SubDatasetType]):
         if not isinstance(descriptions, list):
             descriptions = [descriptions]
         for d in descriptions:
-            assert isinstance(d, SubDatasetDescription)
+            assert isinstance(d, SubDatasetType)
 
         to_add = []
         [to_add.append(d) for d in descriptions if d not in self.mSubDatasetDescriptions
@@ -183,7 +198,7 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
             return None
 
         descr = self.mSubDatasetDescriptions[index.row()]
-        assert isinstance(descr, SubDatasetDescription)
+        assert isinstance(descr, SubDatasetType)
         col = index.column()
         if role == Qt.DisplayRole:
             if col == 0:
@@ -205,7 +220,7 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
             return None
 
         descr = self.mSubDatasetDescriptions[index.row()]
-        assert isinstance(descr, SubDatasetDescription)
+        assert isinstance(descr, SubDatasetType)
 
         b = False
         if role == Qt.CheckStateRole:
@@ -216,13 +231,13 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
             self.dataChanged.emit(index, index, [role])
         return b
 
-    def subDatasetDescriptions(self, checked: bool =None) -> typing.List[SubDatasetDescription]:
+    def subDatasetDescriptions(self, checked: bool = None) -> typing.List[SubDatasetType]:
         subs = self.mSubDatasetDescriptions[:]
         if isinstance(checked, bool):
             subs = [s for s in subs if s.checked == checked]
         return subs
 
-class DataSetTableModel(QAbstractTableModel):
+class DatasetTableModel(QAbstractTableModel):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -230,31 +245,33 @@ class DataSetTableModel(QAbstractTableModel):
         self.mColumnNames = ['Dataset', '#']
         self.mColumnToolTip = ['Dataset location',
                                'Number of Subdatasets']
-        self.mSubDatasetInfos: typing.List[SubDatasetInfo] = []
+        self.mDatasetInfos: typing.List[DatasetInfo] = []
 
     def clear(self):
         self.beginResetModel()
-        self.mSubDatasetInfos.clear()
+        self.mDatasetInfos.clear()
         self.endResetModel()
 
     def rowCount(self, parent: QModelIndex = ...) -> int:
-        return len(self.mSubDatasetInfos)
+        return len(self.mDatasetInfos)
 
     def columnCount(self, parent: QModelIndex = ...) -> int:
         return 1
         return len(self.mColumnNames)
 
-    def subDatasets(self, description_filter: typing.List[SubDatasetDescription] = []) -> typing.List[str]:
+    def subDatasetNames(self, subdataset_types: typing.List[SubDatasetType] = []) -> typing.List[str]:
         results = []
-        if len(description_filter) > 0:
-            for d in description_filter:
-                assert isinstance(d, SubDatasetDescription)
-            for info in self.mSubDatasetInfos:
-                results.extend([n for (n, d) in zip(info.subset_names(), info.subset_descriptions())
-                                if d in description_filter])
+        if len(subdataset_types) > 0:
+            for d in subdataset_types:
+                assert isinstance(d, SubDatasetType)
+            for info in self.mDatasetInfos:
+                assert isinstance(info, DatasetInfo)
+                for name, sub_type in zip(info.subdataset_names(), info.subdataset_types()):
+                    if sub_type in subdataset_types:
+                        results.append(name)
         else:
-            for info in self.mSubDatasetInfos:
-                results.extend(info.subset_names())
+            for info in self.mDatasetInfos:
+                results.extend(info.subdataset_names())
         return results
 
     def headerData(self, col, orientation, role=None):
@@ -268,34 +285,31 @@ class DataSetTableModel(QAbstractTableModel):
         return None
 
     def index(self, row: int, column: int, parent: QModelIndex = ...) -> QModelIndex:
-        sds = self.mSubDatasetInfos[row]
+        sds = self.mDatasetInfos[row]
         return self.createIndex(row, column, sds)
 
-    def addSubDatasetInfos(self, infos: typing.List[SubDatasetInfo]):
+    def addDatasetInfos(self, infos: typing.List[DatasetInfo]):
         if not isinstance(infos, list):
             infos = [infos]
         for i in infos:
-            assert isinstance(i, SubDatasetInfo)
+            assert isinstance(i, DatasetInfo)
 
         # remove existing
-        to_add = []
-        for i in infos:
-            if i not in to_add and i not in self.mSubDatasetInfos:
-                to_add.append(i)
+        to_add = sorted(set(infos).difference(set(self.mDatasetInfos)))
 
         if len(to_add) > 0:
             r0 = self.rowCount()
             r1 = r0 + len(to_add) - 1
             self.beginInsertRows(QModelIndex(), r0, r1)
-            self.mSubDatasetInfos.extend(to_add)
+            self.mDatasetInfos.extend(to_add)
             self.endInsertRows()
 
     def data(self, index: QModelIndex, role: int = ...) -> typing.Any:
         if not index.isValid():
             return None
 
-        info = self.mSubDatasetInfos[index.row()]
-        assert isinstance(info, SubDatasetInfo)
+        info = self.mDatasetInfos[index.row()]
+        assert isinstance(info, DatasetInfo)
         col = index.column()
 
         if role == Qt.DisplayRole:
@@ -306,8 +320,7 @@ class DataSetTableModel(QAbstractTableModel):
 
         if role == Qt.ToolTipRole:
             tt = [info.reference_file()]
-            tt.append('Subdatasets:')
-            tt.append('\t'+'\n\t'.join(info.subset_names()))
+            tt.append('\n  ' + '\n  '.join(info.subdataset_names()))
             return '\n'.join(tt)
 
         if role == Qt.UserRole:
@@ -325,7 +338,7 @@ class SubDatasetSelectionDialog(QDialog):
         self.fileWidget.fileChanged.connect(self.onFilesChanged)
         self.mTasks = dict()
 
-        self.datasetModel = DataSetTableModel()
+        self.datasetModel = DatasetTableModel()
         self.datasetFilterModel = QSortFilterProxyModel()
         self.datasetFilterModel.setSourceModel(self.datasetModel)
         self.datasetFilterModel.setFilterKeyColumn(0)
@@ -370,10 +383,10 @@ class SubDatasetSelectionDialog(QDialog):
         qgsTask.sigFoundSubDataSets.connect(self.add_subdatasetinfos)
         self.startTask(qgsTask)
 
-    def add_subdatasetinfos(self, infos: typing.List[SubDatasetInfo]):
-        self.datasetModel.addSubDatasetInfos(infos)
+    def add_subdatasetinfos(self, infos: typing.List[DatasetInfo]):
+        self.datasetModel.addDatasetInfos(infos)
         descriptions = []
-        [descriptions.extend(i.subset_descriptions()) for i in infos]
+        [descriptions.extend(i.subdataset_types()) for i in infos]
         self.subDatasetModel.addSubDatasetDescriptions(descriptions)
 
     def startTask(self, qgsTask:QgsTask):
@@ -415,7 +428,7 @@ class SubDatasetSelectionDialog(QDialog):
         Returns the subdataset strings that can be used as input to QgsRasterLayers or gdal.Open()
         """
         description_filter = self.subDatasetModel.subDatasetDescriptions(checked=True)
-        return self.datasetModel.subDatasets(description_filter)
+        return self.datasetModel.subDatasetNames(description_filter)
 
     def setFileFilter(self, filter: str):
         """

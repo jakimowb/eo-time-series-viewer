@@ -455,7 +455,7 @@ class GDALMetadataConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
         self.mIsOGR = isinstance(layer, QgsVectorLayer) and layer.dataProvider().name() == 'ogr'
         return self.mIsGDAL or self.mIsOGR
 
-    def icon(self)->QIcon:
+    def icon(self) -> QIcon:
         if self.mIsGDAL:
             return QIcon(self.mIconGDAL)
         if self.mIsOGR:
@@ -468,14 +468,14 @@ class GDALMetadataConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def supportsStyleDock(self):
         return False
 
-    def createWidget(self, layer, canvas, dockWidget=True, parent=None)->GDALMetadataModelConfigWidget:
+    def createWidget(self, layer, canvas, dockWidget=True, parent=None) -> GDALMetadataModelConfigWidget:
         w = GDALMetadataModelConfigWidget(layer, canvas, parent=parent)
         w.metadataModel.setIsEditable(True)
         w.setWindowTitle(self.title())
         w.setWindowIcon(self.icon())
         return w
 
-    def title(self)->str:
+    def title(self) -> str:
         if self.mIsGDAL:
             return 'GDAL Metadata'
         if self.mIsOGR:

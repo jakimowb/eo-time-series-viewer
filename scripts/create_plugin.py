@@ -159,7 +159,8 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
         shutil.copytree(qgisresources, PLUGIN_DIR / 'qgisresources')
 
     createCHANGELOG(PLUGIN_DIR)
-
+    import scripts.update_docs
+    scripts.update_docs.update_documentation()
 
     # 5. create a zip
     print('Create zipfile...')
@@ -190,7 +191,7 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
 
 def rst2html(pathMD: pathlib.Path) -> str:
     """
-    Converst a rst file to html
+    Convert a rst file to html
     """
     import docutils.core
     assert pathMD.is_file()

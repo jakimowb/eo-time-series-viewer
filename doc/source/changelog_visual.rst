@@ -2,6 +2,25 @@
 Visual Changelog
 ================
 
+Version 1.12
+------------
+
+* The TimeSeries tree view allows to change the visibility of single source image
+
+
+* The new context menu entry *Add Product* offers specialized methods to load source images.
+
+  *Add Product > Sentinel-2* is used to load the sub-datasets of interest from Sentinel-2 products,
+
+  *Add Product > Subdatasets* generally allows to load subdatasets e.g. from HDF images.
+
+
+
+Version 1.11
+------------
+
+ * this version did not provide major visual changes (with except of less error messages)
+
 Version 1.10
 ------------
 

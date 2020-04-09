@@ -4,7 +4,6 @@ from qgis.core import *
 from qgis.gui import QgsMapCanvas, QgsMapLayerConfigWidget, QgsRasterBandComboBox
 from qgis.gui import *
 from qgis.PyQt.QtWidgets import *
-from qgis.PyQt import Qt
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import QIcon
@@ -178,42 +177,42 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             """
             self.mConfigWidget.setConfig(dict(self.mInitialConfig))
 
-        def factoryKey(self)->str:
+        def factoryKey(self) -> str:
             """
             Returns the QgsEditorWidgetFactory key, e.g. "CheckBox"
             :return: str
             """
             return self.mKey
 
-        def factoryName(self)->str:
+        def factoryName(self) -> str:
             """
             Returns the QgsEditorWidgetFactory name, e.g. "Checkbox"
             :return: str
             """
             return self.factory().name()
 
-        def config(self)->dict:
+        def config(self) -> dict:
             """
             Returns the config dictionary
             :return: dict
             """
             return self.mConfigWidget.config()
 
-        def configWidget(self)->QgsEditorConfigWidget:
+        def configWidget(self) -> QgsEditorConfigWidget:
             """
             Returns the QgsEditorConfigWidget
             :return: QgsEditorConfigWidget
             """
             return self.mConfigWidget
 
-        def factory(self)->QgsEditorWidgetFactory:
+        def factory(self) -> QgsEditorWidgetFactory:
             """
             Returns the QgsEditorWidgetFactory
             :return: QgsEditorWidgetFactory
             """
             return self.mFactory
 
-        def editorWidgetSetup(self)->QgsEditorWidgetSetup:
+        def editorWidgetSetup(self) -> QgsEditorWidgetSetup:
             """
             Creates a QgsEditorWidgetSetup
             :return: QgsEditorWidgetSetup
@@ -309,7 +308,7 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
                 break
 
 
-    def changed(self)->bool:
+    def changed(self) -> bool:
         """
         Returns True if the QgsEditorWidgetFactory or its configuration has been changed
         :return: bool
@@ -345,11 +344,11 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             self.setFactory(self.mInitialFactoryKey)
             self.currentEditorConfigWidget().setConfig(self.mInitialConf)
 
-    def currentFieldConfig(self)->ConfigInfo:
+    def currentFieldConfig(self) -> ConfigInfo:
         i = self.cbWidgetType.currentIndex()
         return self.mItemModel.item(i)
 
-    def currentEditorConfigWidget(self)->QgsEditorConfigWidget:
+    def currentEditorConfigWidget(self) -> QgsEditorConfigWidget:
         return self.currentFieldConfig().configWidget()
 
     def updateConfigWidget(self, index):
@@ -479,7 +478,7 @@ class LayerAttributeFormConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def createWidget(self, layer, canvas, dockWidget=False, parent=None):
         return LayerAttributeFormConfigWidget(layer, canvas, parent=parent)
 
-    def supportsLayer(self, layer)->bool:
+    def supportsLayer(self, layer) -> bool:
         return isinstance(layer, QgsVectorLayer)
 
     def supportLayerPropertiesDialog(self):
@@ -606,7 +605,7 @@ class LayerFieldsConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def createWidget(self, layer, canvas, dockWidget=False, parent=None):
         return LayerFieldsConfigWidget(layer, canvas, parent=parent)
 
-    def supportsLayer(self, layer)->bool:
+    def supportsLayer(self, layer) -> bool:
         return isinstance(layer, QgsVectorLayer)
 
     def supportLayerPropertiesDialog(self):
