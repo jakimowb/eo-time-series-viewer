@@ -2,6 +2,11 @@
 Changelog
 ==============
 
+2020-04-09 (version 1.12):
+    * TimeSeries tree view allows to change the visibility of single source images, e.g. to hide clouded observations
+    * several updates to the Spectral Library Widget, e.g. import / export of profiles from ASD, ARTMO, EcoSYS or SPECCHIO
+    * EOTSV allows to open images from sources with subdatasets, e.g. from Sentinel-2 or HDF images.
+
 2020-01-23 (version 1.11):
     * revised unit tests for CI pipelines
     * fixed smaller issues in SensorModel
