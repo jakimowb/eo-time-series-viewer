@@ -530,7 +530,7 @@ class MapCanvas(QgsMapCanvas):
         Updates map-canvas TSD variables
         """
         from .mapvisualization import MapView
-        from .main import TimeSeriesViewer
+        from .main import EOTimeSeriesViewer
 
 
         varMVNumber = None
@@ -549,8 +549,8 @@ class MapCanvas(QgsMapCanvas):
         mv = self.mapView()
         if isinstance(mv, MapView):
             varMVName = mv.name()
-            if isinstance(TimeSeriesViewer.instance(), TimeSeriesViewer):
-                mapViews = TimeSeriesViewer.instance().mapViews()
+            if isinstance(EOTimeSeriesViewer.instance(), EOTimeSeriesViewer):
+                mapViews = EOTimeSeriesViewer.instance().mapViews()
                 if mv in mapViews:
                     varMVNumber = mapViews.index(mv) + 1
 
@@ -857,8 +857,8 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
 
-        from .main import TimeSeriesViewer
-        eotsv = TimeSeriesViewer.instance()
+        from .main import EOTimeSeriesViewer
+        eotsv = EOTimeSeriesViewer.instance()
 
         viewPortMapLayers = [l for l in self.layers() if isinstance(l, QgsMapLayer)]
 
@@ -1124,7 +1124,7 @@ class MapCanvas(QgsMapCanvas):
         """
 
 
-        if isinstance(self.tsd(), TimeSeriesDate) and isinstance(eotsv, TimeSeriesViewer):
+        if isinstance(self.tsd(), TimeSeriesDate) and isinstance(eotsv, EOTimeSeriesViewer):
             menu.addSeparator()
 
             ts = eotsv.timeSeries()

@@ -400,18 +400,18 @@ class MapView(QFrame):
 
     def addSpectralProfileLayer(self):
         """Adds the EOTSV Spectral Profile Layer"""
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        tsv = TimeSeriesViewer.instance()
-        if isinstance(tsv, TimeSeriesViewer):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        tsv = EOTimeSeriesViewer.instance()
+        if isinstance(tsv, EOTimeSeriesViewer):
             lyr = tsv.spectralLibrary()
             if lyr not in self.layers():
                 self.addLayer(lyr)
 
     def addTemporalProfileLayer(self):
         """Adds the EOTSV Temporal Profile Layer"""
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        tsv = TimeSeriesViewer.instance()
-        if isinstance(tsv, TimeSeriesViewer):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        tsv = EOTimeSeriesViewer.instance()
+        if isinstance(tsv, EOTimeSeriesViewer):
             lyr = tsv.temporalProfileLayer()
             if lyr not in self.layers():
                 self.addLayer(lyr)

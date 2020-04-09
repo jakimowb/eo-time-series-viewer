@@ -103,19 +103,19 @@ class TimeSeriesViewerPlugin:
 
 
     def run(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        self.mEOTSV = TimeSeriesViewer()
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        self.mEOTSV = EOTimeSeriesViewer()
         self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
         self.mEOTSV.show()
 
 
     def onUiClosed(self):
         self.mEOTSV = None
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        TimeSeriesViewer._instance = None
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        EOTimeSeriesViewer._instance = None
 
     def unload(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         for action in self.mToolbarActions:
             self.iface.removeToolBarIcon(action)

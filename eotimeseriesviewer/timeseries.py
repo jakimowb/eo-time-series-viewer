@@ -2413,8 +2413,8 @@ class TimeSeriesDock(QgsDockWidget):
 
     def initActions(self, parent):
 
-        from eotimeseriesviewer.main import TimeSeriesViewerUI
-        assert isinstance(parent, TimeSeriesViewerUI)
+        from eotimeseriesviewer.main import EOTimeSeriesViewerUI
+        assert isinstance(parent, EOTimeSeriesViewerUI)
         self.btnAddTSD.setDefaultAction(parent.actionAddTSD)
         self.btnRemoveTSD.setDefaultAction(parent.actionRemoveTSD)
         self.btnLoadTS.setDefaultAction(parent.actionLoadTS)

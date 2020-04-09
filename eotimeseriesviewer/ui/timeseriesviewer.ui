@@ -73,7 +73,7 @@
      <x>0</x>
      <y>0</y>
      <width>858</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -86,9 +86,19 @@
     <property name="title">
      <string>Files</string>
     </property>
+    <widget class="QMenu" name="menuAdd_Product">
+     <property name="title">
+      <string>Add Product</string>
+     </property>
+     <addaction name="actionLoadTimeSeriesStack"/>
+     <addaction name="actionAddSentinel2"/>
+     <addaction name="actionAddSubDatasets"/>
+    </widget>
     <addaction name="actionAddTSD"/>
-    <addaction name="actionLoadTimeSeriesStack"/>
+    <addaction name="menuAdd_Product"/>
+    <addaction name="separator"/>
     <addaction name="actionAddVectorData"/>
+    <addaction name="separator"/>
     <addaction name="actionLoadTS"/>
     <addaction name="actionSaveTS"/>
     <addaction name="actionClearTS"/>
@@ -251,7 +261,7 @@
      <normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddTS.svg</iconset>
    </property>
    <property name="text">
-    <string>Load time series</string>
+    <string>Load Time Series</string>
    </property>
    <property name="toolTip">
     <string>Load time series from CSV file</string>
@@ -263,10 +273,10 @@
      <normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddRasterLayer.svg</iconset>
    </property>
    <property name="text">
-    <string>Add images</string>
+    <string>Add Images</string>
    </property>
    <property name="toolTip">
-    <string>Add images to the time series</string>
+    <string>Add GDAL-readible images to the time series</string>
    </property>
   </action>
   <action name="actionRemoveTSD">
@@ -580,11 +590,11 @@
   </action>
   <action name="actionAddVectorData">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionAddOgrLayer.svg</normaloff>:/images/themes/default/mActionAddOgrLayer.svg</iconset>
    </property>
    <property name="text">
-    <string>Add vector data</string>
+    <string>Add Vector Data</string>
    </property>
    <property name="toolTip">
     <string>Loads a vector data file</string>
@@ -604,7 +614,7 @@
   </action>
   <action name="actionLoadTimeSeriesStack">
    <property name="text">
-    <string>Add images from time stack</string>
+    <string>Time Series Stack</string>
    </property>
    <property name="toolTip">
     <string>Load images from a stack or list of stacks witch each image band being an temporal observation</string>
@@ -633,7 +643,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionPropertiesWidget.svg</normaloff>:/images/themes/default/mActionPropertiesWidget.svg</iconset>
    </property>
    <property name="text">
@@ -705,7 +715,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
    </property>
    <property name="text">
@@ -720,7 +730,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectPolygon.svg</normaloff>:/images/themes/default/mActionSelectPolygon.svg</iconset>
    </property>
    <property name="text">
@@ -735,7 +745,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectFreehand.svg</normaloff>:/images/themes/default/mActionSelectFreehand.svg</iconset>
    </property>
    <property name="text">
@@ -747,7 +757,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectRadius.svg</normaloff>:/images/themes/default/mActionSelectRadius.svg</iconset>
    </property>
    <property name="text">
@@ -756,7 +766,7 @@
   </action>
   <action name="actionSelectFeatures">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
    </property>
    <property name="text">
@@ -771,7 +781,7 @@
   </action>
   <action name="actionExportMapsToImages">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</normaloff>:/images/themes/default/mActionSaveMapAsImage.svg</iconset>
    </property>
    <property name="text">
@@ -791,7 +801,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/lockedGray.svg</normaloff>:/images/themes/default/lockedGray.svg</iconset>
    </property>
    <property name="text">
@@ -803,7 +813,7 @@
   </action>
   <action name="actionDeselect">
    <property name="icon">
-    <iconset resource="../../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
    </property>
    <property name="text">
@@ -811,6 +821,22 @@
    </property>
    <property name="toolTip">
     <string>Deselect </string>
+   </property>
+  </action>
+  <action name="actionAddSentinel2">
+   <property name="text">
+    <string>Sentinel 2</string>
+   </property>
+   <property name="toolTip">
+    <string>Add Sentinel2 image products</string>
+   </property>
+  </action>
+  <action name="actionAddSubDatasets">
+   <property name="text">
+    <string>Subdatasets</string>
+   </property>
+   <property name="toolTip">
+    <string>Open Subdatasets, e.g. from HDF files</string>
    </property>
   </action>
  </widget>
@@ -825,7 +851,6 @@
  <resources>
   <include location="eotsv_resources.qrc"/>
   <include location="../externals/qps/qpsresources.qrc"/>
-  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>

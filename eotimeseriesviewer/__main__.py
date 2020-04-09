@@ -38,9 +38,9 @@ def run():
     from eotimeseriesviewer import initAll
     initAll()
 
-    from eotimeseriesviewer.main import TimeSeriesViewer
+    from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-    ts = TimeSeriesViewer()
+    ts = EOTimeSeriesViewer()
     ts.show()
 
     if not qgisIface:

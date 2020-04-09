@@ -150,13 +150,13 @@ class TestQGISEnvironment(EOTSVTestCase):
         expected_auth_id = 'EPSG:4326'
         self.assertEqual(auth_id, expected_auth_id)
 
-
         from example.Images import Img_2014_08_11_LC82270652014223LGN00_BOA
         path = Img_2014_08_11_LC82270652014223LGN00_BOA
         title = 'TestRaster'
         layer = QgsRasterLayer(path, title)
         auth_id = layer.crs().authid()
         self.assertEqual(auth_id, 'EPSG:32621')
+
 
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)

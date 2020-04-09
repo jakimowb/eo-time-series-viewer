@@ -9,7 +9,7 @@ from qgis.PyQt.QtGui import *
 from eotimeseriesviewer.tests import start_app
 app = start_app()
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.main import TimeSeriesViewer
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.timeseries import *
@@ -23,7 +23,7 @@ os.makedirs(DIR_SCREENSHOTS, exist_ok=True)
 
 DATE_OF_INTEREST = np.datetime64('2014-07-02')
 
-TSV = TimeSeriesViewer()
+TSV = EOTimeSeriesViewer()
 TSV.show()
 TSV.setMapSize(QSize(300, 150))
 QApplication.processEvents()

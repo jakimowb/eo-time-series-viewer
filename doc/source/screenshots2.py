@@ -8,7 +8,7 @@ from eotimeseriesviewer.tests import start_app
 app = start_app()
 
 from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.main import TimeSeriesViewer
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.timeseries import *
@@ -30,7 +30,7 @@ REF_DATE_RE = np.datetime64('2014-06-25')
 TEMPORAL_PROFILE_LOCATIONS = 5
 TEMPORAL_PROFILE_LOCATIONS_PLOTTED = 2
 
-TSV = TimeSeriesViewer()
+TSV = EOTimeSeriesViewer()
 TSV.show()
 TSV.setMapSize(SIZE_MAPCANVAS)
 QApplication.processEvents()

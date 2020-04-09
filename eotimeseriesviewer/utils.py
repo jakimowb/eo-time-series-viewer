@@ -51,9 +51,9 @@ def qgisInstance():
     :return: QgisInterface | None
     """
 
-    from eotimeseriesviewer.main import TimeSeriesViewer
+    from eotimeseriesviewer.main import EOTimeSeriesViewer
     if isinstance(qgis.utils.iface, QgisInterface) and \
-        not isinstance(qgis.utils.iface, TimeSeriesViewer):
+        not isinstance(qgis.utils.iface, EOTimeSeriesViewer):
         return qgis.utils.iface
     else:
         return None

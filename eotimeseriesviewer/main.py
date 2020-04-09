@@ -107,16 +107,13 @@ class AboutDialogUI(QDialog):
         self.setWindowTitle(title)
 
 
-
-
-
-class TimeSeriesViewerUI(QMainWindow):
+class EOTimeSeriesViewerUI(QMainWindow):
 
     sigAboutToBeClosed = pyqtSignal()
 
     def __init__(self, parent=None):
         """Constructor."""
-        super(TimeSeriesViewerUI, self).__init__(parent)
+        super(EOTimeSeriesViewerUI, self).__init__(parent)
         loadUi(DIR_UI / 'timeseriesviewer.ui', self)
 
         self.setCentralWidget(self.mMapWidget)
@@ -300,7 +297,7 @@ def showMessage(message, title, level):
     v.showMessage(True)
 
 
-class TimeSeriesViewer(QgisInterface, QObject):
+class EOTimeSeriesViewer(QgisInterface, QObject):
 
     _instance = None
 
@@ -310,7 +307,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         Returns the TimeSeriesViewer instance
         :return:
         """
-        return TimeSeriesViewer._instance
+        return EOTimeSeriesViewer._instance
 
     sigCurrentLocationChanged = pyqtSignal([SpatialPoint],
                                            [SpatialPoint, QgsMapCanvas])
@@ -333,8 +330,8 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
 
-        TimeSeriesViewer._instance = self
-        self.ui = TimeSeriesViewerUI()
+        EOTimeSeriesViewer._instance = self
+        self.ui = EOTimeSeriesViewerUI()
 
         mvd = self.ui.dockMapViews
         dts = self.ui.dockTimeSeries
@@ -343,8 +340,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
         self.mMapLayerStore = self.mapWidget().mMapLayerStore
         import eotimeseriesviewer.utils
         eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
-
-
         from eotimeseriesviewer.timeseries import TimeSeriesDock
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
         assert isinstance(mvd, MapViewDock)
@@ -352,11 +347,12 @@ class TimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(dts, TimeSeriesDock)
 
         def onClosed():
-            TimeSeriesViewer._instance = None
+            EOTimeSeriesViewer._instance = None
         self.ui.sigAboutToBeClosed.connect(onClosed)
 
         QgsApplication.instance().messageLog().messageReceived.connect(self.logMessage)
 
+        self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
         # Save reference to the QGIS interface
         import qgis.utils
@@ -378,7 +374,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
 
         self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
-        assert isinstance(self, TimeSeriesViewer)
+        assert isinstance(self, EOTimeSeriesViewer)
         self.spectralTemporalVis.sigMoveToDate.connect(self.setCurrentDate)
 
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
@@ -452,9 +448,6 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
 
-
-
-
         # set default map tool
         self.ui.actionPan.toggle()
 
@@ -467,6 +460,11 @@ class TimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
+        self.ui.actionAddSubDatasets.triggered.connect(self.openAddSubdatasetsDialog)
+        self.ui.actionAddSentinel2.triggered.connect(
+            lambda : self.openAddSubdatasetsDialog(
+            title='Open Sentinel-2 Datasets', filter='MTD_MSIL2*.xml'))
+
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(dts.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
@@ -584,7 +582,7 @@ class TimeSeriesViewer(QgisInterface, QObject):
         """
         Exports the map canvases to local images.
         :param path: directory to save the images in
-        :param format: rastr format, e.g. 'PNG' or 'JPG'
+        :param format: raster format, e.g. 'PNG' or 'JPG'
         """
         from .mapcanvas import MapCanvas
         from .mapvisualization import MapView
@@ -671,7 +669,20 @@ class TimeSeriesViewer(QgisInterface, QObject):
         else:
             return None
 
+    def openAddSubdatasetsDialog(self, *args,
+                                 title: str = 'Open Subdatasets',
+                                 filter: str = '*.*'):
 
+        from .externals.qps.subdatasets import SubDatasetSelectionDialog
+
+        d = SubDatasetSelectionDialog()
+        d.setWindowTitle(title)
+        d.setFileFilter(filter)
+        d.exec_()
+        if d.result() == QDialog.Accepted:
+            files = d.selectedSubDatasets()
+            if len(files) > 0:
+                self.addTimeSeriesImages(files)
 
     def actionZoomActualSize(self):
         return self.ui.actionZoomPixelScale

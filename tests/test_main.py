@@ -71,18 +71,18 @@ class TestMain(EOTSVTestCase):
 
     def test_TimeSeriesViewerNoSource(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
-        self.assertIsInstance(TSV, TimeSeriesViewer)
-        self.showGui(TSV)
+        self.assertIsInstance(TSV, EOTimeSeriesViewer)
+        self.showGui(TSV.ui)
 
     def test_TimeSeriesViewer(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
         TSV.createMapView('True Color')
         TSV.createMapView('Near Infrared')
@@ -94,13 +94,13 @@ class TestMain(EOTSVTestCase):
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
 
-        self.showGui(TSV)
+        self.showGui(TSV.ui)
 
     def test_TimeSeriesViewerInvalidSource(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
         images = ['not-existing-source']
         TSV.addTimeSeriesImages(images, loadAsync=False)
 
@@ -108,9 +108,9 @@ class TestMain(EOTSVTestCase):
 
     def test_TimeSeriesViewerMultiSource(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
@@ -129,14 +129,14 @@ class TestMain(EOTSVTestCase):
 
     def test_exportMapsToImages(self):
 
-        from eotimeseriesviewer.main import TimeSeriesViewer, SaveAllMapsDialog
+        from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 
         d = SaveAllMapsDialog()
         self.assertEqual(d.fileType(), 'PNG')
 
         pathTestOutput = tempfile.mkdtemp(prefix='EOTSTTestOutput')
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
         paths = TestObjects.createMultiSourceTimeSeries()
         TSV.addTimeSeriesImages(paths)
@@ -145,9 +145,9 @@ class TestMain(EOTSVTestCase):
         self.showGui(TSV)
 
     def test_TimeSeriesViewerMassiveSources(self):
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
         files = TestObjects.createArtificialTimeSeries(100)
         TSV.addTimeSeriesImages(files)

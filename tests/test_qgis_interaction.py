@@ -50,9 +50,9 @@ class TestQGISInteraction(EOTSVTestCase):
     def test_syncExtents(self):
 
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
 
         TSV.loadExampleTimeSeries()
         from example import exampleEvents

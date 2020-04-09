@@ -121,7 +121,6 @@ class TestMapVisualization(EOTSVTestCase):
         g = controllW.layout()
         assert isinstance(g, QGridLayout)
 
-
         def onNMapViews(n):
             mvs = w.mapViews()
 
@@ -137,7 +136,6 @@ class TestMapVisualization(EOTSVTestCase):
                     mv = MapView()
                     mv.optionShowSensorName.setChecked(True)
                     mv.optionShowMapViewName.setChecked(True)
-
 
                     mv.setTitle('MV {}'.format(len(w.mapViews())))
                     w.addMapView(mv)
@@ -168,7 +166,6 @@ class TestMapVisualization(EOTSVTestCase):
         sbY.valueChanged.connect(onMapSizeChanged)
         sbX.valueChanged.connect(onMapSizeChanged)
 
-
         g.addWidget(QLabel('n dates'), 1, 0)
         g.addWidget(sb, 1,1)
         g.addWidget(btnAMV,2,0)
@@ -178,8 +175,6 @@ class TestMapVisualization(EOTSVTestCase):
         g.addWidget(sbX, 3,1)
         g.addWidget(sbY, 3, 2)
         controllW.show()
-
-
 
         mv1 = MapView(name='mv1')
         mv2 = MapView(name='mv2')
@@ -206,11 +201,9 @@ class TestMapVisualization(EOTSVTestCase):
 
         for c in w.mapCanvases():
             c.update()
-
         self.showGui()
 
     def test_mapview(self):
-
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
         lyr.setName('Layer1 NAME')
@@ -246,16 +239,13 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertEqual(canvas.tsd(), tsd)
         self.assertEqual(canvas.mapView(), mapview)
 
-
         self.assertEqual([], canvas.layers())
         canvas.timedRefresh()
         self.assertNotEqual([], canvas.layers())
         l = canvas.layers()[-1]
         MW.setCrs(l.crs())
         MW.setSpatialExtent(SpatialExtent.fromLayer(l))
-
         self.showGui()
-
 
     def test_mapViewDock(self):
 
@@ -279,19 +269,11 @@ class TestMapVisualization(EOTSVTestCase):
         mw.setCurrentDate(tsd)
         mw.setCrs(tss.crs())
         mw.setSpatialExtent(tss.spatialExtent())
-
-
         self.showGui([dock, mw])
 
-
-
     def test_mapcanvas(self):
-
         files = testRasterFiles()
-
         lyr1 = QgsRasterLayer(files[0])
-
-
         m = MapCanvas()
         m.setLayers([])
         self.assertIsInstance(m, MapCanvas)
@@ -315,7 +297,6 @@ class TestMapVisualization(EOTSVTestCase):
             self.assertAlmostEqual(wla, wlb)
 
         self.assertEqual(0, bandClosestToWavelength(lyr, 'B'))
-        s = ""
 
     def test_renderer(self):
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')

@@ -190,8 +190,8 @@ class TestStackedInputs(EOTSVTestCase):
 
 
         testImages = self.createTestDatasets()
-        from eotimeseriesviewer.main import TimeSeriesViewer
-        TSV = TimeSeriesViewer()
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        TSV = EOTimeSeriesViewer()
         TSV.show()
 
         d = StackedBandInputDialog()

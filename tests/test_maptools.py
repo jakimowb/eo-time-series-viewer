@@ -84,9 +84,9 @@ class TestMapTools(EOTSVTestCase):
     def test_TimeSeriesViewer(self):
 
 
-        from eotimeseriesviewer.main import TimeSeriesViewer
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        TSV = TimeSeriesViewer()
+        TSV = EOTimeSeriesViewer()
         TSV.show()
         TSV.loadExampleTimeSeries(loadAsync=False)
         from example import exampleEvents
