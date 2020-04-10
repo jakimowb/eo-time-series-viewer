@@ -17,6 +17,8 @@ qgisresources/
 qgisresources/*
 screenshots/
 screenshots/*
+
+example/exampleEvents.gpkg
 example/*.aux.xml
 example/*.gpkg-shm
 example/*.gpkg-wal
