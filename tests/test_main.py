@@ -34,8 +34,16 @@ import tempfile
 
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 class TestMain(EOTSVTestCase):
+
+
+    def tearDown(self):
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.close()
+            QApplication.processEvents()
+        super().tearDown()
 
     def test_read_init(self):
         """Test that the plugin __init__ will validate on plugins.qgis.org."""
