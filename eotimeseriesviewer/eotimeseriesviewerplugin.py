@@ -103,9 +103,13 @@ class EOTimeSeriesViewerPlugin:
 
     def run(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
-        self.mEOTSV = EOTimeSeriesViewer()
-        self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
-        self.mEOTSV.show()
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.ui.show()
+        else:
+            self.mEOTSV = EOTimeSeriesViewer()
+            self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
+            self.mEOTSV.show()
 
     def onUiClosed(self):
         self.mEOTSV = None
@@ -114,11 +118,13 @@ class EOTimeSeriesViewerPlugin:
 
     def unload(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.close()
+            QApplication.processEvents()
 
         for action in self.mToolbarActions:
             self.iface.removeToolBarIcon(action)
-
-        self.onUiClosed()
 
     def tr(self, message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)
