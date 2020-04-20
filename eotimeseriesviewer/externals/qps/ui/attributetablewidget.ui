@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>998</width>
-    <height>316</height>
+    <width>787</width>
+    <height>363</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,148 +20,191 @@
    </size>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
-     <widget class="QFrame" name="mUpdateExpressionBox">
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <property name="spacing">
-        <number>3</number>
-       </property>
-       <property name="leftMargin">
-        <number>3</number>
-       </property>
-       <property name="topMargin">
-        <number>1</number>
-       </property>
-       <property name="rightMargin">
-        <number>0</number>
-       </property>
-       <property name="bottomMargin">
-        <number>3</number>
-       </property>
-       <item>
-        <widget class="QgsFieldComboBox" name="mFieldCombo"/>
-       </item>
-       <item>
-        <widget class="QLabel" name="label">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>=</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QgsFieldExpressionWidget" name="mUpdateExpressionText">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="focusPolicy">
-          <enum>Qt::StrongFocus</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="mRunFieldCalc">
-         <property name="text">
-          <string>Update All</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QToolButton" name="mRunFieldCalcSelected">
-         <property name="text">
-          <string>Update Selected</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item>
-     <widget class="QgsDualView" name="mMainView"/>
-    </item>
-    <item>
-     <layout class="QHBoxLayout">
-      <property name="leftMargin">
-       <number>3</number>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <property name="topMargin">
-       <number>3</number>
-      </property>
-      <property name="rightMargin">
-       <number>3</number>
-      </property>
-      <property name="bottomMargin">
-       <number>3</number>
-      </property>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <widget class="QWidget" name="widgetRight" native="true"/>
+      <widget class="QWidget" name="widgetCenter" native="true">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
         <property name="spacing">
-         <number>0</number>
+         <number>2</number>
+        </property>
+        <property name="leftMargin">
+         <number>2</number>
+        </property>
+        <property name="topMargin">
+         <number>2</number>
+        </property>
+        <property name="rightMargin">
+         <number>2</number>
+        </property>
+        <property name="bottomMargin">
+         <number>2</number>
         </property>
         <item>
-         <widget class="QWidget" name="mFeatureFilterWidget" native="true"/>
-        </item>
-        <item>
-         <widget class="QToolButton" name="mAttributeViewButton">
-          <property name="toolTip">
-           <string>Switch to form view</string>
-          </property>
-          <property name="text">
-           <string>Form View</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
-          </property>
-          <property name="checkable">
-           <bool>true</bool>
-          </property>
-          <property name="autoRaise">
-           <bool>true</bool>
-          </property>
-          <attribute name="buttonGroup">
-           <string notr="true">mMainViewButtonGroup</string>
-          </attribute>
+         <widget class="QFrame" name="mUpdateExpressionBox">
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <property name="spacing">
+            <number>3</number>
+           </property>
+           <property name="leftMargin">
+            <number>3</number>
+           </property>
+           <property name="topMargin">
+            <number>1</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>3</number>
+           </property>
+           <item>
+            <widget class="QgsFieldComboBox" name="mFieldCombo"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>=</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QgsFieldExpressionWidget" name="mUpdateExpressionText">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::StrongFocus</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="mRunFieldCalc">
+             <property name="text">
+              <string>Update All</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="mRunFieldCalcSelected">
+             <property name="text">
+              <string>Update Selected</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </widget>
         </item>
         <item>
-         <widget class="QToolButton" name="mTableViewButton">
-          <property name="toolTip">
-           <string>Switch to table view</string>
+         <widget class="QgsDualView" name="mMainView" native="true"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout">
+          <property name="leftMargin">
+           <number>3</number>
           </property>
-          <property name="text">
-           <string>Table View</string>
+          <property name="topMargin">
+           <number>3</number>
           </property>
-          <property name="icon">
-           <iconset resource="../../../QGIS/images/images.qrc">
-            <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
+          <property name="rightMargin">
+           <number>3</number>
           </property>
-          <property name="checkable">
-           <bool>true</bool>
+          <property name="bottomMargin">
+           <number>3</number>
           </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-          <property name="autoRaise">
-           <bool>true</bool>
-          </property>
-          <attribute name="buttonGroup">
-           <string notr="true">mMainViewButtonGroup</string>
-          </attribute>
-         </widget>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QWidget" name="mFeatureFilterWidget" native="true"/>
+            </item>
+            <item>
+             <widget class="QToolButton" name="mAttributeViewButton">
+              <property name="toolTip">
+               <string>Switch to form view</string>
+              </property>
+              <property name="text">
+               <string>Form View</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../QGIS/images/images.qrc">
+                <normaloff>:/images/themes/default/mActionFormView.svg</normaloff>:/images/themes/default/mActionFormView.svg</iconset>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+              <attribute name="buttonGroup">
+               <string notr="true">mMainViewButtonGroup</string>
+              </attribute>
+             </widget>
+            </item>
+            <item>
+             <widget class="QToolButton" name="mTableViewButton">
+              <property name="toolTip">
+               <string>Switch to table view</string>
+              </property>
+              <property name="text">
+               <string>Table View</string>
+              </property>
+              <property name="icon">
+               <iconset resource="../../../QGIS/images/images.qrc">
+                <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+              <attribute name="buttonGroup">
+               <string notr="true">mMainViewButtonGroup</string>
+              </attribute>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </item>
        </layout>
-      </item>
-     </layout>
+      </widget>
+      <widget class="QWidget" name="widgetLeft" native="true"/>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -542,7 +585,7 @@
   </customwidget>
   <customwidget>
    <class>QgsDualView</class>
-   <extends>QStackedWidget</extends>
+   <extends>QWidget</extends>
    <header>qgis.gui</header>
    <container>1</container>
   </customwidget>

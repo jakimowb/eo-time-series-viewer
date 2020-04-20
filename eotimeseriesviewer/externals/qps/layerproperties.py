@@ -938,8 +938,7 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
 
     return None
 
-
-def tr(t:str) -> str:
+def tr(t: str) -> str:
     return t
 
 class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
@@ -948,6 +947,10 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
                  initialMode: QgsAttributeTableFilterModel.FilterMode=QgsAttributeTableFilterModel.ShowVisible, **kwds):
         super().__init__(*args, **kwds)
         loadUi(pathlib.Path(DIR_UI_FILES) / 'attributetablewidget.ui', self)
+
+        self.widgetLeft.setVisible(False)
+        self.widgetRight.setVisible(False)
+
         settings = QgsSettings()
 
         self.mActionCutSelectedRows.triggered.connect(self.mActionCutSelectedRows_triggered)

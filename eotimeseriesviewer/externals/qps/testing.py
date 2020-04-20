@@ -49,7 +49,6 @@ class StartOptions(enum.IntFlag):
     PrintProviders = 8
     All = EditorWidgets | ProcessingFramework | PythonRunner | PrintProviders
 
-
 def start_app(cleanup=True, options=StartOptions.Minimized, resources: list = []) -> QgsApplication:
     if isinstance(QgsApplication.instance(), QgsApplication):
         print('Found existing QgsApplication.instance()')

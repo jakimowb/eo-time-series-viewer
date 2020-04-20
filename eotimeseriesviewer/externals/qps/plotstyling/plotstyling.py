@@ -817,7 +817,7 @@ class PlotStyleButton(QToolButton):
         # self.setPlotStyle(PlotStyle())
         self._updateIcon()
 
-        self.mMenu = QMenu()
+        self.mMenu = QMenu(parent=self)
         self.mMenu.triggered.connect(self.onAboutToShowMenu)
         # self.mWidget = PlotStyleWidget()
         self.mDialog = PlotStyleDialog()

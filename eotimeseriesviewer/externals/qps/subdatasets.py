@@ -117,6 +117,7 @@ class SubDatasetLoadingTask(QgsTask):
 
     def run(self):
         result_block = []
+        n = len(self.mFiles)
         for i, path in enumerate(self.mFiles):
             assert isinstance(path, str)
             try:
@@ -125,14 +126,13 @@ class SubDatasetLoadingTask(QgsTask):
                     result_block.append(info)
             except Exception as ex:
                 self.sigMessage.emit(str(ex), True)
-            self.progressChanged.emit(i+1)
 
             if len(result_block) >= self.mResultBlockSize:
                 self.sigFoundSubDataSets.emit(result_block[:])
                 result_block.clear()
             if self.isCanceled():
                 return False
-            self.setProgress(i+1)
+            self.setProgress(100 * (i+1) / n)
 
         if len(result_block) > 0:
             self.sigFoundSubDataSets.emit(result_block[:])
@@ -390,6 +390,9 @@ class SubDatasetSelectionDialog(QDialog):
         self.subDatasetModel.addSubDatasetDescriptions(descriptions)
 
     def startTask(self, qgsTask:QgsTask):
+        self.setCursor(Qt.WaitCursor)
+        self.fileWidget.setEnabled(False)
+        self.fileWidget.lineEdit().setShowSpinner(True)
         tid = id(qgsTask)
         qgsTask.progressChanged.connect(lambda p: self.setInfo('Loaded {:0.2f} %'.format(p)))
         qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
@@ -399,6 +402,12 @@ class SubDatasetSelectionDialog(QDialog):
         tm = QgsApplication.taskManager()
         assert isinstance(tm, QgsTaskManager)
         tm.addTask(qgsTask)
+
+    def setDefaultRoot(self, root: str):
+        self.fileWidget.setDefaultRoot(root)
+
+    def defaultRoot(self) -> str:
+        return self.fileWidget.defaultRoot()
 
     def onCompleted(self, result: bool, task: QgsTask):
         if isinstance(task, SubDatasetLoadingTask) and not sip.isdeleted(task):
@@ -413,6 +422,9 @@ class SubDatasetSelectionDialog(QDialog):
         self.tbInfo.setText(text)
 
     def onRemoveTask(self, tid):
+        self.setCursor(Qt.ArrowCursor)
+        self.fileWidget.setEnabled(True)
+        self.fileWidget.lineEdit().setShowSpinner(False)
         if isinstance(tid, QgsTask):
             tid = id(tid)
         if tid in self.mTasks.keys():
