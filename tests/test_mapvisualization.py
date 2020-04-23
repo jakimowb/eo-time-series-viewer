@@ -30,7 +30,7 @@ from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeries
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
-
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 #from eotimeseriesviewer import initResources
 #initResources()
 
@@ -78,6 +78,12 @@ def compareXML(element1, element2):
 
 class TestMapVisualization(EOTSVTestCase):
     """Test resources work."""
+
+    def setUp(self):
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.close()
+            QApplication.processEvents()
 
 
     def test_FontButton(self):
