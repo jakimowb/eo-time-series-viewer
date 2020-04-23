@@ -33,6 +33,9 @@ pipelines:
           - python3 -m coverage report
           # build and upload plugin to download section
           - python3 scripts/create_plugin.py -z timeseriesviewerplugin.$(BITBUCKET_BRANCH).lastbuild.zip
+          #- find deploy -name "timeseriesviewerplugin*zip" -exec cp -t deploy2 {} +
+          - find deploy -name "timeseriesviewerplugin*zip" -exec curl -X POST "https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" --form files=@"target/output.zip"
+
 definitions:
   caches:
     qgisresourcecache: /opt/atlassian/pipelines/agent/build/qgisresources
