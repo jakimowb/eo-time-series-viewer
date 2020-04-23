@@ -39,7 +39,7 @@ from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
 import eotimeseriesviewer
 from eotimeseriesviewer import DIR_REPO, __version__
 
-
+print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
 
 
