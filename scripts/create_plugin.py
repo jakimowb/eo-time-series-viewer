@@ -87,7 +87,8 @@ def scantree(path, pattern=re.compile(r'.$')) -> typing.Iterator[pathlib.Path]:
 
 def create_plugin(include_testdata: bool = False,
                   include_qgisresources: bool = False,
-                  zipfilename: str = None) -> str:
+                  zipfilename: str = None,
+                  latest: bool = False) -> str:
 
     assert (DIR_REPO / '.git').is_dir()
     DIR_DEPLOY = DIR_REPO / 'deploy'
@@ -107,12 +108,19 @@ def create_plugin(include_testdata: bool = False,
     BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
     PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
 
-    if isinstance(zipfilename, str) and len(zipfilename) > 0:
-        if not zipfilename.endswith('.zip'):
-            zipfilename += '.zip'
-        PLUGIN_ZIP = DIR_DEPLOY / zipfilename
+    if latest:
+
+        branch = currentBranch
+        branch = re.sub(r'[:-]', '', branch)
+        branch = re.sub(r'[\\/]', '_', branch)
+        PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.latest.zip'.format(branch)
     else:
-        PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
+        if isinstance(zipfilename, str) and len(zipfilename) > 0:
+            if not zipfilename.endswith('.zip'):
+                zipfilename += '.zip'
+            PLUGIN_ZIP = DIR_DEPLOY / zipfilename
+        else:
+            PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
 
     if PLUGIN_DIR.is_dir():
         shutil.rmtree(PLUGIN_DIR)
@@ -273,9 +281,17 @@ if __name__ == "__main__":
                         type=str,
                         help='final path of generated zipfile')
 
+    parser.add_argument('-l', '--latest',
+                        required=False,
+                        help='Name the output zip like timeseriesviewer.<branch name>.latest.zip, e.g. for generic uploads',
+                        default=None,
+                        action='store_true')
+
     args = parser.parse_args()
 
     path = create_plugin(include_qgisresources=args.qgisresources,
-                         zipfilename=args.zipfilename)
+                         zipfilename=args.zipfilename,
+                         latest=args.latest)
+    print('EOTSV_ZIP={}'.format(path))
     exit(0)
 

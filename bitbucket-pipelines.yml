@@ -31,7 +31,8 @@ pipelines:
           - python3 scripts/setup_repository.py
           - python3 -m coverage run -m unittest discover -s tests
           - python3 -m coverage report
-
+          # build and upload plugin to download section
+          - python3 scripts/create_plugin.py -z timeseriesviewerplugin.$(BITBUCKET_BRANCH).lastbuild.zip
 definitions:
   caches:
     qgisresourcecache: /opt/atlassian/pipelines/agent/build/qgisresources
