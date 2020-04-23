@@ -292,9 +292,10 @@ class TestLabeling(EOTSVTestCase):
         dockWidgets = EOTSV.ui.findChildren(LabelDockWidget)
         self.assertEqual(1, len(dockWidgets))
         lyr.setName('Layer B')
-        self.assertTrue('Layer B' in dockWidgets[0].windowTitle().startswith())
+        self.assertTrue('Layer B' in dockWidgets[0].windowTitle())
 
         self.showGui(EOTSV.ui)
+
 
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)

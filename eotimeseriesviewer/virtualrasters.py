@@ -458,8 +458,10 @@ class VRTRaster(QObject):
         :return:
         """
         if isinstance(crs, osr.SpatialReference):
-            auth = '{}:{}'.format(crs.GetAttrValue('AUTHORITY',0), crs.GetAttrValue('AUTHORITY',1))
-            crs = QgsCoordinateReferenceSystem(auth)
+            wkt = crs.ExportToWkt()
+            crs = QgsCoordinateReferenceSystem()
+            crs.createFromWkt(wkt)
+
         if isinstance(crs, QgsCoordinateReferenceSystem):
             if crs != self.mCrs:
                 extent = self.extent()

@@ -516,8 +516,6 @@ class OutputImageModel(QAbstractTableModel):
             wavelength.append(stack.wavelength())
             VRT.addVirtualBand(vrtBand)
 
-
-
         pathVSITmp = '/vsimem/temp.vrt'
         dsVRT = VRT.saveVRT(pathVSITmp)
         dsVRT.SetMetadataItem('acquisition date', 'XML_REPLACE_DATE')
