@@ -46,7 +46,7 @@ from .import Option, OptionListModel
 from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
 from .utils import loadUi
 from .mapviewscrollarea import MapViewScrollArea
-from .mapcanvas import MapCanvas, MapTools, MapCanvasInfoItem, MapCanvasMapTools
+from .mapcanvas import MapCanvas, MapTools, MapCanvasInfoItem, MapCanvasMapTools, KEY_LAST_CLICKED
 
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import showLayerPropertiesDialog
@@ -109,11 +109,6 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         g = view.currentGroupNode()
         l = view.currentLayer()
         i = view.currentIndex()
-        #fixedNodes = len([l for l in view.selectedLayersRecursive() if l.property(KEY_LOCKED_LAYER) == True]) > 0 or \
-        #             isinstance(g, QgsLayerTreeGroup) and g.property(KEY_LOCKED_LAYER) == True
-
-        # disable actions
-        #self.actionRemove.setEnabled(fixedNodes == False)
 
         menu = QMenu(view)
         isSensorGroup = isinstance(g, QgsLayerTreeGroup) and g.customProperty(KEY_SENSOR_GROUP) in [True, 'true']
@@ -124,11 +119,6 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu.addAction(self.actionAddGroup)
         menu.addAction(self.actionRename)
         menu.addAction(self.actionRemove)
-
-        #menu.addAction(self.actionZoomToGroup)
-        #menu.addAction(self.actionZoomToLayer)
-        #menu.addAction(self.actionZoomToSelected)
-
         menu.addSeparator()
 
         menu.addAction(self.actionAddEOTSVSpectralProfiles)
@@ -146,7 +136,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         a.triggered.connect(lambda *args, canvas = centerCanvas, lyr = l: self.onSetLayerProperties(lyr, canvas))
         a.setEnabled(isinstance(centerCanvas, MapCanvas))
 
-        if False and isinstance(l, QgsVectorLayer):
+        if isinstance(l, QgsVectorLayer):
             a = menu.addAction('Open Attribute Table')
             a.triggered.connect(lambda *args, lyr=l: self.showAttributeTable(lyr))
 
@@ -195,7 +185,7 @@ class MapView(QFrame):
     sigCrosshairChanged = pyqtSignal()
     sigTitleChanged = pyqtSignal(str)
     sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
-
+    sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
     def __init__(self, name='Map View', parent=None):
@@ -207,8 +197,8 @@ class MapView(QFrame):
         DEFAULT_VALUES = defaultValues()
         self.mMapBackgroundColor = DEFAULT_VALUES[Keys.MapBackgroundColor]
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
-        self.mCurrentLayer = None
         self.mMapWidget = None
+
         self.mTimeSeries = None
         self.mSensorLayerList = list()
         self.mCrossHairStyle = CrosshairStyle()
@@ -239,12 +229,6 @@ class MapView(QFrame):
         self.btnHighlightMapView.setDefaultAction(self.actionHighlightMapView)
         self.actionHighlightMapView.triggered.connect(lambda: self.setHighlighted(True, timeout=500))
 
-
-
-
-
-
-
         assert isinstance(self.mLayerTreeView, QgsLayerTreeView)
 
         self.mDummyCanvas = QgsMapCanvas() # dummy map canvas for dummy layers
@@ -261,8 +245,9 @@ class MapView(QFrame):
                                       QgsLayerTreeModel.AllowNodeReorder)
 
         self._createSensorNode()
-
+        self.mLayerTreeView: QgsLayerTreeView
         self.mLayerTreeView.setModel(self.mLayerTreeModel)
+        self.mLayerTreeView.currentLayerChanged.connect(self.sigCurrentLayerChanged.emit)
         self.mMapLayerTreeViewMenuProvider = MapViewLayerTreeViewMenuProvider(self, self.mLayerTreeView, self.mDummyCanvas)
 
         # register some actions that interact with other GUI elements
@@ -509,13 +494,20 @@ class MapView(QFrame):
         if old != title:
             self.tbName.setText(title)
 
-
-    def layers(self) -> list:
+    def visibleLayers(self) -> typing.List[QgsMapLayer]:
         """
         Returns the visible layers, including proxy layer for time-series data
         :return: [list-of-QgsMapLayers]
         """
         return [l for l in self.mLayerTree.checkedLayers() if isinstance(l, QgsMapLayer)]
+
+    def layers(self) -> typing.List[QgsMapLayer]:
+        """
+        Returns all layers, including invisible or proxy layers for time-series data
+        :return: [list-of-QgsMapLayers]
+        """
+        nodes = self.mLayerTree.findLayers()
+        return [n.layer() for n in nodes if isinstance(n.layer(), QgsMapLayer)]
 
     def title(self, maskNewLines=True) -> str:
         """
@@ -559,6 +551,13 @@ class MapView(QFrame):
         else:
             for mapCanvas in self.mapCanvases():
                 mapCanvas.setStyleSheet(styleOff)
+
+    def currentLayer(self) -> QgsMapLayer:
+        """
+        Returns the current map layer, i.e. that selected in the map layer tree view
+        :return:
+        """
+        return self.mLayerTreeView.currentLayer()
 
     def crosshairStyle(self) -> CrosshairStyle:
         """
@@ -611,7 +610,7 @@ class MapView(QFrame):
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
-            dummyLayer = sensor.proxyLayer()
+            dummyLayer = sensor.proxyRasterLayer()
             assert isinstance(dummyLayer.renderer(), QgsRasterRenderer)
             dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
 
@@ -807,6 +806,9 @@ class MapWidget(QFrame):
     sigMapViewsChanged = pyqtSignal()
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
+    sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
+    sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
+    sigCurrentMapViewChanged = pyqtSignal(MapView)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal(SpatialPoint, MapCanvas)
     sigVisibleDatesChanged = pyqtSignal(list)
@@ -833,10 +835,14 @@ class MapWidget(QFrame):
         self.mMapLayerCache = dict()
         self.mCanvasCache = dict()
 
+        self.mCurrentMapView: MapView = None
+        self.mCurrentMapCanvas: MapCanvas = None
+
         self.mMapViews = []
         self.mCanvases = dict()
         self.mCanvasSignals = dict()
         self.mTimeSeries = None
+
 
         self.mMapToolKey = MapTools.Pan
 
@@ -1005,14 +1011,47 @@ class MapWidget(QFrame):
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
 
+    def currentLayer(self) -> QgsMapLayer:
+        mv = self.currentMapView()
+        if isinstance(mv, MapView):
+            return mv.currentLayer()
+        return None
 
-    def currentLayers(self):
+    def currentMapCanvas(self) -> MapCanvas:
+        """
+        Returns the active map canvas, i.e. the MapCanvas that was clicked last.
+        :return: MapCanvas
+        """
+        return self.mCurrentMapCanvas
 
+    def setCurrentMapCanvas(self, mapCanvas: MapCanvas):
+        assert isinstance(mapCanvas, MapCanvas)
+        if mapCanvas != self.mCurrentMapCanvas:
+            assert mapCanvas in self.mapCanvases()
+            self.sigCurrentCanvasChanged.emit(mapCanvas)
+            if isinstance(mapCanvas.mapView(), MapView):
+                self.setCurrentMapView(mapCanvas.mapView())
+
+
+    def currentMapView(self) -> MapView:
+        """
+        Returns the last used map view, i.e. the last map view a canvas was clicked on or a layer was selected in
+        :return:
+        """
+        return self.mCurrentMapView
+
+    def setCurrentMapView(self, mapView: MapView):
+        if mapView != self.mCurrentMapView:
+            assert isinstance(mapView, MapView)
+            assert mapView in self.mapViews()
+            self.mCurrentMapView = mapView
+            self.sigCurrentMapViewChanged.emit(mapView)
+
+    def usedLayers(self):
         layers = set()
         for c in self.mapCanvases():
             layers = layers.union(set(c.layers()))
         return list(layers)
-
 
     def crs(self) -> QgsCoordinateReferenceSystem:
         return self.mCrs
@@ -1253,13 +1292,23 @@ class MapWidget(QFrame):
             # connect signals
             mapView.sigCanvasAppearanceChanged.connect(self._updateCanvasAppearance)
             mapView.sigCrosshairChanged.connect(self._updateCrosshair)
+            mapView.sigCurrentLayerChanged.connect(self.onCurrentMapViewLayerChanged)
 
             self._updateGrid()
             self._updateCrosshair(mapView=mapView)
             self.sigMapViewsChanged.emit()
             self.sigMapViewAdded.emit(mapView)
 
+        if not isinstance(self.mCurrentMapView, MapView):
+            self.mCurrentMapView = mapView
+
         return mapView
+
+    def onCurrentMapViewLayerChanged(self, layer: QgsMapLayer):
+        mapView = self.sender()
+        if isinstance(mapView, MapView):
+            self.setCurrentMapView(mapView)
+        self.sigCurrentLayerChanged.emit(layer)
 
     def removeMapView(self, mapView:MapView) -> MapView:
         """
@@ -1278,7 +1327,7 @@ class MapWidget(QFrame):
             self.sigMapViewRemoved.emit(mapView)
         return mapView
 
-    def mapViews(self) -> list:
+    def mapViews(self) -> typing.List[MapView]:
         """
         Returns a list of all MapViews
         :return: [list-of-MapViews]
@@ -1366,18 +1415,25 @@ class MapWidget(QFrame):
         self._connectCanvasSignals(mapCanvas)
         return mapCanvas
 
-    def _connectCanvasSignals(self, mapCanvas:MapCanvas):
+    def _connectCanvasSignals(self, mapCanvas: MapCanvas):
         mapCanvas.sigSpatialExtentChanged.connect(self.setSpatialExtent)
         mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairPositionChanged)
+        mapCanvas.sigCanvasClicked.connect(self.onCanvasClicked)
         mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.sigCurrentLocationChanged)
 
     def _disconnectCanvasSignals(self, mapCanvas:MapCanvas):
         mapCanvas.sigSpatialExtentChanged.disconnect(self.setSpatialExtent)
         mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.disconnect(self.onCrosshairPositionChanged)
+        mapCanvas.sigCanvasClicked.disconnect(self.onCanvasClicked)
         mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].disconnect(
             self.sigCurrentLocationChanged)
+
+    def onCanvasClicked(self, event: QMouseEvent):
+        canvas = self.sender()
+        if isinstance(canvas, MapCanvas):
+            self.setCurrentMapCanvas(canvas)
 
 
     def onCrosshairPositionChanged(self, spatialPoint:SpatialPoint):
@@ -1570,7 +1626,7 @@ class MapWidget(QFrame):
     def _freeUnusedMapLayers(self):
 
         layers = [l for l in self.mMapLayerStore.mapLayers().values() if isinstance(l, SensorProxyLayer)]
-        needed = self.currentLayers()
+        needed = self.usedLayers()
         toRemove = [l for l in layers if isinstance(l, SensorProxyLayer) and l not in needed]
 
         # todo: use a kind of caching

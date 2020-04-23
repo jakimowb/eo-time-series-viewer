@@ -985,6 +985,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.mDock: QgsDockWidget = None
         self.mEditorContext = QgsAttributeEditorContext()
         self.mLayer: QgsVectorLayer = mLayer
+        self.mLayer.nameChanged.connect(self.updateTitle)
 
         self.mMapCanvas = QgsMapCanvas()
         self.mMapCanvas.setLayers([self.mLayer])

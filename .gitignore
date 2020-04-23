@@ -10,9 +10,8 @@ doc/build/*
 eotimeseriesviewer/ui/eotv_resources.py
 eotimeseriesviewer/externals/qps/qpsresources.py
 test-reports/
-
-tests/outputs
-tests/outputs/*
+test-reports/
+test-outputs/
 qgisresources/
 qgisresources/*
 screenshots/

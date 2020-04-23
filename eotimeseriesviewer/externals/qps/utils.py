@@ -437,10 +437,7 @@ def setQgsFieldValue(feature:QgsFeature, field, value):
         value = int(value)
     elif field.type() in [QVariant.Double]:
         value = float(value)
-    else:
-        raise NotImplementedError()
 
-   # i = feature.fieldNameIndex(field.name())
     feature.setAttribute(field.name(), value)
 
 
@@ -1722,16 +1719,12 @@ class SelectMapLayersDialog(QgsDialog):
 
         return layerbox
 
-
-
-
     def mapLayers(self) -> list:
         """
         Returns the user's list of map layers
         :return: [list-of-QgsMapLayers]
         """
         return [b.currentLayer() for b in self.mMapLayerBoxes]
-
 
 
 class QgsTaskMock(QgsTask):

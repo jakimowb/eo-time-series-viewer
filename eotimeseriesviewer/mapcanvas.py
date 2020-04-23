@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-
+KEY_LAST_CLICKED = 'LAST_CLICKED'
 
 import os, time, types, enum
 from eotimeseriesviewer import CursorLocationMapTool
@@ -367,14 +367,15 @@ class MapCanvas(QgsMapCanvas):
     #sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
     #sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
     sigMapRefreshed = pyqtSignal([float, float], [float])
-
     sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
     sigDestinationCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)
+    sigCanvasClicked = pyqtSignal(QMouseEvent)
 
     def __init__(self, parent=None):
         super(MapCanvas, self).__init__(parent=parent)
+        self.setProperty(KEY_LAST_CLICKED, time.time())
         self.mMapLayerStore = QgsProject.instance()
         self.mMapLayers = []
 
@@ -476,6 +477,8 @@ class MapCanvas(QgsMapCanvas):
 
     def mousePressEvent(self, event:QMouseEvent):
 
+        self.setProperty(KEY_LAST_CLICKED, time.time())
+
         b = event.button() == Qt.LeftButton
         if b and isinstance(self.mapTool(), QgsMapTool):
             b = isinstance(self.mapTool(), (QgsMapToolIdentify,
@@ -489,6 +492,8 @@ class MapCanvas(QgsMapCanvas):
             pointXY = ms.mapToPixel().toMapCoordinates(event.x(), event.y())
             spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)
             self.setCrosshairPosition(spatialPoint)
+        self.sigCanvasClicked.emit(event)
+
 
     def setMapView(self, mapView):
         """

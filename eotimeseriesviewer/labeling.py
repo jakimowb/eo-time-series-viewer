@@ -10,6 +10,7 @@ from osgeo import gdal
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.externals.qps.layerproperties import *
 from eotimeseriesviewer.utils import loadUi
+from .externals.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.externals.qps.classification.classificationscheme \
     import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
 
@@ -124,6 +125,7 @@ def quickLabelLayers() -> typing.List[QgsVectorLayer]:
     """
     layers = []
     from .externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+
     classSchemes = set()
     for store in MAP_LAYER_STORES:
         assert isinstance(store, (QgsProject, QgsMapLayerStore))
@@ -228,10 +230,7 @@ def setQuickTSDLabels(vectorLayer:QgsVectorLayer, tsd:TimeSeriesDate, tss:TimeSe
                     vectorLayer.changeAttributeValue(feature.id(), i, value, oldValue)
 
         vectorLayer.endEditCommand()
-
-
     pass
-
 
 
 class LabelAttributeTableModel(QAbstractTableModel):
@@ -513,386 +512,73 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
             if cname == model.cnLabel and isinstance(w, QComboBox):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
-from .externals.qps.layerproperties import AttributeTableWidget
-class LabelWidget2(AttributeTableWidget):
+
+class LabelWidget(AttributeTableWidget):
 
     def __init__(self, *args, **kwds):
 
         super().__init__(*args, *kwds)
 
-
-
-class LabelingWidget(QMainWindow):
-
-    sigVectorLayerChanged = pyqtSignal()
-    sigMapExtentRequested = pyqtSignal(SpatialExtent)
-    sigMapCenterRequested = pyqtSignal(SpatialPoint)
-
-    def __init__(self, parent=None, canvas=None):
-        super(LabelingWidget, self).__init__(parent)
-        loadUi(DIR_UI / 'labelingdock.ui', self)
-
-        self.mVectorLayerComboBox = QgsMapLayerComboBox()
-        self.mVectorLayerComboBox.setAllowEmptyLayer(True)
-        self.mVectorLayerComboBox.setCurrentIndex(0)
-        self.mVectorLayerComboBox.setShowCrs(True)
-        self.mVectorLayerComboBox.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
-        self.mVectorLayerComboBox.setMinimumWidth(150)
-
-        assert isinstance(self.mVectorLayerComboBox, QgsMapLayerComboBox)
-
-
-
-
-        allowed = ['DB2', 'WFS', 'arcgisfeatureserver', 'delimitedtext', 'memory', 'mssql', 'ogr', 'oracle', 'ows',
-                   'postgres', 'spatialite', 'virtual']
-
-        excluded = [k for k in QgsProviderRegistry.instance().providerList() if k not in allowed]
-        self.mVectorLayerComboBox.setExcludedProviders(excluded)
-        self.mVectorLayerComboBox.currentIndexChanged.connect(self.onVectorLayerChanged)
-
-        self.toolBarSelectVectorSource.addWidget(self.mVectorLayerComboBox)
-
-        self.mDualView = None
-
-        if not isinstance(canvas, QgsMapCanvas):
-            canvas = QgsMapCanvas(self)
-            canvas.setVisible(False)
-
-        self.mCanvas = canvas
-
-        self.initActions()
-        self.onVectorLayerChanged()
-
-    def canvas(self) -> QgsMapCanvas:
-        """
-        Returns the internal map canvas
-        :return: QgsMapCanvas
-        """
-        return self.mCanvas
-
-    def onCheckApply(self):
-        """
-        Checks if any QgsVectorLayer settings have changed and enables/disable buttons
-        """
-        btnApply = self.buttonBoxEditorWidget.button(QDialogButtonBox.Apply)
-        btnReset = self.buttonBoxEditorWidget.button(QDialogButtonBox.Reset)
-        changed = False
-        for w in self.stackedFieldConfigs.findChildren(FieldConfigEditorWidget):
-            assert isinstance(w, FieldConfigEditorWidget)
-            if w.changed():
-                changed = True
-                break
-
-        btnApply.setEnabled(changed)
-        btnReset.setEnabled(not changed)
-
-    def onReset(self):
-        """
-        Reloads the QgsVectorLayer and all its current settings
-        """
-        self.onVectorLayerChanged()
-
-    def onApply(self):
-        """
-        Stores changes settings to current QgsVectorLayer
-        """
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            for w in self.stackedFieldConfigs.findChildren(FieldConfigEditorWidget):
-                assert isinstance(w, FieldConfigEditorWidget)
-                if w.changed():
-                    config = w.currentFieldConfig()
-                    lyr.setEditFormConfig(config.index(), config.editorWidgetSetup())
-        self.onVectorLayerChanged()
-
-    def isModified(self) -> bool:
-        return isinstance(self.currentVectorSource(), QgsVectorLayer) and self.currentVectorSource().isModified()
-
-    def onVectorLayerChanged(self):
-        lyr = self.currentVectorSource()
-        # remove old QgsDualView
-        if isinstance(self.mDualView, QgsDualView):
-            self.mDualView.setParent(None)
-            self.mDualView = None
-
-        i = self.stackedWidget.count() - 1
-        while i >= 0:
-            self.stackedWidget.widget(i).setParent(None)
-            i -= 1
-
-        self.mCanvas.setLayers([])
-
-
-        assert isinstance(self.stackedWidget, QStackedWidget)
-
-        # add a config widget for each QgsField
-        if isinstance(lyr, QgsVectorLayer):
-            lyr.editingStarted.connect(lambda: self.mActionToggleEditing.setChecked(True))
-            lyr.editingStopped.connect(lambda: self.mActionToggleEditing.setChecked(False))
-            lyr.allowCommitChanged.connect(self.updateActions)
-
-            self.mCanvas.setLayers([lyr])
-
-            if not self.mCanvas.mapSettings().destinationCrs().isValid():
-                self.mCanvas.setDestinationCrs(lyr.crs())
-            if self.mCanvas.extent().width() == 0:
-                self.mCanvas.setExtent(lyr.extent())
-
-            self.mDualView = QgsDualView(self)
-
-            # change selected row color: keep color also when attribute table looses focus
-            pal = self.mDualView.tableView().palette()
-            cSelected = pal.color(QPalette.Active, QPalette.Highlight)
-            pal.setColor(QPalette.Inactive, QPalette.Highlight, cSelected)
-            self.mDualView.tableView().setPalette(pal)
-
-            self.stackedWidget.addWidget(self.mDualView)
-            self.mDualView.init(lyr, self.mCanvas)  # , context=self.mAttributeEditorContext)
-            self.mDualView.setView(QgsDualView.AttributeTable)
-            self.mDualView.setAttributeTableConfig(lyr.attributeTableConfig())
-
-
-        self.updateActions()
-        self.sigVectorLayerChanged.emit()
-
-    def updateActions(self, *args):
-        if isinstance(self.currentVectorSource(), QgsVectorLayer):
-
-            b = self.currentVectorSource().isEditable()
-
-            self.mActionToggleEditing.setChecked(b)
-            self.mActionAddFeature.setEnabled(b)
-
-            gType = self.currentVectorSource().geometryType()
-            if gType == QgsWkbTypes.PointGeometry:
-                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePoint.svg'))
-            elif gType == QgsWkbTypes.LineGeometry:
-                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCaptureLine.svg'))
-            elif gType == QgsWkbTypes.PolygonGeometry:
-                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePolygon.svg'))
-            else:
-                # unknown geometry type?
-                self.mActionAddFeature.setIcon(QIcon(':/images/themes/default/mActionCapturePolygon.svg'))
-
-            buffer = self.currentVectorSource().editBuffer()
-            b2 = b and isinstance(buffer, QgsVectorLayerEditBuffer)
-            self.mActionCancelEdits.setEnabled(b2)
-            self.mActionSaveEdits.setEnabled(b2)
-
-
-            self.mActionToggleEditing.setEnabled(True)
-            for action in self.toolBarSelectFeatures.actions():
-                action.setEnabled(True)
-
-        else:
-
-            for action in self.toolBarSelectFeatures.actions():
-                action.setEnabled(False)
-
-            for action in self.toolBarModifyFeatures.actions():
-                action.setEnabled(False)
-
-
-    def actionAddFeature(self) -> QAction:
-        return self.mActionAddFeature
-
-    def actionSaveEdits(self) -> QAction:
-        return self.mActionSaveEdits
-
-    def actionToggleEditing(self) -> QAction:
-        return self.mActionToggleEditing
-
-    def onToggleEditing(self, b: bool):
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-
-            if b:
-                lyr.startEditing()
-            else:
-                if lyr.isModified():
-                    r = QMessageBox.question(self, '{}'.format(lyr.name()), 'Save changes?')
-                    if r == QMessageBox.Yes:
-                        lyr.commitChanges()
-                    else:
-                        lyr.rollBack()
-                else:
-                    lyr.commitChanges()
-
-
-        self.updateActions()
-
-    def cancelEdits(self, *args):
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            b = lyr.isEditable()
-            lyr.rollBack()
-            if b:
-                lyr.startEditing()
-
-    def saveEdits(self, *args):
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            b = lyr.isEditable()
-            lyr.commitChanges()
-            if b:
-                lyr.startEditing()
-
-
-    def initActions(self):
-        import qgis.utils
-        iface = qgis.utils.iface
-
-        # if isinstance(iface, QgisInterface):
-        # self.mActionAddFeature = iface.actionAddFeature()
-        # self.mActionSaveEdits = iface.actionSaveEdits()
-        # self.mActionCancelEdits = iface.actionCancelEdits()
-        # self.mActionToggleEditing = iface.actionToggleEditing()
-        # self.mActionAddOgrLayer = iface.actionAddOgrLayer()
-
-
-
-        self.mActionToggleEditing.toggled.connect(self.onToggleEditing)
-        self.mActionCancelEdits.triggered.connect(self.cancelEdits)
-        self.mActionSaveEdits.triggered.connect(self.saveEdits)
-
-        self.mActionSwitchToTableView.triggered.connect(self.showTableView)
-        self.mActionShowLayerProperties.triggered.connect(self.showLayerProperties)
-        self.mActionSwitchToFormView.triggered.connect(self.showFormView)
-
-        self.mActionSelectAll.triggered.connect(self.selectAll)
-        self.mActionInvertSelection.triggered.connect(self.invertSelection)
-        self.mActionRemoveSelection.triggered.connect(self.removeSelection)
-        self.mActionPanMapToSelectedRows.triggered.connect(self.panMapToSelectedRows)
-        self.mActionZoomMapToSelectedRows.triggered.connect(self.zoomMapToSelectedRows)
-
-
+        self.mActionNextFeature = QAction('Next Feature', parent=self)
+        self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
         self.mActionNextFeature.triggered.connect(self.nextFeature)
+
+        self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
+        self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
         self.mActionPreviousFeature.triggered.connect(self.previousFeature)
 
-        # bottom button bar
-        self.btnAttributeView.setDefaultAction(self.mActionSwitchToTableView)
-        self.btnShowLayerProperties.setDefaultAction(self.mActionShowLayerProperties)
-        self.btnFormView.setDefaultAction(self.mActionSwitchToFormView)
+        self.mToolbar: QToolBar
+        self.mToolbar.insertActions(self.mActionToggleEditing, [self.mActionPreviousFeature, self.mActionNextFeature])
+        self.mToolbar.insertSeparator(self.mActionToggleEditing)
+
 
     def nextFeature(self):
         """
         Selects the next feature and moves the map extent to.
         """
-        vl = self.currentVectorSource()
-        if isinstance(vl, QgsVectorLayer) and vl.hasFeatures():
-            allIDs = sorted(vl.allFeatureIds())
-            fids = vl.selectedFeatureIds()
+        if isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.hasFeatures():
+            allIDs = sorted(self.mLayer.allFeatureIds())
+            fids = self.mLayer.selectedFeatureIds()
             if len(fids) == 0:
                 nextFID = allIDs[0]
             else:
-                i = min(allIDs.index(fids[0]) + 1, len(allIDs)-1)
+                i = min(allIDs.index(max(fids)) + 1, len(allIDs)-1)
                 nextFID = allIDs[i]
-            vl.selectByIds([nextFID])
-            self.panMapToSelectedRows()
+            self.mLayer.selectByIds([nextFID])
+            self.mVectorLayerTools.panToSelected(self.mLayer)
 
     def previousFeature(self):
         """
         Selects the previous feature and moves the map extent to.
         """
-        vl = self.currentVectorSource()
-        if isinstance(vl, QgsVectorLayer) and vl.hasFeatures():
-            allIDs = sorted(vl.allFeatureIds())
-            fids = vl.selectedFeatureIds()
+        if isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.hasFeatures():
+            allIDs = sorted(self.mLayer.allFeatureIds())
+            fids = self.mLayer.selectedFeatureIds()
             if len(fids) == 0:
                 nextFID = allIDs[0]
             else:
-                i = max(allIDs.index(fids[0]) - 1, 0)
+                i = max(allIDs.index(min(fids)) - 1, 0)
                 nextFID = allIDs[i]
-            vl.selectByIds([nextFID])
-            self.panMapToSelectedRows()
-
-    def selectAll(self):
-        if isinstance(self.currentVectorSource(), QgsVectorLayer):
-            self.currentVectorSource().selectAll()
-
-    def invertSelection(self):
-        if isinstance(self.currentVectorSource(), QgsVectorLayer):
-            self.currentVectorSource().invertSelection()
-
-    def removeSelection(self):
-        if isinstance(self.currentVectorSource(), QgsVectorLayer):
-            self.currentVectorSource().removeSelection()
-
-    def panMapToSelectedRows(self):
-        """
-        Pan to the selected layer features
-        Requires that external maps respond to sigMapCenterRequested
-        """
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            crs = self.canvas().mapSettings().destinationCrs()
-            bbox = lyr.boundingBoxOfSelected()
-            center = SpatialPoint(lyr.crs(), bbox.center()).toCrs(crs)
-            self.mCanvas.setCenter(center)
-            self.sigMapCenterRequested.emit(center)
-
-    def zoomMapToSelectedRows(self):
-        """
-        Zooms to the selected rows.
-        Requires that external maps respond to sigMapExtentRequested
-        """
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            crs = self.canvas().mapSettings().destinationCrs()
-            bbox = SpatialExtent(lyr.crs(), lyr.boundingBoxOfSelected()).toCrs(crs)
-            if bbox.width() > 0 and bbox.height() > 0:
-                self.mCanvas.setExtent(bbox)
-                self.sigMapExtentRequested.emit(bbox)
+            self.mLayer.selectByIds([nextFID])
+            self.mVectorLayerTools.panToSelected(self.mLayer)
 
 
-    def showTableView(self):
-        """
-        Call to show the QgsDualView Attribute Table
-        """
-        if isinstance(self.mDualView, QgsDualView):
-            self.mDualView.setView(QgsDualView.AttributeTable)
+class LabelDockWidget(QgsDockWidget):
 
-    def showFormView(self):
-        """
-        Call to show the QgsDualView Attribute Editor
-        """
-        if isinstance(self.mDualView, QgsDualView):
-            self.mDualView.setView(QgsDualView.AttributeEditor)
+    def __init__(self, layer, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mLabelWidget = LabelWidget(layer)
+        self.setWidget(self.mLabelWidget)
+        self.setWindowTitle(self.mLabelWidget.windowTitle())
+        self.mLabelWidget.windowTitleChanged.connect(self.setWindowTitle)
 
-    def showLayerProperties(self):
-        """
-        Call to show the QgsVectorLayer field settings
-        """
-        from .externals.qps.layerproperties import showLayerPropertiesDialog
-        lyr = self.currentVectorSource()
-        if isinstance(lyr, QgsVectorLayer):
-            showLayerPropertiesDialog(lyr, self.mCanvas, parent=self, useQGISDialog=True)
+    def setVectorLayerTools(self, tools: QgsVectorLayerTools):
+        self.mLabelWidget.setVectorLayerTools(tools)
 
-    def setCurrentVectorSource(self, layer:QgsVectorLayer):
-        """
-        Sets the current vector source.
-        :param layer: QgsVectorLayer
-        """
-        assert isinstance(layer, QgsVectorLayer)
-
-        if layer not in QgsProject.instance().mapLayers().values():
-            QgsProject.instance().addMapLayer(layer)
-
-        cboxLayers = [self.mVectorLayerComboBox.layer(i) for i in range(self.mVectorLayerComboBox.count())]
-        if layer in cboxLayers:
-            self.mVectorLayerComboBox.setCurrentIndex(cboxLayers.index(layer))
-
-    def currentVectorSource(self) -> QgsVectorLayer:
-        """
-        Returns the current QgsVectorLayer
-        :return: QgsVectorLayer
-        """
-        return self.mVectorLayerComboBox.currentLayer()
-
-
-
-
+    def vectorLayer(self) -> QgsVectorLayer:
+        if isinstance(self.mLabelWidget.mLayer, QgsVectorLayer):
+            return self.mLabelWidget.mLayer
+        return None
 
 class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
@@ -1184,29 +870,6 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         if isinstance(field, QgsField) and field.type() in [QVariant.Int, QVariant.String]:
             return True
         return False
-
-
-
-class LabelingDock(QgsDockWidget):
-    """
-    A QgsDockWidget with a LabelingWidget
-    """
-    def __init__(self, parent=None, canvas=None):
-        super(LabelingDock, self).__init__(parent=parent)
-
-        self.mLabelingWidget = LabelingWidget(canvas=canvas)
-        self.setWindowTitle(self.mLabelingWidget.windowTitle())
-        self.setWidget(self.mLabelingWidget)
-
-    def labelingWidget(self) -> LabelingWidget:
-        return self.mLabelingWidget
-
-    def canvas(self) -> QgsMapCanvas:
-        """
-        Returns the QgsMapCanvase
-        :return:
-        """
-        return self.mLabelingWidget.canvas()
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV_Quick Label'
 labelEditorWidgetFactory = None

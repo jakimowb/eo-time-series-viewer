@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>908</width>
-    <height>190</height>
+    <width>1035</width>
+    <height>253</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -49,13 +49,32 @@
     <enum>Qt::NoFocus</enum>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QStatusBar" name="mStatusBar">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>0</width>
+     <height>18</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>16777215</width>
+     <height>18</height>
+    </size>
+   </property>
+  </widget>
   <widget class="QMenuBar" name="mMenuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>908</width>
+     <width>1035</width>
      <height>26</height>
     </rect>
    </property>
@@ -200,8 +219,11 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actionSelectFeatures"/>
-   <addaction name="actionDeselect"/>
+   <addaction name="mActionSelectFeatures"/>
+   <addaction name="mActionDeselectFeatures"/>
+   <addaction name="mActionToggleEditing"/>
+   <addaction name="mActionSaveEdits"/>
+   <addaction name="mActionAddFeature"/>
   </widget>
   <widget class="QToolBar" name="toolBarTimeControl">
    <property name="windowTitle">
@@ -663,7 +685,7 @@
     <string>SP</string>
    </property>
    <property name="toolTip">
-    <string>Identify raster profiles to be shown in a Spectral Library.</string>
+    <string>Collect spectral propfiles to Spectral Library panel.</string>
    </property>
   </action>
   <action name="optionIdentifyTemporalProfile">
@@ -676,6 +698,9 @@
    </property>
    <property name="text">
     <string>TP</string>
+   </property>
+   <property name="toolTip">
+    <string>Collect temporal profiles to temporal profile panel.</string>
    </property>
   </action>
   <action name="optionSyncMapCenter">
@@ -747,21 +772,6 @@
     <string>Select Features by Radius</string>
    </property>
   </action>
-  <action name="actionSelectFeatures">
-   <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Select Features</string>
-   </property>
-   <property name="menuRole">
-    <enum>QAction::TextHeuristicRole</enum>
-   </property>
-   <property name="iconVisibleInMenu">
-    <bool>false</bool>
-   </property>
-  </action>
   <action name="actionExportMapsToImages">
    <property name="icon">
     <iconset resource="../../../QGIS/images/images.qrc">
@@ -794,18 +804,6 @@
     <string>Activate to lock the current map panel size</string>
    </property>
   </action>
-  <action name="actionDeselect">
-   <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Deselect</string>
-   </property>
-   <property name="toolTip">
-    <string>Deselect </string>
-   </property>
-  </action>
   <action name="actionAddSentinel2">
    <property name="text">
     <string>Sentinel-2</string>
@@ -820,6 +818,75 @@
    </property>
    <property name="toolTip">
     <string>Open Subdatasets, e.g. from HDF files</string>
+   </property>
+  </action>
+  <action name="mActionSaveEdits">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSaveEdits.svg</normaloff>:/images/themes/default/mActionSaveEdits.svg</iconset>
+   </property>
+   <property name="text">
+    <string>SaveEdits</string>
+   </property>
+   <property name="toolTip">
+    <string>Save Edits</string>
+   </property>
+  </action>
+  <action name="mActionAddFeature">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionCapturePolygon.svg</normaloff>:/images/themes/default/mActionCapturePolygon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Draw</string>
+   </property>
+   <property name="toolTip">
+    <string>Draw a new feature</string>
+   </property>
+  </action>
+  <action name="mActionToggleEditing">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Toggle Editing</string>
+   </property>
+  </action>
+  <action name="mActionSelectFeatures">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionSelectRectangle.svg</normaloff>:/images/themes/default/mActionSelectRectangle.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Features</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::TextHeuristicRole</enum>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="mActionDeselectFeatures">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeselectAll.svg</normaloff>:/images/themes/default/mActionDeselectAll.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Deselect</string>
+   </property>
+   <property name="toolTip">
+    <string>Deselect selected features.</string>
    </property>
   </action>
  </widget>

@@ -32,6 +32,7 @@ import enum
 import typing
 import pickle
 import json
+import pathlib
 import uuid
 import bisect
 from xml.etree import ElementTree
@@ -48,6 +49,7 @@ from qgis.PyQt.QtCore import *
 
 from osgeo import osr, ogr, gdal, gdal_array
 from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.utils import relativePath
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
@@ -223,8 +225,8 @@ class SensorInstrument(QObject):
         self.px_size_x:float
         self.px_size_y:float
         self.dataType:int
-        self.wl:list
-        self.wlu:str
+        self.wl: list
+        self.wlu: str
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu,  self.mNameOriginal = sensorIDtoProperties(self.mId)
         if self.mNameOriginal in [None, '']:
             self.mNameOriginal = '{}bands@{}m'.format(self.nb, self.px_size_x)
@@ -260,28 +262,17 @@ class SensorInstrument(QObject):
         self.mMockupDS.FlushCache()
         s = ""
 
-
-
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
-        Returns the band index closets to a certain wavelength
+        Returns the band index closest to a certain wavelength
         :param wl: float | int
         :param wl_unit: str
         :return: int
         """
-        if self.wlu is None or self.wl is None:
-            return 0
+        from .utils import bandClosestToWavelength
+        return bandClosestToWavelength(self.mMockupDS, wl, wl_unit=wl_unit)
 
-        from .utils import convertMetricUnit, LUT_WAVELENGTH
-        if isinstance(wl, str):
-            assert wl.upper() in LUT_WAVELENGTH.keys()
-            wl = LUT_WAVELENGTH[wl.upper()]
-
-        if self.wlu != wl_unit:
-            wl = convertMetricUnit(wl, wl_unit, self.wlu)
-        return int(np.argmin(np.abs(self.wl - wl)))
-
-    def proxyLayer(self) -> QgsRasterLayer:
+    def proxyRasterLayer(self) -> QgsRasterLayer:
         """
         Creates an "empty" layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
@@ -398,10 +389,8 @@ def verifyInputImage(datasource):
 
     return True
 
-
-
 class TimeSeriesSource(object):
-    """Provides some information on source images"""
+    """Provides information on source images"""
 
     @classmethod
     def fromJson(cls, jsonData:str):
@@ -509,14 +498,13 @@ class TimeSeriesSource(object):
 
             self.mWL, self.mWLU = extractWavelengths(dataset)
 
-
             self.nb, self.nl, self.ns = dataset.RasterCount, dataset.RasterYSize, dataset.RasterXSize
             self.mGeoTransform = dataset.GetGeoTransform()
             self.mMetaData = collections.OrderedDict()
             for domain in dataset.GetMetadataDomainList():
                 self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
 
-            self.mWKT = dataset.GetProjection()
+            self.mWKT: str = dataset.GetProjection()
             if self.mWKT == '':
                 # no CRS? try with QGIS API
                 loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
@@ -593,6 +581,12 @@ class TimeSeriesSource(object):
 
         self.__setstatedictionary(d)
 
+    def rasterUnitsPerPixelX(self) -> float:
+        return abs(self.mGeoTransform[1])
+
+    def rasterUnitsPerPixelY(self) -> float:
+        return abs(self.mGeoTransform[5])
+
     def json(self) -> str:
         """
         Returns a JSON representation
@@ -626,6 +620,9 @@ class TimeSeriesSource(object):
 
     def asRasterLayer(self) -> QgsRasterLayer:
         return QgsRasterLayer(self.uri(), self.name(), 'gdal')
+
+    def crsWkt(self) -> str:
+        return self.mWKT
 
     def pixelCoordinate(self, geometry) -> QPoint:
         """
@@ -1096,29 +1093,58 @@ class SensorMatching(enum.Flag):
 
         return '\n'.join(parts)
 
-def doLoadTimeSeriesSourcesTask(qgsTask:QgsTask, dump):
 
-    sources = pickle.loads(dump)
-    assert isinstance(qgsTask, QgsTask)
+class TimeSeriesLoadingTask(QgsTask):
 
-    results = []
-    invalidSources = list()
-    n = len(sources)
-    for i, source in enumerate(sources):
-        if qgsTask.isCanceled():
-            return pickle.dumps(results), pickle.dumps(invalidSources)
+    sigFoundSources = pyqtSignal(list)
+    sigMessage = pyqtSignal(str, bool)
 
-        try:
-            tss = TimeSeriesSource.create(source)
-            assert isinstance(tss, TimeSeriesSource)
-            results.append(tss)
-        except Exception as ex:
-            invalidSources.append((source, ex))
+    def __init__(self,
+                 files: typing.List[str],
+                 description: str = "Load Images",
+                 callback = None,
+                 block_size : int = 10):
 
-        qgsTask.setProgress(int(i + 1))
+        super().__init__(description=description)
+        self.mFiles = files
+        self.mSources = []
+        self.mCallback = callback
+        self.mResultBlockSize = block_size
+        self.mInvalidSources = []
 
-    return pickle.dumps(results), pickle.dumps(invalidSources)
+    def canCancel(self) -> bool:
+        return True
 
+    def run(self) -> bool:
+        result_block = []
+        n = len(self.mFiles)
+        for i, path in enumerate(self.mFiles):
+            assert isinstance(path, str)
+
+            try:
+                tss = TimeSeriesSource.create(path)
+                assert isinstance(tss, TimeSeriesSource)
+                self.mSources.append(tss)
+                result_block.append(tss)
+            except Exception as ex:
+                self.mInvalidSources.append((path, ex))
+
+            if len(result_block) >= self.mResultBlockSize:
+                self.sigFoundSources.emit(result_block[:])
+                result_block.clear()
+
+            if self.isCanceled():
+                return False
+
+            self.setProgress(int(100 * (i+1) / n))
+
+        if len(result_block) > 0:
+            self.sigFoundSources.emit(result_block[:])
+        return True
+
+    def finished(self, result):
+        if self.mCallback is not None:
+            self.mCallback(result, self)
 
 class TimeSeries(QAbstractItemModel):
     """
@@ -1135,7 +1161,8 @@ class TimeSeries(QAbstractItemModel):
     sigSourcesRemoved = pyqtSignal(list)
 
     sigVisibilityChanged = pyqtSignal()
-
+    sigProgress = pyqtSignal(float)
+    sigMessage = pyqtSignal(str, Qgis.MessageLevel)
     _sep = ';'
 
     def __init__(self, imageFiles=None):
@@ -1147,7 +1174,6 @@ class TimeSeries(QAbstractItemModel):
         self.mDateTimePrecision = DateTimePrecision.Original
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
-        self.mLoadingProgressDialog = None
         self.mLUT_Path2TSD = {}
         self.mVisibleDate = []
         self.mCurrentSpatialExtent = None
@@ -1268,7 +1294,6 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-
     def sensors(self) -> typing.List[SensorInstrument]:
         """
         Returns the list of sensors derived from the TimeSeries data sources
@@ -1276,63 +1301,58 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None, progressDialog:QProgressDialog=None, runAsync=True):
+    def loadFromFile(self, path, n_max=None, runAsync:bool=True):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
         :param n_max: optional, maximum number of files to load
         """
 
+        refDir = pathlib.Path(path).parent
         images = []
         masks = []
         with open(path, 'r') as f:
             lines = f.readlines()
-            for l in lines:
-                if re.match('^[ ]*[;#&]', l):
+            for line in lines:
+                if re.match('^[ ]*[;#&]', line):
                     continue
+                line = line.strip()
+                path = pathlib.Path(line)
+                if not path.is_absolute():
+                    path = refDir / path
 
-                parts = re.split('[\n'+TimeSeries._sep+']', l)
-                parts = [p for p in parts if p != '']
-                images.append(parts[0])
-                if len(parts) > 1:
-                    masks.append(parts[1])
+                images.append(path.as_posix())
 
         if n_max:
             n_max = min([len(images), n_max])
             images = images[0:n_max]
 
-        if isinstance(progressDialog, QProgressDialog):
-            progressDialog.setMaximum(len(images))
-            progressDialog.setMinimum(0)
-            progressDialog.setValue(0)
-            progressDialog.setLabelText('Start loading {} images....'.format(len(images)))
+        self.addSources(images, runAsync=runAsync)
 
-        self.addSources(images, progressDialog=progressDialog, runAsync=runAsync)
-
-    def saveToFile(self, path):
+    def saveToFile(self, path, relative_path:bool = True):
         """
         Saves the TimeSeries sources into a CSV file
         :param path: str, path of CSV file
         :return: path of CSV file
         """
-        if path is None or len(path) == 0:
-            return None
+        if isinstance(path, str):
+            path = pathlib.Path(path)
+        assert isinstance(path, pathlib.Path)
 
         lines = []
         lines.append('#Time series definition file: {}'.format(np.datetime64('now').astype(str)))
         lines.append('#<image path>')
-        for TSD in self.mTSDs:
+        for TSD in self:
             assert isinstance(TSD, TimeSeriesDate)
-            for pathImg in TSD.sourceUris():
-                lines.append(pathImg)
+            for TSS in TSD:
+                uri = TSS.uri()
+                if relative_path:
+                    uri = relativePath(uri, path.parent)
+                lines.append(str(uri))
 
-        lines = [l+'\n' for l in lines]
-
-
-        with open(path, 'w') as f:
-            f.writelines(lines)
+        with open(path, 'w', newline='\n', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
             messageLog('Time series source images written to {}'.format(path))
-
         return path
 
     def pixelSizes(self):
@@ -1546,127 +1566,71 @@ class TimeSeries(QAbstractItemModel):
             self.sigSensorRemoved.emit(sensor)
             return sensor
         return None
+    
+    def addTimeSeriesSources(self, sources: typing.List[TimeSeriesSource]):
+        assert isinstance(sources, list)
 
-    def addSources(self, sources:list, nWorkers:int = 1, progressDialog:QProgressDialog=None, runAsync=True):
+        addedDates = []
+        for i, source in enumerate(sources):
+            assert isinstance(source, TimeSeriesSource)
+            newTSD = self.addTimeSeriesSource(source)
+            if isinstance(newTSD, TimeSeriesDate):
+                addedDates.append(newTSD)
+
+        if len(addedDates) > 0:
+            self.sigTimeSeriesDatesAdded.emit(addedDates)
+
+    def addSources(self, sources:list, nWorkers:int = 1, runAsync:bool=True):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
         :param nWorkers: not used yet
-        :param progressDialog: QProgressDialog
         :param runAsync: bool
         """
-
-        tm = QgsApplication.taskManager()
-        assert isinstance(tm, QgsTaskManager)
-        assert isinstance(nWorkers, int) and nWorkers >= 1
-
-        self.mLoadingProgressDialog = progressDialog
-
         sourcePaths = []
         for s in sources:
             path = None
             if isinstance(s, gdal.Dataset):
                 path = s.GetDescription()
-            if isinstance(s, QgsRasterLayer):
+            elif isinstance(s, QgsRasterLayer):
                 path = s.source()
-            if isinstance(s, str):
-                path = s
-            if isinstance(path, str):
+            else:
+                path = str(s)
+            if path:
                 sourcePaths.append(path)
 
-        n = len(sourcePaths)
-        taskDescription = 'Load {} images'.format(n)
-        dump = pickle.dumps(sourcePaths)
 
-
-        if runAsync:
-            qgsTask = QgsTask.fromFunction(taskDescription, doLoadTimeSeriesSourcesTask, dump,
-                                on_finished = self.onAddSourcesAsyncFinished)
-        else:
-            from .utils import TaskMock
-            qgsTask = TaskMock()
-
+        qgsTask = TimeSeriesLoadingTask(sourcePaths, callback=self.onTaskFinished)
         tid = id(qgsTask)
+        self.mTasks[tid] = qgsTask
         qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        if isinstance(progressDialog, QProgressDialog):
-            qgsTask.progressChanged.connect(progressDialog.setValue)
-            progressDialog.setLabelText('Read images')
-            progressDialog.setRange(0, n)
-            progressDialog.setValue(0)
-
-        self.mTasks[tid] = qgsTask
+        qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
+        qgsTask.progressChanged.connect(self.sigProgress.emit)
 
         if runAsync:
+            tm = QgsApplication.taskManager()
+            assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
         else:
-            # for debugging only
-            resultDump = doLoadTimeSeriesSourcesTask(qgsTask, dump)
-            self.onAddSourcesAsyncFinished(None, resultDump)
+            qgsTask.run()
 
     def onRemoveTask(self, key):
+        if isinstance(key, QgsTask):
+            key = id(key)
         self.mTasks.pop(key)
 
-    def onAddSourcesAsyncFinished(self, *args):
+    def onTaskFinished(self, success, task:QgsTask):
         # print(':: onAddSourcesAsyncFinished')
-        error = args[0]
+        if isinstance(task, TimeSeriesLoadingTask):
+            if len(task.mInvalidSources) > 0:
+                info = ['Unable to load {} data source(s):'.format(len(task.mInvalidSources))]
+                for (s, ex) in task.mInvalidSources:
+                    info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
+                info = '\n'.join(info)
+                messageLog(info, Qgis.Critical)
 
-        hasProgressDialog = isinstance(self.mLoadingProgressDialog, QProgressDialog)
-        loadingProgress = 0
-        if hasProgressDialog:
-            loadingProgress = self.mLoadingProgressDialog.value()
-
-
-        if error is None:
-            try:
-
-                sources, invalidSources = args[1]
-                sources = pickle.loads(sources)
-                invalidSources = pickle.loads(invalidSources)
-
-                progressValue = 0
-                if len(invalidSources) > 0:
-                    info = ['Unable to load {} data source(s):'.format(len(invalidSources))]
-                    for s, ex in invalidSources:
-                        info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
-                    info = '\n'.join(info)
-                    messageLog(info, Qgis.Critical)
-                    if hasProgressDialog:
-                        loadingProgress += len(invalidSources)
-                        self.mLoadingProgressDialog.setValue(loadingProgress)
-
-                if len(sources) > 0:
-                    addedDates = []
-                    if hasProgressDialog:
-                        self.mLoadingProgressDialog.setLabelText('Add Images')
-                        self.mLoadingProgressDialog.setRange(0, len(sources))
-                        self.mLoadingProgressDialog.setValue(0)
-
-                    for i, source in enumerate(sources):
-                        newTSD = self._addSource(source)
-                        if isinstance(newTSD, TimeSeriesDate):
-                            addedDates.append(newTSD)
-
-                        if hasProgressDialog:
-                            progressValue += 1
-                            self.mLoadingProgressDialog.setValue(progressValue)
-
-                    if len(addedDates) > 0:
-                        self.sigTimeSeriesDatesAdded.emit(addedDates)
-
-            except Exception as ex:
-                import traceback
-                traceback.print_exc()
-                s = ""
-        else:
-            s = ""
-
-        if isinstance(self.mLoadingProgressDialog, QProgressDialog):
-            self.mLoadingProgressDialog.close()
-            self.mLoadingProgressDialog = None
-
-
-    def _addSource(self, source:TimeSeriesSource) -> TimeSeriesDate:
+    def addTimeSeriesSource(self, source:TimeSeriesSource) -> TimeSeriesDate:
         """
         :param source:
         :return: TimeSeriesDate (if new created)
@@ -1682,8 +1646,6 @@ class TimeSeries(QAbstractItemModel):
 
         tsdDate = self.date2date(tss.date())
         sid = tss.sid()
-
-
         sensor = self.findMatchingSensor(sid)
 
         # if necessary, add a new sensor instance
@@ -2459,10 +2421,6 @@ class TimeSeriesDock(QgsDockWidget):
         super(TimeSeriesDock, self).__init__(parent)
         
         loadUi(DIR_UI / 'timeseriesdock.ui', self)
-        #self.progressBar.setMinimum(0)
-        #self.setProgressInfo(0, 100, 'Add images to fill time series')
-        #self.progressBar.setValue(0)
-        #self.progressInfo.setText(None)
         self.frameFilters.setVisible(False)
 
         self.mTimeSeries = None

@@ -188,17 +188,17 @@ for i, mc in enumerate(mv1.mapCanvases()):
     if i == 10:
         break
 
-ps2D_LS_NDVI = TSV.spectralTemporalVis.createNewPlotStyle2D()
-ps2D_RE_NDVI = TSV.spectralTemporalVis.createNewPlotStyle2D()
+ps2D_LS_NDVI = TSV.profileDock.createNewPlotStyle2D()
+ps2D_RE_NDVI = TSV.profileDock.createNewPlotStyle2D()
 
 
 for dx in range(-120, 120, 60):
     location = SpatialPoint(center.crs(), center.x() + dx, center.y())
     TSV.onShowProfile(location, mv1.mapCanvases()[0], MapTools.TemporalProfile)
 
-TSV.spectralTemporalVis.loadMissingData(backgroundProcess=False)
+TSV.profileDock.loadMissingData(background_process=False)
 
-TP = TSV.spectralTemporalVis.mTemporalProfileLayer[0]
+TP = TSV.profileDock.mTemporalProfileLayer[0]
 ps2D_LS_NDVI.setSensor(sensorLS)
 ps2D_LS_NDVI.setExpression('(b4-b3)/(b4+b3)')
 ps2D_LS_NDVI.setTemporalProfile(TP)
@@ -208,7 +208,7 @@ ps2D_RE_NDVI.setTemporalProfile(TP)
 ps2D_RE_NDVI.setExpression('(b5-b3)/(b5+b3)')
 
 
-TSV.spectralTemporalVis.updatePlot2D()
+TSV.profileDock.updatePlot2D()
 s = ""
 
 

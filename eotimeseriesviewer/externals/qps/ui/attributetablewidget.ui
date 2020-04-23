@@ -210,7 +210,7 @@
   </widget>
   <widget class="QToolBar" name="mToolbar">
    <property name="windowTitle">
-    <string>toolBar</string>
+    <string>Attribute Table Toolbar</string>
    </property>
    <property name="movable">
     <bool>false</bool>

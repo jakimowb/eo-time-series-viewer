@@ -193,8 +193,8 @@ if __name__ == '__main__':
     TSV.ui.dockProfiles.splitter2D.setSizes([75, 50])
     TSV.ui.dockProfiles.show()
 
-    STV = TSV.spectralTemporalVis
-    assert isinstance(STV, SpectralTemporalVisualization)
+    STV = TSV.profileDock
+    assert isinstance(STV, ProfileViewDock)
     # load temporal profiles for points
     STV.temporalProfileLayer().createTemporalProfiles(vlPOIs)
 
@@ -207,7 +207,7 @@ if __name__ == '__main__':
             break
         for sensor in TSV.sensors():
             style = STV.createNewPlotStyle2D()
-            assert isinstance(style, TemporalProfile2DPlotStyle)
+            assert isinstance(style, TemporalProfilePlotStyle)
             style.setSensor(sensor)
             style.setTemporalProfile(tp)
 

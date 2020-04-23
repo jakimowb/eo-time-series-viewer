@@ -256,44 +256,6 @@ class TestLabeling(EOTSVTestCase):
 
         return classScheme1, classScheme2
 
-    def test_LabelingDockActions(self):
-        print('## test_LabelingDockActions')
-        registerLabelShortcutEditorWidget()
-        reg = QgsGui.editorWidgetRegistry()
-        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
-
-        dock = LabelingDock()
-
-        self.assertIsInstance(dock, LabelingDock)
-        lyr = self.createVectorLayer()
-        self.assertIsInstance(lyr, QgsVectorLayer)
-        lw = dock.labelingWidget()
-        self.assertTrue(lw.mVectorLayerComboBox.currentLayer() is None)
-
-        lyr1 = self.createVectorLayer()
-        lyr1.setName('in editing mode')
-        lyr1.startEditing()
-        lyr2 = self.createVectorLayer()
-        lyr2.setName('not in editing mode')
-
-        QgsProject.instance().addMapLayers([lyr1, lyr2])
-
-        lw.setCurrentVectorSource(lyr2)
-
-        canvas = QgsMapCanvas()
-
-
-        def setLayers():
-            canvas.mapSettings().setDestinationCrs(dock.canvas().mapSettings().destinationCrs())
-            canvas.setExtent(dock.canvas().extent())
-            canvas.setLayers(dock.canvas().layers())
-
-        lw.sigVectorLayerChanged.connect(setLayers)
-        lw.sigMapCenterRequested.connect(setLayers)
-        lw.sigMapExtentRequested.connect(setLayers)
-
-        self.showGui([dock, canvas])
-
     def test_canvasMenu(self):
         print('## test_canvasMenu')
         vl = self.createVectorLayer()
@@ -309,68 +271,30 @@ class TestLabeling(EOTSVTestCase):
 
         self.showGui(canvas)
 
-    def test_LabelingDock(self):
-        print('## test_LabelingDock')
-        registerLabelShortcutEditorWidget()
-        reg = QgsGui.editorWidgetRegistry()
-        self.assertTrue(EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys())
 
-        dock = LabelingDock()
+    def test_LabelingWidget2(self):
+        lyr = TestObjects.createVectorLayer()
+        lyr.setName('My Name')
+        w = LabelWidget(lyr)
+        lyr.setName('Changed Name')
+        self.showGui(w)
 
-        lw = dock.labelingWidget()
+    def test_addLabelDock(self):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
-        self.assertIsInstance(dock, LabelingDock)
-        self.assertIsInstance(lw, LabelingWidget)
-        lyr = self.createVectorLayer()
-        self.assertIsInstance(lyr, QgsVectorLayer)
-        self.assertTrue(lw.currentVectorSource() is None)
+        lyr = TestObjects.createVectorLayer()
+        EOTSV = EOTimeSeriesViewer()
+        EOTSV.showAttributeTable(lyr)
 
-        QgsProject.instance().addMapLayer(lyr)
+        self.assertEqual(1, len(EOTSV.ui.findChildren(LabelDockWidget)))
+        EOTSV.showAttributeTable(lyr)
 
-        am = lyr.actions()
-        self.assertIsInstance(am, QgsActionManager)
+        dockWidgets = EOTSV.ui.findChildren(LabelDockWidget)
+        self.assertEqual(1, len(dockWidgets))
+        lyr.setName('Layer B')
+        self.assertTrue('Layer B' in dockWidgets[0].windowTitle().startswith())
 
-        # set a ClassificationScheme to each class-specific column
-
-        classScheme1, classScheme2 = self.setupEditWidgets(lyr)
-
-
-
-
-        fids = [1, 2, 3]
-        lyr.selectByIds(fids)
-        lyr.startEditing()
-        ts = TestObjects.createTimeSeries()
-        tsd = ts[7]
-        classInfo1 = classScheme1[2]
-        classInfo2 = classScheme2[1]
-
-
-
-        setQuickTSDLabels(lyr, tsd, None)
-        fields = lyr.fields()
-        setQuickClassInfo(lyr, fields.lookupField('class1l'), classInfo1)
-        setQuickClassInfo(lyr, fields.lookupField('class1n'), classInfo1)
-        setQuickClassInfo(lyr, fields.lookupField('class2l'), classInfo2)
-        setQuickClassInfo(lyr, fields.lookupField('class2n'), classInfo2)
-
-        for fid in fids:
-            feature = lyr.getFeature(fid)
-            self.assertIsInstance(feature, QgsFeature)
-            self.assertEqual(feature.attribute('date'), str(tsd.date()))
-            self.assertEqual(feature.attribute('sensor'), tsd.sensor().name())
-            self.assertEqual(feature.attribute('class1l'), classInfo1.label())
-            self.assertEqual(feature.attribute('class1n'), classInfo1.name())
-            self.assertEqual(feature.attribute('class2l'), classInfo2.label())
-            self.assertEqual(feature.attribute('class2n'), classInfo2.name())
-
-        lw.setCurrentVectorSource(lyr)
-        self.assertTrue(lw.currentVectorSource() == lyr)
-
-        self.assertTrue(lyr.commitChanges())
-
-        self.showGui(dock)
-
+        self.showGui(EOTSV.ui)
 
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)

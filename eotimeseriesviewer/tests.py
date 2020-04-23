@@ -48,6 +48,24 @@ class EOTSVTestCase(TestCase):
     def setUpClass(cls):
         initQtResources(DIR_REPO)
         super().setUpClass()
+        import os
+        os.environ['EOTSV_DEBUG'] = 'True'
+
+    def testOutputDirectory(self) -> pathlib.Path:
+        from eotimeseriesviewer import DIR_REPO
+        
+        d = DIR_REPO / 'test-outputs'
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def closeBlockingWidget(self):
+        """
+        Closes the active blocking (modal) widget
+        """
+        w = QApplication.instance().activeModalWidget()
+        if isinstance(w, QWidget):
+            print('Close blocking {} "{}"'.format(w.__class__.__name__, w.windowTitle()))
+            w.close()
 
 def testRasterFiles() -> list:
     return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
@@ -66,7 +84,7 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
     Creates objects to be used for testing. It is preferred to generate objects in-memory.
     """
     @staticmethod
-    def createTimeSeries():
+    def createTimeSeries() -> TimeSeries:
 
         TS = TimeSeries()
         files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)

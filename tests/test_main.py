@@ -34,7 +34,7 @@ import tempfile
 
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.main import *
 class TestMain(EOTSVTestCase):
 
 
@@ -86,12 +86,19 @@ class TestMain(EOTSVTestCase):
         self.assertIsInstance(TSV, EOTimeSeriesViewer)
         self.showGui(TSV.ui)
 
+
+    def test_TaskManagerStatusButton(self):
+
+        bar = QgsStatusBar()
+        w = TaskManagerStatusButton()
+        bar.addPermanentWidget(w, 10, QgsStatusBar.AnchorLeft)
+        bar.showMessage('my status')
+        w.mInfoLabel.setText('emoty')
+        self.showGui(bar)
+
     def test_TimeSeriesViewer(self):
-
         from eotimeseriesviewer.main import EOTimeSeriesViewer
-
         TSV = EOTimeSeriesViewer()
-
         TSV.createMapView('True Color')
         TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()

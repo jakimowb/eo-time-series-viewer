@@ -45,7 +45,7 @@ import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
+from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 import eotimeseriesviewer.settings as eotsvSettings
@@ -55,7 +55,7 @@ from .externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolS
 from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
 from .externals.qps.vectorlayertools import VectorLayerTools
 import eotimeseriesviewer.labeling
-
+from eotimeseriesviewer import debugLog
 DEBUG = False
 
 EXTRA_SPECLIB_FIELDS = [
@@ -134,26 +134,13 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # I don't know why this is not possible in the QDesigner when QToolButtons are
         # placed outside a toolbar
 
-        area = None
-
-        def addDockWidget(dock:QDockWidget):
-            """
-            shortcut to add a created dock and return it
-            :param dock:
-            :return:
-            """
-            dock.setParent(self)
-            self.addDockWidget(area, dock)
-            return dock
 
         area = Qt.LeftDockWidgetArea
 
         # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
-
-
         from eotimeseriesviewer.mapvisualization import MapViewDock
-        self.dockMapViews = addDockWidget(MapViewDock(self))
+        self.dockMapViews = self.addDockWidget(area, MapViewDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         # self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
@@ -162,46 +149,41 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # from timeseriesviewer.mapvisualization import MapViewDockUI
         # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
-        self.dockTimeSeries = addDockWidget(TimeSeriesDock(self))
+        self.dockTimeSeries = self.addDockWidget(area, TimeSeriesDock(self))
         self.dockTimeSeries.initActions(self)
 
-        from eotimeseriesviewer.profilevisualization import ProfileViewDockUI
-        self.dockProfiles = addDockWidget(ProfileViewDockUI(self))
-        from eotimeseriesviewer.labeling import LabelingDock
-        self.dockLabeling = addDockWidget(LabelingDock(self))
+        from eotimeseriesviewer.profilevisualization import ProfileViewDock
+        self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
 
         area = Qt.LeftDockWidgetArea
-        self.dockAdvancedDigitizingDockWidget = addDockWidget(QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
-        self.dockAdvancedDigitizingDockWidget.setVisible(False)
-
+        #self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
+        #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
+        #self.dockAdvancedDigitizingDockWidget.setVisible(False)
 
         area = Qt.BottomDockWidgetArea
         panel = SpectralLibraryPanel(self)
 
-        self.dockSpectralLibrary = addDockWidget(panel)
+        self.dockSpectralLibrary = self.addDockWidget(area, panel)
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
+        #self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
-
 
         self.dockTaskManager = QgsDockWidget('Task Manager')
         self.dockTaskManager.setWidget(QgsTaskManagerWidget(QgsApplication.taskManager()))
         self.dockTaskManager.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
-        self.dockTaskManager = addDockWidget(self.dockTaskManager)
-
-
+        self.dockTaskManager = self.addDockWidget(area, self.dockTaskManager)
 
         from eotimeseriesviewer.systeminfo import SystemInfoDock
         from eotimeseriesviewer.sensorvisualization import SensorDockUI
 
-        self.dockSystemInfo = addDockWidget(SystemInfoDock(self))
+        self.dockSystemInfo = self.addDockWidget(area, SystemInfoDock(self))
         self.dockSystemInfo.setVisible(False)
 
-        self.dockSensors = addDockWidget(SensorDockUI(self))
-        self.dockCursorLocation = addDockWidget(CursorLocationInfoDock(self))
+        self.dockSensors = self.addDockWidget(area, SensorDockUI(self))
+        self.dockCursorLocation = self.addDockWidget(area, CursorLocationInfoDock(self))
 
         self.tabifyDockWidget(self.dockTaskManager, self.dockCursorLocation)
         self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
@@ -215,6 +197,15 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
         self.dockTimeSeries.raise_()
 
+    def addDockWidget(self, area: Qt.DockWidgetArea, dock: QDockWidget) -> QDockWidget:
+        """
+        shortcut to add a created dock and return it
+        :param dock:
+        :return:
+        """
+        dock.setParent(self)
+        super().addDockWidget(area, dock)
+        return dock
 
     def registerMapToolAction(self, a:QAction) -> QAction:
         """
@@ -296,6 +287,106 @@ def showMessage(message, title, level):
     v.showMessage(True)
 
 
+class TaskManagerStatusButton(QToolButton):
+    def __init__(self, parent: QWidget=None):
+        super().__init__(parent)
+
+        self.mManager = QgsApplication.taskManager()
+        self.setAutoRaise(True)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.setLayout(QHBoxLayout())
+
+        from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
+        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask
+
+        self.mTrackedTasks = [
+            TemporalProfileLoaderTask,
+            TimeSeriesLoadingTask
+        ]
+
+        self.mInfoLabel = QLabel('', parent=self)
+        #self.setStyleSheet('background-color:yellow')
+        #self.mInfoLabel.setStyleSheet('background-color:#234521;')
+        #self.mInfoLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        self.mInfoLabel.setWordWrap(False)
+        self.mProgressBar = QProgressBar(parent=self)
+        self.mProgressBar.setMinimum(0)
+        self.mProgressBar.setMaximum(100)
+        self.mProgressBar.setMaximumWidth(100)
+        self.mProgressBar.setMaximumHeight(18)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.mProgressBar)
+        self.layout().addWidget(self.mInfoLabel)
+#        self.layout().setStretchFactor(self.mInfoLabel, 2)
+        #self.layout().addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        #self.clicked.connect(self.toggleDisplay)
+        """
+        self.mFloatingWidget = QgsTaskManagerFloatingWidget( manager, parent ? parent->window() : nullptr );
+        self.mFloatingWidget.setAnchorWidget( this );
+        self.mFloatingWidget.setAnchorPoint( QgsFloatingWidget::BottomMiddle );
+        self.mFloatingWidget.setAnchorWidgetPoint( QgsFloatingWidget::TopMiddle );
+        self.mFloatingWidget.hide();
+        """
+        #self.hide()
+
+        self.mManager.taskAdded.connect(self.onTaskAdded)
+        #self.mManager.allTasksFinished.connect(self.allFinished)
+        #self.mManager.finalTaskProgressChanged.connect(self.overallProgressChanged)
+        #self.mManager.countActiveTasksChanged.connect(self.countActiveTasksChanged)
+
+    def onTaskAdded(self, taskID):
+        task = self.mManager.task(taskID)
+        from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
+        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask
+
+        if isinstance(task, (TemporalProfileLoaderTask, TimeSeriesLoadingTask)):
+            task.progressChanged.connect(self.updateTaskInfo)
+            task.taskCompleted.connect(self.updateTaskInfo)
+            task.taskTerminated.connect(self.updateTaskInfo)
+
+    def sizeHint(self):
+        m = self.fontMetrics()
+        txt = self.mInfoLabel.text()
+        if hasattr(m, 'horizontalAdvance'):
+            width = m.horizontalAdvance('X')
+        else:
+            width = m.width('X')
+        width = int(width * 50 * Qgis.UI_SCALE_FACTOR)
+        #width = super().sizeHint().width()
+        #width = width + self.mInfoLabel.sizeHint().width()
+        height = super().sizeHint().height() - 5
+        return QSize(width, height)
+
+    def activeTasks(self) -> typing.List[QgsTask]:
+        results = []
+        for t in self.mManager.tasks():
+            if isinstance(t, QgsTask):
+                for taskType in self.mTrackedTasks:
+                    if isinstance(t, taskType):
+                        results.append(t)
+                        break
+        return results
+
+    def updateTaskInfo(self, *args):
+        n = 0
+        p = 0.0
+        activeTasks = self.activeTasks()
+        activeTasks = self.activeTasks()
+        for t in activeTasks:
+            n += 1
+            p += t.progress()
+
+        if n == 0:
+            p = 0
+            self.mInfoLabel.setText('')
+        else:
+            self.mInfoLabel.setText(activeTasks[-1].description())
+            p = int(round(p / n))
+        self.mProgressBar.setValue(p)
+        self.setVisible(n > 0)
+
+
 class EOTimeSeriesViewer(QgisInterface, QObject):
 
     _instance = None
@@ -313,6 +404,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     sigCurrentSpectralProfilesChanged = pyqtSignal(list)
     sigCurrentTemporalProfilesChanged = pyqtSignal(list)
+    currentLayerChanged = pyqtSignal(QgsMapLayer)
 
     def __init__(self):
         """Constructor.
@@ -330,7 +422,29 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         EOTimeSeriesViewer._instance = self
         self.ui = EOTimeSeriesViewerUI()
 
+        # create status bar
+        self.ui.statusBar().setStyleSheet("QStatusBar::item {border: none;}" )
 
+        # Drop the font size in the status bar by a couple of points
+        statusBarFont = self.ui.font()
+        fontSize = statusBarFont.pointSize()
+        if os.name == 'windows':
+            fontSize = max(fontSize - 1, 8 ) #bit less on windows, due to poor rendering of small point sizes
+        else:
+            fontSize = max(fontSize - 2, 6)
+        statusBarFont.setPointSize(fontSize)
+
+        self.mStatusBar = QgsStatusBar()
+        self.mStatusBar.setParentStatusBar(self.ui.statusBar())
+        self.mStatusBar.setFont(statusBarFont)
+
+        self.ui.statusBar().setFont(statusBarFont)
+        self.ui.statusBar().addPermanentWidget(self.mStatusBar, 1)
+
+        self.mTaskManagerButton = TaskManagerStatusButton(self.mStatusBar)
+        self.mTaskManagerButton.setFont(statusBarFont)
+        self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
+        self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
         mvd = self.ui.dockMapViews
         dts = self.ui.dockTimeSeries
         mw = self.ui.mMapWidget
@@ -348,16 +462,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             EOTimeSeriesViewer._instance = None
 
         self.ui.sigAboutToBeClosed.connect(onClosed)
+        import qgis.utils
+        assert isinstance(qgis.utils.iface, QgisInterface)
 
         QgsApplication.instance().messageLog().messageReceived.connect(self.logMessage)
 
         self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
         self.mVectorLayerTools: VectorLayerTools = VectorLayerTools()
+        self.mVectorLayerTools.sigMessage.connect(lambda msg, level: self.logMessage(msg, LOG_MESSAGE_TAG, level))
+        self.mVectorLayerTools.sigPanRequest.connect(self.setSpatialCenter)
+        self.mVectorLayerTools.sigZoomRequest.connect(self.setSpatialExtent)
+        self.mVectorLayerTools.sigEditingStarted.connect(self.updateCurrentLayerActions)
 
         # Save reference to the QGIS interface
-        import qgis.utils
-        assert isinstance(qgis.utils.iface, QgisInterface)
 
         # init empty time series
         self.mTimeSeries = TimeSeries()
@@ -367,20 +485,25 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
 
+        #self.mTimeSeries.sigMessage.connect(self.setM)
+
         dts.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
+        self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
+        self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
         mw.setTimeSeries(self.mTimeSeries)
         mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
-        self.spectralTemporalVis = SpectralTemporalVisualization(self.mTimeSeries, self.ui.dockProfiles)
+        self.profileDock: ProfileViewDock = self.ui.dockProfiles
         assert isinstance(self, EOTimeSeriesViewer)
-        self.spectralTemporalVis.sigMoveToDate.connect(self.setCurrentDate)
+        self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
         mw.sigCurrentLocationChanged.connect(self.setCurrentLocation)
+        mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
 
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
         tb = self.ui.toolBarTimeControl
@@ -416,13 +539,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         initMapToolAction(self.ui.actionZoomFullExtent, MapTools.ZoomFull)
         initMapToolAction(self.ui.actionIdentify, MapTools.CursorLocation)
 
-        initMapToolAction(self.ui.actionSelectFeatures, MapTools.SelectFeature)
-        assert isinstance(self.ui.actionSelectFeatures, QAction)
+        initMapToolAction(self.ui.mActionSelectFeatures, MapTools.SelectFeature)
+        assert isinstance(self.ui.mActionSelectFeatures, QAction)
+        initMapToolAction(self.ui.mActionAddFeature, MapTools.AddFeature)
 
         self.ui.optionSelectFeaturesRectangle.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesPolygon.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesFreehand.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesRadius.triggered.connect(self.onSelectFeatureOptionTriggered)
+        self.ui.mActionDeselectFeatures.triggered.connect(self.deselectFeatures)
 
         m = QMenu()
         m.addAction(self.ui.optionSelectFeaturesRectangle)
@@ -430,35 +555,24 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         m.addAction(self.ui.optionSelectFeaturesFreehand)
         m.addAction(self.ui.optionSelectFeaturesRadius)
 
-        self.ui.actionSelectFeatures.setMenu(m)
+        self.ui.mActionSelectFeatures.setMenu(m)
+        def onEditingToggled(b: bool):
+            l = self.currentLayer()
+            if b:
+                self.mVectorLayerTools.startEditing(l)
+            else:
+                self.mVectorLayerTools.stopEditing(l, True)
+        self.ui.mActionToggleEditing.toggled.connect(onEditingToggled)
 
         # create edit toolbar
         tb = self.ui.toolBarVectorFeatures
         assert isinstance(tb, QToolBar)
-        tb.addAction(self.ui.dockLabeling.labelingWidget().actionToggleEditing())
-        tb.addAction(self.ui.dockLabeling.labelingWidget().actionSaveEdits())
-        tb.addAction(self.ui.dockLabeling.labelingWidget().actionAddFeature())
-        labelingWidget = self.ui.dockLabeling.labelingWidget()
-        from .labeling import LabelingWidget
-        assert isinstance(labelingWidget, LabelingWidget)
-        labelingWidget.sigMapExtentRequested.connect(self.setSpatialExtent)
-        labelingWidget.sigMapCenterRequested.connect(self.setSpatialCenter)
-        labelingWidget.sigVectorLayerChanged.connect(
-            lambda: self.mapWidget().setCurrentLayer(
-                self.ui.dockLabeling.labelingWidget().currentVectorSource()))
-
-        initMapToolAction(self.ui.dockLabeling.labelingWidget().actionAddFeature(), MapTools.AddFeature)
 
         # set default map tool
         self.ui.actionPan.toggle()
-
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
-
         self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
-
-        # D.actionIdentifyMapLayers.triggered.connect(lambda: self.spatialTemporalVis.activateMapTool('identifyMapLayers'))
         self.ui.actionAddMapView.triggered.connect(mvd.createMapView)
-
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionAddSubDatasets.triggered.connect(self.openAddSubdatasetsDialog)
@@ -473,12 +587,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
-        self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=False))
+        self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=True))
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
         #self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
-        self.spectralTemporalVis.ui.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
+        self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
         self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
 
         # connect buttons with actions
@@ -509,7 +623,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mMapLayerStore.addMapLayer(sl)
 
-        temporalProfileLayer = self.spectralTemporalVis.temporalProfileLayer()
+        temporalProfileLayer = self.profileDock.temporalProfileLayer()
         assert isinstance(temporalProfileLayer, QgsVectorLayer)
         temporalProfileLayer.setName('EOTS Temporal Profiles')
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
@@ -531,6 +645,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
+
+    
 
     def lockCentralWidgetSize(self, b:bool):
         """
@@ -580,6 +696,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         progressDialog.setValue(0)
         progressDialog.setWindowFlags(progressDialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         return progressDialog
+
+    def deselectFeatures(self):
+        """
+        Removes all feature selections (across all map canvases)
+        """
+        for canvas in self.mapCanvases():
+            assert isinstance(canvas, QgsMapCanvas)
+            for vl in [l for l in canvas.layers() if isinstance(l, QgsVectorLayer)]:
+                assert isinstance(vl, QgsVectorLayer)
+                vl.removeSelection()
 
     def exportMapsToImages(self, path=None, format='PNG'):
         """
@@ -649,7 +775,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param mapView:
         :return:
         """
-        mapView.addLayer(self.spectralTemporalVis.temporalProfileLayer())
+        mapView.addLayer(self.profileDock.temporalProfileLayer())
         mapView.addLayer(self.spectralLibrary())
 
     def temporalProfileLayer(self) -> TemporalProfileLayer:
@@ -657,8 +783,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Returns the TemporalProfileLayer
         :return:
         """
-        from eotimeseriesviewer.profilevisualization import SpectralTemporalVisualization
-        return self.spectralTemporalVis.temporalProfileLayer()
+        return self.profileDock.temporalProfileLayer()
 
 
     def spectralLibrary(self) -> SpectralLibrary:
@@ -687,6 +812,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(files) > 0:
                 self.addTimeSeriesImages(files)
 
+
+
     def close(self):
         self.ui.close()
 
@@ -701,6 +828,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def actionZoomOut(self):
         return self.ui.actionZoomOut
+
+    def setCurrentLayer(self, layer:QgsMapLayer):
+        self.mapWidget().setCurrentLayer(layer)
+        self.updateCurrentLayerActions()
 
     def setCurrentSource(self, tss: TimeSeriesSource):
         """
@@ -753,16 +884,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def onSelectFeatureOptionTriggered(self):
 
         a = self.sender()
-        m = self.ui.actionSelectFeatures.menu()
-
+        m = self.ui.mActionSelectFeatures.menu()
         if isinstance(a, QAction) and isinstance(m, QMenu) and a in m.actions():
-            for option in m.actions():
-                assert isinstance(option, QAction)
-                if option == a:
-                    self.ui.actionSelectFeatures.setIcon(a.icon())
-                    self.ui.actionSelectFeatures.setToolTip(a.toolTip())
-                option.setChecked(option == a)
-        self.onSelectFeatureTriggered()
+            for ca in m.actions():
+                assert isinstance(ca, QAction)
+                if ca == a:
+                    self.ui.mActionSelectFeatures.setIcon(a.icon())
+                    self.ui.mActionSelectFeatures.setToolTip(a.toolTip())
+                ca.setChecked(ca == a)
+        self.setMapTool(MapTools.SelectFeature)
+
 
     def onSelectFeatureTriggered(self):
 
@@ -875,6 +1006,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 mapToolKey = MapTools.SelectFeatureByFreehand
             elif self.ui.optionSelectFeaturesRadius.isChecked():
                 mapToolKey = MapTools.SelectFeatureByRadius
+            self.ui.mActionSelectFeatures.setChecked(True)
+        else:
+            self.ui.mActionSelectFeatures.setChecked(False)
 
         self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
@@ -994,7 +1128,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
-        self.spectralTemporalVis.loadCoordinate(spatialPoint)
+        self.profileDock.loadCoordinate(spatialPoint)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 
@@ -1005,7 +1139,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if mapToolKey == MapTools.TemporalProfile:
 
-            self.spectralTemporalVis.loadCoordinate(spatialPoint)
+            self.profileDock.loadCoordinate(spatialPoint)
 
         elif mapToolKey == MapTools.SpectralProfile:
             tsd = None
@@ -1073,8 +1207,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
             self.clearTimeSeries()
-            progressDialog = self._createProgressDialog()
-            self.mTimeSeries.loadFromFile(path, n_max=n_max, progressDialog=progressDialog, runAsync=runAsync)
+            self.mTimeSeries.loadFromFile(path, n_max=n_max, runAsync=runAsync)
+
+    def currentLayer(self) -> QgsMapLayer:
+        """
+        Returns the current layer of the active (last clicked) map view
+        :return: QgsMapLayer
+        """
+        return self.mapWidget().currentLayer()
 
 
     def createMapView(self, name:str=None) -> MapView:
@@ -1105,14 +1245,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Returns collected temporal profiles
         :return: [list-of-TemporalProfiles]
         """
-        return self.spectralTemporalVis.temporalProfileLayer()[:]
+        return self.profileDock.temporalProfileLayer()[:]
 
     def logMessage(self, message:str, tag:str, level):
         """
 
         """
+        if level == Qgis.Critical:
+            duration = 200
+        else:
+            duration = 50
         if tag == LOG_MESSAGE_TAG and level in [Qgis.Critical, Qgis.Warning]:
-            self.messageBar().pushMessage(tag, message, level)
+            lines = message.splitlines()
+            self.messageBar().pushMessage(tag, lines[0], message, level, duration)
+
 
 
     def onSensorAdded(self, sensor:SensorInstrument):
@@ -1188,8 +1334,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             writtenFiles = d.saveImages()
             self.addTimeSeriesImages(writtenFiles)
 
-
-
     def loadExampleTimeSeries(self, n:int=None, loadAsync=True):
         """
         Loads an example time series
@@ -1254,18 +1398,63 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
 
+
+    def updateCurrentLayerActions(self, *args):
+        """
+        Enables/disables actions and buttons that relate to the current layer and its current state
+        """
+        debugLog('updateCurrentLayerActions')
+        layer = self.currentLayer()
+        isVector = isinstance(layer, QgsVectorLayer)
+        hasSelectedFeatures = False
+        for mv in self.mapViews():
+            for l in mv.layers():
+                if isinstance(l, QgsVectorLayer) and l.selectedFeatureCount() > 0:
+                    hasSelectedFeatures = True
+                    break
+        isVector and layer.selectedFeatureCount() > 0
+
+        self.ui.mActionDeselectFeatures.setEnabled(hasSelectedFeatures)
+        self.ui.mActionSelectFeatures.setEnabled(isVector)
+
+        self.ui.mActionToggleEditing.setEnabled(isVector)
+        self.ui.mActionToggleEditing.setChecked(isVector and layer.isEditable())
+
+        self.ui.mActionAddFeature.setEnabled(isVector and layer.isEditable())
+
+        if isVector:
+            if layer.geometryType() == QgsWkbTypes.PointGeometry:
+                icon = QIcon(':/images/themes/default/mActionCapturePoint.svg')
+            elif layer.geometryType() == QgsWkbTypes.LineGeometry:
+                icon = QIcon(':/images/themes/default/mActionCaptureLine.svg')
+            elif layer.geometryType() == QgsWkbTypes.PolygonGeometry:
+                icon = QIcon(':/images/themes/default/mActionCapturePolygon.svg')
+            else:
+                icon = QIcon(':/images/themes/default/mActionCapturePolygon.svg')
+            self.ui.mActionAddFeature.setIcon(icon)
+
+        self.ui.mActionSaveEdits.setEnabled(isVector and layer.isEditable())
+
+        if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)):
+            self.currentLayerChanged.emit(layer)
+
     def show(self):
         self.ui.show()
 
     def showAttributeTable(self, lyr: QgsVectorLayer, filterExpression: str = ""):
         assert isinstance(lyr, QgsVectorLayer)
 
-        from .labeling import LabelWidget2
-        w = LabelWidget2(lyr)
+        from eotimeseriesviewer.labeling import LabelDockWidget
+        # 1. check if this layer is already opened as dock widget
+        for d in self.ui.findChildren(LabelDockWidget):
+            assert isinstance(d, LabelDockWidget)
+            if d.vectorLayer() == lyr:
+                return
 
-        dock = QgsDockWidget()
-        dock.setWidget(w)
-        dock.setParent(self.ui)
+        # 2. create dock widget
+        from .labeling import LabelWidget
+        dock = LabelDockWidget(lyr)
+        dock.setVectorLayerTools(self.mVectorLayerTools)
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
 
 
@@ -1326,18 +1515,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             defDir = s.value('dir_datasources')
 
             filters = QgsProviderRegistry.instance().fileRasterFilters()
-            files, filter = QFileDialog.getOpenFileNames(directory=defDir, filter=filters)
+            files, filter = QFileDialog.getOpenFileNames(
+                directory=defDir,
+                filter=filters,
+                #options=QFileDialog.DontUseNativeDialog #none-native is too slow
+            )
 
             if len(files) > 0 and os.path.exists(files[0]):
                 dn = os.path.dirname(files[0])
                 s.setValue('dir_datasources', dn)
 
         if files:
-            progressDialog = self._createProgressDialog()
-            progressDialog.setRange(0, len(files))
-            progressDialog.setLabelText('Start loading {} images....'.format(len(files)))
-
-            self.mTimeSeries.addSources(files, progressDialog=progressDialog, runAsync=loadAsync)
+            self.mTimeSeries.addSources(files, runAsync=loadAsync)
 
 
     def clearTimeSeries(self):

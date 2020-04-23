@@ -54,10 +54,10 @@ class SensorDockUI(QgsDockWidget):
 
 
 class SensorTableModel(QAbstractTableModel):
-    def __init__(self, TS, parent=None, *args):
+    def __init__(self, timeSeries: TimeSeries, parent=None, *args):
 
         super(SensorTableModel, self).__init__()
-        assert isinstance(TS, TimeSeries)
+        assert isinstance(timeSeries, TimeSeries)
 
         # define column names
         self.mCN_Name = "Name"
@@ -70,7 +70,7 @@ class SensorTableModel(QAbstractTableModel):
         self.mColumNames = [self.mCN_Name, self.mCN_Band, self.mCN_Dates, self.mCN_Images,
                             self.mCN_WL, self.mCN_ID]
 
-        self.TS = TS
+        self.TS = timeSeries
 
         self.TS.sigSensorAdded.connect(self.addSensor)
         self.TS.sigSensorRemoved.connect(self.removeSensor)
@@ -216,6 +216,9 @@ class SensorTableModel(QAbstractTableModel):
 
         return b
 
+    def index(self, row:int , col: int, parent: QModelIndex=None):
+        return self.createIndex(row, col, self.mSensors[row])
+
     def flags(self, index):
         if index.isValid():
             columnName = self.mColumNames[index.column()]
@@ -235,15 +238,13 @@ class SensorTableModel(QAbstractTableModel):
             return col + 1
         return None
 
-
 class SensorListModel(QAbstractListModel):
 
-
-    def __init__(self, TS, parent=None, *args):
+    def __init__(self, timeSeries: TimeSeries, parent=None, *args):
 
         super(SensorListModel, self).__init__()
-        assert isinstance(TS, TimeSeries)
-        self.TS = TS
+        assert isinstance(timeSeries, TimeSeries)
+        self.TS = timeSeries
         self.TS.sigSensorAdded.connect(self.insertSensor)
         self.TS.sigSensorRemoved.connect(self.removeSensor)
 
@@ -253,14 +254,10 @@ class SensorListModel(QAbstractListModel):
         for s in self.TS.sensors():
             self.insertSensor(s)
 
-
-
     def insertSensor(self, sensor, i=None):
         assert isinstance(sensor, SensorInstrument)
-
         if i is None:
             i = len(self.mSensors)
-
             self.beginInsertRows(QModelIndex(), i, i)
             self.mSensors.insert(i, sensor)
             self.endInsertRows()

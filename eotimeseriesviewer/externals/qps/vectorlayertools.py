@@ -75,7 +75,7 @@ class VectorLayerTools(QgsVectorLayerTools):
 
     def deleteSelected(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.isEditable():
-            layer.deleteSelected()
+            layer.deleteSelectedFeatures()
 
     def invertSelection(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer):

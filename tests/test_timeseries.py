@@ -15,7 +15,6 @@ import xmlrunner
 class TestTimeSeries(EOTSVTestCase):
 
     def createTestDatasets(self):
-
         vsiDir = '/vsimem/tmp'
         from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
@@ -51,22 +50,47 @@ class TestTimeSeries(EOTSVTestCase):
                 band.Fill(decimalYear)
             ds.FlushCache()
             datasets.append(p)
-
-
-
-
-
         return datasets
 
-
     def createTimeSeries(self)->TimeSeries:
-
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
         TS = TimeSeries()
         self.assertIsInstance(TS, TimeSeries)
         TS.addSources(files)
         self.assertTrue(len(TS) > 0)
         return TS
+
+    def test_loadfromfile(self):
+        ts = TimeSeries()
+        import example
+        files = [example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA,
+                 example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
+                 example.Images.re_2014_06_25,
+                 example.Images.re_2014_08_20]
+        for f in files:
+            self.assertTrue(os.path.isfile(f))
+        ts.addSources(files, runAsync=False)
+        self.assertTrue(len(ts) == len(files))
+
+        # save time series, absolute paths
+        pathTSFileAbs = self.testOutputDirectory() / 'timeseries_abs.txt'
+        ts.saveToFile(pathTSFileAbs, relative_path=False)
+        self.assertTrue(os.path.isfile(pathTSFileAbs))
+
+        # save time series, relative paths
+        pathTSFileRel = self.testOutputDirectory() / 'timeseries_rel.txt'
+        ts.saveToFile(pathTSFileRel, relative_path=False)
+        self.assertTrue(os.path.isfile(pathTSFileRel))
+
+
+        # load time series
+        tsAbs = TimeSeries()
+        tsAbs.loadFromFile(pathTSFileAbs, runAsync=False)
+        self.assertTrue(len(tsAbs) == len(files))
+
+        tsRel = TimeSeries()
+        tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
+        self.assertTrue(len(tsRel) == len(files))
 
     def test_TimeSeriesDate(self):
 
@@ -152,7 +176,9 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertTrue(b)
             self.assertIsInstance(lyr, QgsRasterLayer)
             self.assertTrue(lyr.isValid())
-
+            self.assertEqual(lyr.width(), tss.ns)
+            self.assertEqual(lyr.height(), tss.nl)
+            self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())
 
         import pickle, json
 
@@ -354,7 +380,6 @@ class TestTimeSeries(EOTSVTestCase):
             band = ds.GetRasterBand(1)
             self.assertIsInstance(band, gdal.Band)
 
-
             tss = TimeSeriesSource(ds)
             self.assertIsInstance(tss, TimeSeriesSource)
             self.assertEqual(tss.mWLU, r'μm')
@@ -424,7 +449,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         self.assertIsInstance(sensor2.id(), str)
 
-        lyr = sensor.proxyLayer()
+        lyr = sensor.proxyRasterLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
 
     def test_datematching(self):
