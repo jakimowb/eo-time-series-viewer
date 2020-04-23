@@ -42,6 +42,7 @@ from eotimeseriesviewer import DIR_REPO, __version__
 
 CHECK_COMMITS = False
 
+
 ########## Config Section
 
 MD = QGISMetadataFileWriter()
@@ -84,7 +85,9 @@ def scantree(path, pattern=re.compile(r'.$')) -> typing.Iterator[pathlib.Path]:
             yield pathlib.Path(entry.path)
 
 
-def create_plugin(include_testdata: bool = False, include_qgisresources: bool = False):
+def create_plugin(include_testdata: bool = False,
+                  include_qgisresources: bool = False,
+                  zipfilename: str = None) -> str:
 
     assert (DIR_REPO / '.git').is_dir()
     DIR_DEPLOY = DIR_REPO / 'deploy'
@@ -103,7 +106,13 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
     BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
     BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
     PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
-    PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
+
+    if isinstance(zipfilename, str) and len(zipfilename) > 0:
+        if not zipfilename.endswith('.zip'):
+            zipfilename += '.zip'
+        PLUGIN_ZIP = DIR_DEPLOY / zipfilename
+    else:
+        PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
 
     if PLUGIN_DIR.is_dir():
         shutil.rmtree(PLUGIN_DIR)
@@ -188,6 +197,7 @@ def create_plugin(include_testdata: bool = False, include_qgisresources: bool = 
         #    cb.setText('\n'.join(info))
 
     print('Finished')
+    return PLUGIN_ZIP.as_posix()
 
 def rst2html(pathMD: pathlib.Path) -> str:
     """
@@ -250,7 +260,6 @@ def createCHANGELOG(dirPlugin:pathlib.Path):
         f.write(''.join(html_cleaned))
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Create EO Time Series Viewer Plugin')
     parser.add_argument('-q', '--qgisresources',
@@ -258,9 +267,15 @@ if __name__ == "__main__":
                         default=False,
                         help='Add qgisresources directory to plugin zip. This is only required for test environments',
                         action='store_true')
+    parser.add_argument('-z', '--zipfilename',
+                        required=False,
+                        default=None,
+                        type=str,
+                        help='final path of generated zipfile')
 
     args = parser.parse_args()
 
-    create_plugin(include_qgisresources=args.qgisresources)
+    path = create_plugin(include_qgisresources=args.qgisresources,
+                         zipfilename=args.zipfilename)
     exit(0)
 

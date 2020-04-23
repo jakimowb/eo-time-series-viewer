@@ -190,6 +190,7 @@
    <addaction name="actionZoomIn"/>
    <addaction name="actionZoomOut"/>
    <addaction name="actionZoomPixelScale"/>
+   <addaction name="mActionZoomToLayer"/>
    <addaction name="actionZoomFullExtent"/>
    <addaction name="optionMoveCenter"/>
   </widget>
@@ -887,6 +888,42 @@
    </property>
    <property name="toolTip">
     <string>Deselect selected features.</string>
+   </property>
+  </action>
+  <action name="mActionCopyLayerStyle">
+   <property name="text">
+    <string>Copy Layer Style</string>
+   </property>
+  </action>
+  <action name="mActionOpenTable">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionOpenTable.svg</normaloff>:/images/themes/default/mActionOpenTable.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Open Table</string>
+   </property>
+   <property name="toolTip">
+    <string>Opens the attribute table</string>
+   </property>
+  </action>
+  <action name="mActionZoomToLayer">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomToLayer.svg</normaloff>:/images/themes/default/mActionZoomToLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>ZoomToLayer</string>
+   </property>
+  </action>
+  <action name="mActionPasteLayerStyle">
+   <property name="text">
+    <string>Paste Layer Style</string>
+   </property>
+  </action>
+  <action name="mActionLayerProperties">
+   <property name="text">
+    <string>Properties...</string>
    </property>
   </action>
  </widget>

@@ -684,7 +684,7 @@ class MapCanvas(QgsMapCanvas):
             self.update()
             return
 
-        for lyr in self.mMapView.layers():
+        for lyr in self.mMapView.visibleLayers():
             assert isinstance(lyr, QgsMapLayer)
 
             if isinstance(lyr, SensorProxyLayer):
@@ -946,9 +946,7 @@ class MapCanvas(QgsMapCanvas):
         a.setEnabled(b)
         a.setToolTip('Copy the current layer style to clipboard')
         a.triggered.connect(lambda *args, lyr=refRasterLayer: pasteStyleToClipboard(lyr))
-
         a = menu.addAction('Paste Style')
-
 
         a.setEnabled(False)
         clipBoardMime = QApplication.clipboard().mimeData()
@@ -961,7 +959,6 @@ class MapCanvas(QgsMapCanvas):
 
         m = menu.addMenu('Layers...')
         visibleLayers = viewPortRasterLayers + viewPortVectorLayers
-
 
         for mapLayer in visibleLayers:
             #sub = m.addMenu(mapLayer.name())
@@ -1197,7 +1194,11 @@ class MapCanvas(QgsMapCanvas):
         se = self.spatialExtent()
         self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
 
-    def stretchToExtent(self, spatialExtent:SpatialExtent, stretchType='linear_minmax', layer:QgsRasterLayer=None, **stretchArgs):
+    def stretchToExtent(self,
+                        spatialExtent:SpatialExtent = None,
+                        stretchType='linear_minmax',
+                        layer:QgsRasterLayer = None,
+                        **stretchArgs):
         """
         :param spatialExtent: rectangle to get the image statistics for
         :param stretchType: ['linear_minmax' (default), 'gaussian']
@@ -1281,7 +1282,6 @@ class MapCanvas(QgsMapCanvas):
         elif isinstance(r, QgsPalettedRasterRenderer):
 
             newRenderer = r.clone()
-
 
         if newRenderer is not None:
 

@@ -298,6 +298,18 @@ class TestMapVisualization(EOTSVTestCase):
 
         self.assertEqual(0, bandClosestToWavelength(lyr, 'B'))
 
+    def test_mapview_context_menu(self):
+
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+
+        mv = eotsv.mapViews()[0]
+        self.assertIsInstance(mv, MapView)
+        for l in mv.layers():
+            eotsv.setCurrentLayer(l)
+            mv.mMapLayerTreeViewMenuProvider.createContextMenu()
+
     def test_renderer(self):
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')
 
@@ -364,7 +376,6 @@ class TestMapVisualization(EOTSVTestCase):
 
         print('Read style files')
         for path in styleFiles:
-
             with open(path, encoding='utf8') as f:
                 print(path)
                 xml = ''.join(f.readlines())

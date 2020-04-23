@@ -543,6 +543,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(self.ui.mActionSelectFeatures, QAction)
         initMapToolAction(self.ui.mActionAddFeature, MapTools.AddFeature)
 
+        self.ui.mActionZoomToLayer.triggered.connect(self.onZoomToLayer)
+
+
         self.ui.optionSelectFeaturesRectangle.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesPolygon.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesFreehand.triggered.connect(self.onSelectFeatureOptionTriggered)
@@ -817,17 +820,35 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def close(self):
         self.ui.close()
 
-    def actionZoomActualSize(self):
+    def actionCopyLayerStyle(self) -> QAction:
+        return self.ui.mActionCopyLayerStyle
+
+    def actionOpenTable(self) -> QAction:
+        return self.ui.mActionOpenTable
+
+    def actionZoomActualSize(self) -> QAction:
         return self.ui.actionZoomPixelScale
 
-    def actionZoomFullExtent(self):
+    def actionZoomFullExtent(self) -> QAction:
         return self.ui.actionZoomFullExtent
 
-    def actionZoomIn(self):
+    def actionZoomToLayer(self) -> QAction:
+        return self.ui.mActionZoomToLayer
+
+    def actionZoomIn(self) -> QAction:
         return self.ui.actionZoomIn
 
-    def actionZoomOut(self):
+    def actionZoomOut(self) -> QAction:
         return self.ui.actionZoomOut
+
+    def actionPasteLayerStyle(self) -> QAction:
+        return self.ui.mActionPasteLayerStyle
+
+    def actionLayerProperties(self) -> QAction:
+        return self.ui.mActionLayerProperties
+
+    def actionToggleEditing(self) -> QAction:
+        return self.ui.mActionToggleEditing
 
     def setCurrentLayer(self, layer:QgsMapLayer):
         self.mapWidget().setCurrentLayer(layer)
@@ -865,6 +886,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return: QgsMapLayerStore
         """
         return self.mMapLayerStore
+
+    def onZoomToLayer(self):
+
+        c = self.currentLayer()
+        if isinstance(c, QgsMapLayer):
+            self.setSpatialExtent(SpatialExtent.fromLayer(c))
 
     def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
         """
@@ -1378,10 +1405,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mTimeSeries
 
-    # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
-
         We implement this ourselves since we do not inherit QObject.
 
         :param message: String for translation.
@@ -1393,18 +1418,17 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('HUBTSV', message)
 
-
     def unload(self):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
-
 
     def updateCurrentLayerActions(self, *args):
         """
         Enables/disables actions and buttons that relate to the current layer and its current state
         """
-        debugLog('updateCurrentLayerActions')
+
         layer = self.currentLayer()
+        debugLog('updateCurrentLayerActions: {}'.format(str(layer)))
         isVector = isinstance(layer, QgsVectorLayer)
         hasSelectedFeatures = False
         for mv in self.mapViews():

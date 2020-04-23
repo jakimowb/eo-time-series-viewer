@@ -65,109 +65,6 @@ KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 def equalTextFormats(tf1:QgsTextFormat, tf2:QgsTextFormat) -> True:
     return tf1.toMimeData().text() == tf2.toMimeData().text()
 
-class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
-
-    def __init__(self, mapView, view: QgsLayerTreeView, canvas: QgsMapCanvas):
-        super(MapViewLayerTreeViewMenuProvider, self).__init__()
-        assert isinstance(view, QgsLayerTreeView)
-        assert isinstance(canvas, QgsMapCanvas)
-        self.mLayerTreeView = view
-        self.mDummyCanvas = canvas
-        self.mDefActions = QgsLayerTreeViewDefaultActions(self.mLayerTreeView)
-        self.mMapView = mapView
-
-        self.actionAddGroup = self.mDefActions.actionAddGroup()
-        self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
-        self.actionRemove = self.mDefActions.actionRemoveGroupOrLayer()
-        #self.actionZoomToLayer = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
-        self.actionCheckAndAllChildren = self.mDefActions.actionCheckAndAllChildren()
-        self.actionShowFeatureCount = self.mDefActions.actionShowFeatureCount()
-        #self.actionZoomToLayer = self.mDefActions.actionZoomToLayer(self.mDummyCanvas)
-        #self.actionZoomToSelected = self.mDefActions.actionZoomToSelection(self.mDummyCanvas)
-        #self.actionZoomToGroup = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
-        self.actionAddEOTSVSpectralProfiles = QAction('Add Spectral Profile Layer')
-
-        self.actionAddEOTSVTemporalProfiles = QAction('Add Temporal Profile Layer')
-
-    def mapView(self):
-        return self.mMapView
-
-    def layerTreeView(self) -> QgsLayerTreeView:
-        return self.mLayerTreeView
-
-    def layerTree(self) -> QgsLayerTree:
-        return self.layerTreeModel().rootGroup()
-
-    def layerTreeModel(self) -> QgsLayerTreeModel:
-        return self.layerTreeView().model()
-
-    def createContextMenu(self) -> QMenu:
-
-        model = self.layerTreeModel()
-        ltree = self.layerTree()
-        view = self.layerTreeView()
-        g = view.currentGroupNode()
-        l = view.currentLayer()
-        i = view.currentIndex()
-
-        menu = QMenu(view)
-        isSensorGroup = isinstance(g, QgsLayerTreeGroup) and g.customProperty(KEY_SENSOR_GROUP) in [True, 'true']
-
-        if isinstance(self.mapView(), MapView):isSensorLayer = isinstance(l, QgsRasterLayer) and l.customProperty(KEY_SENSOR_LAYER) in [True, 'true']
-        self.actionRemove.setEnabled(not (isSensorGroup or isSensorLayer))
-        self.actionAddGroup.setEnabled(not (isSensorGroup or isSensorLayer))
-        menu.addAction(self.actionAddGroup)
-        menu.addAction(self.actionRename)
-        menu.addAction(self.actionRemove)
-        menu.addSeparator()
-
-        menu.addAction(self.actionAddEOTSVSpectralProfiles)
-        menu.addAction(self.actionAddEOTSVTemporalProfiles)
-
-        menu.addSeparator()
-
-        centerCanvas = None
-        visibleCanvases = self.mapView().visibleMapCanvases()
-        if len(visibleCanvases) > 0:
-            i = int(len(visibleCanvases) / 2)
-            centerCanvas = visibleCanvases[i]
-
-        a = menu.addAction('Set Properties')
-        a.triggered.connect(lambda *args, canvas = centerCanvas, lyr = l: self.onSetLayerProperties(lyr, canvas))
-        a.setEnabled(isinstance(centerCanvas, MapCanvas))
-
-        if isinstance(l, QgsVectorLayer):
-            a = menu.addAction('Open Attribute Table')
-            a.triggered.connect(lambda *args, lyr=l: self.showAttributeTable(lyr))
-
-        from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
-        a = menu.addAction('Copy Style')
-        a.setToolTip('Copy the current layer style to clipboard')
-
-        a.triggered.connect(lambda *args, c=centerCanvas, lyr=l: pasteStyleToClipboard(lyr))
-
-        a = menu.addAction('Paste Style')
-        a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
-        a.triggered.connect(lambda *args, lyr=l: pasteStyleFromClipboard(lyr))
-
-        #a = menu.addAction('Settings')
-        #from qps.layerproperties import showLayerPropertiesDialog
-        #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
-
-        return menu
-
-    def showAttributeTable(self, lyr: QgsVectorLayer):
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
-        tsv = EOTimeSeriesViewer.instance()
-        if isinstance(tsv, EOTimeSeriesViewer):
-            tsv.showAttributeTable(lyr)
-        s = ""
-
-    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
-        if isinstance(canvas, MapCanvas):
-            canvas.onSetLayerProperties(lyr)
-
 class MapViewLayerTreeModel(QgsLayerTreeModel):
     """
     Layer Tree as shown in a MapView
@@ -251,8 +148,8 @@ class MapView(QFrame):
         self.mMapLayerTreeViewMenuProvider = MapViewLayerTreeViewMenuProvider(self, self.mLayerTreeView, self.mDummyCanvas)
 
         # register some actions that interact with other GUI elements
-        self.mMapLayerTreeViewMenuProvider.actionAddEOTSVSpectralProfiles.triggered.connect(self.addSpectralProfileLayer)
-        self.mMapLayerTreeViewMenuProvider.actionAddEOTSVTemporalProfiles.triggered.connect(self.addTemporalProfileLayer)
+        #self.mMapLayerTreeViewMenuProvider.actionAddEOTSVSpectralProfiles.triggered.connect(self.addSpectralProfileLayer)
+        #self.mMapLayerTreeViewMenuProvider.actionAddEOTSVTemporalProfiles.triggered.connect(self.addTemporalProfileLayer)
 
         self.mLayerTreeView.setMenuProvider(self.mMapLayerTreeViewMenuProvider)
         self.mLayerTreeView.currentLayerChanged.connect(self.setCurrentLayer)
@@ -271,7 +168,6 @@ class MapView(QFrame):
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
-
 
     def setName(self, name:str):
         self.setTitle(name)
@@ -345,14 +241,14 @@ class MapView(QFrame):
         :return:
         """
         assert layer is None or isinstance(layer, QgsMapLayer)
+        if layer in self.layers():
+            self.mLayerTreeView.setCurrentLayer(layer)
 
-        self.mCurrentLayer = layer
-
-        if layer not in self.mSensorLayerList:
-            for c in self.mapCanvases():
-                c.setCurrentLayer(layer)
-        else:
-            s = ""
+            if layer not in self.mSensorLayerList:
+                for c in self.mapCanvases():
+                    c.setCurrentLayer(layer)
+            else:
+                s = ""
 
 
 
@@ -437,6 +333,9 @@ class MapView(QFrame):
         :return: bool
         """
         return not self.actionToggleMapViewHidden.isChecked()
+
+    def mapWidget(self):
+        return self.mMapWidget
 
     def mapCanvases(self) -> typing.List[MapCanvas]:
         """
@@ -551,6 +450,16 @@ class MapView(QFrame):
         else:
             for mapCanvas in self.mapCanvases():
                 mapCanvas.setStyleSheet(styleOff)
+
+    def currentMapCanvas(self) -> MapCanvas:
+        if not isinstance(self.mMapWidget, MapWidget):
+            return None
+        canvases = sorted(self.mMapWidget.mapViewCanvases(self),
+                          key = lambda c: c.property(KEY_LAST_CLICKED))
+        if len(canvases) == 0:
+            return None
+        else:
+            return canvases[-1]
 
     def currentLayer(self) -> QgsMapLayer:
         """
@@ -676,6 +585,179 @@ class MapView(QFrame):
         """
         assert isinstance(sensor, SensorInstrument)
         return sensor in self.sensors()
+
+
+class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
+
+    def __init__(self, mapView, view: QgsLayerTreeView, canvas: QgsMapCanvas):
+        super(MapViewLayerTreeViewMenuProvider, self).__init__()
+        assert isinstance(view, QgsLayerTreeView)
+        assert isinstance(canvas, QgsMapCanvas)
+        self.mLayerTreeView: QgsLayerTreeView = view
+        self.mDummyCanvas: QgsMapCanvas = canvas
+        #self.mDefActions = QgsLayerTreeViewDefaultActions(self.mLayerTreeView)
+        self.mMapView: MapView = mapView
+        #self.actionAddGroup = self.mDefActions.actionAddGroup()
+        #self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
+        #self.actionRemove = self.mDefActions.actionRemoveGroupOrLayer()
+        #self.actionZoomToLayer = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
+        #self.actionCheckAndAllChildren = self.mDefActions.actionCheckAndAllChildren()
+        #self.actionShowFeatureCount = self.mDefActions.actionShowFeatureCount()
+        #self.actionZoomToLayer = self.mDefActions.actionZoomToLayer(self.mDummyCanvas)
+        #self.actionZoomToSelected = self.mDefActions.actionZoomToSelection(self.mDummyCanvas)
+        #self.actionZoomToGroup = self.mDefActions.actionZoomToGroup(self.mDummyCanvas)
+        #self.actionAddEOTSVSpectralProfiles = QAction('Add Spectral Profile Layer')
+        #self.actionAddEOTSVTemporalProfiles = QAction('Add Temporal Profile Layer')
+
+    def mapView(self) -> MapView:
+        return self.mMapView
+
+    def layerTreeView(self) -> QgsLayerTreeView:
+        return self.mLayerTreeView
+
+    def layerTree(self) -> QgsLayerTree:
+        return self.layerTreeModel().rootGroup()
+
+    def layerTreeModel(self) -> QgsLayerTreeModel:
+        return self.layerTreeView().model()
+
+    def onRemoveLayers(self):
+        selected = self.layerTreeView().selectedLayers()
+        for l in selected:
+            if not isinstance(l, SensorProxyLayer):
+                self.mapView().mLayerTree.removeLayer(l)
+
+    def onSetCanvasCRS(self):
+        s = ""
+        lyr = self.layerTreeView()
+
+
+    def onZoomToLayer(self, layer:QgsMapLayer):
+        extent = SpatialExtent.fromLayer(layer)
+        if isinstance(extent, SpatialExtent):
+            extent = extent.toCrs(self.mapView().mapWidget().crs())
+            self.mapView().mapWidget().setSpatialExtent(extent)
+
+    def onZoomActualSize(self):
+        current = self.mapView().currentLayer()
+        if isinstance(current, QgsRasterLayer):
+            s = ""
+
+    def onStretchToExtent(self):
+        current = self.mapView().currentLayer()
+        canvas = self.mapView().currentMapCanvas()
+        if not isinstance(canvas, MapCanvas):
+            return
+        if isinstance(current, SensorProxyLayer):
+
+            for l in canvas.layers():
+                if isinstance(l, SensorProxyLayer) and l.sensor() == current.sensor():
+                    canvas.stretchToExtent(layer=current)
+                    break
+
+        elif isinstance(current, QgsRasterLayer):
+            canvas.stretchToExtent(layer=current)
+
+    def createContextMenu(self) -> QMenu:
+
+
+        model = self.layerTreeModel()
+        ltree = self.layerTree()
+        view = self.layerTreeView()
+        currentGroup = view.currentGroupNode()
+        currentLayer = view.currentLayer()
+        currentCanvas = self.mapView().currentMapCanvas()
+        isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(KEY_SENSOR_GROUP) in [True, 'true']
+        isSensorLayer = isinstance(currentLayer, SensorProxyLayer)
+        mv = self.mapView().mapWidget()
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        eotsv = EOTimeSeriesViewer.instance()
+        if not isinstance(eotsv, EOTimeSeriesViewer):
+            return
+        menu = QMenu(view)
+        assert isinstance(mv, MapWidget)
+        if isinstance(currentLayer, QgsMapLayer):
+            # zoom to layer
+            menu.addAction(eotsv.actionZoomToLayer())
+
+            # rename layer
+            #
+
+            # zoom to native resolution
+            # in this case not using a map tool but the current layer
+            ref = eotsv.actionZoomActualSize()
+            a = menu.addAction(ref.text())
+            a.setIcon(ref.icon())
+            a.triggered.connect(self.onZoomActualSize)
+
+            if isinstance(currentLayer, QgsRasterLayer):
+                a = menu.addAction('&Stretch Using Current Extent')
+                a.triggered.connect(self.onStretchToExtent)
+
+            # ----
+            menu.addSeparator()
+            a = menu.addAction('Add Spectral Library Layer')
+            a.triggered.connect(self.mapView().addSpectralProfileLayer)
+
+            a = menu.addAction('Add Temporal Profile Layer')
+            a.triggered.connect(self.mapView().addTemporalProfileLayer)
+
+            # ----
+            menu.addSeparator()
+            # duplicate layer
+            # remove layer
+
+            a = menu.addAction('Remove layer')
+            a.setToolTip('Remove layer(s)')
+            a.triggered.connect(self.onRemoveLayers)
+
+            menu.addSeparator()
+            if isinstance(currentLayer, QgsVectorLayer):
+                menu.addAction(eotsv.actionOpenTable())
+                menu.addAction(eotsv.actionToggleEditing())
+
+            if isinstance(currentLayer, QgsRasterLayer) and not isinstance(currentLayer, SensorProxyLayer):
+
+                pass
+
+            menu.addSeparator()
+            # ----------
+            # set CRS
+            action = menu.addAction('Set layer CRS to map canvas')
+            action.triggered.connect(self.onSetCanvasCRS)
+
+            # ----
+            # Export...
+            # ------
+            menu.addSeparator()
+            # Styles...
+            menu.addAction(eotsv.actionPasteLayerStyle())
+            menu.addAction(eotsv.actionCopyLayerStyle())
+
+            # Properties
+            menu.addAction(eotsv.actionLayerProperties())
+            menu.addSeparator()
+
+
+        menu.addSeparator()
+        return menu
+
+    def vectorLayerTools(self) -> VectorLayerTools:
+
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        return EOTimeSeriesViewer.instance().mVectorLayerTools
+
+    def showAttributeTable(self, lyr: QgsVectorLayer):
+
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        tsv = EOTimeSeriesViewer.instance()
+        if isinstance(tsv, EOTimeSeriesViewer):
+            tsv.showAttributeTable(lyr)
+        s = ""
+
+    def onSetLayerProperties(self, lyr:QgsRasterLayer, canvas:QgsMapCanvas):
+        if isinstance(canvas, MapCanvas):
+            canvas.onSetLayerProperties(lyr)
 
 class MapViewListModel(QAbstractListModel):
     """

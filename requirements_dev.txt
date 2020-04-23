@@ -10,7 +10,7 @@
 
 gitpython
 git-lfs
-pb_tool
+
 recommonmark
 docutils
 sphinx
