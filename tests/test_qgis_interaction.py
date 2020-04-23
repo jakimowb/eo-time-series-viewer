@@ -46,6 +46,12 @@ class TestQGISInteraction(EOTSVTestCase):
 
     """
 
+    def setUp(self):
+
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.close()
+            QApplication.processEvents()
 
     def test_syncExtents(self):
 
@@ -122,7 +128,6 @@ class TestQGISInteraction(EOTSVTestCase):
         self.showGui(TSV)
 
         TSV.close()
-
 
 
 if __name__ == '__main__':

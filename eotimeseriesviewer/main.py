@@ -815,8 +815,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(files) > 0:
                 self.addTimeSeriesImages(files)
 
-
-
     def close(self):
         self.ui.close()
 

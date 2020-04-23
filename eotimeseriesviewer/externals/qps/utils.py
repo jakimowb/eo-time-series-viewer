@@ -1210,12 +1210,13 @@ def layerGeoTransform(rasterLayer:QgsRasterLayer) -> typing.Tuple[float, float, 
                 0, -1 * rasterLayer.rasterUnitsPerPixelY())
     return gt
 
-def px2geo(px:QPoint, gt, pxCenter=True) -> QgsPointXY:
+def px2geo(px:QPoint, gt, pxCenter: bool = True) -> QgsPointXY:
     """
     Converts a pixel coordinate into a geo-coordinate
     :param px: QPoint() with pixel coordinates
     :param gt: geo-transformation
-    :param pxCenter: True to return geo-coordinate of pixel center, False to return upper-left edge
+    :param pxCenter: True (default) to return geo-coordinate of pixel center,
+                     False to return the pixel's upper-left edge.
     :return:
     """
 
@@ -1427,7 +1428,7 @@ class SpatialExtent(QgsRectangle):
     @staticmethod
     def world():
         crs = QgsCoordinateReferenceSystem('EPSG:4326')
-        ext = QgsRectangle(-180,-90,180,90)
+        ext = QgsRectangle(-180, -90, 180, 90)
         return SpatialExtent(crs, ext)
 
     @staticmethod
@@ -1442,7 +1443,7 @@ class SpatialExtent(QgsRectangle):
         yValues = []
         for x in [0, ns]:
             for y in [0, nl]:
-                px = px2geo(QPoint(x,y), gt)
+                px = px2geo(QPoint(x,y), gt, pxCenter=False)
                 xValues.append(px.x())
                 yValues.append(px.y())
 

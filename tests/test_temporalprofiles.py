@@ -87,6 +87,7 @@ class TestTemporalProfiles(EOTSVTestCase):
 
         ds = tss.asDataset()
 
+        px_size_x, px_size_y = tss.rasterUnitsPerPixelX(), tss.rasterUnitsPerPixelY()
         # convert points to pixel coordinates
         px, py = geometryToPixel(ds, center)
         self.assertEqual(len(px), len(py))
@@ -94,12 +95,14 @@ class TestTemporalProfiles(EOTSVTestCase):
         self.assertEqual(py, [int(0.5 * ds.RasterYSize)])
 
         # no pixel-coordinate for out of bounds points :
+
         oobPoints = [
-            QgsPointXY(extent.xMinimum() - 0.5, center.y()),
-            QgsPointXY(center.x(), extent.yMaximum() + 0.5),
-            QgsPointXY(center.x(), extent.yMinimum() - 0.5),
-            QgsPointXY(extent.xMaximum() + 0.5, center.y())
+            QgsPointXY(extent.xMinimum() - 0.5 * px_size_x, center.y()),
+            QgsPointXY(center.x(), extent.yMaximum() + 0.5 * px_size_y),
+            QgsPointXY(center.x(), extent.yMinimum() - 0.5 * px_size_y),
+            QgsPointXY(extent.xMaximum() + 0.5 * px_size_x, center.y())
         ]
+
         for oobPt in oobPoints:
             px, py = geometryToPixel(ds, oobPt)
             self.assertEqual(len(px), len(py))

@@ -31,9 +31,17 @@ import unittest, tempfile
 
 from eotimeseriesviewer.stackedbandinput import *
 from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
-
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 
 class TestStackedInputs(EOTSVTestCase):
+
+    def setUp(self):
+
+        eotsv = EOTimeSeriesViewer.instance()
+        if isinstance(eotsv, EOTimeSeriesViewer):
+            eotsv.close()
+            QApplication.processEvents()
+
 
     def createTestDatasets(self):
 

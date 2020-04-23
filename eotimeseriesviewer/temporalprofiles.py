@@ -147,6 +147,7 @@ def geometryToPixel(ds:gdal.Dataset, geometry: QgsGeometry) -> typing.Tuple[list
     else:
         gt = ds.GetGeoTransform()
         bounds = SpatialExtent.fromRasterSource(ds)
+
         if geometry.boundingBoxIntersects(bounds):
             if geometry.type() == QgsWkbTypes.PointGeometry:
                 px = geo2px(QgsPointXY(geometry.asQPointF()), gt)
