@@ -856,7 +856,6 @@ class TemporalProfileLayer(QgsVectorLayer):
         if len(features) == 0:
             return []
 
-        b = self.isEditable()
         self.startEditing()
 
         newFeatures = []
@@ -867,7 +866,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.beginEditCommand('Add {} profile locations'.format(len(features)))
         self.addFeatures(features)
         self.endEditCommand()
-        self.saveEdits(leaveEditable=b)
+        self.saveEdits(leaveEditable=True)
         self.committedFeaturesAdded.disconnect(onFeaturesAdded)
 
         assert self.featureCount() == len(self.mProfiles)

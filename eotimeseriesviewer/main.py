@@ -544,7 +544,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         initMapToolAction(self.ui.mActionAddFeature, MapTools.AddFeature)
 
         self.ui.mActionZoomToLayer.triggered.connect(self.onZoomToLayer)
-
+        self.ui.mActionOpenTable.triggered.connect(self.onOpenTable)
 
         self.ui.optionSelectFeaturesRectangle.triggered.connect(self.onSelectFeatureOptionTriggered)
         self.ui.optionSelectFeaturesPolygon.triggered.connect(self.onSelectFeatureOptionTriggered)
@@ -884,6 +884,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return: QgsMapLayerStore
         """
         return self.mMapLayerStore
+
+    def onOpenTable(self):
+        c = self.currentLayer()
+        if isinstance(c, QgsVectorLayer):
+            self.showAttributeTable(c)
 
     def onZoomToLayer(self):
 
