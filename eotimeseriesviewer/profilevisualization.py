@@ -176,7 +176,6 @@ class TemporalProfilePlotStyle(PlotStyle):
         return self.mTP
 
     def setTemporalProfile(self, temporalPofile: TemporalProfile):
-
         b = temporalPofile != self.mTP
         self.mTP = temporalPofile
         if temporalPofile in [None, QVariant()]:
@@ -409,21 +408,19 @@ class PlotSettingsModel(QAbstractTableModel):
                 [Qt.EditRole, Qt.DisplayRole]
             )
 
-    def onTemporalProfilesUpdated(self, temporalProfiles:typing.List[TemporalProfile], sensor:SensorInstrument):
+    def onTemporalProfilesUpdated(self, temporalProfiles:typing.List[TemporalProfile]):
 
         col = self.columnNames.index(self.cnTemporalProfile)
 
         for row, plotStyle in enumerate(self):
             assert isinstance(row, int)
             assert isinstance(plotStyle, TemporalProfilePlotStyle)
-            if plotStyle.temporalProfile() in temporalProfiles and \
-                plotStyle.sensor() == sensor:
+            if plotStyle.temporalProfile() in temporalProfiles:
                 self.dataChanged.emit(
                     self.index(row, col),
                     self.index(row, col),
                     [Qt.EditRole]
                 )
-        s = ""
 
     def setCurrentProfile(self, tp: TemporalProfile):
 
@@ -431,18 +428,7 @@ class PlotSettingsModel(QAbstractTableModel):
         col = self.columnNames.index(self.cnTemporalProfile)
         for row, plotStyle in enumerate(self):
             if plotStyle.showLastLocation():
-                plotStyle.setTemporalProfile(tp)
-                if rowMin is None:
-                    rowMin = row
-                rowMax = row
-
-        # inform about changes
-        if isinstance(rowMin, int):
-            self.dataChanged.emit(
-                self.index(rowMin, col),
-                self.index(rowMax, col),
-                [Qt.DisplayRole, Qt.EditRole]
-            )
+                self.setData(self.index(row, col), tp, Qt.EditRole)
 
     def __len__(self):
         return len(self.mPlotSettings)
@@ -758,6 +744,16 @@ class PlotSettingsTableView(QTableView):
             m = menu.addMenu('Set Band...')
             m.setEnabled(has_wavelength)
 
+            a = m.addAction('Blue Band')
+            a.setToolTip('Show values of blue band (band closest to {} nm'.format(LUT_WAVELENGTH['B']))
+            a.triggered.connect(lambda *args, exp='<B>':
+                                self.onSetExpression(exp))
+
+            a = m.addAction('Green Band')
+            a.setToolTip('Show values of green band (band closest to {} nm'.format(LUT_WAVELENGTH['G']))
+            a.triggered.connect(lambda *args, exp='<G>':
+                                self.onSetExpression(exp))
+
             a = m.addAction('Red Band')
             a.setToolTip('Show values of red band (band closest to {} nm'.format(LUT_WAVELENGTH['R']))
             a.triggered.connect(lambda *args, exp='<R>':
@@ -769,17 +765,18 @@ class PlotSettingsTableView(QTableView):
             a.triggered.connect(lambda *args, exp='<NIR>':
                                        self.onSetExpression(exp))
 
-            m = menu.addMenu('Set Index...')
             a = m.addAction('SWIR1 Band')
-            a.setToolTip('Show values of shortwave infrared band closest to {} nm'.format(LUT_WAVELENGTH['SWIR1']))
-            a.triggered.connect(lambda *args, exp='<SWIR1>': self.onSetExpression(exp))
+            a.setToolTip('Show values of SWIR 1 band (band closest to {} nm'.format(LUT_WAVELENGTH['SWIR1']))
+            a.triggered.connect(lambda *args, exp='<SWIR1>':
+                                self.onSetExpression(exp))
 
-            m.setEnabled(has_wavelength)
             a = m.addAction('SWIR2 Band')
-            a.setToolTip('Show values of shortwave infrared band closest to {} nm'.format(LUT_WAVELENGTH['SWIR2']))
-            a.triggered.connect(lambda *args, exp='<SWIR2>': self.onSetExpression(exp))
+            a.setToolTip('Show values of SWIR 2 band (band closest to {} nm'.format(LUT_WAVELENGTH['SWIR2']))
+            a.triggered.connect(lambda *args, exp='<SWIR2>':
+                                self.onSetExpression(exp))
 
-            m.addSeparator()
+            m = menu.addMenu('Set Index...')
+
             a = m.addAction('NDVI')
             a.setToolTip('Calculate the Normalized Difference Vegetation Index (NDVI)')
             a.triggered.connect(lambda *args, exp='(<NIR>-<R>)/(<NIR>+<R>)': self.onSetExpression(exp))
@@ -1075,10 +1072,12 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
                     return
                 fid = idValues[0]
                 if isinstance(fid, int):
+
                     # once set manually, do not update to last temporal profile any more
                     oldStyle = index.data(role=Qt.UserRole)
                     if isinstance(oldStyle, TemporalProfilePlotStyle):
                         oldStyle.mShowLastLocation = False
+
                     TP = self.mTemporalProfileLayer.mProfiles.get(fid)
                     model.setData(index, TP, Qt.EditRole)
 

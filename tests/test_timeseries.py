@@ -92,6 +92,43 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
+    def test_overlapp(self):
+
+        import example
+
+        tss = TimeSeriesSource(example.exampleNoDataImage)
+        self.assertIsInstance(tss, TimeSeriesSource)
+
+        overlapped = []
+        def onOverlapp(overlapp:dict):
+            for tss, is_overlapp in overlapp.items():
+                self.assertIsInstance(tss, TimeSeriesSource)
+                self.assertIsInstance(is_overlapp, bool)
+
+                overlapped.append(is_overlapp)
+
+        ext_full = tss.spatialExtent()
+        ext_nodata = SpatialExtent(ext_full.crs(),
+                                   ext_full.xMinimum(),
+                                   ext_full.yMinimum(),
+                                   ext_full.xMinimum() + 4 * 30,
+                                   ext_full.yMaximum())
+
+        ext_outofbounds = SpatialExtent(ext_full.crs(),
+                                        ext_full.xMinimum() - 100,
+                                        ext_full.yMinimum(),
+                                        ext_full.xMinimum() - 10,
+                                        ext_full.yMaximum())
+
+        for ext in [ext_full, ext_nodata, ext_outofbounds]:
+            task = TimeSeriesFindOverlapTask(ext, [tss])
+            task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
+            task.run()
+
+        self.assertListEqual(overlapped, [True, False, False])
+
+        s = ""
+
     def test_TimeSeriesDate(self):
 
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA

@@ -417,13 +417,14 @@ class MapCanvas(QgsMapCanvas):
         self.mapCanvasRefreshed.connect(onMapCanvasRefreshed)
 
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        bg = eotimeseriesviewer.settings.value(eotimeseriesviewer.settings.Keys.MapBackgroundColor, default=QColor(0, 0, 0))
+        bg = eotimeseriesviewer.settings.value(
+            eotimeseriesviewer.settings.Keys.MapBackgroundColor, default=QColor(0, 0, 0))
         self.setCanvasColor(bg)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-        self.extentsChanged.connect(lambda : self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+        self.extentsChanged.connect(lambda *args: self.sigSpatialExtentChanged.emit(self.spatialExtent()))
 
-        self.destinationCrsChanged.connect(lambda : self.sigDestinationCrsChanged.emit(self.crs()))
+        self.destinationCrsChanged.connect(lambda *args: self.sigDestinationCrsChanged.emit(self.crs()))
 
     def userInputWidget(self) -> QgsUserInputWidget:
         """
@@ -431,7 +432,6 @@ class MapCanvas(QgsMapCanvas):
         :return: QgsUserInputWidget
         """
         return self.mUserInputWidget
-
 
     def infoItem(self) -> MapCanvasInfoItem:
         """
@@ -573,7 +573,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mTSD
 
-    def setSpatialExtent(self, extent:SpatialExtent):
+    def setSpatialExtent(self, extent: SpatialExtent):
         """
         Sets the spatial extent
         :param extent: SpatialExtent
@@ -582,7 +582,7 @@ class MapCanvas(QgsMapCanvas):
         extent = extent.toCrs(self.crs())
         self.setExtent(extent)
 
-    def setSpatialCenter(self, center:SpatialPoint):
+    def setSpatialCenter(self, center: SpatialPoint):
         """
         Sets the SpatialCenter
         :param center: SpatialPoint
@@ -600,7 +600,7 @@ class MapCanvas(QgsMapCanvas):
         if self.size() != size:
             super(MapCanvas, self).setFixedSize(size)
 
-    def setCrs(self, crs:QgsCoordinateReferenceSystem):
+    def setCrs(self, crs: QgsCoordinateReferenceSystem):
         """
         Sets the
         :param crs:
@@ -847,7 +847,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.grab()
 
-    def contextMenu(self, pos:QPoint) -> QMenu:
+    def contextMenu(self, pos: QPoint) -> QMenu:
         """
         Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
@@ -935,8 +935,6 @@ class MapCanvas(QgsMapCanvas):
             action = m.addAction('Gaussian')
             action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
 
-
-
         menu.addSeparator()
 
         from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
@@ -982,7 +980,7 @@ class MapCanvas(QgsMapCanvas):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
 
             a = sub.addAction('Properties...')
-            a.triggered.connect(lambda *args, lyr = mapLayer: self.onSetLayerProperties(lyr))
+            a.triggered.connect(lambda *args, lyr=mapLayer: self.onSetLayerProperties(lyr))
 
 
             a = sub.addAction('Zoom to Layer')
@@ -1130,8 +1128,9 @@ class MapCanvas(QgsMapCanvas):
 
             ts = eotsv.timeSeries()
 
-            action = menu.addAction('Focus on Spatial Extent')
-            action.triggered.connect(ts.focusVisibilityToExtent)
+            action = menu.addAction('Focus to Spatial Extent')
+            action.setToolTip('Sets the image visibility on True for images with valid pixels in the current extent.')
+            action.triggered.connect(lambda *args, ext=self.spatialExtent(): ts.focusVisibilityToExtent(ext=ext))
 
             action = menu.addAction('Hide Date')
             action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))
@@ -1144,7 +1143,7 @@ class MapCanvas(QgsMapCanvas):
     def onSetLayerProperties(self, lyr:QgsRasterLayer):
         # b = isinstance(mapLayer, SensorProxyLayer) == False:
 
-        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
+        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=False)
 
         if result == QDialog.Accepted and isinstance(lyr, SensorProxyLayer):
             r = lyr.renderer().clone()
@@ -1187,25 +1186,26 @@ class MapCanvas(QgsMapCanvas):
                     lqgis = iface.addVectorLayer(l.source(), l.name(), 'ogr')
                     lqgis.setRenderer(l.renderer().clone())
 
-    def stretchToCurrentExtent(self):
+    def stretchToCurrentExtent(self) -> bool:
         """
         Stretches the top-raster layer band to the current spatial extent
+        return: True, if a QgsRasterLayer was found to perform the stretch
         """
         se = self.spatialExtent()
-        self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
+        return self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
 
     def stretchToExtent(self,
                         spatialExtent:SpatialExtent = None,
                         stretchType='linear_minmax',
                         layer:QgsRasterLayer = None,
-                        **stretchArgs):
+                        **stretchArgs) -> bool:
         """
         :param spatialExtent: rectangle to get the image statistics for
         :param stretchType: ['linear_minmax' (default), 'gaussian']
         :param stretchArgs:
             linear_minmax: 'p'  percentage from min/max, e.g. +- 5 %
             gaussian: 'n' mean +- n* standard deviations
-        :return:
+        :return: True, if a QgsRasterLayer was found to perform the stretch
         """
         if not isinstance(layer, QgsRasterLayer):
             layers = [l for l in self.layers() if isinstance(l, SensorProxyLayer)]
@@ -1289,7 +1289,6 @@ class MapCanvas(QgsMapCanvas):
                 self.mMapView.sensorProxyLayer(layer.sensor()).setRenderer(newRenderer)
             elif isinstance(layer, QgsRasterLayer):
                 layer.setRenderer(newRenderer)
-
 
     def saveMapImageDialog(self, fileType):
         """

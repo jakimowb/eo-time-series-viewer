@@ -90,9 +90,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         px_size_x, px_size_y = tss.rasterUnitsPerPixelX(), tss.rasterUnitsPerPixelY()
         # convert points to pixel coordinates
         px, py = geometryToPixel(ds, center)
-        self.assertEqual(len(px), len(py))
-        self.assertEqual(px, [int(0.5 * ds.RasterXSize)])
-        self.assertEqual(py, [int(0.5 * ds.RasterYSize)])
 
         # no pixel-coordinate for out of bounds points :
 
@@ -141,6 +138,7 @@ class TestTemporalProfiles(EOTSVTestCase):
     def test_temporalProfileLayer(self):
 
         lyr1 = TemporalProfileLayer()
+        self.assertTrue(lyr1.crs().isValid())
         lyr1.setTimeSeries(self.TS)
 
         extent = self.TS.maxSpatialExtent()
@@ -158,40 +156,20 @@ class TestTemporalProfiles(EOTSVTestCase):
         tp1, tp2, tp3 = tps
         self.assertTrue(len(list(lyr1.getFeatures())) == lyr1.featureCount())
 
-        def onLoaded(results):
-            self.assertIsInstance(results, list)
-            for r in results:
-                self.assertIsInstance(r, TemporalProfileLoaderTaskResult)
-                self.assertTrue(r.mTSD in lyr1.timeSeries())
-                s = ""
+        def onLoaded(results, task):
+            self.assertIsInstance(results, bool)
+            self.assertIsInstance(task, QgsTask)
 
-        def onUpdated(profiles, sensor):
-            self.assertIsInstance(sensor, SensorInstrument)
-            self.assertTrue(sensor in lyr1.timeSeries().sensors())
+        def onUpdated(profiles):
+            self.assertIsInstance(profiles, list)
             for p in profiles:
                 self.assertIsInstance(p, TemporalProfile)
                 self.assertTrue(p in lyr1)
         # load data
         lyr1.sigTemporalProfilesUpdated.connect(onUpdated)
-        task = TemporalProfileLoaderTask(lyr1)
-        task.sigProfilesLoaded.connect(onLoaded)
-        task.run()
+        task = TemporalProfileLoaderTask(lyr1, callback=onLoaded)
+        task.finished(task.run())
 
-        lyr1.loadMissingBandInfos(run_async=False)
-
-        updated_sensors = set()
-        updated_profiles = set()
-
-        def onUpdated(profiles, sensor):
-            self.assertIsInstance(profiles, list)
-            self.assertIsInstance(sensor, SensorInstrument)
-            for p in profiles:
-                self.assertIsInstance(p, TemporalProfile)
-                self.assertTrue(p in lyr1.mProfiles.values())
-            updated_profiles.update(profiles)
-            updated_sensors.update([sensor])
-
-        lyr1.sigTemporalProfilesUpdated.connect(onUpdated)
         lyr1.loadMissingBandInfos(run_async=False)
 
     def test_expressions(self):

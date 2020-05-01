@@ -14,7 +14,7 @@ from qgis.PyQt import uic
 from osgeo import gdal, ogr
 import numpy as np
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QDialogButtonBox, QLabel, QGridLayout, QMainWindow
-
+from . import DIR_UI_FILES
 # dictionary to store form classes and avoid multiple calls to read <myui>.ui
 QGIS_RESOURCE_WARNINGS = set()
 
@@ -1029,48 +1029,93 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     except:
         pass
 
+    def checkWavelengthUnit(key:str, value:str) -> str:
+        wlu = None
+        if re.search(r'wavelength.units?', key, re.I):
+            if re.search(r'(Micrometers?|um|μm)', values, re.I):
+                wlu = 'μm'  # fix with python 3 UTF
+            elif re.search(r'(Nanometers?|nm)', values, re.I):
+                wlu = 'nm'
+            elif re.search(r'(Millimeters?|mm)', values, re.I):
+                wlu = 'nm'
+            elif re.search(r'(Centimeters?|cm)', values, re.I):
+                wlu = 'nm'
+            elif re.search(r'(Meters?|m)', values, re.I):
+                wlu = 'nm'
+            elif re.search(r'Wavenumber', values, re.I):
+                wlu = '-'
+            elif re.search(r'GHz', values, re.I):
+                wlu = 'GHz'
+            elif re.search(r'MHz', values, re.I):
+                wlu = 'MHz'
+            elif re.search(r'(Date|DTG|DateTimeGroup|DateStamp|TimeStamp)', values, re.I):
+                wlu = 'DateTime'
+            elif re.search(r'Index', values, re.I):
+                wlu = None
+            else:
+                wlu = None
+        return wlu
+
+    def checkWavelength(key: str, values:str):
+        wl = None
+        if re.search(r'wavelengths?$', key, re.I):
+            # remove trailing / ending { } and whitespace
+            values = re.sub('[{}]', '', values).strip()
+            if ',' not in values:
+                sep = ' '
+            else:
+                sep = ','
+            try:
+                wl = np.fromstring(values, sep=sep)
+            except Exception as ex:
+                pass
+        return wl
+
     if isinstance(dataset, gdal.Dataset):
-        for domain in dataset.GetMetadataDomainList():
-            # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+        # 1. check on dataset level
+        domains = dataset.GetMetadataDomainList()
+        if isinstance(domains, list):
+            for domain in domains:
+                # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
 
-            mdDict = dataset.GetMetadata_Dict(domain)
+                mdDict = dataset.GetMetadata_Dict(domain)
 
-            for key, values in mdDict.items():
-                key = key.lower()
-                if re.search(r'wavelength$', key, re.I):
-                    tmp = re.findall(r'\d*\.\d+|\d+', values)  # find floats
-                    if len(tmp) != dataset.RasterCount:
-                        tmp = re.findall(r'\d+', values)  # find integers
-                    if len(tmp) == dataset.RasterCount:
-                        wl = np.asarray([float(w) for w in tmp])
-                    if wl is None and len(tmp) > 0 and len(tmp) != dataset.RasterCount:
-                        print('Wavelength definition in "{}" contains {} instead {} values'
-                              .format(key, len(tmp), dataset.RasterCount), file=sys.stderr)
+                for key, values in mdDict.items():
+                    if wl is None:
+                        wl = checkWavelength(key, values)
+                    if wlu is None:
+                        wlu = checkWavelengthUnit(key, values)
+                    if wl is not None and wlu is not None:
+                        break
 
-                if re.search(r'wavelength.units?', key):
-                    if re.search(r'(Micrometers?|um|μm)', values, re.I):
-                        wlu = 'μm'  # fix with python 3 UTF
-                    elif re.search(r'(Nanometers?|nm)', values, re.I):
-                        wlu = 'nm'
-                    elif re.search(r'(Millimeters?|mm)', values, re.I):
-                        wlu = 'nm'
-                    elif re.search(r'(Centimeters?|cm)', values, re.I):
-                        wlu = 'nm'
-                    elif re.search(r'(Meters?|m)', values, re.I):
-                        wlu = 'nm'
-                    elif re.search(r'Wavenumber', values, re.I):
-                        wlu = '-'
-                    elif re.search(r'GHz', values, re.I):
-                        wlu = 'GHz'
-                    elif re.search(r'MHz', values, re.I):
-                        wlu = 'MHz'
-                    elif re.search(r'Index', values, re.I):
-                        wlu = '-'
-                    else:
-                        wlu = '-'
+        if wl is not None and wlu is not None:
+            if len(wl) > dataset.RasterCount:
+                wl = wl[0:dataset.RasterCount]
+            return wl, wlu
 
-        if wl is not None and len(wl) > dataset.RasterCount:
-            wl = wl[0:dataset.RasterCount]
+        # 2. check on band level
+        wl = []
+        for b in range(dataset.RasterCount):
+            band: gdal.Band = dataset.GetRasterBand(b+1)
+            domains = band.GetMetadataDomainList()
+            if isinstance(domains, list):
+                for domain in domains:
+                    # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+                    mdDict = band.GetMetadata_Dict(domain)
+                    _wl = None
+                    for key, values in mdDict.items():
+                        if wlu is None:
+                            wlu = checkWavelengthUnit(key, values)
+                        if _wl is None:
+                            _wl = checkWavelength(key, values)
+                    if wlu and _wl:
+                        wl.append(_wl[0])
+                        break
+
+        if len(wl) == 0:
+            wl = None
+        else:
+            wl = np.asarray(wl)
 
     return wl, wlu
 
@@ -1638,6 +1683,27 @@ def setToolButtonDefaultActionMenu(toolButton:QToolButton, actions:list):
     menu.triggered.connect(toolButton.setDefaultAction)
     toolButton.setMenu(menu)
 
+class SearchFilesDialog(QgsDialog):
+    """
+    A dialog to select multiple files
+    """
+    sigFilesFound = pyqtSignal(list)
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        loadUi(DIR_UI_FILES / 'searchfilesdialog.ui', self)
+
+        self.btnMatchCase.setDefaultAction(self.optionMatchCase)
+        self.btnRegex.setDefaultAction(self.optionRegex)
+        self.btnRecursive.setDefaultAction(self.optionRecursive)
+        self.plainTextEdit: QPlainTextEdit
+
+
+
+
+    def validate(self):
+
+        s = ""
 
 
 class SelectMapLayersDialog(QgsDialog):

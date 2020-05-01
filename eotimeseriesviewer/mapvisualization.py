@@ -47,7 +47,7 @@ from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProx
 from .utils import loadUi
 from .mapviewscrollarea import MapViewScrollArea
 from .mapcanvas import MapCanvas, MapTools, MapCanvasInfoItem, MapCanvasMapTools, KEY_LAST_CLICKED
-
+from eotimeseriesviewer import debugLog
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 from .externals.qps.maptools import *
@@ -95,6 +95,8 @@ class MapView(QFrame):
         self.mMapBackgroundColor = DEFAULT_VALUES[Keys.MapBackgroundColor]
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mMapWidget = None
+
+        self.mInitialStretch: typing.Dict[SensorInstrument, bool] = dict()
 
         self.mTimeSeries = None
         self.mSensorLayerList = list()
@@ -530,11 +532,13 @@ class MapView(QFrame):
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
             layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
             self.mSensorLayerList.append((sensor, dummyLayer))
+            self.mInitialStretch[sensor] = False
 
-    def onSensorRendererChanged(self, sensor:SensorInstrument):
+    def onSensorRendererChanged(self, sensor: SensorInstrument):
         for c in self.sensorCanvases(sensor):
             assert isinstance(c, MapCanvas)
             c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
+        self.mInitialStretch[sensor] = True
 
     def sensorCanvases(self, sensor:SensorInstrument) -> list:
         """
@@ -568,6 +572,9 @@ class MapView(QFrame):
         :param sensor:
         :return:
         """
+
+        self.mInitialStretch.pop(sensor)
+
         toRemove = []
         for t in self.mSensorLayerList:
             if t[0] == sensor:
@@ -925,7 +932,6 @@ class MapWidget(QFrame):
         self.mCanvasSignals = dict()
         self.mTimeSeries = None
 
-
         self.mMapToolKey = MapTools.Pan
 
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
@@ -987,8 +993,6 @@ class MapWidget(QFrame):
     def mapTextFormat(self) -> QgsTextFormat:
         return self.mMapTextFormat
 
-
-
     def setMapTool(self, mapToolKey:MapTools):
 
         if self.mMapToolKey != mapToolKey:
@@ -1004,7 +1008,6 @@ class MapWidget(QFrame):
         Returns the list of currently shown TimeSeriesDates.
         :return: [list-of-TimeSeriesDates]
         """
-
         for mv in self.mMapViews:
             tsds = []
             for c in self.mCanvases[mv]:
@@ -1021,18 +1024,22 @@ class MapWidget(QFrame):
         """
         return self.mSpatialExtent
 
-    def setSpatialExtent(self, extent:SpatialExtent) -> SpatialExtent:
+    def setSpatialExtent(self, extent: SpatialExtent) -> SpatialExtent:
         """
         Sets a SpatialExtent to all MapCanvases.
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
+        if type(extent) == QgsRectangle:
+            extent = SpatialExtent(self.crs(), extent)
         try:
             assert isinstance(extent, SpatialExtent), 'Expected SpatialExtent, but got {} {}'.format(type(extent), extent)
         except Exception as ex:
+            info = [traceback.format_exc()]
+            info.append(str(ex))
+            debugLog('\n'.join(info))
 
-            traceback.print_exception(*sys.exc_info())
-            raise ex
+            return None
 
         if self.mSpatialExtent != extent:
             self.mSpatialExtent = extent
@@ -1059,7 +1066,6 @@ class MapWidget(QFrame):
                 extent.setCenter(centerNew)
                 self.setSpatialExtent(extent)
 
-
     def spatialCenter(self) -> SpatialPoint:
         """
         Return the center of all map canvas
@@ -1067,8 +1073,7 @@ class MapWidget(QFrame):
         """
         return self.spatialExtent().spatialCenter()
 
-
-    def setCrs(self, crs:QgsCoordinateReferenceSystem) -> QgsCoordinateReferenceSystem:
+    def setCrs(self, crs: QgsCoordinateReferenceSystem) -> QgsCoordinateReferenceSystem:
         """
         Sets the MapCanvas CRS.
         :param crs: QgsCoordinateReferenceSystem
@@ -1089,9 +1094,28 @@ class MapWidget(QFrame):
         if self.mSyncQGISMapCanvasCenter:
             self.syncQGISCanvasCenter()
 
+        canvases = self.mapCanvases()
+        if len(canvases) != len(self.mapViews()) * self.mMpMV:
+
+            canvases2 = []
+            for mv in self.mapViews():
+                canvases2.extend(self.mapViewCanvases(mv))
+            t = [c for c in canvases if c not in canvases2]
+            s = ""
         for c in self.mapCanvases():
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
+
+        for mapView in self.mapViews():
+            # test for initial raster stretches
+            for sensor in self.timeSeries().sensors():
+                if mapView.mInitialStretch.get(sensor) == False:
+                    for c in self.mapViewCanvases(mapView):
+                        # find the first map canvas that contains  layer data of this sensor
+                        # in its extent
+                        if c.tsd().sensor() == sensor and c.stretchToCurrentExtent():
+                            mapView.mInitialStretch[sensor] = True
+                            break
 
     def currentLayer(self) -> QgsMapLayer:
         mv = self.currentMapView()
@@ -1439,6 +1463,8 @@ class MapWidget(QFrame):
 
         recentQGISCenter = SpatialPoint.fromMapCanvasCenter(c)
         recentEOTSVCenter = self.spatialCenter()
+        if not (isinstance(recentQGISCenter, SpatialPoint) and isinstance(recentEOTSVCenter, SpatialPoint)):
+            return
 
         if not isinstance(self.mLastQGISMapCanvasCenter, SpatialPoint):
             self.mLastQGISMapCanvasCenter = SpatialPoint.fromMapCanvasCenter(c)
@@ -1448,6 +1474,10 @@ class MapWidget(QFrame):
             self.mLastEOTSVMapCanvasCenter = self.spatialCenter()
         else:
             self.mLastEOTSVMapCanvasCenter = self.mLastEOTSVMapCanvasCenter.toCrs(self.crs())
+
+        if not (isinstance(self.mLastEOTSVMapCanvasCenter, SpatialPoint) and \
+                isinstance(self.mLastQGISMapCanvasCenter, SpatialPoint)):
+            return
 
         shiftQGIS = recentQGISCenter - self.mLastQGISMapCanvasCenter
         shiftEOTSV = recentEOTSVCenter - self.mLastEOTSVMapCanvasCenter
@@ -1548,7 +1578,7 @@ class MapWidget(QFrame):
     def _updateGrid(self):
         import time
         t0 = time.time()
-
+        self.mMapRefreshTimer.stop()
         oldCanvases = self._updateLayerCache()
 
 
@@ -1600,6 +1630,7 @@ class MapWidget(QFrame):
                     self.mCanvases[mv].append(c)
         else:
             raise NotImplementedError()
+
         t1 = time.time()
         self._updateCanvasDates()
         t2 = time.time()
@@ -1611,19 +1642,13 @@ class MapWidget(QFrame):
         for c in oldCanvases:
             if c not in usedCanvases:
                 try:
+                    c.setParent(None)
                     self._disconnectCanvasSignals(c)
                 except:
                     pass
 
         t4 = time.time()
-
-        if False:
-            print('t1: {}'.format(t1 - t0))
-            print('t2: {}'.format(t2 - t1))
-            print('t3: {}'.format(t3 - t2))
-            print('t4: {}'.format(t4 - t3))
-
-
+        self.mMapRefreshTimer.start()
 
     def _updateWidgetSize(self):
 
@@ -1866,6 +1891,7 @@ class MapViewDock(QgsDockWidget):
 
         assert mw.timeSeries() == self.mTimeSeries, 'Set the time series first!'
         self.mMapWidget = mw
+
 
         self.sigCrsChanged.connect(mw.setCrs)
         mw.sigCRSChanged.connect(self.setCrs)

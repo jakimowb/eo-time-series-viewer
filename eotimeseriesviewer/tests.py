@@ -162,7 +162,8 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
     @staticmethod
     def testImagePaths() -> list:
         import example
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        path = pathlib.Path(example.__file__).parent / 'Images'
+        files = list(file_search(path, '*.tif', recursive=True))
         assert len(files) > 0
         return files
 

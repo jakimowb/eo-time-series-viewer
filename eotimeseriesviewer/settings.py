@@ -31,8 +31,10 @@ class Keys(enum.Enum):
     VectorSourceDirectory = 'vector_source_directory'
     MapImageExportDirectory = 'map_image_export_directory'
     SettingsVersion = 'settings_version'
-
-
+    Debug = 'debug'
+    QgsTaskAsync = 'qgs_task_async'
+    QgsTaskBlockSize = 'qgs_task_block_size'
+    BandStatsSampleSize = 'band_stats_sample_size'
 
 def defaultValues() -> dict:
     """
@@ -50,11 +52,16 @@ def defaultValues() -> dict:
     d[Keys.DateTimePrecision] = DateTimePrecision.Day
     # d[Keys.SensorSpecs] = dict() # no default sensors
     d[Keys.SensorMatching] = SensorMatching.PX_DIMS
-
+    import eotimeseriesviewer
+    d[Keys.Debug] = eotimeseriesviewer.DEBUG
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
     d[Keys.MapSize] = QSize(150, 150)
     d[Keys.MapBackgroundColor] = QColor('black')
+
+    d[Keys.QgsTaskAsync] = True
+    d[Keys.QgsTaskBlockSize] = 25
+    d[Keys.BandStatsSampleSize] = 256
 
     d[Keys.SettingsVersion] = EOTSV_VERSION
     textFormat = QgsTextFormat()
@@ -110,6 +117,10 @@ def value(key:Keys, default=None):
 
         if value == QVariant():
             value = None
+        if value == 'true':
+            value = True
+        elif value == 'false':
+            value = False
 
         if key == Keys.MapTextFormat:
             if isinstance(value, QByteArray):
@@ -117,6 +128,12 @@ def value(key:Keys, default=None):
                 doc.setContent(value)
                 value = QgsTextFormat()
                 value.readXml(doc.documentElement(), QgsReadWriteContext())
+
+        if key == Keys.QgsTaskAsync:
+            value = bool(value)
+
+        if key == Keys.QgsTaskBlockSize:
+            value = int(value)
 
         if key == Keys.MapUpdateInterval:
             value = int(value)
@@ -139,8 +156,6 @@ def value(key:Keys, default=None):
                 except (AssertionError, JSONDecodeError) as ex:
                     # delete old-style settings
                     del value[sensorID]
-
-
 
     except TypeError as error:
         value = None
@@ -209,7 +224,6 @@ def setValue(key:Keys, value):
     settings().setValue(key.value, value)
 
 
-
 def setValues(values: dict):
     """
     Writes the EOTSV settings
@@ -220,6 +234,7 @@ def setValues(values: dict):
     for key, val in values.items():
         setValue(key, val)
     settings().sync()
+
 
 def values() -> dict:
     """
@@ -232,6 +247,7 @@ def values() -> dict:
         assert isinstance(key, Keys)
         d[key] = value(key)
     return d
+
 
 class SensorSettingsTableModel(QAbstractTableModel):
     """
@@ -448,6 +464,8 @@ class SettingsDialog(QDialog):
         self.cbSensorMatchingWavelength.stateChanged.connect(self.validate)
         self.cbSensorMatchingSensorName.stateChanged.connect(self.validate)
 
+        self.cbDebug.stateChanged.connect(self.validate)
+
         self.mFileWidgetScreenshots.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetRasterSources.setStorageMode(QgsFileWidget.GetDirectory)
         self.mFileWidgetVectorSources.setStorageMode(QgsFileWidget.GetDirectory)
@@ -485,7 +503,6 @@ class SettingsDialog(QDialog):
         self.mSensorSpecsModel.clear()
         self.setValues(self.mLastValues)
 
-
     def onRemoveSelectedSensors(self):
 
         sm = self.tableViewSensorSettings.selectionModel()
@@ -500,13 +517,16 @@ class SettingsDialog(QDialog):
         if len(toRemove) > 0:
             self.mSensorSpecsModel.removeSensors(toRemove)
 
-
     def onSensorSettingsSelectionChanged(self, selected:QItemSelection, deselected:QItemSelection):
         self.actionDeleteSelectedSensors.setEnabled(len(selected) > 0)
 
     def validate(self, *args):
 
         values = self.values()
+        if Keys.Debug in values.keys():
+            import eotimeseriesviewer
+            eotimeseriesviewer.DEBUG = values[Keys.Debug]
+
 
     def onAccept(self):
 
@@ -547,6 +567,11 @@ class SettingsDialog(QDialog):
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
         d[Keys.MapTextFormat] = self.mMapTextFormatButton.textFormat()
 
+        # others page
+        d[Keys.Debug] = self.cbDebug.isChecked()
+        d[Keys.QgsTaskAsync] = self.cbAsyncQgsTasks.isChecked()
+        d[Keys.QgsTaskBlockSize] = self.sbQgsTaskBlockSize.value()
+        d[Keys.BandStatsSampleSize] = self.sbBandStatsSampleSize.value()
 
         for k in self.mLastValues.keys():
             if k not in d.keys():
@@ -610,4 +635,19 @@ class SettingsDialog(QDialog):
 
             if checkKey(key, Keys.MapTextFormat) and isinstance(value, QgsTextFormat):
                 self.mMapTextFormatButton.setTextFormat(value)
+
+            # others page
+            if checkKey(key, Keys.Debug) and isinstance(value, bool):
+                self.cbDebug.setChecked(value)
+
+            if checkKey(key, Keys.QgsTaskAsync) and isinstance(value, bool):
+                self.cbAsyncQgsTasks.setChecked(value)
+
+            if checkKey(key, Keys.QgsTaskBlockSize) and isinstance(value, int):
+                self.sbQgsTaskBlockSize.setValue(value)
+
+            if checkKey(key, Keys.BandStatsSampleSize) and isinstance(value, int):
+                self.sbBandStatsSampleSize.setValue(value)
+
+
 

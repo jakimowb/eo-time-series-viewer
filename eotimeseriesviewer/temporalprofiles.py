@@ -250,13 +250,6 @@ def bandKey2bandIndex(key: str):
     idx = int(match.group()[1:]) - 1
     return idx
 
-class TemporalProfileLoaderTaskResult(object):
-
-    def __init__(self, tsd:TimeSeriesDate):
-        assert isinstance(tsd, TimeSeriesDate)
-        self.mTSD : TimeSeriesDate = tsd
-        self.mResults : typing.Dict[int, dict] = dict()
-
 class TemporalProfile(QObject):
 
     sigLoadMissingImageDataRequest = pyqtSignal(list)
@@ -346,7 +339,11 @@ class TemporalProfile(QObject):
 
     def attribute(self, key : str):
         f = self.mLayer.getFeature(self.mID)
-        return f.attribute(f.fieldNameIndex(key))
+        i = f.fieldNameIndex(key)
+        if i >= 0:
+            return f.attribute(f.fieldNameIndex(key))
+        else:
+            return None
 
     def setAttribute(self, key: str, value):
         f = self.mLayer.getFeature(self.id())
@@ -369,9 +366,8 @@ class TemporalProfile(QObject):
         """
         Loads the missing data for this profile (synchronous execution, may take some time).
         """
-        qgsTask = TemporalProfileLoaderTask(self.mLayer, required_profiles=[self])
-        qgsTask.sigProfilesLoaded.connect(self.mLayer.updateProfileData)
-        qgsTask.run()
+        qgsTask = TemporalProfileLoaderTask(self.mLayer, required_profiles=[self], callback=self.mLayer.updateProfileData)
+        qgsTask.finished(qgsTask.run(), self)
 
     def missingBandIndices(self, tsd: TimeSeriesDate, required_indices: typing.List[int] = None):
         """
@@ -546,6 +542,10 @@ class TemporalProfile(QObject):
         assert isinstance(tsd, TimeSeriesDate)
         return tsd in self.mData.keys()
 
+    def __lt__(self, other):
+        assert isinstance(other, TemporalProfile)
+        return self.id() < other.id()
+
     def __repr__(self):
         return 'TemporalProfile {} "{}"'.format(self.id(), self.name())
 
@@ -562,7 +562,7 @@ class TemporalProfileLayer(QgsVectorLayer):
     sigTemporalProfilesAdded = pyqtSignal(list)
     sigTemporalProfilesRemoved = pyqtSignal(list)
     sigMaxProfilesChanged = pyqtSignal(int)
-    sigTemporalProfilesUpdated = pyqtSignal(list, SensorInstrument)
+    sigTemporalProfilesUpdated = pyqtSignal(list)
 
     def __init__(self, uri=None, name='Temporal Profiles'):
 
@@ -639,7 +639,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.initConditionalStyles()
 
         self.committedFeaturesAdded.connect(self.onFeaturesAdded)
-        self.committedFeaturesRemoved.connect(self.onFeaturesRemoved)
+        self.featuresDeleted.connect(self.onFeaturesRemoved)
         self.committedGeometriesChanges.connect(self.onGeometryChanged)
 
         self.mTasks = dict()
@@ -711,50 +711,53 @@ class TemporalProfileLayer(QgsVectorLayer):
         debugLog('Load temporal profile data')
         qgsTask = TemporalProfileLoaderTask(self,
                                             required_profiles=required_profiles,
-                                            required_sensor_bands=required_sensor_bands)
+                                            required_sensor_bands=required_sensor_bands,
+                                            callback=self.updateProfileData)
+
+        # nothing missed? nothing to do
+        if len(qgsTask.MISSING_DATA) == 0:
+            return
+
         tid = id(qgsTask)
         self.mTasks[tid] = qgsTask
 
-        qgsTask.sigProfilesLoaded.connect(self.updateProfileData)
-        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
+        qgsTask.taskTerminated.connect(lambda *args, t=tid: self.onRemoveTask(t))
 
         if run_async:
             tm = QgsApplication.taskManager()
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
         else:
-            qgsTask.run()
-        s = ""
+            qgsTask.finished(qgsTask.run())
 
-    def updateProfileData(self, tasks:typing.List[TemporalProfileLoaderTaskResult]) -> typing.List[TemporalProfile]:
+    def updateProfileData(self, successful:bool, task) -> typing.List[TemporalProfile]:
         """
         Updates TemporalProfiles
         :param qgsTask:
         :param dump:
         :return: [updated TemporalProfiles]
         """
-        updated_sensors = dict()
+        assert isinstance(task, TemporalProfileLoaderTask)
         updated_profiles = set()
-        for task in tasks:
-            assert isinstance(task, TemporalProfileLoaderTaskResult)
+        if successful:
+            for tpID, newData in task.MISSING_DATA.items():
+                tp = self.mProfiles.get(tpID)
+                if not isinstance(tp, TemporalProfile):
+                    s = ""
+                    continue
+                assert isinstance(tp, TemporalProfile)
+                for tsd, newTSDData in newData.items():
+                    tp.updateData(tsd, newTSDData)
+                updated_profiles.add(tp)
+        else:
 
-            tsd = task.mTSD
-            assert tsd in self.timeSeries()
-            if tsd.sensor() not in updated_sensors.keys():
-                updated_sensors[tsd.sensor()] = set()
+            for e in task.mErrors:
+                print(e, file=sys.stderr)
 
-            for tpId, tpData in task.mResults.items():
-                assert isinstance(tpId, int)
-                assert isinstance(tpData, dict)
-                profile = self.mProfiles[tpId]
-                assert isinstance(profile, TemporalProfile)
-                profile.updateData(tsd, tpData)
-                updated_profiles.add(profile)
-                updated_sensors[tsd.sensor()].add(profile)
-
-        for sensor, profiles in updated_sensors.items():
-            self.sigTemporalProfilesUpdated.emit(list(profiles), sensor)
+        updated_profiles = sorted(updated_profiles)
+        if len(updated_profiles) > 0:
+            self.sigTemporalProfilesUpdated.emit(updated_profiles)
         return updated_profiles
 
     def onRemoveTask(self, tid):
@@ -798,10 +801,10 @@ class TemporalProfileLayer(QgsVectorLayer):
             if len(temporalProfiles) > 0:
                 self.sigTemporalProfilesAdded.emit(temporalProfiles)
 
-    def onFeaturesRemoved(self,  layerID, removedFIDs):
-        if layerID != self.id():
-            s = ""
 
+    def onFeaturesRemoved(self,  removedFIDs):
+        # only features which have been permanent before
+        removedFIDs = [fid for fid in removedFIDs if fid >= 0]
         if len(removedFIDs) > 0:
 
             removed = []
@@ -1020,22 +1023,24 @@ class TemporalProfileLoaderTask(QgsTask):
                  required_profiles: typing.List[TemporalProfile] = None,
                  required_sensor_bands: typing.Dict[SensorInstrument, typing.List[int]] = None,
                  callback=None,
-                 block_size:int=10):
+                 block_size: int=10):
 
         super().__init__(description='Load Temporal Profiles')
-        self.setDependentLayers([temporalProfileLayer])
 
         assert isinstance(block_size, int) and block_size > 0
-        self.mTemporalProfileLayer: TemporalProfileLayer = temporalProfileLayer
-        assert isinstance(self.mTemporalProfileLayer, TemporalProfileLayer)
-
-        self.nTotal = len(self.timeSeries())
+        assert isinstance(temporalProfileLayer, TemporalProfileLayer)
+        timeSeries: TimeSeries = temporalProfileLayer.timeSeries()
+        self.nTotal = len(timeSeries)
 
         self.mRequiredSensorBands: typing.Dict[SensorInstrument, typing.List[int]] = dict()
-        self.mRequiredProfiles: typing.List[TemporalProfile] = []
+        self.mRequiredSensorBandKeys: typing.Dict[SensorInstrument, typing.List[str]] = dict()
+        self.mTSS2TSD = dict()
 
+        crsWKTs = set()
+
+        self.mErrors = []
         if required_sensor_bands is None:
-            for s in self.timeSeries().sensors():
+            for s in timeSeries.sensors():
                 self.mRequiredSensorBands[s] = list(range(s.nb))
         else:
             for sensor, band_indices in required_sensor_bands.items():
@@ -1045,142 +1050,158 @@ class TemporalProfileLoaderTask(QgsTask):
                     assert isinstance(band_index, int)
                     assert band_index >= 0 and band_index < sensor.nb
 
+        for sensor, band_indices in self.mRequiredSensorBands.items():
+            self.mRequiredSensorBandKeys[sensor] = [bandIndex2bandKey(i) for i in band_indices]
+
         # check for all profiles if none are set
         if required_profiles is None:
-            self.mRequiredProfiles.extend(temporalProfileLayer[:])
-        else:
+            required_profiles = temporalProfileLayer[:]
 
+        self.GEOMETRY_CACHE = dict()
+        self.MISSING_DATA = dict()
+
+        required_tsds = dict()
+        for sensor in self.mRequiredSensorBands.keys():
+            required_tsds[sensor] = timeSeries.tsds(None, sensor)
+        # create empty dictionaries for each profile and missing band
+        for tp in required_profiles:
+            assert isinstance(tp, TemporalProfile)
+            self.GEOMETRY_CACHE[tp.id()] = dict()
+            missingTPData = dict()
+            for sensor, tsds in required_tsds.items():
+                for tsd in timeSeries:
+                    existingTSDData: dict = tp.data(tsd)
+                    missingTSDData: dict = dict()
+                    for band_key in self.mRequiredSensorBandKeys[sensor]:
+                        existingData = existingTSDData.get(band_key)
+                        if existingData is None:
+                            missingTSDData[band_key] = None
+                    if len(missingTSDData) > 0:
+                        missingTPData[tsd] = missingTSDData
+            if len(missingTPData) > 0:
+                self.MISSING_DATA[tp.id()] = missingTPData
+
+        if len(self.MISSING_DATA) == 0:
+            return
+
+        for sensor, tsds in required_tsds.items():
+            for tsd in tsds:
+                for tss in tsd:
+                    crsWKTs.add(tss.crsWkt())
+                    self.mTSS2TSD[tss] = tss.timeSeriesDate()
+
+        # add geometries in target image coordinates
+        for crsWKT in crsWKTs:
+            crs = QgsCoordinateReferenceSystem(crsWKT)
             for tp in required_profiles:
-                assert isinstance(tp, TemporalProfile)
-                self.mRequiredProfiles.append(tp)
+                if tp.id() in self.profileIDs():
+                    self.GEOMETRY_CACHE[tp.id()][crsWKT] = tp.geometry(crs)
 
         self.mCallback = callback
         self.mBlockSize = block_size
-        self.mErrors = []
-        self.mResults = []
-    def timeSeries(self) -> TimeSeries:
-        return self.mTemporalProfileLayer.timeSeries()
+
+    def profileIDs(self) -> typing.List[int]:
+        return list(self.MISSING_DATA.keys())
+
+    def timeSeriesSources(self) -> typing.List[TimeSeriesSource]:
+        return list(self.mTSS2TSD.keys())
 
     def run(self) -> bool:
+
+        if len(self.MISSING_DATA) == 0:
+            return True
+
         block_results = []
-        n = 0
-        GEOMETRY_CACHE = dict()
+        n_total = len(self.timeSeriesSources())
+        next_progress = 5
+
         try:
-            for sensor, required_bands in self.mRequiredSensorBands.items():
-                assert isinstance(sensor, SensorInstrument)
-                assert isinstance(required_bands, list)
+            for n, tss in enumerate(self.timeSeriesSources()):
+                assert isinstance(tss, TimeSeriesSource)
+                ext: SpatialExtent = tss.spatialExtent()
+                tsd: TimeSeriesDate = self.mTSS2TSD[tss]
+
+                # find intersecting TPs
+                INTERSECTING = dict()
+                for tpID, GEOM in self.GEOMETRY_CACHE.items():
+                    geom = GEOM.get(tss.crsWkt())
+                    if isinstance(geom, QgsGeometry) and not geom.isEmpty():
+                        if ext.intersects(geom.boundingBox()):
+                            INTERSECTING[tpID] = geom
+                    else:
+                        print('Missing geometry for crsWKT={}\nTSS={}\n'.format(tss.crsWkt(), tss.uri()))
+                if len(INTERSECTING) == 0:
+                    continue
+
+                ds = tss.asDataset()
+                assert isinstance(ds, gdal.Dataset)
+
+                # get the px indices for each geometry
+                PX_INDICES = dict()
+                for tpID, geom in INTERSECTING.items():
+                    px_x, px_y = geometryToPixel(ds, geom)
+                    if len(px_x) > 0:
+                        PX_INDICES[tpID] = (px_x, px_y)
+
+                if len(PX_INDICES) == 0:
+                    # profiles are out of image
+                    continue
+
+                # create a dictionary that tells us which pixels / TPs positions are to load from which band
+                required_band_profiles = dict()
+                for tpID in INTERSECTING.keys():
+                    missingTSDValues = self.MISSING_DATA[tpID].get(tsd)
+                    if isinstance(missingTSDValues, dict):
+                        for band_key, v in missingTSDValues.items():
+                            if v is None:
+                                if band_key not in required_band_profiles:
+                                    required_band_profiles[band_key] = set()
+
+                                required_band_profiles[band_key].add(tpID)
+
+                # load required bands and required pixel positions only
+                for band_key, tpIds in required_band_profiles.items():
+                    band: gdal.Band = ds.GetRasterBand(bandKey2bandIndex(band_key) + 1)
+                    if not isinstance(band, gdal.Band):
+                        s = ""
+                    for tpID, px_idx in PX_INDICES.items():
+                        px_x, px_y = px_idx
+                        xoff = int(min(px_x))
+                        yoff = int(min(px_y))
+                        win_xsize = int(max(px_x) - xoff + 1)
+                        win_ysize = int(max(px_y) - yoff + 1)
+                        s = ""
+                        block = band.ReadAsArray(xoff=xoff,
+                                                 yoff=yoff,
+                                                 win_xsize=win_xsize,
+                                                 win_ysize=win_ysize)
+                        block = block[np.asarray(px_x) - xoff, np.asarray(px_y) - yoff]
+                        if band.GetNoDataValue():
+                            block = block[np.where(block != band.GetNoDataValue())]
+                        if len(block) == 0:
+                            continue
+
+                        # get mean pixel value
+                        value = np.nanmean(block)
+                        if np.isfinite(value):
+                            self.MISSING_DATA[tpID][tsd][band_key] = value
+                    del band
+
                 if self.isCanceled():
+                    self.mErrors.append('Canceled')
                     return False
-                for tsd in self.timeSeries().tsds(None, sensor):
-                    n += 1
-                    assert isinstance(tsd, TimeSeriesDate)
-                    assert tsd.sensor() == sensor
-                    TSD_RESULTS = TemporalProfileLoaderTaskResult(tsd)
-                    MISSING_BAND_KEYS: typing.Dict[int, typing.List[int]] = dict()
 
-                    for tss in tsd[:]:
-                        assert isinstance(tss, TimeSeriesSource)
+                progress = 100 * n / n_total
+                if progress >= next_progress:
+                    self.setProgress(progress)
+                    next_progress += 5
 
-                        for tp in self.mRequiredProfiles:
-                            assert isinstance(tp, TemporalProfile)
-
-                            # save TemporalProfile Geometry in source image coordinates
-                            if tp.id() not in GEOMETRY_CACHE.keys():
-                                GEOMETRY_CACHE[tp.id()] = dict()
-
-                            if tss.crsWkt() not in GEOMETRY_CACHE[tp.id()].keys():
-                                g = tp.geometry()
-                                trans = QgsCoordinateTransform()
-                                trans.setSourceCrs(self.mTemporalProfileLayer.crs())
-                                trans.setDestinationCrs(QgsCoordinateReferenceSystem.fromWkt(tss.crsWkt()))
-                                g.transform(trans)
-                                GEOMETRY_CACHE[tp.id()][tss.crsWkt()] = g
-
-                            # collect missing bands for this tsd
-                            DATA = tp.data(tsd)
-                            missing_band_keys = []
-                            for bandIndex in required_bands:
-                                bandKey = bandIndex2bandKey(bandIndex)
-                                if DATA.get(bandKey, None) is None:
-                                    missing_band_keys.append(bandKey)
-                            if len(missing_band_keys) > 0:
-                                MISSING_BAND_KEYS[tp.id()] = missing_band_keys
-                            del missing_band_keys
-
-                    # we already have all values for this TimeSeriesDate
-                    if len(MISSING_BAND_KEYS) == 0:
-                        continue
-
-                    bands_to_load = set()
-                    for band_keys in MISSING_BAND_KEYS.values():
-                        bands_to_load.update(band_keys)
-                    bands_to_load = sorted(bands_to_load)
-
-                    for tss in tsd:
-                        if self.isCanceled():
-                            return False
-
-                        if len(bands_to_load) == 0:
-                            break
-
-                        assert isinstance(tss, TimeSeriesSource)
-                        ds = tss.asDataset()
-                        assert isinstance(ds, gdal.Dataset)
-
-                        # get intersecting pixel indices per TimeSeriesProfile
-                        PIXEL_INDICES = dict()
-                        for tpID in MISSING_BAND_KEYS.keys():
-                            g = GEOMETRY_CACHE[tpID][tss.crsWkt()]
-                            assert isinstance(g, QgsGeometry)
-                            if tss.spatialExtent().intersects(g.boundingBox()):
-                                PIXEL_INDICES[g] = geometryToPixel(ds, g)
-
-                        for band_key in bands_to_load:
-                            # load band
-                            band = ds.GetRasterBand(bandKey2bandIndex(band_key) + 1)
-                            assert isinstance(band, gdal.Band)
-                            if self.isCanceled():
-                                return False
-                            for tpID, px in PIXEL_INDICES.items():
-                                px_x, px_y = px
-                                xoff = int(min(px_x))
-                                yoff = int(min(px_y))
-                                win_xsize = int(max(px_x) - xoff + 1)
-                                win_ysize = int(max(px_y) - yoff + 1)
-                                s = ""
-                                block = band.ReadAsArray(xoff=xoff,
-                                                         yoff=yoff,
-                                                         win_xsize=win_xsize,
-                                                         win_ysize=win_ysize)
-                                block = block[np.asarray(px_x) - xoff, np.asarray(px_y) - yoff]
-                                if band.GetNoDataValue():
-                                    block = block[np.where(block != band.GetNoDataValue())]
-                                if len(block) == 0:
-                                    continue
-                                else:
-                                    value = np.nanmean(block)
-                                    if np.isfinite(value):
-                                        if tp.id() not in TSD_RESULTS.mResults.keys():
-                                            TSD_RESULTS.mResults[tp.id()] = {FN_PX_X: px_x,
-                                                                    FN_PX_Y: px_y,
-                                                                    FN_SOURCE_IMAGE: tss.uri(),
-                                                                    }
-                                        TSD_RESULTS.mResults[tp.id()][band_key] = float(value)
-
-                        del ds
-
-                    block_results.append(TSD_RESULTS)
-                    if len(block_results) >= self.mBlockSize:
-                        self.sigProfilesLoaded.emit(block_results[:])
-                        self.mResults.extend(block_results[:])
-                        block_results.clear()
-                    if self.isCanceled():
-                        return False
-                    self.setProgress(100 * n / self.nTotal)
-            if len(block_results) > 0:
-                self.sigProfilesLoaded.emit(block_results[:])
         except Exception as ex:
-            self.mErrors.append(ex)
+            print(traceback.format_exc())
+            raise ex
+            info = traceback.format_exc()
+            info += '\n{}'.format(ex)
+            self.mErrors.append(info)
             return False
         return True
 

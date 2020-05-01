@@ -86,7 +86,6 @@ class TestMain(EOTSVTestCase):
         self.assertIsInstance(TSV, EOTimeSeriesViewer)
         self.showGui(TSV.ui)
 
-
     def test_TaskManagerStatusButton(self):
 
         bar = QgsStatusBar()

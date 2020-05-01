@@ -297,10 +297,11 @@ class TaskManagerStatusButton(QToolButton):
         self.setLayout(QHBoxLayout())
 
         from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
-        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask
+        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask, TimeSeriesFindOverlapTask
 
         self.mTrackedTasks = [
             TemporalProfileLoaderTask,
+            TimeSeriesFindOverlapTask,
             TimeSeriesLoadingTask
         ]
 
@@ -340,7 +341,7 @@ class TaskManagerStatusButton(QToolButton):
         from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
         from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask
 
-        if isinstance(task, (TemporalProfileLoaderTask, TimeSeriesLoadingTask)):
+        if isinstance(task, (TemporalProfileLoaderTask, TimeSeriesFindOverlapTask, TimeSeriesLoadingTask)):
             task.progressChanged.connect(self.updateTaskInfo)
             task.taskCompleted.connect(self.updateTaskInfo)
             task.taskTerminated.connect(self.updateTaskInfo)
@@ -924,18 +925,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 ca.setChecked(ca == a)
         self.setMapTool(MapTools.SelectFeature)
 
-
     def onSelectFeatureTriggered(self):
-
         self.setMapTool(MapTools.SelectFeature)
-
 
     def initQGISConnection(self):
         """
         Initializes interactions between TimeSeriesViewer and the QGIS instances
         :return:
         """
-
         iface = qgis.utils.iface
         assert isinstance(iface, QgisInterface)
 
@@ -944,11 +941,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialCenter().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
         self.ui.actionImportCenter.triggered.connect(lambda: self.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
 
-        def onSyncRequest(qgisChanged:bool):
-            if self.ui.optionSyncMapCenter.isChecked():
-                self.ui.mMapWidget.syncQGISCanvasCenter(qgisChanged)
-
-
+        self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
@@ -1236,7 +1229,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
-            self.clearTimeSeries()
+            # self.clearTimeSeries()
             self.mTimeSeries.loadFromFile(path, n_max=n_max, runAsync=runAsync)
 
     def currentLayer(self) -> QgsMapLayer:

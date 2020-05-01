@@ -478,11 +478,14 @@ class TimeSeriesSource(object):
         self.mDataType = None
         self.mSid = None
         self.mMetaData = None
-        self.mUL = self.LR = None
+        self.mUL = self.mLR = None
 
         self.mSpatialExtent: SpatialExtent
         self.mSpatialExtent = None
         self.mTimeSeriesDate = None
+
+        if isinstance(dataset, str):
+            dataset = gdal.Open(dataset)
 
         if isinstance(dataset, gdal.Dataset):
             assert dataset.RasterCount > 0
@@ -580,6 +583,10 @@ class TimeSeriesSource(object):
 
         self.__setstatedictionary(d)
 
+    def clone(self):
+        import copy
+        return copy.deepcopy(self)
+
     def rasterUnitsPerPixelX(self) -> float:
         return abs(self.mGeoTransform[1])
 
@@ -601,7 +608,6 @@ class TimeSeriesSource(object):
         bn = os.path.basename(self.uri())
         return '{} {}'.format(bn, self.date())
 
-
     def uri(self) -> str:
         """
         URI that can be used with GDAL to open a dataset
@@ -617,8 +623,9 @@ class TimeSeriesSource(object):
         uri.layerType = 'raster'
         return uri
 
-    def asRasterLayer(self) -> QgsRasterLayer:
-        return QgsRasterLayer(self.uri(), self.name(), 'gdal')
+    def asRasterLayer(self, loadDefaultStyle: bool = False) -> QgsRasterLayer:
+        loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
+        return QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
 
     def crsWkt(self) -> str:
         return self.mWKT
@@ -1086,11 +1093,89 @@ class SensorMatching(enum.Flag):
         if bool(flags & SensorMatching.PX_DIMS):
             parts.append('Source images of same sensor/product must have same ground sampling distance ("pixel size"), number of bands and data type.')
         if bool(flags & SensorMatching.WL):
-            parts.append('Source images of same sensor/product must have same wavelength definition, e.g. nanometer value for each raster band.')
+            parts.append(r'Source images of same sensor/product must have same wavelength definition, e.g. nanometer value for each raster band.')
         if bool(flags & SensorMatching.NAME):
-            parts.append('Source images of same sensor/product must have the same name, e.g. defined by a "sensor type = Landsat 8" metadata entry.')
+            parts.append(r'Source images of same sensor/product must have the same name, e.g. defined by a "sensor type = Landsat 8" metadata entry.')
 
         return '\n'.join(parts)
+
+class TimeSeriesFindOverlapTask(QgsTask):
+
+    sigTimeSeriesSourceOverlap = pyqtSignal(dict)
+
+    def __init__(self,
+                 extent:SpatialExtent,
+                 timeSeriesSources: typing.List[TimeSeriesSource],
+                 callback=None,
+                 description='Calculate image pixel overlap',
+                 sampleSize:int=256,
+                 block_size=25):
+        super().__init__(description=description)
+        assert block_size >= 1
+        assert isinstance(extent, SpatialExtent)
+        self.mBlockSize: int = block_size
+        self.mTSS: typing.List[TimeSeriesSource] = timeSeriesSources
+        self.mCallback = callback
+        self.mTargetExtent = extent
+        self.mSampleSize = sampleSize
+
+    def run(self):
+        targetCRS: QgsCoordinateReferenceSystem = self.mTargetExtent.crs()
+        extentLookup = dict()
+        extentLookup[targetCRS.toWkt()] = self.mTargetExtent
+
+        done = dict()
+        n = len(self.mTSS)
+        next_progress = 10
+        for i, tss in enumerate(self.mTSS):
+            if self.isCanceled():
+                return False
+            wkt = tss.crsWkt()
+            if wkt not in extentLookup.keys():
+                extentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
+
+            targetExtent2 = extentLookup[wkt]
+            if not (isinstance(targetExtent2, SpatialExtent) and targetExtent2.intersects(tss.spatialExtent())):
+                done[tss] = False
+                self.setProgress(int(100 * (i + 1) / n))
+                continue
+
+            lyr: QgsRasterLayer = tss.asRasterLayer()
+            if not isinstance(lyr, QgsRasterLayer):
+                done[tss] = False
+                self.setProgress(int(100 * (i + 1) / n))
+                continue
+
+            dp: QgsRasterDataProvider = lyr.dataProvider()
+            stats: QgsRasterBandStats = dp.bandStatistics(1,
+                                                          stats=QgsRasterBandStats.Range,
+                                                          extent=targetExtent2,
+                                                          sampleSize=self.mSampleSize)
+            if stats.statsGathered > 0:
+                if stats.minimumValue > stats.maximumValue:
+                    done[tss] = False
+                else:
+                    done[tss] = True
+            else:
+                done[tss] = False
+
+            #if len(done) >= self.mBlockSize:
+            #    self.sigTimeSeriesSourceOverlap.emit(done)
+            #    done = dict()
+            progress = int(100 * (i + 1) / n)
+            if progress >= next_progress:
+                self.setProgress(progress)
+                next_progress += 10
+
+        if len(done) >= 0:
+            self.sigTimeSeriesSourceOverlap.emit(done)
+        return True
+    def canCancel(self) -> bool:
+        return True
+
+    def finished(self, result):
+        if self.mCallback is not None:
+            self.mCallback(result, self)
 
 
 class TimeSeriesLoadingTask(QgsTask):
@@ -1102,7 +1187,7 @@ class TimeSeriesLoadingTask(QgsTask):
                  files: typing.List[str],
                  description: str = "Load Images",
                  callback = None,
-                 block_size : int = 10):
+                 block_size: int = 50):
 
         super().__init__(description=description)
         self.mFiles = files
@@ -1117,6 +1202,7 @@ class TimeSeriesLoadingTask(QgsTask):
     def run(self) -> bool:
         result_block = []
         n = len(self.mFiles)
+        next_progress = 10
         for i, path in enumerate(self.mFiles):
             assert isinstance(path, str)
 
@@ -1135,7 +1221,10 @@ class TimeSeriesLoadingTask(QgsTask):
             if self.isCanceled():
                 return False
 
-            self.setProgress(int(100 * (i+1) / n))
+            progress = int(100 * (i+1) / n)
+            if progress > next_progress:
+                self.setProgress(progress)
+                next_progress += 10
 
         if len(result_block) > 0:
             self.sigFoundSources.emit(result_block[:])
@@ -1201,27 +1290,73 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self, ext:SpatialExtent=None):
+    def focusVisibilityToExtent(self, ext:SpatialExtent=None, runAsync:bool=True):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
         :param ext: SpatialExtent
         """
         if ext is None:
             ext = self.currentSpatialExtent()
+
+        tssToTest = []
         if isinstance(ext, SpatialExtent):
             changed = False
             for tsd in self:
                 assert isinstance(tsd, TimeSeriesDate)
-                b = tsd.hasIntersectingSource(ext)
-                if b != tsd.checkState():
-                    changed = True
-                tsd.setVisibility(b)
+                tssToTest.extend(tsd[:])
+                #for tss in tsd[:]:
+                #    assert isinstance(tss, TimeSeriesSource)
+                #    tssToTest.(tss)
 
-            if changed:
-                ul = self.index(0, 0)
-                lr = self.index(self.rowCount()-1, 0)
-                self.dataChanged.emit(ul, lr, [Qt.CheckStateRole])
-                self.sigVisibilityChanged.emit()
+        if len(tssToTest) > 0:
+            from eotimeseriesviewer.settings import value, Keys
+
+            qgsTask = TimeSeriesFindOverlapTask(ext,
+                                                tssToTest,
+                                                sampleSize=value(Keys.BandStatsSampleSize),
+                                                block_size=value(Keys.QgsTaskBlockSize))
+            tid = id(qgsTask)
+            self.mTasks[tid] = qgsTask
+
+            qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlapp)
+            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+            qgsTask.progressChanged.connect(self.sigProgress.emit)
+
+            if runAsync:
+                tm = QgsApplication.taskManager()
+                assert isinstance(tm, QgsTaskManager)
+                tm.addTask(qgsTask)
+            else:
+                qgsTask.run()
+
+    def onFoundOverlapp(self, results: dict):
+
+        affectedTSDs = set()
+        for tss, b in results.items():
+            assert isinstance(tss, TimeSeriesSource)
+            assert isinstance(b, bool)
+            tss.setIsVisible(b)
+            tsd = tss.timeSeriesDate()
+            if isinstance(tsd, TimeSeriesDate):
+                affectedTSDs.add(tsd)
+        if len(affectedTSDs) == 0:
+            return
+
+        affectedTSDs = sorted(affectedTSDs)
+
+        rowMin = rowMax = None
+        for i, tsd in enumerate(affectedTSDs):
+            idx = self.tsdToIdx(tsd)
+            if i == 0:
+                rowMin = rowMax = idx.row()
+            else:
+                rowMin = min(rowMin, idx.row())
+                rowMax = max(rowMax, idx.row())
+
+        idx0 = self.index(rowMin, 0)
+        idx1 = self.index(rowMax, 0)
+        self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
 
     def currentSpatialExtent(self) -> SpatialExtent:
         """
@@ -1300,7 +1435,7 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None, runAsync:bool=True):
+    def loadFromFile(self, path, n_max=None, runAsync:bool=None):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -1445,25 +1580,19 @@ class TimeSeries(QAbstractItemModel):
         return tsd
 
     def showTSDs(self, tsds: list, b: bool = True):
-        tsds = [t for t in tsds if t in self]
+        tsds = sorted(set([t for t in tsds if t in self]))
+        if len(tsds) == 0:
+            return
 
-        col = 0
-        idxMin = None
-        idxMax = None
-        for row, tsd in enumerate(self):
-            if tsd not in tsds:
-                continue
+        idx0 = self.tsdToIdx(tsds[0])
+        idx1 = self.tsdToIdx(tsds[-1])
+        for i, tsd in enumerate(tsds):
+            assert isinstance(tsd, TimeSeriesDate)
+            for tss in tsd:
+                tss.setIsVisible(b)
 
-            idx = self.index(row, col)
-            if idxMin is None:
-                idxMin = idxMax = idx
-            else:
-                idxMax = idx
-            tsd.setVisibility(b)
-
-        if isinstance(idxMin, QModelIndex):
-            self.dataChanged.emit(idxMin, idxMax, [Qt.CheckStateRole])
-            self.sigVisibilityChanged.emit()
+        self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
+        self.sigVisibilityChanged.emit()
 
     def hideTSDs(self, tsds):
         self.showTSDs(tsds, False)
@@ -1503,6 +1632,24 @@ class TimeSeries(QAbstractItemModel):
 
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
+
+    def timeSeriesSources(self, copy:bool=False, sensor:SensorInstrument=None) -> typing.List[TimeSeriesSource]:
+        """
+        Returns a flat list of all sources
+        :param copy:
+        :return:
+        """
+        if isinstance(sensor, SensorInstrument):
+            tsds = self.tsds(None, sensor)
+        else:
+            tsds = self[:]
+
+        for tsd in tsds:
+            for tss in tsd:
+                if copy:
+                    tss = tss.clone()
+                yield tss
+
 
     def tsds(self, date:np.datetime64=None, sensor:SensorInstrument=None) -> typing.List[TimeSeriesDate]:
 
@@ -1579,13 +1726,17 @@ class TimeSeries(QAbstractItemModel):
         if len(addedDates) > 0:
             self.sigTimeSeriesDatesAdded.emit(addedDates)
 
-    def addSources(self, sources:list, nWorkers:int = 1, runAsync:bool=True):
+    def addSources(self, sources:list, runAsync:bool=None):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
         :param nWorkers: not used yet
         :param runAsync: bool
         """
+        from eotimeseriesviewer.settings import value, Keys
+        if runAsync is None:
+            runAsync = value(Keys.QgsTaskAsync, True)
+
         sourcePaths = []
         for s in sources:
             path = None
@@ -1599,7 +1750,10 @@ class TimeSeries(QAbstractItemModel):
                 sourcePaths.append(path)
 
 
-        qgsTask = TimeSeriesLoadingTask(sourcePaths, callback=self.onTaskFinished)
+        qgsTask = TimeSeriesLoadingTask(sourcePaths,
+                                        callback=self.onTaskFinished,
+                                        #block_size=value(Keys.QgsTaskBlockSize)
+                                        )
         tid = id(qgsTask)
         self.mTasks[tid] = qgsTask
         qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
@@ -2421,10 +2575,10 @@ class TimeSeriesDock(QgsDockWidget):
         
         loadUi(DIR_UI / 'timeseriesdock.ui', self)
         self.frameFilters.setVisible(False)
-
+        self.timeSeriesTreeView: TimeSeriesTreeView
+        assert isinstance(self.timeSeriesTreeView, TimeSeriesTreeView)
         self.mTimeSeries = None
         self.mSelectionModel = None
-
 
     def initActions(self, parent):
 
@@ -2516,6 +2670,8 @@ class TimeSeriesDock(QgsDockWidget):
 
             self.timeSeriesTreeView.setModel(self.mTSProxyModel)
             self.timeSeriesTreeView.setSelectionModel(self.mSelectionModel)
+
+            self.timeSeriesTreeView.sortByColumn(0, Qt.AscendingOrder)
 
             for c in range(self.mTSProxyModel.columnCount()):
                 self.timeSeriesTreeView.header().setSectionResizeMode(c, QHeaderView.ResizeToContents)

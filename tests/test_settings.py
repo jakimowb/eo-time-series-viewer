@@ -107,7 +107,7 @@ class TestSettings(EOTSVTestCase):
         from qgis.PyQt.QtCore import QSettings
         from qgis.PyQt.QtXml import QDomDocument
         key = Keys.MapTextFormat
-
+        format0 = defaultValues()[key]
         format1 = defaultValues()[key]
         self.assertIsInstance(format1, QgsTextFormat)
         color1 = QColor('yellow')
