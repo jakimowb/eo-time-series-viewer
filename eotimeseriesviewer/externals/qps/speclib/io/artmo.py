@@ -1,3 +1,29 @@
+# -*- coding: utf-8 -*-
+# noinspection PyPep8Naming
+"""
+***************************************************************************
+    speclib/io/artmo.py
+
+    Input/Output of ARTMO spectral library data
+    ---------------------
+    Beginning            : 2019-09-03
+    Copyright            : (C) 2020 by Benjamin Jakimow
+    Email                : benjamin.jakimow@geo.hu-berlin.de
+***************************************************************************
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
+***************************************************************************
+"""
 
 import os, sys, re, pathlib, json, io, re, linecache, collections, typing
 from qgis.PyQt.QtCore import *
@@ -13,8 +39,8 @@ class ARTMOSpectralLibraryIO(AbstractSpectralLibraryIO):
     I/O Interface for ARTMO CSV profile outputs.
     See https://artmotoolbox.com/tools.html for details.
     """
-    @staticmethod
-    def canRead(path: str) -> bool:
+    @classmethod
+    def canRead(cls, path: str) -> bool:
         """
         Returns true if it can read the source defined by path
         :param path: source uri
@@ -37,8 +63,8 @@ class ARTMOSpectralLibraryIO(AbstractSpectralLibraryIO):
 
         return False
 
-    @staticmethod
-    def readFrom(path: str, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None) -> SpectralLibrary:
+    @classmethod
+    def readFrom(cls, path: str, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None) -> SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
         :param path: source of SpectralLibrary
@@ -117,8 +143,8 @@ class ARTMOSpectralLibraryIO(AbstractSpectralLibraryIO):
         return speclib
 
 
-    @staticmethod
-    def addImportActions(spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+    @classmethod
+    def addImportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
 
         def read(speclib: SpectralLibrary):
 

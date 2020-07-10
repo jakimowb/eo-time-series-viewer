@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
-                              EO Time Series Viewer
-                              -------------------
-        begin                : 2015-08-20
-        git sha              : $Format:%H$
-        copyright            : (C) 2017 by HU-Berlin
-        email                : benjamin.jakimow@geo.hu-berlin.de
- ***************************************************************************/
+***************************************************************************
+    <file name> - <short description>
+    -----------------------------------------------------------------------
+    begin                : 2019-01-11
+    copyright            : (C) 2020 Benjamin Jakimow
+    email                : benjamin.jakimow@geo.hu-berlin.de
 
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+***************************************************************************
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
+***************************************************************************
 """
 # noinspection PyPep8Naming
 
@@ -34,6 +38,7 @@ from ..externals import pyqtgraph as pg
 DEBUG = False
 
 MODULE_IMPORT_PATH = None
+XMLTAG_PLOTSTYLENODE = 'PlotStyle'
 
 for name, module in sys.modules.items():
     if hasattr(module, '__file__') and module.__file__ == __file__:
@@ -448,6 +453,40 @@ class PlotStyle(QObject):
         if updateItem:
             pdi.updateItems()
 
+    def writeXml(self, node:QDomElement, doc:QDomDocument) -> bool:
+        """
+        Writes the PlotStyle to a QDomNode
+        :param node:
+        :param doc:
+        :return:
+        """
+        plotStyleNode = doc.createElement(XMLTAG_PLOTSTYLENODE)
+        cdata = doc.createCDATASection(self.json().replace('\n',''))
+        plotStyleNode.appendChild(cdata)
+        node.appendChild(plotStyleNode)
+
+        return True
+
+
+    @staticmethod
+    def readXml(node:QDomElement, *args):
+        """
+        Reads the PlotStyle from a QDomElement (XML node)
+        :param self:
+        :param node:
+        :param args:
+        :return:
+        """
+        if not node.nodeName() == XMLTAG_PLOTSTYLENODE:
+            node = node.firstChildElement(XMLTAG_PLOTSTYLENODE)
+        if node.isNull():
+            return None
+
+        cdata = node.firstChild()
+        assert cdata.isCDATASection()
+        return PlotStyle.fromJSON(cdata.nodeValue())
+
+
     @staticmethod
     def fromJSON(jsonString: str):
         """
@@ -506,7 +545,7 @@ class PlotStyle(QObject):
         style['linePen'] = pen2tuple(self.linePen)
         style['isVisible'] = self.mIsVisible
         style['backgroundColor'] = QgsSymbolLayerUtils.encodeColor(self.backgroundColor)
-        dump = json.dumps(style, sort_keys=True, indent=0, separators=(',', ':'))
+        dump = json.dumps(style, sort_keys=True, indent=-1, separators=(',', ':'), )
         # log('END json()')
         return dump
 
@@ -602,6 +641,9 @@ class PlotStyle(QObject):
         drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
         p.end()
         return pm
+
+    def __hash__(self):
+        return hash(id(self))
 
     def __eq__(self, other):
         if not isinstance(other, PlotStyle):
@@ -816,7 +858,7 @@ class PlotStyleButton(QToolButton):
         # self.clicked.connect(self.showDialog)
         # self.setPlotStyle(PlotStyle())
         self._updateIcon()
-
+        self.setMinimumSize(5, 5)
         self.mMenu = QMenu(parent=self)
         self.mMenu.triggered.connect(self.onAboutToShowMenu)
         # self.mWidget = PlotStyleWidget()
@@ -882,7 +924,7 @@ class PlotStyleButton(QToolButton):
             s = self.mInitialButtonSize
             s = self.sizeHint()
             # s = QSize()
-            icon = self.mPlotStyle.createIcon(self.mInitialButtonSize)
+            icon = self.mPlotStyle.createIcon(self.size())
             self.setIcon(icon)
         self.update()
 

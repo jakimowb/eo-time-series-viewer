@@ -1,3 +1,27 @@
+"""
+***************************************************************************
+    layerconfigwidget/core.py - Helpers and emulations for QgsMapLayerConfigWidgets
+    -----------------------------------------------------------------------
+    begin                : <month and year of creation>
+    copyright            : (C) 2020 Benjamin Jakimow
+    email                : benjamin.jakimow@geo.hu-berlin.de
+
+***************************************************************************
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
+***************************************************************************
+"""
+
 import typing
 import os
 import pathlib
@@ -48,11 +72,13 @@ class QpsMapLayerConfigWidget(QgsMapLayerConfigWidget):
     def menuButtonToolTip(self):
         return ''
 
-    def syncToLayer(self):
+    def syncToLayer(self, mapLayer:QgsMapLayer=None):
         """
         Implement this method to take up changes from the underlying map layer.
         """
-        pass
+        if isinstance(mapLayer, QgsMapLayer):
+            self.mMapLayer = mapLayer
+
 
     def reset(self):
         """
@@ -78,7 +104,8 @@ class MetadataConfigWidget(QpsMapLayerConfigWidget):
 
         self.syncToLayer()
 
-    def syncToLayer(self):
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
         lyr = self.mapLayer()
         if isinstance(lyr, QgsMapLayer):
             style = QgsApplication.reportStyleSheet(QgsApplication.WebBrowser)
@@ -116,7 +143,8 @@ class SourceConfigWidget(QpsMapLayerConfigWidget):
         self.tbLayerName.textChanged.connect(lambda txt: self.tbLayerDisplayName.setText(layer.formatLayerName(txt)))
         self.syncToLayer()
 
-    def syncToLayer(self):
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
         lyr = self.mapLayer()
         if isinstance(lyr, QgsMapLayer):
             self.tbLayerName.setText(lyr.name())
@@ -156,11 +184,11 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
     """
     Emulates the QGS Layer Property Dialogs "Source" page
     """
-    def __init__(self, layer: QgsMapLayer, canvas: QgsMapCanvas, parent=None):
+    def __init__(self, layer: QgsMapLayer, canvas: QgsMapCanvas, style:QgsStyle=QgsStyle(), parent=None):
         super().__init__(layer, canvas, parent=parent)
         loadUi(configWidgetUi('symbologyconfigwidget.ui'), self)
         self.mSymbologyWidget = None
-
+        self.mStyle: QgsStyle = style
         self.mDefaultRenderer = None
         if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)):
             self.mDefaultRenderer = layer.renderer().clone()
@@ -169,6 +197,9 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
 
     def symbologyWidget(self) -> typing.Union[QgsRendererRasterPropertiesWidget, QgsRendererPropertiesDialog]:
         return self.scrollArea.widget()
+
+    def style(self) -> QgsStyle:
+        return self.mStyle
 
     def menuButtonMenu(self) ->QMenu:
         m = QMenu('Style')
@@ -321,10 +352,11 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
                 self.scrollArea.setWidget(w)
             self.mSymbologyWidget = w
 
-    def syncToLayer(self):
-        lyr = self.mapLayer()
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
 
         w = self.symbologyWidget()
+        lyr = self.mapLayer()
         if isinstance(lyr, QgsRasterLayer):
             r = lyr.renderer()
             if isinstance(w, QgsRendererRasterPropertiesWidget):
@@ -339,7 +371,7 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
 
         elif isinstance(lyr, QgsVectorLayer):
             if not isinstance(w, QgsRendererPropertiesDialog):
-                w = QgsRendererPropertiesDialog(lyr, QgsStyle(), embedded=True)
+                w = QgsRendererPropertiesDialog(lyr, self.style(), embedded=True)
                 self.setSymbologyWidget(w)
             else:
                 s = ""
@@ -414,8 +446,8 @@ class HistogramConfigWidget(QpsMapLayerConfigWidget):
 
         self.syncToLayer()
 
-    def syncToLayer(self):
-        lyr = self.mapLayer()
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
         if isinstance(lyr, QgsRasterLayer):
             w = self.mScrollArea.widget()
             if not isinstance(w, QgsRasterHistogramWidget):
@@ -477,7 +509,8 @@ class LegendConfigWidget(QpsMapLayerConfigWidget):
         self.layout().addWidget(self.mEmbeddedConfigWidget)
         self.syncToLayer()
 
-    def syncToLayer(self):
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
         self.mEmbeddedConfigWidget.setLayer(self.mapLayer())
 
     def apply(self):
@@ -518,8 +551,8 @@ class RenderingConfigWidget(QpsMapLayerConfigWidget):
         loadUi(configWidgetUi('renderingconfigwidget.ui'), self)
         self.syncToLayer()
 
-    def syncToLayer(self):
-
+    def syncToLayer(self, *args):
+        super().syncToLayer(*args)
         lyr = self.mapLayer()
         if isinstance(lyr, QgsMapLayer):
             self.gbRenderingScale.setChecked(lyr.hasScaleBasedVisibility())
