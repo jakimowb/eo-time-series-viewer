@@ -1169,8 +1169,9 @@ class MapCanvas(QgsMapCanvas):
         :param event: QEvent
         """
         assert isinstance(event, QContextMenuEvent)
-        menu = self.contextMenu(event.pos())
-        menu.exec_(event.globalPos())
+        if not isinstance(self.mapTool(), QgsMapToolCapture):
+            menu = self.contextMenu(event.pos())
+            menu.exec_(event.globalPos())
 
     def addLayers2QGIS(self, mapLayers):
         import qgis.utils
