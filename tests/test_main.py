@@ -96,11 +96,18 @@ class TestMain(EOTSVTestCase):
         w.mInfoLabel.setText('emoty')
         self.showGui(bar)
 
+    def test_mapcanvasextent(self):
+        edit = QgsDateTimeEdit()
+
+        self.showGui(edit)
+
+
+
     def test_TimeSeriesViewer(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         TSV = EOTimeSeriesViewer()
         TSV.createMapView('True Color')
-        TSV.createMapView('Near Infrared')
+        #TSV.createMapView('Near Infrared')
         TSV.loadExampleTimeSeries()
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
             QCoreApplication.processEvents()

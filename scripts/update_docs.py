@@ -7,7 +7,7 @@ def convert_changelog():
     """
     Converts <repo>/CHANGELOG.rst to <repo>/doc/source/changelog.rst
     """
-    pathSrc = DIR_REPO / 'CHANGELOG.rst'
+    pathSrc = DIR_REPO / 'CHANGELOG'
     pathDst = DIR_DOCS / 'source' / 'changelog.rst'
 
     assert pathSrc.is_file()
