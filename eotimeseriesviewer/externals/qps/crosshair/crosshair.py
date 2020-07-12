@@ -1,9 +1,33 @@
 # -*- coding: utf-8 -*-
-
 # noinspection PyPep8Naming
 
+"""
+***************************************************************************
+    crosshair.py - A Crosshair for the QgsMapCanvas
+    -----------------------------------------------------------------------
+    begin                : <month and year of creation>
+    copyright            : (C) <year> <creator>
+    email                : <main address>
 
-# believe it or not, this module was inspired by the CS:GO Crosshair Generator https://tools.dathost.net/
+    Believe it or not, this module was inspired by the
+    ConterStrike CS:GO Crosshair Generator https://tools.dathost.net/
+
+***************************************************************************
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
+***************************************************************************
+"""
+
 import os, warnings
 from qgis.core import *
 from qgis.gui import *

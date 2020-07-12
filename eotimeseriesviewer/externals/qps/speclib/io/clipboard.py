@@ -2,31 +2,29 @@
 # noinspection PyPep8Naming
 """
 ***************************************************************************
-    clipboard.py
-    SpectralLibrary I/O with clipboard data
+    speclib/io/clipboard.py
+
+    Input/Output of SpectralLibrary data via the system clipboard
     ---------------------
-    Date                 : Okt 2018
-    Copyright            : (C) 2018 by Benjamin Jakimow
+    Beginning            : 2018-12-17
+    Copyright            : (C) 2020 by Benjamin Jakimow
     Email                : benjamin.jakimow@geo.hu-berlin.de
 ***************************************************************************
-*                                                                         *
-*   This file is part of the EnMAP-Box.                                   *
-*                                                                         *
-*   The EnMAP-Box is free software; you can redistribute it and/or modify *
-*   it under the terms of the GNU General Public License as published by  *
-*   the Free Software Foundation; either version 3 of the License, or     *
-*   (at your option) any later version.                                   *
-*                                                                         *
-*   The EnMAP-Box is distributed in the hope that it will be useful,      *
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          *
-*   GNU General Public License for more details.                          *
-*                                                                         *
-*   You should have received a copy of the GNU General Public License     *
-*   along with the EnMAP-Box. If not, see <http://www.gnu.org/licenses/>. *
-*                                                                         *
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
+
 import typing
 from ..core import *
 from PyQt5.QtWidgets import QProgressDialog
@@ -47,8 +45,8 @@ class ClipboardIO(AbstractSpectralLibraryIO):
         def modes(self):
             return [a for a in dir(self) if not callable(getattr(self, a)) and not a.startswith("__")]
 
-    @staticmethod
-    def canRead(path=None) -> bool:
+    @classmethod
+    def canRead(cls, path=None) -> bool:
         clipboard = QApplication.clipboard()
         mimeData = clipboard.mimeData()
         if isinstance(mimeData, QMimeData):
@@ -57,8 +55,8 @@ class ClipboardIO(AbstractSpectralLibraryIO):
                     return True
         return False
 
-    @staticmethod
-    def readFrom(path=None,
+    @classmethod
+    def readFrom(cls, path=None,
                  progressDialog:typing.Union[QProgressDialog, ProgressHandler]=None) -> SpectralLibrary:
 
         clipboard = QApplication.clipboard()
@@ -74,8 +72,8 @@ class ClipboardIO(AbstractSpectralLibraryIO):
 
         return None
 
-    @staticmethod
-    def write(speclib,
+    @classmethod
+    def write(cls, speclib,
               path=None,
               mode=None,
               sep=None,

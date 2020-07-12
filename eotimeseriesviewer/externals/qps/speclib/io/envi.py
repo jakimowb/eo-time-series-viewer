@@ -2,31 +2,29 @@
 # noinspection PyPep8Naming
 """
 ***************************************************************************
-    envi.py
-    Reading and writing spectral profiles to ENVI Spectral Libraries
+    speclib/io/envi.py
+
+    Input/Output of ENVI spectral library data
     ---------------------
-    Date                 : Okt 2018
-    Copyright            : (C) 2018 by Benjamin Jakimow
+    Beginning            : 2018-12-17
+    Copyright            : (C) 2020 by Benjamin Jakimow
     Email                : benjamin.jakimow@geo.hu-berlin.de
 ***************************************************************************
-*                                                                         *
-*   This file is part of the EnMAP-Box.                                   *
-*                                                                         *
-*   The EnMAP-Box is free software; you can redistribute it and/or modify *
-*   it under the terms of the GNU General Public License as published by  *
-*   the Free Software Foundation; either version 3 of the License, or     *
-*   (at your option) any later version.                                   *
-*                                                                         *
-*   The EnMAP-Box is distributed in the hope that it will be useful,      *
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          *
-*   GNU General Public License for more details.                          *
-*                                                                         *
-*   You should have received a copy of the GNU General Public License     *
-*   along with the EnMAP-Box. If not, see <http://www.gnu.org/licenses/>. *
-*                                                                         *
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
+                                                                                                                                                 *
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
+
 import os, csv, tempfile, uuid, time, typing
 from osgeo import gdal, gdal_array
 from ..core import *
@@ -301,9 +299,8 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
     REQUIRED_TAGS = ['byte order', 'data type', 'header offset', 'lines', 'samples', 'bands']
     SINGLE_VALUE_TAGS = REQUIRED_TAGS + ['description', 'wavelength', 'wavelength units']
 
-
-    @staticmethod
-    def addImportActions(spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+    @classmethod
+    def addImportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
 
         def read(speclib: SpectralLibrary):
 
@@ -322,46 +319,36 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         m = menu.addAction('ENVI')
         m.triggered.connect(lambda *args, sl=spectralLibrary: read(sl))
 
-
-
-    @staticmethod
-    def addExportActions(spectralLibrary:SpectralLibrary, menu:QMenu) -> list:
+    @classmethod
+    def addExportActions(cls, spectralLibrary:SpectralLibrary, menu:QMenu) -> list:
 
         def write(speclib: SpectralLibrary):
 
             path, filter = QFileDialog.getSaveFileName(caption='Write ENVI Spectral Library ',
                                                     filter=FILTER_SLI)
             if isinstance(path, str) and len(path) > 0:
-                EnviSpectralLibraryIO.write(spectralLibrary, path)
+                EnviSpectralLibraryIO.write(speclib, path)
 
         m = menu.addAction('ENVI')
         m.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))
 
-    @staticmethod
-    def canRead(pathESL) -> bool:
+    @classmethod
+    def canRead(cls, pathESL) -> bool:
         """
         Checks if a file can be read as SpectraLibrary
         :param pathESL: path to ENVI Spectral Library (ESL)
         :return: True, if pathESL can be read as Spectral Library.
         """
-        assert isinstance(pathESL, str)
+        pathESL = str(pathESL)
         if not os.path.isfile(pathESL):
             return False
-        hdr = EnviSpectralLibraryIO.readENVIHeader(pathESL, typeConversion=False)
+        hdr = cls.readENVIHeader(pathESL, typeConversion=False)
         if hdr is None or hdr['file type'] != 'ENVI Spectral Library':
             return False
         return True
 
-    @staticmethod
-    def score(uri:str):
-        if not isinstance(uri, str):
-            return 0
-        if re.search(r'\.(esl|sli)$', uri, ):
-            return 20
-        return 0
-
-    @staticmethod
-    def readFrom(path, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None) -> SpectralLibrary:
+    @classmethod
+    def readFrom(cls, path, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None) -> SpectralLibrary:
         """
         Reads an ENVI Spectral Library (ESL).
         :param path: path to ENVI Spectral Library
@@ -496,8 +483,8 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         SLIB.readJSONProperties(pathESL)
         return SLIB
 
-    @staticmethod
-    def write(speclib: SpectralLibrary, path: str, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None):
+    @classmethod
+    def write(cls, speclib: SpectralLibrary, path: str, progressDialog:typing.Union[QProgressDialog, ProgressHandler] = None):
         """
         Writes a SpectralLibrary as ENVI Spectral Library (ESL).
         See http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for ESL definition
@@ -598,7 +585,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             file.close()
 
             # write JSON properties
-            speclib.writeJSONProperties(pathDst)
+            # speclib.writeJSONProperties(pathDst)
 
             # write other metadata to CSV
             pathCSV = os.path.splitext(pathHDR)[0] + '.csv'
@@ -608,9 +595,8 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
 
         return writtenFiles
 
-
-    @staticmethod
-    def esl2vrt(pathESL, pathVrt=None):
+    @classmethod
+    def esl2vrt(cls, pathESL, pathVrt=None):
         """
         Creates a GDAL Virtual Raster (VRT) that allows to read an ENVI Spectral Library file
         :param pathESL: path ENVI Spectral Library file (binary part)
@@ -618,7 +604,7 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         :return: GDAL VRT
         """
 
-        hdr = EnviSpectralLibraryIO.readENVIHeader(pathESL, typeConversion=False)
+        hdr = cls.readENVIHeader(pathESL, typeConversion=False)
         assert hdr is not None and hdr['file type'] == 'ENVI Spectral Library'
 
         if hdr.get('file compression') == '1':
@@ -644,9 +630,8 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
         flushCacheWithoutException(ds)
         return ds
 
-
-    @staticmethod
-    def readENVIHeader(pathESL, typeConversion=False):
+    @classmethod
+    def readENVIHeader(cls, pathESL, typeConversion=False):
         """
         Reads an ENVI Header File (*.hdr) and returns its values in a dictionary
         :param pathESL: path to ENVI Header

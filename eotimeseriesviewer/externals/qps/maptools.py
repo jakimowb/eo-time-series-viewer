@@ -2,8 +2,8 @@
 # noinspection PyPep8Naming
 """
 /***************************************************************************
-                              maptools.py
-
+                              qps/maptools.py
+        Re-implementation of *.cpp QgsMapTools for python and some more
                               -------------------
         begin                : 2019-01-20
         git sha              : $Format:%H$
