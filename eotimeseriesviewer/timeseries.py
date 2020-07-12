@@ -1112,6 +1112,8 @@ class TimeSeriesFindOverlapTask(QgsTask):
                  block_size=25):
         super().__init__(description=description)
         assert block_size >= 1
+        assert sampleSize >= 1
+
         assert isinstance(extent, SpatialExtent)
         self.mBlockSize: int = block_size
         self.mTSS: typing.List[TimeSeriesSource] = timeSeriesSources

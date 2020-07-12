@@ -480,12 +480,7 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
                     score = fac.fieldScore(layer, idx)
                     if score > 0:
                         w.addItem(fac.name(), key)
-
-
-
-
         return w
-
 
     def setEditorData(self, editor, index):
         cname = self.columnName(index)
@@ -612,6 +607,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
         conf = dict()
         conf[CONFKEY_LABELTYPE] = self.mCBShortCutType.currentData()
+        conf['FIELD_INDEX'] = self.field()
         #cs = self.mClassWidget.classificationScheme()
         #assert isinstance(cs, ClassificationScheme)
         #todo: json for serialization
@@ -622,6 +618,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
     def setConfig(self, config:dict):
         self.mLastConfig = config
         labelType = config.get(CONFKEY_LABELTYPE)
+        fieldIndex = config.get('FIELD_INDEX')
+
         if not isinstance(labelType, LabelShortcutType):
             labelType = LabelShortcutType.Off
 
@@ -629,14 +627,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
             labelType = self.mAllowedShortCuts[0]
 
         i = self.mCBShortCutType.findData(labelType)
-        #self.mCBShortCutType.currentIndexChanged.connect(self.onIndexChanged)
         self.mCBShortCutType.setCurrentIndex(i)
-
-
-        #classScheme = config.get(CONFKEY_CLASSIFICATIONSCHEME)
-        #if isinstance(classScheme, ClassificationScheme):
-        #    self.mClassWidget.setClassificationScheme(classScheme)
-
 
     def onIndexChanged(self, *args):
 
@@ -670,10 +661,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.mValidator = None
 
     def configLabelType(self) -> LabelShortcutType:
-        return self.config(CONFKEY_LABELTYPE)
-
-    #def configClassificationScheme(self) -> ClassificationScheme:
-    #    return self.config(CONFKEY_CLASSIFICATIONSCHEME)
+        return self.config().get(CONFKEY_LABELTYPE)
 
     def createWidget(self, parent: QWidget):
         """
@@ -707,6 +695,16 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
     def onValueChanged(self, *args):
         self.valueChanged.emit(self.value())
         s = ""
+
+    def config(self) -> dict:
+        d = dict()
+
+        return d
+
+    def setConfig(self, conf:dict):
+
+        s  =""
+        pass
 
     def valid(self, *args, **kwargs) -> bool:
         """
@@ -779,7 +777,6 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         super(LabelShortcutWidgetFactory, self).__init__(name)
 
         self.mConfigurations = {}
-
 
     def name(self) -> str:
         return EDITOR_WIDGET_REGISTRY_KEY

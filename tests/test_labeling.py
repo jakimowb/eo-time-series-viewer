@@ -158,7 +158,6 @@ class TestLabeling(EOTSVTestCase):
                 confWidget = reg.createConfigWidget(EDITOR_WIDGET_REGISTRY_KEY, vl, i, parent)
                 self.assertIsInstance(confWidget, QgsEditorConfigWidget)
 
-
                 editorWidgetWrapper = reg.create(EDITOR_WIDGET_REGISTRY_KEY, vl, i, setup.config(), None, parent)
                 self.assertIsInstance(editorWidgetWrapper, QgsEditorWidgetWrapper)
 

@@ -881,8 +881,9 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
         if index.column() == 2:
             style: TemporalProfilePlotStyle = index.data(Qt.UserRole)
 
-            h = self.mTableView.verticalHeader().defaultSectionSize()
-            w = self.mTableView.horizontalHeader().defaultSectionSize()
+            h = self.mTableView.verticalHeader().sectionSize(index.row())
+            w = self.mTableView.horizontalHeader().sectionSize(index.column())
+
             if h > 0 and w > 0:
                 px = style.createPixmap(size=QSize(w, h))
                 label = QLabel()
@@ -1527,22 +1528,6 @@ class DateTimeViewBox(pg.ViewBox):
         self.scene().addParentContextMenus(self, menu, ev)
         menu.exec_(ev.screenPos().toPoint())
 
-class ProfileViewDock2(QgsDockWidget):
-
-    def __init__(self, parent: QWidget=None):
-
-        super().__init__(parent=parent)
-        from .externals.qps.layerproperties import AttributeTableWidget
-        # temporal profile collection to store loaded values
-        self.mTemporalProfileLayer = TemporalProfileLayer()
-        #self.mTemporalProfileLayer.sigTemporalProfilesAdded.connect(self.onTemporalProfilesAdded)
-        #self.mTemporalProfileLayer.selectionChanged.connect(self.onTemporalProfileSelectionChanged)
-
-        self.mAttributeWidget = AttributeTableWidget(self.mTemporalProfileLayer)
-        self.mAttributeWidget.widgetLeft.setVisible(True)
-        self.m
-
-        self.setWidget(self.mAttributeWidget)
 
 class ProfileViewDock(QgsDockWidget):
 

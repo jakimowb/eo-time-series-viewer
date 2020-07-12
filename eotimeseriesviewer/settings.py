@@ -135,6 +135,9 @@ def value(key:Keys, default=None):
         if key == Keys.QgsTaskBlockSize:
             value = int(value)
 
+        if key == Keys.BandStatsSampleSize:
+            value = int(value)
+
         if key == Keys.MapUpdateInterval:
             value = int(value)
 
