@@ -40,7 +40,14 @@ if os.path.exists(path):
 
 import qgis.utils
 from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
+    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, \
+    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol
+
 from qgis.gui import *
+from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
+    QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
+
 import qgis.utils
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
@@ -520,6 +527,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDateRequest.connect(self.setCurrentDate)
         tstv.sigMoveToSource.connect(self.setCurrentSource)
+        tstv.sigSetMapCrs.connect(self.setCrs)
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
 
@@ -642,10 +650,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.initQGISConnection()
 
-
         for toolBar in self.ui.findChildren(QToolBar):
             fixMenuButtons(toolBar)
-
 
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
@@ -853,6 +859,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mapWidget().setCurrentLayer(layer)
         self.updateCurrentLayerActions()
 
+    def crs(self) -> QgsCoordinateReferenceSystem:
+        return self.mapWidget().crs()
+
     def setCurrentSource(self, tss: TimeSeriesSource):
         """
         Moves the map view to a TimeSeriesSource
@@ -860,7 +869,19 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         tss = self.timeSeries().findSource(tss)
         if isinstance(tss, TimeSeriesSource):
             self.ui.mMapWidget.setCurrentDate(tss.timeSeriesDate())
-            self.ui.mMapWidget.setSpatialExtent(tss.spatialExtent())
+
+            ext = tss.spatialExtent().toCrs(self.crs())
+            # set to new extent, but do not change the EOTSV CRS
+            if isinstance(ext, SpatialExtent):
+                self.setSpatialExtent(ext)
+            else:
+                # we cannot transform the coordinate. Try to set the EOTSV center only
+                center = tss.spatialExtent().spatialCenter().toCrs(self.crs())
+                if isinstance(center, SpatialPoint):
+                    self.setSpatialCenter(center)
+                else:
+                    # last resort: we need to change the EOTSV Projection
+                    self.setSpatialExtent(tss.spatialExtent())
 
     def setCurrentDate(self, tsd: TimeSeriesDate):
         """
@@ -1049,6 +1070,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param size: QSize
         """
         self.mapWidget().setMapSize(size)
+
+    def setCrs(self, crs:QgsCoordinateReferenceSystem):
+        self.mapWidget().setCrs(crs)
 
     def setSpatialExtent(self, spatialExtent:SpatialExtent):
         """
@@ -1239,7 +1263,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().currentLayer()
 
-
     def createMapView(self, name:str=None) -> MapView:
         """
         Creates a new MapView.
@@ -1253,7 +1276,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return: [list-of-MapViews]
         """
         return self.ui.dockMapViews[:]
-
 
     def icon(self) -> QIcon:
         """
@@ -1309,8 +1331,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
                 extent = self.timeSeries().maxSpatialExtent()
                 if isinstance(extent, SpatialExtent):
-                    self.ui.dockMapViews.setCrs(extent.crs())
-                    self.ui.mMapWidget.setSpatialExtent(extent)
+                    self.mapWidget().setCrs(extent.crs())
+                    self.mapWidget().setSpatialExtent(extent)
                     self.mSpatialMapExtentInitialized = True
                 else:
                     self.mSpatialMapExtentInitialized = False

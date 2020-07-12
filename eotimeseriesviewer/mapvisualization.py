@@ -493,7 +493,7 @@ class MapView(QFrame):
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
         return [l for l in layers if isinstance(l, SensorProxyLayer)]
 
-    def sensorProxyLayer(self, sensor:SensorInstrument) -> SensorProxyLayer:
+    def sensorProxyLayer(self, sensor: SensorInstrument) -> SensorProxyLayer:
         """
         Returns the proxy layer related to a SensorInstrument
         :param sensor: SensorInstrument
@@ -885,7 +885,7 @@ class MapWidget(QFrame):
 
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigCrosshairPositionChanged = pyqtSignal([SpatialPoint], [SpatialPoint, MapCanvas])
-    sigCRSChanged = pyqtSignal(QgsCoordinateReferenceSystem)
+    sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
 
     sigMapBackgroundColorChanged = pyqtSignal(QColor)
@@ -927,23 +927,27 @@ class MapWidget(QFrame):
         self.mCurrentMapView: MapView = None
         self.mCurrentMapCanvas: MapCanvas = None
 
-        self.mMapViews = []
-        self.mCanvases = dict()
+        self.mMapViews: typing.List[MapView] = []
+        self.mCanvases: typing.Dict[MapView, typing.List[MapCanvas]] = dict()
         self.mCanvasSignals = dict()
-        self.mTimeSeries = None
+        self.mTimeSeries: TimeSeries = None
 
-        self.mMapToolKey = MapTools.Pan
+
+        self.mMapToolKey: MapTools = MapTools.Pan
 
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
         self.mMpMV = 3
 
-        self.mSpatialExtent = SpatialExtent.world()
-        self.mCrs = self.mSpatialExtent.crs()
-        self.mCurrentDate = None
-        self.mCrosshairPosition = None
+        self.mSpatialExtent: SpatialExtent = SpatialExtent.world()
+        self.mCrs: QgsCoordinateReferenceSystem = self.mSpatialExtent.crs()
+        self.mCrsInitialized = False
+
+        self.mCurrentDate: TimeSeriesDate = None
+        self.mCrosshairPosition: SpatialPoint = None
 
         self.mMapSize = QSize(200, 200)
         from eotimeseriesviewer.settings import defaultValues, Keys
+
         DEFAULT_VALUES = defaultValues()
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mMapRefreshTimer = QTimer(self)
@@ -1033,21 +1037,25 @@ class MapWidget(QFrame):
         if type(extent) == QgsRectangle:
             extent = SpatialExtent(self.crs(), extent)
         try:
-            assert isinstance(extent, SpatialExtent), 'Expected SpatialExtent, but got {} {}'.format(type(extent), extent)
+            assert isinstance(extent, SpatialExtent), \
+                'Expected SpatialExtent, but got {} {}'.format(type(extent), extent)
         except Exception as ex:
-            info = [traceback.format_exc()]
-            info.append(str(ex))
-            debugLog('\n'.join(info))
+            traceback.print_exception(*sys.exc_info())
+            raise ex
+        if self.mSpatialExtent == extent:
+            return
 
-            return None
+        ext = extent.toCrs(self.crs())
+        if not isinstance(ext, SpatialExtent):
+            s = ""
+            # last resort: zoom to CRS boundaries
 
-        if self.mSpatialExtent != extent:
-            self.mSpatialExtent = extent
 
+        if isinstance(ext, SpatialExtent) and ext != self.spatialExtent():
+            self.mSpatialExtent = ext
             for c in self.mapCanvases():
                 assert isinstance(c, MapCanvas)
-                c.addToRefreshPipeLine(extent)
-
+                c.addToRefreshPipeLine(self.mSpatialExtent)
             self.sigSpatialExtentChanged.emit(self.mSpatialExtent.__copy__())
         return self.spatialExtent()
 
@@ -1079,12 +1087,18 @@ class MapWidget(QFrame):
         :param crs: QgsCoordinateReferenceSystem
         :return: QgsCoordinateReferenceSystem
         """
+        if self.mCrs == crs:
+            return self.crs()
 
-        self.mCrs = crs
-        if isinstance(crs, QgsCoordinateReferenceSystem):
-            for c in self.mapCanvases():
-                c.setCrs(crs)
-
+        self.mCrs = QgsCoordinateReferenceSystem(crs)
+        for i, c in enumerate(self.mapCanvases()):
+            wasBlocked = c.blockSignals(True)
+            c.setDestinationCrs(self.mCrs)
+            if i == 0:
+                self.mSpatialExtent = SpatialExtent.fromMapCanvas(c)
+            if not wasBlocked:
+                c.blockSignals(False)
+        self.sigCrsChanged.emit(self.crs())
         return self.crs()
 
     def timedRefresh(self):
@@ -1094,14 +1108,6 @@ class MapWidget(QFrame):
         if self.mSyncQGISMapCanvasCenter:
             self.syncQGISCanvasCenter()
 
-        canvases = self.mapCanvases()
-        if len(canvases) != len(self.mapViews()) * self.mMpMV:
-
-            canvases2 = []
-            for mv in self.mapViews():
-                canvases2.extend(self.mapViewCanvases(mv))
-            t = [c for c in canvases if c not in canvases2]
-            s = ""
         for c in self.mapCanvases():
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
@@ -1137,7 +1143,6 @@ class MapWidget(QFrame):
             self.sigCurrentCanvasChanged.emit(mapCanvas)
             if isinstance(mapCanvas.mapView(), MapView):
                 self.setCurrentMapView(mapCanvas.mapView())
-
 
     def currentMapView(self) -> MapView:
         """
@@ -1516,8 +1521,8 @@ class MapWidget(QFrame):
 
         # set general canvas properties
         mapCanvas.setFixedSize(self.mMapSize)
-        mapCanvas.setDestinationCrs(self.mCrs)
-        mapCanvas.setSpatialExtent(self.mSpatialExtent)
+        mapCanvas.setDestinationCrs(self.crs())
+        mapCanvas.setSpatialExtent(self.spatialExtent())
 
         # activate the current map tool
         mapTools = mapCanvas.mapTools()
@@ -1529,14 +1534,14 @@ class MapWidget(QFrame):
 
     def _connectCanvasSignals(self, mapCanvas: MapCanvas):
         mapCanvas.sigSpatialExtentChanged.connect(self.setSpatialExtent)
-        mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
+        #mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.connect(self.onCanvasClicked)
         mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(self.sigCurrentLocationChanged)
 
     def _disconnectCanvasSignals(self, mapCanvas:MapCanvas):
         mapCanvas.sigSpatialExtentChanged.disconnect(self.setSpatialExtent)
-        mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
+        #mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.disconnect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.disconnect(self.onCanvasClicked)
         mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].disconnect(
@@ -1852,6 +1857,7 @@ class MapViewDock(QgsDockWidget):
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
 
+        self.btnCrs:QgsProjectionSelectionWidget
         self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
         self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
         self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, True)
@@ -1892,9 +1898,9 @@ class MapViewDock(QgsDockWidget):
         assert mw.timeSeries() == self.mTimeSeries, 'Set the time series first!'
         self.mMapWidget = mw
 
-
+        self.btnCrs.setCrs(mw.crs())
         self.sigCrsChanged.connect(mw.setCrs)
-        mw.sigCRSChanged.connect(self.setCrs)
+        mw.sigCrsChanged.connect(self.setCrs)
 
         self.sigMapSizeChanged.connect(mw.setMapSize)
         mw.sigMapSizeChanged.connect(self.setMapSize)
@@ -1947,7 +1953,7 @@ class MapViewDock(QgsDockWidget):
             maps.extend(mapView.mapCanvases())
         return maps
 
-    def setCrs(self, crs):
+    def setCrs(self, crs: QgsCoordinateReferenceSystem):
         if isinstance(crs, QgsCoordinateReferenceSystem):
             old = self.btnCrs.crs()
             if old != crs:

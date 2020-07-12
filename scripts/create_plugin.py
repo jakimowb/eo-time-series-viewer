@@ -20,24 +20,19 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, re, shutil, zipfile, datetime, requests, http, mimetypes, pathlib
-import docutils
-import docutils.writers
-from qgis.PyQt.QtXml import *
-import typing
 import argparse
-from eotimeseriesviewer.utils import file_search
-
-from requests.auth import HTTPBasicAuth
-from http.client import responses
-import xml.etree.ElementTree as ET
-
-from qgis.PyQt.QtCore import *
-
-from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
+import datetime
+import os
+import pathlib
+import re
+import shutil
+import typing
+import docutils.core
+from xml.dom import minidom
 
 import eotimeseriesviewer
 from eotimeseriesviewer import DIR_REPO, __version__
+from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
@@ -142,7 +137,7 @@ def create_plugin(include_testdata: bool = False,
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
     files.extend(list(scantree(DIR_REPO / 'example', pattern=re.compile(r'\.(gpkg|csv|tif|xml|py)$'))))
     files.append(DIR_REPO / '__init__.py')
-    files.append(DIR_REPO / 'CHANGELOG.rst')
+    files.append(DIR_REPO / 'CHANGELOG')
     files.append(DIR_REPO / 'ABOUT.html')
     files.append(DIR_REPO / 'CONTRIBUTORS.rst')
     files.append(DIR_REPO / 'LICENSE.md')
@@ -198,8 +193,6 @@ def create_plugin(include_testdata: bool = False,
 
         print('\n'.join(info))
 
-        from qgis.PyQt.QtGui import QClipboard, QGuiApplication
-
         #cb = QGuiApplication.clipboard()
         #if isinstance(cb, QClipboard):
         #    cb.setText('\n'.join(info))
@@ -211,7 +204,7 @@ def rst2html(pathMD: pathlib.Path) -> str:
     """
     Convert a rst file to html
     """
-    import docutils.core
+
     assert pathMD.is_file()
 
     overrides = {'stylesheet': None,
@@ -221,7 +214,6 @@ def rst2html(pathMD: pathlib.Path) -> str:
 
     html = docutils.core.publish_file(source_path=pathMD, writer_name='html5', settings_overrides=overrides)
 
-    from xml.dom import minidom
     xml = minidom.parseString(html)
     #  remove headline
     for i, node in enumerate(xml.getElementsByTagName('h1')):
@@ -252,6 +244,7 @@ def rst2html(pathMD: pathlib.Path) -> str:
             html_cleaned.append(line)
     return html
 
+
 def createCHANGELOG(dirPlugin:pathlib.Path):
     """
     Reads the CHANGELOG.rst and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
@@ -260,11 +253,14 @@ def createCHANGELOG(dirPlugin:pathlib.Path):
 
     pathMD = DIR_REPO / 'CHANGELOG.rst'
     pathCL = dirPlugin / 'CHANGELOG'
+    pathCL2 = DIR_REPO / 'CHANGELOG'
     os.makedirs(pathCL.parent, exist_ok=True)
 
     # make html compact
     html_cleaned = rst2html(pathMD)
     with open(pathCL, 'w', encoding='utf-8') as f:
+        f.write(''.join(html_cleaned))
+    with open(pathCL2, 'w', encoding='utf-8') as f:
         f.write(''.join(html_cleaned))
 
 

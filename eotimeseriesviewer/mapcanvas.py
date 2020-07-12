@@ -21,26 +21,33 @@
 # noinspection PyPep8Naming
 KEY_LAST_CLICKED = 'LAST_CLICKED'
 
-import os, time, types, enum
-from eotimeseriesviewer import CursorLocationMapTool
+import time
+
+import eotimeseriesviewer.settings
+import qgis.utils
+from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
+from .externals.qps.layerproperties import showLayerPropertiesDialog
+from .externals.qps.maptools import *
+from .externals.qps.utils import *
+from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
+from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
+
 from qgis.core import *
 from qgis.gui import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEnhancement, \
+    QgsDateTimeRange, QgsProject, QgsTextRenderer, QgsApplication, QgsCoordinateReferenceSystem, \
+    QgsMapToPixel, QgsRenderContext, QgsMapSettings, \
+    QgsRasterBandStats, QgsPalettedRasterRenderer, QgsPointXY, \
+    QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsRasterLayerTemporalProperties, QgsRasterDataProvider, \
+    QgsTextFormat, QgsMapLayerStore, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, QgsField, \
+    QgsRectangle, QgsPolygon, QgsMultiBandColorRenderer , QgsRectangle, QgsSingleBandGrayRenderer, \
+    QgsLayerTreeGroup
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtXml import QDomDocument
-
-
-
-from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer, SensorInstrument
-from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
-from .externals.qps.maptools import *
-from .labeling import quickLabelLayers, labelShortcutLayerClassificationSchemes, setQuickTSDLabelsForRegisteredLayers
-from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
-from .externals.qps.utils import *
-from .externals.qps.layerproperties import showLayerPropertiesDialog
-import eotimeseriesviewer.settings
+from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInputWidget, \
+    QgsAdvancedDigitizingDockWidget, \
+    QgsMapTool, QgsMapToolPan, QgsMapToolZoom, QgsMapToolCapture, QgsMapToolIdentify, \
+    QgsGeometryRubberBand
 
 PROGRESS_TIMER = QTimer()
 PROGRESS_TIMER.start(100)
@@ -281,7 +288,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
 class MapCanvasMapTools(QObject):
 
 
-    def __init__(self, canvas:QgsMapCanvas, cadDock:QgsAdvancedDigitizingDockWidget):
+    def __init__(self, canvas:QgsMapCanvas, cadDock: QgsAdvancedDigitizingDockWidget):
 
         super(MapCanvasMapTools, self).__init__(canvas)
         self.mCanvas = canvas
@@ -422,9 +429,11 @@ class MapCanvas(QgsMapCanvas):
         self.setCanvasColor(bg)
         self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
-        self.extentsChanged.connect(lambda *args: self.sigSpatialExtentChanged.emit(self.spatialExtent()))
+        self.extentsChanged.connect(self.onExtentsChanged)
 
-        self.destinationCrsChanged.connect(lambda *args: self.sigDestinationCrsChanged.emit(self.crs()))
+    def onExtentsChanged(self):
+        self.sigSpatialExtentChanged.emit(self.spatialExtent())
+        #self.destinationCrsChanged.connect(lambda: self.sigDestinationCrsChanged.emit(self.crs()))
 
     def userInputWidget(self) -> QgsUserInputWidget:
         """
@@ -432,6 +441,7 @@ class MapCanvas(QgsMapCanvas):
         :return: QgsUserInputWidget
         """
         return self.mUserInputWidget
+
 
     def infoItem(self) -> MapCanvasInfoItem:
         """
@@ -573,7 +583,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mTSD
 
-    def setSpatialExtent(self, extent: SpatialExtent):
+    def setSpatialExtent(self, extent:SpatialExtent):
         """
         Sets the spatial extent
         :param extent: SpatialExtent
@@ -582,7 +592,7 @@ class MapCanvas(QgsMapCanvas):
         extent = extent.toCrs(self.crs())
         self.setExtent(extent)
 
-    def setSpatialCenter(self, center: SpatialPoint):
+    def setSpatialCenter(self, center:SpatialPoint):
         """
         Sets the SpatialCenter
         :param center: SpatialPoint
@@ -617,8 +627,6 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mapSettings().destinationCrs()
 
-
-
     def setLayers(self, mapLayers):
         """
         Set the map layers and, if necessary, registers the in a QgsMapLayerStore
@@ -626,7 +634,6 @@ class MapCanvas(QgsMapCanvas):
         """
         self.mMapLayerStore.addMapLayers(mapLayers)
         super(MapCanvas, self).setLayers(mapLayers)
-
 
     def isRefreshing(self) -> bool:
         return self.mIsRefreshing
@@ -637,7 +644,6 @@ class MapCanvas(QgsMapCanvas):
         :return: bool
         """
         return self.visibleRegion().boundingRect().isValid()
-
 
     def addToRefreshPipeLine(self, arguments: list):
         """
@@ -701,6 +707,9 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer = SensorProxyLayer(source, sensor=self.tsd().sensor(), options=loptions)
                             sourceLayer.setName(lyr.name())
                             sourceLayer.setCustomProperty('eotsv/sensorid', self.tsd().sensor().id())
+                            sourceLayer.mTSS = tss
+                            #tprop:QgsTemporalProperties = sourceLayer.temporalProperties()
+
                             try:
                                 renderer = lyr.renderer()
                                 if isinstance(renderer, QgsRasterRenderer):
@@ -731,19 +740,19 @@ class MapCanvas(QgsMapCanvas):
                 keys = self.mTimedRefreshPipeLine.keys()
 
                 if QgsCoordinateReferenceSystem in keys:
-                    self.setDestinationCrs(self.mTimedRefreshPipeLine[QgsCoordinateReferenceSystem])
+                    self.setDestinationCrs(self.mTimedRefreshPipeLine.pop(QgsCoordinateReferenceSystem))
 
                 if SpatialExtent in keys:
-                    self.setSpatialExtent(self.mTimedRefreshPipeLine[SpatialExtent])
+                    self.setSpatialExtent(self.mTimedRefreshPipeLine.pop(SpatialExtent))
 
                 if SpatialPoint in keys:
-                    self.setSpatialCenter(self.mTimedRefreshPipeLine[SpatialPoint])
+                    self.setSpatialCenter(self.mTimedRefreshPipeLine.pop(SpatialPoint))
 
                 if QColor in keys:
-                    self.setCanvasColor(self.mTimedRefreshPipeLine[QColor])
+                    self.setCanvasColor(self.mTimedRefreshPipeLine.pop(QColor))
 
                 if MapCanvas.Command in keys:
-                    commands = self.mTimedRefreshPipeLine[MapCanvas.Command]
+                    commands = self.mTimedRefreshPipeLine.pop(MapCanvas.Command)
                     for command in commands:
                         assert isinstance(command, MapCanvas.Command)
                         if command == MapCanvas.Command.RefreshRenderer:
@@ -766,7 +775,6 @@ class MapCanvas(QgsMapCanvas):
             self.freeze(False)
             self.refresh()
             # is this really required?
-
 
     def setLayerVisibility(self, cls, isVisible:bool):
         """
@@ -900,7 +908,7 @@ class MapCanvas(QgsMapCanvas):
             a.setToolTip('Writes the dates and sensor quick labels of selected features in {}.'.format(layerNames))
             a.triggered.connect(lambda *args, tsd = self.tsd(), tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss))
 
-            from .labeling import CONFKEY_CLASSIFICATIONSCHEME, layerClassSchemes, setQuickClassInfo
+            from .labeling import layerClassSchemes, setQuickClassInfo
             if len(lyrWithSelectedFeatures) == 0:
                 a = m.addAction('No features selected.')
                 a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
@@ -935,9 +943,9 @@ class MapCanvas(QgsMapCanvas):
             action = m.addAction('Gaussian')
             action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
 
-        menu.addSeparator()
 
-        from .externals.qps.layerproperties import pasteStyleFromClipboard, pasteStyleToClipboard
+        menu.addSeparator()
+        from .externals.qps.layerproperties import pasteStyleToClipboard
 
         b = isinstance(refRasterLayer, QgsRasterLayer)
         a = menu.addAction('Copy Style')
@@ -995,6 +1003,12 @@ class MapCanvas(QgsMapCanvas):
             a.setToolTip('Paster layer style from clipboard')
             a.setEnabled('application/qgis.style' in QApplication.clipboard().mimeData().formats())
             a.triggered.connect(lambda *args, lyr=mapLayer: self.onPasteStyleFromClipboard(lyr))
+
+            iface = qgis.utils.iface
+            if isinstance(iface, QgisInterface):
+                sub.addSeparator()
+                a = sub.addAction('Open in QGIS')
+                a.triggered.connect(lambda *args, lyrs=[mapLayer]: self.onOpenLayersInQGIS(lyrs))
 
         menu.addSeparator()
 
@@ -1058,7 +1072,6 @@ class MapCanvas(QgsMapCanvas):
                 action = m.addAction('All Maps')
                 action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.grab()))
                 action.setToolTip('Copies all maps into the clipboard.')
-
 
         m = menu.addMenu('Map Coordinates...')
 
@@ -1128,9 +1141,8 @@ class MapCanvas(QgsMapCanvas):
 
             ts = eotsv.timeSeries()
 
-            action = menu.addAction('Focus to Spatial Extent')
-            action.setToolTip('Sets the image visibility on True for images with valid pixels in the current extent.')
-            action.triggered.connect(lambda *args, ext=self.spatialExtent(): ts.focusVisibilityToExtent(ext=ext))
+            action = menu.addAction('Focus on Spatial Extent')
+            action.triggered.connect(ts.focusVisibilityToExtent)
 
             action = menu.addAction('Hide Date')
             action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))
@@ -1140,10 +1152,10 @@ class MapCanvas(QgsMapCanvas):
 
         return menu
 
-    def onSetLayerProperties(self, lyr:QgsRasterLayer):
+    def onSetLayerProperties(self, lyr: QgsRasterLayer):
         # b = isinstance(mapLayer, SensorProxyLayer) == False:
 
-        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=False)
+        result = showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
 
         if result == QDialog.Accepted and isinstance(lyr, SensorProxyLayer):
             r = lyr.renderer().clone()
@@ -1151,6 +1163,30 @@ class MapCanvas(QgsMapCanvas):
             r.setInput(proxyLayer.dataProvider())
             proxyLayer.setRenderer(r)
 
+    def onOpenLayersInQGIS(self, mapLayers:typing.List[QgsMapLayer]):
+
+        layers = []
+        for l in mapLayers:
+            if isinstance(l, SensorProxyLayer):
+                lyr = QgsRasterLayer(l.source(), l.name(), l.dataProvider().name())
+                r = l.renderer().clone()
+                r.setInput(lyr.dataProvider())
+                lyr.setRenderer(r)
+
+                tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+                tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
+
+                if isinstance(l.mTSS, TimeSeriesSource):
+                    dtg = QDateTime(l.mTSS.date().astype(object))
+                else:
+                    dtg = QDateTime(self.tsd().date().astype(object))
+                tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
+
+                layers.append(l)
+            else:
+                layers.append(l)
+        if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):
+            QgsProject.instance().addMapLayers(layers, True)
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
@@ -1168,8 +1204,9 @@ class MapCanvas(QgsMapCanvas):
         :param event: QEvent
         """
         assert isinstance(event, QContextMenuEvent)
-        menu = self.contextMenu(event.pos())
-        menu.exec_(event.globalPos())
+        if not isinstance(self.mapTool(), QgsMapToolCapture):
+            menu = self.contextMenu(event.pos())
+            menu.exec_(event.globalPos())
 
     def addLayers2QGIS(self, mapLayers):
         import qgis.utils
@@ -1317,9 +1354,9 @@ class MapCanvas(QgsMapCanvas):
         """
         assert isinstance(spatialExtent, SpatialExtent)
         if self.spatialExtent() != spatialExtent:
-            spatialExtent = spatialExtent.toCrs(self.crs())
-            if isinstance(spatialExtent, SpatialExtent):
-                self.setExtent(spatialExtent)
+            if spatialExtent.crs() != self.mapSettings().destinationCrs():
+                self.mapSettings().setDestinationCrs(spatialExtent.crs())
+            self.setExtent(spatialExtent)
 
     def setSpatialCenter(self, spatialPoint: SpatialPoint):
         """
@@ -1335,7 +1372,7 @@ class MapCanvas(QgsMapCanvas):
         Returns the map extent as SpatialExtent (extent + CRS)
         :return: SpatialExtent
         """
-        return SpatialExtent.fromMapCanvas(self)
+        return SpatialExtent(self.crs(), self.extent())
 
     def spatialCenter(self) -> SpatialPoint:
         """

@@ -341,12 +341,13 @@ class SensorInstrument(QObject):
         return '\n'.join(info)
 
 
-
 class SensorProxyLayer(QgsRasterLayer):
 
-    def __init__(self, *args, sensor:SensorInstrument, **kwds):
+    def __init__(self, *args, sensor: SensorInstrument, **kwds):
         super(SensorProxyLayer, self).__init__(*args, **kwds)
-        self.mSensor = sensor
+        self.mSensor: SensorInstrument = sensor
+        self.mTSS: TimeSeriesSource = None
+
 
     def sensor(self) -> SensorInstrument:
         """
@@ -625,7 +626,12 @@ class TimeSeriesSource(object):
 
     def asRasterLayer(self, loadDefaultStyle: bool = False) -> QgsRasterLayer:
         loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
-        return QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
+        lyr = QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
+        tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+        tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
+        dtg = QDateTime(self.date().astype(object))
+        tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
+        return lyr
 
     def crsWkt(self) -> str:
         return self.mWKT
@@ -2207,11 +2213,11 @@ class TimeSeries(QAbstractItemModel):
         return flags
 
 
-
 class TimeSeriesTreeView(QTreeView):
 
     sigMoveToDateRequest = pyqtSignal(TimeSeriesDate)
     sigMoveToSource = pyqtSignal(TimeSeriesSource)
+    sigSetMapCrs = pyqtSignal(QgsCoordinateReferenceSystem)
 
     def __init__(self, parent=None):
         super(TimeSeriesTreeView, self).__init__(parent)
@@ -2247,6 +2253,7 @@ class TimeSeriesTreeView(QTreeView):
         a.triggered.connect(lambda: self.onCopyValues())
 
         menu.addSeparator()
+
         if isinstance(node, TimeSeriesDate):
             a = menu.addAction('Show map for {}'.format(node.date()))
             a.setToolTip('Shows the map related to this time series date.')
@@ -2258,14 +2265,19 @@ class TimeSeriesTreeView(QTreeView):
             a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
             menu.addSeparator()
 
-        a = menu.addAction('Hide date(s)')
-        a.setToolTip('Hides the selected time series dates.')
+            a = menu.addAction('Set Crs to maps')
+            a.setToolTip(f'Sets the map projection to that of this image ({node.crs().description()})')
+            a.triggered.connect(lambda *args, crs=node.crs(): self.sigSetMapCrs.emit(crs))
+
+        a = menu.addAction('Set date(s) invisible')
+        a.setToolTip('Hides the selected time series dates from being shown in a map.')
         a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, False))
-        a = menu.addAction('Show date(s)')
-        a.setToolTip('Shows the selected time series dates.')
+        a = menu.addAction('Set date(s) visible')
+        a.setToolTip('Shows the selected time series dates in maps.')
         a.triggered.connect(lambda *args, tsds=selectedTSDs: self.timeseries().showTSDs(tsds, True))
 
         menu.addSeparator()
+
         a = menu.addAction('Open in QGIS')
         a.setToolTip('Adds the selected images to the QGIS map canvas')
         a.triggered.connect(lambda *args, tss=selectedTSSs: self.openInQGIS(tss))
@@ -2273,11 +2285,11 @@ class TimeSeriesTreeView(QTreeView):
         menu.popup(QCursor.pos())
 
     def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
+
         import qgis.utils
         iface = qgis.utils.iface
-
         if isinstance(iface, QgisInterface):
-            layers = [QgsRasterLayer(tss.uri(), tss.name()) for tss in tssList]
+            layers = [tss.asRasterLayer() for tss in tssList]
             QgsProject.instance().addMapLayers(layers, True)
 
     def setClipboardUris(self, tssList: typing.List[TimeSeriesSource]):
@@ -2567,7 +2579,6 @@ def extractWavelengths(ds):
     return None, None
 
 
-
 class TimeSeriesDock(QgsDockWidget):
     """
     QgsDockWidget that shows the TimeSeries
@@ -2579,7 +2590,7 @@ class TimeSeriesDock(QgsDockWidget):
         self.frameFilters.setVisible(False)
         self.timeSeriesTreeView: TimeSeriesTreeView
         assert isinstance(self.timeSeriesTreeView, TimeSeriesTreeView)
-        self.mTimeSeries = None
+        self.mTimeSeries: TimeSeries = None
         self.mSelectionModel = None
 
     def initActions(self, parent):
@@ -2662,6 +2673,7 @@ class TimeSeriesDock(QgsDockWidget):
         :param TS: TimeSeries
         """
         from eotimeseriesviewer.timeseries import TimeSeries
+
         if isinstance(TS, TimeSeries):
             self.mTimeSeries = TS
             self.mTSProxyModel = QSortFilterProxyModel(self)

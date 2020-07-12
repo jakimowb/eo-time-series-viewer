@@ -497,7 +497,6 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
                         editor.setCurrentIndex(i)
                         break
 
-
     def setModelData(self, w, model, index):
         assert isinstance(model, LabelAttributeTableModel)
         assert isinstance(index, QModelIndex)
