@@ -22,6 +22,7 @@
 
 import bisect
 import collections
+import datetime
 import enum
 import json
 import pathlib
@@ -1103,13 +1104,16 @@ class SensorMatching(enum.Flag):
         parts = []
         if bool(flags & SensorMatching.PX_DIMS):
             parts.append(
-                'Source images of same sensor/product must have same ground sampling distance ("pixel size"), number of bands and data type.')
+                'Source images of same sensor/product must have same ground sampling distance ("pixel size"), '
+                'number of bands and data type.')
         if bool(flags & SensorMatching.WL):
             parts.append(
-                r'Source images of same sensor/product must have same wavelength definition, e.g. nanometer value for each raster band.')
+                r'Source images of same sensor/product must have same wavelength definition, '
+                r'e.g. nanometer value for each raster band.')
         if bool(flags & SensorMatching.NAME):
             parts.append(
-                r'Source images of same sensor/product must have the same name, e.g. defined by a "sensor type = Landsat 8" metadata entry.')
+                r'Source images of same sensor/product must have the same name, e.g. defined by '
+                r'a "sensor type = Landsat 8" metadata entry.')
 
         return '\n'.join(parts)
 
@@ -1122,7 +1126,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
                  timeSeriesSources: typing.List[TimeSeriesSource],
                  callback=None,
                  description='Calculate image pixel overlap',
-                 sampleSize: int = 256,
+                 sampleSize: int = 25,
                  block_size=25):
         super().__init__(description=description)
         assert block_size >= 1
@@ -1130,10 +1134,12 @@ class TimeSeriesFindOverlapTask(QgsTask):
 
         assert isinstance(extent, SpatialExtent)
         self.mBlockSize: int = block_size
-        self.mTSS: typing.List[TimeSeriesSource] = timeSeriesSources
+        self.mTSS: typing.List[str] = [tss.uri() for tss in timeSeriesSources]
         self.mCallback = callback
-        self.mTargetExtent = extent
+        self.mTargetExtent = extent.__copy__()
         self.mSampleSize = sampleSize
+        self.mIntersections: typing.Dict[str, bool] = dict()
+        self.mError = None
 
     def run(self):
         """
@@ -1144,51 +1150,60 @@ class TimeSeriesFindOverlapTask(QgsTask):
         extentLookup = dict()
         extentLookup[targetCRS.toWkt()] = self.mTargetExtent
 
-        done = dict()
-        n = len(self.mTSS)
-        next_progress = 10
-        for i, tss in enumerate(self.mTSS):
-            if self.isCanceled():
-                return False
-            wkt = tss.crsWkt()
-            if wkt not in extentLookup.keys():
-                extentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
+        try:
+            for tssUri in self.mTSS:
+                self.mIntersections[tssUri] = False
+            emptyStats: QgsRasterBandStats = QgsRasterBandStats()
+            emptyMin = emptyStats.minimumValue
+            emptyMax = emptyStats.maximumValue
+            del emptyStats
+            n = len(self.mTSS)
 
-            targetExtent2 = extentLookup[wkt]
-            if not (isinstance(targetExtent2, SpatialExtent) and targetExtent2.intersects(tss.spatialExtent())):
-                done[tss] = False
-                self.setProgress(int(100 * (i + 1) / n))
-                continue
+            t0 = datetime.datetime.now()
+            report_delay = datetime.timedelta(seconds=2)
 
-            lyr: QgsRasterLayer = tss.asRasterLayer()
-            if not isinstance(lyr, QgsRasterLayer):
-                done[tss] = False
-                self.setProgress(int(100 * (i + 1) / n))
-                continue
+            for i, tssUri in enumerate(self.mTSS):
+                if self.isCanceled():
+                    return False
+                tss = TimeSeriesSource.create(tssUri)
+                wkt = tss.crsWkt()
+                if wkt not in extentLookup.keys():
+                    extentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
 
-            dp: QgsRasterDataProvider = lyr.dataProvider()
-            stats: QgsRasterBandStats = dp.bandStatistics(1,
-                                                          stats=QgsRasterBandStats.Range,
-                                                          extent=targetExtent2,
-                                                          sampleSize=self.mSampleSize)
-            if stats.statsGathered > 0:
-                if stats.minimumValue > stats.maximumValue:
-                    done[tss] = False
-                else:
-                    done[tss] = True
-            else:
-                done[tss] = False
+                targetExtent2 = extentLookup[wkt]
+                if not isinstance(targetExtent2, SpatialExtent):
+                    continue
 
-            # if len(done) >= self.mBlockSize:
-            #    self.sigTimeSeriesSourceOverlap.emit(done)
-            #    done = dict()
-            progress = int(100 * (i + 1) / n)
-            if progress >= next_progress:
-                self.setProgress(progress)
-                next_progress += 10
+                if not targetExtent2.intersects(tss.spatialExtent()):
+                    continue
 
-        if len(done) >= 0:
-            self.sigTimeSeriesSourceOverlap.emit(done)
+                lyr: QgsRasterLayer = tss.asRasterLayer()
+                if not isinstance(lyr, QgsRasterLayer):
+                    continue
+
+                dp: QgsRasterDataProvider = lyr.dataProvider()
+                stats: QgsRasterBandStats = dp.bandStatistics(1,
+                                                  stats=QgsRasterBandStats.Range,
+                                                  extent=targetExtent2,
+                                                  sampleSize=self.mSampleSize)
+
+                if not isinstance(stats, QgsRasterBandStats):
+                    continue
+                self.mIntersections[tssUri] = (stats.minimumValue, stats.maximumValue) != (emptyMin, emptyMax)
+
+                progress = int(100 * (i + 1) / n)
+
+                dt = datetime.datetime.now() - t0
+                if dt > report_delay:
+                    self.setProgress(progress)
+                    #self.sigTimeSeriesSourceOverlap.emit(self.mIntersections)
+                    #self.mIntersections.clear()
+                    t0 = datetime.datetime.now()
+        except Exception as ex:
+            self.mError = ex
+            return False
+
+        #self.sigTimeSeriesSourceOverlap.emit(self.mIntersections)
         return True
 
     def canCancel(self) -> bool:
@@ -1197,6 +1212,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
     def finished(self, result):
         if self.mCallback is not None:
             self.mCallback(result, self)
+            #print('Finished', flush=True)
 
 
 class TimeSeriesLoadingTask(QgsTask):
@@ -1311,13 +1327,17 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self, ext: SpatialExtent = None, runAsync: bool = True):
+    def focusVisibilityToExtent(self, ext: SpatialExtent = None, runAsync: bool = None):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
+        :param runAsync: if True (default), the visibility check is run in a parallel task
         :param ext: SpatialExtent
         """
         if ext is None:
             ext = self.currentSpatialExtent()
+        if runAsync is None:
+            from eotimeseriesviewer.settings import value, Keys
+            runAsync = value(Keys.QgsTaskAsync, True)
 
         tssToTest = []
         if isinstance(ext, SpatialExtent):
@@ -1334,33 +1354,41 @@ class TimeSeries(QAbstractItemModel):
 
             qgsTask = TimeSeriesFindOverlapTask(ext,
                                                 tssToTest,
-                                                sampleSize=value(Keys.BandStatsSampleSize),
-                                                block_size=value(Keys.QgsTaskBlockSize))
+                                                sampleSize=value(Keys.RasterOverlapSampleSize),
+                                                block_size=value(Keys.QgsTaskBlockSize),
+                                                callback=self.onTaskFinished)
             tid = id(qgsTask)
-            self.mTasks[tid] = qgsTask
+            #self.mTasks[tid] = qgsTask
 
-            qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlapp)
-            qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-            qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
             qgsTask.progressChanged.connect(self.sigProgress.emit)
+            #qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
+
+            qgsTask.taskCompleted.connect(lambda *args, _tid=tid: self.onRemoveTask(_tid))
+            qgsTask.taskTerminated.connect(lambda *args, _tid=tid: self.onRemoveTask(_tid))
 
             if runAsync:
                 tm = QgsApplication.taskManager()
                 assert isinstance(tm, QgsTaskManager)
                 tm.addTask(qgsTask)
             else:
-                qgsTask.run()
+                qgsTask.finished(qgsTask.run())
 
-    def onFoundOverlapp(self, results: dict):
+    def onFoundOverlap(self, results: dict):
+
+        URI2TSS = dict()
+        for tsd in self:
+            for tss in tsd:
+                URI2TSS[tss.uri()] = tss
 
         affectedTSDs = set()
-        for tss, b in results.items():
-            assert isinstance(tss, TimeSeriesSource)
-            assert isinstance(b, bool)
-            tss.setIsVisible(b)
-            tsd = tss.timeSeriesDate()
-            if isinstance(tsd, TimeSeriesDate):
-                affectedTSDs.add(tsd)
+        for tssUri, b in results.items():
+            assert isinstance(tssUri, str)
+            tss = URI2TSS.get(tssUri, None)
+            if isinstance(tss, TimeSeriesSource):
+                tss.setIsVisible(b)
+                tsd = tss.timeSeriesDate()
+                if isinstance(tsd, TimeSeriesDate):
+                    affectedTSDs.add(tsd)
         if len(affectedTSDs) == 0:
             return
 
@@ -1735,7 +1763,7 @@ class TimeSeries(QAbstractItemModel):
 
     def addTimeSeriesSources(self, sources: typing.List[TimeSeriesSource]):
         assert isinstance(sources, list)
-
+        print('Add TSS...', flush=True)
         addedDates = []
         for i, source in enumerate(sources):
             assert isinstance(source, TimeSeriesSource)
@@ -1785,15 +1813,17 @@ class TimeSeries(QAbstractItemModel):
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
         else:
-            qgsTask.run()
+            qgsTask.finished(qgsTask.run())
 
     def onRemoveTask(self, key):
+        #print(f'remove {key}', flush=True)
         if isinstance(key, QgsTask):
             key = id(key)
-        self.mTasks.pop(key)
+        if key in self.mTasks.keys():
+            self.mTasks.pop(key)
 
     def onTaskFinished(self, success, task: QgsTask):
-        # print(':: onAddSourcesAsyncFinished')
+        #print(':: onAddSourcesAsyncFinished')
         if isinstance(task, TimeSeriesLoadingTask):
             if len(task.mInvalidSources) > 0:
                 info = ['Unable to load {} data source(s):'.format(len(task.mInvalidSources))]
@@ -1801,6 +1831,9 @@ class TimeSeries(QAbstractItemModel):
                     info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
                 info = '\n'.join(info)
                 messageLog(info, Qgis.Critical)
+        elif isinstance(task, TimeSeriesFindOverlapTask):
+            if success and len(task.mIntersections) > 0:
+                self.onFoundOverlap(task.mIntersections)
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """

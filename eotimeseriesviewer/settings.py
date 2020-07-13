@@ -1,7 +1,9 @@
 import os, enum, pathlib, re, json, pickle
 from collections import namedtuple
 from qgis.core import *
+from qgis.core import QgsReadWriteContext, QgsTextFormat, QgsTextBufferSettings, QgsUnitTypes
 from qgis.gui import *
+from qgis.gui import QgsFileWidget
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import *
@@ -34,6 +36,7 @@ class Keys(enum.Enum):
     QgsTaskAsync = 'qgs_task_async'
     QgsTaskBlockSize = 'qgs_task_block_size'
     BandStatsSampleSize = 'band_stats_sample_size'
+    RasterOverlapSampleSize = 'raster_overlap_sample_size'
 
 
 def defaultValues() -> dict:
@@ -62,6 +65,7 @@ def defaultValues() -> dict:
     d[Keys.QgsTaskAsync] = True
     d[Keys.QgsTaskBlockSize] = 25
     d[Keys.BandStatsSampleSize] = 256
+    d[Keys.RasterOverlapSampleSize] = 25
 
     d[Keys.SettingsVersion] = EOTSV_VERSION
     textFormat = QgsTextFormat()
@@ -135,6 +139,9 @@ def value(key: Keys, default=None):
             value = int(value)
 
         if key == Keys.BandStatsSampleSize:
+            value = int(value)
+
+        if key == Keys.RasterOverlapSampleSize:
             value = int(value)
 
         if key == Keys.MapUpdateInterval:
@@ -290,8 +297,8 @@ class SensorSettingsTableModel(QAbstractTableModel):
         sensorSpecs = value(Keys.SensorSpecs, default={})
 
         sensors = []
-        for id, specs in sensorSpecs.items():
-            sensor = SensorInstrument(id)
+        for sid, specs in sensorSpecs.items():
+            sensor = SensorInstrument(sid)
             sensor.setName(specs['name'])
             sensors.append(sensor)
         self.addSensors(sensors)
@@ -308,7 +315,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
 
     def sensor2idx(self, sensor: SensorInstrument) -> QModelIndex:
 
-        if not sensor in self.mSensors:
+        if sensor not in self.mSensors:
             return QModelIndex()
         row = self.mSensors.index(sensor)
         return self.createIndex(row, 0, sensor)
@@ -571,6 +578,7 @@ class SettingsDialog(QDialog):
         d[Keys.QgsTaskAsync] = self.cbAsyncQgsTasks.isChecked()
         d[Keys.QgsTaskBlockSize] = self.sbQgsTaskBlockSize.value()
         d[Keys.BandStatsSampleSize] = self.sbBandStatsSampleSize.value()
+        d[Keys.RasterOverlapSampleSize] = self.sbRasterOverlapSampleSize.value()
 
         for k in self.mLastValues.keys():
             if k not in d.keys():
@@ -647,3 +655,6 @@ class SettingsDialog(QDialog):
 
             if checkKey(key, Keys.BandStatsSampleSize) and isinstance(value, int):
                 self.sbBandStatsSampleSize.setValue(value)
+
+            if checkKey(key, Keys.RasterOverlapSampleSize) and isinstance(value, int):
+                self.sbRasterOverlapSampleSize.setValue(value)

@@ -90,8 +90,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>474</width>
-              <height>380</height>
+              <width>399</width>
+              <height>397</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -464,7 +464,7 @@
                  <string>Reload</string>
                 </property>
                 <property name="icon">
-                 <iconset resource="../../../QGIS/images/images.qrc">
+                 <iconset>
                   <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
                 </property>
                 <property name="autoRaise">
@@ -478,7 +478,7 @@
                  <string>Clear</string>
                 </property>
                 <property name="icon">
-                 <iconset resource="../../../QGIS/images/images.qrc">
+                 <iconset>
                   <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
                 </property>
                 <property name="autoRaise">
@@ -549,6 +549,9 @@
            <property name="text">
             <string>Asynchronous QgsTasks</string>
            </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
           </widget>
          </item>
          <item row="4" column="0">
@@ -583,6 +586,38 @@
            </property>
           </widget>
          </item>
+         <item row="6" column="0">
+          <widget class="QgsSpinBox" name="sbRasterOverlapSampleSize">
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>22</height>
+            </size>
+           </property>
+           <property name="suffix">
+            <string> px</string>
+           </property>
+           <property name="prefix">
+            <string/>
+           </property>
+           <property name="minimum">
+            <number>5</number>
+           </property>
+           <property name="maximum">
+            <number>64000</number>
+           </property>
+           <property name="value">
+            <number>25</number>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QLabel" name="label_14">
+           <property name="text">
+            <string>Raster overlap sample size</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </widget>
@@ -602,7 +637,7 @@
   </layout>
   <action name="actionRefreshSensorList">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
    </property>
    <property name="text">
@@ -611,7 +646,7 @@
   </action>
   <action name="actionDeleteSelectedSensors">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDeleteSelected.svg</normaloff>:/images/themes/default/mActionDeleteSelected.svg</iconset>
    </property>
    <property name="text">

@@ -92,7 +92,7 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
-    def test_overlapp(self):
+    def test_overlap(self):
 
         import example
 
@@ -100,12 +100,18 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertIsInstance(tss, TimeSeriesSource)
 
         overlapped = []
+
         def onOverlapp(overlapp:dict):
             for tss, is_overlapp in overlapp.items():
-                self.assertIsInstance(tss, TimeSeriesSource)
-                self.assertIsInstance(is_overlapp, bool)
+                self.assertIsInstance(tss, str)
+                self.assertTrue(is_overlapp in [True, False, None])
 
                 overlapped.append(is_overlapp)
+
+        def onFinished(success, task):
+            self.assertIsInstance(task, TimeSeriesFindOverlapTask)
+            if success:
+                onOverlapp(task.mIntersections)
 
         ext_full = tss.spatialExtent()
         ext_nodata = SpatialExtent(ext_full.crs(),
@@ -121,9 +127,9 @@ class TestTimeSeries(EOTSVTestCase):
                                         ext_full.yMaximum())
 
         for ext in [ext_full, ext_nodata, ext_outofbounds]:
-            task = TimeSeriesFindOverlapTask(ext, [tss])
-            task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
-            task.run()
+            task = TimeSeriesFindOverlapTask(ext, [tss], sampleSize=1024, callback=onFinished)
+            #task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
+            task.finished(task.run())
 
         self.assertListEqual(overlapped, [True, False, False])
 

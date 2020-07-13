@@ -1144,7 +1144,9 @@ class MapCanvas(QgsMapCanvas):
             ts = eotsv.timeSeries()
 
             action = menu.addAction('Focus on Spatial Extent')
-            action.triggered.connect(ts.focusVisibilityToExtent)
+            action.triggered.connect(lambda *args,
+                                     ext=self.spatialExtent():
+                                     ts.focusVisibilityToExtent(ext=ext))
 
             action = menu.addAction('Hide Date')
             action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))

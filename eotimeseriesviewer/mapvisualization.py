@@ -1136,6 +1136,8 @@ class MapWidget(QFrame):
                     for c in self.mapViewCanvases(mapView):
                         # find the first map canvas that contains  layer data of this sensor
                         # in its extent
+                        if not isinstance(c.tsd(), TimeSeriesDate):
+                            continue
                         if c.tsd().sensor() == sensor and c.stretchToCurrentExtent():
                             mapView.mInitialStretch[sensor] = True
                             break
