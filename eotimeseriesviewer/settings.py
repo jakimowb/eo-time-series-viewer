@@ -1,4 +1,3 @@
-
 import os, enum, pathlib, re, json, pickle
 from collections import namedtuple
 from qgis.core import *
@@ -35,6 +34,7 @@ class Keys(enum.Enum):
     QgsTaskAsync = 'qgs_task_async'
     QgsTaskBlockSize = 'qgs_task_block_size'
     BandStatsSampleSize = 'band_stats_sample_size'
+
 
 def defaultValues() -> dict:
     """
@@ -79,7 +79,6 @@ def defaultValues() -> dict:
 
     d[Keys.MapTextFormat] = textFormat
 
-
     # tbd. other settings
 
     return d
@@ -96,13 +95,13 @@ def settings() -> QSettings:
 
 
 if (not settings().contains(Keys.SettingsVersion.value)) or \
-    str(settings().value(Keys.SettingsVersion.value)) < '1.10.2020':
-        # addresses issue https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/103/tsv-crashes-qgis-on-linux
-        # which was caused by a wrong serialization of a QgsTextFormat object
-        settings().setValue(Keys.MapTextFormat.value, None)
+        str(settings().value(Keys.SettingsVersion.value)) < '1.10.2020':
+    # addresses issue https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/103/tsv-crashes-qgis-on-linux
+    # which was caused by a wrong serialization of a QgsTextFormat object
+    settings().setValue(Keys.MapTextFormat.value, None)
 
 
-def value(key:Keys, default=None):
+def value(key: Keys, default=None):
     """
     Provides direct access to a settings value
     :param key: Keys
@@ -169,7 +168,7 @@ def value(key:Keys, default=None):
     return value
 
 
-def saveSensorName(sensor:SensorInstrument):
+def saveSensorName(sensor: SensorInstrument):
     """
     Saves the sensor name
     :param sensor: SensorInstrument
@@ -187,24 +186,23 @@ def saveSensorName(sensor:SensorInstrument):
 
     setValue(Keys.SensorSpecs, sensorSpecs)
 
-def sensorName(id:typing.Union[str, SensorInstrument]) -> str:
+
+def sensorName(sid: typing.Union[str, SensorInstrument]) -> str:
     """
     Retuns the sensor name stored for a certain sensor id
-    :param id: str
+    :param sid: str
     :return: str
     """
-    if isinstance(id, SensorInstrument):
-        id = id.id()
+    if isinstance(sid, SensorInstrument):
+        sid = sid.id()
 
     sensorSpecs = value(Keys.SensorSpecs, default=dict())
     assert isinstance(sensorSpecs, dict)
-    sSpecs = sensorSpecs.get(id, dict())
+    sSpecs = sensorSpecs.get(sid, dict())
     return sSpecs.get('name', None)
 
 
-
-
-def setValue(key:Keys, value):
+def setValue(key: Keys, value):
     """
     Shortcut to save a value into the EOTSV settings
     :param key: str | Key
@@ -218,10 +216,10 @@ def setValue(key:Keys, value):
         doc = QDomDocument()
         doc.appendChild(value.writeXml(doc, QgsReadWriteContext()))
         value = doc.toByteArray()
-        
+
     if key == Keys.SensorSpecs:
         s = ""
-    #if isinstance(value, dict) and key == Keys.SensorSpecs:
+    # if isinstance(value, dict) and key == Keys.SensorSpecs:
     #   settings().setValue(key.value, value)
 
     settings().setValue(key.value, value)
@@ -256,6 +254,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
     """
     A table to visualize sensor-specific settings
     """
+
     def __init__(self):
         super(SensorSettingsTableModel, self).__init__()
 
@@ -280,9 +279,9 @@ class SensorSettingsTableModel(QAbstractTableModel):
     def removeRows(self, row: int, count: int, parent: QModelIndex = QModelIndex()) -> bool:
 
         if count > 0:
-            self.beginRemoveRows(parent, row, row+count-1)
+            self.beginRemoveRows(parent, row, row + count - 1)
 
-            for i in reversed(range(row, row+count)):
+            for i in reversed(range(row, row + count)):
                 del self.mSensors[i]
 
             self.endRemoveRows()
@@ -297,7 +296,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
             sensors.append(sensor)
         self.addSensors(sensors)
 
-    def removeSensors(self, sensors:typing.List[SensorInstrument]):
+    def removeSensors(self, sensors: typing.List[SensorInstrument]):
         assert isinstance(sensors, list)
 
         for sensor in sensors:
@@ -307,14 +306,14 @@ class SensorSettingsTableModel(QAbstractTableModel):
             self.mSensors.remove(sensor)
             self.endRemoveRows()
 
-    def sensor2idx(self, sensor:SensorInstrument) -> QModelIndex:
+    def sensor2idx(self, sensor: SensorInstrument) -> QModelIndex:
 
         if not sensor in self.mSensors:
             return QModelIndex()
         row = self.mSensors.index(sensor)
         return self.createIndex(row, 0, sensor)
 
-    def addSensors(self, sensors:typing.List[SensorInstrument]):
+    def addSensors(self, sensors: typing.List[SensorInstrument]):
         assert isinstance(sensors, list)
         n = len(sensors)
 
@@ -323,7 +322,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
             self.mSensors.extend(sensors)
             self.endInsertRows()
 
-    def setSpecs(self, specs:dict):
+    def setSpecs(self, specs: dict):
         sensors = []
         for sid, sensorSpecs in specs.items():
             assert isinstance(sid, str)
@@ -380,7 +379,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
         else:
             return self.mSensors[index.row()]
 
-    def sensorIDDisplayString(self, sensor:SensorInstrument) -> str:
+    def sensorIDDisplayString(self, sensor: SensorInstrument) -> str:
         """
         Returns a short representation of the sensor id, e.g. "6bands(Int16)@30m"
         :param sensor:
@@ -442,7 +441,6 @@ class SensorSettingsTableModel(QAbstractTableModel):
         if changed:
             self.dataChanged.emit(index, index, [role])
         return changed
-
 
 
 class SettingsDialog(QDialog):
@@ -520,7 +518,7 @@ class SettingsDialog(QDialog):
         if len(toRemove) > 0:
             self.mSensorSpecsModel.removeSensors(toRemove)
 
-    def onSensorSettingsSelectionChanged(self, selected:QItemSelection, deselected:QItemSelection):
+    def onSensorSettingsSelectionChanged(self, selected: QItemSelection, deselected: QItemSelection):
         self.actionDeleteSelectedSensors.setEnabled(len(selected) > 0)
 
     def validate(self, *args):
@@ -530,7 +528,6 @@ class SettingsDialog(QDialog):
             import eotimeseriesviewer
             eotimeseriesviewer.DEBUG = values[Keys.Debug]
 
-
     def onAccept(self):
 
         self.setResult(QDialog.Accepted)
@@ -538,10 +535,9 @@ class SettingsDialog(QDialog):
         values = self.values()
         setValues(values)
 
-        #self.mSensorSpecsModel.saveSettings()
+        # self.mSensorSpecsModel.saveSettings()
 
         if values != self.mLastValues:
-
             pass
 
     def values(self) -> dict:
@@ -594,12 +590,12 @@ class SettingsDialog(QDialog):
                 try:
                     d[k] = values.value(k)
                 except Exception as ex:
-                    s = "" #TypeError: unable to convert a QVariant back to a Python object
+                    s = ""  # TypeError: unable to convert a QVariant back to a Python object
             values = d
 
         assert isinstance(values, dict)
 
-        def checkKey(val, key:Keys):
+        def checkKey(val, key: Keys):
             assert isinstance(key, Keys)
             return val in [key, key.value, key.name]
 
@@ -651,6 +647,3 @@ class SettingsDialog(QDialog):
 
             if checkKey(key, Keys.BandStatsSampleSize) and isinstance(value, int):
                 self.sbBandStatsSampleSize.setValue(value)
-
-
-
