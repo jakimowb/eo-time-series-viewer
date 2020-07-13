@@ -37,7 +37,7 @@ from eotimeseriesviewer.utils import file_search
 from osgeo import ogr, osr, gdal, gdal_array
 import qgis.testing
 import example
-from eotimeseriesviewer import DIR_EXAMPLES, DIR_REPO
+from eotimeseriesviewer import DIR_EXAMPLES, DIR_QGIS_RESOURCES, DIR_UI
 from eotimeseriesviewer.timeseries import TimeSeries
 from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles
 from eotimeseriesviewer.externals.qps.testing import *
@@ -46,7 +46,13 @@ from eotimeseriesviewer.externals.qps.resources import initQtResources
 class EOTSVTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
-        initQtResources(DIR_REPO)
+        if DIR_QGIS_RESOURCES.is_dir():
+            initQtResources(DIR_QGIS_RESOURCES)
+
+        eotsv_resources = DIR_UI / 'eotsv_resources_rc.py'
+        assert eotsv_resources.is_file(), \
+            'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
+        initQtResources(DIR_UI)
         super().setUpClass()
         import os
         os.environ['EOTSV_DEBUG'] = 'True'

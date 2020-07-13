@@ -45,14 +45,14 @@ class TestStackedInputs(EOTSVTestCase):
 
     def createTestDatasets(self):
 
-        vsiDir = '/vsimem/tmp'
+        vsiDir = r'/vsimem/tmp'
         from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 
         r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
         r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
-        drv = gdal.GetDriverByName('ENVI')
+        drv = gdal.GetDriverByName(r'ENVI')
 
         crs = osr.SpatialReference()
         crs.ImportFromEPSG(32633)
@@ -143,7 +143,7 @@ class TestStackedInputs(EOTSVTestCase):
         m.setOutputPrefix('myPrefix')
 
         testData = self.createTestDatasets()
-
+        self.assertTrue(len(testData) > 0, msg='self.createTestDatasets() failed to create testdata sets')
         stackInfo = InputStackInfo(testData[0])
 
         self.assertTrue(len(stackInfo) > 0)

@@ -46,10 +46,10 @@ class TestUtils(EOTSVTestCase):
 
         import example
 
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif'))
+        files = list(file_search(os.path.dirname(example.Images.__file__), '*.123'))
         self.assertTrue(len(files) == 0)
 
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif', recursive=True))
         self.assertTrue(len(files) > 0)
 
 

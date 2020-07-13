@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="eotimeseriesviewer">
+    <file>icons/map.svg</file>
     <file>icons/mIconTemporalProfileAdd.svg</file>
     <file>icons/mIconTemporalProfileClock.svg</file>
     <file>icons/mIconTemporalProfileRefresh.svg</file>
@@ -46,7 +47,6 @@
     <file>icons/mIconRasterImage.svg</file>
     <file>icons/mIconRasterMask.svg</file>
     <file>icons/mIconRasterRegression.svg</file>
-    <file>icons/mIconVirtualRaster2.svg</file>
     <file>icons/mapview.svg</file>
     <file>icons/mapviewHidden.svg</file>
     <file>icons/pickrasterspectrum.svg</file>

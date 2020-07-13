@@ -31,11 +31,19 @@ class TestResources(EOTSVTestCase):
         self.assertFalse(icon().isNull())
         iconSVGs = file_search(os.path.join(DIR_UI, 'icons'), '*.svg')
         iconSVGs = [pathlib.Path(s).as_posix() for s in iconSVGs]
-        iconSVGs = [re.sub(r'^.*/eotimeseriesviewer/ui/icons/', ':/eotimeseriesviewer/icons/', s) for s in iconSVGs]
+        iconSVGs = sorted([re.sub(r'^.*/eotimeseriesviewer/ui/icons/', ':/eotimeseriesviewer/icons/', s)
+                           for s in iconSVGs])
+
+        unusedSVGs = []
         for resource in iconSVGs:
-            self.assertTrue(resource in existing)
-            icon = QIcon(resource)
-            self.assertFalse(icon.isNull())
+            if resource not in existing:
+                unusedSVGs.append(resource)
+            else:
+                icon = QIcon(resource)
+                self.assertFalse(icon.isNull(), msg=f'unable to load icon {resource}')
+
+        self.assertTrue(len(unusedSVGs) == 0,  msg='Unused resources:\n{}'.format('\n'.join(sorted(unusedSVGs))))
+
 
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)

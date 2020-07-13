@@ -831,10 +831,10 @@ class StackedBandInputDialog(QDialog):
 
 
         nTotal = len(self.tableModelOutputImages)
-        if nTotal == 0:
-            return
-
         writtenFiles = []
+        if nTotal == 0:
+            return writtenFiles
+
         self.progressBar.setValue(0)
         from eotimeseriesviewer.virtualrasters import write_vsimem, read_vsimem
         for i, outVRT in enumerate(self.tableModelOutputImages):
