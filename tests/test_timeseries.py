@@ -353,7 +353,7 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_timeseries(self):
 
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+        files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif', recursive=True))
 
         addedDates = []
         removedDates = []

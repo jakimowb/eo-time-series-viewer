@@ -42,6 +42,16 @@ from qgis.PyQt.QtXml import QDomDocument
 
 from qgis import *
 from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
+    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsDateTimeRange, \
+    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol,  \
+    QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, QgsTaskManager, QgsPoint, QgsPointXY, \
+    QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform
+
+from qgis.gui import *
+from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
+    QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
+
 from qgis.gui import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -851,6 +861,17 @@ class TimeSeriesDate(QAbstractTableModel):
         :return: [list-of-QgsMimedataUtils.Uris]
         """
         return [s.qgsMimeDataUtilsUri() for s in self.sources()]
+
+    def temporalRange(self) -> QgsDateTimeRange:
+
+        d1 = d2 = self.mDate.astype(object)
+        if len(self.mSources) > 0:
+            dates = [s.date() for s in self]
+            d1 = min(dates).astype(object)
+            d2 = max(dates).astype(object)
+
+        return QgsDateTimeRange(QDateTime(d1), QDateTime(d2))
+
 
     def date(self) -> np.datetime64:
         """
@@ -2215,8 +2236,9 @@ class TimeSeries(QAbstractItemModel):
 
 class TimeSeriesTreeView(QTreeView):
 
-    sigMoveToDateRequest = pyqtSignal(TimeSeriesDate)
+    sigMoveToDate = pyqtSignal(TimeSeriesDate)
     sigMoveToSource = pyqtSignal(TimeSeriesSource)
+    sigMoveToExtent = pyqtSignal(SpatialExtent)
     sigSetMapCrs = pyqtSignal(QgsCoordinateReferenceSystem)
 
     def __init__(self, parent=None):
@@ -2255,19 +2277,28 @@ class TimeSeriesTreeView(QTreeView):
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
-            a = menu.addAction('Show map for {}'.format(node.date()))
-            a.setToolTip('Shows the map related to this time series date.')
-            a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDateRequest.emit(tsd))
-            menu.addSeparator()
-        elif isinstance(node, TimeSeriesSource):
-            a = menu.addAction('Show {}'.format(node.name()))
-            a.setToolTip('Shows the map with {} and zooms to'.format(node.uri()))
-            a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
+            a = menu.addAction('Move to date {}'.format(node.date()))
+            a.setToolTip(f'Sets the current map date to {node.date()}.')
+            a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
+
+            a = menu.addAction('Move to extent'.format(node.date()))
+            a.setToolTip(f'Sets the current map extent')
+            a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
+
             menu.addSeparator()
 
-            a = menu.addAction('Set Crs to maps')
-            a.setToolTip(f'Sets the map projection to that of this image ({node.crs().description()})')
+        elif isinstance(node, TimeSeriesSource):
+
+            a = menu.addAction('Show {}'.format(node.name()))
+            a.setToolTip(f'Sets the current map date to {node.date()} and zooms\nto the spatial extent of {node.uri()}')
+            a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
+
+
+            a = menu.addAction(f'Set map CRS from {node.name()}')
+            a.setToolTip(f'Sets the map projection to {node.crs().description()}')
             a.triggered.connect(lambda *args, crs=node.crs(): self.sigSetMapCrs.emit(crs))
+
+            menu.addSeparator()
 
         a = menu.addAction('Set date(s) invisible')
         a.setToolTip('Hides the selected time series dates from being shown in a map.')
@@ -2283,6 +2314,10 @@ class TimeSeriesTreeView(QTreeView):
         a.triggered.connect(lambda *args, tss=selectedTSSs: self.openInQGIS(tss))
 
         menu.popup(QCursor.pos())
+
+    def onMoveToExtent(self, extent:SpatialExtent):
+        if isinstance(extent, SpatialExtent):
+            self.sigMoveToExtent.emit(extent)
 
     def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
 

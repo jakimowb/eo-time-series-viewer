@@ -27,8 +27,20 @@ import datetime
 import re
 
 from collections import OrderedDict
-from qgis.gui import *
 from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
+    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsDateTimeRange, \
+    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol,  \
+    QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, QgsTaskManager, QgsPoint, QgsPointXY, \
+    QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform, QgsFeatureRequest, \
+    QgsVectorLayerCache, QgsVectorFileWriter, \
+    QgsConditionalStyle, QgsConditionalLayerStyles, \
+    QgsField, QgsFields, QgsExpressionContext, QgsExpression
+
+from qgis.gui import *
+from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
+    QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface, \
+    QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, QgsAttributeTableView
 from qgis.analysis import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
@@ -237,18 +249,17 @@ def num2date(n, dt64=True, qDate=False):
         return date
 
 
-
-    #return np.datetime64('{:04}-01-01'.format(year), 'D') + np.timedelta64(int(yearElapsed), 'D')
-
 def bandIndex2bandKey(i : int):
     assert i >= 0
     return 'b{}'.format(i + 1)
+
 
 def bandKey2bandIndex(key: str):
     match = rxBandKeyExact.search(key)
     assert match
     idx = int(match.group()[1:]) - 1
     return idx
+
 
 class TemporalProfile(QObject):
 
@@ -366,8 +377,10 @@ class TemporalProfile(QObject):
         """
         Loads the missing data for this profile (synchronous execution, may take some time).
         """
-        qgsTask = TemporalProfileLoaderTask(self.mLayer, required_profiles=[self], callback=self.mLayer.updateProfileData)
-        qgsTask.finished(qgsTask.run(), self)
+        qgsTask = TemporalProfileLoaderTask(self.mLayer,
+                                            required_profiles=[self],
+                                            callback=self.mLayer.updateProfileData)
+        qgsTask.finished(qgsTask.run())
 
     def missingBandIndices(self, tsd: TimeSeriesDate, required_indices: typing.List[int] = None):
         """
@@ -389,6 +402,7 @@ class TemporalProfile(QObject):
         return [i for i in required_indices if i not in existingBandIndices]
 
     def plot(self):
+        from .profilevisualization import TemporalProfilePlotStyle, TemporalProfilePlotDataItem
         for sensor in self.mTimeSeries.sensors():
             assert isinstance(sensor, SensorInstrument)
 
@@ -775,7 +789,6 @@ class TemporalProfileLayer(QgsVectorLayer):
         # geometryChanged (QgsFeatureId fid, const QgsGeometry &geometry)
         s = ""
 
-
     def onFeaturesAdded(self, layerID, addedFeatures):
         """
         Create a TemporalProfile object for each QgsFeature added to the backend QgsVectorLayer
@@ -826,7 +839,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         #styles.setRowStyles([red])
 
     def createTemporalProfiles(self,
-                               coordinates:typing.List[SpatialPoint],
+                               coordinates: typing.List[SpatialPoint],
                                names:typing.List[str] = None) -> typing.List[TemporalProfile]:
         """
         Creates temporal profiles for a list of coordinates
@@ -1069,7 +1082,7 @@ class TemporalProfileLoaderTask(QgsTask):
             self.GEOMETRY_CACHE[tp.id()] = dict()
             missingTPData = dict()
             for sensor, tsds in required_tsds.items():
-                for tsd in timeSeries:
+                for tsd in timeSeries.tsds(sensor=sensor):
                     existingTSDData: dict = tp.data(tsd)
                     missingTSDData: dict = dict()
                     for band_key in self.mRequiredSensorBandKeys[sensor]:
@@ -1164,6 +1177,8 @@ class TemporalProfileLoaderTask(QgsTask):
                     band: gdal.Band = ds.GetRasterBand(bandKey2bandIndex(band_key) + 1)
                     if not isinstance(band, gdal.Band):
                         s = ""
+                        continue
+
                     for tpID, px_idx in PX_INDICES.items():
                         px_x, px_y = px_idx
                         xoff = int(min(px_x))

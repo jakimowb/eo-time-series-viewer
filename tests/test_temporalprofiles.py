@@ -128,7 +128,8 @@ class TestTemporalProfiles(EOTSVTestCase):
         self.assertIsInstance(tp, TemporalProfile)
         tp.loadMissingData()
         temporalProfiles = [tp]
-        temporalProfiles.extend(lyr.createTemporalProfiles((SpatialPoint(center.crs(), center.x() - 50, center.y() + 50))))
+        temporalProfiles.extend(lyr.createTemporalProfiles((
+            SpatialPoint(center.crs(), center.x() - 50, center.y() + 50))))
 
         for tp in temporalProfiles:
             tp.loadMissingData()
@@ -260,7 +261,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         self.assertEqual(len(tps), n)
         model = TemporalProfileTableModel(layer)
 
-
         self.assertEqual(model.rowCount(), n)
 
         pd = ProfileViewDock()
@@ -274,9 +274,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         reg.setDefaultActionForLayer(pd.temporalProfileLayer(), moveToFeatureCenter)
         pd.loadCoordinate(point3)
         pd.loadCoordinate(point2)
-
-        #from eotimeseriesviewer.externals.qps.resources import ResourceBrowser
-        #browser = ResourceBrowser()
 
         self.showGui([pd])
 

@@ -519,7 +519,7 @@ class MapCanvas(QgsMapCanvas):
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
         self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
-    def setTSD(self, tsd:TimeSeriesDate):
+    def setTSD(self, tsd: TimeSeriesDate):
         """
         Sets the TimeSeriesDate this map-canvas is linked to
         :param tsd:
@@ -533,8 +533,8 @@ class MapCanvas(QgsMapCanvas):
             self.mTSD.sensor().sigNameChanged.disconnect(self.updateScope)
 
         self.mTSD = tsd
-
         if isinstance(tsd, TimeSeriesDate):
+            self.setTemporalRange(tsd.temporalRange())
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
 
         self.updateScope()

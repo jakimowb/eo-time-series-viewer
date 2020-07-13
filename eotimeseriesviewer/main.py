@@ -525,8 +525,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         tstv = self.ui.dockTimeSeries.timeSeriesTreeView
         assert isinstance(tstv, TimeSeriesTreeView)
-        tstv.sigMoveToDateRequest.connect(self.setCurrentDate)
+        tstv.sigMoveToDate.connect(self.setCurrentDate)
         tstv.sigMoveToSource.connect(self.setCurrentSource)
+        tstv.sigMoveToExtent.connect(self.setSpatialExtent)
         tstv.sigSetMapCrs.connect(self.setCrs)
         self.mCurrentMapLocation = None
         self.mCurrentMapSpectraLoading = 'TOP'
@@ -1386,7 +1387,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
 
         import example.Images
-        exampleDataDir = os.path.dirname(example.__file__)
+        exampleDataDir = os.path.dirname(example.Images.__file__)
         rasterFiles = list(file_search(exampleDataDir, '*.tif', recursive=True))
         vectorFiles = list(file_search(exampleDataDir, re.compile(r'.*\.(gpkg|shp)$'), recursive=True))
         if isinstance(n, bool) or not isinstance(n, int):

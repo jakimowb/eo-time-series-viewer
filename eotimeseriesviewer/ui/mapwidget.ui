@@ -74,7 +74,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0">
      <item>
       <widget class="QToolButton" name="btnFirst">
        <property name="text">
@@ -118,12 +118,19 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="tbSliderDate">
+       <property name="text">
+        <string>0000-00-00</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QSlider" name="mTimeSlider">
        <property name="singleStep">
         <number>1</number>
        </property>
        <property name="tracking">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
