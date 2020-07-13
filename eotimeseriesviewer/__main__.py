@@ -17,9 +17,9 @@
 ***************************************************************************
 """
 
-import sys, os, pathlib
-
-
+import pathlib
+import sys
+from qgis.gui import QgisInterface
 
 def run():
     # add site-packages to sys.path
@@ -46,7 +46,6 @@ def run():
     if not qgisIface:
         qgsApp.exec_()
         qgsApp.exitQgis()
-
 
 
 if __name__ == '__main__':

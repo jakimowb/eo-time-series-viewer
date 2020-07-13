@@ -54,7 +54,7 @@ DIR_UI = DIR / 'ui'
 DIR_DOCS = DIR_REPO / 'doc'
 DIR_EXAMPLES = DIR_REPO / 'example'
 PATH_EXAMPLE_TIMESERIES = DIR_EXAMPLES / 'ExampleTimeSeries.csv'
-PATH_LICENSE = DIR_REPO / 'LICENSE.md'
+PATH_LICENSE = DIR_REPO / 'LICENSE.html'
 PATH_CHANGELOG = DIR_REPO / 'CHANGELOG'
 PATH_ABOUT = DIR_REPO / 'ABOUT.html'
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
@@ -70,13 +70,15 @@ def debugLog(msg: str):
 if not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
 
     debugLog('load crosshair')
-    from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, CrosshairDialog, getCrosshairStyle
+    from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, \
+        CrosshairDialog, getCrosshairStyle
 
     debugLog('load plotstyling')
     from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
 
     debugLog('load classification')
-    from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
+    from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, \
+        ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
 
     debugLog('load models')
     from .externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView

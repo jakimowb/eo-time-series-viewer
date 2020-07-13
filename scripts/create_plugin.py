@@ -51,7 +51,7 @@ MD.mHomepage = eotimeseriesviewer.HOMEPAGE
 MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = '3.12'
+MD.mQgisMinimumVersion = '3.14'
 MD.mEmail = eotimeseriesviewer.MAIL
 
 ########## End of config section
@@ -137,7 +137,7 @@ def create_plugin(include_testdata: bool = False,
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
     files.extend(list(scantree(DIR_REPO / 'example', pattern=re.compile(r'\.(gpkg|csv|tif|xml|py)$'))))
     files.append(DIR_REPO / '__init__.py')
-    files.append(DIR_REPO / 'CHANGELOG')
+    files.append(DIR_REPO / 'CHANGELOG.rst')
     files.append(DIR_REPO / 'ABOUT.html')
     files.append(DIR_REPO / 'CONTRIBUTORS.rst')
     files.append(DIR_REPO / 'LICENSE.md')
@@ -170,7 +170,7 @@ def create_plugin(include_testdata: bool = False,
         qgisresources = pathlib.Path(DIR_REPO) / 'qgisresources'
         shutil.copytree(qgisresources, PLUGIN_DIR / 'qgisresources')
 
-    createCHANGELOG(PLUGIN_DIR)
+    createHTMLDocuments(PLUGIN_DIR)
     import scripts.update_docs
     scripts.update_docs.update_documentation()
 
@@ -245,22 +245,27 @@ def rst2html(pathMD: pathlib.Path) -> str:
     return html
 
 
-def createCHANGELOG(dirPlugin:pathlib.Path):
+def createHTMLDocuments(dirPlugin: pathlib.Path):
     """
     Reads the CHANGELOG.rst and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
     :return:
     """
 
     pathMD = DIR_REPO / 'CHANGELOG.rst'
-    pathCL = dirPlugin / 'CHANGELOG'
-    pathCL2 = DIR_REPO / 'CHANGELOG'
-    os.makedirs(pathCL.parent, exist_ok=True)
+    pathHTML = dirPlugin / 'CHANGELOG'
+    #pathCL2 = DIR_REPO / 'CHANGELOG'
+    os.makedirs(pathHTML.parent, exist_ok=True)
 
     # make html compact
     html_cleaned = rst2html(pathMD)
-    with open(pathCL, 'w', encoding='utf-8') as f:
+    with open(pathHTML, 'w', encoding='utf-8') as f:
         f.write(''.join(html_cleaned))
-    with open(pathCL2, 'w', encoding='utf-8') as f:
+
+    pathMD = DIR_REPO / 'LICENSE.md'
+    pathHTML = dirPlugin / 'LICENSE.html'
+    html_cleaned = rst2html(pathMD)
+
+    with open(pathHTML, 'w', encoding='utf-8') as f:
         f.write(''.join(html_cleaned))
 
 
