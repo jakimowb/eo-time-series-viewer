@@ -1,6 +1,10 @@
 ==============
 Changelog
 ==============
+2020-07-13 (version 1.13):
+    * fixed CRS translation bug
+    * quick labels can be used to write date / datetime data into vector fields of type QDate or QDateTime
+    * refactored context menus, e.g. in map view layer tree view, fixed `#106 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/106>`_
 
 2020-04-09 (version 1.12):
     * TimeSeries tree view allows to change the visibility of single source images, e.g. to hide clouded observations

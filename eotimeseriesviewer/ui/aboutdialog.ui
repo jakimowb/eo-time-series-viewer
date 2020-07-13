@@ -318,6 +318,9 @@
                   <property name="text">
                    <string>&lt;version&gt;</string>
                   </property>
+                  <property name="textInteractionFlags">
+                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+                  </property>
                  </widget>
                 </item>
                </layout>
@@ -473,6 +476,8 @@ p, li { white-space: pre-wrap; }
  </widget>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../../../qgispluginsupport/qps/qpsresources.qrc"/>
+  <include location="../../../../cpp/QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
