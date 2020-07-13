@@ -37,7 +37,6 @@ from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
 from eotimeseriesviewer.main import *
 class TestMain(EOTSVTestCase):
 
-
     def tearDown(self):
         eotsv = EOTimeSeriesViewer.instance()
         if isinstance(eotsv, EOTimeSeriesViewer):
@@ -99,8 +98,6 @@ class TestMain(EOTSVTestCase):
         edit = QgsDateTimeEdit()
 
         self.showGui(edit)
-
-
 
     def test_TimeSeriesViewer(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer

@@ -41,7 +41,7 @@ if os.path.exists(path):
 import qgis.utils
 from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
-    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, \
+    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
     QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol
 
 from qgis.gui import *
@@ -49,6 +49,7 @@ from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
 
 import qgis.utils
+from eotimeseriesviewer import LOG_MESSAGE_TAG
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -63,6 +64,7 @@ from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLo
 from .externals.qps.vectorlayertools import VectorLayerTools
 import eotimeseriesviewer.labeling
 from eotimeseriesviewer import debugLog
+
 DEBUG = False
 
 EXTRA_SPECLIB_FIELDS = [
@@ -103,7 +105,6 @@ class AboutDialogUI(QDialog):
         self.tbChanges.setHtml(readTextFile(PATH_CHANGELOG))
         self.tbLicense.setHtml(readTextFile(PATH_LICENSE))
 
-
     def setAboutTitle(self, suffix=None):
         item = self.listWidget.currentItem()
 
@@ -117,7 +118,6 @@ class AboutDialogUI(QDialog):
 
 
 class EOTimeSeriesViewerUI(QMainWindow):
-
     sigAboutToBeClosed = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -141,7 +141,6 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # I don't know why this is not possible in the QDesigner when QToolButtons are
         # placed outside a toolbar
 
-
         area = Qt.LeftDockWidgetArea
 
         # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
@@ -163,9 +162,9 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
 
         area = Qt.LeftDockWidgetArea
-        #self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
+        # self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
         #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
-        #self.dockAdvancedDigitizingDockWidget.setVisible(False)
+        # self.dockAdvancedDigitizingDockWidget.setVisible(False)
 
         area = Qt.BottomDockWidgetArea
         panel = SpectralLibraryPanel(self)
@@ -174,7 +173,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
         self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
         self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
-        #self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
+        # self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
 
@@ -214,7 +213,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         super().addDockWidget(area, dock)
         return dock
 
-    def registerMapToolAction(self, a:QAction) -> QAction:
+    def registerMapToolAction(self, a: QAction) -> QAction:
         """
         Registers this action as map tools action. If triggered, all other mapt tool actions with be set unchecked
         :param a: QAction
@@ -228,7 +227,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         a.toggled.connect(lambda b, action=a: self.onMapToolActionToggled(b, action))
         return a
 
-    def onMapToolActionToggled(self, b:bool, action:QAction):
+    def onMapToolActionToggled(self, b: bool, action: QAction):
         """
         Reacts on togglinga map tool
         :param b:
@@ -254,7 +253,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.optionIdentifyTemporalProfile.setEnabled(b)
         self.optionMoveCenter.setEnabled(b)
 
-    def closeEvent(self, a0:QCloseEvent):
+    def closeEvent(self, a0: QCloseEvent):
         self.sigAboutToBeClosed.emit()
 
     """
@@ -277,17 +276,20 @@ class EOTimeSeriesViewerUI(QMainWindow):
         #self.mCentralWidget.setMinimumWidth(int(self.size().width() * w))
             #self.mInitResized = True
     """
+
+
 LUT_MESSAGELOGLEVEL = {
-                Qgis.Info: 'INFO',
-                Qgis.Critical: 'INFO',
-                Qgis.Warning: 'WARNING',
-                Qgis.Success: 'SUCCESS',
-                }
+    Qgis.Info: 'INFO',
+    Qgis.Critical: 'INFO',
+    Qgis.Warning: 'WARNING',
+    Qgis.Success: 'SUCCESS',
+}
+
 
 def showMessage(message, title, level):
     v = QgsMessageViewer()
     v.setTitle(title)
-    #print('DEBUG MSG: {}'.format(message))
+    # print('DEBUG MSG: {}'.format(message))
     v.setMessage(message, QgsMessageOutput.MessageHtml \
         if message.startswith('<html>')
     else QgsMessageOutput.MessageText)
@@ -295,7 +297,7 @@ def showMessage(message, title, level):
 
 
 class TaskManagerStatusButton(QToolButton):
-    def __init__(self, parent: QWidget=None):
+    def __init__(self, parent: QWidget = None):
         super().__init__(parent)
 
         self.mManager = QgsApplication.taskManager()
@@ -313,9 +315,9 @@ class TaskManagerStatusButton(QToolButton):
         ]
 
         self.mInfoLabel = QLabel('', parent=self)
-        #self.setStyleSheet('background-color:yellow')
-        #self.mInfoLabel.setStyleSheet('background-color:#234521;')
-        #self.mInfoLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        # self.setStyleSheet('background-color:yellow')
+        # self.mInfoLabel.setStyleSheet('background-color:#234521;')
+        # self.mInfoLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         self.mInfoLabel.setWordWrap(False)
         self.mProgressBar = QProgressBar(parent=self)
@@ -326,9 +328,9 @@ class TaskManagerStatusButton(QToolButton):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.mProgressBar)
         self.layout().addWidget(self.mInfoLabel)
-#        self.layout().setStretchFactor(self.mInfoLabel, 2)
-        #self.layout().addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum))
-        #self.clicked.connect(self.toggleDisplay)
+        #        self.layout().setStretchFactor(self.mInfoLabel, 2)
+        # self.layout().addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Minimum))
+        # self.clicked.connect(self.toggleDisplay)
         """
         self.mFloatingWidget = QgsTaskManagerFloatingWidget( manager, parent ? parent->window() : nullptr );
         self.mFloatingWidget.setAnchorWidget( this );
@@ -336,12 +338,12 @@ class TaskManagerStatusButton(QToolButton):
         self.mFloatingWidget.setAnchorWidgetPoint( QgsFloatingWidget::TopMiddle );
         self.mFloatingWidget.hide();
         """
-        #self.hide()
+        # self.hide()
 
         self.mManager.taskAdded.connect(self.onTaskAdded)
-        #self.mManager.allTasksFinished.connect(self.allFinished)
-        #self.mManager.finalTaskProgressChanged.connect(self.overallProgressChanged)
-        #self.mManager.countActiveTasksChanged.connect(self.countActiveTasksChanged)
+        # self.mManager.allTasksFinished.connect(self.allFinished)
+        # self.mManager.finalTaskProgressChanged.connect(self.overallProgressChanged)
+        # self.mManager.countActiveTasksChanged.connect(self.countActiveTasksChanged)
 
     def onTaskAdded(self, taskID):
         task = self.mManager.task(taskID)
@@ -361,8 +363,8 @@ class TaskManagerStatusButton(QToolButton):
         else:
             width = m.width('X')
         width = int(width * 50 * Qgis.UI_SCALE_FACTOR)
-        #width = super().sizeHint().width()
-        #width = width + self.mInfoLabel.sizeHint().width()
+        # width = super().sizeHint().width()
+        # width = width + self.mInfoLabel.sizeHint().width()
         height = super().sizeHint().height() - 5
         return QSize(width, height)
 
@@ -396,7 +398,6 @@ class TaskManagerStatusButton(QToolButton):
 
 
 class EOTimeSeriesViewer(QgisInterface, QObject):
-
     _instance = None
 
     @staticmethod
@@ -424,20 +425,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         QObject.__init__(self)
         QgisInterface.__init__(self)
-        QApplication.processEvents()
+        # QApplication.processEvents()
 
         assert EOTimeSeriesViewer.instance() is None, 'EOTimeSeriesViewer instance already exists.'
         EOTimeSeriesViewer._instance = self
         self.ui = EOTimeSeriesViewerUI()
 
         # create status bar
-        self.ui.statusBar().setStyleSheet("QStatusBar::item {border: none;}" )
+        self.ui.statusBar().setStyleSheet("QStatusBar::item {border: none;}")
 
         # Drop the font size in the status bar by a couple of points
         statusBarFont = self.ui.font()
         fontSize = statusBarFont.pointSize()
         if os.name == 'windows':
-            fontSize = max(fontSize - 1, 8 ) #bit less on windows, due to poor rendering of small point sizes
+            fontSize = max(fontSize - 1, 8)  # bit less on windows, due to poor rendering of small point sizes
         else:
             fontSize = max(fontSize - 2, 6)
         statusBarFont.setPointSize(fontSize)
@@ -493,7 +494,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
 
-        #self.mTimeSeries.sigMessage.connect(self.setM)
+        # self.mTimeSeries.sigMessage.connect(self.setM)
 
         dts.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
@@ -569,12 +570,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         m.addAction(self.ui.optionSelectFeaturesRadius)
 
         self.ui.mActionSelectFeatures.setMenu(m)
+
         def onEditingToggled(b: bool):
             l = self.currentLayer()
             if b:
                 self.mVectorLayerTools.startEditing(l)
             else:
                 self.mVectorLayerTools.stopEditing(l, True)
+
         self.ui.mActionToggleEditing.toggled.connect(onEditingToggled)
 
         # create edit toolbar
@@ -593,7 +596,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
             lambda: self.openAddSubdatasetsDialog(
-            title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
+                title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
 
         self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(dts.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)
@@ -602,11 +605,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
         self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=True))
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
-        #self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
+        # self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
+        self.ui.mActionLayerProperties.triggered.connect(self.onShowLayerProperties)
+
         self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
-        self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
+        self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(
+            self.activateIdentifySpectralProfileMapTool)
 
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
@@ -641,13 +647,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         temporalProfileLayer.setName('EOTS Temporal Profiles')
         self.mMapLayerStore.addMapLayer(temporalProfileLayer)
 
-
-
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
         self.applySettings()
-
-
 
         self.initQGISConnection()
 
@@ -657,9 +659,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
 
-    
-
-    def lockCentralWidgetSize(self, b:bool):
+    def lockCentralWidgetSize(self, b: bool):
         """
         Locks or release the current central widget size
         :param b:
@@ -680,7 +680,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return: [list-of-Sensors]
         """
         return self.mTimeSeries.sensors()
-
 
     def activateIdentifyTemporalProfileMapTool(self, *args):
         """
@@ -729,7 +728,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         from .settings import Keys, setValue, value
         import string
 
-
         if path is None:
             d = SaveAllMapsDialog()
 
@@ -772,15 +770,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             mapCanvas.saveAsImage(imgPath, None, format)
             progressDialog.setValue(i + 1)
-            progressDialog.setLabelText('{}/{} maps saved'.format(i+1, n))
+            progressDialog.setLabelText('{}/{} maps saved'.format(i + 1, n))
 
             if progressDialog.wasCanceled():
                 return
 
         setValue(Keys.MapImageExportDirectory, path)
 
-
-    def onMapViewAdded(self, mapView:MapView):
+    def onMapViewAdded(self, mapView: MapView):
         """
 
         :param mapView:
@@ -795,7 +792,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
         return self.profileDock.temporalProfileLayer()
-
 
     def spectralLibrary(self) -> SpectralLibrary:
         """
@@ -856,7 +852,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def actionToggleEditing(self) -> QAction:
         return self.ui.mActionToggleEditing
 
-    def setCurrentLayer(self, layer:QgsMapLayer):
+    def setCurrentLayer(self, layer: QgsMapLayer):
         self.mapWidget().setCurrentLayer(layer)
         self.updateCurrentLayerActions()
 
@@ -893,7 +889,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(tsd, TimeSeriesDate):
             self.ui.mMapWidget.setCurrentDate(tsd)
 
-
     def mapCanvases(self) -> typing.List[MapCanvas]:
         """
         Returns all MapCanvases of the spatial visualization
@@ -919,7 +914,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(c, QgsMapLayer):
             self.setSpatialExtent(SpatialExtent.fromLayer(c))
 
-    def onMoveToFeature(self, layer:QgsMapLayer, feature:QgsFeature):
+    def onMoveToFeature(self, layer: QgsMapLayer, feature: QgsFeature):
         """
         Move the spatial center of map visualization to `feature`.
         :param layer: QgsMapLayer
@@ -958,12 +953,23 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         iface = qgis.utils.iface
         assert isinstance(iface, QgisInterface)
 
-        self.ui.actionImportExtent.triggered.connect(lambda: self.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
-        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(self.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
-        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(self.spatialCenter().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
-        self.ui.actionImportCenter.triggered.connect(lambda: self.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
+        self.ui.actionImportExtent.triggered.connect(
+            lambda: self.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
+        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(
+            self.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(
+            self.spatialCenter().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
+        self.ui.actionImportCenter.triggered.connect(
+            lambda: self.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
+
+    def onShowLayerProperties(self):
+
+        lyr = self.currentLayer()
+        if isinstance(lyr, (QgsVectorLayer, QgsRasterLayer)):
+            from .externals.qps.layerproperties import showLayerPropertiesDialog
+            showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
 
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
@@ -975,13 +981,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             s = ""
         else:
             pass
-            s  =""
+            s = ""
 
     def applySettings(self):
         """
         Reads the QSettings object and applies its values to related widget components
         """
-
 
         from eotimeseriesviewer.settings import value, Keys, defaultValues, setValue
 
@@ -1029,10 +1034,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(v, QSize):
             self.ui.mMapWidget.setMapSize(v)
 
-
-
-
-
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
         Sets the active QgsMapTool for all canvases know to the EOTSV.
@@ -1058,31 +1059,31 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
-    def setMapsPerMapView(self, n:int):
+    def setMapsPerMapView(self, n: int):
         """
         Sets the number of map canvases that is shown per map view
         :param n: int
         """
         self.mapWidget().setMapsPerMapView(n)
 
-    def setMapSize(self, size:QSize):
+    def setMapSize(self, size: QSize):
         """
         Sets the MapCanvas size.
         :param size: QSize
         """
         self.mapWidget().setMapSize(size)
 
-    def setCrs(self, crs:QgsCoordinateReferenceSystem):
+    def setCrs(self, crs: QgsCoordinateReferenceSystem):
         self.mapWidget().setCrs(crs)
 
-    def setSpatialExtent(self, spatialExtent:SpatialExtent):
+    def setSpatialExtent(self, spatialExtent: SpatialExtent):
         """
         Sets the map canvas extent
         :param spatialExtent: SpatialExtent
         """
         self.mapWidget().setSpatialExtent(spatialExtent)
 
-    def setSpatialCenter(self, spatialPoint:SpatialPoint):
+    def setSpatialCenter(self, spatialPoint: SpatialPoint):
         """
         Sets the center of map canvases
         :param spatialPoint: SpatialPoint
@@ -1103,7 +1104,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().spatialCenter()
 
-    def setCurrentLocation(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas=None):
+    def setCurrentLocation(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas = None):
         """
         Sets the current "last selected" location, for which different properties might get derived,
         like cursor location values and SpectraProfiles.
@@ -1137,9 +1138,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.sigCurrentLocationChanged[SpatialPoint].emit(self.mCurrentMapLocation)
 
     @pyqtSlot(SpatialPoint, QgsMapCanvas)
-    def loadCursorLocationValueInfo(self, spatialPoint:SpatialPoint, mapCanvas:QgsMapCanvas):
+    def loadCursorLocationValueInfo(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):
         self.ui.dockCursorLocation.loadCursorLocation(spatialPoint, mapCanvas)
-
 
     @pyqtSlot(SpatialPoint, QgsMapCanvas)
     def loadCurrentSpectralProfile(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):
@@ -1154,9 +1154,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(mapCanvas, MapCanvas)
         tsd = mapCanvas.tsd()
 
-        sensorLayers   = [l for l in mapCanvas.layers() if isinstance(l, SensorProxyLayer)]
+        sensorLayers = [l for l in mapCanvas.layers() if isinstance(l, SensorProxyLayer)]
         currentSpectra = []
-
 
         sl = self.spectralLibrary()
         for lyr in sensorLayers:
@@ -1231,8 +1230,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.mMapWidget.messageBar()
 
-
-    def loadTimeSeriesDefinition(self, path:str=None, n_max:int=None, runAsync=True):
+    def loadTimeSeriesDefinition(self, path: str = None, n_max: int = None, runAsync=True):
         """
         Loads a time series definition file
         :param path:
@@ -1250,7 +1248,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             filters = "CSV (*.csv *.txt);;" + \
                       "All files (*.*)"
 
-            path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir, filter=filters)
+            path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir,
+                                                       filter=filters)
 
         if path is not None and os.path.exists(path):
             s.setValue('file_ts_definition', path)
@@ -1264,7 +1263,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().currentLayer()
 
-    def createMapView(self, name:str=None) -> MapView:
+    def createMapView(self, name: str = None) -> MapView:
         """
         Creates a new MapView.
         :return: MapView
@@ -1293,7 +1292,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.profileDock.temporalProfileLayer()[:]
 
-    def logMessage(self, message:str, tag:str, level):
+    def logMessage(self, message: str, tag: str, level):
         """
 
         """
@@ -1305,9 +1304,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lines = message.splitlines()
             self.messageBar().pushMessage(tag, lines[0], message, level, duration)
 
-
-
-    def onSensorAdded(self, sensor:SensorInstrument):
+    def onSensorAdded(self, sensor: SensorInstrument):
 
         knownName = eotsvSettings.sensorName(sensor.id())
         sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
@@ -1315,10 +1312,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(knownName, str) and len(knownName) > 0:
             sensor.setName(knownName)
         else:
-            self.onSensorNameChanged(sensor) # save the sensor name to the settings
+            self.onSensorNameChanged(sensor)  # save the sensor name to the settings
 
-
-    def onSensorNameChanged(self, sensor:SensorInstrument):
+    def onSensorNameChanged(self, sensor: SensorInstrument):
         # save changed names to settings
         from eotimeseriesviewer.settings import saveSensorName
         if sensor in self.sensors():
@@ -1337,16 +1333,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     self.mSpatialMapExtentInitialized = True
                 else:
                     self.mSpatialMapExtentInitialized = False
-                    print('Failed to calculate max. spatial extent of TimeSeries with length {}'.format(len(self.timeSeries())))
+                    print('Failed to calculate max. spatial extent of TimeSeries with length {}'.format(
+                        len(self.timeSeries())))
                 lastDate = self.ui.mMapWidget.currentDate()
                 if lastDate:
                     tsd = self.timeSeries().findDate(lastDate)
                 else:
                     tsd = self.timeSeries()[0]
                 self.setCurrentDate(tsd)
-
-
-
 
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False
@@ -1366,7 +1360,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
-        path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters, directory=defFile)
+        path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
+                                                   directory=defFile)
         path = self.mTimeSeries.saveToFile(path)
         if path is not None:
             s.setValue('FILE_TS_DEFINITION', path)
@@ -1380,7 +1375,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             writtenFiles = d.saveImages()
             self.addTimeSeriesImages(writtenFiles)
 
-    def loadExampleTimeSeries(self, n:int=None, loadAsync=True):
+    def loadExampleTimeSeries(self, n: int = None, loadAsync=True):
         """
         Loads an example time series
         :param n: int, max. number of images to load. Useful for developer test-cases
@@ -1408,14 +1403,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             for lyr in QgsProject.instance().mapLayers().values():
                 if isinstance(lyr, QgsVectorLayer) and lyr.source() in vectorFiles:
                     renderer = lyr.renderer()
-                    if lyr.geometryType() == QgsWkbTypes.PolygonGeometry and isinstance(renderer, QgsSingleSymbolRenderer):
+                    if lyr.geometryType() == QgsWkbTypes.PolygonGeometry and isinstance(renderer,
+                                                                                        QgsSingleSymbolRenderer):
                         renderer = renderer.clone()
                         symbol = renderer.symbol()
                         if isinstance(symbol, QgsFillSymbol):
                             symbol.setOpacity(0.25)
                         lyr.setRenderer(renderer)
                     s = ""
-
 
     def timeSeries(self) -> TimeSeries:
         """
@@ -1500,14 +1495,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         dock.setVectorLayerTools(self.mVectorLayerTools)
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
 
-
     def clearLayoutWidgets(self, L):
         if L is not None:
             while L.count():
                 w = L.takeAt(0)
                 if w.widget():
                     w.widget().deleteLater()
-                #if w is not None:
+                # if w is not None:
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
@@ -1542,11 +1536,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     for l in vectorLayers:
                         mapView.addLayer(l)
 
-                    break # add to first mapview only
+                    break  # add to first mapview only
 
         return vectorLayers
-
-
 
     def addTimeSeriesImages(self, files: list, loadAsync=True):
         """
@@ -1561,7 +1553,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             files, filter = QFileDialog.getOpenFileNames(
                 directory=defDir,
                 filter=filters,
-                #options=QFileDialog.DontUseNativeDialog #none-native is too slow
+                # options=QFileDialog.DontUseNativeDialog #none-native is too slow
             )
 
             if len(files) > 0 and os.path.exists(files[0]):
@@ -1571,7 +1563,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if files:
             self.mTimeSeries.addSources(files, runAsync=loadAsync)
 
-
     def clearTimeSeries(self):
 
         self.mTimeSeries.beginResetModel()
@@ -1579,12 +1570,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries.endResetModel()
 
 
-
 class SaveAllMapsDialog(QDialog):
 
-
     def __init__(self, parent=None):
-
         super(SaveAllMapsDialog, self).__init__(parent)
         loadUi(DIR_UI / 'saveallmapsdialog.ui', self)
         self.setWindowTitle('Save Maps')
@@ -1603,27 +1591,22 @@ class SaveAllMapsDialog(QDialog):
                    ('X11 Pixmap (*.xpm)', 'XPM'),
                    ]
 
-
-
         for t in formats:
             self.cbFileType.addItem(t[0], userData=t[1])
 
         self.fileWidget.fileChanged.connect(self.validate)
 
-        self.buttonBox.button(QDialogButtonBox.Save).clicked.connect(lambda : self.setResult(QDialog.Accepted))
-        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(lambda : self.setResult(QDialog.Rejected))
+        self.buttonBox.button(QDialogButtonBox.Save).clicked.connect(lambda: self.setResult(QDialog.Accepted))
+        self.buttonBox.button(QDialogButtonBox.Cancel).clicked.connect(lambda: self.setResult(QDialog.Rejected))
         self.validate()
 
     def validate(self, *args):
-
         b = os.path.isdir(self.directory())
         self.buttonBox.button(QDialogButtonBox.Save).setEnabled(b)
 
-
-    def setDirectory(self, path:str):
+    def setDirectory(self, path: str):
         assert os.path.isdir(path)
         self.fileWidget.setFilePath(path)
-
 
     def directory(self) -> str:
         """
@@ -1640,13 +1623,9 @@ class SaveAllMapsDialog(QDialog):
         return self.cbFileType.currentData(Qt.UserRole)
 
 
-
 def disconnect_signal(signal):
     while True:
         try:
             signal.disconnect()
         except TypeError:
             break
-
-
-

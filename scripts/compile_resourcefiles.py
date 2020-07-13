@@ -9,7 +9,6 @@ from eotimeseriesviewer.externals.qps.resources import compileResourceFiles
 from eotimeseriesviewer.utils import file_search
 
 
-
 def compileEOTSVResourceFiles():
 
     dir1 = os.path.join(DIR_REPO, 'eotimeseriesviewer')

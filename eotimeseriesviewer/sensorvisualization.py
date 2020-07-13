@@ -20,17 +20,14 @@
 """
 # noinspection PyPep8Naming
 
-import sys, os
-from qgis.core import *
-from qgis.gui import *
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate
+from eotimeseriesviewer.utils import loadUi
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
+from qgis.gui import QgsDockWidget
 
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.utils import loadUi
 
 class SensorDockUI(QgsDockWidget):
     def __init__(self, parent=None):
@@ -50,7 +47,6 @@ class SensorDockUI(QgsDockWidget):
         self.sensorView.setModel(self.mSortedModel)
         self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
         s = ""
-
 
 
 class SensorTableModel(QAbstractTableModel):
@@ -80,7 +76,7 @@ class SensorTableModel(QAbstractTableModel):
         for s in self.TS.sensors():
             self.addSensor(s)
 
-    def onTimeSeriesSourceChanges(self, timeSeriesDates:list):
+    def onTimeSeriesSourceChanges(self, timeSeriesDates: list):
         """
         Reaction on changes in the time series data sources
         :param timeSeriesDates: list
@@ -93,45 +89,42 @@ class SensorTableModel(QAbstractTableModel):
         for sensor in sensors:
             self.updateSensor(sensor)
 
-    def addSensor(self, sensor:SensorInstrument):
+    def addSensor(self, sensor: SensorInstrument):
         """
         Adds a sensor
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
         i = self.rowCount()
-        self.beginInsertRows(QModelIndex(),i,i)
+        self.beginInsertRows(QModelIndex(), i, i)
         self.mSensors.append(sensor)
-        sensor.sigNameChanged.connect(lambda *args, sensor=sensor: self.updateSensor(sensor))
+        sensor.sigNameChanged.connect(lambda *args, s=sensor: self.updateSensor(s))
         self.endInsertRows()
 
-    def updateSensor(self, sensor:SensorInstrument):
+    def updateSensor(self, sensor: SensorInstrument):
         assert isinstance(sensor, SensorInstrument)
         if sensor in self.mSensors:
             tl = self.getIndexFromSensor(sensor)
-            br = self.createIndex(tl.row(), self.columnCount()-1)
+            br = self.createIndex(tl.row(), self.columnCount() - 1)
             self.dataChanged.emit(tl, br)
 
-
-    def removeSensor(self, sensor:SensorInstrument):
+    def removeSensor(self, sensor: SensorInstrument):
         """
         Removes a SensorInstrument
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
         if sensor in self.mSensors:
-
             i = self.mSensors.index(sensor)
             self.beginRemoveRows(QModelIndex(), i, i)
             self.mSensors.remove(sensor)
             self.endRemoveRows()
 
-    def rowCount(self, parent = QModelIndex()):
+    def rowCount(self, parent=QModelIndex()):
         return len(self.mSensors)
 
-
-    def removeRows(self, row, count , parent=QModelIndex()):
-        self.beginRemoveRows(parent, row, row+count-1)
+    def removeRows(self, row, count, parent=QModelIndex()):
+        self.beginRemoveRows(parent, row, row + count - 1)
         toRemove = self.mSensors[row:row + count]
         for tsd in toRemove:
             self.mSensors.remove(tsd)
@@ -145,10 +138,10 @@ class SensorTableModel(QAbstractTableModel):
             return self.mSensors[index.row()]
         return None
 
-    def columnCount(self, parent = QModelIndex()):
+    def columnCount(self, parent=QModelIndex()):
         return len(self.mColumNames)
 
-    def data(self, index, role = Qt.DisplayRole):
+    def data(self, index, role=Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
@@ -206,27 +199,27 @@ class SensorTableModel(QAbstractTableModel):
         assert isinstance(sensor, SensorInstrument)
         b = False
         if role == Qt.EditRole and columnName == self.mCN_Name:
-            if len(value) == 0: #do not accept empty strings
+            if len(value) == 0:  # do not accept empty strings
                 b = False
             else:
                 sensor.setName(str(value))
                 b = True
 
-        #data changed will be emitted via signal from sensor in updateSensor
+        # data changed will be emitted via signal from sensor in updateSensor
 
         return b
 
-    def index(self, row:int , col: int, parent: QModelIndex=None):
+    def index(self, row: int, col: int, parent: QModelIndex = None):
         return self.createIndex(row, col, self.mSensors[row])
 
     def flags(self, index):
         if index.isValid():
             columnName = self.mColumNames[index.column()]
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName in [self.mCN_Name]: #allow check state
+            if columnName in [self.mCN_Name]:  # allow check state
                 flags = flags | Qt.ItemIsUserCheckable | Qt.ItemIsEditable
             return flags
-            #return item.qt_flags(index.column())
+            # return item.qt_flags(index.column())
         return None
 
     def headerData(self, col, orientation, role):
@@ -237,6 +230,7 @@ class SensorTableModel(QAbstractTableModel):
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
             return col + 1
         return None
+
 
 class SensorListModel(QAbstractListModel):
 
@@ -276,16 +270,14 @@ class SensorListModel(QAbstractListModel):
 
         self.layoutAboutToBeChanged.emit()
         r = order != Qt.AscendingOrder
-        self.mSensors.sort(key = lambda s:s.name(), reverse=r)
+        self.mSensors.sort(key=lambda s: s.name(), reverse=r)
         self.layoutChanged.emit()
 
-
-    def rowCount(self, parent = QModelIndex()):
+    def rowCount(self, parent=QModelIndex()):
         return len(self.mSensors)
 
-
-    def removeRows(self, row, count , parent=QModelIndex()):
-        self.beginRemoveRows(parent, row, row+count-1)
+    def removeRows(self, row, count, parent=QModelIndex()):
+        self.beginRemoveRows(parent, row, row + count - 1)
         toRemove = self.mSensors[row:row + count]
         for tsd in toRemove:
             self.mSensors.remove(tsd)
@@ -301,7 +293,7 @@ class SensorListModel(QAbstractListModel):
             return self.mSensors[index.row()]
         return None
 
-    def data(self, index, role = Qt.DisplayRole):
+    def data(self, index, role=Qt.DisplayRole):
         if role is None or not index.isValid():
             return None
 
@@ -315,12 +307,11 @@ class SensorListModel(QAbstractListModel):
             value = sensor
         return value
 
-
     def flags(self, index):
         if index.isValid():
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             return flags
-            #return item.qt_flags(index.column())
+            # return item.qt_flags(index.column())
         return None
 
     def headerData(self, col, orientation, role):

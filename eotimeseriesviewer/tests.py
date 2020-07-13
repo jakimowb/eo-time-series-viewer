@@ -37,11 +37,12 @@ from eotimeseriesviewer.utils import file_search
 from osgeo import ogr, osr, gdal, gdal_array
 import qgis.testing
 import example
-from eotimeseriesviewer import DIR_EXAMPLES, DIR_QGIS_RESOURCES, DIR_UI
+from eotimeseriesviewer import DIR_EXAMPLES, DIR_QGIS_RESOURCES, DIR_UI, DIR_REPO
 from eotimeseriesviewer.timeseries import TimeSeries
 from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles
 from eotimeseriesviewer.externals.qps.testing import *
 from eotimeseriesviewer.externals.qps.resources import initQtResources
+
 
 class EOTSVTestCase(TestCase):
     @classmethod
@@ -49,6 +50,7 @@ class EOTSVTestCase(TestCase):
         if DIR_QGIS_RESOURCES.is_dir():
             initQtResources(DIR_QGIS_RESOURCES)
 
+        initQtResources(DIR_REPO / 'eotimeseriesviewer' / 'externals')
         eotsv_resources = DIR_UI / 'eotsv_resources_rc.py'
         assert eotsv_resources.is_file(), \
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
@@ -73,6 +75,7 @@ class EOTSVTestCase(TestCase):
             print('Close blocking {} "{}"'.format(w.__class__.__name__, w.windowTitle()))
             w.close()
 
+
 def testRasterFiles() -> list:
     return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
 
@@ -84,6 +87,7 @@ def createTimeSeries(self) -> TimeSeries:
     TS.addSources(files)
     self.assertTrue(len(TS) > 0)
     return TS
+
 
 class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
     """

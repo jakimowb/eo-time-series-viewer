@@ -874,7 +874,8 @@ class MapCanvas(QgsMapCanvas):
 
         viewPortMapLayers = [l for l in self.layers() if isinstance(l, QgsMapLayer)]
 
-        viewPortRasterLayers = [l for l in viewPortMapLayers if isinstance(l, QgsRasterLayer) and SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
+        viewPortRasterLayers = [l for l in viewPortMapLayers if isinstance(l, QgsRasterLayer) and
+                                SpatialExtent.fromLayer(l).toCrs(self.crs()).contains(pointGeo)]
         viewPortSensorLayers = [l for l in viewPortRasterLayers if isinstance(l, SensorProxyLayer)]
         viewPortVectorLayers = [l for l in viewPortMapLayers if isinstance(l, QgsVectorLayer)]
 
@@ -935,13 +936,16 @@ class MapCanvas(QgsMapCanvas):
         if isinstance(refSensorLayer, SensorProxyLayer):
             m = menu.addMenu('Raster stretch...')
             action = m.addAction('Linear')
-            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.0))
+            action.triggered.connect(lambda *args, lyr=refSensorLayer:
+                                     self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.0))
 
             action = m.addAction('Linear 5%')
-            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.05))
+            action.triggered.connect(lambda *args, lyr=refSensorLayer:
+                                     self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.05))
 
             action = m.addAction('Gaussian')
-            action.triggered.connect(lambda *args, lyr=refSensorLayer: self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
+            action.triggered.connect(lambda *args, lyr=refSensorLayer:
+                                     self.stretchToExtent(self.spatialExtent(), 'gaussian', layer=lyr, n=3))
 
 
         menu.addSeparator()
@@ -967,7 +971,6 @@ class MapCanvas(QgsMapCanvas):
         visibleLayers = viewPortRasterLayers + viewPortVectorLayers
 
         for mapLayer in visibleLayers:
-            #sub = m.addMenu(mapLayer.name())
             if isinstance(mapLayer, SensorProxyLayer):
                 name = os.path.basename(mapLayer.source())
             else:

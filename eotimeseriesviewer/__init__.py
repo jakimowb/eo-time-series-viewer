@@ -116,6 +116,7 @@ def initResources():
     initQtResources(pathlib.Path(__file__).parent)
 
 
+
 def initEditorWidgets():
     """
     Initialises QgsEditorWidgets

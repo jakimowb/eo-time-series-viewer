@@ -141,7 +141,7 @@ class MapView(QFrame):
         self.mDummyCanvas.setVisible(False)
 
         self.mLayerTree = QgsLayerTree()
-        self.mLayerTreeMapCanvasBridget = QgsLayerTreeMapCanvasBridge(self.mLayerTree, self.mDummyCanvas)
+        self.mLayerTreeMapCanvasBridge = QgsLayerTreeMapCanvasBridge(self.mLayerTree, self.mDummyCanvas)
 
         # self.mLayerTreeModel = QgsLayerTreeModel(self.mLayerTree)
         self.mLayerTreeModel = MapViewLayerTreeModel(self.mLayerTree)
@@ -255,8 +255,7 @@ class MapView(QFrame):
             if layer not in self.mSensorLayerList:
                 for c in self.mapCanvases():
                     c.setCurrentLayer(layer)
-            else:
-                s = ""
+            return True
 
     def addSpectralProfileLayer(self):
         """Adds the EOTSV Spectral Profile Layer"""
@@ -456,6 +455,10 @@ class MapView(QFrame):
                 mapCanvas.setStyleSheet(styleOff)
 
     def currentMapCanvas(self) -> MapCanvas:
+        """
+        Returns the MapCanvas that was clicked / used last
+        :return: MapCanvas
+        """
         if not isinstance(self.mMapWidget, MapWidget):
             return None
         canvases = sorted(self.mMapWidget.mapViewCanvases(self),
@@ -467,10 +470,20 @@ class MapView(QFrame):
 
     def currentLayer(self) -> QgsMapLayer:
         """
-        Returns the current map layer, i.e. that selected in the map layer tree view
-        :return:
+        Returns the current map layer, i.e. that selected in the map layer tree view.
+        If this is a proxy layer, the MapView will try to return a "real" layer from a MapCanvas
+
+
+        :return: QgsMapLayer
         """
-        return self.mLayerTreeView.currentLayer()
+        cl = self.mLayerTreeView.currentLayer()
+        if isinstance(cl, SensorProxyLayer):
+            sensor = cl.sensor()
+            for c in [c for c in self.mapCanvases() if c.tsd().sensor() == sensor]:
+                for l in c.layers():
+                    if isinstance(l, SensorProxyLayer):
+                        return l
+        return cl
 
     def crosshairStyle(self) -> CrosshairStyle:
         """
@@ -670,17 +683,24 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         view = self.layerTreeView()
         currentGroup = view.currentGroupNode()
         currentLayer = view.currentLayer()
+
         currentCanvas = self.mapView().currentMapCanvas()
         isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(
             KEY_SENSOR_GROUP) in [True, 'true']
         isSensorLayer = isinstance(currentLayer, SensorProxyLayer)
-        mv = self.mapView().mapWidget()
+        mv: MapView = self.mapView()
+        mw: MapWidget = mv.mapWidget()
+        mw.setCurrentMapView(mv)
+        if isSensorLayer:
+            # the current layer is an "empty" proxy layer. use one from a visible map canvas instead
+            pass
+
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
         if not isinstance(eotsv, EOTimeSeriesViewer):
             return
         menu = QMenu(view)
-        assert isinstance(mv, MapWidget)
+        assert isinstance(mw, MapWidget)
         if isinstance(currentLayer, QgsMapLayer):
             # zoom to layer
             menu.addAction(eotsv.actionZoomToLayer())
