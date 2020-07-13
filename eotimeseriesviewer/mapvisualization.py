@@ -479,7 +479,9 @@ class MapView(QFrame):
         cl = self.mLayerTreeView.currentLayer()
         if isinstance(cl, SensorProxyLayer):
             sensor = cl.sensor()
-            for c in [c for c in self.mapCanvases() if c.tsd().sensor() == sensor]:
+            canvases = [c for c in self.mapCanvases() if c.tsd().sensor() == sensor]
+            canvases = sorted(canvases, key=lambda c: c is not self.currentMapCanvas())
+            for c in canvases:
                 for l in c.layers():
                     if isinstance(l, SensorProxyLayer):
                         return l
