@@ -897,7 +897,7 @@ class MapCanvas(QgsMapCanvas):
                     tss = self.tsd()[sourceUris.index(sl.source())]
                     break
 
-            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.isEditable() and l.selectedFeatureCount() > 0]
+            lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.selectedFeatureCount() > 0]
 
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
             m = menu.addMenu('Quick Labels')
@@ -931,7 +931,6 @@ class MapCanvas(QgsMapCanvas):
                                 a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
                                 a.setIcon(classInfo.icon())
                                 a.triggered.connect(lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
-
 
         if isinstance(refSensorLayer, SensorProxyLayer):
             m = menu.addMenu('Raster stretch...')

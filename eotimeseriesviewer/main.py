@@ -1382,9 +1382,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
 
         import example.Images
-        exampleDataDir = os.path.dirname(example.Images.__file__)
+        exampleDataDir = pathlib.Path(example.Images.__file__).parent
         rasterFiles = list(file_search(exampleDataDir, '*.tif', recursive=True))
-        vectorFiles = list(file_search(exampleDataDir, re.compile(r'.*\.(gpkg|shp)$'), recursive=True))
+        vectorFiles = list(file_search(exampleDataDir.parent, re.compile(r'.*\.(gpkg|shp)$'), recursive=True))
         if isinstance(n, bool) or not isinstance(n, int):
             n = len(rasterFiles)
 
