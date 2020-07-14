@@ -2,6 +2,9 @@ import os
 import sys
 import pathlib
 import re
+import io
+import site
+site.addsitedir(pathlib.Path(__file__).parents[1])
 from eotimeseriesviewer.utils import file_search
 from eotimeseriesviewer import DIR_REPO
 def create_runtests():

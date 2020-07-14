@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import os, sys, fnmatch, six, subprocess, re
-
-ROOT = os.path.dirname(os.path.dirname(__file__))
+import os
+import pathlib
+import site
+site.addsitedir(pathlib.Path(__file__).parents[1])
 
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.externals.qps.resources import compileResourceFiles
-from eotimeseriesviewer.utils import file_search
 
 
 def compileEOTSVResourceFiles():

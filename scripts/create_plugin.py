@@ -27,6 +27,8 @@ import pathlib
 import re
 import shutil
 import typing
+import site
+site.addsitedir(pathlib.Path(__file__).parents[1])
 import docutils.core
 from xml.dom import minidom
 

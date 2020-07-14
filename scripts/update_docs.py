@@ -1,6 +1,9 @@
 
 import argparse
 import re
+import site
+import pathlib
+site.addsitedir(pathlib.Path(__file__).parents[1])
 
 from eotimeseriesviewer import DIR_REPO, DIR_DOCS, ISSUE_TRACKER
 def convert_changelog():

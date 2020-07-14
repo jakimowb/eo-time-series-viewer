@@ -7,8 +7,13 @@ import requests
 import zipfile
 import os
 import shutil
-import site
 import io
+import site
+site.addsitedir(pathlib.Path(__file__).parents[1])
+
+
+
+
 from eotimeseriesviewer import DIR_REPO, URL_QGIS_RESOURCES
 
 def install_zipfile(url: str, localPath: pathlib.Path, zip_root: str = None):

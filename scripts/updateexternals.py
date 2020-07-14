@@ -1,9 +1,10 @@
 
-import os, sys, re, shutil, zipfile, datetime
-from eotimeseriesviewer.externals.qps.make import updateexternals
-from eotimeseriesviewer.externals.qps.make.updateexternals import RemoteInfo, updateRemoteLocations
+import pathlib
+import site
+site.addsitedir(pathlib.Path(__file__).parents[1])
 from eotimeseriesviewer import DIR_REPO
-import git # install with: pip install gitpython
+from eotimeseriesviewer.externals.qps.make import updateexternals
+from eotimeseriesviewer.externals.qps.make.updateexternals import RemoteInfo
 
 updateexternals.setProjectRepository(DIR_REPO)
 
