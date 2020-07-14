@@ -101,7 +101,7 @@ class TestTimeSeries(EOTSVTestCase):
 
         overlapped = []
 
-        def onOverlapp(overlapp:dict):
+        def onOverlapp(overlapp: dict):
             for tss, is_overlapp in overlapp.items():
                 self.assertIsInstance(tss, str)
                 self.assertTrue(is_overlapp in [True, False, None])
@@ -134,6 +134,23 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertListEqual(overlapped, [True, False, False])
 
         s = ""
+
+    def test_find_overlap_memory_leak(self):
+
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        import random
+        EOTSV = EOTimeSeriesViewer()
+        EOTSV.loadExampleTimeSeries(loadAsync=False)
+        EOTSV.ui.show()
+
+        TS: EOTSV.timeSeries()
+        ext:SpatialExtent = TS.maxSpatialExtent()
+        center: SpatialPoint = ext.spatialCenter()
+
+
+        self.showGui(EOTSV.ui)
+
+
 
     def test_TimeSeriesDate(self):
 
