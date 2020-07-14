@@ -26,6 +26,7 @@ import os, sys, math, re, io, fnmatch, uuid
 from collections import defaultdict
 from qgis.core import *
 from qgis.gui import *
+from qgis.gui import QgisInterface
 import qgis.utils
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
@@ -59,7 +60,6 @@ def qgisInstance():
         return None
 
 
-
 def settings():
     return QSettings('HU-Berlin', 'EO Time Series Viewer')
 
@@ -70,7 +70,3 @@ def fixMenuButtons(w:QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu)\
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
-
-class TaskMock(QgsTask):
-    def __init__(self):
-        super(TaskMock, self).__init__()
