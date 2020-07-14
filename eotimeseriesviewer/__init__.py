@@ -43,6 +43,7 @@ import fnmatch
 import site
 import re
 import pathlib
+
 from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
 
@@ -60,15 +61,17 @@ PATH_ABOUT = DIR_REPO / 'ABOUT.html'
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
 URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
 
+
 def debugLog(msg: str):
     if DEBUG:
         print('DEBUG:' + msg, flush=True)
 
+
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
 # https://docs.readthedocs.io/en/stable/builds.html
-if not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
 
+if True and not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
     debugLog('load crosshair')
     from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, \
         CrosshairDialog, getCrosshairStyle
@@ -114,7 +117,6 @@ def initResources():
     debugLog('initResources')
     from eotimeseriesviewer.externals.qps.resources import initQtResources
     initQtResources(pathlib.Path(__file__).parent)
-
 
 
 def initEditorWidgets():

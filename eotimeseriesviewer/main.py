@@ -1540,7 +1540,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         return vectorLayers
 
-    def addTimeSeriesImages(self, files: list, loadAsync=True):
+    def addTimeSeriesImages(self, files: list, loadAsync:bool=True):
         """
         Adds images to the time series
         :param files:
@@ -1550,9 +1550,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             defDir = s.value('dir_datasources')
 
             filters = QgsProviderRegistry.instance().fileRasterFilters()
+
             files, filter = QFileDialog.getOpenFileNames(
                 directory=defDir,
                 filter=filters,
+                parent=self.ui,
                 # options=QFileDialog.DontUseNativeDialog #none-native is too slow
             )
 

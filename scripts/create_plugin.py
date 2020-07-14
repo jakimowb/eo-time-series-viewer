@@ -127,7 +127,7 @@ def create_plugin(include_testdata: bool = False,
     MD.mVersion = BUILD_NAME
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
-    #1. (re)-compile all resource files
+    # 1. (re)-compile all resource files
 
     from scripts.compile_resourcefiles import compileEOTSVResourceFiles
     compileEOTSVResourceFiles()
@@ -152,7 +152,7 @@ def create_plugin(include_testdata: bool = False,
         os.makedirs(fileDst.parent, exist_ok=True)
         shutil.copy(fileSrc, fileDst.parent)
 
-    #update metadata version
+    # update metadata version
 
     f = open(DIR_REPO / 'eotimeseriesviewer' / '__init__.py')
     lines = f.read()
@@ -188,19 +188,20 @@ def create_plugin(include_testdata: bool = False,
         info.append('from pyplugin_installer.installer import pluginInstaller')
         info.append('pluginInstaller.installFromZipFile(r"{}")'.format(PLUGIN_ZIP))
         info.append('#### Close (and restart manually)\n')
-        #print('iface.mainWindow().close()\n')
+        # print('iface.mainWindow().close()\n')
         info.append('QProcess.startDetached(QgsApplication.arguments()[0], [])')
         info.append('QgsApplication.quit()\n')
         info.append('## press ENTER\n')
 
         print('\n'.join(info))
 
-        #cb = QGuiApplication.clipboard()
-        #if isinstance(cb, QClipboard):
+        # cb = QGuiApplication.clipboard()
+        # if isinstance(cb, QClipboard):
         #    cb.setText('\n'.join(info))
 
     print('Finished')
     return PLUGIN_ZIP.as_posix()
+
 
 def rst2html(pathMD: pathlib.Path) -> str:
     """
@@ -286,7 +287,8 @@ if __name__ == "__main__":
 
     parser.add_argument('-l', '--latest',
                         required=False,
-                        help='Name the output zip like timeseriesviewer.<branch name>.latest.zip, e.g. for generic uploads',
+                        help='Name the output zip like timeseriesviewer.<branch name>.latest.zip,'
+                             'e.g. for generic uploads',
                         default=None,
                         action='store_true')
 

@@ -1127,17 +1127,16 @@ class TimeSeriesFindOverlapTask(QgsTask):
                  callback=None,
                  description='Calculate image pixel overlap',
                  sampleSize: int = 25,
-                 block_size=25):
+                 progress_interval: int = 2):
         super().__init__(description=description)
-        assert block_size >= 1
         assert sampleSize >= 1
-
+        assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
-        self.mBlockSize: int = block_size
         self.mTSS: typing.List[str] = [tss.uri() for tss in timeSeriesSources]
         self.mCallback = callback
         self.mTargetExtent = extent.__copy__()
         self.mSampleSize = sampleSize
+        self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mIntersections: typing.Dict[str, bool] = dict()
         self.mError = None
 
@@ -1160,7 +1159,6 @@ class TimeSeriesFindOverlapTask(QgsTask):
             n = len(self.mTSS)
 
             t0 = datetime.datetime.now()
-            report_delay = datetime.timedelta(seconds=2)
 
             for i, tssUri in enumerate(self.mTSS):
                 if self.isCanceled():
@@ -1175,35 +1173,45 @@ class TimeSeriesFindOverlapTask(QgsTask):
                     continue
 
                 if not targetExtent2.intersects(tss.spatialExtent()):
+                    del targetExtent2
                     continue
 
                 lyr: QgsRasterLayer = tss.asRasterLayer()
+                del tss
+
                 if not isinstance(lyr, QgsRasterLayer):
                     continue
 
-                dp: QgsRasterDataProvider = lyr.dataProvider()
-                stats: QgsRasterBandStats = dp.bandStatistics(1,
+                stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
                                                   stats=QgsRasterBandStats.Range,
                                                   extent=targetExtent2,
                                                   sampleSize=self.mSampleSize)
 
+                del lyr
+
                 if not isinstance(stats, QgsRasterBandStats):
                     continue
                 self.mIntersections[tssUri] = (stats.minimumValue, stats.maximumValue) != (emptyMin, emptyMax)
-
+                del stats
+                del targetExtent2
                 progress = int(100 * (i + 1) / n)
 
                 dt = datetime.datetime.now() - t0
-                if dt > report_delay:
+                if dt > self.mProgressInterval:
+                    self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
+                    self.mIntersections.clear()
                     self.setProgress(progress)
-                    #self.sigTimeSeriesSourceOverlap.emit(self.mIntersections)
-                    #self.mIntersections.clear()
                     t0 = datetime.datetime.now()
         except Exception as ex:
             self.mError = ex
             return False
 
-        #self.sigTimeSeriesSourceOverlap.emit(self.mIntersections)
+        if len(self.mIntersections) > 0:
+            self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
+        self.mIntersections.clear()
+        del targetCRS
+        del extentLookup
+
         return True
 
     def canCancel(self) -> bool:
@@ -1212,7 +1220,6 @@ class TimeSeriesFindOverlapTask(QgsTask):
     def finished(self, result):
         if self.mCallback is not None:
             self.mCallback(result, self)
-            #print('Finished', flush=True)
 
 
 class TimeSeriesLoadingTask(QgsTask):
@@ -1223,14 +1230,18 @@ class TimeSeriesLoadingTask(QgsTask):
                  files: typing.List[str],
                  description: str = "Load Images",
                  callback=None,
-                 block_size: int = 50):
+                 progress_interval: int = 3):
 
         super().__init__(description=description)
-        self.mFiles = files
-        self.mSources = []
+
+        assert progress_interval >= 1
+
+        self.mFiles: typing.List[str] = files
+        self.mSources: typing.List[TimeSeriesSource] = []
+        self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mCallback = callback
-        self.mResultBlockSize = block_size
-        self.mInvalidSources = []
+        self.mInvalidSources: typing.List[typing.Tuple[str, Exception]] = []
+        self.mError: Exception = None
 
     def canCancel(self) -> bool:
         return True
@@ -1238,32 +1249,42 @@ class TimeSeriesLoadingTask(QgsTask):
     def run(self) -> bool:
         result_block = []
         n = len(self.mFiles)
-        next_progress = 10
-        for i, path in enumerate(self.mFiles):
-            assert isinstance(path, str)
 
-            try:
-                tss = TimeSeriesSource.create(path)
-                assert isinstance(tss, TimeSeriesSource)
-                self.mSources.append(tss)
-                result_block.append(tss)
-            except Exception as ex:
-                self.mInvalidSources.append((path, ex))
+        t0 = datetime.datetime.now()
 
-            if len(result_block) >= self.mResultBlockSize:
+        try:
+            for i, path in enumerate(self.mFiles):
+                assert isinstance(path, str)
+                if self.isCanceled():
+                    return False
+
+                try:
+                    tss = TimeSeriesSource.create(path)
+                    assert isinstance(tss, TimeSeriesSource)
+                    self.mSources.append(tss)
+                    result_block.append(tss)
+                    del tss
+                except Exception as ex:
+                    self.mInvalidSources.append((path, ex))
+
+                if self.isCanceled():
+                    return False
+
+                dt = datetime.datetime.now() - t0
+
+                if dt > self.mProgressInterval:
+                    progress = int(100 * (i + 1) / n)
+                    self.setProgress(progress)
+                    self.sigFoundSources.emit(result_block[:])
+                    result_block.clear()
+
+            if len(result_block) > 0:
                 self.sigFoundSources.emit(result_block[:])
                 result_block.clear()
+        except Exception as ex:
+            self.mError = ex
+            return False
 
-            if self.isCanceled():
-                return False
-
-            progress = int(100 * (i + 1) / n)
-            if progress > next_progress:
-                self.setProgress(progress)
-                next_progress += 10
-
-        if len(result_block) > 0:
-            self.sigFoundSources.emit(result_block[:])
         return True
 
     def finished(self, result):
@@ -1355,16 +1376,10 @@ class TimeSeries(QAbstractItemModel):
             qgsTask = TimeSeriesFindOverlapTask(ext,
                                                 tssToTest,
                                                 sampleSize=value(Keys.RasterOverlapSampleSize),
-                                                block_size=value(Keys.QgsTaskBlockSize),
                                                 callback=self.onTaskFinished)
-            tid = id(qgsTask)
-            #self.mTasks[tid] = qgsTask
 
+            qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
             qgsTask.progressChanged.connect(self.sigProgress.emit)
-            #qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
-
-            qgsTask.taskCompleted.connect(lambda *args, _tid=tid: self.onRemoveTask(_tid))
-            qgsTask.taskTerminated.connect(lambda *args, _tid=tid: self.onRemoveTask(_tid))
 
             if runAsync:
                 tm = QgsApplication.taskManager()
@@ -1762,8 +1777,12 @@ class TimeSeries(QAbstractItemModel):
         return None
 
     def addTimeSeriesSources(self, sources: typing.List[TimeSeriesSource]):
+        """
+        Adds a list of time series sources to the time series
+        :param sources:  list-of-TimeSeriesSources
+        """
         assert isinstance(sources, list)
-        print('Add TSS...', flush=True)
+        # print('Add TSS...', flush=True)
         addedDates = []
         for i, source in enumerate(sources):
             assert isinstance(source, TimeSeriesSource)
@@ -1799,12 +1818,11 @@ class TimeSeries(QAbstractItemModel):
 
         qgsTask = TimeSeriesLoadingTask(sourcePaths,
                                         callback=self.onTaskFinished,
-                                        # block_size=value(Keys.QgsTaskBlockSize)
                                         )
-        tid = id(qgsTask)
-        self.mTasks[tid] = qgsTask
-        qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        #tid = id(qgsTask)
+        #self.mTasks[tid] = qgsTask
+        #qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        #qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
 
@@ -1834,6 +1852,7 @@ class TimeSeries(QAbstractItemModel):
         elif isinstance(task, TimeSeriesFindOverlapTask):
             if success and len(task.mIntersections) > 0:
                 self.onFoundOverlap(task.mIntersections)
+
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """

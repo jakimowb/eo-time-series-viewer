@@ -587,8 +587,8 @@ class MapView(QFrame):
         :param sensor:
         :return:
         """
-
-        self.mInitialStretch.pop(sensor)
+        if sensor in self.mInitialStretch.keys():
+            self.mInitialStretch.pop(sensor)
 
         toRemove = []
         for t in self.mSensorLayerList:
