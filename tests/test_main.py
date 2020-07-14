@@ -104,7 +104,7 @@ class TestMain(EOTSVTestCase):
         TSV = EOTimeSeriesViewer()
         TSV.createMapView('True Color')
 
-        TSV.loadExampleTimeSeries()
+        TSV.loadExampleTimeSeries(loadAsync=True)
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
             QCoreApplication.processEvents()
 

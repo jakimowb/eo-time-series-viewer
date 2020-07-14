@@ -88,6 +88,7 @@ try:
 except:
     pass
 
+
 def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False) -> QgsFields:
     """
     Returns the fields of a single temporal profile
@@ -107,6 +108,7 @@ def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False)
         fields.append(createQgsField(bandKey, 1.0, comment='value band {}'.format(b+1)))
 
     return fields
+
 
 def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False) -> QgsFeature:
     """
@@ -134,6 +136,7 @@ def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False) -> Qg
         bandKey = bandIndex2bandKey(b)
         f.setAttribute(bandKey, 1.0)
     return f
+
 
 def geometryToPixel(ds:gdal.Dataset, geometry: QgsGeometry) -> typing.Tuple[list, list]:
     """
@@ -191,11 +194,11 @@ def geometryToPixel(ds:gdal.Dataset, geometry: QgsGeometry) -> typing.Tuple[list
     return x_indices, y_indices
 
 
-
 def dateDOY(date):
     if isinstance(date, np.datetime64):
         date = date.astype(datetime.date)
     return date.timetuple().tm_yday
+
 
 def daysPerYear(year):
 
@@ -205,6 +208,7 @@ def daysPerYear(year):
         year = year.timetuple().tm_year
 
     return dateDOY(datetime.date(year=year, month=12, day=31))
+
 
 def date2num(d):
     #kindly taken from https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
@@ -222,6 +226,7 @@ def date2num(d):
     if fraction == 1.0:
         fraction = 0.9999999
     return float(d.year) + fraction
+
 
 def num2date(n, dt64=True, qDate=False):
     n = float(n)
@@ -732,11 +737,11 @@ class TemporalProfileLayer(QgsVectorLayer):
         if len(qgsTask.MISSING_DATA) == 0:
             return
 
-        tid = id(qgsTask)
-        self.mTasks[tid] = qgsTask
+        #tid = id(qgsTask)
+        #self.mTasks[tid] = qgsTask
 
-        qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
-        qgsTask.taskTerminated.connect(lambda *args, t=tid: self.onRemoveTask(t))
+        #qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
+        #qgsTask.taskTerminated.connect(lambda *args, t=tid: self.onRemoveTask(t))
 
         if run_async:
             tm = QgsApplication.taskManager()
@@ -1024,6 +1029,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         #self.sensorPxLayers.clear()
         pass
 
+
 class TemporalProfileLoaderTask(QgsTask):
     """
     A QgsTask to load pixel-band values from different Time Series Source images and
@@ -1036,15 +1042,15 @@ class TemporalProfileLoaderTask(QgsTask):
                  required_profiles: typing.List[TemporalProfile] = None,
                  required_sensor_bands: typing.Dict[SensorInstrument, typing.List[int]] = None,
                  callback=None,
-                 block_size: int=10):
+                 progress_interval: int = 10):
 
         super().__init__(description='Load Temporal Profiles')
 
-        assert isinstance(block_size, int) and block_size > 0
+        assert isinstance(progress_interval, int) and progress_interval > 0
         assert isinstance(temporalProfileLayer, TemporalProfileLayer)
         timeSeries: TimeSeries = temporalProfileLayer.timeSeries()
         self.nTotal = len(timeSeries)
-
+        self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mRequiredSensorBands: typing.Dict[SensorInstrument, typing.List[int]] = dict()
         self.mRequiredSensorBandKeys: typing.Dict[SensorInstrument, typing.List[str]] = dict()
         self.mTSS2TSD = dict()
@@ -1061,7 +1067,7 @@ class TemporalProfileLoaderTask(QgsTask):
                 self.mRequiredSensorBands[sensor] = sorted(band_indices)
                 for band_index in self.mRequiredSensorBands[sensor]:
                     assert isinstance(band_index, int)
-                    assert band_index >= 0 and band_index < sensor.nb
+                    assert 0 <= band_index < sensor.nb
 
         for sensor, band_indices in self.mRequiredSensorBands.items():
             self.mRequiredSensorBandKeys[sensor] = [bandIndex2bandKey(i) for i in band_indices]
@@ -1111,7 +1117,6 @@ class TemporalProfileLoaderTask(QgsTask):
                     self.GEOMETRY_CACHE[tp.id()][crsWKT] = tp.geometry(crs)
 
         self.mCallback = callback
-        self.mBlockSize = block_size
 
     def profileIDs(self) -> typing.List[int]:
         return list(self.MISSING_DATA.keys())
@@ -1126,8 +1131,8 @@ class TemporalProfileLoaderTask(QgsTask):
 
         block_results = []
         n_total = len(self.timeSeriesSources())
-        next_progress = 5
 
+        t0 = datetime.datetime.now()
         try:
             for n, tss in enumerate(self.timeSeriesSources()):
                 assert isinstance(tss, TimeSeriesSource)
@@ -1143,6 +1148,8 @@ class TemporalProfileLoaderTask(QgsTask):
                             INTERSECTING[tpID] = geom
                     else:
                         print('Missing geometry for crsWKT={}\nTSS={}\n'.format(tss.crsWkt(), tss.uri()))
+                    del geom, GEOM
+
                 if len(INTERSECTING) == 0:
                     continue
 
@@ -1156,8 +1163,11 @@ class TemporalProfileLoaderTask(QgsTask):
                     if len(px_x) > 0:
                         PX_INDICES[tpID] = (px_x, px_y)
 
+                    del tpID, geom
+
                 if len(PX_INDICES) == 0:
                     # profiles are out of image
+                    del PX_INDICES
                     continue
 
                 # create a dictionary that tells us which pixels / TPs positions are to load from which band
@@ -1171,6 +1181,7 @@ class TemporalProfileLoaderTask(QgsTask):
                                     required_band_profiles[band_key] = set()
 
                                 required_band_profiles[band_key].add(tpID)
+                    del missingTSDValues
 
                 # load required bands and required pixel positions only
                 for band_key, tpIds in required_band_profiles.items():
@@ -1194,22 +1205,36 @@ class TemporalProfileLoaderTask(QgsTask):
                         if band.GetNoDataValue():
                             block = block[np.where(block != band.GetNoDataValue())]
                         if len(block) == 0:
+                            del block
                             continue
 
                         # get mean pixel value
                         value = np.nanmean(block)
+                        del block
                         if np.isfinite(value):
                             self.MISSING_DATA[tpID][tsd][band_key] = value
+
                     del band
+                del required_band_profiles
 
                 if self.isCanceled():
                     self.mErrors.append('Canceled')
                     return False
 
-                progress = 100 * n / n_total
-                if progress >= next_progress:
+                dt = datetime.datetime.now() - t0
+                if dt > self.mProgressInterval:
+                    t0 = datetime.datetime.now()
+                    progress = 100 * n / n_total
                     self.setProgress(progress)
-                    next_progress += 5
+
+                del INTERSECTING
+                del PX_INDICES
+                del ds
+                del ext
+                del tsd
+                del tss
+
+                s = ""
 
         except Exception as ex:
             print(traceback.format_exc())
@@ -1226,6 +1251,7 @@ class TemporalProfileLoaderTask(QgsTask):
     def finished(self, result):
         if self.mCallback is not None:
             self.mCallback(result, self)
+
 
 class TemporalProfileTableModel(QgsAttributeTableModel):
     AUTOGENERATES_COLUMNS = [FN_ID, FN_Y, FN_X]
@@ -1308,7 +1334,6 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
 
         return result
 
-
     def headerData(self, section:int, orientation:Qt.Orientation, role:int):
         data = super(TemporalProfileTableModel, self).headerData(section, orientation, role)
         if role == Qt.ToolTipRole and orientation == Qt.Horizontal:
@@ -1326,7 +1351,6 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
 
     def supportedDropActions(self):
         return Qt.CopyAction | Qt.MoveAction
-
 
     def supportedDragActions(self):
         return Qt.CopyAction
@@ -1349,10 +1373,7 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
 
 
 class TemporalProfileFeatureSelectionManager(QgsIFeatureSelectionManager):
-
-
     def __init__(self, layer, parent=None):
-        s =""
         super(TemporalProfileFeatureSelectionManager, self).__init__(parent)
         assert isinstance(layer, QgsVectorLayer)
         self.mLayer = layer
@@ -1373,9 +1394,8 @@ class TemporalProfileFeatureSelectionManager(QgsIFeatureSelectionManager):
         self.mLayer.select(ids)
 
     def selectFeatures(self, selection, command):
+        super(TemporalProfileFeatureSelectionManager, self).selectFeatures(selection, command)
 
-        super(TemporalProfileFeatureSelectionManager, self).selectF
-        s = ""
     def selectedFeatureCount(self):
         return self.mLayer.selectedFeatureCount()
 
