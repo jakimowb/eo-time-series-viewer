@@ -59,13 +59,6 @@ class EOTSVTestCase(TestCase):
         import os
         os.environ['EOTSV_DEBUG'] = 'True'
 
-    def testOutputDirectory(self) -> pathlib.Path:
-        from eotimeseriesviewer import DIR_REPO
-        
-        d = DIR_REPO / 'test-outputs'
-        os.makedirs(d, exist_ok=True)
-        return d
-
     def closeBlockingWidget(self):
         """
         Closes the active blocking (modal) widget

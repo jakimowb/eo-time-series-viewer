@@ -37,7 +37,7 @@ class TestLabeling(EOTSVTestCase):
     def setUpClass(cls):
         super().setUpClass()
         print('## setUpClass')
-        app = qgis.testing.start_app(cleanup=True)
+        #app = qgis.testing.start_app(cleanup=True)
         import eotimeseriesviewer.labeling
         print('## setUpClass - cleanup')
         for store in eotimeseriesviewer.MAP_LAYER_STORES:
