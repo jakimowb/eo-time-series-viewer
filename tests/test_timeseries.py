@@ -144,10 +144,9 @@ class TestTimeSeries(EOTSVTestCase):
         EOTSV.loadExampleTimeSeries(loadAsync=False)
         EOTSV.ui.show()
 
-        TS: EOTSV.timeSeries()
-        ext:SpatialExtent = TS.maxSpatialExtent()
+        TS: TimeSeries = EOTSV.timeSeries()
+        ext: SpatialExtent = TS.maxSpatialExtent()
         center: SpatialPoint = ext.spatialCenter()
-
 
         self.showGui(EOTSV.ui)
 
