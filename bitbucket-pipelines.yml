@@ -31,7 +31,8 @@ pipelines:
           - python3 scripts/setup_repository.py
           #- python3 -m coverage run -m unittest discover -s tests
           #- python3 -m coverage report
-          - ./scripts/run_tests.sh
+          - chmod +x scripts/runtests.sh
+          - ./scripts/runtests.sh
           # build and upload plugin to download section
           - python3 scripts/create_plugin.py -z timeseriesviewerplugin.$(BITBUCKET_BRANCH).lastbuild.zip
           #- find deploy -name "timeseriesviewerplugin*zip" -exec cp -t deploy2 {} +
