@@ -51,7 +51,9 @@ class TestLabeling(EOTSVTestCase):
         self.assertTrue(lyr.featureCount() > 0)
         lyr.startEditing()
         lyr.addAttribute(QgsField('sensor', QVariant.String, 'varchar'))
-        lyr.addAttribute(QgsField('date', QVariant.String, 'varchar'))
+        lyr.addAttribute(QgsField('date', QVariant.Date, 'date'))
+        lyr.addAttribute(QgsField('datetime', QVariant.DateTime, 'datetime'))
+        lyr.addAttribute(QgsField('time', QVariant.Time, 'time'))
         lyr.addAttribute(QgsField('DOY', QVariant.Int, 'int'))
         lyr.addAttribute(QgsField('decyr', QVariant.Double, 'double'))
         lyr.addAttribute(QgsField('class1l', QVariant.Int, 'int'))
@@ -230,6 +232,14 @@ class TestLabeling(EOTSVTestCase):
         vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
                                                      {CONFKEY_LABELTYPE: LabelShortcutType.Date}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('datetime'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DateTime}))
+
+        vl.setEditorWidgetSetup(vl.fields().lookupField('time'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Time}))
+
         vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
                                                      {CONFKEY_LABELTYPE: LabelShortcutType.DOY}))

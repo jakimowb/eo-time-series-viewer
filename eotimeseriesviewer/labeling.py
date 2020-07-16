@@ -1,20 +1,20 @@
-import sys, os, re, enum
 from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, QgsFields, \
+    QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, \
+    QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsProject, QgsMapLayerStore, QgsSymbol
 from qgis.gui import *
+from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
+    QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
+    QgsGui, QgsEditorWidgetRegistry, QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
+
+from eotimeseriesviewer.externals.qps.layerproperties import *
+
+from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from osgeo import gdal
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.externals.qps.layerproperties import *
-from eotimeseriesviewer.utils import loadUi
 from .externals.qps.layerproperties import AttributeTableWidget
-from eotimeseriesviewer.externals.qps.classification.classificationscheme \
-    import ClassificationSchemeWidget, ClassificationScheme, ClassInfo, ClassificationSchemeComboBox
-
-from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
-
+from .externals.qps.utils import datetime64
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
@@ -25,7 +25,9 @@ CONFKEY_LABELTYPE = 'labelType'
 class LabelShortcutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDate instance"""
     Off = 'No Quick Label (default)'
-    Date = 'Date-Time'
+    Date = 'Date'
+    DateTime = 'Date-Time'
+    Time = 'Time'
     DOY = 'Day of Year (DOY)'
     Year = 'Year'
     DecimalYear = 'Decimal Year'
@@ -34,7 +36,7 @@ class LabelShortcutType(enum.Enum):
     # Classification = 'Classification'
 
 
-def shortcuts(field: QgsField):
+def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     """
     Returns the possible LabelShortCutTypes for a certain field
     :param fieldName: str
@@ -42,24 +44,29 @@ def shortcuts(field: QgsField):
     """
     assert isinstance(field, QgsField)
 
-    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date, LabelShortcutType.SourceImage]
+    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date,
+                       LabelShortcutType.DateTime, LabelShortcutType.SourceImage]
     shortCutsInt = [LabelShortcutType.Year, LabelShortcutType.DOY]
     shortCutsFloat = [LabelShortcutType.Year, LabelShortcutType.DOY, LabelShortcutType.DecimalYear]
-    shortCutsDate = [LabelShortcutType.Year, LabelShortcutType.Date]
+    #shortCutsDate = [LabelShortcutType.Year, LabelShortcutType.Date, LabelShortcutType.DateTime]
 
     options = [LabelShortcutType.Off]
-    t = field.typeName().lower()
-    if field.type() in [QVariant.String]:
+    fieldType = field.type()
+    if fieldType in [QVariant.String]:
         options.extend(shortCutsString)
         options.extend(shortCutsInt)
         options.extend(shortCutsFloat)
-    elif field.type() in [QVariant.Int, QVariant.LongLong, QVariant.UInt, QVariant.ULongLong]:
+    elif fieldType in [QVariant.Int, QVariant.LongLong, QVariant.UInt, QVariant.ULongLong]:
         options.extend(shortCutsInt)
-    elif field.type() in [QVariant.Double]:
+    elif fieldType in [QVariant.Double]:
         options.extend(shortCutsInt)
         options.extend(shortCutsFloat)
-    elif field.type() in [QVariant.DateTime, QVariant.Date]:
-        options.extend(shortCutsDate)
+    elif fieldType == QVariant.DateTime:
+        options.extend([LabelShortcutType.DateTime])
+    elif fieldType == QVariant.Date:
+        options.extend([LabelShortcutType.Date])
+    elif fieldType == QVariant.Time:
+        options.extend([LabelShortcutType.Time])
     else:
         s = ""
     result = []
@@ -208,7 +215,7 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer, tsd: TimeSeriesDate, tss: Tim
         if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
             field = vectorLayer.fields().at(i)
             assert isinstance(field, QgsField)
-
+            fieldType = field.type()
             conf = setup.config()
             labelType = conf.get(CONFKEY_LABELTYPE)
             if isinstance(labelType, LabelShortcutType):
@@ -223,22 +230,22 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer, tsd: TimeSeriesDate, tss: Tim
                 elif labelType == LabelShortcutType.DOY:
                     value = tsd.doy()
 
-                elif labelType == LabelShortcutType.Date:
-                    if field.type() == QVariant.Date:
+                elif labelType in [LabelShortcutType.Date, LabelShortcutType.DateTime]:
+                    if fieldType == QVariant.Date:
                         value = QDate(tsd.date().astype(object))
-                    elif field.type() == QVariant.DateTime:
+                    elif fieldType == QVariant.DateTime:
                         value = QDateTime(tsd.date().astype(object))
-                    elif field.type() == QVariant.String:
+                    elif fieldType == QVariant.String:
                         value = str(tsd.date())
 
                 elif labelType == LabelShortcutType.Year:
                     year = tsd.date().astype(object).year
 
-                    if field.type() == QVariant.String:
+                    if fieldType == QVariant.String:
                         value = str(year)
-                    elif field.type() == QVariant.Date:
+                    elif fieldType == QVariant.Date:
                         value = QDate(year, 1, 1)
-                    elif field.type() == QVariant.DateTime:
+                    elif fieldType == QVariant.DateTime:
                         value = QDateTime(2000, 1, 1, 0, 0)
 
                 elif labelType == LabelShortcutType.DecimalYear:
@@ -248,7 +255,7 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer, tsd: TimeSeriesDate, tss: Tim
                     value = tss.uri()
 
                 if value:
-                    if field.type() == QVariant.String:
+                    if fieldType == QVariant.String:
                         value = str(value)
 
                     for feature in vectorLayer.selectedFeatures():
@@ -674,26 +681,34 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
         super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
 
-        self.mEditor = None
-        self.mValidator = None
+        #self.mEditor = None
+
+        #self.mValidator = None
 
     def configLabelType(self) -> LabelShortcutType:
         return self.config().get(CONFKEY_LABELTYPE)
 
-    def createWidget(self, parent: QWidget):
+    def createWidget(self, parent: QWidget) -> QWidget:
         """
         Create the data input widget
         :param parent: QWidget
-        :return: ClassificationSchemeComboBox | default widget
+        :return: QLineEdit | QgsDateTimeEdit | QSpinBox
         """
         # log('createWidget')
         labelType = self.configLabelType()
-        # if labelType == LabelShortcutType.Classification:
-        #    self.mEditor = ClassificationSchemeComboBox(parent)
-        # else:
-        self.mEditor = QLineEdit(parent)
-        self.mValidator = QRegExpValidator()
-        return self.mEditor
+        fieldType = self.field().type()
+        if fieldType == QVariant.Date:
+            return QgsDateEdit(parent)
+        elif fieldType == QVariant.DateTime:
+            return QgsDateTimeEdit(parent)
+        elif fieldType == QVariant.Time:
+            return QgsTimeEdit(parent)
+        elif fieldType == QVariant.Double:
+            return QgsDoubleSpinBox(parent)
+        elif fieldType == QVariant.Int:
+            return QgsSpinBox(parent)
+        else:
+            return QLineEdit(parent)
 
     def initWidget(self, editor: QWidget):
         # log(' initWidget')
@@ -704,23 +719,20 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         #        self.mEditor.setClassificationScheme(cs)
         #        self.mEditor.currentIndexChanged.connect(self.onValueChanged)
 
-        # if isinstance(editor, QLineEdit):
-        self.mEditor = editor
-        self.mEditor.textChanged.connect(self.onValueChanged)
+        if isinstance(editor, QLineEdit):
+            editor.textChanged.connect(self.onValueChanged)
+        elif isinstance(editor, (QgsTimeEdit, QgsDateEdit, QgsDateTimeEdit)):
+            editor.clear()
+            editor.valueChanged.connect(self.onValueChanged)
+        elif isinstance(edit, (QgsDoubleSpinBox, QgsSpinBox)):
+            editor.valueChanged.connect(self.onValueChanged)
+        else:
+            s = ""
+        #self.mEditor = editor
 
     def onValueChanged(self, *args):
         self.valueChanged.emit(self.value())
         s = ""
-
-    def config(self) -> dict:
-        d = dict()
-
-        return d
-
-    def setConfig(self, conf: dict):
-
-        s = ""
-        pass
 
     def valid(self, *args, **kwargs) -> bool:
         """
@@ -730,45 +742,44 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         :return: bool
         """
         # return isinstance(self.mEditor, (ClassificationSchemeComboBox, QLineEdit))
-        return isinstance(self.mEditor, QLineEdit)
+        return isinstance(self.widget(), (QLineEdit, QgsDateTimeEdit, QgsTimeEdit,
+                                          QgsDateEdit, QgsSpinBox, QgsDoubleSpinBox))
 
     def value(self, *args, **kwargs):
         """
-        Reuturns the value
+        Returns the value
         :param args:
         :param kwargs:
         :return:
         """
         typeCode = self.field().type()
-        txt = self.mEditor.text()
 
-        if len(txt) == '':
-            return self.defaultValue()
+        editor = self.widget()
+        if isinstance(editor, QLineEdit):
+            value = editor.text()
+            dt64 = datetime64(value)
+            if isinstance(dt64, np.datetime64):
+                if typeCode == QVariant.DateTime:
+                    return QDateTime(dt64.astype(object))
+                elif typeCode == QVariant.Date:
+                    return QDate(dt64.astype(object))
+            if typeCode == QVariant.String:
+                return value
 
-        if typeCode == QVariant.String:
-            return txt
-
-        try:
-
-            txt = txt.strip()
-
-            if typeCode == QVariant.Int:
-                return int(txt)
-
-            if typeCode == QVariant.Double:
-                return float(txt)
-
-        except Exception as e:
-            return txt
-
-            return self.mLineEdit.text()
+        elif isinstance(editor, QgsDateTimeEdit):
+            if typeCode == QVariant.DateTime:
+                return editor.dateTime()
+            elif typeCode == QVariant.Date:
+                return editor.date()
+            elif typeCode == QVariant.String:
+                return str(editor.dateTime())
 
         return self.defaultValue()
 
     def setEnabled(self, enabled: bool):
-
-        if isinstance(self.mEditor, QWidget):
-            self.mEditor.setEnabled(enabled)
+        editor = self.widget()
+        if isinstance(editor, QWidget):
+            editor.setEnabled(enabled)
 
     def setValue(self, value):
 
@@ -778,10 +789,31 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         #        i = cs.classIndexFromValue(value)
         #        self.mEditor.setCurrentIndex(max(i, 0))
         # elif isinstance(self.mEditor, QLineEdit):
-        if value in [QVariant(), None]:
-            self.mEditor.setText(None)
+        w = self.widget()
+        labelType = self.configLabelType()
+
+        if value in [None, QVariant()]:
+            if isinstance(w, (QgsTimeEdit, QgsDateEdit, QgsDateTimeEdit)):
+                w.setEmpty()
+            elif isinstance(w, (QgsSpinBox, QgsDoubleSpinBox)):
+                w.clear()
+            elif isinstance(w, QLineEdit):
+                w.clear()
+            else:
+                s = ""
         else:
-            self.mEditor.setText(str(value))
+            if isinstance(w, QgsTimeEdit):
+                w.setTime(QTime(value))
+            elif isinstance(w, QgsDateEdit):
+                w.setDate(QDate(value))
+            elif isinstance(w, QgsDateTimeEdit):
+                w.setDateTime(QDateTime(value))
+            elif isinstance(w, (QgsSpinBox, QgsDoubleSpinBox)):
+                w.setValue(w)
+            elif isinstance(w, QLineEdit):
+                w.setText(str(w))
+            else:
+                s = ""
 
 
 class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
@@ -822,7 +854,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
     def create(self, layer: QgsVectorLayer, fieldIdx: int, editor: QWidget,
                parent: QWidget) -> LabelShortcutEditorWidgetWrapper:
         """
-        Create a ClassificationSchemeEditorWidgetWrapper
+        Create a LabelShortcutEditorWidgetWrapper
         :param layer: QgsVectorLayer
         :param fieldIdx: int
         :param editor: QWidget
@@ -830,6 +862,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         :return: ClassificationSchemeEditorWidgetWrapper
         """
         w = LabelShortcutEditorWidgetWrapper(layer, fieldIdx, editor, parent)
+        w.setConfig(self.readConfig(self.configKey(layer, fieldIdx)))
         return w
 
     def writeConfig(self, key: tuple, config: dict):
@@ -879,13 +912,13 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         :return: bool
         """
         field = vl.fields().at(idx)
-        if isinstance(field, QgsField) and field.type() in [QVariant.Int, QVariant.String, QVariant.Date,
-                                                            QVariant.DateTime]:
+        if isinstance(field, QgsField) and field.type() in \
+                [QVariant.Double, QVariant.Int, QVariant.String, QVariant.Date, QVariant.DateTime]:
             return True
         return False
 
 
-EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV_Quick Label'
+EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
 labelEditorWidgetFactory = None
 
 

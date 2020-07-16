@@ -35,6 +35,8 @@ import tempfile
 from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
 from eotimeseriesviewer.main import *
+
+
 class TestMain(EOTSVTestCase):
 
     def tearDown(self):
