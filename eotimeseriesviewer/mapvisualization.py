@@ -28,12 +28,12 @@ import collections
 import copy
 import traceback
 import bisect
-
+import json
 from eotimeseriesviewer import DIR_UI
 from qgis.core import *
 from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader, QgsProject, \
     QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
-    QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, \
+    QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup,  \
     QgsLayerTree, QgsLayerTreeLayer, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
@@ -56,11 +56,6 @@ from eotimeseriesviewer import debugLog
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 from .externals.qps.maptools import *
-
-# assert os.path.isfile(dummyPath)
-# lyr = QgsRasterLayer(dummyPath)
-# assert lyr.isValid()
-DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -103,7 +98,7 @@ class MapView(QFrame):
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mMapWidget = None
 
-        self.mInitialStretch: typing.Dict[SensorInstrument, bool] = dict()
+        self.mLayerStyleInitialized: typing.Dict[SensorInstrument, bool] = dict()
 
         self.mTimeSeries = None
         self.mSensorLayerList = list()
@@ -422,6 +417,7 @@ class MapView(QFrame):
         else:
             return self.tbName.text().strip()
 
+
     def setCrosshairStyle(self, crosshairStyle: CrosshairStyle) -> CrosshairStyle:
         """
         Seths the CrosshairStyle of this MapView
@@ -520,12 +516,23 @@ class MapView(QFrame):
                 return l
         return None
 
-    def sensors(self) -> list:
+    def sensorLayers(self, sensor: SensorInstrument) -> typing.List[SensorProxyLayer]:
+        """
+        :param sensor:
+        :return:
+        """
+        layers = []
+        for c in self.mapCanvases():
+            for l in c.layers():
+                if isinstance(l, SensorProxyLayer) and l.sensor() == sensor:
+                    layers.append(l)
+        return layers
+
+    def sensors(self) -> typing.List[SensorInstrument]:
         """
         Returns a list of SensorsInstruments
         :return: [list-of-SensorInstruments]
         """
-
         return [t[0] for t in self.mSensorLayerList]
 
     def addSensor(self, sensor: SensorInstrument):
@@ -537,24 +544,30 @@ class MapView(QFrame):
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
-            dummyLayer = sensor.proxyRasterLayer()
-            assert isinstance(dummyLayer.renderer(), QgsRasterRenderer)
-            dummyLayer.rendererChanged.connect(lambda sensor=sensor: self.onSensorRendererChanged(sensor))
-
-            # QgsProject.instance().addMapLayer(dummyLayer)
-
-            layerTreeLayer = self.mLayerTreeSensorNode.addLayer(dummyLayer)
-            assert isinstance(layerTreeLayer, QgsLayerTreeLayer)
+            masterLayer: SensorProxyLayer = sensor.proxyRasterLayer()
+            assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
+            self.mSensorLayerList.append((sensor, masterLayer))
+            masterLayer.styleChanged.connect(lambda *args, v=self, l=masterLayer: self.onMasterStyleChanged(l))
+            layerTreeLayer: QgsLayerTreeLayer = self.mLayerTreeSensorNode.addLayer(masterLayer)
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
             layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
-            self.mSensorLayerList.append((sensor, dummyLayer))
-            self.mInitialStretch[sensor] = False
 
-    def onSensorRendererChanged(self, sensor: SensorInstrument):
+            self.mLayerStyleInitialized[sensor] = False
+
+    def onMasterStyleChanged(self, masterLayer: SensorProxyLayer):
+
+        sensor: SensorInstrument = masterLayer.sensor()
+        style: QgsMapLayerStyle = masterLayer.mapLayerStyle()
+        #print('### MASTER-STYLE-CHANGED')
+        #print(style.xmlData())
+        for lyr in self.sensorLayers(sensor):
+            lyr.setMapLayerStyle(style)
+
         for c in self.sensorCanvases(sensor):
             assert isinstance(c, MapCanvas)
             c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
-        self.mInitialStretch[sensor] = True
+
+        self.mLayerStyleInitialized[sensor] = True
 
     def sensorCanvases(self, sensor: SensorInstrument) -> list:
         """
@@ -587,8 +600,8 @@ class MapView(QFrame):
         :param sensor:
         :return:
         """
-        if sensor in self.mInitialStretch.keys():
-            self.mInitialStretch.pop(sensor)
+        if sensor in self.mLayerStyleInitialized.keys():
+            self.mLayerStyleInitialized.pop(sensor)
 
         toRemove = []
         for t in self.mSensorLayerList:
@@ -1132,14 +1145,14 @@ class MapWidget(QFrame):
         for mapView in self.mapViews():
             # test for initial raster stretches
             for sensor in self.timeSeries().sensors():
-                if not mapView.mInitialStretch.get(sensor):
+                if not mapView.mLayerStyleInitialized.get(sensor):
                     for c in self.mapViewCanvases(mapView):
                         # find the first map canvas that contains  layer data of this sensor
                         # in its extent
                         if not isinstance(c.tsd(), TimeSeriesDate):
                             continue
                         if c.tsd().sensor() == sensor and c.stretchToCurrentExtent():
-                            mapView.mInitialStretch[sensor] = True
+                            mapView.mLayerStyleInitialized[sensor] = True
                             break
 
     def currentLayer(self) -> QgsMapLayer:
@@ -1176,6 +1189,71 @@ class MapWidget(QFrame):
             assert mapView in self.mapViews()
             self.mCurrentMapView = mapView
             self.sigCurrentMapViewChanged.emit(mapView)
+
+    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
+        """
+        Writes the MapWidget settings to a QDomNode
+        :param node:
+        :param doc:
+        :return:
+        """
+        mwNode = doc.createElement('EOTSV_MAPWIDGET')
+        context = QgsReadWriteContext()
+        for mapView in self.mapViews():
+            mvNode = doc.createElement('MAP_VIEW')
+            mvNode.setAttribute('name', mapView.name())
+            for sensor in mapView.sensors():
+                lyr = mapView.sensorProxyLayer(sensor)
+                if isinstance(lyr, SensorProxyLayer):
+                    sensorNode = doc.createElement('MAP_VIEW_PROXY_LAYER')
+                    sensorNode.setAttribute('sensor_id', sensor.id())
+                    style: QgsMapLayerStyle = lyr.mapLayerStyle()
+                    styleNode = doc.createElement('STYLE')
+                    style.writeXml(styleNode)
+                    sensorNode.appendChild(styleNode)
+                    mvNode.appendChild(sensorNode)
+            mwNode.appendChild(mvNode)
+        node.appendChild(mwNode)
+        return True
+
+    def readXml(self, node: QDomNode):
+        if not node.nodeName() == 'EOTSV_MAPWIDGET':
+            node = node.firstChildElement('EOTSV_MAPWIDGET')
+        if node.isNull():
+            return None
+
+        context = QgsReadWriteContext()
+
+        mvNode = node.firstChildElement('MAP_VIEW')
+        while not mvNode.isNull():
+            mvName = mvNode.attribute('name')
+            mapView: MapView = None
+            for mv in self.mapViews():
+                if mv.name() == mvName:
+                    mapView = mv
+            if not isinstance(mapView, MapView):
+                mapView = MapView()
+                mapView.setName(mvName)
+                self.addMapView(mapView)
+
+            sensorNode = mvNode.firstChildElement('MAP_VIEW_PROXY_LAYER').toElement()
+            while not sensorNode.isNull():
+                sid = sensorNode.attribute('sensor_id')
+                sensor = self.timeSeries().findMatchingSensor(sid)
+                if sensor:
+                    lyr = mapView.sensorProxyLayer(sensor)
+                    if isinstance(lyr, SensorProxyLayer):
+                        styleNode = sensorNode.firstChildElement('STYLE')
+                        if styleNode.nodeName() == 'STYLE':
+                            style = QgsMapLayerStyle()
+                            style.readXml(styleNode)
+                            lyr.setMapLayerStyle(style)
+
+                    s = ""
+                sensorNode = sensorNode.nextSibling().toElement()
+            mvNode = mvNode.nextSibling()
+        s = ""
+
 
     def usedLayers(self):
         layers = set()
@@ -1702,17 +1780,17 @@ class MapWidget(QFrame):
             w.layout().update()
             w.update()
 
-    def _updateLayerCache(self) -> list:
+    def _updateLayerCache(self) -> typing.List[MapCanvas]:
         canvases = self.findChildren(MapCanvas)
         for c in canvases:
             assert isinstance(c, MapCanvas)
             self.mMapLayerCache[self._layerListKey(c)] = c.layers()
         return canvases
 
-    def _layerListKey(self, canvas: MapCanvas):
+    def _layerListKey(self, canvas: MapCanvas) -> typing.Tuple[MapView, TimeSeriesDate]:
         return (canvas.mapView(), canvas.tsd())
 
-    def _updateCanvasDates(self, updateLayerCache=True):
+    def _updateCanvasDates(self, updateLayerCache:bool = True):
 
         visibleBefore = self.visibleTSDs()
         bTSDChanged = False
@@ -1793,7 +1871,7 @@ class MapWidget(QFrame):
                 item.setVisibility(style.mShow)
                 assert isinstance(item, CrosshairMapCanvasItem)
                 item.setCrosshairStyle(style)
-                canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                #canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def _updateCanvasAppearance(self, mapView=None):
 
@@ -1845,7 +1923,7 @@ class MapWidget(QFrame):
                 info.setUpperCenter(uc)
                 info.setLowerCenter(lc)
 
-                canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                #canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
 
 class MapViewDock(QgsDockWidget):

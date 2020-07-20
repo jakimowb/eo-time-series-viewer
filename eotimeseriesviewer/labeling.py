@@ -1,3 +1,5 @@
+
+import enum
 from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, QgsFields, \
     QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, \
@@ -8,13 +10,12 @@ from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
     QgsGui, QgsEditorWidgetRegistry, QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
 
 from eotimeseriesviewer.externals.qps.layerproperties import *
-
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from .externals.qps.layerproperties import AttributeTableWidget
 from .externals.qps.utils import datetime64
+from .externals.qps.classification.classificationscheme import ClassInfo
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 

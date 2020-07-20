@@ -39,9 +39,9 @@ from qgis import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtXml import QDomDocument
+from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
 from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
-    Qgis, QgsDateTimeRange, \
+    Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, \
     QgsTaskManager, QgsPoint, QgsPointXY, \
     QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform
@@ -349,6 +349,7 @@ class SensorProxyLayer(QgsRasterLayer):
         super(SensorProxyLayer, self).__init__(*args, **kwds)
         self.mSensor: SensorInstrument = sensor
         self.mTSS: TimeSeriesSource = None
+        self.mStyleXml: str = None
 
     def sensor(self) -> SensorInstrument:
         """
@@ -357,6 +358,23 @@ class SensorProxyLayer(QgsRasterLayer):
         """
         return self.mSensor
 
+    def setMapLayerStyle(self, style: QgsMapLayerStyle):
+        if self.mStyleXml is None:
+            self.mStyleXml = self.mapLayerStyle().xmlData()
+        xml = style.xmlData()
+        if self.mStyleXml != xml:
+            style.writeToLayer(self)
+
+            self.mStyleXml = xml
+            self.styleChanged.emit()
+            #xml2 = self.mapLayerStyle().xmlData()
+            #assert xml2 == xml
+            #assert self.mStyleXml == xml
+
+    def mapLayerStyle(self) -> QgsMapLayerStyle:
+        style = QgsMapLayerStyle()
+        style.readFromLayer(self)
+        return style
 
 def verifyInputImage(datasource):
     """
@@ -2106,6 +2124,37 @@ class TimeSeries(QAbstractItemModel):
                 return node.timeSeriesDate()
 
         return None
+
+    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
+        """
+        Writes the TimeSeires to a QDomNode
+        :param node:
+        :param doc:
+        :return:
+        """
+        tsNode = doc.createElement('EOTSV_TIMESERIES')
+        for tss in self.sources():
+            tssNode = doc.createElement('TIME_SERIES_SOURCE')
+            tssNode.appendChild(doc.createTextNode((tss.uri())))
+            tsNode.appendChild(tssNode)
+        node.appendChild(tsNode)
+        return True
+
+    def readXml(self, node: QDomNode):
+        if not node.nodeName() == 'EOTSV_TIMESERIES':
+            node = node.firstChildElement('EOTSV_TIMESERIES')
+        if node.isNull():
+            return None
+
+        tssNode = node.firstChildElement('TIME_SERIES_SOURCE')
+        to_add = []
+        while not tssNode.isNull():
+            uri = tssNode.firstChild().nodeValue()
+            to_add.append(uri)
+            tssNode = tssNode.nextSibling()
+
+        if len(to_add) > 0:
+            self.addSources(to_add, runAsync=False)
 
     def data(self, index, role):
         """

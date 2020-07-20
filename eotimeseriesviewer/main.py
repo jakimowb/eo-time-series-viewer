@@ -610,6 +610,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.mActionLayerProperties.triggered.connect(self.onShowLayerProperties)
 
+        from qgis.utils import iface
+        self.ui.actionLoadProject.triggered.connect(iface.actionOpenProject().trigger)
+        self.ui.actionSaveProject.triggered.connect(iface.actionSaveProject().trigger)
+
         self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
         self.ui.dockSpectralLibrary.SLW.actionSelectProfilesFromMap.triggered.connect(
             self.activateIdentifySpectralProfileMapTool)
@@ -658,6 +662,33 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.dockTimeSeries.setFloating(True)
         self.ui.dockTimeSeries.setFloating(False)
+
+        QgsProject.instance().writeProject.connect(self.onWriteProject)
+        QgsProject.instance().readProject.connect(self.onReadProject)
+
+    def onWriteProject(self, dom: QDomDocument):
+
+        node = dom.createElement('EOTSV')
+        root = dom.documentElement()
+
+        # save time series
+        self.timeSeries().writeXml(node, dom)
+
+        # save map views
+        self.mapWidget().writeXml(node, dom)
+        root.appendChild(node)
+
+    def onReadProject(self, dom: QDomDocument):
+
+        if dom is None:
+            s = ""
+
+
+        root = dom.documentElement()
+        node = root.firstChildElement('EOTSV')
+        if node.nodeName() == 'EOTSV':
+            self.timeSeries().readXml(node)
+            self.mapWidget().readXml(node)
 
     def lockCentralWidgetSize(self, b: bool):
         """

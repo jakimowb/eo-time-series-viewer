@@ -78,6 +78,28 @@ class TestMain(EOTSVTestCase):
 
             self.assertIn(expectation, dict(metadata), message)
 
+
+    def test_TimeSeriesViewer(self):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        TSV = EOTimeSeriesViewer()
+        TSV.createMapView('True Color')
+
+        TSV.loadExampleTimeSeries(loadAsync=True)
+        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
+            QCoreApplication.processEvents()
+
+        if len(TSV.timeSeries()) > 0:
+            tsd = TSV.timeSeries()[-1]
+            TSV.setCurrentDate(tsd)
+
+        # save and read settings
+        path = self.testOutputDirectory() / 'test.qgz'
+        QgsProject.instance().write(path.as_posix())
+        self.assertTrue(QgsProject.instance().read(path.as_posix()))
+
+        self.showGui([TSV.ui])
+
+
     def test_TimeSeriesViewerNoSource(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -101,20 +123,7 @@ class TestMain(EOTSVTestCase):
 
         self.showGui(edit)
 
-    def test_TimeSeriesViewer(self):
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
-        TSV = EOTimeSeriesViewer()
-        TSV.createMapView('True Color')
 
-        TSV.loadExampleTimeSeries(loadAsync=True)
-        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
-            QCoreApplication.processEvents()
-
-        if len(TSV.timeSeries()) > 0:
-            tsd = TSV.timeSeries()[-1]
-            TSV.setCurrentDate(tsd)
-
-        self.showGui([TSV.ui])
 
     def test_TimeSeriesViewerInvalidSource(self):
 
