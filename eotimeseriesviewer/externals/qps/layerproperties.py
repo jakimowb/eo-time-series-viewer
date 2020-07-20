@@ -17,24 +17,74 @@
 ***************************************************************************
 """
 
-
-import collections
-import os
-import re
-import typing, enum
-from osgeo import gdal, ogr, osr
-import numpy as np
-from qgis.gui import *
-from qgis.core import *
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtXml import QDomDocument
-from . import DIR_UI_FILES
-from .utils import *
+# auto-generated file.
+from qgis.core import \
+    Qgis, \
+    QgsAction, \
+    QgsApplication, \
+    QgsCategorizedSymbolRenderer, \
+    QgsContrastEnhancement, \
+    QgsDataProvider, \
+    QgsDistanceArea, \
+    QgsEditFormConfig, \
+    QgsExpression, \
+    QgsExpressionContext, \
+    QgsExpressionContextGenerator, \
+    QgsExpressionContextScope, \
+    QgsExpressionContextUtils, \
+    QgsFeature, \
+    QgsFeatureRenderer, \
+    QgsFeatureRequest, \
+    QgsField, \
+    QgsFieldProxyModel, \
+    QgsHillshadeRenderer, \
+    QgsLayerTreeGroup, \
+    QgsLayerTreeLayer, \
+    QgsMapLayer, \
+    QgsMultiBandColorRenderer, \
+    QgsPalettedRasterRenderer, \
+    QgsProject, \
+    QgsProviderRegistry, \
+    QgsRasterBandStats, \
+    QgsRasterDataProvider, \
+    QgsRasterLayer, \
+    QgsRasterRenderer, \
+    QgsReadWriteContext, \
+    QgsRectangle, \
+    QgsScopedProxyProgressTask, \
+    QgsSettings, \
+    QgsSingleBandGrayRenderer, \
+    QgsSingleBandPseudoColorRenderer, \
+    QgsSingleSymbolRenderer, \
+    QgsVectorDataProvider, \
+    QgsVectorLayer, \
+    QgsWkbTypes
+
+from qgis.gui import \
+    QgisInterface, \
+    QgsActionMenu, \
+    QgsAttributeEditorContext, \
+    QgsAttributeForm, \
+    QgsAttributeTableFilterModel, \
+    QgsAttributeTableModel, \
+    QgsDockWidget, \
+    QgsDualView, \
+    QgsExpressionSelectionDialog, \
+    QgsMapCanvas, \
+    QgsMapLayerConfigWidget, \
+    QgsMapLayerConfigWidgetFactory, \
+    QgsMessageBar, \
+    QgsOptionsDialogBase, \
+    QgsRasterTransparencyWidget, \
+    QgsSublayersDialog
+
+
+from .classification.classificationscheme import ClassificationScheme
 from .models import OptionListModel, Option
-from .classification.classificationscheme import ClassificationScheme, ClassInfo
+from .utils import *
 from .vectorlayertools import VectorLayerTools
+
 """
 class RasterLayerProperties(QgsOptionsDialogBase):
     def __init__(self, lyr, canvas, parent, fl=Qt.Widget):
@@ -44,7 +94,6 @@ class RasterLayerProperties(QgsOptionsDialogBase):
         title = "Layer Properties - {}".format(lyr.name())
         self.restoreOptionsBaseUi(title)
 """
-
 
 """
     RASTERRENDERER_CREATE_FUNCTIONS['multibandcolor'] = MultiBandColorRendererWidget.create
@@ -58,18 +107,17 @@ class RasterLayerProperties(QgsOptionsDialogBase):
 
 RENDER_CLASSES = {}
 RENDER_CLASSES['rasterrenderer'] = {
-    'singlebandpseudocolor':QgsSingleBandPseudoColorRenderer,
+    'singlebandpseudocolor': QgsSingleBandPseudoColorRenderer,
     'singlebandgray': QgsSingleBandGrayRenderer,
-    'paletted':QgsPalettedRasterRenderer,
+    'paletted': QgsPalettedRasterRenderer,
     'multibandcolor': QgsMultiBandColorRenderer,
     'hillshade': QgsHillshadeRenderer
 }
 RENDER_CLASSES['renderer-v2'] = {
-    'categorizedSymbol':QgsCategorizedSymbolRenderer,
-    'singleSymbol':QgsSingleSymbolRenderer
+    'categorizedSymbol': QgsCategorizedSymbolRenderer,
+    'singleSymbol': QgsSingleSymbolRenderer
 }
 DUMMY_RASTERINTERFACE = QgsSingleBandGrayRenderer(None, 0)
-
 
 MDF_QGIS_LAYER_STYLE = 'application/qgis.style'
 MDF_TEXT_PLAIN = 'text/plain'
@@ -79,6 +127,7 @@ class AddAttributeDialog(QDialog):
     """
     A dialog to set up a new QgsField.
     """
+
     def __init__(self, layer, parent=None, case_sensitive: bool = False):
         assert isinstance(layer, QgsVectorLayer)
         super(AddAttributeDialog, self).__init__(parent)
@@ -93,7 +142,7 @@ class AddAttributeDialog(QDialog):
         self.tbName.setPlaceholderText('Name')
         self.tbName.textChanged.connect(self.validate)
 
-        l.addWidget(QLabel('Name'), 0,0)
+        l.addWidget(QLabel('Name'), 0, 0)
         l.addWidget(self.tbName, 0, 1)
 
         self.tbComment = QLineEdit()
@@ -115,7 +164,7 @@ class AddAttributeDialog(QDialog):
 
         self.sbLength = QSpinBox()
         self.sbLength.setRange(0, 99)
-        self.sbLength.valueChanged.connect(lambda : self.setPrecisionMinMax())
+        self.sbLength.valueChanged.connect(lambda: self.setPrecisionMinMax())
         self.lengthLabel = QLabel('Length')
         l.addWidget(self.lengthLabel, 3, 0)
         l.addWidget(self.sbLength, 3, 1)
@@ -165,7 +214,6 @@ class AddAttributeDialog(QDialog):
         else:
             QMessageBox.warning(self, "Add Field", msg)
 
-
     def field(self):
         """
         Returns the new QgsField
@@ -184,13 +232,13 @@ class AddAttributeDialog(QDialog):
 
     def onTypeChanged(self, *args):
         ntype = self.currentNativeType()
-        vMin , vMax = ntype.mMinLen, ntype.mMaxLen
+        vMin, vMax = ntype.mMinLen, ntype.mMaxLen
         assert isinstance(ntype, QgsVectorDataProvider.NativeType)
 
         isVisible = vMin < vMax
         self.sbLength.setVisible(isVisible)
         self.lengthLabel.setVisible(isVisible)
-        self.setSpinBoxMinMax(self.sbLength, vMin , vMax)
+        self.setSpinBoxMinMax(self.sbLength, vMin, vMax)
         self.setPrecisionMinMax()
 
     def setPrecisionMinMax(self):
@@ -222,7 +270,7 @@ class AddAttributeDialog(QDialog):
         name = self.tbName.text()
         existing_names = self.mLayer.fields().names()
         if self.mCaseSensitive and name in existing_names or \
-           not self.mCaseSensitive and name.lower() in [n.lower() for n in existing_names]:
+                not self.mCaseSensitive and name.lower() in [n.lower() for n in existing_names]:
             errors.append('Field name "{}" already exists.'.format(name))
         elif name == '':
             errors.append('Missing field name')
@@ -237,7 +285,7 @@ class AddAttributeDialog(QDialog):
 
 class RemoveAttributeDialog(QDialog):
 
-    def __init__(self, layer:QgsVectorLayer, *args, fieldNames = None, **kwds):
+    def __init__(self, layer: QgsVectorLayer, *args, fieldNames=None, **kwds):
         super().__init__(*args, **kwds)
         assert isinstance(layer, QgsVectorLayer)
         self.mLayer = layer
@@ -279,8 +327,8 @@ class RemoveAttributeDialog(QDialog):
         return [self.mLayer.fields().lookupField(f.name()) for f in self.fields()]
 
     def fieldNames(self) -> typing.List[str]:
-
         return [f.name() for f in self.fields()]
+
 
 def openRasterLayerSilent(uri, name, provider) -> QgsRasterLayer:
     """
@@ -305,6 +353,7 @@ def openRasterLayerSilent(uri, name, provider) -> QgsRasterLayer:
         QgsSettings().setValue(key, v)
     return lyr
 
+
 def rendererFromXml(xml):
     """
     Reads a string `text` and returns the first QgsRasterRenderer or QgsFeatureRenderer (if defined).
@@ -314,9 +363,9 @@ def rendererFromXml(xml):
 
     if isinstance(xml, QMimeData):
         for format in [MDF_QGIS_LAYER_STYLE, MDF_TEXT_PLAIN]:
-        #for format in ['application/qgis.style', 'text/plain']:
+            # for format in ['application/qgis.style', 'text/plain']:
             if format in xml.formats():
-                dom  = QDomDocument()
+                dom = QDomDocument()
                 dom.setContent(xml.data(format))
                 return rendererFromXml(dom)
         return None
@@ -342,11 +391,13 @@ def rendererFromXml(xml):
                     context = QgsReadWriteContext()
                     return rClass.load(elem, context)
             else:
-                #print(typeName)
-                s =""
+                # print(typeName)
+                s = ""
     return None
 
-def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSize:int=256, readQml:bool=True) -> QgsRasterRenderer:
+
+def defaultRasterRenderer(layer: QgsRasterLayer, bandIndices: list = None, sampleSize: int = 256,
+                          readQml: bool = True) -> QgsRasterRenderer:
     """
     Returns a default Raster Renderer.
     See https://bitbucket.org/hu-geomatics/enmap-box/issues/166/default-raster-visualization
@@ -365,7 +416,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
 
     # band names are defined explicitley
     if isinstance(bandIndices, list):
-        bandIndices = [b for b in bandIndices if b >=0 and b < nb]
+        bandIndices = [b for b in bandIndices if b >= 0 and b < nb]
         l = len(bandIndices)
         if l == 0:
             bandIndices = None
@@ -406,7 +457,8 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
     assert isinstance(bandIndices, list)
 
     # get band stats
-    bandStats = [layer.dataProvider().bandStatistics(b + 1, stats=QgsRasterBandStats.Min | QgsRasterBandStats.Max, sampleSize=sampleSize) for b in bandIndices]
+    bandStats = [layer.dataProvider().bandStatistics(b + 1, stats=QgsRasterBandStats.Min | QgsRasterBandStats.Max,
+                                                     sampleSize=sampleSize) for b in bandIndices]
     dp = layer.dataProvider()
     assert isinstance(dp, QgsRasterDataProvider)
 
@@ -419,7 +471,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
 
     # single-band / two bands -> QgsSingleBandGrayRenderer
     if len(bandStats) < 3:
-        b = bandIndices[0]+1
+        b = bandIndices[0] + 1
         stats = bandStats[0]
         assert isinstance(stats, QgsRasterBandStats)
         dt = dp.dataType(b)
@@ -447,7 +499,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
 
     # 3 or more bands -> RGB
     if len(bandStats) >= 3:
-        bands = [b+1 for b in bandIndices[0:3]]
+        bands = [b + 1 for b in bandIndices[0:3]]
         contrastEnhancements = [QgsContrastEnhancement(dp.dataType(b)) for b in bands]
         ceR, ceG, ceB = contrastEnhancements
 
@@ -459,7 +511,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
             ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchToMinimumMaximum, True)
             vmin, vmax = layer.dataProvider().cumulativeCut(b, 0.02, 0.98, sampleSize=sampleSize)
             if dt == Qgis.Byte:
-                #standard RGB photo?
+                # standard RGB photo?
                 if False and layer.bandCount() == 3:
                     ce.setMinimumValue(0)
                     ce.setMaximumValue(255)
@@ -470,7 +522,7 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
                 ce.setMinimumValue(vmin)
                 ce.setMaximumValue(vmax)
         R, G, B = bands
-        r = QgsMultiBandColorRenderer(layer.dataProvider(), R,G,B, None, None, None)
+        r = QgsMultiBandColorRenderer(layer.dataProvider(), R, G, B, None, None, None)
         r.setRedContrastEnhancement(ceR)
         r.setGreenContrastEnhancement(ceG)
         r.setBlueContrastEnhancement(ceB)
@@ -483,7 +535,8 @@ def defaultRasterRenderer(layer:QgsRasterLayer, bandIndices:list=None, sampleSiz
 
     return defaultRenderer
 
-def rendererToXml(layerOrRenderer, geomType:QgsWkbTypes=None):
+
+def rendererToXml(layerOrRenderer, geomType: QgsWkbTypes = None):
     """
     Returns a renderer XML representation
     :param layerOrRenderer: QgsRasterRender | QgsFeatureRenderer
@@ -497,7 +550,7 @@ def rendererToXml(layerOrRenderer, geomType:QgsWkbTypes=None):
         geomType = layerOrRenderer.geometryType()
         return rendererToXml(layerOrRenderer.renderer(), geomType=geomType)
     elif isinstance(layerOrRenderer, QgsRasterRenderer):
-        #create a dummy raster layer
+        # create a dummy raster layer
         import uuid
         xml = """<VRTDataset rasterXSize="1" rasterYSize="1">
                   <GeoTransform>  0.0000000000000000e+00,  1.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00,  0.0000000000000000e+00, -1.0000000000000000e+00</GeoTransform>
@@ -536,12 +589,12 @@ def rendererToXml(layerOrRenderer, geomType:QgsWkbTypes=None):
         assert lyr.isValid()
         lyr.setRenderer(layerOrRenderer.clone())
         err = lyr.exportNamedStyle(doc)
-        #remove dummy raster layer
+        # remove dummy raster layer
         lyr = None
         drv.Delete(path)
 
     elif isinstance(layerOrRenderer, QgsFeatureRenderer) and geomType is not None:
-        #todo: distinguish vector type from requested renderer
+        # todo: distinguish vector type from requested renderer
         typeName = QgsWkbTypes.geometryDisplayString(geomType)
         lyr = QgsVectorLayer('{}?crs=epsg:4326&field=id:integer'.format(typeName), 'dummy', 'memory')
         lyr.setRenderer(layerOrRenderer.clone())
@@ -550,11 +603,10 @@ def rendererToXml(layerOrRenderer, geomType:QgsWkbTypes=None):
     else:
         raise NotImplementedError()
 
-
     return doc
 
-def pasteStyleToClipboard(layer: QgsMapLayer):
 
+def pasteStyleToClipboard(layer: QgsMapLayer):
     xml = rendererToXml(layer)
     if isinstance(xml, QDomDocument):
         md = QMimeData()
@@ -564,7 +616,8 @@ def pasteStyleToClipboard(layer: QgsMapLayer):
         md.setData('text/plain', xml.toByteArray())
         QApplication.clipboard().setMimeData(md)
 
-def pasteStyleFromClipboard(layer:QgsMapLayer):
+
+def pasteStyleFromClipboard(layer: QgsMapLayer):
     mimeData = QApplication.clipboard().mimeData()
     renderer = rendererFromXml(mimeData)
     if isinstance(renderer, QgsRasterRenderer) and isinstance(layer, QgsRasterLayer):
@@ -575,7 +628,8 @@ def pasteStyleFromClipboard(layer:QgsMapLayer):
         layer.setRenderer(renderer)
         layer.triggerRepaint()
 
-def subLayerDefinitions(mapLayer:QgsMapLayer) -> typing.List[QgsSublayersDialog.LayerDefinition]:
+
+def subLayerDefinitions(mapLayer: QgsMapLayer) -> typing.List[QgsSublayersDialog.LayerDefinition]:
     """
 
     :param mapLayer:QgsMapLayer
@@ -592,7 +646,6 @@ def subLayerDefinitions(mapLayer:QgsMapLayer) -> typing.List[QgsSublayersDialog.
         ldef = QgsSublayersDialog.LayerDefinition()
         assert isinstance(ldef, QgsSublayersDialog.LayerDefinition)
         elements = sub.split(QgsDataProvider.SUBLAYER_SEPARATOR)
-
 
         if dp.name() == 'ogr':
             # <layer_index>:<name>:<feature_count>:<geom_type>
@@ -624,7 +677,8 @@ def subLayerDefinitions(mapLayer:QgsMapLayer) -> typing.List[QgsSublayersDialog.
 
     return definitions
 
-def subLayers(mapLayer:QgsMapLayer, subLayers:list=None) -> typing.List[QgsMapLayer]:
+
+def subLayers(mapLayer: QgsMapLayer, subLayers: list = None) -> typing.List[QgsMapLayer]:
     """
     Returns a list of QgsMapLayer instances extracted from the input QgsMapLayer.
     Returns the "parent" QgsMapLayer in case no sublayers can be extracted
@@ -634,8 +688,8 @@ def subLayers(mapLayer:QgsMapLayer, subLayers:list=None) -> typing.List[QgsMapLa
     layers = []
     dp = mapLayer.dataProvider()
 
-
-    uriParts = QgsProviderRegistry.instance().decodeUri(mapLayer.providerType(), mapLayer.dataProvider().dataSourceUri())
+    uriParts = QgsProviderRegistry.instance().decodeUri(mapLayer.providerType(),
+                                                        mapLayer.dataProvider().dataSourceUri())
     uri = uriParts['path']
     if subLayers is None:
         ldefs = subLayerDefinitions(mapLayer)
@@ -677,6 +731,7 @@ def subLayers(mapLayer:QgsMapLayer, subLayers:list=None) -> typing.List[QgsMapLa
 
     return layers
 
+
 class LayerPropertiesDialog(QgsOptionsDialogBase):
 
     @staticmethod
@@ -712,17 +767,17 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         return factories
 
     def __init__(self,
-                 lyr:typing.Union[QgsRasterLayer, QgsVectorLayer],
-                 canvas:QgsMapCanvas=None,
+                 lyr: typing.Union[QgsRasterLayer, QgsVectorLayer],
+                 canvas: QgsMapCanvas = None,
                  parent=None,
-                 mapLayerConfigFactories:typing.List[QgsMapLayerConfigWidgetFactory] = None):
+                 mapLayerConfigFactories: typing.List[QgsMapLayerConfigWidgetFactory] = None):
 
         super(QgsOptionsDialogBase, self).__init__('QPS_LAYER_PROPERTIES', parent, Qt.Dialog, settings=None)
         pathUi = pathlib.Path(__file__).parent / 'ui' / 'layerpropertiesdialog.ui'
         loadUi(pathUi.as_posix(), self)
         self.initOptionsBase(False, 'Layer Properties - {}'.format(lyr.name()))
         self.mOptionsListWidget: QListWidget
-        self.mOptionsStackedWidget : QStackedWidget
+        self.mOptionsStackedWidget: QStackedWidget
         assert isinstance(self.mOptionsListWidget, QListWidget)
         assert isinstance(self.mOptionsStackedWidget, QStackedWidget)
         assert isinstance(lyr, QgsMapLayer)
@@ -769,7 +824,6 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
                 self.mOptionsListWidget.addItem(pageItem)
                 self.mOptionsStackedWidget.addWidget(pageWidget)
 
-
         self.btnApply.clicked.connect(self.apply)
         self.btnOk.clicked.connect(self.onOk)
         self.btnCancel.clicked.connect(self.onCancel)
@@ -798,11 +852,6 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
             self.btnConfigWidgetMenu.setVisible(False)
             self.btnConfigWidgetMenu.setText('<empty>')
 
-
-
-
-
-
     def onOk(self):
         self.apply()
         self.accept()
@@ -810,9 +859,8 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
     def onCancel(self):
         # do restore previous settings?
 
-        #self.setResult(QDialog.Rejected)
+        # self.setResult(QDialog.Rejected)
         self.reject()
-
 
     def currentPage(self) -> QWidget:
         return self.mOptionsStackedWidget.currentWidget()
@@ -829,8 +877,7 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         self.mapLayer().triggerRepaint()
         self.sync()
 
-
-    def setPage(self, page:typing.Union[QgsMapLayerConfigWidget, int]):
+    def setPage(self, page: typing.Union[QgsMapLayerConfigWidget, int]):
         if isinstance(page, QgsMapLayerConfigWidget):
             pages = list(self.pages())
             assert page in pages
@@ -877,14 +924,14 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
                 if hasattr(w, 'syncToLayer'):
                     page.syncToLayer()
 
-        s =""
+        s = ""
 
 
-def showLayerPropertiesDialog(layer:QgsMapLayer,
-                              canvas:QgsMapCanvas=None,
-                              parent:QObject=None,
-                              modal:bool=True,
-                              useQGISDialog:bool=False) -> typing.Union[QDialog.DialogCode, QDialog]:
+def showLayerPropertiesDialog(layer: QgsMapLayer,
+                              canvas: QgsMapCanvas = None,
+                              parent: QObject = None,
+                              modal: bool = True,
+                              useQGISDialog: bool = False) -> typing.Union[QDialog.DialogCode, QDialog]:
     """
     Opens a dialog to adjust map layer settings.
     :param layer: QgsMapLayer of type QgsVectorLayer or QgsRasterLayer
@@ -938,13 +985,16 @@ def showLayerPropertiesDialog(layer:QgsMapLayer,
 
     return None
 
+
 def tr(t: str) -> str:
     return t
+
 
 class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
     def __init__(self, mLayer: QgsVectorLayer, *args,
-                 initialMode: QgsAttributeTableFilterModel.FilterMode=QgsAttributeTableFilterModel.ShowVisible, **kwds):
+                 initialMode: QgsAttributeTableFilterModel.FilterMode = QgsAttributeTableFilterModel.ShowVisible,
+                 **kwds):
         super().__init__(*args, **kwds)
         loadUi(pathlib.Path(DIR_UI_FILES) / 'attributetablewidget.ui', self)
 
@@ -967,7 +1017,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.mActionSelectedToTop.toggled.connect(self.mMainView.setSelectedOnTop)
         self.mActionAddAttribute.triggered.connect(self.mActionAddAttribute_triggered)
         self.mActionRemoveAttribute.triggered.connect(self.mActionRemoveAttribute_triggered)
-        #self.mActionOpenFieldCalculator.triggered.connect(self.mActionOpenFieldCalculator_triggered)
+        # self.mActionOpenFieldCalculator.triggered.connect(self.mActionOpenFieldCalculator_triggered)
         self.mActionDeleteSelected.triggered.connect(self.mActionDeleteSelected_triggered)
         self.mMainView.currentChanged.connect(self.mMainView_currentChanged)
         self.mActionAddFeature.triggered.connect(self.mActionAddFeature_triggered)
@@ -990,9 +1040,9 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.mMapCanvas = QgsMapCanvas()
         self.mMapCanvas.setLayers([self.mLayer])
         # Initialize the window geometry
-        #geom = settings.value("Windows/BetterAttributeTable/geometry")
-        #self.restoreGeometry(geom)
-        
+        # geom = settings.value("Windows/BetterAttributeTable/geometry")
+        # self.restoreGeometry(geom)
+
         da = QgsDistanceArea()
         da.setSourceCrs(mLayer.crs(), QgsProject.instance().transformContext())
         da.setEllipsoid(QgsProject.instance().ellipsoid())
@@ -1004,7 +1054,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         r = QgsFeatureRequest()
         needsGeom = False
         if mLayer.geometryType() != QgsWkbTypes.NullGeometry and \
-            initialMode == QgsAttributeTableFilterModel.ShowVisible:
+                initialMode == QgsAttributeTableFilterModel.ShowVisible:
             mc = self.mMapCanvas
             extent = QgsRectangle(mc.mapSettings().mapToLayerCoordinates(mLayer, mc.extent()))
             r.setFilterRect(extent)
@@ -1015,27 +1065,25 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         if not needsGeom:
             r.setFlags(QgsFeatureRequest.NoGeometry)
-        
+
         # Initialize dual view
-        #self.mMainView.init(mLayer, self.mMapCanvas, r, self.mEditorContext, False)
+        # self.mMainView.init(mLayer, self.mMapCanvas, r, self.mEditorContext, False)
         self.mMainView.init(mLayer, self.mMapCanvas)
-        
+
         config = mLayer.attributeTableConfig()
         self.mMainView.setAttributeTableConfig(config)
-        
-        #self.mFeatureFilterWidget.init(mLayer, self.mEditorContext, self.mMainView, None, QgisApp.instance().messageTimeout())
-        
+
+        # self.mFeatureFilterWidget.init(mLayer, self.mEditorContext, self.mMainView, None, QgisApp.instance().messageTimeout())
+
         self.mActionFeatureActions = QToolButton()
         self.mActionFeatureActions.setAutoRaise(False)
         self.mActionFeatureActions.setPopupMode(QToolButton.InstantPopup)
         self.mActionFeatureActions.setIcon(QgsApplication.getThemeIcon("/mAction.svg"))
         self.mActionFeatureActions.setText(tr("Actions"))
         self.mActionFeatureActions.setToolTip(tr("Actions"))
-        
+
         self.mToolbar.addWidget(self.mActionFeatureActions)
         self.mActionSetStyles.triggered.connect(self.openConditionalStyles)
-
-
 
         # info from layer to table
         mLayer.editingStarted.connect(self.editingToggled)
@@ -1046,14 +1094,14 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         mLayer.featuresDeleted.connect(self.updateTitle)
         mLayer.editingStopped.connect(self.updateTitle)
         mLayer.readOnlyChanged.connect(self.editingToggled)
-        
+
         # connect table info to window
         self.mMainView.filterChanged.connect(self.updateTitle)
         self.mMainView.filterExpressionSet.connect(self.formFilterSet)
         self.mMainView.formModeChanged.connect(self.viewModeChanged)
-        
+
         # info from table to application
-        #self.saveEdits.connect(QgisApp::instance() -> saveEdits() })
+        # self.saveEdits.connect(QgisApp::instance() -> saveEdits() })
 
         """
         dockTable: bool = bool(settings.value("qgis/dockAttributeTable" , False )
@@ -1096,12 +1144,12 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         canAddAttributes = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddAttributes
         canDeleteAttributes = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteAttributes
         canAddFeatures = mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures
-        
+
         self.mActionToggleEditing.blockSignals(True)
         self.mActionToggleEditing.setCheckable(True)
         self.mActionToggleEditing.setChecked(mLayer.isEditable())
         self.mActionToggleEditing.blockSignals(False)
-        
+
         self.mActionSaveEdits.setEnabled(self.mActionToggleEditing.isEnabled() and mLayer.isEditable())
         self.mActionReload.setEnabled(not mLayer.isEditable())
         self.mActionAddAttribute.setEnabled((canChangeAttributes or canAddAttributes) and mLayer.isEditable())
@@ -1126,7 +1174,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         if isinstance(mLayer, QgsVectorLayer) and mLayer.isValid():
 
-            #self.mUpdateExpressionText.registerExpressionContextGenerator(self)
+            # self.mUpdateExpressionText.registerExpressionContextGenerator(self)
             self.mFieldCombo.setFilters(QgsFieldProxyModel.AllTypes | QgsFieldProxyModel.HideReadOnly)
             self.mFieldCombo.setLayer(mLayer)
 
@@ -1148,9 +1196,9 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
             self.updateMultiEditButtonState()
 
             if mLayer.editFormConfig().layout() == QgsEditFormConfig.UiFileLayout:
-                #not supported with custom UI
-                self.mActionToggleMultiEdit.setEnabled(false)
-                self.mActionToggleMultiEdit.setToolTip(tr("Multiedit is not supported when using custom UI forms"))
+                # not supported with custom UI
+                self.mActionToggleMultiEdit.setEnabled(False)
+                self.mActionToggleMultiEdit.setToolTip(tr("Multi-edit is not supported when using custom UI forms"))
                 self.mActionSearchForm.setEnabled(False)
                 self.mActionSearchForm.setToolTip(tr("Search is not supported when using custom UI forms"))
 
@@ -1158,7 +1206,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         self._hide_unconnected_widgets()
 
-    def setVectorLayerTools(self, tools:VectorLayerTools):
+    def setVectorLayerTools(self, tools: VectorLayerTools):
         assert isinstance(tools, VectorLayerTools)
         self.mVectorLayerTools = tools
 
@@ -1166,7 +1214,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
     def vectorLayerTools(self) -> VectorLayerTools:
         return self.mVectorLayerTools
-        #return self.mEditorContext.vectorLayerTools()
+        # return self.mEditorContext.vectorLayerTools()
 
     def setMapCanvas(self, canvas: QgsMapCanvas):
         self.mEditorContext.setMapCanvas(canvas)
@@ -1182,11 +1230,11 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
                 (self.mLayer.editFormConfig().layout() == QgsEditFormConfig.UiFileLayout):
             return
 
-        self.mActionToggleMultiEdit.setEnabled(self.mLayer.isEditable() )
+        self.mActionToggleMultiEdit.setEnabled(self.mLayer.isEditable())
 
         if not self.mLayer.isEditable() or \
-              ( self.mLayer.isEditable() and self.mMainView.view() != QgsDualView.AttributeEditor ):
-            self.mActionToggleMultiEdit.setChecked( False )
+                (self.mLayer.isEditable() and self.mMainView.view() != QgsDualView.AttributeEditor):
+            self.mActionToggleMultiEdit.setChecked(False)
 
     def openConditionalStyles(self):
         self.mMainView.openConditionalStyles()
@@ -1195,8 +1243,8 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         pass
 
-        #QgisApp:: instance() -> cutSelectionToClipboard(mLayer);
-    
+        # QgisApp:: instance() -> cutSelectionToClipboard(mLayer);
+
     def mActionCopySelectedRows_triggered(self):
         self.vectorLayerTools().copySelectionToClipboard(self.mLayer)
 
@@ -1210,31 +1258,30 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
         filtered = self.mMainView.filterMode() != QgsAttributeTableFilterModel.ShowAll
         filteredIds = self.mMainView.filteredFeatures() if filtered else []
-        self.runFieldCalculation(self.mLayer, self.mFieldCombo.currentField(), self.mUpdateExpressionText.asExpression(), filteredIds )
-
+        self.runFieldCalculation(self.mLayer, self.mFieldCombo.currentField(),
+                                 self.mUpdateExpressionText.asExpression(), filteredIds)
 
     def updateFieldFromExpressionSelected(self):
 
         filteredIds = self.mLayer.selectedFeatureIds()
         self.runFieldCalculation(self.mLayer, self.mFieldCombo.currentField(),
-                                 self.mUpdateExpressionText.asExpression(), filteredIds )
+                                 self.mUpdateExpressionText.asExpression(), filteredIds)
 
-
-    def runFieldCalculation(self, layer: QgsVectorLayer, 
+    def runFieldCalculation(self, layer: QgsVectorLayer,
                             fieldName: str,
                             expression: str,
                             filteredIds: list):
         fieldindex = layer.fields().indexFromName(fieldName)
         if fieldindex < 0:
-
-            #// this shouldn't happen... but it did. There's probably some deeper underlying issue
-            #// but we may as well play it safe here.
-            QMessageBox.critical(None, tr("Update Attributes" ), "An error occurred while trying to update the field {}".format(fieldName ) )
+            # // this shouldn't happen... but it did. There's probably some deeper underlying issue
+            # // but we may as well play it safe here.
+            QMessageBox.critical(None, tr("Update Attributes"),
+                                 "An error occurred while trying to update the field {}".format(fieldName))
             return
 
-        #cursorOverride = QgsTemporaryCursorOverride(Qt.WaitCursor)
-        self.mLayer.beginEditCommand("Field calculator" )
-        
+        # cursorOverride = QgsTemporaryCursorOverride(Qt.WaitCursor)
+        self.mLayer.beginEditCommand("Field calculator")
+
         calculationSuccess = True
         error = None
 
@@ -1247,22 +1294,23 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         exp.setAreaUnits(QgsProject.instance().areaUnits())
         useGeometry: bool = exp.needsGeometry()
 
-        request = QgsFeatureRequest (self.mMainView.masterModel().request())
+        request = QgsFeatureRequest(self.mMainView.masterModel().request())
         useGeometry = useGeometry or not request.filterRect().isNull()
-        request.setFlags(QgsFeatureRequest.NoFlags if useGeometry else QgsFeatureRequest.NoGeometry )
-        
+        request.setFlags(QgsFeatureRequest.NoFlags if useGeometry else QgsFeatureRequest.NoGeometry)
+
         rownum = 1
-        
+
         context = QgsExpressionContext(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
         exp.prepare(context)
 
-        fld:QgsField = layer.fields().at(fieldindex)
+        fld: QgsField = layer.fields().at(fieldindex)
 
         referencedColumns = exp.referencedColumns()
-        referencedColumns.add(fld.name()) # need existing column value to store old attribute when changing field values
+        referencedColumns.add(
+            fld.name())  # need existing column value to store old attribute when changing field values
         request.setSubsetOfAttributes(referencedColumns, layer.fields())
 
-        task = QgsScopedProxyProgressTask(tr("Calculating field" ))
+        task = QgsScopedProxyProgressTask(tr("Calculating field"))
 
         count = len(filteredIds) if len(filteredIds) > 0 else layer.featureCount()
         i = 0
@@ -1274,9 +1322,9 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
             i += 1
             task.setProgress(i / count * 100)
-            context.setFeature(feature )
+            context.setFeature(feature)
             context.lastScope().addVariable(QgsExpressionContextScope.StaticVariable("row_number", rownum, True))
-        
+
             value = exp.evaluate(context)
             convertError = None
             try:
@@ -1296,43 +1344,42 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
                 self.mLayer.changeAttributeValue(feature.id(), fieldindex, value, oldvalue)
             rownum += 1
 
-        #cursorOverride.release()
-        #task.reset()
-        
+        # cursorOverride.release()
+        # task.reset()
+
         if not calculationSuccess:
             QMessageBox.critical(None,
-                                 tr("Update Attributes" ),
+                                 tr("Update Attributes"),
                                  "An error occurred while evaluating the calculation string:\n{}".format(error))
             self.mLayer.destroyEditCommand()
 
         else:
             self.mLayer.endEditCommand()
-        
+
             # refresh table with updated values
             # fixes https:#github.com/qgis/QGIS/issues/25210
             masterModel: QgsAttributeTableModel = self.mMainView.masterModel()
-            modelColumn: int = masterModel.fieldCol(fieldindex )
-            masterModel.reload(masterModel.index(0, modelColumn ), masterModel.index(masterModel.rowCount() - 1, modelColumn ))
+            modelColumn: int = masterModel.fieldCol(fieldindex)
+            masterModel.reload(masterModel.index(0, modelColumn),
+                               masterModel.index(masterModel.rowCount() - 1, modelColumn))
 
     def layerActionTriggered(self):
         action = self.sender()
         if isinstance(action, QAction):
-        
-            action : QgsAction  = action.data()
-        
+            action: QgsAction = action.data()
+
             context: QgsExpressionContext = self.mLayer.createExpressionContext()
             scope = QgsExpressionContextScope()
-            scope.addVariable(QgsExpressionContextScope.StaticVariable("action_scope" , "AttributeTable" ))
+            scope.addVariable(QgsExpressionContextScope.StaticVariable("action_scope", "AttributeTable"))
             context.appendScope(scope)
             action.run(context)
-
 
     def formFilterSet(self, filter: str, filterType: QgsAttributeForm.FilterType):
         self.setFilterExpression(filter, filterType, True)
 
     def setFilterExpression(self, filterString: str, filterType: QgsAttributeForm.FilterType, alwaysShowFilter: bool):
         pass
-        #mFeatureFilterWidget->setFilterExpression(filterString, type, alwaysShowFilter );
+        # mFeatureFilterWidget->setFilterExpression(filterString, type, alwaysShowFilter );
 
     def viewModeChanged(self, mode: QgsAttributeEditorContext.Mode):
         if mode != QgsAttributeEditorContext.SearchMode:
@@ -1340,15 +1387,15 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
     def updateTitle(self):
         if not isinstance(self.mLayer, QgsVectorLayer):
-            return 
-        
+            return
+
         w = self.mDock if isinstance(self.mDock, QWidget) else self
         w.setWindowTitle(" {0} :: Features Total: {1} Filtered: {2}, Selected: {3}".format(
-                         self.mLayer.name(),
-                         max(self.mMainView.featureCount(), self.mLayer.featureCount()),
-                         self.mMainView.filteredFeatureCount(),
-                         self.mLayer.selectedFeatureCount())
-                         )
+            self.mLayer.name(),
+            max(self.mMainView.featureCount(), self.mLayer.featureCount()),
+            self.mMainView.filteredFeatureCount(),
+            self.mLayer.selectedFeatureCount())
+        )
 
         if self.mMainView.filterMode() == QgsAttributeTableFilterModel.ShowAll:
             self.mRunFieldCalc.setText(tr("Update All"))
@@ -1358,9 +1405,9 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         canDeleteFeatures = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.DeleteFeatures
         enabled = self.mLayer.selectedFeatureCount() > 0
         self.mRunFieldCalcSelected.setEnabled(enabled)
-        self.mActionDeleteSelected.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled )
-        self.mActionCutSelectedRows.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled )
-        self.mActionCopySelectedRows.setEnabled(enabled )
+        self.mActionDeleteSelected.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled)
+        self.mActionCutSelectedRows.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and enabled)
+        self.mActionCopySelectedRows.setEnabled(enabled)
 
     def editingToggled(self):
         self.mActionToggleEditing.blockSignals(True)
@@ -1380,15 +1427,17 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         canAddFeatures = self.mLayer.dataProvider().capabilities() & QgsVectorDataProvider.AddFeatures
         self.mActionAddAttribute.setEnabled((canChangeAttributes or canAddAttributes) and self.mLayer.isEditable())
         self.mActionRemoveAttribute.setEnabled(canDeleteAttributes and self.mLayer.isEditable())
-        self.mActionDeleteSelected.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
-        self.mActionCutSelectedRows.setEnabled(canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
+        self.mActionDeleteSelected.setEnabled(
+            canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
+        self.mActionCutSelectedRows.setEnabled(
+            canDeleteFeatures and self.mLayer.isEditable() and self.mLayer.selectedFeatureCount() > 0)
         self.mActionAddFeature.setEnabled(canAddFeatures and self.mLayer.isEditable())
         self.mActionPasteFeatures.setEnabled(canAddFeatures and self.mLayer.isEditable())
         self.mActionToggleEditing.setEnabled((canChangeAttributes or
-                                            canDeleteFeatures or
-                                            canAddAttributes or
-                                            canDeleteAttributes or
-                                            canAddFeatures) and not self.mLayer.readOnly())
+                                              canDeleteFeatures or
+                                              canAddAttributes or
+                                              canDeleteAttributes or
+                                              canAddFeatures) and not self.mLayer.readOnly())
 
         self.mUpdateExpressionBox.setVisible(self.mLayer.isEditable())
         if self.mLayer.isEditable() and self.mFieldCombo.currentIndex() == -1:
@@ -1410,11 +1459,11 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
                     qAction: QAction = actionMenu.addAction(action.icon(), action.shortTitle())
                     qAction.setToolTip(action.name())
-                    qAction.setData(QVariant.fromValue<QgsAction>(action))
+                    qAction.setData(QVariant.fromValue < QgsAction > (action))
                     qAction.triggered.connect(selflayerActionTriggered)
 
             self.mActionFeatureActions.setMenu(actionMenu)
-        
+
     def setCadDockWidget(self, cadDockWidget):
         self.mEditorContext.setCadDockWidget(cadDockWidget)
 
@@ -1497,8 +1546,8 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
 
     def showContextMenu(self, menu: QgsActionMenu, fid: int):
         if self.mLayer.isEditable():
-            qAction = menu.addAction( QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"),
-                                                                  tr( "Delete Feature" ) )
+            qAction = menu.addAction(QgsApplication.getThemeIcon("/mActionDeleteSelectedFeatures.svg"),
+                                     tr("Delete Feature"))
             qAction.triggered.connect(lambda *args, f=fid: self.deleteFeature(fid))
 
     def deleteFeature(self, fid: int):
@@ -1512,12 +1561,11 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         masterModel = self.mMainView.masterModel()
         f = QgsFeature(self.mLayer.fields())
         if self.vectorLayerTools().addFeature(
-            self.mLayer,
-            f=f
+                self.mLayer,
+                f=f
         ):
             masterModel.reload(masterModel.index(0, 0), masterModel.index(
-                masterModel.rowCount() - 1, masterModel.columnCount() - 1 ) )
-
+                masterModel.rowCount() - 1, masterModel.columnCount() - 1))
 
     def mActionExpressionSelect_triggered(self):
         dlg = QgsExpressionSelectionDialog(self.mLayer)
@@ -1525,12 +1573,10 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         dlg.exec_()
 
-
     def mActionCutSelectedRows_triggered(self):
         self.vectorLayerTools().cutSelectionToClipboard(self.mLayer)
 
-
-    def mActionToggleEditing_toggled(self, b:bool):
+    def mActionToggleEditing_toggled(self, b: bool):
         if not isinstance(self.mLayer, QgsVectorLayer):
             return
 
@@ -1538,8 +1584,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         # would not be added to the mEditBuffer. By disabling, it looses focus and the change will be stored.
         s = ""
         if self.mLayer.isEditable() and \
-            self.mMainView.tableView().indexWidget(self.mMainView.tableView().currentIndex()) is not None:
-
+                self.mMainView.tableView().indexWidget(self.mMainView.tableView().currentIndex()) is not None:
             self.mMainView.tableView().indexWidget(self.mMainView.tableView().currentIndex()).setEnabled(False)
 
         self.vectorLayerTools().toggleEditing(self.mLayer)
@@ -1557,7 +1602,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
     def setFilterMode(self, mode: QgsAttributeTableFilterModel.FilterMode):
 
         return
-        #todo: re-implement QgsFeatureFilterWidget
+        # todo: re-implement QgsFeatureFilterWidget
 
         if mode == QgsAttributeTableFilterModel.ShowVisible:
             self.mFeatureFilterWidget.filterVisible()
@@ -1565,7 +1610,6 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
             self.mFeatureFilterWidget.filterSelected()
         else:
             self.mFeatureFilterWidget.filterShowAll()
-
 
     def _hide_unconnected_widgets(self):
         self.mActionOpenFieldCalculator.setVisible(False)

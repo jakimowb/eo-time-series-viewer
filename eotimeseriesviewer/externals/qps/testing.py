@@ -44,7 +44,14 @@ import enum
 import sip
 import random
 from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsWkbTypes, QgsProcessingContext, \
+    QgsProcessingFeedback, QgsField, QgsFields, QgsApplication, QgsCoordinateReferenceSystem, QgsProject, \
+    QgsProcessingParameterNumber, QgsProcessingAlgorithm, QgsProcessingProvider, QgsPythonRunner, \
+    QgsFeatureStore, QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,  \
+    QgsProviderRegistry, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeRegistryBridge
 from qgis.gui import *
+from qgis.gui import QgsPluginManagerInterface, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView, QgsMessageBar, \
+    QgsMapCanvas,  QgsGui, QgisInterface
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -90,6 +97,7 @@ class StartOptions(enum.IntFlag):
     PythonRunner = 4
     PrintProviders = 8
     All = EditorWidgets | ProcessingFramework | PythonRunner | PrintProviders
+
 
 def start_app(cleanup=True, options=StartOptions.Minimized, resources: list = []) -> QgsApplication:
     if isinstance(QgsApplication.instance(), QgsApplication):
@@ -363,8 +371,7 @@ class TestCase(qgis.testing.TestCase):
             import gc
             gc.collect()
 
-
-    def testOutputDirectory(self, name:str='test-outputs') -> pathlib.Path:
+    def testOutputDirectory(self, name: str = 'test-outputs') -> pathlib.Path:
         """
         Returns the path to a test output directory
         :return:
@@ -478,7 +485,7 @@ class TestObjects():
         n_bands = [nb if nb > 0 else cnb for nb in n_bands]
 
         for nb in n_bands:
-            band_indices = np.linspace(0, cnb-1, num=nb, dtype=np.int16)
+            band_indices = np.linspace(0, cnb - 1, num=nb, dtype=np.int16)
             i = 0
             while i < n:
                 x = random.randint(0, coredata.shape[2] - 1)
@@ -542,7 +549,11 @@ class TestObjects():
     @staticmethod
     def createRasterDataset(ns=10, nl=20, nb=1,
                             crs=None, gt=None,
-                            eType: int = gdal.GDT_Int16, nc: int = 0, path: str = None) -> gdal.Dataset:
+                            eType: int = gdal.GDT_Int16,
+                            nc: int = 0,
+                            path: str = None,
+                            no_data_rectangle: int = 0,
+                            no_data_value: typing.Union[int, float] = -9999) -> gdal.Dataset:
         """
         Generates a gdal.Dataset of arbitrary size based on true data from a smaller EnMAP raster image
         """
@@ -566,8 +577,15 @@ class TestObjects():
             else:
                 path = '/vsimem/testImage.{}.tif'.format(str(uuid.uuid4()))
 
-        ds = drv.Create(path, ns, nl, bands=nb, eType=eType)
+        ds: gdal.Driver = drv.Create(path, ns, nl, bands=nb, eType=eType)
         assert isinstance(ds, gdal.Dataset)
+        if no_data_rectangle > 0:
+            no_data_rectangle = min([no_data_rectangle, ns])
+            no_data_rectangle = min([no_data_rectangle, nl])
+            for b in range(ds.RasterCount):
+                band: gdal.Band = ds.GetRasterBand(b+1)
+                band.SetNoDataValue(no_data_value)
+
         coredata, core_wl, core_wlu, core_gt, core_wkt = TestObjects.coreData()
 
         dt_out = gdal_array.flip_code(eType)
@@ -583,10 +601,9 @@ class TestObjects():
 
         if nc > 0:
             for b in range(nb):
-                band = ds.GetRasterBand(b + 1)
+                band: gdal.Band = ds.GetRasterBand(b + 1)
                 assert isinstance(band, gdal.Band)
 
-                nodata = band.GetNoDataValue()
                 array = np.empty((nl, ns), dtype=dt_out)
                 assert isinstance(array, np.ndarray)
 
@@ -601,16 +618,18 @@ class TestObjects():
                     y0 += y1 + 1
                 band.SetCategoryNames(scheme.classNames())
                 band.SetColorTable(scheme.gdalColorTable())
+
+                if no_data_rectangle > 0:
+                    array[0:no_data_rectangle, 0:no_data_rectangle] = no_data_value
                 band.WriteArray(array)
         else:
             # fill with test data
-
             coredata = coredata.astype(dt_out)
             cb, cl, cs = coredata.shape
             if nb > coredata.shape[0]:
                 coreddata2 = np.empty((nb, cl, cs), dtype=dt_out)
                 coreddata2[0:cb, :, :] = coredata
-                # todo: increase the number of output bands by linear interpolation instead just repeated the last band
+                # todo: increase the number of output bands by linear interpolation instead just repeating the last band
                 for b in range(cb, nb):
                     coreddata2[b, :, :] = coredata[-1, :, :]
                 coredata = coreddata2
@@ -624,6 +643,11 @@ class TestObjects():
                     ds.WriteRaster(xoff, yoff, xsize, ysize, coredata[:, 0:ysize, 0:xsize].tobytes())
                     yoff += ysize
                 xoff += xsize
+
+            if no_data_rectangle > 0:
+                arr = np.empty((nb, no_data_rectangle, no_data_rectangle), dtype=coredata.dtype)
+                arr.fill(no_data_value)
+                ds.WriteRaster(0, 0, no_data_rectangle, no_data_rectangle, arr.tobytes())
 
             wl = []
             if nb > cb:
@@ -971,4 +995,3 @@ class QgsPythonRunnerMockup(QgsPythonRunner):
             raise ex
             return False
         return True
-

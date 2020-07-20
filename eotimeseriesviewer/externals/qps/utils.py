@@ -46,7 +46,7 @@ import datetime
 from qgis.core import *
 from qgis.core import QgsField, QgsVectorLayer, QgsRasterLayer, QgsRasterDataProvider, QgsMapLayer, QgsMapLayerStore, \
     QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle, QgsPointXY, QgsProject, \
-    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask
+    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask, Qgis
 from qgis.gui import *
 from qgis.gui import QgisInterface, QgsDialog, QgsMessageViewer, QgsMapLayerComboBox, QgsMapCanvas
 
@@ -282,69 +282,69 @@ class UnitLookup(object):
         # so far this unit is unknown. Try to find the base unit
         # store unit string in Lookup table for fast conversion into its base unit
         # e.g. to convert string like "MiKrOMetErS" to "μm"
-        baseUnit = None
+        base_unit = None
 
         if unit in UnitLookup.metric_units() + \
                 UnitLookup.date_units() + \
                 UnitLookup.time_units():
-            baseUnit = unit
+            base_unit = unit
         elif re.search(r'^(Nanomet(er|re)s?)$', unit, re.I):
-            baseUnit = 'nm'
+            base_unit = 'nm'
         elif re.search(r'^(Micromet(er|re)s?|um|μm)$', unit, re.I):
-            baseUnit = 'μm'
+            base_unit = 'μm'
         elif re.search(r'^(Millimet(er|re)s?)$', unit, re.I):
-            baseUnit = 'mm'
+            base_unit = 'mm'
         elif re.search(r'^(Centimet(er|re)s?)$', unit, re.I):
-            baseUnit = 'cm'
+            base_unit = 'cm'
         elif re.search(r'^(Decimet(er|re)s?)$', unit, re.I):
-            baseUnit = 'dm'
+            base_unit = 'dm'
         elif re.search(r'^(Met(er|re)s?)$', unit, re.I):
-            baseUnit = 'm'
+            base_unit = 'm'
         elif re.search(r'^(Hectomet(er|re)s?)$', unit, re.I):
-            baseUnit = 'hm'
+            base_unit = 'hm'
         elif re.search(r'^(Kilomet(er|re)s?)$', unit, re.I):
-            baseUnit = 'km'
+            base_unit = 'km'
         # date units
         elif re.search(r'(Date([_\- ]?Time)?([_\- ]?Group)?|DTG)$', unit, re.I):
-            baseUnit = 'DateTime'
+            base_unit = 'DateTime'
         elif re.search(r'^(doy|Day[-_ ]?Of[-_ ]?Year?)$', unit, re.I):
-            baseUnit = 'DOY'
+            base_unit = 'DOY'
         elif re.search(r'decimal[_\- ]?years?$', unit, re.I):
-            baseUnit = 'DecimalYear'
+            base_unit = 'DecimalYear'
         elif re.search(r'decimal[_\- ]?years?\[356\]$', unit, re.I):
-            baseUnit = 'DecimalYear[365]'
+            base_unit = 'DecimalYear[365]'
         elif re.search(r'decimal[_\- ]?years?\[366\]$', unit, re.I):
-            baseUnit = 'DecimalYear[366]'
+            base_unit = 'DecimalYear[366]'
         elif re.search(r'^Years?$', unit, re.I):
-            baseUnit = 'Y'
+            base_unit = 'Y'
         elif re.search(r'^Months?$', unit, re.I):
-            baseUnit = 'M'
+            base_unit = 'M'
         elif re.search(r'^Weeks?$', unit, re.I):
-            baseUnit = 'W'
+            base_unit = 'W'
         elif re.search(r'^Days?$', unit, re.I):
-            baseUnit = 'D'
+            base_unit = 'D'
         elif re.search(r'^Hours?$', unit, re.I):
-            baseUnit = 'h'
+            base_unit = 'h'
         elif re.search(r'^Minutes?$', unit, re.I):
-            baseUnit = 'm'
+            base_unit = 'm'
         elif re.search(r'^Seconds?$', unit, re.I):
-            baseUnit = 's'
+            base_unit = 's'
         elif re.search(r'^MilliSeconds?$', unit, re.I):
-            baseUnit = 'ms'
+            base_unit = 'ms'
         elif re.search(r'^MicroSeconds?$', unit, re.I):
-            baseUnit = 'us'
+            base_unit = 'us'
         elif re.search(r'^NanoSeconds?$', unit, re.I):
-            baseUnit = 'ns'
+            base_unit = 'ns'
         elif re.search(r'^Picoseconds?$', unit, re.I):
-            baseUnit = 'ps'
+            base_unit = 'ps'
         elif re.search(r'^Femtoseconds?$', unit, re.I):
-            baseUnit = 'fs'
+            base_unit = 'fs'
         elif re.search(r'^Attoseconds?$', unit, re.I):
-            baseUnit = 'as'
+            base_unit = 'as'
 
-        if baseUnit:
-            UnitLookup.UNIT_LOOKUP[unit] = baseUnit
-        return baseUnit
+        if base_unit:
+            UnitLookup.UNIT_LOOKUP[unit] = base_unit
+        return base_unit
 
     @staticmethod
     def isMetricUnit(unit: str) -> bool:
@@ -1155,13 +1155,15 @@ def check_package(name, package=None, stop_on_error=False):
     return True
 
 
-def as_py_value(value, datatype:Qgis.DataType):
+def as_py_value(value, datatype: Qgis.DataType):
     """
-    Converts values into a corresponding python_typee
+    Converts values into a corresponding python_type
     :param value:
     :param datatype:
     :return:
     """
+    if value in [None, QVariant()]:
+        return None
     if datatype in [Qgis.Byte, Qgis.Int16, Qgis.Int32, Qgis.UInt16, Qgis.UInt32]:
         return int(value)
     elif datatype in [Qgis.Float32, Qgis.Float64, Qgis.CFloat32, Qgis.CFloat64]:
@@ -1216,11 +1218,19 @@ def scanResources(path=':') -> typing.Iterator[str]:
 def datetime64(value, dpy: int = None) -> np.datetime64:
     """
     Converts an input value into a numpy.datetime64 value.
-    :param value:
-    :return:
+    :param value: the value to be converted into a numpy.datetime64 value
+    :param dpy: days per year. If `value` is a float, it is considered to be a decimal year value.
+                    By default it is assumed that the year fraction is calculated on 366 year in leap years and 365
+                    in none-leap year. However, dpy can be used to use any other number of days per year to convert
+                    the fraction back into days.
+    :return: numpy.datetime64
     """
     if isinstance(value, np.datetime64):
         return value
+    elif isinstance(value, QDate):
+        return np.datetime64(value.toPyDate())
+    elif isinstance(value, QDateTime):
+        return np.datetime64(value.toPyDateTime())
     elif isinstance(value, (str, datetime.date, datetime.datetime)):
         return np.datetime64(value)
     elif isinstance(value, int):

@@ -25,7 +25,6 @@
 ***************************************************************************
 """
 
-
 import os
 import collections
 import numpy as np
@@ -43,12 +42,12 @@ from .utils import *
 from .models import *
 from .classification.classificationscheme import ClassInfo, ClassificationScheme
 
+
 class SourceValueSet(object):
-    def __init__(self, source, point:SpatialPoint):
+    def __init__(self, source, point: SpatialPoint):
         assert isinstance(point, SpatialPoint)
         self.source = source
         self.point = point
-
 
     def baseName(self):
         return os.path.basename(self.source)
@@ -58,7 +57,6 @@ class SourceValueSet(object):
 
 
 class RasterValueSet(SourceValueSet):
-
     class BandInfo(object):
         def __init__(self, bandIndex, bandValue, bandName, classInfo=None):
             assert bandIndex >= 0
@@ -72,13 +70,13 @@ class RasterValueSet(SourceValueSet):
             self.bandName = bandName
             self.classInfo = classInfo
 
-
     def __init__(self, source, point, pxPosition):
         assert isinstance(pxPosition, QPoint)
         super(RasterValueSet, self).__init__(source, point)
         self.pxPosition = pxPosition
         self.noDataValue = None
         self.bandValues = []
+
 
 class VectorValueSet(SourceValueSet):
     class FeatureInfo(object):
@@ -87,7 +85,7 @@ class VectorValueSet(SourceValueSet):
             self.fid = fid
             self.attributes = collections.OrderedDict()
 
-    def __init__(self, source, point:SpatialPoint):
+    def __init__(self, source, point: SpatialPoint):
         super(VectorValueSet, self).__init__(source, point)
         self.features = []
 
@@ -189,7 +187,6 @@ class CursorLocationInfoModel(TreeModel):
                     n.setToolTip('Color selected from screen pixel')
                     n.setValues(bv.getRgb())
 
-
         if isinstance(sourceValueSet, VectorValueSet):
             if len(sourceValueSet.features) == 0:
                 return
@@ -203,7 +200,6 @@ class CursorLocationInfoModel(TreeModel):
                 root.setIcon(QIcon(r':/images/themes/default/mIconLineLayer.svg'))
             if 'point' in typeName:
                 root.setIcon(QIcon(r':/images/themes/default/mIconPointLayer.svg'))
-
 
             for field in refFeature.fields():
                 assert isinstance(field, QgsField)
@@ -346,7 +342,7 @@ class CursorLocationInfoDock(QDockWidget):
 
         return (layerMode, layerType, rasterBands)
 
-    def loadCursorLocation(self, point:SpatialPoint, canvas:QgsMapCanvas):
+    def loadCursorLocation(self, point: SpatialPoint, canvas: QgsMapCanvas):
         """
         :param point:
         :param canvas:
@@ -354,7 +350,7 @@ class CursorLocationInfoDock(QDockWidget):
         """
         assert isinstance(canvas, QgsMapCanvas)
         assert isinstance(point, SpatialPoint)
-        crs = canvas.mapSettings().destinationCrs()
+
         self.setCursorLocation(point)
         self.setCanvas(canvas)
         self.reloadCursorLocation()
@@ -416,7 +412,7 @@ class CursorLocationInfoDock(QDockWidget):
                         bandNumbers = renderer.usesBands()
 
                 elif rasterbands == 'ALL':
-                    bandNumbers = list(range(1, l.bandCount()+1))
+                    bandNumbers = list(range(1, l.bandCount() + 1))
                 else:
                     bandNumbers = [1]
 
@@ -440,9 +436,8 @@ class CursorLocationInfoDock(QDockWidget):
 
                             classInfo = None
                             if isinstance(bandValue, (int, float)) \
-                                and isinstance(classScheme, ClassificationScheme) \
-                                and bandValue >= 0 \
-                                and bandValue < len(classScheme):
+                                    and isinstance(classScheme, ClassificationScheme) \
+                                    and 0 <= bandValue < len(classScheme):
                                 classInfo = classScheme[int(bandValue)]
                             info = RasterValueSet.BandInfo(b - 1, bandValue, l.bandName(b), classInfo=classInfo)
                             v.bandValues.append(info)
@@ -478,7 +473,7 @@ class CursorLocationInfoDock(QDockWidget):
 
                 pass
 
-    def setCursorLocation(self, spatialPoint:SpatialPoint):
+    def setCursorLocation(self, spatialPoint: SpatialPoint):
         """
         Set the cursor lcation to be loaded.
         :param crs: QgsCoordinateReferenceSystem
@@ -532,7 +527,6 @@ class CursorLocationInfoDock(QDockWidget):
             self.btnCrs.setCrs(crs)
         self.updateCursorLocationInfo()
 
-
     def cursorLocation(self) -> SpatialPoint:
         """
         Returns the last location that was set.
@@ -543,13 +537,3 @@ class CursorLocationInfoDock(QDockWidget):
             return None, None
 
 
-class Resulthandler(QObject):
-
-    def __init__(self):
-        super(Resulthandler, self).__init__()
-
-    def onResult(self, *args):
-        print(args)
-
-
-R = Resulthandler()
