@@ -763,7 +763,7 @@ class MapCanvas(QgsMapCanvas):
 
                 if MapCanvas.Command in keys:
                     commands = self.mTimedRefreshPipeLine.pop(MapCanvas.Command)
-                    print(commands)
+                    #print(commands)
                     for command in commands:
                         assert isinstance(command, MapCanvas.Command)
                         if command == MapCanvas.Command.RefreshRenderer:
