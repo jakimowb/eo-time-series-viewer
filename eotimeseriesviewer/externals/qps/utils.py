@@ -1826,6 +1826,12 @@ class SpatialPoint(QgsPointXY):
     """
     Object to keep QgsPoint and QgsCoordinateReferenceSystem together
     """
+    @staticmethod
+    def readXml(node: QDomNode):
+        wkt = node.firstChildElement('SpatialPointCrs').text()
+        crs = QgsCoordinateReferenceSystem(wkt)
+        point = QgsGeometry.fromWkt(node.firstChildElement('SpatialPoint').text()).asPoint()
+        return SpatialPoint(crs, point)
 
     @staticmethod
     def fromMapCanvasCenter(mapCanvas: QgsMapLayer):
@@ -1884,6 +1890,17 @@ class SpatialPoint(QgsPointXY):
             if px.y() < 0 or px.y() >= nl:
                 return None
         return px
+
+    def writeXml(self, node: QDomNode, doc: QDomDocument):
+        node_geom = doc.createElement('SpatialPoint')
+        node_geom.appendChild(doc.createTextNode(self.asWkt()))
+        node_crs = doc.createElement('SpatialPointCrs')
+        if QgsCoordinateReferenceSystem(self.crs().authid()) == self.crs():
+            node_crs.appendChild(doc.createTextNode(self.crs().authid()))
+        else:
+            node_crs.appendChild(doc.createTextNode(self.crs().toWkt()))
+        node.appendChild(node_geom)
+        node.appendChild(node_crs)
 
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)
@@ -2001,6 +2018,12 @@ class SpatialExtent(QgsRectangle):
     """
     Object that combines a QgsRectangle and QgsCoordinateReferenceSystem
     """
+    @staticmethod
+    def readXml(node: QDomNode):
+        wkt = node.firstChildElement('SpatialExtentCrs').text()
+        crs = QgsCoordinateReferenceSystem(wkt)
+        rectangle = QgsRectangle.fromWkt(node.firstChildElement('SpatialExtent').text())
+        return SpatialExtent(crs, rectangle)
 
     @staticmethod
     def fromMapCanvas(mapCanvas, fullExtent=False):
@@ -2058,6 +2081,17 @@ class SpatialExtent(QgsRectangle):
 
     def crs(self):
         return self.mCrs
+
+    def writeXml(self, node: QDomNode, doc: QDomDocument):
+        node_geom = doc.createElement('SpatialExtent')
+        node_geom.appendChild(doc.createTextNode(self.asWktPolygon()))
+        node_crs = doc.createElement('SpatialExtentCrs')
+        if QgsCoordinateReferenceSystem(self.crs().authid()) == self.crs():
+            node_crs.appendChild(doc.createTextNode(self.crs().authid()))
+        else:
+            node_crs.appendChild(doc.createTextNode(self.crs().toWkt()))
+        node.appendChild(node_geom)
+        node.appendChild(node_crs)
 
     def toCrs(self, crs):
         assert isinstance(crs, QgsCoordinateReferenceSystem)

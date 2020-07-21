@@ -42,6 +42,7 @@ from qgis.core import \
     QgsLayerTreeGroup, \
     QgsLayerTreeLayer, \
     QgsMapLayer, \
+    QgsMapLayerStyle, \
     QgsMultiBandColorRenderer, \
     QgsPalettedRasterRenderer, \
     QgsProject, \
@@ -78,7 +79,6 @@ from qgis.gui import \
     QgsOptionsDialogBase, \
     QgsRasterTransparencyWidget, \
     QgsSublayersDialog
-
 
 from .classification.classificationscheme import ClassificationScheme
 from .models import OptionListModel, Option
@@ -627,6 +627,22 @@ def pasteStyleFromClipboard(layer: QgsMapLayer):
     elif isinstance(renderer, QgsFeatureRenderer) and isinstance(layer, QgsVectorLayer):
         layer.setRenderer(renderer)
         layer.triggerRepaint()
+
+
+def equal_styles(lyr1: QgsMapLayer, lyr2: QgsMapLayer) -> bool:
+    if lyr1 == lyr2:
+        return True
+    if isinstance(lyr1, QgsRasterLayer) and not isinstance(lyr2, QgsRasterLayer):
+        return False
+    if isinstance(lyr2, QgsVectorLayer) and not isinstance(lyr2, QgsVectorLayer):
+        return False
+
+    style1 = QgsMapLayerStyle()
+    style2 = QgsMapLayerStyle()
+    style1.readFromLayer(lyr1)
+    style2.readFromLayer(lyr2)
+
+    return style1.xmlData() == style2.xmlData()
 
 
 def subLayerDefinitions(mapLayer: QgsMapLayer) -> typing.List[QgsSublayersDialog.LayerDefinition]:
