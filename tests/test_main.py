@@ -83,6 +83,7 @@ class TestMain(EOTSVTestCase):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         TSV = EOTimeSeriesViewer()
         TSV.createMapView('True Color')
+        TSV.createMapView('False Color')
 
         TSV.loadExampleTimeSeries(loadAsync=True)
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
@@ -96,6 +97,7 @@ class TestMain(EOTSVTestCase):
         path = self.testOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
+        TSV.onReloadProject()
 
         self.showGui([TSV.ui])
 
@@ -108,21 +110,6 @@ class TestMain(EOTSVTestCase):
 
         self.assertIsInstance(TSV, EOTimeSeriesViewer)
         self.showGui(TSV.ui)
-
-    def test_TaskManagerStatusButton(self):
-
-        bar = QgsStatusBar()
-        w = TaskManagerStatusButton()
-        bar.addPermanentWidget(w, 10, QgsStatusBar.AnchorLeft)
-        bar.showMessage('my status')
-        w.mInfoLabel.setText('emoty')
-        self.showGui(bar)
-
-    def test_mapcanvasextent(self):
-        edit = QgsDateTimeEdit()
-
-        self.showGui(edit)
-
 
 
     def test_TimeSeriesViewerInvalidSource(self):

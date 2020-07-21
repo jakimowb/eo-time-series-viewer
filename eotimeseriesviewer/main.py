@@ -709,6 +709,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         root = doc.documentElement()
         node = root.firstChildElement('EOTSV')
         if node.nodeName() == 'EOTSV':
+            self.timeSeries().clear()
+            mapviews = self.mapViews()
+            for mv in mapviews:
+                self.mapWidget().removeMapView(mv)
             self.timeSeries().readXml(node)
             self.mapWidget().readXml(node)
 

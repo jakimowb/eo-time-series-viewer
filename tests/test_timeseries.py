@@ -512,6 +512,15 @@ class TestTimeSeries(EOTSVTestCase):
         lyr = sensor.proxyRasterLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
 
+
+        doc = QDomDocument('eotsv')
+        node = doc.createElement('MySensor')
+        sensor.writeXml(node, doc)
+
+        sensor3 = SensorInstrument.readXml(node)
+
+        self.assertEqual(sensor, sensor3)
+
     def test_datematching(self):
         pass
 

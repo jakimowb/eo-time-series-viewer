@@ -163,6 +163,10 @@ class MapView(QFrame):
         self.mIsVisible = True
         self.setTitle(name)
 
+        self.optionShowDate: QAction
+        self.optionShowSensorName: QAction
+        self.optionShowMapViewName: QAction
+
         m = QMenu()
         m.addAction(self.optionShowDate)
         m.addAction(self.optionShowSensorName)
@@ -173,6 +177,80 @@ class MapView(QFrame):
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
+
+    @staticmethod
+    def readXml(node: QDomNode):
+        if node.nodeName() == 'MapView':
+            nodeMapView = node
+        else:
+            nodeMapView = node.firstChildElement('MapView')
+
+        if nodeMapView.nodeName() != 'MapView':
+            return None
+
+        context = QgsReadWriteContext()
+        mapView = MapView()
+
+        def to_bool(value) -> bool:
+            return str(value).lower() in ['1', 'true']
+
+        mapView.setName(nodeMapView.attribute('name'))
+        mapView.setMapBackgroundColor(QColor(nodeMapView.attribute('bg')))
+        mapView.setVisibility(to_bool(nodeMapView.attribute('visible')))
+        mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
+        mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
+        mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
+
+        #nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
+        #nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
+        #nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.checked()))
+
+        textFormat = mapView.mapTextFormat()
+        textFormat.readXml(nodeMapView, context)
+        lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
+        while lyrNode.nodeName() == 'MapViewProxyLayer':
+            sid = lyrNode.attribute('sensor_id')
+            styleNode = lyrNode.firstChildElement('LayerStyle')
+            style = QgsMapLayerStyle()
+            style.readXml(styleNode)
+            sensor = SensorInstrument(sid)
+            mapView.addSensor(sensor)
+            lyr = mapView.sensorProxyLayer(sensor)
+            lyr.setMapLayerStyle(style)
+
+            lyrNode = lyrNode.nextSibling().toElement()
+        return mapView
+
+    def writeXml(self, node: QDomNode, doc: QDomDocument):
+
+        nodeMapView = doc.createElement('MapView')
+        nodeMapView.setAttribute('name', self.name())
+        nodeMapView.setAttribute('bg', self.mapBackgroundColor().name())
+        nodeMapView.setAttribute('visible', str(self.isVisible()))
+        nodeMapView.setAttribute('showDate', str(self.optionShowDate.isChecked()))
+        nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.isChecked()))
+        nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.isChecked()))
+
+        """
+        m.addAction(self.optionShowDate)
+        m.addAction(self.optionShowSensorName)
+        m.addAction(self.optionShowMapViewName)
+        """
+        context = QgsReadWriteContext()
+        nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
+        nodeMapView.appendChild(nodeTextStyle)
+
+        for sensor in self.sensors():
+            lyr = self.sensorProxyLayer(sensor)
+            if isinstance(lyr, SensorProxyLayer):
+                sensorNode = doc.createElement('MapViewProxyLayer')
+                sensorNode.setAttribute('sensor_id', sensor.id())
+                style: QgsMapLayerStyle = lyr.mapLayerStyle()
+                styleNode = doc.createElement('LayerStyle')
+                style.writeXml(styleNode)
+                sensorNode.appendChild(styleNode)
+                nodeMapView.appendChild(sensorNode)
+        node.appendChild(nodeMapView)
 
     def setName(self, name: str):
         self.setTitle(name)
@@ -1207,19 +1285,7 @@ class MapWidget(QFrame):
         mwNode.appendChild(crsNode)
 
         for mapView in self.mapViews():
-            mvNode = doc.createElement('MAP_VIEW')
-            mvNode.setAttribute('name', mapView.name())
-            for sensor in mapView.sensors():
-                lyr = mapView.sensorProxyLayer(sensor)
-                if isinstance(lyr, SensorProxyLayer):
-                    sensorNode = doc.createElement('MAP_VIEW_PROXY_LAYER')
-                    sensorNode.setAttribute('sensor_id', sensor.id())
-                    style: QgsMapLayerStyle = lyr.mapLayerStyle()
-                    styleNode = doc.createElement('STYLE')
-                    style.writeXml(styleNode)
-                    sensorNode.appendChild(styleNode)
-                    mvNode.appendChild(sensorNode)
-            mwNode.appendChild(mvNode)
+            mapView.writeXml(mwNode, doc)
         node.appendChild(mwNode)
         return True
 
@@ -1246,34 +1312,14 @@ class MapWidget(QFrame):
                 self.setCrs(extent.crs())
                 self.setSpatialExtent(extent)
 
-        mvNode = node.firstChildElement('MAP_VIEW').toElement()
-        while mvNode.nodeName() == 'MAP_VIEW':
-            mvName = mvNode.attribute('name')
-            mapView: MapView = None
-            # find existing map view with same name
-            for mv in self.mapViews():
-                if mv.name() == mvName:
-                    mapView = mv
-            # no map view with same name, create a new
-            if not isinstance(mapView, MapView):
-                mapView = MapView()
-                mapView.setName(mvName)
+        mvNode = node.firstChildElement('MapView').toElement()
+        while mvNode.nodeName() == 'MapView':
+            mapView = MapView.readXml(mvNode)
+            if isinstance(mapView, MapView):
+                for s in mapView.sensors():
+                    self.timeSeries().addSensor(s)
+
                 self.addMapView(mapView)
-
-            sensorNode = mvNode.firstChildElement('MAP_VIEW_PROXY_LAYER').toElement()
-            while not sensorNode.nodeName() == 'MAP_VIEW_PROXY_LAYER':
-                sid = sensorNode.attribute('sensor_id')
-                sensor = self.timeSeries().findMatchingSensor(sid)
-                if sensor:
-                    lyr = mapView.sensorProxyLayer(sensor)
-                    if isinstance(lyr, SensorProxyLayer):
-                        styleNode = sensorNode.firstChildElement('STYLE')
-                        if styleNode.nodeName() == 'STYLE':
-                            style = QgsMapLayerStyle()
-                            style.readXml(styleNode)
-                            lyr.setMapLayerStyle(style)
-
-                sensorNode = sensorNode.nextSibling().toElement()
             mvNode = mvNode.nextSibling().toElement()
 
     def usedLayers(self) -> typing.List[QgsMapLayer]:

@@ -2190,7 +2190,7 @@ class TimeSeries(QAbstractItemModel):
             tssNode = tssNode.nextSibling()
 
         if len(to_add) > 0:
-            self.addSources(to_add, runAsync=False)
+            self.addSources(to_add, runAsync=True)
 
     def data(self, index, role):
         """
