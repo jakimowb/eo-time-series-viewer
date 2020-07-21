@@ -34,7 +34,7 @@ from qgis.core import *
 from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader, QgsProject, \
     QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
-    QgsLayerTreeModel, QgsLayerTreeGroup,  \
+    QgsLayerTreeModel, QgsLayerTreeGroup, \
     QgsLayerTree, QgsLayerTreeLayer, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
 
@@ -417,7 +417,6 @@ class MapView(QFrame):
         else:
             return self.tbName.text().strip()
 
-
     def setCrosshairStyle(self, crosshairStyle: CrosshairStyle) -> CrosshairStyle:
         """
         Seths the CrosshairStyle of this MapView
@@ -558,8 +557,8 @@ class MapView(QFrame):
 
         sensor: SensorInstrument = masterLayer.sensor()
         style: QgsMapLayerStyle = masterLayer.mapLayerStyle()
-        #print('### MASTER-STYLE-CHANGED')
-        #print(style.xmlData())
+        # print('### MASTER-STYLE-CHANGED')
+        # print(style.xmlData())
         for lyr in self.sensorLayers(sensor):
             lyr.setMapLayerStyle(style)
 
@@ -1198,7 +1197,15 @@ class MapWidget(QFrame):
         :return:
         """
         mwNode = doc.createElement('EOTSV_MAPWIDGET')
-        context = QgsReadWriteContext()
+        mapSize = self.mapSize()
+        mwNode.setAttribute('mapsPerMapView', f'{self.mapsPerMapView()}')
+        mwNode.setAttribute('mapWidth', f'{mapSize.width()}')
+        mwNode.setAttribute('mapHeight', f'{mapSize.height()}')
+
+        crsNode = doc.createElement('MapExtent')
+        self.spatialExtent().writeXml(crsNode, doc)
+        mwNode.appendChild(crsNode)
+
         for mapView in self.mapViews():
             mvNode = doc.createElement('MAP_VIEW')
             mvNode.setAttribute('name', mapView.name())
@@ -1217,27 +1224,44 @@ class MapWidget(QFrame):
         return True
 
     def readXml(self, node: QDomNode):
+
         if not node.nodeName() == 'EOTSV_MAPWIDGET':
             node = node.firstChildElement('EOTSV_MAPWIDGET')
         if node.isNull():
             return None
 
-        context = QgsReadWriteContext()
+        if node.hasAttribute('mapsPerMapView'):
+            self.setMapsPerMapView(int(node.attribute('mapsPerMapView')))
+        if node.hasAttribute('mapWidth') and node.hasAttribute('mapHeight'):
+            mapSize = QSize(
+                int(node.attribute('mapWidth')),
+                int(node.attribute('mapHeight'))
+            )
+            self.setMapSize(mapSize)
 
-        mvNode = node.firstChildElement('MAP_VIEW')
-        while not mvNode.isNull():
+        nodeExtent = node.firstChildElement('MapExtent')
+        if nodeExtent.nodeName() == 'MapExtent':
+            extent = SpatialExtent.readXml(nodeExtent)
+            if isinstance(extent, SpatialExtent):
+                self.setCrs(extent.crs())
+                self.setSpatialExtent(extent)
+
+        mvNode = node.firstChildElement('MAP_VIEW').toElement()
+        while mvNode.nodeName() == 'MAP_VIEW':
             mvName = mvNode.attribute('name')
             mapView: MapView = None
+            # find existing map view with same name
             for mv in self.mapViews():
                 if mv.name() == mvName:
                     mapView = mv
+            # no map view with same name, create a new
             if not isinstance(mapView, MapView):
                 mapView = MapView()
                 mapView.setName(mvName)
                 self.addMapView(mapView)
 
             sensorNode = mvNode.firstChildElement('MAP_VIEW_PROXY_LAYER').toElement()
-            while not sensorNode.isNull():
+            while not sensorNode.nodeName() == 'MAP_VIEW_PROXY_LAYER':
                 sid = sensorNode.attribute('sensor_id')
                 sensor = self.timeSeries().findMatchingSensor(sid)
                 if sensor:
@@ -1249,13 +1273,10 @@ class MapWidget(QFrame):
                             style.readXml(styleNode)
                             lyr.setMapLayerStyle(style)
 
-                    s = ""
                 sensorNode = sensorNode.nextSibling().toElement()
-            mvNode = mvNode.nextSibling()
-        s = ""
+            mvNode = mvNode.nextSibling().toElement()
 
-
-    def usedLayers(self):
+    def usedLayers(self) -> typing.List[QgsMapLayer]:
         layers = set()
         for c in self.mapCanvases():
             layers = layers.union(set(c.layers()))
@@ -1265,7 +1286,7 @@ class MapWidget(QFrame):
         return self.mCrs
 
     def setTimeSeries(self, ts: TimeSeries) -> TimeSeries:
-        assert ts == None or isinstance(ts, TimeSeries)
+        assert ts is None or isinstance(ts, TimeSeries)
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
             self.mTimeSeries.sigVisibilityChanged.connect(self._updateCanvasDates)
@@ -1310,7 +1331,7 @@ class MapWidget(QFrame):
                 i = self.timeSeries()[:].index(tsd)
                 slider.setValue(i + 1)
 
-    def onSliderMoved(self, value:int):
+    def onSliderMoved(self, value: int):
         tsd = self.sliderDate(i=value)
         if isinstance(tsd, TimeSeriesDate):
             self.tbSliderDate.setText(f'{tsd.date()}')
@@ -1790,7 +1811,7 @@ class MapWidget(QFrame):
     def _layerListKey(self, canvas: MapCanvas) -> typing.Tuple[MapView, TimeSeriesDate]:
         return (canvas.mapView(), canvas.tsd())
 
-    def _updateCanvasDates(self, updateLayerCache:bool = True):
+    def _updateCanvasDates(self, updateLayerCache: bool = True):
 
         visibleBefore = self.visibleTSDs()
         bTSDChanged = False
@@ -1871,7 +1892,7 @@ class MapWidget(QFrame):
                 item.setVisibility(style.mShow)
                 assert isinstance(item, CrosshairMapCanvasItem)
                 item.setCrosshairStyle(style)
-                #canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def _updateCanvasAppearance(self, mapView=None):
 
@@ -1923,7 +1944,7 @@ class MapWidget(QFrame):
                 info.setUpperCenter(uc)
                 info.setLowerCenter(lc)
 
-                #canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
 
 class MapViewDock(QgsDockWidget):

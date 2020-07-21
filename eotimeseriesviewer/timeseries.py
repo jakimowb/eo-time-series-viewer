@@ -132,6 +132,8 @@ def getDS(pathOrDataset) -> gdal.Dataset:
 def sensorID(nb: int, px_size_x: float, px_size_y: float, dt: int, wl: list, wlu: str, name: str) -> str:
     """
     Creates a sensor ID str
+    :param name:
+    :param dt:
     :param nb: number of bands
     :param px_size_x: pixel size x
     :param px_size_y: pixel size y
@@ -144,15 +146,16 @@ def sensorID(nb: int, px_size_x: float, px_size_y: float, dt: int, wl: list, wlu
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
 
-    if wl != None:
+    if wl is not None:
         assert isinstance(wl, list)
         assert len(wl) == nb
 
-    if wlu != None:
+    if wlu is not None:
         assert isinstance(wlu, str)
 
-    if name != None:
+    if name is not None:
         assert isinstance(name, str)
+
     jsonDict = {'nb': nb,
                 'px_size_x': px_size_x,
                 'px_size_y': px_size_y,
@@ -168,7 +171,7 @@ def sensorIDtoProperties(idString: str) -> tuple:
     """
     Reads a sensor id string and returns the sensor properties. See sensorID().
     :param idString: str
-    :return: (ns, px_size_x, px_size_y, [wl], wlu)
+    :return: (ns, px_size_x, px_size_y, dt, wl, wlu, name)
     """
 
     jsonDict = json.loads(idString)
@@ -188,11 +191,11 @@ def sensorIDtoProperties(idString: str) -> tuple:
     assert isinstance(nb, int)
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
-    if wl != None:
+    if wl is not None:
         assert isinstance(wl, list)
-    if wlu != None:
+    if wlu is not None:
         assert isinstance(wlu, str)
-    if name != None:
+    if name is not None:
         assert isinstance(name, str)
     return nb, px_size_x, px_size_y, dt, wl, wlu, name
 
@@ -204,14 +207,16 @@ class SensorInstrument(QObject):
     SensorNameSettingsPrefix = 'SensorName.'
     sigNameChanged = pyqtSignal(str)
 
-    LUT_Wavelengths = dict({'B': 480,
-                            'G': 570,
-                            'R': 660,
-                            'nIR': 850,
-                            'swIR': 1650,
-                            'swIR1': 1650,
-                            'swIR2': 2150
-                            })
+    @staticmethod
+    def readXml(node: QDomNode):
+        sensor: SensorInstrument = None
+        nodeId = node.firstChildElement('SensorId').toElement()
+        if nodeId.nodeName() == 'SensorId':
+            sid = nodeId.firstChild().nodeValue()
+            sensor = SensorInstrument(sid)
+            s = ""
+
+        return sensor
 
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
@@ -223,16 +228,17 @@ class SensorInstrument(QObject):
         self.dataType: int
         self.wl: list
         self.wlu: str
-        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, self.mNameOriginal = sensorIDtoProperties(
-            self.mId)
+        self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, self.mNameOriginal \
+            = sensorIDtoProperties(self.mId)
         if self.mNameOriginal in [None, '']:
-            self.mNameOriginal = '{}bands@{}m'.format(self.nb, self.px_size_x)
+            self.mName = '{}bands@{}m'.format(self.nb, self.px_size_x)
+        else:
+            self.mName = self.mNameOriginal
 
-        self.mName = self.mNameOriginal
-        import eotimeseriesviewer.settings
-        storedName = eotimeseriesviewer.settings.sensorName(self.mId)
-        if isinstance(storedName, str):
-            self.mName = storedName
+        #import eotimeseriesviewer.settings
+        #storedName = eotimeseriesviewer.settings.sensorName(self.mId)
+        #if isinstance(storedName, str):
+        #    self.mName = storedName
 
         if not isinstance(band_names, list):
             band_names = ['Band {}'.format(b + 1) for b in range(self.nb)]
@@ -263,6 +269,14 @@ class SensorInstrument(QObject):
         self.mMockupDS.FlushCache()
         s = ""
 
+    def writeXml(self, node: QDomNode, doc: QDomDocument):
+
+        nodeId = doc.createElement('SensorId')
+        nodeId.appendChild(doc.createTextNode(self.id()))
+        nodeName = doc.createElement('SensorName')
+        nodeName.appendChild(doc.createTextNode(self.name()))
+        node.appendChild(nodeId)
+        node.appendChild(nodeName)
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
@@ -367,14 +381,15 @@ class SensorProxyLayer(QgsRasterLayer):
 
             self.mStyleXml = xml
             self.styleChanged.emit()
-            #xml2 = self.mapLayerStyle().xmlData()
-            #assert xml2 == xml
-            #assert self.mStyleXml == xml
+            # xml2 = self.mapLayerStyle().xmlData()
+            # assert xml2 == xml
+            # assert self.mStyleXml == xml
 
     def mapLayerStyle(self) -> QgsMapLayerStyle:
         style = QgsMapLayerStyle()
         style.readFromLayer(self)
         return style
+
 
 def verifyInputImage(datasource):
     """
@@ -1201,9 +1216,9 @@ class TimeSeriesFindOverlapTask(QgsTask):
                     continue
 
                 stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
-                                                  stats=QgsRasterBandStats.Range,
-                                                  extent=targetExtent2,
-                                                  sampleSize=self.mSampleSize)
+                                                                              stats=QgsRasterBandStats.Range,
+                                                                              extent=targetExtent2,
+                                                                              sampleSize=self.mSampleSize)
 
                 del lyr
 
@@ -1504,7 +1519,8 @@ class TimeSeries(QAbstractItemModel):
         refValues = (nb, px_size_y, px_size_x, dt, wl, wlu, name)
         for sensor in self.sensors():
             sValues = (
-            sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu, sensor.mNameOriginal)
+                sensor.nb, sensor.px_size_y, sensor.px_size_x, sensor.dataType, sensor.wl, sensor.wlu,
+                sensor.mNameOriginal)
             if refValues == sValues:
                 return sensor
 
@@ -1837,10 +1853,10 @@ class TimeSeries(QAbstractItemModel):
         qgsTask = TimeSeriesLoadingTask(sourcePaths,
                                         callback=self.onTaskFinished,
                                         )
-        #tid = id(qgsTask)
-        #self.mTasks[tid] = qgsTask
-        #qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
-        #qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        # tid = id(qgsTask)
+        # self.mTasks[tid] = qgsTask
+        # qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
+        # qgsTask.taskTerminated.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
         qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
 
@@ -1852,14 +1868,14 @@ class TimeSeries(QAbstractItemModel):
             qgsTask.finished(qgsTask.run())
 
     def onRemoveTask(self, key):
-        #print(f'remove {key}', flush=True)
+        # print(f'remove {key}', flush=True)
         if isinstance(key, QgsTask):
             key = id(key)
         if key in self.mTasks.keys():
             self.mTasks.pop(key)
 
     def onTaskFinished(self, success, task: QgsTask):
-        #print(':: onAddSourcesAsyncFinished')
+        # print(':: onAddSourcesAsyncFinished')
         if isinstance(task, TimeSeriesLoadingTask):
             if len(task.mInvalidSources) > 0:
                 info = ['Unable to load {} data source(s):'.format(len(task.mInvalidSources))]
@@ -1870,7 +1886,6 @@ class TimeSeries(QAbstractItemModel):
         elif isinstance(task, TimeSeriesFindOverlapTask):
             if success and len(task.mIntersections) > 0:
                 self.onFoundOverlap(task.mIntersections)
-
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """
@@ -2133,6 +2148,12 @@ class TimeSeries(QAbstractItemModel):
         :return:
         """
         tsNode = doc.createElement('EOTSV_TIMESERIES')
+
+        for sensor in self.sensors():
+            sensorNode = doc.createElement('Sensor')
+            sensor.writeXml(sensorNode, doc)
+            tsNode.appendChild(sensorNode)
+
         for tss in self.sources():
             tssNode = doc.createElement('TIME_SERIES_SOURCE')
             tssNode.appendChild(doc.createTextNode((tss.uri())))
@@ -2146,9 +2167,24 @@ class TimeSeries(QAbstractItemModel):
         if node.isNull():
             return None
 
+        sensorNode = node.firstChildElement('Sensor')
+        while sensorNode.nodeName() == 'Sensor':
+            sensor = SensorInstrument.readXml(sensorNode)
+
+            if isinstance(sensor, SensorInstrument):
+                sid = sensor.id()
+                name = sensor.name()
+                self.addSensor(sensor)
+
+                # set name on sensor instance (which might be already there)
+                sensor = self.sensor(sid)
+                if isinstance(sensor, SensorInstrument):
+                    sensor.setName(name)
+            sensorNode = sensorNode.nextSibling()
+
         tssNode = node.firstChildElement('TIME_SERIES_SOURCE')
         to_add = []
-        while not tssNode.isNull():
+        while tssNode.nodeName() == 'TIME_SERIES_SOURCE':
             uri = tssNode.firstChild().nodeValue()
             to_add.append(uri)
             tssNode = tssNode.nextSibling()

@@ -42,7 +42,8 @@ import qgis.utils
 from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
-    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol
+    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol, \
+    QgsProjectArchive, QgsZipUtils
 
 from qgis.gui import *
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
@@ -229,7 +230,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
     def onMapToolActionToggled(self, b: bool, action: QAction):
         """
-        Reacts on togglinga map tool
+        Reacts on toggling a map tool
         :param b:
         :param action:
         """
@@ -289,14 +290,15 @@ LUT_MESSAGELOGLEVEL = {
 def showMessage(message, title, level):
     v = QgsMessageViewer()
     v.setTitle(title)
-    # print('DEBUG MSG: {}'.format(message))
-    v.setMessage(message, QgsMessageOutput.MessageHtml \
-        if message.startswith('<html>')
-    else QgsMessageOutput.MessageText)
+    if message.startswith('<html>'):
+        v.setMessage(message, QgsMessageOutput.MessageHtml)
+    else:
+        v.setMessage(message, QgsMessageOutput.MessageText)
     v.showMessage(True)
 
 
 class TaskManagerStatusButton(QToolButton):
+
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
 
@@ -612,6 +614,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         from qgis.utils import iface
         self.ui.actionLoadProject.triggered.connect(iface.actionOpenProject().trigger)
+        self.ui.actionReloadProject.triggered.connect(self.onReloadProject)
         self.ui.actionSaveProject.triggered.connect(iface.actionSaveProject().trigger)
 
         self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
@@ -678,17 +681,38 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mapWidget().writeXml(node, dom)
         root.appendChild(node)
 
-    def onReadProject(self, dom: QDomDocument):
+    def onReloadProject(self, *args):
 
-        if dom is None:
-            s = ""
+        proj: QgsProject = QgsProject.instance()
+        path = proj.fileName()
+        if os.path.isfile(path):
+            archive = None
+            if QgsZipUtils.isZipFile(path):
+                archive = QgsProjectArchive()
+                archive.unzip(path)
+                path = archive.projectFile()
 
+            file = QFile(path)
 
-        root = dom.documentElement()
+            doc = QDomDocument('qgis')
+            doc.setContent(file)
+            self.onReadProject(doc)
+
+            if isinstance(archive, QgsProjectArchive):
+                archive.clearProjectFile()
+
+    def onReadProject(self, doc: QDomDocument) -> bool:
+
+        if not isinstance(doc, QDomDocument):
+            return False
+
+        root = doc.documentElement()
         node = root.firstChildElement('EOTSV')
         if node.nodeName() == 'EOTSV':
             self.timeSeries().readXml(node)
             self.mapWidget().readXml(node)
+
+        return True
 
     def lockCentralWidgetSize(self, b: bool):
         """
@@ -1392,9 +1416,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
         path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
-                                                   directory=defFile)
-        path = self.mTimeSeries.saveToFile(path)
-        if path is not None:
+                                       directory=defFile)
+        if path not in [None, '']:
+            path = self.mTimeSeries.saveToFile(path)
             s.setValue('FILE_TS_DEFINITION', path)
 
     def loadTimeSeriesStack(self):
@@ -1571,7 +1595,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         return vectorLayers
 
-    def addTimeSeriesImages(self, files: list, loadAsync:bool=True):
+    def addTimeSeriesImages(self, files: list, loadAsync: bool = True):
         """
         Adds images to the time series
         :param files:
