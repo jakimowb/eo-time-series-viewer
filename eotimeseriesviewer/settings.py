@@ -57,6 +57,7 @@ def defaultValues() -> dict:
     d[Keys.SensorMatching] = SensorMatching.PX_DIMS
     import eotimeseriesviewer
     d[Keys.Debug] = eotimeseriesviewer.DEBUG
+
     # map visualization
     d[Keys.MapUpdateInterval] = 500  # milliseconds
     d[Keys.MapSize] = QSize(150, 150)

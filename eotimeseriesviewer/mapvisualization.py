@@ -92,8 +92,8 @@ class MapView(QFrame):
         loadUi(DIR_UI / 'mapview.ui', self)
         # self.setupUi(self)
 
-        from eotimeseriesviewer.settings import defaultValues, Keys
-        DEFAULT_VALUES = defaultValues()
+        from eotimeseriesviewer.settings import values, Keys
+        DEFAULT_VALUES = values()
         self.mMapBackgroundColor = DEFAULT_VALUES[Keys.MapBackgroundColor]
         self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
         self.mMapWidget = None
@@ -231,11 +231,6 @@ class MapView(QFrame):
         nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.isChecked()))
         nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.isChecked()))
 
-        """
-        m.addAction(self.optionShowDate)
-        m.addAction(self.optionShowSensorName)
-        m.addAction(self.optionShowMapViewName)
-        """
         context = QgsReadWriteContext()
         nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
         nodeMapView.appendChild(nodeTextStyle)
@@ -1046,7 +1041,7 @@ class MapWidget(QFrame):
 
         self.mSpatialExtent: SpatialExtent = SpatialExtent.world()
         self.mCrs: QgsCoordinateReferenceSystem = self.mSpatialExtent.crs()
-        self.mCrsInitialized = False
+        self.mCrsInitialized: bool = False
 
         self.mCurrentDate: TimeSeriesDate = None
         self.mCrosshairPosition: SpatialPoint = None
@@ -1222,7 +1217,7 @@ class MapWidget(QFrame):
         for mapView in self.mapViews():
             # test for initial raster stretches
             for sensor in self.timeSeries().sensors():
-                if not mapView.mLayerStyleInitialized.get(sensor):
+                if mapView.mLayerStyleInitialized.get(sensor, False) == False:
                     for c in self.mapViewCanvases(mapView):
                         # find the first map canvas that contains  layer data of this sensor
                         # in its extent
@@ -1274,6 +1269,7 @@ class MapWidget(QFrame):
         :param doc:
         :return:
         """
+        context = QgsReadWriteContext()
         mwNode = doc.createElement('EOTSV_MAPWIDGET')
         mapSize = self.mapSize()
         mwNode.setAttribute('mapsPerMapView', f'{self.mapsPerMapView()}')
@@ -1290,7 +1286,7 @@ class MapWidget(QFrame):
         return True
 
     def readXml(self, node: QDomNode):
-
+        from .settings import setValue, Keys
         if not node.nodeName() == 'EOTSV_MAPWIDGET':
             node = node.firstChildElement('EOTSV_MAPWIDGET')
         if node.isNull():
@@ -1303,7 +1299,9 @@ class MapWidget(QFrame):
                 int(node.attribute('mapWidth')),
                 int(node.attribute('mapHeight'))
             )
+
             self.setMapSize(mapSize)
+            setValue(Keys.MapSize, mapSize)
 
         nodeExtent = node.firstChildElement('MapExtent')
         if nodeExtent.nodeName() == 'MapExtent':
@@ -1313,13 +1311,18 @@ class MapWidget(QFrame):
                 self.setSpatialExtent(extent)
 
         mvNode = node.firstChildElement('MapView').toElement()
+
         while mvNode.nodeName() == 'MapView':
             mapView = MapView.readXml(mvNode)
             if isinstance(mapView, MapView):
+                setValue(Keys.MapTextFormat, mapView.mapTextFormat())
+                setValue(Keys.MapBackgroundColor, mapView.mapBackgroundColor())
+
                 for s in mapView.sensors():
                     self.timeSeries().addSensor(s)
 
                 self.addMapView(mapView)
+
             mvNode = mvNode.nextSibling().toElement()
 
     def usedLayers(self) -> typing.List[QgsMapLayer]:
@@ -1582,6 +1585,8 @@ class MapWidget(QFrame):
             self._updateCrosshair(mapView=mapView)
             self.sigMapViewsChanged.emit()
             self.sigMapViewAdded.emit(mapView)
+
+            s = ""
 
         if not isinstance(self.mCurrentMapView, MapView):
             self.mCurrentMapView = mapView

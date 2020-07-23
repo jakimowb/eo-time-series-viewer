@@ -520,7 +520,7 @@ class MapCanvas(QgsMapCanvas):
         self.mMapView = mapView
         self.mInfoItem.setTextFormat(mapView.mapTextFormat())
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
-        #self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+        # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def setTSD(self, tsd: TimeSeriesDate):
         """
@@ -711,23 +711,17 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer = existing[existingSources.index(source)]
                         else:
                             # add new layer
-
-                            loadDefaultStyle = not mapView.mLayerStyleInitialized.get(sensor, False)
-
+                            loadDefaultStyle = mapView.mLayerStyleInitialized.get(sensor, False) == False
                             master: SensorProxyLayer = mapView.sensorProxyLayer(sensor)
                             sourceLayer = SensorProxyLayer(source,
                                                            sensor=sensor,
                                                            options=QgsRasterLayer.LayerOptions(
-                                                               loadDefaultStyle=loadDefaultStyle))
+                                                           loadDefaultStyle=loadDefaultStyle))
                             sourceLayer.setName(f'{lyr.name()} {source}')
                             sourceLayer.setCustomProperty('eotsv/sensorid', sensor.id())
                             sourceLayer.mTSS = tss
                             sourceLayer.setMapLayerStyle(master.mapLayerStyle())
                             sourceLayer.styleChanged.connect(lambda *args, l=sourceLayer: self.onSetMasterLayerStyle(l))
-
-                            if loadDefaultStyle:
-                                mapView.mLayerStyleInitialized[sensor] = True
-                                mapView.sensorProxyLayer(sensor).setMapLayerStyle(sourceLayer.mapLayerStyle())
 
                         assert isinstance(sourceLayer, QgsRasterLayer)
                         expected.append(sourceLayer)
@@ -742,8 +736,6 @@ class MapCanvas(QgsMapCanvas):
             return
         else:
             lyrs = self.layers()
-            if lyrs != expected:
-                self.setLayers(expected)
 
             if True:
                 # set sources first
@@ -761,32 +753,35 @@ class MapCanvas(QgsMapCanvas):
                 if QColor in keys:
                     self.setCanvasColor(self.mTimedRefreshPipeLine.pop(QColor))
 
+                if lyrs != expected:
+                    self.setLayers(expected)
+
                 if MapCanvas.Command in keys:
                     commands = self.mTimedRefreshPipeLine.pop(MapCanvas.Command)
-                    #print(commands)
+                    # print(commands)
                     for command in commands:
                         assert isinstance(command, MapCanvas.Command)
                         if command == MapCanvas.Command.RefreshRenderer:
                             sensor = self.tsd().sensor()
 
-                            #master = self.mapView().sensorProxyLayer(sensor)
-                            #masterStyle = QgsMapLayerStyle()
-                            #masterStyle.readFromLayer(master)
-                            #masterStyleXML = masterStyle.xmlData()
+                            # master = self.mapView().sensorProxyLayer(sensor)
+                            # masterStyle = QgsMapLayerStyle()
+                            # masterStyle.readFromLayer(master)
+                            # masterStyleXML = masterStyle.xmlData()
                             for l in self.layers():
                                 if isinstance(l, SensorProxyLayer) and l.sensor() == sensor:
                                     l.triggerRepaint()
-                                    #style = QgsMapLayerStyle()
-                                    #style.readFromLayer(l)
-                                    #if style.xmlData() == masterStyleXML:
+                                    # style = QgsMapLayerStyle()
+                                    # style.readFromLayer(l)
+                                    # if style.xmlData() == masterStyleXML:
                                     #    print(style.xmlData())
                                     #    s = ""
-                                    #else:
+                                    # else:
                                     #    style.writeToLayer(l)
 
                 self.mTimedRefreshPipeLine.clear()
 
-            #self.freeze(False)
+            # self.freeze(False)
             self.refresh()
             # is this really required?
 
@@ -1177,15 +1172,14 @@ class MapCanvas(QgsMapCanvas):
 
     def onSetLayerProperties(self, lyr: QgsRasterLayer):
         showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
-        #if isinstance(lyr, SensorProxyLayer):
+        # if isinstance(lyr, SensorProxyLayer):
         #    #print('# MAPCANVAS :onsetLayerProperties: SET')
         #    r = lyr.renderer().clone()
         #    proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
         #    r.setInput(proxyLayer.dataProvider())
         #    proxyLayer.setRenderer(r)
-        #else:
+        # else:
         #    #print('# MAPCANVAS :onsetLayerProperties: not a SensorProxyLayer')
-
 
     def onOpenLayersInQGIS(self, mapLayers: typing.List[QgsMapLayer]):
 
@@ -1347,6 +1341,9 @@ class MapCanvas(QgsMapCanvas):
 
             if isinstance(layer, QgsRasterLayer):
                 layer.setRenderer(newRenderer)
+                return True
+
+        return False
 
     def saveMapImageDialog(self, fileType):
         """

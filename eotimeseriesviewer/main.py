@@ -1382,9 +1382,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def onTimeSeriesChanged(self, *args):
         if not self.mSpatialMapExtentInitialized:
             if len(self.mTimeSeries) > 0:
-                if len(self.ui.dockMapViews) == 0:
-                    self.ui.dockMapViews.createMapView()
-
                 extent = self.timeSeries().maxSpatialExtent()
                 if isinstance(extent, SpatialExtent):
                     self.mapWidget().setCrs(extent.crs())
@@ -1400,6 +1397,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 else:
                     tsd = self.timeSeries()[0]
                 self.setCurrentDate(tsd)
+
+                if len(self.ui.dockMapViews) == 0:
+                    self.ui.dockMapViews.createMapView()
 
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False

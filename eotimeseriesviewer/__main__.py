@@ -21,15 +21,15 @@ import pathlib
 import sys
 from qgis.gui import QgisInterface
 
+
 def run():
     # add site-packages to sys.path
     pluginDir = pathlib.Path(__file__).parents[1]
     sys.path.append(pluginDir.as_posix())
     print(pluginDir)
     from eotimeseriesviewer.tests import start_app
-
     import qgis.utils
-    from qgis.gui import QgisInterface
+
     qgisIface = isinstance(qgis.utils.iface, QgisInterface)
 
     if not qgisIface:
