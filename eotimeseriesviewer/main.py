@@ -722,6 +722,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 dt64 = datetime64(mwNode.attribute('mapDate'))
                 if isinstance(dt64, np.datetime64):
                     self.mPostDataLoadingArgs['mapDate'] = dt64
+
             self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
             self.timeSeries().readXml(node)
 

@@ -1261,6 +1261,7 @@ class TimeSeriesLoadingTask(QgsTask):
 
     def __init__(self,
                  files: typing.List[str],
+                 visibility: typing.List[bool] = None,
                  description: str = "Load Images",
                  callback=None,
                  progress_interval: int = 3):
@@ -1270,6 +1271,11 @@ class TimeSeriesLoadingTask(QgsTask):
         assert progress_interval >= 1
 
         self.mFiles: typing.List[str] = files
+        if visibility:
+            assert isinstance(visibility, list) and len(visibility) == len(files)
+            self.mVisibility: typing.List[bool] = [b == True for b in visibility]
+        else:
+            self.mVisibility: typing.List[bool] = [True for f in files]
         self.mSources: typing.List[TimeSeriesSource] = []
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mCallback = callback
@@ -1294,6 +1300,7 @@ class TimeSeriesLoadingTask(QgsTask):
                 try:
                     tss = TimeSeriesSource.create(path)
                     assert isinstance(tss, TimeSeriesSource)
+                    tss.setIsVisible(self.mVisibility[i])
                     self.mSources.append(tss)
                     result_block.append(tss)
                     del tss
@@ -1829,13 +1836,17 @@ class TimeSeries(QAbstractItemModel):
         if len(addedDates) > 0:
             self.sigTimeSeriesDatesAdded.emit(addedDates)
 
-    def addSources(self, sources: list, runAsync: bool = None):
+    def addSources(self,
+                   sources: list,
+                   visibility: typing.List[bool] = None,
+                   runAsync: bool = None):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
         :param runAsync: bool
         """
         from eotimeseriesviewer.settings import value, Keys
+
         if runAsync is None:
             runAsync = value(Keys.QgsTaskAsync, True)
 
@@ -1852,6 +1863,7 @@ class TimeSeries(QAbstractItemModel):
                 sourcePaths.append(path)
 
         qgsTask = TimeSeriesLoadingTask(sourcePaths,
+                                        visibility=visibility,
                                         callback=self.onTaskFinished,
                                         )
         # tid = id(qgsTask)
@@ -2151,7 +2163,7 @@ class TimeSeries(QAbstractItemModel):
         :param doc:
         :return:
         """
-        tsNode = doc.createElement('EOTSV_TIMESERIES')
+        tsNode = doc.createElement('TimeSeries')
 
         for sensor in self.sensors():
             sensorNode = doc.createElement('Sensor')
@@ -2159,15 +2171,17 @@ class TimeSeries(QAbstractItemModel):
             tsNode.appendChild(sensorNode)
 
         for tss in self.sources():
-            tssNode = doc.createElement('TIME_SERIES_SOURCE')
+            assert isinstance(tss, TimeSeriesSource)
+            tssNode = doc.createElement('TimeSeriesSource')
+            tssNode.setAttribute('isVisible', str(tss.isVisible()))
             tssNode.appendChild(doc.createTextNode((tss.uri())))
             tsNode.appendChild(tssNode)
         node.appendChild(tsNode)
         return True
 
     def readXml(self, node: QDomNode):
-        if not node.nodeName() == 'EOTSV_TIMESERIES':
-            node = node.firstChildElement('EOTSV_TIMESERIES')
+        if not node.nodeName() == 'TimeSeries':
+            node = node.firstChildElement('TimeSeries')
         if node.isNull():
             return None
 
@@ -2184,17 +2198,23 @@ class TimeSeries(QAbstractItemModel):
                 sensor = self.sensor(sid)
                 if isinstance(sensor, SensorInstrument):
                     sensor.setName(name)
-            sensorNode = sensorNode.nextSibling()
+            sensorNode = sensorNode.nextSiblingElement()
 
-        tssNode = node.firstChildElement('TIME_SERIES_SOURCE')
+        tssNode = node.firstChildElement('TimeSeriesSource')
         to_add = []
-        while tssNode.nodeName() == 'TIME_SERIES_SOURCE':
+        tss_visibility = []
+        while tssNode.nodeName() == 'TimeSeriesSource':
             uri = tssNode.firstChild().nodeValue()
             to_add.append(uri)
-            tssNode = tssNode.nextSibling()
+            if tssNode.hasAttribute('isVisible'):
+                tss_visibility.append(str(tssNode.attribute('isVisible')).lower() in ['1', 'true'])
+            else:
+                tss_visibility.append(True)
+
+            tssNode = tssNode.nextSiblingElement()
 
         if len(to_add) > 0:
-            self.addSources(to_add, runAsync=True)
+            self.addSources(to_add, visibility=tss_visibility, runAsync=True)
 
     def data(self, index, role):
         """

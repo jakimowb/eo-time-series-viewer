@@ -1,8 +1,10 @@
 ==============
 Changelog
 ==============
-2020-07-13 (version 1.13):
-    * fixed CRS translation bug
+2020-07-23 (version 1.13):
+    * time series and map settings can be stored to and reloaded from QGIS Projects
+    * refactored layer styling and default raster stretching
+    * fixed CRS translation bug and other smaller bugs
     * quick labels can be used to write date / datetime data into vector fields of type QDate or QDateTime
     * refactored context menus, e.g. in map view layer tree view, fixed `#106 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/106>`_
 

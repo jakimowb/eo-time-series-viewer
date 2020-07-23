@@ -218,7 +218,7 @@ class MapView(QFrame):
             lyr = mapView.sensorProxyLayer(sensor)
             lyr.setMapLayerStyle(style)
 
-            lyrNode = lyrNode.nextSibling().toElement()
+            lyrNode = lyrNode.nextSiblingElement()
         return mapView
 
     def writeXml(self, node: QDomNode, doc: QDomDocument):
@@ -1330,7 +1330,7 @@ class MapWidget(QFrame):
 
                 self.addMapView(mapView)
 
-            mvNode = mvNode.nextSibling().toElement()
+            mvNode = mvNode.nextSiblingElement()
 
     def usedLayers(self) -> typing.List[QgsMapLayer]:
         layers = set()
