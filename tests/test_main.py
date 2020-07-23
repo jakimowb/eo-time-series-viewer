@@ -78,7 +78,6 @@ class TestMain(EOTSVTestCase):
 
             self.assertIn(expectation, dict(metadata), message)
 
-
     def test_TimeSeriesViewer(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         TSV = EOTimeSeriesViewer()
@@ -101,7 +100,6 @@ class TestMain(EOTSVTestCase):
 
         self.showGui([TSV.ui])
 
-
     def test_TimeSeriesViewerNoSource(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -110,7 +108,6 @@ class TestMain(EOTSVTestCase):
 
         self.assertIsInstance(TSV, EOTimeSeriesViewer)
         self.showGui(TSV.ui)
-
 
     def test_TimeSeriesViewerInvalidSource(self):
 

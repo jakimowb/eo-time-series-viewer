@@ -480,6 +480,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
+        self.mPostDataLoadingArgs: dict = dict()
+
         self.mVectorLayerTools: VectorLayerTools = VectorLayerTools()
         self.mVectorLayerTools.sigMessage.connect(lambda msg, level: self.logMessage(msg, LOG_MESSAGE_TAG, level))
         self.mVectorLayerTools.sigPanRequest.connect(self.setSpatialCenter)
@@ -713,10 +715,29 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             mapviews = self.mapViews()
             for mv in mapviews:
                 self.mapWidget().removeMapView(mv)
-            self.timeSeries().readXml(node)
             self.mapWidget().readXml(node)
 
+            mwNode = node.firstChildElement('MapWidget')
+            if mwNode.nodeName() == 'MapWidget' and mwNode.hasAttribute('mapDate'):
+                dt64 = datetime64(mwNode.attribute('mapDate'))
+                if isinstance(dt64, np.datetime64):
+                    self.mPostDataLoadingArgs['mapDate'] = dt64
+            self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
+            self.timeSeries().readXml(node)
+
         return True
+
+    def onPostDataLoading(self):
+        """
+        Handles actions that can be applied on a filled time series only, i.e. after sigLoadingTaskFinished was called.
+        """
+        if 'mapDate' in self.mPostDataLoadingArgs.keys():
+            mapDate = self.mPostDataLoadingArgs.pop('mapDate')
+            tsd = self.timeSeries().tsd(mapDate, None)
+            if isinstance(tsd, TimeSeriesDate):
+                self.setCurrentDate(tsd)
+
+        self.timeSeries().sigLoadingTaskFinished.disconnect(self.onPostDataLoading)
 
     def lockCentralWidgetSize(self, b: bool):
         """

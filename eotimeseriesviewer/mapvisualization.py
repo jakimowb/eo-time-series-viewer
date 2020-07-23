@@ -1017,7 +1017,6 @@ class MapWidget(QFrame):
         self.mSyncQGISMapCanvasCenter: bool = False
         self.mLastQGISMapCanvasCenter: SpatialPoint = None
         self.mLastEOTSVMapCanvasCenter: SpatialPoint = None
-
         self.mMaxNumberOfCachedLayers = 0
 
         self.mMapLayerStore = QgsMapLayerStore()
@@ -1270,11 +1269,12 @@ class MapWidget(QFrame):
         :return:
         """
         context = QgsReadWriteContext()
-        mwNode = doc.createElement('EOTSV_MAPWIDGET')
+        mwNode = doc.createElement('MapWidget')
         mapSize = self.mapSize()
         mwNode.setAttribute('mapsPerMapView', f'{self.mapsPerMapView()}')
         mwNode.setAttribute('mapWidth', f'{mapSize.width()}')
         mwNode.setAttribute('mapHeight', f'{mapSize.height()}')
+        mwNode.setAttribute('mapDate', f'{self.currentDate().date()}')
 
         crsNode = doc.createElement('MapExtent')
         self.spatialExtent().writeXml(crsNode, doc)
@@ -1287,8 +1287,8 @@ class MapWidget(QFrame):
 
     def readXml(self, node: QDomNode):
         from .settings import setValue, Keys
-        if not node.nodeName() == 'EOTSV_MAPWIDGET':
-            node = node.firstChildElement('EOTSV_MAPWIDGET')
+        if not node.nodeName() == 'MapWidget':
+            node = node.firstChildElement('MapWidget')
         if node.isNull():
             return None
 
@@ -1302,6 +1302,13 @@ class MapWidget(QFrame):
 
             self.setMapSize(mapSize)
             setValue(Keys.MapSize, mapSize)
+
+        if node.hasAttribute('mapDate'):
+            dt64 = datetime64(node.attribute('mapDate'))
+            if isinstance(dt64, np.datetime64):
+                tsd = self.timeSeries().tsd(dt64, None)
+                if isinstance(tsd, TimeSeriesDate):
+                    self.setCurrentDate(tsd)
 
         nodeExtent = node.firstChildElement('MapExtent')
         if nodeExtent.nodeName() == 'MapExtent':
@@ -1336,6 +1343,14 @@ class MapWidget(QFrame):
 
     def setTimeSeries(self, ts: TimeSeries) -> TimeSeries:
         assert ts is None or isinstance(ts, TimeSeries)
+
+        if isinstance(self.mTimeSeries, TimeSeries):
+            self.mTimeSeries.sigVisibilityChanged.disconnect(self._updateCanvasDates)
+            self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self.__updateCanvasDates)
+            self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self._updateSliderRange)
+            self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateSliderRange)
+
+
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
             self.mTimeSeries.sigVisibilityChanged.connect(self._updateCanvasDates)

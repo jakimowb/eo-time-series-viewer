@@ -1333,6 +1333,8 @@ class TimeSeries(QAbstractItemModel):
     sigTimeSeriesDatesAdded = pyqtSignal(list)
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
 
+    sigLoadingTaskFinished = pyqtSignal()
+
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
 
@@ -1831,7 +1833,6 @@ class TimeSeries(QAbstractItemModel):
         """
         Adds source images to the TimeSeries
         :param sources: list of source images, e.g. a list of file paths
-        :param nWorkers: not used yet
         :param runAsync: bool
         """
         from eotimeseriesviewer.settings import value, Keys
@@ -1883,6 +1884,9 @@ class TimeSeries(QAbstractItemModel):
                     info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
                 info = '\n'.join(info)
                 messageLog(info, Qgis.Critical)
+
+            self.sigLoadingTaskFinished.emit()
+
         elif isinstance(task, TimeSeriesFindOverlapTask):
             if success and len(task.mIntersections) > 0:
                 self.onFoundOverlap(task.mIntersections)
