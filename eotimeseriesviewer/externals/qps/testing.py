@@ -86,7 +86,7 @@ def initQgisApplication(*args, qgisResourceDir: str = None,
     :return: QgsApplication instance of local QGIS installation
     """
     warnings.warn('Use qps.testing.start_app instead', DeprecationWarning)
-    return start_app(cleanup=True, options=StartOptions.All())
+    return start_app(cleanup=True, options=StartOptions.All)
 
 
 @enum.unique
@@ -815,8 +815,6 @@ class TestObjects():
 
     @staticmethod
     def processingAlgorithm():
-
-        from qgis.core import QgsProcessingAlgorithm
 
         class TestProcessingAlgorithm(QgsProcessingAlgorithm):
 

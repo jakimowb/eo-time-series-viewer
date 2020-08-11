@@ -46,7 +46,7 @@ import datetime
 from qgis.core import *
 from qgis.core import QgsField, QgsVectorLayer, QgsRasterLayer, QgsRasterDataProvider, QgsMapLayer, QgsMapLayerStore, \
     QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle, QgsPointXY, QgsProject, \
-    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask, Qgis
+    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask, Qgis, QgsGeometry
 from qgis.gui import *
 from qgis.gui import QgisInterface, QgsDialog, QgsMessageViewer, QgsMapLayerComboBox, QgsMapCanvas
 
@@ -873,10 +873,14 @@ def qgsVectorLayer(source) -> QgsVectorLayer:
     """
     if isinstance(source, QgsVectorLayer):
         return source
+    if isinstance(source, pathlib.Path):
+        return QgsRasterLayer(source.as_posix())
     if isinstance(source, str):
         return QgsVectorLayer(source)
     if isinstance(source, ogr.DataSource):
         return QgsVectorLayer(source.GetDescription())
+    if isinstance(source, QUrl):
+        return qgsVectorLayer(pathlib.Path(source.toString(QUrl.PreferLocalFile | QUrl.RemoveQuery)).resolve())
 
     raise Exception('Unable to transform {} into QgsVectorLayer'.format(source))
 
@@ -890,13 +894,41 @@ def qgsRasterLayer(source) -> QgsRasterLayer:
     """
     if isinstance(source, QgsRasterLayer):
         return source
+    if isinstance(source, pathlib.Path):
+        return QgsRasterLayer(source.as_posix())
     if isinstance(source, str):
         return QgsRasterLayer(source)
     if isinstance(source, gdal.Dataset):
         return QgsRasterLayer(source.GetDescription())
+    if isinstance(source, QUrl):
+        return qgsRasterLayer(pathlib.Path(source.toString(QUrl.PreferLocalFile | QUrl.RemoveQuery)).resolve())
 
     raise Exception('Unable to transform {} into QgsRasterLayer'.format(source))
 
+
+def qgsMapLayer(value: typing.Any) -> QgsMapLayer:
+    """
+    Tries to convert the input into a QgsMapLayer
+    :param value: any
+    :return: QgsMapLayer or None
+    """
+    if isinstance(value, QgsMapLayer):
+        return value
+    try:
+        lyr = qgsRasterLayer(value)
+        if isinstance(lyr, QgsRasterLayer):
+            return lyr
+    except:
+        pass
+
+    try:
+        lyr = qgsVectorLayer(value)
+        if isinstance(lyr, QgsVectorLayer):
+            return lyr
+    except:
+        pass
+
+    return None
 
 def loadUi(uifile, baseinstance=None, package='', resource_suffix='_rc', remove_resource_references=True,
            loadUiType=False):
@@ -2026,7 +2058,7 @@ class SpatialExtent(QgsRectangle):
         return SpatialExtent(crs, rectangle)
 
     @staticmethod
-    def fromMapCanvas(mapCanvas, fullExtent=False):
+    def fromMapCanvas(mapCanvas, fullExtent:bool=False):
         assert isinstance(mapCanvas, QgsMapCanvas)
 
         if fullExtent:
@@ -2214,11 +2246,27 @@ class SpatialExtent(QgsRectangle):
     def __copy__(self):
         return SpatialExtent(self.crs(), QgsRectangle(self))
 
-    def __reduce_ex__(self, protocol):
-        return self.__class__, (self.crs().toWkt(),
-                                self.xMinimum(), self.yMinimum(),
-                                self.xMaximum(), self.yMaximum()
-                                ), {}
+    def __reduce__(self):
+
+        return self.__class__, ('',), self.__getstate__()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('mCrs')
+        state['_crs_'] = self.crs().toWkt()
+        state['_xmin_'] = self.xMinimum()
+        state['_xmax_'] = self.xMaximum()
+        state['_ymin_'] = self.yMinimum()
+        state['_ymax_'] = self.yMaximum()
+        return state
+
+    def __setstate__(self, state):
+        self.setCrs(QgsCoordinateReferenceSystem(state.pop('_crs_')))
+        self.setXMinimum(state.pop('_xmin_'))
+        self.setXMaximum(state.pop('_xmax_'))
+        self.setYMinimum(state.pop('_ymin_'))
+        self.setYMaximum(state.pop('_ymax_'))
+        self.__dict__.update(state)
 
     def __hash__(self):
         return hash(str(self))
