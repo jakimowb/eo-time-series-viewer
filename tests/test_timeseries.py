@@ -111,8 +111,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         def onFinished(success, task):
             self.assertIsInstance(task, TimeSeriesFindOverlapTask)
-            if success:
-                onOverlapp(task.mIntersections)
 
         ext_full = tss.spatialExtent()
         ext_nodata = SpatialExtent(ext_full.crs(),
@@ -129,12 +127,10 @@ class TestTimeSeries(EOTSVTestCase):
 
         for ext in [ext_full, ext_nodata, ext_outofbounds]:
             task = TimeSeriesFindOverlapTask(ext, [tss], sampleSize=1024, callback=onFinished)
-            #task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
+            task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
             task.finished(task.run())
 
         self.assertListEqual(overlapped, [True, False, False])
-
-        s = ""
 
     def test_find_overlap_memory_leak(self):
 
