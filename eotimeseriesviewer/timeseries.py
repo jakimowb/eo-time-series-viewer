@@ -2465,12 +2465,11 @@ class TimeSeriesTreeView(QTreeView):
             self.sigMoveToExtent.emit(extent)
 
     def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
-
         import qgis.utils
         iface = qgis.utils.iface
         if isinstance(iface, QgisInterface):
             layers = [tss.asRasterLayer() for tss in tssList]
-            QgsProject.instance().addMapLayers(layers)
+            QgsProject.instance().addMapLayers(layers, True)
 
     def setClipboardUris(self, tssList: typing.List[TimeSeriesSource]):
         urls = []

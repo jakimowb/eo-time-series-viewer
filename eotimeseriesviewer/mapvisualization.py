@@ -36,7 +36,9 @@ from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShade
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, \
     QgsLayerTree, QgsLayerTreeLayer, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, \
+    QgsSingleBandPseudoColorRenderer, \
+    QgsPointXY, QgsReadWriteContext
 
 from qgis.gui import *
 from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
@@ -1739,7 +1741,7 @@ class MapWidget(QFrame):
         #mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
         #    self.sigCurrentLocationChanged)
 
-    def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt:QgsPointXY):
+    def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
         spt = SpatialPoint(crs, pt)
         self.sigCurrentLocationChanged.emit(spt, canvas)
 
