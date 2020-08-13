@@ -520,6 +520,9 @@ class MapCanvas(QgsMapCanvas):
         self.mMapView = mapView
         self.mInfoItem.setTextFormat(mapView.mapTextFormat())
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
+        self.setCrosshairStyle(mapView.crosshairStyle())
+        #self.setCrosshairVisibility(mapView.crosshairStyle())
+
         # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def setTSD(self, tsd: TimeSeriesDate):
@@ -815,14 +818,17 @@ class MapCanvas(QgsMapCanvas):
             self.mCrosshairItem.setCrosshairStyle(crosshairStyle)
 
         if emitSignal:
-            self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
+            s = ""
+            #self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
+        else:
+            s = ""
 
     def crosshairStyle(self) -> CrosshairStyle:
         """
         Returns the style of the Crosshair.
         :return: CrosshairStyle
         """
-        return self.mCrosshairItem.crosshairStyle
+        return self.mCrosshairItem.crosshairStyle()
 
     def setCrosshairPosition(self, spatialPoint: SpatialPoint):
         """
@@ -834,6 +840,10 @@ class MapCanvas(QgsMapCanvas):
 
         point = spatialPoint.toCrs(self.mapSettings().destinationCrs())
         if self.mCrosshairItem.mPosition != point:
+            if self.mCrosshairItem.visibility() == False:
+                s = ""
+            else:
+                s = ""
             self.mCrosshairItem.setPosition(point)
             self.sigCrosshairPositionChanged.emit(point)
 
@@ -843,7 +853,7 @@ class MapCanvas(QgsMapCanvas):
 
     def setCrosshairVisibility(self, b: bool, emitSignal=True):
         """
-        Sets the Crosshair visbility
+        Sets the Crosshair visibility
         :param b: bool
         """
         if b and self.mCrosshairItem.mPosition is None:
