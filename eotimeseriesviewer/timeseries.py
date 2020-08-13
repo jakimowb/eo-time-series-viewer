@@ -666,9 +666,12 @@ class TimeSeriesSource(object):
         loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
         lyr = QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
         tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+        tprop.setActive(True)
         tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-        dtg = QDateTime(self.date().astype(object))
-        tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
+        dtg = self.date().astype(object)
+        dt1 = QDateTime(dtg, QTime(0, 0))
+        dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+        tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
         return lyr
 
     def crsWkt(self) -> str:

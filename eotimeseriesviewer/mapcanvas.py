@@ -1157,7 +1157,9 @@ class MapCanvas(QgsMapCanvas):
 
             ts = eotsv.timeSeries()
 
-            action = menu.addAction('Focus on Spatial Extent')
+            action = menu.addAction('Update date visibility')
+            action.setToolTip('Updates the visibility of observation dates and source images according its '
+                              'presence of unmasked pixels for this spatial extent')
             action.triggered.connect(lambda *args,
                                             ext=self.spatialExtent():
                                      ts.focusVisibilityToExtent(ext=ext))
@@ -1186,19 +1188,22 @@ class MapCanvas(QgsMapCanvas):
         layers = []
         for l in mapLayers:
             if isinstance(l, SensorProxyLayer):
-                lyr = QgsRasterLayer(l.source(), l.name(), l.dataProvider().name())
+                lyr = QgsRasterLayer(l.source(), os.path.basename(l.source()), l.dataProvider().name())
                 r = l.renderer().clone()
                 r.setInput(lyr.dataProvider())
                 lyr.setRenderer(r)
 
                 tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-
+                tprop.setIsActive(True)
                 if isinstance(l.mTSS, TimeSeriesSource):
-                    dtg = QDateTime(l.mTSS.date().astype(object))
+                    dtg = l.mTSS.date().astype(object)
                 else:
-                    dtg = QDateTime(self.tsd().date().astype(object))
-                tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
+                    dtg = self.tsd().date().astype(object)
+                dt1 = QDateTime(dtg, QTime(0, 0))
+                dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+                print(f'## LAYER DTG: {dtg}')
+                tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
 
                 layers.append(l)
             else:
