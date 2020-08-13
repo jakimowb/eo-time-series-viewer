@@ -704,7 +704,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 archive.clearProjectFile()
 
     def onReadProject(self, doc: QDomDocument) -> bool:
-
+        """
+        Reads images and visualization settings from a QgsProject QDomDocument
+        :param doc: QDomDocument
+        :return: bool
+        """
         if not isinstance(doc, QDomDocument):
             return False
 

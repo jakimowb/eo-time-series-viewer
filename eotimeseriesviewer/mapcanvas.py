@@ -1212,14 +1212,13 @@ class MapCanvas(QgsMapCanvas):
                     dtg = self.tsd().date().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
                 dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
-                print(f'## LAYER DTG: {dtg}')
                 tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
 
                 layers.append(l)
             else:
                 layers.append(l)
         if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):
-            QgsProject.instance().addMapLayers(layers, True)
+            QgsProject.instance().addMapLayers(layers)
 
     def onPasteStyleFromClipboard(self, lyr):
         from .externals.qps.layerproperties import pasteStyleFromClipboard
