@@ -44,7 +44,11 @@ from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, \
     QgsTaskManager, QgsPoint, QgsPointXY, \
-    QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform
+    QgsMimeDataUtils, QgsCoordinateTransform
+try:
+    from qgis.core import QgsRasterLayerTemporalProperties
+except:
+    pass
 from qgis.gui import QgsDockWidget, QgisInterface
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()

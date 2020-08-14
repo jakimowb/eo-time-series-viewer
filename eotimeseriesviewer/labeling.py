@@ -7,7 +7,9 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, Qgs
 from qgis.gui import *
 from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
     QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
-    QgsGui, QgsEditorWidgetRegistry, QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
+    QgsGui, QgsEditorWidgetRegistry, \
+    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
+
 
 from eotimeseriesviewer.externals.qps.layerproperties import *
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
