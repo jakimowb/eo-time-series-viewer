@@ -1211,7 +1211,7 @@ class MapCanvas(QgsMapCanvas):
                 else:
                     dtg = self.tsd().date().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
-                dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+                dt2 = QDateTime(dtg, QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
                 tprop.setFixedTemporalRange(range)
                 layers.append(lyr)
