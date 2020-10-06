@@ -46,7 +46,7 @@ import datetime
 from qgis.core import *
 from qgis.core import QgsField, QgsVectorLayer, QgsRasterLayer, QgsRasterDataProvider, QgsMapLayer, QgsMapLayerStore, \
     QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle, QgsPointXY, QgsProject, \
-    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask, Qgis
+    QgsMapLayerProxyModel, QgsRasterRenderer, QgsMessageOutput, QgsFeature, QgsTask, Qgis, QgsGeometry
 from qgis.gui import *
 from qgis.gui import QgisInterface, QgsDialog, QgsMessageViewer, QgsMapLayerComboBox, QgsMapCanvas
 
@@ -55,13 +55,13 @@ from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt import uic
-from qgis.PyQt.QtWidgets import QPlainTextEdit
+from qgis.PyQt.QtWidgets import *
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QDialogButtonBox, QLabel, QGridLayout, QMainWindow
 from . import DIR_UI_FILES
 
-# dictionary to store form classes and avoid multiple calls to read <myui>.ui
+# dictionary to store form classes and avoid multiple calls to read <myui>.i
 QGIS_RESOURCE_WARNINGS = set()
 
 REMOVE_setShortcutVisibleInContextMenu = hasattr(QAction, 'setShortcutVisibleInContextMenu')
@@ -129,19 +129,6 @@ def cleanDir(d):
     for root, dirs, files in os.walk(d):
         for p in dirs + files: rm(jp(root, p))
         break
-
-
-def mkDir(d, delete=False):
-    """
-    Make directory.
-    :param d: path of directory to be created
-    :param delete: set on True to delete the directory contents, in case the directory already existed.
-    """
-    if delete and os.path.isdir(d):
-        cleanDir(d)
-    if not os.path.isdir(d):
-        os.makedirs(d)
-
 
 # a QPS internal map layer store
 QPS_MAPLAYER_STORE = QgsMapLayerStore()
@@ -270,7 +257,15 @@ class UnitLookup(object):
 
     @staticmethod
     def baseUnit(unit: str) -> str:
+        """
+        Tries to return the basic physical unit
+        e.g. "m" for string of "Meters"
 
+        :param unit:
+        :type unit:
+        :return:
+        :rtype:
+        """
         if not isinstance(unit, str):
             return None
 
@@ -357,7 +352,7 @@ class UnitLookup(object):
         return baseUnit in UnitLookup.time_units() + UnitLookup.date_units()
 
     @staticmethod
-    def convertMetricUnit(value: float, u1: str, u2: str) -> float:
+    def convertMetricUnit(value: typing.Union[float, np.ndarray], u1: str, u2: str) -> float:
         """
         Converts value `value` from unit `u1` into unit `u2`
         :param value: float | int | might work with numpy.arrays as well
@@ -366,7 +361,8 @@ class UnitLookup(object):
         :return: float | numpy.array, converted values
                  or None in case conversion is not possible
         """
-
+        assert isinstance(u1, str), 'Source unit needs to be a str'
+        assert isinstance(u2, str), 'Destination unit needs to be a str'
         u1 = UnitLookup.baseUnit(u1)
         u2 = UnitLookup.baseUnit(u2)
 
@@ -458,11 +454,6 @@ LUT_WAVELENGTH = dict({'B': 480,
                        'SWIR1': 1650,
                        'SWIR2': 2150
                        })
-
-
-def mkdir(path):
-    if not os.path.isdir(path):
-        os.mkdir(path)
 
 
 NEXT_COLOR_HUE_DELTA_CON = 10
@@ -873,10 +864,14 @@ def qgsVectorLayer(source) -> QgsVectorLayer:
     """
     if isinstance(source, QgsVectorLayer):
         return source
+    if isinstance(source, pathlib.Path):
+        return QgsRasterLayer(source.as_posix())
     if isinstance(source, str):
         return QgsVectorLayer(source)
     if isinstance(source, ogr.DataSource):
         return QgsVectorLayer(source.GetDescription())
+    if isinstance(source, QUrl):
+        return qgsVectorLayer(pathlib.Path(source.toString(QUrl.PreferLocalFile | QUrl.RemoveQuery)).resolve())
 
     raise Exception('Unable to transform {} into QgsVectorLayer'.format(source))
 
@@ -890,13 +885,41 @@ def qgsRasterLayer(source) -> QgsRasterLayer:
     """
     if isinstance(source, QgsRasterLayer):
         return source
+    if isinstance(source, pathlib.Path):
+        return QgsRasterLayer(source.as_posix())
     if isinstance(source, str):
         return QgsRasterLayer(source)
     if isinstance(source, gdal.Dataset):
         return QgsRasterLayer(source.GetDescription())
+    if isinstance(source, QUrl):
+        return qgsRasterLayer(pathlib.Path(source.toString(QUrl.PreferLocalFile | QUrl.RemoveQuery)).resolve())
 
     raise Exception('Unable to transform {} into QgsRasterLayer'.format(source))
 
+
+def qgsMapLayer(value: typing.Any) -> QgsMapLayer:
+    """
+    Tries to convert the input into a QgsMapLayer
+    :param value: any
+    :return: QgsMapLayer or None
+    """
+    if isinstance(value, QgsMapLayer):
+        return value
+    try:
+        lyr = qgsRasterLayer(value)
+        if isinstance(lyr, QgsRasterLayer):
+            return lyr
+    except:
+        pass
+
+    try:
+        lyr = qgsVectorLayer(value)
+        if isinstance(lyr, QgsVectorLayer):
+            return lyr
+    except:
+        pass
+
+    return None
 
 def loadUi(uifile, baseinstance=None, package='', resource_suffix='_rc', remove_resource_references=True,
            loadUiType=False):
@@ -1369,8 +1392,10 @@ def defaultBands(dataset) -> list:
         return defaultBands(gdal.Open(dataset))
     elif isinstance(dataset, QgsRasterDataProvider):
         return defaultBands(dataset.dataSourceUri())
-    elif isinstance(dataset, QgsRasterLayer):
-        return defaultBands(dataset.source())
+    elif isinstance(dataset, QgsRasterLayer) and \
+         isinstance(dataset.dataProvider(), QgsRasterDataProvider) and \
+         dataset.dataProvider().name() == 'gdal':
+            return defaultBands(dataset.source())
     elif isinstance(dataset, gdal.Dataset):
 
         # check ENVI style metadata default band definition
@@ -1403,7 +1428,7 @@ def defaultBands(dataset) -> list:
         return db
 
     else:
-        raise Exception()
+        return [0, 0, 0]
 
 
 def bandClosestToWavelength(dataset, wl, wl_unit='nm') -> int:
@@ -1464,6 +1489,45 @@ def parseBadBandList(dataset) -> typing.List[int]:
     return bbl
 
 
+def parseFWHM(dataset) -> typing.Tuple[np.ndarray]:
+    """
+    Returns the full width half maximum
+    :param dataset:
+    :return:
+    """
+    try:
+        dataset = gdalDataset(dataset)
+    except:
+        pass
+
+    key_positions = [('fwhm', None),
+                     ('fwhm', 'ENVI')]
+
+    if isinstance(dataset, gdal.Dataset):
+        for key, domain in key_positions:
+            values = dataset.GetMetadataItem(key, domain)
+            if isinstance(values, str):
+                values = re.sub('[{}]', '', values).strip()
+                try:
+                    values = np.fromstring(values, sep=',', count=dataset.RasterCount)
+                    if len(values) == dataset.RasterCount:
+                        return values
+                except:
+                    pass
+
+        # search band by band
+        values = []
+        for b in range(dataset.RasterCount):
+            band: gdal.Band = dataset.GetRasterBand(b+1)
+            for key, domain in key_positions:
+                value = dataset.GetMetadataItem(key, domain)
+                if value not in ['', None]:
+                    values.append(value)
+                    break
+        if len(values) == dataset.RasterCount:
+            return np.asarray(values)
+    return None
+
 def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     """
     Returns the wavelength + wavelength unit of a raster
@@ -1522,7 +1586,9 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
             else:
                 sep = ','
             try:
-                wl = np.fromstring(values, sep=sep)
+                wl = np.fromstring(values, count=dataset.RasterCount, sep=sep)
+            except ValueError as exV:
+                pass
             except Exception as ex:
                 pass
         return wl
@@ -1570,7 +1636,7 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
                             _wl = checkWavelength(key, values)
                     if wlu is not None:
                         s = ""
-                    if wlu and _wl:
+                    if wlu is not None and _wl is not None:
                         wl.append(_wl[0])
                         break
 
@@ -1681,14 +1747,15 @@ def check_vsimem() -> bool:
     try:
         from osgeo import gdal
         from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
-
+        import uuid
         # create an 2x2x1 in-memory raster
         driver = gdal.GetDriverByName('GTiff')
         assert isinstance(driver, gdal.Driver)
-        path = '/vsimem/inmemorytestraster.tif'
+        path = f'/vsimem/inmemorytestraster.{uuid.uuid4()}.tif'
 
-        dataSet = driver.Create(path, 2, 2, bands=1, eType=gdal.GDT_Byte)
+        dataSet: gdal.Dataset = driver.Create(path, 2, 2, bands=1, eType=gdal.GDT_Byte)
         assert isinstance(dataSet, gdal.Dataset)
+        drv: gdal.Driver = dataSet.GetDriver()
         c = QgsCoordinateReferenceSystem('EPSG:32632')
         dataSet.SetProjection(c.toWkt())
         dataSet.SetGeoTransform([0, 1.0, 0, 0, 0, -1.0])
@@ -1701,6 +1768,8 @@ def check_vsimem() -> bool:
         layer = QgsRasterLayer(path)
         assert isinstance(layer, QgsRasterLayer)
         result = layer.isValid()
+        del layer
+        drv.Delete(path)
 
     except Exception as ex:
         return False
@@ -2026,7 +2095,7 @@ class SpatialExtent(QgsRectangle):
         return SpatialExtent(crs, rectangle)
 
     @staticmethod
-    def fromMapCanvas(mapCanvas, fullExtent=False):
+    def fromMapCanvas(mapCanvas, fullExtent:bool=False):
         assert isinstance(mapCanvas, QgsMapCanvas)
 
         if fullExtent:
@@ -2214,11 +2283,27 @@ class SpatialExtent(QgsRectangle):
     def __copy__(self):
         return SpatialExtent(self.crs(), QgsRectangle(self))
 
-    def __reduce_ex__(self, protocol):
-        return self.__class__, (self.crs().toWkt(),
-                                self.xMinimum(), self.yMinimum(),
-                                self.xMaximum(), self.yMaximum()
-                                ), {}
+    def __reduce__(self):
+
+        return self.__class__, ('',), self.__getstate__()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('mCrs')
+        state['_crs_'] = self.crs().toWkt()
+        state['_xmin_'] = self.xMinimum()
+        state['_xmax_'] = self.xMaximum()
+        state['_ymin_'] = self.yMinimum()
+        state['_ymax_'] = self.yMaximum()
+        return state
+
+    def __setstate__(self, state):
+        self.setCrs(QgsCoordinateReferenceSystem(state.pop('_crs_')))
+        self.setXMinimum(state.pop('_xmin_'))
+        self.setXMaximum(state.pop('_xmax_'))
+        self.setYMinimum(state.pop('_ymin_'))
+        self.setYMaximum(state.pop('_ymax_'))
+        self.__dict__.update(state)
 
     def __hash__(self):
         return hash(str(self))
@@ -2255,26 +2340,6 @@ def setToolButtonDefaultActionMenu(toolButton: QToolButton, actions: list):
 
     menu.triggered.connect(toolButton.setDefaultAction)
     toolButton.setMenu(menu)
-
-
-class SearchFilesDialog(QgsDialog):
-    """
-    A dialog to select multiple files
-    """
-    sigFilesFound = pyqtSignal(list)
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-        loadUi(DIR_UI_FILES / 'searchfilesdialog.ui', self)
-
-        self.btnMatchCase.setDefaultAction(self.optionMatchCase)
-        self.btnRegex.setDefaultAction(self.optionRegex)
-        self.btnRecursive.setDefaultAction(self.optionRecursive)
-        self.plainTextEdit: QPlainTextEdit
-
-    def validate(self):
-        s = ""
-
 
 class SelectMapLayersDialog(QgsDialog):
     class LayerDescription(object):

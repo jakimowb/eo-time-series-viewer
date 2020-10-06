@@ -1,5 +1,5 @@
 # PyQtGraph Library:
-PyQtGraph is a poweful library for interactive scientific plotting based on Qt
+PyQtGraph is a powerful library for interactive scientific plotting based on Qt
 PyQtGrapg was embedded into QPS as described in https://pyqtgraph.readthedocs.io/en/latest/how_to_use.html#embedding-pyqtgraph-as-a-sub-package-of-a-larger-project
 
 ## Links
@@ -13,7 +13,7 @@ https://pyqtgraph.readthedocs.io/en/latest/
 Please note that PyQtGraph is distributed under the following licence:
 
 Copyright (c) 2012  University of North Carolina at Chapel Hill
-Luke Campagnola   ('luke.campagnola@%s.com' % 'gmail')
+Luke Campagnola ('luke.campagnola@%s.com' % 'gmail')
 
 The MIT License
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:

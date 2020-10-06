@@ -77,7 +77,6 @@ def hasClassification(pathOrDataset):
     :return: True | False
     """
     ds = None
-    from qps.utils import gdalDataset
     try:
         if isinstance(pathOrDataset, gdal.Dataset):
             ds = pathOrDataset
@@ -129,7 +128,7 @@ class ClassInfo(QObject):
 
         self.mName = name
         self.mLabel = label
-        self.mColor = color
+        self.mColor = None
         if color:
             self.setColor(color)
 
@@ -169,6 +168,8 @@ class ClassInfo(QObject):
         Sets the class color.
         :param color: QColor
         """
+        if not isinstance(color, QColor):
+            color = QColor(color)
         assert isinstance(color, QColor)
         self.mColor = color
         self.sigSettingsChanged.emit()
@@ -208,7 +209,9 @@ class ClassInfo(QObject):
         Create a copy of this ClassInfo
         :return: ClassInfo
         """
-        return ClassInfo(name=self.mName, color=self.mColor)
+        return ClassInfo(name=self.mName,
+                         color=self.mColor,
+                         label=self.mLabel)
 
     def __hash__(self):
         return hash(id(self))
@@ -250,11 +253,13 @@ class ClassificationScheme(QAbstractTableModel):
 
     sigIsEditableChanged = pyqtSignal(bool)
 
-    def __init__(self, name: str = None):
+    def __init__(self, name: str = None, zero_based: bool = False):
         super(ClassificationScheme, self).__init__()
         self.mClasses = []
         self.mName = name
         self.mIsEditable = True
+
+        self.mZeroBased: bool = zero_based
 
         if name is None:
             name = 'Classification'
@@ -427,6 +432,8 @@ class ClassificationScheme(QAbstractTableModel):
                 return 'Class color "{}"'.format(classInfo.color().name())
 
         if role == Qt.EditRole:
+            if col == 0:
+                return classInfo.label()
             if col == 1:
                 return classInfo.name()
             if col == 2:
@@ -452,6 +459,9 @@ class ClassificationScheme(QAbstractTableModel):
         classInfo = self.index2ClassInfo(row)
         b = False
         if role == Qt.EditRole:
+            if col == 0:
+                classInfo.setLabel(int(value))
+                b = True
             if col == 1:
                 classInfo.setName(value)
                 b = True
@@ -470,8 +480,11 @@ class ClassificationScheme(QAbstractTableModel):
         flags = Qt.ItemIsSelectable | Qt.ItemIsEnabled
         if self.mIsEditable:
             flags |= Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled
-            if col == 1 and self.isEditable():
-                flags |= Qt.ItemIsEditable
+            if self.isEditable():
+                if col == 0  and not self.mZeroBased:
+                    flags |= Qt.ItemIsEditable
+                elif col == 1:
+                    flags |= Qt.ItemIsEditable
         return flags
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
@@ -544,7 +557,10 @@ class ClassificationScheme(QAbstractTableModel):
                     with open(p, 'r') as f:
                         jsonStr = f.read()
                     return ClassificationScheme.fromJson(jsonStr)
-
+                elif p.endswith('.csv'):
+                    return ClassificationScheme.fromCsv(p)
+                elif p.endswith('.qml'):
+                    return ClassificationScheme.fromQml(p)
         except Exception as ex:
             print(ex, file=sys.stderr)
         return None
@@ -574,9 +590,9 @@ class ClassificationScheme(QAbstractTableModel):
         classes = []
         for classInfo in self:
             qgsClass = QgsPalettedRasterRenderer.Class(
-                classInfo.label(),
-                classInfo.color(),
-                classInfo.name())
+                int(classInfo.label()),
+                color=classInfo.color(),
+                label=classInfo.name())
             classes.append(qgsClass)
         renderer = QgsPalettedRasterRenderer(None, band, classes)
         return renderer
@@ -761,7 +777,11 @@ class ClassificationScheme(QAbstractTableModel):
     def _updateLabels(self):
         """
         Assigns class labels according to the ClassInfo position
+        in case the ClassificationScheme is zero-based
         """
+        if not self.mZeroBased:
+            return
+
         for i, c in enumerate(self.mClasses):
             c.mLabel = i
         self.dataChanged.emit(self.createIndex(0, 0),
@@ -819,7 +839,7 @@ class ClassificationScheme(QAbstractTableModel):
                 color = QColor(nextCol)
                 nextCol = nextColor(nextCol)
                 name = 'Class {}'.format(j)
-            classes.append(ClassInfo(name=name, color=color))
+            classes.append(ClassInfo(name=name, color=color, label=j))
         self.insertClasses(classes)
 
     def addClasses(self, classes, index=None):
@@ -861,10 +881,6 @@ class ClassificationScheme(QAbstractTableModel):
         self.endInsertRows()
         self._updateLabels()
         self.sigClassesAdded.emit(classes)
-
-    # sigClassInfoChanged = pyqtSignal(ClassInfo)
-    # def onClassInfoSettingChanged(self, *args):
-    #    self.sigClassInfoChanged.emit(self.sender())
 
     def classIndexFromValue(self, value, matchSimilarity=False) -> int:
         """
@@ -1110,19 +1126,25 @@ class ClassificationScheme(QAbstractTableModel):
         :return: ClassificationScheme, None if classes are undefined.
         """
         assert isinstance(band, gdal.Band)
-        cat = band.GetCategoryNames()
         ct = band.GetColorTable()
-        if cat is None or len(cat) == 0:
+        cat = band.GetCategoryNames()
+        if not isinstance(cat, list) or len(cat) == 0:
             return None
         scheme = ClassificationScheme()
         classes = []
         for i, catName in enumerate(cat):
-            cli = ClassInfo(name=catName, label=i)
+            classInfo: ClassInfo = ClassInfo(name=catName, label=i)
+            NULL = QVariant()
             if ct is not None:
-                cli.setColor(QColor(*ct.GetColorEntry(i)))
-            classes.append(cli)
+                gdal_color = ct.GetColorEntry(i)
+                if gdal_color in [None, NULL]:
+                    gdal_color = (0, 0, 0, 0)
+                classInfo.setColor(QColor(*gdal_color))
+            classes.append(classInfo)
+
         if len(classes) == 0:
             return None
+
         scheme.insertClasses(classes)
         return scheme
 
@@ -1202,6 +1224,7 @@ class ClassificationScheme(QAbstractTableModel):
         # read CSV data
         reader = csv.DictReader(lines[i:], delimiter=delimiter)
 
+        iLabel = None
         iName = None
         iColor = None
         for i, name in enumerate(reader.fieldnames):
@@ -1209,6 +1232,8 @@ class ClassificationScheme(QAbstractTableModel):
                 iName = i
             if iColor is None and re.search(r'color', name, re.I):
                 iColor = i
+            if iLabel is None and re.search(r'label', name, re.I):
+                iLabel = i
         rows = [row for row in reader]
 
         nc = len(rows)
@@ -1219,6 +1244,8 @@ class ClassificationScheme(QAbstractTableModel):
         for i, row in enumerate(rows):
             c = cs[i]
             assert isinstance(c, ClassInfo)
+            if iLabel is not None:
+                c.setLabel(int(row[fieldnames[iLabel]]))
             if iName is not None:
                 c.setName(row[fieldnames[iName]])
             if iColor is not None:
@@ -1610,7 +1637,7 @@ class ClassificationSchemeWidget(QWidget):
                                                        "Read classes from text file",
                                                        "/home", filter)
             if isinstance(path, str) and os.path.isfile(path):
-                cs = ClassificationScheme.fromFile()
+                cs = ClassificationScheme.fromFile(path)
                 if isinstance(cs, ClassificationScheme):
                     self.mScheme.insertClasses(cs[:])
 
@@ -1862,11 +1889,77 @@ class ClassificationSchemeEditorConfigWidget(QgsEditorConfigWidget):
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, parent: QWidget):
         super(ClassificationSchemeEditorConfigWidget, self).__init__(vl, fieldIdx, parent)
         # self.setupUi(self)
+        assert isinstance(vl, QgsVectorLayer)
         self.mSchemeWidget = ClassificationSchemeWidget(parent=self)
-        self.mSchemeWidget.sigValuesChanged.connect(self.changed)
+        self.mSchemeWidget.classificationScheme().sigClassesAdded.connect(self.onClassesAdded)
+        self.mSchemeWidget.classificationScheme().sigClassesRemoved.connect(self.onClassesRemoved)
+
+        self.mActionImport = QAction('Import from layer')
+        self.mActionImport.setIcon(QIcon(':/qps/ui/icons/import_symbology.svg'))
+        self.mActionImport.triggered.connect(self.onImportFromLayer)
+
+        self.mActionExport = QAction('Set to layer')
+        self.mActionExport.triggered.connect(self.onExportToLayer)
+        self.mActionExport.setIcon(QIcon(':/qps/ui/icons/export_symbology.svg'))
+
+        self.btnImport = QToolButton(parent=self.mSchemeWidget)
+        self.btnExport = QToolButton(parent=self.mSchemeWidget)
+        self.btnImport.setDefaultAction(self.mActionImport)
+        self.btnExport.setDefaultAction(self.mActionExport)
+        self.btnImport.setAutoRaise(True)
+        self.btnExport.setAutoRaise(True)
+
+        l: QVBoxLayout = self.mSchemeWidget.btnBarLayout
+        l.addWidget(self.btnImport)
+        l.addWidget(self.btnExport)
+
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.mSchemeWidget)
+        vl.rendererChanged.connect(self.updateButtons)
         self.mLastConfig = {}
+
+    def onImportFromLayer(self):
+
+        lyr: QgsVectorLayer = self.layer()
+
+        if isinstance(lyr, QgsVectorLayer):
+            r = lyr.renderer()
+            if isinstance(r, QgsCategorizedSymbolRenderer):
+                cs = ClassificationScheme.fromFeatureRenderer(r)
+                if len(cs) > 0:
+                    self.classificationScheme().clear()
+                    self.classificationScheme().insertClasses(cs[:])
+
+    def onExportToLayer(self):
+        cs = self.classificationScheme()
+        if isinstance(cs, ClassificationScheme) and len(cs) > 0:
+            renderer = cs.featureRenderer()
+            renderer.setClassAttribute(self.layer().fields().at(self.field()).name())
+
+            self.layer().setRenderer(renderer)
+
+    def onClassesAdded(self):
+        self.updateButtons()
+
+    def onClassesRemoved(self):
+        self.updateButtons()
+
+    def classificationScheme(self) -> ClassificationScheme:
+        return self.mSchemeWidget.classificationScheme()
+
+    def updateButtons(self):
+
+        self.mActionExport.setEnabled(len(self.classificationScheme()) > 0)
+        lyr: QgsVectorLayer = self.layer()
+
+        has_classes = False
+        if isinstance(lyr, QgsVectorLayer):
+            r = lyr.renderer()
+            if isinstance(r, QgsCategorizedSymbolRenderer):
+                has_classes = r.classAttribute() in self.layer().fields().names()
+
+        self.mActionImport.setEnabled(has_classes)
+
 
     def config(self, *args, **kwargs) -> dict:
         return classSchemeToConfig(self.mSchemeWidget.classificationScheme())

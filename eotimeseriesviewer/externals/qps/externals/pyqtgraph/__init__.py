@@ -4,7 +4,7 @@ PyQtGraph - Scientific Graphics and GUI Library for Python
 www.pyqtgraph.org
 """
 
-__version__ = '0.11.0rc0'
+__version__ = '0.11.0'
 
 ### import all the goodies and add some helper functions for easy CLI use
 
@@ -219,6 +219,7 @@ from .graphicsItems.ViewBox import *
 from .graphicsItems.ArrowItem import * 
 from .graphicsItems.ImageItem import * 
 from .graphicsItems.AxisItem import * 
+from .graphicsItems.DateAxisItem import *
 from .graphicsItems.LabelItem import * 
 from .graphicsItems.CurvePoint import * 
 from .graphicsItems.GraphicsWidgetAnchor import * 
@@ -412,12 +413,20 @@ def plot(*args, **kargs):
             dataArgs[k] = kargs[k]
         
     w = PlotWindow(**pwArgs)
+    w.sigClosed.connect(_plotWindowClosed)
     if len(args) > 0 or len(dataArgs) > 0:
         w.plot(*args, **dataArgs)
     plots.append(w)
     w.show()
     return w
-    
+
+def _plotWindowClosed(w):
+    w.close()
+    try:
+        plots.remove(w)
+    except ValueError:
+        pass
+
 def image(*args, **kargs):
     """
     Create and return an :class:`ImageWindow <pyqtgraph.ImageWindow>` 
@@ -428,10 +437,18 @@ def image(*args, **kargs):
     """
     mkQApp()
     w = ImageWindow(*args, **kargs)
+    w.sigClosed.connect(_imageWindowClosed)
     images.append(w)
     w.show()
     return w
 show = image  ## for backward compatibility
+
+def _imageWindowClosed(w):
+    w.close()
+    try:
+        images.remove(w)
+    except ValueError:
+        pass
 
 def dbg(*args, **kwds):
     """

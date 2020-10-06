@@ -27,7 +27,7 @@
 import sys, importlib, site, os, pathlib, typing
 from qgis.core import QgsApplication
 from qgis.gui import QgisInterface, QgsMapLayerConfigWidgetFactory
-__version__ = '0.3'
+__version__ = '1.0'
 
 DIR_UI_FILES = pathlib.Path(__file__).parent / 'ui'
 DIR_ICONS = DIR_UI_FILES / 'icons'

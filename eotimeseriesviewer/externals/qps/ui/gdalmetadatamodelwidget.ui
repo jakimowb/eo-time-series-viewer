@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>621</width>
-    <height>517</height>
+    <height>717</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,6 +35,12 @@
    </property>
    <item>
     <widget class="QgsCollapsibleGroupBox" name="gbBandNames">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
      <property name="minimumSize">
       <size>
        <width>0</width>
@@ -42,7 +48,7 @@
       </size>
      </property>
      <property name="title">
-      <string>Band Names</string>
+      <string>Band Properties</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <property name="spacing">
@@ -61,13 +67,49 @@
        <number>6</number>
       </property>
       <item>
-       <widget class="QTableView" name="tvBandNames"/>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Wavelength Units</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="cbWavelengthUnits"/>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="GDALBandMetadataModelTableView" name="tvBandNames"/>
       </item>
      </layout>
     </widget>
    </item>
    <item>
     <widget class="QgsCollapsibleGroupBox" name="gbClassificationScheme">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
      <property name="minimumSize">
       <size>
        <width>0</width>
@@ -111,6 +153,12 @@
    </item>
    <item>
     <widget class="QgsCollapsibleGroupBox" name="gbGDALMetadata">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
      <property name="minimumSize">
       <size>
        <width>0</width>
@@ -329,6 +377,11 @@
   </customwidget>
   <customwidget>
    <class>GDALMetadataModelTableView</class>
+   <extends>QTableView</extends>
+   <header>qps.layerconfigwidgets.gdalmetadata</header>
+  </customwidget>
+  <customwidget>
+   <class>GDALBandMetadataModelTableView</class>
    <extends>QTableView</extends>
    <header>qps.layerconfigwidgets.gdalmetadata</header>
   </customwidget>

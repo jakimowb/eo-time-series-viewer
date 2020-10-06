@@ -5,7 +5,7 @@
     qps/vectorlayertools.py
 
     A QgsVectorLayerTools implementation to track, react or start
-    modifications of QgsVectorLayers in QGI applications.
+    modifications of QgsVectorLayers in QGIS applications.
     ---------------------
     Beginning            : 2020-03-25
     Copyright            : (C) 2020 by Benjamin Jakimow
@@ -30,6 +30,13 @@ from qgis.core import *
 from qgis.PyQt.QtCore import pyqtSignal
 from qgis.PyQt.QtWidgets import *
 
+from qgis.core import \
+    QgsVectorLayerTools, QgsVectorLayer, Qgis, \
+    QgsSettings, \
+    QgsVectorDataProvider, \
+    QgsFeature, QgsGeometry
+
+from qgis.gui import QgisInterface
 
 from .utils import SpatialExtent, SpatialPoint
 class VectorLayerTools(QgsVectorLayerTools):
@@ -98,7 +105,7 @@ class VectorLayerTools(QgsVectorLayerTools):
         if isinstance(layer, QgsVectorLayer) \
                 and layer.isEditable() \
                 and isinstance(qgis.utils.iface, QgisInterface):
-                qgis.utils.iface.pasteFromClipBoard(layer)
+                qgis.utils.iface.pasteFromClipboard(layer)
 
     def deleteSelected(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.isEditable():

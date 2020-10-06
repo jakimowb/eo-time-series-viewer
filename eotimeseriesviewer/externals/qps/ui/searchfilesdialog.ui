@@ -7,13 +7,31 @@
     <x>0</x>
     <y>0</y>
     <width>444</width>
-    <height>358</height>
+    <height>373</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
   <layout class="QFormLayout" name="formLayout">
+   <property name="horizontalSpacing">
+    <number>2</number>
+   </property>
+   <property name="verticalSpacing">
+    <number>2</number>
+   </property>
+   <property name="leftMargin">
+    <number>2</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>2</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
    <item row="0" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
@@ -21,28 +39,46 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QgsFileWidget" name="mFileWidget"/>
-   </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="QGroupBox" name="groupBox">
+   <item row="4" column="0" colspan="2">
+    <widget class="QGroupBox" name="gbFiles">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>2</verstretch>
+      </sizepolicy>
+     </property>
      <property name="minimumSize">
       <size>
        <width>0</width>
-       <height>150</height>
+       <height>0</height>
       </size>
      </property>
      <property name="title">
-      <string>Preview</string>
+      <string>Files</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <property name="leftMargin">
+       <number>2</number>
+      </property>
+      <property name="topMargin">
+       <number>2</number>
+      </property>
+      <property name="rightMargin">
+       <number>2</number>
+      </property>
+      <property name="bottomMargin">
+       <number>2</number>
+      </property>
       <item>
-       <widget class="QPlainTextEdit" name="plainTextEdit"/>
+       <widget class="QTableView" name="tableView"/>
       </item>
      </layout>
     </widget>
    </item>
-   <item row="4" column="0" colspan="2">
+   <item row="5" column="0" colspan="2">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -52,7 +88,7 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
+   <item row="2" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <property name="spacing">
       <number>2</number>
@@ -81,12 +117,18 @@
        <property name="text">
         <string>Aa</string>
        </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item>
       <widget class="QToolButton" name="btnRegex">
        <property name="text">
-        <string>(.*)</string>
+        <string>.*</string>
+       </property>
+       <property name="autoRaise">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -95,16 +137,43 @@
        <property name="text">
         <string>Rec</string>
        </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
     </layout>
    </item>
-   <item row="1" column="0">
+   <item row="2" column="0">
     <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>File names</string>
+      <string>Filter</string>
      </property>
     </widget>
+   </item>
+   <item row="0" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QgsFileWidget" name="fileWidget"/>
+     </item>
+     <item>
+      <widget class="QToolButton" name="btnReload">
+       <property name="text">
+        <string>Aa</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../../QGIS/images/images.qrc">
+         <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+       </property>
+       <property name="autoRaise">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
   <action name="optionRegex">
@@ -112,7 +181,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>(.*)</string>
+    <string>.*</string>
    </property>
    <property name="toolTip">
     <string>Activate to use regular expression instead of wildcards</string>
@@ -126,11 +195,11 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionRefresh.svg</normaloff>:/images/themes/default/mActionRefresh.svg</iconset>
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/console/iconClassBrowserConsole.svg</normaloff>:/images/themes/default/console/iconClassBrowserConsole.svg</iconset>
    </property>
    <property name="text">
-    <string>Recursively</string>
+    <string>Recursive</string>
    </property>
    <property name="toolTip">
     <string>Activate to search subfolders recursively</string>
@@ -150,6 +219,15 @@
     <string>Activate to search case sensitive</string>
    </property>
   </action>
+  <action name="actionReload">
+   <property name="icon">
+    <iconset resource="../../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Reload</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -164,7 +242,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../../QGIS/images/images.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
@@ -174,8 +252,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>257</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -190,8 +268,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>325</x>
+     <y>345</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>

@@ -45,8 +45,6 @@ def getDOMAttributes(elem):
         values[str(attr.nodeName())] = attr.nodeValue()
     return values
 
-
-
 def compileResourceFiles(dirRoot:str, targetDir:str=None, suffix:str= '_rc.py'):
     """
     Searches for *.ui files and compiles the *.qrc files they use.

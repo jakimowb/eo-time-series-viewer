@@ -1,5 +1,10 @@
 <RCC>
   <qresource prefix="qps">
+    <file>ui/icons/export_symbology.svg</file>
+    <file>ui/icons/import_symbology.svg</file>
+    <file>ui/icons/speclib_usevectorrenderer.svg</file>
+    <file>ui/icons/profiletheme_bright.svg</file>
+    <file>ui/icons/profiletheme_dark.svg</file>
     <file>ui/icons/edit_ogr_metadata.svg</file>
     <file>ui/icons/edit_gdal_metadata.svg</file>
     <file>ui/icons/rasterband_select.svg</file>

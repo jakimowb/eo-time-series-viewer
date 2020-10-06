@@ -25,21 +25,22 @@
 ***************************************************************************
 """
 
-import os, sys, re, pathlib, json, io, re, linecache, typing
-from qgis.PyQt.QtCore import *
+import sys
+import typing
+
+from qgis.PyQt import sip
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from qgis.core import *
-from qgis.PyQt import sip
-
-
-from ..core import SpectralProfile, SpectralLibrary, AbstractSpectralLibraryIO, FIELD_FID, FIELD_VALUES, \
-    FIELD_NAME, findTypeFromString, createQgsField, OGR_EXTENSION2DRIVER, ProgressHandler
+from qgis.PyQt.QtCore import *
+from qgis.core import QgsTask, QgsMapLayer, QgsVectorLayer, QgsRasterLayer, QgsWkbTypes, \
+    QgsTaskManager, QgsMapLayerProxyModel, QgsApplication
+from ..core import SpectralProfile, SpectralLibrary
 from ...utils import SelectMapLayersDialog
+
 
 class SpectralProfileLoadingTask(QgsTask):
 
-    def __init__(self, path_vector: str, path_raster: str, all_touched: bool = True, copy_attributes: bool =False):
+    def __init__(self, path_vector: str, path_raster: str, all_touched: bool = True, copy_attributes: bool = False):
         super().__init__('Load spectral profiles', QgsTask.CanCancel)
         assert isinstance(path_vector, str)
         assert isinstance(path_raster, str)
@@ -143,7 +144,7 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
         self.mIsFinished = True
         self.reject()
 
-    def onVectorLayerChanged(self, layer:QgsVectorLayer):
+    def onVectorLayerChanged(self, layer: QgsVectorLayer):
         self.mCbTouched.setEnabled(isinstance(layer, QgsVectorLayer) and
                                    QgsWkbTypes.geometryType(layer.wkbType()) == QgsWkbTypes.PolygonGeometry)
 
@@ -187,7 +188,7 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
         return self.mIsFinished
 
     def onTerminated(self, *args):
-        s  =""
+        s = ""
         self.setResult(QDialog.Rejected)
         self.mIsFinished = True
         self.reject()
