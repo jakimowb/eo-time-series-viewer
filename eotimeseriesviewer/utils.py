@@ -20,20 +20,9 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, math, re, io, fnmatch, uuid
 
-
-from collections import defaultdict
-from qgis.core import *
-from qgis.gui import *
 from qgis.gui import QgisInterface
 import qgis.utils
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtXml import QDomDocument
-from PyQt5 import uic
-from osgeo import gdal, ogr
 
 from eotimeseriesviewer.externals.qps.utils import *
 

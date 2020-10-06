@@ -43,7 +43,7 @@ from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
     QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol, \
-    QgsProjectArchive, QgsZipUtils
+    QgsProjectArchive, QgsZipUtils, QgsPointXY
 
 from qgis.gui import *
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
@@ -410,8 +410,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return EOTimeSeriesViewer._instance
 
-    sigCurrentLocationChanged = pyqtSignal([SpatialPoint],
-                                           [SpatialPoint, QgsMapCanvas])
+    sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
+                                           [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
 
     sigCurrentSpectralProfilesChanged = pyqtSignal(list)
     sigCurrentTemporalProfilesChanged = pyqtSignal(list)
@@ -456,15 +456,19 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTaskManagerButton.setFont(statusBarFont)
         self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
         self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
-        mvd = self.ui.dockMapViews
-        dts = self.ui.dockTimeSeries
-        mw = self.ui.mMapWidget
-
         self.mMapLayerStore = self.mapWidget().mMapLayerStore
+
         import eotimeseriesviewer.utils
         eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
         from eotimeseriesviewer.timeseries import TimeSeriesDock
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
+
+        mvd: MapViewDock = self.ui.dockMapViews
+        dts = self.ui.dockTimeSeries
+        mw: MapWidget = self.ui.mMapWidget
+
+
+
         assert isinstance(mvd, MapViewDock)
         assert isinstance(mw, MapWidget)
         assert isinstance(dts, TimeSeriesDock)
@@ -515,7 +519,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
-        mw.sigCurrentLocationChanged.connect(self.setCurrentLocation)
+        mw.sigCurrentLocationChanged.connect(
+            lambda crs, pt, canvas=mw: self.setCurrentLocation(SpatialPoint(crs, pt),
+                                                               mapCanvas=mw.currentMapCanvas()))
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
 
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
@@ -631,14 +637,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel, SpectralLibraryWidget
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        SLW = self.ui.dockSpectralLibrary.spectralLibraryWidget()
+        SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         assert isinstance(SLW, SpectralLibraryWidget)
-
-        SLW.setMapInteraction(True)
-        SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
-        SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
-        SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
-
+        SLW.actionSelectProfilesFromMap.setVisible(True)
+        SLW.sigLoadFromMapRequest.connect(lambda *args: self.setMapTool(MapTools.SpectralProfile))
+        #SLW.setMapInteraction(True)
+        #SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
+        #SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
+        #SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
+        SLW.setVectorLayerTools(self.mVectorLayerTools)
         # add time-specific fields
         sl = self.spectralLibrary()
 
@@ -1202,7 +1209,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mCurrentMapLocation = spatialPoint
 
         if isinstance(mapCanvas, QgsMapCanvas):
-            self.sigCurrentLocationChanged[SpatialPoint, QgsMapCanvas].emit(self.mCurrentMapLocation, mapCanvas)
+            self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(
+                self.mCurrentMapLocation.crs(), self.mCurrentMapLocation, mapCanvas)
 
             if bCLV:
                 self.loadCursorLocationValueInfo(spatialPoint, mapCanvas)
@@ -1216,7 +1224,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if bTP:
             self.loadCurrentTemporalProfile(spatialPoint)
 
-        self.sigCurrentLocationChanged[SpatialPoint].emit(self.mCurrentMapLocation)
+        self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(
+            self.mCurrentMapLocation.crs(),
+            self.mCurrentMapLocation)
 
     @pyqtSlot(SpatialPoint, QgsMapCanvas)
     def loadCursorLocationValueInfo(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):

@@ -20,43 +20,34 @@
  ***************************************************************************/
 """
 
-import os
+import enum
 import sys
-import re
-import fnmatch
-import collections
-import copy
 import traceback
-import bisect
-import json
-from eotimeseriesviewer import DIR_UI
-from qgis.core import *
-from qgis.core import QgsContrastEnhancement, QgsRasterShader, QgsColorRampShader, QgsProject, \
-    QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
+import typing
+
+import numpy as np
+
+import qgis.utils
+from qgis.PyQt.QtCore import Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
+from qgis.PyQt.QtGui import QColor, QIcon, QGuiApplication, QMouseEvent
+from qgis.PyQt.QtWidgets import QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, QToolBox, QDialog
+from qgis.PyQt.QtXml import QDomDocument, QDomNode, QDomElement
+from qgis.core import QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, \
     QgsLayerTree, QgsLayerTreeLayer, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
-
-from qgis.gui import *
-from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsPointXY, QgsReadWriteContext
+from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
     QgsProjectionSelectionWidget, QgsMessageBar
-from qgis.PyQt.QtXml import *
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-import numpy as np
-from .utils import *
-from . import Option, OptionListModel
-from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
-from .utils import loadUi
-from .mapviewscrollarea import MapViewScrollArea
-from .mapcanvas import MapCanvas, MapTools, MapCanvasInfoItem, MapCanvasMapTools, KEY_LAST_CLICKED
-from eotimeseriesviewer import debugLog
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
-from .externals.qps.layerproperties import showLayerPropertiesDialog
-from .externals.qps.maptools import *
-
+from .externals.qps.layerproperties import VectorLayerTools
+from .externals.qps.maptools import MapTools
+from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
+from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
+from .utils import loadUi, SpatialPoint, SpatialExtent, datetime64
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.main import fixMenuButtons
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
 KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
@@ -999,7 +990,7 @@ class MapWidget(QFrame):
     sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
     sigCurrentMapViewChanged = pyqtSignal(MapView)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
-    sigCurrentLocationChanged = pyqtSignal(SpatialPoint, MapCanvas)
+    sigCurrentLocationChanged = pyqtSignal(QgsCoordinateReferenceSystem, QgsPointXY)
     sigVisibleDatesChanged = pyqtSignal(list)
     sigViewModeChanged = pyqtSignal(ViewMode)
 
@@ -1349,7 +1340,6 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self.__updateCanvasDates)
             self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateSliderRange)
-
 
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
@@ -1728,7 +1718,7 @@ class MapWidget(QFrame):
         # mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.connect(self.onCanvasClicked)
-        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].connect(
+        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[QgsCoordinateReferenceSystem, QgsPointXY].connect(
             self.sigCurrentLocationChanged)
 
     def _disconnectCanvasSignals(self, mapCanvas: MapCanvas):
@@ -2209,8 +2199,6 @@ class MapViewDock(QgsDockWidget):
         return QSize(self.spinBoxMapSizeX.value(),
                      self.spinBoxMapSizeY.value())
 
-    def dummySlot(self):
-        s = ""
 
     def onMapViewsRemoved(self, mapViews):
 

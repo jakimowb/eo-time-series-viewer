@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-
+import os
 import bisect
 import collections
 import datetime
@@ -35,7 +35,6 @@ from osgeo import osr, ogr, gdal_array
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.utils import relativePath
-from qgis import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -1358,7 +1357,7 @@ class TimeSeries(QAbstractItemModel):
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None
-
+        self.mTreeView: QTreeView = None
         self.mDateTimePrecision = DateTimePrecision.Original
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 

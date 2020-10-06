@@ -22,12 +22,12 @@
 
 import os
 import sys
-import pickle
 import datetime
 import re
-
+import typing
+import pathlib
+import traceback
 from collections import OrderedDict
-from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsDateTimeRange, \
     QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol,  \
@@ -37,23 +37,20 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOut
     QgsConditionalStyle, QgsConditionalLayerStyles, \
     QgsField, QgsFields, QgsExpressionContext, QgsExpression
 
-from qgis.gui import *
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface, \
     QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, QgsAttributeTableView
-from qgis.analysis import *
+
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 import numpy as np
 from osgeo import ogr, osr, gdal
 from .externals import pyqtgraph as pg
-from .externals.pyqtgraph import functions as fn, AxisItem, ScatterPlotItem, SpotItem, GraphicsScene
-from .externals.qps.plotstyling.plotstyling import PlotStyle
 
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
-from .utils import *
-from .externals.qps.speclib.core import createQgsField
+from .utils import SpatialExtent, SpatialPoint, px2geo, geo2px
+from .externals.qps.speclib.core import createQgsField, setQgsFieldValue
 
 
 LABEL_EXPRESSION_2D = 'DN or Index'
@@ -954,7 +951,8 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         assert isinstance(temporalProfiles, list)
 
-        temporalProfiles = [tp for tp in temporalProfiles if isinstance(tp, TemporalProfile) and tp.id() in self.mProfiles.keys()]
+        temporalProfiles = [tp for tp in temporalProfiles
+                            if isinstance(tp, TemporalProfile) and tp.id() in self.mProfiles.keys()]
 
         if len(temporalProfiles) > 0:
             b = self.isEditable()

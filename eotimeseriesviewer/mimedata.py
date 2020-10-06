@@ -1,8 +1,7 @@
-
-
-from qgis.core import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtXml import *
+from qgis.core import QgsReadWriteContext, QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer
+from qgis.gui import QgsLayerTreeLayer, QgsLayerTreeGroup, QgsLayerTree
 import re
 from qgis.gui import *
 
@@ -60,8 +59,6 @@ def fromLayerList(mapLayers):
     return mimeData
 
 
-
-
 def toLayerList(mimeData):
     """
     Extracts a layer-tree-group from a QMimeData
@@ -77,14 +74,13 @@ def toLayerList(mimeData):
         xml = doc.toString()
         node = doc.firstChildElement(MDF_LAYERTREEMODELDATA_XML)
         context = QgsReadWriteContext()
-        #context.setPathResolver(QgsProject.instance().pathResolver())
+        # context.setPathResolver(QgsProject.instance().pathResolver())
         layerTree = QgsLayerTree.readXml(node, context)
         lt = QgsLayerTreeGroup.readXml(node, context)
-        #layerTree.resolveReferences(QgsProject.instance(), True)
+        # layerTree.resolveReferences(QgsProject.instance(), True)
         registeredLayers = QgsProject.instance().mapLayers()
 
-
-        attributesLUT= {}
+        attributesLUT = {}
         childs = node.childNodes()
 
         for i in range(childs.count()):
@@ -118,7 +114,7 @@ def toLayerList(mimeData):
             if isinstance(mapLayer, QgsMapLayer):
                 newMapLayers.append(mapLayer)
     elif MDF_URILIST in mimeData.formats():
-       pass
+        pass
     else:
         s = ""
 
@@ -139,6 +135,7 @@ def textToByteArray(text):
         data.append(text)
         return data
 
+
 def textFromByteArray(data):
     """
     Decodes a QByteArray into a str
@@ -148,4 +145,3 @@ def textFromByteArray(data):
     assert isinstance(data, QByteArray)
     s = data.data().decode()
     return s
-

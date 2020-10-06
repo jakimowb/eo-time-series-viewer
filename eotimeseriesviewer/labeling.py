@@ -1,10 +1,8 @@
 
 import enum
-from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, QgsFields, \
     QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, \
     QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsProject, QgsMapLayerStore, QgsSymbol
-from qgis.gui import *
 from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
     QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
     QgsGui, QgsEditorWidgetRegistry, QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit

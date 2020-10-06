@@ -20,28 +20,35 @@
 """
 # noinspection PyPep8Naming
 
-import os, sys, pickle, datetime
+import sys
+import typing
+import re
 from collections import OrderedDict
-from qgis.gui import *
-from qgis.core import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtXml import *
 from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsPoint, QgsPointXY, \
+    QgsAttributeTableConfig, QgsMapLayerProxyModel, QgsFeature, QgsCoordinateReferenceSystem
+from qgis.gui import QgsFieldExpressionWidget, QgsFeatureListComboBox, QgsDockWidget
 
+
+import numpy as np
 
 from eotimeseriesviewer import DIR_UI
-from .timeseries import *
+from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
 from .utils import SpatialExtent, SpatialPoint, px2geo, loadUi, nextColor
 from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from .externals.pyqtgraph import ScatterPlotItem, SpotItem, GraphicsScene
 from .externals.qps.externals.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent, MouseDragEvent
 from .externals import pyqtgraph as pg
+from .externals.pyqtgraph import fn
 from .externals.qps.layerproperties import AttributeTableWidget
 from .externals.qps.vectorlayertools import VectorLayerTools
 from .sensorvisualization import SensorListModel
-from .temporalprofiles import *
-
-import numpy as np
+from .temporalprofiles import TemporalProfile, num2date, date2num, TemporalProfileLayer, \
+    LABEL_EXPRESSION_2D, LABEL_TIME, sensorExampleQgsFeature, FN_ID, bandKey2bandIndex, bandIndex2bandKey, \
+    dateDOY, rxBandKey, rxBandKeyExact
 
 DEBUG = False
 OPENGL_AVAILABLE = False
@@ -49,11 +56,11 @@ ENABLE_OPENGL = False
 
 try:
     import OpenGL
+
     OPENGL_AVAILABLE = True
 
 except Exception as ex:
     print('unable to import OpenGL based packages:\n{}'.format(ex))
-
 
 
 def getTextColorWithContrast(c):
@@ -62,6 +69,7 @@ def getTextColorWithContrast(c):
         return QColor('white')
     else:
         return QColor('black')
+
 
 def selectedModelIndices(tableView):
     assert isinstance(tableView, QTableView)
@@ -77,7 +85,6 @@ def selectedModelIndices(tableView):
     return result.values()
 
 
-
 class _SensorPoints(pg.PlotDataItem):
     def __init__(self, *args, **kwds):
         super(_SensorPoints, self).__init__(*args, **kwds)
@@ -86,11 +93,10 @@ class _SensorPoints(pg.PlotDataItem):
         self.menu = None
 
     def boundingRect(self):
-        return super(_SensorPoints,self).boundingRect()
+        return super(_SensorPoints, self).boundingRect()
 
     def paint(self, p, *args):
         super(_SensorPoints, self).paint(p, *args)
-
 
     # On right-click, raise the context menu
     def mouseClickEvent(self, ev):
@@ -128,7 +134,7 @@ class _SensorPoints(pg.PlotDataItem):
 
             alpha = QWidgetAction(self.menu)
             alphaSlider = QSlider()
-            alphaSlider.setOrientation(QtCore.Qt.Horizontal)
+            alphaSlider.setOrientation(Qt.Horizontal)
             alphaSlider.setMaximum(255)
             alphaSlider.setValue(255)
             alphaSlider.valueChanged.connect(self.setAlpha)
@@ -140,7 +146,6 @@ class _SensorPoints(pg.PlotDataItem):
 
 
 class TemporalProfilePlotStyle(PlotStyle):
-
     sigStyleUpdated = pyqtSignal()
     sigDataUpdated = pyqtSignal()
 
@@ -167,7 +172,8 @@ class TemporalProfilePlotStyle(PlotStyle):
         """
         Returns True if this style has all information to get plotted
         """
-        return self.isVisible() and isinstance(self.temporalProfile(), TemporalProfile) and isinstance(self.sensor(), SensorInstrument)
+        return self.isVisible() and isinstance(self.temporalProfile(), TemporalProfile) and isinstance(self.sensor(),
+                                                                                                       SensorInstrument)
 
     def createPlotItem(self):
         raise NotImplementedError()
@@ -198,7 +204,7 @@ class TemporalProfilePlotStyle(PlotStyle):
 
     def expression(self) -> str:
         return self.mExpression
-    
+
     def expressionBandIndices(self) -> typing.List[int]:
         return [bandKey2bandIndex(k) for k in self.expressionBandKeys()]
 
@@ -213,7 +219,7 @@ class TemporalProfilePlotStyle(PlotStyle):
 
     def __getstate__(self):
         result = super(TemporalProfilePlotStyle, self).__getstate__()
-        #remove
+        # remove
         del result['mTP']
         del result['mSensor']
 
@@ -236,22 +242,23 @@ class TemporalProfilePlotStyle(PlotStyle):
             self.setSensor(plotStyle.sensor())
             self.setTemporalProfile(plotStyle.temporalProfile())
 
+
 class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
     def __init__(self, plotStyle: TemporalProfilePlotStyle, parent=None):
         assert isinstance(plotStyle, TemporalProfilePlotStyle)
 
         super(TemporalProfilePlotDataItem, self).__init__([], [], parent=parent)
-        self.menu = None
-        #self.setFlags(QGraphicsItem.ItemIsSelectable)
-        self.mPlotStyle : TemporalProfilePlotStyle = plotStyle
+        self.menu: QMenu = None
+        # self.setFlags(QGraphicsItem.ItemIsSelectable)
+        self.mPlotStyle: TemporalProfilePlotStyle = plotStyle
         self.setAcceptedMouseButtons(Qt.LeftButton | Qt.RightButton)
         self.mPlotStyle.sigUpdated.connect(self.updateDataAndStyle)
         self.updateDataAndStyle()
 
     # On right-click, raise the context menu
     def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.RightButton:
+        if ev.button() == Qt.RightButton:
             if self.raiseContextMenu(ev):
                 ev.accept()
 
@@ -263,7 +270,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         menu = self.scene().addParentContextMenus(self, menu, ev)
 
         pos = ev.screenPos()
-        menu.popup(QtCore.QPoint(pos.x(), pos.y()))
+        menu.popup(QPoint(pos.x(), pos.y()))
         return True
 
     # This method will be called when this item's _children_ want to raise
@@ -285,7 +292,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
 
             alpha = QWidgetAction(self.menu)
             alphaSlider = QSlider()
-            alphaSlider.setOrientation(QtCore.Qt.Horizontal)
+            alphaSlider.setOrientation(Qt.Horizontal)
             alphaSlider.setMaximum(255)
             alphaSlider.setValue(255)
             alphaSlider.valueChanged.connect(self.setAlpha)
@@ -358,6 +365,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         pen.setWidth(width)
         self.setPen(pen)
 
+
 class PlotSettingsModel(QAbstractTableModel):
 
     def __init__(self, temporalProfileLayer: TemporalProfileLayer, parent=None, *args):
@@ -385,11 +393,11 @@ class PlotSettingsModel(QAbstractTableModel):
     def temporalProfileLayer(self) -> TemporalProfileLayer:
         return self.mTemporalProfileLayer
 
-    def onTemporalProfilesAdded(self, temporalProfiles:typing.List[TemporalProfile]):
+    def onTemporalProfilesAdded(self, temporalProfiles: typing.List[TemporalProfile]):
         if len(temporalProfiles) > 0:
             self.setCurrentProfile(temporalProfiles[-1])
 
-    def onTemporalProfilesDeleted(self, temporalProfiles:typing.List[TemporalProfile]):
+    def onTemporalProfilesDeleted(self, temporalProfiles: typing.List[TemporalProfile]):
         # remote deleted temporal profiles from plotstyles
         col = self.columnNames.index(self.cnTemporalProfile)
         rowMin = rowMax = None
@@ -408,7 +416,7 @@ class PlotSettingsModel(QAbstractTableModel):
                 [Qt.EditRole, Qt.DisplayRole]
             )
 
-    def onTemporalProfilesUpdated(self, temporalProfiles:typing.List[TemporalProfile]):
+    def onTemporalProfilesUpdated(self, temporalProfiles: typing.List[TemporalProfile]):
 
         col = self.columnNames.index(self.cnTemporalProfile)
 
@@ -481,12 +489,12 @@ class PlotSettingsModel(QAbstractTableModel):
             i = len(self.mPlotSettings)
 
         if len(plotStyles) > 0:
-            self.beginInsertRows(QModelIndex(), i, i + len(plotStyles)-1)
+            self.beginInsertRows(QModelIndex(), i, i + len(plotStyles) - 1)
             for j, plotStyle in enumerate(plotStyles):
                 assert isinstance(plotStyle, TemporalProfilePlotStyle)
-                #plotStyle.sigExpressionUpdated.connect(lambda *args, s = plotStyle: self.onStyleUpdated(s))
-                #plotStyle.sigExpressionUpdated.connect(self.sigReloadMissingBandValuesRequest.emit)
-                self.mPlotSettings.insert(i+j, plotStyle)
+                # plotStyle.sigExpressionUpdated.connect(lambda *args, s = plotStyle: self.onStyleUpdated(s))
+                # plotStyle.sigExpressionUpdated.connect(self.sigReloadMissingBandValuesRequest.emit)
+                self.mPlotSettings.insert(i + j, plotStyle)
             self.endInsertRows()
             self.checkForRequiredDataUpdates(plotStyles)
 
@@ -509,7 +517,7 @@ class PlotSettingsModel(QAbstractTableModel):
             plotStyle.setTemporalProfile(temporalProfile)
 
         if len(self) > 0:
-            lastStyle = self[0] #top style in list is the most-recent
+            lastStyle = self[0]  # top style in list is the most-recent
             assert isinstance(lastStyle, TemporalProfilePlotStyle)
             markerColor = nextColor(lastStyle.markerBrush.color())
             plotStyle.markerBrush.setColor(markerColor)
@@ -529,17 +537,16 @@ class PlotSettingsModel(QAbstractTableModel):
                 assert isinstance(plotStyle, PlotStyle)
                 if plotStyle in self.mPlotSettings:
                     idx = self.plotStyle2idx(plotStyle)
-                    self.beginRemoveRows(QModelIndex(), idx.row(),idx.row())
+                    self.beginRemoveRows(QModelIndex(), idx.row(), idx.row())
                     self.mPlotSettings.remove(plotStyle)
                     self.endRemoveRows()
 
-    def rowCount(self, parent = QModelIndex()):
+    def rowCount(self, parent=QModelIndex()):
         return len(self.mPlotSettings)
 
+    def removeRows(self, row, count, parent=QModelIndex()):
 
-    def removeRows(self, row, count , parent = QModelIndex()):
-
-        self.beginRemoveRows(parent, row, row + count-1)
+        self.beginRemoveRows(parent, row, row + count - 1)
 
         toRemove = self.mPlotSettings[row:row + count]
 
@@ -563,7 +570,7 @@ class PlotSettingsModel(QAbstractTableModel):
             return self.mPlotSettings[index.row()]
         return None
 
-    def columnCount(self, parent = QModelIndex()):
+    def columnCount(self, parent=QModelIndex()):
         return len(self.columnNames)
 
     def index(self, row: int, column: int, parent: QModelIndex = None) -> QModelIndex:
@@ -616,7 +623,7 @@ class PlotSettingsModel(QAbstractTableModel):
         columnName = self.columnNames[index.column()]
 
         result = False
-        plotStyle : TemporalProfilePlotStyle = index.data(Qt.UserRole)
+        plotStyle: TemporalProfilePlotStyle = index.data(Qt.UserRole)
 
         if isinstance(plotStyle, TemporalProfilePlotStyle):
             if role == Qt.CheckStateRole:
@@ -656,7 +663,7 @@ class PlotSettingsModel(QAbstractTableModel):
     def restorePlotSettings(self, sensor, index='DEFAULT'):
         return None
 
-    def checkForRequiredDataUpdates(self, profileStyles:typing.List[TemporalProfilePlotStyle]):
+    def checkForRequiredDataUpdates(self, profileStyles: typing.List[TemporalProfilePlotStyle]):
         if not isinstance(profileStyles, list):
             profileStyles = [profileStyles]
 
@@ -685,10 +692,11 @@ class PlotSettingsModel(QAbstractTableModel):
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             if columnName in [self.cnTemporalProfile]:
                 flags = flags | Qt.ItemIsUserCheckable
-            if columnName in [self.cnTemporalProfile, self.cnSensor, self.cnExpression, self.cnStyle]: #allow check state
+            if columnName in [self.cnTemporalProfile, self.cnSensor, self.cnExpression,
+                              self.cnStyle]:  # allow check state
                 flags = flags | Qt.ItemIsEditable
             return flags
-            #return item.qt_flags(index.column())
+            # return item.qt_flags(index.column())
         return Qt.NoItemFlags
 
     def headerData(self, col, orientation, role):
@@ -700,6 +708,7 @@ class PlotSettingsModel(QAbstractTableModel):
             return str(col)
         return None
 
+
 class PlotSettingsTableView(QTableView):
 
     def __init__(self, *args, **kwds):
@@ -710,10 +719,10 @@ class PlotSettingsTableView(QTableView):
         pal.setColor(QPalette.Inactive, QPalette.Highlight, cSelected)
         self.setPalette(pal)
 
-    def sensorHasWavelengths(self, sensor:SensorInstrument) -> bool:
+    def sensorHasWavelengths(self, sensor: SensorInstrument) -> bool:
         return isinstance(sensor, SensorInstrument) and \
-                sensor.wl is not None and \
-                len(sensor.wl) > 0
+               sensor.wl is not None and \
+               len(sensor.wl) > 0
 
     def contextMenuEvent(self, event: QContextMenuEvent):
         """
@@ -722,8 +731,6 @@ class PlotSettingsTableView(QTableView):
         """
 
         indices = self.selectionModel().selectedIndexes()
-
-
 
         if len(indices) > 0:
             refIndex = indices[0]
@@ -763,7 +770,7 @@ class PlotSettingsTableView(QTableView):
             a.setToolTip('Show values of red band (band closest to {} nm'.format(LUT_WAVELENGTH['NIR']))
             a.setToolTip('Show values of Near Infrared (NIR) band')
             a.triggered.connect(lambda *args, exp='<NIR>':
-                                       self.onSetExpression(exp))
+                                self.onSetExpression(exp))
 
             a = m.addAction('SWIR1 Band')
             a.setToolTip('Show values of SWIR 1 band (band closest to {} nm'.format(LUT_WAVELENGTH['SWIR1']))
@@ -789,12 +796,12 @@ class PlotSettingsTableView(QTableView):
             a = m.addAction('NBR')
             a.setToolTip('Calculate the Normalized Burn Ratio (NBR)')
             a.triggered.connect(lambda *args, exp='(<NIR>-<SWIR2>)/(<NIR>+<SWIR2>)':
-                                       self.onSetExpression(exp))
+                                self.onSetExpression(exp))
 
             a = m.addAction('NBR 2')
             a.setToolTip('Calculate the Normalized Burn Ratio between two SWIR bands (NBR2)')
             a.triggered.connect(lambda *args, exp='(<SWIR1>-<SWIR2>)/(<SWIR1>+<SWIR2>)':
-                                       self.onSetExpression(exp))
+                                self.onSetExpression(exp))
 
             menu.popup(QCursor.pos())
 
@@ -834,7 +841,6 @@ class PlotSettingsTableView(QTableView):
             if '<' not in expr2:
                 self.model().setData(idx, expr2, Qt.EditRole)
 
-
     def plotSettingsModel(self) -> PlotSettingsModel:
         return self.model().sourceModel()
 
@@ -855,10 +861,12 @@ class PlotSettingsTableView(QTableView):
                     idx2 = self.model().index(idx.row(), col)
                     self.model().setData(idx2, newStyle, role=Qt.EditRole)
 
+
 class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
     """
 
     """
+
     def __init__(self, tableView, parent=None):
         assert isinstance(tableView, PlotSettingsTableView)
         super(PlotSettingsTableViewWidgetDelegate, self).__init__(parent=parent)
@@ -877,7 +885,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
             self.mSensorListModel = SensorListModel(self.mTemporalProfileLayer.timeSeries())
         return self.mSensorListModel
 
-    def paint(self, painter: QPainter, option: 'QStyleOptionViewItem', index: QtCore.QModelIndex):
+    def paint(self, painter: QPainter, option: 'QStyleOptionViewItem', index: QModelIndex):
         if index.column() == 2:
             style: TemporalProfilePlotStyle = index.data(Qt.UserRole)
 
@@ -889,7 +897,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
                 label = QLabel()
                 label.setPixmap(px)
                 painter.drawPixmap(option.rect, px)
-                #QApplication.style().drawControl(QStyle.CE_CustomBase, label, painter)
+                # QApplication.style().drawControl(QStyle.CE_CustomBase, label, painter)
             else:
                 super(PlotSettingsTableViewWidgetDelegate, self).paint(painter, option, index)
         else:
@@ -916,6 +924,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
     def columnName(self, index: QModelIndex) -> str:
         assert index.isValid()
         return index.model().headerData(index.column(), Qt.Horizontal, Qt.DisplayRole)
+
     """
     def sizeHint(self, options, index):
         s = super(ExpressionDelegate, self).sizeHint(options, index)
@@ -926,6 +935,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
         s = QSize(x, s.height())
         return self._preferedSize
     """
+
     def exampleLyr(self, sensor):
         # if isinstance(sensor, SensorInstrument):
         if sensor not in self.mSensorLayers.keys():
@@ -958,7 +968,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
                     w = QgsFieldExpressionWidget(parent=parent)
                     w.setExpressionDialogTitle('Values')
                     w.setToolTip('Set an expression to specify the image band or calculate a spectral index.')
-                    #w.fieldChanged[str, bool].connect(lambda n, b: self.checkData(index, w, w.expression()))
+                    # w.fieldChanged[str, bool].connect(lambda n, b: self.checkData(index, w, w.expression()))
                     w.setExpression(plotStyle.expression())
 
                     if isinstance(plotStyle.sensor(), SensorInstrument):
@@ -968,7 +978,7 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
                     w = PlotStyleButton(parent=parent)
                     w.setPlotStyle(plotStyle)
                     w.setToolTip('Set style.')
-                    #w.sigPlotStyleChanged.connect(lambda ps: self.checkData(index, w, ps))
+                    # w.sigPlotStyleChanged.connect(lambda ps: self.checkData(index, w, ps))
 
                 elif cname == model.cnSensor:
                     w = QComboBox(parent=parent)
@@ -997,14 +1007,14 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
                     self.commitData.emit(w)
                 else:
                     s = ""
-                    #print(('Delegate commit failed',w.asExpression()))
+                    # print(('Delegate commit failed',w.asExpression()))
             if isinstance(w, PlotStyleButton):
                 self.commitData.emit(w)
 
     def setEditorData(self, editor, index):
 
         model = self.plotSettingsModel()
-        #index = self.sortFilterProxyModel().mapToSource(index)
+        # index = self.sortFilterProxyModel().mapToSource(index)
         w = None
         if index.isValid() and isinstance(model, PlotSettingsModel):
             style = index.data(Qt.UserRole)
@@ -1037,9 +1047,9 @@ class PlotSettingsTableViewWidgetDelegate(QStyledItemDelegate):
             else:
                 raise NotImplementedError()
 
-    def setModelData(self, w, model, index:QModelIndex):
+    def setModelData(self, w, model, index: QModelIndex):
         cname = self.columnName(index)
-        #model = self.plotSettingsModel()
+        # model = self.plotSettingsModel()
 
         srcModel = index.model().sourceModel()
         assert isinstance(srcModel, PlotSettingsModel)
@@ -1091,7 +1101,7 @@ class DateTimePlotWidget(pg.PlotWidget):
     A plotwidget to visualize temporal profiles
     """
 
-    def __init__(self, parent: QWidget=None):
+    def __init__(self, parent: QWidget = None):
         """
         Constructor of the widget
         """
@@ -1149,16 +1159,15 @@ class DateTimePlotWidget(pg.PlotWidget):
             self.mPlotSettingsModel.dataChanged.connect(self.onPlotSettingsChanged)
             self.mUpdateTimer.start()
 
-    def onPlotSettingsChanged(self, idx0: QModelIndex, idxe: QModelIndex, roles:list):
+    def onPlotSettingsChanged(self, idx0: QModelIndex, idxe: QModelIndex, roles: list):
         if not isinstance(self.mPlotSettingsModel, PlotSettingsModel):
             return None
         row = idx0.row()
         while row <= idxe.row():
-            style = self.mPlotSettingsModel.index(row,  0).data(Qt.UserRole)
+            style = self.mPlotSettingsModel.index(row, 0).data(Qt.UserRole)
             assert isinstance(style, TemporalProfilePlotStyle)
             self.mUpdatedProfileStyles.add(style)
             row += 1
-
 
     def setUpdateInterval(self, msec: int):
         """
@@ -1227,7 +1236,7 @@ class DateTimePlotWidget(pg.PlotWidget):
                     assert isinstance(pdi, TemporalProfilePlotDataItem)
                     assert pdi in self.temporalProfilePlotDataItems()
                     assert pdi.isVisible()
-                    #assert len(pdi.xData) > 0
+                    # assert len(pdi.xData) > 0
                     assert len(pdi.xData) == len(pdi.yData)
 
         if len(toBeUpdated) > 0:
@@ -1235,7 +1244,6 @@ class DateTimePlotWidget(pg.PlotWidget):
                 pdi = EXISTING[ps]
                 assert isinstance(pdi, TemporalProfilePlotDataItem)
                 pdi.updateDataAndStyle()
-
 
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
@@ -1530,7 +1538,6 @@ class DateTimeViewBox(pg.ViewBox):
 
 
 class ProfileViewDock(QgsDockWidget):
-
     """
     Signalizes to move to specific date of interest
     """
@@ -1574,14 +1581,13 @@ class ProfileViewDock(QgsDockWidget):
         self.mAttributeTableToolBar.insertSeparator(before)
 
         self.mPlotToolBar.setMovable(False)
-        #self.mPlotToolBar.addActions(self.mActions2D)
-        #self.mPlotToolBar.addSeparator()
-        #self.mPlotToolBar.addActions(self.mActionsTP)
+        # self.mPlotToolBar.addActions(self.mActions2D)
+        # self.mPlotToolBar.addSeparator()
+        # self.mPlotToolBar.addActions(self.mActionsTP)
 
+        # self.pagePixel.addToolBar(self.mTemporalProfilesToolBar)
 
-        #self.pagePixel.addToolBar(self.mTemporalProfilesToolBar)
-
-        #self.mTemporalProfilesToolBar.setMovable(False)
+        # self.mTemporalProfilesToolBar.setMovable(False)
 
         config = QgsAttributeTableConfig()
         config.update(self.mTemporalProfileLayer.fields())
@@ -1607,7 +1613,7 @@ class ProfileViewDock(QgsDockWidget):
         self.delegateTableView2D = PlotSettingsTableViewWidgetDelegate(self.tableView2DProfiles)
 
         self.plot2D: DateTimePlotWidget = self.plotWidget2D
-        assert isinstance(self.plot2D, DateTimePlotWidget )
+        assert isinstance(self.plot2D, DateTimePlotWidget)
         self.plot2D.setPlotSettingsModel(self.plotSettingsModel2D)
         self.plot2D.getViewBox().sigMoveToDate.connect(self.sigMoveToDate)
         self.plot2D.getViewBox().scene().sigMouseClicked.connect(self.onPointsClicked2D)
@@ -1643,7 +1649,7 @@ class ProfileViewDock(QgsDockWidget):
     def vectorLayerTools(self) -> VectorLayerTools:
         return self.pagePixel.vectorLayerTools()
 
-    def setTimeSeries(self, timeSeries:TimeSeries):
+    def setTimeSeries(self, timeSeries: TimeSeries):
         self.temporalProfileLayer().setTimeSeries(timeSeries)
 
     def timeSeries(self) -> TimeSeries:
@@ -1732,7 +1738,7 @@ class ProfileViewDock(QgsDockWidget):
         self.actionAddStyle2D.triggered.connect(self.createNewPlotStyle2D)
         self.actionRefresh2D.triggered.connect(self.updatePlot2D)
         self.actionRemoveStyle2D.triggered.connect(
-            lambda:self.removePlotStyles2D(self.selected2DPlotStyles()))
+            lambda: self.removePlotStyles2D(self.selected2DPlotStyles()))
         self.actionLoadTPFromOgr.triggered.connect(self.onLoadFromVector)
         self.actionLoadMissingValues.triggered.connect(
             lambda *args: self.mTemporalProfileLayer.loadMissingBandInfos())
@@ -1755,7 +1761,6 @@ class ProfileViewDock(QgsDockWidget):
                 self.mTemporalProfileLayer.loadCoordinatesFromOgr(l.source())
                 break
 
-
     def onToggleEditing(self, b):
 
         if self.mTemporalProfileLayer.isEditable():
@@ -1763,7 +1768,6 @@ class ProfileViewDock(QgsDockWidget):
         else:
             self.mTemporalProfileLayer.startEditing()
         self.onEditingToggled()
-
 
     def onMoveToDate(self, date):
         dt = np.asarray([np.abs(tsd.date() - date) for tsd in self.timeSeries()])
@@ -1798,9 +1802,8 @@ class ProfileViewDock(QgsDockWidget):
         if len(self.mTemporalProfileLayer) == 1 and len(self.plotSettingsModel2D) == 0:
             self.createNewPlotStyle2D()
 
-    @QtCore.pyqtSlot()
+    @pyqtSlot()
     def updatePlot2D(self):
         if isinstance(self.plotSettingsModel2D, PlotSettingsModel):
             self.plot2D.mUpdatedProfileStyles.update(self.plotSettingsModel2D[:])
             self.plot2D.updateTemporalProfilePlotItems()
-

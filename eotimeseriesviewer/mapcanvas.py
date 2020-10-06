@@ -19,27 +19,18 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-KEY_LAST_CLICKED = 'LAST_CLICKED'
-
 import time
-
-import eotimeseriesviewer.settings
+import sys
+import typing
+import os
+import re
+import enum
 import qgis.utils
-from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
-from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
-from .externals.qps.layerproperties import showLayerPropertiesDialog
-from .externals.qps.maptools import *
-from .externals.qps.utils import *
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
-from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
-
 from qgis.PyQt.QtGui import QIcon, QContextMenuEvent, QMouseEvent, QPainter, QFont, QColor
 from qgis.PyQt.QtWidgets import QApplication, QDialog, QMenu, QFileDialog, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.PyQt.QtCore import QSize, QDate, QDateTime, QDir, QFile, QMimeData, pyqtSignal, Qt, \
     QPoint, QObject, QRectF, QPointF, QRect, QTimer
 
-from qgis.core import *
-from qgis.gui import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEnhancement, \
     QgsDateTimeRange, QgsProject, QgsTextRenderer, QgsApplication, QgsCoordinateReferenceSystem, \
     QgsMapToPixel, QgsRenderContext, QgsMapSettings, QgsRasterRenderer, \
@@ -47,12 +38,26 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEn
     QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsRasterLayerTemporalProperties, QgsRasterDataProvider, \
     QgsTextFormat, QgsMapLayerStore, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, QgsField, \
     QgsRectangle, QgsPolygon, QgsMultiBandColorRenderer, QgsRectangle, QgsSingleBandGrayRenderer, \
-    QgsLayerTreeGroup, QgsUnitTypes
+    QgsLayerTreeGroup, QgsUnitTypes, QgsMimeDataUtils
 
 from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInputWidget, \
     QgsAdvancedDigitizingDockWidget, QgsMapCanvasItem, \
     QgsMapTool, QgsMapToolPan, QgsMapToolZoom, QgsMapToolCapture, QgsMapToolIdentify, \
     QgsGeometryRubberBand
+
+
+from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
+from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
+from .externals.qps.layerproperties import showLayerPropertiesDialog
+from .externals.qps.maptools import QgsMapToolSelectionHandler, \
+    CursorLocationMapTool, QgsMapToolAddFeature, \
+    SpectralProfileMapTool, TemporalProfileMapTool, MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, QgsMapToolSelect
+from .externals.qps.utils import SpatialExtent, SpatialPoint
+from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
+from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
+import eotimeseriesviewer.settings
+
+KEY_LAST_CLICKED = 'LAST_CLICKED'
 
 
 def toQgsMimeDataUtilsUri(mapLayer: QgsMapLayer):
@@ -1360,7 +1365,7 @@ class MapCanvas(QgsMapCanvas):
             path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
         else:
             path = 'mapcanvas'
-        path = jp(lastDir, '{}.{}'.format(path, fileType.lower()))
+        path = os.path.join(lastDir, '{}.{}'.format(path, fileType.lower()))
         path, _ = QFileDialog.getSaveFileName(self, 'Save map as {}'.format(fileType), path)
         if len(path) > 0:
             self.saveAsImage(path, None, fileType)
