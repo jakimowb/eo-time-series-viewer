@@ -14,9 +14,9 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
 import xmlrunner
-from qgis import *
-from qgis.core import QgsProject
-from qgis.gui import *
+
+from qgis.core import QgsProject, QgsRectangle, QgsRasterLayer
+from qgis.gui import QgsMapCanvas
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import EOTSVTestCase
@@ -40,10 +40,7 @@ class TestUtils(EOTSVTestCase):
         self.assertIsInstance(center, SpatialPoint)
         self.assertEqual(ext.spatialCenter(), center)
 
-
     def test_file_search(self):
-
-
         import example
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.123'))
@@ -56,5 +53,3 @@ class TestUtils(EOTSVTestCase):
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)
-
-

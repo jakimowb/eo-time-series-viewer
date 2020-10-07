@@ -857,6 +857,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             assert isinstance(mapCanvas, MapCanvas)
             mapCanvas.timedRefresh()
             tsd = mapCanvas.tsd()
+            if not isinstance(tsd, TimeSeriesDate):
+                continue
             mv = mapCanvas.mapView()
             assert isinstance(mv, MapView)
             mapCanvas.waitWhileRendering()

@@ -2,10 +2,13 @@
 """Tests QGIS plugin init."""
 
 import os
+import sys
 import unittest
 import example
 import example.Images
 from osgeo import gdal, ogr, osr
+from qgis.core import QgsRasterLayer, QgsApplication
+from qgis.gui import QgsTaskManagerWidget
 from eotimeseriesviewer.utils import file_search
 from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.timeseries import *
@@ -74,15 +77,14 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(ts) == len(files))
 
         # save time series, absolute paths
-        pathTSFileAbs = self.createTestOutputDirectory()() / 'timeseries_abs.txt'
+        pathTSFileAbs = self.createTestOutputDirectory() / 'timeseries_abs.txt'
         ts.saveToFile(pathTSFileAbs, relative_path=False)
         self.assertTrue(os.path.isfile(pathTSFileAbs))
 
         # save time series, relative paths
-        pathTSFileRel = self.createTestOutputDirectory()() / 'timeseries_rel.txt'
+        pathTSFileRel = self.createTestOutputDirectory() / 'timeseries_rel.txt'
         ts.saveToFile(pathTSFileRel, relative_path=False)
         self.assertTrue(os.path.isfile(pathTSFileRel))
-
 
         # load time series
         tsAbs = TimeSeries()
@@ -350,16 +352,13 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(TS) == 0.5 * len(paths))
         self.assertTrue(len(TS) == 0.5 * len(srcUris))
 
-
     def test_timeseries_loadasync(self):
-
         if os.environ.get('CI'):
             self.skipTest('Test might not terminate in CI setting. Reason unclear.')
 
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
 
         w = QgsTaskManagerWidget(QgsApplication.taskManager())
-
 
         TS = TimeSeries()
         TS.addSources(files, nWorkers=1)

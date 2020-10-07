@@ -21,6 +21,7 @@
 """
 import os
 import copy
+import re
 from osgeo import gdal
 import numpy as np
 from collections import OrderedDict
@@ -28,11 +29,11 @@ from xml.etree import ElementTree
 from qgis.PyQt.QtCore import Qt, QModelIndex, QAbstractTableModel, QItemSelectionModel, QTimer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QHeaderView, QDialog, QDialogButtonBox, QFileDialog
-from qgis.core import QgsRasterLayer, QgisInterface, QgsProviderRegistry, QgsProject
-from qgis.gui import QgsFileWidget
+from qgis.core import QgsRasterLayer, QgsProviderRegistry, QgsProject
+from qgis.gui import QgsFileWidget, QgisInterface
 import qgis.utils
-from .utils import read_vsimem, loadUi
-from .virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
+from eotimeseriesviewer.utils import read_vsimem, loadUi
+from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.dateparser import extractDateTimeGroup
 

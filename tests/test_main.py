@@ -148,12 +148,15 @@ class TestMain(EOTSVTestCase):
         d = SaveAllMapsDialog()
         self.assertEqual(d.fileType(), 'PNG')
 
-        pathTestOutput = tempfile.mkdtemp(prefix='EOTSTTestOutput')
+        dirTestOutput = self.createTestOutputDirectory() / 'test_screenshots'
+        os.makedirs(dirTestOutput, exist_ok=True)
+        pathTestOutput = dirTestOutput / 'canvas_shots.png'
 
         TSV = EOTimeSeriesViewer()
 
         paths = TestObjects.createMultiSourceTimeSeries()
-        TSV.addTimeSeriesImages(paths)
+        TSV.addTimeSeriesImages(paths, loadAsync=False)
+        self.assertTrue(len(TSV.timeSeries()) > 0)
         TSV.exportMapsToImages(path=pathTestOutput)
 
         self.showGui(TSV)

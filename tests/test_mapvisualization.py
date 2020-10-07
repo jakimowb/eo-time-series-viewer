@@ -21,8 +21,13 @@
 from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, EOTSVTestCase
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, \
+    QgsRasterRenderer, QgsFeatureRenderer, \
+    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsMultiBandColorRenderer, \
+    QgsPalettedRasterRenderer, QgsSingleBandColorDataRenderer, QgsHillshadeRenderer, \
+    QgsRasterShader, \
+    QgsVirtualLayerDefinition
+from qgis.gui import QgsFontButton
 import unittest
 import xmlrunner
 from eotimeseriesviewer.utils import *
@@ -31,9 +36,10 @@ from eotimeseriesviewer.mapcanvas import *
 from eotimeseriesviewer.mapvisualization import *
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-#from eotimeseriesviewer import initResources
-#initResources()
 
+
+# from eotimeseriesviewer import initResources
+# initResources()
 
 
 def getChildElements(node):
@@ -43,7 +49,6 @@ def getChildElements(node):
 
 
 def compareXML(element1, element2):
-
     assert isinstance(element1, QDomNode)
     assert isinstance(element2, QDomNode)
 
@@ -59,7 +64,6 @@ def compareXML(element1, element2):
         return False
 
     if len(elts1) == 0:
-
 
         value1 = element1.nodeValue()
         value2 = element2.nodeValue()
@@ -85,29 +89,29 @@ class TestMapVisualization(EOTSVTestCase):
             eotsv.close()
             QApplication.processEvents()
 
-
     def test_FontButton(self):
 
         btn = QgsFontButton()
-        #c = QgsMapCanvas()
-        #c.setCanvasColor(QColor('black'))
-        #c.show()
-        #btn.setMapCanvas(c)
+        # c = QgsMapCanvas()
+        # c.setCanvasColor(QColor('black'))
+        # c.show()
+        # btn.setMapCanvas(c)
         tf = btn.textFormat()
-        #tf.background().setFillColor(QColor('black'))
-        #tf.background().setEnabled(True)
-        tf.previewBackgroundColor = lambda : QColor('black')
+        # tf.background().setFillColor(QColor('black'))
+        # tf.background().setEnabled(True)
+        tf.previewBackgroundColor = lambda: QColor('black')
         btn.setTextFormat(tf)
         btn.show()
         c = QColor('black')
         btn.setStyleSheet('background-color: rgb({}, {}, {});'.format(*c.getRgb()))
-        def onChanged():
 
+        def onChanged():
             tf = btn.textFormat()
 
             font = btn.font()
 
             s = ""
+
         btn.changed.connect(onChanged)
         self.showGui()
 
@@ -148,8 +152,8 @@ class TestMapVisualization(EOTSVTestCase):
 
         btnAMV = QPushButton('Add MapView')
         btnRMV = QPushButton('Remove MapView')
-        btnAMV.clicked.connect(lambda : onNMapViews(len(w.mapViews()) + 1))
-        btnRMV.clicked.connect(lambda : onNMapViews(len(w.mapViews()) - 1))
+        btnAMV.clicked.connect(lambda: onNMapViews(len(w.mapViews()) + 1))
+        btnRMV.clicked.connect(lambda: onNMapViews(len(w.mapViews()) - 1))
 
         sb = QSpinBox()
         sb.setMinimum(1)
@@ -158,27 +162,29 @@ class TestMapVisualization(EOTSVTestCase):
         sb.valueChanged.connect(lambda v: w.setMapsPerMapView(v))
 
         sbX = QSpinBox()
-        sbX.setRange(50,1000)
+        sbX.setRange(50, 1000)
         sbX.setSingleStep(50)
         sbX.setValue(w.mMapSize.width())
         sbY = QSpinBox()
         sbY.setRange(50, 1000)
         sbY.setSingleStep(50)
         sbY.setValue(w.mMapSize.height())
+
         def onMapSizeChanged():
 
             s = QSize(sbX.value(), sbY.value())
             w.setMapSize(s)
+
         sbY.valueChanged.connect(onMapSizeChanged)
         sbX.valueChanged.connect(onMapSizeChanged)
 
         g.addWidget(QLabel('n dates'), 1, 0)
-        g.addWidget(sb, 1,1)
-        g.addWidget(btnAMV,2,0)
-        g.addWidget(btnRMV,2,1)
+        g.addWidget(sb, 1, 1)
+        g.addWidget(btnAMV, 2, 0)
+        g.addWidget(btnRMV, 2, 1)
 
-        g.addWidget(QLabel('Map Size'), 3,0)
-        g.addWidget(sbX, 3,1)
+        g.addWidget(QLabel('Map Size'), 3, 0)
+        g.addWidget(sbX, 3, 1)
         g.addWidget(sbY, 3, 2)
         controllW.show()
 
@@ -195,9 +201,9 @@ class TestMapVisualization(EOTSVTestCase):
             self.assertEqual(w.mGrid.rowCount(), 2)
             w.addMapView(mv3)
             self.assertEqual(w.mGrid.rowCount(), 3)
-        #w.removeMapView(mv2)
-        #self.assertEqual(w.mGrid.rowCount(), 2)
-        #self.assertListEqual(w.mMapViews, [mv1, mv3])
+        # w.removeMapView(mv2)
+        # self.assertEqual(w.mGrid.rowCount(), 2)
+        # self.assertListEqual(w.mMapViews, [mv1, mv3])
 
         for mv in w.mapViews():
             mv.optionShowMapViewName.setChecked(True)
@@ -296,7 +302,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertIsInstance(wl, np.ndarray)
         self.assertIsInstance(wlu, str)
         self.assertEqual(wlu, 'μm')
-        refWL = [0.49,  0.56,  0.66,  0.84,  1.65,  2.2]
+        refWL = [0.49, 0.56, 0.66, 0.84, 1.65, 2.2]
 
         self.assertEqual(len(wl), len(refWL))
         for wla, wlb in zip(wl, refWL):
@@ -329,8 +335,6 @@ class TestMapVisualization(EOTSVTestCase):
         r0b = rendererFromXml(xml0)
         self.assertTrue(type(r0), type(r0b))
 
-
-
         self.assertIsInstance(r0, QgsMultiBandColorRenderer)
 
         rasterRenderer = [QgsSingleBandGrayRenderer(r0, 0),
@@ -344,18 +348,14 @@ class TestMapVisualization(EOTSVTestCase):
                           QgsSingleBandColorDataRenderer(r0, 0),
                           ]
 
-
         for r in rasterRenderer:
             r.setInput(lyr.dataProvider())
-        vectorRenderer = []#[QgsSingleSymbolRenderer(QgsLineSymbol()), QgsPointDistanceRenderer()]
-
-
+        vectorRenderer = []  # [QgsSingleSymbolRenderer(QgsLineSymbol()), QgsPointDistanceRenderer()]
 
         for r1 in rasterRenderer + vectorRenderer:
             print('Test {}'.format(r1.__class__.__name__))
             xml1 = rendererToXml(r1)
             self.assertIsInstance(xml1, QDomDocument)
-
 
             r1b = rendererFromXml(xml1)
             self.assertTrue(type(r1), type(r1b))
@@ -369,7 +369,6 @@ class TestMapVisualization(EOTSVTestCase):
             self.assertIsInstance(xml2, QDomDocument)
             self.assertTrue(xml1.toString() == xml2.toString())
 
-
             rClone = r1.clone()
             self.assertTrue(type(r1), type(rClone))
             xmlClone = rendererToXml(rClone)
@@ -378,7 +377,6 @@ class TestMapVisualization(EOTSVTestCase):
             similar = compareXML(xml1.firstChild(), xml2.firstChild())
             self.assertTrue(similar)
             del rClone, xmlClone
-
 
         print('Read style files')
         for path in styleFiles:
@@ -395,4 +393,3 @@ class TestMapVisualization(EOTSVTestCase):
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)
-

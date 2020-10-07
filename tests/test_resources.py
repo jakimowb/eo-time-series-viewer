@@ -19,7 +19,7 @@ import xmlrunner
 from qgis import *
 from qgis.PyQt.QtGui import QIcon
 from eotimeseriesviewer import file_search
-from eotimeseriesviewer.tests import start_app, EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase
 
 
 class TestResources(EOTSVTestCase):

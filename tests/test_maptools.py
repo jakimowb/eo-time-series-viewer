@@ -29,6 +29,7 @@ from eotimeseriesviewer.tests import EOTSVTestCase
 from eotimeseriesviewer.externals.qps.maptools import MapTools, MapToolCenter, \
     FullExtentMapTool, PixelScaleExtentMapTool, QgsMapToolAddFeature, CursorLocationMapTool, QgsMapToolSelect
 
+
 class TestMapTools(EOTSVTestCase):
     """Test that the plugin init is usable for QGIS.
 
@@ -73,8 +74,6 @@ class TestMapTools(EOTSVTestCase):
             self.assertIn(expectation, dict(metadata), message)
 
     def test_TimeSeriesViewer(self):
-
-
         from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         TSV = EOTimeSeriesViewer()
@@ -102,11 +101,11 @@ class TestMapTools(EOTSVTestCase):
         TSV.setMapTool(MapTools.CursorLocation)
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), CursorLocationMapTool)
 
-        #TSV.setMapTool(MapTools.SpectralProfile)
-        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), SpectralProfileMapTool)
+        # TSV.setMapTool(MapTools.SpectralProfile)
+        # self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), SpectralProfileMapTool)
 
-        #TSV.setMapTool(MapTools.TemporalProfile)
-        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), TemporalProfileMapTool)
+        # TSV.setMapTool(MapTools.TemporalProfile)
+        # self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), TemporalProfileMapTool)
 
         TSV.setMapTool(MapTools.MoveToCenter)
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), MapToolCenter)
