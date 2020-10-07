@@ -3,6 +3,7 @@ import argparse
 import re
 import site
 import pathlib
+import sys
 site.addsitedir(pathlib.Path(__file__).parents[1])
 
 from qgis.PyQt.QtCore import QSize
@@ -49,13 +50,13 @@ def update_icons():
     if not isinstance(QgsApplication.instance(), QgsApplication):
         app = start_app()
 
-    from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles, scanResources
+    from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles, scanResources, initResourceFile
     from eotimeseriesviewer import initResources
     from eotimeseriesviewer.utils import relativePath
+
     initResources()
-
-
-
+    for f in findQGISResourceFiles():
+        initResourceFile(f)
 
     # get required icons
     rxIcon = re.compile(r'.*\|(?P<name>[^|]+)\|\s*image::.*')
@@ -76,7 +77,10 @@ def update_icons():
             if match:
                 pass
                 name = match.group('name')
-                rxmatch = re.compile(r'.\{name}(svg|png)$')
+                if name == 'mActionZoomIn':
+                    s =""
+                rxmatch = re.compile(r'.*/' + name + r'.(svg|png)$')
+                found = False
                 for p in resourcePaths:
 
                     if rxmatch.search(p):
@@ -89,7 +93,10 @@ def update_icons():
                         assert path.is_file()
                         relPath = relativePath(path, pathIconLinks.parent)
                         newLine = f'.. |{name}| image:: {relPath.as_posix()} \n'
+                        found = True
                         break
+                if not found:
+                    print(f'Unable to find Qt resource for {line}', file=sys.stderr)
 
             newLines.append(newLine)
     with open(pathIconLinks, 'w', encoding='utf8') as f:
