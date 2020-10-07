@@ -37,6 +37,7 @@ class Keys(enum.Enum):
     QgsTaskBlockSize = 'qgs_task_block_size'
     BandStatsSampleSize = 'band_stats_sample_size'
     RasterOverlapSampleSize = 'raster_overlap_sample_size'
+    StartupRestoreProjectSettings = 'startup_load_projectsettings'
 
 
 def defaultValues() -> dict:
@@ -67,6 +68,8 @@ def defaultValues() -> dict:
     d[Keys.QgsTaskBlockSize] = 25
     d[Keys.BandStatsSampleSize] = 256
     d[Keys.RasterOverlapSampleSize] = 25
+
+    d[Keys.StartupRestoreProjectSettings] = True
 
     d[Keys.SettingsVersion] = EOTSV_VERSION
     textFormat = QgsTextFormat()
@@ -567,7 +570,11 @@ class SettingsDialog(QDialog):
         if self.cbSensorMatchingSensorName.isChecked():
             flags = flags | SensorMatching.NAME
 
+        d[Keys.StartupRestoreProjectSettings] = self.cbStartupRestoreSettings.isChecked()
+
         d[Keys.SensorMatching] = flags
+
+
         d[Keys.SensorSpecs] = self.mSensorSpecsModel.specs()
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())
         d[Keys.MapUpdateInterval] = self.sbMapRefreshIntervall.value()
@@ -620,6 +627,9 @@ class SettingsDialog(QDialog):
                 i = self.cbDateTimePrecission.findData(value)
                 if i > -1:
                     self.cbDateTimePrecission.setCurrentIndex(i)
+
+            if checkKey(key, Keys.StartupRestoreProjectSettings):
+                self.cbStartupRestoreSettings.setChecked(bool(value in [True, 'true', 'True']))
 
             if checkKey(key, Keys.SensorMatching):
                 assert isinstance(value, SensorMatching)

@@ -20,8 +20,12 @@
  ***************************************************************************/
 """
 
-import enum
+import os
 import sys
+import re
+import fnmatch
+import collections
+import copy
 import traceback
 import typing
 
@@ -36,8 +40,10 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, \
     QgsLayerTree, QgsLayerTreeLayer, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsPointXY, QgsReadWriteContext
-from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsLayerTreeView, \
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
+
+from qgis.gui import *
+from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
     QgsProjectionSelectionWidget, QgsMessageBar
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
@@ -999,7 +1005,7 @@ class MapWidget(QFrame):
         loadUi(DIR_UI / 'mapwidget.ui', self)
 
         self.setContentsMargins(1, 1, 1, 1)
-        self.mGrid = self.gridFrame.layout()
+        self.mGrid: QGridLayout = self.mCanvasGrid
         assert isinstance(self.mGrid, QGridLayout)
         self.mGrid.setSpacing(0)
         self.mGrid.setContentsMargins(0, 0, 0, 0)
@@ -1718,16 +1724,20 @@ class MapWidget(QFrame):
         # mapCanvas.sigDestinationCrsChanged.connect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.connect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.connect(self.onCanvasClicked)
-        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[QgsCoordinateReferenceSystem, QgsPointXY].connect(
-            self.sigCurrentLocationChanged)
+        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.connect(
+            lambda crs, pt, c=mapCanvas: self.onCanvasLocationRequest(c, crs, pt))
 
     def _disconnectCanvasSignals(self, mapCanvas: MapCanvas):
         mapCanvas.sigSpatialExtentChanged.disconnect(self.setSpatialExtent)
         # mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.disconnect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.disconnect(self.onCanvasClicked)
-        mapCanvas.mapTools().mtCursorLocation.sigLocationRequest[SpatialPoint, QgsMapCanvas].disconnect(
-            self.sigCurrentLocationChanged)
+        #mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
+        #    self.sigCurrentLocationChanged)
+
+    def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
+        spt = SpatialPoint(crs, pt)
+        self.sigCurrentLocationChanged.emit(spt, canvas)
 
     def onCanvasClicked(self, event: QMouseEvent):
         canvas = self.sender()
@@ -1793,17 +1803,19 @@ class MapWidget(QFrame):
             w.setParent(None)
             w.setVisible(False)
 
-        usedCanvases = []
+        usedCanvases: typing.List[MapCanvas] = []
         self.mCanvases.clear()
 
         if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
             for row, mv in enumerate(self.mMapViews):
                 assert isinstance(mv, MapView)
+                reminder = self.mCanvases.get(mv, [])
                 self.mCanvases[mv] = []
                 for col in range(self.mMpMV):
                     item = self.mGrid.itemAtPosition(row, col)
                     if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
                         c = item.widget()
+                        s = ""
                     else:
                         c = self._createMapCanvas()
                         self.mGrid.addWidget(c, row, col)
@@ -1813,6 +1825,7 @@ class MapWidget(QFrame):
                     c.setMapView(mv)
                     usedCanvases.append(c)
                     self.mCanvases[mv].append(c)
+                s = ""
         else:
             raise NotImplementedError()
 
@@ -2199,6 +2212,8 @@ class MapViewDock(QgsDockWidget):
         return QSize(self.spinBoxMapSizeX.value(),
                      self.spinBoxMapSizeY.value())
 
+    def dummySlot(self):
+        s = ""
 
     def onMapViewsRemoved(self, mapViews):
 

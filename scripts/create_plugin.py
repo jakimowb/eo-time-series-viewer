@@ -28,6 +28,7 @@ import re
 import shutil
 import typing
 import site
+
 site.addsitedir(pathlib.Path(__file__).parents[1])
 import docutils.core
 from xml.dom import minidom
@@ -38,7 +39,6 @@ from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
-
 
 ########## Config Section
 
@@ -56,6 +56,7 @@ MD.mRepository = eotimeseriesviewer.REPOSITORY
 MD.mQgisMinimumVersion = '3.14'
 MD.mEmail = eotimeseriesviewer.MAIL
 
+
 ########## End of config section
 
 def aboutText() -> str:
@@ -66,7 +67,9 @@ def aboutText() -> str:
         aboutText = ''.join(aboutText)
     return aboutText
 
+
 MD.mAbout = aboutText()
+
 
 def scantree(path, pattern=re.compile(r'.$')) -> typing.Iterator[pathlib.Path]:
     """
@@ -86,7 +89,6 @@ def create_plugin(include_testdata: bool = False,
                   include_qgisresources: bool = False,
                   zipfilename: str = None,
                   latest: bool = False) -> str:
-
     assert (DIR_REPO / '.git').is_dir()
     DIR_DEPLOY = DIR_REPO / 'deploy'
 
@@ -256,7 +258,7 @@ def createHTMLDocuments(dirPlugin: pathlib.Path):
 
     pathMD = DIR_REPO / 'CHANGELOG.rst'
     pathHTML = dirPlugin / 'CHANGELOG'
-    #pathCL2 = DIR_REPO / 'CHANGELOG'
+    # pathCL2 = DIR_REPO / 'CHANGELOG'
     os.makedirs(pathHTML.parent, exist_ok=True)
 
     # make html compact
@@ -299,4 +301,3 @@ if __name__ == "__main__":
                          latest=args.latest)
     print('EOTSV_ZIP={}'.format(path))
     exit(0)
-

@@ -61,7 +61,7 @@
      <item>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="currentIndex">
-        <number>3</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="pageGeneral">
         <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -90,8 +90,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>399</width>
-              <height>397</height>
+              <width>395</width>
+              <height>388</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -207,6 +207,28 @@
                  <widget class="QCheckBox" name="cbSensorMatchingSensorName">
                   <property name="text">
                    <string>Sensor Name</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <widget class="QgsCollapsibleGroupBox" name="mGroupBox_3">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="title">
+                <string>Start up</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_6">
+                <item>
+                 <widget class="QCheckBox" name="cbStartupRestoreSettings">
+                  <property name="text">
+                   <string>Restore settings from QgsProject</string>
                   </property>
                  </widget>
                 </item>

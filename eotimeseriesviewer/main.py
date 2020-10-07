@@ -53,6 +53,7 @@ import qgis.utils
 from eotimeseriesviewer import LOG_MESSAGE_TAG
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer.settings import Keys as SettingKeys
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
@@ -203,6 +204,8 @@ class EOTimeSeriesViewerUI(QMainWindow):
             self.menuPanels.addAction(dock.toggleViewAction())
 
         self.dockTimeSeries.raise_()
+
+
 
     def addDockWidget(self, area: Qt.DockWidgetArea, dock: QDockWidget) -> QDockWidget:
         """
@@ -678,6 +681,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         QgsProject.instance().writeProject.connect(self.onWriteProject)
         QgsProject.instance().readProject.connect(self.onReadProject)
 
+        if eotsvSettings.value(SettingKeys.StartupRestoreProjectSettings, False):
+            self.onReloadProject()
+
     def onWriteProject(self, dom: QDomDocument):
 
         node = dom.createElement('EOTSV')
@@ -711,7 +717,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 archive.clearProjectFile()
 
     def onReadProject(self, doc: QDomDocument) -> bool:
-
+        """
+        Reads images and visualization settings from a QgsProject QDomDocument
+        :param doc: QDomDocument
+        :return: bool
+        """
         if not isinstance(doc, QDomDocument):
             return False
 

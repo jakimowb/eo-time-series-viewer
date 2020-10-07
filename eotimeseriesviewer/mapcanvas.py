@@ -525,6 +525,9 @@ class MapCanvas(QgsMapCanvas):
         self.mMapView = mapView
         self.mInfoItem.setTextFormat(mapView.mapTextFormat())
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
+        self.setCrosshairStyle(mapView.crosshairStyle())
+        #self.setCrosshairVisibility(mapView.crosshairStyle())
+
         # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
     def setTSD(self, tsd: TimeSeriesDate):
@@ -820,14 +823,17 @@ class MapCanvas(QgsMapCanvas):
             self.mCrosshairItem.setCrosshairStyle(crosshairStyle)
 
         if emitSignal:
-            self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
+            s = ""
+            #self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
+        else:
+            s = ""
 
     def crosshairStyle(self) -> CrosshairStyle:
         """
         Returns the style of the Crosshair.
         :return: CrosshairStyle
         """
-        return self.mCrosshairItem.crosshairStyle
+        return self.mCrosshairItem.crosshairStyle()
 
     def setCrosshairPosition(self, spatialPoint: SpatialPoint):
         """
@@ -839,6 +845,10 @@ class MapCanvas(QgsMapCanvas):
 
         point = spatialPoint.toCrs(self.mapSettings().destinationCrs())
         if self.mCrosshairItem.mPosition != point:
+            if self.mCrosshairItem.visibility() == False:
+                s = ""
+            else:
+                s = ""
             self.mCrosshairItem.setPosition(point)
             self.sigCrosshairPositionChanged.emit(point)
 
@@ -848,7 +858,7 @@ class MapCanvas(QgsMapCanvas):
 
     def setCrosshairVisibility(self, b: bool, emitSignal=True):
         """
-        Sets the Crosshair visbility
+        Sets the Crosshair visibility
         :param b: bool
         """
         if b and self.mCrosshairItem.mPosition is None:
@@ -1162,7 +1172,9 @@ class MapCanvas(QgsMapCanvas):
 
             ts = eotsv.timeSeries()
 
-            action = menu.addAction('Focus on Spatial Extent')
+            action = menu.addAction('Update date visibility')
+            action.setToolTip('Updates the visibility of observation dates and source images according its '
+                              'presence of unmasked pixels for this spatial extent')
             action.triggered.connect(lambda *args,
                                             ext=self.spatialExtent():
                                      ts.focusVisibilityToExtent(ext=ext))
@@ -1191,21 +1203,23 @@ class MapCanvas(QgsMapCanvas):
         layers = []
         for l in mapLayers:
             if isinstance(l, SensorProxyLayer):
-                lyr = QgsRasterLayer(l.source(), l.name(), l.dataProvider().name())
+                lyr = QgsRasterLayer(l.source(), os.path.basename(l.source()), l.dataProvider().name())
                 r = l.renderer().clone()
                 r.setInput(lyr.dataProvider())
                 lyr.setRenderer(r)
 
                 tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-
+                tprop.setIsActive(True)
                 if isinstance(l.mTSS, TimeSeriesSource):
-                    dtg = QDateTime(l.mTSS.date().astype(object))
+                    dtg = l.mTSS.date().astype(object)
                 else:
-                    dtg = QDateTime(self.tsd().date().astype(object))
-                tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
-
-                layers.append(l)
+                    dtg = self.tsd().date().astype(object)
+                dt1 = QDateTime(dtg, QTime(0, 0))
+                dt2 = QDateTime(dtg, QTime(23, 59, 59))
+                range = QgsDateTimeRange(dt1, dt2)
+                tprop.setFixedTemporalRange(range)
+                layers.append(lyr)
             else:
                 layers.append(l)
         if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):

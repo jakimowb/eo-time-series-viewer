@@ -43,7 +43,11 @@ from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, \
     QgsTaskManager, QgsPoint, QgsPointXY, \
-    QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform
+    QgsMimeDataUtils, QgsCoordinateTransform
+try:
+    from qgis.core import QgsRasterLayerTemporalProperties
+except:
+    pass
 from qgis.gui import QgsDockWidget, QgisInterface
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
@@ -206,17 +210,6 @@ class SensorInstrument(QObject):
     SensorNameSettingsPrefix = 'SensorName.'
     sigNameChanged = pyqtSignal(str)
 
-    @staticmethod
-    def readXml(node: QDomNode):
-        sensor: SensorInstrument = None
-        nodeId = node.firstChildElement('SensorId').toElement()
-        if nodeId.nodeName() == 'SensorId':
-            sid = nodeId.firstChild().nodeValue()
-            sensor = SensorInstrument(sid)
-            s = ""
-
-        return sensor
-
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
 
@@ -266,7 +259,20 @@ class SensorInstrument(QObject):
         if self.wlu is not None:
             self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
         self.mMockupDS.FlushCache()
-        s = ""
+
+    @staticmethod
+    def readXml(node: QDomNode):
+        sensor: SensorInstrument = None
+        nodeId = node.firstChildElement('SensorId').toElement()
+        if nodeId.nodeName() == 'SensorId':
+            sid = nodeId.firstChild().nodeValue()
+            sensor = SensorInstrument(sid)
+
+        nodeName = node.firstChildElement('SensorName').toElement()
+        if isinstance(sensor, SensorInstrument) and nodeName.nodeName() == 'SensorName':
+            name = nodeName.firstChild().nodeValue()
+            sensor.setName(name)
+        return sensor
 
     def writeXml(self, node: QDomNode, doc: QDomDocument):
 
@@ -665,9 +671,12 @@ class TimeSeriesSource(object):
         loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
         lyr = QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
         tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+        tprop.setIsActive(True)
         tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-        dtg = QDateTime(self.date().astype(object))
-        tprop.setFixedTemporalRange(QgsDateTimeRange(dtg, dtg))
+        dtg = self.date().astype(object)
+        dt1 = QDateTime(dtg, QTime(0, 0))
+        dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+        tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
         return lyr
 
     def crsWkt(self) -> str:
@@ -2157,10 +2166,10 @@ class TimeSeries(QAbstractItemModel):
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """
-        Writes the TimeSeires to a QDomNode
-        :param node:
-        :param doc:
-        :return:
+        Writes the TimeSeries to a QDomNode
+        :param node: QDomElement
+        :param doc: QDomDocument
+        :return: bool
         """
         tsNode = doc.createElement('TimeSeries')
 
@@ -2412,10 +2421,8 @@ class TimeSeriesTreeView(QTreeView):
         a.setEnabled(len(selectedTSSs) > 0)
         a.triggered.connect(lambda _, tss=selectedTSSs: self.setClipboardUris(tss))
         a.setToolTip('Copy path(s) to clipboard.')
-
         a = menu.addAction('Copy value(s)')
         a.triggered.connect(lambda: self.onCopyValues())
-
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
@@ -2461,7 +2468,6 @@ class TimeSeriesTreeView(QTreeView):
             self.sigMoveToExtent.emit(extent)
 
     def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
-
         import qgis.utils
         iface = qgis.utils.iface
         if isinstance(iface, QgisInterface):
@@ -2469,7 +2475,6 @@ class TimeSeriesTreeView(QTreeView):
             QgsProject.instance().addMapLayers(layers, True)
 
     def setClipboardUris(self, tssList: typing.List[TimeSeriesSource]):
-
         urls = []
         paths = []
         for tss in tssList:
