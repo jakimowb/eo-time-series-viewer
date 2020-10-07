@@ -74,12 +74,12 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(ts) == len(files))
 
         # save time series, absolute paths
-        pathTSFileAbs = self.testOutputDirectory() / 'timeseries_abs.txt'
+        pathTSFileAbs = self.createTestOutputDirectory()() / 'timeseries_abs.txt'
         ts.saveToFile(pathTSFileAbs, relative_path=False)
         self.assertTrue(os.path.isfile(pathTSFileAbs))
 
         # save time series, relative paths
-        pathTSFileRel = self.testOutputDirectory() / 'timeseries_rel.txt'
+        pathTSFileRel = self.createTestOutputDirectory()() / 'timeseries_rel.txt'
         ts.saveToFile(pathTSFileRel, relative_path=False)
         self.assertTrue(os.path.isfile(pathTSFileRel))
 

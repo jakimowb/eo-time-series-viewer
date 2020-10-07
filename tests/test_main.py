@@ -26,10 +26,12 @@ from eotimeseriesviewer.tests import start_app, testRasterFiles
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.core import *
+from qgis.core import QgsProject, QgsApplication
 from qgis.gui import *
 from qgis.testing import TestCase
 import unittest
 import tempfile
+
 
 
 from eotimeseriesviewer.mapcanvas import *
@@ -93,7 +95,7 @@ class TestMain(EOTSVTestCase):
             TSV.setCurrentDate(tsd)
 
         # save and read settings
-        path = self.testOutputDirectory() / 'test.qgz'
+        path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
         TSV.onReloadProject()
@@ -138,7 +140,6 @@ class TestMain(EOTSVTestCase):
 
         self.assertIsInstance(dialog, QDialog)
         self.showGui([dialog])
-
 
     def test_exportMapsToImages(self):
 
