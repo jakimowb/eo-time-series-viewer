@@ -42,7 +42,7 @@ from qgis.core import \
     QgsFeature, QgsRenderContext, QgsNullSymbolRenderer, \
     QgsRasterLayer, QgsMapLayer, QgsVectorLayer, \
     QgsSymbol, QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol, \
-    QgsAttributeTableConfig, QgsField, QgsMapLayerProxyModel
+    QgsAttributeTableConfig, QgsField, QgsMapLayerProxyModel, QgsFileUtils
 from qgis.gui import \
     QgsEditorWidgetWrapper, QgsAttributeTableView, \
     QgsActionMenu, QgsEditorWidgetFactory, QgsStatusBar, \
@@ -808,8 +808,7 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
         self.mXAxis: SpectralXAxis = pi.getAxis('bottom')
         assert isinstance(self.mXAxis, SpectralXAxis)
 
-        self.mSpeclib: SpectralLibrary
-        self.mSpeclib = None
+        self.mSpeclib: SpectralLibrary = None
         self.mSpeclibSignalConnections = []
 
         self.mXUnitInitialized = False
@@ -2155,7 +2154,7 @@ class SpectralLibraryWidget(AttributeTableWidget):
         from .io.specchio import SPECCHIOSpectralLibraryIO
         from .io.artmo import ARTMOSpectralLibraryIO
         from .io.vectorsources import VectorSourceSpectralLibraryIO
-
+        from .io.rastersources import RasterSourceSpectralLibraryIO
         self.mSpeclibIOInterfaces = [
             EnviSpectralLibraryIO(),
             CSVSpectralLibraryIO(),
@@ -2164,6 +2163,7 @@ class SpectralLibraryWidget(AttributeTableWidget):
             EcoSISSpectralLibraryIO(),
             SPECCHIOSpectralLibraryIO(),
             VectorSourceSpectralLibraryIO(),
+            RasterSourceSpectralLibraryIO(),
         ]
 
         self.mSpeclibIOInterfaces = sorted(self.mSpeclibIOInterfaces, key=lambda c: c.__class__.__name__)
@@ -2233,6 +2233,7 @@ class SpectralLibraryWidget(AttributeTableWidget):
         self.actionExportSpeclib = QAction('Export Spectral Profiles')
         self.actionExportSpeclib.setToolTip('Export spectral profiles to other data formats')
         self.actionExportSpeclib.setIcon(QIcon(':/qps/ui/icons/speclib_save.svg'))
+
         m = QMenu()
         self.createSpeclibExportMenu(m)
         self.actionExportSpeclib.setMenu(m)
@@ -2337,17 +2338,39 @@ class SpectralLibraryWidget(AttributeTableWidget):
         """
         :return: QMenu with QActions and submenus to import SpectralProfiles
         """
+        separated = []
+        from .io.rastersources import RasterSourceSpectralLibraryIO
+
         for iface in self.mSpeclibIOInterfaces:
             assert isinstance(iface, AbstractSpectralLibraryIO), iface
-            iface.addImportActions(self.speclib(), menu)
+            if isinstance(iface, RasterSourceSpectralLibraryIO):
+                separated.append(iface)
+            else:
+                iface.addImportActions(self.speclib(), menu)
+
+        if len(separated) > 0:
+            menu.addSeparator()
+            for iface in separated:
+                iface.addImportActions(self.speclib(), menu)
 
     def createSpeclibExportMenu(self, menu: QMenu):
         """
-        :return: QMenu with QActions and submenus to export SpectralProfiles
+        :return: QMenu with QActions and submenus to export the SpectralLibrary
         """
+        separated = []
+        from .io.rastersources import RasterSourceSpectralLibraryIO
         for iface in self.mSpeclibIOInterfaces:
             assert isinstance(iface, AbstractSpectralLibraryIO)
-            iface.addExportActions(self.speclib(), menu)
+            if isinstance(iface, RasterSourceSpectralLibraryIO):
+                separated.append(iface)
+            else:
+                iface.addExportActions(self.speclib(), menu)
+
+        if len(separated) > 0:
+            menu.addSeparator()
+            for iface in separated:
+                iface.addExportActions(self.speclib(), menu)
+
 
     def plotWidget(self) -> SpectralLibraryPlotWidget:
         return self.mPlotWidget
@@ -2529,7 +2552,7 @@ class SpectralLibraryWidget(AttributeTableWidget):
             self.speclib().startEditing()
 
     def onExportSpectra(self, *args):
-        files = self.mSpeclib.write(None)
+        files = self.speclib().write(None)
         if len(files) > 0:
             self.sigFilesCreated.emit(files)
 

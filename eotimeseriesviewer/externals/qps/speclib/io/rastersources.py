@@ -24,19 +24,21 @@
     along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
-
+import os
 import sys
 import typing
-
+from osgeo import gdal
+import numpy as np
 from qgis.PyQt import sip
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtCore import *
 from qgis.core import QgsTask, QgsMapLayer, QgsVectorLayer, QgsRasterLayer, QgsWkbTypes, \
-    QgsTaskManager, QgsMapLayerProxyModel, QgsApplication
-from ..core import SpectralProfile, SpectralLibrary
-from ...utils import SelectMapLayersDialog
+    QgsTaskManager, QgsMapLayerProxyModel, QgsApplication, QgsFileUtils
+from ..core import SpectralProfile, SpectralLibrary, AbstractSpectralLibraryIO, ProgressHandler
+from ...utils import SelectMapLayersDialog, gdalDataset, parseWavelength, parseFWHM, parseBadBandList
 
+PIXEL_LIMIT = 100*100
 
 class SpectralProfileLoadingTask(QgsTask):
 
@@ -240,3 +242,133 @@ class SpectralProfileImportPointsDialog(SelectMapLayersDialog):
         :return: QgsVectorLayer
         """
         return self.mapLayers()[1]
+
+
+class RasterSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
+    """
+    I/O Interface for Raster files.
+    """
+
+    @classmethod
+    def canRead(cls, path: str) -> bool:
+        """
+        Returns true if it can read the source defined by path
+        :param path: source uri
+        :return: True, if source is readable.
+        """
+        path = str(path)
+        try:
+            ds = gdalDataset(path)
+            return True
+        except:
+            return False
+        return False
+
+    @classmethod
+    def readFrom(cls, path,
+                 progressDialog: typing.Union[QProgressDialog, ProgressHandler] = None,
+                 addAttributes: bool = True) -> SpectralLibrary:
+
+        ds: gdal.Dataset = gdalDataset(path)
+        if not isinstance(ds, gdal.Dataset):
+            return None
+
+        speclib = SpectralLibrary()
+        assert isinstance(speclib, SpectralLibrary)
+        sourcepath = ds.GetDescription()
+        basename = os.path.basename(ds.GetDescription())
+        speclib.setName(basename)
+        assert speclib.startEditing()
+
+        wl, wlu = parseWavelength(ds)
+        fwhm = parseFWHM(ds)
+        bbl = parseBadBandList(ds)
+
+        # each none-masked pixel is a profile
+        array = ds.ReadAsArray()
+
+        ref_band: gdal.Band = ds.GetRasterBand(1)
+        no_data = ref_band.GetNoDataValue()
+        valid = np.isfinite(array[0, :])
+        if no_data:
+            valid = valid * (array[0, :] != no_data)
+        valid = np.where(valid)
+
+        n_profiles = len(valid[0])
+        if n_profiles > PIXEL_LIMIT:
+            raise Exception(f'Number of raster image pixels {n_profiles} exceeds PIXEL_LIMIT {PIXEL_LIMIT}')
+
+        if wl is not None:
+            xvalues = wl.tolist()
+        else:
+            xvalues = (np.arange(ds.RasterCount) + 1).tolist()
+
+        profiles = []
+        for y, x in zip(*valid):
+            yvalues = array[:, y, x]
+            p = SpectralProfile(fields=speclib.fields())
+            p.setName(f'Profile {x},{y}')
+            p.setSource(basename)
+            p.setValues(xvalues, yvalues, xUnit=wlu)
+            profiles.append(p)
+        speclib.addProfiles(profiles)
+        speclib.commitChanges()
+        return speclib
+
+    @classmethod
+    def write(cls, speclib: SpectralLibrary,
+              path: str,
+              progressDialog: typing.Union[QProgressDialog, ProgressHandler] = None):
+        """
+        Writes the SpectralLibrary to path and returns a list of written files that can be used to open the spectral library with readFrom
+        """
+        speclib.writeRasterImages(path)
+
+        return [path]
+
+    @classmethod
+    def addImportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+
+        def read(speclib: SpectralLibrary):
+
+            path, filter = QFileDialog.getOpenFileName(caption='Raster Image',
+                                                       filter='All types (*.*)')
+            if os.path.isfile(path):
+
+                if not RasterSourceSpectralLibraryIO.canRead(path):
+                    QMessageBox.critical(None, 'Raster image as SpectralLibrary', f'Unable to reads {path}')
+
+                try:
+                    sl = RasterSourceSpectralLibraryIO.readFrom(path)
+                    if isinstance(sl, SpectralLibrary):
+                        speclib.startEditing()
+                        speclib.beginEditCommand('Add Spectral Library from {}'.format(path))
+                        speclib.addSpeclib(sl, addMissingFields=True)
+                        speclib.endEditCommand()
+                        speclib.commitChanges()
+                except Exception as ex:
+                    QMessageBox.critical(None, 'Raster image as SpectralLibrary', str(ex))
+                    return
+        m = menu.addAction('Raster Image')
+        m.setToolTip('Import all pixels as spectral profiles which are not masked. '
+                     'Use careful and not with large images!')
+        m.triggered.connect(lambda *args, sl=spectralLibrary: read(sl))
+
+    @classmethod
+    def addExportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+
+        def write(speclib: SpectralLibrary):
+            # https://gdal.org/drivers/vector/index.html
+            LUT_Files = {'GeoTiff (*.tif)': 'GTiff',
+                         'ENVI Raster (*.bsq)': 'ENVI',
+                        }
+
+            path, filter = QFileDialog.getSaveFileName(caption='Write as raster image',
+                                                       filter=';;'.join(LUT_Files.keys()),
+                                                       directory=QgsFileUtils.stringToSafeFilename(speclib.name()))
+            if isinstance(path, str) and len(path) > 0:
+                speclib.writeRasterImages(path, drv=LUT_Files.get(filter, 'GTiff'))
+
+        a = menu.addAction('Raster Image')
+        a.setToolTip('Write profiles as raster image(s), grouped by wavelengths.')
+        a.triggered.connect(lambda *args, sl=spectralLibrary: write(sl))

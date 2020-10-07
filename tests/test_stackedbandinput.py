@@ -19,19 +19,17 @@
 # noinspection PyPep8Naming
 import os
 import sys
+import unittest
 import xmlrunner
+from qgis.PyQt.QtWidgets import QApplication
+from qgis.core import QgsRasterLayer
 from eotimeseriesviewer.tests import start_app, EOTSVTestCase
 from eotimeseriesviewer.utils import nextColor
-from osgeo import gdal_array
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-import unittest, tempfile
-
-
-
+from osgeo import gdal_array, osr
 from eotimeseriesviewer.stackedbandinput import *
-from example.Images import Img_2014_06_16_LE72270652014167CUB00_BOA, Img_2014_05_07_LC82270652014127LGN00_BOA
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
+
 
 class TestStackedInputs(EOTSVTestCase):
 
@@ -41,7 +39,6 @@ class TestStackedInputs(EOTSVTestCase):
         if isinstance(eotsv, EOTimeSeriesViewer):
             eotsv.close()
             QApplication.processEvents()
-
 
     def createTestDatasets(self):
 
@@ -60,7 +57,7 @@ class TestStackedInputs(EOTSVTestCase):
         assert isinstance(drv, gdal.Driver)
         datasets = []
         for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i+1)
+            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
             nb = len(r)
             ds = drv.Create(p, ns, nl, nb, eType=gdal.GDT_Float32)
             assert isinstance(ds, gdal.Dataset)
@@ -74,33 +71,32 @@ class TestStackedInputs(EOTSVTestCase):
             for b, date in enumerate(r):
                 decimalYear = date2num(date)
 
-                band = ds.GetRasterBand(b+1)
+                band = ds.GetRasterBand(b + 1)
                 assert isinstance(band, gdal.Band)
                 band.Fill(decimalYear)
             ds.FlushCache()
             datasets.append(p)
 
-
             if i == 0:
-                #create a classification image stack
+                # create a classification image stack
 
                 nc = nb
                 data = np.ones((nb, ns, nl), dtype=np.uint8)
                 classNames = ['unclassified']
                 colorTable = gdal.ColorTable()
-                colorTable.SetColorEntry(0, (0,0,0))
+                colorTable.SetColorEntry(0, (0, 0, 0))
                 assert isinstance(colorTable, gdal.ColorTable)
                 color = QColor('green')
 
                 for j, date in enumerate(r):
-                    c = j+1
+                    c = j + 1
                     data[j, j:-1, 0:j] = c
                     classNames.append('Class {}'.format(date))
                     colorTable.SetColorEntry(c, color.getRgb())
                     color = nextColor(color)
 
                 p = '{}tmpClassificationStack.bsq'.format(vsiDir)
-                ds = gdal_array.SaveArray(data,p, format='ENVI', prototype=datasets[0])
+                ds = gdal_array.SaveArray(data, p, format='ENVI', prototype=datasets[0])
                 ds.GetRasterBand(1).SetColorTable(colorTable)
                 ds.GetRasterBand(1).SetCategoryNames(classNames)
 
@@ -109,7 +105,6 @@ class TestStackedInputs(EOTSVTestCase):
                 ds.FlushCache()
                 datasets.append(ds)
         return datasets
-
 
     def test_FORCEStacks(self):
 
@@ -122,7 +117,6 @@ class TestStackedInputs(EOTSVTestCase):
 
             self.showGui()
 
-
     def test_inputmodel(self):
         testData = self.createTestDatasets()
         m = InputStackTableModel()
@@ -134,7 +128,6 @@ class TestStackedInputs(EOTSVTestCase):
         self.assertTrue(len(dTotal) > 0)
         self.assertTrue(len(dIntersecton) > 0)
         self.assertTrue(len(dTotal) > len(dIntersecton))
-
 
     def test_outputmodel(self):
 
@@ -168,7 +161,6 @@ class TestStackedInputs(EOTSVTestCase):
         eTree = m.vrtXML(outInfo, asElementTree=True)
         self.assertIsInstance(eTree, ElementTree.Element)
 
-
     def test_dialog(self):
         d = StackedBandInputDialog()
         d.addSources(self.createTestDatasets())
@@ -194,8 +186,6 @@ class TestStackedInputs(EOTSVTestCase):
         self.showGui()
 
     def test_withTSV(self):
-
-
 
         testImages = self.createTestDatasets()
         from eotimeseriesviewer.main import EOTimeSeriesViewer

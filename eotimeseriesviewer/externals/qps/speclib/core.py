@@ -35,7 +35,7 @@ import uuid
 from osgeo import osr
 from ..speclib import SpectralLibrarySettingsKey
 from PyQt5.QtWidgets import *
-from qgis.core import \
+from qgis.core import QgsApplication, \
     QgsRenderContext, QgsFeature, QgsVectorLayer, QgsMapLayer, QgsRasterLayer, \
     QgsAttributeTableConfig, QgsField, QgsFields, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsVectorFileWriter, QgsActionManager, QgsFeatureIterator, QgsFeatureRequest, \
@@ -43,7 +43,7 @@ from qgis.core import \
     QgsRaster, QgsDefaultValue, QgsReadWriteContext, \
     QgsCategorizedSymbolRenderer, QgsMapLayerProxyModel, \
     QgsSymbol, QgsNullSymbolRenderer, QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol, \
-    QgsEditorWidgetSetup, QgsAction, QgsTask, QgsMessageLog
+    QgsEditorWidgetSetup, QgsAction, QgsTask, QgsMessageLog, QgsFileUtils
 
 from qgis.gui import \
     QgsGui, QgsMapCanvas, QgsDualView, QgisInterface, QgsEditorConfigWidget, \
@@ -1388,10 +1388,10 @@ class SpectralProfileRenderer(object):
                         pass
                     else:
                         style.setVisibility(False)
-                    #symbol = renderer.sourceSymbol()
+                    # symbol = renderer.sourceSymbol()
                 elif isinstance(symbol, (QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol)):
                     color: QColor = symbol.color()
-                    color.setAlpha(int(symbol.opacity()*100))
+                    color.setAlpha(int(symbol.opacity() * 100))
 
                     style.setLineColor(color)
                     style.setMarkerColor(color)
@@ -2157,8 +2157,8 @@ class SpectralLibrary(QgsVectorLayer):
                  path: str = None,
                  baseName: str = DEFAULT_NAME,
                  options: QgsVectorLayer.LayerOptions = None,
-                 uri: str = None, # deprectated
-                 name: str = None # deprectated
+                 uri: str = None,  # deprectated
+                 name: str = None  # deprectated
                  ):
 
         if isinstance(uri, str):
@@ -2623,10 +2623,10 @@ class SpectralLibrary(QgsVectorLayer):
         msg = super(SpectralLibrary, self).exportNamedStyle(doc, context=context, categories=categories)
         if msg == '':
             qgsNode = doc.documentElement().toElement()
-            #speclibNode = doc.createElement(XMLNODE_PROFILE_RENDERER)
+            # speclibNode = doc.createElement(XMLNODE_PROFILE_RENDERER)
             if isinstance(self.mProfileRenderer, SpectralProfileRenderer):
                 self.mProfileRenderer.writeXml(qgsNode, doc)
-            #qgsNode.appendChild(speclibNode)
+            # qgsNode.appendChild(speclibNode)
 
         return msg
 
@@ -2648,7 +2648,8 @@ class SpectralLibrary(QgsVectorLayer):
         warnings.warn('Use SpectralLibrary.write() instead', DeprecationWarning)
         return self.write(*args, **kwds)
 
-    def writeRasterImages(self, pathOne: typing.Union[str, pathlib.Path], drv:str='GTiff') -> typing.List[pathlib.Path]:
+    def writeRasterImages(self, pathOne: typing.Union[str, pathlib.Path], drv: str = 'GTiff') -> typing.List[
+        pathlib.Path]:
         """
         Writes the SpectralLibrary into images of same spectral properties
         :return: list of image paths
@@ -2659,7 +2660,7 @@ class SpectralLibrary(QgsVectorLayer):
         basename, ext = os.path.splitext(pathOne.name)
 
         assert pathOne.parent.is_dir()
-        results = []
+        imageFiles = []
         for k, profiles in self.groupBySpectralProperties().items():
             xValues, xUnit, yUnit = k
             ns: int = len(profiles)
@@ -2667,26 +2668,29 @@ class SpectralLibrary(QgsVectorLayer):
 
             ref_profile = np.asarray(profiles[0].yValues())
             dtype = ref_profile.dtype
-            imageArray = np.empty((nb, ns, 1), dtype=dtype)
-            imageArray[:,0,0] = ref_profile
+            imageArray = np.empty((nb, 1, ns), dtype=dtype)
+            imageArray[:, 0, 0] = ref_profile
+
             for i in range(1, len(profiles)):
-                imageArray[:, i, 0] = np.asarray(profiles[i].yValues(), dtype=dtype)
-            if len(results) == 0:
+                imageArray[:, 0, i] = np.asarray(profiles[i].yValues(), dtype=dtype)
+
+            if len(imageFiles) == 0:
                 pathDst = pathOne.parent / f'{basename}{ext}'
             else:
-                pathDst = pathOne.parent / f'{basename}{i}{ext}'
+                pathDst = pathOne.parent / f'{basename}{len(imageFiles)}{ext}'
 
             dsDst: gdal.Dataset = gdal_array.SaveArray(imageArray, pathDst.as_posix(), format=drv)
             fakeProjection: osr.SpatialReference = osr.SpatialReference()
             fakeProjection.SetFromUserInput('EPSG:3857')
             dsDst.SetProjection(fakeProjection.ExportToWkt())
-            dsDst.SetGeoTransform([0.0, 1.0, 0.0, 0.0, 0.0, -1.0])
+            # north-up project, 1 px above equator, starting at 0°, n pixels = n profiles towards east
+            dsDst.SetGeoTransform([0.0, 1.0, 0.0, 1.0, 0.0, -1.0])
             dsDst.SetMetadataItem('wavelength units', xUnit)
             dsDst.SetMetadataItem('wavelength', ','.join(f'{v}' for v in xValues))
             dsDst.FlushCache()
-            results.append(pathDst)
+            imageFiles.append(pathDst)
             del dsDst
-        return results
+        return imageFiles
 
     def write(self, path: str, **kwds) -> typing.List[str]:
         """
@@ -2703,7 +2707,7 @@ class SpectralLibrary(QgsVectorLayer):
         if path is None:
             path, filter = QFileDialog.getSaveFileName(parent=kwds.get('parent'),
                                                        caption='Save Spectral Library',
-                                                       directory='speclib',
+                                                       directory=QgsFileUtils.stringToSafeFilename(self.name()),
                                                        filter=FILTERS)
 
         if isinstance(path, pathlib.Path):
@@ -2724,41 +2728,46 @@ class SpectralLibrary(QgsVectorLayer):
 
         return []
 
-    def yRange(self):
-        profiles = self.profiles()
-        minY = min([min(p.yValues()) for p in profiles])
-        maxY = max([max(p.yValues()) for p in profiles])
+    def yRange(self) -> typing.List[float]:
+        """
+        Returns the maximum y range
+        :return:
+        :rtype:
+        """
+
+        minY = maxY = 0
+
+        for p in self.profiles():
+            yValues = p.yValues()
+            minY = min(minY, min(yValues))
+            maxY = max(maxY, max(yValues))
+
         return minY, maxY
 
     def __repr__(self):
         return str(self.__class__) + '"{}" {} feature(s)'.format(self.name(), self.dataProvider().featureCount())
 
-    def plot(self):
+    def plot(self) -> QWidget:
         """Create a plot widget and shows all SpectralProfile in this SpectralLibrary."""
-        from ..externals import pyqtgraph as pg
-        pg.mkQApp()
 
-        win = pg.GraphicsWindow(title="Spectral Library")
-        win.resize(1000, 600)
+        app = None
+        if not isinstance(QgsApplication.instance(), QgsApplication):
+            from ..testing import start_app
+            app = start_app()
 
-        # Enable antialiasing for prettier plots
-        pg.setConfigOptions(antialias=True)
+        from .gui import SpectralLibraryWidget
 
-        # Create a plot with some random data
-        p1 = win.addPlot(title="Spectral Library {}".format(self.name()), pen=0.5)
-        yMin, yMax = self.yRange()
-        p1.setYRange(yMin, yMax)
+        w = SpectralLibraryWidget(speclib=self)
+        w.show()
 
-        # Add three infinite lines with labels
-        for p in self:
-            pi = pg.PlotDataItem(p.xValues(), p.yValues())
-            p1.addItem(pi)
+        if app:
+            app.exec_()
 
-        pg.QAPP.exec_()
+        return w
 
     def fieldNames(self) -> list:
         """
-        Retunrs the field names. Shortcut from self.fields().names()
+        Returns the field names. Shortcut from self.fields().names()
         :return: [list-of-str]
         """
         return self.fields().names()

@@ -34,9 +34,9 @@ import typing
 
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
-from qgis.core import *
-from qgis.gui import *
-from qgis.core import QgsField, QgsVectorLayer, QgsVectorFileWriter, QgsProviderRegistry, QgsProject
+
+from qgis.core import QgsField, QgsVectorLayer, QgsVectorFileWriter, QgsProviderRegistry, \
+    QgsProject, QgsProviderMetadata, QgsFileUtils
 
 from ..core import SpectralProfile, SpectralLibrary, AbstractSpectralLibraryIO, \
     decodeProfileValueDict, encodeProfileValueDict, \
@@ -82,8 +82,7 @@ class VectorSourceFieldValueConverter(QgsVectorFileWriter.FieldValueConverter):
 
 class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
     """
-    I/O Interface for the EcoSIS spectral library format.
-    See https://ecosis.org for details.
+    I/O Interface for Vector File Formats.
     """
 
     @classmethod
@@ -118,6 +117,8 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
                  addAttributes: bool = True) -> SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
+        :param progressDialog:
+        :type progressDialog:
         :param path: source of SpectralLibrary
         :return: SpectralLibrary
         """
@@ -252,7 +253,9 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
         def read(speclib: SpectralLibrary):
 
             path, filter = QFileDialog.getOpenFileName(caption='Vector File',
-                                                       filter='All type (*.*)')
+                                                       filter='All type (*.*)',
+                                                       directory=QgsFileUtils.stringToSafeFilename(speclib.name())
+                                                       )
             if os.path.isfile(path) and VectorSourceSpectralLibraryIO.canRead(path):
                 sl = VectorSourceSpectralLibraryIO.readFrom(path)
                 if isinstance(sl, SpectralLibrary):
@@ -269,7 +272,7 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
 
     @classmethod
     def addExportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
-
+        """
         def write_new(speclib: SpectralLibrary):
             # this is not available in Python. Why?
             from qgis.gui import QgsVectorLayerSaveAsDialog
@@ -282,7 +285,7 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             d = QgsVectorLayerSaveAsDialog(speclib, options=options)
             d.show()
-            s = ""
+        """
 
         def write(speclib: SpectralLibrary):
             # https://gdal.org/drivers/vector/index.html
