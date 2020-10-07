@@ -26,24 +26,30 @@ import re
 import fnmatch
 import collections
 import copy
+import enum
 import traceback
 import typing
 
 import numpy as np
 
 import qgis.utils
-from qgis.PyQt.QtCore import Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
-from qgis.PyQt.QtGui import QColor, QIcon, QGuiApplication, QMouseEvent
-from qgis.PyQt.QtWidgets import QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, QToolBox, QDialog
-from qgis.PyQt.QtXml import QDomDocument, QDomNode, QDomElement
-from qgis.core import QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
+from qgis.PyQt.QtCore import \
+    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
+from qgis.PyQt.QtGui import \
+    QColor, QIcon, QGuiApplication, QMouseEvent
+from qgis.PyQt.QtWidgets import \
+    QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
+    QToolBox, QDialog, QAction
+from qgis.PyQt.QtXml import \
+    QDomDocument, QDomNode, QDomElement
+from qgis.core import \
+    QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
-    QgsLayerTreeModel, QgsLayerTreeGroup, \
-    QgsLayerTree, QgsLayerTreeLayer, \
+    QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
+    QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
-
-from qgis.gui import *
-from qgis.gui import QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
+from qgis.gui import \
+    QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
     QgsProjectionSelectionWidget, QgsMessageBar
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
@@ -53,13 +59,15 @@ from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
 from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
 from .utils import loadUi, SpatialPoint, SpatialExtent, datetime64
 from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.main import fixMenuButtons
+from eotimeseriesviewer.utils import fixMenuButtons
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
 KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 
 
 def equalTextFormats(tf1: QgsTextFormat, tf2: QgsTextFormat) -> True:
+    if not (isinstance(tf1, QgsTextFormat) and isinstance(tf2, QgsTextFormat)):
+        return False
     return tf1.toMimeData().text() == tf2.toMimeData().text()
 
 
@@ -89,10 +97,13 @@ class MapView(QFrame):
         loadUi(DIR_UI / 'mapview.ui', self)
         # self.setupUi(self)
 
-        from eotimeseriesviewer.settings import values, Keys
-        DEFAULT_VALUES = values()
-        self.mMapBackgroundColor = DEFAULT_VALUES[Keys.MapBackgroundColor]
-        self.mMapTextFormat = DEFAULT_VALUES[Keys.MapTextFormat]
+        from eotimeseriesviewer.settings import values, Keys, defaultValues, value
+
+        DEFAULT_VALUES = defaultValues()
+        self.mMapBackgroundColor: QColor = value(Keys.MapBackgroundColor,
+                                                 default=DEFAULT_VALUES.get(Keys.MapBackgroundColor, QColor('black')))
+        self.mMapTextFormat: QgsTextFormat = value(Keys.MapTextFormat,
+                                                   default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
         self.mMapWidget = None
 
         self.mLayerStyleInitialized: typing.Dict[SensorInstrument, bool] = dict()
@@ -251,7 +262,6 @@ class MapView(QFrame):
         return self.title()
 
     def setMapTextFormat(self, textformat: QgsTextFormat) -> QgsTextFormat:
-
         if not equalTextFormats(self.mapTextFormat(), textformat):
             self.mMapTextFormat = textformat
             self.sigCanvasAppearanceChanged.emit()
@@ -2159,9 +2169,9 @@ class MapViewDock(QgsDockWidget):
             self.mLastNDatesPerMapView = n
 
     def setMapTextFormat(self, textFormat: QgsTextFormat):
-
-        if not equalTextFormats(textFormat, self.mapTextFormat()):
-            self.btnTextFormat.setTextFormat(textFormat)
+        if isinstance(textFormat, QgsTextFormat):
+            if not equalTextFormats(textFormat, self.mapTextFormat()):
+                self.btnTextFormat.setTextFormat(textFormat)
 
     def mapTextFormat(self) -> QgsTextFormat:
         return self.btnTextFormat.textFormat()
