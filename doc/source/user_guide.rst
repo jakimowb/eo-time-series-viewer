@@ -2,8 +2,8 @@
 
 .. include:: /icon_links.rst
 
-.. |cbc| image:: img/checkbox_checked.PNG
-.. |cbu| image:: img/checkbox_unchecked.PNG
+.. |cbc| image:: img/checkbox_checked.png
+.. |cbu| image:: img/checkbox_unchecked.png
 
 .. |timeseriesdock| image:: img/timeseriesdock.png
 .. |mapviewbutton| image:: img/mapviewbutton.png
@@ -13,9 +13,6 @@
 ==========
 User Guide
 ==========
-
-.. todo:: This documentation reflects the previous EO Time Series Viewer version, where some parts of the GUI looked
-          different. We are working hard on updating the figures and descriptions.
 
 Quick Start
 -----------

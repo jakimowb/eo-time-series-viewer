@@ -1,266 +1,266 @@
-.. |ActionIdentifyTimeSeries| image:: /../../eotimeseriesviewer/ui/icons/ActionIdentifyTimeSeries.svg
+.. |ActionIdentifyTimeSeries| image:: img/qgis_icons/ActionIdentifyTimeSeries.png 
    :width: 28px
 .. |add_class| image:: /../../eotimeseriesviewer/ui/icons/add_class.svg
    :width: 28px
-.. |copyright_label| image:: /../../eotimeseriesviewer/ui/icons/copyright_label.svg
+.. |copyright_label| image:: img/qgis_icons/copyright_label.png 
    :width: 28px
-.. |crosshair| image:: /../../eotimeseriesviewer/ui/icons/crosshair.svg
+.. |crosshair| image:: img/qgis_icons/crosshair.png 
    :width: 28px
-.. |CRS| image:: /../../eotimeseriesviewer/ui/icons/CRS.svg
+.. |CRS| image:: img/qgis_icons/CRS.png 
    :width: 28px
-.. |general| image:: /../../eotimeseriesviewer/ui/icons/general.svg
+.. |general| image:: img/qgis_icons/general.png 
    :width: 28px
-.. |icon| image:: /../../eotimeseriesviewer/ui/icons/icon.svg
+.. |icon| image:: img/qgis_icons/icon.png 
    :width: 28px
-.. |IconTimeSeries| image:: /../../eotimeseriesviewer/ui/icons/IconTimeSeries.svg
+.. |IconTimeSeries| image:: img/qgis_icons/IconTimeSeries.png 
    :width: 28px
-.. |locked| image:: /../../eotimeseriesviewer/ui/icons/locked.svg
+.. |locked| image:: img/qgis_icons/locked.png 
    :width: 28px
-.. |lockedGray| image:: /../../eotimeseriesviewer/ui/icons/lockedGray.svg
+.. |lockedGray| image:: img/qgis_icons/lockedGray.png 
    :width: 28px
-.. |logo_hub| image:: /../../eotimeseriesviewer/ui/icons/logo_hub.svg
+.. |logo_hub| image:: img/qgis_icons/logo_hub.png 
    :width: 28px
-.. |mActionAdd| image:: /../../eotimeseriesviewer/ui/icons/mActionAdd.svg
+.. |mActionAdd| image:: img/qgis_icons/mActionAdd.png 
    :width: 28px
-.. |mActionAddMapView| image:: /../../eotimeseriesviewer/ui/icons/mActionAddMapView.svg
+.. |mActionAddMapView| image:: img/qgis_icons/mActionAddMapView.png 
    :width: 28px
-.. |mActionAddOgrLayer| image:: /../../eotimeseriesviewer/ui/icons/mActionAddOgrLayer.svg
+.. |mActionAddOgrLayer| image:: img/qgis_icons/mActionAddOgrLayer.png 
    :width: 28px
-.. |mActionAddRasterLayer| image:: /../../eotimeseriesviewer/ui/icons/mActionAddRasterLayer.svg
+.. |mActionAddRasterLayer| image:: img/qgis_icons/mActionAddRasterLayer.png 
    :width: 28px
-.. |mActionAddTS| image:: /../../eotimeseriesviewer/ui/icons/mActionAddTS.svg
+.. |mActionAddTS| image:: img/qgis_icons/mActionAddTS.png 
    :width: 28px
-.. |mActionAddVirtualRaster| image:: /../../eotimeseriesviewer/ui/icons/mActionAddVirtualRaster.svg
+.. |mActionAddVirtualRaster| image:: img/qgis_icons/mActionAddVirtualRaster.png 
    :width: 28px
-.. |mActionAtlasFirst| image:: /../../eotimeseriesviewer/ui/icons/mActionAtlasFirst.svg
+.. |mActionAtlasFirst| image:: img/qgis_icons/mActionAtlasFirst.png 
    :width: 28px
-.. |mActionAtlasLast| image:: /../../eotimeseriesviewer/ui/icons/mActionAtlasLast.svg
+.. |mActionAtlasLast| image:: ..\static\qgis_icons\mActionAtlasLast.png 
    :width: 28px
-.. |mActionAtlasNext| image:: /../../eotimeseriesviewer/ui/icons/mActionAtlasNext.svg
+.. |mActionAtlasNext| image:: ..\static\qgis_icons\mActionAtlasNext.png 
    :width: 28px
-.. |mActionAtlasPrev| image:: /../../eotimeseriesviewer/ui/icons/mActionAtlasPrev.svg
+.. |mActionAtlasPrev| image:: img/qgis_icons/mActionAtlasPrev.png 
    :width: 28px
-.. |mActionCollapseTree| image:: /../../eotimeseriesviewer/ui/icons/mActionCollapseTree.svg
+.. |mActionCollapseTree| image:: img/qgis_icons/mActionCollapseTree.png 
    :width: 28px
 .. |mActionCopySelected| image:: /../../eotimeseriesviewer/ui/icons/mActionCopySelected.png
    :width: 28px
-.. |mActionEditCopy| image:: /../../eotimeseriesviewer/ui/icons/mActionEditCopy.svg
+.. |mActionEditCopy| image:: ..\static\qgis_icons\mActionEditCopy.png 
    :width: 28px
-.. |mActionEditPaste| image:: /../../eotimeseriesviewer/ui/icons/mActionEditPaste.svg
+.. |mActionEditPaste| image:: ..\static\qgis_icons\mActionEditPaste.png 
    :width: 28px
-.. |mActionExpandTree| image:: /../../eotimeseriesviewer/ui/icons/mActionExpandTree.svg
+.. |mActionExpandTree| image:: img/qgis_icons/mActionExpandTree.png 
    :width: 28px
-.. |mActionFileSave| image:: /../../eotimeseriesviewer/ui/icons/mActionFileSave.svg
+.. |mActionFileSave| image:: ..\static\qgis_icons\mActionFileSave.png 
    :width: 28px
-.. |mActionFileSaveAs| image:: /../../eotimeseriesviewer/ui/icons/mActionFileSaveAs.svg
+.. |mActionFileSaveAs| image:: ..\static\qgis_icons\mActionFileSaveAs.png 
    :width: 28px
-.. |mActionIdentify| image:: /../../eotimeseriesviewer/ui/icons/mActionIdentify.svg
+.. |mActionIdentify| image:: img/qgis_icons/mActionIdentify.png 
    :width: 28px
-.. |mActionOpenTable| image:: /../../eotimeseriesviewer/ui/icons/mActionOpenTable.svg
+.. |mActionOpenTable| image:: ..\static\qgis_icons\mActionOpenTable.png 
    :width: 28px
-.. |mActionPan| image:: /../../eotimeseriesviewer/ui/icons/mActionPan.svg
+.. |mActionPan| image:: img/qgis_icons/mActionPan.png 
    :width: 28px
-.. |mActionRefresh| image:: /../../eotimeseriesviewer/ui/icons/mActionRefresh.svg
+.. |mActionRefresh| image:: img/qgis_icons/mActionRefresh.png 
    :width: 28px
-.. |mActionRemove| image:: /../../eotimeseriesviewer/ui/icons/mActionRemove.svg
+.. |mActionRemove| image:: img/qgis_icons/mActionRemove.png 
    :width: 28px
-.. |mActionRemoveMapView| image:: /../../eotimeseriesviewer/ui/icons/mActionRemoveMapView.svg
+.. |mActionRemoveMapView| image:: img/qgis_icons/mActionRemoveMapView.png 
    :width: 28px
-.. |mActionRemoveTS| image:: /../../eotimeseriesviewer/ui/icons/mActionRemoveTS.svg
+.. |mActionRemoveTS| image:: img/qgis_icons/mActionRemoveTS.png 
    :width: 28px
-.. |mActionRemoveTSD| image:: /../../eotimeseriesviewer/ui/icons/mActionRemoveTSD.svg
+.. |mActionRemoveTSD| image:: img/qgis_icons/mActionRemoveTSD.png 
    :width: 28px
-.. |mActionRemoveVirtualRaster| image:: /../../eotimeseriesviewer/ui/icons/mActionRemoveVirtualRaster.svg
+.. |mActionRemoveVirtualRaster| image:: img/qgis_icons/mActionRemoveVirtualRaster.png 
    :width: 28px
-.. |mActionSaveTS| image:: /../../eotimeseriesviewer/ui/icons/mActionSaveTS.svg
+.. |mActionSaveTS| image:: img/qgis_icons/mActionSaveTS.png 
    :width: 28px
-.. |mActionShowAllLayers| image:: /../../eotimeseriesviewer/ui/icons/mActionShowAllLayers.svg
+.. |mActionShowAllLayers| image:: img/qgis_icons/mActionShowAllLayers.png 
    :width: 28px
-.. |mActionZoomActual| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomActual.svg
+.. |mActionZoomActual| image:: ..\static\qgis_icons\mActionZoomActual.png 
    :width: 28px
-.. |mActionZoomFullExtent| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomFullExtent.svg
+.. |mActionZoomFullExtent| image:: ..\static\qgis_icons\mActionZoomFullExtent.png 
    :width: 28px
-.. |mActionZoomIn| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomIn.svg
+.. |mActionZoomIn| image:: ..\static\qgis_icons\mActionZoomIn.png 
    :width: 28px
-.. |mActionZoomOut| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomOut.svg
+.. |mActionZoomOut| image:: ..\static\qgis_icons\mActionZoomOut.png 
    :width: 28px
-.. |mActionZoomPoint| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomPoint.svg
+.. |mActionZoomPoint| image:: img/qgis_icons/mActionZoomPoint.png 
    :width: 28px
-.. |mActionZoomToArea| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomToArea.svg
+.. |mActionZoomToArea| image:: img/qgis_icons/mActionZoomToArea.png 
    :width: 28px
-.. |mActionZoomToLayer| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomToLayer.svg
+.. |mActionZoomToLayer| image:: img/qgis_icons/mActionZoomToLayer.png 
    :width: 28px
-.. |mActionZoomToSelected| image:: /../../eotimeseriesviewer/ui/icons/mActionZoomToSelected.svg
+.. |mActionZoomToSelected| image:: ..\static\qgis_icons\mActionZoomToSelected.png 
    :width: 28px
-.. |map| image:: /../../eotimeseriesviewer/ui/icons/map.svg
+.. |map| image:: img/qgis_icons/map.png 
    :width: 28px
-.. |mapCenterExport| image:: /../../eotimeseriesviewer/ui/icons/mapCenterExport.svg
+.. |mapCenterExport| image:: img/qgis_icons/mapCenterExport.png 
    :width: 28px
-.. |mapCenterImport| image:: /../../eotimeseriesviewer/ui/icons/mapCenterImport.svg
+.. |mapCenterImport| image:: img/qgis_icons/mapCenterImport.png 
    :width: 28px
-.. |mapExtentExport| image:: /../../eotimeseriesviewer/ui/icons/mapExtentExport.svg
+.. |mapExtentExport| image:: img/qgis_icons/mapExtentExport.png 
    :width: 28px
-.. |mapExtentImport| image:: /../../eotimeseriesviewer/ui/icons/mapExtentImport.svg
+.. |mapExtentImport| image:: img/qgis_icons/mapExtentImport.png 
    :width: 28px
-.. |mapview| image:: /../../eotimeseriesviewer/ui/icons/mapview.svg
+.. |mapview| image:: img/qgis_icons/mapview.png 
    :width: 28px
 .. |mapview2| image:: /../../eotimeseriesviewer/ui/icons/mapview2.svg
    :width: 28px
-.. |mapviewHidden| image:: /../../eotimeseriesviewer/ui/icons/mapviewHidden.svg
+.. |mapviewHidden| image:: img/qgis_icons/mapviewHidden.png 
    :width: 28px
-.. |metadata| image:: /../../eotimeseriesviewer/ui/icons/metadata.svg
+.. |metadata| image:: img/qgis_icons/metadata.png 
    :width: 28px
-.. |mIconClear| image:: /../../eotimeseriesviewer/ui/icons/mIconClear.svg
+.. |mIconClear| image:: img/qgis_icons/mIconClear.png 
    :width: 28px
-.. |mIconClearText| image:: /../../eotimeseriesviewer/ui/icons/mIconClearText.svg
+.. |mIconClearText| image:: img/qgis_icons/mIconClearText.png 
    :width: 28px
-.. |mIconClose| image:: /../../eotimeseriesviewer/ui/icons/mIconClose.svg
+.. |mIconClose| image:: img/qgis_icons/mIconClose.png 
    :width: 28px
-.. |mIconCollapse| image:: /../../eotimeseriesviewer/ui/icons/mIconCollapse.svg
+.. |mIconCollapse| image:: ..\static\qgis_icons\mIconCollapse.png 
    :width: 28px
-.. |mIconExpand| image:: /../../eotimeseriesviewer/ui/icons/mIconExpand.svg
+.. |mIconExpand| image:: ..\static\qgis_icons\mIconExpand.png 
    :width: 28px
-.. |mIconFieldTime| image:: /../../eotimeseriesviewer/ui/icons/mIconFieldTime.svg
+.. |mIconFieldTime| image:: img/qgis_icons/mIconFieldTime.png 
    :width: 28px
-.. |mIconPolygonLayer| image:: /../../eotimeseriesviewer/ui/icons/mIconPolygonLayer.svg
+.. |mIconPolygonLayer| image:: img/qgis_icons/mIconPolygonLayer.png 
    :width: 28px
-.. |mIconRaster| image:: /../../eotimeseriesviewer/ui/icons/mIconRaster.svg
+.. |mIconRaster| image:: img/qgis_icons/mIconRaster.png 
    :width: 28px
-.. |mIconRasterClassification| image:: /../../eotimeseriesviewer/ui/icons/mIconRasterClassification.svg
+.. |mIconRasterClassification| image:: img/qgis_icons/mIconRasterClassification.png 
    :width: 28px
-.. |mIconRasterImage| image:: /../../eotimeseriesviewer/ui/icons/mIconRasterImage.svg
+.. |mIconRasterImage| image:: img/qgis_icons/mIconRasterImage.png 
    :width: 28px
-.. |mIconRasterMask| image:: /../../eotimeseriesviewer/ui/icons/mIconRasterMask.svg
+.. |mIconRasterMask| image:: img/qgis_icons/mIconRasterMask.png 
    :width: 28px
-.. |mIconRasterRegression| image:: /../../eotimeseriesviewer/ui/icons/mIconRasterRegression.svg
+.. |mIconRasterRegression| image:: img/qgis_icons/mIconRasterRegression.png 
    :width: 28px
 .. |mIconSelectTemporalProfile| image:: /../../eotimeseriesviewer/ui/icons/mIconSelectTemporalProfile.svg
    :width: 28px
-.. |mIconTemporalProfile| image:: /../../eotimeseriesviewer/ui/icons/mIconTemporalProfile.svg
+.. |mIconTemporalProfile| image:: img/qgis_icons/mIconTemporalProfile.png 
    :width: 28px
-.. |mIconTemporalProfile2D| image:: /../../eotimeseriesviewer/ui/icons/mIconTemporalProfile2D.svg
+.. |mIconTemporalProfile2D| image:: img/qgis_icons/mIconTemporalProfile2D.png 
    :width: 28px
-.. |mIconTemporalProfile3D| image:: /../../eotimeseriesviewer/ui/icons/mIconTemporalProfile3D.svg
+.. |mIconTemporalProfile3D| image:: img/qgis_icons/mIconTemporalProfile3D.png 
    :width: 28px
-.. |mIconTemporalProfileRefresh| image:: /../../eotimeseriesviewer/ui/icons/mIconTemporalProfileRefresh.svg
+.. |mIconTemporalProfileRefresh| image:: img/qgis_icons/mIconTemporalProfileRefresh.png 
    :width: 28px
 .. |mIconVirtualRaster| image:: /../../eotimeseriesviewer/ui/icons/mIconVirtualRaster.svg
    :width: 28px
 .. |mIconVirtualRaster2| image:: /../../eotimeseriesviewer/ui/icons/mIconVirtualRaster2.svg
    :width: 28px
-.. |pickrasterspectrum| image:: /../../eotimeseriesviewer/ui/icons/pickrasterspectrum.svg
+.. |pickrasterspectrum| image:: img/qgis_icons/pickrasterspectrum.png 
    :width: 28px
-.. |profile2speclib| image:: /../../eotimeseriesviewer/ui/icons/profile2speclib.svg
+.. |profile2speclib| image:: img/qgis_icons/profile2speclib.png 
    :width: 28px
-.. |profile2speclib_auto| image:: /../../eotimeseriesviewer/ui/icons/profile2speclib_auto.svg
+.. |profile2speclib_auto| image:: img/qgis_icons/profile2speclib_auto.png 
    :width: 28px
-.. |qgis_icon| image:: /../../eotimeseriesviewer/ui/icons/qgis_icon.svg
+.. |qgis_icon| image:: ..\static\qgis_icons\qgis_icon.png 
    :width: 28px
-.. |qgsMapCenter| image:: /../../eotimeseriesviewer/ui/icons/qgsMapCenter.svg
+.. |qgsMapCenter| image:: img/qgis_icons/qgsMapCenter.png 
    :width: 28px
 .. |remove_class| image:: /../../eotimeseriesviewer/ui/icons/remove_class.svg
    :width: 28px
-.. |render| image:: /../../eotimeseriesviewer/ui/icons/render.svg
+.. |render| image:: img/qgis_icons/render.png 
    :width: 28px
-.. |settings| image:: /../../eotimeseriesviewer/ui/icons/settings.svg
+.. |settings| image:: img/qgis_icons/settings.png 
    :width: 28px
-.. |speclib| image:: /../../eotimeseriesviewer/ui/icons/speclib.svg
+.. |speclib| image:: img/qgis_icons/speclib.png 
    :width: 28px
-.. |speclib_save| image:: /../../eotimeseriesviewer/ui/icons/speclib_save.svg
+.. |speclib_save| image:: img/qgis_icons/speclib_save.png 
    :width: 28px
-.. |spectralprofile| image:: /../../eotimeseriesviewer/ui/icons/spectralprofile.svg
+.. |spectralprofile| image:: img/qgis_icons/spectralprofile.png 
    :width: 28px
-.. |stylepreset| image:: /../../eotimeseriesviewer/ui/icons/stylepreset.svg
+.. |stylepreset| image:: img/qgis_icons/stylepreset.png 
    :width: 28px
-.. |symbology| image:: /../../eotimeseriesviewer/ui/icons/symbology.svg
+.. |symbology| image:: img/qgis_icons/symbology.png 
    :width: 28px
-.. |system| image:: /../../eotimeseriesviewer/ui/icons/system.svg
+.. |system| image:: img/qgis_icons/system.png 
    :width: 28px
-.. |center_map| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/center_map.svg
+.. |center_map| image:: img/qgis_icons/center_map.png 
    :width: 28px
-.. |classinfo| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/classinfo.svg
+.. |classinfo| image:: img/qgis_icons/classinfo.png 
    :width: 28px
-.. |classinfo_add| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/classinfo_add.svg
+.. |classinfo_add| image:: ..\static\qgis_icons\classinfo_add.png 
    :width: 28px
-.. |classinfo_remove| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/classinfo_remove.svg
+.. |classinfo_remove| image:: img/qgis_icons/classinfo_remove.png 
    :width: 28px
-.. |cross_red| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/cross_red.svg
+.. |cross_red| image:: img/qgis_icons/cross_red.png 
    :width: 28px
-.. |cursorlocationinfo| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/cursorlocationinfo.svg
+.. |cursorlocationinfo| image:: img/qgis_icons/cursorlocationinfo.png 
    :width: 28px
-.. |cursor_zoom_fullextent| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/cursor_zoom_fullextent.svg
+.. |cursor_zoom_fullextent| image:: img/qgis_icons/cursor_zoom_fullextent.png 
    :width: 28px
-.. |cursor_zoom_pixelscale| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/cursor_zoom_pixelscale.svg
+.. |cursor_zoom_pixelscale| image:: img/qgis_icons/cursor_zoom_pixelscale.png 
    :width: 28px
-.. |pan_center| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/pan_center.svg
+.. |pan_center| image:: img/qgis_icons/pan_center.png 
    :width: 28px
-.. |plus_green| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/plus_green.svg
+.. |plus_green| image:: img/qgis_icons/plus_green.png 
    :width: 28px
-.. |plus_green_icon| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/plus_green_icon.svg
+.. |plus_green_icon| image:: img/qgis_icons/plus_green_icon.png 
    :width: 28px
-.. |poly2speclib| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/poly2speclib.svg
+.. |poly2speclib| image:: ..\static\qgis_icons\poly2speclib.png 
    :width: 28px
-.. |profile| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile.svg
+.. |profile| image:: img/qgis_icons/profile.png 
    :width: 28px
-.. |profile_add_auto| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile_add_auto.svg
+.. |profile_add_auto| image:: img/qgis_icons/profile_add_auto.png 
    :width: 28px
-.. |profile_dontreceive| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile_dontreceive.svg
+.. |profile_dontreceive| image:: img/qgis_icons/profile_dontreceive.png 
    :width: 28px
-.. |profile_identify| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile_identify.svg
+.. |profile_identify| image:: img/qgis_icons/profile_identify.png 
    :width: 28px
-.. |profile_reload| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile_reload.svg
+.. |profile_reload| image:: img/qgis_icons/profile_reload.png 
    :width: 28px
-.. |profile_save| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/profile_save.svg
+.. |profile_save| image:: img/qgis_icons/profile_save.png 
    :width: 28px
-.. |raster| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/raster.svg
+.. |raster| image:: img/qgis_icons/raster.png 
    :width: 28px
-.. |raster_classification| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/raster_classification.svg
+.. |raster_classification| image:: img/qgis_icons/raster_classification.png 
    :width: 28px
-.. |raster_mask| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/raster_mask.svg
+.. |raster_mask| image:: img/qgis_icons/raster_mask.png 
    :width: 28px
-.. |raster_multispectral| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/raster_multispectral.svg
+.. |raster_multispectral| image:: img/qgis_icons/raster_multispectral.png 
    :width: 28px
-.. |raster_timeseries| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/raster_timeseries.svg
+.. |raster_timeseries| image:: img/qgis_icons/raster_timeseries.png 
    :width: 28px
-.. |refresh_green| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/refresh_green.svg
+.. |refresh_green| image:: img/qgis_icons/refresh_green.png 
    :width: 28px
-.. |refresh_orange| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/refresh_orange.svg
+.. |refresh_orange| image:: img/qgis_icons/refresh_orange.png 
    :width: 28px
-.. |selectcursor| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/selectcursor.svg
+.. |selectcursor| image:: img/qgis_icons/selectcursor.png 
    :width: 28px
-.. |select_location| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/select_location.svg
+.. |select_location| image:: ..\static\qgis_icons\select_location.png 
    :width: 28px
-.. |speclib| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib.svg
+.. |speclib| image:: img/qgis_icons/speclib.png 
    :width: 28px
-.. |speclib_add| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_add.svg
+.. |speclib_add| image:: img/qgis_icons/speclib_add.png 
    :width: 28px
-.. |speclib_clear| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_clear.svg
+.. |speclib_clear| image:: img/qgis_icons/speclib_clear.png 
    :width: 28px
-.. |speclib_reload| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_reload.svg
+.. |speclib_reload| image:: img/qgis_icons/speclib_reload.png 
    :width: 28px
-.. |temporalProfile| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/temporalProfile.svg
+.. |temporalProfile| image:: img/qgis_icons/temporalProfile.png 
    :width: 28px
-.. |undo_green| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/undo_green.svg
+.. |undo_green| image:: img/qgis_icons/undo_green.png 
    :width: 28px
-.. |undo_orange| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/undo_orange.svg
+.. |undo_orange| image:: img/qgis_icons/undo_orange.png 
    :width: 28px
-.. |action| image:: /img/qgis_icons/action.svg
+.. |action| image:: img/qgis_icons/action.png 
    :width: 28px
-.. |mActionCapturePolygon| image:: /img/qgis_icons/mActionCapturePolygon.svg
+.. |mActionCapturePolygon| image:: img/qgis_icons/mActionCapturePolygon.png 
    :width: 28px
-.. |mActionDeleteAttribute| image:: /img/qgis_icons/mActionDeleteAttribute.svg
+.. |mActionDeleteAttribute| image:: img/qgis_icons/mActionDeleteAttribute.png 
    :width: 28px
-.. |mActionDeleteSelected| image:: /img/qgis_icons/mActionDeleteSelected.svg
+.. |mActionDeleteSelected| image:: img/qgis_icons/mActionDeleteSelected.png 
    :width: 28px
-.. |mActionNewAttribute| image:: /img/qgis_icons/mActionNewAttribute.svg
+.. |mActionNewAttribute| image:: img/qgis_icons/mActionNewAttribute.png 
    :width: 28px
-.. |mActionPropertiesWidget| image:: /img/qgis_icons/mActionPropertiesWidget.svg
+.. |mActionPropertiesWidget| image:: img/qgis_icons/mActionPropertiesWidget.png 
    :width: 28px
-.. |mActionSaveEdits| image:: /img/qgis_icons/mActionSaveEdits.svg
+.. |mActionSaveEdits| image:: ..\static\qgis_icons\mActionSaveEdits.png 
    :width: 28px
-.. |mActionSelectRectangle| image:: /img/qgis_icons/mActionSelectRectangle.svg
+.. |mActionSelectRectangle| image:: img/qgis_icons/mActionSelectRectangle.png 
    :width: 28px
-.. |mActionSetProjection| image:: /img/qgis_icons/mActionSetProjection.svg
+.. |mActionSetProjection| image:: img/qgis_icons/mActionSetProjection.png 
    :width: 28px
-.. |mActionToggleEditing| image:: /img/qgis_icons/mActionToggleEditing.svg
+.. |mActionToggleEditing| image:: ..\static\qgis_icons\mActionToggleEditing.png 
    :width: 28px
