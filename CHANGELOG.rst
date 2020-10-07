@@ -3,6 +3,7 @@ Changelog
 ==============
 2020-10-06 (version 1.14):
     * stability update
+    * optimized package imports
     * improved SpectralLibrary tool
 
 2020-07-23 (version 1.13):
