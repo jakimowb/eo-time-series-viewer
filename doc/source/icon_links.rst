@@ -166,8 +166,6 @@
    :width: 28px
 .. |speclib| image:: /../../eotimeseriesviewer/ui/icons/speclib.svg
    :width: 28px
-.. |speclib_add| image:: /../../eotimeseriesviewer/ui/icons/speclib_add.svg
-   :width: 28px
 .. |speclib_save| image:: /../../eotimeseriesviewer/ui/icons/speclib_save.svg
    :width: 28px
 .. |spectralprofile| image:: /../../eotimeseriesviewer/ui/icons/spectralprofile.svg
@@ -185,8 +183,6 @@
 .. |classinfo_add| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/classinfo_add.svg
    :width: 28px
 .. |classinfo_remove| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/classinfo_remove.svg
-   :width: 28px
-.. |crosshair| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/crosshair.svg
    :width: 28px
 .. |cross_red| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/cross_red.svg
    :width: 28px
@@ -241,8 +237,6 @@
 .. |speclib_clear| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_clear.svg
    :width: 28px
 .. |speclib_reload| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_reload.svg
-   :width: 28px
-.. |speclib_save| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/speclib_save.svg
    :width: 28px
 .. |temporalProfile| image:: /../../eotimeseriesviewer/externals/qps/ui/icons/temporalProfile.svg
    :width: 28px
