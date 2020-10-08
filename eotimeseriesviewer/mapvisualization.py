@@ -43,7 +43,7 @@ from qgis.PyQt.QtWidgets import \
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
 from qgis.core import \
-    QgsCoordinateReferenceSystem, QgsVector, QgsTextFormat, \
+    QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
     QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, \
@@ -185,6 +185,9 @@ class MapView(QFrame):
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
+
+    def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
+        return iter(self.mapCanvases())
 
     @staticmethod
     def readXml(node: QDomNode):
@@ -332,14 +335,14 @@ class MapView(QFrame):
                     c.setCurrentLayer(layer)
             return True
 
-    def addSpectralProfileLayer(self):
-        """Adds the EOTSV Spectral Profile Layer"""
+    def addSpectralProfileLayers(self):
+        """Adds the EOTSV Spectral Profile Layers"""
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         tsv = EOTimeSeriesViewer.instance()
         if isinstance(tsv, EOTimeSeriesViewer):
-            lyr = tsv.spectralLibrary()
-            if lyr not in self.layers():
-                self.addLayer(lyr)
+            for lyr in tsv.spectralLibraries():
+                if lyr not in self.layers():
+                    self.addLayer(lyr)
 
     def addTemporalProfileLayer(self):
         """Adds the EOTSV Temporal Profile Layer"""
@@ -816,7 +819,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             # ----
             menu.addSeparator()
             a = menu.addAction('Add Spectral Library Layer')
-            a.triggered.connect(self.mapView().addSpectralProfileLayer)
+            a.triggered.connect(self.mapView().addSpectralProfileLayers)
 
             a = menu.addAction('Add Temporal Profile Layer')
             a.triggered.connect(self.mapView().addTemporalProfileLayer)
@@ -1003,8 +1006,8 @@ class MapWidget(QFrame):
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
-    sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
-    sigCurrentMapViewChanged = pyqtSignal(MapView)
+    # sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
+    # sigCurrentMapViewChanged = pyqtSignal(MapView)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
@@ -1281,7 +1284,7 @@ class MapWidget(QFrame):
             canvases = mapView.mapCanvases()
             if len(canvases) > 0:
                 position = min(position, len(canvases) - 1)
-                self.currentMapCanvas(canvases[position])
+                self.setCurrentMapCanvas(canvases[position])
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """

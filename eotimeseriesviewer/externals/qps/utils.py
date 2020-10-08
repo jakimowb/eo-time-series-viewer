@@ -130,6 +130,7 @@ def cleanDir(d):
         for p in dirs + files: rm(jp(root, p))
         break
 
+
 # a QPS internal map layer store
 QPS_MAPLAYER_STORE = QgsMapLayerStore()
 
@@ -455,7 +456,6 @@ LUT_WAVELENGTH = dict({'B': 480,
                        'SWIR2': 2150
                        })
 
-
 NEXT_COLOR_HUE_DELTA_CON = 10
 NEXT_COLOR_HUE_DELTA_CAT = 100
 
@@ -681,9 +681,11 @@ def gdalDataset(dataset: typing.Union[str,
                                       pathlib.Path,
                                       QgsRasterLayer,
                                       QgsRasterDataProvider,
-                                      gdal.Dataset], eAccess=gdal.GA_ReadOnly) -> gdal.Dataset:
+                                      gdal.Dataset],
+                eAccess:int = gdal.GA_ReadOnly) -> gdal.Dataset:
     """
     Returns a gdal.Dataset object instance
+    :param dataset:
     :param pathOrDataset: path | gdal.Dataset | QgsRasterLayer | QgsRasterDataProvider
     :return: gdal.Dataset
     """
@@ -920,6 +922,7 @@ def qgsMapLayer(value: typing.Any) -> QgsMapLayer:
         pass
 
     return None
+
 
 def loadUi(uifile, baseinstance=None, package='', resource_suffix='_rc', remove_resource_references=True,
            loadUiType=False):
@@ -1393,9 +1396,9 @@ def defaultBands(dataset) -> list:
     elif isinstance(dataset, QgsRasterDataProvider):
         return defaultBands(dataset.dataSourceUri())
     elif isinstance(dataset, QgsRasterLayer) and \
-         isinstance(dataset.dataProvider(), QgsRasterDataProvider) and \
-         dataset.dataProvider().name() == 'gdal':
-            return defaultBands(dataset.source())
+            isinstance(dataset.dataProvider(), QgsRasterDataProvider) and \
+            dataset.dataProvider().name() == 'gdal':
+        return defaultBands(dataset.source())
     elif isinstance(dataset, gdal.Dataset):
 
         # check ENVI style metadata default band definition
@@ -1518,7 +1521,7 @@ def parseFWHM(dataset) -> typing.Tuple[np.ndarray]:
         # search band by band
         values = []
         for b in range(dataset.RasterCount):
-            band: gdal.Band = dataset.GetRasterBand(b+1)
+            band: gdal.Band = dataset.GetRasterBand(b + 1)
             for key, domain in key_positions:
                 value = dataset.GetMetadataItem(key, domain)
                 if value not in ['', None]:
@@ -1527,6 +1530,7 @@ def parseFWHM(dataset) -> typing.Tuple[np.ndarray]:
         if len(values) == dataset.RasterCount:
             return np.asarray(values)
     return None
+
 
 def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     """
@@ -1895,6 +1899,7 @@ class SpatialPoint(QgsPointXY):
     """
     Object to keep QgsPoint and QgsCoordinateReferenceSystem together
     """
+
     @staticmethod
     def readXml(node: QDomNode):
         wkt = node.firstChildElement('SpatialPointCrs').text()
@@ -2087,6 +2092,7 @@ class SpatialExtent(QgsRectangle):
     """
     Object that combines a QgsRectangle and QgsCoordinateReferenceSystem
     """
+
     @staticmethod
     def readXml(node: QDomNode):
         wkt = node.firstChildElement('SpatialExtentCrs').text()
@@ -2095,7 +2101,7 @@ class SpatialExtent(QgsRectangle):
         return SpatialExtent(crs, rectangle)
 
     @staticmethod
-    def fromMapCanvas(mapCanvas, fullExtent:bool=False):
+    def fromMapCanvas(mapCanvas, fullExtent: bool = False):
         assert isinstance(mapCanvas, QgsMapCanvas)
 
         if fullExtent:
@@ -2340,6 +2346,7 @@ def setToolButtonDefaultActionMenu(toolButton: QToolButton, actions: list):
 
     menu.triggered.connect(toolButton.setDefaultAction)
     toolButton.setMenu(menu)
+
 
 class SelectMapLayersDialog(QgsDialog):
     class LayerDescription(object):

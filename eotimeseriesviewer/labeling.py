@@ -534,6 +534,35 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
 
+def gotoNextFeature(layer: QgsVectorLayer, tools: QgsVectorLayerTools):
+    assert isinstance(tools, QgsVectorLayerTools)
+    if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
+
+        allIDs = sorted(layer.allFeatureIds())
+        fids = layer.selectedFeatureIds()
+        if len(fids) == 0:
+            nextFID = allIDs[0]
+        else:
+            i = min(allIDs.index(max(fids)) + 1, len(allIDs) - 1)
+            nextFID = allIDs[i]
+        layer.selectByIds([nextFID])
+        tools.panToSelected(layer)
+
+
+def gotoPreviousFeature(layer: QgsVectorLayer, tools: QgsVectorLayerTools):
+    assert isinstance(tools, QgsVectorLayerTools)
+    if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
+        allIDs = sorted(layer.allFeatureIds())
+        fids = layer.selectedFeatureIds()
+        if len(fids) == 0:
+            nextFID = allIDs[0]
+        else:
+            i = max(allIDs.index(min(fids)) - 1, 0)
+            nextFID = allIDs[i]
+        layer.selectByIds([nextFID])
+        tools.panToSelected(layer)
+
+
 class LabelWidget(AttributeTableWidget):
 
     def __init__(self, *args, **kwds):
@@ -542,63 +571,18 @@ class LabelWidget(AttributeTableWidget):
 
         self.mActionNextFeature = QAction('Next Feature', parent=self)
         self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
-        self.mActionNextFeature.triggered.connect(self.nextFeature)
+        self.mActionNextFeature.triggered.connect(
+            lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoNextFeature(lyr, vlt)
+        )
 
         self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
         self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
-        self.mActionPreviousFeature.triggered.connect(self.previousFeature)
+        self.mActionPreviousFeature.triggered.connect(
+            lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoPreviousFeature(lyr, vlt))
 
         self.mToolbar: QToolBar
         self.mToolbar.insertActions(self.mActionToggleEditing, [self.mActionPreviousFeature, self.mActionNextFeature])
         self.mToolbar.insertSeparator(self.mActionToggleEditing)
-
-    def nextFeature(self):
-        """
-        Selects the next feature and moves the map extent to.
-        """
-        if isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.hasFeatures():
-            allIDs = sorted(self.mLayer.allFeatureIds())
-            fids = self.mLayer.selectedFeatureIds()
-            if len(fids) == 0:
-                nextFID = allIDs[0]
-            else:
-                i = min(allIDs.index(max(fids)) + 1, len(allIDs) - 1)
-                nextFID = allIDs[i]
-            self.mLayer.selectByIds([nextFID])
-            self.mVectorLayerTools.panToSelected(self.mLayer)
-
-    def previousFeature(self):
-        """
-        Selects the previous feature and moves the map extent to.
-        """
-        if isinstance(self.mLayer, QgsVectorLayer) and self.mLayer.hasFeatures():
-            allIDs = sorted(self.mLayer.allFeatureIds())
-            fids = self.mLayer.selectedFeatureIds()
-            if len(fids) == 0:
-                nextFID = allIDs[0]
-            else:
-                i = max(allIDs.index(min(fids)) - 1, 0)
-                nextFID = allIDs[i]
-            self.mLayer.selectByIds([nextFID])
-            self.mVectorLayerTools.panToSelected(self.mLayer)
-
-
-class LabelDockWidget(QgsDockWidget):
-
-    def __init__(self, layer, *args, **kwds):
-        super().__init__(*args, **kwds)
-        self.mLabelWidget = LabelWidget(layer)
-        self.setWidget(self.mLabelWidget)
-        self.setWindowTitle(self.mLabelWidget.windowTitle())
-        self.mLabelWidget.windowTitleChanged.connect(self.setWindowTitle)
-
-    def setVectorLayerTools(self, tools: QgsVectorLayerTools):
-        self.mLabelWidget.setVectorLayerTools(tools)
-
-    def vectorLayer(self) -> QgsVectorLayer:
-        if isinstance(self.mLabelWidget.mLayer, QgsVectorLayer):
-            return self.mLabelWidget.mLayer
-        return None
 
 
 class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
@@ -682,10 +666,6 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
         super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
 
-        #self.mEditor = None
-
-        #self.mValidator = None
-
     def configLabelType(self) -> LabelShortcutType:
         return self.config().get(CONFKEY_LABELTYPE)
 
@@ -729,7 +709,6 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             editor.valueChanged.connect(self.onValueChanged)
         else:
             s = ""
-        #self.mEditor = editor
 
     def onValueChanged(self, *args):
         self.valueChanged.emit(self.value())

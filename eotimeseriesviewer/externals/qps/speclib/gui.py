@@ -2681,8 +2681,10 @@ class SpectralLibraryPanel(QgsDockWidget):
     def __init__(self, *args, speclib: SpectralLibrary = None, **kwds):
         super(SpectralLibraryPanel, self).__init__(*args, **kwds)
         self.setObjectName('spectralLibraryPanel')
-        self.setWindowTitle('Spectral Library')
+
         self.SLW = SpectralLibraryWidget(speclib=speclib)
+        self.setWindowTitle(self.speclib().name())
+        self.speclib().nameChanged.connect(lambda *args: self.setWindowTitle(self.speclib().name()))
         self.setWidget(self.SLW)
 
     def spectralLibraryWidget(self) -> SpectralLibraryWidget:

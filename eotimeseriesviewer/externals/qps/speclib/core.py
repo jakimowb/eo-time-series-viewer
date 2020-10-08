@@ -2143,8 +2143,6 @@ class SpectralLibrary(QgsVectorLayer):
                 s = ""
         return None
 
-    sigNameChanged = pyqtSignal(str)
-
     @classmethod
     def instances(cls) -> list:
         warnings.warn('SpectraLibrary.instances() Will be removed', DeprecationWarning)
