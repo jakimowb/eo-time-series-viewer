@@ -1793,11 +1793,23 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(sensor, SensorInstrument)
         if not sensor in self.mSensors:
+            sensor.sigNameChanged.connect(self.onSensorNameChanged)
             self.mSensors.append(sensor)
             self.sigSensorAdded.emit(sensor)
             return sensor
         else:
             return None
+
+    def onSensorNameChanged(self, name: str):
+        sensor = self.sender()
+
+        if isinstance(sensor, SensorInstrument) and sensor in self.sensors():
+            c = self.columnNames().index(self.cnSensor)
+
+            idx0 = self.index(0, c)
+            idx1 = self.index(self.rowCount()-1, c)
+            self.dataChanged.emit(idx0, idx1)
+        s = ""
 
     def checkSensorList(self):
         """

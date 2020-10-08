@@ -21,14 +21,17 @@ Quick Start
 
 2. Click :menuselection:`Files --> Add example` to load an exemplary time series of Landsat and RapidEye observations.
 
+   Open the sensor panel :menuselection:`View --> Panels... --> Sensors / Products` and change the sensor names
 
-    5bands@5.0m  RapidEye3. Open the sensor panel :menuselection:`View --> Panels... --> Sensors / Products` and change the sensor names
+   ============ =========
+   Default      Changed
+   ============ =========
+   6bands@30.0m Landsat
+   5bands@5.0m  RapidEye3
+   ============ =========
 
-    ============ =========
-    Default      Changed
-    ============ =========
-    6bands@30.0m Landsat
-    ============ =========
+   The change of sensor names becomes visible in other other parts of the GUI as well, e.g. the
+   list of time series source images.
 
 4. Use the scroll band and the map tools  |mActionZoomIn| |mActionZoomOut| |mActionPan| to change the temporal and spatial subset shown from the time series.
 
@@ -326,7 +329,7 @@ The spectral library view allows you to visualize, label and export spectral pro
 
 .. note::
     The spectral library table behaves quite similar to the attribute table you know from QGIS:
-        * You can edit the content by entering the editing mode (|mActionToggleEditing|)
+        * You can edit the content by entering the editing mode |mActionToggleEditing|
         * You can add further information by adding fields via the |mActionNewAttribute| button (e.g. different class labels).
           Remove them with |mActionDeleteAttribute|, accordingly.
         * Double-click into a desired field to change its content

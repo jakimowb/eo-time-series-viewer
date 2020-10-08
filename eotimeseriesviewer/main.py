@@ -205,8 +205,6 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
         self.dockTimeSeries.raise_()
 
-
-
     def addDockWidget(self, area: Qt.DockWidgetArea, dock: QDockWidget) -> QDockWidget:
         """
         shortcut to add a created dock and return it
@@ -470,8 +468,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         dts = self.ui.dockTimeSeries
         mw: MapWidget = self.ui.mMapWidget
 
-
-
         assert isinstance(mvd, MapViewDock)
         assert isinstance(mw, MapWidget)
         assert isinstance(dts, TimeSeriesDock)
@@ -644,10 +640,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(SLW, SpectralLibraryWidget)
         SLW.actionSelectProfilesFromMap.setVisible(True)
         SLW.sigLoadFromMapRequest.connect(lambda *args: self.setMapTool(MapTools.SpectralProfile))
-        #SLW.setMapInteraction(True)
-        #SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
-        #SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
-        #SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
+        # SLW.setMapInteraction(True)
+        # SLW.setCurrentProfilesMode(SpectralLibraryWidget.CurrentProfilesMode.automatically)
+        # SLW.sigMapExtentRequested.connect(self.setSpatialExtent)
+        # SLW.sigMapCenterRequested.connect(self.setSpatialCenter)
         SLW.setVectorLayerTools(self.mVectorLayerTools)
         # add time-specific fields
         sl = self.spectralLibrary()
@@ -1477,7 +1473,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         filters = "CSV (*.csv *.txt);;" + \
                   "All files (*.*)"
         path, filter = QFileDialog.getSaveFileName(caption='Save Time Series definition', filter=filters,
-                                       directory=defFile)
+                                                   directory=defFile)
         if path not in [None, '']:
             path = self.mTimeSeries.saveToFile(path)
             s.setValue('FILE_TS_DEFINITION', path)
