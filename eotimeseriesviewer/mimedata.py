@@ -22,7 +22,7 @@ MDF_TEXT_HTML = 'text/html'
 MDF_TEXT_PLAIN = 'text/plain'
 
 
-def attributesd2dict(attributes):
+def attributes2dict(attributes):
     d = {}
     assert isinstance(attributes, QDomNamedNodeMap)
     for i in range(attributes.count()):
@@ -86,7 +86,7 @@ def toLayerList(mimeData):
         for i in range(childs.count()):
             child = childs.at(i).toElement()
             if child.tagName() == 'layer-tree-layer':
-                attributesLUT[child.attribute('id')] = attributesd2dict(child.attributes())
+                attributesLUT[child.attribute('id')] = attributes2dict(child.attributes())
 
         for treeLayer in layerTree.findLayers():
             assert isinstance(treeLayer, QgsLayerTreeLayer)

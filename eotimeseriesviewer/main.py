@@ -37,21 +37,20 @@ if os.path.exists(path):
     multiprocessing.set_executable(path)
     sys.argv = [ None ]
 """
-
+import sys
 import qgis.utils
-from qgis.core import *
+
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
     QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol, \
     QgsProjectArchive, QgsZipUtils, QgsPointXY
 
-from qgis.gui import *
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
 
 import qgis.utils
-from eotimeseriesviewer import LOG_MESSAGE_TAG
-from eotimeseriesviewer.utils import *
+from eotimeseriesviewer import LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.utils import SpatialPoint, datetime64, fixMenuButtons, file_search
 from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.settings import Keys as SettingKeys
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -64,6 +63,7 @@ from .externals.qps.speclib.gui import SpectralLibraryPanel
 from .externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
 from .externals.qps.vectorlayertools import VectorLayerTools
+from .externals.qps.maptools import MapTools
 import eotimeseriesviewer.labeling
 from eotimeseriesviewer import debugLog
 
@@ -1282,9 +1282,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 
-        assert isinstance(spatialPoint, SpatialPoint)
-        assert isinstance(mapCanvas, QgsMapCanvas)
-        from eotimeseriesviewer.mapcanvas import MapTools
         assert mapToolKey in MapTools.mapToolValues()
 
         if mapToolKey == MapTools.TemporalProfile:

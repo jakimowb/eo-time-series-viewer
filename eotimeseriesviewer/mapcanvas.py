@@ -29,7 +29,7 @@ import qgis.utils
 from qgis.PyQt.QtGui import QIcon, QContextMenuEvent, QMouseEvent, QPainter, QFont, QColor
 from qgis.PyQt.QtWidgets import QApplication, QDialog, QMenu, QFileDialog, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.PyQt.QtCore import QSize, QDate, QDateTime, QDir, QFile, QMimeData, pyqtSignal, Qt, \
-    QPoint, QObject, QRectF, QPointF, QRect, QTimer
+    QPoint, QObject, QRectF, QPointF, QRect, QTimer, QTime
 
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEnhancement, \
     QgsDateTimeRange, QgsProject, QgsTextRenderer, QgsApplication, QgsCoordinateReferenceSystem, \

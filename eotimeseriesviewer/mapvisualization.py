@@ -1006,7 +1006,8 @@ class MapWidget(QFrame):
     sigCurrentCanvasChanged = pyqtSignal(MapCanvas)
     sigCurrentMapViewChanged = pyqtSignal(MapView)
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
-    sigCurrentLocationChanged = pyqtSignal(QgsCoordinateReferenceSystem, QgsPointXY)
+    sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
+                                           [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
     sigVisibleDatesChanged = pyqtSignal(list)
     sigViewModeChanged = pyqtSignal(ViewMode)
 
@@ -1746,8 +1747,8 @@ class MapWidget(QFrame):
         #    self.sigCurrentLocationChanged)
 
     def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
-        spt = SpatialPoint(crs, pt)
-        self.sigCurrentLocationChanged.emit(spt, canvas)
+        self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(crs, pt)
+        self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas].emit(crs, pt, canvas)
 
     def onCanvasClicked(self, event: QMouseEvent):
         canvas = self.sender()
