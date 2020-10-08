@@ -54,13 +54,14 @@ def update_icons():
     from eotimeseriesviewer import initResources
     from eotimeseriesviewer.utils import relativePath
 
+
     initResources()
     for f in findQGISResourceFiles():
         initResourceFile(f)
 
     # get required icons
     rxIcon = re.compile(r'.*\|(?P<name>[^|]+)\|\s*image::.*')
-    rxIconSource = re.compile('r.*(png|svg)$', re.I)
+    rxIconSource = re.compile(r'.*(png|svg)$', re.I)
     resourcePaths = list(scanResources())
     resourcePaths = [p for p in resourcePaths if rxIconSource.search(p)]
 
@@ -70,6 +71,7 @@ def update_icons():
     newLines = []
     iconSize = QSize(64, 64)
 
+    missing = []
     with open(pathIconLinks, 'r', encoding='utf-8') as f:
         for line in f.readlines():
             match = rxIcon.search(line)
@@ -96,9 +98,14 @@ def update_icons():
                         found = True
                         break
                 if not found:
-                    print(f'Unable to find Qt resource for {line}', file=sys.stderr)
-
+                    missing.append(line)
             newLines.append(newLine)
+
+    if len(missing) > 0:
+        print('Icon sources not found for:', file=sys.stderr)
+        print(''.join(missing), file=sys.stderr)
+        print(f'Please check manually if they can be removed from {pathIconLinks}')
+
     with open(pathIconLinks, 'w', encoding='utf8') as f:
         f.writelines(newLines)
 
