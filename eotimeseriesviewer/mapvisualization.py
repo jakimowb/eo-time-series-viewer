@@ -31,7 +31,7 @@ import traceback
 import typing
 
 import numpy as np
-
+import time
 import qgis.utils
 from qgis.PyQt.QtCore import \
     Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
@@ -1033,8 +1033,8 @@ class MapWidget(QFrame):
 
         self.tbSliderDate: QLabel
 
-        self.mCurrentMapView: MapView = None
-        self.mCurrentMapCanvas: MapCanvas = None
+        #self.mCurrentMapView: MapView = None
+        #self.mCurrentMapCanvas: MapCanvas = None
 
         self.mMapViews: typing.List[MapView] = []
         self.mCanvases: typing.Dict[MapView, typing.List[MapCanvas]] = dict()
@@ -1245,29 +1245,43 @@ class MapWidget(QFrame):
         Returns the active map canvas, i.e. the MapCanvas that was clicked last.
         :return: MapCanvas
         """
-        return self.mCurrentMapCanvas
+        canvases = sorted(self.mapCanvases(), key=lambda c: c.property(KEY_LAST_CLICKED), reverse=True)
+        if len(canvases) > 0:
+            return canvases[0]
+        else:
+            return None
 
     def setCurrentMapCanvas(self, mapCanvas: MapCanvas):
         assert isinstance(mapCanvas, MapCanvas)
-        if mapCanvas != self.mCurrentMapCanvas:
-            assert mapCanvas in self.mapCanvases()
-            self.sigCurrentCanvasChanged.emit(mapCanvas)
-            if isinstance(mapCanvas.mapView(), MapView):
-                self.setCurrentMapView(mapCanvas.mapView())
+        canvases = self.mapCanvases()
+        assert mapCanvas in canvases
+        mapCanvas.setProperty(KEY_LAST_CLICKED, time.time())
 
     def currentMapView(self) -> MapView:
         """
         Returns the last used map view, i.e. the last map view a canvas was clicked on or a layer was selected in
         :return:
         """
-        return self.mCurrentMapView
+        return self.currentMapCanvas().mapView()
 
     def setCurrentMapView(self, mapView: MapView):
-        if mapView != self.mCurrentMapView:
-            assert isinstance(mapView, MapView)
+        assert isinstance(mapView, MapView)
+        lastCurrentMapCanvas = self.currentMapCanvas()
+        lastCurrentMapView = lastCurrentMapCanvas.mapView()
+
+        if mapView != lastCurrentMapView:
             assert mapView in self.mapViews()
-            self.mCurrentMapView = mapView
-            self.sigCurrentMapViewChanged.emit(mapView)
+
+            position = 0
+            for i, c in enumerate(lastCurrentMapView):
+                if c == lastCurrentMapCanvas:
+                    position = i
+                    break
+
+            canvases = mapView.mapCanvases()
+            if len(canvases) > 0:
+                position = min(position, len(canvases) - 1)
+                self.currentMapCanvas(canvases[position])
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """
@@ -1492,11 +1506,11 @@ class MapWidget(QFrame):
 
     def mapViewCanvases(self, mapView: MapView) -> typing.List[MapCanvas]:
         """
-        Returns the MapCanvases related to a MapView
+        Returns the MapCanvases related to a MapView, sorted
         :param mapView: MapView
         :return: [list-of-MapCanvases]
         """
-        return self.mCanvases[mapView]
+        return sorted(self.mCanvases[mapView], key=lambda c: c.tsd())
 
     def moveToNextTSD(self):
 
@@ -1608,10 +1622,8 @@ class MapWidget(QFrame):
             self.sigMapViewsChanged.emit()
             self.sigMapViewAdded.emit(mapView)
 
-            s = ""
-
-        if not isinstance(self.mCurrentMapView, MapView):
-            self.mCurrentMapView = mapView
+            if len(self.mapViews()) == 1:
+                self.setCurrentMapView(mapView)
 
         return mapView
 

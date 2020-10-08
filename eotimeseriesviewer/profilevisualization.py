@@ -1372,6 +1372,9 @@ class DateTimeAxis(pg.AxisItem):
 
         return d
 
+    def tickFont(self):
+        return self.style.get('tickFont', None)
+
     def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
 
         p.setRenderHint(p.Antialiasing, False)
@@ -1389,8 +1392,8 @@ class DateTimeAxis(pg.AxisItem):
             p.drawLine(p1, p2)
 
         ## Draw all text
-        if self.tickFont is not None:
-            p.setFont(self.tickFont)
+        if self.tickFont() is not None:
+            p.setFont(self.tickFont())
         p.setPen(self.pen())
 
         # for rect, flags, text in textSpecs:

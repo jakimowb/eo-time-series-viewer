@@ -59,7 +59,7 @@ from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 import eotimeseriesviewer.settings as eotsvSettings
 from .externals.qps.speclib.core import SpectralProfile, SpectralLibrary
-from .externals.qps.speclib.gui import SpectralLibraryPanel
+from .externals.qps.speclib.gui import SpectralLibraryPanel, SpectralLibraryWidget
 from .externals.qps.maptools import MapTools, CursorLocationMapTool, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
 from .externals.qps.vectorlayertools import VectorLayerTools
@@ -522,7 +522,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
-        mw.sigCurrentLocationChanged.connect(
+        mw.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].connect(
             lambda crs, pt, canvas=mw: self.setCurrentLocation(SpatialPoint(crs, pt),
                                                                mapCanvas=mw.currentMapCanvas()))
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
@@ -892,6 +892,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :return:
         """
         return self.profileDock.temporalProfileLayer()
+
+    def spectralLibraryWidgets(self) -> typing.List[SpectralLibraryWidget]:
+        w = []
+        w.append(self.ui.dockSpectralLibrary.SLW)
+        return w
 
     def spectralLibrary(self) -> SpectralLibrary:
         """
@@ -1264,9 +1269,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
             p = SpectralProfile.fromRasterLayer(lyr, spatialPoint)
+            basename = os.path.basename(lyr.source())
             if isinstance(p, SpectralProfile):
                 p2 = p.copyFieldSubset(sl.fields())
-                p2.setName('{} {}'.format(p.name(), tsd.date()))
+                p2.setName(f'{basename}')
                 p2.setAttribute('date', '{}'.format(tsd.date()))
                 p2.setAttribute('doy', int(tsd.doy()))
                 p2.setAttribute('sensor', tsd.sensor().name())
@@ -1274,7 +1280,17 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 if self.mCurrentMapSpectraLoading == 'TOP':
                     break
 
-        self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(currentSpectra)
+        if len(currentSpectra) > 0:
+            self.setCurrentSpectralProfiles(currentSpectra)
+
+    def setCurrentSpectralProfiles(self, spectra: typing.List[SpectralProfile]):
+        if not isinstance(spectra, list):
+            spectra = [spectra]
+        for s in spectra:
+            assert isinstance(s, SpectralProfile)
+
+        for w in self.spectralLibraryWidgets():
+            w.setCurrentProfiles(spectra)
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
@@ -1313,7 +1329,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                         p2.setAttribute('doy', int(tsd.mDOY))
                         p2.setAttribute('sensor', tsd.mSensor.name())
                         profiles2.append(p2)
-                    self.ui.dockSpectralLibrary.SLW.setCurrentSpectra(profiles2)
+                    self.ui.dockSpectralLibrary.SLW.setCurrentSpectralProfiles(profiles2)
 
         elif mapToolKey == MapTools.CursorLocation:
 
