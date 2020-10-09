@@ -26,7 +26,7 @@ import tempfile
 from osgeo import gdal, osr, ogr, gdalconst as gc
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
     QgsPolygon, QgsRectangle
-from qgis.gui import *
+
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -687,7 +687,11 @@ class VRTRaster(QObject):
                 wops = gdal.WarpOptions(format='VRT',
                                         dstSRS=self.mCrs.toWkt())
                 tmp = gdal.Warp(warpedFileName, dsSrc, options=wops)
-                assert isinstance(tmp, gdal.Dataset)
+                assert isinstance(tmp, gdal.Dataset), \
+                    f'Failed to warp {dsSrc.GetDescription()} with:\n' + \
+                    f'\tgeoprojection = {dsSrc.GetProjection()}\n' + \
+                    f'\tgeotransformation = {dsSrc.GetGeoTransform()}'
+
                 vrtXML = read_vsimem(warpedFileName)
                 xml = ElementTree.fromstring(vrtXML)
                 # print(vrtXML.decode('utf-8'))
