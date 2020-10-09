@@ -10,7 +10,7 @@ from eotimeseriesviewer.labeling import LabelWidget, gotoNextFeature, gotoPrevio
 
 class SpectralLibraryDockWidget(SpectralLibraryPanel):
     def __init__(self, speclib: SpectralLibrary, *args, **kwds):
-        super().__init__(*args, **kwds)
+        super().__init__(*args, speclib=speclib, **kwds)
         assert isinstance(self.SLW, SpectralLibraryWidget)
         self.mActionNextFeature = QAction('Next Feature', parent=self)
         self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
@@ -31,7 +31,7 @@ class SpectralLibraryDockWidget(SpectralLibraryPanel):
 
         self.SLW.mToolbar: QToolBar
         self.SLW.mToolbar.insertActions(self.SLW.mActionToggleEditing,
-                                                   [self.mActionPreviousFeature, self.mActionNextFeature])
+                                        [self.mActionPreviousFeature, self.mActionNextFeature])
         self.SLW.mToolbar.insertSeparator(self.SLW.mActionToggleEditing)
 
     def setVectorLayerTools(self, tools: QgsVectorLayerTools):

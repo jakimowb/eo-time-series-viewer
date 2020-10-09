@@ -626,15 +626,27 @@ class MapView(QFrame):
         assert isinstance(sensor, SensorInstrument)
         if sensor not in self.sensors():
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
+
             masterLayer: SensorProxyLayer = sensor.proxyRasterLayer()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
+
             self.mSensorLayerList.append((sensor, masterLayer))
             masterLayer.styleChanged.connect(lambda *args, v=self, l=masterLayer: self.onMasterStyleChanged(l))
+            masterLayer.nameChanged.connect(self.onMasterLyrNameChanged)
             layerTreeLayer: QgsLayerTreeLayer = self.mLayerTreeSensorNode.addLayer(masterLayer)
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
             layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
 
+            dummyLayers = self.mDummyCanvas.layers() + [masterLayer]
+            self.mDummyCanvas.setLayers(dummyLayers)
+
             self.mLayerStyleInitialized[sensor] = False
+
+    def onMasterLyrNameChanged(self, *args):
+        lyr = self.sender()
+        newname = lyr.name()
+        ltn = self.mLayerTreeSensorNode.findLayer(lyr)
+        #print(ltn.name())
 
     def onMasterStyleChanged(self, masterLayer: SensorProxyLayer):
 
@@ -694,7 +706,7 @@ class MapView(QFrame):
             self.mLayerTreeSensorNode.removeLayer(t[1])
             self.mSensorLayerList.remove(t)
 
-    def hasSensor(self, sensor) -> bool:
+    def hasSensor(self, sensor: SensorInstrument) -> bool:
         """
         :param sensor:
         :return:
@@ -777,9 +789,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
         model = self.layerTreeModel()
         ltree = self.layerTree()
-        view = self.layerTreeView()
+        view: QgsLayerTreeView = self.layerTreeView()
         currentGroup = view.currentGroupNode()
         currentLayer = view.currentLayer()
+        currentIndex = view.currentIndex()
 
         currentCanvas = self.mapView().currentMapCanvas()
         isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(
@@ -799,6 +812,10 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         menu = QMenu(view)
         assert isinstance(mw, MapWidget)
         if isinstance(currentLayer, QgsMapLayer):
+            a = menu.addAction('Rename')
+            a.triggered.connect(lambda *args, cidx=currentIndex: view.edit(cidx))
+            menu.addSeparator()
+
             # zoom to layer
             menu.addAction(eotsv.actionZoomToLayer())
 
@@ -856,8 +873,8 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             menu.addAction(eotsv.actionCopyLayerStyle())
 
             # Properties
-            menu.addAction(eotsv.actionLayerProperties())
             menu.addSeparator()
+            menu.addAction(eotsv.actionLayerProperties())
 
         menu.addSeparator()
         return menu

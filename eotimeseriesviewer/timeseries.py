@@ -299,7 +299,7 @@ class SensorInstrument(QObject):
         :return: QgsRasterLayer
         """
         lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0], name=self.name(), sensor=self)
-        lyr.nameChanged.connect(lambda l=lyr: self.setName(l.name()))
+        lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
         lyr.setCustomProperty('eotsv/sensorid', self.id())
         self.sigNameChanged.connect(lyr.setName)
         return lyr

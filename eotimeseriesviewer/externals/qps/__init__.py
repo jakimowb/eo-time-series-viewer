@@ -24,19 +24,24 @@
 ***************************************************************************
 """
 
-import sys, importlib, site, os, pathlib, typing
+import pathlib
+import sys
+import typing
+
 from qgis.core import QgsApplication
-from qgis.gui import QgisInterface, QgsMapLayerConfigWidgetFactory
+from qgis.gui import QgsMapLayerConfigWidgetFactory
+
 __version__ = '1.0'
 
-DIR_UI_FILES = pathlib.Path(__file__).parent / 'ui'
+DIR_QPS = pathlib.Path(__file__).parent
+DIR_UI_FILES = DIR_QPS / 'ui'
 DIR_ICONS = DIR_UI_FILES / 'icons'
-QPS_RESOURCE_FILE = pathlib.Path(__file__).parent / 'qpsresources_rc.py'
-
+QPS_RESOURCE_FILE = DIR_QPS / 'qpsresources_rc.py'
 
 MAPLAYER_CONFIGWIDGET_FACTORIES = list()
 
-def registerMapLayerConfigWidgetFactory(factory:QgsMapLayerConfigWidgetFactory):
+
+def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
     Register a new tab in the map layer properties dialog.
     :param factory: QgsMapLayerConfigWidgetFactory
@@ -48,7 +53,8 @@ def registerMapLayerConfigWidgetFactory(factory:QgsMapLayerConfigWidgetFactory):
     if factory not in MAPLAYER_CONFIGWIDGET_FACTORIES:
         MAPLAYER_CONFIGWIDGET_FACTORIES.append(factory)
 
-def unregisterMapLayerConfigWidgetFactory(factory:QgsMapLayerConfigWidgetFactory):
+
+def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
     Unregister a previously registered tab in the map layer properties dialog.
     :param factory:
@@ -60,6 +66,7 @@ def unregisterMapLayerConfigWidgetFactory(factory:QgsMapLayerConfigWidgetFactory
     while factory in MAPLAYER_CONFIGWIDGET_FACTORIES:
         MAPLAYER_CONFIGWIDGET_FACTORIES.remove(factory)
 
+
 def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
     """
     Returns registered QgsMapLayerConfigWidgetFactories
@@ -67,6 +74,7 @@ def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactor
     :rtype:
     """
     return MAPLAYER_CONFIGWIDGET_FACTORIES[:]
+
 
 def registerEditorWidgets():
     """
@@ -112,12 +120,13 @@ def registerMapLayerConfigWidgetFactories():
     registerMapLayerConfigWidgetFactory(RasterBandConfigWidgetFactory())
     registerMapLayerConfigWidgetFactory(GDALMetadataConfigWidgetFactory())
 
+
 def initResources():
     from .testing import initResourceFile
     initResourceFile(QPS_RESOURCE_FILE)
+
 
 def initAll():
     initResources()
     registerEditorWidgets()
     registerMapLayerConfigWidgetFactories()
-

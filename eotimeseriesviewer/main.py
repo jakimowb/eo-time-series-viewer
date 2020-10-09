@@ -1662,6 +1662,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for field in SPECTRA_PROFILE_FIELDS:
             speclib.addAttribute(field)
         assert speclib.commitChanges()
+        QgsProject.instance().addMapLayer(speclib)
         self.showAttributeTable(speclib)
         self.addMapLayers(speclib)
 
