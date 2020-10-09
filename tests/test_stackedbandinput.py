@@ -57,13 +57,13 @@ class TestStackedInputs(EOTSVTestCase):
         assert isinstance(drv, gdal.Driver)
         datasets = []
         for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
+            p = '{}stack{}.bsq'.format(vsiDir, i + 1)
             nb = len(r)
             ds = drv.Create(p, ns, nl, nb, eType=gdal.GDT_Float32)
             assert isinstance(ds, gdal.Dataset)
 
             ds.SetProjection(crs.ExportToWkt())
-
+            ds.SetGeoTransform([0.0, 1.0, 0.0, 1.0, 0.0, -1.0])
             dateString = ','.join([str(d) for d in r])
             dateString = '{{{}}}'.format(dateString)
             ds.SetMetadataItem('wavelength', dateString, 'ENVI')
