@@ -2,12 +2,14 @@
 
 import os
 import unittest
-from qgis import *
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import \
+    QgsProject, QgsMapLayer, QgsCoordinateReferenceSystem, QgsProviderRegistry, QgsRasterLayer, \
+    QgsLayerTree, QgsLayerTreeModel
+from qgis.gui import \
+    QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeViewDefaultActions, \
+    QgsLayerTreeMapCanvasBridge, QgsLayerTreeViewMenuProvider
 import xmlrunner
 from eotimeseriesviewer.tests import *
-
 
 
 class TestQGISEnvironment(EOTSVTestCase):
@@ -17,7 +19,6 @@ class TestQGISEnvironment(EOTSVTestCase):
         pass
 
     def test_mapcanvasbridge(self):
-
         from eotimeseriesviewer.tests import TestObjects
         layer = TestObjects.createVectorLayer()
         layer2 = TestObjects.createVectorLayer()
@@ -45,10 +46,9 @@ class TestQGISEnvironment(EOTSVTestCase):
                        QgsLayerTreeModel.AllowNodeRename |
                        QgsLayerTreeModel.AllowNodeReorder)
 
-
         class MenuProvider(QgsLayerTreeViewMenuProvider):
 
-            def __init__(self, view:QgsLayerTreeView, canvas:QgsMapCanvas):
+            def __init__(self, view: QgsLayerTreeView, canvas: QgsMapCanvas):
                 super(MenuProvider, self).__init__()
                 assert isinstance(view, QgsLayerTreeView)
                 assert isinstance(canvas, QgsMapCanvas)
@@ -60,13 +60,13 @@ class TestQGISEnvironment(EOTSVTestCase):
                 self.actionRename = self.mDefActions.actionRenameGroupOrLayer()
                 self.actionRemove = self.mDefActions.actionRemoveGroupOrLayer()
 
-            def layerTreeView(self)->QgsLayerTreeView:
+            def layerTreeView(self) -> QgsLayerTreeView:
                 return self._view
 
-            def layerTree(self)->QgsLayerTree:
+            def layerTree(self) -> QgsLayerTree:
                 return self.layerTreeModel().rootGroup()
 
-            def layerTreeModel(self)->QgsLayerTreeModel:
+            def layerTreeModel(self) -> QgsLayerTreeModel:
                 return self.layerTreeView().model()
 
             def onAddGroup(self, *args):
@@ -75,8 +75,7 @@ class TestQGISEnvironment(EOTSVTestCase):
                 i = view.currentIndex()
                 view.currentGroupNode().insertGroup(i.row(), 'Group')
 
-            def createContextMenu(self)->QMenu:
-
+            def createContextMenu(self) -> QMenu:
                 model = self.layerTreeModel()
                 ltree = self.layerTree()
                 view = self.layerTreeView()
@@ -85,25 +84,22 @@ class TestQGISEnvironment(EOTSVTestCase):
                 fixedLayers = [l for l in view.selectedLayersRecursive() if l.property('eotsv/fixed')]
                 self.actionRemove.setEnabled(len(fixedLayers) == 0)
 
-                def copyAction(menu:QMenu, action:QAction):
-
+                def copyAction(menu: QMenu, action: QAction):
                     a = menu.addAction(action.text())
                     a.setIcon(action.icon())
                     a.triggered.connect(action.trigger)
 
                 menu = QMenu(view)
-                #copyAction(menu, self.actionAddGroup)
+                # copyAction(menu, self.actionAddGroup)
                 menu.addAction(self.actionAddGroup)
                 menu.addAction(self.actionRename)
-                #copyAction(menu, self.actionRename)
+                # copyAction(menu, self.actionRename)
 
                 menu.addAction(self.actionRemove)
 
-
-
-                #a = menu.addAction('Settings')
-                #from qps.layerproperties import showLayerPropertiesDialog
-                #a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
+                # a = menu.addAction('Settings')
+                # from qps.layerproperties import showLayerPropertiesDialog
+                # a.triggered.connect(lambda *args, lyr=l:showLayerPropertiesDialog(lyr, self._canvas))
 
                 return menu
 
@@ -112,8 +108,6 @@ class TestQGISEnvironment(EOTSVTestCase):
         v.setModel(model)
         menuProvider = MenuProvider(v, c)
         v.setMenuProvider(menuProvider)
-
-
 
         ltree.addLayer(layer)
         ltree.addLayer(layer3fix)
@@ -125,7 +119,6 @@ class TestQGISEnvironment(EOTSVTestCase):
         w.layout().addWidget(v)
         w.layout().addWidget(c)
 
-
         self.showGui(w)
 
     def test_qgis_environment(self):
@@ -134,7 +127,7 @@ class TestQGISEnvironment(EOTSVTestCase):
         r = QgsProviderRegistry.instance()
         self.assertIn('gdal', r.providerList())
         self.assertIn('ogr', r.providerList())
-        #self.assertIn('postgres', r.providerList())
+        # self.assertIn('postgres', r.providerList())
 
     def test_projection(self):
         """Test that QGIS properly parses a wkt string.

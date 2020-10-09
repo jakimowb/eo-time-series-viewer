@@ -18,24 +18,16 @@
 """
 # noinspection PyPep8Naming
 
-import os
-import sys
-import unittest
 import configparser
+import unittest
+import os
 import xmlrunner
-from eotimeseriesviewer.tests import start_app, testRasterFiles
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-from qgis.core import *
-from qgis.gui import *
-import unittest, tempfile
-
-import eotimeseriesviewer
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-
-
-
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
+from qgis.gui import QgsMapToolZoom, QgsMapToolPan
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.externals.qps.maptools import MapTools, MapToolCenter, \
+    FullExtentMapTool, PixelScaleExtentMapTool, QgsMapToolAddFeature, CursorLocationMapTool, QgsMapToolSelect
 
 
 class TestMapTools(EOTSVTestCase):
@@ -82,8 +74,6 @@ class TestMapTools(EOTSVTestCase):
             self.assertIn(expectation, dict(metadata), message)
 
     def test_TimeSeriesViewer(self):
-
-
         from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         TSV = EOTimeSeriesViewer()
@@ -111,13 +101,11 @@ class TestMapTools(EOTSVTestCase):
         TSV.setMapTool(MapTools.CursorLocation)
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), CursorLocationMapTool)
 
-        from eotimeseriesviewer import SpectralProfileMapTool, TemporalProfileMapTool
+        # TSV.setMapTool(MapTools.SpectralProfile)
+        # self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), SpectralProfileMapTool)
 
-        #TSV.setMapTool(MapTools.SpectralProfile)
-        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), SpectralProfileMapTool)
-
-        #TSV.setMapTool(MapTools.TemporalProfile)
-        #self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), TemporalProfileMapTool)
+        # TSV.setMapTool(MapTools.TemporalProfile)
+        # self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), TemporalProfileMapTool)
 
         TSV.setMapTool(MapTools.MoveToCenter)
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), MapToolCenter)

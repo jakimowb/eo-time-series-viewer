@@ -31,10 +31,11 @@ import enum
 import pickle
 import typing
 import pathlib
+import uuid
 from osgeo import osr
 from ..speclib import SpectralLibrarySettingsKey
 from PyQt5.QtWidgets import *
-from qgis.core import \
+from qgis.core import QgsApplication, \
     QgsRenderContext, QgsFeature, QgsVectorLayer, QgsMapLayer, QgsRasterLayer, \
     QgsAttributeTableConfig, QgsField, QgsFields, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
     QgsVectorFileWriter, QgsActionManager, QgsFeatureIterator, QgsFeatureRequest, \
@@ -42,7 +43,7 @@ from qgis.core import \
     QgsRaster, QgsDefaultValue, QgsReadWriteContext, \
     QgsCategorizedSymbolRenderer, QgsMapLayerProxyModel, \
     QgsSymbol, QgsNullSymbolRenderer, QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol, \
-    QgsEditorWidgetSetup, QgsAction
+    QgsEditorWidgetSetup, QgsAction, QgsTask, QgsMessageLog, QgsFileUtils
 
 from qgis.gui import \
     QgsGui, QgsMapCanvas, QgsDualView, QgisInterface, QgsEditorConfigWidget, \
@@ -108,6 +109,17 @@ def log(msg: str):
 
 
 def containsSpeclib(mimeData: QMimeData) -> bool:
+    """
+    Short, fast test if a QMimeData object might contain a SpectralLibrary.
+    Might be wrong, but should be fast enough to be used in drag and drop operations
+    :param mimeData:
+    :type mimeData:
+    :return:
+    :rtype:
+    """
+    if mimeData.hasUrls():
+        return True
+
     for f in [MIMEDATA_SPECLIB, MIMEDATA_SPECLIB_LINK]:
         if f in mimeData.formats():
             return True
@@ -115,7 +127,7 @@ def containsSpeclib(mimeData: QMimeData) -> bool:
     return False
 
 
-FILTERS = 'ENVI Spectral Library (*.sli *.esl);;CSV Table (*.csv);;Geopackage (*.gpkg);;GeoJSON (*.geojson)'
+FILTERS = 'Geopackage (*.gpkg);;ENVI Spectral Library (*.sli *.esl);;CSV Table (*.csv);;GeoJSON (*.geojson)'
 
 PICKLE_PROTOCOL = pickle.HIGHEST_PROTOCOL
 # CURRENT_SPECTRUM_STYLE = PlotStyle()
@@ -699,6 +711,55 @@ class SpectralProfile(QgsFeature):
         if isinstance(values, dict):
             self.setValues(**values)
 
+    def __add__(self, other):
+        return self._math_(self, '__add__', other)
+
+    def __radd__(self, other):
+        return self._math_(other, '__add__', self)
+
+    def __sub__(self, other):
+        return self._math_(self, '__sub__', other)
+
+    def __rsub__(self, other):
+        return self._math_(other, '__sub__', self)
+
+    def __mul__(self, other):
+        return self._math_(self, '__mul__', other)
+
+    def __rmul__(self, other):
+        return self._math_(other, '__mul__', self)
+
+    def __truediv__(self, other):
+        return self._math_(self, '__truediv__', other)
+
+    def __rtruediv__(self, other):
+        return self._math_(other, '__truediv__', self)
+
+    def __div__(self, other):
+        return self._math_(self, '__div__', other)
+
+    def __rdiv__(self, other):
+        return self._math_(other, '__div__', self)
+
+    def __abs__(self, other):
+        return self._math_(self, '__abs__', other)
+
+    def _math_(self, left, op, right):
+
+        if np.isscalar(left):
+            left = np.ones(len(self)) * left
+        elif isinstance(left, SpectralProfile):
+            left = np.asarray(left.yValues())
+        if np.isscalar(right):
+            right = np.ones(len(self)) * right
+        elif isinstance(right, SpectralProfile):
+            right = np.asarray(right.yValues())
+
+        sp = self.clone()
+        yvals = getattr(left, op)(right)
+        sp.setValues(self.xValues(), yvals)
+        return sp
+
     def fieldNames(self) -> typing.List[str]:
         """
         Returns all field names
@@ -1107,7 +1168,7 @@ class SpectralProfileRenderer(object):
             name='Dark',
             fg=QColor('white'),
             bg=QColor('black'),
-            ic=QColor('yellow'),
+            ic=QColor('white'),
             sc=QColor('yellow'),
             ps=ps, cs=cs, useRendererColors=False)
 
@@ -1123,7 +1184,7 @@ class SpectralProfileRenderer(object):
             name='Bright',
             fg=QColor('black'),
             bg=QColor('white'),
-            ic=QColor('red'),
+            ic=QColor('black'),
             sc=QColor('red'),
             ps=ps, cs=cs, useRendererColors=False)
 
@@ -1133,7 +1194,7 @@ class SpectralProfileRenderer(object):
                  bg: QColor = QColor('black'),
                  ps: PlotStyle = None,
                  cs: PlotStyle = None,
-                 ic: QColor = QColor('yellow'),
+                 ic: QColor = QColor('white'),
                  sc: QColor = QColor('yellow'),
                  useRendererColors: bool = True):
         """
@@ -1175,16 +1236,13 @@ class SpectralProfileRenderer(object):
         self.temporaryProfileStyle: PlotStyle
         self.temporaryProfileStyle = cs
 
-        self.infoColor: QColor
-        self.infoColor = ic
+        self.infoColor: QColor = ic
 
-        self.selectionColor: QColor
-        self.selectionColor = sc
-        self.useRendererColors: bool
-        self.useRendererColors = useRendererColors
+        self.selectionColor: QColor = sc
+        self.useRendererColors: bool = useRendererColors
 
-        self.mFID2Style: dict = dict()
-        self.mTemporaryFIDs: set = set()
+        self.mFID2Style: typing.Dict[int, PlotStyle] = dict()
+        self.mTemporaryFIDs: typing.Set[int] = set()
         self.mInputSource: QgsVectorLayer = None
 
     def reset(self):
@@ -1193,7 +1251,7 @@ class SpectralProfileRenderer(object):
     @staticmethod
     def readXml(node: QDomElement, *args):
         """
-        Reads the PlotStyle from a QDomElement (XML node)
+        Reads the SpectralProfileRenderer from a QDomElement (XML node)
         :param self:
         :param node:
         :param args:
@@ -1204,6 +1262,8 @@ class SpectralProfileRenderer(object):
             node = node.firstChildElement(XMLNODE_PROFILE_RENDERER)
         if node.isNull():
             return None
+
+        default: SpectralProfileRenderer = SpectralProfileRenderer.default()
 
         renderer = SpectralProfileRenderer()
         renderer.backgroundColor = QColor(node.attribute('bg', renderer.backgroundColor.name()))
@@ -1218,6 +1278,8 @@ class SpectralProfileRenderer(object):
 
         nodeDefaultStyle = node.firstChildElement('default_style')
         renderer.profileStyle = PlotStyle.readXml(nodeDefaultStyle)
+        if not isinstance(renderer.profileStyle, PlotStyle):
+            renderer.profileStyle = default.profileStyle
 
         customStyleNodes = node.firstChildElement('custom_styles').childNodes()
         for i in range(customStyleNodes.count()):
@@ -1252,9 +1314,10 @@ class SpectralProfileRenderer(object):
         nodeName.appendChild(doc.createTextNode(self.name))
         profileRendererNode.appendChild(nodeName)
 
-        nodeDefaultStyle = doc.createElement('default_style')
-        self.profileStyle.writeXml(nodeDefaultStyle, doc)
-        profileRendererNode.appendChild(nodeDefaultStyle)
+        if isinstance(self.profileStyle, PlotStyle):
+            nodeDefaultStyle = doc.createElement('default_style')
+            self.profileStyle.writeXml(nodeDefaultStyle, doc)
+            profileRendererNode.appendChild(nodeDefaultStyle)
 
         nodeCustomStyles = doc.createElement('custom_styles')
 
@@ -1287,14 +1350,19 @@ class SpectralProfileRenderer(object):
         else:
             # use default style
             for fid in fids:
-                self.mFID2Style.pop(fid)
+                if fid in self.mFID2Style.keys():
+                    self.mFID2Style.pop(fid)
 
         return changedFIDs
 
     def nonDefaultPlotStyles(self) -> typing.List[PlotStyle]:
         return list(set(self.mFID2Style.values()))
 
-    def profilePlotStyles(self, fids: typing.List[int]) -> typing.Dict[int, PlotStyle]:
+    def profilePlotStyle(self, fid: int, ignore_selection: bool = True) -> PlotStyle:
+        d = self.profilePlotStyles([fid], ignore_selection=ignore_selection)
+        return d.get(fid, None)
+
+    def profilePlotStyles(self, fids: typing.List[int], ignore_selection: bool = False) -> typing.Dict[int, PlotStyle]:
 
         profileStyles: typing.Dict[int, PlotStyle] = dict()
 
@@ -1307,20 +1375,26 @@ class SpectralProfileRenderer(object):
             renderContext = QgsRenderContext()
             renderContext.setExtent(self.mInputSource.extent())
             renderer = self.mInputSource.renderer().clone()
-            renderer.setInput(self.mInputSource.dataSource())
+            # renderer.setInput(self.mInputSource.dataSource())
             renderer.startRender(renderContext, self.mInputSource.fields())
             features = self.mInputSource.getFeatures(fids)
 
             for i, feature in enumerate(features):
-                fid = feature.fid
-                style = self.mFID2Style.get(fid, self.mDefaultPlotStyle).clone()
+                fid = feature.id()
+                style = self.mFID2Style.get(fid, self.profileStyle).clone()
                 symbol = renderer.symbolForFeature(feature, renderContext)
                 if not isinstance(symbol, QgsSymbol):
-                    symbol = renderer.sourceSymbol()
-                assert isinstance(symbol, QgsSymbol)
-                if isinstance(symbol, (QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol)):
-                    style.setLineColor(symbol.color())
-                    style.setMarkerColor(symbol.color())
+                    if not ignore_selection and fid in selectedFIDs:
+                        pass
+                    else:
+                        style.setVisibility(False)
+                    # symbol = renderer.sourceSymbol()
+                elif isinstance(symbol, (QgsMarkerSymbol, QgsLineSymbol, QgsFillSymbol)):
+                    color: QColor = symbol.color()
+                    color.setAlpha(int(symbol.opacity() * 100))
+
+                    style.setLineColor(color)
+                    style.setMarkerColor(color)
                 profileStyles[fid] = style
             renderer.stopRender(renderContext)
         else:
@@ -1333,24 +1407,25 @@ class SpectralProfileRenderer(object):
         line_increase_temp = 3
 
         # highlight selected features
-        for fid, style in profileStyles.items():
-            if fid in selectedFIDs:
-                style.setLineColor(self.selectionColor)
-                style.setMarkerColor(self.selectionColor)
-                style.markerBrush.setColor(self.selectionColor)
-                style.markerSize += line_increase_selected
-                style.linePen.setWidth(style.linePen.width() + line_increase_selected)
-            elif fid in self.mTemporaryFIDs:
-                style.markerSize += line_increase_selected
-                style.linePen.setWidth(style.linePen.width() + line_increase_selected)
+        if not ignore_selection:
+
+            for fid, style in profileStyles.items():
+                if fid in selectedFIDs:
+                    style.setLineColor(self.selectionColor)
+                    style.setMarkerColor(self.selectionColor)
+                    style.markerBrush.setColor(self.selectionColor)
+                    style.markerSize += line_increase_selected
+                    style.linePen.setWidth(style.linePen.width() + line_increase_selected)
+                elif fid in self.mTemporaryFIDs:
+                    style.markerSize += line_increase_selected
+                    style.linePen.setWidth(style.linePen.width() + line_increase_selected)
 
         return profileStyles
 
     def clone(self):
-        return copy.deepcopy(self)
-
-    def __copy__(self):
-        return copy.copy(self)
+        # todo: avoid refs
+        renderer = copy.copy(self)
+        return renderer
 
     def saveToUserSettings(self):
         """
@@ -1368,13 +1443,31 @@ class SpectralProfileRenderer(object):
         settings.setValue(SpectralLibrarySettingsKey.SELECTION_COLOR.name, self.selectionColor)
         settings.setValue(SpectralLibrarySettingsKey.USE_VECTOR_RENDER_COLORS.name, self.useRendererColors)
 
+    def printDifferences(self, renderer):
+        assert isinstance(renderer, SpectralProfileRenderer)
+        keys = [k for k in self.__dict__.keys()
+                if not k.startswith('_') and
+                k not in ['name', 'mInputSource']]
+
+        differences = []
+        for k in keys:
+            if self.__dict__[k] != renderer.__dict__[k]:
+                differences.append(f'{k}: {self.__dict__[k]} != {renderer.__dict__[k]}')
+        if len(differences) == 0:
+            print(f'# no differences')
+        else:
+            print(f'# {len(differences)} differences:')
+            for d in differences:
+                print(d)
+        return True
+
     def __eq__(self, other):
         if not isinstance(other, SpectralProfileRenderer):
             return False
         else:
             keys = [k for k in self.__dict__.keys()
                     if not k.startswith('_') and
-                    k not in ['name']]
+                    k not in ['name', 'mInputSource']]
 
             for k in keys:
                 if self.__dict__[k] != other.__dict__[k]:
@@ -1446,7 +1539,7 @@ class SpectralLibrary(QgsVectorLayer):
         if not QFileInfo(lastDataSourceDir).isDir():
             lastDataSourceDir = None
 
-        uris, filter = QFileDialog.getOpenFileNames(parent, "Open spectral library", lastDataSourceDir,
+        uris, filter = QFileDialog.getOpenFileNames(parent, "Open Spectral Library", lastDataSourceDir,
                                                     filter=FILTERS + ';;All files (*.*)', )
 
         if len(uris) > 0:
@@ -1473,7 +1566,7 @@ class SpectralLibrary(QgsVectorLayer):
                        progress_handler: typing.Union[QProgressDialog, ProgressHandler] = None,
                        name_field: str = None,
                        all_touched: bool = False,
-                       cache: int = 5*2**20,
+                       cache: int = 5 * 2 ** 20,
                        copy_attributes: bool = False,
                        block_size: typing.Tuple[int, int] = None,
                        return_profile_list: bool = False):
@@ -1522,7 +1615,7 @@ class SpectralLibrary(QgsVectorLayer):
                 f'invalid field name "{name_field}". Allowed values are {", ".join(vector.fields().names())}'
         else:
             for i in range(vector.fields().count()):
-                field:QgsField = vector.fields().at(i)
+                field: QgsField = vector.fields().at(i)
                 if field.type() == QVariant.String and re.search('name', field.name(), re.I):
                     name_field = field.name()
                     break
@@ -1560,7 +1653,7 @@ class SpectralLibrary(QgsVectorLayer):
         nBlocksDone = 0
 
         if progress_handler:
-            progress_handler.setRange(0, nBlocksTotal+1)
+            progress_handler.setRange(0, nBlocksTotal + 1)
 
         # pixel center coordinates as geolocation
         geo_x, geo_y = px2geocoordinates(ds,
@@ -1579,13 +1672,11 @@ class SpectralLibrary(QgsVectorLayer):
 
         if progress_handler:
             progress_handler.setLabelText('Read profile values..')
-            progress_handler.setValue(progress_handler.value()+1)
-
+            progress_handler.setValue(progress_handler.value() + 1)
 
         PROFILE_COUNTS = dict()
 
         FEATURES: typing.Dict[int, QgsFeature] = dict()
-
 
         block_profiles = []
 
@@ -2024,10 +2115,19 @@ class SpectralLibrary(QgsVectorLayer):
 
         if isinstance(uri, str) and uri.endswith('.gpkg'):
             try:
-                return SpectralLibrary(uri=uri)
+                return SpectralLibrary(path=uri)
             except Exception as ex:
                 print(ex)
                 return None
+
+        if isinstance(uri, str) and uri.endswith('.sli'):
+            from .io.envi import EnviSpectralLibraryIO
+            if EnviSpectralLibraryIO.canRead(uri):
+                sl = EnviSpectralLibraryIO.readFrom(uri, progressDialog=progressDialog)
+                if isinstance(sl, SpectralLibrary):
+                    if sl.name() in [DEFAULT_NAME, '']:
+                        sl.setName(os.path.basename(uri))
+                    return sl
 
         readers = AbstractSpectralLibraryIO.subClasses()
 
@@ -2036,15 +2136,12 @@ class SpectralLibrary(QgsVectorLayer):
                 if cls.canRead(uri):
                     sl = cls.readFrom(uri, progressDialog=progressDialog)
                     if isinstance(sl, SpectralLibrary):
-
                         if sl.name() in [DEFAULT_NAME, '']:
                             sl.setName(os.path.basename(uri))
                         return sl
             except Exception as ex:
                 s = ""
         return None
-
-    sigNameChanged = pyqtSignal(str)
 
     @classmethod
     def instances(cls) -> list:
@@ -2055,22 +2152,35 @@ class SpectralLibrary(QgsVectorLayer):
     sigProfileRendererChanged = pyqtSignal(SpectralProfileRenderer)
 
     def __init__(self,
-                 name: str = DEFAULT_NAME,
-                 uri: str = None):
+                 path: str = None,
+                 baseName: str = DEFAULT_NAME,
+                 options: QgsVectorLayer.LayerOptions = None,
+                 uri: str = None,  # deprectated
+                 name: str = None  # deprectated
+                 ):
 
-        if isinstance(uri, pathlib.Path):
-            uri = uri.as_posix()
-        elif uri is None:
+        if isinstance(uri, str):
+            warnings.warn('Use "path" instead "uri', DeprecationWarning)
+            if path is None:
+                path = uri
+
+        if isinstance(name, str):
+            warnings.warn('Use "baseName" instead "name', DeprecationWarning)
+            if baseName is DEFAULT_NAME:
+                baseName = name
+
+        if isinstance(path, pathlib.Path):
+            path = path.as_posix()
+
+        if path is None:
             # create a new, empty backend
             existing_vsi_files = vsiSpeclibs()
             assert isinstance(existing_vsi_files, list)
-            i = 0
-            uri = pathlib.PurePosixPath(VSI_DIR) / '{}.gpkg'.format(name)
-            uri = uri.as_posix().replace('\\', '/')
-            while uri in existing_vsi_files:
-                i += 1
-                uri = pathlib.PurePosixPath(VSI_DIR) / '{}{:03}.gpkg'.format(name, i)
-                uri = uri.as_posix().replace('\\', '/')
+            while True:
+                path = pathlib.PurePosixPath(VSI_DIR) / f'{baseName}.{uuid.uuid4()}.gpkg'
+                path = path.as_posix().replace('\\', '/')
+                if not path in existing_vsi_files:
+                    break
 
             drv = ogr.GetDriverByName('GPKG')
             missingGPKGInfo = \
@@ -2080,7 +2190,7 @@ class SpectralLibrary(QgsVectorLayer):
             assert isinstance(drv, ogr.Driver), missingGPKGInfo
 
             co = ['VERSION=AUTO']
-            dsSrc = drv.CreateDataSource(uri, options=co)
+            dsSrc = drv.CreateDataSource(path, options=co)
             assert isinstance(dsSrc, ogr.DataSource)
             srs = osr.SpatialReference()
             srs.ImportFromEPSG(SPECLIB_EPSG_CODE)
@@ -2089,7 +2199,7 @@ class SpectralLibrary(QgsVectorLayer):
                   # 'FID=fid'
                   ]
 
-            lyr = dsSrc.CreateLayer(name, srs=srs, geom_type=ogr.wkbPoint, options=co)
+            lyr = dsSrc.CreateLayer(baseName, srs=srs, geom_type=ogr.wkbPoint, options=co)
 
             assert isinstance(lyr, ogr.Layer)
             ldefn = lyr.GetLayerDefn()
@@ -2105,12 +2215,14 @@ class SpectralLibrary(QgsVectorLayer):
                 else:
                     raise rt
 
-        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
-        super(SpectralLibrary, self).__init__(uri, name, 'ogr', lyrOptions)
+        assert isinstance(path, str)
+        options = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+        super(SpectralLibrary, self).__init__(path, baseName, 'ogr', options)
+
         # consistency check
-        fieldNames = self.fields().names()
-        assert FIELD_NAME in fieldNames
-        assert FIELD_VALUES in fieldNames
+        field_names = self.fields().names()
+        assert FIELD_NAME in field_names
+        assert FIELD_VALUES in field_names
         f = self.fields().at(self.fields().lookupField(FIELD_NAME))
         assert f.type() == QVariant.String, 'Field {} not of type String / VARCHAR'
         f = self.fields().at(self.fields().lookupField(FIELD_VALUES))
@@ -2121,7 +2233,7 @@ class SpectralLibrary(QgsVectorLayer):
         self.mProfileRenderer: SpectralProfileRenderer = SpectralProfileRenderer()
         self.mProfileRenderer.setInput(self)
         self.initTableConfig()
-        self.initRenderer()
+        self.initProfileRenderer()
 
     def onCommittedFeaturesAdded(self, id, features):
 
@@ -2142,13 +2254,15 @@ class SpectralLibrary(QgsVectorLayer):
         assert isinstance(profileRenderer, SpectralProfileRenderer)
         b = profileRenderer != self.mProfileRenderer
         self.mProfileRenderer = profileRenderer
+        if profileRenderer.mInputSource != self:
+            s = ""
         if b:
             self.sigProfileRendererChanged.emit(self.mProfileRenderer)
 
     def profileRenderer(self) -> SpectralProfileRenderer:
         return self.mProfileRenderer
 
-    def initRenderer(self):
+    def initProfileRenderer(self):
         """
         Initializes the default QgsFeatureRenderer
         """
@@ -2460,7 +2574,7 @@ class SpectralLibrary(QgsVectorLayer):
         for f in self.features(fids=fids):
             yield SpectralProfile.fromSpecLibFeature(f)
 
-    def groupBySpectralProperties(self, excludeEmptyProfiles=True):
+    def groupBySpectralProperties(self, excludeEmptyProfiles: bool = True):
         """
         Returns SpectralProfiles grouped by key = (xValues, xUnit and yUnit):
 
@@ -2507,9 +2621,10 @@ class SpectralLibrary(QgsVectorLayer):
         msg = super(SpectralLibrary, self).exportNamedStyle(doc, context=context, categories=categories)
         if msg == '':
             qgsNode = doc.documentElement().toElement()
-            speclibNode = doc.createElement(XMLNODE_PROFILE_RENDERER)
-            self.mProfileRenderer.writeXml(speclibNode, doc)
-            qgsNode.appendChild(speclibNode)
+            # speclibNode = doc.createElement(XMLNODE_PROFILE_RENDERER)
+            if isinstance(self.mProfileRenderer, SpectralProfileRenderer):
+                self.mProfileRenderer.writeXml(qgsNode, doc)
+            # qgsNode.appendChild(speclibNode)
 
         return msg
 
@@ -2531,6 +2646,50 @@ class SpectralLibrary(QgsVectorLayer):
         warnings.warn('Use SpectralLibrary.write() instead', DeprecationWarning)
         return self.write(*args, **kwds)
 
+    def writeRasterImages(self, pathOne: typing.Union[str, pathlib.Path], drv: str = 'GTiff') -> typing.List[
+        pathlib.Path]:
+        """
+        Writes the SpectralLibrary into images of same spectral properties
+        :return: list of image paths
+        """
+        if not isinstance(pathOne, pathlib.Path):
+            pathOne = pathlib.Path(pathOne)
+
+        basename, ext = os.path.splitext(pathOne.name)
+
+        assert pathOne.parent.is_dir()
+        imageFiles = []
+        for k, profiles in self.groupBySpectralProperties().items():
+            xValues, xUnit, yUnit = k
+            ns: int = len(profiles)
+            nb = len(xValues)
+
+            ref_profile = np.asarray(profiles[0].yValues())
+            dtype = ref_profile.dtype
+            imageArray = np.empty((nb, 1, ns), dtype=dtype)
+            imageArray[:, 0, 0] = ref_profile
+
+            for i in range(1, len(profiles)):
+                imageArray[:, 0, i] = np.asarray(profiles[i].yValues(), dtype=dtype)
+
+            if len(imageFiles) == 0:
+                pathDst = pathOne.parent / f'{basename}{ext}'
+            else:
+                pathDst = pathOne.parent / f'{basename}{len(imageFiles)}{ext}'
+
+            dsDst: gdal.Dataset = gdal_array.SaveArray(imageArray, pathDst.as_posix(), format=drv)
+            fakeProjection: osr.SpatialReference = osr.SpatialReference()
+            fakeProjection.SetFromUserInput('EPSG:3857')
+            dsDst.SetProjection(fakeProjection.ExportToWkt())
+            # north-up project, 1 px above equator, starting at 0°, n pixels = n profiles towards east
+            dsDst.SetGeoTransform([0.0, 1.0, 0.0, 1.0, 0.0, -1.0])
+            dsDst.SetMetadataItem('wavelength units', xUnit)
+            dsDst.SetMetadataItem('wavelength', ','.join(f'{v}' for v in xValues))
+            dsDst.FlushCache()
+            imageFiles.append(pathDst)
+            del dsDst
+        return imageFiles
+
     def write(self, path: str, **kwds) -> typing.List[str]:
         """
         Exports profiles to a file.
@@ -2546,7 +2705,7 @@ class SpectralLibrary(QgsVectorLayer):
         if path is None:
             path, filter = QFileDialog.getSaveFileName(parent=kwds.get('parent'),
                                                        caption='Save Spectral Library',
-                                                       directory='speclib',
+                                                       directory=QgsFileUtils.stringToSafeFilename(self.name()),
                                                        filter=FILTERS)
 
         if isinstance(path, pathlib.Path):
@@ -2567,41 +2726,46 @@ class SpectralLibrary(QgsVectorLayer):
 
         return []
 
-    def yRange(self):
-        profiles = self.profiles()
-        minY = min([min(p.yValues()) for p in profiles])
-        maxY = max([max(p.yValues()) for p in profiles])
+    def yRange(self) -> typing.List[float]:
+        """
+        Returns the maximum y range
+        :return:
+        :rtype:
+        """
+
+        minY = maxY = 0
+
+        for p in self.profiles():
+            yValues = p.yValues()
+            minY = min(minY, min(yValues))
+            maxY = max(maxY, max(yValues))
+
         return minY, maxY
 
     def __repr__(self):
         return str(self.__class__) + '"{}" {} feature(s)'.format(self.name(), self.dataProvider().featureCount())
 
-    def plot(self):
+    def plot(self) -> QWidget:
         """Create a plot widget and shows all SpectralProfile in this SpectralLibrary."""
-        from ..externals import pyqtgraph as pg
-        pg.mkQApp()
 
-        win = pg.GraphicsWindow(title="Spectral Library")
-        win.resize(1000, 600)
+        app = None
+        if not isinstance(QgsApplication.instance(), QgsApplication):
+            from ..testing import start_app
+            app = start_app()
 
-        # Enable antialiasing for prettier plots
-        pg.setConfigOptions(antialias=True)
+        from .gui import SpectralLibraryWidget
 
-        # Create a plot with some random data
-        p1 = win.addPlot(title="Spectral Library {}".format(self.name()), pen=0.5)
-        yMin, yMax = self.yRange()
-        p1.setYRange(yMin, yMax)
+        w = SpectralLibraryWidget(speclib=self)
+        w.show()
 
-        # Add three infinite lines with labels
-        for p in self:
-            pi = pg.PlotDataItem(p.xValues(), p.yValues())
-            p1.addItem(pi)
+        if app:
+            app.exec_()
 
-        pg.QAPP.exec_()
+        return w
 
     def fieldNames(self) -> list:
         """
-        Retunrs the field names. Shortcut from self.fields().names()
+        Returns the field names. Shortcut from self.fields().names()
         :return: [list-of-str]
         """
         return self.fields().names()
@@ -2704,6 +2868,99 @@ class SpectralLibrary(QgsVectorLayer):
     def __hash__(self):
         # return super(SpectralLibrary, self).__hash__()
         return hash(self.id())
+
+
+class ConsistencyRequirement(enum.IntFlag):
+    HasWavelengths = 1,
+    UnifiedWavelengths = 2,
+    UnifiedWavelengthUnits = 4,
+    AttributesNotNone = 8
+
+
+class SpectralLibraryConsistencyCheckTask(QgsTask):
+
+    def __init__(self, path_speclib: str, flags, fields=typing.List[str], callback=None):
+        super().__init__('Check Speclib Consistency', QgsTask.CanCancel)
+        assert isinstance(path_speclib, str)
+
+        self.mPathSpeclib: str = path_speclib
+        self.mFlags = flags
+        self.mFields = fields
+        self.mCallback = callback
+        self.mTimeDeltaProgress = datetime.timedelta(seconds=1)
+
+    def run(self):
+        try:
+            t0 = datetime.datetime.now()
+            speclib = SpectralLibrary(path=self.mPathSpeclib)
+            n = len(speclib)
+            MISSING_FIELD_VALUE = dict()
+            for i, profile in enumerate(speclib):
+                # check this profile
+
+                for f in self.mFields:
+                    if profile.attribute(f) in ['', None]:
+                        fids = MISSING_FIELD_VALUE.get(f, [])
+                        fids.append(profile.id())
+                        MISSING_FIELD_VALUE[f] = fids
+
+                # report progress
+                tn = datetime.datetime.now()
+                if tn - t0 >= self.mTimeDeltaProgress:
+                    self.progressChanged.emit(i / n * 100)
+
+        except Exception as ex:
+            self.exception = ex
+            return False
+
+        return True
+
+    def finished(self, result):
+        if self.mCallback:
+            self.mCallback(result, self)
+
+
+def consistencyCheck(speclib: SpectralLibrary, requirements, notNoneAttributes=[], progressDialog=None) -> typing.Dict[
+    str, typing.List[int]]:
+    problems: typing.Dict[str, typing.List[int]] = dict()
+
+    bCheckWL = bool(requirements & ConsistencyRequirement.UnifiedWavelengths)
+    bCheckHasWL = bool(requirements & ConsistencyRequirement.HasWavelengths)
+    n = len(speclib)
+    for i, profile in enumerate(speclib):
+        fid = profile.id()
+
+    return problems
+
+
+class AbstractSpectralLibraryExportWidget(QWidget):
+    """
+    Abstract Interface of an Widget to export / write a spectral library
+    """
+
+    def __init__(self, *args, **kwds):
+        super(AbstractSpectralLibraryExportWidget, self).__init__(*args, **kwds)
+
+    def formatName(self) -> str:
+        raise NotImplementedError()
+
+    def icon(self) -> QIcon():
+        return QIcon()
+
+    def exportSpeclib(self, speclib: SpectralLibrary):
+        raise NotImplementedError()
+
+
+class AbstractSpectralLibraryImportWidget(QWidget):
+
+    def __init__(self, *args, **kwds):
+        super(AbstractSpectralLibraryImportWidget, self).__init__(*args, **kwds)
+
+    def icon(self) -> QIcon:
+        return QIcon()
+
+    def formatName(self) -> str:
+        raise NotImplementedError()
 
 
 class AbstractSpectralLibraryIO(object):
@@ -2828,6 +3085,21 @@ class AbstractSpectralLibraryIO(object):
         :return: [list-of-QAction-or-QMenus]
         """
         return []
+
+    @classmethod
+    def createImportWidget(cls) -> AbstractSpectralLibraryImportWidget:
+        """
+        Creates a Widget to import data into a SpectralLibrary
+        :return:
+        """
+        pass
+
+    @classmethod
+    def createExportWidget(cls) -> AbstractSpectralLibraryExportWidget:
+        """
+        Creates a widget to export a SpectralLibrary
+        :return:
+        """
 
 
 def deleteSelected(layer):

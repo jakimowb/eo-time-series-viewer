@@ -25,14 +25,21 @@
 ***************************************************************************
 """
 
-import sys, os, pathlib, typing, re
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
+import os
+import pathlib
+import re
+import sys
+import typing
+import site
+
 from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtXml import *
+from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtSvg import QGraphicsSvgItem
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtXml import *
 
 from .utils import file_search, findUpwardPath
+
 REGEX_FILEXTENSION_IMAGE = re.compile(r'\.([^.]+)$')
 
 
@@ -46,8 +53,7 @@ def getDOMAttributes(elem):
     return values
 
 
-
-def compileResourceFiles(dirRoot:str, targetDir:str=None, suffix:str= '_rc.py'):
+def compileResourceFiles(dirRoot: str, targetDir: str = None, suffix: str = '_rc.py'):
     """
     Searches for *.ui files and compiles the *.qrc files they use.
     :param dirRoot: str, root directory, in which to search for *.qrc files or a list of *.ui file paths.
@@ -127,7 +133,8 @@ def compileResourceFiles(dirRoot:str, targetDir:str=None, suffix:str= '_rc.py'):
         for qrcFile in qrc_files_skipped:
             print(qrcFile.as_posix())
 
-def compileResourceFile(pathQrc, targetDir=None, suffix:str='_rc.py', compressLevel=7, compressThreshold=100):
+
+def compileResourceFile(pathQrc, targetDir=None, suffix: str = '_rc.py', compressLevel=7, compressThreshold=100):
     """
     Compiles a *.qrc file
     :param pathQrc:
@@ -147,7 +154,6 @@ def compileResourceFile(pathQrc, targetDir=None, suffix:str='_rc.py', compressLe
     assert isinstance(targetDir, pathlib.Path)
     targetDir = targetDir.resolve()
 
-
     cwd = pathlib.Path(pathQrc).parent
 
     pathPy = targetDir / (os.path.splitext(pathQrc.name)[0] + suffix)
@@ -157,7 +163,7 @@ def compileResourceFile(pathQrc, targetDir=None, suffix:str='_rc.py', compressLe
 
     cmd = 'pyrcc5 -compress {} -o {} {}'.format(compressLevel, pathPy, pathQrc)
     cmd2 = 'pyrcc5 -no-compress -o {} {}'.format(pathPy.as_posix(), pathQrc.name)
-    #print(cmd)
+    # print(cmd)
 
     import PyQt5.pyrcc_main
 
@@ -181,7 +187,7 @@ def compileResourceFile(pathQrc, targetDir=None, suffix:str='_rc.py', compressLe
     os.chdir(last_cwd)
 
 
-def compileQGISResourceFiles(qgis_repo:str, target:str=None):
+def compileQGISResourceFiles(qgis_repo: str, target: str = None):
     """
     Searches for *.qrc files in the QGIS repository and compile them to <target>
 
@@ -204,7 +210,8 @@ def compileQGISResourceFiles(qgis_repo:str, target:str=None):
         qgis_repo = pathlib.Path(qgis_repo)
     assert isinstance(qgis_repo, pathlib.Path)
     assert qgis_repo.is_dir()
-    assert (qgis_repo / 'images' /'images.qrc').is_file(), '{} is not the QGIS repository root'.format(qgis_repo.as_posix())
+    assert (qgis_repo / 'images' / 'images.qrc').is_file(), '{} is not the QGIS repository root'.format(
+        qgis_repo.as_posix())
 
     if target is None:
         DIR_REPO = findUpwardPath(__file__, '.git')
@@ -262,15 +269,16 @@ def initResourceFile(path):
     try:
         __import__(name)
         # spec = importlib.util.spec_from_file_location(name, path)
-        #rcModule = importlib.util.module_from_spec(spec)
-        #spec.loader.exec_module(rcModule)
-        #rcModule.qInitResources()
+        # rcModule = importlib.util.module_from_spec(spec)
+        # spec.loader.exec_module(rcModule)
+        # rcModule.qInitResources()
 
     except Exception as ex:
         print(ex, file=sys.stderr)
 
     if add_path:
         sys.path.remove(path.parent.as_posix())
+
 
 def findQGISResourceFiles():
     """
@@ -312,12 +320,12 @@ def scanResources(path=':') -> str:
         elif D.fileInfo().isFile():
             yield D.filePath()
 
+
 def printResources():
     print('Available resources:')
     res = sorted(list(scanResources()))
     for r in res:
         print(r)
-
 
 
 class ResourceTableModel(QAbstractTableModel):
@@ -383,14 +391,11 @@ class ResourceTableModel(QAbstractTableModel):
 class ResourceTableView(QTableView):
 
     def __init__(self, *args, **kwds):
-        super().__init__(*args ,**kwds)
-
+        super().__init__(*args, **kwds)
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-
         idx = self.indexAt(event.pos())
         if isinstance(idx, QModelIndex) and idx.isValid():
-
             uri = idx.data(Qt.UserRole)
             m = QMenu()
             a = m.addAction('Copy Name')
@@ -422,7 +427,7 @@ class ResourceBrowser(QWidget):
         self.btnReload: QToolButton
         self.preview: QLabel
 
-        self.graphicsView:QGraphicsView
+        self.graphicsView: QGraphicsView
         self.graphicsScene = QGraphicsScene()
         self.graphicsView.setScene(self.graphicsScene)
 
@@ -462,8 +467,6 @@ class ResourceBrowser(QWidget):
             self.resourceProxyModel.setFilterRegExp(None)
             self.info.setText(expr.errorString())
 
-
-
     def onSelectionChanged(self, selected, deselected):
 
         selectedIdx = selected.indexes()
@@ -476,7 +479,7 @@ class ResourceBrowser(QWidget):
             uri = idx1.data(Qt.UserRole)
             self.updatePreview(uri)
 
-    def updatePreview(self, uri:str):
+    def updatePreview(self, uri: str):
 
         hasImage = False
         hasText = False
@@ -512,11 +515,8 @@ class ResourceBrowser(QWidget):
         self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.pageImage), hasImage)
         self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.pageText), hasText)
 
-
-
     def useFilterRegex(self) -> bool:
         return self.optionUseRegex.isChecked()
-
 
 
 def showResources() -> ResourceBrowser:
@@ -533,3 +533,4 @@ def showResources() -> ResourceBrowser:
     if needQApp:
         QApplication.instance().exec_()
     return browser
+

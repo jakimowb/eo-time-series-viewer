@@ -1,4 +1,3 @@
-
 import os, re, io, importlib, uuid, unittest
 
 import qgis.testing
@@ -8,12 +7,12 @@ from eotimeseriesviewer import *
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import *
 
-
 DIR_SENTINEL = r''
 DIR_PLEIADES = r'H:\Pleiades'
 DIR_RAPIDEYE = r'Y:\RapidEye\3A'
 DIR_LANDSAT = jp(DIR_EXAMPLES, 'Images')
 DIR_VRT = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
+
 
 class TestFileFormatLoading(EOTSVTestCase):
 
@@ -54,25 +53,22 @@ class TestFileFormatLoading(EOTSVTestCase):
         self.assertEqual(len(files), len(self.TS))
         s = ""
 
-
     def test_loadOSARIS_GRD(self):
 
         testDir = r'Q:\Processing_BJ\99_OSARIS_Testdata\Loibl-2019-OSARIS-Ala-Archa\Coherences'
         if os.path.isdir(testDir):
             files = file_search(testDir, re.compile(r'.*\.grd$'))
             for i, path in enumerate(files):
-
                 tss = TimeSeriesSource.create(path)
                 self.assertIsInstance(tss, TimeSeriesSource)
                 self.assertTrue(tss.crs().isValid())
                 self.TS.addSources([path], runAsync=False)
-                self.assertEqual(len(self.TS), i+1)
+                self.assertEqual(len(self.TS), i + 1)
 
                 tss = self.TS[0][0]
                 self.assertIsInstance(tss, TimeSeriesSource)
                 sensor = self.TS[0].sensor()
                 self.assertIsInstance(sensor, SensorInstrument)
-
 
     def test_ForceLevel2(self):
 
@@ -82,8 +78,9 @@ class TestFileFormatLoading(EOTSVTestCase):
         testData = r'J:\diss_bj\level2\s-america\X0049_Y0025'
         if os.path.isdir(testData):
             files = list(file_search(testData, '*IMP.tif'))
+            if len(files) > 10:
+                files = files[0:10]
             for i, path in enumerate(files):
-
                 self.TS.addSources([path], runAsync=False)
                 self.assertEqual(len(self.TS), i + 1)
 
@@ -102,9 +99,6 @@ class TestFileFormatLoading(EOTSVTestCase):
             tss = TimeSeriesSource.create(p)
             s = ""
 
-
-
-
     def test_nestedVRTs(self):
         # load VRTs pointing to another VRT pointing to Landsat imagery
         searchDir = DIR_VRT
@@ -117,12 +111,14 @@ class TestFileFormatLoading(EOTSVTestCase):
 
     def test_loadRapidEye(self):
         # load RapidEye
-        searchDir =DIR_RAPIDEYE
+        searchDir = DIR_RAPIDEYE
         if not os.path.isdir(searchDir):
             print('DIR_RAPIDEYE undefined. skip test.')
             return
         files = file_search(searchDir, '*.tif', recursive=True)
         files = [f for f in files if not re.search(r'_(udm|browse)\.tif$', f)]
+        if len(files) > 10:
+            files = files[0:10]
         self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS.sourceUris()))
 
@@ -133,22 +129,19 @@ class TestFileFormatLoading(EOTSVTestCase):
         tss = tsd[0]
         self.assertIsInstance(tss, TimeSeriesSource)
 
-
-
-
     def test_loadPleiades(self):
-        #load Pleiades data
+        # load Pleiades data
         searchDir = DIR_PLEIADES
         if not os.path.isdir(searchDir):
             print('DIR_PLEIADES undefined. skip test.')
             return
-        #files = file_search(searchDir, 'DIM*.xml', recursive=True)
+        # files = file_search(searchDir, 'DIM*.xml', recursive=True)
         files = list(file_search(searchDir, '*.jp2', recursive=True))[0:3]
         self.TS.addSources(files, runAsync=False)
         self.assertEqual(len(files), len(self.TS))
 
     def test_loadSentinel2(self):
-        #load Sentinel-2
+        # load Sentinel-2
         searchDir = DIR_SENTINEL
         if not os.path.isdir(searchDir):
             print('DIR_SENTINEL undefined. skip test.')
@@ -156,7 +149,7 @@ class TestFileFormatLoading(EOTSVTestCase):
         files = list(file_search(searchDir, '*MSIL1C.xml', recursive=True))
         self.TS.addSources(files, runAsync=False)
 
-        #self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
+        # self.assertRegexpMatches(self.stderr.getvalue().strip(), 'Unable to add:')
         self.assertEqual(0, len(self.TS))  # do not add a containers
         subdatasets = []
         for file in files:

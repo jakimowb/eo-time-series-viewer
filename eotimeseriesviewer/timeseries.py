@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
-
+import os
 import bisect
 import collections
 import datetime
@@ -35,7 +35,6 @@ from osgeo import osr, ogr, gdal_array
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.utils import relativePath
-from qgis import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -300,7 +299,7 @@ class SensorInstrument(QObject):
         :return: QgsRasterLayer
         """
         lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0], name=self.name(), sensor=self)
-        lyr.nameChanged.connect(lambda l=lyr: self.setName(l.name()))
+        lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
         lyr.setCustomProperty('eotsv/sensorid', self.id())
         self.sigNameChanged.connect(lyr.setName)
         return lyr
@@ -1367,7 +1366,7 @@ class TimeSeries(QAbstractItemModel):
         self.mTSDs = list()
         self.mSensors = []
         self.mShape = None
-
+        self.mTreeView: QTreeView = None
         self.mDateTimePrecision = DateTimePrecision.Original
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
@@ -1794,11 +1793,23 @@ class TimeSeries(QAbstractItemModel):
         """
         assert isinstance(sensor, SensorInstrument)
         if not sensor in self.mSensors:
+            sensor.sigNameChanged.connect(self.onSensorNameChanged)
             self.mSensors.append(sensor)
             self.sigSensorAdded.emit(sensor)
             return sensor
         else:
             return None
+
+    def onSensorNameChanged(self, name: str):
+        sensor = self.sender()
+
+        if isinstance(sensor, SensorInstrument) and sensor in self.sensors():
+            c = self.columnNames().index(self.cnSensor)
+
+            idx0 = self.index(0, c)
+            idx1 = self.index(self.rowCount()-1, c)
+            self.dataChanged.emit(idx0, idx1)
+        s = ""
 
     def checkSensorList(self):
         """

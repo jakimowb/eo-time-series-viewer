@@ -19,15 +19,26 @@
 *                                                                         *
 ***************************************************************************
 """
-
-
-from .utils import *
-from .virtualrasters import *
-from .dateparser import *
+import os
+import copy
+import re
+from osgeo import gdal
+import numpy as np
+from collections import OrderedDict
+from xml.etree import ElementTree
+from qgis.PyQt.QtCore import Qt, QModelIndex, QAbstractTableModel, QItemSelectionModel, QTimer
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QHeaderView, QDialog, QDialogButtonBox, QFileDialog
+from qgis.core import QgsRasterLayer, QgsProviderRegistry, QgsProject
+from qgis.gui import QgsFileWidget, QgisInterface
+import qgis.utils
+from eotimeseriesviewer.utils import read_vsimem, loadUi
+from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
 from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.dateparser import extractDateTimeGroup
 
-def datesFromDataset(dataset:gdal.Dataset) -> list:
 
+def datesFromDataset(dataset: gdal.Dataset) -> list:
     nb = dataset.RasterCount
 
     def checkDates(dateList):
@@ -50,7 +61,7 @@ def datesFromDataset(dataset:gdal.Dataset) -> list:
     searchedKeysBand.append(re.compile('date$', re.I))
     searchedKeysBand.append(re.compile('wavelength$', re.I))
 
-    #1. Check Metadata
+    # 1. Check Metadata
     for domain in dataset.GetMetadataDomainList():
         domainData = dataset.GetMetadata_Dict(domain)
         assert isinstance(domainData, dict)
@@ -64,10 +75,9 @@ def datesFromDataset(dataset:gdal.Dataset) -> list:
                     if checkDates(dateValues):
                         return dateValues
 
-
     # 2. Search in band metadata
     # 2.1. via GetDescription
-    bandDates = [extractDateTimeGroup(dataset.GetRasterBand(b+1).GetDescription()) for b in range(nb)]
+    bandDates = [extractDateTimeGroup(dataset.GetRasterBand(b + 1).GetDescription()) for b in range(nb)]
     bandDates = [b for b in bandDates if isinstance(b, np.datetime64)]
     if checkDates(bandDates):
         return bandDates
@@ -75,7 +85,7 @@ def datesFromDataset(dataset:gdal.Dataset) -> list:
     # 2.2 via Band Metadata
     bandDates = []
     for b in range(nb):
-        band = dataset.GetRasterBand(b+1)
+        band = dataset.GetRasterBand(b + 1)
         assert isinstance(band, gdal.Band)
         bandDate = None
         for domain in band.GetMetadataDomainList():
@@ -104,17 +114,17 @@ def datesFromDataset(dataset:gdal.Dataset) -> list:
     if checkDates(bandDates):
         return bandDates
 
-
     return []
+
 
 class InputStackInfo(object):
 
     def __init__(self, dataset):
         if isinstance(dataset, str):
-            #test ENVI header first
+            # test ENVI header first
             basename = os.path.splitext(dataset)[0]
             ds = None
-            if os.path.isfile(basename+'.hdr'):
+            if os.path.isfile(basename + '.hdr'):
                 ds = gdal.OpenEx(dataset, allowed_drivers=['ENVI'])
             if not isinstance(ds, gdal.Dataset):
                 ds = gdal.Open(dataset)
@@ -152,11 +162,10 @@ class InputStackInfo(object):
         self.nodatavalues = []
 
         for b in range(self.nb):
-            band = dataset.GetRasterBand(b+1)
+            band = dataset.GetRasterBand(b + 1)
             assert isinstance(band, gdal.Band)
             self.bandnames.append(band.GetDescription())
             self.nodatavalues.append(band.GetNoDataValue())
-
 
         self.mDates = datesFromDataset(dataset)
 
@@ -166,7 +175,6 @@ class InputStackInfo(object):
     def dates(self) -> list:
         """Returns a list of dates"""
         return self.mDates
-
 
     def structure(self):
         return (self.ns, self.nl, self.nb, self.gt, self.wkt)
@@ -183,20 +191,16 @@ class OutputVRTDescription(object):
     Descrbies an output VRT
     """
 
-    def __init__(self, path:str, date:np.datetime64):
+    def __init__(self, path: str, date: np.datetime64):
         super(OutputVRTDescription, self).__init__()
         self.mPath = path
         self.mDate = date
 
-
-    def setPath(self, path:str):
+    def setPath(self, path: str):
         self.mPath = path
 
 
-
 class InputStackTableModel(QAbstractTableModel):
-
-
 
     def __init__(self, parent=None):
 
@@ -211,7 +215,8 @@ class InputStackTableModel(QAbstractTableModel):
         self.cn_nb = 'nb'
         self.cn_name = 'Band Name'
         self.cn_wl = 'Wavelength'
-        self.mColumnNames = [self.cn_source, self.cn_dates, self.cn_name, self.cn_wl, self.cn_ns, self.cn_nl, self.cn_nb, self.cn_crs]
+        self.mColumnNames = [self.cn_source, self.cn_dates, self.cn_name, self.cn_wl, self.cn_ns, self.cn_nl,
+                             self.cn_nb, self.cn_crs]
 
         self.mColumnTooltips = {}
 
@@ -241,7 +246,7 @@ class InputStackTableModel(QAbstractTableModel):
         :return: [all dates], [dates in common]
         """
         if len(self) == 0:
-            return [],[]
+            return [], []
         datesTotal = set()
         datesInCommon = None
         for i, f in enumerate(self.mStackImages):
@@ -261,11 +266,11 @@ class InputStackTableModel(QAbstractTableModel):
         if index.isValid():
             columnName = self.columnName(index)
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-            if columnName in [self.cn_name, self.cn_wl]: #allow check state
+            if columnName in [self.cn_name, self.cn_wl]:  # allow check state
                 flags = flags | Qt.ItemIsEditable
 
             return flags
-            #return item.qt_flags(index.column())
+            # return item.qt_flags(index.column())
         return None
 
     def headerData(self, col, orientation, role):
@@ -303,15 +308,15 @@ class InputStackTableModel(QAbstractTableModel):
         infos = [InputStackInfo(p) for p in paths]
         if len(infos) > 0:
 
-            self.beginInsertRows(QModelIndex(), i, i+len(infos)-1)
+            self.beginInsertRows(QModelIndex(), i, i + len(infos) - 1)
             for j, info in enumerate(infos):
                 assert isinstance(info, InputStackInfo)
                 if len(info.outputBandName) == 0:
-                    info.outputBandName = 'Band {}'.format(i+j+1)
-                self.mStackImages.insert(i+j, info)
+                    info.outputBandName = 'Band {}'.format(i + j + 1)
+                self.mStackImages.insert(i + j, info)
             self.endInsertRows()
 
-    def removeSources(self, stackInfos:list):
+    def removeSources(self, stackInfos: list):
 
         for stackInfo in stackInfos:
             assert stackInfo in self.mStackImages
@@ -332,7 +337,7 @@ class InputStackTableModel(QAbstractTableModel):
         ref = self.mStackImages[0]
         assert isinstance(ref, InputStackInfo)
 
-        #all input stacks need to have the same characteristic
+        # all input stacks need to have the same characteristic
         for stackInfo in self.mStackImages[1:]:
             assert isinstance(stackInfo, InputStackInfo)
             if not ref.dates() == stackInfo.dates():
@@ -341,13 +346,12 @@ class InputStackTableModel(QAbstractTableModel):
                 return False
         return True
 
-
-    def index2info(self, index:QModelIndex) -> InputStackInfo:
+    def index2info(self, index: QModelIndex) -> InputStackInfo:
         return self.mStackImages[index.row()]
 
-    def info2index(self, info:InputStackInfo) -> QModelIndex:
+    def info2index(self, info: InputStackInfo) -> QModelIndex:
         r = self.mStackImages.index(info)
-        return self.createIndex(r,0, info)
+        return self.createIndex(r, 0, info)
 
     def data(self, index: QModelIndex, role: int):
         if not index.isValid():
@@ -371,7 +375,6 @@ class InputStackTableModel(QAbstractTableModel):
                         if len(dates) > 11:
                             dates = dates[0:10] + ['...']
                         return '\n'.join([str(d) for d in dates])
-
 
             if cname == self.cn_ns:
                 return info.ns
@@ -426,11 +429,11 @@ class InputStackTableModel(QAbstractTableModel):
             self.dataChanged.emit(index, index)
         return changed
 
+
 class OutputImageModel(QAbstractTableModel):
 
     def __init__(self, parent=None):
         super(OutputImageModel, self).__init__(parent)
-
 
         self.cn_uri = 'Path'
         self.cn_date = 'Date'
@@ -446,8 +449,6 @@ class OutputImageModel(QAbstractTableModel):
         self.mOutputDir = '/vsimem/'
         self.mOutputPrefix = 'date'
 
-
-
     def headerData(self, col, orientation, role):
         if Qt is None:
             return None
@@ -461,7 +462,7 @@ class OutputImageModel(QAbstractTableModel):
             return col
         return None
 
-    def createVRTUri(self, date:np.datetime64):
+    def createVRTUri(self, date: np.datetime64):
 
         path = os.path.join(self.mOutputDir, self.mOutputPrefix)
         path = '{}{}.vrt'.format(path, date)
@@ -473,7 +474,7 @@ class OutputImageModel(QAbstractTableModel):
         self.mOutputImages = []
         self.endRemoveRows()
 
-    def setMultiStackSources(self, listOfInputStacks:list, dates:list):
+    def setMultiStackSources(self, listOfInputStacks: list, dates: list):
 
         self.clearOutputs()
 
@@ -490,13 +491,13 @@ class OutputImageModel(QAbstractTableModel):
         self.masterVRT_DateLookup.clear()
         self.masterVRT_InputStacks = listOfInputStacks
         self.masterVRT_SourceBandTemplates.clear()
-        #dates = set()
-        #for s in listOfInputStacks:
+        # dates = set()
+        # for s in listOfInputStacks:
         #    for d in s.dates():
         #        dates.add(d)
-        #dates = sorted(list(dates))
+        # dates = sorted(list(dates))
 
-        #create a LUT to get the stack indices for a related date (not each stack might contain a band for each date)
+        # create a LUT to get the stack indices for a related date (not each stack might contain a band for each date)
 
         for stackIndex, s in enumerate(listOfInputStacks):
             for bandIndex, bandDate in enumerate(s.dates()):
@@ -504,7 +505,7 @@ class OutputImageModel(QAbstractTableModel):
                     self.masterVRT_DateLookup[bandDate] = []
                 self.masterVRT_DateLookup[bandDate].append((stackIndex, bandIndex))
 
-        #create VRT Template XML
+        # create VRT Template XML
         VRT = VRTRaster()
         wavelength = []
         for stackIndex, stack in enumerate(listOfInputStacks):
@@ -525,7 +526,7 @@ class OutputImageModel(QAbstractTableModel):
             dsVRT.SetMetadataItem('wavelength units', 'Nanometers')
 
         for stackIndex, stack in enumerate(listOfInputStacks):
-            band = dsVRT.GetRasterBand(stackIndex+1)
+            band = dsVRT.GetRasterBand(stackIndex + 1)
             assert isinstance(band, gdal.Band)
             assert isinstance(stack, InputStackInfo)
             if isinstance(stack.colorTable, gdal.ColorTable) and stack.colorTable.GetCount() > 0:
@@ -539,10 +540,9 @@ class OutputImageModel(QAbstractTableModel):
         drv.Delete(pathVSITmp)
         outputVRTs = []
 
-
         eTree = ElementTree.fromstring(masterVRT_XML)
         for iBand, elemBand in enumerate(eTree.findall('VRTRasterBand')):
-            sourceElements  = elemBand.findall('ComplexSource') + elemBand.findall('SimpleSource')
+            sourceElements = elemBand.findall('ComplexSource') + elemBand.findall('SimpleSource')
             assert len(sourceElements) == 1
             self.masterVRT_SourceBandTemplates[iBand] = copy.deepcopy(sourceElements[0])
             elemBand.remove(sourceElements[0])
@@ -555,29 +555,27 @@ class OutputImageModel(QAbstractTableModel):
 
         self.masterVRT_XML = eTree
 
-
-        self.beginInsertRows(QModelIndex(), 0, len(outputVRTs)-1)
+        self.beginInsertRows(QModelIndex(), 0, len(outputVRTs) - 1)
         self.mOutputImages = outputVRTs[:]
         self.endInsertRows()
 
-    def setOutputDir(self, path:str):
+    def setOutputDir(self, path: str):
         self.mOutputDir = path
         self.updateOutputURIs()
 
-    def setOutputPrefix(self, basename:str):
+    def setOutputPrefix(self, basename: str):
         self.mOutputPrefix = basename
         self.updateOutputURIs()
 
     def updateOutputURIs(self):
         c = self.mColumnNames.index(self.cn_uri)
         ul = self.createIndex(0, c)
-        lr = self.createIndex(self.rowCount()-1, c)
+        lr = self.createIndex(self.rowCount() - 1, c)
 
         for outputVRT in self:
             assert isinstance(outputVRT, OutputVRTDescription)
             outputVRT.setPath(self.createVRTUri(outputVRT.mDate))
         self.dataChanged.emit(ul, lr)
-
 
     def __len__(self):
         return len(self.mOutputImages)
@@ -596,14 +594,14 @@ class OutputImageModel(QAbstractTableModel):
             i = i.column()
         return self.mColumnNames[i]
 
-    def columnIndex(self, columnName:str) ->  QModelIndex:
+    def columnIndex(self, columnName: str) -> QModelIndex:
         c = self.mColumnNames.index(columnName)
         return self.createIndex(0, c)
 
-    def index2vrt(self, index:QModelIndex) -> OutputVRTDescription:
+    def index2vrt(self, index: QModelIndex) -> OutputVRTDescription:
         return self.mOutputImages[index.row()]
 
-    def vrt2index(self, vrt:OutputVRTDescription) -> QModelIndex:
+    def vrt2index(self, vrt: OutputVRTDescription) -> QModelIndex:
         i = self.mOutputImages[vrt]
         return self.createIndex(i, 0, vrt)
 
@@ -620,7 +618,7 @@ class OutputImageModel(QAbstractTableModel):
             if cname == self.cn_date:
                 return str(vrt.mDate)
 
-    def vrtXML(self, outputDefinition:OutputVRTDescription, asElementTree=False) -> str:
+    def vrtXML(self, outputDefinition: OutputVRTDescription, asElementTree=False) -> str:
         """
         Create the VRT XML related to an outputDefinition
         :param outputDefinition:
@@ -632,7 +630,7 @@ class OutputImageModel(QAbstractTableModel):
         # xml = copy.deepcopy(eTree)
         if self.masterVRT_XML is None:
             return None
-        #xmlTree = ElementTree.fromstring(self.masterVRT_XML)
+        # xmlTree = ElementTree.fromstring(self.masterVRT_XML)
         xmlTree = copy.deepcopy(self.masterVRT_XML)
 
         # set metadata
@@ -649,16 +647,13 @@ class OutputImageModel(QAbstractTableModel):
             stackIndex, stackBandIndex = t
 
             stackSourceXMLTemplate = copy.deepcopy(self.masterVRT_SourceBandTemplates[stackIndex])
-            stackSourceXMLTemplate.find('SourceBand').text = str(stackBandIndex+1)
+            stackSourceXMLTemplate.find('SourceBand').text = str(stackBandIndex + 1)
             xmlVRTBands[stackIndex].append(stackSourceXMLTemplate)
 
         if asElementTree:
             return xmlTree
         else:
             return ElementTree.tostring(xmlTree).decode('utf-8')
-
-
-
 
 
 class StackedBandInputDialog(QDialog):
@@ -698,7 +693,7 @@ class StackedBandInputDialog(QDialog):
         sm = self.tableViewSourceStacks.selectionModel()
         assert isinstance(sm, QItemSelectionModel)
         sm.selectionChanged.connect(self.onSourceStackSelectionChanged)
-        self.onSourceStackSelectionChanged([],[])
+        self.onSourceStackSelectionChanged([], [])
 
         sm = self.tableViewOutputImages.selectionModel()
         assert isinstance(sm, QItemSelectionModel)
@@ -808,7 +803,6 @@ class StackedBandInputDialog(QDialog):
         """
         self.actionRemoveSourceStack.setEnabled(len(selected) > 0)
 
-
     def onOutputImageSelectionChanged(self, selected, deselected):
 
         if len(selected) > 0:
@@ -822,13 +816,11 @@ class StackedBandInputDialog(QDialog):
             self.tbXMLPreview.setPlainText(None)
             s = ""
 
-
     def saveImages(self):
         """
         Write the VRT images
         :return: [list-of-written-file-paths]
         """
-
 
         nTotal = len(self.tableModelOutputImages)
         writtenFiles = []

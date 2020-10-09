@@ -24,16 +24,23 @@
 """
 # noinspection PyPep8Naming
 
-import os, json, sys, enum
+import enum
+import json
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-from ..externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol, renderSymbol
-from ..externals.pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
-from ..utils import *
-from ..models import OptionListModel, Option, currentComboBoxValue, setCurrentComboBoxValue
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.core import *
+from qgis.gui import *
+from qgis.core import QgsField, QgsSymbolLayerUtils, QgsAction, \
+    QgsVectorLayer, QgsRasterLayer, QgsMapLayer
+from qgis.gui import QgsDialog, QgsEditorWidgetWrapper, QgsPenStyleComboBox, \
+    QgsSearchWidgetWrapper, QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsGui
+
 from ..externals import pyqtgraph as pg
+from ..externals.pyqtgraph.graphicsItems.PlotDataItem import PlotDataItem
+from ..externals.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol, renderSymbol
+from ..utils import *
 
 DEBUG = False
 
@@ -52,7 +59,6 @@ def log(msg: str):
 
 
 def pens_equal(p1, p2):
-
     assert isinstance(p1, QPen)
     assert isinstance(p2, QPen)
     if p1 == p2:
@@ -85,8 +91,8 @@ def pens_equal(p1, p2):
         # it is totally unclear why the inital p1 == p2 returns False!!!
         return True
 
+
 class MarkerSymbol(enum.Enum):
-    
     Circle = 'o'
     Triangle_Down = 't'
     Triangle_Up = 't1'
@@ -125,7 +131,7 @@ class MarkerSymbol(enum.Enum):
     def icon(symbol):
         symbol = MarkerSymbol.decode(symbol)
         assert isinstance(symbol, MarkerSymbol)
-        #print('render {}'.format(symbol.value))
+        # print('render {}'.format(symbol.value))
         pen = QPen(Qt.SolidLine)
         pen.setColor(QColor('black'))
         pen.setWidth(0)
@@ -150,6 +156,7 @@ class MarkerSymbol(enum.Enum):
 
         assert isinstance(symbol, MarkerSymbol), 'cannot encode {} into MarkerSymbol'.format(symbol)
         return symbol.name.replace('_', ' ')
+
 
 class MarkerSymbolComboBox(QComboBox):
 
@@ -176,7 +183,6 @@ class MarkerSymbolComboBox(QComboBox):
 
     def iconForMarkerSymbol(self) -> QIcon():
         return MarkerSymbol.icon(self.markerSymbol())
-
 
 
 def brush2tuple(brush: QBrush) -> tuple:
@@ -347,7 +353,7 @@ class PlotStyle(QObject):
 
         if plotStyle:
             self.copyFrom(plotStyle)
-    
+
     def setMarkerSymbol(self, symbol):
         """
         Sets the marker type
@@ -391,7 +397,7 @@ class PlotStyle(QObject):
         :return:
         """
         self.markerPen.setColor(QColor(*color))
-        
+
     def markerLineColor(self) -> QColor:
         """
         Returns the marker symbol line color
@@ -429,14 +435,16 @@ class PlotStyle(QObject):
         """
         self.linePen.setColor(QColor(*color))
 
-    def apply(self, pdi: PlotDataItem, updateItem: bool=True):
+    def apply(self, pdi: PlotDataItem, updateItem: bool = True, visibility: bool = None):
         """
         Applies this PlotStyle to a PlotDataItem by setting
         the line pen (line type, line color) and the marker/symbol (marker/symbol type,
         marker/symbol pen line and color, marker/symbol brush)
+
         :param pdi: PlotDataItem
         :param updateItem: if True, will update the PlotDataItem
         :type updateItem:
+        :param visibility: use this keyword to overwrite the style's visibility.
         :return:
         :rtype:
         """
@@ -449,11 +457,15 @@ class PlotStyle(QObject):
         pdi.opts['symbolBrush'] = pg.mkBrush(self.markerBrush)
         pdi.opts['symbolSize'] = self.markerSize
 
-        pdi.setVisible(self.mIsVisible)
+        if isinstance(visibility, bool):
+            pdi.setVisible(visibility)
+        else:
+            pdi.setVisible(self.mIsVisible)
+
         if updateItem:
             pdi.updateItems()
 
-    def writeXml(self, node:QDomElement, doc:QDomDocument) -> bool:
+    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """
         Writes the PlotStyle to a QDomNode
         :param node:
@@ -461,15 +473,14 @@ class PlotStyle(QObject):
         :return:
         """
         plotStyleNode = doc.createElement(XMLTAG_PLOTSTYLENODE)
-        cdata = doc.createCDATASection(self.json().replace('\n',''))
+        cdata = doc.createCDATASection(self.json().replace('\n', ''))
         plotStyleNode.appendChild(cdata)
         node.appendChild(plotStyleNode)
 
         return True
 
-
     @staticmethod
-    def readXml(node:QDomElement, *args):
+    def readXml(node: QDomElement, *args):
         """
         Reads the PlotStyle from a QDomElement (XML node)
         :param self:
@@ -485,7 +496,6 @@ class PlotStyle(QObject):
         cdata = node.firstChild()
         assert cdata.isCDATASection()
         return PlotStyle.fromJSON(cdata.nodeValue())
-
 
     @staticmethod
     def fromJSON(jsonString: str):
@@ -610,7 +620,7 @@ class PlotStyle(QObject):
         """
         return QIcon(self.createPixmap(size=size))
 
-    def createPixmap(self, size=None) -> QPixmap:
+    def createPixmap(self, size: QSize = None) -> QPixmap:
         """
         Creates a QPixmap to show this PlotStyle
         :param size: QSize
@@ -621,25 +631,34 @@ class PlotStyle(QObject):
             size = QSize(60, 60)
 
         pm = QPixmap(size)
-        pm.fill(self.backgroundColor)
+        if self.isVisible():
+            pm.fill(self.backgroundColor)
 
-        p = QPainter(pm)
-        # draw the line
+            p = QPainter(pm)
+            # draw the line
 
-        p.setPen(self.linePen)
+            p.setPen(self.linePen)
 
-        w, h = pm.width(), pm.height()
+            w, h = pm.width(), pm.height()
 
-        hw, hh = int(w * 0.5), int(h * 0.5)
-        w2, h2 = int(w * 0.75), int(h * 0.75)
-        # p.drawLine(x1,y1,x2,y2)
+            hw, hh = int(w * 0.5), int(h * 0.5)
+            w2, h2 = int(w * 0.75), int(h * 0.75)
+            # p.drawLine(x1,y1,x2,y2)
 
-        p.drawLine(2, h - 2, hw, hh)
-        p.drawLine(hw, hh, w - 2, int(h * 0.3))
+            #p.drawLine(2, h - 2, hw, hh)
+            #p.drawLine(hw, hh, w - 2, int(h * 0.3))
 
-        p.translate(pm.width() / 2, pm.height() / 2)
-        drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
-        p.end()
+            p.translate(pm.width() / 2, pm.height() / 2)
+            drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)
+            p.end()
+        else:
+            # transparent background
+            pm.fill(QColor(0, 255, 0, 0))
+            p = QPainter(pm)
+            p.setPen(QPen(QColor(100, 100, 100)))
+            p.drawLine(0, 0, pm.width(), pm.height())
+            p.drawLine(0, pm.height(), pm.width(), 0)
+            p.end()
         return pm
 
     def __hash__(self):
@@ -699,7 +718,7 @@ class PlotStyle(QObject):
 class PlotStyleWidget(QWidget):
     sigPlotStyleChanged = pyqtSignal(PlotStyle)
 
-    def __init__(self, title='<#>', parent=None, x=None, y=None, plotStyle:PlotStyle=PlotStyle()):
+    def __init__(self, title='<#>', parent=None, x=None, y=None, plotStyle: PlotStyle = PlotStyle()):
         super(PlotStyleWidget, self).__init__(parent)
 
         ui_file = pathlib.Path(__file__).parent / 'plotstylewidget.ui'
@@ -768,7 +787,7 @@ class PlotStyleWidget(QWidget):
             assert isinstance(w, QWidget)
             w.setEnabled(enabled)
 
-    def setPreviewVisible(self, b:bool):
+    def setPreviewVisible(self, b: bool):
         """
         Sets the visibility of the preview window.
         :param b:
@@ -776,7 +795,6 @@ class PlotStyleWidget(QWidget):
         """
         assert isinstance(b, bool)
         self.plotWidget.setVisible(b)
-
 
     def refreshPreview(self, *args):
         if not self.mBlockUpdates:
@@ -820,11 +838,6 @@ class PlotStyleWidget(QWidget):
 
         self.refreshPreview()
 
-    def plotStyleIcon(self):
-        icon = QIcon()
-        # todo: get plot preview as 60x60 icon
-        return icon
-
     def plotStyle(self):
         style = PlotStyle(plotStyle=self.mLastPlotStyle)
 
@@ -851,21 +864,19 @@ class PlotStyleButton(QToolButton):
 
     def __init__(self, *args, **kwds):
         super(PlotStyleButton, self).__init__(*args, **kwds)
-        self.mPlotStyle = PlotStyle()
+        self.mPlotStyle: PlotStyle = PlotStyle()
 
         self.mInitialButtonSize = None
-        self.setStyleSheet('* { padding: 0px; }')
-        # self.clicked.connect(self.showDialog)
-        # self.setPlotStyle(PlotStyle())
-        self._updateIcon()
+
         self.setMinimumSize(5, 5)
+        self.setMaximumHeight(75)
+
         self.mMenu = QMenu(parent=self)
         self.mMenu.triggered.connect(self.onAboutToShowMenu)
-        # self.mWidget = PlotStyleWidget()
+
         self.mDialog = PlotStyleDialog()
         self.mDialog.setModal(False)
         self.mDialog.setPlotStyle(self.mPlotStyle)
-        # self.mWidget.sigPlotStyleChanged.connect(self.setPlotStyle)
         self.mDialog.accepted.connect(self.onAccepted)
         self.mDialog.rejected.connect(self.onCanceled)
         self.mWA = QWidgetAction(self.mMenu)
@@ -874,13 +885,20 @@ class PlotStyleButton(QToolButton):
         self.mMenu.aboutToShow.connect(self.onAboutToShowMenu)
         self.setMenu(self.mMenu)
         self.setPopupMode(QToolButton.MenuButtonPopup)
+
         self.clicked.connect(lambda: self.activateWindow())
-        # self.clicked.connect(self.onTest)
+        self.toggled.connect(self.onToggled)
+        self.updateIcon()
+
+    def onToggled(self, b: bool):
+        self.mPlotStyle.setVisibility(b)
+        self.sigPlotStyleChanged.emit(self.plotStyle())
+        self.updateIcon()
 
     def onAboutToShowMenu(self, *args):
         self.mWA.setVisible(True)
         self.mDialog.setVisible(True)
-        self.mDialog.setPlotStyle(self.mPlotStyle)
+        self.mDialog.setPlotStyle(self.mPlotStyle.clone())
         self.mDialog.activateWindow()
 
     def onAccepted(self, *args):
@@ -888,7 +906,11 @@ class PlotStyleButton(QToolButton):
             ps = self.mDialog.plotStyle()
             if ps != self.mPlotStyle:
                 self.mPlotStyle = ps
-                self._updateIcon()
+                self.updateIcon()
+
+                if self.isCheckable():
+                    self.setChecked(self.mPlotStyle.isVisible())
+
                 self.sigPlotStyleChanged.emit(ps)
         self.mWA.setVisible(False)
 
@@ -898,37 +920,29 @@ class PlotStyleButton(QToolButton):
     def plotStyle(self):
         return PlotStyle(plotStyle=self.mPlotStyle)
 
+    def setCheckable(self, b: bool) -> None:
+        super().setCheckable(b)
+        self.onToggled(b)
+
     def setPlotStyle(self, plotStyle):
         if isinstance(plotStyle, PlotStyle):
             log('setPlotStyle...')
             self.mPlotStyle.copyFrom(plotStyle)
             self.mDialog.setPlotStyle(plotStyle)
-            self._updateIcon()
+            self.updateIcon()
             self.sigPlotStyleChanged.emit(self.mPlotStyle)
         else:
 
             s = ""
 
     def resizeEvent(self, arg):
-        self._updateIcon()
+        self.updateIcon()
 
-    def _updateIcon(self):
-        if self.mInitialButtonSize is None:
-            self.mInitialButtonSize = self.sizeHint()
-            self.setIconSize(self.mInitialButtonSize)
-
-        self.mInitialButtonSize = self.size()
-        self.setIconSize(self.mInitialButtonSize)
-
-        if self.mPlotStyle != None:
-            s = self.mInitialButtonSize
-            s = self.sizeHint()
-            # s = QSize()
-            icon = self.mPlotStyle.createIcon(self.size())
-            self.setIcon(icon)
+    def updateIcon(self):
+        self.setIconSize(self.size())
+        icon = self.mPlotStyle.createIcon(self.iconSize())
+        self.setIcon(icon)
         self.update()
-
-        pass
 
 
 class PlotStyleDialog(QgsDialog):
@@ -936,7 +950,7 @@ class PlotStyleDialog(QgsDialog):
     @staticmethod
     def getPlotStyle(*args, **kwds):
         """
-        Opens a CrosshairDialog.
+        Opens a dialog to specify a PlotStyle.
         :param args:
         :param kwds:
         :return: specified PlotStyle if accepted, else None
@@ -952,24 +966,20 @@ class PlotStyleDialog(QgsDialog):
         super(PlotStyleDialog, self).__init__(parent=parent, \
                                               buttons=QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
                                               **kwds)
-        self.w = PlotStyleWidget(parent=self)
+        self.w: PlotStyleWidget = PlotStyleWidget(parent=self)
         self.setWindowTitle(title)
-        self.btOk = QPushButton('Ok')
-        self.btCancel = QPushButton('Cancel')
-        buttonBar = QHBoxLayout()
-        # buttonBar.addWidget(self.btCancel)
-        # buttonBar.addWidget(self.btOk)
         l = self.layout()
         l.addWidget(self.w)
-        l.addLayout(buttonBar)
         if isinstance(plotStyle, PlotStyle):
             self.setPlotStyle(plotStyle)
-        # self.setLayout(l)
 
-    def plotStyle(self):
+    def plotStyleWidget(self) -> PlotStyleWidget:
+        return self.w
+
+    def plotStyle(self) -> PlotStyle:
         return self.w.plotStyle()
 
-    def setPlotStyle(self, plotStyle):
+    def setPlotStyle(self, plotStyle: PlotStyle):
         assert isinstance(plotStyle, PlotStyle)
         self.w.setPlotStyle(plotStyle)
 
@@ -983,7 +993,7 @@ class PlotStyleEditorWidgetWrapper(QgsEditorWidgetWrapper):
         self.mLabel = None
         self.mDefaultValue = None
 
-    def createWidget(self, parent: QWidget):
+    def createWidget(self, parent: QWidget) -> PlotStyleWidget:
         # log('createWidget')
         w = None
         if not self.isInTable(parent):
@@ -1028,20 +1038,15 @@ class PlotStyleEditorWidgetWrapper(QgsEditorWidgetWrapper):
         return any([isinstance(w, QWidget) for w in [self.mLabel, self.mEditorButton, self.mEditorWidget]])
 
     def value(self, *args, **kwargs):
-        # log(' BEGIN value()')
-        # value = self.defaultValue()
         value = self.mDefaultValue
         if isinstance(self.mEditorWidget, PlotStyleWidget):
             value = self.mEditorWidget.plotStyle()
-        # if isinstance(self.mEditorButton, PlotStyleButton):
-        # value = self.mEditorButton.plotStyle()
         if isinstance(value, PlotStyle):
             value = value.json()
         return value
 
     def setValue(self, value):
 
-        # log(' setValue()')
         if not isinstance(value, str):
             style = PlotStyle()
         else:

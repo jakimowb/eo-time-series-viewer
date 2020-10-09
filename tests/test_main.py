@@ -26,10 +26,12 @@ from eotimeseriesviewer.tests import start_app, testRasterFiles
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
 from qgis.core import *
+from qgis.core import QgsProject, QgsApplication
 from qgis.gui import *
 from qgis.testing import TestCase
 import unittest
 import tempfile
+
 
 
 from eotimeseriesviewer.mapcanvas import *
@@ -93,10 +95,10 @@ class TestMain(EOTSVTestCase):
             TSV.setCurrentDate(tsd)
 
         # save and read settings
-        #path = self.testOutputDirectory() / 'test.qgz'
-        #QgsProject.instance().write(path.as_posix())
-        #self.assertTrue(QgsProject.instance().read(path.as_posix()))
-        #TSV.onReloadProject()
+        path = self.createTestOutputDirectory() / 'test.qgz'
+        QgsProject.instance().write(path.as_posix())
+        self.assertTrue(QgsProject.instance().read(path.as_posix()))
+        TSV.onReloadProject()
 
         self.showGui([TSV.ui])
 
@@ -139,7 +141,6 @@ class TestMain(EOTSVTestCase):
         self.assertIsInstance(dialog, QDialog)
         self.showGui([dialog])
 
-
     def test_exportMapsToImages(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
@@ -147,12 +148,15 @@ class TestMain(EOTSVTestCase):
         d = SaveAllMapsDialog()
         self.assertEqual(d.fileType(), 'PNG')
 
-        pathTestOutput = tempfile.mkdtemp(prefix='EOTSTTestOutput')
+        dirTestOutput = self.createTestOutputDirectory() / 'test_screenshots'
+        os.makedirs(dirTestOutput, exist_ok=True)
+        pathTestOutput = dirTestOutput / 'canvas_shots.png'
 
         TSV = EOTimeSeriesViewer()
 
         paths = TestObjects.createMultiSourceTimeSeries()
-        TSV.addTimeSeriesImages(paths)
+        TSV.addTimeSeriesImages(paths, loadAsync=False)
+        self.assertTrue(len(TSV.timeSeries()) > 0)
         TSV.exportMapsToImages(path=pathTestOutput)
 
         self.showGui(TSV)

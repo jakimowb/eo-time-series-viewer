@@ -22,16 +22,26 @@
     along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
-import typing, pathlib
-from qgis.core import QgsRasterLayer, QgsRasterRenderer
+import typing
+import pathlib
 from qgis.core import *
-from qgis.gui import QgsMapCanvas, QgsMapLayerConfigWidget, QgsRasterBandComboBox
+from qgis.core import QgsRasterLayer, \
+    QgsRasterRenderer, \
+    QgsSingleBandGrayRenderer, \
+    QgsSingleBandColorDataRenderer, \
+    QgsSingleBandPseudoColorRenderer, \
+    QgsMultiBandColorRenderer, \
+    QgsPalettedRasterRenderer, \
+    QgsColorRampShader, QgsRasterShaderFunction, QgsRasterShader
 from qgis.gui import *
+from qgis.gui import QgsMapCanvas, QgsMapLayerConfigWidget, QgsMapLayerConfigWidgetFactory, QgsRasterBandComboBox
+
 from qgis.PyQt.QtWidgets import *
 from qgis.PyQt.QtGui import QIcon
 import numpy as np
-from .core import QpsMapLayerConfigWidget
+from ..layerconfigwidgets.core import QpsMapLayerConfigWidget
 from ..utils import loadUi, parseWavelength, UnitLookup
+
 class RasterBandConfigWidget(QpsMapLayerConfigWidget):
 
     @staticmethod
@@ -147,7 +157,10 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
             newRenderer.setBlueBand(self.cbMultiBandBlue.currentBand())
         return newRenderer
 
-    def setRenderer(self, renderer:QgsRasterRenderer):
+    def setRenderer(self, renderer: QgsRasterRenderer):
+        if not isinstance(renderer, QgsRasterRenderer):
+            return
+
         w = self.renderBandWidget
         assert isinstance(self.labelRenderType, QLabel)
         assert isinstance(w, QStackedWidget)

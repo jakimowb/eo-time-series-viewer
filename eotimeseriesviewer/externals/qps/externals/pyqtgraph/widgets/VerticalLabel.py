@@ -44,7 +44,7 @@ class VerticalLabel(QtGui.QLabel):
             rgn = QtCore.QRect(-self.height(), 0, self.height(), self.width())
         else:
             rgn = self.contentsRect()
-        align = int(self.alignment())
+        align = self.alignment()
         #align  = QtCore.Qt.AlignTop|QtCore.Qt.AlignHCenter
             
         self.hint = p.drawText(rgn, align, self.text())

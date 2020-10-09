@@ -1,8 +1,7 @@
-
-
-from qgis.core import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtXml import *
+from qgis.core import QgsReadWriteContext, QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer
+from qgis.gui import QgsLayerTreeLayer, QgsLayerTreeGroup, QgsLayerTree
 import re
 from qgis.gui import *
 
@@ -23,7 +22,7 @@ MDF_TEXT_HTML = 'text/html'
 MDF_TEXT_PLAIN = 'text/plain'
 
 
-def attributesd2dict(attributes):
+def attributes2dict(attributes):
     d = {}
     assert isinstance(attributes, QDomNamedNodeMap)
     for i in range(attributes.count()):
@@ -60,8 +59,6 @@ def fromLayerList(mapLayers):
     return mimeData
 
 
-
-
 def toLayerList(mimeData):
     """
     Extracts a layer-tree-group from a QMimeData
@@ -77,20 +74,19 @@ def toLayerList(mimeData):
         xml = doc.toString()
         node = doc.firstChildElement(MDF_LAYERTREEMODELDATA_XML)
         context = QgsReadWriteContext()
-        #context.setPathResolver(QgsProject.instance().pathResolver())
+        # context.setPathResolver(QgsProject.instance().pathResolver())
         layerTree = QgsLayerTree.readXml(node, context)
         lt = QgsLayerTreeGroup.readXml(node, context)
-        #layerTree.resolveReferences(QgsProject.instance(), True)
+        # layerTree.resolveReferences(QgsProject.instance(), True)
         registeredLayers = QgsProject.instance().mapLayers()
 
-
-        attributesLUT= {}
+        attributesLUT = {}
         childs = node.childNodes()
 
         for i in range(childs.count()):
             child = childs.at(i).toElement()
             if child.tagName() == 'layer-tree-layer':
-                attributesLUT[child.attribute('id')] = attributesd2dict(child.attributes())
+                attributesLUT[child.attribute('id')] = attributes2dict(child.attributes())
 
         for treeLayer in layerTree.findLayers():
             assert isinstance(treeLayer, QgsLayerTreeLayer)
@@ -118,7 +114,7 @@ def toLayerList(mimeData):
             if isinstance(mapLayer, QgsMapLayer):
                 newMapLayers.append(mapLayer)
     elif MDF_URILIST in mimeData.formats():
-       pass
+        pass
     else:
         s = ""
 
@@ -139,6 +135,7 @@ def textToByteArray(text):
         data.append(text)
         return data
 
+
 def textFromByteArray(data):
     """
     Decodes a QByteArray into a str
@@ -148,4 +145,3 @@ def textFromByteArray(data):
     assert isinstance(data, QByteArray)
     s = data.data().decode()
     return s
-

@@ -411,11 +411,9 @@ class ImageView(QtGui.QWidget):
         
     def close(self):
         """Closes the widget nicely, making sure to clear the graphics scene and release memory."""
-        self.ui.roiPlot.close()
-        self.ui.graphicsView.close()
-        self.scene.clear()
-        del self.image
-        del self.imageDisp
+        self.clear()
+        self.imageDisp = None
+        self.imageItem.setParent(None)
         super(ImageView, self).close()
         self.setParent(None)
         
@@ -586,7 +584,7 @@ class ImageView(QtGui.QWidget):
         # Extract image data from ROI
         axes = (self.axes['x'], self.axes['y'])
 
-        data, coords = self.roi.getArrayRegion(image.view(np.ndarray), self.imageItem, axes, returnMappedCoords=True)
+        data, coords = self.roi.getArrayRegion(image.view(np.ndarray), self.imageItem, returnMappedCoords=True)
         if data is None:
             return
 
@@ -594,7 +592,10 @@ class ImageView(QtGui.QWidget):
         if self.axes['t'] is None:
             # Average across y-axis of ROI
             data = data.mean(axis=axes[1])
-            coords = coords[:,:,0] - coords[:,0:1,0]
+            if axes == (1,0): ## we're in row-major order mode -- there's probably a better way to do this slicing dynamically, but I've not figured it out yet.
+                coords = coords[:,0,:] - coords[:,0,0:1]
+            else: #default to old way
+                coords = coords[:,:,0] - coords[:,0:1,0] 
             xvals = (coords**2).sum(axis=0) ** 0.5
         else:
             # Average data within entire ROI for each frame

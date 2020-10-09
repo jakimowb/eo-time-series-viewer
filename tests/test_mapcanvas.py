@@ -17,22 +17,25 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-
+import unittest
+import os
+import xmlrunner
 from eotimeseriesviewer.tests import start_app, testRasterFiles, TestObjects, EOTSVTestCase
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
-import unittest
-import tempfile
-import xmlrunner
-from eotimeseriesviewer import SpatialPoint
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.timeseries import *
+from qgis.PyQt.QtWidgets import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsWkbTypes, QgsProject
+from qgis.gui import QgsMapCanvas, QgsFontButton
 
- # set to False to show GUI elements
+from eotimeseriesviewer import SpatialPoint
+from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
+from eotimeseriesviewer.timeseries import TimeSeries
+
+
+# set to False to show GUI elements
 
 class TestMapCanvas(EOTSVTestCase):
     """Test resources work."""
-
 
     def test_basic_behaviour(self):
 
@@ -40,7 +43,6 @@ class TestMapCanvas(EOTSVTestCase):
         lyr1 = QgsRasterLayer(files[0])
         self.assertTrue(lyr1.isValid())
         QgsProject.instance().addMapLayer(lyr1)
-
 
         c = QgsMapCanvas()
         c.setWindowTitle('QgsMapCanvas test')
@@ -56,7 +58,6 @@ class TestMapCanvas(EOTSVTestCase):
         c.setExtent(lyr1.extent())
 
         self.assertTrue(bExtent == 1)
-
 
         c.setLayers([lyr1])
         c.setDestinationCrs(lyr1.crs())
@@ -74,8 +75,7 @@ class TestMapCanvas(EOTSVTestCase):
         canvas.setDestinationCrs(lyr1.crs())
         canvas.setExtent(lyr1.extent())
 
-        pos = QPoint(int(canvas.width()*0.5), int(canvas.height()*0.5))
-
+        pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
 
         menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
@@ -100,7 +100,6 @@ class TestMapCanvas(EOTSVTestCase):
             mc.mInfoItem.setMiddleLeft('Middle\nLeft')
             mc.mInfoItem.setLowerLeft('Lower\nLeft')
 
-
             mc.mInfoItem.setUpperCenter('Upper\nCenter')
             mc.mInfoItem.setMiddleCenter('Middle\nCenter')
             mc.mInfoItem.setLowerCenter('Lower\nCenter')
@@ -112,8 +111,7 @@ class TestMapCanvas(EOTSVTestCase):
         if False:
             for k in mc.mInfoItem.mText.keys():
                 v = mc.mInfoItem.mText[k]
-                mc.mInfoItem.mText[k] = v.replace('\n' ,' ')
-
+                mc.mInfoItem.mText[k] = v.replace('\n', ' ')
 
         item = mc.mInfoItem
         self.assertIsInstance(item, MapCanvasInfoItem)
@@ -121,14 +119,14 @@ class TestMapCanvas(EOTSVTestCase):
         btn.setMapCanvas(mc)
         btn.setTextFormat(item.textFormat())
 
-
         def onChanged():
             mc.mInfoItem.setTextFormat(btn.textFormat())
             mc.update()
+
         btn.changed.connect(onChanged)
 
         if False:
-            w= QWidget()
+            w = QWidget()
             w.setLayout(QVBoxLayout())
             w.layout().addWidget(btn)
             w.layout().addWidget(mc)
@@ -140,7 +138,6 @@ class TestMapCanvas(EOTSVTestCase):
         files = testRasterFiles()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
-
 
         canvas = MapCanvas()
         canvas.setWindowTitle('timeseriesviewer.MapCanvas')
@@ -159,15 +156,16 @@ class TestMapCanvas(EOTSVTestCase):
 
         self.showGui([canvas])
 
-
     def test_mapTools(self):
 
         m = MapCanvas()
 
         lastPos = None
-        def onChanged(position:SpatialPoint):
+
+        def onChanged(position: SpatialPoint):
             nonlocal lastPos
             lastPos = position
+
         m.sigCrosshairPositionChanged.connect(onChanged)
 
         center = SpatialPoint.fromMapCanvasCenter(m)
@@ -178,7 +176,7 @@ class TestMapCanvas(EOTSVTestCase):
         self.assertTrue(m.crosshairPosition() == center)
 
         p2 = SpatialPoint(center.crs(), center)
-        p2.setX(p2.x()+100)
+        p2.setX(p2.x() + 100)
         m.setCrosshairPosition(p2)
         self.assertIsInstance(lastPos, SpatialPoint)
         self.assertTrue(lastPos == p2)

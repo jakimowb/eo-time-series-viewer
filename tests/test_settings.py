@@ -25,9 +25,8 @@ import unittest
 import tempfile
 import xmlrunner
 
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer import *
-from eotimeseriesviewer.utils import *
+from qgis.core import QgsReadWriteContext, QgsTextFormat
+
 from eotimeseriesviewer.tests import EOTSVTestCase
 
 from eotimeseriesviewer.settings import *
@@ -102,9 +101,6 @@ class TestSettings(EOTSVTestCase):
 
     def test_MapTextFormat(self):
 
-        from qgis.core import QgsTextFormat
-        from qgis.PyQt.QtCore import QSettings
-        from qgis.PyQt.QtXml import QDomDocument
         key = Keys.MapTextFormat
         format0 = defaultValues()[key]
         format1 = defaultValues()[key]

@@ -25,22 +25,28 @@
 ***************************************************************************
 """
 
-import os, sys, re, pathlib, json, io, re, linecache, typing
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-from qgis.core import *
 import json
+import os
+import pathlib
+import re
+import sys
+import typing
+
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtWidgets import *
+
+from qgis.core import QgsField, QgsVectorLayer, QgsVectorFileWriter, QgsProviderRegistry, \
+    QgsProject, QgsProviderMetadata, QgsFileUtils
 
 from ..core import SpectralProfile, SpectralLibrary, AbstractSpectralLibraryIO, \
     decodeProfileValueDict, encodeProfileValueDict, \
     SerializationMode, \
-    FIELD_FID, FIELD_VALUES, FIELD_NAME, findTypeFromString, createQgsField, OGR_EXTENSION2DRIVER, \
-    ProgressHandler
+    FIELD_VALUES, FIELD_NAME, ProgressHandler
+
 
 class VectorSourceFieldValueConverter(QgsVectorFileWriter.FieldValueConverter):
 
-    def __init__(self, speclib:SpectralLibrary, destinationFormat:str):
+    def __init__(self, speclib: SpectralLibrary, destinationFormat: str):
         super().__init__()
 
         self.mSpeclib: SpectralLibrary = speclib
@@ -48,25 +54,25 @@ class VectorSourceFieldValueConverter(QgsVectorFileWriter.FieldValueConverter):
 
         self.mBLOB2TXT = []
         for i, name in enumerate(speclib.fields().names()):
-            f:QgsField = speclib.fields().at(i)
-
+            f: QgsField = speclib.fields().at(i)
 
             if f.type() == QVariant.ByteArray:
                 if destinationFormat in ['ESRI Shapefile', 'CSV', 'KML', 'GeoJSONSeq', 'GeoJSON']:
                     self.mBLOB2TXT.extend([i, name])
                 else:
                     s = ""
+
     def clone(self):
         return VectorSourceFieldValueConverter(self.mSpeclib, self.mDstFormat)
 
-    def convert(self, fieldIndex:int, value:any):
+    def convert(self, fieldIndex: int, value: any):
         if fieldIndex in self.mBLOB2TXT:
             dataDict = decodeProfileValueDict(value)
             json = encodeProfileValueDict(dataDict, mode=SerializationMode.JSON)
             return json
         return value
 
-    def fieldDefinition(self, field:QgsField) -> QgsField:
+    def fieldDefinition(self, field: QgsField) -> QgsField:
         if field.name() in self.mBLOB2TXT:
             f = QgsField(FIELD_VALUES, QVariant.String, 'varchar', comment=field.comment())
 
@@ -76,9 +82,9 @@ class VectorSourceFieldValueConverter(QgsVectorFileWriter.FieldValueConverter):
 
 class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
     """
-    I/O Interface for the EcoSIS spectral library format.
-    See https://ecosis.org for details.
+    I/O Interface for Vector File Formats.
     """
+
     @classmethod
     def canRead(cls, path: str) -> bool:
         """
@@ -111,6 +117,8 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
                  addAttributes: bool = True) -> SpectralLibrary:
         """
         Returns the SpectralLibrary read from "path"
+        :param progressDialog:
+        :type progressDialog:
         :param path: source of SpectralLibrary
         :return: SpectralLibrary
         """
@@ -133,7 +141,7 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
 
         TXT2BLOB = False
         for i, n in enumerate(lyr.fields().names()):
-            f:QgsField = lyr.fields().at(i)
+            f: QgsField = lyr.fields().at(i)
             if n == FIELD_VALUES:
                 if f.type() == QVariant.String:
                     TXT2BLOB = True
@@ -148,7 +156,6 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
                     profile.setAttribute(name, blob)
                 else:
                     profile.setAttribute(name, feature.attribute(name))
-
 
             profiles.append(profile)
 
@@ -165,7 +172,7 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
         return speclib
 
     @classmethod
-    def write(cls, speclib:SpectralLibrary,
+    def write(cls, speclib: SpectralLibrary,
               path: str,
               progressDialog: typing.Union[QProgressDialog, ProgressHandler] = None,
               options: QgsVectorFileWriter.SaveVectorOptions = None,
@@ -194,9 +201,9 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
                     break
 
         if not isinstance(options, QgsVectorFileWriter.SaveVectorOptions):
-            #driverName = OGR_EXTENSION2DRIVER.get(ext, 'GPKG')
+            # driverName = OGR_EXTENSION2DRIVER.get(ext, 'GPKG')
             options = QgsVectorFileWriter.SaveVectorOptions()
-            #options.fileEncoding = 'utf-8'
+            # options.fileEncoding = 'utf-8'
             options.driverName = filterFormat.driverName
             options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
             # driver specific options
@@ -209,10 +216,10 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
             options.layerName = speclib.name()
         transform_context = QgsProject.instance().transformContext()
         errCode, errMsg = QgsVectorFileWriter.writeAsVectorFormatV2(
-                        speclib,
-                        path.as_posix(),
-                        transform_context,
-                        options)
+            speclib,
+            path.as_posix(),
+            transform_context,
+            options)
 
         if len(errMsg) > 0:
             raise Exception(errMsg)
@@ -246,7 +253,9 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
         def read(speclib: SpectralLibrary):
 
             path, filter = QFileDialog.getOpenFileName(caption='Vector File',
-                                               filter='All type (*.*)')
+                                                       filter='All type (*.*)',
+                                                       directory=QgsFileUtils.stringToSafeFilename(speclib.name())
+                                                       )
             if os.path.isfile(path) and VectorSourceSpectralLibraryIO.canRead(path):
                 sl = VectorSourceSpectralLibraryIO.readFrom(path)
                 if isinstance(sl, SpectralLibrary):
@@ -257,13 +266,16 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
                     speclib.commitChanges()
 
         m = menu.addAction('Vector Layer')
-        m.setToolTip('Adds profiles from another vector source\'s "{}" and "{}" attributes.'.format(FIELD_VALUES, FIELD_NAME))
+        m.setToolTip(
+            'Adds profiles from another vector source\'s "{}" and "{}" attributes.'.format(FIELD_VALUES, FIELD_NAME))
         m.triggered.connect(lambda *args, sl=spectralLibrary: read(sl))
 
     @classmethod
-    def addExportActions(cls, spectralLibrary:SpectralLibrary, menu:QMenu) -> list:
-
-        def write(speclib: SpectralLibrary):
+    def addExportActions(cls, spectralLibrary: SpectralLibrary, menu: QMenu) -> list:
+        """
+        def write_new(speclib: SpectralLibrary):
+            # this is not available in Python. Why?
+            from qgis.gui import QgsVectorLayerSaveAsDialog
             options = QgsVectorLayerSaveAsDialog.Symbology | \
                       QgsVectorLayerSaveAsDialog.DestinationCrs | \
                       QgsVectorLayerSaveAsDialog.Symbology.Fields | \
@@ -273,16 +285,17 @@ class VectorSourceSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             d = QgsVectorLayerSaveAsDialog(speclib, options=options)
             d.show()
-            s = ""
-        def write_old(speclib: SpectralLibrary):
+        """
+
+        def write(speclib: SpectralLibrary):
             # https://gdal.org/drivers/vector/index.html
             LUT_Files = {'Geopackage (*.gpkg)': 'GPKG',
-                         'ESRI Shapefile (*.shp)' : 'ESRI Shapefile',
+                         'ESRI Shapefile (*.shp)': 'ESRI Shapefile',
                          'Keyhole Markup Language (*.kml)': 'KML',
                          'Comma Separated Value (*.csv)': 'CSV'}
 
-            path, filter = QFileDialog.getSaveFileName(caption='Write to Vector Layer', 
-                                                    filter=';;'.join(LUT_Files.keys()))
+            path, filter = QFileDialog.getSaveFileName(caption='Write to Vector Layer',
+                                                       filter=';;'.join(LUT_Files.keys()))
             if isinstance(path, str) and len(path) > 0:
                 options = QgsVectorFileWriter.SaveVectorOptions()
                 options.fileEncoding = 'UTF-8'

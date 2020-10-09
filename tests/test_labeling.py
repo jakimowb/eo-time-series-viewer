@@ -17,19 +17,18 @@
 ***************************************************************************
 """
 
-from eotimeseriesviewer.tests import start_app, testRasterFiles
 import unittest
-import tempfile
-import os
-import qgis.testing
+
 import xmlrunner
 
 from eotimeseriesviewer.labeling import *
-from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
 from eotimeseriesviewer.mapvisualization import MapView
-from osgeo import ogr
+from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
+from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
+    QgsFields, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper
+from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManagerWidget, QgsMapCanvas, QgsGui
+
 
 class TestLabeling(EOTSVTestCase):
 
@@ -37,14 +36,14 @@ class TestLabeling(EOTSVTestCase):
     def setUpClass(cls):
         super().setUpClass()
         print('## setUpClass')
-        #app = qgis.testing.start_app(cleanup=True)
+        # app = qgis.testing.start_app(cleanup=True)
         import eotimeseriesviewer.labeling
         print('## setUpClass - cleanup')
         for store in eotimeseriesviewer.MAP_LAYER_STORES:
             store.removeAllMapLayers()
         print('## setUpClass - done')
 
-    def createVectorLayer(self)->QgsVectorLayer:
+    def createVectorLayer(self) -> QgsVectorLayer:
 
         lyr = TestObjects.createVectorLayer()
         self.assertIsInstance(lyr, QgsVectorLayer)
@@ -83,20 +82,21 @@ class TestLabeling(EOTSVTestCase):
         self.assertIsInstance(lyr, QgsVectorLayer)
 
         tsd = ts[10]
-        #menu = model.menuForTSD(tsd)
-        #self.assertIsInstance(menu, QMenu)
+        # menu = model.menuForTSD(tsd)
+        # self.assertIsInstance(menu, QMenu)
 
         canvas = MapCanvas()
         canvas.setTSD(tsd)
         canvas.setMapView(mv)
-        pos = QPoint(int(canvas.width()*0.5), int(canvas.height()*0.5))
+        pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
         menu = canvas.contextMenu(pos)
         self.assertIsInstance(menu, QMenu)
 
-        def findLabelAction(menu)->QAction:
+        def findLabelAction(menu) -> QAction:
             for a in menu.actions():
                 if a.text().startswith('Quick Labels'):
                     return a
+
         m = findLabelAction(menu).menu()
 
         self.showGui(menu)
@@ -125,7 +125,6 @@ class TestLabeling(EOTSVTestCase):
                     self.assertTrue(t in possibleTypes)
             else:
                 self.fail('Unhandled QgsField typeName: {}'.format(field.typeName()))
-
 
     def test_LabelShortcutEditorConfigWidget(self):
         print('## test_LabelShortcutEditorConfigWidget')
@@ -163,8 +162,6 @@ class TestLabeling(EOTSVTestCase):
                 editorWidgetWrapper = reg.create(EDITOR_WIDGET_REGISTRY_KEY, vl, i, setup.config(), None, parent)
                 self.assertIsInstance(editorWidgetWrapper, QgsEditorWidgetWrapper)
 
-
-
         canvas = QgsMapCanvas(parent)
         canvas.setVisible(False)
 
@@ -173,16 +170,13 @@ class TestLabeling(EOTSVTestCase):
         dv.init(vl, canvas)  # , context=self.mAttributeEditorContext)
         dv.setView(QgsDualView.AttributeTable)
 
-
         panel = QgsMapLayerStyleManagerWidget(vl, canvas, parent)
 
         parent.layout().addWidget(w)
         parent.layout().addWidget(dv)
         parent.layout().addWidget(panel)
 
-
-
-        #randomly click into table cells
+        # randomly click into table cells
         vl.startEditing()
 
         size = dv.size()
@@ -190,19 +184,18 @@ class TestLabeling(EOTSVTestCase):
         h = size.height()
         from random import randint
         for i in range(5):
-            print('Test mouse press {}'.format(i+1))
-            x = randint(0, w-1)
-            y = randint(0, h-1)
+            print('Test mouse press {}'.format(i + 1))
+            x = randint(0, w - 1)
+            y = randint(0, h - 1)
             localPos = QPointF(x, y)
             event = QMouseEvent(QEvent.MouseButtonPress, localPos, Qt.LeftButton, Qt.LeftButton, Qt.NoModifier)
             dv.mousePressEvent(event)
-
 
         vl.selectByIds([1, 2, 3])
         ts = TestObjects.createTimeSeries()
         tsd = ts[5]
 
-        if len(quickLabelLayers())> 0:
+        if len(quickLabelLayers()) > 0:
             print('Found QuickLabelLayers:')
             for l in quickLabelLayers():
                 print('{}={}'.format(l.name(), l.source()))
@@ -248,7 +241,8 @@ class TestLabeling(EOTSVTestCase):
                                                      {CONFKEY_LABELTYPE: LabelShortcutType.DecimalYear}))
 
         # set different types of classifications
-        from eotimeseriesviewer.externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+        from eotimeseriesviewer.externals.qps.classification.classificationscheme import \
+            EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
         from eotimeseriesviewer.externals.qps.classification.classificationscheme import classSchemeToConfig
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
@@ -257,11 +251,10 @@ class TestLabeling(EOTSVTestCase):
                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class2l'),
-                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
+                                QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('class2n'),
-                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
-
+                                QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
         return classScheme1, classScheme2
 
@@ -279,7 +272,6 @@ class TestLabeling(EOTSVTestCase):
         canvas.setTSD(ts[0])
 
         self.showGui(canvas)
-
 
     def test_LabelingWidget2(self):
         lyr = TestObjects.createVectorLayer()

@@ -17,8 +17,10 @@ import tempfile
 import sys
 import os
 import xmlrunner
-from qgis import *
-from qgis.gui import *
+
+from qgis.core import QgsTask, QgsMapLayer, QgsRasterLayer, QgsProject, \
+    QgsPointXY, QgsGeometry
+from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 from qgis.PyQt.QtGui import QIcon
 import example.Images
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
@@ -26,8 +28,6 @@ from eotimeseriesviewer.temporalprofiles import *
 from eotimeseriesviewer.profilevisualization import *
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
-from osgeo import ogr, osr
-
 
 
 class TestTemporalProfiles(EOTSVTestCase):
@@ -75,7 +75,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         tss = timeSeries[0][0]
         self.assertIsInstance(tss, TimeSeriesSource)
 
-
     def test_geometryToPixel(self):
 
         timeSeries = TestObjects.createTimeSeries()
@@ -113,8 +112,8 @@ class TestTemporalProfiles(EOTSVTestCase):
             self.assertEqual(len(px), len(py))
             self.assertEqual(min(px), 0)
             self.assertEqual(min(py), 0)
-            self.assertEqual(max(px), ds.RasterXSize-1)
-            self.assertEqual(max(py), ds.RasterYSize-1)
+            self.assertEqual(max(px), ds.RasterXSize - 1)
+            self.assertEqual(max(py), ds.RasterYSize - 1)
             self.assertEqual(len(px), tss.nl * tss.ns)
 
     def test_createTemporalProfile(self):
@@ -134,7 +133,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         for tp in temporalProfiles:
             tp.loadMissingData()
             nd, nnd, total = tp.loadingStatus()
-            self.assertEqual(total, nd+nnd)
+            self.assertEqual(total, nd + nnd)
 
     def test_temporalProfileLayer(self):
 
@@ -145,8 +144,8 @@ class TestTemporalProfiles(EOTSVTestCase):
         extent = self.TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
-        point1 = SpatialPoint(center.crs(), center.x(), center.y() )
-        point2 = SpatialPoint(center.crs(), center.x()+30, center.y()-30 )
+        point1 = SpatialPoint(center.crs(), center.x(), center.y())
+        point2 = SpatialPoint(center.crs(), center.x() + 30, center.y() - 30)
         tps = lyr1.createTemporalProfiles([point1, point1, point2])
 
         self.assertTrue(len(lyr1) == 3)
@@ -166,6 +165,7 @@ class TestTemporalProfiles(EOTSVTestCase):
             for p in profiles:
                 self.assertIsInstance(p, TemporalProfile)
                 self.assertTrue(p in lyr1)
+
         # load data
         lyr1.sigTemporalProfilesUpdated.connect(onUpdated)
         task = TemporalProfileLoaderTask(lyr1, callback=onLoaded)
@@ -193,9 +193,7 @@ class TestTemporalProfiles(EOTSVTestCase):
                     self.assertIsInstance(x, list)
                     self.assertIsInstance(y, list)
                     self.assertEqual(len(x), len(y))
-                    #self.assertTrue(len(x) > 0)
-
-
+                    # self.assertTrue(len(x) > 0)
 
     def test_plotstyltable(self):
 
@@ -204,7 +202,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         style.linePen.setStyle(Qt.SolidLine)
         btn.setPlotStyle(style)
         self.showGui(btn)
-
 
     def test_profilesettings(self):
 
@@ -239,7 +236,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         for a in w.mActionsTP:
             a.trigger()
 
-
         self.showGui(w)
 
     def test_profiledock2(self):
@@ -255,7 +251,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         point3 = SpatialPoint(center.crs(), center.x() + 30, center.y() + 30)
         points = [point1, point2, point3]
         n = len(points)
-        #tps = layer.createTemporalProfiles([point1])
+        # tps = layer.createTemporalProfiles([point1])
         tps = layer.createTemporalProfiles(points)
         self.assertIsInstance(tps, list)
         self.assertEqual(len(tps), n)
@@ -281,4 +277,3 @@ class TestTemporalProfiles(EOTSVTestCase):
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)
-

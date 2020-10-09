@@ -19,9 +19,12 @@
  ***************************************************************************/
 """
 # noinspection PyPep8Naming
+import os
+import pathlib
+from qgis.core import QgsApplication, Qgis
+from qgis.PyQt.QtGui import QIcon
 
-
-__version__ = '1.13'  # sub-subversion number is added automatically
+__version__ = '1.14'  # sub-subversion number is added automatically
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
@@ -36,16 +39,6 @@ ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'gdal']
 URL_TESTDATA = r''
-
-import os
-import sys
-import fnmatch
-import site
-import re
-import pathlib
-
-from qgis.core import QgsApplication, Qgis
-from qgis.PyQt.QtGui import QIcon
 
 DEBUG: bool = bool(os.environ.get('EOTSV_DEBUG', False))
 

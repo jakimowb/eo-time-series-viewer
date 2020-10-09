@@ -24,56 +24,57 @@ from xml.etree import ElementTree
 from collections import OrderedDict
 import tempfile
 from osgeo import gdal, osr, ogr, gdalconst as gc
-from qgis.core import *
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
+    QgsPolygon, QgsRectangle
 from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 from eotimeseriesviewer import Option, OptionListModel
-#lookup GDAL Data Type and its size in bytes
-LUT_GDT_SIZE = {gdal.GDT_Byte:1,
-                gdal.GDT_UInt16:2,
-                gdal.GDT_Int16:2,
-                gdal.GDT_UInt32:4,
-                gdal.GDT_Int32:4,
-                gdal.GDT_Float32:4,
-                gdal.GDT_Float64:8,
-                gdal.GDT_CInt16:2,
-                gdal.GDT_CInt32:4,
-                gdal.GDT_CFloat32:4,
-                gdal.GDT_CFloat64:8}
 
-LUT_GDT_NAME = {gdal.GDT_Byte:'Byte',
-                gdal.GDT_UInt16:'UInt16',
-                gdal.GDT_Int16:'Int16',
-                gdal.GDT_UInt32:'UInt32',
-                gdal.GDT_Int32:'Int32',
-                gdal.GDT_Float32:'Float32',
-                gdal.GDT_Float64:'Float64',
-                gdal.GDT_CInt16:'Int16',
-                gdal.GDT_CInt32:'Int32',
-                gdal.GDT_CFloat32:'Float32',
-                gdal.GDT_CFloat64:'Float64'}
+# lookup GDAL Data Type and its size in bytes
+LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
+                gdal.GDT_UInt16: 2,
+                gdal.GDT_Int16: 2,
+                gdal.GDT_UInt32: 4,
+                gdal.GDT_Int32: 4,
+                gdal.GDT_Float32: 4,
+                gdal.GDT_Float64: 8,
+                gdal.GDT_CInt16: 2,
+                gdal.GDT_CInt32: 4,
+                gdal.GDT_CFloat32: 4,
+                gdal.GDT_CFloat64: 8}
 
+LUT_GDT_NAME = {gdal.GDT_Byte: 'Byte',
+                gdal.GDT_UInt16: 'UInt16',
+                gdal.GDT_Int16: 'Int16',
+                gdal.GDT_UInt32: 'UInt32',
+                gdal.GDT_Int32: 'Int32',
+                gdal.GDT_Float32: 'Float32',
+                gdal.GDT_Float64: 'Float64',
+                gdal.GDT_CInt16: 'Int16',
+                gdal.GDT_CInt32: 'Int32',
+                gdal.GDT_CFloat32: 'Float32',
+                gdal.GDT_CFloat64: 'Float64'}
 
-GRA_tooltips = {'NearestNeighbour':'nearest neighbour resampling (default, fastest algorithm, worst interpolation quality).',
-              'Bilinear':'bilinear resampling.',
-              'Lanczos':'lanczos windowed sinc resampling.',
-              'Average':'average resampling, computes the average of all non-NODATA contributing pixels.',
-              'Cubic':'cubic resampling.',
-              'CubicSpline':'cubic spline resampling.',
-              'Mode':'mode resampling, selects the value which appears most often of all the sampled points',
-              'Max':'maximum resampling, selects the maximum value from all non-NODATA contributing pixels',
-              'Min':'minimum resampling, selects the minimum value from all non-NODATA contributing pixels.',
-              'Med':'median resampling, selects the median value of all non-NODATA contributing pixels.',
-              'Q1':'first quartile resampling, selects the first quartile value of all non-NODATA contributing pixels. ',
-              'Q3':'third quartile resampling, selects the third quartile value of all non-NODATA contributing pixels'
-              }
+GRA_tooltips = {
+    'NearestNeighbour': 'nearest neighbour resampling (default, fastest algorithm, worst interpolation quality).',
+    'Bilinear': 'bilinear resampling.',
+    'Lanczos': 'lanczos windowed sinc resampling.',
+    'Average': 'average resampling, computes the average of all non-NODATA contributing pixels.',
+    'Cubic': 'cubic resampling.',
+    'CubicSpline': 'cubic spline resampling.',
+    'Mode': 'mode resampling, selects the value which appears most often of all the sampled points',
+    'Max': 'maximum resampling, selects the maximum value from all non-NODATA contributing pixels',
+    'Min': 'minimum resampling, selects the minimum value from all non-NODATA contributing pixels.',
+    'Med': 'median resampling, selects the median value of all non-NODATA contributing pixels.',
+    'Q1': 'first quartile resampling, selects the first quartile value of all non-NODATA contributing pixels. ',
+    'Q3': 'third quartile resampling, selects the third quartile value of all non-NODATA contributing pixels'
+    }
 
 RESAMPLE_ALGS = OptionListModel()
 for GRAkey in [k for k in list(gdal.__dict__.keys()) if k.startswith('GRA_')]:
-
     GRA = gdal.__dict__[GRAkey]
     GRA_Name = GRAkey[4:]
 
@@ -88,13 +89,14 @@ def read_vsimem(fn):
     :param fn: vsimem path (str)
     :return: result of gdal.VSIFReadL(1, vsileng, vsifile)
     """
-    vsifile = gdal.VSIFOpenL(fn,'r')
+    vsifile = gdal.VSIFOpenL(fn, 'r')
     gdal.VSIFSeekL(vsifile, 0, 2)
     vsileng = gdal.VSIFTellL(vsifile)
     gdal.VSIFSeekL(vsifile, 0, 0)
     return gdal.VSIFReadL(1, vsileng, vsifile)
 
-def write_vsimem(fn:str,data:str):
+
+def write_vsimem(fn: str, data: str):
     """
     Writes data to vsimem path
     :param fn: vsimem path (str)
@@ -102,22 +104,22 @@ def write_vsimem(fn:str,data:str):
     :return: result of gdal.VSIFCloseL(vsifile)
     """
     '''Write GDAL vsimem files'''
-    vsifile = gdal.VSIFOpenL(fn,'w')
+    vsifile = gdal.VSIFOpenL(fn, 'w')
     size = len(data)
     gdal.VSIFWriteL(data, 1, size, vsifile)
     return gdal.VSIFCloseL(vsifile)
 
 
 def px2geo(px, gt):
-    #see http://www.gdal.org/gdal_datamodel.html
-    gx = gt[0] + px.x()*gt[1]+px.y()*gt[2]
-    gy = gt[3] + px.x()*gt[4]+px.y()*gt[5]
-    return QgsPoint(gx,gy)
+    # see http://www.gdal.org/gdal_datamodel.html
+    gx = gt[0] + px.x() * gt[1] + px.y() * gt[2]
+    gy = gt[3] + px.x() * gt[4] + px.y() * gt[5]
+    return QgsPoint(gx, gy)
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,
                     bands=1,
-                    eType = gdal.GDT_Byte,
+                    eType=gdal.GDT_Byte,
                     interleave='bsq',
                     byteOrder='LSB',
                     headerOffset=0):
@@ -142,7 +144,7 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
     assert eType in LUT_GDT_SIZE.keys(), 'dataType "{}" is not a valid gdal datatype'.format(eType)
     interleave = interleave.lower()
 
-    assert interleave in ['bsq','bil','bip']
+    assert interleave in ['bsq', 'bil', 'bip']
     assert byteOrder in ['LSB', 'MSB']
 
     drvVRT = gdal.GetDriverByName('VRT')
@@ -150,7 +152,7 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
     dsVRT = drvVRT.Create(pathVrt, xsize, ysize, bands=0, eType=eType)
     assert isinstance(dsVRT, gdal.Dataset)
 
-    #vrt = ['<VRTDataset rasterXSize="{xsize}" rasterYSize="{ysize}">'.format(xsize=xsize,ysize=ysize)]
+    # vrt = ['<VRTDataset rasterXSize="{xsize}" rasterYSize="{ysize}">'.format(xsize=xsize,ysize=ysize)]
 
     vrtDir = os.path.dirname(pathVrt)
     if pathRaw.startswith(vrtDir):
@@ -191,15 +193,15 @@ def describeRawFile(pathRaw, pathVrt, xsize, ysize,
                                                          lineOffset=lineOffset,
                                                          byteOrder=byteOrder)
 
-        #md = {}
-        #md['source_0'] = xml
-        #vrtBand = dsVRT.GetRasterBand(b + 1)
+        # md = {}
+        # md['source_0'] = xml
+        # vrtBand = dsVRT.GetRasterBand(b + 1)
         assert dsVRT.AddBand(eType, options=options) == 0
 
-        vrtBand = dsVRT.GetRasterBand(b+1)
+        vrtBand = dsVRT.GetRasterBand(b + 1)
         assert isinstance(vrtBand, gdal.Band)
-        #vrtBand.SetMetadata(md, 'vrt_sources')
-        #vrt.append('  <VRTRasterBand dataType="{dataType}" band="{band}" subClass="VRTRawRasterBand">'.format(dataType=LUT_GDT_NAME[eType], band=b+1))
+        # vrtBand.SetMetadata(md, 'vrt_sources')
+        # vrt.append('  <VRTRasterBand dataType="{dataType}" band="{band}" subClass="VRTRawRasterBand">'.format(dataType=LUT_GDT_NAME[eType], band=b+1))
     dsVRT.FlushCache()
     return dsVRT
 
@@ -224,15 +226,12 @@ class VRTRasterInputSourceBand(object):
                 srcBands.append(VRTRasterInputSourceBand(path, b))
         return srcBands
 
-
-
-    def __init__(self, path:str, bandIndex:int, bandName:str=''):
+    def __init__(self, path: str, bandIndex: int, bandName: str = ''):
         self.mPath = path
         self.mBandIndex = bandIndex
         self.mBandName = bandName
         self.mNoData = None
         self.mVirtualBand = None
-
 
     def isEqual(self, other):
         if isinstance(other, VRTRasterInputSourceBand):
@@ -260,6 +259,7 @@ class VRTRasterBand(QObject):
     sigNameChanged = pyqtSignal(str)
     sigSourceInserted = pyqtSignal(int, VRTRasterInputSourceBand)
     sigSourceRemoved = pyqtSignal(int, VRTRasterInputSourceBand)
+
     def __init__(self, name='', parent=None):
         super(VRTRasterBand, self).__init__(parent)
         self.mSources = []
@@ -280,8 +280,6 @@ class VRTRasterBand(QObject):
     def name(self):
         return self.mName
 
-
-
     def addSource(self, virtualBandInputSource):
         assert isinstance(virtualBandInputSource, VRTRasterInputSourceBand)
         self.insertSource(len(self.mSources), virtualBandInputSource)
@@ -294,13 +292,13 @@ class VRTRasterBand(QObject):
             self.sigSourceInserted.emit(index, virtualBandInputSource)
         else:
             pass
-            #print('DEBUG: index <= len(self.sources)')
+            # print('DEBUG: index <= len(self.sources)')
+
     def bandIndex(self):
         if isinstance(self.mVRT, VRTRaster):
             return self.mVRT.mBands.index(self)
         else:
             return None
-
 
     def removeSource(self, vrtRasterInputSourceBand):
         """
@@ -314,7 +312,6 @@ class VRTRasterBand(QObject):
             i = self.mSources.index(vrtRasterInputSourceBand)
             self.mSources.remove(vrtRasterInputSourceBand)
             self.sigSourceRemoved.emit(i, vrtRasterInputSourceBand)
-
 
     def sourceFiles(self):
         """
@@ -332,7 +329,6 @@ class VRTRasterBand(QObject):
 
 
 class VRTRaster(QObject):
-
     sigSourceBandInserted = pyqtSignal(VRTRasterBand, VRTRasterInputSourceBand)
     sigSourceBandRemoved = pyqtSignal(VRTRasterBand, VRTRasterInputSourceBand)
     sigSourceRasterAdded = pyqtSignal(list)
@@ -341,7 +337,7 @@ class VRTRaster(QObject):
     sigBandRemoved = pyqtSignal(int, VRTRasterBand)
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigResolutionChanged = pyqtSignal()
-    sigResamplingAlgChanged = pyqtSignal([str],[int])
+    sigResamplingAlgChanged = pyqtSignal([str], [int])
     sigExtentChanged = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -357,7 +353,6 @@ class VRTRaster(QObject):
         self.sigSourceBandInserted.connect(self.updateSourceRasterBounds)
         self.sigBandRemoved.connect(self.updateSourceRasterBounds)
         self.sigBandInserted.connect(self.updateSourceRasterBounds)
-
 
     def setResamplingAlg(self, value):
         """
@@ -384,7 +379,6 @@ class VRTRaster(QObject):
             self.sigResamplingAlgChanged[str].emit(self.resamplingAlg(asString=True))
             self.sigResamplingAlgChanged[int].emit(self.resamplingAlg())
 
-
     def resamplingAlg(self, asString=False):
         """
         "Returns the resampling algorithms.
@@ -401,7 +395,7 @@ class VRTRaster(QObject):
     def setExtent(self, rectangle, crs=None):
         last = self.mExtent
         if rectangle is None:
-            #use implicit/automatic values
+            # use implicit/automatic values
             self.mExtent = None
         else:
             if isinstance(crs, QgsCoordinateReferenceSystem) and isinstance(self.mCrs, QgsCoordinateReferenceSystem):
@@ -437,7 +431,7 @@ class VRTRaster(QObject):
                 assert xy.height() > 0
                 self.mResolution = QSizeF(xy)
             elif isinstance(xy, str):
-                assert xy in ['average','highest','lowest']
+                assert xy in ['average', 'highest', 'lowest']
                 self.mResolution = xy
 
         if last != self.mResolution:
@@ -449,7 +443,6 @@ class VRTRaster(QObject):
         an explicit QSizeF(x,y) or one of following strings: 'average','highest','lowest'
         """
         return self.mResolution
-
 
     def setCrs(self, crs):
         """
@@ -473,7 +466,6 @@ class VRTRaster(QObject):
                 self.mCrs = crs
                 self.sigCrsChanged.emit(self.mCrs)
 
-
     def crs(self):
         return self.mCrs
 
@@ -494,13 +486,11 @@ class VRTRaster(QObject):
         :param sourceBandIndex: source file band index
         """
 
-        while virtualBandIndex > len(self.mBands)-1:
-
+        while virtualBandIndex > len(self.mBands) - 1:
             self.insertVirtualBand(len(self.mBands), VRTRasterBand())
 
         vBand = self.mBands[virtualBandIndex]
         vBand.addSourceBand(pathSource, sourceBandIndex)
-
 
     def insertVirtualBand(self, index, virtualBand):
         """
@@ -512,7 +502,7 @@ class VRTRaster(QObject):
         assert isinstance(virtualBand, VRTRasterBand)
         assert index <= len(self.mBands)
         if len(virtualBand.name()) == 0:
-            virtualBand.setName('Band {}'.format(index+1))
+            virtualBand.setName('Band {}'.format(index + 1))
         virtualBand.mVRT = self
 
         virtualBand.sigSourceInserted.connect(
@@ -524,8 +514,6 @@ class VRTRaster(QObject):
         self.sigBandInserted.emit(index, virtualBand)
 
         return self[index]
-
-
 
     def removeVirtualBands(self, bandsOrIndices):
         assert isinstance(bandsOrIndices, list)
@@ -539,7 +527,6 @@ class VRTRaster(QObject):
         for index, virtualBand in to_remove:
             self.mBands.remove(virtualBand)
             self.sigBandRemoved.emit(index, virtualBand)
-
 
     def removeInputSource(self, path):
         assert path in self.sourceRaster()
@@ -562,8 +549,8 @@ class VRTRaster(QObject):
             assert isinstance(ds, gdal.Dataset)
             nb = ds.RasterCount
             for b in range(nb):
-                if b+1 < len(self):
-                    #add new virtual band
+                if b + 1 < len(self):
+                    # add new virtual band
                     self.addVirtualBand(VRTRasterBand())
                 vBand = self[b]
                 assert isinstance(vBand, VRTRasterBand)
@@ -583,11 +570,10 @@ class VRTRaster(QObject):
             nb = ds.RasterCount
             ds = None
             for b in range(nb):
-                #each new band is a new virtual band
+                # each new band is a new virtual band
                 vBand = self.addVirtualBand(VRTRasterBand())
                 assert isinstance(vBand, VRTRasterBand)
                 vBand.addSource(VRTRasterInputSourceBand(file, b))
-
 
         return self
 
@@ -600,7 +586,6 @@ class VRTRaster(QObject):
 
     def sourceRasterBounds(self):
         return self.mSourceRasterBounds
-
 
     def updateSourceRasterBounds(self):
 
@@ -619,18 +604,17 @@ class VRTRaster(QObject):
         elif len(srcFiles) == 0:
             self.setCrs(None)
 
-
         if len(toRemove) > 0:
             self.sigSourceRasterRemoved.emit(toRemove)
         if len(toAdd) > 0:
             self.sigSourceRasterAdded.emit(toAdd)
 
-    def loadVRT(self, pathVRT, bandIndex = None):
+    def loadVRT(self, pathVRT, bandIndex=None):
         """
         Load the VRT definition in pathVRT and appends it to this VRT
         :param pathVRT:
         """
-        if pathVRT in [None,'']:
+        if pathVRT in [None, '']:
             return
 
         if bandIndex is None:
@@ -641,10 +625,9 @@ class VRTRaster(QObject):
         assert ds.GetDriver().GetDescription() == 'VRT'
 
         for b in range(ds.RasterCount):
-            srcBand = ds.GetRasterBand(b+1)
+            srcBand = ds.GetRasterBand(b + 1)
             vrtBand = VRTRasterBand(name=srcBand.GetDescription().decode('utf-8'))
             for key, xml in srcBand.GetMetadata(str('vrt_sources')).items():
-
                 tree = ElementTree.fromstring(xml)
                 srcPath = tree.find('SourceFilename').text
                 srcBandIndex = int(tree.find('SourceBand').text)
@@ -653,10 +636,7 @@ class VRTRaster(QObject):
             self.insertVirtualBand(bandIndex, vrtBand)
             bandIndex += 1
 
-
-
-
-    def saveVRT(self, pathVRT, warpedImageFolder = '.warpedimage'):
+    def saveVRT(self, pathVRT, warpedImageFolder='.warpedimage'):
         """
         Save the VRT to path.
         If source images need to be warped to the final CRS warped VRT image will be created in a folder <directory>/<basename>+<warpedImageFolder>/
@@ -695,7 +675,7 @@ class VRTRaster(QObject):
             if crs == self.mCrs:
                 srcLookup[pathSrc] = pathSrc
             else:
-                #do a CRS transformation using VRTs
+                # do a CRS transformation using VRTs
 
                 warpedFileName = 'warped.{}.vrt'.format(os.path.basename(pathSrc))
                 if inMemory:
@@ -710,7 +690,7 @@ class VRTRaster(QObject):
                 assert isinstance(tmp, gdal.Dataset)
                 vrtXML = read_vsimem(warpedFileName)
                 xml = ElementTree.fromstring(vrtXML)
-                #print(vrtXML.decode('utf-8'))
+                # print(vrtXML.decode('utf-8'))
 
                 if False:
                     dsTmp = gdal.Open(warpedFileName)
@@ -723,7 +703,7 @@ class VRTRaster(QObject):
 
         srcFiles = [srcLookup[src] for src in self.sourceRaster()]
 
-        #these need to be set
+        # these need to be set
         ns = nl = gt = crs = eType = None
         res = self.resolution()
         extent = self.extent()
@@ -742,7 +722,7 @@ class VRTRaster(QObject):
                 kwds['xRes'] = res.width()
                 kwds['yRes'] = res.height()
             else:
-                assert res in ['highest','lowest','average']
+                assert res in ['highest', 'lowest', 'average']
                 kwds['resolution'] = res
 
             if isinstance(extent, QgsRectangle):
@@ -750,8 +730,6 @@ class VRTRaster(QObject):
 
             if srs is not None:
                 kwds['outputSRS'] = srs
-
-
 
             pathInMEMVRT = '/vsimem/{}.vrt'.format(uuid.uuid4())
             vro = gdal.BuildVRTOptions(separate=True, **kwds)
@@ -765,10 +743,10 @@ class VRTRaster(QObject):
             eType = dsVRTDst.GetRasterBand(1).DataType
             SOURCE_TEMPLATES = dict()
             for i, srcFile in enumerate(srcFiles):
-                vrt_sources = dsVRTDst.GetRasterBand(i+1).GetMetadata(str('vrt_sources'))
+                vrt_sources = dsVRTDst.GetRasterBand(i + 1).GetMetadata(str('vrt_sources'))
                 assert len(vrt_sources) == 1
                 srcXML = vrt_sources['source_0']
-                assert os.path.basename(srcFile)+'</SourceFilename>' in srcXML
+                assert os.path.basename(srcFile) + '</SourceFilename>' in srcXML
                 assert '<SourceBand>1</SourceBand>' in srcXML
                 SOURCE_TEMPLATES[srcFile] = srcXML
 
@@ -776,7 +754,7 @@ class VRTRaster(QObject):
 
         else:
             # special case: no source files defined
-            ns = nl = 1 #this is the minimum size
+            ns = nl = 1  # this is the minimum size
             if isinstance(extent, QgsRectangle):
                 x0 = extent.xMinimum()
                 y1 = extent.yMaximum()
@@ -794,38 +772,37 @@ class VRTRaster(QObject):
             gt = (x0, resx, 0, y1, 0, -resy)
             eType = gdal.GDT_Float32
 
-        #2. build final VRT from scratch
+        # 2. build final VRT from scratch
         drvVRT = gdal.GetDriverByName('VRT')
         assert isinstance(drvVRT, gdal.Driver)
-        dsVRTDst = drvVRT.Create(pathVRT, ns, nl,0, eType=eType)
-        #2.1. set general properties
+        dsVRTDst = drvVRT.Create(pathVRT, ns, nl, 0, eType=eType)
+        # 2.1. set general properties
         assert isinstance(dsVRTDst, gdal.Dataset)
 
         if srs is not None:
             dsVRTDst.SetProjection(srs)
         dsVRTDst.SetGeoTransform(gt)
 
-        #2.2. add virtual bands
+        # 2.2. add virtual bands
         for i, vBand in enumerate(self.mBands):
             assert isinstance(vBand, VRTRasterBand)
             assert dsVRTDst.AddBand(eType, options=['subClass=VRTSourcedRasterBand']) == 0
-            vrtBandDst = dsVRTDst.GetRasterBand(i+1)
+            vrtBandDst = dsVRTDst.GetRasterBand(i + 1)
             assert isinstance(vrtBandDst, gdal.Band)
             vrtBandDst.SetDescription(vBand.name())
             md = {}
-            #add all input sources for this virtual band
+            # add all input sources for this virtual band
             for iSrc, sourceInfo in enumerate(vBand.mSources):
                 assert isinstance(sourceInfo, VRTRasterInputSourceBand)
                 bandIndex = sourceInfo.mBandIndex
                 xml = SOURCE_TEMPLATES[srcLookup[sourceInfo.mPath]]
-                xml = re.sub('<SourceBand>1</SourceBand>', '<SourceBand>{}</SourceBand>'.format(bandIndex+1), xml)
+                xml = re.sub('<SourceBand>1</SourceBand>', '<SourceBand>{}</SourceBand>'.format(bandIndex + 1), xml)
                 md['source_{}'.format(iSrc)] = xml
-            vrtBandDst.SetMetadata(md,'vrt_sources')
-
+            vrtBandDst.SetMetadata(md, 'vrt_sources')
 
         dsVRTDst = None
 
-        #check if we get what we like to get
+        # check if we get what we like to get
         dsCheck = gdal.Open(pathVRT)
         assert isinstance(dsCheck, gdal.Dataset)
 
@@ -855,9 +832,6 @@ class VRTRaster(QObject):
         return iter(self.mClasses)
 
 
-
-
-
 def createVirtualBandMosaic(bandFiles, pathVRT):
     drv = gdal.GetDriverByName('VRT')
 
@@ -871,15 +845,15 @@ def createVirtualBandMosaic(bandFiles, pathVRT):
         separate=False
     )
     if len(bandFiles) > 1:
-        s =""
+        s = ""
     vrtDS = gdal.BuildVRT(pathVRT, bandFiles, options=vrtOptions)
     vrtDS.FlushCache()
 
     assert vrtDS.RasterCount == nb
     return vrtDS
 
-def createVirtualBandStack(bandFiles, pathVRT):
 
+def createVirtualBandStack(bandFiles, pathVRT):
     nb = len(bandFiles)
 
     drv = gdal.GetDriverByName('VRT')
@@ -898,9 +872,9 @@ def createVirtualBandStack(bandFiles, pathVRT):
 
     assert vrtDS.RasterCount == nb
 
-    #copy band metadata from
+    # copy band metadata from
     for i in range(nb):
-        band = vrtDS.GetRasterBand(i+1)
+        band = vrtDS.GetRasterBand(i + 1)
         band.SetDescription(bandFiles[i])
         band.ComputeBandStats()
 
@@ -908,7 +882,6 @@ def createVirtualBandStack(bandFiles, pathVRT):
             band.SetNoDataValue(noData)
 
     return vrtDS
-
 
 
 class RasterBounds(object):
@@ -920,7 +893,6 @@ class RasterBounds(object):
 
         if path is not None:
             self.fromImage(path)
-
 
     def fromImage(self, path):
         self.path = path
@@ -955,4 +927,3 @@ class RasterBounds(object):
 
     def __repr__(self):
         return self.polygon.asWkt()
-

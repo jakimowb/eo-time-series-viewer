@@ -20,13 +20,14 @@
 """
 # noinspection PyPep8Naming
 
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate
-from eotimeseriesviewer.utils import loadUi
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 from qgis.gui import QgsDockWidget
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate
+from eotimeseriesviewer.utils import loadUi
 
 
 class SensorDockUI(QgsDockWidget):
@@ -35,6 +36,8 @@ class SensorDockUI(QgsDockWidget):
         loadUi(DIR_UI / 'sensordock.ui', self)
 
         self.TS = None
+        self.mSensorModel: SensorTableModel = None
+        self.mSortedModel: QSortFilterProxyModel = QSortFilterProxyModel()
 
     def setTimeSeries(self, timeSeries):
         from eotimeseriesviewer.timeseries import TimeSeries
@@ -42,11 +45,9 @@ class SensorDockUI(QgsDockWidget):
         assert isinstance(timeSeries, TimeSeries)
         self.TS = timeSeries
         self.mSensorModel = SensorTableModel(self.TS)
-        self.mSortedModel = QSortFilterProxyModel()
         self.mSortedModel.setSourceModel(self.mSensorModel)
         self.sensorView.setModel(self.mSortedModel)
         self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
-        s = ""
 
 
 class SensorTableModel(QAbstractTableModel):

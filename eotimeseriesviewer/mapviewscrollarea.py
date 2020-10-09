@@ -19,35 +19,22 @@
 # noinspection PyPep8Naming
 
 from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
 
 
 class MapViewScrollArea(QScrollArea):
-
-    #sigResized = pyqtSignal()
 
     def __init__(self, *args, **kwds):
         super(MapViewScrollArea, self).__init__(*args, **kwds)
         self.horizontalScrollBar().setTracking(False)
         self.verticalScrollBar().setTracking(False)
 
-    #def resizeEvent(self, event):
-        #super(MapViewScrollArea, self).resizeEvent(event)
-        #self.sigResized.emit()
-
-    def distanceToCenter(self, widget:QWidget) -> int:
+    def distanceToCenter(self, widget: QWidget) -> int:
         # self.visibleRegion().boundingRect().isValid()
         halfSize = widget.size() * 0.5
         centerInParent = widget.mapToParent(QPoint(halfSize.width(), halfSize.height()))
         r = self.viewport().rect()
-        centerViewPort = QPoint(int(r.x() + r.width() *0.5 ), int(r.y()+r.height()*0.5))
+        centerViewPort = QPoint(int(r.x() + r.width() * 0.5), int(r.y() + r.height() * 0.5))
 
         diff = centerInParent - centerViewPort
         return diff.manhattanLength()
-
-    #def sizeHint(self):
-    #    parent = self.parent()
-    #    hint = super(MapViewScrollArea, self).sizeHint()
-
-    #    return hint

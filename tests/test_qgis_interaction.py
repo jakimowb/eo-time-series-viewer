@@ -25,8 +25,9 @@ import xmlrunner
 from eotimeseriesviewer.tests import start_app, testRasterFiles, EOTSVTestCase
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtCore import *
-from qgis.core import *
-from qgis.gui import *
+from qgis.core import QgsMapLayer, QgsVectorLayer, QgsRasterLayer, QgsRectangle, \
+    QgsCoordinateReferenceSystem, QgsMapToPixel, QgsProject
+from qgis.gui import QgsMapCanvas, QgisInterface
 import unittest
 import tempfile
 

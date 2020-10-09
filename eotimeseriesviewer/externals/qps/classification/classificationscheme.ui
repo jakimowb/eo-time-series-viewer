@@ -30,7 +30,7 @@
     <number>2</number>
    </property>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout">
+    <layout class="QVBoxLayout" name="btnBarLayout">
      <property name="spacing">
       <number>2</number>
      </property>
@@ -224,7 +224,10 @@
   </action>
   <action name="actionLoadFromRasterFile">
    <property name="text">
-    <string>Load from raster file</string>
+    <string>Load from Raster Image</string>
+   </property>
+   <property name="toolTip">
+    <string>Load from Raster Image</string>
    </property>
   </action>
   <action name="actionLoadFromMapLayer">

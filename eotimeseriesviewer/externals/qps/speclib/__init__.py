@@ -26,7 +26,6 @@
     along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
-
 import enum
 from qgis.core import *
 
@@ -43,8 +42,6 @@ class SpectralLibrarySettingsKey(enum.Enum):
     INFO_COLOR = 5
     USE_VECTOR_RENDER_COLORS = 6
     SELECTION_COLOR = 7
-
-
 
 
 def speclibSettings() -> QSettings:

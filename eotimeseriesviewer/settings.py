@@ -176,6 +176,8 @@ def value(key: Keys, default=None):
         print(error, file=sys.stderr)
     except Exception as otherError:
         s = ""
+    if value is None:
+        value = default
     return value
 
 

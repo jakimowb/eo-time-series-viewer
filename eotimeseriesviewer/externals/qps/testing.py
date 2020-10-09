@@ -43,15 +43,16 @@ import types
 import enum
 import sip
 import random
+import unittest
 from qgis.core import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsWkbTypes, QgsProcessingContext, \
     QgsProcessingFeedback, QgsField, QgsFields, QgsApplication, QgsCoordinateReferenceSystem, QgsProject, \
     QgsProcessingParameterNumber, QgsProcessingAlgorithm, QgsProcessingProvider, QgsPythonRunner, \
-    QgsFeatureStore, QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer,  \
+    QgsFeatureStore, QgsProcessingParameterRasterDestination, QgsProcessingParameterRasterLayer, \
     QgsProviderRegistry, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeRegistryBridge
 from qgis.gui import *
 from qgis.gui import QgsPluginManagerInterface, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView, QgsMessageBar, \
-    QgsMapCanvas,  QgsGui, QgisInterface
+    QgsMapCanvas, QgsGui, QgisInterface
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -60,6 +61,7 @@ import qgis.utils
 import numpy as np
 from osgeo import gdal, ogr, osr, gdal_array
 from .resources import *
+from .utils import UnitLookup
 
 WMS_GMAPS = r'crs=EPSG:3857&format&type=xyz&url=https://mt1.google.com/vt/lyrs%3Ds%26x%3D%7Bx%7D%26y%3D%7By%7D%26z%3D%7Bz%7D&zmax=19&zmin=0'
 WMS_OSM = r'referer=OpenStreetMap%20contributors,%20under%20ODbL&type=xyz&url=http://tiles.wmflabs.org/hikebike/%7Bz%7D/%7Bx%7D/%7By%7D.png&zmax=17&zmin=1'
@@ -127,7 +129,8 @@ def start_app(cleanup=True, options=StartOptions.Minimized, resources: list = []
                 qgsApp.addLibraryPath(candidate.as_posix())
 
     assert QgsProviderRegistry.instance().libraryDirectory().exists(), \
-        'Directory: {} does not exist'.format(QgsProviderRegistry.instance().libraryDirectory().path())
+        'Directory: {} does not exist. Please check if QGIS_PREFIX_PATH correct'.format(
+            QgsProviderRegistry.instance().libraryDirectory().path())
 
     # initiate a PythonRunner instance if None exists
     if StartOptions.PythonRunner in options and not QgsPythonRunner.isValid():
@@ -353,7 +356,7 @@ class TestCase(qgis.testing.TestCase):
     @classmethod
     def setUpClass(cls, cleanup=True, options=StartOptions.All, resources=[]) -> None:
 
-        # trie to find QGIS resource files
+        # tryto find QGIS resource files
         for r in findQGISResourceFiles():
             if r not in resources:
                 resources.append(r)
@@ -371,7 +374,12 @@ class TestCase(qgis.testing.TestCase):
             import gc
             gc.collect()
 
-    def testOutputDirectory(self, name: str = 'test-outputs') -> pathlib.Path:
+    # @unittest.skip("deprectated method")
+    # def testOutputDirectory(self, *args, **kwds):
+    #    warnings.warn('Use createTestOutputDirectory(...) instead', DeprecationWarning)
+    #    self.createTestOutputDirectory(*args, **kwds)
+
+    def createTestOutputDirectory(self, name: str = 'test-outputs') -> pathlib.Path:
         """
         Returns the path to a test output directory
         :return:
@@ -381,6 +389,38 @@ class TestCase(qgis.testing.TestCase):
         testDir = repo / name
         os.makedirs(testDir, exist_ok=True)
         return testDir
+
+    def createImageCopy(self, path, overwrite_existing: bool = True) -> str:
+        """
+        Creates a save image copy to manipulate metadata
+        :param path: str, path to valid raster image
+        :type path:
+        :return:
+        :rtype:
+        """
+        if isinstance(path, pathlib.Path):
+            path = path.as_posix()
+
+        ds: gdal.Dataset = gdal.Open(path)
+        assert isinstance(ds, gdal.Dataset)
+        drv: gdal.Driver = ds.GetDriver()
+
+        testdir = self.createTestOutputDirectory() / 'images'
+        os.makedirs(testdir, exist_ok=True)
+        bn, ext = os.path.splitext(os.path.basename(path))
+
+        newpath = testdir / f'{bn}{ext}'
+        i = 0
+        if overwrite_existing and newpath.is_file():
+            drv.Delete(newpath.as_posix())
+        else:
+            while newpath.is_file():
+                i += 1
+                newpath = testdir / f'{bn}{i}{ext}'
+
+        drv.CopyFiles(newpath.as_posix(), path)
+
+        return newpath.as_posix()
 
     def setUp(self):
 
@@ -479,9 +519,16 @@ class TestObjects():
         coredata, wl, wlu, gt, wkt = TestObjects.coreData()
         cnb, cnl, cns = coredata.shape
         assert n > 0
+        if not isinstance(n_bands, list):
+            n_bands = [n_bands]
         assert isinstance(n_bands, list)
-        for nb in n_bands:
-            assert nb == -1 or nb > 0 and nb <= cnb
+        for i in range(len(n_bands)):
+            nb = n_bands[i]
+            if nb == -1:
+                n_bands[i] = cnb
+            else:
+                assert 0 < nb <= cnb, f'Number of bands need to be in range 0 < nb <= {cnb}.'
+
         n_bands = [nb if nb > 0 else cnb for nb in n_bands]
 
         for nb in n_bands:
@@ -496,10 +543,18 @@ class TestObjects():
     @staticmethod
     def spectralProfiles(n=10,
                          fields: QgsFields = None,
-                         n_bands: typing.List[int] = [-1]):
+                         n_bands: typing.List[int] = [-1],
+                         wlu: str = None):
+
         from .speclib.core import SpectralProfile
+
         i = 1
-        for (data, wl, wlu) in TestObjects.spectralProfileData(n, n_bands=n_bands):
+        for (data, wl, data_wlu) in TestObjects.spectralProfileData(n, n_bands=n_bands):
+            if wlu is None:
+                wlu = data_wlu
+            elif wlu != data_wlu:
+                wl = UnitLookup.convertMetricUnit(wl, data_wlu, wlu)
+
             profile = SpectralProfile(fields=fields)
             profile.setName(f'Profile {i}')
             profile.setValues(y=data, x=wl, xUnit=wlu)
@@ -513,9 +568,14 @@ class TestObjects():
     @staticmethod
     def createSpectralLibrary(n: int = 10,
                               n_empty: int = 0,
-                              n_bands: typing.List[int] = [-1]):
+                              n_bands: typing.List[int] = [-1],
+                              wlu: str = None):
         """
         Creates an Spectral Library
+        :param n_bands:
+        :type n_bands:
+        :param wlu:
+        :type wlu:
         :param n: total number of profiles
         :type n: int
         :param n_empty: number of empty profiles, SpectralProfiles with empty x/y values
@@ -525,11 +585,12 @@ class TestObjects():
         """
         assert n > 0
         assert n_empty >= 0 and n_empty <= n
-
+        if not isinstance(n_bands, list):
+            n_bands = [n_bands]
         from .speclib.core import SpectralLibrary
         slib = SpectralLibrary()
         assert slib.startEditing()
-        profiles = list(TestObjects.spectralProfiles(n, fields=slib.fields(), n_bands=n_bands))
+        profiles = list(TestObjects.spectralProfiles(n, fields=slib.fields(), n_bands=n_bands, wlu=wlu))
         slib.addProfiles(profiles, addMissingFields=False)
 
         for i in range(n_empty):
@@ -551,7 +612,9 @@ class TestObjects():
                             crs=None, gt=None,
                             eType: int = gdal.GDT_Int16,
                             nc: int = 0,
-                            path: str = None,
+                            path: typing.Union[str, pathlib.Path] = None,
+                            drv: typing.Union[str, gdal.Driver] = None,
+                            wlu: str = None,
                             no_data_rectangle: int = 0,
                             no_data_value: typing.Union[int, float] = -9999) -> gdal.Dataset:
         """
@@ -568,14 +631,20 @@ class TestObjects():
             scheme = ClassificationScheme()
             scheme.createClasses(nc)
 
-        drv = gdal.GetDriverByName('GTiff')
+        if isinstance(drv, str):
+            drv = gdal.GetDriverByName(drv)
+        elif drv is None:
+            drv = gdal.GetDriverByName('GTiff')
         assert isinstance(drv, gdal.Driver)
 
-        if not isinstance(path, str):
+        if isinstance(path, pathlib.Path):
+            path = path.as_posix()
+        elif path is None:
             if nc > 0:
                 path = '/vsimem/testClassification.{}.tif'.format(str(uuid.uuid4()))
             else:
                 path = '/vsimem/testImage.{}.tif'.format(str(uuid.uuid4()))
+        assert isinstance(path, str)
 
         ds: gdal.Driver = drv.Create(path, ns, nl, bands=nb, eType=eType)
         assert isinstance(ds, gdal.Dataset)
@@ -583,7 +652,7 @@ class TestObjects():
             no_data_rectangle = min([no_data_rectangle, ns])
             no_data_rectangle = min([no_data_rectangle, nl])
             for b in range(ds.RasterCount):
-                band: gdal.Band = ds.GetRasterBand(b+1)
+                band: gdal.Band = ds.GetRasterBand(b + 1)
                 band.SetNoDataValue(no_data_value)
 
         coredata, core_wl, core_wlu, core_gt, core_wkt = TestObjects.coreData()
@@ -657,8 +726,18 @@ class TestObjects():
             else:
                 wl = core_wl[:nb].tolist()
             assert len(wl) == nb
-            ds.SetMetadataItem('wavelength units', core_wlu)
-            ds.SetMetadataItem('wavelength', ','.join([str(w) for w in wl]))
+
+            if wlu is None:
+                wlu = core_wlu
+            elif wlu != core_wlu:
+                wl = UnitLookup.convertMetricUnit(wl, core_wlu, wlu)
+
+            domain = None
+            if drv.ShortName == 'ENVI':
+                domain = 'ENVI'
+
+            ds.SetMetadataItem('wavelength units', wlu, domain)
+            ds.SetMetadataItem('wavelength', ','.join([str(w) for w in wl]), domain)
 
         ds.FlushCache()
         return ds

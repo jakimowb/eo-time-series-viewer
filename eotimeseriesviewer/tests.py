@@ -21,11 +21,7 @@
 # noinspection PyPep8Naming
 
 import os
-import re
-import io
-import importlib
-import uuid
-from qgis.core import *
+import pathlib
 import numpy as np
 from qgis.gui import *
 from qgis.PyQt.QtCore import *
@@ -34,13 +30,11 @@ from qgis.PyQt.QtWidgets import *
 import eotimeseriesviewer.externals.qps.testing
 import eotimeseriesviewer.externals.qps
 from eotimeseriesviewer.utils import file_search
-from osgeo import ogr, osr, gdal, gdal_array
-import qgis.testing
+from osgeo import osr, gdal
 import example
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_QGIS_RESOURCES, DIR_UI, DIR_REPO
 from eotimeseriesviewer.timeseries import TimeSeries
-from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles
-from eotimeseriesviewer.externals.qps.testing import *
+from eotimeseriesviewer.externals.qps.testing import TestObjects, TestCase, start_app
 from eotimeseriesviewer.externals.qps.resources import initQtResources
 
 
