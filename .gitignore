@@ -16,7 +16,7 @@ qgisresources/
 qgisresources/*
 screenshots/
 screenshots/*
-
+*/enmap.tif
 example/exampleEvents.gpkg
 example/*.aux.xml
 example/*.gpkg-shm
