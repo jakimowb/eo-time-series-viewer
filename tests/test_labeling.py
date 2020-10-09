@@ -21,13 +21,16 @@ import unittest
 
 import xmlrunner
 
+from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
+    QgsFields
+from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManagerWidget, \
+    QgsMapCanvas, QgsGui, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper
+
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.labeling import *
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
-    QgsFields, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper
-from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManagerWidget, QgsMapCanvas, QgsGui
 
 
 class TestLabeling(EOTSVTestCase):
@@ -123,8 +126,6 @@ class TestLabeling(EOTSVTestCase):
             elif re.search('real', field.typeName(), re.I):
                 for t in [LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
-            else:
-                self.fail('Unhandled QgsField typeName: {}'.format(field.typeName()))
 
     def test_LabelShortcutEditorConfigWidget(self):
         print('## test_LabelShortcutEditorConfigWidget')

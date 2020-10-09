@@ -150,21 +150,7 @@ class TestSettings(EOTSVTestCase):
         for k in ['nb', 'px_size_x', 'px_size_y', 'dt', 'wl', 'wlu', 'name']:
             self.assertTrue(k in jsonDict.keys())
 
-        oldname0 = sensorName(sensorID)
-        sensor = SensorInstrument(sensorID)
-        oldname = sensor.name()
-        if oldname0 is not None:
-            self.assertEqual(oldname0, oldname, )
-
-        self.assertIsInstance(oldname, str)
-        self.assertIsInstance(sensor, SensorInstrument)
-        name1 = 'S1' + str(uuid.uuid4())
-        sensor.setName(name1)
-
-        sensor.setName(oldname)
-        name2 = sensorName(sensorID)
-        #self.assertEqual(oldname, name2)
-
+        # removed: should be done by project settings
 
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)

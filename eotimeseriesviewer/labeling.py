@@ -45,11 +45,10 @@ def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     """
     assert isinstance(field, QgsField)
 
-    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date,
+    shortCutsString = [LabelShortcutType.Sensor, LabelShortcutType.Date, LabelShortcutType.Time,
                        LabelShortcutType.DateTime, LabelShortcutType.SourceImage]
     shortCutsInt = [LabelShortcutType.Year, LabelShortcutType.DOY]
     shortCutsFloat = [LabelShortcutType.Year, LabelShortcutType.DOY, LabelShortcutType.DecimalYear]
-    #shortCutsDate = [LabelShortcutType.Year, LabelShortcutType.Date, LabelShortcutType.DateTime]
 
     options = [LabelShortcutType.Off]
     fieldType = field.type()
