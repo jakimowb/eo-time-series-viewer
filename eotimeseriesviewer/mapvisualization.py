@@ -46,7 +46,7 @@ from qgis.core import \
     QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
-    QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, \
+    QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, QgsVector, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
 from qgis.gui import \
     QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
