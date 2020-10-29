@@ -670,7 +670,25 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.cbLabelGroup.setEditable(True)
         self.cbLabelGroup.setInsertPolicy(QComboBox.InsertAtTop)
         self.cbLabelGroup.currentIndexChanged.connect(self.changed.emit)
+        self.btnAddGroup.setDefaultAction(self.actionAddGroup)
+        self.actionAddGroup.triggered.connect(self.onAddGroup)
         self.mLastConfig = {}
+
+    def onAddGroup(self):
+
+        grp = self.cbLabelGroup.currentText()
+        if grp in ['', None]:
+            return
+        m = self.cbLabelGroup.model()
+        if isinstance(m, QStandardItemModel):
+            for r in range(m.rowCount()):
+                item = m.item(r)
+                if grp == item.data(Qt.DisplayRole):
+                    return
+
+            #
+            newItem = QStandardItem(grp)
+            m.appendRow(newItem)
 
     def setLayerGroupModel(self, model: QStandardItemModel):
         self.cbLabelGroup.setModel(model)
@@ -684,10 +702,15 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         conf[LabelConfigurationKey.LabelGroup.value] = grp
 
         m = self.cbLabelGroup.model()
-        if isinstance(m, OptionListModel):
-
-            if grp not in ['',  None] and grp not in m:
-                m.addOption(grp)
+        if isinstance(m, QStandardItemModel) and grp not in ['',  None]:
+            exists = False
+            for r in range(m.rowCount()):
+                item = m.item(r)
+                if grp == item.data(Qt.DisplayRole):
+                    exists = True
+                    break
+            if not exists:
+                m.appendRow(QStandardItem(grp))
 
         return conf
 
@@ -855,6 +878,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
 
         self.mConfigurations = {}
         self.mLabelGroupModel: QStandardItemModel = QStandardItemModel()
+        self.mLabelGroupModel.appendRow(QStandardItem(''))
 
     def name(self) -> str:
         return EDITOR_WIDGET_REGISTRY_KEY
