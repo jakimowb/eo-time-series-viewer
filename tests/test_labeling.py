@@ -18,8 +18,12 @@
 """
 
 import unittest
-
+import re
 import xmlrunner
+
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import *
 
 from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
     QgsFields
@@ -27,11 +31,15 @@ from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManager
     QgsMapCanvas, QgsGui, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper
 
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.labeling import *
+from eotimeseriesviewer.labeling import LabelWidget, LabelConfigurationKey, LabelAttributeTableModel, shortcuts, \
+    LabelShortcutEditorConfigWidget, quickLayerFields, quickLabelLayers, EDITOR_WIDGET_REGISTRY_KEY, \
+    LabelShortcutType, LabelConfigurationKey, registerLabelShortcutEditorWidget, Option, OptionListModel, \
+    LabelShortcutEditorWidgetWrapper
+
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-
+import eotimeseriesviewer
 
 class TestLabeling(EOTSVTestCase):
 
@@ -40,10 +48,14 @@ class TestLabeling(EOTSVTestCase):
         super().setUpClass()
         print('## setUpClass')
         # app = qgis.testing.start_app(cleanup=True)
-        import eotimeseriesviewer.labeling
+
         print('## setUpClass - cleanup')
         for store in eotimeseriesviewer.MAP_LAYER_STORES:
             store.removeAllMapLayers()
+        reg = QgsGui.editorWidgetRegistry()
+        if len(reg.factories()) == 0:
+            reg.initEditors()
+        registerLabelShortcutEditorWidget()
         print('## setUpClass - done')
 
     def createVectorLayer(self) -> QgsVectorLayer:
@@ -54,6 +66,8 @@ class TestLabeling(EOTSVTestCase):
         lyr.startEditing()
         lyr.addAttribute(QgsField('sensor', QVariant.String, 'varchar'))
         lyr.addAttribute(QgsField('date', QVariant.Date, 'date'))
+        lyr.addAttribute(QgsField('dateGrp1', QVariant.Date, 'date'))
+        lyr.addAttribute(QgsField('dateGrp2', QVariant.Date, 'date'))
         lyr.addAttribute(QgsField('datetime', QVariant.DateTime, 'datetime'))
         lyr.addAttribute(QgsField('time', QVariant.Time, 'time'))
         lyr.addAttribute(QgsField('DOY', QVariant.Int, 'int'))
@@ -66,6 +80,22 @@ class TestLabeling(EOTSVTestCase):
         names = lyr.fields().names()
 
         return lyr
+
+    def test_optionModelCBox(self):
+        m = QStandardItemModel()
+        m.appendRow(QStandardItem('AA'))
+        m.appendRow(QStandardItem('BB'))
+        #m.addOptions(['AA', 'BB'])
+        w = QWidget()
+        cb = QComboBox()
+        cb.setInsertPolicy(QComboBox.InsertAtTop)
+        cb.setEditable(True)
+        cb.setModel(m)
+        w.setLayout(QVBoxLayout())
+        w.layout().addWidget(QLabel('add values'))
+        w.layout().addWidget(cb)
+
+        self.showGui(w)
 
     def test_menu(self):
         print('## test_menu')
@@ -131,6 +161,8 @@ class TestLabeling(EOTSVTestCase):
         print('## test_LabelShortcutEditorConfigWidget')
         vl = self.createVectorLayer()
 
+        self.setupEditWidgets(vl)
+
         self.assertIsInstance(vl, QgsVectorLayer)
         fields = vl.fields()
         i = fields.lookupField('class1l')
@@ -140,28 +172,40 @@ class TestLabeling(EOTSVTestCase):
 
         parent.setWindowTitle('TEST')
         parent.setLayout(QVBoxLayout())
+        model = OptionListModel()
+        model.insertOptions(['Group1', 'Group2'])
         w = LabelShortcutEditorConfigWidget(vl, i, parent)
         self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
+        w.setLayerGroupModel(model)
+        parent.layout().addWidget(w)
 
         reg = QgsGui.editorWidgetRegistry()
-        if len(reg.factories()) == 0:
-            reg.initEditors()
-        registerLabelShortcutEditorWidget()
 
-        classScheme1, classScheme2 = self.setupEditWidgets(vl)
 
-        for i in range(vl.fields().count()):
-            setup = vl.editorWidgetSetup(i)
-            self.assertIsInstance(setup, QgsEditorWidgetSetup)
-            if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
-                self.assertIsInstance(reg, QgsEditorWidgetRegistry)
-                w2 = QWidget()
+        if False:
+            for i in range(vl.fields().count()):
+                setup = vl.editorWidgetSetup(i)
+                print(vl.fields().names()[i])
+                widgets = []
+                self.assertIsInstance(setup, QgsEditorWidgetSetup)
+                if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+                    self.assertIsInstance(reg, QgsEditorWidgetRegistry)
+                    #w2 = QWidget()
+                    pw = QWidget()
+                    pw.setLayout(QVBoxLayout())
+                    confWidget = reg.createConfigWidget(EDITOR_WIDGET_REGISTRY_KEY, vl, i, pw)
+                    self.assertIsInstance(confWidget, QgsEditorConfigWidget)
 
-                confWidget = reg.createConfigWidget(EDITOR_WIDGET_REGISTRY_KEY, vl, i, parent)
-                self.assertIsInstance(confWidget, QgsEditorConfigWidget)
+                    pw2 = QWidget()
+                    pw2.setLayout(QVBoxLayout())
+                    config = setup.config()
 
-                editorWidgetWrapper = reg.create(EDITOR_WIDGET_REGISTRY_KEY, vl, i, setup.config(), None, parent)
-                self.assertIsInstance(editorWidgetWrapper, QgsEditorWidgetWrapper)
+                    #editorWidgetWrapper0 = LabelShortcutEditorWidgetWrapper(vl, i, None, pw2)
+
+                    editorWidgetWrapper = reg.create(EDITOR_WIDGET_REGISTRY_KEY, vl, i, config, None, pw2)
+                    self.assertIsInstance(editorWidgetWrapper, QgsEditorWidgetWrapper)
+                    widgets.append([pw, pw2, confWidget, editorWidgetWrapper])
+
 
         canvas = QgsMapCanvas(parent)
         canvas.setVisible(False)
@@ -222,24 +266,33 @@ class TestLabeling(EOTSVTestCase):
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Sensor}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.Sensor}))
         vl.setEditorWidgetSetup(vl.fields().lookupField('date'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Date}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.Date}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp1'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.Date,
+                                                      LabelConfigurationKey.LabelGroup.value: 'Group1'}))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp2'),
+                                QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.Date,
+                                                      LabelConfigurationKey.LabelGroup.value: 'Group2'}))
+
         vl.setEditorWidgetSetup(vl.fields().lookupField('datetime'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DateTime}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.DateTime}))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('time'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.Time}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.Time}))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('DOY'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DOY}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.DOY}))
         vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'),
                                 QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY,
-                                                     {CONFKEY_LABELTYPE: LabelShortcutType.DecimalYear}))
+                                                     {LabelConfigurationKey.LabelType.value: LabelShortcutType.DecimalYear}))
 
         # set different types of classifications
         from eotimeseriesviewer.externals.qps.classification.classificationscheme import \
@@ -261,6 +314,7 @@ class TestLabeling(EOTSVTestCase):
 
     def test_canvasMenu(self):
         print('## test_canvasMenu')
+
         vl = self.createVectorLayer()
         c1, c2 = self.setupEditWidgets(vl)
         QgsProject.instance().addMapLayer(vl)
@@ -271,7 +325,10 @@ class TestLabeling(EOTSVTestCase):
         ts = TestObjects.createTimeSeries()
         canvas = MapCanvas()
         canvas.setTSD(ts[0])
-
+        size = canvas.size()
+        pointCenter = QPointF(0.5 * size.width(), 0.5 * size.height())
+        event = QMouseEvent(QEvent.MouseButtonPress, pointCenter, Qt.RightButton, Qt.RightButton, Qt.NoModifier)
+        canvas.mousePressEvent(event)
         self.showGui(canvas)
 
     def test_LabelingWidget2(self):

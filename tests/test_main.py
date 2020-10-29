@@ -93,7 +93,8 @@ class TestMain(EOTSVTestCase):
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
-
+        from example import exampleEvents
+        TSV.addVectorData(exampleEvents)
         # save and read settings
         path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())

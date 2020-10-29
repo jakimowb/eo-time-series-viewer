@@ -53,7 +53,7 @@ from .externals.qps.maptools import QgsMapToolSelectionHandler, \
     CursorLocationMapTool, QgsMapToolAddFeature, \
     SpectralProfileMapTool, TemporalProfileMapTool, MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, QgsMapToolSelect
 from .externals.qps.utils import SpatialExtent, SpatialPoint
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
+from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers, quickLayerFields
 from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
 import eotimeseriesviewer.settings
 
@@ -932,6 +932,18 @@ class MapCanvas(QgsMapCanvas):
             m.setToolTipsVisible(True)
             nQuickLabelLayers = len(lyrWithSelectedFeatures)
             m.setEnabled(nQuickLabelLayers > 0)
+
+            from qgis.gui import QgsEditorWidgetRegistry, QgsGui
+            from eotimeseriesviewer.labeling import EDITOR_WIDGET_REGISTRY_KEY
+            reg = QgsGui.editorWidgetRegistry()
+            factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
+            observation_indices = []
+            for layer in lyrWithSelectedFeatures:
+                for field in quickLayerFields(layer):
+                    config = layer.editorWidgetSetup(layer.fields().lookupField(field.name())).config()
+
+
+                s = ""
 
             a = m.addAction('Set Date/Sensor attributes')
             a.setToolTip('Writes the dates and sensor quick labels of selected features in {}.'.format(layerNames))

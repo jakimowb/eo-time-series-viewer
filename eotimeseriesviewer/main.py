@@ -587,7 +587,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # set default map tool
         self.ui.actionPan.toggle()
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
-        self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
+        #self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         self.ui.actionAddMapView.triggered.connect(mvd.createMapView)
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
@@ -1683,6 +1683,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 dn = os.path.dirname(files[0])
                 s.setValue('DIR_FILESEARCH', dn)
 
+        if not isinstance(files, list):
+            files = [files]
         if files:
             from eotimeseriesviewer.mapvisualization import MapView
             from .externals.qps.layerproperties import subLayers
