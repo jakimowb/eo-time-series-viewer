@@ -68,15 +68,13 @@ class VectorSourceFieldValueConverter(QgsVectorFileWriter.FieldValueConverter):
     def convert(self, fieldIndex: int, value: any):
         if fieldIndex in self.mBLOB2TXT:
             dataDict = decodeProfileValueDict(value)
-            json = encodeProfileValueDict(dataDict, mode=SerializationMode.JSON)
-            return json
+            dataJSON = json.dumps(dataDict)
+            return dataJSON
         return value
 
     def fieldDefinition(self, field: QgsField) -> QgsField:
         if field.name() in self.mBLOB2TXT:
-            f = QgsField(FIELD_VALUES, QVariant.String, 'varchar', comment=field.comment())
-
-            return f
+            return QgsField(field.name(), QVariant.String, 'varchar', comment=field.comment())
         return field
 
 

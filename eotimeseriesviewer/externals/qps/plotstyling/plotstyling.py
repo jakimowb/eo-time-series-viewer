@@ -643,10 +643,10 @@ class PlotStyle(QObject):
 
             hw, hh = int(w * 0.5), int(h * 0.5)
             w2, h2 = int(w * 0.75), int(h * 0.75)
-            # p.drawLine(x1,y1,x2,y2)
+            #p.drawLine(x1,y1,x2,y2)
 
-            #p.drawLine(2, h - 2, hw, hh)
-            #p.drawLine(hw, hh, w - 2, int(h * 0.3))
+            p.drawLine(2, h - 2, hw, hh)
+            p.drawLine(hw, hh, w - 2, int(h * 0.3))
 
             p.translate(pm.width() / 2, pm.height() / 2)
             drawSymbol(p, self.markerSymbol, self.markerSize, self.markerPen, self.markerBrush)

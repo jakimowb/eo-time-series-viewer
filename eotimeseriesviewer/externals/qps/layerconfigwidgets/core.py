@@ -27,8 +27,9 @@ import os
 import pathlib
 import enum
 import re
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsFileUtils, QgsSettings, QgsStyle, QgsApplication
-from qgis.gui import QgsRasterHistogramWidget, QgsMapCanvas, QgsMapLayerConfigWidget, \
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsFileUtils, QgsSettings, \
+    QgsStyle, QgsMapLayerStyle, QgsApplication
+from qgis.gui import QgsRasterHistogramWidget, QgsMapCanvas, QgsMapLayerConfigWidget,  \
     QgsLayerTreeEmbeddedConfigWidget, QgsMapLayerConfigWidgetFactory, QgsRendererRasterPropertiesWidget, \
     QgsRendererPropertiesDialog, QgsRasterTransparencyWidget, QgsProjectionSelectionWidget
 #
@@ -192,11 +193,11 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
     Emulates the QGS Layer Property Dialogs "Source" page
     """
 
-    def __init__(self, layer: QgsMapLayer, canvas: QgsMapCanvas, style: QgsStyle = QgsStyle(), parent=None):
+    def __init__(self, layer: QgsMapLayer, canvas: QgsMapCanvas, parent=None):
         super().__init__(layer, canvas, parent=parent)
         loadUi(configWidgetUi('symbologyconfigwidget.ui'), self)
         self.mSymbologyWidget = None
-        self.mStyle: QgsStyle = style
+        self.mStyle: QgsMapLayerStyle = None
         self.mDefaultRenderer = None
         if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)):
             self.mDefaultRenderer = layer.renderer().clone()
@@ -206,7 +207,7 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
     def symbologyWidget(self) -> typing.Union[QgsRendererRasterPropertiesWidget, QgsRendererPropertiesDialog]:
         return self.scrollArea.widget()
 
-    def style(self) -> QgsStyle:
+    def style(self) -> QgsMapLayerStyle:
         return self.mStyle
 
     def menuButtonMenu(self) -> QMenu:
@@ -302,6 +303,13 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
         else:
             QMessageBox.information(self, 'Load Style', msg)
 
+    def reset(self):
+
+        lyr = self.mapLayer()
+        if isinstance(lyr, QgsMapLayer):
+            lyr.styleManager().reset()
+            self.syncToLayer()
+
     def saveStyle(self, fileName: str = None):
         lastUsedDir = QgsSettings().value("style/lastStyleDir")
 
@@ -364,6 +372,9 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
 
         w = self.symbologyWidget()
         lyr = self.mapLayer()
+        if isinstance(lyr, QgsMapLayer):
+            self.mStyle = lyr.styleManager().style(lyr.styleManager().currentStyle())
+
         if isinstance(lyr, QgsRasterLayer):
             r = lyr.renderer()
             if isinstance(w, QgsRendererRasterPropertiesWidget):
@@ -377,11 +388,12 @@ class SymbologyConfigWidget(QpsMapLayerConfigWidget):
                 self.setSymbologyWidget(w)
 
         elif isinstance(lyr, QgsVectorLayer):
+            w = None
             if not isinstance(w, QgsRendererPropertiesDialog):
-                w = QgsRendererPropertiesDialog(lyr, self.style(), embedded=True)
+                w = QgsRendererPropertiesDialog(lyr, QgsStyle.defaultStyle(), embedded=True)
                 self.setSymbologyWidget(w)
             else:
-                s = ""
+
                 pass
 
         else:

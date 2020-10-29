@@ -191,3 +191,7 @@ class XUnitModel(UnitModel):
         self.addUnit('DecimalYear', description='Date [Decimal Year]')
         self.addUnit('DOY', description='Day of Year [DOY]')
 
+    def findUnit(self, unit):
+        if unit in [None, NULL]:
+            unit = BAND_INDEX
+        return super(XUnitModel, self).findUnit(unit)

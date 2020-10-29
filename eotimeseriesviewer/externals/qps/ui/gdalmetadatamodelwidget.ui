@@ -17,7 +17,7 @@
    <iconset resource="../qpsresources.qrc">
     <normaloff>:/qps/ui/icons/rasterband_select.svg</normaloff>:/qps/ui/icons/rasterband_select.svg</iconset>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
    <property name="spacing">
     <number>2</number>
    </property>
@@ -33,6 +33,16 @@
    <property name="bottomMargin">
     <number>2</number>
    </property>
+   <item>
+    <widget class="QgsMessageBar" name="mMessageBar">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+    </widget>
+   </item>
    <item>
     <widget class="QgsCollapsibleGroupBox" name="gbBandNames">
      <property name="sizePolicy">
@@ -231,7 +241,7 @@
            <string>...</string>
           </property>
           <property name="icon">
-           <iconset resource="../../../QGIS/images/images.qrc">
+           <iconset>
             <normaloff>:/images/themes/default/symbologyAdd.svg</normaloff>:/images/themes/default/symbologyAdd.svg</iconset>
           </property>
           <property name="autoRaise">
@@ -245,7 +255,7 @@
            <string>...</string>
           </property>
           <property name="icon">
-           <iconset resource="../../../QGIS/images/images.qrc">
+           <iconset>
             <normaloff>:/images/themes/default/symbologyRemove.svg</normaloff>:/images/themes/default/symbologyRemove.svg</iconset>
           </property>
           <property name="autoRaise">
@@ -325,7 +335,7 @@
   </action>
   <action name="actionAddItem">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/symbologyAdd.svg</normaloff>:/images/themes/default/symbologyAdd.svg</iconset>
    </property>
    <property name="text">
@@ -337,7 +347,7 @@
   </action>
   <action name="actionRemoveItem">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/symbologyRemove.svg</normaloff>:/images/themes/default/symbologyRemove.svg</iconset>
    </property>
    <property name="text">
@@ -349,7 +359,7 @@
   </action>
   <action name="actionReset">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mIconClearText.svg</normaloff>:/images/themes/default/mIconClearText.svg</iconset>
    </property>
    <property name="text">
@@ -384,6 +394,12 @@
    <class>GDALBandMetadataModelTableView</class>
    <extends>QTableView</extends>
    <header>qps.layerconfigwidgets.gdalmetadata</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsMessageBar</class>
+   <extends>QFrame</extends>
+   <header>qgis.gui</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>

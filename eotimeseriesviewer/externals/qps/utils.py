@@ -59,17 +59,17 @@ from qgis.PyQt.QtWidgets import *
 from osgeo import gdal, ogr, osr, gdal_array
 import numpy as np
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QDialogButtonBox, QLabel, QGridLayout, QMainWindow
+
+try:
+    from .. import qps
+except:
+    import qps
 from . import DIR_UI_FILES
 
 # dictionary to store form classes and avoid multiple calls to read <myui>.i
 QGIS_RESOURCE_WARNINGS = set()
 
 REMOVE_setShortcutVisibleInContextMenu = hasattr(QAction, 'setShortcutVisibleInContextMenu')
-
-try:
-    from .. import qps
-except:
-    import qps
 
 jp = os.path.join
 dn = os.path.dirname
@@ -577,6 +577,8 @@ def createQgsField(name: str, exampleValue: typing.Any, comment: str = None) -> 
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
     elif isinstance(exampleValue, np.datetime64):
         return QgsField(name, QVariant.String, 'varchar', comment=comment)
+    elif isinstance(exampleValue, (bytes, QByteArray)):
+        return QgsField(name, QVariant.ByteArray, 'Binary', comment=comment)
     elif isinstance(exampleValue, list):
         assert len(exampleValue) > 0, 'need at least one value in provided list'
         v = exampleValue[0]
@@ -682,7 +684,7 @@ def gdalDataset(dataset: typing.Union[str,
                                       QgsRasterLayer,
                                       QgsRasterDataProvider,
                                       gdal.Dataset],
-                eAccess:int = gdal.GA_ReadOnly) -> gdal.Dataset:
+                eAccess: int = gdal.GA_ReadOnly) -> gdal.Dataset:
     """
     Returns a gdal.Dataset object instance
     :param dataset:
@@ -897,6 +899,24 @@ def qgsRasterLayer(source) -> QgsRasterLayer:
         return qgsRasterLayer(pathlib.Path(source.toString(QUrl.PreferLocalFile | QUrl.RemoveQuery)).resolve())
 
     raise Exception('Unable to transform {} into QgsRasterLayer'.format(source))
+
+
+def qgsRasterLayers(sources) -> typing.Iterator[QgsRasterLayer]:
+    """
+    Like qgsRasterLayer, but on multiple inputs and with extraction of sub-layers
+    :param sources:
+    :return:
+    """
+    if not isinstance(sources, list):
+        sources = [sources]
+    assert isinstance(sources, list)
+
+    for source in sources:
+        lyr: QgsRasterLayer = qgsRasterLayer(source)
+        if lyr.isValid():
+            yield lyr
+        for lyr in qgsRasterLayers(lyr.subLayers()):
+            yield lyr
 
 
 def qgsMapLayer(value: typing.Any) -> QgsMapLayer:
@@ -1549,19 +1569,14 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     def checkWavelengthUnit(key: str, value: str) -> str:
         wlu = None
         value = value.strip()
-        if re.search(r'wavelength.units?', key, re.I):
+        if re.search(r'wavelength[ _]?units?', key, re.I):
             # metric length units
-            if re.search(r'^(Micrometers?|um|μm)$', values, re.I):
-                wlu = 'μm'  # fix with python 3 UTF
-            elif re.search(r'^(Nanometers?|nm)$', values, re.I):
-                wlu = 'nm'
-            elif re.search(r'^(Millimeters?|mm)$', values, re.I):
-                wlu = 'nm'
-            elif re.search(r'^(Centimeters?|cm)$', values, re.I):
-                wlu = 'nm'
-            elif re.search(r'^(Meters?|m)$', values, re.I):
-                wlu = 'nm'
-            elif re.search(r'^Wavenumber$', values, re.I):
+            wlu = UnitLookup.baseUnit(value)
+
+            if wlu is not None:
+                return wlu
+
+            if re.search(r'^Wavenumber$', values, re.I):
                 wlu = '-'
             elif re.search(r'^GHz$', values, re.I):
                 wlu = 'GHz'

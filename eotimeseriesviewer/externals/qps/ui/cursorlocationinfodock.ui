@@ -82,7 +82,7 @@
      </layout>
     </item>
     <item>
-     <widget class="TreeView" name="treeView"/>
+     <widget class="CursorLocationInfoTreeView" name="mTreeView"/>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -284,9 +284,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>TreeView</class>
+   <class>CursorLocationInfoTreeView</class>
    <extends>QTreeView</extends>
-   <header>qps.models</header>
+   <header>qps.cursorlocationvalue</header>
   </customwidget>
  </customwidgets>
  <resources>

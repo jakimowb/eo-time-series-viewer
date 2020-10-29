@@ -31,6 +31,7 @@ import enum
 import pickle
 import typing
 import pathlib
+import collections
 import uuid
 from osgeo import osr
 from ..speclib import SpectralLibrarySettingsKey
@@ -98,9 +99,6 @@ DEBUG = False
 class SerializationMode(enum.Enum):
     JSON = 1
     PICKLE = 2
-
-
-SERIALIZATION = SerializationMode.PICKLE
 
 
 def log(msg: str):
@@ -390,13 +388,16 @@ def toType(t, arg, empty2None=True):
             return t(arg)
 
 
-def encodeProfileValueDict(d: dict, mode: SerializationMode = SerializationMode.PICKLE) -> str:
+def encodeProfileValueDict(d: dict, mode=None) -> QByteArray:
     """
     Converts a SpectralProfile value dictionary into a compact JSON string, which can be
     extracted with `decodeProfileValueDict`.
     :param d: dict
     :return: str
     """
+    if mode is not None:
+        warnings.warn('keyword "mode" is not not used anymore', DeprecationWarning)
+
     if not isinstance(d, dict):
         return None
     d2 = {}
@@ -405,30 +406,22 @@ def encodeProfileValueDict(d: dict, mode: SerializationMode = SerializationMode.
         # save keys with information only
         if v is not None:
             d2[k] = v
-    if mode == SerializationMode.JSON:
-        return json.dumps(d2, sort_keys=True, separators=(',', ':'))
-    elif mode == SerializationMode.PICKLE:
-        return QByteArray(pickle.dumps(d2))
-    else:
-        raise NotImplementedError()
+    return QByteArray(pickle.dumps(d2))
 
 
-def decodeProfileValueDict(dump, mode: SerializationMode = SerializationMode.PICKLE):
+def decodeProfileValueDict(dump, mode=None):
     """
     Converts a json / pickle dump  into a SpectralProfile value dictionary
     :param dump: str
     :return: dict
     """
+    if mode is not None:
+        warnings.warn('keyword "mode" is not used anymore', DeprecationWarning)
+
     d = EMPTY_PROFILE_VALUES.copy()
 
     if dump not in EMPTY_VALUES:
-        d2 = None
-        if mode == SerializationMode.JSON:
-            d2 = json.loads(dump)
-        elif mode == SerializationMode.PICKLE:
-            d2 = pickle.loads(dump)
-        else:
-            raise NotImplementedError()
+        d2 = pickle.loads(dump)
         d.update(d2)
     return d
 
@@ -477,25 +470,35 @@ LUT_IDL2GDAL = {1: gdal.GDT_Byte,
 
 
 def ogrStandardFields() -> list:
-    """Returns the minimum set of field a Spectral Library has to contain"""
+    """Returns the minimum set of field a Spectral Library contains"""
     fields = [
         ogr.FieldDefn(FIELD_FID, ogr.OFTInteger),
         ogr.FieldDefn(FIELD_NAME, ogr.OFTString),
         ogr.FieldDefn('source', ogr.OFTString),
-        ogr.FieldDefn(FIELD_VALUES, ogr.OFTString) \
-            if SERIALIZATION == SerializationMode.JSON else \
-            ogr.FieldDefn(FIELD_VALUES, ogr.OFTBinary),
+        ogr.FieldDefn(FIELD_VALUES, ogr.OFTBinary),
     ]
     return fields
 
 
-def createStandardFields():
+def spectralValueFields(spectralLibrary: QgsVectorLayer) -> typing.List[QgsField]:
+    """
+    Returns the fields that contains values of SpectralProfiles
+    :param spectralLibrary:
+    :return:
+    """
+    fields = [f for f in spectralLibrary.fields() if
+              f.type() == QVariant.ByteArray and
+              f.editorWidgetSetup().type() == EDITOR_WIDGET_REGISTRY_KEY]
+
+    return fields
+
+
+def createStandardFields() -> QgsFields:
     fields = QgsFields()
     for f in ogrStandardFields():
         assert isinstance(f, ogr.FieldDefn)
         name = f.GetName()
         ogrType = f.GetType()
-
         if ogrType == ogr.OFTString:
             a, b = QVariant.String, 'varchar'
         elif ogrType in [ogr.OFTInteger, ogr.OFTInteger64]:
@@ -681,33 +684,57 @@ class SpectralProfile(QgsFeature):
         return profile
 
     @staticmethod
+    def fromQgsFeature(feature: QgsFeature, value_field: str = FIELD_VALUES):
+        """
+        Converts a QgsFeature into a SpectralProfile
+        :param feature: QgsFeature
+        :param value_field: name of QgsField that stores the Spectral Profile BLOB
+        :return:
+        """
+        assert isinstance(feature, QgsFeature)
+        if isinstance(value_field, QgsField):
+            value_field = value_field.name()
+        assert value_field in feature.fields().names(), f'field "{value_field}" does not exist'
+        sp = SpectralProfile(fields=feature.fields(), value_field=value_field)
+        sp.setId(feature.id())
+        sp.setAttributes(feature.attributes())
+        sp.setGeometry(feature.geometry())
+        return sp
+
+    @staticmethod
     def fromSpecLibFeature(feature: QgsFeature):
         """
         Converts a QgsFeature into a SpectralProfile
         :param feature: QgsFeature
         :return: SpectralProfile
         """
-        assert isinstance(feature, QgsFeature)
-        sp = SpectralProfile(fields=feature.fields())
-        sp.setId(feature.id())
-        sp.setAttributes(feature.attributes())
-        sp.setGeometry(feature.geometry())
-        return sp
+        warnings.warn('Use SpectralProfile.fromQgsFeature instead', DeprecationWarning)
+        return SpectralProfile.fromQgsFeature(feature)
 
-    def __init__(self, parent=None, fields=None, values: dict = None):
+    def __init__(self, parent=None,
+                 fields: QgsFields = None,
+                 values: dict = None,
+                 value_field: typing.Union[str, QgsField] = FIELD_VALUES):
+        """
+        :param parent:
+        :param fields:
+        :param values:
+        :param value_field: name or index of field that contains the spectral values information.
+                            Needs to be a BLOB field.
+        """
 
         if fields is None:
             fields = createStandardFields()
         assert isinstance(fields, QgsFields)
-        # QgsFeature.__init__(self, fields)
-        # QObject.__init__(self)
         super(SpectralProfile, self).__init__(fields)
-        # QObject.__init__(self)
-        # fields = self.fields()
 
         assert isinstance(fields, QgsFields)
         self.mValueCache = None
-        # self.setStyle(DEFAULT_SPECTRUM_STYLE)
+        if isinstance(value_field, QgsField):
+            value_field = value_field.name()
+
+        self.mValueField: str = value_field
+
         if isinstance(values, dict):
             self.setValues(**values)
 
@@ -770,7 +797,6 @@ class SpectralProfile(QgsFeature):
     def setName(self, name: str):
         if name != self.name():
             self.setAttribute(FIELD_NAME, name)
-            # self.sigNameChanged.emit(name)
 
     def name(self) -> str:
         return self.metadata(FIELD_NAME)
@@ -788,10 +814,17 @@ class SpectralProfile(QgsFeature):
         elif isinstance(pt, QgsPointXY):
             self.setGeometry(QgsGeometry.fromPointXY(pt))
 
+    def key(self) -> typing.Tuple[int, any]:
+        """
+        Returns a key tuple consisting of the profiles feature id and the columns that stores the profile data
+        :return:
+        """
+        return (self.id(), self.mValueField)
+
     def geoCoordinate(self):
         return self.geometry()
 
-    def updateMetadata(self, metaData):
+    def updateMetadata(self, metaData:dict):
         if isinstance(metaData, dict):
             for key, value in metaData.items():
                 self.setMetadata(key, value)
@@ -853,21 +886,28 @@ class SpectralProfile(QgsFeature):
         """
         return len(self.yValues())
 
+    def isEmpty(self) -> bool:
+        """
+        Returns True if there is not ByteArray stored in the BLOB value field
+        :return:
+        """
+        return self.attribute(self.fields().indexFromName(self.mValueField)) in [None, QVariant()]
+
     def values(self) -> dict:
         """
         Returns a dictionary with 'x', 'y', 'xUnit' and 'yUnit' values.
         :return: {'x':list,'y':list,'xUnit':str,'yUnit':str, 'bbl':list}
         """
         if self.mValueCache is None:
-            jsonStr = self.attribute(self.fields().indexFromName(FIELD_VALUES))
-            d = decodeProfileValueDict(jsonStr)
+            byteArray = self.attribute(self.fields().indexFromName(self.mValueField))
+            d = decodeProfileValueDict(byteArray)
 
             # save a reference to the decoded dictionary
             self.mValueCache = d
 
         return self.mValueCache
 
-    def setValues(self, x=None, y=None, xUnit=None, yUnit=None, bbl=None):
+    def setValues(self, x=None, y=None, xUnit: str = None, yUnit: str = None, bbl=None, **kwds):
 
         d = self.values().copy()
 
@@ -911,7 +951,7 @@ class SpectralProfile(QgsFeature):
         if isinstance(yUnit, str):
             d['yUnit'] = yUnit
 
-        self.setAttribute(FIELD_VALUES, encodeProfileValueDict(d))
+        self.setAttribute(self.mValueField, encodeProfileValueDict(d))
         self.mValueCache = d
 
     def xValues(self) -> list:
@@ -1286,7 +1326,7 @@ class SpectralProfileRenderer(object):
             customStyleNode = customStyleNodes.at(i)
             customStyle = PlotStyle.readXml(customStyleNode)
             if isinstance(customStyle, PlotStyle):
-                fids = customStyleNode.firstChildElement('fids').firstChild().nodeValue().split(',')
+                fids = customStyleNode.firstChildElement('keys').firstChild().nodeValue().split(',')
                 fids = [int(f) for f in fids]
                 renderer.setProfilePlotStyle(customStyle, fids)
 
@@ -1326,7 +1366,7 @@ class SpectralProfileRenderer(object):
             fids = [k for k, s in self.mFID2Style.items() if s == style]
             nodeStyle = doc.createElement('custom_style')
             style.writeXml(nodeStyle, doc)
-            nodeFIDs = doc.createElement('fids')
+            nodeFIDs = doc.createElement('keys')
             nodeFIDs.appendChild(doc.createTextNode(','.join([str(i) for i in fids])))
             nodeStyle.appendChild(nodeFIDs)
             nodeCustomStyles.appendChild(nodeStyle)
@@ -2155,8 +2195,9 @@ class SpectralLibrary(QgsVectorLayer):
                  path: str = None,
                  baseName: str = DEFAULT_NAME,
                  options: QgsVectorLayer.LayerOptions = None,
+                 value_fields=[FIELD_VALUES],
                  uri: str = None,  # deprectated
-                 name: str = None  # deprectated
+                 name: str = None,  # deprectated
                  ):
 
         if isinstance(uri, str):
@@ -2171,6 +2212,9 @@ class SpectralLibrary(QgsVectorLayer):
 
         if isinstance(path, pathlib.Path):
             path = path.as_posix()
+
+        if not isinstance(options, QgsVectorLayer.LayerOptions):
+            options = QgsVectorLayer.LayerOptions(loadDefaultStyle=True, readExtentFromXml=True)
 
         if path is None:
             # create a new, empty backend
@@ -2204,8 +2248,14 @@ class SpectralLibrary(QgsVectorLayer):
             assert isinstance(lyr, ogr.Layer)
             ldefn = lyr.GetLayerDefn()
             assert isinstance(ldefn, ogr.FeatureDefn)
+            fieldNames = []
             for f in ogrStandardFields():
+                fieldNames.append(f.GetName())
                 lyr.CreateField(f)
+
+            for f in value_fields:
+                if f not in fieldNames:
+                    lyr.CreateField(ogr.FieldDefn(f, ogr.OFTBinary))
 
             try:
                 dsSrc.FlushCache()
@@ -2216,24 +2266,46 @@ class SpectralLibrary(QgsVectorLayer):
                     raise rt
 
         assert isinstance(path, str)
-        options = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
         super(SpectralLibrary, self).__init__(path, baseName, 'ogr', options)
 
         # consistency check
         field_names = self.fields().names()
         assert FIELD_NAME in field_names
-        assert FIELD_VALUES in field_names
         f = self.fields().at(self.fields().lookupField(FIELD_NAME))
-        assert f.type() == QVariant.String, 'Field {} not of type String / VARCHAR'
-        f = self.fields().at(self.fields().lookupField(FIELD_VALUES))
-        assert f.type() == QVariant.ByteArray, 'Field {} not of type ByteArray / BLOB'
+        assert f.type() == QVariant.String, f'Field {f.name()} not of type String / VARCHAR'
+
+        for n in value_fields:
+            assert n in field_names
+            f = self.fields().at(self.fields().lookupField(n))
+            assert f.type() == QVariant.ByteArray, f'Field {n} not of type ByteArray / BLOB'
 
         # self.beforeCommitChanges.connect(self.onBeforeCommitChanges)
+
         self.committedFeaturesAdded.connect(self.onCommittedFeaturesAdded)
         self.mProfileRenderer: SpectralProfileRenderer = SpectralProfileRenderer()
         self.mProfileRenderer.setInput(self)
+
+        self.mSpectralValueFields: typing.List[QgsField] = []
+        self.attributeAdded.connect(self.onAttributeAdded)
+        self.attributeDeleted.connect(self.onFieldsChanged)
+
+        # set special default editors
+        for f in value_fields:
+            self.setEditorWidgetSetup(self.fields().lookupField(f),
+                                      QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {}))
+
         self.initTableConfig()
         self.initProfileRenderer()
+
+    def onAttributeAdded(self, idx:int):
+
+        field: QgsField = self.fields().at(idx)
+        if field.type() == QVariant.ByteArray:
+            # let new ByteArray fields be SpectralProfile columns by default
+            self.setEditorWidgetSetup(idx, QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {}))
+
+    def onFieldsChanged(self):
+        self.mSpectralValueFields = spectralValueFields(self)
 
     def onCommittedFeaturesAdded(self, id, features):
 
@@ -2249,6 +2321,10 @@ class SpectralLibrary(QgsVectorLayer):
             if fidOld in mFID2Style.keys():
                 updates[fidNew] = mFID2Style.pop(fidOld)
         mFID2Style.update(updates)
+
+    def setEditorWidgetSetup(self, index: int, setup: QgsEditorWidgetSetup):
+        super().setEditorWidgetSetup(index, setup)
+        self.onFieldsChanged()
 
     def setProfileRenderer(self, profileRenderer: SpectralProfileRenderer):
         assert isinstance(profileRenderer, SpectralProfileRenderer)
@@ -2313,12 +2389,6 @@ class SpectralLibrary(QgsVectorLayer):
 
         self.setAttributeTableConfig(conf)
 
-        # set special default editors
-        # self.setEditorWidgetSetup(self.fields().lookupField(FIELD_STYLE), QgsEditorWidgetSetup(PlotSettingsEditorWidgetKey, {}))
-
-        self.setEditorWidgetSetup(self.fields().lookupField(FIELD_VALUES),
-                                  QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {}))
-
     def mimeData(self, formats: list = None) -> QMimeData:
         """
         Wraps this Speclib into a QMimeData object
@@ -2350,36 +2420,23 @@ class SpectralLibrary(QgsVectorLayer):
 
         return mimeData
 
-    def optionalFields(self) -> list:
-        """
-        Returns the list of optional fields that are not part of the standard field set.
-        :return: [list-of-QgsFields]
-        """
-        standardFields = createStandardFields()
-        return [f for f in self.fields() if f not in standardFields]
-
     def optionalFieldNames(self) -> list:
         """
         Returns the names of additions fields / attributes
         :return: [list-of-str]
         """
-        requiredFields = [f.name for f in ogrStandardFields()]
-        return [n for n in self.fields().names() if n not in requiredFields]
+        warnings.warn('Deprecated and desimplemented', DeprecationWarning)
+        # requiredFields = [f.name for f in ogrStandardFields()]
+        return []
 
-    """
-    def initConditionalStyles(self):
-        styles = self.conditionalStyles()
-        assert isinstance(styles, QgsConditionalLayerStyles)
+    def addSpectralProfileAttribute(self, name: str, comment: str = None) -> bool:
 
-        for fieldName in self.fieldNames():
-            red = QgsConditionalStyle("@value is NULL")
-            red.setTextColor(QColor('red'))
-            styles.setFieldStyles(fieldName, [red])
-
-        red = QgsConditionalStyle('﻿"__serialized__xvalues" is NULL OR "__serialized__yvalues is NULL" ')
-        red.setBackgroundColor(QColor('red'))
-        styles.setRowStyles([red])
-    """
+        field = QgsField(name, QVariant.ByteArray, 'Binary', comment=comment)
+        b = self.addAttribute(field)
+        if b:
+            self.setEditorWidgetSetup(self.fields().lookupField(field.name()),
+                                      QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, {}))
+        return b
 
     def addMissingFields(self, fields: QgsFields, copyEditorWidgetSetup: bool = True):
         """
@@ -2559,20 +2616,53 @@ class SpectralLibrary(QgsVectorLayer):
             for fid in fids:
                 assert isinstance(fid, int)
             featureRequest.setFilterFids(fids)
-        # features = [f for f in self.features() if f.id() in fidsToRemove]
+        # features = [f for f in self.features() if f.id() in keys_to_remove]
         return self.getFeatures(featureRequest)
 
-    def profile(self, fid: int) -> SpectralProfile:
-        return SpectralProfile.fromSpecLibFeature(self.getFeature(fid))
+    def profile(self, fid: int, value_field=None) -> SpectralProfile:
+        if value_field is None:
+            value_field = self.spectralValueFields()[0]
+        return SpectralProfile.fromQgsFeature(self.getFeature(fid), value_field=value_field)
 
-    def profiles(self, fids=None) -> typing.Generator[SpectralProfile, None, None]:
+    def profiles(self,
+                 fids=None,
+                 value_fields=None,
+                 profile_keys: typing.Tuple[int, str]=None) -> typing.Generator[SpectralProfile, None, None]:
         """
-        Like features(fidsToRemove=None), but converts each returned QgsFeature into a SpectralProfile
+        Like features(keys_to_remove=None), but converts each returned QgsFeature into a SpectralProfile.
+        If multiple value fields are set, profiles are returned ordered by (i) fid and (ii) value field.
+        :param value_fields:
+        :type value_fields:
+        :param profile_keys:
+        :type profile_keys:
         :param fids: optional, [int-list-of-feature-ids] to return
         :return: generator of [List-of-SpectralProfiles]
         """
-        for f in self.features(fids=fids):
-            yield SpectralProfile.fromSpecLibFeature(f)
+
+        if profile_keys is None:
+            if value_fields is None:
+                value_fields = [f.name() for f in self.spectralValueFields()]
+            elif not isinstance(value_fields, list):
+                value_fields = [value_fields]
+
+            for f in self.features(fids=fids):
+                for field in value_fields:
+                    yield SpectralProfile.fromQgsFeature(f, value_field=field)
+        else:
+            # sort by FID
+            LUT_FID2KEYS = dict()
+            for pkey in profile_keys:
+                fid, field = pkey
+
+                fields = LUT_FID2KEYS.get(fid, [])
+                fields.append(field)
+                LUT_FID2KEYS[fid] = fields
+
+            for f in self.features(fids=list(LUT_FID2KEYS.keys())):
+                assert isinstance(f, QgsFeature)
+                for field in LUT_FID2KEYS[f.id()]:
+                    yield SpectralProfile.fromQgsFeature(f, value_field=field)
+
 
     def groupBySpectralProperties(self, excludeEmptyProfiles: bool = True):
         """
@@ -2621,10 +2711,9 @@ class SpectralLibrary(QgsVectorLayer):
         msg = super(SpectralLibrary, self).exportNamedStyle(doc, context=context, categories=categories)
         if msg == '':
             qgsNode = doc.documentElement().toElement()
-            # speclibNode = doc.createElement(XMLNODE_PROFILE_RENDERER)
+
             if isinstance(self.mProfileRenderer, SpectralProfileRenderer):
                 self.mProfileRenderer.writeXml(qgsNode, doc)
-            # qgsNode.appendChild(speclibNode)
 
         return msg
 
@@ -2725,6 +2814,9 @@ class SpectralLibrary(QgsVectorLayer):
                 return VectorSourceSpectralLibraryIO.write(self, path, **kwds)
 
         return []
+
+    def spectralValueFields(self) -> typing.List[QgsField]:
+        return self.mSpectralValueFields
 
     def yRange(self) -> typing.List[float]:
         """
@@ -2837,17 +2929,15 @@ class SpectralLibrary(QgsVectorLayer):
         return max(cnt, 0)
 
     def __iter__(self):
-        r = QgsFeatureRequest()
-        for f in self.getFeatures(r):
-            yield SpectralProfile.fromSpecLibFeature(f)
+        return self.profiles()
 
     def __getitem__(self, slice) -> typing.Union[SpectralProfile, typing.List[SpectralProfile]]:
         fids = sorted(self.allFeatureIds())[slice]
-
+        value_field = self.mSpectralValueFields[0].name()
         if isinstance(fids, list):
             return sorted(self.profiles(fids=fids), key=lambda p: p.id())
         else:
-            return SpectralProfile.fromSpecLibFeature(self.getFeature(fids))
+            return SpectralProfile.fromQgsFeature(self.getFeature(fids), value_field=value_field)
 
     def __delitem__(self, slice):
         profiles = self[slice]

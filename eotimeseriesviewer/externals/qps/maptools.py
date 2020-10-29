@@ -919,7 +919,7 @@ class QgsMapToolDigitizeFeature(QgsMapToolCapture):
                     g = QgsGeometry(savePoint)
                 elif QgsWkbTypes.isMultiType(layerWKBType) and not QgsWkbTypes.hasZ(layerWKBType):
                     # g = QgsGeometry::fromMultiPointXY( QgsMultiPointXY() << savePoint );
-                    g = QgsGeometry.fromMultiPointXY(savePoint)
+                    #g = QgsGeometry.fromMultiPointXY(savePoint)
                     g = QgsGeometry(savePoint)
                 elif not QgsWkbTypes.isMultiType(layerWKBType) and QgsWkbTypes.hasZ(layerWKBType):
                     g = QgsGeometry(QgsPoint(savePoint.x(), savePoint.y(),

@@ -107,10 +107,6 @@ class VectorLayerTools(QgsVectorLayerTools):
                 and isinstance(qgis.utils.iface, QgisInterface):
                 qgis.utils.iface.pasteFromClipboard(layer)
 
-    def deleteSelected(self, layer: QgsVectorLayer):
-        if isinstance(layer, QgsVectorLayer) and layer.isEditable():
-            layer.deleteSelectedFeatures()
-
     def invertSelection(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer):
             layer.invertSelection()
@@ -125,7 +121,7 @@ class VectorLayerTools(QgsVectorLayerTools):
 
     def deleteSelection(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.isEditable():
-            layer
+            layer.deleteSelectedFeatures()
 
     def toggleEditing(self, vlayer: QgsVectorLayer, allowCancel: bool = True) -> bool:
         """

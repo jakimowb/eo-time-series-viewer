@@ -22,19 +22,18 @@
     along with this software. If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************
 """
-import typing, pathlib, sys
-from qgis.core import QgsRasterLayer, QgsRasterRenderer
-from qgis.core import *
-from qgis.gui import QgsMapCanvas, QgsMapLayerConfigWidget, QgsRasterBandComboBox
-from qgis.gui import *
-from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtGui import *
+import sys
+
 from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtGui import QIcon
-from ..utils import loadUi
-import numpy as np
+from qgis.PyQt.QtWidgets import *
+from qgis.core import QgsMapLayer, QgsVectorLayer, QgsField, QgsFieldModel, QgsEditorWidgetSetup
+from qgis.gui import QgsEditorWidgetFactory, QgsCollapsibleGroupBox, QgsEditorConfigWidget, QgsGui, \
+    QgsMapLayerConfigWidgetFactory
 from .core import QpsMapLayerConfigWidget
 from ..layerproperties import AddAttributeDialog
+from ..utils import loadUi
 
 
 class LayerFieldsTableModel(QgsFieldModel):
@@ -53,7 +52,8 @@ class LayerFieldsTableModel(QgsFieldModel):
         self.cnWMS = 'WMS'
         self.cnWFS = 'WFS'
 
-        self.mColumnNames = [self.cnId, self.cnName, self.cnAlias, self.cnType, self.cnTypeName, self.cnLength, self.cnPrecision, self.cnComment, self.cnWMS, self.cnWFS]
+        self.mColumnNames = [self.cnId, self.cnName, self.cnAlias, self.cnType, self.cnTypeName, self.cnLength,
+                             self.cnPrecision, self.cnComment, self.cnWMS, self.cnWFS]
 
     def columnNames(self):
         return self.mColumnNames[:]
@@ -77,10 +77,10 @@ class LayerFieldsTableModel(QgsFieldModel):
             return col
         return None
 
-    def columnCount(self, parent:QModelIndex):
+    def columnCount(self, parent: QModelIndex):
         return len(self.mColumnNames)
 
-    def data(self, index:QModelIndex, role:int):
+    def data(self, index: QModelIndex, role: int):
         if not index.isValid():
             return None
 
@@ -112,7 +112,7 @@ class LayerFieldsTableModel(QgsFieldModel):
                 return None
             if cn == self.cnWFS:
                 return None
-        if role in [QgsFieldModel.FieldNameRole ,
+        if role in [QgsFieldModel.FieldNameRole,
                     QgsFieldModel.FieldIndexRole,
                     QgsFieldModel.ExpressionRole,
                     QgsFieldModel.IsExpressionRole,
@@ -126,12 +126,12 @@ class LayerFieldsTableModel(QgsFieldModel):
             return super().data(index, role)
 
 
-
 class LayerFieldsListModel(QgsFieldModel):
     """
     A model to show the QgsFields of an QgsVectorLayer as vertical list
     Inherits QgsFieldModel and allows to change the name of the 1st column.
     """
+
     def __init__(self, parent=None):
         """
         Constructor
@@ -175,13 +175,14 @@ class LayerFieldsListModel(QgsFieldModel):
             self.headerDataChanged.emit(orientation, col, col)
         return result
 
-class LayerAttributeFormConfigEditorWidget(QWidget):
 
+class LayerAttributeFormConfigEditorWidget(QWidget):
     class ConfigInfo(QStandardItem):
         """
         Describes a QgsEditorWidgetFactory configuration.
         """
-        def __init__(self, key:str, factory:QgsEditorWidgetFactory, configWidget:QgsEditorConfigWidget):
+
+        def __init__(self, key: str, factory: QgsEditorWidgetFactory, configWidget: QgsEditorConfigWidget):
             super(LayerAttributeFormConfigEditorWidget.ConfigInfo, self).__init__()
 
             assert isinstance(key, str)
@@ -193,7 +194,6 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             self.setText(factory.name())
             self.setToolTip(factory.name())
             self.mInitialConfig = dict(configWidget.config())
-
 
         def resetConfig(self):
             """
@@ -243,10 +243,9 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             """
             return QgsEditorWidgetSetup(self.factoryKey(), self.config())
 
-
     sigChanged = pyqtSignal(object)
 
-    def __init__(self, parent, layer:QgsVectorLayer, index:int):
+    def __init__(self, parent, layer: QgsVectorLayer, index: int):
         super(LayerAttributeFormConfigEditorWidget, self).__init__(parent)
 
         self.setLayout(QVBoxLayout())
@@ -309,7 +308,6 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
         self.layout().addStretch()
         self.cbWidgetType.setCurrentIndex(iCurrent)
 
-
         conf = self.currentFieldConfig()
         self.mInitialFactoryKey = None
         self.mInitialConf = None
@@ -317,9 +315,7 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             self.mInitialFactoryKey = conf.factoryKey()
             self.mInitialConf = conf.config()
 
-
-
-    def setFactory(self, factoryKey:str):
+    def setFactory(self, factoryKey: str):
         """
         Shows the QgsEditorConfigWidget of QgsEditorWidgetFactory `factoryKey`
         :param factoryKey: str
@@ -330,7 +326,6 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
             if confItem.factoryKey() == factoryKey:
                 self.cbWidgetType.setCurrentIndex(i)
                 break
-
 
     def changed(self) -> bool:
         """
@@ -364,7 +359,6 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
         Resets the widget to its initial status
         """
         if self.changed():
-
             self.setFactory(self.mInitialFactoryKey)
             self.currentEditorConfigWidget().setConfig(self.mInitialConf)
 
@@ -379,7 +373,6 @@ class LayerAttributeFormConfigEditorWidget(QWidget):
         self.stackedWidget.setCurrentIndex(index)
         fieldConfig = self.currentFieldConfig()
         if isinstance(fieldConfig, LayerAttributeFormConfigEditorWidget.ConfigInfo):
-
             self.sigChanged.emit(self)
 
 
@@ -387,6 +380,7 @@ class LayerAttributeFormConfigWidget(QpsMapLayerConfigWidget):
     """
     A widget to set QgsVectorLayer field settings
     """
+
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
@@ -401,14 +395,13 @@ class LayerAttributeFormConfigWidget(QpsMapLayerConfigWidget):
         self.treeView.selectionModel().currentRowChanged.connect(self.onSelectedFieldChanged)
         self.updateFieldWidgets()
 
-
-    def menuButtonMenu(self) ->QMenu:
+    def menuButtonMenu(self) -> QMenu:
         m = QMenu('Reset')
         a = m.addAction('Reset')
         a.triggered.connect(self.onReset)
         return m
 
-    def onSelectedFieldChanged(self, index1:QModelIndex, index2:QModelIndex):
+    def onSelectedFieldChanged(self, index1: QModelIndex, index2: QModelIndex):
         """
         Shows the widget for the selected QgsField
         :param index1:
@@ -420,14 +413,14 @@ class LayerAttributeFormConfigWidget(QpsMapLayerConfigWidget):
                 s = ""
             self.stackedWidget.setCurrentIndex(r)
 
-    def onScrollAreaResize(self, resizeEvent:QResizeEvent):
+    def onScrollAreaResize(self, resizeEvent: QResizeEvent):
         """
         Forces the stackedWidget's width to fit into the scrollAreas viewport
         :param resizeEvent: QResizeEvent
         """
         assert isinstance(resizeEvent, QResizeEvent)
         self.stackedWidget.setMaximumWidth(resizeEvent.size().width())
-        s =""
+        s = ""
 
     def onReset(self):
 
@@ -454,8 +447,6 @@ class LayerAttributeFormConfigWidget(QpsMapLayerConfigWidget):
             assert isinstance(w, LayerAttributeFormConfigEditorWidget)
             w.apply()
         self.onSettingsChanged()
-
-
 
     def updateFieldWidgets(self):
         """
@@ -511,6 +502,7 @@ class LayerAttributeFormConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def supportsStyleDock(self):
         return False
 
+
 class LayerFieldsConfigWidget(QpsMapLayerConfigWidget):
     """
     A widget to edit the fields of a QgsVectorLayer
@@ -543,7 +535,6 @@ class LayerFieldsConfigWidget(QpsMapLayerConfigWidget):
         self.actionFieldCalculator.setEnabled(False)
         self.actionFieldCalculator.setVisible(False)
 
-
         self.validate()
 
         lyr.editingStarted.connect(self.validate)
@@ -554,11 +545,9 @@ class LayerFieldsConfigWidget(QpsMapLayerConfigWidget):
         bEdit = isinstance(self.mapLayer(), QgsVectorLayer) and self.mapLayer().isEditable()
         bSelected = len(self.tableView.selectionModel().selectedRows()) > 0
 
-
         self.actionAddField.setEnabled(bEdit)
         self.actionRemoveField.setEnabled(bEdit and bSelected)
         self.actionToggleEditing.setChecked(bEdit)
-
 
     def onAddField(self):
         lyr = self.mapLayer()
@@ -585,7 +574,7 @@ class LayerFieldsConfigWidget(QpsMapLayerConfigWidget):
         else:
             if lyr.isModified():
                 result = QMessageBox.question(self, 'Leaving edit mode', 'Save changes?',
-                                          buttons=QMessageBox.No | QMessageBox.Yes, defaultButton=QMessageBox.Yes)
+                                              buttons=QMessageBox.No | QMessageBox.Yes, defaultButton=QMessageBox.Yes)
                 if result == QMessageBox.Yes:
                     if not lyr.commitChanges():
                         errors = lyr.commitErrors()
@@ -601,7 +590,8 @@ class LayerFieldsConfigWidget(QpsMapLayerConfigWidget):
         lyr = self.mapLayer()
         if not isinstance(lyr, QgsVectorLayer):
             return
-        indices = [self.mProxyModel.mapToSource(idx).data(QgsFieldModel.FieldIndexRole) for idx in self.tableView.selectionModel().selectedRows()]
+        indices = [self.mProxyModel.mapToSource(idx).data(QgsFieldModel.FieldIndexRole) for idx in
+                   self.tableView.selectionModel().selectedRows()]
 
         if not lyr.deleteAttributes(indices):
             errors = lyr.errors()
@@ -638,5 +628,3 @@ class LayerFieldsConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
 
     def supportsStyleDock(self):
         return False
-
-

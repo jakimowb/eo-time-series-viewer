@@ -1,0 +1,8 @@
+{
+  "name": "spectralMath",
+  "type": "function",
+  "description": "Create or modifies data of a SpectralProfile with python",
+  "arguments": [ {"arg":"expression","description":"a python expression to set the profile data"},
+                 {"arg":"field","description":"field to load existing spectral profile data from"}],
+  "examples": [ { "expression":"array_prepend(array(1,2,3),0)", "returns":"[ 0, 1, 2, 3 ]"}]
+}

@@ -31,13 +31,14 @@ import sys
 import sip
 import pathlib
 import collections
-from qgis.core import *
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsTaskManager, QgsApplication, QgsTask
 from qgis.gui import *
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtWidgets import *
 from osgeo import gdal
 from .utils import loadUi
 from . import DIR_UI_FILES
+
 
 # read https://gdal.org/user/raster_data_model.html#subdatasets-domain
 
@@ -54,6 +55,7 @@ class SubDatasetType(object):
         if not isinstance(other, SubDatasetType):
             return False
         return self.name == other.name
+
 
 class DatasetInfo(object):
 
@@ -122,16 +124,16 @@ class DatasetInfo(object):
             return False
         return self.mReferenceFile == other.mReferenceFile
 
-class SubDatasetLoadingTask(QgsTask):
 
+class SubDatasetLoadingTask(QgsTask):
     sigFoundSubDataSets = pyqtSignal(list)
     sigMessage = pyqtSignal(str, bool)
 
     def __init__(self,
                  files: typing.List[str],
                  description: str = "Collect subdata sets",
-                 callback = None,
-                 block_size : int = 10):
+                 callback=None,
+                 block_size: int = 10):
 
         super().__init__(description=description)
         self.mFiles = files
@@ -159,7 +161,7 @@ class SubDatasetLoadingTask(QgsTask):
                 result_block.clear()
             if self.isCanceled():
                 return False
-            self.setProgress(100 * (i+1) / n)
+            self.setProgress(100 * (i + 1) / n)
 
         if len(result_block) > 0:
             self.sigFoundSubDataSets.emit(result_block[:])
@@ -169,6 +171,7 @@ class SubDatasetLoadingTask(QgsTask):
 
         if self.mCallback is not None:
             self.mCallback(result, self)
+
 
 class SubDatasetDescriptionModel(QAbstractTableModel):
 
@@ -263,6 +266,7 @@ class SubDatasetDescriptionModel(QAbstractTableModel):
         if isinstance(checked, bool):
             subs = [s for s in subs if s.checked == checked]
         return subs
+
 
 class DatasetTableModel(QAbstractTableModel):
 
@@ -416,7 +420,7 @@ class SubDatasetSelectionDialog(QDialog):
         [descriptions.extend(i.subdataset_types()) for i in infos]
         self.subDatasetModel.addSubDatasetDescriptions(descriptions)
 
-    def startTask(self, qgsTask:QgsTask):
+    def startTask(self, qgsTask: QgsTask):
         self.setCursor(Qt.WaitCursor)
         self.fileWidget.setEnabled(False)
         self.fileWidget.lineEdit().setShowSpinner(True)
@@ -440,7 +444,7 @@ class SubDatasetSelectionDialog(QDialog):
         if isinstance(task, SubDatasetLoadingTask) and not sip.isdeleted(task):
             self.onRemoveTask(id(task))
 
-    def onTaskMessage(self, msg: str, is_error:bool):
+    def onTaskMessage(self, msg: str, is_error: bool):
         if is_error:
             print(msg, file=sys.stderr)
         self.setInfo(msg)
@@ -475,4 +479,3 @@ class SubDatasetSelectionDialog(QDialog):
         :param filter:
         """
         self.fileWidget.setFilter(filter)
-

@@ -326,19 +326,22 @@ class QgisMockup(QgisInterface):
         m = self.ui.menuBar().addAction('Add Vector')
         m = self.ui.menuBar().addAction('Add Raster')
 
-    def mapCanvas(self):
+    def mapCanvas(self) -> QgsMapCanvas:
         return self.mCanvas
+
+    def mapCanvases(self) -> typing.List[QgsMapCanvas]:
+        return [self.mCanvas]
 
     def mapNavToolToolBar(self) -> QToolBar:
         return self.mMapNavToolBar
 
-    def messageBar(self, *args, **kwargs):
+    def messageBar(self, *args, **kwargs) -> QgsMessageBar:
         return self.mMessageBar
 
-    def rasterMenu(self):
+    def rasterMenu(self) -> QMenu:
         return self.mRasterMenu
 
-    def vectorMenu(self):
+    def vectorMenu(self) -> QMenu:
         return self.mVectorMenu
 
     def viewMenu(self) -> QMenu:

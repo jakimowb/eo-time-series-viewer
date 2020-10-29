@@ -125,6 +125,21 @@ MDF_QGIS_LAYER_STYLE = 'application/qgis.style'
 MDF_TEXT_PLAIN = 'text/plain'
 
 
+class FieldListModel(QAbstractListModel):
+
+    def __init__(self, *args, layer:QgsVectorLayer=None, **kwds):
+
+        super().__init__(*args, **kwds)
+
+    def setLayer(self, layer:QgsVectorLayer):
+
+        self.mLayer = layer
+
+    def flags(self, index:QModelIndex):
+        pass
+
+
+
 class AddAttributeDialog(QDialog):
     """
     A dialog to set up a new QgsField.
@@ -159,6 +174,7 @@ class AddAttributeDialog(QDialog):
             assert isinstance(ntype, QgsVectorDataProvider.NativeType)
             o = Option(ntype, name=ntype.mTypeName, toolTip=ntype.mTypeDesc)
             self.typeModel.addOption(o)
+
         self.cbType.setModel(self.typeModel)
         self.cbType.currentIndexChanged.connect(self.onTypeChanged)
         l.addWidget(QLabel('Type'), 2, 0)
@@ -800,6 +816,7 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         assert isinstance(self.mOptionsStackedWidget, QStackedWidget)
         assert isinstance(lyr, QgsMapLayer)
         self.btnConfigWidgetMenu: QPushButton = QPushButton('<menu>')
+        self.btnConfigWidgetMenu.setVisible(False)
         assert isinstance(self.btnConfigWidgetMenu, QPushButton)
         self.mOptionsListWidget.currentRowChanged.connect(self.onPageChanged)
         self.mLayer: QgsMapLayer = lyr
@@ -822,6 +839,9 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         self.btnCancel: QPushButton = self.buttonBox.button(QDialogButtonBox.Cancel)
         self.btnOk: QPushButton = self.buttonBox.button(QDialogButtonBox.Ok)
 
+        self.btnHelp: QPushButton = self.buttonBox.button(QDialogButtonBox.Help)
+        # not connected
+        self.btnHelp.setVisible(False)
         s = ""
 
         assert isinstance(self.mOptionsListWidget, QListWidget)
@@ -854,7 +874,7 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
         menu = None
 
         if isinstance(page, QgsMapLayerConfigWidget):
-            # comes with QIS 3.12
+            # comes with QGIS 3.12
 
             if hasattr(page, 'menuButtonMenu'):
                 menu = page.menuButtonMenu()
@@ -1230,7 +1250,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
                 self.mActionSearchForm.setEnabled(False)
                 self.mActionSearchForm.setToolTip(tr("Search is not supported when using custom UI forms"))
 
-            self.editingToggled();
+            self.editingToggled()
 
         self._hide_unconnected_widgets()
 
@@ -1268,10 +1288,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.mMainView.openConditionalStyles()
 
     def mActionCutSelectedRows_triggered(self):
-
-        pass
-
-        # QgisApp:: instance() -> cutSelectionToClipboard(mLayer);
+        self.vectorLayerTools().cutSelectionToClipboard(self.mLayer)
 
     def mActionCopySelectedRows_triggered(self):
         self.vectorLayerTools().copySelectionToClipboard(self.mLayer)
@@ -1628,7 +1645,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         self.vectorLayerTools().panToSelected(self.mLayer)
 
     def mActionDeleteSelected_triggered(self):
-        self.vectorLayerTools().deleteSelected(self.mLayer)
+        self.vectorLayerTools().deleteSelection(self.mLayer)
 
     def reloadModel(self):
         """
