@@ -26,12 +26,11 @@ MAP_LAYER_STORES = [QgsProject.instance()]
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
 
-class LabelConfigurationKey(enum.Enum):
+class LabelConfigurationKey(object):
 
     ClassificationScheme = 'classificationScheme'
     LabelType = 'labelType'
     LabelGroup = 'labelGroup'
-
 
 class LabelShortcutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDate instance"""
@@ -46,6 +45,25 @@ class LabelShortcutType(enum.Enum):
     SourceImage = 'Source Image'
     # Classification = 'Classification'
 
+
+    @staticmethod
+    def fromConfValue(value: str):
+        for t in LabelShortcutType:
+            if value in [t.name, t.value]:
+                return t
+        return LabelShortcutType.Off
+
+
+    def confValue(self) -> str:
+        return self.name
+
+    def text(self) -> str:
+        return self.value
+
+
+
+    def __str__(self):
+        return str(self.name)
 
 def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     """
@@ -165,24 +183,39 @@ def quickLabelLayers() -> typing.List[QgsVectorLayer]:
     return layers
 
 
-def quickLayerFields(layer) -> typing.List[QgsField]:
+def quickLayerGroups(layer) -> typing.List[str]:
+    groups = set()
+    if isinstance(layer, list):
+        for l in layer:
+            groups.update(quickLayerGroups(l))
+    else:
+        for i, field in enumerate(layer.fields()):
+            setup = layer.editorWidgetSetup(i)
+            if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+                groups.add(setup.config().get(LabelConfigurationKey.LabelGroup, ''))
+    return sorted(groups)
+
+
+def quickLayerFieldSetup(layer, label_group: str = None) -> typing.List[QgsField]:
     fields = []
     if isinstance(layer, list):
         for l in layer:
-            fields.extend(quickLayerFields(l))
+            fields.extend(quickLayerFieldSetup(l))
     else:
-
-        m = QgsFieldModel()
-        m.setLayer(layer)
-
-        for i in range(m.rowCount(QModelIndex())):
-            idx = m.index(i, 0)
-            if idx.data(QgsFieldModel.EditorWidgetType) == EDITOR_WIDGET_REGISTRY_KEY:
-                fields.append(m.fields().at(i))
+        for i, field in enumerate(layer.fields()):
+            setup = layer.editorWidgetSetup(i)
+            if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
+                if isinstance(label_group, str):
+                    grp = setup.config().get(LabelConfigurationKey.LabelGroup, '')
+                    if grp != label_group:
+                        continue
+                fields.append(field)
     return fields
 
 
-def setQuickTSDLabelsForRegisteredLayers(tsd: TimeSeriesDate, tss: TimeSeriesSource, observation_index: int = None):
+def setQuickTSDLabelsForRegisteredLayers(tsd: TimeSeriesDate,
+                                         tss: TimeSeriesSource,
+                                         layer_group: str = ''):
     """
     :param tsd: TimeSeriesDate
     :param classInfos:
@@ -190,7 +223,7 @@ def setQuickTSDLabelsForRegisteredLayers(tsd: TimeSeriesDate, tss: TimeSeriesSou
     for layer in quickLabelLayers():
         assert isinstance(layer, QgsVectorLayer)
         if layer.isEditable():
-            setQuickTSDLabels(layer, tsd, tss, label_group=observation_index)
+            setQuickTSDLabels(layer, tsd, tss, label_group=layer_group)
 
 
 def setQuickClassInfo(vectorLayer: QgsVectorLayer, field, classInfo: ClassInfo):
@@ -240,64 +273,61 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
     if not vectorLayer.isEditable():
         return
     vectorLayer.beginEditCommand('Quick labels {}'.format(tsd.date()))
-
-    for i in range(vectorLayer.fields().count()):
-        setup = vectorLayer.editorWidgetSetup(i)
+    for field in quickLayerFieldSetup(vectorLayer, label_group=label_group):
+        assert isinstance(field, QgsField)
+        iField: int = vectorLayer.fields().lookupField(field.name())
+        assert iField >= 0
+        setup: QgsEditorWidgetSetup = vectorLayer.editorWidgetSetup(iField)
         assert isinstance(setup, QgsEditorWidgetSetup)
-        if setup.type() == EDITOR_WIDGET_REGISTRY_KEY:
-            field = vectorLayer.fields().at(i)
-            assert isinstance(field, QgsField)
-            fieldType = field.type()
-            conf = setup.config()
-            labelType = conf.get(LabelConfigurationKey.LabelType.value)
-            labelGroup = conf.get(LabelConfigurationKey.LabelType.LabelGroup)
-            if labelGroup != label_group:
-                continue
+        assert setup.type() == EDITOR_WIDGET_REGISTRY_KEY
 
-            if isinstance(labelType, LabelShortcutType):
-                value = None
+        fieldType = field.type()
+        conf = setup.config()
+        labelType: LabelShortcutType = LabelShortcutType.fromConfValue(conf.get(LabelConfigurationKey.LabelType))
 
-                if labelType == LabelShortcutType.Off:
-                    pass
+        value = None
 
-                elif labelType == LabelShortcutType.Sensor:
-                    value = tsd.sensor().name()
+        if labelType == LabelShortcutType.Off:
+            continue
 
-                elif labelType == LabelShortcutType.DOY:
-                    value = tsd.doy()
+        if labelType == LabelShortcutType.Sensor:
+            value = tsd.sensor().name()
 
-                elif labelType in [LabelShortcutType.Date, LabelShortcutType.DateTime]:
-                    if fieldType == QVariant.Date:
-                        value = QDate(tsd.date().astype(object))
-                    elif fieldType == QVariant.DateTime:
-                        value = QDateTime(tsd.date().astype(object))
-                    elif fieldType == QVariant.String:
-                        value = str(tsd.date())
+        elif labelType == LabelShortcutType.DOY:
+            value = tsd.doy()
 
-                elif labelType == LabelShortcutType.Year:
-                    year = tsd.date().astype(object).year
+        elif labelType in [LabelShortcutType.Date, LabelShortcutType.DateTime]:
+            if fieldType == QVariant.Date:
+                value = QDate(tsd.date().astype(object))
+            elif fieldType == QVariant.DateTime:
+                value = QDateTime(tsd.date().astype(object))
+            elif fieldType == QVariant.String:
+                value = str(tsd.date())
 
-                    if fieldType == QVariant.String:
-                        value = str(year)
-                    elif fieldType == QVariant.Date:
-                        value = QDate(year, 1, 1)
-                    elif fieldType == QVariant.DateTime:
-                        value = QDateTime(2000, 1, 1, 0, 0)
+        elif labelType == LabelShortcutType.Year:
+            year = tsd.date().astype(object).year
 
-                elif labelType == LabelShortcutType.DecimalYear:
-                    value = tsd.decimalYear()
+            if fieldType == QVariant.String:
+                value = str(year)
+            elif fieldType == QVariant.Date:
+                value = QDate(year, 1, 1)
+            elif fieldType == QVariant.DateTime:
+                value = QDateTime(2000, 1, 1, 0, 0)
 
-                elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
-                    value = tss.uri()
+        elif labelType == LabelShortcutType.DecimalYear:
+            value = tsd.decimalYear()
 
-                if value:
-                    if fieldType == QVariant.String:
-                        value = str(value)
+        elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
+            value = tss.uri()
 
-                    for feature in vectorLayer.selectedFeatures():
-                        assert isinstance(feature, QgsFeature)
-                        oldValue = feature.attribute(field.name())
-                        vectorLayer.changeAttributeValue(feature.id(), i, value, oldValue)
+        if value is not None:
+            if fieldType == QVariant.String:
+                value = str(value)
+
+            for feature in vectorLayer.selectedFeatures():
+                assert isinstance(feature, QgsFeature)
+                oldValue = feature.attribute(field.name())
+                vectorLayer.changeAttributeValue(feature.id(), iField, value, oldValue)
 
         vectorLayer.endEditCommand()
     pass
@@ -616,11 +646,16 @@ class LabelWidget(AttributeTableWidget):
             lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoPreviousFeature(lyr, vlt))
 
         self.mOptionSelectAddedFeatures = QAction('Select Added Features')
+        self.mOptionSelectAddedFeatures.setIcon(QIcon(r':/images/themes/default/mActionProcessSelected.svg'))
         self.mOptionSelectAddedFeatures.setCheckable(True)
         self.mOptionSelectAddedFeatures.setChecked(True)
 
         self.mToolbar: QToolBar
-        self.mToolbar.insertActions(self.mActionToggleEditing, [self.mActionPreviousFeature, self.mActionNextFeature])
+        self.mToolbar.insertActions(self.mActionToggleEditing,
+                                    [self.mActionPreviousFeature,
+                                     self.mActionNextFeature,
+                                     self.mOptionSelectAddedFeatures])
+
         self.mToolbar.insertSeparator(self.mActionToggleEditing)
 
         self.actionShowProperties = QAction('Show Layer Properties')
@@ -641,14 +676,11 @@ class LabelWidget(AttributeTableWidget):
         lastSelection: typing.List[int] = self.mLayer.selectedFeatureIds()
         if self.mOptionSelectAddedFeatures.isChecked():
             #lastSelection.append(fid)
-            self.mLayer.selectByIds([fid], QgsVectorLayer.AddtoSelect)
-
+            self.mLayer.selectByIds([fid], QgsVectorLayer.AddToSelection)
 
     def showProperties(self, *args):
-
         showLayerPropertiesDialog(self.mLayer, None, parent=self, useQGISDialog=True)
 
-        s = ""
 
 class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
 
@@ -672,6 +704,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.cbLabelGroup.currentIndexChanged.connect(self.changed.emit)
         self.btnAddGroup.setDefaultAction(self.actionAddGroup)
         self.actionAddGroup.triggered.connect(self.onAddGroup)
+
+        #self.setConfig(vl.editorWidgetSetup(fieldIdx).config())
         self.mLastConfig = {}
 
     def onAddGroup(self):
@@ -694,15 +728,28 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.cbLabelGroup.setModel(model)
 
     def config(self, *args, **kwargs) -> dict:
+        """
+        Return the widget configuration
+        :param args:
+        :type args:
+        :param kwargs:
+        :type kwargs:
+        :return:
+        :rtype:
+        """
+        conf = createWidgetConf(self.cbLabelType.currentData(),
+                                group=self.cbLabelGroup.currentText())
 
-        conf = dict()
-        conf[LabelConfigurationKey.LabelType.value] = self.cbLabelType.currentData()
+        grp = conf.get(LabelConfigurationKey.LabelGroup, '')
+        # add group to group model to share it with other LabelShortcutEditorConfigWidgets
+        self.addLabelGroup(grp)
+        return conf
 
-        grp: str = self.cbLabelGroup.currentText()
-        conf[LabelConfigurationKey.LabelGroup.value] = grp
+    def addLabelGroup(self, grp: str):
 
-        m = self.cbLabelGroup.model()
-        if isinstance(m, QStandardItemModel) and grp not in ['',  None]:
+        m: QStandardItemModel = self.cbLabelGroup.model()
+
+        if grp not in ['', None] and isinstance(m, QStandardItemModel):
             exists = False
             for r in range(m.rowCount()):
                 item = m.item(r)
@@ -712,25 +759,51 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
             if not exists:
                 m.appendRow(QStandardItem(grp))
 
-        return conf
+    def setLabelGroup(self, grp):
+
+        if grp is None:
+            grp = ''
+        else:
+            grp = str(grp).strip()
+
+        i = self.cbLabelGroup.findText(grp)
+        if i == -1 and grp != '':
+            self.addLabelGroup(grp)
+            i = self.cbLabelGroup.findText(grp)
+
+        if i >= 0:
+            self.cbLabelGroup.setCurrentIndex(i)
+            s = ""
+        else:
+            self.cbLabelGroup.setCurrentText(grp)
+
+    def fieldName(self) -> str:
+        field = self.layer().fields().at(self.field())
+        return field.name()
 
     def setConfig(self, config: dict):
         self.mLastConfig = config
-        labelType: LabelShortcutType = config.get(LabelConfigurationKey.LabelType.value, LabelShortcutType.Off)
-        labelGroup: str = config.get(LabelConfigurationKey.LabelGroup.value, '')
+        if len(config) > 0:
+            s = ""
 
+        labelType: LabelShortcutType = LabelShortcutType.fromConfValue(
+                                            config.get(LabelConfigurationKey.LabelType, None)
+                                       )
+
+        assert isinstance(labelType, LabelShortcutType)
+        labelGroup: str = config.get(LabelConfigurationKey.LabelGroup, '')
         if labelType not in self.mAllowedShortCuts:
             labelType = self.mAllowedShortCuts[0]
 
         i = self.cbLabelType.findData(labelType)
         self.cbLabelType.setCurrentIndex(i)
-        self.cbLabelGroup.setCurrentText(labelGroup)
+        self.setLabelGroup(labelGroup)
+        grp2 = self.cbLabelGroup.currentText()
+        if grp2 != labelGroup:
+            s = ""
 
     def onIndexChanged(self, *args):
         self.changed.emit()
-
-    def shortcutType(self) -> LabelShortcutType:
-        return self.cbLabelType.currentData(Qt.UserRole)
 
 
 class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
@@ -807,7 +880,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         if isinstance(editor, QLineEdit):
             value = editor.text()
             dt64 = datetime64(value)
-            if isinstance(dt64, np.datetime64):
+            if isinstance(dt64, np.datetime64) and np.isfinite(dt64):
                 if typeCode == QVariant.DateTime:
                     return QDateTime(dt64.astype(object))
                 elif typeCode == QVariant.Date:
@@ -860,23 +933,52 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             elif isinstance(w, QgsDateTimeEdit):
                 w.setDateTime(QDateTime(value))
             elif isinstance(w, (QgsSpinBox, QgsDoubleSpinBox)):
-                w.setValue(w)
+                w.setValue(value)
             elif isinstance(w, QLineEdit):
-                w.setText(str(w))
+                w.setText(str(value))
             else:
                 s = ""
+
+
+def createWidgetConf(labelType: LabelShortcutType,
+                     group: str = None) -> typing.Dict[str, str]:
+
+    assert isinstance(labelType, LabelShortcutType)
+    if group is None:
+        group = ''
+    group = str(group).strip()
+
+    conf = {LabelConfigurationKey.LabelType: labelType.confValue()}
+    if group != '':
+        conf[LabelConfigurationKey.LabelGroup] = group
+    return conf
+
+
+def createWidgetSetup(labelType: LabelShortcutType,
+                      group: str = None
+                      ) -> QgsEditorWidgetSetup:
+
+    conf = createWidgetConf(labelType, group)
+    return QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, conf)
 
 
 class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
     """
     A QgsEditorWidgetFactory to create widgets for EOTSV Quick Labeling
     """
+    @staticmethod
+    def instance():
+        return QgsGui.editorWidgetRegistry().factory(EDITOR_WIDGET_REGISTRY_KEY)
+
+
+    @staticmethod
+    def createWidgetSetup(*args, **kwds) -> QgsEditorWidgetSetup:
+        return createWidgetSetup(*args, **kwds)
 
     def __init__(self, name: str):
 
         super(LabelShortcutWidgetFactory, self).__init__(name)
 
-        self.mConfigurations = {}
         self.mLabelGroupModel: QStandardItemModel = QStandardItemModel()
         self.mLabelGroupModel.appendRow(QStandardItem(''))
 
@@ -894,20 +996,8 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
 
         w = LabelShortcutEditorConfigWidget(layer, fieldIdx, parent)
         w.setLayerGroupModel(self.mLabelGroupModel)
-
-        #key = self.configKey(layer, fieldIdx)
-        #w.setConfig(self.readConfig(key))
-        #w.changed.connect(lambda: self.writeConfig(key, w.config()))
+        w.setConfig(layer.editorWidgetSetup(fieldIdx).config())
         return w
-
-    def configKey(self, layer: QgsVectorLayer, fieldIdx: int):
-        """
-        Returns a tuple to be used as dictionary key to identify a layer field configuration.
-        :param layer: QgsVectorLayer
-        :param fieldIdx: int
-        :return: (str, int)
-        """
-        return (layer.id(), fieldIdx)
 
     def create(self, layer: QgsVectorLayer, fieldIdx: int, editor: QWidget,
                parent: QWidget) -> LabelShortcutEditorWidgetWrapper:
@@ -921,27 +1011,7 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
         """
         w = LabelShortcutEditorWidgetWrapper(layer, fieldIdx, editor, parent)
 
-        #w.setConfig(self.readConfig(self.configKey(layer, fieldIdx)))
         return w
-
-    def writeConfig(self, key: tuple, config: dict):
-        """
-        :param key: tuple (str, int), as created with .configKey(layer, fieldIdx)
-        :param config: dict with config values
-        """
-        self.mConfigurations[key] = config
-
-    def readConfig(self, key: tuple):
-        """
-        :param key: tuple (str, int), as created with .configKey(layer, fieldIdx)
-        :return: {}
-        """
-        if key in self.mConfigurations.keys():
-            conf = self.mConfigurations[key]
-        else:
-            # return the very default configuration
-            conf = {}
-        return conf
 
     def fieldScore(self, vl: QgsVectorLayer, fieldIdx: int) -> int:
         """

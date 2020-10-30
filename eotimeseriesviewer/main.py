@@ -1059,9 +1059,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
-    def onShowLayerProperties(self):
+    def onShowLayerProperties(self, lyr=None):
+        if not isinstance(lyr, QgsMapLayer):
+            lyr = self.currentLayer()
 
-        lyr = self.currentLayer()
         if isinstance(lyr, (QgsVectorLayer, QgsRasterLayer)):
             from .externals.qps.layerproperties import showLayerPropertiesDialog
             showLayerPropertiesDialog(lyr, self, useQGISDialog=True)

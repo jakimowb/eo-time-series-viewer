@@ -34,7 +34,7 @@ from qgis.PyQt.QtCore import QSize, QDate, QDateTime, QDir, QFile, QMimeData, py
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEnhancement, \
     QgsDateTimeRange, QgsProject, QgsTextRenderer, QgsApplication, QgsCoordinateReferenceSystem, \
     QgsMapToPixel, QgsRenderContext, QgsMapSettings, QgsRasterRenderer, \
-    QgsRasterBandStats, QgsPalettedRasterRenderer, QgsPointXY, \
+    QgsRasterBandStats, QgsPalettedRasterRenderer, QgsPointXY, Qgis, \
     QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsRasterLayerTemporalProperties, QgsRasterDataProvider, \
     QgsTextFormat, QgsMapLayerStore, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, QgsField, \
     QgsRectangle, QgsPolygon, QgsMultiBandColorRenderer, QgsRectangle, QgsSingleBandGrayRenderer, \
@@ -53,7 +53,7 @@ from .externals.qps.maptools import QgsMapToolSelectionHandler, \
     CursorLocationMapTool, QgsMapToolAddFeature, \
     SpectralProfileMapTool, TemporalProfileMapTool, MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, QgsMapToolSelect
 from .externals.qps.utils import SpatialExtent, SpatialPoint
-from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers, quickLayerFields
+from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers, quickLayerFieldSetup
 from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
 import eotimeseriesviewer.settings
 
@@ -394,6 +394,10 @@ class MapCanvas(QgsMapCanvas):
         super(MapCanvas, self).__init__(parent=parent)
         self.setProperty(KEY_LAST_CLICKED, time.time())
         self.mMapLayerStore: QgsProject = QgsProject.instance()
+
+        if Qgis.QGIS_VERSION >= '3.16':
+            self.contextMenuAboutToShow.connect(self.createContextMenu)
+
 
         self.mMapTools = None
         self.initMapTools()
@@ -883,12 +887,14 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.grab()
 
-    def contextMenu(self, pos: QPoint) -> QMenu:
+    def createContextMenu(self, menu: QMenu, pos: QPoint):
         """
         Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
         :return: QMenu
         """
+        assert isinstance(menu, QMenu)
+
         mapSettings = self.mapSettings()
         assert isinstance(mapSettings, QgsMapSettings)
 
@@ -915,8 +921,6 @@ class MapCanvas(QgsMapCanvas):
         if len(viewPortSensorLayers) > 0:
             refSensorLayer = viewPortSensorLayers[0]
 
-        menu = QMenu()
-
         if isinstance(self.tsd(), TimeSeriesDate):
             tss = None
             sourceUris = self.tsd().sourceUris()
@@ -938,28 +942,32 @@ class MapCanvas(QgsMapCanvas):
             reg = QgsGui.editorWidgetRegistry()
             factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
             observation_indices = []
-            for layer in lyrWithSelectedFeatures:
-                for field in quickLayerFields(layer):
-                    config = layer.editorWidgetSetup(layer.fields().lookupField(field.name())).config()
+            from .labeling import layerClassSchemes, setQuickClassInfo, LabelShortcutType, LabelConfigurationKey, quickLayerGroups
 
-
-                s = ""
-
-            a = m.addAction('Set Date/Sensor attributes')
-            a.setToolTip('Writes the dates and sensor quick labels of selected features in {}.'.format(layerNames))
-            a.triggered.connect(lambda *args,
-                                       tsd=self.tsd(),
-                                       tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss))
-
-            from .labeling import layerClassSchemes, setQuickClassInfo
             if len(lyrWithSelectedFeatures) == 0:
                 a = m.addAction('No features selected.')
                 a.setToolTip('Select feature in the labeling panel to apply Quick label value on.')
                 a.setEnabled(False)
             else:
+                quickLabelGroups = quickLayerGroups(lyrWithSelectedFeatures)
+                for grp in quickLabelGroups:
+
+                    if grp == '':
+                        grp_info = ''
+                        grp_info_tt = ''
+                    else:
+                        grp_info = f'"{grp}"'
+                        grp_info_tt = f' from group "{grp}"'
+
+                    a = m.addAction(f'Set Date/Sensor attributes {grp_info}'.strip())
+                    a.setToolTip(
+                        f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
+                    a.triggered.connect(lambda *args,
+                                               tsd=self.tsd(),
+                                               tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss, layer_group=grp))
+
                 for layer in lyrWithSelectedFeatures:
                     assert isinstance(layer, QgsVectorLayer)
-
                     csf = layerClassSchemes(layer)
                     if len(csf) > 0:
                         m.addSection(layer.name())
@@ -967,7 +975,7 @@ class MapCanvas(QgsMapCanvas):
                             assert isinstance(cs, ClassificationScheme)
                             assert isinstance(field, QgsField)
 
-                            classMenu = m.addMenu('"{}" ({})'.format(field.name(), field.typeName()))
+                            classMenu = m.addMenu('{}:"{}":{}'.format(layer.name(), field.name(), field.typeName()))
                             for classInfo in cs:
                                 assert isinstance(classInfo, ClassInfo)
                                 a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))
@@ -1197,8 +1205,6 @@ class MapCanvas(QgsMapCanvas):
             action = menu.addAction('Remove Date')
             action.triggered.connect(lambda *args,: ts.removeTSDs([tsd]))
 
-        return menu
-
     def onSetLayerProperties(self, lyr: QgsRasterLayer):
         showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
         # if isinstance(lyr, SensorProxyLayer):
@@ -1251,10 +1257,14 @@ class MapCanvas(QgsMapCanvas):
         Create and shows the MapCanvas context menu.
         :param event: QEvent
         """
-        assert isinstance(event, QContextMenuEvent)
-        if not isinstance(self.mapTool(), QgsMapToolCapture):
-            menu = self.contextMenu(event.pos())
-            menu.exec_(event.globalPos())
+
+        if Qgis.QGIS_VERSION >= '3.16':
+            super(MapCanvas, self).contextMenuEvent(event)
+        else:
+            if not isinstance(self.mapTool(), QgsMapToolCapture):
+                menu = QMenu()
+                self.createContextMenu(menu, event.pos())
+                menu.exec_(event.globalPos())
 
     def addLayers2QGIS(self, mapLayers):
         import qgis.utils
