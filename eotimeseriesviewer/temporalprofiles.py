@@ -27,6 +27,7 @@ import re
 import typing
 import pathlib
 import traceback
+import uuid
 from collections import OrderedDict
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsDateTimeRange, \
@@ -35,7 +36,7 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOut
     QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform, QgsFeatureRequest, \
     QgsVectorLayerCache, QgsVectorFileWriter, \
     QgsConditionalStyle, QgsConditionalLayerStyles, \
-    QgsField, QgsFields, QgsExpressionContext, QgsExpression
+    QgsField, QgsFields, QgsExpressionContext, QgsExpression, QgsFileUtils
 
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface, \
@@ -580,53 +581,62 @@ class TemporalProfileLayer(QgsVectorLayer):
     sigMaxProfilesChanged = pyqtSignal(int)
     sigTemporalProfilesUpdated = pyqtSignal(list)
 
-    def __init__(self, uri=None, name='Temporal Profiles'):
+    def __init__(self,
+                 path: str = None,
+                 baseName: str = 'Temporal Profiles',
+                 options: QgsVectorLayer.LayerOptions = None,
+                 ):
 
-        lyrOptions = QgsVectorLayer.LayerOptions(loadDefaultStyle=False, readExtentFromXml=False)
+        if isinstance(path, pathlib.Path):
+            path = path.as_posix()
 
-        if uri is None:
+        if not isinstance(options, QgsVectorLayer.LayerOptions):
+            options = QgsVectorLayer.LayerOptions(loadDefaultStyle=True, readExtentFromXml=True)
+
+        if path is None:
             # create a new, empty backend
-            # existing_vsi_files = vsiSpeclibs()
-            existing_vsi_files = []
-            # todo:
-            assert isinstance(existing_vsi_files, list)
-            i = 0
-            _name = name.replace(' ', '_')
-            uri = (pathlib.Path(VSI_DIR) / '{}.gpkg'.format(_name)).as_posix()
-            while not ogr.Open(uri) is None:
-                i += 1
-                uri = (pathlib.Path(VSI_DIR) / '{}{:03}.gpkg'.format(_name, i)).as_posix()
+            baseName2 = QgsFileUtils.stringToSafeFilename(baseName)
+            baseName2 = re.sub(r'\W', '_', baseName2)
+            while True:
+                path = pathlib.PurePosixPath(VSI_DIR) / f'{baseName2}.{uuid.uuid4()}.gpkg'
+                path = path.as_posix().replace('\\', '/')
+                stats = gdal.VSIStatL(path)
+                if not isinstance(stats, gdal.StatBuf):
+                    break
 
             drv = ogr.GetDriverByName('GPKG')
-            assert isinstance(drv, ogr.Driver)
+            missingGPKGInfo = \
+                "Your GDAL/OGR installation does not support the GeoPackage (GPKG) vector driver " + \
+                "(https://gdal.org/drivers/vector/gpkg.html).\n" + \
+                "Linux users might need to install libsqlite3."
+            assert isinstance(drv, ogr.Driver), missingGPKGInfo
+
             co = ['VERSION=AUTO']
-            dsSrc = drv.CreateDataSource(uri, options=co)
+            dsSrc = drv.CreateDataSource(path, options=co)
             assert isinstance(dsSrc, ogr.DataSource)
             srs = osr.SpatialReference()
             srs.ImportFromEPSG(4326)
             co = ['GEOMETRY_NAME=geom',
                   'GEOMETRY_NULLABLE=YES',
-                  'FID={}'.format(FN_ID)
+                  # 'FID=fid'
                   ]
 
-            lyr = dsSrc.CreateLayer(name, srs=srs, geom_type=ogr.wkbPoint, options=co)
+            lyr = dsSrc.CreateLayer(baseName, srs=srs, geom_type=ogr.wkbPoint, options=co)
 
             assert isinstance(lyr, ogr.Layer)
             ldefn = lyr.GetLayerDefn()
             assert isinstance(ldefn, ogr.FeatureDefn)
-            dsSrc.FlushCache()
-        else:
-            dsSrc = ogr.Open(uri)
-            assert isinstance(dsSrc, ogr.DataSource)
-            names = [dsSrc.GetLayerByIndex(i).GetName() for i in range(dsSrc.GetLayerCount())]
-            i = names.index(name)
-            lyr = dsSrc.GetLayer(i)
 
+            try:
+                dsSrc.FlushCache()
+            except RuntimeError as rt:
+                if 'failed: no such module: rtree' in str(rt):
+                    pass
+                else:
+                    raise rt
 
-        # consistency check
-        uri2 = '{}|{}'.format(dsSrc.GetName(), lyr.GetName())
-        assert QgsVectorLayer(uri2).isValid()
-        super(TemporalProfileLayer, self).__init__(uri2, name, 'ogr', lyrOptions)
+        assert isinstance(path, str)
+        super(TemporalProfileLayer, self).__init__(path, baseName, 'ogr', options)
 
 
         """
