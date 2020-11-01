@@ -236,6 +236,9 @@ class CursorLocationMapTool(QgsMapToolEmitPoint):
         self.marker.setIconType(QgsVertexMarker.ICON_CROSS)  # or ICON_CROSS, ICON_X
         self.hideRubberband()
 
+    def flags(self) -> QgsMapTool.Flags:
+        return QgsMapTool.ShowContextMenu
+
     def setMouseButtons(self, listOfButtons):
         assert isinstance(listOfButtons)
         self.mButtons = listOfButtons
@@ -311,14 +314,19 @@ class MapToolCenter(CursorLocationMapTool):
         :type canvas: QgsMapCanvas
         """
         super(MapToolCenter, self).__init__(canvas)
-        self.sigLocationRequest.connect(self.setMapCenter)
+        self.sigLocationRequest[QgsCoordinateReferenceSystem, QgsPointXY].\
+            connect(lambda crs, pt: self.setMapCenter(SpatialPoint(crs, pt)))
+
+    def flags(self) -> QgsMapTool.Flags:
+        return QgsMapTool.ShowContextMenu
 
     def setMapCenter(self, point: SpatialPoint):
         """
         Call to center the linked QgsMapCanvas to a point
         :param point: SpatialPoint to center the map canvas to.
         """
-        point = point.toCrs(self.canvas().destinationCrs())
+        assert isinstance(point, SpatialPoint)
+        point = point.toCrs(self.canvas().mapSettings().destinationCrs())
         if isinstance(point, SpatialPoint):
             self.canvas().setCenter(point)
             self.canvas().refresh()
@@ -336,12 +344,11 @@ class PixelScaleExtentMapTool(QgsMapTool):
         self.setCursor(self.mCursor)
         canvas.setCursor(self.mCursor)
 
-    def flags(self):
+    def flags(self) -> QgsMapTool.Flags:
         """
-
         :return:
         """
-        return QgsMapTool.Transient
+        return QgsMapTool.Transient | QgsMapTool.ShowContextMenu
 
     def canvasReleaseEvent(self, mouseEvent: QgsMapMouseEvent):
         """
@@ -385,7 +392,7 @@ class FullExtentMapTool(QgsMapTool):
         self.canvas().zoomToFullExtent()
 
     def flags(self):
-        return QgsMapTool.Transient
+        return QgsMapTool.Transient | QgsMapTool.ShowContextMenu
 
 
 class PointLayersMapTool(CursorLocationMapTool):
@@ -396,6 +403,8 @@ class PointLayersMapTool(CursorLocationMapTool):
         self.identifyMode = QgsMapToolIdentify.LayerSelection
         QgsMapToolIdentify.__init__(self, canvas)
 
+    def flags(self) -> QgsMapTool.Flags:
+        return QgsMapTool.ShowContextMenu
 
 class SpatialExtentMapTool(QgsMapToolEmitPoint):
     """
@@ -409,6 +418,9 @@ class SpatialExtentMapTool(QgsMapToolEmitPoint):
         self.rubberBand = QgsRubberBand(self.canvas(), QgsWkbTypes.PolygonGeometry)
         self.setStyle(Qt.red, 1)
         self.reset()
+
+    def flags(self) -> QgsMapTool.Flags:
+        return QgsMapTool.ShowContextMenu
 
     def setStyle(self, color: QColor, width: int):
         """
@@ -485,6 +497,9 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.rubberBand.setColor(Qt.red)
         self.rubberBand.setWidth(1)
         self.reset()
+
+    def flags(self) -> QgsMapTool:
+        return QgsMapTool.ShowContextMenu
 
     def reset(self):
         self.startPoint = self.endPoint = None
@@ -1722,6 +1737,9 @@ class QgsMapToolSelect(QgsMapTool):
                                                             QgsMapToolSelectionHandler.SelectionMode.SelectSimple)
         self.mSelectionHandler.geometryChanged.connect(self.selectFeatures)
         self.setSelectionMode(QgsMapToolSelectionHandler.SelectionMode.SelectSimple)
+
+    def flags(self) -> QgsMapTool.Flags:
+        return QgsMapTool.ShowContextMenu
 
     def setSelectionMode(self, selectionMode: QgsMapToolSelectionHandler.SelectionMode):
         self.mSelectionHandler.setSelectionMode(selectionMode)

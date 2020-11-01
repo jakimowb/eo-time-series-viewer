@@ -320,7 +320,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertIsInstance(mv, MapView)
         for l in mv.layers():
             eotsv.setCurrentLayer(l)
-            mv.mMapLayerTreeViewMenuProvider.createContextMenu()
+            mv.mMapLayerTreeViewMenuProvider.populateContextMenu()
 
     def test_renderer(self):
         styleFiles = file_search(os.path.dirname(__file__), 'style*.txt')

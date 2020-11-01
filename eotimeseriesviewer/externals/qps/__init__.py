@@ -27,10 +27,11 @@
 import pathlib
 import sys
 import typing
-
-from qgis.core import QgsApplication
+import warnings
+from qgis.core import QgsApplication, Qgis
 from qgis.gui import QgsMapLayerConfigWidgetFactory
 
+MIN_QGIS_VERSION = '3.14'
 __version__ = '1.0'
 
 DIR_QPS = pathlib.Path(__file__).parent
@@ -40,6 +41,8 @@ QPS_RESOURCE_FILE = DIR_QPS / 'qpsresources_rc.py'
 
 MAPLAYER_CONFIGWIDGET_FACTORIES = list()
 
+if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
+    warnings.warn(f'Your QGIS is outdated. Please update to QGIS >= {MIN_QGIS_VERSION}', RuntimeWarning)
 
 def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
