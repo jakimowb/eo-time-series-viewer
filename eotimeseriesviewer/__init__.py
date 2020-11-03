@@ -116,11 +116,12 @@ def initAll():
     Calls all required init routines
     :return:
     """
+    # resources first, as we need the icon resource paths!
+    initResources()
+
     from .externals.qps import registerEditorWidgets, registerMapLayerConfigWidgetFactories
     registerEditorWidgets()
     registerMapLayerConfigWidgetFactories()
-
-    initResources()
 
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
