@@ -110,34 +110,21 @@ def initResources():
     from eotimeseriesviewer.externals.qps.resources import initQtResources
     initQtResources(pathlib.Path(__file__).parent)
 
-def initMapLayerConfigWidgetFactories():
-
-    from .externals.qps import \
-        registerMapLayerConfigWidgetFactories, \
-        mapLayerConfigWidgetFactories, \
-        registerMapLayerConfigWidgetFactory
-    from .labeling import registerLabelShortcutEditorWidget
-    registerMapLayerConfigWidgetFactories()
-    for factory in mapLayerConfigWidgetFactories():
-        qgis.utils.iface.registerMapLayerConfigWidgetFactory(factory)
-
-def initEditorWidgets():
-    """
-    Initialises QgsEditorWidgets
-    """
-    debugLog('initEditorWidgets')
-    import eotimeseriesviewer.externals.qps as qps
-    qps.registerEditorWidgets()
-
 
 def initAll():
     """
     Calls all required init routines
     :return:
     """
+    from .externals.qps import registerEditorWidgets, registerMapLayerConfigWidgetFactories
+    registerEditorWidgets()
+    registerMapLayerConfigWidgetFactories()
+
     initResources()
-    initEditorWidgets()
-    initMapLayerConfigWidgetFactories()
+
+    from .labeling import registerLabelShortcutEditorWidget
+    registerLabelShortcutEditorWidget()
+
 
 def icon() -> QIcon:
     """

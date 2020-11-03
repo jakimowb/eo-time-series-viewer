@@ -40,7 +40,7 @@ DIR_UI_FILES = DIR_QPS / 'ui'
 DIR_ICONS = DIR_UI_FILES / 'icons'
 QPS_RESOURCE_FILE = DIR_QPS / 'qpsresources_rc.py'
 
-MAPLAYER_CONFIGWIDGET_FACTORIES: typing.List[QgsMapLayerConfigWidgetFactory] = list()
+MAPLAYER_CONFIGWIDGET_FACTORIES: typing.Dict[str, QgsMapLayerConfigWidgetFactory] = dict()
 
 if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
     warnings.warn(f'Your QGIS ({Qgis.QGIS_VERSION}) is outdated. '
@@ -57,8 +57,8 @@ def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory)
     """
     global MAPLAYER_CONFIGWIDGET_FACTORIES
     assert isinstance(factory, QgsMapLayerConfigWidgetFactory)
-    if factory not in MAPLAYER_CONFIGWIDGET_FACTORIES:
-        MAPLAYER_CONFIGWIDGET_FACTORIES.append(factory)
+    if factory.title() not in MAPLAYER_CONFIGWIDGET_FACTORIES.keys():
+        MAPLAYER_CONFIGWIDGET_FACTORIES[factory.title()] = factory
         qgis.utils.iface.registerMapLayerConfigWidgetFactory(factory)
 
 
@@ -72,9 +72,10 @@ def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactor
     """
     global MAPLAYER_CONFIGWIDGET_FACTORIES
     assert isinstance(factory, QgsMapLayerConfigWidgetFactory)
-    while factory in MAPLAYER_CONFIGWIDGET_FACTORIES:
-        MAPLAYER_CONFIGWIDGET_FACTORIES.remove(factory)
+    if factory.title() in MAPLAYER_CONFIGWIDGET_FACTORIES.keys():
+        MAPLAYER_CONFIGWIDGET_FACTORIES.pop(factory.title())
         qgis.utils.iface.unregisterMapLayerConfigWidgetFactory(factory)
+
 
 def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
     """
@@ -82,7 +83,8 @@ def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactor
     :return: list of QgsMapLayerConfigWidgetFactories
     :rtype:
     """
-    return MAPLAYER_CONFIGWIDGET_FACTORIES[:]
+    global MAPLAYER_CONFIGWIDGET_FACTORIES
+    return list(MAPLAYER_CONFIGWIDGET_FACTORIES.values())
 
 
 def registerEditorWidgets():
