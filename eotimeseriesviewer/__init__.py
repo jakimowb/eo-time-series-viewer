@@ -101,7 +101,6 @@ def messageLog(msg, level=Qgis.Info):
     """
     QgsApplication.instance().messageLog().logMessage(msg, LOG_MESSAGE_TAG, level)
 
-
 def initResources():
     """
     Loads (or reloads) required Qt resources
@@ -111,6 +110,16 @@ def initResources():
     from eotimeseriesviewer.externals.qps.resources import initQtResources
     initQtResources(pathlib.Path(__file__).parent)
 
+def initMapLayerConfigWidgetFactories():
+
+    from .externals.qps import \
+        registerMapLayerConfigWidgetFactories, \
+        mapLayerConfigWidgetFactories, \
+        registerMapLayerConfigWidgetFactory
+    from .labeling import registerLabelShortcutEditorWidget
+    registerMapLayerConfigWidgetFactories()
+    for factory in mapLayerConfigWidgetFactories():
+        qgis.utils.iface.registerMapLayerConfigWidgetFactory(factory)
 
 def initEditorWidgets():
     """
@@ -128,7 +137,7 @@ def initAll():
     """
     initResources()
     initEditorWidgets()
-
+    initMapLayerConfigWidgetFactories()
 
 def icon() -> QIcon:
     """

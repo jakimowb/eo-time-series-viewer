@@ -964,7 +964,9 @@ class MapCanvas(QgsMapCanvas):
                         f'Writes dates/sensor information to selected features in layer(s): {layerNames}.')
                     a.triggered.connect(lambda *args,
                                                tsd=self.tsd(),
-                                               tss=tss: setQuickTSDLabelsForRegisteredLayers(tsd, tss, layer_group=grp))
+                                               layer_group=grp,
+                                               tss=tss:
+                                        setQuickTSDLabelsForRegisteredLayers(tsd, tss, layer_group=layer_group))
 
                 for layer in lyrWithSelectedFeatures:
                     assert isinstance(layer, QgsVectorLayer)
