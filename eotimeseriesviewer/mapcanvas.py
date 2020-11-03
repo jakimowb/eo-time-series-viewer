@@ -43,7 +43,7 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEn
 from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInputWidget, \
     QgsAdvancedDigitizingDockWidget, QgsMapCanvasItem, \
     QgsMapTool, QgsMapToolPan, QgsMapToolZoom, QgsMapToolCapture, QgsMapToolIdentify, \
-    QgsGeometryRubberBand
+    QgsGeometryRubberBand, QgsMapMouseEvent
 
 
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
@@ -396,7 +396,7 @@ class MapCanvas(QgsMapCanvas):
         self.mMapLayerStore: QgsProject = QgsProject.instance()
 
         if Qgis.QGIS_VERSION >= '3.16':
-            self.contextMenuAboutToShow.connect(self.createContextMenu)
+            self.contextMenuAboutToShow.connect(self.populateContextMenu)
 
 
         self.mMapTools = None
@@ -887,7 +887,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.grab()
 
-    def createContextMenu(self, menu: QMenu, pos: QPoint):
+    def populateContextMenu(self, menu: QMenu, pos: QPoint):
         """
         Creates the MapCanvas context menu with options relevant for pixel position ``pos``.
         :param pos: QPoint
@@ -1252,19 +1252,22 @@ class MapCanvas(QgsMapCanvas):
             r.setInput(proxyLayer.dataProvider())
             proxyLayer.setRenderer(r)
 
-    def contextMenuEvent(self, event: QContextMenuEvent):
-        """
-        Create and shows the MapCanvas context menu.
-        :param event: QEvent
-        """
-
+    def mousePressEvent(self, event: QMouseEvent):
         if Qgis.QGIS_VERSION >= '3.16':
-            super(MapCanvas, self).contextMenuEvent(event)
+            super(MapCanvas, self).mousePressEvent(event)
         else:
-            if not isinstance(self.mapTool(), QgsMapToolCapture):
-                menu = QMenu()
-                self.createContextMenu(menu, event.pos())
-                menu.exec_(event.globalPos())
+            if event.button() == Qt.RightButton:
+                mt: QgsMapTool = self.mapTool()
+
+                if isinstance(mt, QgsMapTool):
+
+                    if bool(mt.flags() & QgsMapTool.ShowContextMenu):
+                        menu = QMenu()
+                        mt.populateContextMenu(menu)
+                        self.populateContextMenu(menu, event.pos())
+                        menu.exec_(event.globalPos())
+                        return
+            super().mousePressEvent(event)
 
     def addLayers2QGIS(self, mapLayers):
         import qgis.utils
