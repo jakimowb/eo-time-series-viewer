@@ -42,7 +42,9 @@ QPS_RESOURCE_FILE = DIR_QPS / 'qpsresources_rc.py'
 MAPLAYER_CONFIGWIDGET_FACTORIES = list()
 
 if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
-    warnings.warn(f'Your QGIS is outdated. Please update to QGIS >= {MIN_QGIS_VERSION}', RuntimeWarning)
+    warnings.warn(f'Your QGIS ({Qgis.QGIS_VERSION}) is outdated. '
+                  f'Please update to QGIS >= {MIN_QGIS_VERSION}', RuntimeWarning)
+
 
 def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """

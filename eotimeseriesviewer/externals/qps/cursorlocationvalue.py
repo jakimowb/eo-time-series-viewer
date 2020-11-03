@@ -104,65 +104,54 @@ class CursorLocationInfoModel(TreeModel):
 
         self.setColumnNames(['Band/Field', 'Value'])
 
-        self.mExpandedNodeRemainder = {}
-        self.mNodeExpansion = CursorLocationInfoModel.REMAINDER
-
     def flags(self, index):
 
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
-    """
-    def weakNodeId(self, node: TreeNode) -> str:
-        assert isinstance(node, TreeNode)
-        n = node.name()
-        while node.parentNode() != self.mRootNode:
-            node = node.parentNode()
-            n += '{}:{}'.format(node.name(), n)
-        return n
-    """
 
     def addSourceValues(self, sourceValueSet: SourceValueSet):
         if not isinstance(sourceValueSet, SourceValueSet):
             return
         bn = os.path.basename(sourceValueSet.source)
 
+        newSourceNodes: typing.List[TreeNode] = []
+
         if isinstance(sourceValueSet, RasterValueSet):
 
             root = TreeNode(bn)
-            root.setIcon(QIcon(':/qps/ui/icons/raster.svg'))
+            root.setIcon(QIcon(':/images/themes/default/mIconRasterLayer.svg'))
 
             # add subnodes
-            pxNode = TreeNode('Pixel')
-            pxNode.setValues('{},{}'.format(sourceValueSet.pxPosition.x(), sourceValueSet.pxPosition.y()))
+            pxNode = TreeNode(name='Pixel')
+            pxNode.setValues(['{},{}'.format(sourceValueSet.pxPosition.x(), sourceValueSet.pxPosition.y())])
 
             subNodes = [pxNode]
 
             for bv in sourceValueSet.bandValues:
                 if isinstance(bv, RasterValueSet.BandInfo):
-                    n = TreeNode('Band {}'.format(bv.bandIndex + 1))
+                    n = TreeNode(name='Band {}'.format(bv.bandIndex + 1))
                     n.setToolTip('Band {} {}'.format(bv.bandIndex + 1, bv.bandName).strip())
                     n.setValues([bv.bandValue, bv.bandName])
                     subNodes.append(n)
 
                     if isinstance(bv.classInfo, ClassInfo):
-                        nc = TreeNode('Class')
-                        nc.setValues(bv.classInfo.name())
+                        nc = TreeNode(name='Class')
+                        nc.setValue(bv.classInfo.name())
                         nc.setIcon(bv.classInfo.icon())
                         n.appendChildNodes(nc)
 
                 elif isinstance(bv, QColor):
-                    n = TreeNode('Color')
+                    n = TreeNode(name='Color')
                     n.setToolTip('Color selected from screen pixel')
-                    n.setValues(bv.getRgb())
+                    n.setValue(bv.getRgb())
                     subNodes.append(n)
             root.appendChildNodes(subNodes)
-            self.rootNode().appendChildNodes(root)
+            newSourceNodes.append(root)
 
         if isinstance(sourceValueSet, VectorValueSet):
             if len(sourceValueSet.features) == 0:
                 return
 
-            root = TreeNode(bn)
+            root = TreeNode(name=bn)
             refFeature = sourceValueSet.features[0]
             assert isinstance(refFeature, QgsFeature)
             typeName = QgsWkbTypes.displayString(refFeature.geometry().wkbType()).lower()
@@ -177,7 +166,7 @@ class CursorLocationInfoModel(TreeModel):
             for field in refFeature.fields():
                 assert isinstance(field, QgsField)
 
-                fieldNode = TreeNode(field.name())
+                fieldNode = TreeNode(name=field.name())
 
                 featureNodes = []
                 for i, feature in enumerate(sourceValueSet.features):
@@ -189,12 +178,14 @@ class CursorLocationInfoModel(TreeModel):
                 fieldNode.appendChildNodes(featureNodes)
                 subNodes.append(fieldNode)
             root.appendChildNodes(subNodes)
-            self.rootNode().appendChildNodes(root)
-        s = ""
+            newSourceNodes.append(root)
+
+        self.rootNode().appendChildNodes(newSourceNodes)
 
     def clear(self):
+        #self.beginResetModel()
         self.mRootNode.removeAllChildNodes()
-
+        #self.endResetModel()
 
 class CursorLocationInfoTreeView(TreeView):
 
@@ -376,9 +367,10 @@ class CursorLocationInfoDock(QDockWidget):
 
         for l in lyrs:
             assert isinstance(l, QgsMapLayer)
-            if mode == 'TOP_LAYER' and self.mLocationInfoModel.mRootNode.childCount() > 0:
+            if mode == 'TOP_LAYER' and self.mLocationInfoModel.rootNode().childCount() > 0:
                 s = ""
                 break
+
             assert isinstance(l, QgsMapLayer)
 
             pointLyr = ptInfo.toCrs(l.crs())

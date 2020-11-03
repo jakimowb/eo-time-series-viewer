@@ -278,7 +278,7 @@ def registerQgsExpressionFunctions():
     for func in [Format_Py(), SpectralMath(), SpectralData()]:
         QGIS_FUNCTION_INSTANCES[func.name()] = func
         if QgsExpression.isFunctionName(func.name()):
-            if not QgsExpression.unregisterFunction(func.name):
+            if not QgsExpression.unregisterFunction(func.name()):
                 msgtitle = QCoreApplication.translate("UserExpressions", "User expressions")
                 msg = QCoreApplication.translate("UserExpressions",
                                                  "The user expression {0} already exists and could not be unregistered.").format(

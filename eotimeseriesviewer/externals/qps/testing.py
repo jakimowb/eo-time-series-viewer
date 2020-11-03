@@ -799,19 +799,19 @@ class TestObjects():
         srs = lyrSrc.GetSpatialRef()
         assert isinstance(srs, osr.SpatialReference)
 
-        drv = ogr.GetDriverByName('ESRI Shapefile')
+        drv = ogr.GetDriverByName('GPKG')
         assert isinstance(drv, ogr.Driver)
 
         # set temp path
         if wkb == ogr.wkbPolygon:
             lname = 'polygons'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.polygons.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.polygons.gpkg'
         elif wkb == ogr.wkbPoint:
             lname = 'points'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.centroids.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.centroids.gpkg'
         elif wkb == ogr.wkbLineString:
             lname = 'lines'
-            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.line.shp'
+            pathDst = '/vsimem/tmp' + str(uuid.uuid4()) + '.test.line.gpkg'
         else:
             raise NotImplementedError()
 
