@@ -54,7 +54,7 @@ MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
 MD.mQgisMinimumVersion = '3.14'
-MD.mEmail = eotimeseriesviewer.MAIL
+
 
 
 ########## End of config section

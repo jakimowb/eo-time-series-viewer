@@ -648,16 +648,44 @@ class LabelWidget(AttributeTableWidget):
         self.mActionPreviousFeature.triggered.connect(
             lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoPreviousFeature(lyr, vlt))
 
-        self.mOptionSelectAddedFeatures = QAction('Select Added Features')
-        self.mOptionSelectAddedFeatures.setIcon(QIcon(r':/images/themes/default/mActionProcessSelected.svg'))
-        self.mOptionSelectAddedFeatures.setCheckable(True)
-        self.mOptionSelectAddedFeatures.setChecked(True)
+        self.mOptionSelectBehaviour = QAction('Selection behaviour')
+        self.mOptionSelectBehaviour.setCheckable(True)
+        self.mOptionSelectBehaviour.setChecked(True)
+
+        m = QMenu()
+        self.mOptionSelectionSetSelection = m.addAction('Set Selection')
+        self.mOptionSelectionSetSelection.setIcon(QIcon(':/images/themes/default/mIconSelected.svg'))
+        self.mOptionSelectionSetSelection.setToolTip('Selects a feature.')
+
+        self.mOptionSelectionAddToSelection = m.addAction('Add to Selection')
+        self.mOptionSelectionAddToSelection.setIcon(QIcon(':/images/themes/default/mIconSelectAdd.svg'))
+        self.mOptionSelectionAddToSelection.setToolTip('Adds a new feature to an existing selection.')
+
+        #self.mOptionSelectionIntersectSelection = m.addAction('Intersect Selection')
+        #self.mOptionSelectionIntersectSelection.setIcon(QIcon(':/images/themes/default/mIconSelectIntersect.svg'))
+
+        #self.mOptionRemoveFromSelection = m.addAction('Remove from Selection')
+        #self.mOptionRemoveFromSelection.setIcon(QIcon(':/images/themes/default/mIconSelectRemove.svg'))
+
+        self.mOptionSelectBehaviour.setMenu(m)
+
+        for o in [self.mOptionSelectionSetSelection,
+                  self.mOptionSelectionAddToSelection,
+                  #self.mOptionSelectionIntersectSelection,
+                  #self.mOptionRemoveFromSelection
+                  ]:
+            o.setCheckable(True)
+            o.triggered.connect(self.onSelectBehaviourOptionTriggered)
+
+        self.mOptionSelectionAddToSelection.trigger()
+        # show selected feature on top by default
+        self.mActionSelectedToTop.setChecked(True)
 
         self.mToolbar: QToolBar
         self.mToolbar.insertActions(self.mActionToggleEditing,
                                     [self.mActionPreviousFeature,
                                      self.mActionNextFeature,
-                                     self.mOptionSelectAddedFeatures])
+                                     self.mOptionSelectBehaviour])
 
         self.mToolbar.insertSeparator(self.mActionToggleEditing)
 
@@ -675,11 +703,37 @@ class LabelWidget(AttributeTableWidget):
 
         self.mLayer.featureAdded.connect(self.onLabelFeatureAdded)
 
+    def selectBehaviour(self) -> QgsVectorLayer.SelectBehavior:
+        if self.mOptionSelectionSetSelection.isChecked():
+            return QgsVectorLayer.SetSelection
+        elif self.mOptionSelectionAddToSelection.isChecked():
+            return QgsVectorLayer.AddToSelection
+        elif self.mOptionSelectionIntersectSelection.isChecked():
+            return QgsVectorLayer.IntersectSelection
+        elif self.mOptionRemoveFromSelection.isChecked():
+            return QgsVectorLayer.RemoveFromSelection
+        else:
+            return QgsVectorLayer.SetSelection
+
+    def onSelectBehaviourOptionTriggered(self):
+
+        a: QAction = self.sender()
+        m: QMenu = self.mOptionSelectBehaviour.menu()
+
+        if isinstance(a, QAction) and isinstance(m, QMenu) and a in m.actions():
+            for ca in m.actions():
+                assert isinstance(ca, QAction)
+                if ca == a:
+                    self.mOptionSelectBehaviour.setIcon(a.icon())
+                    self.mOptionSelectBehaviour.setText(a.text())
+                    self.mOptionSelectBehaviour.setToolTip(a.toolTip())
+                    self.mOptionSelectBehaviour.setChecked(True)
+                ca.setChecked(ca == a)
+
     def onLabelFeatureAdded(self, fid):
-        lastSelection: typing.List[int] = self.mLayer.selectedFeatureIds()
-        if self.mOptionSelectAddedFeatures.isChecked():
-            #lastSelection.append(fid)
-            self.mLayer.selectByIds([fid], QgsVectorLayer.AddToSelection)
+        if self.mOptionSelectBehaviour.isChecked():
+            lastSelection: typing.List[int] = self.mLayer.selectedFeatureIds()
+            self.mLayer.selectByIds([fid], self.selectBehaviour())
 
     def showProperties(self, *args):
         showLayerPropertiesDialog(self.mLayer, None, parent=self, useQGISDialog=True)

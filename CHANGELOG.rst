@@ -1,10 +1,14 @@
 ==============
 Changelog
 ==============
-2020-10-06 (version 1.14):
-    * stability update
+2020-11-06 (version 1.14):
+    * this version focuses on stability updates and improvements of the "quick label" system
+    * map canvas menu now available with standard map tool (like zoom tool)
+    * introduces label groups to apply quick labeling short cuts on different sets of vector fields
+    * attribute table allow to selected added features automatically
     * optimized package imports
     * improved SpectralLibrary tool
+    * fixed bugs
 
 2020-07-23 (version 1.13):
     * time series and map settings can be stored to and reloaded from QGIS Projects
