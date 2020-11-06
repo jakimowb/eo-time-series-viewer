@@ -879,7 +879,12 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         editor = self.widget()
         if isinstance(editor, QLineEdit):
             value = editor.text()
-            dt64 = datetime64(value)
+            dt64 = None
+            try:
+                dt64 = datetime64(value)
+            except:
+                pass
+
             if isinstance(dt64, np.datetime64) and np.isfinite(dt64):
                 if typeCode == QVariant.DateTime:
                     return QDateTime(dt64.astype(object))
