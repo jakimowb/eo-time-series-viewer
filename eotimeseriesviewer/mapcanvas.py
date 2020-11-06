@@ -498,25 +498,6 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.mRenderingFinished
 
-    def mousePressEvent(self, event: QMouseEvent):
-
-        self.setProperty(KEY_LAST_CLICKED, time.time())
-
-        b = event.button() == Qt.LeftButton
-        if b and isinstance(self.mapTool(), QgsMapTool):
-            b = isinstance(self.mapTool(), (QgsMapToolIdentify,
-                                            CursorLocationMapTool,
-                                            SpectralProfileMapTool, TemporalProfileMapTool))
-
-        super(MapCanvas, self).mousePressEvent(event)
-
-        if b:
-            ms = self.mapSettings()
-            pointXY = ms.mapToPixel().toMapCoordinates(event.x(), event.y())
-            spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)
-            self.setCrosshairPosition(spatialPoint)
-        self.sigCanvasClicked.emit(event)
-
     def setMapView(self, mapView):
         """
         Sets the map canvas MapView
@@ -1255,12 +1236,25 @@ class MapCanvas(QgsMapCanvas):
             proxyLayer.setRenderer(r)
 
     def mousePressEvent(self, event: QMouseEvent):
+        self.setProperty(KEY_LAST_CLICKED, time.time())
+        bLeft: bool = event.button() == Qt.LeftButton
+        bRight: bool = event.button() == Qt.RightButton
+
+        modifiers = QApplication.keyboardModifiers()
+        mt: QgsMapTool = self.mapTool()
+
         if Qgis.QGIS_VERSION >= '3.16':
             super(MapCanvas, self).mousePressEvent(event)
+            if bRight and \
+                    isinstance(mt, (QgsMapToolAddFeature, )) \
+                    and not bool(mt.flags() & QgsMapTool.ShowContextMenu) \
+                    and bool(modifiers & Qt.ControlModifier):
+                menu = QMenu()
+                # mt.populateContextMenu(menu)
+                self.populateContextMenu(menu, event.pos())
+                menu.exec_(event.globalPos())
         else:
             if event.button() == Qt.RightButton:
-                mt: QgsMapTool = self.mapTool()
-
                 if isinstance(mt, QgsMapTool):
 
                     if bool(mt.flags() & QgsMapTool.ShowContextMenu):
@@ -1270,6 +1264,13 @@ class MapCanvas(QgsMapCanvas):
                         menu.exec_(event.globalPos())
                         return
             super().mousePressEvent(event)
+
+        if bLeft and not isinstance(mt, (QgsMapToolAddFeature, )):
+            ms = self.mapSettings()
+            pointXY = ms.mapToPixel().toMapCoordinates(event.x(), event.y())
+            spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)
+            self.setCrosshairPosition(spatialPoint)
+        self.sigCanvasClicked.emit(event)
 
     def addLayers2QGIS(self, mapLayers):
         import qgis.utils

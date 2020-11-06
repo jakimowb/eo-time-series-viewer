@@ -1,6 +1,7 @@
 import typing
 import enum
 import numpy as np
+import math
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, QgsFields, \
     QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, QgsFieldModel, \
     QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsProject, QgsMapLayerStore, QgsSymbol
@@ -313,6 +314,8 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
                 value = QDate(year, 1, 1)
             elif fieldType == QVariant.DateTime:
                 value = QDateTime(2000, 1, 1, 0, 0)
+            elif fieldType == QVariant.Int:
+                value = year
 
         elif labelType == LabelShortcutType.DecimalYear:
             value = tsd.decimalYear()
@@ -901,6 +904,10 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             elif typeCode == QVariant.String:
                 return str(editor.dateTime())
 
+        elif isinstance(editor, (QgsSpinBox, QgsDoubleSpinBox)):
+            return editor.value()
+        else:
+            s = ""
         return self.defaultValue()
 
     def setEnabled(self, enabled: bool):
@@ -938,6 +945,10 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             elif isinstance(w, QgsDateTimeEdit):
                 w.setDateTime(QDateTime(value))
             elif isinstance(w, (QgsSpinBox, QgsDoubleSpinBox)):
+                if w.maximum() <= value:
+                    e = int(math.log10(value)) + 1
+                    w.setMaximum(int(10**e))
+                w.setClearValue(value)
                 w.setValue(value)
             elif isinstance(w, QLineEdit):
                 w.setText(str(value))
