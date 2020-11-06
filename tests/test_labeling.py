@@ -122,8 +122,8 @@ class TestLabeling(EOTSVTestCase):
         canvas.setTSD(tsd)
         canvas.setMapView(mv)
         pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
-        menu = canvas.contextMenu(pos)
-        self.assertIsInstance(menu, QMenu)
+        menu = QMenu()
+        canvas.populateContextMenu(menu, pos)
 
         def findLabelAction(menu) -> QAction:
             for a in menu.actions():

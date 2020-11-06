@@ -19,7 +19,7 @@ cache:
     - venv/
 
 before_script:
-- apt-get update
+  - apt-get update
   - apt-get -y install git-lfs
   - apt-get install -y wget
   - apt-get install -y unzip
