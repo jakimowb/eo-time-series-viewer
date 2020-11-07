@@ -76,13 +76,9 @@ class TestMapCanvas(EOTSVTestCase):
         canvas.setExtent(lyr1.extent())
 
         pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
-
-        menu = canvas.contextMenu(pos)
+        menu = QMenu()
+        canvas.populateContextMenu(menu, pos)
         self.assertIsInstance(menu, QMenu)
-
-        if not os.environ.get('CI'):
-            event = QContextMenuEvent(QContextMenuEvent.Mouse, pos)
-            canvas.contextMenuEvent(event)
         self.showGui(menu)
 
     def test_mapcanvasInfoItem(self):
