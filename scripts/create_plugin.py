@@ -28,11 +28,9 @@ import re
 import shutil
 import typing
 import site
-
-site.addsitedir(pathlib.Path(__file__).parents[1])
 import docutils.core
 from xml.dom import minidom
-
+site.addsitedir(pathlib.Path(__file__).parents[1])
 import eotimeseriesviewer
 from eotimeseriesviewer import DIR_REPO, __version__
 from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
@@ -54,6 +52,7 @@ MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
 MD.mQgisMinimumVersion = '3.14'
+MD.mEmail = eotimeseriesviewer.MAIL
 
 
 
