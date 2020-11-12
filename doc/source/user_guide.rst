@@ -337,5 +337,11 @@ The spectral library view allows you to visualize, label and export spectral pro
 
 
 
+Quick Labeling
+--------------
+
+The EO Time Series Viewer assists users in creating reference data by different shortcuts that extract information inherent to what is visualized.
+
+
 
 
