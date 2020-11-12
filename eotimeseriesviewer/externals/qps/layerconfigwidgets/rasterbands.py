@@ -152,9 +152,10 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
         elif isinstance(oldRenderer, QgsMultiBandColorRenderer):
             newRenderer = oldRenderer.clone()
             newRenderer.setInput(oldRenderer.input())
-            newRenderer.setRedBand(self.cbMultiBandRed.currentBand())
-            newRenderer.setGreenBand(self.cbMultiBandGreen.currentBand())
-            newRenderer.setBlueBand(self.cbMultiBandBlue.currentBand())
+            if isinstance(newRenderer, QgsMultiBandColorRenderer):
+                newRenderer.setRedBand(self.cbMultiBandRed.currentBand())
+                newRenderer.setGreenBand(self.cbMultiBandGreen.currentBand())
+                newRenderer.setBlueBand(self.cbMultiBandBlue.currentBand())
         return newRenderer
 
     def setRenderer(self, renderer: QgsRasterRenderer):

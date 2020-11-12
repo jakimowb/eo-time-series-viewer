@@ -94,6 +94,52 @@ class VectorValueSet(SourceValueSet):
         self.features.append(featureInfo)
 
 
+class PixelPositionTreeNode(TreeNode):
+
+    def __init__(self, px: QPoint, coord: SpatialPoint, *args,
+                 name: str = 'Pixel',
+                 zeroBased: bool = True, **kwds):
+
+        super().__init__(*args, **kwds)
+        self.setName(name)
+        self.mPx: QPoint = px
+        self.mGeo: SpatialPoint = coord
+        self.mZeroBased = zeroBased
+
+        if self.mZeroBased:
+            self.setValues([(px.x(), px.y())])
+            self.setToolTip(f'Pixel Coordinate (upper-left = (0,0) )')
+        else:
+            self.setValues([(px.x() + 1, px.y() + 1)])
+            self.setToolTip(f'Pixel Coordinate (upper-left = (1,1) )')
+
+    def populateContextMenu(self, menu: QMenu):
+
+        a = menu.addAction('Copy pixel coordinate (0-based)')
+        a.setToolTip('Copies the zero-based pixel coordinate (first/upper-left pixel = 0,0)')
+        a.triggered.connect(lambda *args, txt=f'{self.mPx.x()}, {self.mPx.y()}':
+                            self.onCopyToClipBoad(txt))
+
+        a = menu.addAction('Copy pixel coordinate (1-based)')
+        a.setToolTip('Copies the one-based pixel coordinate (first/upper-left pixel = 1,1)')
+        a.triggered.connect(lambda *args, txt=f'{self.mPx.x() + 1}, {self.mPx.y() + 1}':
+                            self.onCopyToClipBoad(txt))
+
+        a = menu.addAction('Copy spatial coordinate')
+        a.setToolTip('Copies the spatial coordinate as <x>,<y> pair')
+        a.triggered.connect(lambda *args, txt=self.mGeo.toString():
+                            self.onCopyToClipBoad(txt))
+
+        a = menu.addAction('Copy spatial coordinate (WKT)')
+        a.setToolTip('Copies the spatial coordinate as Well-Known-Type')
+        a.triggered.connect(lambda *args, txt=self.mGeo.asWkt():
+                            self.onCopyToClipBoad(txt))
+
+    def onCopyToClipBoad(self, text: str):
+        cb: QClipboard = QApplication.clipboard()
+        cb.setText(text)
+
+
 class CursorLocationInfoModel(TreeModel):
     ALWAYS_EXPAND = 'always'
     NEVER_EXPAND = 'never'
@@ -103,9 +149,22 @@ class CursorLocationInfoModel(TreeModel):
         super().__init__(parent=parent)
 
         self.setColumnNames(['Band/Field', 'Value'])
+        self.mCountFromZero: bool = True
+        self.mCursorLocation: SpatialPoint = None
 
-    def flags(self, index):
+    def setCursorLocation(self, location: SpatialPoint):
+        assert isinstance(location, SpatialPoint)
+        self.mCursorLocation = location
 
+    def setCountFromZero(self, b: bool):
+        """
+        Specifies if the 1st pixel (upper left corner) is countes as 0,0 (True, default) or 1,1 (False)
+        :param b: bool
+        """
+        assert isinstance(b, bool)
+        self.mCountFromZero = b
+
+    def flags(self, index: QModelIndex):
         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
     def addSourceValues(self, sourceValueSet: SourceValueSet):
@@ -121,8 +180,10 @@ class CursorLocationInfoModel(TreeModel):
             root.setIcon(QIcon(':/images/themes/default/mIconRasterLayer.svg'))
 
             # add subnodes
-            pxNode = TreeNode(name='Pixel')
-            pxNode.setValues(['{},{}'.format(sourceValueSet.pxPosition.x(), sourceValueSet.pxPosition.y())])
+            pxNode = PixelPositionTreeNode(sourceValueSet.pxPosition,
+                                           self.mCursorLocation,
+                                           name='Pixel',
+                                           zeroBased=self.mCountFromZero)
 
             subNodes = [pxNode]
 
@@ -183,9 +244,10 @@ class CursorLocationInfoModel(TreeModel):
         self.rootNode().appendChildNodes(newSourceNodes)
 
     def clear(self):
-        #self.beginResetModel()
+        # self.beginResetModel()
         self.mRootNode.removeAllChildNodes()
-        #self.endResetModel()
+        # self.endResetModel()
+
 
 class CursorLocationInfoTreeView(TreeView):
 
@@ -364,6 +426,7 @@ class CursorLocationInfoDock(QDockWidget):
 
         self.treeView().updateNodeExpansion(False)
         self.mLocationInfoModel.clear()
+        self.mLocationInfoModel.setCursorLocation(self.cursorLocation())
 
         for l in lyrs:
             assert isinstance(l, QgsMapLayer)
