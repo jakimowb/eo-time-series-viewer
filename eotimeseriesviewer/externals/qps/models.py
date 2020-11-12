@@ -735,7 +735,8 @@ class PyObjectTreeNode(TreeNode):
             if isinstance(v, QMetaEnum):
                 s = ""
             # create a new node
-            newNodes.append(PyObjectTreeNode(name=a, obj=v))
+            # this allows to create a new node even of inherited classes
+            newNodes.append(self.__class__(name=a, obj=v))
 
         if len(newNodes) > 0:
             self.appendChildNodes(newNodes)

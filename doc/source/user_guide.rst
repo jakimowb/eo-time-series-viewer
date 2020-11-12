@@ -340,7 +340,21 @@ The spectral library view allows you to visualize, label and export spectral pro
 Quick Labeling
 --------------
 
-The EO Time Series Viewer assists users in creating reference data by different shortcuts that extract information inherent to what is visualized.
+The EO Time Series Viewer assists you in describing, i.e. *label* reference data based on the time series visualize in the EO Time Series Viewer,
+Basically, there are possible labeling scenarios:
+
+a) You need to identify spatial objects of interest and annotate them with one or multiple attributes. For example, you use the EO Time series viewer
+   to identify exemplary land cover types, digitize them as polygons and annotate these polygons with a land cover type ("forest") and the year of observation ("2014")
+b) The spatial objects of interest already exists, but you need to annotate them, for example to annotate a set of random sampled points whether they got deforested or not,
+   e.g. for an map accuracy assessment.
+
+In both cases, you like to fill the attribute table of a vector layer based on temporal and contextual information.
+The EO Time Series Viewer supports this work by "Quick Label" short-cuts which automatically fill the attributes values
+for features selected in the vector layer.
+
+
+
+
 
 
 
