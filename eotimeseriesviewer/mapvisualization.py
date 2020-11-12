@@ -1316,8 +1316,9 @@ class MapWidget(QFrame):
         mwNode.setAttribute('mapsPerMapView', f'{self.mapsPerMapView()}')
         mwNode.setAttribute('mapWidth', f'{mapSize.width()}')
         mwNode.setAttribute('mapHeight', f'{mapSize.height()}')
-        mwNode.setAttribute('mapDate', f'{self.currentDate().date()}')
-
+        currentDate = self.currentDate()
+        if isinstance(currentDate, TimeSeriesDate):
+            mwNode.setAttribute('mapDate', f'{currentDate.date()}')
         crsNode = doc.createElement('MapExtent')
         self.spatialExtent().writeXml(crsNode, doc)
         mwNode.appendChild(crsNode)
