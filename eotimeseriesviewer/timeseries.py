@@ -814,12 +814,17 @@ class TimeSeriesDate(QAbstractTableModel):
         assert isinstance(date, np.datetime64)
         assert isinstance(sensor, SensorInstrument)
 
-        self.mSensor = sensor
-        self.mDate = date
-        self.mDOY = DOYfromDatetime64(self.mDate)
-        self.mSources = []
+        self.mSensor: SensorInstrument = sensor
+        self.mDate: np.datetime64 = None
+        self.mDOY: int = None
+        self.mSources: typing.List[TimeSeriesSource] = []
         self.mMasks = []
-        self.mTimeSeries = timeSeries
+        self.mTimeSeries: TimeSeries = timeSeries
+        self.setDate(date)
+
+    def setDate(self, date):
+        self.mDate = date
+        self.mDOY = DOYfromDatetime64(date)
 
     def removeSource(self, source: TimeSeriesSource):
 

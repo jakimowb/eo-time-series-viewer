@@ -957,8 +957,7 @@ class MapCanvas(QgsMapCanvas):
                         for (cs, field) in csf:
                             assert isinstance(cs, ClassificationScheme)
                             assert isinstance(field, QgsField)
-
-                            classMenu = m.addMenu('{}:"{}":{}'.format(layer.name(), field.name(), field.typeName()))
+                            classMenu = m.addMenu('{} [{}]'.format(field.name(), field.typeName()))
                             for classInfo in cs:
                                 assert isinstance(classInfo, ClassInfo)
                                 a = classMenu.addAction('{} "{}"'.format(classInfo.label(), classInfo.name()))

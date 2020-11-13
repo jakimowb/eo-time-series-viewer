@@ -10,7 +10,6 @@ from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
     QgsGui, QgsEditorWidgetRegistry, \
     QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
 
-
 from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog, AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer import DIR_UI
@@ -22,16 +21,18 @@ from .externals.qps.classification.classificationscheme import ClassInfo, Classi
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 from .externals.qps.models import Option, OptionListModel
 from .externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
 
-class LabelConfigurationKey(object):
 
+class LabelConfigurationKey(object):
     ClassificationScheme = 'classificationScheme'
     LabelType = 'labelType'
     LabelGroup = 'labelGroup'
+
 
 class LabelShortcutType(enum.Enum):
     """Enumeration for shortcuts to be derived from a TimeSeriesDate instance"""
@@ -44,8 +45,8 @@ class LabelShortcutType(enum.Enum):
     DecimalYear = 'Decimal Year'
     Sensor = 'Sensor Name'
     SourceImage = 'Source Image'
-    # Classification = 'Classification'
 
+    # Classification = 'Classification'
 
     @staticmethod
     def fromConfValue(value: str):
@@ -54,17 +55,15 @@ class LabelShortcutType(enum.Enum):
                 return t
         return LabelShortcutType.Off
 
-
     def confValue(self) -> str:
         return self.name
 
     def text(self) -> str:
         return self.value
 
-
-
     def __str__(self):
         return str(self.name)
+
 
 def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     """
@@ -107,7 +106,7 @@ def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     return result
 
 
-def layerClassSchemes(layer: QgsVectorLayer) -> list:
+def layerClassSchemes(layer: QgsVectorLayer) -> typing.List[ClassificationScheme]:
     """
     Returns a list of (ClassificationScheme, QgsField) for all QgsFields with QgsEditorWidget being QgsClassificationWidgetWrapper or RasterClassification.
     :param layer: QgsVectorLayer
@@ -167,7 +166,6 @@ def quickLabelLayers() -> typing.List[QgsVectorLayer]:
     :return: [list-of-QgsVectorLayer]
     """
     layers = []
-
 
     classSchemes = set()
     for store in MAP_LAYER_STORES:
@@ -286,47 +284,11 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
         conf = setup.config()
         labelType: LabelShortcutType = LabelShortcutType.fromConfValue(conf.get(LabelConfigurationKey.LabelType))
 
-        value = None
 
-        if labelType == LabelShortcutType.Off:
-            continue
 
-        if labelType == LabelShortcutType.Sensor:
-            value = tsd.sensor().name()
-
-        elif labelType == LabelShortcutType.DOY:
-            value = tsd.doy()
-
-        elif labelType in [LabelShortcutType.Date, LabelShortcutType.DateTime]:
-            if fieldType == QVariant.Date:
-                value = QDate(tsd.date().astype(object))
-            elif fieldType == QVariant.DateTime:
-                value = QDateTime(tsd.date().astype(object))
-            elif fieldType == QVariant.String:
-                value = str(tsd.date())
-
-        elif labelType == LabelShortcutType.Year:
-            year = tsd.date().astype(object).year
-
-            if fieldType == QVariant.String:
-                value = str(year)
-            elif fieldType == QVariant.Date:
-                value = QDate(year, 1, 1)
-            elif fieldType == QVariant.DateTime:
-                value = QDateTime(2000, 1, 1, 0, 0)
-            elif fieldType == QVariant.Int:
-                value = year
-
-        elif labelType == LabelShortcutType.DecimalYear:
-            value = tsd.decimalYear()
-
-        elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
-            value = tss.uri()
+        value = quickLabelValue(fieldType, labelType, tsd, tss)
 
         if value is not None:
-            if fieldType == QVariant.String:
-                value = str(value)
-
             for feature in vectorLayer.selectedFeatures():
                 assert isinstance(feature, QgsFeature)
                 oldValue = feature.attribute(field.name())
@@ -334,6 +296,82 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
 
         vectorLayer.endEditCommand()
     pass
+
+
+def quickLabelValue(fieldType: QVariant,
+                    labelType: LabelShortcutType,
+                    tsd: TimeSeriesDate,
+                    tss: TimeSeriesSource):
+    value = None
+    datetime: QDateTime = QDateTime(tsd.date().astype(object))
+
+    if labelType == LabelShortcutType.Off:
+        return value
+
+    if labelType == LabelShortcutType.Sensor:
+        if fieldType == QVariant.String:
+            value = tsd.sensor().name()
+
+    elif labelType == LabelShortcutType.DOY:
+        if fieldType in [QVariant.Double, QVariant.Int]:
+            value = tsd.doy()
+        elif fieldType == QVariant.String:
+            value = str(tsd.doy())
+
+    elif labelType == LabelShortcutType.Date:
+        if fieldType == QVariant.Date:
+            value = datetime.date()
+        elif fieldType == QVariant.DateTime:
+            value = QDateTime(datetime.date())
+        elif fieldType == QVariant.String:
+            value = datetime.date().toPyDate().isoformat()
+
+    elif labelType == LabelShortcutType.DateTime:
+        if fieldType == QVariant.Date:
+            value = datetime.date()
+        elif fieldType == QVariant.DateTime:
+            value = datetime
+        elif fieldType == QVariant.String:
+            value = datetime.toPyDateTime().isoformat()
+
+    elif labelType == LabelShortcutType.Time:
+        if fieldType == QVariant.Date:
+            value = None
+        elif fieldType == QVariant.DateTime:
+            value = datetime
+        elif fieldType == QVariant.Time:
+            value = datetime.time()
+        elif fieldType == QVariant.String:
+            value = datetime.time().toPyTime().isoformat()
+
+    elif labelType == LabelShortcutType.Year:
+
+        if fieldType == QVariant.String:
+            value = str(datetime.date().year())
+        elif fieldType == QVariant.Date:
+            value = datetime.date()
+        elif fieldType == QVariant.DateTime:
+            value = datetime
+        elif fieldType == QVariant.Time:
+            value = datetime.time()
+        elif fieldType == QVariant.Int:
+            value = datetime.date().year()
+
+    elif labelType == LabelShortcutType.DecimalYear:
+        if fieldType == QVariant.String:
+            value = str(tsd.decimalYear())
+        elif fieldType == QVariant.Int:
+            value = int(tsd.decimalYear())
+        elif fieldType == QVariant.Double:
+            value = tsd.decimalYear()
+
+    elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
+        if fieldType == QVariant.String:
+            value = tss.uri()
+
+    if value is not None and fieldType == QVariant.String:
+        value = str(value)
+    return value
 
 
 class LabelAttributeTableModel(QAbstractTableModel):
@@ -661,18 +699,18 @@ class LabelWidget(AttributeTableWidget):
         self.mOptionSelectionAddToSelection.setIcon(QIcon(':/images/themes/default/mIconSelectAdd.svg'))
         self.mOptionSelectionAddToSelection.setToolTip('Adds a new feature to an existing selection.')
 
-        #self.mOptionSelectionIntersectSelection = m.addAction('Intersect Selection')
-        #self.mOptionSelectionIntersectSelection.setIcon(QIcon(':/images/themes/default/mIconSelectIntersect.svg'))
+        # self.mOptionSelectionIntersectSelection = m.addAction('Intersect Selection')
+        # self.mOptionSelectionIntersectSelection.setIcon(QIcon(':/images/themes/default/mIconSelectIntersect.svg'))
 
-        #self.mOptionRemoveFromSelection = m.addAction('Remove from Selection')
-        #self.mOptionRemoveFromSelection.setIcon(QIcon(':/images/themes/default/mIconSelectRemove.svg'))
+        # self.mOptionRemoveFromSelection = m.addAction('Remove from Selection')
+        # self.mOptionRemoveFromSelection.setIcon(QIcon(':/images/themes/default/mIconSelectRemove.svg'))
 
         self.mOptionSelectBehaviour.setMenu(m)
 
         for o in [self.mOptionSelectionSetSelection,
                   self.mOptionSelectionAddToSelection,
-                  #self.mOptionSelectionIntersectSelection,
-                  #self.mOptionRemoveFromSelection
+                  # self.mOptionSelectionIntersectSelection,
+                  # self.mOptionRemoveFromSelection
                   ]:
             o.setCheckable(True)
             o.triggered.connect(self.onSelectBehaviourOptionTriggered)
@@ -762,7 +800,7 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
         self.btnAddGroup.setDefaultAction(self.actionAddGroup)
         self.actionAddGroup.triggered.connect(self.onAddGroup)
 
-        #self.setConfig(vl.editorWidgetSetup(fieldIdx).config())
+        # self.setConfig(vl.editorWidgetSetup(fieldIdx).config())
         self.mLastConfig = {}
 
     def onAddGroup(self):
@@ -844,8 +882,8 @@ class LabelShortcutEditorConfigWidget(QgsEditorConfigWidget):
             s = ""
 
         labelType: LabelShortcutType = LabelShortcutType.fromConfValue(
-                                            config.get(LabelConfigurationKey.LabelType, None)
-                                       )
+            config.get(LabelConfigurationKey.LabelType, None)
+        )
 
         assert isinstance(labelType, LabelShortcutType)
         labelGroup: str = config.get(LabelConfigurationKey.LabelGroup, '')
@@ -868,14 +906,14 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
         super(LabelShortcutEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
 
-    def createWidget(self, parent: QWidget=None) -> QWidget:
+    def createWidget(self, parent: QWidget = None) -> QWidget:
         """
         Create the data input widget
         :param parent: QWidget
         :return: QLineEdit | QgsDateTimeEdit | QSpinBox
         """
         # log('createWidget')
-        #labelType = self.configLabelType()
+        # labelType = self.configLabelType()
         fieldType = self.field().type()
         if fieldType == QVariant.Date:
             return QgsDateEdit(parent)
@@ -969,7 +1007,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         if isinstance(editor, QWidget):
             editor.setEnabled(enabled)
 
-    #def setFeature(self, feature:QgsFeature):
+    # def setFeature(self, feature:QgsFeature):
     #    s = ""
 
     def setValue(self, value):
@@ -1001,7 +1039,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             elif isinstance(w, (QgsSpinBox, QgsDoubleSpinBox)):
                 if w.maximum() <= value:
                     e = int(math.log10(value)) + 1
-                    w.setMaximum(int(10**e))
+                    w.setMaximum(int(10 ** e))
                 w.setClearValue(value)
                 w.setValue(value)
             elif isinstance(w, QLineEdit):
@@ -1012,7 +1050,6 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
 def createWidgetConf(labelType: LabelShortcutType,
                      group: str = None) -> typing.Dict[str, str]:
-
     assert isinstance(labelType, LabelShortcutType)
     if group is None:
         group = ''
@@ -1027,7 +1064,6 @@ def createWidgetConf(labelType: LabelShortcutType,
 def createWidgetSetup(labelType: LabelShortcutType,
                       group: str = None
                       ) -> QgsEditorWidgetSetup:
-
     conf = createWidgetConf(labelType, group)
     return QgsEditorWidgetSetup(EDITOR_WIDGET_REGISTRY_KEY, conf)
 
@@ -1036,10 +1072,10 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
     """
     A QgsEditorWidgetFactory to create widgets for EOTSV Quick Labeling
     """
+
     @staticmethod
     def instance():
         return QgsGui.editorWidgetRegistry().factory(EDITOR_WIDGET_REGISTRY_KEY)
-
 
     @staticmethod
     def createWidgetSetup(*args, **kwds) -> QgsEditorWidgetSetup:
@@ -1115,7 +1151,6 @@ class LabelShortcutWidgetFactory(QgsEditorWidgetFactory):
                 [QVariant.Double, QVariant.Int, QVariant.String, QVariant.Date, QVariant.DateTime]:
             return True
         return False
-
 
 
 labelEditorWidgetFactory = None

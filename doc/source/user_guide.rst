@@ -40,7 +40,7 @@ Quick Start
 
 .. note:: Use |mActionRefresh| to refresh or redraw related maps, spectral profile plots etc.
 
-6. Now we like to optimize the color stretch. Choose a none-clouded Landsat observation like 2014-06-24 and use the map context menu (right-mouse-click)
+6. Now we like to optimize the color stretch. Choose a -clouded Landsat observation like 2014-06-24 and use the map context menu (right-mouse-click)
    to click on :menuselection:`Stretch to current extent ... --> Linear 5%`. Repeat with `Linear` and `Gaussian` stretch as well as for RapidEye images to
    see how this changes the band-specific min/max values in the Map View settings.
 
@@ -161,7 +161,7 @@ The Toolbar
 .. note::
 
    Only after |select_location| :sup:`Identify Pixels and Features` is activated you can select the other identify tools
-   (|mActionPropertiesWidget|, |profile|, |mIconTemporalProfile|). You can activate them all at once as well as none of them,
+   (|mActionPropertiesWidget|, |profile|, |mIconTemporalProfile|). You can activate them all at once as well as  of them,
    in case of the latter variant clicking in the map has no direct effect (other than moving the crosshair, when activated)
 
 
@@ -340,22 +340,37 @@ The spectral library view allows you to visualize, label and export spectral pro
 Quick Labeling
 --------------
 
-The EO Time Series Viewer assists you in describing, i.e. *label* reference data based on the time series visualize in the EO Time Series Viewer,
-Basically, there are possible labeling scenarios:
+The EO Time Series Viewer assists you in describing, i.e. *label*, reference data, e.g. to describe at the occurence of
+land cover types and events. Whether your
+locations (point, lines or polygons) of interest already exist, or are being digitized in the visualized maps first,
+in both cases you want to describe them in the attribute table of the vector layer.
 
-a) You need to identify spatial objects of interest and annotate them with one or multiple attributes. For example, you use the EO Time series viewer
-   to identify exemplary land cover types, digitize them as polygons and annotate these polygons with a land cover type ("forest") and the year of observation ("2014")
-b) The spatial objects of interest already exists, but you need to annotate them, for example to annotate a set of random sampled points whether they got deforested or not,
-   e.g. for an map accuracy assessment.
-
-In both cases, you like to fill the attribute table of a vector layer based on temporal and contextual information.
-The EO Time Series Viewer supports this work by "Quick Label" short-cuts which automatically fill the attributes values
-for features selected in the vector layer.
+The EO Time Series Viewer supports this with "Quick Label" short-cuts in the map context menu. They send temporal or
+categorical information direct to the attribute cells of selected geometries.
 
 
+Timestamp: 2019-02-05T11:23:42.00
 
+Sensor Name: 'LND' (Landsat)
 
-
-
-
-
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+|                   |                 Type of linked vector layer field                                                 |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| LabelType         | varchar             | int  | double   | datetime            | date       | time     | bool | blob |
++===================+=====================+======+==========+=====================+============+==========+======+======+
+| Date              | 2019-02-05          |      |          | 2019-02-05T00:00:00 | 2019-02-05 |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Date-Time         | 2019-02-05T11:23:42 |      |          | 2019-02-05T11:23:42 | 2019-02-05 |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Time              | 11:23:42            |      |          | 2019-02-05T11:23:42 |            | 11:23:42 |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Day of Year (DOY) | 36                  | 36   | 36       |                     |            |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Year              | 2019                | 2019 |          | 2019-02-05T11:23:42 | 2019-02-05 | 11:23:42 |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Decimal Year      | 2019.0980926430518  | 2019 | 2019.098 |                     |            |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Sensor Name       | LND                 |      |          |                     |            |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
+| Source Image      | /path/to/image      |      |          |                     |            |          |      |      |
++-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
