@@ -20,11 +20,11 @@
 import unittest
 import re
 import xmlrunner
-
+import datetime
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-
+import numpy as np
 from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
     QgsFields
 from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManagerWidget, \
@@ -34,11 +34,14 @@ from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.labeling import LabelWidget, LabelConfigurationKey, LabelAttributeTableModel, shortcuts, \
     LabelShortcutEditorConfigWidget, quickLayerFieldSetup, quickLabelLayers, EDITOR_WIDGET_REGISTRY_KEY, \
     LabelShortcutType, LabelConfigurationKey, registerLabelShortcutEditorWidget, Option, OptionListModel, \
-    LabelShortcutEditorWidgetWrapper, LabelShortcutWidgetFactory, createWidgetSetup, createWidgetConf
+    LabelShortcutEditorWidgetWrapper, LabelShortcutWidgetFactory, createWidgetSetup, createWidgetConf, quickLabelValue
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
+from eotimeseriesviewer.externals.qps.utils import createQgsField
+from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
+
 import eotimeseriesviewer
 
 class TestLabeling(EOTSVTestCase):
@@ -343,6 +346,62 @@ class TestLabeling(EOTSVTestCase):
         self.assertTrue('Layer B' in dockWidgets[0].windowTitle())
 
         self.showGui(EOTSV.ui)
+
+    def test_labelValue(self):
+
+        fields = [
+            createQgsField('text', ''),
+            createQgsField('int', 1),
+            createQgsField('float', 1.0),
+            QgsField('datetime', QVariant.DateTime, 'datetime'),
+            QgsField('date', QVariant.Date, 'date'),
+            QgsField('time', QVariant.Time, 'time'),
+            QgsField('bool', QVariant.Bool, 'bool'),
+            QgsField('blob', QVariant.ByteArray, 'blob')
+        ]
+
+        TS = TestObjects.createTimeSeries()
+
+        tsd: TimeSeriesDate = TS[0]
+        tsd.setDate(np.datetime64('2019-02-05T11:23:42.00'))
+        tss = tsd[0]
+        tss.mUri = '/path/to/image'
+        tsd.sensor().setName('LND')
+
+        lines = []
+        lines.append(['LabelType'] + [f.typeName() for f in fields])
+
+        for labelType in LabelShortcutType:
+            line = [labelType.value]
+            for i, field in enumerate(fields):
+                self.assertIsInstance(field, QgsField)
+
+                value = quickLabelValue(field.type(), labelType, tsd, tss)
+                if isinstance(value, QDate):
+                    value = value.toPyDate().isoformat()
+                elif isinstance(value, QDateTime):
+                    value = value.toPyDateTime().isoformat()
+                elif isinstance(value, QTime):
+                    value = value.toPyTime().isoformat()
+                elif isinstance(value, float):
+                    value = '{:0.3f}'.format(value)
+                elif value is None:
+                    value = ' '
+                else:
+                    value = f'{value}'
+                line.append(f'{value}')
+                #print(f'{labelType} for {field.name()}({field.typeName()}) = {value}')
+            if labelType != LabelShortcutType.Off:
+                lines.append(line)
+
+        for i, l in enumerate(lines):
+            if i == 1:
+                # header ends
+                print('+=')
+            else:
+                print('+-')
+            print('| ' + ' | '.join(l))
+        print('+-')
 
 
 if __name__ == "__main__":
