@@ -1172,7 +1172,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
                  timeSeriesSources: typing.List[TimeSeriesSource],
                  callback=None,
                  description='Calculate image pixel overlap',
-                 sampleSize: int = 25,
+                 sampleSize: int = 16,
                  progress_interval: int = 2):
         super().__init__(description=description)
         assert sampleSize >= 1
