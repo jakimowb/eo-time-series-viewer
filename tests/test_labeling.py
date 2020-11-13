@@ -390,7 +390,7 @@ class TestLabeling(EOTSVTestCase):
                 else:
                     value = f'{value}'
                 line.append(f'{value}')
-                #print(f'{labelType} for {field.name()}({field.typeName()}) = {value}')
+
             if labelType != LabelShortcutType.Off:
                 lines.append(line)
 
