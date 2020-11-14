@@ -1031,10 +1031,17 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
         if isinstance(editor, QLineEdit):
             editor.textChanged.connect(self.onValueChanged)
         elif isinstance(editor, (QgsTimeEdit, QgsDateEdit, QgsDateTimeEdit)):
+            if isinstance(editor, QgsDateEdit):
+                editor.setDisplayFormat('yyyy-MM-dd')
+            elif isinstance(editor, QgsDateTimeEdit):
+                editor.setDisplayFormat('yyyy-MM-dd HH:mm')
+            elif isinstance(editor, QgsTimeEdit):
+                pass
             editor.clear()
             editor.valueChanged.connect(self.onValueChanged)
         elif isinstance(editor, (QgsDoubleSpinBox, QgsSpinBox)):
             editor.valueChanged.connect(self.onValueChanged)
+
         else:
             s = ""
 
