@@ -25,7 +25,8 @@ import re
 import typing
 import pathlib
 import numpy as np
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, QFile, Qt, QSize, QCoreApplication, QVariant
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, QFile, Qt, QSize, QCoreApplication, \
+    QVariant, QDate, QDateTime
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QMainWindow, \
     QToolButton, QAction, QLabel, QProgressBar, QApplication, QSizePolicy, \
@@ -108,6 +109,7 @@ class AboutDialogUI(QDialog):
         if suffix:
             title += ' ' + suffix
         self.setWindowTitle(title)
+
 
 
 class EOTimeSeriesViewerUI(QMainWindow):
@@ -975,6 +977,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     # last resort: we need to change the EOTSV Projection
                     self.setSpatialExtent(tss.spatialExtent())
 
+    def moveTo(self, date: QDateTime = None,
+               geometry: typing.Union[SpatialPoint, SpatialExtent] = None):
+
+        # set temporal subset, i.e. current date
+        if date:
+            self.setCurrentDate(date)
+
+        if isinstance(geometry, SpatialPoint):
+            self.setSpatialCenter(geometry)
+        elif isinstance(geometry, SpatialExtent):
+            self.setSpatialExtent(geometry)
+        else:
+            print('Unsupported moveTo action')
+
     def setCurrentDate(self, tsd: TimeSeriesDate):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
@@ -1596,10 +1612,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(lyr, QgsVectorLayer)
 
         # 1. check if this layer is already opened as dock widget
-        docks: typing.List[QgsDockWidget] = [d for d in self.ui.findChildren(QgsDockWidget)
-                                             if isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
+        docks: typing.List[QgsDockWidget] = self.ui.findChildren(QgsDockWidget)
+        vectorLayerDocks: typing.List[QgsDockWidget] = [d for d in docks if
+                                                        isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
 
-        for d in docks:
+        for d in vectorLayerDocks:
             if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id():
                 d.show()
                 return
@@ -1618,13 +1635,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             #dock.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
         else:
             dock = LabelDockWidget(lyr)
+            dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
+            dock.mLabelWidget.sigMoveTo[QDateTime, object].connect(self.moveTo)
             dock.setObjectName(f'LabelDockWidget{id(dock)}')
             dock.setVectorLayerTools(self.vectorLayerTools())
 
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.ui.menuPanels.addAction(dock.toggleViewAction())
-        if len(docks) > 0:
-            self.ui.tabifyDockWidget(docks[0], dock)
+        self.ui.tabifyDockWidget(self.ui.dockTimeSeries, dock)
         dock.raise_()
 
     def clearLayoutWidgets(self, L):

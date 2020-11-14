@@ -49,6 +49,7 @@ try:
 except:
     pass
 from qgis.gui import QgsDockWidget, QgisInterface
+from .externals.qps.utils import datetime64
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
@@ -2379,10 +2380,11 @@ class TimeSeries(QAbstractItemModel):
         :param date: numpy.datetime64 | str | TimeSeriesDate
         :return: TimeSeriesDate
         """
-        if isinstance(date, str):
-            date = np.datetime64(date)
         if isinstance(date, TimeSeriesDate):
             date = date.date()
+        else:
+            date = datetime64(date)
+
         assert isinstance(date, np.datetime64)
 
         if len(self) == 0:

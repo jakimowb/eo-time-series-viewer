@@ -336,7 +336,7 @@ class TestLabeling(EOTSVTestCase):
         EOTSV.loadExampleTimeSeries(10, loadAsync=False)
         EOTSV.showAttributeTable(lyr)
         EOTSV.mapViews()[0].addLayer(lyr)
-        EOTSV.onShowLayerProperties(lyr)
+        #EOTSV.onShowLayerProperties(lyr)
 
         self.assertEqual(1, len(EOTSV.ui.findChildren(LabelDockWidget)))
 

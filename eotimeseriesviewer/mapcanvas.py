@@ -911,6 +911,7 @@ class MapCanvas(QgsMapCanvas):
                     break
 
             lyrWithSelectedFeatures = [l for l in quickLabelLayers() if l.selectedFeatureCount() > 0]
+            lyrWithSelectedFeatures = [l for l in lyrWithSelectedFeatures if l in self.layers() and l.isEditable()]
 
             layerNames = ', '.join([l.name() for l in lyrWithSelectedFeatures])
             m = menu.addMenu('Quick Labels')
@@ -1253,15 +1254,15 @@ class MapCanvas(QgsMapCanvas):
                 self.populateContextMenu(menu, event.pos())
                 menu.exec_(event.globalPos())
         else:
-            if event.button() == Qt.RightButton:
+            if bRight:
                 if isinstance(mt, QgsMapTool):
-
-                    if bool(mt.flags() & QgsMapTool.ShowContextMenu):
+                    if bool(mt.flags() & QgsMapTool.ShowContextMenu) or bool(modifiers & Qt.ControlModifier):
                         menu = QMenu()
                         mt.populateContextMenu(menu)
                         self.populateContextMenu(menu, event.pos())
                         menu.exec_(event.globalPos())
                         return
+
             super().mousePressEvent(event)
 
         if bLeft and not isinstance(mt, (QgsMapToolAddFeature, )):

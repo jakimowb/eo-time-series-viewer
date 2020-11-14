@@ -8,7 +8,7 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, Qgs
 from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
     QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
     QgsGui, QgsEditorWidgetRegistry, \
-    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit
+    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsActionMenu, QgsAttributeTableModel
 
 from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog, AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
@@ -16,7 +16,7 @@ from eotimeseriesviewer import DIR_UI
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
-from .externals.qps.utils import datetime64, loadUi
+from .externals.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
 from .externals.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 from .externals.qps.models import Option, OptionListModel
@@ -295,6 +295,7 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
                 vectorLayer.changeAttributeValue(feature.id(), iField, value, oldValue)
 
         vectorLayer.endEditCommand()
+        vectorLayer.triggerRepaint()
     pass
 
 
@@ -671,6 +672,9 @@ def gotoPreviousFeature(layer: QgsVectorLayer, tools: QgsVectorLayerTools):
 
 class LabelWidget(AttributeTableWidget):
 
+    sigMoveTo = pyqtSignal([QDateTime],
+                           [QDateTime, object])
+
     def __init__(self, *args, **kwds):
 
         super().__init__(*args, *kwds)
@@ -740,6 +744,65 @@ class LabelWidget(AttributeTableWidget):
                                              self.btnShowProperties)
 
         self.mLayer.featureAdded.connect(self.onLabelFeatureAdded)
+        self.mMainView.tableView().willShowContextMenu.connect(self.onShowContextMenu)
+
+    def onShowContextMenu(self, menu: QMenu, idx: QModelIndex):
+
+        fid = idx.data(QgsAttributeTableModel.FeatureIdRole)
+        fieldIdx = idx.data(QgsAttributeTableModel.FieldIndexRole)
+        lyr = self.mLayer
+        if not isinstance(lyr, QgsVectorLayer):
+            return
+
+        feature: QgsFeature = self.mLayer.getFeature(fid)
+        if not isinstance(feature, QgsFeature):
+            return
+
+        ACTIONS = dict()
+        for a in menu.findChildren(QAction):
+            ACTIONS[a.text()] = a
+
+        # todo: connect default options
+
+        extent: SpatialExtent = SpatialExtent(lyr.crs(), feature.geometry().boundingBox())
+        center: SpatialPoint = SpatialPoint(lyr.crs(), feature.geometry().centroid().asPoint())
+        field = lyr.fields().at(fieldIdx)
+
+        if field.type() in [QVariant.Date, QVariant.DateTime]:
+
+            if isinstance(feature, QgsFeature):
+                datetime = feature.attribute(fieldIdx)
+                try:
+                    datetime = QDateTime(datetime64(datetime).astype(object))
+                except:
+                    pass
+
+                # add temporal options
+                if isinstance(datetime, QDateTime):
+
+
+
+                    date_string = datetime.toString(Qt.ISODate)
+                    a1 = QAction(f'Move time to', menu)
+                    a1.setToolTip(f'Moves the current date to {date_string}')
+                    a1.triggered.connect(lambda *args, d=datetime:
+                                         self.sigMoveTo[QDateTime].emit(d))
+
+                    a2 = QAction(f'Move time && pan to', menu)
+                    a2.setToolTip(f'Moves the current date to {date_string} and pans to feature {feature.id()}')
+                    a2.triggered.connect(lambda *args, f=feature, d=datetime:
+                                         self.sigMoveTo[QDateTime, object].emit(d, center))
+
+                    a3 = QAction(f'Move time && zoom to', menu)
+                    a2.setToolTip(f'Moves the current date to {date_string} and zooms to feature {feature.id()}')
+                    a3.triggered.connect(lambda *args, f=feature, d=datetime:
+                                         self.sigMoveTo[QDateTime, object].emit(d, extent))
+
+
+                    menu.insertActions(menu.actions()[0], [a1, a2, a3])
+                    menu.insertSeparator(menu.actions()[3])
+
+
 
     def selectBehaviour(self) -> QgsVectorLayer.SelectBehavior:
         if self.mOptionSelectionSetSelection.isChecked():
