@@ -1559,17 +1559,15 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     :return: (wl, wl_u) or (None, None), if not existing
     """
 
-    wl = None
-    wlu = None
     try:
         dataset = gdalDataset(dataset)
     except:
         pass
 
     def checkWavelengthUnit(key: str, value: str) -> str:
-        wlu = None
+        wlu: str = None
         value = value.strip()
-        if re.search(r'wavelength[ _]?units?', key, re.I):
+        if re.search(r'^wavelength[ _]?units?', key, re.I):
             # metric length units
             wlu = UnitLookup.baseUnit(value)
 
@@ -1595,9 +1593,9 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
                 wlu = None
         return wlu
 
-    def checkWavelength(key: str, values: str):
-        wl = None
-        if re.search(r'wavelengths?$', key, re.I):
+    def checkWavelength(key: str, values: str, expected:int = 1) -> np.ndarray:
+        wl: np.ndarray = None
+        if re.search(r'^wavelengths?$', key, re.I):
             # remove trailing / ending { } and whitespace
             values = re.sub('[{}]', '', values).strip()
             if ',' not in values:
@@ -1605,7 +1603,7 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
             else:
                 sep = ','
             try:
-                wl = np.fromstring(values, count=dataset.RasterCount, sep=sep)
+                wl = np.fromstring(values, count=expected, sep=sep)
             except ValueError as exV:
                 pass
             except Exception as ex:
@@ -1621,51 +1619,80 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
 
                 mdDict = dataset.GetMetadata_Dict(domain)
 
+                domainWLU: str = None
+                domainWL: np.ndarray = None
+                # search domain
                 for key, values in mdDict.items():
-                    if wl is None:
-                        wl = checkWavelength(key, values)
-                    if wlu is None:
-                        wlu = checkWavelengthUnit(key, values)
-                    if wl is not None and wlu is not None:
-                        # domain-specific check
-                        if domain == 'FORCE' and wlu == 'DecimalYear':
-                            # make decimal-year values leap-year sensitive
-                            wl = convertDateUnit(datetime64(wl, dpy=365), 'DecimalYear')
-                        break
+                    if domainWL is None:
+                        domainWL = checkWavelength(key, values, expected=dataset.RasterCount)
+                    if domainWLU is None:
+                        domainWLU = checkWavelengthUnit(key, values)
 
-        if wl is not None and wlu is not None:
-            if len(wl) > dataset.RasterCount:
-                wl = wl[0:dataset.RasterCount]
-            return wl, wlu
+                if isinstance(domainWL, np.ndarray) and isinstance(domainWLU, str):
+                    if domain == 'FORCE' and domainWLU == 'DecimalYear':
+                        # make decimal-year values leap-year sensitive
+                        domainWL = convertDateUnit(datetime64(domainWL, dpy=365), 'DecimalYear')
 
-        # 2. check on band level
-        wl = []
+                    if len(domainWL) > dataset.RasterCount:
+                        domainWL = domainWL[0:dataset.RasterCount]
+
+                    return domainWL, domainWLU
+
+        # 2. check on band level. collect wl from each single band
+        # first domain that defines wl and wlu is prototyp domain for all other bands
+
+        wl = [] # list of wavelength values
+        wlu: str = None # wavelength unit string
+        wlDomain: str = None # the domain in which the WL and WLU are defined
+        wlKey: str = None # key that stores the wavelength value
+        wluKey: str = None # key that stores the wavelength unit
+
         for b in range(dataset.RasterCount):
             band: gdal.Band = dataset.GetRasterBand(b + 1)
-            domains = band.GetMetadataDomainList()
-            if isinstance(domains, list):
-                for domain in domains:
-                    # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
-                    mdDict = band.GetMetadata_Dict(domain)
-                    _wl = None
-                    for key, values in mdDict.items():
-                        if wlu is None:
-                            wlu = checkWavelengthUnit(key, values)
-                        if _wl is None:
-                            _wl = checkWavelength(key, values)
-                    if wlu is not None:
-                        s = ""
-                    if wlu is not None and _wl is not None:
-                        wl.append(_wl[0])
-                        break
+            if b == 0:
+                domains = band.GetMetadataDomainList()
+                if isinstance(domains, list):
+                    for domain in domains:
+                        # see http://www.harrisgeospatial.com/docs/ENVIHeaderFiles.html for supported wavelength units
+                        domainWL = domainWLU = None
+
+                        mdDict = band.GetMetadata_Dict(domain)
+
+                        for key, values in mdDict.items():
+                            if domainWLU is None:
+                                domainWLU = checkWavelengthUnit(key, values)
+                                if domainWLU:
+                                    wluKey = key
+
+                            if domainWL is None:
+                                domainWL = checkWavelength(key, values, expected=1)
+                                if isinstance(domainWL, np.ndarray):
+                                    wlKey = key
+
+                        if isinstance(domainWL, np.ndarray) and isinstance(domainWLU, str):
+                            wlDomain = domain
+                            wlu = domainWLU
+                            wl.append(domainWL[0])
+
+                if len(wl) == 0:
+                    # we did not found a WL + WLU for the 1st band. stop searching and return
+                    return None, None
+            else:
+                bandWLU = checkWavelengthUnit(wluKey, band.GetMetadataItem(wluKey, wlDomain))
+                bandWL = checkWavelength(wlKey, band.GetMetadataItem(wlKey, wlDomain), expected=1)
+
+                if bandWLU != wlu or bandWL is None:
+                    print(f'{dataset.GetDescription()}: inconsistent use of metadata key {wluKey} per band')
+                    return None, None
+                wl.append(bandWL[0])
 
         if len(wl) == 0:
-            wl = None
-        else:
-            wl = np.asarray(wl)
-            if domain == 'FORCE' and wlu == 'DecimalYear':
-                # make decimal-year values leap-year sensitive
-                wl = UnitLookup.convertDateUnit(datetime64(wl, dpy=365), 'DecimalYear')
+            return None, None
+
+        wl = np.asarray(wl)
+        if domain == 'FORCE' and wlu == 'DecimalYear':
+            # make decimal-year values leap-year sensitive
+            wl = UnitLookup.convertDateUnit(datetime64(wl, dpy=365), 'DecimalYear')
 
     return wl, wlu
 

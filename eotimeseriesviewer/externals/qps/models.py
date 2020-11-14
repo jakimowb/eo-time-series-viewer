@@ -449,7 +449,12 @@ class TreeNode(QObject):
         if isinstance(child_nodes, TreeNode):
             child_nodes = [child_nodes]
         assert isinstance(child_nodes, list)
-        child_nodes = [l for l in child_nodes if l not in self.mChildren]
+        unique = []
+        for n in child_nodes:
+            if not (n in unique or n in self.mChildren):
+                unique.append(n)
+
+        child_nodes = unique
 
         l = len(child_nodes)
         if l == 0:

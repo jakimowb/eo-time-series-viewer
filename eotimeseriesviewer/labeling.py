@@ -284,8 +284,6 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
         conf = setup.config()
         labelType: LabelShortcutType = LabelShortcutType.fromConfValue(conf.get(LabelConfigurationKey.LabelType))
 
-
-
         value = quickLabelValue(fieldType, labelType, tsd, tss)
 
         if value is not None:
@@ -641,37 +639,65 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
 
-def gotoNextFeature(layer: QgsVectorLayer, tools: QgsVectorLayerTools):
+def gotoNextFeature(layer: QgsVectorLayer,
+                    tools: QgsVectorLayerTools,
+                    visible_features: typing.List[int] = None) -> int:
     assert isinstance(tools, QgsVectorLayerTools)
     if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
+        if not isinstance(visible_features, list):
+            visible_features = layer.allFeatureIds()
 
-        allIDs = sorted(layer.allFeatureIds())
-        fids = layer.selectedFeatureIds()
-        if len(fids) == 0:
-            nextFID = allIDs[0]
+        if len(visible_features) == 0:
+            return None
+
+        visible_features = sorted(visible_features)
+        selected_fids = layer.selectedFeatureIds()
+        selected_fids = [f for f in visible_features if f in selected_fids]
+
+        if len(selected_fids) == 0:
+            nextFID = visible_features[0]
         else:
-            i = min(allIDs.index(max(fids)) + 1, len(allIDs) - 1)
-            nextFID = allIDs[i]
+            next_index = visible_features.index(max(selected_fids)) + 1
+            if next_index >= len(visible_features):
+                nextFID = visible_features[-1]
+            else:
+                nextFID = visible_features[next_index]
+
         layer.selectByIds([nextFID])
         tools.panToSelected(layer)
+        return nextFID
+    return None
 
 
-def gotoPreviousFeature(layer: QgsVectorLayer, tools: QgsVectorLayerTools):
+def gotoPreviousFeature(layer: QgsVectorLayer,
+                        tools: QgsVectorLayerTools,
+                        visible_features: typing.List[int] = None):
     assert isinstance(tools, QgsVectorLayerTools)
     if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
-        allIDs = sorted(layer.allFeatureIds())
-        fids = layer.selectedFeatureIds()
-        if len(fids) == 0:
-            nextFID = allIDs[0]
+        if not isinstance(visible_features, list):
+            visible_features = layer.allFeatureIds()
+
+        if len(visible_features) == 0:
+            return None
+
+        visible_features = sorted(visible_features)
+        selected_fids = layer.selectedFeatureIds()
+        selected_fids = [f for f in visible_features if f in selected_fids]
+
+        if len(selected_fids) == 0:
+            nextFID = visible_features[0]
         else:
-            i = max(allIDs.index(min(fids)) - 1, 0)
-            nextFID = allIDs[i]
+            next_index = visible_features.index(max(selected_fids)) - 1
+            if next_index < 0:
+                nextFID = visible_features[0]
+            else:
+                nextFID = visible_features[next_index]
+
         layer.selectByIds([nextFID])
         tools.panToSelected(layer)
 
 
 class LabelWidget(AttributeTableWidget):
-
     sigMoveTo = pyqtSignal([QDateTime],
                            [QDateTime, object])
 
@@ -682,13 +708,21 @@ class LabelWidget(AttributeTableWidget):
         self.mActionNextFeature = QAction('Next Feature', parent=self)
         self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
         self.mActionNextFeature.triggered.connect(
-            lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoNextFeature(lyr, vlt)
+            lambda *args,
+                   lyr=self.mLayer,
+                   vlt=self.vectorLayerTools(),
+                   mv=self.mMainView
+            : gotoNextFeature(lyr, vlt, visible_features=mv.filteredFeatures())
         )
 
         self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
         self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
         self.mActionPreviousFeature.triggered.connect(
-            lambda *args, lyr=self.mLayer, vlt=self.vectorLayerTools(): gotoPreviousFeature(lyr, vlt))
+            lambda *args,
+                   lyr=self.mLayer,
+                   vlt=self.vectorLayerTools(),
+                   mv=self.mMainView
+            : gotoPreviousFeature(lyr, vlt, visible_features=mv.filteredFeatures()))
 
         self.mOptionSelectBehaviour = QAction('Selection behaviour')
         self.mOptionSelectBehaviour.setCheckable(True)
@@ -721,7 +755,7 @@ class LabelWidget(AttributeTableWidget):
 
         self.mOptionSelectionAddToSelection.trigger()
         # show selected feature on top by default
-        self.mActionSelectedToTop.setChecked(True)
+        # self.mActionSelectedToTop.setChecked(True)
 
         self.mToolbar: QToolBar
         self.mToolbar.insertActions(self.mActionToggleEditing,
@@ -779,9 +813,6 @@ class LabelWidget(AttributeTableWidget):
 
                 # add temporal options
                 if isinstance(datetime, QDateTime):
-
-
-
                     date_string = datetime.toString(Qt.ISODate)
                     a1 = QAction(f'Move time to', menu)
                     a1.setToolTip(f'Moves the current date to {date_string}')
@@ -798,11 +829,8 @@ class LabelWidget(AttributeTableWidget):
                     a3.triggered.connect(lambda *args, f=feature, d=datetime:
                                          self.sigMoveTo[QDateTime, object].emit(d, extent))
 
-
                     menu.insertActions(menu.actions()[0], [a1, a2, a3])
                     menu.insertSeparator(menu.actions()[3])
-
-
 
     def selectBehaviour(self) -> QgsVectorLayer.SelectBehavior:
         if self.mOptionSelectionSetSelection.isChecked():
