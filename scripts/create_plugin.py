@@ -134,7 +134,7 @@ def create_plugin(include_testdata: bool = False,
     compileEOTSVResourceFiles()
 
     # copy python and other resource files
-    pattern = re.compile(r'\.(py|svg|png|txt|ui|tif|qml|md|js|css)$')
+    pattern = re.compile(r'\.(py|svg|png|txt|ui|tif|qml|md|js|css|json)$')
     files = list(scantree(DIR_REPO / 'eotimeseriesviewer', pattern=pattern))
     # add unit tests
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
