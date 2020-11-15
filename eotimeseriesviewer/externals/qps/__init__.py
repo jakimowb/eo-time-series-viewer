@@ -26,10 +26,12 @@
 
 import pathlib
 import sys
+import os
 import typing
 import warnings
 from qgis.core import QgsApplication, Qgis
-from qgis.gui import QgsMapLayerConfigWidgetFactory
+from qgis.gui import QgsMapLayerConfigWidgetFactory, QgisInterface
+
 
 MIN_QGIS_VERSION = '3.14'
 __version__ = '1.0'
@@ -46,6 +48,8 @@ if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
                   f'Please update to QGIS >= {MIN_QGIS_VERSION}', RuntimeWarning)
 
 
+KEY_MAPLAYERCONFIGWIDGETFACTORIES = 'QPS_MAPLAYER_CONFIGWIDGET_FACTORIES'
+
 def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
     Register a new tab in the map layer properties dialog.
@@ -56,9 +60,16 @@ def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory)
     """
     global MAPLAYER_CONFIGWIDGET_FACTORIES
     assert isinstance(factory, QgsMapLayerConfigWidgetFactory)
-    if factory not in MAPLAYER_CONFIGWIDGET_FACTORIES:
-        MAPLAYER_CONFIGWIDGET_FACTORIES.append(factory)
+    name: str = factory.__class__.__name__
 
+    registered = os.environ.get(KEY_MAPLAYERCONFIGWIDGETFACTORIES, '').split('::')
+
+    from qgis.utils import iface
+    if isinstance(iface, QgisInterface) and factory not in MAPLAYER_CONFIGWIDGET_FACTORIES and name not in registered:
+        MAPLAYER_CONFIGWIDGET_FACTORIES.append(factory)
+        registered.append(name)
+        os.environ[KEY_MAPLAYERCONFIGWIDGETFACTORIES] = '::'.join(registered)
+        iface.registerMapLayerConfigWidgetFactory(factory)
 
 def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
@@ -70,8 +81,18 @@ def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactor
     """
     assert isinstance(factory, QgsMapLayerConfigWidgetFactory)
     global MAPLAYER_CONFIGWIDGET_FACTORIES
+    name: str = factory.__class__.__name__
+
     while factory in MAPLAYER_CONFIGWIDGET_FACTORIES:
         MAPLAYER_CONFIGWIDGET_FACTORIES.remove(factory)
+
+    registered = os.environ.get(KEY_MAPLAYERCONFIGWIDGETFACTORIES, '').split('::')
+    while name in registered:
+        registered.remove(name)
+    os.environ[KEY_MAPLAYERCONFIGWIDGETFACTORIES] = '::'.join(registered)
+    from qgis.utils import iface
+    if isinstance(iface, QgisInterface):
+        iface.unregisterMapLayerConfigWidgetFactory(factory)
 
 
 def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
