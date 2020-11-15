@@ -128,7 +128,7 @@ class TestTimeSeries(EOTSVTestCase):
                                         ext_full.yMaximum())
 
         for ext in [ext_full, ext_nodata, ext_outofbounds]:
-            task = TimeSeriesFindOverlapTask(ext, [tss], sampleSize=1024, callback=onFinished)
+            task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=1024, callback=onFinished)
             task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
             task.finished(task.run())
 

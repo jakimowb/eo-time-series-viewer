@@ -44,6 +44,7 @@ from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, \
     QgsTaskManager, QgsPoint, QgsPointXY, \
     QgsMimeDataUtils, QgsCoordinateTransform
+
 try:
     from qgis.core import QgsRasterLayerTemporalProperties
 except:
@@ -228,9 +229,9 @@ class SensorInstrument(QObject):
         else:
             self.mName = self.mNameOriginal
 
-        #import eotimeseriesviewer.settings
-        #storedName = eotimeseriesviewer.settings.sensorName(self.mId)
-        #if isinstance(storedName, str):
+        # import eotimeseriesviewer.settings
+        # storedName = eotimeseriesviewer.settings.sensorName(self.mId)
+        # if isinstance(storedName, str):
         #    self.mName = storedName
 
         if not isinstance(band_names, list):
@@ -1170,85 +1171,148 @@ class TimeSeriesFindOverlapTask(QgsTask):
 
     def __init__(self,
                  extent: SpatialExtent,
-                 timeSeriesSources: typing.List[TimeSeriesSource],
+                 time_series_sources: typing.List[TimeSeriesSource],
+                 date_of_interest: np.datetime64 = None,
+                 max_forward: int = -1,
+                 max_backward: int = -1,
                  callback=None,
                  description='Calculate image pixel overlap',
-                 sampleSize: int = 16,
+                 sample_size: int = 16,
                  progress_interval: int = 2):
+        """
+
+        :param extent:
+        :param time_series_sources:
+        :param date_of_interest: date of interest from which to start searching. "pivot" date
+        :param max_forward: max. number of intersecting dates to search into the past of date_of_interest
+            defaults to -1 = search for all dates < date_of_interest
+        :param max_backward: max. number of intersecting dates to search into the future of date_of_interest
+            defaults to -1 = search for all dates > date_of_interest
+        :param callback:
+        :param description:
+        :param sample_size:
+        :param progress_interval:
+        """
+
         super().__init__(description=description)
-        assert sampleSize >= 1
+        assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
-        self.mTSS: typing.List[str] = [tss.uri() for tss in timeSeriesSources]
+        self.mTSS: typing.List[typing.Tuple[str, np.datetime64]] = \
+            [(tss.uri(), tss.date()) for tss in time_series_sources]
+
+        self.mDates = set([t[1] for t in self.mTSS])
+        if not isinstance(date_of_interest, np.datetime64):
+            self.mDOI = date_of_interest
+        else:
+            self.mDOI = date_of_interest
+
+        if max_forward == -1:
+            self.m_max_forward = len(self.mTSS)
+        else:
+            self.m_max_forward = max_forward
+
+        if max_backward == -1:
+            self.m_max_backward = len(self.mTSS)
+        else:
+            self.m_max_backward = max_backward
+
         self.mCallback = callback
         self.mTargetExtent = extent.__copy__()
-        self.mSampleSize = sampleSize
+        self.mSampleSize = sample_size
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mIntersections: typing.Dict[str, bool] = dict()
         self.mError = None
+
+        emptyStats: QgsRasterBandStats = QgsRasterBandStats()
+        emptyMin = emptyStats.minimumValue
+        emptyMax = emptyStats.maximumValue
+        self.mEmptyMinMax = (emptyMin, emptyMax)
+
+        targetCRS: QgsCoordinateReferenceSystem = self.mTargetExtent.crs()
+        self.mExtentLookup: typing.Dict[str, SpatialExtent] = dict()
+        self.mExtentLookup[targetCRS.toWkt()] = self.mTargetExtent
+
+    def testTSS(self, tssUri: str) -> bool:
+
+        tss = TimeSeriesSource.create(tssUri)
+        wkt = tss.crsWkt()
+        if wkt not in self.mExtentLookup.keys():
+            self.mExtentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
+
+        targetExtent2 = self.mExtentLookup.get(wkt)
+        if not isinstance(targetExtent2, SpatialExtent):
+            return False
+
+        if not targetExtent2.intersects(tss.spatialExtent()):
+            return False
+
+        lyr: QgsRasterLayer = tss.asRasterLayer()
+        if not isinstance(lyr, QgsRasterLayer):
+            return False
+
+        stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
+                                                                      stats=QgsRasterBandStats.Range,
+                                                                      extent=targetExtent2,
+                                                                      sampleSize=self.mSampleSize)
+
+        if not isinstance(stats, QgsRasterBandStats):
+            return False
+        return (stats.minimumValue, stats.maximumValue) != self.mEmptyMinMax
 
     def run(self):
         """
         Start the Task and returns the results.
         :return:
         """
-        targetCRS: QgsCoordinateReferenceSystem = self.mTargetExtent.crs()
-        extentLookup = dict()
-        extentLookup[targetCRS.toWkt()] = self.mTargetExtent
 
         try:
-            for tssUri in self.mTSS:
-                self.mIntersections[tssUri] = False
-            emptyStats: QgsRasterBandStats = QgsRasterBandStats()
-            emptyMin = emptyStats.minimumValue
-            emptyMax = emptyStats.maximumValue
-            del emptyStats
+            # for tssUri in self.mTSS:
+            #    self.mIntersections[tssUri] = False
+
             n = len(self.mTSS)
 
             t0 = datetime.datetime.now()
 
-            for i, tssUri in enumerate(self.mTSS):
+            sources = sorted(self.mTSS, key=lambda t: abs(self.mDOI - t[1]))
+
+            dates_before = set()
+            dates_after = set()
+
+            smallest = min(self.mDates)
+            highest = max(self.mDates)
+
+            for i, t in enumerate(sources):
                 if self.isCanceled():
                     return False
-                tss = TimeSeriesSource.create(tssUri)
-                wkt = tss.crsWkt()
-                if wkt not in extentLookup.keys():
-                    extentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
 
-                targetExtent2 = extentLookup[wkt]
-                if not isinstance(targetExtent2, SpatialExtent):
+                tssUri: str = t[0]
+                obs_date: np.datetime64 = t[1]
+
+                if obs_date < smallest or obs_date > highest:
                     continue
 
-                if not targetExtent2.intersects(tss.spatialExtent()):
-                    del targetExtent2
-                    continue
+                is_intersection: bool = self.testTSS(tssUri)
+                self.mIntersections[tssUri] = is_intersection
 
-                lyr: QgsRasterLayer = tss.asRasterLayer()
-                del tss
-
-                if not isinstance(lyr, QgsRasterLayer):
-                    continue
-
-                stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
-                                                                              stats=QgsRasterBandStats.Range,
-                                                                              extent=targetExtent2,
-                                                                              sampleSize=self.mSampleSize)
-
-                del lyr
-
-                if not isinstance(stats, QgsRasterBandStats):
-                    continue
-                self.mIntersections[tssUri] = (stats.minimumValue, stats.maximumValue) != (emptyMin, emptyMax)
-                del stats
-                del targetExtent2
-                progress = int(100 * (i + 1) / n)
+                if is_intersection:
+                    if obs_date < self.mDOI:
+                        dates_before.add(obs_date)
+                        if len(dates_before) >= self.m_max_backward:
+                            smallest = min(dates_before)
+                    elif obs_date > self.mDOI:
+                        dates_after.add(obs_date)
+                        if len(dates_after) >= self.m_max_forward:
+                            highest = max(dates_after)
 
                 dt = datetime.datetime.now() - t0
                 if dt > self.mProgressInterval:
                     self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
                     self.mIntersections.clear()
+                    progress = int(100 * (i + 1) / n)
                     self.setProgress(progress)
                     t0 = datetime.datetime.now()
+
         except Exception as ex:
             self.mError = ex
             return False
@@ -1256,8 +1320,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
         if len(self.mIntersections) > 0:
             self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
         self.mIntersections.clear()
-        del targetCRS
-        del extentLookup
+        self.setProgress(100)
 
         return True
 
@@ -1404,7 +1467,10 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self, ext: SpatialExtent = None, runAsync: bool = None):
+    def focusVisibilityToExtent(self, ext: SpatialExtent = None, runAsync: bool = None,
+                                date_of_interest: np.datetime64 = None,
+                                max_before: int = -1,
+                                max_after: int = -1):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
         :param runAsync: if True (default), the visibility check is run in a parallel task
@@ -1416,7 +1482,7 @@ class TimeSeries(QAbstractItemModel):
             from eotimeseriesviewer.settings import value, Keys
             runAsync = value(Keys.QgsTaskAsync, True)
 
-        tssToTest = []
+        tssToTest: typing.List[TimeSeriesSource] = []
         if isinstance(ext, SpatialExtent):
             changed = False
             for tsd in self:
@@ -1431,13 +1497,16 @@ class TimeSeries(QAbstractItemModel):
 
             qgsTask = TimeSeriesFindOverlapTask(ext,
                                                 tssToTest,
-                                                sampleSize=value(Keys.RasterOverlapSampleSize),
+                                                date_of_interest=date_of_interest,
+                                                max_backward=max_before,
+                                                max_forward=max_after,
+                                                sample_size=value(Keys.RasterOverlapSampleSize),
                                                 callback=self.onTaskFinished)
 
             qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
             qgsTask.progressChanged.connect(self.sigProgress.emit)
 
-            if runAsync:
+            if False and runAsync:
                 tm = QgsApplication.taskManager()
                 assert isinstance(tm, QgsTaskManager)
                 tm.addTask(qgsTask)
@@ -1814,7 +1883,7 @@ class TimeSeries(QAbstractItemModel):
             c = self.columnNames().index(self.cnSensor)
 
             idx0 = self.index(0, c)
-            idx1 = self.index(self.rowCount()-1, c)
+            idx1 = self.index(self.rowCount() - 1, c)
             self.dataChanged.emit(idx0, idx1)
         s = ""
 

@@ -729,6 +729,7 @@ class LabelWidget(AttributeTableWidget):
         self.mOptionSelectBehaviour.setChecked(True)
 
         m = QMenu()
+        m.setToolTipsVisible(True)
         self.mOptionSelectionSetSelection = m.addAction('Set Selection')
         self.mOptionSelectionSetSelection.setIcon(QIcon(':/images/themes/default/mIconSelected.svg'))
         self.mOptionSelectionSetSelection.setToolTip('Selects a feature.')
