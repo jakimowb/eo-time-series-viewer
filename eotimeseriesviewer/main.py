@@ -991,13 +991,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         else:
             print('Unsupported moveTo action')
 
-    def setCurrentDate(self, tsd: TimeSeriesDate):
+    def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool =True) :
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate or numpy.datetime64
         """
         tsd = self.timeSeries().findDate(tsd)
         if isinstance(tsd, TimeSeriesDate):
+            if show_if_hidden:
+                self.mTimeSeries.showTSDs([tsd], b=True)
             self.ui.mMapWidget.setCurrentDate(tsd)
 
     def mapCanvases(self) -> typing.List[MapCanvas]:

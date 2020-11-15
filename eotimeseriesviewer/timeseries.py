@@ -1377,7 +1377,7 @@ class TimeSeries(QAbstractItemModel):
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
         self.mLUT_Path2TSD = {}
-        self.mVisibleDate = []
+        self.mVisibleDates: typing.Set[TimeSeriesDate] = set()
         self.mCurrentSpatialExtent = None
 
         self.cnDate = 'Date'
@@ -1490,8 +1490,8 @@ class TimeSeries(QAbstractItemModel):
         Sets the TimeSeriesDates currently shown
         :param tsds: [list-of-TimeSeriesDate]
         """
-        self.mVisibleDate.clear()
-        self.mVisibleDate.extend(tsds)
+        self.mVisibleDates.clear()
+        self.mVisibleDates.update(tsds)
         for tsd in tsds:
             assert isinstance(tsd, TimeSeriesDate)
             if tsd in self:
@@ -1708,6 +1708,7 @@ class TimeSeries(QAbstractItemModel):
 
         idx0 = self.tsdToIdx(tsds[0])
         idx1 = self.tsdToIdx(tsds[-1])
+
         for i, tsd in enumerate(tsds):
             assert isinstance(tsd, TimeSeriesDate)
             for tss in tsd:
@@ -2303,7 +2304,7 @@ class TimeSeries(QAbstractItemModel):
                     print(ext)
                     return None
 
-            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
+            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDates:
                 return QColor('yellow')
 
         if isinstance(node, TimeSeriesDate):
@@ -2318,7 +2319,7 @@ class TimeSeries(QAbstractItemModel):
             if role == Qt.CheckStateRole and index.column() == 0:
                 return node.checkState()
 
-            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDate:
+            if role == Qt.BackgroundColorRole and tsd in self.mVisibleDates:
                 return QColor('yellow')
 
         return None
