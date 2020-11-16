@@ -1418,6 +1418,7 @@ class TimeSeries(QAbstractItemModel):
     sigTimeSeriesDatesRemoved = pyqtSignal(list)
 
     sigLoadingTaskFinished = pyqtSignal()
+    sigFindOverlapTaskFinished = pyqtSignal()
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
@@ -1996,8 +1997,11 @@ class TimeSeries(QAbstractItemModel):
             self.sigLoadingTaskFinished.emit()
 
         elif isinstance(task, TimeSeriesFindOverlapTask):
-            if success and len(task.mIntersections) > 0:
-                self.onFoundOverlap(task.mIntersections)
+            if success:
+                if len(task.mIntersections) > 0:
+                    self.onFoundOverlap(task.mIntersections)
+            self.sigFindOverlapTaskFinished.emit()
+
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """

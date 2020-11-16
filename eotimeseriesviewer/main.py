@@ -761,6 +761,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.timeSeries().sigLoadingTaskFinished.disconnect(self.onPostDataLoading)
 
+
     def lockCentralWidgetSize(self, b: bool):
         """
         Locks or release the current central widget size

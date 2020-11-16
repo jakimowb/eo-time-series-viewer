@@ -1389,15 +1389,16 @@ class MapWidget(QFrame):
 
         if isinstance(self.mTimeSeries, TimeSeries):
             self.mTimeSeries.sigVisibilityChanged.disconnect(self._updateCanvasDates)
-            self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self.__updateCanvasDates)
+            self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateCanvasDates)
             self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateSliderRange)
+            self.mTimeSeries.sigFindOverlapTaskFinished.disconnect(self._updateCanvasDates)
 
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
             self.mTimeSeries.sigVisibilityChanged.connect(self._updateCanvasDates)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self._updateCanvasDates)
-
+            self.mTimeSeries.sigFindOverlapTaskFinished.connect(self._updateCanvasDates)
             self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self._updateSliderRange)
 
