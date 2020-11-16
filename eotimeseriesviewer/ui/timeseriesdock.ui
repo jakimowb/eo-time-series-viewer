@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>640</width>
-    <height>261</height>
+    <height>266</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -95,6 +95,16 @@
          <property name="bottomMargin">
           <number>0</number>
          </property>
+         <item>
+          <widget class="QToolButton" name="btnFollowCurrentDate">
+           <property name="text">
+            <string>...</string>
+           </property>
+           <property name="autoRaise">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
          <item>
           <widget class="QToolButton" name="btnAddTSD">
            <property name="text">
@@ -214,7 +224,7 @@
          </widget>
         </item>
         <item>
-         <widget class="TimeSeriesTreeView" name="timeSeriesTreeView">
+         <widget class="TimeSeriesTreeView" name="mTimeSeriesTreeView">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -314,6 +324,24 @@
     </item>
    </layout>
   </widget>
+  <action name="optionFollowCurrentDate">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mapview.svg</normaloff>:/eotimeseriesviewer/icons/mapview.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Follow Current Date</string>
+   </property>
+   <property name="toolTip">
+    <string>Activate to focus the view on the current date</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -324,6 +352,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
+  <include location="../../../QGIS_Images/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>
