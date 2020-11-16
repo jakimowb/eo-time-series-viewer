@@ -1527,11 +1527,20 @@ class MapWidget(QFrame):
 
     def mapViewCanvases(self, mapView: MapView) -> typing.List[MapCanvas]:
         """
-        Returns the MapCanvases related to a MapView, sorted
+        Returns the MapCanvases related to a MapView, sorted in temporal order
         :param mapView: MapView
         :return: [list-of-MapCanvases]
         """
-        return sorted(self.mCanvases[mapView], key=lambda c: c.tsd())
+        A = []
+        B = []
+        for c in self.mCanvases.get(mapView, []):
+            if isinstance(c.tsd(), TimeSeriesDate):
+                A.append(c)
+            else:
+                B.append(c)
+
+        return sorted(A, key=lambda c: c.tsd()) + B
+
 
     def moveToNextTSD(self):
 

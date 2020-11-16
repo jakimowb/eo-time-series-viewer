@@ -884,6 +884,11 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
 
+        date = None
+
+        if isinstance(tsd, TimeSeriesDate):
+            date = tsd.date()
+
         from .main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
 
@@ -1175,13 +1180,33 @@ class MapCanvas(QgsMapCanvas):
 
             ts = eotsv.timeSeries()
 
-            action = menu.addAction('Update date visibility')
-            action.setToolTip('Updates the visibility of observation dates and source images according its '
-                              'presence of unmasked pixels for this spatial extent')
+            mv = self.mapView()
+            if mv:
+                n_max = len(mv.mapCanvases())
+            else:
+                n_max = 5
+            action = menu.addAction('Update source visibility')
+            action.setToolTip('Updates observation source visibility according their spatial intersection '
+                              'with this map extent.')
             action.triggered.connect(lambda *args,
                                             ext=self.spatialExtent():
-                                     ts.focusVisibilityToExtent(ext=ext))
+                                     ts.focusVisibilityToExtent(ext=ext,
+                                                                date_of_interest=date,
+                                                                max_after=n_max,
+                                                                max_before=n_max
+                                                                ))
 
+            action = menu.addAction('Update source visibility (all)')
+            action.setToolTip('Updates observation source visibility according their spatial intersection '
+                              'with this map extent.<br/>'
+                              '<span style="color:red">This can take some time for longe time series</span>')
+
+            action.triggered.connect(lambda *args,
+                                            ext=self.spatialExtent():
+                                     ts.focusVisibilityToExtent(ext=ext, date_of_interest=date))
+
+
+            menu.addSeparator()
             action = menu.addAction('Hide Date')
             action.triggered.connect(lambda *args: ts.hideTSDs([tsd]))
 
@@ -1250,6 +1275,7 @@ class MapCanvas(QgsMapCanvas):
                     and not bool(mt.flags() & QgsMapTool.ShowContextMenu) \
                     and bool(modifiers & Qt.ControlModifier):
                 menu = QMenu()
+                menu.setToolTipsVisible(True)
                 # mt.populateContextMenu(menu)
                 self.populateContextMenu(menu, event.pos())
                 menu.exec_(event.globalPos())
@@ -1258,6 +1284,7 @@ class MapCanvas(QgsMapCanvas):
                 if isinstance(mt, QgsMapTool):
                     if bool(mt.flags() & QgsMapTool.ShowContextMenu) or bool(modifiers & Qt.ControlModifier):
                         menu = QMenu()
+                        menu.setToolTipsVisible(True)
                         mt.populateContextMenu(menu)
                         self.populateContextMenu(menu, event.pos())
                         menu.exec_(event.globalPos())
