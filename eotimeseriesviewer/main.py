@@ -26,7 +26,7 @@ import typing
 import pathlib
 import numpy as np
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, QFile, Qt, QSize, QCoreApplication, \
-    QVariant, QDate, QDateTime
+    QVariant, QDate, QDateTime, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QMainWindow, \
     QToolButton, QAction, QLabel, QProgressBar, QApplication, QSizePolicy, \
@@ -167,7 +167,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         #self.dockSpectralLibrary = self.addDockWidget(area, panel)
 
         #self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
-        self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+        #self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         # self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
@@ -1624,11 +1624,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                                                         isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
 
         for d in vectorLayerDocks:
-            if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id():
+            if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id() or \
+               isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
                 d.show()
-                return
-            elif isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
-                d.show()
+                d.activateWindow()
+                d.raise_()
                 return
 
         # 2. create dock widget
@@ -1649,8 +1649,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.ui.menuPanels.addAction(dock.toggleViewAction())
-        self.ui.tabifyDockWidget(self.ui.dockTimeSeries, dock)
-        dock.raise_()
+        self.ui.tabifyDockWidget(self.ui.dockProfiles, dock)
+        dock.activateWindow()
+        QTimer.singleShot(10, lambda d=dock: d.raise_())
+
 
     def clearLayoutWidgets(self, L):
         if L is not None:
