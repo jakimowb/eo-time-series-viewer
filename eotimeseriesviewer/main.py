@@ -980,16 +980,17 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def moveTo(self, date: QDateTime = None,
                geometry: typing.Union[SpatialPoint, SpatialExtent] = None):
 
-        # set temporal subset, i.e. current date
-        if date:
-            self.setCurrentDate(date)
-
+        # set geometry first, e.g. on zoom operations
         if isinstance(geometry, SpatialPoint):
             self.setSpatialCenter(geometry)
         elif isinstance(geometry, SpatialExtent):
             self.setSpatialExtent(geometry)
-        else:
+        elif geometry is not None:
             print('Unsupported moveTo action')
+
+        # set temporal subset, i.e. current date
+        if date:
+            self.setCurrentDate(date)
 
     def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool =True) :
         """
