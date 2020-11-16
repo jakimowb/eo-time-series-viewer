@@ -1176,7 +1176,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
                  max_forward: int = -1,
                  max_backward: int = -1,
                  callback=None,
-                 description='Calculate image pixel overlap',
+                 description: str =None,
                  sample_size: int = 16,
                  progress_interval: int = 2):
         """
@@ -1193,8 +1193,13 @@ class TimeSeriesFindOverlapTask(QgsTask):
         :param sample_size:
         :param progress_interval:
         """
+        if description is None:
+            if date_of_interest is not None and (max_forward != -1 or max_backward != -1):
+                description = f'Find image overlap ({str(date_of_interest)})'
+            else:
+                description = f'Find image overlap (all dates)'
 
-        super().__init__(description=description)
+        super().__init__(description=description, flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
         assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
@@ -1790,7 +1795,7 @@ class TimeSeries(QAbstractItemModel):
     def hideTSDs(self, tsds):
         self.showTSDs(tsds, False)
 
-    def removeTSDs(self, tsds):
+    def removeTSDs(self, tsds: typing.List[TimeSeriesDate]):
         """
         Removes a list of TimeSeriesDate
         :param tsds: [list-of-TimeSeriesDate]
