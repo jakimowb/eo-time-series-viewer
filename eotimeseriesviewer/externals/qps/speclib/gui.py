@@ -1394,8 +1394,7 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
             else:
                 # create a new PDI
                 profile = self.speclib().profile(fid, value_field=field_name)
-                assert isinstance(profile, SpectralProfile)
-                if profile.isEmpty():
+                if not isinstance(profile, SpectralProfile) or profile.isEmpty():
                     self.mNumberOfEmptyProfiles += 1
                     continue
 

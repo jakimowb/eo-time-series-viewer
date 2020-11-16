@@ -63,7 +63,7 @@ from eotimeseriesviewer import debugLog
 DEBUG = False
 
 SPECTRA_PROFILE_FIELDS = SpectralProfile().fields()
-SPECTRA_PROFILE_FIELDS.append(QgsField('date', QVariant.String, 'varchar'))
+SPECTRA_PROFILE_FIELDS.append(QgsField('date', QVariant.Date, 'date'))
 SPECTRA_PROFILE_FIELDS.append(QgsField('doy', QVariant.Int, 'int'))
 SPECTRA_PROFILE_FIELDS.append(QgsField('sensor', QVariant.String, 'varchar'))
 
@@ -109,7 +109,6 @@ class AboutDialogUI(QDialog):
         if suffix:
             title += ' ' + suffix
         self.setWindowTitle(title)
-
 
 
 class EOTimeSeriesViewerUI(QMainWindow):

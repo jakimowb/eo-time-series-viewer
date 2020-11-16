@@ -694,7 +694,11 @@ class SpectralProfile(QgsFeature):
         assert isinstance(feature, QgsFeature)
         if isinstance(value_field, QgsField):
             value_field = value_field.name()
-        assert value_field in feature.fields().names(), f'field "{value_field}" does not exist'
+
+        if not value_field in feature.fields().names():
+            print(f'field "{value_field}" does not exist. Allows values: {",".join(feature.fields().names())}')
+            return None
+
         sp = SpectralProfile(fields=feature.fields(), value_field=value_field)
         sp.setId(feature.id())
         sp.setAttributes(feature.attributes())
