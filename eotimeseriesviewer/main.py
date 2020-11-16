@@ -404,6 +404,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return EOTimeSeriesViewer._instance
 
+    sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
 
@@ -515,6 +516,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lambda crs, pt, canvas=mw: self.setCurrentLocation(SpatialPoint(crs, pt),
                                                                mapCanvas=mw.currentMapCanvas()))
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
+        mw.sigCurrentDateChanged.connect(self.sigCurrentDateChanged)
+        mw.sigCurrentDateChanged.connect(dts.setCurrentDate)
 
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
         tb = self.ui.toolBarTimeControl
@@ -526,7 +529,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         tb.addAction(mw.actionForwardFast)
         tb.addAction(mw.actionLastDate)
 
-        tstv = self.ui.dockTimeSeries.timeSeriesTreeView
+        tstv = self.ui.dockTimeSeries.timeSeriesTreeView()
         assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDate.connect(self.setCurrentDate)
         tstv.sigMoveToSource.connect(self.setCurrentSource)

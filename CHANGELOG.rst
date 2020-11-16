@@ -1,6 +1,12 @@
 ==============
 Changelog
 ==============
+2020-11-16 (version 1.15):
+    * quick labels: CTRL + right mouse button opens map menu even when the feature modify map tool is activates
+    * source visibility update can be run on entire time series or (new and faster) for the next time steps only
+    * time series table can keep focus on the date range that is visualized in the map windows
+    * smaller bug fixes and improvements of workflow
+
 2020-11-06 (version 1.14):
     * this version focuses on stability updates and improvements of the "quick label" system
     * map canvas menu now available with standard map tool (like zoom tool)

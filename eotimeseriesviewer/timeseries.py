@@ -2846,6 +2846,12 @@ def extractWavelengths(ds):
     return None, None
 
 
+class TimeSeriesFilterModel(QSortFilterProxyModel):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+
 class TimeSeriesDock(QgsDockWidget):
     """
     QgsDockWidget that shows the TimeSeries
@@ -2856,26 +2862,46 @@ class TimeSeriesDock(QgsDockWidget):
 
         loadUi(DIR_UI / 'timeseriesdock.ui', self)
         self.frameFilters.setVisible(False)
-        self.timeSeriesTreeView: TimeSeriesTreeView
-        assert isinstance(self.timeSeriesTreeView, TimeSeriesTreeView)
+        self.mTimeSeriesTreeView: TimeSeriesTreeView
+        assert isinstance(self.mTimeSeriesTreeView, TimeSeriesTreeView)
         self.mTimeSeries: TimeSeries = None
         self.mSelectionModel = None
+        self.mLastDate: TimeSeriesDate = None
+        self.optionFollowCurrentDate: QAction
+        self.optionFollowCurrentDate.toggled.connect(lambda : self.setCurrentDate(self.mLastDate))
+
+    def timeSeriesTreeView(self) -> TimeSeriesTreeView:
+        return self.mTimeSeriesTreeView
+
+    def setCurrentDate(self, tsd: TimeSeriesDate):
+        """
+        Checks if optionFollowCurrentDate is checked. If True, will call setTSD to focus on the TimeSeriesDate
+        :param tsd: TimeSeriesDate
+        :type tsd:
+        :return:
+        :rtype:
+        """
+        self.mLastDate = tsd
+        if not isinstance(tsd, TimeSeriesDate):
+            return
+        if self.optionFollowCurrentDate.isChecked():
+            self.moveToDate(tsd)
 
     def initActions(self, parent):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewerUI
         assert isinstance(parent, EOTimeSeriesViewerUI)
+        self.btnFollowCurrentDate.setDefaultAction(self.optionFollowCurrentDate)
         self.btnAddTSD.setDefaultAction(parent.actionAddTSD)
         self.btnRemoveTSD.setDefaultAction(parent.actionRemoveTSD)
         self.btnLoadTS.setDefaultAction(parent.actionLoadTS)
         self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
         self.btnClearTS.setDefaultAction(parent.actionClearTS)
 
-    def showTSD(self, tsd: TimeSeriesDate):
-        assert isinstance(self.timeSeriesTreeView, TimeSeriesTreeView)
+    def moveToDate(self, tsd: TimeSeriesDate):
+        tstv = self.timeSeriesTreeView()
+        assert isinstance(tstv, TimeSeriesTreeView)
         assert isinstance(self.mTSProxyModel, QSortFilterProxyModel)
-
-        tsd.setVisibility(True)
 
         assert isinstance(self.mTimeSeries, TimeSeries)
         idxSrc = self.mTimeSeries.tsdToIdx(tsd)
@@ -2883,8 +2909,8 @@ class TimeSeriesDock(QgsDockWidget):
         if isinstance(idxSrc, QModelIndex):
             idx2 = self.mTSProxyModel.mapFromSource(idxSrc)
             if isinstance(idx2, QModelIndex):
-                self.timeSeriesTreeView.setCurrentIndex(idx2)
-                self.timeSeriesTreeView.scrollTo(idx2, QAbstractItemView.PositionAtCenter)
+                tstv.setCurrentIndex(idx2)
+                tstv.scrollTo(idx2, QAbstractItemView.PositionAtCenter)
 
     def updateSummary(self):
 
@@ -2941,18 +2967,18 @@ class TimeSeriesDock(QgsDockWidget):
 
         if isinstance(TS, TimeSeries):
             self.mTimeSeries = TS
-            self.mTSProxyModel = QSortFilterProxyModel(self)
+            self.mTSProxyModel = TimeSeriesFilterModel(self)
             self.mTSProxyModel.setSourceModel(self.mTimeSeries)
             self.mSelectionModel = QItemSelectionModel(self.mTSProxyModel)
             self.mSelectionModel.selectionChanged.connect(self.onSelectionChanged)
 
-            self.timeSeriesTreeView.setModel(self.mTSProxyModel)
-            self.timeSeriesTreeView.setSelectionModel(self.mSelectionModel)
-
-            self.timeSeriesTreeView.sortByColumn(0, Qt.AscendingOrder)
+            tstv = self.timeSeriesTreeView()
+            tstv.setModel(self.mTSProxyModel)
+            tstv.setSelectionModel(self.mSelectionModel)
+            tstv.sortByColumn(0, Qt.AscendingOrder)
 
             for c in range(self.mTSProxyModel.columnCount()):
-                self.timeSeriesTreeView.header().setSectionResizeMode(c, QHeaderView.ResizeToContents)
+                self.timeSeriesTreeView().header().setSectionResizeMode(c, QHeaderView.ResizeToContents)
             self.mTimeSeries.rowsInserted.connect(self.updateSummary)
             # self.mTimeSeries.dataChanged.connect(self.updateSummary)
             self.mTimeSeries.rowsRemoved.connect(self.updateSummary)

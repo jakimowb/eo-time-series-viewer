@@ -754,7 +754,7 @@ class LabelWidget(AttributeTableWidget):
             o.setCheckable(True)
             o.triggered.connect(self.onSelectBehaviourOptionTriggered)
 
-        self.mOptionSelectionAddToSelection.trigger()
+        self.mOptionSelectionSetSelection.trigger()
         # show selected feature on top by default
         # self.mActionSelectedToTop.setChecked(True)
 
