@@ -1506,7 +1506,7 @@ class TimeSeries(QAbstractItemModel):
             qgsTask.sigTimeSeriesSourceOverlap.connect(self.onFoundOverlap)
             qgsTask.progressChanged.connect(self.sigProgress.emit)
 
-            if False and runAsync:
+            if True and runAsync:
                 tm = QgsApplication.taskManager()
                 assert isinstance(tm, QgsTaskManager)
                 tm.addTask(qgsTask)
