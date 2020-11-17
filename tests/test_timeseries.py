@@ -369,6 +369,16 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(files) == len(TS))
         self.showGui(w)
 
+    def test_blockremove(self):
+
+        TS = TestObjects.createTimeSeries()
+
+        to_remove = TS[0:2] + TS[-2:]
+        TS.removeTSDs(to_remove)
+        for tsd in to_remove:
+            self.assertTrue(tsd not in TS)
+
+
     def test_timeseries(self):
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif', recursive=True))

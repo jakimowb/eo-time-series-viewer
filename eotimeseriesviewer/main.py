@@ -43,7 +43,8 @@ import qgis.utils
 from eotimeseriesviewer import LOG_MESSAGE_TAG, DIR_UI, settings
 from eotimeseriesviewer.utils import SpatialPoint, SpatialExtent, datetime64, fixMenuButtons, file_search, loadUi
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, TimeSeriesDate, TimeSeriesTreeView, \
-    DateTimePrecision, SensorInstrument, SensorProxyLayer, SensorMatching, TimeSeriesFindOverlapTask, TimeSeriesDock
+    DateTimePrecision, SensorInstrument, SensorProxyLayer, SensorMatching, TimeSeriesFindOverlapTask, \
+    TimeSeriesDock, TimeSeriesWidget
 from eotimeseriesviewer.settings import Keys as SettingKeys, value as SettingValue
 from eotimeseriesviewer.settings import defaultValues, setValue
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -149,8 +150,16 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # from timeseriesviewer.mapvisualization import MapViewDockUI
         # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
-        self.dockTimeSeries = self.addDockWidget(area, TimeSeriesDock(self))
-        self.dockTimeSeries.initActions(self)
+        self.dockTimeSeries: TimeSeriesDock = self.addDockWidget(area, TimeSeriesDock(self))
+        tbar: QToolBar = self.dockTimeSeries.timeSeriesWidget().toolBar()
+        tbar.addSeparator()
+        tbar.addAction(self.actionAddTSD)
+        tbar.addAction(self.actionRemoveTSD)
+        tbar.addAction(self.actionLoadTS)
+        tbar.addAction(self.actionSaveTS)
+        tbar.addSeparator()
+        tbar.addAction(self.actionClearTS)
+        self.dockTimeSeries.timeSeriesWidget().sigTimeSeriesDatesSelected.connect(self.actionRemoveTSD.setEnabled)
 
         from eotimeseriesviewer.profilevisualization import ProfileViewDock
         self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
@@ -458,12 +467,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
 
         mvd: MapViewDock = self.ui.dockMapViews
-        dts = self.ui.dockTimeSeries
+        tswidget: TimeSeriesWidget = self.ui.dockTimeSeries.timeSeriesWidget()
         mw: MapWidget = self.ui.mMapWidget
 
         assert isinstance(mvd, MapViewDock)
         assert isinstance(mw, MapWidget)
-        assert isinstance(dts, TimeSeriesDock)
+        assert isinstance(tswidget, TimeSeriesWidget)
 
         def onClosed():
             EOTimeSeriesViewer._instance = None
@@ -496,7 +505,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         # self.mTimeSeries.sigMessage.connect(self.setM)
 
-        dts.setTimeSeries(self.mTimeSeries)
+        tswidget.setTimeSeries(self.mTimeSeries)
         self.ui.dockSensors.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
@@ -516,7 +525,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                                                                mapCanvas=mw.currentMapCanvas()))
         mw.sigCurrentLayerChanged.connect(self.updateCurrentLayerActions)
         mw.sigCurrentDateChanged.connect(self.sigCurrentDateChanged)
-        mw.sigCurrentDateChanged.connect(dts.setCurrentDate)
+        mw.sigCurrentDateChanged.connect(tswidget.setCurrentDate)
 
         self.ui.optionSyncMapCenter.toggled.connect(self.mapWidget().setSyncWithQGISMapCanvas)
         tb = self.ui.toolBarTimeControl
@@ -528,7 +537,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         tb.addAction(mw.actionForwardFast)
         tb.addAction(mw.actionLastDate)
 
-        tstv = self.ui.dockTimeSeries.timeSeriesTreeView()
+        tstv: TimeSeriesTreeView = tswidget.timeSeriesTreeView()
         assert isinstance(tstv, TimeSeriesTreeView)
         tstv.sigMoveToDate.connect(self.setCurrentDate)
         tstv.sigMoveToSource.connect(self.setCurrentSource)
@@ -603,7 +612,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lambda: self.openAddSubdatasetsDialog(
                 title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
 
-        self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(dts.selectedTimeSeriesDates()))
+        self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)

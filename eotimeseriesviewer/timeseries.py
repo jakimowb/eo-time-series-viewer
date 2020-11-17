@@ -1767,6 +1767,7 @@ class TimeSeries(QAbstractItemModel):
         tsd.rowsAboutToBeInserted.connect(
             lambda p, first, last, tsd=tsd: self.beginInsertRows(self.tsdToIdx(tsd), first, last))
         tsd.rowsInserted.connect(self.endInsertRows)
+
         tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
         tsd.sigSourcesRemoved.connect(self.sigSourcesRemoved)
 
@@ -1807,19 +1808,27 @@ class TimeSeries(QAbstractItemModel):
                 toRemove.add(t)
             if isinstance(t, TimeSeriesSource):
                 toRemove.add(t.timeSeriesDate())
+        toRemove = sorted(list(toRemove))
+        removed = []
+        while len(toRemove) > 0:
+            block: typing.List[TimeSeriesDate] = [toRemove.pop(0)]
 
-        for tsd in list(sorted(list(toRemove), reverse=True)):
-            assert isinstance(tsd, TimeSeriesDate)
+            r0 = r1 = self.tsdToIdx(block[0]).row()
+            while len(toRemove) > 0:
+                if self.index(r1+1, 0).data(Qt.UserRole) != toRemove[0]:
+                    break
+                else:
+                    block.append(toRemove.pop(0))
+                    r1 += 1
 
-            tsd.sigSourcesRemoved.disconnect()
-            tsd.sigSourcesAdded.disconnect()
-            tsd.sigRemoveMe.disconnect()
+            self.beginRemoveRows(self.mRootIndex, r0, r1)
+            for tsd in block:
+                self.mTSDs.remove(tsd)
+                tsd.mTimeSeries = None
+                tsd.sigSourcesAdded.disconnect(self.sigSourcesAdded)
+                tsd.sigSourcesRemoved.disconnect(self.sigSourcesRemoved)
 
-            row = self.mTSDs.index(tsd)
-            self.beginRemoveRows(self.mRootIndex, row, row)
-            self.mTSDs.remove(tsd)
-            tsd.mTimeSeries = None
-            removed.append(tsd)
+                removed.append(tsd)
             self.endRemoveRows()
 
         if len(removed) > 0:
@@ -2859,28 +2868,68 @@ class TimeSeriesFilterModel(QSortFilterProxyModel):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+        self.setRecursiveFilteringEnabled(True)
+        #self.setSortRole(Qt.EditRole)
+        #self.setDynamicSortFilter(True)
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        reg = self.filterRegExp()
+        if reg.isEmpty():
+            return True
+
+        for c in range(self.sourceModel().columnCount()):
+            idx = self.sourceModel().index(sourceRow, c, parent=sourceParent)
+            value = idx.data(Qt.DisplayRole)
+            value = str(value)
+            if reg.indexIn(value) >= 0:
+                return True
+
+        return False
 
 
-class TimeSeriesDock(QgsDockWidget):
-    """
-    QgsDockWidget that shows the TimeSeries
-    """
+class TimeSeriesWidget(QMainWindow):
 
-    def __init__(self, parent=None):
-        super(TimeSeriesDock, self).__init__(parent)
+    sigTimeSeriesDatesSelected = pyqtSignal(bool)
 
-        loadUi(DIR_UI / 'timeseriesdock.ui', self)
-        self.frameFilters.setVisible(False)
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        loadUi(DIR_UI / 'timeserieswidget.ui', self)
+
         self.mTimeSeriesTreeView: TimeSeriesTreeView
         assert isinstance(self.mTimeSeriesTreeView, TimeSeriesTreeView)
         self.mTimeSeries: TimeSeries = None
+        self.mTSProxyModel: TimeSeriesFilterModel = TimeSeriesFilterModel()
         self.mSelectionModel = None
         self.mLastDate: TimeSeriesDate = None
         self.optionFollowCurrentDate: QAction
-        self.optionFollowCurrentDate.toggled.connect(lambda : self.setCurrentDate(self.mLastDate))
+        self.optionFollowCurrentDate.toggled.connect(lambda: self.setCurrentDate(self.mLastDate))
+        self.optionUseRegex: QAction
+        self.optionCaseSensitive: QAction
+        self.btnUseRegex.setDefaultAction(self.optionUseRegex)
+        self.btnCaseSensitive.setDefaultAction(self.optionCaseSensitive)
+        self.optionCaseSensitive.toggled.connect(self.onFilterExpressionChanged)
+        self.optionUseRegex.toggled.connect(self.onFilterExpressionChanged)
+        self.tbFilterExpression.textChanged.connect(self.onFilterExpressionChanged)
 
-    def timeSeriesTreeView(self) -> TimeSeriesTreeView:
-        return self.mTimeSeriesTreeView
+
+    def onFilterExpressionChanged(self, *args):
+        expression: str = self.tbFilterExpression.text()
+
+        useRegex: bool = self.optionUseRegex.isChecked()
+
+        if self.optionCaseSensitive.isChecked():
+            sensitivity = Qt.CaseSensitive
+        else:
+            sensitivity = Qt.CaseInsensitive
+        self.mTSProxyModel.setFilterCaseSensitivity(sensitivity)
+        if useRegex:
+            rx = QRegExp(expression, sensitivity)
+            self.mTSProxyModel.setFilterRegExp(rx)
+        else:
+            self.mTSProxyModel.setFilterWildcard(expression)
+
+    def toolBar(self) -> QToolBar:
+        return self.mToolBar
 
     def setCurrentDate(self, tsd: TimeSeriesDate):
         """
@@ -2895,17 +2944,6 @@ class TimeSeriesDock(QgsDockWidget):
             return
         if self.optionFollowCurrentDate.isChecked():
             self.moveToDate(tsd)
-
-    def initActions(self, parent):
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewerUI
-        assert isinstance(parent, EOTimeSeriesViewerUI)
-        self.btnFollowCurrentDate.setDefaultAction(self.optionFollowCurrentDate)
-        self.btnAddTSD.setDefaultAction(parent.actionAddTSD)
-        self.btnRemoveTSD.setDefaultAction(parent.actionRemoveTSD)
-        self.btnLoadTS.setDefaultAction(parent.actionLoadTS)
-        self.btnSaveTS.setDefaultAction(parent.actionSaveTS)
-        self.btnClearTS.setDefaultAction(parent.actionClearTS)
 
     def moveToDate(self, tsd: TimeSeriesDate):
         tstv = self.timeSeriesTreeView()
@@ -2934,16 +2972,15 @@ class TimeSeriesDock(QgsDockWidget):
                 info = '{} dates, {} sensors, {} source images'.format(nDates, nSensors, nImages)
         else:
             info = ''
-        self.summary.setText(info)
+        self.mStatusBar.showMessage(info, 0)
 
     def onSelectionChanged(self, *args):
         """
         Slot to react on user-driven changes of the selected TimeSeriesDate rows.
         """
+        b = isinstance(self.mSelectionModel, QItemSelectionModel) and len(self.mSelectionModel.selectedRows()) > 0
 
-        self.btnRemoveTSD.setEnabled(
-            isinstance(self.mSelectionModel, QItemSelectionModel) and
-            len(self.mSelectionModel.selectedRows()) > 0)
+        self.sigTimeSeriesDatesSelected.emit(b)
 
     def selectedTimeSeriesDates(self) -> list:
         """
@@ -2976,7 +3013,6 @@ class TimeSeriesDock(QgsDockWidget):
 
         if isinstance(TS, TimeSeries):
             self.mTimeSeries = TS
-            self.mTSProxyModel = TimeSeriesFilterModel(self)
             self.mTSProxyModel.setSourceModel(self.mTimeSeries)
             self.mSelectionModel = QItemSelectionModel(self.mTSProxyModel)
             self.mSelectionModel.selectionChanged.connect(self.onSelectionChanged)
@@ -2994,6 +3030,25 @@ class TimeSeriesDock(QgsDockWidget):
             # TS.sigLoadingProgress.connect(self.setProgressInfo)
 
         self.onSelectionChanged()
+
+    def timeSeriesTreeView(self) -> TimeSeriesTreeView:
+        return self.mTimeSeriesTreeView
+
+
+class TimeSeriesDock(QgsDockWidget):
+    """
+    QgsDockWidget that wraps the TimeSeriesWidget
+    """
+
+    def __init__(self, parent=None):
+        super(TimeSeriesDock, self).__init__(parent)
+
+        self.mTimeSeriesWidget = TimeSeriesWidget()
+        self.setWidget(self.mTimeSeriesWidget)
+
+    def timeSeriesWidget(self) -> TimeSeriesWidget:
+        return self.mTimeSeriesWidget
+
 
 
 if __name__ == '__main__':
