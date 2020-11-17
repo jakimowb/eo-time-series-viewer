@@ -3042,7 +3042,7 @@ class TimeSeriesDock(QgsDockWidget):
 
     def __init__(self, parent=None):
         super(TimeSeriesDock, self).__init__(parent)
-
+        self.setWindowTitle('Time Series')
         self.mTimeSeriesWidget = TimeSeriesWidget()
         self.setWidget(self.mTimeSeriesWidget)
 
