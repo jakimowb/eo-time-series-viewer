@@ -48,7 +48,7 @@ CI=True
 export CI
 
 find . -name "*.pyc" -exec rm -f {} \;
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export PYTHONPATH="${PYTHONPATH}:$(pwd):/usr/share/qgis/python/plugins"
 # python3 scripts/setup_repository.py
 """
 

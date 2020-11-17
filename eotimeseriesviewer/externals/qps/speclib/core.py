@@ -2750,7 +2750,7 @@ class SpectralLibrary(QgsVectorLayer):
 
         basename, ext = os.path.splitext(pathOne.name)
 
-        assert pathOne.parent.is_dir()
+        assert pathOne.as_posix().startswith('/vsimem/') or pathOne.parent.is_dir(), f'Canot write to {pathOne}'
         imageFiles = []
         for k, profiles in self.groupBySpectralProperties().items():
             xValues, xUnit, yUnit = k
@@ -2798,8 +2798,9 @@ class SpectralLibrary(QgsVectorLayer):
         if path is None:
             path, filter = QFileDialog.getSaveFileName(parent=kwds.get('parent'),
                                                        caption='Save Spectral Library',
-                                                       directory=QgsFileUtils.stringToSafeFilename(self.name()),
-                                                       filter=FILTERS)
+                                                       directory=QgsFileUtils.stringToSafeFilename(self.name()+'.gpkg'),
+                                                       filter=FILTERS,
+                                                       initialFilter='Geopackage (*.gpkg)')
 
         if isinstance(path, pathlib.Path):
             path = path.as_posix()
@@ -2816,7 +2817,8 @@ class SpectralLibrary(QgsVectorLayer):
 
             elif ext in ['.json', '.geojson', '.geojsonl', '.csv', '.gpkg']:
                 return VectorSourceSpectralLibraryIO.write(self, path, **kwds)
-
+            else:
+                raise Exception(f'Filetype not supported: {path}')
         return []
 
     def spectralValueFields(self) -> typing.List[QgsField]:

@@ -881,8 +881,8 @@ class TestObjects():
         lyr = dsSrc.GetLayer(0)
         assert isinstance(lyr, ogr.Layer)
         assert lyr.GetFeatureCount() > 0
-        uri = '{}|{}'.format(dsSrc.GetName(), lyr.GetName())
-
+        #uri = '{}|{}'.format(dsSrc.GetName(), lyr.GetName())
+        uri = dsSrc.GetName()
         # dsSrc = None
         vl = QgsVectorLayer(uri, 'testlayer', 'ogr', lyrOptions)
         assert isinstance(vl, QgsVectorLayer)

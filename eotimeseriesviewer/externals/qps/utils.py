@@ -1552,6 +1552,53 @@ def parseFWHM(dataset) -> typing.Tuple[np.ndarray]:
     return None
 
 
+def checkWavelength(key: str, values: str, expected: int = 1) -> np.ndarray:
+    wl: np.ndarray = None
+    if re.search(r'^wavelengths?$', key, re.I):
+        # remove trailing / ending { } and whitespace
+        values = re.sub('[{}]', '', values).strip()
+        if ',' not in values:
+            sep = ' '
+        else:
+            sep = ','
+        try:
+            wl = np.fromstring(values, count=expected, sep=sep)
+        except ValueError as exV:
+            pass
+        except Exception as ex:
+            pass
+    return wl
+
+def checkWavelengthUnit(key: str, value: str) -> str:
+    wlu: str = None
+    value = value.strip()
+    if re.search(r'^wavelength[ _]?units?', key, re.I):
+        # metric length units
+        wlu = UnitLookup.baseUnit(value)
+
+        if wlu is not None:
+            return wlu
+
+        if re.search(r'^Wavenumber$', value, re.I):
+            wlu = '-'
+        elif re.search(r'^GHz$', value, re.I):
+            wlu = 'GHz'
+        elif re.search(r'^MHz$', value, re.I):
+            wlu = 'MHz'
+        # date / time units
+        elif re.search(r'^(Date|DTG|Date[_ ]?Time[_ ]?Group|Date[_ ]?Stamp|Time[_ ]?Stamp)$', value, re.I):
+            wlu = 'DateTime'
+        elif re.search(r'^Decimal[_ ]?Years?$', value, re.I):
+            wlu = 'DecimalYear'
+        elif re.search(r'^(Seconds?|s|secs?)$', value, re.I):
+            wlu = 's'
+        elif re.search(r'^Index$', value, re.I):
+            wlu = None
+        else:
+            wlu = None
+    return wlu
+
+
 def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     """
     Returns the wavelength + wavelength unit of a raster
@@ -1561,54 +1608,8 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
 
     try:
         dataset = gdalDataset(dataset)
-    except:
-        pass
-
-    def checkWavelengthUnit(key: str, value: str) -> str:
-        wlu: str = None
-        value = value.strip()
-        if re.search(r'^wavelength[ _]?units?', key, re.I):
-            # metric length units
-            wlu = UnitLookup.baseUnit(value)
-
-            if wlu is not None:
-                return wlu
-
-            if re.search(r'^Wavenumber$', values, re.I):
-                wlu = '-'
-            elif re.search(r'^GHz$', values, re.I):
-                wlu = 'GHz'
-            elif re.search(r'^MHz$', values, re.I):
-                wlu = 'MHz'
-            # date / time units
-            elif re.search(r'^(Date|DTG|Date[_ ]?Time[_ ]?Group|Date[_ ]?Stamp|Time[_ ]?Stamp)$', values, re.I):
-                wlu = 'DateTime'
-            elif re.search(r'^Decimal[_ ]?Years?$', value, re.I):
-                wlu = 'DecimalYear'
-            elif re.search(r'^(Seconds?|s|secs?)$', values, re.I):
-                wlu = 's'
-            elif re.search(r'^Index$', values, re.I):
-                wlu = None
-            else:
-                wlu = None
-        return wlu
-
-    def checkWavelength(key: str, values: str, expected:int = 1) -> np.ndarray:
-        wl: np.ndarray = None
-        if re.search(r'^wavelengths?$', key, re.I):
-            # remove trailing / ending { } and whitespace
-            values = re.sub('[{}]', '', values).strip()
-            if ',' not in values:
-                sep = ' '
-            else:
-                sep = ','
-            try:
-                wl = np.fromstring(values, count=expected, sep=sep)
-            except ValueError as exV:
-                pass
-            except Exception as ex:
-                pass
-        return wl
+    except AssertionError:
+        return None, None
 
     if isinstance(dataset, gdal.Dataset):
         # 1. check on raster level
@@ -1694,7 +1695,10 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
             # make decimal-year values leap-year sensitive
             wl = UnitLookup.convertDateUnit(datetime64(wl, dpy=365), 'DecimalYear')
 
-    return wl, wlu
+        return wl, wlu
+    else:
+        return None, None
+
 
 
 class Singleton(type):

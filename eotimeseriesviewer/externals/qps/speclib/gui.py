@@ -413,9 +413,11 @@ class SpectralProfilePlotDataItem(PlotDataItem):
             try:
                 x = self.mXValueConversionFunction(self.mInitialDataX, self)
                 y = self.mYValueConversionFunction(self.mInitialDataY, self)
-                if isinstance(x, (list, np.ndarray)) and isinstance(y, (list, np.ndarray)) and len(x) > 0 and len(
+                if isinstance(x, (list, np.ndarray)) and \
+                        isinstance(y, (list, np.ndarray)) and len(x) > 0 and len(
                         y) > 0:
                     success = True
+
             except Exception as ex:
                 print(ex)
                 pass
@@ -425,6 +427,8 @@ class SpectralProfilePlotDataItem(PlotDataItem):
             if True:
                 # handle failed removal of NaN
                 # see https://github.com/pyqtgraph/pyqtgraph/issues/1057
+
+                # 1. convert to numpy arrays
                 if not isinstance(y, np.ndarray):
                     y = np.asarray(y, dtype=np.float)
                 if not isinstance(x, np.ndarray):
@@ -442,9 +446,18 @@ class SpectralProfilePlotDataItem(PlotDataItem):
                 y = y[keep]
                 x = x[keep]
                 connected = connected[keep]
+
+                # convert date units to float with decimal year and second precision
+                if isinstance(x[0], (datetime.datetime, datetime.date, datetime.time, np.datetime64)):
+                    x = convertDateUnit(datetime64(x), 'DecimalYear')
+
+                if isinstance(y[0], (datetime.datetime, datetime.date, datetime.time, np.datetime64)):
+                    y = convertDateUnit(datetime64(y), 'DecimalYear')
+
                 self.setData(x=x, y=y, connect=connected)
             else:
                 self.setData(x=x, y=y, connect='finite')
+
             self.setVisible(True)
         else:
             # self.setData(x=[], y=[])
@@ -1393,7 +1406,7 @@ class SpectralLibraryPlotWidget(pg.PlotWidget):
                     self.mNumberOfValueErrorsProfiles += 1
             else:
                 # create a new PDI
-                profile = self.speclib().profile(fid, value_field=field_name)
+                profile: SpectralProfile = self.speclib().profile(fid, value_field=field_name)
                 if not isinstance(profile, SpectralProfile) or profile.isEmpty():
                     self.mNumberOfEmptyProfiles += 1
                     continue
