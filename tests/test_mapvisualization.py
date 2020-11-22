@@ -123,7 +123,7 @@ class TestMapVisualization(EOTSVTestCase):
         w.setTimeSeries(TS)
 
         w.setMapTextFormat(defaultValues()[Keys.MapTextFormat])
-        w.mMpMV = 1
+        w.mMapViewColumns = 1
         w.show()
 
         controllW = QWidget()
@@ -158,7 +158,7 @@ class TestMapVisualization(EOTSVTestCase):
         sb = QSpinBox()
         sb.setMinimum(1)
         sb.setMaximum(100)
-        sb.setValue(w.mMpMV)
+        sb.setValue(w.mMapViewColumns)
         sb.valueChanged.connect(lambda v: w.setMapsPerMapView(v))
 
         sbX = QSpinBox()

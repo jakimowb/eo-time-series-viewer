@@ -39,7 +39,7 @@ from qgis.PyQt.QtGui import \
     QColor, QIcon, QGuiApplication, QMouseEvent
 from qgis.PyQt.QtWidgets import \
     QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QAction
+    QToolBox, QDialog, QAction, QSpinBox
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
 from qgis.core import \
@@ -60,6 +60,7 @@ from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProx
 from .utils import loadUi, SpatialPoint, SpatialExtent, datetime64
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.utils import fixMenuButtons
+
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
 KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
@@ -212,9 +213,9 @@ class MapView(QFrame):
         mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
         mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
 
-        #nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
-        #nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
-        #nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.checked()))
+        # nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
+        # nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
+        # nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.checked()))
 
         textFormat = mapView.mapTextFormat()
         textFormat.readXml(nodeMapView, context)
@@ -646,7 +647,7 @@ class MapView(QFrame):
         lyr = self.sender()
         newname = lyr.name()
         ltn = self.mLayerTreeSensorNode.findLayer(lyr)
-        #print(ltn.name())
+        # print(ltn.name())
 
     def onMasterStyleChanged(self, masterLayer: SensorProxyLayer):
 
@@ -1018,7 +1019,7 @@ class MapWidget(QFrame):
     sigMapBackgroundColorChanged = pyqtSignal(QColor)
     sigMapTextColorChanged = pyqtSignal(QColor)
     sigMapTextFormatChanged = pyqtSignal(QgsTextFormat)
-    sigMapsPerMapViewChanged = pyqtSignal(int)
+    sigMapsPerMapViewChanged = pyqtSignal(int, int)
     sigMapViewsChanged = pyqtSignal()
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
@@ -1053,8 +1054,8 @@ class MapWidget(QFrame):
 
         self.tbSliderDate: QLabel
 
-        #self.mCurrentMapView: MapView = None
-        #self.mCurrentMapCanvas: MapCanvas = None
+        # self.mCurrentMapView: MapView = None
+        # self.mCurrentMapCanvas: MapCanvas = None
 
         self.mMapViews: typing.List[MapView] = []
         self.mCanvases: typing.Dict[MapView, typing.List[MapCanvas]] = dict()
@@ -1064,7 +1065,8 @@ class MapWidget(QFrame):
         self.mMapToolKey: MapTools = MapTools.Pan
 
         self.mViewMode = MapWidget.ViewMode.MapViewByRows
-        self.mMpMV = 3
+        self.mMapViewColumns: int = 3
+        self.mMapViewRows: int = 1
 
         self.mSpatialExtent: SpatialExtent = SpatialExtent.world()
         self.mCrs: QgsCoordinateReferenceSystem = self.mSpatialExtent.crs()
@@ -1336,7 +1338,10 @@ class MapWidget(QFrame):
             return None
 
         if node.hasAttribute('mapsPerMapView'):
-            self.setMapsPerMapView(int(node.attribute('mapsPerMapView')))
+            v = node.attribute('mapsPerMapView')
+            v = [int(v) for v in re.findall(r'\d+', v)]
+            if len(v) >= 2:
+                self.setMapsPerMapView(v[0], v[1])
         if node.hasAttribute('mapWidth') and node.hasAttribute('mapHeight'):
             mapSize = QSize(
                 int(node.attribute('mapWidth')),
@@ -1473,27 +1478,33 @@ class MapWidget(QFrame):
             self._updateGrid()
             self.sigViewModeChanged.emit(self.mViewMode)
 
-    def setMapsPerMapView(self, n: int) -> int:
+    def setRowsPerMapView(self, n: int):
+        assert n >= 1
+        self.mMapViewRows = n
+
+    def setMapsPerMapView(self, cols: int, rows: int) -> int:
         """
         Sets the number of maps per map viewe
         :param n: int
         :return: int, number of maps per map view
         """
-        assert n >= 0
+        assert cols > 0
+        assert rows > 0
 
-        if n != self.mMpMV:
-            self.mMpMV = n
+        if self.mapsPerMapView() != (cols, rows):
+            self.mMapViewColumns = cols
+            self.mMapViewRows = rows
             self._updateGrid()
-            self.timeSlider().setPageStep(max(1, n))
-            self.sigMapsPerMapViewChanged.emit(n)
+            self.timeSlider().setPageStep(max(1, cols * rows))
+            self.sigMapsPerMapViewChanged.emit(self.mMapViewColumns, self.mMapViewRows)
         return self.mapsPerMapView()
 
-    def mapsPerMapView(self) -> int:
+    def mapsPerMapView(self) -> typing.Tuple[int, int]:
         """
         Returns the number of maps per map view
         :return: int
         """
-        return self.mMpMV
+        return self.mMapViewColumns, self.mMapViewRows
 
     def setMapSize(self, size: QSize) -> QSize:
         """
@@ -1542,7 +1553,6 @@ class MapWidget(QFrame):
 
         return sorted(A, key=lambda c: c.tsd()) + B
 
-
     def moveToNextTSD(self):
 
         for tsd in self.timeSeries()[:]:
@@ -1561,14 +1571,14 @@ class MapWidget(QFrame):
 
     def moveToNextTSDFast(self):
         visible = list([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd > self.currentDate()])
-        if len(visible) > 0 and self.mMpMV > 0:
-            i = min(self.mMpMV - 1, len(visible) - 1)
+        if len(visible) > 0 and self.mMapViewColumns > 0:
+            i = min(self.mMapViewColumns - 1, len(visible) - 1)
             self.setCurrentDate(visible[i])
 
     def moveToPreviousTSDFast(self):
         visible = list(reversed([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd < self.currentDate()]))
-        if len(visible) > 0 and self.mMpMV > 0:
-            i = min(self.mMpMV - 1, len(visible) - 1)
+        if len(visible) > 0 and self.mMapViewColumns > 0:
+            i = min(self.mMapViewColumns - 1, len(visible) - 1)
             self.setCurrentDate(visible[i])
 
     def moveToFirstTSD(self):
@@ -1786,7 +1796,7 @@ class MapWidget(QFrame):
         # mapCanvas.sigDestinationCrsChanged.disconnect(self.setCrs)
         mapCanvas.sigCrosshairPositionChanged.disconnect(self.onCrosshairPositionChanged)
         mapCanvas.sigCanvasClicked.disconnect(self.onCanvasClicked)
-        #mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
+        # mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
         #    self.sigCurrentLocationChanged)
 
     def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
@@ -1831,24 +1841,19 @@ class MapWidget(QFrame):
         self.mMapRefreshTimer.stop()
         oldCanvases = self._updateLayerCache()
 
-        # crop grid
-        if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
-
-            nc = self.mMpMV
-            nr = len(self.mapViews())
-        else:
-            raise NotImplementedError()
+        nc = self.mMapViewColumns
+        nr = len(self.mapViews()) * self.mMapViewRows
 
         toRemove = []
-        for row in range(nr, self.mGrid.rowCount()):
+        for iMV in range(nr, self.mGrid.rowCount()):
             for col in range(self.mGrid.columnCount()):
-                item = self.mGrid.itemAtPosition(row, col)
+                item = self.mGrid.itemAtPosition(iMV, col)
                 if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
                     toRemove.append(item.widget())
 
         for col in range(nc, self.mGrid.columnCount()):
-            for row in range(self.mGrid.rowCount()):
-                item = self.mGrid.itemAtPosition(row, col)
+            for iMV in range(self.mGrid.rowCount()):
+                item = self.mGrid.itemAtPosition(iMV, col)
                 if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
                     toRemove.append(item.widget())
 
@@ -1861,25 +1866,28 @@ class MapWidget(QFrame):
         self.mCanvases.clear()
 
         if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
-            for row, mv in enumerate(self.mMapViews):
+            for iMV, mv in enumerate(self.mMapViews):
                 assert isinstance(mv, MapView)
                 reminder = self.mCanvases.get(mv, [])
                 self.mCanvases[mv] = []
-                for col in range(self.mMpMV):
-                    item = self.mGrid.itemAtPosition(row, col)
-                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
-                        c = item.widget()
-                        s = ""
-                    else:
-                        c = self._createMapCanvas()
-                        self.mGrid.addWidget(c, row, col)
-                    assert isinstance(c, MapCanvas)
-                    # c.setFixedSize(self.mMapSize)
-                    c.setTSD(None)
-                    c.setMapView(mv)
-                    usedCanvases.append(c)
-                    self.mCanvases[mv].append(c)
-                s = ""
+                for row in range(self.mMapViewRows):
+                    for col in range(self.mMapViewColumns):
+                        gridrow = (iMV * self.mMapViewRows) + row
+                        gridcol = col
+                        item = self.mGrid.itemAtPosition(gridrow, gridcol)
+                        if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
+                            c = item.widget()
+                            s = ""
+                        else:
+                            c = self._createMapCanvas()
+                            self.mGrid.addWidget(c, gridrow, gridcol)
+                        assert isinstance(c, MapCanvas)
+                        # c.setFixedSize(self.mMapSize)
+                        c.setTSD(None)
+                        c.setMapView(mv)
+                        usedCanvases.append(c)
+                        self.mCanvases[mv].append(c)
+                    s = ""
         else:
             raise NotImplementedError()
 
@@ -1953,11 +1961,12 @@ class MapWidget(QFrame):
 
             t = self.mCurrentDate.date()
             visible = sorted(visible, key=lambda tsd: abs(tsd.date() - t))
-            visible = visible[0:min(len(visible), self.mMpMV)]
+            nCanvases = self.mMapViewColumns * self.mMapViewRows
+            visible = visible[0:min(len(visible), nCanvases)]
             visible = sorted(visible)
 
             # set TSD of remaining canvases to None
-            while len(visible) < self.mMpMV:
+            while len(visible) < nCanvases:
                 visible.append(None)
 
             for mapView in self.mapViews():
@@ -2080,7 +2089,7 @@ class MapViewDock(QgsDockWidget):
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
-    sigMapsPerMapViewChanged = pyqtSignal(int)
+    sigMapsPerMapViewChanged = pyqtSignal(int, int)
     sigMapTextFormatChanged = pyqtSignal(QgsTextFormat)
 
     def setTimeSeries(self, timeSeries: TimeSeries):
@@ -2092,6 +2101,9 @@ class MapViewDock(QgsDockWidget):
     def __init__(self, parent=None):
         super(MapViewDock, self).__init__(parent)
         loadUi(DIR_UI / 'mapviewdock.ui', self)
+
+        self.sbMapViewColumns: QSpinBox
+        self.sbMapViewRows: QSpinBox
 
         self.baseTitle = self.windowTitle()
 
@@ -2107,7 +2119,8 @@ class MapViewDock(QgsDockWidget):
         # self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.CrsNotSet, True)
 
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
-        self.btnMapCanvasColor.colorChanged.connect(self.sigMapCanvasColorChanged)
+        self.btnMapCanvasColor.colorChanged.connect(self.onMapCanvasColorChanged)
+        self.onMapCanvasColorChanged(self.btnMapCanvasColor.color())
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
         self.btnApplySizeChanges.clicked.connect(self.onApplyButtonClicked)
 
@@ -2120,14 +2133,22 @@ class MapViewDock(QgsDockWidget):
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
         self.spinBoxMapSizeY.valueChanged.connect(lambda: self.onMapSizeChanged('Y'))
         self.mLastMapSize = self.mapSize()
-        self.mLastNDatesPerMapView = self.sbMpMV.value()
+        # self.mLastMapViewColumns: int = self.sbMapViewColumns.value()
+        # self.mLastMapViewRows: int = self.sbMapViewRows.value()
 
         self.mTimeSeries = None
         self.mMapWidget = None
 
+    def onMapCanvasColorChanged(self, color: QColor):
+        # todo: find a way to display the map canvas color in background
+        # css = f"QToolButton: {{background-color#{self.btnTextFormat.objectName()}: {color.name()}}}"
+        # self.btnTextFormat.parent().setStyleSheet(css)
+        # self.btnTextFormat.setStyleSheet(css)
+        self.sigMapCanvasColorChanged.emit(color)
+
     def onApplyButtonClicked(self):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
-        self.sigMapsPerMapViewChanged.emit(self.mapsPerMapView())
+        self.sigMapsPerMapViewChanged.emit(self.sbMapViewColumns.value(), self.sbMapViewRows.value())
 
     def setMapWidget(self, mw) -> MapWidget:
         """
@@ -2202,15 +2223,14 @@ class MapViewDock(QgsDockWidget):
                 self.btnCrs.setCrs(crs)
                 self.btnCrs.setLayerCrs(crs)
 
-    def mapsPerMapView(self) -> int:
-        return self.sbMpMV.value()
+    def setMapsPerMapView(self, cols: int, rows: int):
+        assert cols > 0
+        assert rows > 0
 
-    def setMapsPerMapView(self, n: int):
-        assert n >= 0
-
-        if self.sbMpMV.value != n:
-            self.sbMpMV.setValue(n)
-            self.mLastNDatesPerMapView = n
+        if self.sbMapViewColumns.value() != cols:
+            self.sbMapViewColumns.setValue(cols)
+        if self.sbMapViewRows.value() != rows:
+            self.sbMapViewRows.setValue(rows)
 
     def setMapTextFormat(self, textFormat: QgsTextFormat):
         if isinstance(textFormat, QgsTextFormat):
