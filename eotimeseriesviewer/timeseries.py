@@ -1419,6 +1419,7 @@ class TimeSeries(QAbstractItemModel):
 
     sigSensorAdded = pyqtSignal(SensorInstrument)
     sigSensorRemoved = pyqtSignal(SensorInstrument)
+    sigSensorNameChanged = pyqtSignal(SensorInstrument)
 
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
@@ -1892,6 +1893,7 @@ class TimeSeries(QAbstractItemModel):
             idx0 = self.index(0, c)
             idx1 = self.index(self.rowCount() - 1, c)
             self.dataChanged.emit(idx0, idx1)
+            self.sigSensorNameChanged.emit(sensor)
         s = ""
 
     def checkSensorList(self):

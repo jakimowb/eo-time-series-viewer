@@ -896,6 +896,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mapView.addLayer(self.profileDock.temporalProfileLayer())
         mapView.addSpectralProfileLayers()
 
+        if len(self.mapViews()) == 1:
+            mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
+
+
     def temporalProfileLayer(self) -> TemporalProfileLayer:
         """
         Returns the TemporalProfileLayer

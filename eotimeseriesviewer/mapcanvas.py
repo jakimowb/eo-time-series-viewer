@@ -38,7 +38,7 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEn
     QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsRasterLayerTemporalProperties, QgsRasterDataProvider, \
     QgsTextFormat, QgsMapLayerStore, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, QgsField, \
     QgsRectangle, QgsPolygon, QgsMultiBandColorRenderer, QgsRectangle, QgsSingleBandGrayRenderer, \
-    QgsLayerTreeGroup, QgsUnitTypes, QgsMimeDataUtils, QgsExpression
+    QgsLayerTreeGroup, QgsUnitTypes, QgsMimeDataUtils, QgsExpression, QgsExpressionContext, QgsExpressionContextScope
 
 from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInputWidget, \
     QgsAdvancedDigitizingDockWidget, QgsMapCanvasItem, \
@@ -130,8 +130,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         super(MapCanvasInfoItem, self).__init__(mapCanvas)
         self.mCanvas = mapCanvas
 
-
-        self.mExpression: typing.Dict[int, QgsExpression] = dict()
+        self.mInfoText: typing.Dict[int, QgsExpression] = dict()
         self.mWrapChar = '\n'
         self.mTextFormat = QgsTextFormat()
         self.mTextFormat.setSizeUnit(QgsUnitTypes.RenderPixels)
@@ -150,10 +149,12 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
     def wrapChar(self) -> str:
         return self.mWrapChar
 
-
-    def setExpression(self, expression: QgsExpression, alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
-        assert isinstance(expression, QgsExpression)
-        self.mExpression[alignment] = expression
+    def setInfoText(self, text: str, alignment: Qt.Alignment = Qt.AlignTop | Qt.AlignHCenter):
+        if text in [None, '']:
+            self.mInfoText[alignment] = None
+        else:
+            assert isinstance(text, str)
+            self.mInfoText[alignment] = text
 
     def setTextFormat(self, format: QgsTextFormat):
         assert isinstance(format, QgsTextFormat)
@@ -282,8 +283,8 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
     def setLowerRight(self, expression: QgsExpression):
         self.setText(expression, Qt.AlignBottom | Qt.AlignRight)
 
-    def clearExpression(self):
-        self.mExpression.clear()
+    def clearInfoText(self):
+        self.mInfoText.clear()
 
     def paint(self, painter, QStyleOptionGraphicsItem=None, QWidget_widget=None):
         """
@@ -293,10 +294,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
             :param QWidget_widget:
             :return:
             """
-        for alignment, expression in self.mExpression.items():
-            if isinstance(expression, QgsExpression):
-                s = ""
-                txt = expression.evaluate()
+        for alignment, text in self.mInfoText.items():
             if isinstance(text, str) and len(text) > 0:
                 self.paintText(painter, text, alignment)
 
@@ -688,7 +686,7 @@ class MapCanvas(QgsMapCanvas):
 
         if mapView is None or self.tsd() is None:
             self.setLayers([])
-            self.mInfoItem.clearExpression()
+            self.mInfoItem.clearInfoText()
             self.update()
             return
 

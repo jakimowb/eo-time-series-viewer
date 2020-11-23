@@ -1,7 +1,9 @@
 ==============
 Changelog
 ==============
-2020-11-16 (version 1.15):
+2020-11-23 (version 1.15):
+    * map canvases can be organized in multiple rows per map view
+    * map descriptions are now defined with QgsExpressions
     * quick labels: CTRL + right mouse button opens map menu even when the feature modify map tool is activates
     * source visibility update can be run on entire time series or (new and faster) for the next time steps only
     * added "follow current date" option to time series table to keep focus on the map window date range

@@ -39,7 +39,7 @@ from qgis.PyQt.QtGui import \
     QColor, QIcon, QGuiApplication, QMouseEvent
 from qgis.PyQt.QtWidgets import \
     QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QAction, QSpinBox, QCheckBox
+    QToolBox, QDialog, QAction, QSpinBox, QCheckBox, QLineEdit
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
 from qgis.core import \
@@ -48,7 +48,8 @@ from qgis.core import \
     QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
     QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, QgsVector, \
     QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, \
-    QgsSingleBandPseudoColorRenderer, QgsExpressionContextGenerator, QgsExpressionContext, QgsExpressionContextUtils
+    QgsSingleBandPseudoColorRenderer, QgsExpressionContextGenerator, QgsExpressionContext, \
+    QgsExpressionContextUtils, QgsExpression, QgsExpressionContextScope
 from qgis.gui import \
     QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
@@ -190,25 +191,58 @@ class MapView(QFrame):
 
         self.mIsVisible = True
         self.setTitle(name)
-        self.cbShowInfoExpression: QCheckBox
-        self.tbInfoExpression: QgsExpressionLineEdit
+        self.tbInfoExpression: QLineEdit
+        self.tbInfoExpression.textChanged.connect(self.onMapInfoExpressionChanged)
+        self.btnShowInfoExpression.setDefaultAction(self.optionShowInfoExpression)
+        self.optionShowInfoExpression.toggled.connect(self.tbInfoExpression.setEnabled)
+        self.optionShowInfoExpression.toggled.connect(self.actionSetInfoExpression.setEnabled)
+        self.btnSetInfoExpression.setDefaultAction(self.actionSetInfoExpression)
+        self.actionSetInfoExpression.triggered.connect(self.onSetInfoExpression)
 
-        self.mLyr = QgsVectorLayer()
+        self._fakeLyr: QgsVectorLayer = QgsVectorLayer("point?crs=epsg:4326", "Scratch point layer", "memory")
+
         #self.tbInfoExpression.setLayer(self.mLyr)
 
-        self.mExpressionContextGenerator = MapViewExpressionContextGenerator()
-        self.mExpressionContextGenerator.setMapView(self)
-        self.cbShowInfoExpression.toggled.connect(self.tbInfoExpression.setEnabled)
-        self.tbInfoExpression.setEnabled(self.cbShowInfoExpression.isChecked())
+        #self.mExpressionContextGenerator = MapViewExpressionContextGenerator()
+        #self.mExpressionContextGenerator.setMapView(self)
 
-        self.tbInfoExpression.registerExpressionContextGenerator(self.mExpressionContextGenerator)
-        self.cbShowInfoExpression.toggled.connect(self.sigCanvasAppearanceChanged)
+        self.tbInfoExpression.setEnabled(self.optionShowInfoExpression.isChecked())
+
+        #self.tbInfoExpression.registerExpressionContextGenerator(self.mExpressionContextGenerator)
+        self.optionShowInfoExpression.toggled.connect(self.sigCanvasAppearanceChanged)
         #self.tbInfoExpression.expressionChanged.connect(self.sigCanvasAppearanceChanged)
         for action in m.actions():
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
 
+    def onMapInfoExpressionChanged(self, text: str):
+
+
+        self.sigCanvasAppearanceChanged.emit()
+        s = ""
+
+    def onSetInfoExpression(self, *args):
+
+        from qgis.gui import QgsExpressionBuilderDialog, QgsAttributeForm
+        from qgis.core import QgsExpressionContextScope
+        context = QgsExpressionContext(QgsExpressionContextUtils.globalProjectLayerScopes(self._fakeLyr))
+        c = self.currentMapCanvas()
+        if isinstance(c, MapCanvas):
+            context.appendScope(QgsExpressionContextScope(c.expressionContextScope()))
+        expression = self.tbInfoExpression.text()
+        # taken from qgsfeaturefilterwidget.cpp : void QgsFeatureFilterWidget::filterExpressionBuilder()
+        dlg = QgsExpressionBuilderDialog(self._fakeLyr, expression,
+                                         self,
+                                         'generic', context)
+        dlg.setWindowTitle('Expression Based Filter')
+        #myDa = QgsDistanceArea()
+        #myDa.setSourceCrs(self.mLayer.crs(), QgsProject.instance().transformContext())
+        #myDa.setEllipsoid(QgsProject.instance().ellipsoid())
+        #dlg.setGeomCalculator(myDa)
+
+        if dlg.exec() == QDialog.Accepted:
+            self.tbInfoExpression.setText(dlg.expressionText())
 
     def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
         return iter(self.mapCanvases())
@@ -263,7 +297,7 @@ class MapView(QFrame):
         nodeMapView.setAttribute('name', self.name())
         nodeMapView.setAttribute('bg', self.mapBackgroundColor().name())
         nodeMapView.setAttribute('visible', str(self.isVisible()))
-        nodeMapView.setAttribute('infoexpression', self.tbInfoExpression.expression())
+        nodeMapView.setAttribute('infoexpression', self.mapInfoExpression())
 
         context = QgsReadWriteContext()
         nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
@@ -286,6 +320,13 @@ class MapView(QFrame):
 
     def name(self) -> str:
         return self.title()
+
+    def setMapInfoExpression(self, expression: str):
+        self.tbInfoExpression.setText(expression)
+
+    def mapInfoExpression(self) -> str:
+
+        return f'{self.tbInfoExpression.text()}'.strip()
 
     def setMapTextFormat(self, textformat: QgsTextFormat) -> QgsTextFormat:
         if not equalTextFormats(self.mapTextFormat(), textformat):
@@ -1419,6 +1460,7 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigTimeSeriesDatesAdded.disconnect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateSliderRange)
             self.mTimeSeries.sigFindOverlapTaskFinished.disconnect(self._updateCanvasDates)
+            self.mTimeSeries.sigSensorNameChanged.disconnect(self._updateCanvasAppearance)
 
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
@@ -1427,7 +1469,7 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigFindOverlapTaskFinished.connect(self._updateCanvasDates)
             self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self._updateSliderRange)
-
+            self.mTimeSeries.sigSensorNameChanged.connect(self._updateCanvasAppearance)
             if len(self.mTimeSeries) > 0:
                 self.mCurrentDate = self.mTimeSeries[0]
             else:
@@ -2060,9 +2102,7 @@ class MapWidget(QFrame):
             bg = mapView.mapBackgroundColor()
             tf = mapView.mapTextFormat()
 
-
-            #showName = mapView.optionShowMapViewName.isChecked()
-            #showSensor = mapView.optionShowSensorName.isChecked()
+            infoItemVisible: bool = mapView.optionShowInfoExpression.isChecked()
 
             for canvas in self.mCanvases[mapView]:
                 assert isinstance(canvas, MapCanvas)
@@ -2071,8 +2111,29 @@ class MapWidget(QFrame):
                 if canvas.isVisible() != v:
                     canvas.setVisible(v)
 
-                tsd = canvas.tsd()
+                infoItem: MapCanvasInfoItem = canvas.infoItem()
+                infoItem.setTextFormat(tf)
+                infoItem.setVisible(infoItemVisible)
 
+                expr = QgsExpression(mapView.mapInfoExpression())
+                if isinstance(expr, QgsExpression) and expr.expression() != '':
+                    #context = QgsExpressionContext([QgsExpressionContextScope(canvas.expressionContextScope())])
+                    context: QgsExpressionContext = QgsExpressionContext()
+                    context.appendScope(QgsExpressionContextUtils.globalScope())
+                    context.appendScope(QgsExpressionContextScope(canvas.expressionContextScope()))
+
+                    if expr.isValid():
+                        expr2 = QgsExpression(expr)
+
+                        infoText = expr2.evaluate(context)
+                        if not expr2.hasEvalError():
+                            #print(infoText)
+                            infoItem.setInfoText(str(infoText))
+                        else:
+                            #print(expr.evalErrorString(), file=sys.stderr)
+                            infoItem.setInfoText('')
+
+                    canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
                 if canvas.canvasColor() != bg:
                     canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
 
