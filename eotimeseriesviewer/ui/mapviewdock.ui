@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>586</width>
-    <height>343</height>
+    <width>367</width>
+    <height>366</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -133,8 +133,8 @@ QToolBox::tab:selected { /* italicize selected tabs */
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>582</width>
-         <height>248</height>
+         <width>363</width>
+         <height>284</height>
         </rect>
        </property>
        <property name="minimumSize">
@@ -144,7 +144,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
         </size>
        </property>
        <attribute name="icon">
-        <iconset resource="../../../QGIS/images/images.qrc">
+        <iconset resource="../../../QGIS_Images/images/images.qrc">
          <normaloff>:/images/themes/default/mLayoutItemMap.svg</normaloff>:/images/themes/default/mLayoutItemMap.svg</iconset>
        </attribute>
        <attribute name="label">
@@ -172,10 +172,13 @@ QToolBox::tab:selected { /* italicize selected tabs */
         <property name="bottomMargin">
          <number>20</number>
         </property>
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_8">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="toolTip">
+           <string>Number of maps per map view row</string>
+          </property>
           <property name="text">
-           <string>Width</string>
+           <string>Maps</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -185,13 +188,16 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="0" column="1">
          <layout class="QHBoxLayout" name="horizontalLayout">
-          <property name="bottomMargin">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
            <number>0</number>
           </property>
           <item>
-           <widget class="QSpinBox" name="spinBoxMapSizeX">
+           <widget class="QSpinBox" name="sbMapViewColumns">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>0</horstretch>
@@ -206,30 +212,80 @@ QToolBox::tab:selected { /* italicize selected tabs */
             </property>
             <property name="maximumSize">
              <size>
-              <width>16777215</width>
+              <width>100</width>
               <height>16777215</height>
              </size>
             </property>
             <property name="toolTip">
-             <string>Max. length of an image chip on screen.</string>
+             <string>Number of maps per map view row</string>
             </property>
             <property name="specialValueText">
              <string/>
             </property>
             <property name="suffix">
-             <string>px</string>
+             <string/>
             </property>
             <property name="minimum">
-             <number>20</number>
+             <number>0</number>
             </property>
             <property name="maximum">
-             <number>1000</number>
+             <number>100</number>
             </property>
             <property name="singleStep">
-             <number>25</number>
+             <number>1</number>
             </property>
             <property name="value">
-             <number>250</number>
+             <number>3</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>x</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="sbMapViewRows">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Number of rows per map view.</string>
+            </property>
+            <property name="specialValueText">
+             <string/>
+            </property>
+            <property name="suffix">
+             <string/>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="singleStep">
+             <number>1</number>
+            </property>
+            <property name="value">
+             <number>1</number>
             </property>
            </widget>
           </item>
@@ -248,7 +304,63 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </item>
          </layout>
         </item>
-        <item row="10" column="0">
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_8">
+          <property name="text">
+           <string>Width</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="buddy">
+           <cstring>spinBoxMapSizeY</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="spinBoxMapSizeX">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Max. length of an image chip on screen.</string>
+          </property>
+          <property name="specialValueText">
+           <string/>
+          </property>
+          <property name="suffix">
+           <string> px</string>
+          </property>
+          <property name="minimum">
+           <number>20</number>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>25</number>
+          </property>
+          <property name="value">
+           <number>250</number>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
            <string>Height</string>
@@ -261,86 +373,92 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="10" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <property name="bottomMargin">
-           <number>0</number>
+        <item row="3" column="1">
+         <widget class="QSpinBox" name="spinBoxMapSizeY">
+          <property name="enabled">
+           <bool>false</bool>
           </property>
-          <item>
-           <widget class="QSpinBox" name="spinBoxMapSizeY">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="suffix">
-             <string>px</string>
-            </property>
-            <property name="prefix">
-             <string/>
-            </property>
-            <property name="minimum">
-             <number>20</number>
-            </property>
-            <property name="maximum">
-             <number>1000</number>
-            </property>
-            <property name="singleStep">
-             <number>25</number>
-            </property>
-            <property name="value">
-             <number>250</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>keep ratio</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="suffix">
+           <string> px</string>
+          </property>
+          <property name="prefix">
+           <string/>
+          </property>
+          <property name="minimum">
+           <number>20</number>
+          </property>
+          <property name="maximum">
+           <number>1000</number>
+          </property>
+          <property name="singleStep">
+           <number>25</number>
+          </property>
+          <property name="value">
+           <number>250</number>
+          </property>
+         </widget>
         </item>
-        <item row="18" column="0">
+        <item row="4" column="1">
+         <widget class="QCheckBox" name="checkBoxKeepSubsetAspectRatio">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>keep ratio</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <widget class="QPushButton" name="btnApplySizeChanges">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Apply</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="0" colspan="2">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
          <widget class="QLabel" name="label_16">
           <property name="enabled">
            <bool>true</bool>
@@ -353,7 +471,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="18" column="1">
+        <item row="7" column="1">
          <widget class="QgsProjectionSelectionWidget" name="btnCrs">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -372,7 +490,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="19" column="0">
+        <item row="8" column="0">
          <widget class="QLabel" name="label_15">
           <property name="enabled">
            <bool>true</bool>
@@ -385,7 +503,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="19" column="1">
+        <item row="8" column="1">
          <widget class="QgsColorButton" name="btnMapCanvasColor">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -426,7 +544,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="20" column="0">
+        <item row="9" column="0">
          <widget class="QLabel" name="label_17">
           <property name="enabled">
            <bool>true</bool>
@@ -439,7 +557,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="20" column="1">
+        <item row="9" column="1">
          <widget class="QgsFontButton" name="btnTextFormat">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -454,7 +572,8 @@ QToolBox::tab:selected { /* italicize selected tabs */
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">background-color: rgb(0, 0, 0);</string>
+           <string notr="true">QgsFontButton#btnTextFormat{background-color: rgb(0, 0, 0);
+}</string>
           </property>
           <property name="text">
            <string>Map Info Text</string>
@@ -467,198 +586,18 @@ QToolBox::tab:selected { /* italicize selected tabs */
           </property>
          </widget>
         </item>
-        <item row="15" column="1">
-         <layout class="QHBoxLayout" name="horizontalLayout_6">
-          <property name="bottomMargin">
-           <number>5</number>
+        <item row="11" column="1">
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
           </property>
-          <item>
-           <widget class="QPushButton" name="btnApplySizeChanges">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>Apply</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_5">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="1" column="0" colspan="2">
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <property name="topMargin">
-           <number>0</number>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
           </property>
-          <item>
-           <widget class="QLabel" name="label_10">
-            <property name="toolTip">
-             <string>Number of maps per map view row</string>
-            </property>
-            <property name="text">
-             <string>Columns</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>spinBoxMapSizeY</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSpinBox" name="sbMapViewColumns">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Number of maps per map view row</string>
-            </property>
-            <property name="specialValueText">
-             <string/>
-            </property>
-            <property name="suffix">
-             <string/>
-            </property>
-            <property name="minimum">
-             <number>0</number>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="singleStep">
-             <number>1</number>
-            </property>
-            <property name="value">
-             <number>3</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_11">
-            <property name="toolTip">
-             <string>Number of rows per map view</string>
-            </property>
-            <property name="text">
-             <string>Rows</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>spinBoxMapSizeY</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSpinBox" name="sbMapViewRows">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Number of rows per map view.</string>
-            </property>
-            <property name="specialValueText">
-             <string/>
-            </property>
-            <property name="suffix">
-             <string/>
-            </property>
-            <property name="minimum">
-             <number>1</number>
-            </property>
-            <property name="maximum">
-             <number>100</number>
-            </property>
-            <property name="singleStep">
-             <number>1</number>
-            </property>
-            <property name="value">
-             <number>1</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_12">
-            <property name="toolTip">
-             <string>Number of rows per map view</string>
-            </property>
-            <property name="text">
-             <string>per Map View</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>spinBoxMapSizeY</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
+         </spacer>
         </item>
        </layout>
       </widget>
@@ -717,7 +656,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
-  <include location="../../../QGIS/images/images.qrc"/>
+  <include location="../../../QGIS_Images/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
@@ -727,12 +666,12 @@ QToolBox::tab:selected { /* italicize selected tabs */
    <slot>setDisabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>126</x>
-     <y>79</y>
+     <x>192</x>
+     <y>144</y>
     </hint>
     <hint type="destinationlabel">
-     <x>67</x>
-     <y>79</y>
+     <x>68</x>
+     <y>144</y>
     </hint>
    </hints>
   </connection>

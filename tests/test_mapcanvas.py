@@ -105,9 +105,9 @@ class TestMapCanvas(EOTSVTestCase):
             mc.mInfoItem.setLowerRight('Lower\nRight')
 
         if False:
-            for k in mc.mInfoItem.mText.keys():
-                v = mc.mInfoItem.mText[k]
-                mc.mInfoItem.mText[k] = v.replace('\n', ' ')
+            for k in mc.mInfoItem.mExpression.keys():
+                v = mc.mInfoItem.mExpression[k]
+                mc.mInfoItem.mExpression[k] = v.replace('\n', ' ')
 
         item = mc.mInfoItem
         self.assertIsInstance(item, MapCanvasInfoItem)

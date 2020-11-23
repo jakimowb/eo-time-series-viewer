@@ -39,19 +39,20 @@ from qgis.PyQt.QtGui import \
     QColor, QIcon, QGuiApplication, QMouseEvent
 from qgis.PyQt.QtWidgets import \
     QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QAction, QSpinBox
+    QToolBox, QDialog, QAction, QSpinBox, QCheckBox
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
 from qgis.core import \
-    QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, \
+    QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, QgsProject, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
     QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, QgsVector, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, QgsSingleBandPseudoColorRenderer
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, \
+    QgsSingleBandPseudoColorRenderer, QgsExpressionContextGenerator, QgsExpressionContext, QgsExpressionContextUtils
 from qgis.gui import \
     QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
-    QgsProjectionSelectionWidget, QgsMessageBar
+    QgsProjectionSelectionWidget, QgsMessageBar, QgsFieldExpressionWidget, QgsFilterLineEdit, QgsExpressionLineEdit
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import VectorLayerTools
 from .externals.qps.maptools import MapTools
@@ -80,6 +81,24 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
     def __init__(self, rootNode, parent=None):
         super(MapViewLayerTreeModel, self).__init__(rootNode, parent=parent)
 
+class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mMapView: MapView = None
+
+    def setMapView(self, mapView):
+
+        self.mMapView = mapView
+
+    def createExpressionContext(self) -> QgsExpressionContext:
+        context = QgsExpressionContext([QgsExpressionContextUtils.projectScope(QgsProject.instance())])
+
+        if False and isinstance(self.mMapView, MapView):
+            canvas = self.mMapView.currentMapCanvas()
+            context.appendScope(canvas.expressionContextScope())
+        #self._context = context
+        return context
 
 class MapView(QFrame):
     """
@@ -171,21 +190,25 @@ class MapView(QFrame):
 
         self.mIsVisible = True
         self.setTitle(name)
+        self.cbShowInfoExpression: QCheckBox
+        self.tbInfoExpression: QgsExpressionLineEdit
 
-        self.optionShowDate: QAction
-        self.optionShowSensorName: QAction
-        self.optionShowMapViewName: QAction
+        self.mLyr = QgsVectorLayer()
+        #self.tbInfoExpression.setLayer(self.mLyr)
 
-        m = QMenu()
-        m.addAction(self.optionShowDate)
-        m.addAction(self.optionShowSensorName)
-        m.addAction(self.optionShowMapViewName)
-        self.btnInfoOptions.setMenu(m)
+        self.mExpressionContextGenerator = MapViewExpressionContextGenerator()
+        self.mExpressionContextGenerator.setMapView(self)
+        self.cbShowInfoExpression.toggled.connect(self.tbInfoExpression.setEnabled)
+        self.tbInfoExpression.setEnabled(self.cbShowInfoExpression.isChecked())
 
+        self.tbInfoExpression.registerExpressionContextGenerator(self.mExpressionContextGenerator)
+        self.cbShowInfoExpression.toggled.connect(self.sigCanvasAppearanceChanged)
+        #self.tbInfoExpression.expressionChanged.connect(self.sigCanvasAppearanceChanged)
         for action in m.actions():
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
+
 
     def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
         return iter(self.mapCanvases())
@@ -209,9 +232,10 @@ class MapView(QFrame):
         mapView.setName(nodeMapView.attribute('name'))
         mapView.setMapBackgroundColor(QColor(nodeMapView.attribute('bg')))
         mapView.setVisibility(to_bool(nodeMapView.attribute('visible')))
-        mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
-        mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
-        mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
+
+        #mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
+        #mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
+        #mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
 
         # nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
         # nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
@@ -239,9 +263,7 @@ class MapView(QFrame):
         nodeMapView.setAttribute('name', self.name())
         nodeMapView.setAttribute('bg', self.mapBackgroundColor().name())
         nodeMapView.setAttribute('visible', str(self.isVisible()))
-        nodeMapView.setAttribute('showDate', str(self.optionShowDate.isChecked()))
-        nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.isChecked()))
-        nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.isChecked()))
+        nodeMapView.setAttribute('infoexpression', self.tbInfoExpression.expression())
 
         context = QgsReadWriteContext()
         nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
@@ -435,8 +457,7 @@ class MapView(QFrame):
 
         self.setWindowTitle('Map View "{}"'.format(self.title()))
         self.sigTitleChanged.emit(self.title())
-        if self.optionShowMapViewName.isChecked():
-            self.sigCanvasAppearanceChanged.emit()
+        self.sigCanvasAppearanceChanged.emit()
 
     def setMapWidget(self, w):
         if isinstance(w, MapWidget):
@@ -2039,9 +2060,9 @@ class MapWidget(QFrame):
             bg = mapView.mapBackgroundColor()
             tf = mapView.mapTextFormat()
 
-            showDate = mapView.optionShowDate.isChecked()
-            showName = mapView.optionShowMapViewName.isChecked()
-            showSensor = mapView.optionShowSensorName.isChecked()
+
+            #showName = mapView.optionShowMapViewName.isChecked()
+            #showSensor = mapView.optionShowSensorName.isChecked()
 
             for canvas in self.mCanvases[mapView]:
                 assert isinstance(canvas, MapCanvas)
@@ -2054,29 +2075,6 @@ class MapWidget(QFrame):
 
                 if canvas.canvasColor() != bg:
                     canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
-
-                # set info text
-                info = canvas.infoItem()
-                assert isinstance(info, MapCanvasInfoItem)
-                info.setTextFormat(tf)
-
-                uc = []
-                lc = []
-                if isinstance(tsd, TimeSeriesDate):
-                    if showDate:
-                        uc += ['{}'.format(tsd.date())]
-                    if showName:
-                        lc += ['{}'.format(mapView.title(maskNewLines=False))]
-                    if showSensor:
-                        uc += ['{}'.format(tsd.sensor().name())]
-
-                uc = '\n'.join(uc)
-                lc = '\n'.join(lc)
-
-                info.setUpperCenter(uc)
-                info.setLowerCenter(lc)
-
-                # canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
 
 class MapViewDock(QgsDockWidget):
@@ -2141,9 +2139,8 @@ class MapViewDock(QgsDockWidget):
 
     def onMapCanvasColorChanged(self, color: QColor):
         # todo: find a way to display the map canvas color in background
-        # css = f"QToolButton: {{background-color#{self.btnTextFormat.objectName()}: {color.name()}}}"
-        # self.btnTextFormat.parent().setStyleSheet(css)
-        # self.btnTextFormat.setStyleSheet(css)
+        css = f"QgsFontButton#btnTextFormat{{background-color:{color.name()}; }}"
+        self.btnTextFormat.setStyleSheet(css)
         self.sigMapCanvasColorChanged.emit(color)
 
     def onApplyButtonClicked(self):
@@ -2379,8 +2376,9 @@ class MapViewDock(QgsDockWidget):
                 title = 'Map View {}'.format(n)
 
         if n == 1:
-            mapView.optionShowDate.setChecked(True)
-            mapView.optionShowSensorName.setChecked(True)
+            pass
+            #mapView.optionShowDate.setChecked(True)
+            #mapView.optionShowSensorName.setChecked(True)
 
         mapView.setTitle(title)
         mapView.sigShowProfiles.connect(self.sigShowProfiles)

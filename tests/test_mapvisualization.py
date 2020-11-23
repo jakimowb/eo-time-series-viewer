@@ -26,8 +26,8 @@ from qgis.core import QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, \
     QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsMultiBandColorRenderer, \
     QgsPalettedRasterRenderer, QgsSingleBandColorDataRenderer, QgsHillshadeRenderer, \
     QgsRasterShader, \
-    QgsVirtualLayerDefinition
-from qgis.gui import QgsFontButton
+    QgsVirtualLayerDefinition, QgsExpressionContextGenerator, QgsExpressionContextUtils, QgsExpressionContext, QgsProject
+from qgis.gui import QgsFontButton, QgsExpressionLineEdit
 import unittest
 import xmlrunner
 from eotimeseriesviewer.utils import *
@@ -241,10 +241,10 @@ class TestMapVisualization(EOTSVTestCase):
         MW.setTimeSeries(TS)
         tsd = TS[0]
 
-        MW.setMapsPerMapView(1)
+        MW.setMapsPerMapView(3, 2)
         MW.addMapView(mapview)
         MW.setCurrentDate(tsd)
-        self.assertTrue(len(MW.mapCanvases()) == 1)
+        self.assertTrue(len(MW.mapCanvases()) == 6)
 
         canvas = MW.mapCanvases()[0]
         self.assertIsInstance(canvas, MapCanvas)
@@ -259,12 +259,52 @@ class TestMapVisualization(EOTSVTestCase):
         MW.setSpatialExtent(SpatialExtent.fromLayer(l))
         self.showGui()
 
+    def test_expressionLineEdit(self):
+
+
+
+        #vl = TestObjects.createVectorLayer()
+
+        uri = "point?crs=epsg:4326&field=id:integer"
+        vl = QgsVectorLayer(uri, "Scratch point layer", "memory")
+
+        class Generator(QgsExpressionContextGenerator):
+
+            def __init__(self, *args, **kwds):
+                super().__init__(*args, **kwds)
+
+                self._context = None
+
+            def createExpressionContext(self) -> QgsExpressionContext:
+
+                #context = QgsExpressionContext([QgsExpressionContextUtils.projectScope(QgsProject.instance())])
+                context = QgsExpressionContext([QgsExpressionContextUtils.globalScope(),
+                                                QgsExpressionContextUtils.projectScope(QgsProject.instance())])
+
+                if False and isinstance(self.mMapView, MapView):
+                    canvas = self.mMapView.currentMapCanvas()
+                    context.appendScope(canvas.expressionContextScope())
+                self._context = context
+                return context
+        gen = Generator()
+        w2 = QWidget()
+
+        w = QgsExpressionLineEdit(parent=w2)
+        #w.setLayer(vl)
+        #w.show()
+        #w.setLayer(vl)
+        w.registerExpressionContextGenerator(gen)
+
+        w2.setLayout(QHBoxLayout())
+        w2.layout().addWidget(w)
+        self.showGui(w2)
+
     def test_mapViewDock(self):
 
         TS = TestObjects.createTimeSeries()
         mw = MapWidget()
         mw.setTimeSeries(TS)
-        mw.setMapsPerMapView(1)
+        mw.setMapsPerMapView(1, 2)
         mw.setMapTool(MapTools.CursorLocation)
         dock = MapViewDock()
         self.assertIsInstance(dock, MapViewDock)
