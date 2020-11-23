@@ -1733,30 +1733,30 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         return vectorLayers
 
-    def addTimeSeriesImages(self, files: list, loadAsync: bool = True):
+    def addTimeSeriesImages(self, image_sources: list, loadAsync: bool = True):
         """
         Adds images to the time series
-        :param files:
+        :param image_sources:
         """
-        if files is None:
+        if image_sources is None:
             s = settings.settings()
             defDir = s.value('dir_datasources')
 
             filters = QgsProviderRegistry.instance().fileRasterFilters()
 
-            files, filter = QFileDialog.getOpenFileNames(
+            image_sources, filter = QFileDialog.getOpenFileNames(
                 directory=defDir,
                 filter=filters,
                 parent=self.ui,
                 # options=QFileDialog.DontUseNativeDialog #none-native is too slow
             )
 
-            if len(files) > 0 and os.path.exists(files[0]):
-                dn = os.path.dirname(files[0])
+            if len(image_sources) > 0 and os.path.exists(image_sources[0]):
+                dn = os.path.dirname(image_sources[0])
                 s.setValue('dir_datasources', dn)
 
-        if files:
-            self.mTimeSeries.addSources(files, runAsync=loadAsync)
+        if image_sources:
+            self.mTimeSeries.addSources(image_sources, runAsync=loadAsync)
 
     def clearTimeSeries(self):
 

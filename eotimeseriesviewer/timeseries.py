@@ -34,7 +34,7 @@ import urllib
 from osgeo import osr, ogr, gdal_array
 
 from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.utils import relativePath
+from eotimeseriesviewer.utils import relativePath, gdalDataset
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
 from qgis.PyQt.QtWidgets import *
@@ -439,7 +439,7 @@ class TimeSeriesSource(object):
     @classmethod
     def fromJson(cls, jsonData: str):
         """
-        Returs a TimeSeriesSource from its JSON representation
+        Returns a TimeSeriesSource from its JSON representation
         :param json:
         :return:
         """
@@ -529,8 +529,8 @@ class TimeSeriesSource(object):
         self.mSpatialExtent = None
         self.mTimeSeriesDate = None
 
-        if isinstance(dataset, str):
-            dataset = gdal.Open(dataset)
+
+        dataset = gdalDataset(dataset)
 
         if isinstance(dataset, gdal.Dataset):
             assert dataset.RasterCount > 0
@@ -759,14 +759,6 @@ class TimeSeriesSource(object):
         :rtype:
         """
         return gdal.Open(self.uri())
-
-    def asArray(self) -> np.ndarray:
-        """
-        Returns the entire image as numpy array
-        :return:
-        :rtype:
-        """
-        return gdal_array.LoadFile(self.uri())
 
     def isVisible(self) -> bool:
         return self.mIsVisible
