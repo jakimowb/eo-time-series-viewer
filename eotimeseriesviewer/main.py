@@ -1184,12 +1184,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
-    def setMapsPerMapView(self, n: int):
+    def setMapsPerMapView(self, cols: int, rows:int):
         """
         Sets the number of map canvases that is shown per map view
         :param n: int
         """
-        self.mapWidget().setMapsPerMapView(n)
+        self.mapWidget().setMapsPerMapView(cols, rows)
 
     def setMapSize(self, size: QSize):
         """
