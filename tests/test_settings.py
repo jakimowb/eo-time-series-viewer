@@ -17,11 +17,8 @@
 ***************************************************************************
 """
 # noinspection PyPep8Naming
-import uuid
-from eotimeseriesviewer.tests import start_app
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
 import unittest
+import json
 import tempfile
 import xmlrunner
 
@@ -151,6 +148,7 @@ class TestSettings(EOTSVTestCase):
             self.assertTrue(k in jsonDict.keys())
 
         # removed: should be done by project settings
+
 
 if __name__ == "__main__":
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
