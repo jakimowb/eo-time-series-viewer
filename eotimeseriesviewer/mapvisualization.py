@@ -195,6 +195,8 @@ class MapView(QFrame):
         self.mIsVisible = True
         self.setTitle(name)
         self.tbInfoExpression: QLineEdit
+        self.mDefaultInfoExpressionToolTip:str = self.tbInfoExpression.toolTip()
+
         self.tbInfoExpression.textChanged.connect(self.onMapInfoExpressionChanged)
         self.btnShowInfoExpression.setDefaultAction(self.optionShowInfoExpression)
         self.optionShowInfoExpression.toggled.connect(self.tbInfoExpression.setEnabled)
@@ -218,6 +220,16 @@ class MapView(QFrame):
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
         fixMenuButtons(self)
+
+    def setInfoExpressionError(self, error: str):
+
+        if error in ['', None]:
+            self.tbInfoExpression.setStyleSheet('')
+            self.tbInfoExpression.setToolTip(self.mDefaultInfoExpressionToolTip)
+        else:
+
+            self.tbInfoExpression.setStyleSheet('QLineEdit#tbInfoExpression{color:red; border: 2px solid red;}')
+            self.tbInfoExpression.setToolTip(f'<span style="color:red">{error}</span>')
 
     def onMapInfoExpressionChanged(self, text: str):
 
@@ -2155,7 +2167,7 @@ class MapWidget(QFrame):
             tf = mapView.mapTextFormat()
 
             infoItemVisible: bool = mapView.optionShowInfoExpression.isChecked()
-
+            errorText = ''
             for canvas in self.mCanvases[mapView]:
                 assert isinstance(canvas, MapCanvas)
 
@@ -2168,6 +2180,7 @@ class MapWidget(QFrame):
                 infoItem.setVisible(infoItemVisible)
 
                 expr = QgsExpression(mapView.mapInfoExpression())
+                infoItem.setInfoText(None)
                 if isinstance(expr, QgsExpression) and expr.expression() != '':
                     # context = QgsExpressionContext([QgsExpressionContextScope(canvas.expressionContextScope())])
                     context: QgsExpressionContext = QgsExpressionContext()
@@ -2182,13 +2195,17 @@ class MapWidget(QFrame):
                             # print(infoText)
                             infoItem.setInfoText(str(infoText))
                         else:
-                            # print(expr.evalErrorString(), file=sys.stderr)
-                            infoItem.setInfoText('')
+                            if errorText == '':
+                                errorText = expr2.evalErrorString()
+                    else:
+                        if errorText == '':
+                            errorText = expr.parserErrorString()
 
-                    canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
+                canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
                 if canvas.canvasColor() != bg:
                     canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
 
+            mapView.setInfoExpressionError(errorText)
 
 class MapViewDock(QgsDockWidget):
     sigMapViewAdded = pyqtSignal(MapView)
