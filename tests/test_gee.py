@@ -25,9 +25,15 @@ from eotimeseriesviewer.externals.qps.utils import createQgsField
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 
 import eotimeseriesviewer
-import ee
+EE_Available = False
+try:
+    import ee
+    EE_Available = True
+except ModuleNotFoundError:
+    EE_Available = False
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-import provider
+
+@unittest.skipIf(EE_Available == False, 'GEE not available')
 class TestLabeling(EOTSVTestCase):
 
     @classmethod
@@ -43,3 +49,8 @@ class TestLabeling(EOTSVTestCase):
         l8 = ee.ImageCollection('LANDSAT/LC08/C01/T1_TOA')
         s = ""
         s = ""
+
+
+if __name__ == "__main__":
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    exit(0)

@@ -436,6 +436,23 @@ def verifyInputImage(datasource):
 class TimeSeriesSource(object):
     """Provides information on source images"""
 
+    MIMEDATA_FORMATS = ['text/uri-list']
+
+    @classmethod
+    def fromMimeData(cls, mimeData: QMimeData) -> typing.List:
+        sources = []
+        if mimeData.hasUrls():
+            for url in mimeData.urls():
+                try:
+                    print(url)
+                    tss = TimeSeriesSource.create(url)
+                    if isinstance(tss, TimeSeriesSource):
+                        sources.append(tss)
+                except:
+                    pass
+        return sources
+
+
     @classmethod
     def fromJson(cls, jsonData: str):
         """
@@ -528,9 +545,10 @@ class TimeSeriesSource(object):
         self.mSpatialExtent: SpatialExtent
         self.mSpatialExtent = None
         self.mTimeSeriesDate = None
-
-
-        dataset = gdalDataset(dataset)
+        try:
+            dataset = gdalDataset(dataset)
+        except:
+            pass
 
         if isinstance(dataset, gdal.Dataset):
             assert dataset.RasterCount > 0
@@ -1200,7 +1218,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
 
         self.mDates = set([t[1] for t in self.mTSS])
         if not isinstance(date_of_interest, np.datetime64):
-            self.mDOI = date_of_interest
+            self.mDOI = list(self.mDates)[0]
         else:
             self.mDOI = date_of_interest
 
@@ -1998,7 +2016,7 @@ class TimeSeries(QAbstractItemModel):
             if len(task.mInvalidSources) > 0:
                 info = ['Unable to load {} data source(s):'.format(len(task.mInvalidSources))]
                 for (s, ex) in task.mInvalidSources:
-                    info.append('Path="{}" Error="{}"'.format(str(s), str(ex).replace('\n', ' ')))
+                    info.append('Path="{}"\nError="{}"'.format(str(s), str(ex).replace('\n', ' ')))
                 info = '\n'.join(info)
                 messageLog(info, Qgis.Critical)
 
@@ -2495,6 +2513,38 @@ class TimeSeriesTreeView(QTreeView):
 
     def __init__(self, parent=None):
         super(TimeSeriesTreeView, self).__init__(parent)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setDropIndicatorShown(True)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        md: QMimeData = event.mimeData()
+        for format in TimeSeriesSource.MIMEDATA_FORMATS:
+            if format in md.formats():
+                event.acceptProposedAction()
+
+    def dragMoveEvent(self, event: QDragMoveEvent):
+        event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        md: QMimeData = event.mimeData()
+        local_files = []
+        local_ts_lists = []
+        if md.hasUrls():
+            for url in md.urls():
+                url: QUrl
+                if url.isLocalFile():
+                    path = pathlib.Path(url.toLocalFile())
+                    if re.search(r'\.(txt|csv)$', path.name):
+                        local_ts_lists.append(path)
+                    else:
+                        local_files.append(path)
+        event.acceptProposedAction()
+        if len(local_files) > 0:
+            self.timeseries().addSources(local_files)
+        if len(local_ts_lists) > 0:
+            for file in local_ts_lists:
+                self.timeseries().loadFromFile(file)
 
     def contextMenuEvent(self, event: QContextMenuEvent):
         """

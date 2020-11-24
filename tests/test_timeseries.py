@@ -131,6 +131,7 @@ class TestTimeSeries(EOTSVTestCase):
             task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=1024, callback=onFinished)
             task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
             task.finished(task.run())
+            self.assertTrue(task.mError is None, msg=f'Task returned error {task.mError}')
 
         self.assertListEqual(overlapped, [True, False, False])
 
@@ -238,7 +239,7 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertEqual(lyr.height(), tss.nl)
             self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())
 
-        import pickle, json
+        import pickle
 
         dump = pickle.dumps(tss)
         tss2 = pickle.loads(dump)
@@ -563,10 +564,22 @@ class TestTimeSeries(EOTSVTestCase):
         TS.addSources(TestObjects.createMultiSourceTimeSeries())
 
         dock = TimeSeriesDock()
-        dock.setTimeSeries(TS)
+        dock.timeSeriesWidget().setTimeSeries(TS)
         dock.show()
 
+
+        urls = [QUrl.fromLocalFile(example.Images.Img_2014_07_02_LE72270652014183CUB00_BOA),
+                QUrl.fromLocalFile(example.Images.Img_2014_06_08_LC82270652014159LGN00_BOA),
+        ]
+        md = QMimeData()
+        md.setUrls(urls)
+        pos = QPointF()
+        event = QDropEvent(pos, Qt.CopyAction, md, Qt.LeftButton, Qt.NoModifier)
+        dock.timeSeriesWidget().timeSeriesTreeView().dropEvent(event)
+
+
         self.showGui(dock)
+
 
 
 if __name__ == '__main__':

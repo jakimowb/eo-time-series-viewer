@@ -34,14 +34,15 @@ import numpy as np
 import time
 import qgis.utils
 from qgis.PyQt.QtCore import \
-    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
+    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel, QMargins
 from qgis.PyQt.QtGui import \
     QColor, QIcon, QGuiApplication, QMouseEvent
 from qgis.PyQt.QtWidgets import \
     QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QAction, QSpinBox, QCheckBox, QLineEdit
+    QToolBox, QDialog, QAction, QSpinBox, QCheckBox, QLineEdit, QWidgetItem, QSpacerItem, QLayout
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
+
 from qgis.core import \
     QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, QgsProject, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
@@ -53,7 +54,8 @@ from qgis.core import \
 from qgis.gui import \
     QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
-    QgsProjectionSelectionWidget, QgsMessageBar, QgsFieldExpressionWidget, QgsFilterLineEdit, QgsExpressionLineEdit
+    QgsProjectionSelectionWidget, QgsMessageBar, QgsFieldExpressionWidget, QgsFilterLineEdit, \
+    QgsExpressionLineEdit, QgsExpressionBuilderDialog, QgsAttributeForm
 from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import VectorLayerTools
 from .externals.qps.maptools import MapTools
@@ -82,6 +84,7 @@ class MapViewLayerTreeModel(QgsLayerTreeModel):
     def __init__(self, rootNode, parent=None):
         super(MapViewLayerTreeModel, self).__init__(rootNode, parent=parent)
 
+
 class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
 
     def __init__(self, *args, **kwds):
@@ -89,7 +92,6 @@ class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
         self.mMapView: MapView = None
 
     def setMapView(self, mapView):
-
         self.mMapView = mapView
 
     def createExpressionContext(self) -> QgsExpressionContext:
@@ -98,8 +100,9 @@ class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
         if False and isinstance(self.mMapView, MapView):
             canvas = self.mMapView.currentMapCanvas()
             context.appendScope(canvas.expressionContextScope())
-        #self._context = context
+        # self._context = context
         return context
+
 
 class MapView(QFrame):
     """
@@ -201,16 +204,16 @@ class MapView(QFrame):
 
         self._fakeLyr: QgsVectorLayer = QgsVectorLayer("point?crs=epsg:4326", "Scratch point layer", "memory")
 
-        #self.tbInfoExpression.setLayer(self.mLyr)
+        # self.tbInfoExpression.setLayer(self.mLyr)
 
-        #self.mExpressionContextGenerator = MapViewExpressionContextGenerator()
-        #self.mExpressionContextGenerator.setMapView(self)
+        # self.mExpressionContextGenerator = MapViewExpressionContextGenerator()
+        # self.mExpressionContextGenerator.setMapView(self)
 
         self.tbInfoExpression.setEnabled(self.optionShowInfoExpression.isChecked())
 
-        #self.tbInfoExpression.registerExpressionContextGenerator(self.mExpressionContextGenerator)
+        # self.tbInfoExpression.registerExpressionContextGenerator(self.mExpressionContextGenerator)
         self.optionShowInfoExpression.toggled.connect(self.sigCanvasAppearanceChanged)
-        #self.tbInfoExpression.expressionChanged.connect(self.sigCanvasAppearanceChanged)
+        # self.tbInfoExpression.expressionChanged.connect(self.sigCanvasAppearanceChanged)
         for action in m.actions():
             action.toggled.connect(self.sigCanvasAppearanceChanged)
 
@@ -218,14 +221,11 @@ class MapView(QFrame):
 
     def onMapInfoExpressionChanged(self, text: str):
 
-
         self.sigCanvasAppearanceChanged.emit()
         s = ""
 
     def onSetInfoExpression(self, *args):
 
-        from qgis.gui import QgsExpressionBuilderDialog, QgsAttributeForm
-        from qgis.core import QgsExpressionContextScope
         context = QgsExpressionContext(QgsExpressionContextUtils.globalProjectLayerScopes(self._fakeLyr))
         c = self.currentMapCanvas()
         if isinstance(c, MapCanvas):
@@ -236,10 +236,10 @@ class MapView(QFrame):
                                          self,
                                          'generic', context)
         dlg.setWindowTitle('Expression Based Filter')
-        #myDa = QgsDistanceArea()
-        #myDa.setSourceCrs(self.mLayer.crs(), QgsProject.instance().transformContext())
-        #myDa.setEllipsoid(QgsProject.instance().ellipsoid())
-        #dlg.setGeomCalculator(myDa)
+        # myDa = QgsDistanceArea()
+        # myDa.setSourceCrs(self.mLayer.crs(), QgsProject.instance().transformContext())
+        # myDa.setEllipsoid(QgsProject.instance().ellipsoid())
+        # dlg.setGeomCalculator(myDa)
 
         if dlg.exec() == QDialog.Accepted:
             self.tbInfoExpression.setText(dlg.expressionText())
@@ -267,9 +267,9 @@ class MapView(QFrame):
         mapView.setMapBackgroundColor(QColor(nodeMapView.attribute('bg')))
         mapView.setVisibility(to_bool(nodeMapView.attribute('visible')))
 
-        #mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
-        #mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
-        #mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
+        # mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
+        # mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
+        # mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
 
         # nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
         # nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
@@ -1099,10 +1099,9 @@ class MapWidget(QFrame):
         loadUi(DIR_UI / 'mapwidget.ui', self)
 
         self.setContentsMargins(1, 1, 1, 1)
-        self.mGrid: QGridLayout = self.mCanvasGrid
-        assert isinstance(self.mGrid, QGridLayout)
-        self.mGrid.setSpacing(0)
-        self.mGrid.setContentsMargins(0, 0, 0, 0)
+        self.mGridFrame: QFrame
+        self.mGrid: QGridLayout = None
+        self.initEmptyGrid()
 
         self.mSyncLock = False
         self.mSyncQGISMapCanvasCenter: bool = False
@@ -1165,6 +1164,15 @@ class MapWidget(QFrame):
         self.mTimeSlider.setTracking(False)
         self.mTimeSlider.valueChanged.connect(self.onSliderValueChanged)
         self.mTimeSlider.sliderMoved.connect(self.onSliderMoved)
+
+    def initEmptyGrid(self):
+        if isinstance(self.mGrid, QGridLayout):
+            self.mGrid.setParent(None)
+
+        self.mGrid = QGridLayout()
+        self.mGrid.setSpacing(0)
+        self.mGrid.setContentsMargins(0, 0, 0, 0)
+        self.mGridFrame.setLayout(self.mGrid)
 
     def messageBar(self) -> QgsMessageBar:
         """
@@ -1351,6 +1359,8 @@ class MapWidget(QFrame):
     def setCurrentMapView(self, mapView: MapView):
         assert isinstance(mapView, MapView)
         lastCurrentMapCanvas = self.currentMapCanvas()
+        if not isinstance(lastCurrentMapCanvas, MapCanvas):
+            return
         lastCurrentMapView = lastCurrentMapCanvas.mapView()
 
         if mapView != lastCurrentMapView:
@@ -1544,6 +1554,9 @@ class MapWidget(QFrame):
     def setRowsPerMapView(self, n: int):
         assert n >= 1
         self.mMapViewRows = n
+
+    def rowsPerMapView(self) -> int:
+        return self.mMapViewRows
 
     def setMapsPerMapView(self, cols: int, rows: int) -> int:
         """
@@ -1829,7 +1842,7 @@ class MapWidget(QFrame):
         self.mSyncLock = False
 
     def _createMapCanvas(self) -> MapCanvas:
-        mapCanvas = MapCanvas()
+        mapCanvas = MapCanvas(parent=self.mGridFrame)
         mapCanvas.setMapLayerStore(self.mMapLayerStore)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
 
@@ -1906,25 +1919,25 @@ class MapWidget(QFrame):
 
         nc = self.mMapViewColumns
         nr = len(self.mapViews()) * self.mMapViewRows
+        if True:
+            toRemove = []
+            for iMV in range(nr, self.mGrid.rowCount()):
+                for col in range(self.mGrid.columnCount()):
+                    item = self.mGrid.itemAtPosition(iMV, col)
+                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
+                        toRemove.append(item.widget())
 
-        toRemove = []
-        for iMV in range(nr, self.mGrid.rowCount()):
-            for col in range(self.mGrid.columnCount()):
-                item = self.mGrid.itemAtPosition(iMV, col)
-                if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
-                    toRemove.append(item.widget())
+            for col in range(nc, self.mGrid.columnCount()):
+                for iMV in range(self.mGrid.rowCount()):
+                    item = self.mGrid.itemAtPosition(iMV, col)
+                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
+                        toRemove.append(item.widget())
 
-        for col in range(nc, self.mGrid.columnCount()):
-            for iMV in range(self.mGrid.rowCount()):
-                item = self.mGrid.itemAtPosition(iMV, col)
-                if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
-                    toRemove.append(item.widget())
-
-        for w in toRemove:
-            self.mGrid.removeWidget(w)
-            w.setParent(None)
-            w.setVisible(False)
-
+            for w in toRemove:
+                self.mGrid.removeWidget(w)
+                w.setParent(None)
+                w.setVisible(False)
+        # self.initEmptyGrid()
         usedCanvases: typing.List[MapCanvas] = []
         self.mCanvases.clear()
 
@@ -1980,7 +1993,7 @@ class MapWidget(QFrame):
         # self.setMaximumSize(self.sizeHint())
         # self.setFixedSize(self.sizeHint())
         # if False and self.parentWidget():
-        if True:
+        if False:
             w = self
             assert isinstance(w, QWidget)
 
@@ -2117,7 +2130,7 @@ class MapWidget(QFrame):
 
                 expr = QgsExpression(mapView.mapInfoExpression())
                 if isinstance(expr, QgsExpression) and expr.expression() != '':
-                    #context = QgsExpressionContext([QgsExpressionContextScope(canvas.expressionContextScope())])
+                    # context = QgsExpressionContext([QgsExpressionContextScope(canvas.expressionContextScope())])
                     context: QgsExpressionContext = QgsExpressionContext()
                     context.appendScope(QgsExpressionContextUtils.globalScope())
                     context.appendScope(QgsExpressionContextScope(canvas.expressionContextScope()))
@@ -2127,10 +2140,10 @@ class MapWidget(QFrame):
 
                         infoText = expr2.evaluate(context)
                         if not expr2.hasEvalError():
-                            #print(infoText)
+                            # print(infoText)
                             infoItem.setInfoText(str(infoText))
                         else:
-                            #print(expr.evalErrorString(), file=sys.stderr)
+                            # print(expr.evalErrorString(), file=sys.stderr)
                             infoItem.setInfoText('')
 
                     canvas.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
@@ -2438,8 +2451,8 @@ class MapViewDock(QgsDockWidget):
 
         if n == 1:
             pass
-            #mapView.optionShowDate.setChecked(True)
-            #mapView.optionShowSensorName.setChecked(True)
+            # mapView.optionShowDate.setChecked(True)
+            # mapView.optionShowSensorName.setChecked(True)
 
         mapView.setTitle(title)
         mapView.sigShowProfiles.connect(self.sigShowProfiles)

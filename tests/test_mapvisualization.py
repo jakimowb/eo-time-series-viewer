@@ -207,8 +207,8 @@ class TestMapVisualization(EOTSVTestCase):
         # self.assertListEqual(w.mMapViews, [mv1, mv3])
 
         for mv in w.mapViews():
-            mv.optionShowMapViewName.setChecked(True)
-            mv.optionShowSensorName.setChecked(True)
+            self.assertIsInstance(mv, MapView)
+            mv.setMapInfoExpression('@map_date')
 
         w.setCurrentDate(TS[0])
 

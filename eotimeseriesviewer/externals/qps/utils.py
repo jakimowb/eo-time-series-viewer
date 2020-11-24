@@ -700,9 +700,12 @@ def gdalDataset(dataset: typing.Union[str,
     if isinstance(dataset, QgsRasterDataProvider):
         return gdalDataset(dataset.dataSourceUri())
     if isinstance(dataset, str):
-        dataset = gdal.Open(dataset, eAccess)
+        ds = gdal.Open(dataset, eAccess)
+        assert isinstance(ds, gdal.Dataset), f'Can not read {dataset} as gdal.Dataset'
+        return ds
+    else:
+        raise NotImplementedError(f'Can not open {dataset} as gdal.Dataset')
 
-    assert isinstance(dataset, gdal.Dataset), 'Can not read {} as gdal.Dataset'.format(dataset)
     return dataset
 
 

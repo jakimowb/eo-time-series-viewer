@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>602</width>
-    <height>270</height>
+    <height>454</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -43,7 +43,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="gridFrame">
+    <widget class="QFrame" name="mGridFrame">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>2</horstretch>
@@ -56,43 +56,20 @@
      <property name="frameShadow">
       <enum>QFrame::Raised</enum>
      </property>
-     <layout class="QGridLayout" name="gridLayout_2">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <item row="1" column="0">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Preferred</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="0" column="0">
-       <layout class="QGridLayout" name="mCanvasGrid"/>
-      </item>
-     </layout>
     </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0">
@@ -116,7 +93,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -130,7 +107,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -167,7 +144,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -181,7 +158,7 @@
         <string>...</string>
        </property>
        <property name="icon">
-        <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+        <iconset>
          <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
        </property>
        <property name="autoRaise">
@@ -208,7 +185,7 @@
   </layout>
   <action name="actionForward">
    <property name="icon">
-    <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowRight.svg</normaloff>:/images/themes/default/mActionArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -220,7 +197,7 @@
   </action>
   <action name="actionBackward">
    <property name="icon">
-    <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionArrowLeft.svg</normaloff>:/images/themes/default/mActionArrowLeft.svg</iconset>
    </property>
    <property name="text">
@@ -250,7 +227,7 @@
   </action>
   <action name="actionForwardFast">
    <property name="icon">
-    <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</normaloff>:/images/themes/default/mActionDoubleArrowRight.svg</iconset>
    </property>
    <property name="text">
@@ -259,7 +236,7 @@
   </action>
   <action name="actionBackwardFast">
    <property name="icon">
-    <iconset resource="../../../../cpp/QGIS/images/images.qrc">
+    <iconset>
      <normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</normaloff>:/images/themes/default/mActionDoubleArrowLeft.svg</iconset>
    </property>
    <property name="text">

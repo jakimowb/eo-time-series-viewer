@@ -32,7 +32,7 @@ import numpy as np
 jp = os.path.join
 dn = os.path.dirname
 
-MAP_LAYER_STORES = MAP_LAYER_STORES# [QgsProject.instance()]
+MAP_LAYER_STORES = MAP_LAYER_STORES  # [QgsProject.instance()]
 
 
 def qgisInstance():
@@ -43,7 +43,7 @@ def qgisInstance():
 
     from eotimeseriesviewer.main import EOTimeSeriesViewer
     if isinstance(qgis.utils.iface, QgisInterface) and \
-        not isinstance(qgis.utils.iface, EOTimeSeriesViewer):
+            not isinstance(qgis.utils.iface, EOTimeSeriesViewer):
         return qgis.utils.iface
     else:
         return None
@@ -53,9 +53,10 @@ def settings():
     return QSettings('HU-Berlin', 'EO Time Series Viewer')
 
 
-def fixMenuButtons(w:QWidget):
+def fixMenuButtons(w: QWidget):
     for toolButton in w.findChildren(QToolButton):
         assert isinstance(toolButton, QToolButton)
-        if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu)\
+        if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu) \
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+

@@ -257,31 +257,31 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         r.drawText(poo, rotation, hAlign, text, context, textFormat)
 
     def setUpperLeft(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignTop | Qt.AlignLeft)
+        self.setInfoText(expression, Qt.AlignTop | Qt.AlignLeft)
 
     def setMiddleLeft(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignVCenter | Qt.AlignLeft)
+        self.setInfoText(expression, Qt.AlignVCenter | Qt.AlignLeft)
 
     def setLowerLeft(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignBottom | Qt.AlignLeft)
+        self.setInfoText(expression, Qt.AlignBottom | Qt.AlignLeft)
 
     def setUpperCenter(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignTop | Qt.AlignHCenter)
+        self.setInfoText(expression, Qt.AlignTop | Qt.AlignHCenter)
 
     def setMiddleCenter(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignVCenter | Qt.AlignHCenter)
+        self.setInfoText(expression, Qt.AlignVCenter | Qt.AlignHCenter)
 
     def setLowerCenter(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignBottom | Qt.AlignHCenter)
+        self.setInfoText(expression, Qt.AlignBottom | Qt.AlignHCenter)
 
     def setUpperRight(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignTop | Qt.AlignRight)
+        self.setInfoText(expression, Qt.AlignTop | Qt.AlignRight)
 
     def setMiddleRight(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignVCenter | Qt.AlignRight)
+        self.setInfoText(expression, Qt.AlignVCenter | Qt.AlignRight)
 
     def setLowerRight(self, expression: QgsExpression):
-        self.setText(expression, Qt.AlignBottom | Qt.AlignRight)
+        self.setInfoText(expression, Qt.AlignBottom | Qt.AlignRight)
 
     def clearInfoText(self):
         self.mInfoText.clear()
