@@ -116,14 +116,17 @@ class EOTimeSeriesViewerPlugin:
         EOTimeSeriesViewer._instance = None
 
     def unload(self):
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
-        eotsv = EOTimeSeriesViewer.instance()
-        if isinstance(eotsv, EOTimeSeriesViewer):
-            eotsv.close()
-            QApplication.processEvents()
+        try:
+            from eotimeseriesviewer.main import EOTimeSeriesViewer
+            eotsv = EOTimeSeriesViewer.instance()
+            if isinstance(eotsv, EOTimeSeriesViewer):
+                eotsv.close()
+                QApplication.processEvents()
 
-        for action in self.mToolbarActions:
-            self.iface.removeToolBarIcon(action)
+            for action in self.mToolbarActions:
+                self.iface.removeToolBarIcon(action)
+        except Exception as ex:
+            print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
 
     def tr(self, message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)

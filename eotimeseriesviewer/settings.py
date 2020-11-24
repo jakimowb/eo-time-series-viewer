@@ -1,16 +1,9 @@
-import os, enum, pathlib, re, json, pickle
-from collections import namedtuple
-from qgis.core import *
 from qgis.core import QgsReadWriteContext, QgsTextFormat, QgsTextBufferSettings, QgsUnitTypes
-from qgis.gui import *
 from qgis.gui import QgsFileWidget
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtWidgets import *
-from qgis.PyQt.QtGui import *
 
 from eotimeseriesviewer import *
 from eotimeseriesviewer import __version__ as EOTSV_VERSION
-from eotimeseriesviewer.utils import loadUi
+from eotimeseriesviewer.externals.qps.utils import loadUi
 from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
 
 from osgeo import gdal, gdalconst, gdal_array
