@@ -170,12 +170,12 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # self.dockAdvancedDigitizingDockWidget.setVisible(False)
 
         area = Qt.BottomDockWidgetArea
-        #panel = SpectralLibraryPanel(self)
+        # panel = SpectralLibraryPanel(self)
 
-        #self.dockSpectralLibrary = self.addDockWidget(area, panel)
+        # self.dockSpectralLibrary = self.addDockWidget(area, panel)
 
-        #self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
-        #self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
+        # self.tabifyDockWidget(self.dockTimeSeries, self.dockSpectralLibrary)
+        # self.tabifyDockWidget(self.dockTimeSeries, self.dockProfiles)
         # self.tabifyDockWidget(self.dockTimeSeries, self.dockLabeling)
 
         area = Qt.RightDockWidgetArea
@@ -483,7 +483,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         QgsProject.instance().layersWillBeRemoved.connect(self.onLayersWillBeRemoved)
         QgsApplication.instance().messageLog().messageReceived.connect(self.logMessage)
 
-        #self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
+        # self.mapLayerStore().addMapLayer(self.ui.dockSpectralLibrary.speclib())
 
         self.mPostDataLoadingArgs: dict = dict()
 
@@ -600,7 +600,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # set default map tool
         self.ui.actionPan.toggle()
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
-        #self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
+        # self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
         self.ui.actionAddMapView.triggered.connect(mvd.createMapView)
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
@@ -612,7 +612,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lambda: self.openAddSubdatasetsDialog(
                 title='Open Sentinel-2 Datasets', filter='MTD_MSIL*.xml'))
 
-        self.ui.actionRemoveTSD.triggered.connect(lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
+        self.ui.actionRemoveTSD.triggered.connect(
+            lambda: self.mTimeSeries.removeTSDs(tswidget.selectedTimeSeriesDates()))
         self.ui.actionRefresh.triggered.connect(mw.refresh)
         self.ui.actionLoadTS.triggered.connect(self.loadTimeSeriesDefinition)
         self.ui.actionClearTS.triggered.connect(self.clearTimeSeries)
@@ -631,7 +632,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
 
-
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
 
@@ -640,15 +640,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel, SpectralLibraryWidget
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        #SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
-        #assert isinstance(SLW, SpectralLibraryWidget)
-        #SLW.setVectorLayerTools(self.mVectorLayerTools)
+        # SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
+        # assert isinstance(SLW, SpectralLibraryWidget)
+        # SLW.setVectorLayerTools(self.mVectorLayerTools)
         # add time-specific fields
-        #sl = self.spectralLibrary()
+        # sl = self.spectralLibrary()
 
-
-
-        #self.mMapLayerStore.addMapLayer(sl)
+        # self.mMapLayerStore.addMapLayer(sl)
 
         temporalProfileLayer = self.profileDock.temporalProfileLayer()
         assert isinstance(temporalProfileLayer, QgsVectorLayer)
@@ -727,7 +725,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for d in to_remove:
             self.ui.removeDockWidget(d)
 
-
     def onReadProject(self, doc: QDomDocument) -> bool:
         """
         Reads images and visualization settings from a QgsProject QDomDocument
@@ -741,9 +738,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         node = root.firstChildElement('EOTSV')
         if node.nodeName() == 'EOTSV':
             self.timeSeries().clear()
+
             mapviews = self.mapViews()
             for mv in mapviews:
                 self.mapWidget().removeMapView(mv)
+
             self.mapWidget().readXml(node)
 
             mwNode = node.firstChildElement('MapWidget')
@@ -768,7 +767,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.setCurrentDate(tsd)
 
         self.timeSeries().sigLoadingTaskFinished.disconnect(self.onPostDataLoading)
-
 
     def lockCentralWidgetSize(self, b: bool):
         """
@@ -899,7 +897,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if len(self.mapViews()) == 1:
             mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
 
-
     def temporalProfileLayer(self) -> TemporalProfileLayer:
         """
         Returns the TemporalProfileLayer
@@ -1008,7 +1005,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if date:
             self.setCurrentDate(date)
 
-    def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool =True) :
+    def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool = True):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
         :param tsd:  TimeSeriesDate or numpy.datetime64
@@ -1188,7 +1185,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.mMapWidget.setMapTool(mapToolKey, *args)
         kwds = {}
 
-    def setMapsPerMapView(self, cols: int, rows:int):
+    def setMapsPerMapView(self, cols: int, rows: int):
         """
         Sets the number of map canvases that is shown per map view
         :param n: int
@@ -1288,7 +1285,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         sensorLayers = [l for l in mapCanvas.layers() if isinstance(l, SensorProxyLayer)]
         currentSpectra = []
-
 
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
@@ -1637,7 +1633,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for d in vectorLayerDocks:
             if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id() or \
-               isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
+                    isinstance(d, SpectralLibraryDockWidget) and d.speclib().id() == lyr.id():
                 d.show()
                 d.activateWindow()
                 d.raise_()
@@ -1651,7 +1647,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             dock.setVectorLayerTools(self.vectorLayerTools())
             dock.SLW.actionSelectProfilesFromMap.setVisible(True)
             dock.SLW.sigLoadFromMapRequest.connect(lambda *args: self.setMapTool(MapTools.SpectralProfile))
-            #dock.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
+            # dock.SLW.actionSelectProfilesFromMap.triggered.connect(self.activateIdentifySpectralProfileMapTool)
         else:
             dock = LabelDockWidget(lyr)
             dock.mLabelWidget.sigMoveTo[QDateTime].connect(self.setCurrentDate)
@@ -1664,7 +1660,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.tabifyDockWidget(self.ui.dockProfiles, dock)
         dock.activateWindow()
         QTimer.singleShot(10, lambda d=dock: d.raise_())
-
 
     def clearLayoutWidgets(self, L):
         if L is not None:

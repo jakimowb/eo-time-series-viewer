@@ -212,6 +212,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         context.setMapToPixel(m2p)
         context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
         context.setUseAdvancedEffects(True)
+        context.setCustomRenderingFlag('Antialiasing', True)
         context.setPainter(painter)
         # context.setExtent(self.mCanvas.extent())
         # context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())

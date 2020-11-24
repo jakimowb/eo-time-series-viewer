@@ -1100,8 +1100,8 @@ class MapWidget(QFrame):
 
         self.setContentsMargins(1, 1, 1, 1)
         self.mGridFrame: QFrame
-        self.mGrid: QGridLayout = None
-        self.initEmptyGrid()
+        self.mGrid: QGridLayout
+        assert isinstance(self.mGrid, QGridLayout)
 
         self.mSyncLock = False
         self.mSyncQGISMapCanvasCenter: bool = False
@@ -1165,14 +1165,20 @@ class MapWidget(QFrame):
         self.mTimeSlider.valueChanged.connect(self.onSliderValueChanged)
         self.mTimeSlider.sliderMoved.connect(self.onSliderMoved)
 
-    def initEmptyGrid(self):
-        if isinstance(self.mGrid, QGridLayout):
-            self.mGrid.setParent(None)
-
-        self.mGrid = QGridLayout()
-        self.mGrid.setSpacing(0)
-        self.mGrid.setContentsMargins(0, 0, 0, 0)
-        self.mGridFrame.setLayout(self.mGrid)
+    def clearCanvasGrid(self):
+        """
+        Cleans the MapCanvas Grid
+        :return:
+        :rtype:
+        """
+        assert isinstance(self.mGrid, QGridLayout)
+        while self.mGrid.count() > 0:
+            item = self.mGrid.takeAt(0)
+            widget = item.widget()
+            if isinstance(widget, QWidget):
+                if isinstance(widget, MapCanvas):
+                    self._disconnectCanvasSignals(widget)
+                widget.setParent(None)
 
     def messageBar(self) -> QgsMessageBar:
         """
@@ -1841,8 +1847,8 @@ class MapWidget(QFrame):
 
         self.mSyncLock = False
 
-    def _createMapCanvas(self) -> MapCanvas:
-        mapCanvas = MapCanvas(parent=self.mGridFrame)
+    def _createMapCanvas(self, parent=None) -> MapCanvas:
+        mapCanvas = MapCanvas(parent=parent)
         mapCanvas.setMapLayerStore(self.mMapLayerStore)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
 
@@ -1912,6 +1918,34 @@ class MapWidget(QFrame):
         return self.mCrosshairPosition
 
     def _updateGrid(self):
+        self.mMapRefreshTimer.stop()
+        for canvas in self.mGrid.findChildren(MapCanvas):
+            self._disconnectCanvasSignals(canvas)
+        self.clearCanvasGrid()
+
+        nc = self.mMapViewColumns
+        nr = len(self.mapViews()) * self.mMapViewRows
+
+        for iMV, mv in enumerate(self.mMapViews):
+            assert isinstance(mv, MapView)
+            self.mCanvases[mv] = []
+            for row in range(self.mMapViewRows):
+                for col in range(self.mMapViewColumns):
+                    gridrow = (iMV * self.mMapViewRows) + row
+                    gridcol = col
+
+                    c: MapCanvas = self._createMapCanvas()
+                    assert isinstance(c, MapCanvas)
+                    # c.setFixedSize(self.mMapSize)
+                    c.setTSD(None)
+                    c.setMapView(mv)
+                    self.mGrid.addWidget(c, gridrow, gridcol)
+                    self.mCanvases[mv].append(c)
+
+        self._updateCanvasDates()
+        self.mMapRefreshTimer.start()
+
+    def _BAK_updateGrid(self):
         import time
         t0 = time.time()
         self.mMapRefreshTimer.stop()
@@ -1937,49 +1971,54 @@ class MapWidget(QFrame):
                 self.mGrid.removeWidget(w)
                 w.setParent(None)
                 w.setVisible(False)
-        # self.initEmptyGrid()
-        usedCanvases: typing.List[MapCanvas] = []
-        self.mCanvases.clear()
+            # self.initEmptyGrid()
+            usedCanvases: typing.List[MapCanvas] = []
+            self.mCanvases.clear()
 
-        if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
-            for iMV, mv in enumerate(self.mMapViews):
-                assert isinstance(mv, MapView)
-                reminder = self.mCanvases.get(mv, [])
-                self.mCanvases[mv] = []
-                for row in range(self.mMapViewRows):
-                    for col in range(self.mMapViewColumns):
-                        gridrow = (iMV * self.mMapViewRows) + row
-                        gridcol = col
-                        item = self.mGrid.itemAtPosition(gridrow, gridcol)
-                        if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
-                            c = item.widget()
-                            s = ""
-                        else:
-                            c = self._createMapCanvas()
-                            self.mGrid.addWidget(c, gridrow, gridcol)
-                        assert isinstance(c, MapCanvas)
-                        # c.setFixedSize(self.mMapSize)
-                        c.setTSD(None)
-                        c.setMapView(mv)
-                        usedCanvases.append(c)
-                        self.mCanvases[mv].append(c)
-                    s = ""
-        else:
-            raise NotImplementedError()
+            if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
+                for iMV, mv in enumerate(self.mMapViews):
+                    assert isinstance(mv, MapView)
+                    reminder = self.mCanvases.get(mv, [])
+                    self.mCanvases[mv] = []
+                    for row in range(self.mMapViewRows):
+                        for col in range(self.mMapViewColumns):
+                            gridrow = (iMV * self.mMapViewRows) + row
+                            gridcol = col
+                            item = self.mGrid.itemAtPosition(gridrow, gridcol)
+                            if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
+                                c = item.widget()
+                                s = ""
+                            else:
+                                if not (item is None):
+                                    s =""
+                                c = self._createMapCanvas()
+                                self.mGrid.addWidget(c, gridrow, gridcol)
+                            assert isinstance(c, MapCanvas)
+                            # c.setFixedSize(self.mMapSize)
+                            c.setTSD(None)
+                            c.setMapView(mv)
+                            usedCanvases.append(c)
+                            self.mCanvases[mv].append(c)
+                        s = ""
+            else:
+                raise NotImplementedError()
 
-        t1 = time.time()
-        self._updateCanvasDates()
-        t2 = time.time()
-        self._updateWidgetSize()
-        t3 = time.time()
+            #t1 = time.time()
+            self._updateCanvasDates()
+            #t2 = time.time()
+            self._updateWidgetSize()
+            #t3 = time.time()
 
         s = ""
         # remove old canvases
+
         for c in oldCanvases:
             if c not in usedCanvases:
                 try:
-                    c.setParent(None)
+                    s = ""
                     self._disconnectCanvasSignals(c)
+                    c.setParent(None)
+
                 except:
                     pass
 
@@ -1988,7 +2027,7 @@ class MapWidget(QFrame):
 
     def _updateWidgetSize(self):
 
-        self.mGrid.update()
+        # self.mGrid.update()
         # self.resize(self.sizeHint())
         # self.setMaximumSize(self.sizeHint())
         # self.setFixedSize(self.sizeHint())
