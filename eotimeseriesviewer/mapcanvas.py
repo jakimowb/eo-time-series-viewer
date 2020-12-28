@@ -402,8 +402,7 @@ class MapCanvas(QgsMapCanvas):
         if Qgis.QGIS_VERSION >= '3.16':
             self.contextMenuAboutToShow.connect(self.populateContextMenu)
 
-
-        self.mMapTools = None
+        self.mMapTools: MapCanvasMapTools = None
         self.initMapTools()
 
         self.mTimedRefreshPipeLine = dict()
@@ -1076,7 +1075,7 @@ class MapCanvas(QgsMapCanvas):
 
             style = CrosshairDialog.getCrosshairStyle(parent=self,
                                                       mapCanvas=self,
-                                                      crosshair=self.mCrosshairItem.crosshairStyle)
+                                                      crosshairStyle=self.mCrosshairItem.crosshairStyle)
 
             if isinstance(style, CrosshairStyle):
                 self.setCrosshairStyle(style)

@@ -27,7 +27,7 @@ from qgis.PyQt.QtWidgets import *
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsWkbTypes, QgsProject
 from qgis.gui import QgsMapCanvas, QgsFontButton
 
-from eotimeseriesviewer import SpatialPoint
+from eotimeseriesviewer import SpatialPoint, SpatialExtent
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.timeseries import TimeSeries
 
