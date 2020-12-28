@@ -1497,6 +1497,7 @@ def parseBadBandList(dataset) -> typing.List[int]:
     try:
         dataset = gdalDataset(dataset)
     except:
+        return None
         pass
 
     if not isinstance(dataset, gdal.Dataset):
@@ -1524,7 +1525,7 @@ def parseFWHM(dataset) -> typing.Tuple[np.ndarray]:
     try:
         dataset = gdalDataset(dataset)
     except:
-        pass
+        return None
 
     key_positions = [('fwhm', None),
                      ('fwhm', 'ENVI')]
@@ -1565,7 +1566,10 @@ def checkWavelength(key: str, values: str, expected: int = 1) -> np.ndarray:
         else:
             sep = ','
         try:
-            wl = np.fromstring(values, count=expected, sep=sep)
+            wl = np.asarray(values.split(sep), dtype=np.float)
+            if len(wl) != expected:
+                wl = None
+            # wl = np.fromstring(values, count=expected, sep=sep)
         except ValueError as exV:
             pass
         except Exception as ex:
@@ -1613,13 +1617,11 @@ def parseWavelength(dataset) -> typing.Tuple[np.ndarray, str]:
     def sort_domains(domains) -> typing.List[str]:
         if not isinstance(domains, list):
             domains = []
-
         return sorted(domains, key=lambda n: n != ['ENVI'])
-
 
     try:
         dataset = gdalDataset(dataset)
-    except AssertionError:
+    except Exception:
         return None, None
 
     if isinstance(dataset, gdal.Dataset):
@@ -1954,8 +1956,10 @@ class SpatialPoint(QgsPointXY):
 
     @staticmethod
     def readXml(node: QDomNode):
-        wkt = node.firstChildElement('SpatialPointCrs').text()
-        crs = QgsCoordinateReferenceSystem(wkt)
+        node_crs = node.firstChildElement('SpatialPointCrs')
+        crs = QgsCoordinateReferenceSystem()
+        if not node_crs.isNull():
+            crs.readXml(node_crs)
         point = QgsGeometry.fromWkt(node.firstChildElement('SpatialPoint').text()).asPoint()
         return SpatialPoint(crs, point)
 
@@ -2021,10 +2025,7 @@ class SpatialPoint(QgsPointXY):
         node_geom = doc.createElement('SpatialPoint')
         node_geom.appendChild(doc.createTextNode(self.asWkt()))
         node_crs = doc.createElement('SpatialPointCrs')
-        if QgsCoordinateReferenceSystem(self.crs().authid()) == self.crs():
-            node_crs.appendChild(doc.createTextNode(self.crs().authid()))
-        else:
-            node_crs.appendChild(doc.createTextNode(self.crs().toWkt()))
+        self.crs().writeXml(node_crs, doc)
         node.appendChild(node_geom)
         node.appendChild(node_crs)
 
@@ -2147,8 +2148,10 @@ class SpatialExtent(QgsRectangle):
 
     @staticmethod
     def readXml(node: QDomNode):
-        wkt = node.firstChildElement('SpatialExtentCrs').text()
-        crs = QgsCoordinateReferenceSystem(wkt)
+        node_crs = node.firstChildElement('SpatialExtentCrs')
+        crs = QgsCoordinateReferenceSystem()
+        if not node_crs.isNull():
+            crs.readXml(node_crs)
         rectangle = QgsRectangle.fromWkt(node.firstChildElement('SpatialExtent').text())
         return SpatialExtent(crs, rectangle)
 
@@ -2213,10 +2216,11 @@ class SpatialExtent(QgsRectangle):
         node_geom = doc.createElement('SpatialExtent')
         node_geom.appendChild(doc.createTextNode(self.asWktPolygon()))
         node_crs = doc.createElement('SpatialExtentCrs')
-        if QgsCoordinateReferenceSystem(self.crs().authid()) == self.crs():
-            node_crs.appendChild(doc.createTextNode(self.crs().authid()))
-        else:
-            node_crs.appendChild(doc.createTextNode(self.crs().toWkt()))
+        self.crs().writeXml(node_crs, doc)
+        #if QgsCoordinateReferenceSystem(self.crs().authid()) == self.crs():
+        #    node_crs.appendChild(doc.createTextNode(self.crs().authid()))
+        #else:
+        #    node_crs.appendChild(doc.createTextNode(self.crs().toWkt()))
         node.appendChild(node_geom)
         node.appendChild(node_crs)
 

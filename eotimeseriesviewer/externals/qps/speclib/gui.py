@@ -2429,11 +2429,12 @@ class SpectralLibraryWidget(AttributeTableWidget):
         self.actionShowProperties.setToolTip('Show Spectral Library Properties')
         self.actionShowProperties.setIcon(QIcon(':/images/themes/default/propertyicons/system.svg'))
         self.actionShowProperties.triggered.connect(self.showProperties)
-
+        
         self.btnShowProperties = QToolButton()
         self.btnShowProperties.setAutoRaise(True)
         self.btnShowProperties.setDefaultAction(self.actionShowProperties)
-
+        
+        self.tbSpeclibAction.addAction(self.actionShowProperties)
         self.centerBottomLayout.insertWidget(self.centerBottomLayout.indexOf(self.mAttributeViewButton),
                                              self.btnShowProperties)
 
