@@ -95,7 +95,7 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
-    def test_overlap(self):
+    def test_TimeSeriesFindOverlapTask(self):
 
         import example
 
@@ -128,7 +128,7 @@ class TestTimeSeries(EOTSVTestCase):
                                         ext_full.yMaximum())
 
         for ext in [ext_full, ext_nodata, ext_outofbounds]:
-            task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=1024, callback=onFinished)
+            task = TimeSeriesFindOverlapTask(ext, [tss], sample_size=3, callback=onFinished)
             task.sigTimeSeriesSourceOverlap.connect(onOverlapp)
             task.finished(task.run())
             self.assertTrue(task.mError is None, msg=f'Task returned error {task.mError}')

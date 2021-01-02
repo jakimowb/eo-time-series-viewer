@@ -1200,7 +1200,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
             defaults to -1 = search for all dates > date_of_interest
         :param callback:
         :param description:
-        :param sample_size:
+        :param sample_size: number of samples in x and y direction
         :param progress_interval:
         """
         if description is None:
@@ -1262,18 +1262,38 @@ class TimeSeriesFindOverlapTask(QgsTask):
         if not targetExtent2.intersects(tss.spatialExtent()):
             return False
 
-        lyr: QgsRasterLayer = tss.asRasterLayer()
-        if not isinstance(lyr, QgsRasterLayer):
-            return False
+        if True:
+            ds: gdal.Dataset = tss.asDataset()
+            if not isinstance(ds, gdal.Dataset):
+                return False
+            band1: gdal.Band = ds.GetRasterBand(1)
+            if not isinstance(band1, gdal.Band):
+                return False
 
-        stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
-                                                                      stats=QgsRasterBandStats.Range,
-                                                                      extent=targetExtent2,
-                                                                      sampleSize=self.mSampleSize)
+            nodata = band1.GetNoDataValue()
+            if nodata is None:
+                return True
+            gt = ds.GetGeoTransform()
+            ul = geo2px(targetExtent2.upperLeftPt(), gt)
+            lr = geo2px(targetExtent2.lowerRightPt(), gt)
+            xsize = lr.x() - ul.x() - 1
+            ysize = lr.y() - ul.y() - 1
+            data = band1.ReadAsArray(ul.x(), ul.y(), xsize, ysize, self.mSampleSize, self.mSampleSize)
+            return bool(np.any(data != nodata))
 
-        if not isinstance(stats, QgsRasterBandStats):
-            return False
-        return (stats.minimumValue, stats.maximumValue) != self.mEmptyMinMax
+        else:
+            lyr: QgsRasterLayer = tss.asRasterLayer()
+            if not isinstance(lyr, QgsRasterLayer):
+                return False
+
+            stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
+                                                                          stats=QgsRasterBandStats.Range,
+                                                                          extent=targetExtent2,
+                                                                          sampleSize=self.mSampleSize)
+
+            if not isinstance(stats, QgsRasterBandStats):
+                return False
+            return (stats.minimumValue, stats.maximumValue) != self.mEmptyMinMax
 
     def run(self):
         """
