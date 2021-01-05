@@ -1537,7 +1537,7 @@ class MapWidget(QFrame):
     def onSliderMoved(self, value: int):
         tsd = self.sliderDate(i=value)
         if isinstance(tsd, TimeSeriesDate):
-            self.tbSliderDate.setText(f'{tsd.date()}')
+            self.tbSliderDate.setText(f'{tsd.date()} ({tsd.doy()})')
 
     def onSliderValueChanged(self):
         tsd = self.sliderDate()
