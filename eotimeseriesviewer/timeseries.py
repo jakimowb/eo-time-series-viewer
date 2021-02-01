@@ -875,7 +875,7 @@ class TimeSeriesDate(QAbstractTableModel):
 
     def checkState(self) -> Qt.CheckState:
         """
-        Returns the checkstate accorrding to the visibility of the TSDs TimeSeriesSources
+        Returns the checkstate according to the visibility of the TSDs TimeSeriesSources
         :return: Qt.CheckState
         """
         visible = [tss.isVisible() for tss in self]
@@ -2301,6 +2301,14 @@ class TimeSeries(QAbstractItemModel):
                 return node.timeSeriesDate()
 
         return None
+
+    def visibleTSDs(self) -> typing.List[TimeSeriesDate]:
+        """
+        Returns the visible TSDs (which have TimeSeriesSource to be shown)
+        :return:
+        :rtype:
+        """
+        return [tsd for tsd in self if not tsd.checkState() == Qt.Unchecked]
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """

@@ -29,7 +29,7 @@ import copy
 import enum
 import traceback
 import typing
-
+import math
 import numpy as np
 import time
 import qgis.utils
@@ -1074,6 +1074,28 @@ class MapViewListModel(QAbstractListModel):
             value = mapView
         return value
 
+def closest_index(tsd_target: TimeSeriesDate, tsds: typing.List[TimeSeriesDate]) -> int:
+    """
+    Returns the index of the TimeSeriesDate closest to tsd_target
+    :param tsd_target:
+    :type tsd_target:
+    :param tsds:
+    :type tsds:
+    :return:
+    :rtype:
+    """
+    if len(tsds) == 0:
+        return None
+    if tsd_target in tsds:
+        return tsds.index(tsd_target)
+    else:
+        for i, tsd2 in enumerate(tsds):
+            if tsd2 < tsd_target:
+                continue
+            else:
+                break
+        return i
+
 
 class MapWidget(QFrame):
     """
@@ -1227,7 +1249,7 @@ class MapWidget(QFrame):
                 mts = c.mapTools()
                 mts.activate(self.mMapToolKey)
 
-    def visibleTSDs(self) -> list:
+    def visibleTSDs(self) -> typing.List[TimeSeriesDate]:
         """
         Returns the list of currently shown TimeSeriesDates.
         :return: [list-of-TimeSeriesDates]
@@ -1595,8 +1617,8 @@ class MapWidget(QFrame):
 
     def mapsPerMapView(self) -> typing.Tuple[int, int]:
         """
-        Returns the number of maps per map view
-        :return: int
+        Returns the number of maps per map view as tuple of columns x rows
+        :return: (int, int)
         """
         return self.mMapViewColumns, self.mMapViewRows
 
@@ -1664,16 +1686,24 @@ class MapWidget(QFrame):
         s = ""
 
     def moveToNextTSDFast(self):
-        visible = list([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd > self.currentDate()])
-        if len(visible) > 0 and self.mMapViewColumns > 0:
-            i = min(self.mMapViewColumns - 1, len(visible) - 1)
-            self.setCurrentDate(visible[i])
+        visibleAll = self.timeSeries().visibleTSDs()
+        visibleNow = self.visibleTSDs()
+        n_maps = self.mMapViewColumns * self.mMapViewRows
+        if len(visibleNow) > 0 and len(visibleAll) > 0:
+            tsdLast = visibleNow[-1]
+            i0 = closest_index(tsdLast, visibleAll)
+            i = min(i0 + int(0.5 * n_maps), len(visibleAll)-1)
+            self.setCurrentDate(visibleAll[i])
 
     def moveToPreviousTSDFast(self):
-        visible = list(reversed([tsd for tsd in self.timeSeries() if tsd.checkState() and tsd < self.currentDate()]))
-        if len(visible) > 0 and self.mMapViewColumns > 0:
-            i = min(self.mMapViewColumns - 1, len(visible) - 1)
-            self.setCurrentDate(visible[i])
+        visibleAll = self.timeSeries().visibleTSDs()
+        visibleNow = self.visibleTSDs()
+        n_maps = self.mMapViewColumns * self.mMapViewRows
+        if len(visibleNow) > 0 and len(visibleAll) > 0:
+            tsdFirst = visibleNow[0]
+            i0 = closest_index(tsdFirst, visibleAll)
+            i = max(0, i0 - int(math.ceil(0.5 * n_maps)))
+            self.setCurrentDate(visibleAll[i])
 
     def moveToFirstTSD(self):
         for tsd in self.timeSeries()[:]:
@@ -2084,13 +2114,15 @@ class MapWidget(QFrame):
             bTSDChanged = True
         else:
 
-            visible = [tsd for tsd in self.timeSeries() if tsd.checkState()]
-
-            t = self.mCurrentDate.date()
-            visible = sorted(visible, key=lambda tsd: abs(tsd.date() - t))
+            visible = self.timeSeries().visibleTSDs()
             nCanvases = self.mMapViewColumns * self.mMapViewRows
-            visible = visible[0:min(len(visible), nCanvases)]
-            visible = sorted(visible)
+
+            i_middle = closest_index(self.mCurrentDate, visible)
+            i_visible = list(range(len(visible)))
+            i_visible = sorted(i_visible, key=lambda i: abs(i-i_middle))
+            i_visible = i_visible[0: min(len(i_visible), nCanvases)]
+
+            visible = sorted([visible[i] for i in i_visible])
 
             # set TSD of remaining canvases to None
             while len(visible) < nCanvases:
