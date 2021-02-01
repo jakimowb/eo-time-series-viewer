@@ -12,6 +12,7 @@ from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
 
 from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog, AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from eotimeseriesviewer import DIR_UI
 from qgis.PyQt.QtCore import *
 from qgis.PyQt.QtGui import *
@@ -19,6 +20,7 @@ from qgis.PyQt.QtWidgets import *
 from .externals.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
 from .externals.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
 from .externals.qps.layerproperties import showLayerPropertiesDialog
+from .externals.qps.vectorlayertools import VectorLayerTools
 from .externals.qps.models import Option, OptionListModel
 from .externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 
@@ -639,9 +641,33 @@ class LabelAttributeTypeWidgetDelegate(QStyledItemDelegate):
                 model.setData(index, w.currentData(Qt.UserRole), Qt.EditRole)
 
 
-def gotoNextFeature(layer: QgsVectorLayer,
-                    tools: QgsVectorLayerTools,
-                    visible_features: typing.List[int] = None) -> int:
+class GotoFeatureOptions(enum.IntFlag):
+    SelectFeature = 1
+    PanToFeature = 2
+    ZoomToFeature = 4
+    FocusVisibility=8
+
+
+def gotoFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
+    if GotoFeatureOptions.SelectFeature in options:
+        layer.selectByIds([fid])
+    if GotoFeatureOptions.PanToFeature in options:
+        tools.panToSelected(layer)
+    if GotoFeatureOptions.ZoomToFeature in options:
+        tools.zoomToSelected(layer)
+    if GotoFeatureOptions.FocusVisibility in options:
+        tools.focusVisibility()
+
+
+def gotoNextFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget],
+                    tools: EOTSVVectorLayerTools = None,
+                    visible_features: typing.List[int] = None,
+                    options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
+                    ) -> int:
+
+    if isinstance(layer, AttributeTableWidget):
+        return gotoNextFeature(layer.mLayer, layer.vectorLayerTools(), layer.mMainView.filteredFeatures(), options)
+
     assert isinstance(tools, QgsVectorLayerTools)
     if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
         if not isinstance(visible_features, list):
@@ -663,15 +689,29 @@ def gotoNextFeature(layer: QgsVectorLayer,
             else:
                 nextFID = visible_features[next_index]
 
-        layer.selectByIds([nextFID])
-        tools.panToSelected(layer)
+        gotoFeature(nextFID, layer, tools, options)
         return nextFID
     return None
 
 
-def gotoPreviousFeature(layer: QgsVectorLayer,
-                        tools: QgsVectorLayerTools,
-                        visible_features: typing.List[int] = None):
+def gotoPreviousFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget],
+                        tools: EOTSVVectorLayerTools = None,
+                        visible_features: typing.List[int] = None,
+                        options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature):
+    """
+    Selects the next feature
+    :param layer:
+    :type layer:
+    :param tools:
+    :type tools:
+    :param visible_features:
+    :type visible_features:
+    :return:
+    :rtype:
+    """
+    if isinstance(layer, AttributeTableWidget):
+        return gotoPreviousFeature(layer.mLayer, layer.vectorLayerTools(), layer.mMainView.filteredFeatures(), options)
+
     assert isinstance(tools, QgsVectorLayerTools)
     if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
         if not isinstance(visible_features, list):
@@ -693,8 +733,7 @@ def gotoPreviousFeature(layer: QgsVectorLayer,
             else:
                 nextFID = visible_features[next_index]
 
-        layer.selectByIds([nextFID])
-        tools.panToSelected(layer)
+        gotoFeature(nextFID, layer, tools, options)
 
 
 class LabelWidget(AttributeTableWidget):
@@ -705,31 +744,41 @@ class LabelWidget(AttributeTableWidget):
 
         super().__init__(*args, *kwds)
 
-        self.mActionNextFeature = QAction('Next Feature', parent=self)
+        self.mActionNextFeature: QAction = QAction('Next Feature', parent=self)
         self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
-        self.mActionNextFeature.triggered.connect(
-            lambda *args,
-                   lyr=self.mLayer,
-                   vlt=self.vectorLayerTools(),
-                   mv=self.mMainView
-            : gotoNextFeature(lyr, vlt, visible_features=mv.filteredFeatures())
-        )
+        self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
 
-        self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
+        self.mActionPreviousFeature: QAction = QAction('Previous Feature', parent=self)
         self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
-        self.mActionPreviousFeature.triggered.connect(
-            lambda *args,
-                   lyr=self.mLayer,
-                   vlt=self.vectorLayerTools(),
-                   mv=self.mMainView
-            : gotoPreviousFeature(lyr, vlt, visible_features=mv.filteredFeatures()))
-
-        self.mOptionSelectBehaviour = QAction('Selection behaviour')
-        self.mOptionSelectBehaviour.setCheckable(True)
-        self.mOptionSelectBehaviour.setChecked(True)
+        self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
 
         m = QMenu()
         m.setToolTipsVisible(True)
+
+        self.mOptionAutoSelectNextFeature = m.addAction('Auto select')
+        self.mOptionAutoSelectNextFeature.setToolTip('Automatically selects the next / previous feature')
+        self.mOptionAutoSelectNextFeature.setCheckable(True)
+        self.mOptionAutoSelectNextFeature.setIcon(QIcon(':/images/themes/default/mIconSelected.svg'))
+
+        self.mOptionAutoPan = m.addAction('Auto pan')
+        self.mOptionAutoPan.setToolTip('Automatically pans the the next / previous feature')
+        self.mOptionAutoPan.setIcon(QIcon(':/images/themes/default/mActionPanToSelected.svg'))
+        self.mOptionAutoPan.setCheckable(True)
+
+        self.mOptionAutoUpdateImageVisibility = m.addAction('Auto visibility update')
+        self.mOptionAutoUpdateImageVisibility.setToolTip(
+            'Automatically updates the date visibility according to the displayed spatial extent.')
+        self.mOptionAutoUpdateImageVisibility.setCheckable(True)
+        self.mOptionAutoUpdateImageVisibility.setIcon(QIcon(':/eotimeseriesviewer/icons/mapview.svg'))
+        self.mActionNextFeature.setMenu(m)
+
+        m = QMenu()
+        m.setToolTipsVisible(True)
+
+        self.mOptionSelectBehaviour: QAction = m.addAction('Selection behaviour')
+        self.mOptionSelectBehaviour.setCheckable(True)
+        self.mOptionSelectBehaviour.setChecked(True)
+
         self.mOptionSelectionSetSelection = m.addAction('Set Selection')
         self.mOptionSelectionSetSelection.setIcon(QIcon(':/images/themes/default/mIconSelected.svg'))
         self.mOptionSelectionSetSelection.setToolTip('Selects a feature.')
@@ -780,6 +829,28 @@ class LabelWidget(AttributeTableWidget):
 
         self.mLayer.featureAdded.connect(self.onLabelFeatureAdded)
         self.mMainView.tableView().willShowContextMenu.connect(self.onShowContextMenu)
+
+    def onGotoNextFeature(self, *arg):
+        # todo: allow to got to unselected features. needs VectorLayerTools support panToFids / zoomToFids
+        gotoNextFeature(self, options=self.gotoFeatureOptions())
+
+    def gotoFeatureOptions(self) -> GotoFeatureOptions:
+        """
+        Returns the GoTo-Feature options
+        :return:
+        :rtype:
+        """
+        options = GotoFeatureOptions(0)
+        if self.mOptionAutoSelectNextFeature.isChecked():
+            options = options | GotoFeatureOptions.SelectFeature
+        if self.mOptionAutoPan.isChecked():
+            options = options | GotoFeatureOptions.PanToFeature
+        if self.mOptionAutoUpdateImageVisibility.isChecked():
+            options = options | GotoFeatureOptions.FocusVisibility
+        return options
+
+    def onGotoPreviousFeature(self, *args):
+        gotoPreviousFeature(self)
 
     def onShowContextMenu(self, menu: QMenu, idx: QModelIndex):
 

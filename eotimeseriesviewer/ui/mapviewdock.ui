@@ -144,7 +144,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
         </size>
        </property>
        <attribute name="icon">
-        <iconset resource="../../../QGIS_Images/images/images.qrc">
+        <iconset resource="../../../QGIS/images/images.qrc">
          <normaloff>:/images/themes/default/mLayoutItemMap.svg</normaloff>:/images/themes/default/mLayoutItemMap.svg</iconset>
        </attribute>
        <attribute name="label">
@@ -656,7 +656,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
-  <include location="../../../QGIS_Images/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>

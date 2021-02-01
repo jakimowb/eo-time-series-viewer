@@ -1276,9 +1276,19 @@ class TimeSeriesFindOverlapTask(QgsTask):
             gt = ds.GetGeoTransform()
             ul = geo2px(targetExtent2.upperLeftPt(), gt)
             lr = geo2px(targetExtent2.lowerRightPt(), gt)
-            xsize = lr.x() - ul.x() - 1
-            ysize = lr.y() - ul.y() - 1
-            data = band1.ReadAsArray(ul.x(), ul.y(), xsize, ysize, self.mSampleSize, self.mSampleSize)
+
+            x0 = max(ul.x(), 0)
+            y0 = max(ul.y(), 0)
+            x1 = min(lr.x(), ds.RasterXSize-1)
+            y1 = min(lr.y(), ds.RasterYSize-1)
+
+            xsize = x1-y0+1
+            ysize = y1-y0+1
+
+            if xsize <= 0 or ysize <= 0:
+                return False
+
+            data = band1.ReadAsArray(x0, y0, xsize, ysize, min(self.mSampleSize, xsize), min(self.mSampleSize, ysize))
             return bool(np.any(data != nodata))
 
         else:
@@ -1504,12 +1514,20 @@ class TimeSeries(QAbstractItemModel):
         if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
             self.mCurrentSpatialExtent = spatialExtent
 
-    def focusVisibilityToExtent(self, ext: SpatialExtent = None, runAsync: bool = None,
-                                date_of_interest: np.datetime64 = None,
-                                max_before: int = -1,
-                                max_after: int = -1):
+    def focusVisibility(self,
+                        ext: SpatialExtent = None,
+                        runAsync: bool = None,
+                        date_of_interest: np.datetime64 = None,
+                        max_before: int = -1,
+                        max_after: int = -1):
         """
         Changes TSDs visibility according to its intersection with a SpatialExtent
+        :param date_of_interest:
+        :type date_of_interest:
+        :param max_after:
+        :type max_after:
+        :param max_before:
+        :type max_before:
         :param runAsync: if True (default), the visibility check is run in a parallel task
         :param ext: SpatialExtent
         """

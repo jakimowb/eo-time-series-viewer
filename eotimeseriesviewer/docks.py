@@ -14,25 +14,22 @@ class SpectralLibraryDockWidget(SpectralLibraryPanel):
         assert isinstance(self.SLW, SpectralLibraryWidget)
         self.mActionNextFeature = QAction('Next Feature', parent=self)
         self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
-        self.mActionNextFeature.triggered.connect(
-            lambda *args,
-                   lyr=self.speclib(),
-                   vlt=self.SLW.vectorLayerTools():
-            gotoNextFeature(lyr, vlt)
-        )
+        self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
 
         self.mActionPreviousFeature = QAction('Previous Feature', parent=self)
         self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
-        self.mActionPreviousFeature.triggered.connect(
-            lambda *args,
-                   lyr=self.speclib(),
-                   vlt=self.SLW.vectorLayerTools():
-            gotoPreviousFeature(lyr, vlt))
+        self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
 
         self.SLW.mToolbar: QToolBar
         self.SLW.mToolbar.insertActions(self.SLW.mActionToggleEditing,
                                         [self.mActionPreviousFeature, self.mActionNextFeature])
         self.SLW.mToolbar.insertSeparator(self.SLW.mActionToggleEditing)
+
+    def onGotoNextFeature(self, *arg):
+        gotoNextFeature(self.SLW)
+
+    def onGotoPreviousFeature(self, *args):
+        gotoPreviousFeature(self.SLW)
 
     def setVectorLayerTools(self, tools: QgsVectorLayerTools):
         self.SLW.setVectorLayerTools(tools)

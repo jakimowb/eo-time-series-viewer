@@ -1193,20 +1193,20 @@ class MapCanvas(QgsMapCanvas):
                               'with this map extent.')
             action.triggered.connect(lambda *args,
                                             ext=self.spatialExtent():
-                                     ts.focusVisibilityToExtent(ext=ext,
-                                                                date_of_interest=date,
-                                                                max_after=n_max,
-                                                                max_before=n_max
-                                                                ))
+                                     ts.focusVisibility(ext=ext,
+                                                        date_of_interest=date,
+                                                        max_after=n_max,
+                                                        max_before=n_max
+                                                        ))
 
             action = menu.addAction('Update source visibility (all)')
             action.setToolTip('Updates observation source visibility according their spatial intersection '
                               'with this map extent.<br/>'
-                              '<span style="color:red">This can take some time for longe time series</span>')
+                              '<span style="color:red">This can take some time for long time series</span>')
 
             action.triggered.connect(lambda *args,
                                             ext=self.spatialExtent():
-                                     ts.focusVisibilityToExtent(ext=ext, date_of_interest=date))
+                                     ts.focusVisibility(ext=ext, date_of_interest=date))
 
 
             menu.addSeparator()

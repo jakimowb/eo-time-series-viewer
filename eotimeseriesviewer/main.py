@@ -52,6 +52,7 @@ from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 import eotimeseriesviewer.settings as eotsvSettings
 from .externals.qps.speclib.core import SpectralProfile, SpectralLibrary
 from .externals.qps.speclib.gui import SpectralLibraryPanel, SpectralLibraryWidget
@@ -487,12 +488,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mPostDataLoadingArgs: dict = dict()
 
-        self.mVectorLayerTools: VectorLayerTools = VectorLayerTools()
+        self.mVectorLayerTools: EOTSVVectorLayerTools = EOTSVVectorLayerTools()
         self.mVectorLayerTools.sigMessage.connect(lambda msg, level: self.logMessage(msg, LOG_MESSAGE_TAG, level))
         self.mVectorLayerTools.sigPanRequest.connect(self.setSpatialCenter)
         self.mVectorLayerTools.sigZoomRequest.connect(self.setSpatialExtent)
         self.mVectorLayerTools.sigEditingStarted.connect(self.updateCurrentLayerActions)
-
+        self.mVectorLayerTools.sigFocusVisibility.connect(self.focusTimeSeriesDateVisibility)
         # Save reference to the QGIS interface
 
         # init empty time series
@@ -1577,6 +1578,27 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
 
+    def focusTimeSeriesDateVisibility(self, *args, extent:SpatialExtent = None, date: TimeSeriesDate = None):
+        """
+        Adjusts the visibility of TimeSeriesDates to the presence of data in a spatial extent.
+        :param args:
+        :type args:
+        :param extent:
+        :type extent:
+        :param date:
+        :type date:
+        :return:
+        :rtype:
+        """
+
+        if extent is None:
+            extent = self.mapWidget().spatialExtent()
+
+        if date is None:
+            date = self.mapWidget().currentDate()
+
+        self.timeSeries().focusVisibility(extent, date_of_interest=date)
+
     def updateCurrentLayerActions(self, *args):
         """
         Enables/disables actions and buttons that relate to the current layer and its current state
@@ -1617,7 +1639,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(layer, (QgsRasterLayer, QgsVectorLayer)):
             self.currentLayerChanged.emit(layer)
 
-    def vectorLayerTools(self) -> VectorLayerTools:
+    def vectorLayerTools(self) -> EOTSVVectorLayerTools:
         return self.mVectorLayerTools
 
     def show(self):
