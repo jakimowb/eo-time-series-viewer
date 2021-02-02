@@ -1550,6 +1550,9 @@ class TimeSeries(QAbstractItemModel):
         if len(tssToTest) > 0:
             from eotimeseriesviewer.settings import value, Keys
 
+
+
+
             qgsTask = TimeSeriesFindOverlapTask(ext,
                                                 tssToTest,
                                                 date_of_interest=date_of_interest,
@@ -1564,6 +1567,10 @@ class TimeSeries(QAbstractItemModel):
             if True and runAsync:
                 tm = QgsApplication.taskManager()
                 assert isinstance(tm, QgsTaskManager)
+                # stop previous tasks, allow to run one only
+                for t in tm.tasks():
+                    if isinstance(t, TimeSeriesFindOverlapTask):
+                        t.cancel()
                 tm.addTask(qgsTask)
             else:
                 qgsTask.finished(qgsTask.run())
