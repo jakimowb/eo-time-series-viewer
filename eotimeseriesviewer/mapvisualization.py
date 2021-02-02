@@ -291,7 +291,29 @@ class MapView(QFrame):
         textFormat.readXml(nodeMapView, context)
 
         lyrTreeNode = node.firstChildElement('MapViewLayerTree').toElement()
-        mapView.mLayerTree.readXml(lyrTreeNode, context)
+
+        def copyLayerTree(parentSrc: QgsLayerTreeGroup, parentDst: QgsLayerTreeGroup):
+            for child in parentSrc.children():
+                if 'eotsv/locked' in child.customProperties():
+                    continue
+                if isinstance(child, QgsLayerTreeLayer):
+                    lyr = child.layer()
+                    if isinstance(lyr, QgsMapLayer) and lyr.isValid():
+                        parentDst.addChildNode(child.clone())
+                    s = ""
+                elif isinstance(child, QgsLayerTreeGroup):
+                    grp = QgsLayerTreeGroup()
+                    grp.setName(child.name())
+                    grp.setIsMutuallyExclusive(child.isMutuallyExclusive())
+                    parentDst.addChildNode(grp)
+                    copyLayerTree(child, grp)
+
+        if not lyrTreeNode.isNull():
+            tree: QgsLayerTree = QgsLayerTree.readXml(lyrTreeNode, context)
+            tree.resolveReferences(QgsProject.instance(), looseMatching=True)
+            # todo:
+            # layerTree(tree, mapView.mLayerTree)
+
 
         lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
         while lyrNode.nodeName() == 'MapViewProxyLayer':
@@ -321,6 +343,7 @@ class MapView(QFrame):
 
         nodeLayerTree = doc.createElement('MapViewLayerTree')
         self.mLayerTree.writeXml(nodeLayerTree, context)
+        nodeMapView.appendChild(nodeLayerTree)
 
         for sensor in self.sensors():
             lyr = self.sensorProxyLayer(sensor)
