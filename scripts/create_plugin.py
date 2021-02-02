@@ -28,6 +28,7 @@ import re
 import shutil
 import typing
 import site
+import io
 import docutils.core
 from xml.dom import minidom
 site.addsitedir(pathlib.Path(__file__).parents[1])
@@ -214,9 +215,11 @@ def rst2html(pathMD: pathlib.Path) -> str:
     overrides = {'stylesheet': None,
                  'embed_stylesheet': False,
                  'output_encoding': 'utf-8',
+                 'dump_pseudo_xml': False,
                  }
 
-    html = docutils.core.publish_file(source_path=pathMD, writer_name='html5', settings_overrides=overrides)
+    buffer = io.StringIO()
+    html = docutils.core.publish_file(source_path=pathMD, writer_name='html5', settings_overrides=overrides, destination=buffer)
 
     xml = minidom.parseString(html)
     #  remove headline

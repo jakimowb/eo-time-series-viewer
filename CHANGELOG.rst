@@ -1,9 +1,15 @@
 ==============
 Changelog
 ==============
+2021-02-02 (version 1.16):
+    * fixed smaller issues
+    * improved fast forward / backward button: now shifts by number of opened observation dates, or maps, respectively
+    * improved next / previous feature button: options allow to (i) move to the next feature and (ii)
+      update observation date visibility according to the new map extent
+
 2020-11-23 (version 1.15):
     * source files can be opened by drag and drop to the time series tree view
-    * maps can be organized in multiple rows per map view
+    * maps can be organized in multiple rows per map view (rows x columns)
     * map descriptions can be defined with QgsExpressions, e.g. '@map_date' to show the date
     * quick labels: CTRL + right mouse button opens map menu even when the feature modify map tool is activates
     * source visibility update can be run on entire time series or (new and faster) for the next time steps only
