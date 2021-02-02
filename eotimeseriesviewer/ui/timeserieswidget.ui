@@ -200,7 +200,7 @@
  </customwidgets>
  <resources>
   <include location="eotsv_resources.qrc"/>
-  <include location="../../../QGIS_Images/images/images.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
  </resources>
  <connections/>
 </ui>

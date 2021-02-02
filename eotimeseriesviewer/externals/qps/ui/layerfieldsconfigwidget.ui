@@ -99,7 +99,7 @@
   </layout>
   <action name="actionAddField">
    <property name="icon">
-    <iconset resource="../../../../QGIS_FORK/images/images.qrc">
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionNewAttribute.svg</normaloff>:/images/themes/default/mActionNewAttribute.svg</iconset>
    </property>
    <property name="text">
@@ -108,7 +108,7 @@
   </action>
   <action name="actionRemoveField">
    <property name="icon">
-    <iconset resource="../../../../QGIS_FORK/images/images.qrc">
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionDeleteAttribute.svg</normaloff>:/images/themes/default/mActionDeleteAttribute.svg</iconset>
    </property>
    <property name="text">
@@ -120,7 +120,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../../../QGIS_FORK/images/images.qrc">
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionToggleEditing.svg</normaloff>:/images/themes/default/mActionToggleEditing.svg</iconset>
    </property>
    <property name="text">
@@ -129,7 +129,7 @@
   </action>
   <action name="actionFieldCalculator">
    <property name="icon">
-    <iconset resource="../../../../QGIS_FORK/images/images.qrc">
+    <iconset resource="../../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionCalculateField.svg</normaloff>:/images/themes/default/mActionCalculateField.svg</iconset>
    </property>
    <property name="text">
@@ -138,7 +138,7 @@
   </action>
  </widget>
  <resources>
-  <include location="../../../../QGIS_FORK/images/images.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
   <include location="../qpsresources.qrc"/>
  </resources>
  <connections/>

@@ -102,7 +102,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../../../QGIS_FORK/images/images.qrc"/>
+  <include location="../../../../QGIS/images/images.qrc"/>
  </resources>
  <connections>
   <connection>
