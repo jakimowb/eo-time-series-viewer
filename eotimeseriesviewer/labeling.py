@@ -734,6 +734,9 @@ def gotoPreviousFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget
                 nextFID = visible_features[next_index]
 
         gotoFeature(nextFID, layer, tools, options)
+        s = ""
+        return nextFID
+    return None
 
 
 class LabelWidget(AttributeTableWidget):
@@ -753,12 +756,15 @@ class LabelWidget(AttributeTableWidget):
         self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
 
         m = QMenu()
+        m.setToolTip('Optional actions after clicking the next / previous feature button.')
         m.setToolTipsVisible(True)
 
         self.mOptionAutoSelectNextFeature = m.addAction('Auto select')
         self.mOptionAutoSelectNextFeature.setToolTip('Automatically selects the next / previous feature')
         self.mOptionAutoSelectNextFeature.setCheckable(True)
         self.mOptionAutoSelectNextFeature.setIcon(QIcon(':/images/themes/default/mIconSelected.svg'))
+        self.mOptionAutoSelectNextFeature.setChecked(True)
+        self.mOptionAutoSelectNextFeature.setVisible(False)
 
         self.mOptionAutoPan = m.addAction('Auto pan')
         self.mOptionAutoPan.setToolTip('Automatically pans the the next / previous feature')
@@ -767,10 +773,12 @@ class LabelWidget(AttributeTableWidget):
 
         self.mOptionAutoUpdateImageVisibility = m.addAction('Auto visibility update')
         self.mOptionAutoUpdateImageVisibility.setToolTip(
-            'Automatically updates the date visibility according to the displayed spatial extent.')
+            r'Automatically shows/hides dates that do/don\'t intersect with spatial map extent.')
         self.mOptionAutoUpdateImageVisibility.setCheckable(True)
         self.mOptionAutoUpdateImageVisibility.setIcon(QIcon(':/eotimeseriesviewer/icons/mapview.svg'))
+
         self.mActionNextFeature.setMenu(m)
+        # self.mActionPreviousFeature.setMenu(m)
 
         m = QMenu()
         m.setToolTipsVisible(True)
@@ -832,7 +840,9 @@ class LabelWidget(AttributeTableWidget):
 
     def onGotoNextFeature(self, *arg):
         # todo: allow to got to unselected features. needs VectorLayerTools support panToFids / zoomToFids
-        gotoNextFeature(self, options=self.gotoFeatureOptions())
+        fid = gotoNextFeature(self, options=self.gotoFeatureOptions())
+        if isinstance(fid, int):
+            self.mMainView.tableView().scrollToFeature(fid)
 
     def gotoFeatureOptions(self) -> GotoFeatureOptions:
         """
@@ -850,7 +860,9 @@ class LabelWidget(AttributeTableWidget):
         return options
 
     def onGotoPreviousFeature(self, *args):
-        gotoPreviousFeature(self)
+        fid = gotoPreviousFeature(self)
+        if isinstance(fid, int):
+            self.mMainView.tableView().scrollToFeature(fid)
 
     def onShowContextMenu(self, menu: QMenu, idx: QModelIndex):
 

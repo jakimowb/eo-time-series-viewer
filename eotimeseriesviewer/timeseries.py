@@ -1282,7 +1282,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
             x1 = min(lr.x(), ds.RasterXSize-1)
             y1 = min(lr.y(), ds.RasterYSize-1)
 
-            xsize = x1-y0+1
+            xsize = x1-x0+1
             ysize = y1-y0+1
 
             if xsize <= 0 or ysize <= 0:
