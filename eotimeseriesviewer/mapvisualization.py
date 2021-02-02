@@ -293,6 +293,8 @@ class MapView(QFrame):
         lyrTreeNode = node.firstChildElement('MapViewLayerTree').toElement()
 
         def copyLayerTree(parentSrc: QgsLayerTreeGroup, parentDst: QgsLayerTreeGroup):
+
+
             for child in parentSrc.children():
                 if 'eotsv/locked' in child.customProperties():
                     continue
@@ -302,6 +304,8 @@ class MapView(QFrame):
                         parentDst.addChildNode(child.clone())
                     s = ""
                 elif isinstance(child, QgsLayerTreeGroup):
+                    if 'eotsv/locked' in child.customProperties():
+                        continue
                     grp = QgsLayerTreeGroup()
                     grp.setName(child.name())
                     grp.setIsMutuallyExclusive(child.isMutuallyExclusive())
@@ -311,8 +315,12 @@ class MapView(QFrame):
         if not lyrTreeNode.isNull():
             tree: QgsLayerTree = QgsLayerTree.readXml(lyrTreeNode, context)
             tree.resolveReferences(QgsProject.instance(), looseMatching=True)
-            # todo:
-            # layerTree(tree, mapView.mLayerTree)
+            if len(tree.children()) > 0:
+                copyLayerTree(tree.children()[0], mapView.mLayerTreeModel.rootGroup())
+                # move sensor node to last position
+                mapView.mLayerTree.removeChildNode(mapView.mLayerTreeSensorNode)
+                # will be added again to the bottom
+                #mapView.mLayerTree.addChildNode(mapView.mLayerTreeSensorNode)
 
 
         lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
