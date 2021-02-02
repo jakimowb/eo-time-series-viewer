@@ -289,6 +289,10 @@ class MapView(QFrame):
 
         textFormat = mapView.mapTextFormat()
         textFormat.readXml(nodeMapView, context)
+
+        lyrTreeNode = node.firstChildElement('MapViewLayerTree').toElement()
+        mapView.mLayerTree.readXml(lyrTreeNode, context)
+
         lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
         while lyrNode.nodeName() == 'MapViewProxyLayer':
             sid = lyrNode.attribute('sensor_id')
@@ -314,6 +318,9 @@ class MapView(QFrame):
         context = QgsReadWriteContext()
         nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
         nodeMapView.appendChild(nodeTextStyle)
+
+        nodeLayerTree = doc.createElement('MapViewLayerTree')
+        self.mLayerTree.writeXml(nodeLayerTree, context)
 
         for sensor in self.sensors():
             lyr = self.sensorProxyLayer(sensor)

@@ -66,8 +66,8 @@ class TestMain(EOTSVTestCase):
         # save and read settings
         path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
-        #self.assertTrue(QgsProject.instance().read(path.as_posix()))
-        #TSV.onReloadProject()
+        self.assertTrue(QgsProject.instance().read(path.as_posix()))
+        TSV.onReloadProject()
 
         self.showGui([TSV.ui])
 
