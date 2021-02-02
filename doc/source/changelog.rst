@@ -3,9 +3,10 @@ Changelog
 ==============
 2021-02-02 (version 1.16):
     * fixed smaller issues
-    * improved fast forward / backward button: now shifts by number of opened observation dates, or maps, respectively
-    * improved next / previous feature button: options allow to (i) move to the next feature and (ii)
-      update observation date visibility according to the new map extent
+    * forward / backward button to move in time now shifts by number of opened observation dates/maps
+    * next / previous feature button offers to (i) move to the next feature and (ii)
+      update the map dates according to the availability of raster sources for the new map extent
+    * faster updates of observation data visibility
 
 2020-11-23 (version 1.15):
     * source files can be opened by drag and drop to the time series tree view
