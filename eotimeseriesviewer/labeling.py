@@ -860,7 +860,7 @@ class LabelWidget(AttributeTableWidget):
         return options
 
     def onGotoPreviousFeature(self, *args):
-        fid = gotoPreviousFeature(self)
+        fid = gotoPreviousFeature(self, options=self.gotoFeatureOptions())
         if isinstance(fid, int):
             self.mMainView.tableView().scrollToFeature(fid)
 
