@@ -1,6 +1,17 @@
 ==============
 Changelog
 ==============
+2021-02-12 (version 1.17):
+    * move to next/previous observation with arrow right/left
+    * move to next/previous observation window with CTRL + arrow right/left or A/D
+    * move to last/first observation with End/Pos1 or ALT + A/D
+    * select next/previous vector feature with arrow downs/up or S/W
+    * added option for exclusive visibility of map views
+    * show next/previous map view with PageDown/PageUp or ALT + S/W
+    * set map center from/to QGIS with F1/ALT+F1
+    * set map extent from/to QGIS with F2/ALT+F2
+    * modified observation slider, slider shows range of visible dates
+
 2021-02-02 (version 1.16):
     * fixed smaller issues
     * forward / backward button to move in time now shifts by number of opened observation dates/maps
