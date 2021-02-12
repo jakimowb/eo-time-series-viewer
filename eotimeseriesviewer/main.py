@@ -1083,12 +1083,23 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionImportExtent.triggered.connect(
             lambda: self.setSpatialExtent(SpatialExtent.fromMapCanvas(iface.mapCanvas())))
-        self.ui.actionExportExtent.triggered.connect(lambda: iface.mapCanvas().setExtent(
-            self.spatialExtent().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
-        self.ui.actionExportCenter.triggered.connect(lambda: iface.mapCanvas().setCenter(
-            self.spatialCenter().toCrs(iface.mapCanvas().mapSettings().destinationCrs())))
         self.ui.actionImportCenter.triggered.connect(
             lambda: self.setSpatialCenter(SpatialPoint.fromMapCanvasCenter(iface.mapCanvas())))
+
+        def setQGISCenter(*args):
+            c = iface.mapCanvas()
+            if isinstance(c, QgsMapCanvas):
+                c.setCenter(self.spatialCenter().toCrs(c.mapSettings().destinationCrs()))
+                c.refresh()
+
+        def setQGISExtent(*args):
+            c = iface.mapCanvas()
+            if isinstance(c, QgsMapCanvas):
+                c.setExtent(self.spatialExtent().toCrs(c.mapSettings().destinationCrs()))
+                c.refresh()
+
+        self.ui.actionExportExtent.triggered.connect(setQGISExtent)
+        self.ui.actionExportCenter.triggered.connect(setQGISCenter)
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
