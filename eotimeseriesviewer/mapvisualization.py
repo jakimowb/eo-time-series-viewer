@@ -2774,4 +2774,9 @@ class MapViewDock(QgsDockWidget):
         w = self.toolBox.currentWidget()
         if isinstance(w, MapView):
             return w
+        else:
+            # return first map view
+            views = self.mapViews()
+            if len(views) > 0:
+                return views[0]
         return None
