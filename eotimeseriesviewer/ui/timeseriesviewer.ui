@@ -562,6 +562,9 @@
    <property name="toolTip">
     <string>Set spatial map extent from QGIS map canvas</string>
    </property>
+   <property name="shortcut">
+    <string>F2</string>
+   </property>
   </action>
   <action name="actionExportExtent">
    <property name="icon">
@@ -573,6 +576,9 @@
    </property>
    <property name="toolTip">
     <string>Set map extent to QGIS map canvas</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+F2</string>
    </property>
   </action>
   <action name="actionImportCenter">
@@ -586,6 +592,9 @@
    <property name="toolTip">
     <string>Set spatial map center from QGIS map canvas</string>
    </property>
+   <property name="shortcut">
+    <string>F1</string>
+   </property>
   </action>
   <action name="actionExportCenter">
    <property name="icon">
@@ -597,6 +606,9 @@
    </property>
    <property name="toolTip">
     <string>Set map center to QGIS map canvas</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+F1</string>
    </property>
   </action>
   <action name="actionAddVectorData">
