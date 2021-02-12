@@ -778,11 +778,13 @@ class LabelWidget(AttributeTableWidget):
         self.mOptionAutoPan.setToolTip('Automatically pans the the next / previous feature')
         self.mOptionAutoPan.setIcon(QIcon(':/images/themes/default/mActionPanToSelected.svg'))
         self.mOptionAutoPan.setCheckable(True)
+        self.mOptionAutoPan.setChecked(True)
 
         self.mOptionAutoUpdateImageVisibility = m.addAction('Auto visibility update')
         self.mOptionAutoUpdateImageVisibility.setToolTip(
             r'Automatically shows/hides dates that do/don\'t intersect with spatial map extent.')
         self.mOptionAutoUpdateImageVisibility.setCheckable(True)
+        self.mOptionAutoUpdateImageVisibility.setChecked(False)
         self.mOptionAutoUpdateImageVisibility.setIcon(QIcon(':/eotimeseriesviewer/icons/mapview.svg'))
 
         self.mActionNextFeature.setMenu(m)

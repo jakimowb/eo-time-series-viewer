@@ -54,12 +54,14 @@ as published by the Free Software Foundation. See also :ref:`License`.
     :maxdepth: 3
     :caption: Contents:
 
-    installation.rst
-    User Guide <user_guide.rst>
+    Installation <installation.rst>
+    Quick Start <quick_start.rst>
+    Graphical User Interface <gui.rst>
+    Quick Labeling <quick_labeling.rst>
     Shortcuts <shortcuts.rst>
     Changelog <changelog_visual.rst>
-    gallery.rst
-    License <LICENSE.md>
+    Gallery <gallery.rst>
+    LICENSE.md
 
 
 Indices and tables

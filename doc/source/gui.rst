@@ -10,69 +10,9 @@
 .. |questionmark| image:: img/questionmark.png
 
 
-==========
-User Guide
-==========
-
-Quick Start
------------
-
-1. Click |icon| in the QGIS Tool Bar or via :menuselection:`Raster --> EO Time Series Viewer` to start the EO Time Series Viewer
-
-2. Click :menuselection:`Files --> Add example` to load an exemplary time series of Landsat and RapidEye observations.
-
-   Open the sensor panel :menuselection:`View --> Panels... --> Sensors / Products` and change the sensor names
-
-   ============ =========
-   Default      Changed
-   ============ =========
-   6bands@30.0m Landsat
-   5bands@5.0m  RapidEye3
-   ============ =========
-
-   The change of sensor names becomes visible in other other parts of the GUI as well, e.g. the
-   list of time series source images.
-
-4. Use the scroll band and the map tools  |mActionZoomIn| |mActionZoomOut| |mActionPan| to change the temporal and spatial subset shown from the time series.
-
-5. Open the Mapping panel, change the map view name from `Map View 1` to `True Color` and set the multiband color render
-   band selection to `RGB = 3-2-1` for both, Landsat and RapidEye images (right-click on layer, :menuselection:`Set Properties --> Style`).
-
-.. note:: Use |mActionRefresh| to refresh or redraw related maps, spectral profile plots etc.
-
-6. Now we like to optimize the color stretch. Choose a -clouded Landsat observation like 2014-06-24 and use the map context menu (right-mouse-click)
-   to click on :menuselection:`Stretch to current extent ... --> Linear 5%`. Repeat with `Linear` and `Gaussian` stretch as well as for RapidEye images to
-   see how this changes the band-specific min/max values in the Map View settings.
-
-7. Click |mActionAddMapView| to create a second map view, respectively row of map images. Call it ``Short-Wave IR`` and the the multiband color render bands to
-   *Landsat RGB = 4-5-3* and *RapidEye RGB = 5-4-3*
-
-8. Expand the :guilabel:`Map Properties` combobox (in the Mapping panel), increase the map size to 300x300 pixel and press :guilabel:`Apply`.
-
-9. Bring the Temporal Profile panel :menuselection:`View --> Panels... --> Sensors / Products` and the `2D` page to the front.
-   Click |mIconTemporalProfile| and select a map location to visualize the temporal profile for.
-   Each selected map location will be listed in the panels |mActionOpenTable| :guilabel:`Coordinate` page.
-
-   Go back to the `2D` plot page and add a second profile with RapidEye data as Sensor source.
-   Change the expression field to show the Normalized Difference Vegetation Index (NDVI) for both sensors:
-
-   ======== ================
-   Sensor   Expression NDVI
-   ======== ================
-   Landsat  (b4-b3)/(b4+b3)
-   RapidEye (b5-b3)/(b5+b3)
-   ======== ================
-
-|
-
-....
-
-|
-
-
-
-The Graphical User Interface
-----------------------------
+===============================
+Graphical User Interface
+===============================
 
 .. figure:: img/interface.png
    :width: 100%
@@ -86,7 +26,7 @@ The Graphical User Interface
 |
 
 Time Series
-^^^^^^^^^^^
+-----------------
 
 This window lists the individual input raster files of the time series.
 
@@ -112,7 +52,7 @@ Remove them by selecting the desired rows in the table (click on the row number)
 |
 
 Sensors / Products
-^^^^^^^^^^^^^^^^^^
+-------------------
 
 .. figure:: img/sensordock.png
 
@@ -128,8 +68,8 @@ and combines identical ones into sensor groups (or products). Those are listed a
 
 |
 
-The Toolbar
-^^^^^^^^^^^
+Toolbar
+-----------------
 
 .. csv-table::
    :header: "Button", "Function"
@@ -173,7 +113,7 @@ The Toolbar
 |
 
 Map Visualization
-^^^^^^^^^^^^^^^^^
+-----------------
 
 
 
@@ -234,7 +174,7 @@ For every Map View you can alter the following settings:
 |
 
 Cursor Location Values
-^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 This tools lets you inspect the values of a layer or multiple layers at the location where you click in the map view. To select a location (e.g. pixel or feature)
 use the |select_location| :superscript:`Select Cursor Location` button and click somewhere in the map view.
@@ -257,7 +197,7 @@ use the |select_location| :superscript:`Select Cursor Location` button and click
 |
 
 Profile Visualization
-^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 .. figure:: img/example_2dprofile.png
 
@@ -311,8 +251,8 @@ Importing or exporting locations:
 |
 
 
-Spectral Library
-................
+Spectral Profiles
+.................
 
 The spectral library view allows you to visualize, label and export spectral profiles.
 
@@ -334,52 +274,4 @@ The spectral library view allows you to visualize, label and export spectral pro
           Remove them with |mActionDeleteAttribute|, accordingly.
         * Double-click into a desired field to change its content
         * Remove spectra by selecting the desired row(s) in the table and click |mActionDeleteSelected|
-
-
-
-Quick Labeling
---------------
-
-The EO Time Series Viewer assists you in describing, i.e. *label*, reference data, e.g. to describe at the occurence of
-land cover types and events. Whether your
-locations (point, lines or polygons) of interest already exist, or are being digitized in the visualized maps first,
-in both cases you want to describe them in the attribute table of the vector layer.
-
-The EO Time Series Viewer supports this with "Quick Label" short-cuts from the map context menu. If triggered, they send
-temporal or categorical information direct to the attribute cells of selected geometries, e.g a polygon that has been
-selected in a map.
-
-.. image:: img/quicklabel_workflow.png
-
-Let's assume we have a map related to a Landsat (LND) observation taken at 2019-02-05T11:23:42.00.
-The following table shows how this is translated into linked vector fields:
-
-.. table:: Mapping of Quick Labels information into vector layer attributes
-
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  |                   |                 Type of linked vector layer field                                                 |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | LabelType         | varchar             | int  | double   | datetime            | date       | time     | bool | blob |
-  +===================+=====================+======+==========+=====================+============+==========+======+======+
-  | Date              | 2019-02-05          |      |          | 2019-02-05T00:00:00 | 2019-02-05 |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Date-Time         | 2019-02-05T11:23:42 |      |          | 2019-02-05T11:23:42 | 2019-02-05 |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Time              | 11:23:42            |      |          | 2019-02-05T11:23:42 |            | 11:23:42 |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Day of Year (DOY) | 36                  | 36   | 36       |                     |            |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Year              | 2019                | 2019 |          | 2019-02-05T11:23:42 | 2019-02-05 | 11:23:42 |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Decimal Year      | 2019.0980926430518  | 2019 | 2019.098 |                     |            |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Sensor Name       | LND                 |      |          |                     |            |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-  | Source Image      | /path/to/image      |      |          |                     |            |          |      |      |
-  +-------------------+---------------------+------+----------+---------------------+------------+----------+------+------+
-
-
-To use Quick Labels, open the vector layer properties and activate them in the Attribute Form widget:
-
-.. image:: img/quicklabel_settings.png
 
