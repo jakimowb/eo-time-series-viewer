@@ -36,7 +36,7 @@ import qgis.utils
 from qgis.PyQt.QtCore import \
     Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel, QMargins
 from qgis.PyQt.QtGui import \
-    QColor, QIcon, QGuiApplication, QMouseEvent
+    QColor, QIcon, QGuiApplication, QMouseEvent, QKeySequence
 from qgis.PyQt.QtWidgets import \
     QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
     QToolBox, QDialog, QAction, QSpinBox, QCheckBox, QLineEdit, QWidgetItem, QSpacerItem, QLayout
@@ -1218,6 +1218,21 @@ class MapWidget(QFrame):
         self.mMapRefreshTimer.setInterval(500)
         self.mMapRefreshTimer.start()
 
+        # define shortcuts
+        self.actionForward.setShortcuts([QKeySequence(QKeySequence.MoveToNextChar)])
+        self.actionBackward.setShortcuts([QKeySequence(QKeySequence.MoveToPreviousChar)])
+
+        self.actionForwardFast.setShortcuts([QKeySequence(QKeySequence.MoveToNextWord),
+                                             QKeySequence(Qt.Key_D)])
+        self.actionBackwardFast.setShortcuts([QKeySequence(QKeySequence.MoveToPreviousWord),
+                                              QKeySequence(Qt.Key_A)])
+
+        self.actionLastDate.setShortcuts([QKeySequence(QKeySequence.MoveToEndOfLine),
+                                          QKeySequence('Alt+D')])
+
+        self.actionFirstDate.setShortcuts([QKeySequence(QKeySequence.MoveToStartOfLine),
+                                           QKeySequence('Alt+A')])
+
         self.btnFirst.setDefaultAction(self.actionFirstDate)
         self.btnLast.setDefaultAction(self.actionLastDate)
         self.btnBackward.setDefaultAction(self.actionBackward)
@@ -1576,7 +1591,7 @@ class MapWidget(QFrame):
         slider = self.timeSlider()
         assert isinstance(slider, QSlider)
         n = len(self.timeSeries())
-        slider.setRange(0, n)
+        slider.setRange(0, n-1)
         slider.setEnabled(n > 0)
 
         if n > 10:
@@ -1593,11 +1608,75 @@ class MapWidget(QFrame):
             if isinstance(tsd, TimeSeriesDate) and tsd in self.timeSeries():
                 i = self.timeSeries()[:].index(tsd)
                 slider.setValue(i + 1)
+        self._updateSliderDate()
+        self._updateSliderCss()
+
+    def _updateSliderCss(self):
+        visible_dates = self.visibleTSDs()
+        dateS = self.sliderDate()
+        # css = self.mTimeSlider.styleSheet()
+        px_width = self.mTimeSlider.width()
+        n = len(self.timeSeries())
+        if self.mTimeSlider.maximum() <= 0 or len(visible_dates) == 0 or not isinstance(dateS, TimeSeriesDate):
+            px_start_left = 0
+            px_start_right = 0
+        else:
+
+            iS = self.timeSeries().mTSDs.index(dateS)
+            i0 = self.timeSeries().mTSDs.index(visible_dates[0])
+            i1 = self.timeSeries().mTSDs.index(visible_dates[-1])
+
+            px_per_date = px_width / self.mTimeSlider.maximum()
+            px_dateS = int(self.mTimeSlider.value() * px_per_date)
+            px_start_left = int(i0 * px_per_date)
+            px_start_right = px_width - int(i1 *px_per_date)
+        # handle_width = 12 if n < 1 else max(12, int(px_width * (len(visible_dates) / n)))
+        css = """
+               QSlider::groove:horizontal {{
+            border: 1px solid #999999;
+            height: 8px; /* the groove expands to the size of the slider by default. by giving it a height, it has a fixed size */
+           /* background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);*/
+            /*
+            position: absolute;
+            left: 10px;
+            right: 10px;
+          */
+            /*width: 25px 100;*/
+            margin: 2px 0;
+        }}
+        
+        QSlider::handle:horizontal {{
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+            border: 1px solid #5c5c5c;    
+            width: 24px;
+            margin: -2px 0; /* handle is placed by default on the contents rect of the groove. Expand outside the groove */
+            border-radius: 3px;
+        }}
+        
+        QSlider::sub-page {{
+            border: 1px solid lightgrey;
+            border-right: none;
+            background: yellow;
+            margin: 0px 0 0 {};
+        }}
+        
+        QSlider::add-page {{
+            border: 1px solid lightgrey;
+            border-left: none;
+            background: yellow;
+            margin: 0px {} 0 0;
+        }}
+        """.format(px_start_left, px_start_right)
+        self.mTimeSlider.setStyleSheet(css)
 
     def onSliderMoved(self, value: int):
-        tsd = self.sliderDate(i=value)
+        self._updateSliderDate(value)
+
+    def _updateSliderDate(self, i=None):
+        tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            self.tbSliderDate.setText(f'{tsd.date()} ({tsd.doy()})')
+            self.tbSliderDate.setText('{}({:03})'.format(tsd.date(), tsd.doy()))
+            # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
 
     def onSliderValueChanged(self):
         tsd = self.sliderDate()
@@ -1612,7 +1691,7 @@ class MapWidget(QFrame):
         """
         tsd = None
         if i is None:
-            i = self.mTimeSlider.value() - 1
+            i = self.mTimeSlider.value()
         if isinstance(self.mTimeSeries, TimeSeries) and len(self.mTimeSeries) > 0:
             i = min(i, len(self.mTimeSeries) - 1)
             i = max(i, 0)
@@ -1771,7 +1850,7 @@ class MapWidget(QFrame):
         if b:
             self._updateCanvasDates()
 
-            i = self.mTimeSeries[:].index(self.mCurrentDate) + 1
+            i = self.mTimeSeries[:].index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
                 self.mTimeSlider.setValue(i)
@@ -1790,7 +1869,9 @@ class MapWidget(QFrame):
         for a in [self.actionBackward, self.actionBackwardFast, self.actionFirstDate]:
             a.setEnabled(canBackward)
 
-        self.tbSliderDate.setText(f'{tsd.date()}')
+        self._updateSliderCss()
+        # update slider CSS
+        # set CSS
         return self.mCurrentDate
 
     def timeSlider(self) -> QSlider:
@@ -2023,86 +2104,7 @@ class MapWidget(QFrame):
                     self.mCanvases[mv].append(c)
 
         self._updateCanvasDates()
-        self.mMapRefreshTimer.start()
-
-    def _BAK_updateGrid(self):
-        import time
-        t0 = time.time()
-        self.mMapRefreshTimer.stop()
-        oldCanvases = self._updateLayerCache()
-
-        nc = self.mMapViewColumns
-        nr = len(self.mapViews()) * self.mMapViewRows
-        if True:
-            toRemove = []
-            for iMV in range(nr, self.mGrid.rowCount()):
-                for col in range(self.mGrid.columnCount()):
-                    item = self.mGrid.itemAtPosition(iMV, col)
-                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
-                        toRemove.append(item.widget())
-
-            for col in range(nc, self.mGrid.columnCount()):
-                for iMV in range(self.mGrid.rowCount()):
-                    item = self.mGrid.itemAtPosition(iMV, col)
-                    if isinstance(item, QLayoutItem) and isinstance(item.widget(), QWidget):
-                        toRemove.append(item.widget())
-
-            for w in toRemove:
-                self.mGrid.removeWidget(w)
-                w.setParent(None)
-                w.setVisible(False)
-            # self.initEmptyGrid()
-            usedCanvases: typing.List[MapCanvas] = []
-            self.mCanvases.clear()
-
-            if self.mViewMode == MapWidget.ViewMode.MapViewByRows:
-                for iMV, mv in enumerate(self.mMapViews):
-                    assert isinstance(mv, MapView)
-                    reminder = self.mCanvases.get(mv, [])
-                    self.mCanvases[mv] = []
-                    for row in range(self.mMapViewRows):
-                        for col in range(self.mMapViewColumns):
-                            gridrow = (iMV * self.mMapViewRows) + row
-                            gridcol = col
-                            item = self.mGrid.itemAtPosition(gridrow, gridcol)
-                            if isinstance(item, QLayoutItem) and isinstance(item.widget(), MapCanvas):
-                                c = item.widget()
-                                s = ""
-                            else:
-                                if not (item is None):
-                                    s =""
-                                c = self._createMapCanvas()
-                                self.mGrid.addWidget(c, gridrow, gridcol)
-                            assert isinstance(c, MapCanvas)
-                            # c.setFixedSize(self.mMapSize)
-                            c.setTSD(None)
-                            c.setMapView(mv)
-                            usedCanvases.append(c)
-                            self.mCanvases[mv].append(c)
-                        s = ""
-            else:
-                raise NotImplementedError()
-
-            #t1 = time.time()
-            self._updateCanvasDates()
-            #t2 = time.time()
-            self._updateWidgetSize()
-            #t3 = time.time()
-
-        s = ""
-        # remove old canvases
-
-        for c in oldCanvases:
-            if c not in usedCanvases:
-                try:
-                    s = ""
-                    self._disconnectCanvasSignals(c)
-                    c.setParent(None)
-
-                except:
-                    pass
-
-        t4 = time.time()
+        self._updateSliderCss()
         self.mMapRefreshTimer.start()
 
     def _updateWidgetSize(self):
@@ -2307,6 +2309,19 @@ class MapViewDock(QgsDockWidget):
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
         self.btnRemoveMapView.setDefaultAction(self.actionRemoveMapView)
+        self.btnMutuallyExclusiveMapViews.setDefaultAction(self.optionMutuallyExclusiveMapViews)
+
+        self.actionNextMapView.setShortcuts([QKeySequence(QKeySequence.MoveToNextPage),
+                                             QKeySequence(Qt.ALT + Qt.Key_S)])
+
+        self.actionPreviousMapView.setShortcuts([QKeySequence(QKeySequence.MoveToPreviousPage),
+                                                 QKeySequence(Qt.ALT + Qt.Key_W)])
+
+        self.actionNextMapView.triggered.connect(self.onNextMapView)
+        self.actionPreviousMapView.triggered.connect(self.onPreviousMapView)
+
+        self.btnNextMapView.setDefaultAction(self.actionNextMapView)
+        self.btnPreviousMapView.setDefaultAction(self.actionPreviousMapView)
 
         self.btnCrs: QgsProjectionSelectionWidget
         self.btnCrs.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
@@ -2326,6 +2341,8 @@ class MapViewDock(QgsDockWidget):
         self.actionRemoveMapView.triggered.connect(
             lambda: self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
 
+
+
         self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
@@ -2336,6 +2353,27 @@ class MapViewDock(QgsDockWidget):
 
         self.mTimeSeries = None
         self.mMapWidget = None
+
+    def exclusiveMapViewVisibility(self) -> bool:
+        return self.optionMutuallyExclusiveMapViews.isChecked()
+
+    def onNextMapView(self):
+        mapViews = self.mapViews()
+        if len(mapViews) > 1:
+            current = self.currentMapView()
+            i = mapViews.index(current) + 1
+            if i >= len(mapViews):
+                i = 0
+            self.setCurrentMapView(mapViews[i])
+
+    def onPreviousMapView(self):
+        mapViews = self.mapViews()
+        if len(mapViews) > 1:
+            current = self.currentMapView()
+            i = mapViews.index(current) - 1
+            if i < 0:
+                i = len(mapViews) - 1
+            self.setCurrentMapView(mapViews[i])
 
     def onMapCanvasColorChanged(self, color: QColor):
         # todo: find a way to display the map canvas color in background
@@ -2388,7 +2426,7 @@ class MapViewDock(QgsDockWidget):
         """
         return self.mMapWidget
 
-    def mapViews(self) -> list:
+    def mapViews(self) -> typing.List[MapView]:
         """
         Returns the defined MapViews
         :return: [list-of-MapViews]
@@ -2716,6 +2754,10 @@ class MapViewDock(QgsDockWidget):
 
     def setCurrentMapView(self, mapView):
         assert isinstance(mapView, MapView) and mapView in self.mapViews()
+
+        if self.exclusiveMapViewVisibility():
+            for mv in self.mapViews():
+                mv.setVisibility(mv == mapView)
         self.toolBox.setCurrentWidget(mapView)
         self.updateTitle()
 
@@ -2728,7 +2770,7 @@ class MapViewDock(QgsDockWidget):
             title = self.baseTitle
         self.setWindowTitle(title)
 
-    def currentMapView(self):
+    def currentMapView(self) -> MapView:
         w = self.toolBox.currentWidget()
         if isinstance(w, MapView):
             return w

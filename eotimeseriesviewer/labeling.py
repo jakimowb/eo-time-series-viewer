@@ -748,12 +748,20 @@ class LabelWidget(AttributeTableWidget):
         super().__init__(*args, *kwds)
 
         self.mActionNextFeature: QAction = QAction('Next Feature', parent=self)
-        self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasNext.svg'))
-        self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
-
         self.mActionPreviousFeature: QAction = QAction('Previous Feature', parent=self)
-        self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionAtlasPrev.svg'))
+        self.mActionNextFeature.setIcon(QIcon(':/images/themes/default/mActionArrowDown.svg'))
+        self.mActionPreviousFeature.setIcon(QIcon(':/images/themes/default/mActionArrowUp.svg'))
+        self.mActionNextFeature.setShortcuts([QKeySequence(QKeySequence.MoveToNextLine),
+                                              QKeySequence(Qt.Key_S)])
+        self.mActionPreviousFeature.setShortcuts([QKeySequence(QKeySequence.MoveToPreviousLine),
+                                              QKeySequence(Qt.Key_W)])
+
+        self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
         self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
+
+        for action in [self.mActionNextFeature, self.mActionPreviousFeature]:
+            # action.setShortcutContext(Qt.WidgetWithChildrenShortcut)
+            pass
 
         m = QMenu()
         m.setToolTip('Optional actions after clicking the next / previous feature button.')

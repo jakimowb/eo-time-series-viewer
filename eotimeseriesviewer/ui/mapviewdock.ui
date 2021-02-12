@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>367</width>
+    <width>349</width>
     <height>366</height>
    </rect>
   </property>
@@ -100,6 +100,44 @@
         </property>
        </spacer>
       </item>
+      <item>
+       <widget class="QToolButton" name="btnMutuallyExclusiveMapViews">
+        <property name="text">
+         <string>X</string>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnNextMapView">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../../../QGIS/images/images.qrc">
+          <normaloff>:/images/themes/default/mActionArrowDown.svg</normaloff>:/images/themes/default/mActionArrowDown.svg</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="btnPreviousMapView">
+        <property name="text">
+         <string>...</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../../../QGIS/images/images.qrc">
+          <normaloff>:/images/themes/default/mActionArrowUp.svg</normaloff>:/images/themes/default/mActionArrowUp.svg</iconset>
+        </property>
+        <property name="autoRaise">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item>
@@ -133,7 +171,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>363</width>
+         <width>345</width>
          <height>284</height>
         </rect>
        </property>
@@ -632,6 +670,44 @@ QToolBox::tab:selected { /* italicize selected tabs */
   <action name="actionSetSubsetSize">
    <property name="text">
     <string>setSubsetSize</string>
+   </property>
+  </action>
+  <action name="actionNextMapView">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionArrowDown.svg</normaloff>:/images/themes/default/mActionArrowDown.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Next MapView</string>
+   </property>
+   <property name="toolTip">
+    <string>Shows the next map view</string>
+   </property>
+  </action>
+  <action name="actionPreviousMapView">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionArrowUp.svg</normaloff>:/images/themes/default/mActionArrowUp.svg</iconset>
+   </property>
+   <property name="text">
+    <string>ShowPreviousMapView</string>
+   </property>
+   <property name="toolTip">
+    <string>Shows the previous map view</string>
+   </property>
+  </action>
+  <action name="optionMutuallyExclusiveMapViews">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>X</string>
+   </property>
+   <property name="toolTip">
+    <string>Mutually exclusive visibility of map views</string>
    </property>
   </action>
  </widget>
