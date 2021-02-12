@@ -56,6 +56,7 @@ as published by the Free Software Foundation. See also :ref:`License`.
 
     installation.rst
     User Guide <user_guide.rst>
+    Shortcuts <shortcuts.rst>
     Changelog <changelog_visual.rst>
     gallery.rst
     License <LICENSE.md>
