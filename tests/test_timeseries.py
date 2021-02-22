@@ -35,7 +35,7 @@ class TestTimeSeries(EOTSVTestCase):
         datasets = []
 
         for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i+1)
+            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
 
             ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
             assert isinstance(ds, gdal.Dataset)
@@ -49,14 +49,14 @@ class TestTimeSeries(EOTSVTestCase):
             for b, date in enumerate(r):
                 decimalYear = date2num(date)
 
-                band = ds.GetRasterBand(b+1)
+                band = ds.GetRasterBand(b + 1)
                 assert isinstance(band, gdal.Band)
                 band.Fill(decimalYear)
             ds.FlushCache()
             datasets.append(p)
         return datasets
 
-    def createTimeSeries(self)->TimeSeries:
+    def createTimeSeries(self) -> TimeSeries:
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
         TS = TimeSeries()
         self.assertIsInstance(TS, TimeSeries)
@@ -95,13 +95,11 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
-
     def test_load_csv(self):
         p = r'J:\diss_bj\QGISProjects\timeseries\mosaic_BOA_2014.txt'
         if os.path.isfile(p):
             ts = TimeSeries()
             ts.loadFromFile(p, runAsync=False)
-
 
     def test_TimeSeriesFindOverlapTask(self):
 
@@ -157,8 +155,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         self.showGui(EOTSV.ui)
 
-
-
     def test_TimeSeriesDate(self):
 
         file = example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA
@@ -181,7 +177,6 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(tsd.doy() == 79)
         self.assertIsInstance(tsd.decimalYear(), float)
         self.assertTrue(tsd.decimalYear() >= 2014 and tsd.decimalYear() < 2015)
-
 
         self.assertIsInstance(tsd, QAbstractTableModel)
         for r in range(len(tsd)):
@@ -209,14 +204,12 @@ class TestTimeSeries(EOTSVTestCase):
                 print(ex, file=sys.stderr)
                 s = ""
 
-
         if False:
             webSources = [QgsRasterLayer(wcs, 'test', 'wcs')]
 
             for src in webSources:
                 tss = TimeSeriesSource.create(src)
                 self.assertIsInstance(tss, TimeSeriesSource)
-
 
         sources = [example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
                    gdal.Open(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA),
@@ -260,12 +253,7 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertIsInstance(tss3, TimeSeriesSource)
         self.assertEqual(tss, tss3)
 
-
     def test_sensorMatching(self):
-
-
-
-
 
         testDir = r'Q:\Processing_BJ\99_EOTSV_RapidEye'
         if os.path.isdir(testDir):
@@ -291,10 +279,7 @@ class TestTimeSeries(EOTSVTestCase):
             TS.addSources(files, runAsync=False)
             self.assertTrue(len(TS.sensors()) == len(sensors))
 
-
-
             s = ""
-
 
     def test_datetimeprecision(self):
 
@@ -331,8 +316,6 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_multisource_tsd(self):
 
-
-
         p1 = TestObjects.createRasterDataset()
         p2 = TestObjects.createRasterDataset()
 
@@ -341,7 +324,6 @@ class TestTimeSeries(EOTSVTestCase):
             p.SetMetadataItem('acquisition_date', '2014-04-01')
             p.FlushCache()
             s = ""
-
 
         TS = TimeSeries()
         self.assertTrue(len(TS) == 0)
@@ -387,7 +369,6 @@ class TestTimeSeries(EOTSVTestCase):
         for tsd in to_remove:
             self.assertTrue(tsd not in TS)
 
-
     def test_timeseries(self):
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif', recursive=True))
@@ -404,9 +385,9 @@ class TestTimeSeries(EOTSVTestCase):
 
         TS.sigTimeSeriesDatesAdded.connect(lambda dates: addedDates.extend(dates))
         TS.sigTimeSeriesDatesRemoved.connect(lambda dates: removedDates.extend(dates))
-        #TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
+        # TS.sigSourcesChanged.connect(lambda tsd: sourcesChanged.append(tsd))
         TS.sigSensorAdded.connect(lambda sensor: addedSensors.append(sensor))
-        TS.sigSensorRemoved.connect(lambda sensor:removedSensors.append(sensor))
+        TS.sigSensorRemoved.connect(lambda sensor: removedSensors.append(sensor))
         TS.addSources(files, runAsync=False)
 
         counts = dict()
@@ -424,7 +405,6 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertEqual(TS.columnCount(), len(TS.mColumnNames))
         self.assertEqual(TS.rowCount(), len(TS))
 
-
         self.assertEqual(len(removedDates), 0)
         self.assertTrue(len(addedSensors) == 2)
 
@@ -439,12 +419,13 @@ class TestTimeSeries(EOTSVTestCase):
         extent = TS.maxSpatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
 
-
     def test_pleiades(self):
 
-        paths = [r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
-                ,r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
-                    ]
+        paths = [
+            r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
+            ,
+            r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
+            ]
         for p in paths:
             if not os.path.isfile(p):
                 continue
@@ -474,11 +455,8 @@ class TestTimeSeries(EOTSVTestCase):
             band = ds.GetRasterBand(1)
             self.assertIsInstance(band, gdal.Band)
 
-
             tss = TimeSeriesSource(ds)
             self.assertIsInstance(tss, TimeSeriesSource)
-
-
 
     def test_sentinel2(self):
 
@@ -492,21 +470,20 @@ class TestTimeSeries(EOTSVTestCase):
         for item in dsC.GetSubDatasets():
             path = item[0]
             ds = gdal.Open(path)
-            gt =  ds.GetGeoTransform()
+            gt = ds.GetGeoTransform()
             self.assertIsInstance(ds, gdal.Dataset)
 
             band = ds.GetRasterBand(1)
             self.assertIsInstance(band, gdal.Band)
 
             wlu = ds.GetRasterBand(1).GetMetadata_Dict()['WAVELENGTH_UNIT']
-            wl = [float(ds.GetRasterBand(b+1).GetMetadata_Dict()['WAVELENGTH']) for b in range(ds.RasterCount)]
+            wl = [float(ds.GetRasterBand(b + 1).GetMetadata_Dict()['WAVELENGTH']) for b in range(ds.RasterCount)]
 
             tss = TimeSeriesSource(ds)
             self.assertIsInstance(tss, TimeSeriesSource)
 
             self.assertEqual(tss.mWLU, wlu)
             self.assertEqual(tss.mWL, wl)
-
 
     def test_sensors(self):
 
@@ -525,7 +502,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         lyr = sensor.proxyRasterLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
-
 
         doc = QDomDocument('eotsv')
         node = doc.createElement('MySensor')
@@ -552,7 +528,6 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(TS) == 1)
         self.assertTrue(len(TS[0]) == 2)
 
-
         self.assertTrue(len(TS) > 0)
         self.assertTrue(TS.rowCount(TS.index(0, 0)) == 2)
 
@@ -575,19 +550,16 @@ class TestTimeSeries(EOTSVTestCase):
         dock.timeSeriesWidget().setTimeSeries(TS)
         dock.show()
 
-
         urls = [QUrl.fromLocalFile(example.Images.Img_2014_07_02_LE72270652014183CUB00_BOA),
                 QUrl.fromLocalFile(example.Images.Img_2014_06_08_LC82270652014159LGN00_BOA),
-        ]
+                ]
         md = QMimeData()
         md.setUrls(urls)
         pos = QPointF()
         event = QDropEvent(pos, Qt.CopyAction, md, Qt.LeftButton, Qt.NoModifier)
         dock.timeSeriesWidget().timeSeriesTreeView().dropEvent(event)
 
-
         self.showGui(dock)
-
 
 
 if __name__ == '__main__':

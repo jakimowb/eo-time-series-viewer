@@ -2008,8 +2008,9 @@ class MapWidget(QFrame):
 
         self.mSyncLock = False
 
-    def _createMapCanvas(self, parent=None) -> MapCanvas:
+    def _createMapCanvas(self, parent=None, is_visible: bool = True) -> MapCanvas:
         mapCanvas = MapCanvas(parent=parent)
+        mapCanvas.setVisible(is_visible)
         mapCanvas.setMapLayerStore(self.mMapLayerStore)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
 
@@ -2090,12 +2091,13 @@ class MapWidget(QFrame):
         for iMV, mv in enumerate(self.mMapViews):
             assert isinstance(mv, MapView)
             self.mCanvases[mv] = []
+            visible = mv.isVisible()
             for row in range(self.mMapViewRows):
                 for col in range(self.mMapViewColumns):
                     gridrow = (iMV * self.mMapViewRows) + row
                     gridcol = col
 
-                    c: MapCanvas = self._createMapCanvas()
+                    c: MapCanvas = self._createMapCanvas(is_visible=visible)
                     assert isinstance(c, MapCanvas)
                     # c.setFixedSize(self.mMapSize)
                     c.setTSD(None)
