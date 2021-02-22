@@ -95,6 +95,14 @@ class TestTimeSeries(EOTSVTestCase):
         tsRel.loadFromFile(pathTSFileAbs, runAsync=False)
         self.assertTrue(len(tsRel) == len(files))
 
+
+    def test_load_csv(self):
+        p = r'J:\diss_bj\QGISProjects\timeseries\mosaic_BOA_2014.txt'
+        if os.path.isfile(p):
+            ts = TimeSeries()
+            ts.loadFromFile(p, runAsync=False)
+
+
     def test_TimeSeriesFindOverlapTask(self):
 
         import example

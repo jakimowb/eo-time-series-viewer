@@ -32,6 +32,7 @@ import re
 import fnmatch
 import io
 import zipfile
+import itertools
 import pathlib
 import warnings
 import collections
@@ -446,7 +447,7 @@ convertDateUnit = UnitLookup.convertDateUnit
 
 METRIC_EXPONENTS = UnitLookup.METRIC_EXPONENTS
 
-# contains the wavelenghts
+# contains the wavelengths
 LUT_WAVELENGTH = dict({'B': 480,
                        'G': 570,
                        'R': 660,
@@ -549,7 +550,7 @@ def qgisLayerTreeLayers() -> list:
     """
     iface = qgisAppQgisInterface()
     if isinstance(iface, QgisInterface):
-        return [ln.layer() for ln in iface.layerTreeView().model().rootGroup().findLayers()
+        return [ln.layer() for ln in iface.layerTreeView().layerTreeModel().rootGroup().findLayers()
                 if isinstance(ln.layer(), QgsMapLayer)]
     else:
         return []
@@ -779,8 +780,7 @@ def optimize_block_size(ds: gdal.Dataset,
 def fid2pixelindices(raster: gdal.Dataset,
                      vector: ogr.DataSource,
                      layer: typing.Union[int, str] = None,
-                     all_touched: bool = True) -> typing.Tuple[
-    np.ndarray, int]:
+                     all_touched: bool = True) -> typing.Tuple[np.ndarray, int]:
     """
     Returns vector feature pixel positions.
 
@@ -1566,7 +1566,7 @@ def checkWavelength(key: str, values: str, expected: int = 1) -> np.ndarray:
         else:
             sep = ','
         try:
-            wl = np.asarray(values.split(sep), dtype=np.float)
+            wl = np.asarray(values.split(sep), dtype=float)
             if len(wl) != expected:
                 wl = None
             # wl = np.fromstring(values, count=expected, sep=sep)
@@ -1733,6 +1733,19 @@ def qgisAppQgisInterface() -> QgisInterface:
         return qgis.utils.iface
     except:
         return None
+
+
+def chunks(iterable, size=10):
+    """
+    Returns list or generator output as chunks
+    Example taken from: https://stackoverflow.com/a/24527424
+    :param iterable:
+    :param size:
+    :return:
+    """
+    iterator = iter(iterable)
+    for first in iterator:
+        yield itertools.chain([first], itertools.islice(iterator, size - 1))
 
 
 def getDOMAttributes(elem) -> dict:

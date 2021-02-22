@@ -25,7 +25,15 @@
 """
 # noinspection PyPep8Naming
 import re
+import typing
+
+
 class QGISMetadataFileWriter(object):
+    """
+    A class to store and write the QGIS plugin metadata.txt
+    For details see:
+    https://docs.qgis.org/3.16/en/docs/pyqgis_developer_cookbook/plugins/plugins.html#plugin-metadata-table
+    """
 
     def __init__(self):
         self.mName = ''
@@ -41,9 +49,11 @@ class QGISMetadataFileWriter(object):
         self.mTracker = ''
         self.mRepository = ''
         self.mIsExperimental = ''
-        self.mTags = []
-        self.mCategory = ''
-        self.mChangelog = ''
+        self.mHasProcessingProvider: bool = False
+        self.mTags: typing.List[str] = []
+        self.mCategory: str = ''
+        self.mChangelog: str = ''
+        self.mPlugin_dependencies: typing.List[str] = []
 
     def validate(self) -> bool:
 
@@ -68,7 +78,10 @@ class QGISMetadataFileWriter(object):
 
         lines.append('tags={}'.format(', '.join(self.mTags)))
         lines.append('category={}'.format(self.mRepository))
-
+        if self.mHasProcessingProvider:
+            lines.append(f'hasProcessingProvider=yes')
+        else:
+            lines.append(f'hasProcessingProvider=no')
         lines.append('homepage={}'.format(self.mHomepage))
         if self.mTracker:
             lines.append('tracker={}'.format(self.mTracker))
@@ -77,12 +90,14 @@ class QGISMetadataFileWriter(object):
         if isinstance(self.mIsExperimental, bool):
             lines.append('experimental={}'.format(self.mIsExperimental))
 
-
-        #lines.append('deprecated={}'.format(self.mIsDeprecated))
+        if len(self.mPlugin_dependencies) > 0:
+            lines.append(f'plugin_dependencies={",".join(self.mPlugin_dependencies)}')
+        # lines.append('deprecated={}'.format(self.mIsDeprecated))
         lines.append('')
         lines.append('changelog={}'.format(self.mChangelog))
 
         return '\n'.join(lines)
+
     """
     [general]
     name=dummy
@@ -103,8 +118,6 @@ class QGISMetadataFileWriter(object):
     category=Raster
     """
 
-    def writeMetadataTxt(self, path:str):
+    def writeMetadataTxt(self, path: str):
         with open(path, 'w', encoding='utf-8') as f:
             f.write(self.metadataString())
-
-

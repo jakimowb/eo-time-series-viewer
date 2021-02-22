@@ -860,7 +860,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         return self.layerTreeModel().rootGroup()
 
     def layerTreeModel(self) -> QgsLayerTreeModel:
-        return self.layerTreeView().model()
+        return self.layerTreeView().layerTreeModel()
 
     def onRemoveLayers(self):
         selected = self.layerTreeView().selectedLayers()

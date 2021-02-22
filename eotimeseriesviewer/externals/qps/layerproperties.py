@@ -986,7 +986,7 @@ def showLayerPropertiesDialog(layer: QgsMapLayer,
     if useQGISDialog and isinstance(iface, QgisInterface):
         # try to use the QGIS vector layer properties dialog
         try:
-            root = iface.layerTreeView().model().rootGroup()
+            root = iface.layerTreeView().layerTreeModel().rootGroup()
             assert isinstance(root, QgsLayerTreeGroup)
             temporaryGroup = None
             lastActiveLayer = iface.activeLayer()

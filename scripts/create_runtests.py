@@ -28,7 +28,8 @@ def create_runtests():
 ::
 @echo off
 set CI=True
-
+set PYTHONPATH=%~dp0/..;%PYTHONPATH%
+set PYTHONPATH
 WHERE python3 >nul 2>&1 && (
     echo Found "python3" command
     set PYTHON=python3

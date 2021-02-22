@@ -14,7 +14,7 @@
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
-                                                                                                                                                 *
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,6 +41,7 @@ from qgis.PyQt.QtXml import *
 from .utils import file_search, findUpwardPath
 
 REGEX_FILEXTENSION_IMAGE = re.compile(r'\.([^.]+)$')
+REGEX_QGIS_IMAGES_QRC = re.compile(r'.*QGIS[^\/]*[\/]images[\/]images\.qrc$')
 
 
 def getDOMAttributes(elem):
@@ -53,9 +54,14 @@ def getDOMAttributes(elem):
     return values
 
 
-def compileResourceFiles(dirRoot: str, targetDir: str = None, suffix: str = '_rc.py'):
+def compileResourceFiles(dirRoot: str,
+                         targetDir: str = None,
+                         suffix: str = '_rc.py',
+                         skip_qgis_images: bool = True):
     """
     Searches for *.ui files and compiles the *.qrc files they use.
+    :param skip_qgis_images:
+    :type skip_qgis_images: bool, if True (default), qrc paths to the qgis images.qrc will be skipped
     :param dirRoot: str, root directory, in which to search for *.qrc files or a list of *.ui file paths.
     :param targetDir: str, output directory to write the compiled *.py files to.
            Defaults to the *.qrc's directory
@@ -82,6 +88,8 @@ def compileResourceFiles(dirRoot: str, targetDir: str = None, suffix: str = '_rc
                 location = attr['location']
                 qrc_path = (qrc_dir / pathlib.Path(location)).resolve()
                 if not qrc_path.exists():
+                    if REGEX_QGIS_IMAGES_QRC.match(qrc_path.as_posix()) and skip_qgis_images:
+                        continue
                     info = ['Broken *.qrc location in {}'.format(ui_file),
                             ' `location="{}"`'.format(location)]
                     print('\n'.join(info), file=sys.stderr)
@@ -221,8 +229,8 @@ def compileQGISResourceFiles(qgis_repo: str, target: str = None):
         target = pathlib.Path(target)
 
     os.makedirs(target, exist_ok=True)
-    compileResourceFiles(qgis_repo / 'src', targetDir=target)
-    compileResourceFiles(qgis_repo / 'images', targetDir=target)
+    compileResourceFiles(qgis_repo / 'src', targetDir=target, skip_qgis_images=False)
+    compileResourceFiles(qgis_repo / 'images', targetDir=target, skip_qgis_images=False)
 
 
 def initQtResources(roots: list = []):
@@ -310,7 +318,7 @@ def findQGISResourceFiles():
     return results
 
 
-def scanResources(path=':') -> str:
+def scanResources(path=':') -> typing.Generator[str, None, None]:
     """Recursively returns file paths in directory"""
     D = QDirIterator(path)
     while D.hasNext():
@@ -533,4 +541,3 @@ def showResources() -> ResourceBrowser:
     if needQApp:
         QApplication.instance().exec_()
     return browser
-
