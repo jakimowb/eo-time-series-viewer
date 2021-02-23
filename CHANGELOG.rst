@@ -1,7 +1,8 @@
 ==============
 Changelog
 ==============
-2021-02-12 (version 1.17):
+2021-02-23 (version 1.17):
+    * fixes to run with QGIS 3.18+
     * move to next/previous observation with arrow right/left
     * move to next/previous observation window with CTRL + arrow right/left or A/D
     * move to last/first observation with End/Pos1 or ALT + A/D
