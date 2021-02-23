@@ -475,10 +475,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(mw, MapWidget)
         assert isinstance(tswidget, TimeSeriesWidget)
 
-        def onClosed():
-            EOTimeSeriesViewer._instance = None
+        self.ui.sigAboutToBeClosed.connect(self.onClosing)
 
-        self.ui.sigAboutToBeClosed.connect(onClosed)
         import qgis.utils
         assert isinstance(qgis.utils.iface, QgisInterface)
         QgsProject.instance().layersWillBeRemoved.connect(self.onLayersWillBeRemoved)
@@ -518,7 +516,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(self, EOTimeSeriesViewer)
         self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 
-        mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
+        # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
         mw.sigMapViewAdded.connect(self.onMapViewAdded)
         mw.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].connect(
@@ -671,6 +669,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if eotsvSettings.value(SettingKeys.StartupRestoreProjectSettings, False):
             self.onReloadProject()
+
+    def onClosing(self):
+        debugLog(f'Close EOTSV')
+        EOTimeSeriesViewer._instance = None
+        while len(self.mapViews()) > 0:
+            mv = self.mapViews()[0]
+            debugLog(f'Remove map view {mv}')
+            self.mapWidget().removeMapView()
 
     def onWriteProject(self, dom: QDomDocument):
 
@@ -974,6 +980,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         Moves the map view to a TimeSeriesSource
         """
+        debugLog('EOTImeSeriesViewersetCurrentSource')
         tss = self.timeSeries().findSource(tss)
         if isinstance(tss, TimeSeriesSource):
             self.ui.mMapWidget.setCurrentDate(tss.timeSeriesDate())
@@ -1219,6 +1226,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Sets the map canvas extent
         :param spatialExtent: SpatialExtent
         """
+        debugLog()
         self.mapWidget().setSpatialExtent(spatialExtent)
 
     def setSpatialCenter(self, spatialPoint: SpatialPoint):
@@ -1478,6 +1486,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if len(self.mTimeSeries) > 0:
                 extent = self.timeSeries().maxSpatialExtent()
                 if isinstance(extent, SpatialExtent):
+                    debugLog('Extent changed')
                     self.mapWidget().setCrs(extent.crs())
                     self.mapWidget().setSpatialExtent(extent)
                     self.mSpatialMapExtentInitialized = True

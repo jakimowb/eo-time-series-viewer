@@ -1488,7 +1488,6 @@ class TimeSeries(QAbstractItemModel):
 
         self.mLUT_Path2TSD = {}
         self.mVisibleDates: typing.Set[TimeSeriesDate] = set()
-        self.mCurrentSpatialExtent = None
 
         self.cnDate = 'Date'
         self.cnSensor = 'Sensor'
@@ -1506,16 +1505,8 @@ class TimeSeries(QAbstractItemModel):
         if imageFiles is not None:
             self.addSources(imageFiles)
 
-    def setCurrentSpatialExtent(self, spatialExtent: SpatialExtent):
-        """
-        Sets the spatial extent currently shown
-        :param spatialExtent:
-        """
-        if isinstance(spatialExtent, SpatialExtent) and self.mCurrentSpatialExtent != spatialExtent:
-            self.mCurrentSpatialExtent = spatialExtent
-
     def focusVisibility(self,
-                        ext: SpatialExtent = None,
+                        ext: SpatialExtent,
                         runAsync: bool = None,
                         date_of_interest: np.datetime64 = None,
                         max_before: int = -1,
@@ -1531,8 +1522,8 @@ class TimeSeries(QAbstractItemModel):
         :param runAsync: if True (default), the visibility check is run in a parallel task
         :param ext: SpatialExtent
         """
-        if ext is None:
-            ext = self.currentSpatialExtent()
+        assert isinstance(ext, SpatialExtent)
+
         if runAsync is None:
             from eotimeseriesviewer.settings import value, Keys
             runAsync = value(Keys.QgsTaskAsync, True)
@@ -1608,13 +1599,6 @@ class TimeSeries(QAbstractItemModel):
         idx0 = self.index(rowMin, 0)
         idx1 = self.index(rowMax, 0)
         self.dataChanged.emit(idx0, idx1, [Qt.CheckStateRole])
-
-    def currentSpatialExtent(self) -> SpatialExtent:
-        """
-        Returns the current spatial extent
-        :return: SpatialExtent
-        """
-        return self.mCurrentSpatialExtent
 
     def setVisibleDates(self, tsds: list):
         """

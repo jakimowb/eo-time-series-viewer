@@ -45,13 +45,13 @@ from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInpu
     QgsMapTool, QgsMapToolPan, QgsMapToolZoom, QgsMapToolCapture, QgsMapToolIdentify, \
     QgsGeometryRubberBand, QgsMapMouseEvent
 
-
 from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .externals.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .externals.qps.layerproperties import showLayerPropertiesDialog
 from .externals.qps.maptools import QgsMapToolSelectionHandler, \
     CursorLocationMapTool, QgsMapToolAddFeature, \
-    SpectralProfileMapTool, TemporalProfileMapTool, MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, QgsMapToolSelect
+    SpectralProfileMapTool, TemporalProfileMapTool, MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, \
+    QgsMapToolSelect
 from .externals.qps.utils import SpatialExtent, SpatialPoint
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers, quickLayerFieldSetup
 from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
@@ -514,7 +514,7 @@ class MapCanvas(QgsMapCanvas):
         self.mInfoItem.setTextFormat(mapView.mapTextFormat())
         self.addToRefreshPipeLine(mapView.mapBackgroundColor())
         self.setCrosshairStyle(mapView.crosshairStyle())
-        #self.setCrosshairVisibility(mapView.crosshairStyle())
+        # self.setCrosshairVisibility(mapView.crosshairStyle())
 
         # self.addToRefreshPipeLine(MapCanvas.Command.UpdateMapItems)
 
@@ -712,7 +712,7 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer = SensorProxyLayer(source,
                                                            sensor=sensor,
                                                            options=QgsRasterLayer.LayerOptions(
-                                                           loadDefaultStyle=loadDefaultStyle))
+                                                               loadDefaultStyle=loadDefaultStyle))
                             sourceLayer.setName(f'{lyr.name()} {source}')
                             sourceLayer.setCustomProperty('eotsv/sensorid', sensor.id())
                             sourceLayer.mTSS = tss
@@ -812,7 +812,7 @@ class MapCanvas(QgsMapCanvas):
 
         if emitSignal:
             s = ""
-            #self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
+            # self.sigCrosshairStyleChanged.emit(self.mCrosshairItem.crosshairStyle())
         else:
             s = ""
 
@@ -932,7 +932,8 @@ class MapCanvas(QgsMapCanvas):
             reg = QgsGui.editorWidgetRegistry()
             factory = reg.factory(EDITOR_WIDGET_REGISTRY_KEY)
             observation_indices = []
-            from .labeling import layerClassSchemes, setQuickClassInfo, LabelShortcutType, LabelConfigurationKey, quickLayerGroups
+            from .labeling import layerClassSchemes, setQuickClassInfo, LabelShortcutType, LabelConfigurationKey, \
+                quickLayerGroups
 
             if len(lyrWithSelectedFeatures) == 0:
                 a = m.addAction('No features selected.')
@@ -1191,9 +1192,8 @@ class MapCanvas(QgsMapCanvas):
             action = menu.addAction('Update source visibility')
             action.setToolTip('Updates observation source visibility according their spatial intersection '
                               'with this map extent.')
-            action.triggered.connect(lambda *args,
-                                            ext=self.spatialExtent():
-                                     ts.focusVisibility(ext=ext,
+            action.triggered.connect(lambda *args, ext=self.spatialExtent():
+                                     ts.focusVisibility(ext,
                                                         date_of_interest=date,
                                                         max_after=n_max,
                                                         max_before=n_max
@@ -1204,10 +1204,8 @@ class MapCanvas(QgsMapCanvas):
                               'with this map extent.<br/>'
                               '<span style="color:red">This can take some time for long time series</span>')
 
-            action.triggered.connect(lambda *args,
-                                            ext=self.spatialExtent():
-                                     ts.focusVisibility(ext=ext, date_of_interest=date))
-
+            action.triggered.connect(lambda *args, ext=self.spatialExtent():
+                                     ts.focusVisibility(ext, date_of_interest=date))
 
             menu.addSeparator()
             action = menu.addAction('Hide Date')
@@ -1274,7 +1272,7 @@ class MapCanvas(QgsMapCanvas):
         if Qgis.QGIS_VERSION >= '3.16':
             super(MapCanvas, self).mousePressEvent(event)
             if bRight and \
-                    isinstance(mt, (QgsMapToolAddFeature, )) \
+                    isinstance(mt, (QgsMapToolAddFeature,)) \
                     and not bool(mt.flags() & QgsMapTool.ShowContextMenu) \
                     and bool(modifiers & Qt.ControlModifier):
                 menu = QMenu()
@@ -1295,7 +1293,7 @@ class MapCanvas(QgsMapCanvas):
 
             super().mousePressEvent(event)
 
-        if bLeft and not isinstance(mt, (QgsMapToolAddFeature, )):
+        if bLeft and not isinstance(mt, (QgsMapToolAddFeature,)):
             ms = self.mapSettings()
             pointXY = ms.mapToPixel().toMapCoordinates(event.x(), event.y())
             spatialPoint = SpatialPoint(ms.destinationCrs(), pointXY)

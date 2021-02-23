@@ -20,6 +20,7 @@
 """
 # noinspection PyPep8Naming
 import os
+import inspect
 import pathlib
 from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
@@ -40,7 +41,7 @@ CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'osgeo.gdal']
 URL_TESTDATA = r''
 
-DEBUG: bool = bool(os.environ.get('EOTSV_DEBUG', False))
+DEBUG: bool = str(os.environ.get('DEBUG', '1')).lower() in ['true', '1', 'yes']
 
 DIR = pathlib.Path(__file__).parent
 DIR_REPO = DIR.parent
@@ -55,10 +56,24 @@ DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
 URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
 
 
-def debugLog(msg: str):
+def debugLog(msg: str= '', skip_prefix: bool=False):
     if DEBUG:
-        print('DEBUG:' + msg, flush=True)
-
+        if skip_prefix:
+            prefix = ''
+        else:
+            curFrame = inspect.currentframe()
+            outerFrames = inspect.getouterframes(curFrame)
+            FOI = outerFrames[1]
+            stack = inspect.stack()
+            if "self" in stack[1][0].f_locals.keys():
+                stack_class = stack[1][0].f_locals["self"].__class__.__name__
+            elif '__file__' in stack[1][0].f_locals.keys():
+                stack_class = stack[1][0].f_locals['__file__']
+            else:
+                stack_class = ''
+            stack_method = stack[1][0].f_code.co_name
+            prefix = f'{stack_class}.{FOI.function}: {os.path.basename(FOI.filename)}:{FOI.lineno}:'
+        print(f'DEBUG:{prefix}{msg}', flush=True)
 
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
