@@ -2008,9 +2008,9 @@ class MapWidget(QFrame):
 
         self.mSyncLock = False
 
-    def _createMapCanvas(self, parent=None, is_visible: bool = True) -> MapCanvas:
-        mapCanvas = MapCanvas(parent=parent)
-        mapCanvas.setVisible(is_visible)
+    def _createMapCanvas(self, parent=None) -> MapCanvas:
+        mapCanvas = MapCanvas(parent)
+        mapCanvas.setVisible(False)
         mapCanvas.setMapLayerStore(self.mMapLayerStore)
         mapCanvas.mInfoItem.setTextFormat(self.mapTextFormat())
 
@@ -2083,6 +2083,7 @@ class MapWidget(QFrame):
         self.mMapRefreshTimer.stop()
         for canvas in self.mGrid.findChildren(MapCanvas):
             self._disconnectCanvasSignals(canvas)
+        self.mGrid.parentWidget().setVisible(False)
         self.clearCanvasGrid()
 
         nc = self.mMapViewColumns
@@ -2096,17 +2097,17 @@ class MapWidget(QFrame):
                 for col in range(self.mMapViewColumns):
                     gridrow = (iMV * self.mMapViewRows) + row
                     gridcol = col
-
-                    c: MapCanvas = self._createMapCanvas(is_visible=visible)
+                    c: MapCanvas = self._createMapCanvas()
                     assert isinstance(c, MapCanvas)
-                    # c.setFixedSize(self.mMapSize)
                     c.setTSD(None)
                     c.setMapView(mv)
                     self.mGrid.addWidget(c, gridrow, gridcol)
+                    c.setVisible(visible)
                     self.mCanvases[mv].append(c)
 
         self._updateCanvasDates()
         self._updateSliderCss()
+        self.mGrid.parentWidget().setVisible(True)
         self.mMapRefreshTimer.start()
 
     def _updateWidgetSize(self):
