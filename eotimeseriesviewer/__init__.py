@@ -37,7 +37,7 @@ MAIL = 'benjamin.jakimow@geo.hu-berlin.de'
 HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
 ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
 CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
-DEPENDENCIES = ['numpy', 'gdal']
+DEPENDENCIES = ['numpy', 'osgeo.gdal']
 URL_TESTDATA = r''
 
 DEBUG: bool = bool(os.environ.get('EOTSV_DEBUG', False))
