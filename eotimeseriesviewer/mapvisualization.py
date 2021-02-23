@@ -62,7 +62,7 @@ from .externals.qps.maptools import MapTools
 from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
 from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
 from .utils import loadUi, SpatialPoint, SpatialExtent, datetime64
-from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer import DIR_UI, debugLog
 from eotimeseriesviewer.utils import fixMenuButtons
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
@@ -1275,9 +1275,12 @@ class MapWidget(QFrame):
         return self.mMessageBar
 
     def refresh(self):
+        debugLog()
         for c in self.mapCanvases():
+            b = c.blockSignals(True)
             assert isinstance(c, MapCanvas)
             c.timedRefresh()
+            c.blockSignals(b)
 
     def setMapTextFormat(self, textFormat: QgsTextFormat) -> QgsTextFormat:
 
@@ -1347,6 +1350,7 @@ class MapWidget(QFrame):
 
         if isinstance(ext, SpatialExtent) and ext != self.spatialExtent():
             self.mSpatialExtent = ext
+            debugLog(f'new extent: {self.mSpatialExtent}')
             for c in self.mapCanvases():
                 assert isinstance(c, MapCanvas)
                 c.addToRefreshPipeLine(self.mSpatialExtent)
@@ -1366,6 +1370,7 @@ class MapWidget(QFrame):
             if centerNew != centerOld and isinstance(centerNew, SpatialPoint):
                 extent = extent.__copy__()
                 extent.setCenter(centerNew)
+                debugLog()
                 self.setSpatialExtent(extent)
 
     def spatialCenter(self) -> SpatialPoint:
@@ -1404,12 +1409,14 @@ class MapWidget(QFrame):
 
         for c in self.mapCanvases():
             assert isinstance(c, MapCanvas)
+            b = c.blockSignals(True)
             c.timedRefresh()
+            c.blockSignals(b)
 
         for mapView in self.mapViews():
             # test for initial raster stretches
             for sensor in self.timeSeries().sensors():
-                if mapView.mLayerStyleInitialized.get(sensor, False) == False:
+                if not mapView.mLayerStyleInitialized.get(sensor, False):
                     for c in self.mapViewCanvases(mapView):
                         # find the first map canvas that contains  layer data of this sensor
                         # in its extent
@@ -1497,6 +1504,7 @@ class MapWidget(QFrame):
 
     def readXml(self, node: QDomNode):
         from .settings import setValue, Keys
+        debugLog()
         if not node.nodeName() == 'MapWidget':
             node = node.firstChildElement('MapWidget')
         if node.isNull():
@@ -2042,6 +2050,20 @@ class MapWidget(QFrame):
         mapCanvas.sigCanvasClicked.disconnect(self.onCanvasClicked)
         # mapCanvas.mapTools().mtCursorLocation.sigLocationRequest.disconnect(
         #    self.sigCurrentLocationChanged)
+
+    def onClose(self):
+        """
+        Removes all remaining mapviews and canvases etc.
+        """
+        for c in self.mapCanvases():
+            c.blockSignals(True)
+
+        while len(self.mapViews()) > 0:
+            mapView: MapView = self.mapViews()[0]
+            debugLog(f'Remove map view {mapView}')
+
+            self.mMapViews.remove(mapView)
+            mapView.setMapWidget(None)
 
     def onCanvasLocationRequest(self, canvas: QgsMapCanvas, crs: QgsCoordinateReferenceSystem, pt: QgsPointXY):
         self.sigCurrentLocationChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(crs, pt)

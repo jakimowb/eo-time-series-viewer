@@ -475,7 +475,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(mw, MapWidget)
         assert isinstance(tswidget, TimeSeriesWidget)
 
-        self.ui.sigAboutToBeClosed.connect(self.onClosing)
+        self.ui.sigAboutToBeClosed.connect(self.onClose)
 
         import qgis.utils
         assert isinstance(qgis.utils.iface, QgisInterface)
@@ -670,13 +670,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if eotsvSettings.value(SettingKeys.StartupRestoreProjectSettings, False):
             self.onReloadProject()
 
-    def onClosing(self):
+    def onClose(self):
         debugLog(f'Close EOTSV')
         EOTimeSeriesViewer._instance = None
-        while len(self.mapViews()) > 0:
-            mv = self.mapViews()[0]
-            debugLog(f'Remove map view {mv}')
-            self.mapWidget().removeMapView()
+        self.mapWidget().onClose()
 
     def onWriteProject(self, dom: QDomDocument):
 
