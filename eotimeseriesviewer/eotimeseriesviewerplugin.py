@@ -23,16 +23,17 @@
 import os
 import sys
 import site
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
+import typing
+
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
+
 
 class EOTimeSeriesViewerPlugin:
 
     def __init__(self, iface):
 
-        self.iface = iface
         self.mEOTSV = None
 
         dirPlugin = os.path.dirname(__file__)
@@ -49,8 +50,8 @@ class EOTimeSeriesViewerPlugin:
         eotimeseriesviewer.initAll()
 
     def initGui(self):
-        self.mToolbarActions = []
-
+        self.mToolbarActions: typing.List[QAction] = []
+        from qgis.utils import iface
         assert isinstance(self.iface, QgisInterface)
 
         import eotimeseriesviewer
@@ -58,13 +59,13 @@ class EOTimeSeriesViewerPlugin:
         # init main UI
         from eotimeseriesviewer import DIR_UI, jp, TITLE
         icon = eotimeseriesviewer.icon()
-        action = QAction(icon, TITLE, self.iface)
+        action = QAction(icon, TITLE, iface)
         action.triggered.connect(self.run)
         self.mToolbarActions.append(action)
 
         for action in self.mToolbarActions:
-            self.iface.addToolBarIcon(action)
-            self.iface.addPluginToRasterMenu(TITLE, action)
+            iface.addToolBarIcon(action)
+            iface.addPluginToRasterMenu(TITLE, action)
 
     def initialDependencyCheck(self):
         """
@@ -87,8 +88,8 @@ class EOTimeSeriesViewerPlugin:
             longText = ['Unable to import the following package(s):']
             longText.append('<b>{}</b>'.format(', '.join(missing)))
             longText.append('<p>Please run your local package manager(s) with root rights to install them.')
-            #longText.append('More information is available under:')
-            #longText.append('<a href="http://enmap-box.readthedocs.io/en/latest/Installation.html">http://enmap-box.readthedocs.io/en/latest/Installation.html</a> </p>')
+            # longText.append('More information is available under:')
+            # longText.append('<a href="http://enmap-box.readthedocs.io/en/latest/Installation.html">http://enmap-box.readthedocs.io/en/latest/Installation.html</a> </p>')
 
             longText.append('This Python:')
             longText.append('Executable: {}'.format(sys.executable))
@@ -116,6 +117,7 @@ class EOTimeSeriesViewerPlugin:
         EOTimeSeriesViewer._instance = None
 
     def unload(self):
+        from qgis.utils import iface
         try:
             from eotimeseriesviewer.main import EOTimeSeriesViewer
             eotsv = EOTimeSeriesViewer.instance()
@@ -124,7 +126,7 @@ class EOTimeSeriesViewerPlugin:
                 QApplication.processEvents()
 
             for action in self.mToolbarActions:
-                self.iface.removeToolBarIcon(action)
+                iface.removeToolBarIcon(action)
         except Exception as ex:
             print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
 
