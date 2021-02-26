@@ -35,7 +35,7 @@ class EOTimeSeriesViewerPlugin:
     def __init__(self, iface):
 
         self.mEOTSV = None
-
+        self.iface = iface
         dirPlugin = os.path.dirname(__file__)
         site.addsitedir(dirPlugin)
 
@@ -117,18 +117,18 @@ class EOTimeSeriesViewerPlugin:
         EOTimeSeriesViewer._instance = None
 
     def unload(self):
-        from qgis.utils import iface
-        try:
-            from eotimeseriesviewer.main import EOTimeSeriesViewer
-            eotsv = EOTimeSeriesViewer.instance()
-            if isinstance(eotsv, EOTimeSeriesViewer):
-                eotsv.close()
-                QApplication.processEvents()
+        if isinstance(self.iface, QgisInterface):
+            try:
+                from eotimeseriesviewer.main import EOTimeSeriesViewer
+                eotsv = EOTimeSeriesViewer.instance()
+                if isinstance(eotsv, EOTimeSeriesViewer):
+                    eotsv.close()
+                    QApplication.processEvents()
 
-            for action in self.mToolbarActions:
-                iface.removeToolBarIcon(action)
-        except Exception as ex:
-            print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
+                for action in self.mToolbarActions:
+                    iface.removeToolBarIcon(action)
+            except Exception as ex:
+                print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
 
     def tr(self, message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)
