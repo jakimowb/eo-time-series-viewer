@@ -971,7 +971,6 @@ def loadUi(uifile, baseinstance=None, package='', resource_suffix='_rc', remove_
 
     dirUi = os.path.dirname(uifile)
 
-    QGIS_QRC = REGEX_QGIS_IMAGES_QRC = re.compile(r'.*QGIS[^\/]*[\/]images[\/]images\.qrc$')
     locations = []
 
     for m in re.findall(r'(<include location="(.*\.qrc)"/>)', txt):

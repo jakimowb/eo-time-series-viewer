@@ -515,6 +515,9 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
                 continue
             xValues, wlu, yUnit = key
 
+            # Ann Crabbé: bad bands list
+            bbl = profiles[0].bbl()
+
             # stack profiles
             pData = [np.asarray(p.yValues()) for p in profiles]
             pData = np.vstack(pData)
@@ -522,8 +525,6 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
             # convert array to data type GDAL is able to write
             if pData.dtype == np.int64:
                 pData = pData.astype(np.int32)
-
-            # todo: other cases?
 
             profileNames = [p.name() for p in profiles]
 
@@ -559,6 +560,9 @@ class EnviSpectralLibraryIO(AbstractSpectralLibraryIO):
 
             if wlu not in ['', '-', None]:
                 ds.SetMetadataItem('wavelength units', wlu, 'ENVI')
+
+            if bbl not in ['', '-', None]:
+                ds.SetMetadataItem('bbl', value2hdrString(bbl), 'ENVI')
 
             flushCacheWithoutException(ds)
 
