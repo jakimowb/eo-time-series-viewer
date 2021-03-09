@@ -126,7 +126,7 @@ class EOTimeSeriesViewerPlugin:
                     QApplication.processEvents()
 
                 for action in self.mToolbarActions:
-                    iface.removeToolBarIcon(action)
+                    self.iface.removeToolBarIcon(action)
             except Exception as ex:
                 print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
 
