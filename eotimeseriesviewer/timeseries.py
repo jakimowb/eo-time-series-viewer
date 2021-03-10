@@ -1671,7 +1671,7 @@ class TimeSeries(QAbstractItemModel):
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path, n_max=None, runAsync: bool = None):
+    def loadFromFile(self, path:typing.Union[str, pathlib.Path], n_max=None, runAsync: bool = None):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file

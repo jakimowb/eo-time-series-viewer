@@ -1107,6 +1107,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
+
     def onShowLayerProperties(self, lyr=None):
         if not isinstance(lyr, QgsMapLayer):
             lyr = self.currentLayer()
@@ -1388,15 +1389,23 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.mMapWidget.messageBar()
 
-    def loadTimeSeriesDefinition(self, path: str = None, n_max: int = None, runAsync=True):
+    def loadTimeSeriesDefinition(self,
+                                 files: typing.List[typing.Union[str, pathlib.Path]] = None,
+                                 n_max: int = None,
+                                 runAsync=True):
         """
         Loads a time series definition file
-        :param path:
+        :param files:
         :param n_max:
         :return:
         """
+        if isinstance(files, bool):
+            files = None
+
+        if isinstance(files, (str, pathlib.Path)):
+            files = [files]
         s = settings.settings()
-        if not (isinstance(path, str) and os.path.isfile(path)):
+        if files is None:
 
             defFile = s.value('file_ts_definition')
             defDir = None
@@ -1406,13 +1415,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             filters = "CSV (*.csv *.txt);;" + \
                       "All files (*.*)"
 
-            path, filter = QFileDialog.getOpenFileName(caption='Load Time Series definition', directory=defDir,
-                                                       filter=filters)
+            files, filter = QFileDialog.getOpenFileNames(caption='Load Time Series definition', directory=defDir,
+                                                         filter=filters)
 
-        if path is not None and os.path.exists(path):
-            s.setValue('file_ts_definition', path)
+        if isinstance(files, list):
             # self.clearTimeSeries()
-            self.mTimeSeries.loadFromFile(path, n_max=n_max, runAsync=runAsync)
+            for file in sorted(files):
+                s.setValue('file_ts_definition', file)
+                self.mTimeSeries.loadFromFile(file, n_max=n_max, runAsync=runAsync)
 
     def currentLayer(self) -> QgsMapLayer:
         """

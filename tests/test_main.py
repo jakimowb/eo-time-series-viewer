@@ -49,6 +49,16 @@ class TestMain(EOTSVTestCase):
         super().tearDown()
 
     def test_TimeSeriesViewer(self):
+        from qgis.utils import iface
+        c = iface.mapCanvas()
+        self.assertIsInstance(c, QgsMapCanvas)
+
+        def onCRSChanged():
+            print(f'QGIS MapCanvas CRS changed to {c.mapSettings().destinationCrs().description()}', flush=True)
+        c.destinationCrsChanged.connect(onCRSChanged)
+
+        crs = QgsCoordinateReferenceSystem('EPSG:32633')
+        c.setDestinationCrs(crs)
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         TSV = EOTimeSeriesViewer()
         TSV.createMapView('True Color')
@@ -140,8 +150,12 @@ class TestMain(EOTSVTestCase):
 
         self.showGui(TSV)
 
+    def test_fail(self):
+
+        self.assertTrue(False)
 
 if __name__ == '__main__':
+    print('\nRun 1 test in 5.373s\n\nFAILED (failures=1)', file=sys.stderr, flush=True)
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
     exit(0)
 
