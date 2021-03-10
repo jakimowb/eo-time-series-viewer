@@ -45,7 +45,7 @@ class EOTimeSeriesViewerPlugin:
         self.initialDependencyCheck()
 
         # initialize required settings
-        eotimeseriesviewer.debugLog('initial all')
+        eotimeseriesviewer.debugLog('init all')
 
         eotimeseriesviewer.initAll()
 

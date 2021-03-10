@@ -73,7 +73,9 @@ def debugLog(msg: str= '', skip_prefix: bool=False):
                 stack_class = ''
             stack_method = stack[1][0].f_code.co_name
             prefix = f'{stack_class}.{FOI.function}: {os.path.basename(FOI.filename)}:{FOI.lineno}:'
-        print(f'DEBUG:{prefix}{msg}', flush=True)
+
+        msg = f'DEBUG::{prefix}{msg}'
+        QgsApplication.messageLog().logMessage(msg, tag=LOG_MESSAGE_TAG, level=Qgis.Info)
 
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
