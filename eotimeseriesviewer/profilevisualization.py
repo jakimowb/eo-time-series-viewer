@@ -313,7 +313,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
                 # handle failed removal of NaN
                 # see https://github.com/pyqtgraph/pyqtgraph/issues/1057
                 if not isinstance(y, np.ndarray):
-                    y = np.asarray(y, dtype=np.float)
+                    y = np.asarray(y, dtype=float)
                 if not isinstance(x, np.ndarray):
                     x = np.asarray(x)
 

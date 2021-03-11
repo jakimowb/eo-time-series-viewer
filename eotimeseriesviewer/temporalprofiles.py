@@ -1094,7 +1094,7 @@ class TemporalProfileLoaderTask(QgsTask):
         for tp in required_profiles:
             assert isinstance(tp, TemporalProfile)
             self.GEOMETRY_CACHE[tp.id()] = dict()
-            missingTPData = dict()
+            missingTPData: typing.Dict[TimeSeriesDate] = dict()
             for sensor, tsds in required_tsds.items():
                 for tsd in timeSeries.tsds(sensor=sensor):
                     existingTSDData: dict = tp.data(tsd)
@@ -1220,7 +1220,11 @@ class TemporalProfileLoaderTask(QgsTask):
                         value = np.nanmean(block)
                         del block
                         if np.isfinite(value):
-                            self.MISSING_DATA[tpID][tsd][band_key] = value
+                            tpData = self.MISSING_DATA.get(tpID, {})
+                            tsdData = tpData.get(tsd, {})
+                            tsdData[band_key] = value
+                            tpData[tsd] = tsdData
+                            self.MISSING_DATA[tpID] = tpData
 
                     del band
                 del required_band_profiles
