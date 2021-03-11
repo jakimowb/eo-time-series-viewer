@@ -24,35 +24,33 @@
 """
 import typing
 import pathlib
-from qgis.core import *
-from qgis.core import QgsRasterLayer, \
+from qgis.core import QgsRasterLayer, QgsMapLayer, \
     QgsRasterRenderer, \
     QgsSingleBandGrayRenderer, \
     QgsSingleBandColorDataRenderer, \
     QgsSingleBandPseudoColorRenderer, \
     QgsMultiBandColorRenderer, \
     QgsPalettedRasterRenderer, \
-    QgsColorRampShader, QgsRasterShaderFunction, QgsRasterShader
-from qgis.gui import *
+    QgsColorRampShader, QgsRasterShaderFunction, QgsRasterShader, \
+    QgsApplication
+
 from qgis.gui import QgsMapCanvas, QgsMapLayerConfigWidget, QgsMapLayerConfigWidgetFactory, QgsRasterBandComboBox
 
-from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtWidgets import QSlider, QWidget, QStackedWidget, QLabel
 from qgis.PyQt.QtGui import QIcon
 import numpy as np
 from ..layerconfigwidgets.core import QpsMapLayerConfigWidget
 from ..utils import loadUi, parseWavelength, UnitLookup
 
+
 class RasterBandConfigWidget(QpsMapLayerConfigWidget):
 
-    @staticmethod
-    def icon() -> QIcon:
-        return QIcon(':/qps/ui/icons/rasterband_select.svg')
-
-    def __init__(self, layer:QgsRasterLayer, canvas:QgsMapCanvas, parent:QWidget=None):
+    def __init__(self, layer: QgsRasterLayer, canvas: QgsMapCanvas, parent: QWidget = None):
 
         super(RasterBandConfigWidget, self).__init__(layer, canvas, parent=parent)
         pathUi = pathlib.Path(__file__).parents[1] / 'ui' / 'rasterbandconfigwidget.ui'
         loadUi(pathUi, self)
+
         assert isinstance(layer, QgsRasterLayer)
         self.mCanvas = canvas
         self.mLayer = layer
@@ -112,6 +110,9 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
         self.syncToLayer()
 
         self.setPanelTitle('Band Selection')
+
+    def icon(self) -> QIcon:
+        return QIcon(':/qps/ui/icons/rasterband_select.svg')
 
     def syncToLayer(self, *args):
         super().syncToLayer(*args)
@@ -205,7 +206,7 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
             self.mLayer.setRenderer(newRenderer)
             self.widgetChanged.emit()
 
-    def wlBand(self, wlKey:str) -> int:
+    def wlBand(self, wlKey: str) -> int:
         """
         Returns the band number for a wavelength
         :param wlKey:
@@ -216,11 +217,11 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
         from ..utils import LUT_WAVELENGTH
         if isinstance(self.mWL, np.ndarray):
             targetWL = float(LUT_WAVELENGTH[wlKey])
-            return int(np.argmin(np.abs(self.mWL - targetWL)))+1
+            return int(np.argmin(np.abs(self.mWL - targetWL))) + 1
         else:
             return None
 
-    def setWL(self, wlRegions:tuple):
+    def setWL(self, wlRegions: tuple):
         r = self.renderer().clone()
         if isinstance(r, (QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsSingleBandColorDataRenderer)):
             band = self.wlBand(wlRegions[0])
@@ -236,16 +237,15 @@ class RasterBandConfigWidget(QpsMapLayerConfigWidget):
 
         self.widgetChanged.emit()
 
-    def setDockMode(self, dockMode:bool):
+    def setDockMode(self, dockMode: bool):
         pass
+
 
 class RasterBandConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
 
     def __init__(self):
-        super(RasterBandConfigWidgetFactory, self).__init__('Raster Band', RasterBandConfigWidget.icon())
-        self.setSupportLayerPropertiesDialog(True)
-        self.setSupportsStyleDock(True)
-        self.setTitle('Band Selection')
+        super(RasterBandConfigWidgetFactory, self).__init__('Raster Band', QIcon(':/qps/ui/icons/rasterband_select.svg'))
+        s = ""
 
     def supportsLayer(self, layer):
         if isinstance(layer, QgsRasterLayer):
@@ -259,7 +259,14 @@ class RasterBandConfigWidgetFactory(QgsMapLayerConfigWidgetFactory):
     def supportsStyleDock(self):
         return True
 
-    def createWidget(self, layer, canvas, dockWidget=True, parent=None) -> QgsMapLayerConfigWidget:
-        w = RasterBandConfigWidget(layer, canvas, parent=parent)
-        return w
+    def icon(self) -> QIcon:
+        return QIcon(':/qps/ui/icons/rasterband_select.svg')
 
+    def title(self) -> str:
+        return 'Raster Band'
+
+    def createWidget(self, layer: QgsMapLayer, canvas: QgsMapCanvas, dockWidget: bool=True, parent=None) -> QgsMapLayerConfigWidget:
+        w = RasterBandConfigWidget(layer, canvas, parent=parent)
+        w.setWindowTitle(self.title())
+        w.setWindowIcon(self.icon())
+        return w

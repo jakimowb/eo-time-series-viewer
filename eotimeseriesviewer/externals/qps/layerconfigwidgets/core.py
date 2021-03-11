@@ -54,7 +54,7 @@ class QpsMapLayerConfigWidget(QgsMapLayerConfigWidget):
 
     def __init__(self, mapLayer: QgsMapLayer, canvas: QgsMapCanvas, *args, **kwds):
         assert isinstance(mapLayer, QgsMapLayer)
-        assert isinstance(canvas, QgsMapCanvas)
+        # assert isinstance(canvas, QgsMapCanvas)
         super().__init__(mapLayer, canvas, *args, **kwds)
         self.mMapLayer = mapLayer
         self.mCanvas = canvas

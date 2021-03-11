@@ -1010,16 +1010,22 @@ def showLayerPropertiesDialog(layer: QgsMapLayer,
             print(ex, file=sys.stderr)
 
     else:
-
-        dialog = LayerPropertiesDialog(layer, canvas=canvas)
-
-        if modal == True:
-            dialog.setModal(True)
-            return dialog.exec_()
+        dialog = None
+        if False:
+            if isinstance(layer, QgsVectorLayer):
+                dialog = QgsVectorLayerProperties(layer, canvas)
+            elif isinstance(layer, QgsRasterLayer):
+                dialog = QgsRasterLayerProperties(layer, canvas)
         else:
-            dialog.setModal(False)
-            dialog.show()
-            return dialog
+            dialog = LayerPropertiesDialog(layer, canvas=canvas)
+        if dialog:
+            if modal == True:
+                dialog.setModal(True)
+                return dialog.exec_()
+            else:
+                dialog.setModal(False)
+                dialog.show()
+                return dialog
 
     return None
 

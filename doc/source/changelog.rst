@@ -1,7 +1,9 @@
 ==============
 Changelog
 ==============
-2021-02-23 (version 1.17):
+2021-03-10 (version 1.17):
+    * fixed bug that crashed plugin on plugin unload
+    * added bulk loading from time series definition files
     * fixes to run with QGIS 3.18+
     * move to next/previous observation with arrow right/left
     * move to next/previous observation window with CTRL + arrow right/left or A/D
