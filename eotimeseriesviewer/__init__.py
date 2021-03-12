@@ -57,7 +57,7 @@ URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/download
 
 
 def debugLog(msg: str = '', skip_prefix: bool = False):
-    if DEBUG:
+    if str(os.environ.get('DEBUG', '1')).lower() in ['true', '1', 'yes']:
         if skip_prefix:
             prefix = ''
         else:

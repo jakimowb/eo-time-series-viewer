@@ -150,9 +150,6 @@ class TestMain(EOTSVTestCase):
 
         self.showGui(TSV)
 
-    def test_fail(self):
-
-        self.assertTrue(False)
 
 if __name__ == '__main__':
     print('\nRun 1 test in 5.373s\n\nFAILED (failures=1)', file=sys.stderr, flush=True)
