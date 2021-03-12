@@ -572,7 +572,7 @@ def createQgsField(name: str, exampleValue: typing.Any, comment: str = None) -> 
         return QgsField(name, QVariant.Int, 'int', comment=comment)
     elif isinstance(exampleValue, (np.uint, np.uint8, np.uint16, np.uint32, np.uint64)):
         return QgsField(name, QVariant.UInt, 'uint', comment=comment)
-    elif isinstance(exampleValue, (float, np.double, np.float, np.double, np.float16, np.float32, np.float64)):
+    elif isinstance(exampleValue, (float, np.double, np.float16, np.float32, np.float64)):
         return QgsField(name, QVariant.Double, 'double', comment=comment)
     elif isinstance(exampleValue, np.ndarray):
         return QgsField(name, QVariant.String, 'varchar', comment=comment)

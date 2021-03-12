@@ -430,7 +430,7 @@ class SpectralProfilePlotDataItem(PlotDataItem):
 
                 # 1. convert to numpy arrays
                 if not isinstance(y, np.ndarray):
-                    y = np.asarray(y, dtype=np.float)
+                    y = np.asarray(y, dtype=float)
                 if not isinstance(x, np.ndarray):
                     x = np.asarray(x)
 
