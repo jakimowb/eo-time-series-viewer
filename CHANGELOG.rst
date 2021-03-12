@@ -2,7 +2,8 @@
 Changelog
 ==============
 2021-03-10 (version 1.17):
-    * fixed bug that crashed plugin on plugin unload
+    * quick raster band selection and GDAL Metadata panel now appear in QGIS layer properties dialog
+    * fixed smaller issues related to plugin loading and unloading
     * added bulk loading from time series definition files
     * fixes to run with QGIS 3.18+
     * move to next/previous observation with arrow right/left
