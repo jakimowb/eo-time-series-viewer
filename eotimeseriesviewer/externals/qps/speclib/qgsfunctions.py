@@ -281,9 +281,18 @@ def registerQgsExpressionFunctions():
             if not QgsExpression.unregisterFunction(func.name()):
                 msgtitle = QCoreApplication.translate("UserExpressions", "User expressions")
                 msg = QCoreApplication.translate("UserExpressions",
-                                                 "The user expression {0} already exists and could not be unregistered.").format(
-                    func.name)
+                                                 "User expression {0} already exists and "
+                                                 "can not be unregistered.").format(func.name)
                 QgsMessageLog.logMessage(msg + "\n", msgtitle, Qgis.Warning)
                 return None
         else:
             QgsExpression.registerFunction(func)
+
+
+def unregisterQgsExpressionFunctions():
+    msgtitle = QCoreApplication.translate("UserExpressions", "User expressions")
+    for name, func in QGIS_FUNCTION_INSTANCES.items():
+        if QgsExpression.unregisterFunction(name):
+            QgsMessageLog.logMessage(f'Unregistered {name}', msgtitle, Qgis.Info)
+        else:
+            QgsMessageLog.logMessage(f'Unable to unregister {name}', msgtitle, Qgis.Warning)

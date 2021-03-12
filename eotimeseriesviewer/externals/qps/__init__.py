@@ -32,7 +32,6 @@ import warnings
 from qgis.core import QgsApplication, Qgis
 from qgis.gui import QgsMapLayerConfigWidgetFactory, QgisInterface
 
-
 MIN_QGIS_VERSION = '3.14'
 __version__ = '1.2'
 
@@ -47,8 +46,8 @@ if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
     warnings.warn(f'Your QGIS ({Qgis.QGIS_VERSION}) is outdated. '
                   f'Please update to QGIS >= {MIN_QGIS_VERSION}', RuntimeWarning)
 
-
 KEY_MAPLAYERCONFIGWIDGETFACTORIES = 'QPS_MAPLAYER_CONFIGWIDGET_FACTORIES'
+
 
 def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
@@ -70,6 +69,8 @@ def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory)
         registered.append(name)
         os.environ[KEY_MAPLAYERCONFIGWIDGETFACTORIES] = '::'.join(registered)
         iface.registerMapLayerConfigWidgetFactory(factory)
+        QgsApplication.instance().messageLog().logMessage(f'Registered {name}', level=Qgis.Info)
+
 
 def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
     """
@@ -93,6 +94,7 @@ def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactor
     from qgis.utils import iface
     if isinstance(iface, QgisInterface):
         iface.unregisterMapLayerConfigWidgetFactory(factory)
+        QgsApplication.instance().messageLog().logMessage(f'Unregistered {factory.__class__.__name__}', level=Qgis.Info)
 
 
 def mapLayerConfigWidgetFactories() -> typing.List[QgsMapLayerConfigWidgetFactory]:
@@ -120,13 +122,6 @@ def registerEditorWidgets():
         print(ex, file=sys.stderr)
 
     try:
-        from .speclib.qgsfunctions import registerQgsExpressionFunctions
-        registerQgsExpressionFunctions()
-    except Exception as ex:
-        print('Failed to call qps.speclib.qgsfunctions.registerQgsExpressionFunctions()', file=sys.stderr)
-        print(ex, file=sys.stderr)
-
-    try:
         from .classification.classificationscheme import registerClassificationSchemeEditorWidget
         registerClassificationSchemeEditorWidget()
     except Exception as ex:
@@ -142,12 +137,36 @@ def registerEditorWidgets():
         print(ex, file=sys.stderr)
 
 
+def unregisterEditorWidgets():
+    # just for convenience
+    pass
+
+
+def registerExpressionFunctions():
+    try:
+        from .speclib.qgsfunctions import registerQgsExpressionFunctions
+        registerQgsExpressionFunctions()
+    except Exception as ex:
+        print('Failed to call qps.speclib.qgsfunctions.registerQgsExpressionFunctions()', file=sys.stderr)
+        print(ex, file=sys.stderr)
+
+
+def unregisterExpressionFunctions():
+    from .speclib.qgsfunctions import unregisterQgsExpressionFunctions as _unregisterQgsExpressionFunctions
+    _unregisterQgsExpressionFunctions()
+
+
 def registerMapLayerConfigWidgetFactories():
     from .layerconfigwidgets.rasterbands import RasterBandConfigWidgetFactory
     from .layerconfigwidgets.gdalmetadata import GDALMetadataConfigWidgetFactory
 
     registerMapLayerConfigWidgetFactory(RasterBandConfigWidgetFactory())
     registerMapLayerConfigWidgetFactory(GDALMetadataConfigWidgetFactory())
+
+
+def unregisterMapLayerConfigWidgetFactories():
+    for factory in MAPLAYER_CONFIGWIDGET_FACTORIES[:]:
+        unregisterMapLayerConfigWidgetFactory(factory)
 
 
 def initResources():
@@ -158,4 +177,12 @@ def initResources():
 def initAll():
     initResources()
     registerEditorWidgets()
+    registerExpressionFunctions()
     registerMapLayerConfigWidgetFactories()
+
+
+def unloadAll():
+    unregisterEditorWidgets()
+    unregisterExpressionFunctions()
+    unregisterMapLayerConfigWidgetFactories()
+
