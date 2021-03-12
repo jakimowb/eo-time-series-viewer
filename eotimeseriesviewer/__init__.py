@@ -56,7 +56,7 @@ DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
 URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
 
 
-def debugLog(msg: str= '', skip_prefix: bool=False):
+def debugLog(msg: str = '', skip_prefix: bool = False):
     if DEBUG:
         if skip_prefix:
             prefix = ''
@@ -76,6 +76,7 @@ def debugLog(msg: str= '', skip_prefix: bool=False):
 
         msg = f'DEBUG::{prefix}{msg}'
         QgsApplication.messageLog().logMessage(msg, tag=LOG_MESSAGE_TAG, level=Qgis.Info)
+
 
 # import QPS modules
 # skip imports when on RTD, as we can not install the full QGIS environment as required
@@ -118,6 +119,7 @@ def messageLog(msg, level=Qgis.Info):
     """
     QgsApplication.instance().messageLog().logMessage(msg, LOG_MESSAGE_TAG, level)
 
+
 def initResources():
     """
     Loads (or reloads) required Qt resources
@@ -136,12 +138,21 @@ def initAll():
     # resources first, as we need the icon resource paths!
     initResources()
 
-    from .externals.qps import registerEditorWidgets, registerMapLayerConfigWidgetFactories
+    from .externals.qps import registerEditorWidgets, registerMapLayerConfigWidgetFactories, registerExpressionFunctions
     registerEditorWidgets()
+    registerExpressionFunctions()
     registerMapLayerConfigWidgetFactories()
 
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
+
+
+def unloadAll():
+    from .externals.qps import unregisterMapLayerConfigWidgetFactories, unregisterEditorWidgets, \
+        unregisterExpressionFunctions
+    unregisterEditorWidgets()
+    unregisterExpressionFunctions()
+    unregisterMapLayerConfigWidgetFactories()
 
 
 def icon() -> QIcon:

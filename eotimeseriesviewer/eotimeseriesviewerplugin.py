@@ -117,6 +117,7 @@ class EOTimeSeriesViewerPlugin:
         EOTimeSeriesViewer._instance = None
 
     def unload(self):
+
         if isinstance(self.iface, QgisInterface):
             try:
                 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -129,6 +130,9 @@ class EOTimeSeriesViewerPlugin:
                     self.iface.removeToolBarIcon(action)
             except Exception as ex:
                 print(f'Failed to unload EOTimeSeriesViewer:\n{ex}')
+
+        from eotimeseriesviewer import unloadAll
+        unloadAll()
 
     def tr(self, message):
         return QCoreApplication.translate('EOTimeSeriesViewerPlugin', message)
