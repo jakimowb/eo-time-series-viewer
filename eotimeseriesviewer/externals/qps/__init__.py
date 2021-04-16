@@ -49,13 +49,12 @@ if Qgis.QGIS_VERSION < MIN_QGIS_VERSION:
 KEY_MAPLAYERCONFIGWIDGETFACTORIES = 'QPS_MAPLAYER_CONFIGWIDGET_FACTORIES'
 
 
-def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):
+def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory) -> QgsMapLayerConfigWidgetFactory:
     """
     Register a new tab in the map layer properties dialog.
     :param factory: QgsMapLayerConfigWidgetFactory
     :type factory:
-    :return:
-    :rtype:
+    :return: QgsMapLayerConfigWidgetFactory or None, if a factory with similar name was registered before by this method
     """
     global MAPLAYER_CONFIGWIDGET_FACTORIES
     assert isinstance(factory, QgsMapLayerConfigWidgetFactory)
@@ -70,6 +69,9 @@ def registerMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory)
         os.environ[KEY_MAPLAYERCONFIGWIDGETFACTORIES] = '::'.join(registered)
         iface.registerMapLayerConfigWidgetFactory(factory)
         QgsApplication.instance().messageLog().logMessage(f'Registered {name}', level=Qgis.Info)
+        return factory
+    else:
+        return None
 
 
 def unregisterMapLayerConfigWidgetFactory(factory: QgsMapLayerConfigWidgetFactory):

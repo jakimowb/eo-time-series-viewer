@@ -27,10 +27,10 @@ import warnings
 
 from .. import resources
 def compileResourceFiles(*args, **kwds):
-    warnings.warn('Use qps.resources.compileResourceFiles() instead', DeprecationWarning)
+    warnings.warn('Use qps.resources.compileResourceFiles() instead', DeprecationWarning, stacklevel=2)
     return resources.compileResourceFiles(*args, **kwds)
 
 def compileResourceFile(*args, **kwds):
-    warnings.warn('Use qps.resources.compileResourceFile() instead', DeprecationWarning)
+    warnings.warn('Use qps.resources.compileResourceFile() instead', DeprecationWarning, stacklevel=2)
     return resources.compileResourceFile(*args, **kwds)
 

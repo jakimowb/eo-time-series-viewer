@@ -579,14 +579,6 @@ class TreeNode(QObject):
         """
         return self.mName
 
-    def populateContextMenu(self, menu: QMenu):
-        """
-        Implement this to add a TreeNode specific context menu
-        :param menu:
-        :return:
-        """
-        pass
-
     def setValue(self, value):
         """
         Same as setValues([value])
@@ -675,73 +667,90 @@ class PyObjectTreeNode(TreeNode):
         super().__init__(*args, **kwds)
 
         self.mPyObject = obj
-        self.mFetched: bool = False
+        self.mFetchIterator = None
+        self.mIsFetched: bool = False
 
         # end-nodes which cannot be fetched deeper
         if isinstance(obj, (int, float, str)):
             self.setValue(obj)
-            self.mFetched = True
+            self.mIsFetched = True
             """
             elif isinstance(obj, (np.ndarray,)):
                 value = np.array2string(obj, threshold=25)
                 self.setValue(value)
-                self.mFetched = True
-            elif isinstance(obj, tuple):
+                self.mIsFetched = True
+            else:
                 value = '{:1.25}'.format(str(obj)).strip()
                 self.setValue(value)
             """
         else:
-            if hasattr(obj, '__name__'):
-                value = obj.__name__
+            # if hasattr(obj, '__name__'):
+            #    value = obj.__name__
+            # else:
+            #    value = type(obj).__name__
+
+            if isinstance(obj, (np.ndarray,)):
+                value = np.array2string(obj, threshold=10)
+            elif isinstance(obj, (bytearray, bytes)):
+                value = str(obj)
             else:
-                value = type(obj).__name__
+                # value = '{:1.256s}'.format(str(obj))
+                value = str(obj) # .strip()
+            value = value.replace('\n', ' ')
             self.setValue(value)
-            self.setToolTip(f'{self.name()} {str(obj)}')
+            self.setToolTip(f'{self.name()} {value}')
 
     def canFetchMore(self) -> bool:
-        return self.mFetched is False
+        return not self.mIsFetched
 
     @staticmethod
     def valueAndTooltip(obj) -> typing.Tuple[str, str]:
         pass
 
     def hasChildren(self) -> bool:
-        return self.mFetched is False or len(self.mChildren) > 0
+        return self.canFetchMore() or len(self.mChildren) > 0
 
     def fetch(self):
-        self.mFetched = True
-        candidates = []
-        newNodes: typing.List[PyObjectTreeNode] = []
-        obj = self.mPyObject
-        if isinstance(obj, (list, tuple)):
-            for i, o in enumerate(obj):
-                candidates.append((f'{i}', o))
-        elif isinstance(obj, dict):
-            for k, v in obj.items():
-                candidates.append((k, v))
-        elif isinstance(obj, object):
-            for m, v in sorted(inspect.getmembers(obj)):
-                candidates.append((m, v))
+        FETCH_SIZE = 50
 
-        candidates = sorted(candidates, key=lambda t: t[0])
-
-        while len(candidates) > 0:
-            a, v = candidates.pop(0)
-            if not isinstance(a, str) or a.startswith('__'):
-                continue
-            if isinstance(v, (types.BuiltinFunctionType,
-                                pyqtSignal,
-                                pyqtBoundSignal,
-                                sip.wrappertype)
-                          ) or \
-                    inspect.isfunction(v) or \
-                    inspect.ismethod(v):
-                continue
-            if isinstance(v, QMetaEnum):
+        if self.mFetchIterator is None:
+            if isinstance(self.mPyObject, (list, tuple)):
+                self.mFetchIterator = enumerate(self.mPyObject)
+            elif isinstance(self.mPyObject, dict):
+                self.mFetchIterator = iter(self.mPyObject.items())
+            elif isinstance(self.mPyObject, object):
+                self.mFetchIterator = iter(sorted(inspect.getmembers(self.mPyObject)))
+            else:
                 s = ""
-            # create a new node
-            # this allows to create a new node even of inherited classes
-            newNodes.append(self.__class__(name=a, obj=v))
+                self.mIsFetched = True
+                return
+
+
+        newNodes: typing.List[PyObjectTreeNode] = []
+
+        i = 0
+        try:
+            while i < FETCH_SIZE:
+                k, v = self.mFetchIterator.__next__()
+
+                if isinstance(k, str) and k.startswith('__'):
+                    continue
+                if isinstance(v, (types.BuiltinFunctionType,
+                                  pyqtSignal,
+                                  pyqtBoundSignal,
+                                  sip.wrappertype)
+                              ) or \
+                        inspect.isfunction(v) or \
+                        inspect.ismethod(v):
+                    continue
+
+                # create a new node
+                # this allows to create a new node even of inherited classes
+                newNodes.append(self.__class__(name=str(k), obj=v))
+                i += 1
+
+        except StopIteration:
+            self.mIsFetched = True
 
         if len(newNodes) > 0:
             self.appendChildNodes(newNodes)
@@ -1054,7 +1063,7 @@ class TreeModel(QAbstractItemModel):
         if not isinstance(node, TreeNode):
             return QModelIndex()
         if node == self.mRootNode:
-            #return self.createIndex(-1, -1, self.mRootNode)
+            # return self.createIndex(-1, -1, self.mRootNode)
             return QModelIndex()
         else:
             row: int = node.nodeIndex()
@@ -1145,7 +1154,6 @@ class TreeView(QTreeView):
         if not menu.isEmpty():
             menu.exec_(self.viewport().mapToGlobal(event.pos()))
 
-
     def setAutoExpansionDepth(self, depth: int):
         """
         Sets the depth until which new TreeNodes will be opened
@@ -1204,11 +1212,11 @@ class TreeView(QTreeView):
         if isinstance(self.mModel, QAbstractItemModel):
             self.mModel.modelReset.connect(self.onModelReset)
             self.mModel.dataChanged.connect(self.onDataChanged)
-            #self.mModel.rowsAboutToBeInserted.connect(self.onAboutRowsInserted)
+            # self.mModel.rowsAboutToBeInserted.connect(self.onAboutRowsInserted)
             self.mModel.rowsInserted.connect(self.onRowsInserted)
 
         # update column spans
-        #self.onModelReset()
+        # self.onModelReset()
 
     def onModelReset(self):
         self.setColumnSpan(QModelIndex(), None, None)
@@ -1237,7 +1245,7 @@ class TreeView(QTreeView):
             self.setColumnSpan(idx, None, None)
         s = ""
 
-    def setColumnSpan(self, parent: QModelIndex, first:int, last:int):
+    def setColumnSpan(self, parent: QModelIndex, first: int, last: int):
         """
         Sets the column span for index `idx` and all child widgets
         :param idx:
@@ -1254,17 +1262,17 @@ class TreeView(QTreeView):
         if not isinstance(first, int):
             first = 0
         if not isinstance(last, int):
-            last = rows-1
+            last = rows - 1
 
         assert last < rows
-        for r in range(first, last+1):
+        for r in range(first, last + 1):
             idx: QModelIndex = model.index(r, 0, parent)
             idx2: QModelIndex = model.index(r, 1, parent)
 
             if idx2.isValid():
                 txt = idx2.data(Qt.DisplayRole)
                 spanned = txt in [None, '']
-                #if spanned:
+                # if spanned:
                 #    print(f'set spanned:: {idx.data(Qt.DisplayRole)}')
                 self.setFirstColumnSpanned(r, parent, spanned)
 

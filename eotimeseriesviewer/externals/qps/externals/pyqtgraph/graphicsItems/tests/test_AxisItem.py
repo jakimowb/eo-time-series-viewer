@@ -2,6 +2,7 @@ import pyqtgraph as pg
 
 app = pg.mkQApp()
 
+
 def test_AxisItem_stopAxisAtTick(monkeypatch):
     def test_bottom(p, axisSpec, tickSpecs, textSpecs):
         assert view.mapToView(axisSpec[1]).x() == 0.25
@@ -87,3 +88,57 @@ def test_AxisItem_leftRelink():
     assert fake_view.sigYRangeChanged.calls == ['connect', 'disconnect']
     assert fake_view.sigXRangeChanged.calls == []
     assert fake_view.sigResized.calls == ['connect', 'disconnect']
+
+
+def test_AxisItem_tickFont(monkeypatch):
+    def collides(textSpecs):
+        fontMetrics = pg.Qt.QtGui.QFontMetrics(font)
+        for rect, _, text in textSpecs:
+            br = fontMetrics.tightBoundingRect(text)
+            if rect.height() < br.height() or rect.width() < br.width():
+                return True
+        return False
+
+    def test_collision(p, axisSpec, tickSpecs, textSpecs):
+        assert not collides(textSpecs)
+
+    plot = pg.PlotWidget()
+    bottom = plot.getAxis("bottom")
+    left = plot.getAxis("left")
+    font = bottom.linkedView().font()
+    font.setPointSize(25)
+    bottom.setStyle(tickFont=font)
+    left.setStyle(tickFont=font)
+    monkeypatch.setattr(bottom, "drawPicture", test_collision)
+    monkeypatch.setattr(left, "drawPicture", test_collision)
+
+    plot.show()
+    app.processEvents()
+    plot.close()
+
+
+def test_AxisItem_label_visibility():
+    """Test the visibility of the axis item using `setLabel`"""
+    axis = pg.AxisItem('left')
+    assert axis.labelText == ''
+    assert axis.labelUnits == ''
+    assert not axis.label.isVisible()
+    axis.setLabel(text='Position', units='mm')
+    assert axis.labelText == 'Position'
+    assert axis.labelUnits == 'mm'
+    assert axis.label.isVisible()
+    # XXX: `None` is converted to empty strings.
+    axis.setLabel(text=None, units=None)
+    assert axis.labelText == ''
+    assert axis.labelUnits == ''
+    assert not axis.label.isVisible()
+    axis.setLabel(text='Current', units=None)
+    assert axis.labelText == 'Current'
+    assert axis.labelUnits == ''
+    assert axis.label.isVisible()
+    axis.setLabel(text=None, units=None)
+    assert not axis.label.isVisible()
+    axis.setLabel(text='', units='V')
+    assert axis.labelText == ''
+    assert axis.labelUnits == 'V'
+    assert axis.label.isVisible()

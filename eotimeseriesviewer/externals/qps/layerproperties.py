@@ -85,6 +85,7 @@ from qgis.gui import \
 from .classification.classificationscheme import ClassificationScheme
 from .models import OptionListModel, Option
 from .utils import *
+from . import DIR_UI_FILES
 from .vectorlayertools import VectorLayerTools
 
 """
@@ -667,16 +668,16 @@ def subLayerDefinitions(mapLayer: QgsMapLayer) -> typing.List[QgsSublayersDialog
     :return: list of sublayer definitions
     """
     definitions = []
-    dp = mapLayer.dataProvider()
-
+    dp: QgsDataProvider = mapLayer.dataProvider()
     subLayers = dp.subLayers()
+
     if len(subLayers) == 0:
         return []
 
     for i, sub in enumerate(subLayers):
         ldef = QgsSublayersDialog.LayerDefinition()
         assert isinstance(ldef, QgsSublayersDialog.LayerDefinition)
-        elements = sub.split(QgsDataProvider.SUBLAYER_SEPARATOR)
+        elements = sub.split(dp.sublayerSeparator())
 
         if dp.name() == 'ogr':
             # <layer_index>:<name>:<feature_count>:<geom_type>
@@ -803,7 +804,7 @@ class LayerPropertiesDialog(QgsOptionsDialogBase):
                  parent=None,
                  mapLayerConfigFactories: typing.List[QgsMapLayerConfigWidgetFactory] = None):
         warnings.warn('This dialog emulates only parts of the real QGIS Layer Properties dialog. '
-                      'Use for testing only.', Warning)
+                      'Use for testing only.', Warning, stacklevel=2)
         super(QgsOptionsDialogBase, self).__init__('QPS_LAYER_PROPERTIES', parent, Qt.Dialog, settings=None)
         pathUi = pathlib.Path(__file__).parent / 'ui' / 'layerpropertiesdialog.ui'
         loadUi(pathUi.as_posix(), self)
@@ -1013,14 +1014,13 @@ def showLayerPropertiesDialog(layer: QgsMapLayer,
             if not isinstance(canvas, QgsMapCanvas):
                 canvas = QgsMapCanvas()
             dialog = QgsRasterLayerProperties(layer, canvas)
+            from . import MAPLAYER_CONFIGWIDGET_FACTORIES
+            for f in MAPLAYER_CONFIGWIDGET_FACTORIES:
+                dialog.addPropertiesPageFactory(f)
         else:
             dialog = LayerPropertiesDialog(layer, canvas=canvas)
 
         if dialog:
-            from . import MAPLAYER_CONFIGWIDGET_FACTORIES
-            for f in MAPLAYER_CONFIGWIDGET_FACTORIES:
-                dialog.addPropertiesPageFactory(f)
-
             if modal == True:
                 dialog.setModal(True)
                 return dialog.exec_()
@@ -1142,14 +1142,14 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
         mLayer.editingStopped.connect(self.editingToggled)
         mLayer.destroyed.connect(self.mMainView.cancelProgress)
         mLayer.selectionChanged.connect(self.updateTitle)
-        mLayer.featureAdded.connect(self.scheduleTitleUpdate)
+        mLayer.editCommandEnded.connect(self.scheduleTitleUpdate)
         mLayer.featuresDeleted.connect(self.updateTitle)
         mLayer.editingStopped.connect(self.updateTitle)
         mLayer.readOnlyChanged.connect(self.editingToggled)
 
         self.mUpdateTrigger: QTimer = QTimer()
         self.mUpdateTrigger.setInterval(2000)
-        self.mUpdateTrigger.timeout.connect(self.updateTitle)
+        # self.mUpdateTrigger.timeout.connect(self.updateTitle)
 
         # connect table info to window
         self.mMainView.filterChanged.connect(self.updateTitle)
@@ -1544,9 +1544,7 @@ class AttributeTableWidget(QMainWindow, QgsExpressionContextGenerator):
             self.mActionSearchForm.setChecked(False)
 
     def scheduleTitleUpdate(self):
-
         self.mUpdateTrigger.start(2000)
-        s = ""
 
     def updateTitle(self):
         self.mUpdateTrigger.stop()

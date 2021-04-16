@@ -115,7 +115,7 @@ class CrosshairStyle(object):
         self.mShowDot = b
 
     def setShow(self, b):
-        warnings.warn('MapCanvas.setShow was replaced by .setVisibility(b:bool)', DeprecationWarning)
+        warnings.warn('MapCanvas.setShow was replaced by .setVisibility(b:bool)', DeprecationWarning, stacklevel=2)
         assert isinstance(b, bool)
         self.mShow = b
 

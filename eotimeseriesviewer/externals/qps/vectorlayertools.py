@@ -34,11 +34,13 @@ from qgis.core import \
     QgsVectorLayerTools, QgsVectorLayer, Qgis, \
     QgsSettings, \
     QgsVectorDataProvider, \
-    QgsFeature, QgsGeometry
+    QgsFeature, QgsGeometry, QgsProject
 
 from qgis.gui import QgisInterface
 
 from .utils import SpatialExtent, SpatialPoint
+
+
 class VectorLayerTools(QgsVectorLayerTools):
     """
     Implements QgsVectorLayerTools with some additional routines
@@ -66,7 +68,7 @@ class VectorLayerTools(QgsVectorLayerTools):
         a = QgsFeatureAction(action_name, f, layer, None, None)
         return a.addFeature(defaultValues)
 
-    def startEditing(self, layer:QgsVectorLayer ) -> bool:
+    def startEditing(self, layer: QgsVectorLayer) -> bool:
         """
         This will be called, whenever a vector layer should be switched to edit mode.
         """
@@ -75,7 +77,7 @@ class VectorLayerTools(QgsVectorLayerTools):
 
         if not layer.isEditable() and not layer.readOnly():
 
-            if not (layer.dataProvider().capabilities() & QgsVectorDataProvider.EditingCapabilities ):
+            if not (layer.dataProvider().capabilities() & QgsVectorDataProvider.EditingCapabilities):
                 title = "Start editing failed"
                 msg = "Provider cannot be opened for editing"
                 self.sigMessage.emit(title, msg, Qgis.Information)
@@ -91,7 +93,7 @@ class VectorLayerTools(QgsVectorLayerTools):
             self.copySelectionToClipboard(layer)
             self.deleteSelection(layer)
 
-    def copySelectionToClipboard(self, layer: QgsVectorLayer, attributes:list=None, featureIds:list=None):
+    def copySelectionToClipboard(self, layer: QgsVectorLayer, attributes: list = None, featureIds: list = None):
         """
         Copies selected features to the clipboard
         """
@@ -105,7 +107,7 @@ class VectorLayerTools(QgsVectorLayerTools):
         if isinstance(layer, QgsVectorLayer) \
                 and layer.isEditable() \
                 and isinstance(qgis.utils.iface, QgisInterface):
-                qgis.utils.iface.pasteFromClipboard(layer)
+            qgis.utils.iface.pasteFromClipboard(layer)
 
     def invertSelection(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer):
@@ -121,7 +123,10 @@ class VectorLayerTools(QgsVectorLayerTools):
 
     def deleteSelection(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.isEditable():
-            layer.deleteSelectedFeatures()
+            context = QgsVectorLayer.DeleteContext(True, QgsProject.instance())
+            layer.beginEditCommand('Features deleted')
+            success, deleted_fids = layer.deleteSelectedFeatures(context)
+            layer.endEditCommand()
 
     def toggleEditing(self, vlayer: QgsVectorLayer, allowCancel: bool = True) -> bool:
         """
@@ -143,20 +148,18 @@ class VectorLayerTools(QgsVectorLayerTools):
             markerType = str(settings.value("qgis/digitizing/marker_style", "Cross"))
             markSelectedOnly = bool(settings.value("qgis/digitizing/marker_only_for_selected", True))
 
-            #// redraw only if markers will be drawn
+            # // redraw only if markers will be drawn
             if not markSelectedOnly or (vlayer.selectedFeatureCount() > 0 and \
-                 (markerType == "Cross" or markerType == "SemiTransparentCircle")):
-              vlayer.triggerRepaint()
+                                        (markerType == "Cross" or markerType == "SemiTransparentCircle")):
+                vlayer.triggerRepaint()
 
             return True
-
 
     def zoomToSelected(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.selectedFeatureCount() > 0:
             bbox = layer.boundingBoxOfSelected()
             ext = SpatialExtent(layer.crs(), bbox)
             self.sigZoomRequest.emit(ext)
-
 
     def panToSelected(self, layer: QgsVectorLayer):
         if isinstance(layer, QgsVectorLayer) and layer.selectedFeatureCount() > 0:
@@ -199,7 +202,7 @@ class VectorLayerTools(QgsVectorLayerTools):
 
         return result
 
-    def stopEditing(self, layer: QgsVectorLayer, allowCancel:bool) -> bool:
+    def stopEditing(self, layer: QgsVectorLayer, allowCancel: bool) -> bool:
         """
         Will be called, when an editing session is ended and the features should be committed.
         Returns True if the layers edit state was finished
@@ -239,4 +242,3 @@ class VectorLayerTools(QgsVectorLayerTools):
         info += "\n\n{}".format('\n '.join(layer.commitErrors()))
 
         self.sigMessage.emit(title, info, Qgis.Warning)
-

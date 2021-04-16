@@ -188,7 +188,7 @@ class MapTools(enum.Enum):
     @staticmethod
     def mapToolKeys() -> list:
         import warnings
-        warnings.warn('Deprecated. use .mapToolValues() instead', DeprecationWarning)
+        warnings.warn('Deprecated. use .mapToolValues() instead', DeprecationWarning, stacklevel=2)
         return MapTools.mapToolValues()
 
     @staticmethod

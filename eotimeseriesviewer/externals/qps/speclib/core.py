@@ -396,7 +396,7 @@ def encodeProfileValueDict(d: dict, mode=None) -> QByteArray:
     :return: str
     """
     if mode is not None:
-        warnings.warn('keyword "mode" is not not used anymore', DeprecationWarning)
+        warnings.warn('keyword "mode" is not not used anymore', DeprecationWarning, stacklevel=2)
 
     if not isinstance(d, dict):
         return None
@@ -416,7 +416,7 @@ def decodeProfileValueDict(dump, mode=None):
     :return: dict
     """
     if mode is not None:
-        warnings.warn('keyword "mode" is not used anymore', DeprecationWarning)
+        warnings.warn('keyword "mode" is not used anymore', DeprecationWarning, stacklevel=2)
 
     d = EMPTY_PROFILE_VALUES.copy()
 
@@ -691,6 +691,9 @@ class SpectralProfile(QgsFeature):
         :param value_field: name of QgsField that stores the Spectral Profile BLOB
         :return:
         """
+        if not feature.isValid():
+            return None
+
         assert isinstance(feature, QgsFeature)
         if isinstance(value_field, QgsField):
             value_field = value_field.name()
@@ -712,7 +715,7 @@ class SpectralProfile(QgsFeature):
         :param feature: QgsFeature
         :return: SpectralProfile
         """
-        warnings.warn('Use SpectralProfile.fromQgsFeature instead', DeprecationWarning)
+        warnings.warn('Use SpectralProfile.fromQgsFeature instead', DeprecationWarning, stacklevel=2)
         return SpectralProfile.fromQgsFeature(feature)
 
     def __init__(self, parent=None,
@@ -1332,7 +1335,7 @@ class SpectralProfileRenderer(object):
             if isinstance(customStyle, PlotStyle):
                 fids = customStyleNode.firstChildElement('keys').firstChild().nodeValue().split(',')
                 rxInt = re.compile(r'\d+[ ]*')
-                fids = [int(f) for f in fids if re.match(rxInt)]
+                fids = [int(f) for f in fids if rxInt.match(f)]
                 renderer.setProfilePlotStyle(customStyle, fids)
 
         return renderer
@@ -1802,7 +1805,7 @@ class SpectralLibrary(QgsVectorLayer):
         :param mode:
         :return:
         """
-        warnings.warn(DeprecationWarning(r'Use readFromVector instead'))
+        warnings.warn(DeprecationWarning(r'Use readFromVector instead'), stacklevel=2)
         assert mode in ['CENTROIDS', 'AVERAGES', 'PIXELS']
 
         if isinstance(rasterSource, str):
@@ -2083,7 +2086,7 @@ class SpectralLibrary(QgsVectorLayer):
         :param pathSPECLIB:
         :return:
         """
-        warnings.warn('will be removed in future', DeprecationWarning)
+        warnings.warn('will be removed in future', DeprecationWarning, stacklevel=2)
         assert isinstance(pathSPECLIB, str)
         if not pathSPECLIB.endswith('.json'):
             pathJSON = os.path.splitext(pathSPECLIB)[0] + '.json'
@@ -2190,7 +2193,7 @@ class SpectralLibrary(QgsVectorLayer):
 
     @classmethod
     def instances(cls) -> list:
-        warnings.warn('SpectraLibrary.instances() Will be removed', DeprecationWarning)
+        warnings.warn('SpectraLibrary.instances() Will be removed', DeprecationWarning, stacklevel=2)
         return []
 
     sigProgressInfo = pyqtSignal(int, int, str)
@@ -2206,12 +2209,12 @@ class SpectralLibrary(QgsVectorLayer):
                  ):
 
         if isinstance(uri, str):
-            warnings.warn('Use "path" instead "uri', DeprecationWarning)
+            warnings.warn('Use "path" instead "uri', DeprecationWarning, stacklevel=2)
             if path is None:
                 path = uri
 
         if isinstance(name, str):
-            warnings.warn('Use "baseName" instead "name', DeprecationWarning)
+            warnings.warn('Use "baseName" instead "name', DeprecationWarning, stacklevel=2)
             if baseName is DEFAULT_NAME:
                 baseName = name
 
@@ -2430,7 +2433,7 @@ class SpectralLibrary(QgsVectorLayer):
         Returns the names of additions fields / attributes
         :return: [list-of-str]
         """
-        warnings.warn('Deprecated and desimplemented', DeprecationWarning)
+        warnings.warn('Deprecated and desimplemented', DeprecationWarning, stacklevel=2)
         # requiredFields = [f.name for f in ogrStandardFields()]
         return []
 
@@ -2537,6 +2540,11 @@ class SpectralLibrary(QgsVectorLayer):
                     progressDialog.setValue(nAdded)
                     lastTime = datetime.datetime.now()
 
+        activeEditCommand = self.isEditCommandActive()
+
+        if not activeEditCommand:
+            self.beginEditCommand('Add profiles')
+
         for i, pSrc in enumerate(profiles):
             if i == 0:
                 if addMissingFields:
@@ -2568,6 +2576,8 @@ class SpectralLibrary(QgsVectorLayer):
         # final buffer call
         flushBuffer(triggerProgressBar=True)
 
+        if activeEditCommand:
+            self.endEditCommand()
         # return the edited features
         MAP = self.editBuffer().addedFeatures()
         fids_inserted = [MAP[k].id() for k in reversed(list(MAP.keys())) if k not in keysBefore]
@@ -2737,7 +2747,7 @@ class SpectralLibrary(QgsVectorLayer):
         return success, errorMsg
 
     def exportProfiles(self, *args, **kwds) -> list:
-        warnings.warn('Use SpectralLibrary.write() instead', DeprecationWarning)
+        warnings.warn('Use SpectralLibrary.write() instead', DeprecationWarning, stacklevel=2)
         return self.write(*args, **kwds)
 
     def writeRasterImages(self, pathOne: typing.Union[str, pathlib.Path], drv: str = 'GTiff') -> typing.List[
