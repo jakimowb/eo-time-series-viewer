@@ -33,6 +33,10 @@ import typing
 import pathlib
 import collections
 import uuid
+
+from PyQt5.QtCore import QMimeData, QVariant, QPoint, QByteArray, QFileInfo, QUrl, pyqtSignal, Qt
+from PyQt5.QtGui import QColor, QIcon
+from PyQt5.QtXml import QDomDocument, QDomElement
 from osgeo import osr
 from ..speclib import SpectralLibrarySettingsKey
 from PyQt5.QtWidgets import *
@@ -2540,9 +2544,9 @@ class SpectralLibrary(QgsVectorLayer):
                     progressDialog.setValue(nAdded)
                     lastTime = datetime.datetime.now()
 
-        activeEditCommand = self.isEditCommandActive()
+        in_active_command = self.isEditCommandActive()
 
-        if not activeEditCommand:
+        if not in_active_command:
             self.beginEditCommand('Add profiles')
 
         for i, pSrc in enumerate(profiles):
@@ -2576,7 +2580,7 @@ class SpectralLibrary(QgsVectorLayer):
         # final buffer call
         flushBuffer(triggerProgressBar=True)
 
-        if activeEditCommand:
+        if not in_active_command:
             self.endEditCommand()
         # return the edited features
         MAP = self.editBuffer().addedFeatures()

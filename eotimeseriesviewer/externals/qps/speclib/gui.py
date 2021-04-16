@@ -27,6 +27,10 @@ from typing import List, Tuple
 
 import sip
 import textwrap
+
+from PyQt5.QtCore import QAbstractTableModel, pyqtSignal, Qt, QModelIndex, QVariant, QPoint, QTimer, QPointF, pyqtSlot
+from PyQt5.QtGui import QColor, QDragMoveEvent, QDropEvent, QIcon, QDragEnterEvent, QContextMenuEvent
+
 from .core import *
 import collections
 from ..externals.pyqtgraph import PlotItem, PlotWindow, PlotCurveItem
@@ -2184,7 +2188,7 @@ class SpectralProfileFieldFormatter(QgsFieldFormatter):
 
     def representValue(self, layer: QgsVectorLayer, fieldIndex: int, config: dict, cache, value):
 
-        if value not in [None, NULL]:
+        if value not in [None, QVariant()]:
             return SPECTRAL_PROFILE_FIELD_REPRESENT_VALUE
         else:
             return 'Empty'
@@ -2608,7 +2612,9 @@ class SpectralLibraryWidget(AttributeTableWidget):
 
         if not addAuto:
             # delete previous current profiles from speclib
+            speclib.beginEditCommand('Remove temporary profiles')
             speclib.deleteFeatures(oldCurrentIDs)
+            speclib.endEditCommand()
             plotWidget.removeSpectralProfilePDIs(oldCurrentKeys, updateScene=False)
             # now there shouldn't be any PDI or style ref related to an old ID
         else:
