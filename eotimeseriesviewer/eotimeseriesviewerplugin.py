@@ -67,6 +67,11 @@ class EOTimeSeriesViewerPlugin:
             iface.addToolBarIcon(action)
             iface.addPluginToRasterMenu(TITLE, action)
 
+    def initProcessing(self):
+        """
+        """
+        pass
+
     def initialDependencyCheck(self):
         """
         Runs a check for availability of package dependencies and give an readible error message
