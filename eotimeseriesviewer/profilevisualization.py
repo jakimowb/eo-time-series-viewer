@@ -1428,8 +1428,8 @@ class DateTimeViewBox(pg.ViewBox):
         self.mCurrentDate = np.datetime64('today')
 
         self.mXAxisUnit = 'date'
-        xAction = [a for a in self.menu.actions() if a.text() == 'X Axis'][0]
-        yAction = [a for a in self.menu.actions() if a.text() == 'Y Axis'][0]
+        xAction = [a for a in self.menu.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
+        #yAction = [a for a in self.menu.actions() if re.search('Y Axis', a.text(), re.IGNORECASE)][0]
 
         menuXAxis = self.menu.addMenu('X Axis')
         # define the widget to set X-Axis options
@@ -1459,7 +1459,7 @@ class DateTimeViewBox(pg.ViewBox):
         l.addWidget(self.dateEditX1, 0, 2)
         l.addWidget(self.rbXAutoRange, 1, 0)
 
-        l.setMargin(1)
+        l.setContentsMargins(1, 1, 1, 1)
         l.setSpacing(1)
         frame.setMinimumSize(l.sizeHint())
         wa = QWidgetAction(menuXAxis)
@@ -1561,7 +1561,7 @@ class ProfileViewDock(QgsDockWidget):
 
         self.pxViewModel2D = None
 
-        self.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
+        self.tableView2DProfiles.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
 
         self.mTasks = dict()
 
@@ -1611,7 +1611,7 @@ class ProfileViewDock(QgsDockWidget):
         self.tableView2DProfiles.setModel(self.plotSettingsModel2DProxy)
         self.tableView2DProfiles.setSortingEnabled(True)
         self.tableView2DProfiles.selectionModel().selectionChanged.connect(self.onPlot2DSelectionChanged)
-        self.tableView2DProfiles.horizontalHeader().setResizeMode(QHeaderView.Interactive)
+        self.tableView2DProfiles.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
 
         self.delegateTableView2D = PlotSettingsTableViewWidgetDelegate(self.tableView2DProfiles)
 

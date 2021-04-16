@@ -219,7 +219,7 @@ def rst2html(pathMD: pathlib.Path) -> str:
                  }
 
     buffer = io.StringIO()
-    html = docutils.core.publish_file(source_path=pathMD, writer_name='html5', settings_overrides=overrides, destination=buffer)
+    html = docutils.core.publish_file(source_path=pathMD.as_posix(), writer_name='html5', settings_overrides=overrides, destination=buffer)
 
     xml = minidom.parseString(html)
     #  remove headline

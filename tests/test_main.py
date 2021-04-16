@@ -43,8 +43,12 @@ class TestMain(EOTSVTestCase):
 
     def tearDown(self):
         eotsv = EOTimeSeriesViewer.instance()
+
         if isinstance(eotsv, EOTimeSeriesViewer):
-            eotsv.close()
+            try:
+                eotsv.close()
+            except Exception as ex:
+                pass
             QApplication.processEvents()
         super().tearDown()
 

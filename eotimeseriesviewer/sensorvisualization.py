@@ -47,7 +47,7 @@ class SensorDockUI(QgsDockWidget):
         self.mSensorModel = SensorTableModel(self.TS)
         self.mSortedModel.setSourceModel(self.mSensorModel)
         self.sensorView.setModel(self.mSortedModel)
-        self.sensorView.horizontalHeader().setResizeMode(QHeaderView.ResizeToContents)
+        self.sensorView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
 
 class SensorTableModel(QAbstractTableModel):
