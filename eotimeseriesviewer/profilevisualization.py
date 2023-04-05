@@ -20,46 +20,44 @@
 """
 # noinspection PyPep8Naming
 
-import sys
-import typing
 import re
-from collections import OrderedDict
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtXml import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsPoint, QgsPointXY, \
-    QgsAttributeTableConfig, QgsMapLayerProxyModel, QgsFeature, QgsCoordinateReferenceSystem
-from qgis.gui import QgsFieldExpressionWidget, QgsFeatureListComboBox, QgsDockWidget
-
+import sys
+from typing import List, Iterator
 
 import numpy as np
+from PyQt5.QtCore import Qt, QItemSelectionModel, QModelIndex, QAbstractItemModel, QPoint, pyqtSignal, QVariant, \
+    QAbstractTableModel, QSize, QSortFilterProxyModel, QTimer, QPointF, pyqtSlot
+from PyQt5.QtGui import QColor, QPen, QPalette, QContextMenuEvent, QCursor, QPainter
+from PyQt5.QtWidgets import QTableView, QMenu, QAction, QWidgetAction, QSlider, QStyledItemDelegate, QLabel, QComboBox, \
+    QWidget, QFrame, QGridLayout, QRadioButton, QDateEdit, QHeaderView, QToolBar, QDialog
+from qgis.core import QgsVectorLayer, QgsPoint, QgsAttributeTableConfig, QgsMapLayerProxyModel, QgsFeature, \
+    QgsCoordinateReferenceSystem
+from qgis.gui import QgsFieldExpressionWidget, QgsFeatureListComboBox, QgsDockWidget
 
 from eotimeseriesviewer import DIR_UI
-from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
-from .utils import SpatialExtent, SpatialPoint, px2geo, loadUi, nextColor
-from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
-from .externals.pyqtgraph import ScatterPlotItem, SpotItem, GraphicsScene
-from .externals.qps.externals.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent, MouseDragEvent
-from .externals import pyqtgraph as pg
-from .externals.pyqtgraph import fn
-from .externals.qps.layerproperties import AttributeTableWidget
-from .externals.qps.vectorlayertools import VectorLayerTools
+from .qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from .qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
+from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
+from .qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem, SpotItem, mkPen
+from .qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
+from .qgispluginsupport.qps.utils import nextColor, SpatialPoint, loadUi, SelectMapLayersDialog
+from .qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from .sensorvisualization import SensorListModel
 from .temporalprofiles import TemporalProfile, num2date, date2num, TemporalProfileLayer, \
     LABEL_EXPRESSION_2D, LABEL_TIME, sensorExampleQgsFeature, FN_ID, bandKey2bandIndex, bandIndex2bandKey, \
-    dateDOY, rxBandKey, rxBandKeyExact
+    dateDOY, rxBandKey
+from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
 
 DEBUG = False
 OPENGL_AVAILABLE = False
 ENABLE_OPENGL = False
 
 try:
-    import OpenGL
+    __import__('OpenGL')
 
     OPENGL_AVAILABLE = True
 
-except Exception as ex:
+except ModuleNotFoundError as ex:
     print('unable to import OpenGL based packages:\n{}'.format(ex))
 
 
@@ -100,7 +98,7 @@ class _SensorPoints(pg.PlotDataItem):
 
     # On right-click, raise the context menu
     def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.RightButton:
+        if ev.button() == Qt.RightButton:
             if self.raiseContextMenu(ev):
                 ev.accept()
 
@@ -112,7 +110,7 @@ class _SensorPoints(pg.PlotDataItem):
         menu = self.scene().addParentContextMenus(self, menu, ev)
 
         pos = ev.screenPos()
-        menu.popup(QtCore.QPoint(pos.x(), pos.y()))
+        menu.popup(QPoint(pos.x(), pos.y()))
         return True
 
     # This method will be called when this item's _children_ want to raise
@@ -205,10 +203,10 @@ class TemporalProfilePlotStyle(PlotStyle):
     def expression(self) -> str:
         return self.mExpression
 
-    def expressionBandIndices(self) -> typing.List[int]:
+    def expressionBandIndices(self) -> List[int]:
         return [bandKey2bandIndex(k) for k in self.expressionBandKeys()]
 
-    def expressionBandKeys(self) -> typing.List[str]:
+    def expressionBandKeys(self) -> List[str]:
         """
         Returns a list of image data bands
         """
@@ -354,7 +352,7 @@ class TemporalProfilePlotDataItem(pg.PlotDataItem):
         self.setPen(color)
 
     def pen(self):
-        return fn.mkPen(self.opts['pen'])
+        return mkPen(self.opts['pen'])
 
     def color(self):
         return self.pen().color()
@@ -384,7 +382,7 @@ class PlotSettingsModel(QAbstractTableModel):
         self.mPlotSettings = []
         self.mIconSize = QSize(25, 25)
 
-    def sensors(self) -> typing.List[SensorInstrument]:
+    def sensors(self) -> List[SensorInstrument]:
         return self.timeSeries().sensors()
 
     def timeSeries(self) -> TimeSeries:
@@ -393,11 +391,11 @@ class PlotSettingsModel(QAbstractTableModel):
     def temporalProfileLayer(self) -> TemporalProfileLayer:
         return self.mTemporalProfileLayer
 
-    def onTemporalProfilesAdded(self, temporalProfiles: typing.List[TemporalProfile]):
+    def onTemporalProfilesAdded(self, temporalProfiles: List[TemporalProfile]):
         if len(temporalProfiles) > 0:
             self.setCurrentProfile(temporalProfiles[-1])
 
-    def onTemporalProfilesDeleted(self, temporalProfiles: typing.List[TemporalProfile]):
+    def onTemporalProfilesDeleted(self, temporalProfiles: List[TemporalProfile]):
         # remote deleted temporal profiles from plotstyles
         col = self.columnNames.index(self.cnTemporalProfile)
         rowMin = rowMax = None
@@ -416,7 +414,7 @@ class PlotSettingsModel(QAbstractTableModel):
                 [Qt.EditRole, Qt.DisplayRole]
             )
 
-    def onTemporalProfilesUpdated(self, temporalProfiles: typing.List[TemporalProfile]):
+    def onTemporalProfilesUpdated(self, temporalProfiles: List[TemporalProfile]):
 
         col = self.columnNames.index(self.cnTemporalProfile)
 
@@ -441,7 +439,7 @@ class PlotSettingsModel(QAbstractTableModel):
     def __len__(self):
         return len(self.mPlotSettings)
 
-    def __iter__(self) -> typing.Iterator[TemporalProfilePlotStyle]:
+    def __iter__(self) -> Iterator[TemporalProfilePlotStyle]:
         return iter(self.mPlotSettings)
 
     def __getitem__(self, slice):
@@ -453,7 +451,7 @@ class PlotSettingsModel(QAbstractTableModel):
     def columnIndex(self, name: str) -> int:
         return self.columnNames.index(name)
 
-    def requiredBandsIndices(self, sensor) -> typing.List[int]:
+    def requiredBandsIndices(self, sensor) -> List[int]:
         """
         Returns the band indices required to calculate the values for
         the different PlotStyle expressions making use of sensor
@@ -663,7 +661,7 @@ class PlotSettingsModel(QAbstractTableModel):
     def restorePlotSettings(self, sensor, index='DEFAULT'):
         return None
 
-    def checkForRequiredDataUpdates(self, profileStyles: typing.List[TemporalProfilePlotStyle]):
+    def checkForRequiredDataUpdates(self, profileStyles: List[TemporalProfilePlotStyle]):
         if not isinstance(profileStyles, list):
             profileStyles = [profileStyles]
 
@@ -1107,9 +1105,9 @@ class DateTimePlotWidget(pg.PlotWidget):
         """
         super(DateTimePlotWidget, self).__init__(parent)
         self.plotItem = pg.PlotItem(
-            axisItems={'bottom': DateTimeAxis(orientation='bottom')}
-            , viewBox=DateTimeViewBox()
-        )
+                            axisItems={'bottom': DateTimeAxis(orientation='bottom')},
+                            viewBox=DateTimeViewBox()
+                        )
         self.setCentralItem(self.plotItem)
         # self.xAxisInitialized = False
 
@@ -1194,7 +1192,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         except NotImplementedError as ex2:
             print(ex2, file=sys.stderr)
 
-    def temporalProfilePlotDataItems(self) -> typing.List[TemporalProfilePlotDataItem]:
+    def temporalProfilePlotDataItems(self) -> List[TemporalProfilePlotDataItem]:
         return [i for i in self.plotItem.items if isinstance(i, TemporalProfilePlotDataItem)]
 
     def updateTemporalProfilePlotItems(self):
@@ -1249,7 +1247,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.plotItem.getViewBox().autoRange()
 
     def onMouseMoved2D(self, evt):
-        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
+        pos = evt[0]  # using signal proxy turns original arguments into a tuple
 
         plotItem = self.getPlotItem()
 
@@ -1304,7 +1302,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mInfoLabelCursor.setVisible(False)
 
     def onMouseMoved2D_BAK(self, evt):
-        pos = evt[0]  ## using signal proxy turns original arguments into a tuple
+        pos = evt[0]  # using signal proxy turns original arguments into a tuple
 
         plotItem = self.getPlotItem()
         if plotItem.sceneBoundingRect().contains(pos):
@@ -1380,18 +1378,18 @@ class DateTimeAxis(pg.AxisItem):
         p.setRenderHint(p.Antialiasing, False)
         p.setRenderHint(p.TextAntialiasing, True)
 
-        ## draw long line along axis
+        # draw long line along axis
         pen, p1, p2 = axisSpec
         p.setPen(pen)
         p.drawLine(p1, p2)
-        p.translate(0.5, 0)  ## resolves some damn pixel ambiguity
+        p.translate(0.5, 0)  # resolves some damn pixel ambiguity
 
-        ## draw ticks
+        # draw ticks
         for pen, p1, p2 in tickSpecs:
             p.setPen(pen)
             p.drawLine(p1, p2)
 
-        ## Draw all text
+        # Draw all text
         if self.tickFont() is not None:
             p.setFont(self.tickFont())
         p.setPen(self.pen())
@@ -1429,7 +1427,7 @@ class DateTimeViewBox(pg.ViewBox):
 
         self.mXAxisUnit = 'date'
         xAction = [a for a in self.menu.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
-        #yAction = [a for a in self.menu.actions() if re.search('Y Axis', a.text(), re.IGNORECASE)][0]
+        #  yAction = [a for a in self.menu.actions() if re.search('Y Axis', a.text(), re.IGNORECASE)][0]
 
         menuXAxis = self.menu.addMenu('X Axis')
         # define the widget to set X-Axis options
@@ -1754,8 +1752,6 @@ class ProfileViewDock(QgsDockWidget):
 
     def onLoadFromVector(self):
 
-        from .externals.qps.layerproperties import SelectMapLayersDialog
-
         d = SelectMapLayersDialog()
         d.addLayerDescription('Vector Layer', QgsMapLayerProxyModel.VectorLayer)
         d.setWindowTitle('Select Vector Layer')
@@ -1777,7 +1773,7 @@ class ProfileViewDock(QgsDockWidget):
         i = np.argmin(dt)
         self.sigMoveToTSD.emit(self.timeSeries()[i])
 
-    def loadCoordinate(self, spatialPoints: typing.List[SpatialPoint]):
+    def loadCoordinate(self, spatialPoints: List[SpatialPoint]):
         """
         Create new point(s) in the TemporalProfileLayer and loads bands values for
         :param spatialPoints: SpatialPoint or [list-of-SpatialPoints]

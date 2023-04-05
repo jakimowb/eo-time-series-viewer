@@ -1,28 +1,28 @@
-import typing
 import enum
-import numpy as np
 import math
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsField, QgsFields, \
-    QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, QgsFieldModel, \
-    QgsRendererCategory, QgsCategorizedSymbolRenderer, QgsProject, QgsMapLayerStore, QgsSymbol
-from qgis.gui import QgsDockWidget, QgsSpinBox, QgsDoubleSpinBox, \
+from typing import List, Union, Dict
+
+import numpy as np
+from PyQt5.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
+from PyQt5.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
+from PyQt5.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, QWidget, \
+    QLineEdit
+from qgis.core import QgsVectorLayer, QgsField, QgsFields, \
+    QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, QgsRendererCategory, QgsCategorizedSymbolRenderer, \
+    QgsProject, QgsMapLayerStore, QgsSymbol
+from qgis.gui import QgsSpinBox, QgsDoubleSpinBox, \
     QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
     QgsGui, QgsEditorWidgetRegistry, \
-    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsActionMenu, QgsAttributeTableModel
+    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsAttributeTableModel
 
-from eotimeseriesviewer.externals.qps.layerproperties import showLayerPropertiesDialog, AttributeTableWidget
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from eotimeseriesviewer import DIR_UI
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-from .externals.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
-from .externals.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
-from .externals.qps.layerproperties import showLayerPropertiesDialog
-from .externals.qps.vectorlayertools import VectorLayerTools
-from .externals.qps.models import Option, OptionListModel
-from .externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+from .qgispluginsupport.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
+from .qgispluginsupport.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
+from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
 
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = [QgsProject.instance()]
@@ -67,7 +67,7 @@ class LabelShortcutType(enum.Enum):
         return str(self.name)
 
 
-def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
+def shortcuts(field: QgsField) -> List[LabelShortcutType]:
     """
     Returns the possible LabelShortCutTypes for a certain field
     :param field:
@@ -108,15 +108,15 @@ def shortcuts(field: QgsField) -> typing.List[LabelShortcutType]:
     return result
 
 
-def layerClassSchemes(layer: QgsVectorLayer) -> typing.List[ClassificationScheme]:
+def layerClassSchemes(layer: QgsVectorLayer) -> List[ClassificationScheme]:
     """
     Returns a list of (ClassificationScheme, QgsField) for all QgsFields with QgsEditorWidget being QgsClassificationWidgetWrapper or RasterClassification.
     :param layer: QgsVectorLayer
     :return: list [(ClassificationScheme, QgsField), ...]
     """
     assert isinstance(layer, QgsVectorLayer)
-    from .externals.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
-    from .externals.qps.classification.classificationscheme import classSchemeFromConfig
+    from .qgispluginsupport.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+    from .qgispluginsupport.qps.classification.classificationscheme import classSchemeFromConfig
     schemes = []
     for i in range(layer.fields().count()):
         setup = layer.editorWidgetSetup(i)
@@ -162,7 +162,7 @@ def labelShortcutLayerClassificationSchemes(layer: QgsVectorLayer):
     return classSchemes
 
 
-def quickLabelLayers() -> typing.List[QgsVectorLayer]:
+def quickLabelLayers() -> List[QgsVectorLayer]:
     """
     Returns a list of known QgsVectorLayers with at least one LabelShortcutEditWidget
     :return: [list-of-QgsVectorLayer]
@@ -184,7 +184,7 @@ def quickLabelLayers() -> typing.List[QgsVectorLayer]:
     return layers
 
 
-def quickLayerGroups(layer) -> typing.List[str]:
+def quickLayerGroups(layer) -> List[str]:
     groups = set()
     if isinstance(layer, list):
         for l in layer:
@@ -197,7 +197,7 @@ def quickLayerGroups(layer) -> typing.List[str]:
     return sorted(groups)
 
 
-def quickLayerFieldSetup(layer, label_group: str = None) -> typing.List[QgsField]:
+def quickLayerFieldSetup(layer, label_group: str = None) -> List[QgsField]:
     fields = []
     if isinstance(layer, list):
         for l in layer:
@@ -645,7 +645,7 @@ class GotoFeatureOptions(enum.IntFlag):
     SelectFeature = 1
     PanToFeature = 2
     ZoomToFeature = 4
-    FocusVisibility=8
+    FocusVisibility = 8
 
 
 def gotoFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
@@ -659,12 +659,11 @@ def gotoFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, o
         tools.focusVisibility()
 
 
-def gotoNextFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget],
+def gotoNextFeature(layer: Union[QgsVectorLayer, AttributeTableWidget],
                     tools: EOTSVVectorLayerTools = None,
-                    visible_features: typing.List[int] = None,
+                    visible_features: List[int] = None,
                     options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
                     ) -> int:
-
     if isinstance(layer, AttributeTableWidget):
         return gotoNextFeature(layer.mLayer, layer.vectorLayerTools(), layer.mMainView.filteredFeatures(), options)
 
@@ -694,9 +693,9 @@ def gotoNextFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget],
     return None
 
 
-def gotoPreviousFeature(layer: typing.Union[QgsVectorLayer, AttributeTableWidget],
+def gotoPreviousFeature(layer: Union[QgsVectorLayer, AttributeTableWidget],
                         tools: EOTSVVectorLayerTools = None,
-                        visible_features: typing.List[int] = None,
+                        visible_features: List[int] = None,
                         options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature):
     """
     Selects the next feature
@@ -754,7 +753,7 @@ class LabelWidget(AttributeTableWidget):
         self.mActionNextFeature.setShortcuts([QKeySequence(QKeySequence.MoveToNextLine),
                                               QKeySequence(Qt.Key_S)])
         self.mActionPreviousFeature.setShortcuts([QKeySequence(QKeySequence.MoveToPreviousLine),
-                                              QKeySequence(Qt.Key_W)])
+                                                  QKeySequence(Qt.Key_W)])
 
         self.mActionNextFeature.triggered.connect(self.onGotoNextFeature)
         self.mActionPreviousFeature.triggered.connect(self.onGotoPreviousFeature)
@@ -902,23 +901,23 @@ class LabelWidget(AttributeTableWidget):
                 datetime = feature.attribute(fieldIdx)
                 try:
                     datetime = QDateTime(datetime64(datetime).astype(object))
-                except:
+                except Exception:
                     pass
 
                 # add temporal options
                 if isinstance(datetime, QDateTime):
                     date_string = datetime.toString(Qt.ISODate)
-                    a1 = QAction(f'Move time to', menu)
+                    a1 = QAction('Move time to', menu)
                     a1.setToolTip(f'Moves the current date to {date_string}')
                     a1.triggered.connect(lambda *args, d=datetime:
                                          self.sigMoveTo[QDateTime].emit(d))
 
-                    a2 = QAction(f'Move time && pan to', menu)
+                    a2 = QAction('Move time && pan to', menu)
                     a2.setToolTip(f'Moves the current date to {date_string} and pans to feature {feature.id()}')
                     a2.triggered.connect(lambda *args, f=feature, d=datetime:
                                          self.sigMoveTo[QDateTime, object].emit(d, center))
 
-                    a3 = QAction(f'Move time && zoom to', menu)
+                    a3 = QAction('Move time && zoom to', menu)
                     a2.setToolTip(f'Moves the current date to {date_string} and zooms to feature {feature.id()}')
                     a3.triggered.connect(lambda *args, f=feature, d=datetime:
                                          self.sigMoveTo[QDateTime, object].emit(d, extent))
@@ -955,7 +954,7 @@ class LabelWidget(AttributeTableWidget):
 
     def onLabelFeatureAdded(self, fid):
         if self.mOptionSelectBehaviour.isChecked():
-            lastSelection: typing.List[int] = self.mLayer.selectedFeatureIds()
+            lastSelection: List[int] = self.mLayer.selectedFeatureIds()
             self.mLayer.selectByIds([fid], self.selectBehaviour())
 
     def showProperties(self, *args):
@@ -1169,7 +1168,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
             dt64 = None
             try:
                 dt64 = datetime64(value)
-            except:
+            except Exception:
                 pass
 
             if isinstance(dt64, np.datetime64) and np.isfinite(dt64):
@@ -1241,7 +1240,7 @@ class LabelShortcutEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
 
 def createWidgetConf(labelType: LabelShortcutType,
-                     group: str = None) -> typing.Dict[str, str]:
+                     group: str = None) -> Dict[str, str]:
     assert isinstance(labelType, LabelShortcutType)
     if group is None:
         group = ''
@@ -1351,7 +1350,7 @@ labelEditorWidgetFactory = None
 def registerLabelShortcutEditorWidget():
     reg = QgsGui.editorWidgetRegistry()
     global labelEditorWidgetFactory
-    if not EDITOR_WIDGET_REGISTRY_KEY in reg.factories().keys():
+    if EDITOR_WIDGET_REGISTRY_KEY not in reg.factories().keys():
         labelEditorWidgetFactory = LabelShortcutWidgetFactory(EDITOR_WIDGET_REGISTRY_KEY)
         reg.registerWidget(EDITOR_WIDGET_REGISTRY_KEY, labelEditorWidgetFactory)
     else:

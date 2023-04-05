@@ -1,8 +1,0 @@
-{
-  "name": "spectralData",
-  "type": "function",
-  "description": "Returns values of a spectral profile as map",
-  "arguments": [ {"arg":"field","description":"binary data column (BLOB)"}
-                 ],
-  "examples": [ { "expression":"spectralData(field=\"values\")", "returns":"a map with spectral data from column \"values\""}]
-}

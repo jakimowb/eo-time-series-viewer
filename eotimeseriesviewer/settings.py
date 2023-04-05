@@ -1,12 +1,21 @@
+import enum
+import pathlib
+import sys
+from json import JSONDecodeError
+from typing import Union, List, Any
+
+from PyQt5.QtCore import QSize, QSettings, QVariant, QByteArray, QAbstractTableModel, QModelIndex, Qt, \
+    QSortFilterProxyModel, QItemSelectionModel, QItemSelection
+from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtWidgets import QDialog, QComboBox, QDialogButtonBox
+from PyQt5.QtXml import QDomDocument
+from osgeo import gdal
 from qgis.core import QgsReadWriteContext, QgsTextFormat, QgsTextBufferSettings, QgsUnitTypes
 from qgis.gui import QgsFileWidget
 
-from eotimeseriesviewer import *
-from eotimeseriesviewer import __version__ as EOTSV_VERSION
-from eotimeseriesviewer.externals.qps.utils import loadUi
+from eotimeseriesviewer import __version__ as EOTSV_VERSION, DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
-
-from osgeo import gdal, gdalconst, gdal_array
 
 
 class Keys(enum.Enum):
@@ -150,8 +159,6 @@ def value(key: Keys, default=None):
                 value = dict()
 
             assert isinstance(value, dict)
-            from .timeseries import sensorIDtoProperties
-            from json.decoder import JSONDecodeError
 
             for sensorID in list(value.keys()):
                 assert isinstance(sensorID, str)
@@ -193,7 +200,7 @@ def saveSensorName(sensor: SensorInstrument):
     setValue(Keys.SensorSpecs, sensorSpecs)
 
 
-def sensorName(sid: typing.Union[str, SensorInstrument]) -> str:
+def sensorName(sid: Union[str, SensorInstrument]) -> str:
     """
     Retuns the sensor name stored for a certain sensor id
     :param sid: str
@@ -302,7 +309,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
             sensors.append(sensor)
         self.addSensors(sensors)
 
-    def removeSensors(self, sensors: typing.List[SensorInstrument]):
+    def removeSensors(self, sensors: List[SensorInstrument]):
         assert isinstance(sensors, list)
 
         for sensor in sensors:
@@ -319,7 +326,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
         row = self.mSensors.index(sensor)
         return self.createIndex(row, 0, sensor)
 
-    def addSensors(self, sensors: typing.List[SensorInstrument]):
+    def addSensors(self, sensors: List[SensorInstrument]):
         assert isinstance(sensors, list)
         n = len(sensors)
 
@@ -356,7 +363,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return len(self.mSensors)
 
-    def columnNames(self) -> typing.List[str]:
+    def columnNames(self) -> List[str]:
         return [self.mCNKey, self.mCNName]
 
     def columnCount(self, parent: QModelIndex):
@@ -431,7 +438,7 @@ class SensorSettingsTableModel(QAbstractTableModel):
 
         return None
 
-    def setData(self, index: QModelIndex, value: typing.Any, role: int = ...) -> bool:
+    def setData(self, index: QModelIndex, value: Any, role: int = ...) -> bool:
 
         if not index.isValid():
             return False
@@ -568,7 +575,6 @@ class SettingsDialog(QDialog):
         d[Keys.StartupRestoreProjectSettings] = self.cbStartupRestoreSettings.isChecked()
 
         d[Keys.SensorMatching] = flags
-
 
         d[Keys.SensorSpecs] = self.mSensorSpecsModel.specs()
         d[Keys.MapSize] = QSize(self.sbMapSizeX.value(), self.sbMapSizeY.value())

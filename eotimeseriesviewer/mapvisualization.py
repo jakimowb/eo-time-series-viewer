@@ -20,50 +20,46 @@
  ***************************************************************************/
 """
 
-import os
-import sys
-import re
-import fnmatch
-import collections
-import copy
 import enum
-import traceback
-import typing
 import math
-import numpy as np
+import re
+import sys
 import time
+import traceback
+from typing import Dict, Iterator, List, Tuple
+
+import numpy as np
 import qgis.utils
 from qgis.PyQt.QtCore import \
-    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel, QMargins
+    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
 from qgis.PyQt.QtGui import \
     QColor, QIcon, QGuiApplication, QMouseEvent, QKeySequence
 from qgis.PyQt.QtWidgets import \
-    QWidget, QLayoutItem, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QAction, QSpinBox, QCheckBox, QLineEdit, QWidgetItem, QSpacerItem, QLayout
+    QWidget, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
+    QToolBox, QDialog, QSpinBox, QLineEdit
 from qgis.PyQt.QtXml import \
     QDomDocument, QDomNode, QDomElement
-
 from qgis.core import \
-    QgsCoordinateReferenceSystem, QgsVectorLayer, QgsTextFormat, QgsProject, \
+    QgsCoordinateReferenceSystem, QgsTextFormat, QgsProject, \
     QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
     QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
     QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, QgsVector, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsColorRamp, \
-    QgsSingleBandPseudoColorRenderer, QgsExpressionContextGenerator, QgsExpressionContext, \
+    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsExpressionContextGenerator, \
+    QgsExpressionContext, \
     QgsExpressionContextUtils, QgsExpression, QgsExpressionContextScope
 from qgis.gui import \
-    QgsDockWidget, QgsMapCanvas, QgsMapTool, QgsCollapsibleGroupBox, QgsLayerTreeView, \
+    QgsDockWidget, QgsMapCanvas, QgsLayerTreeView, \
     QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
-    QgsProjectionSelectionWidget, QgsMessageBar, QgsFieldExpressionWidget, QgsFilterLineEdit, \
-    QgsExpressionLineEdit, QgsExpressionBuilderDialog, QgsAttributeForm
-from .externals.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
-from .externals.qps.layerproperties import VectorLayerTools
-from .externals.qps.maptools import MapTools
-from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
-from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
-from .utils import loadUi, SpatialPoint, SpatialExtent, datetime64
+    QgsProjectionSelectionWidget, QgsMessageBar, QgsExpressionBuilderDialog
+
 from eotimeseriesviewer import DIR_UI, debugLog
 from eotimeseriesviewer.utils import fixMenuButtons
+from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
+from .qgispluginsupport.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
+from .qgispluginsupport.qps.layerproperties import VectorLayerTools
+from .qgispluginsupport.qps.maptools import MapTools
+from .qgispluginsupport.qps.utils import SpatialPoint, SpatialExtent, loadUi, datetime64
+from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -121,7 +117,7 @@ class MapView(QFrame):
         loadUi(DIR_UI / 'mapview.ui', self)
         # self.setupUi(self)
 
-        from eotimeseriesviewer.settings import values, Keys, defaultValues, value
+        from eotimeseriesviewer.settings import Keys, defaultValues, value
 
         DEFAULT_VALUES = defaultValues()
         self.mMapBackgroundColor: QColor = value(Keys.MapBackgroundColor,
@@ -130,7 +126,7 @@ class MapView(QFrame):
                                                    default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
         self.mMapWidget = None
 
-        self.mLayerStyleInitialized: typing.Dict[SensorInstrument, bool] = dict()
+        self.mLayerStyleInitialized: Dict[SensorInstrument, bool] = dict()
 
         self.mTimeSeries = None
         self.mSensorLayerList = list()
@@ -173,9 +169,9 @@ class MapView(QFrame):
         # self.mLayerTreeModel = QgsLayerTreeModel(self.mLayerTree)
         self.mLayerTreeModel = MapViewLayerTreeModel(self.mLayerTree)
 
-        self.mLayerTreeModel.setFlags(QgsLayerTreeModel.AllowNodeChangeVisibility |
-                                      QgsLayerTreeModel.AllowNodeRename |
-                                      QgsLayerTreeModel.AllowNodeReorder)
+        self.mLayerTreeModel.setFlags(QgsLayerTreeModel.AllowNodeChangeVisibility
+                                      | QgsLayerTreeModel.AllowNodeRename
+                                      | QgsLayerTreeModel.AllowNodeReorder)
 
         self._createSensorNode()
         self.mLayerTreeView: QgsLayerTreeView
@@ -195,7 +191,7 @@ class MapView(QFrame):
         self.mIsVisible = True
         self.setTitle(name)
         self.tbInfoExpression: QLineEdit
-        self.mDefaultInfoExpressionToolTip:str = self.tbInfoExpression.toolTip()
+        self.mDefaultInfoExpressionToolTip: str = self.tbInfoExpression.toolTip()
 
         self.tbInfoExpression.textChanged.connect(self.onMapInfoExpressionChanged)
         self.btnShowInfoExpression.setDefaultAction(self.optionShowInfoExpression)
@@ -256,7 +252,7 @@ class MapView(QFrame):
         if dlg.exec() == QDialog.Accepted:
             self.tbInfoExpression.setText(dlg.expressionText())
 
-    def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
+    def __iter__(self) -> Iterator[TimeSeriesDate]:
         return iter(self.mapCanvases())
 
     @staticmethod
@@ -294,7 +290,6 @@ class MapView(QFrame):
 
         def copyLayerTree(parentSrc: QgsLayerTreeGroup, parentDst: QgsLayerTreeGroup):
 
-
             for child in parentSrc.children():
                 if 'eotsv/locked' in child.customProperties():
                     continue
@@ -320,8 +315,7 @@ class MapView(QFrame):
                 # move sensor node to last position
                 mapView.mLayerTree.removeChildNode(mapView.mLayerTreeSensorNode)
                 # will be added again to the bottom
-                #mapView.mLayerTree.addChildNode(mapView.mLayerTreeSensorNode)
-
+                # mapView.mLayerTree.addChildNode(mapView.mLayerTreeSensorNode)
 
         lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
         while lyrNode.nodeName() == 'MapViewProxyLayer':
@@ -416,7 +410,7 @@ class MapView(QFrame):
         """
         Slot that opens a SelectMapLayersDialog for any kind of layer
         """
-        from .externals.qps.utils import SelectMapLayersDialog
+        from .qgispluginsupport.qps.utils import SelectMapLayersDialog
         d = SelectMapLayersDialog()
 
         if filter == QgsMapLayerProxyModel.All:
@@ -533,7 +527,7 @@ class MapView(QFrame):
     def mapWidget(self):
         return self.mMapWidget
 
-    def mapCanvases(self) -> typing.List[MapCanvas]:
+    def mapCanvases(self) -> List[MapCanvas]:
         """
         Returns the MapCanvases related to this map view. Requires that this mapview was added to a MapWidget
         :return: [list-of-MapCanvases]
@@ -588,14 +582,14 @@ class MapView(QFrame):
         if old != title:
             self.tbName.setText(title)
 
-    def visibleLayers(self) -> typing.List[QgsMapLayer]:
+    def visibleLayers(self) -> List[QgsMapLayer]:
         """
         Returns the visible layers, including proxy layer for time-series data
         :return: [list-of-QgsMapLayers]
         """
         return [l for l in self.mLayerTree.checkedLayers() if isinstance(l, QgsMapLayer)]
 
-    def layers(self) -> typing.List[QgsMapLayer]:
+    def layers(self) -> List[QgsMapLayer]:
         """
         Returns all layers, including invisible or proxy layers for time-series data
         :return: [list-of-QgsMapLayers]
@@ -696,7 +690,7 @@ class MapView(QFrame):
             self.mCrossHairStyle.setVisibility(b)
             self.sigCrosshairChanged.emit()
 
-    def sensorProxyLayers(self) -> typing.List[SensorProxyLayer]:
+    def sensorProxyLayers(self) -> List[SensorProxyLayer]:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
         return [l for l in layers if isinstance(l, SensorProxyLayer)]
 
@@ -711,7 +705,7 @@ class MapView(QFrame):
                 return l
         return None
 
-    def sensorLayers(self, sensor: SensorInstrument) -> typing.List[SensorProxyLayer]:
+    def sensorLayers(self, sensor: SensorInstrument) -> List[SensorProxyLayer]:
         """
         :param sensor:
         :return:
@@ -723,7 +717,7 @@ class MapView(QFrame):
                     layers.append(l)
         return layers
 
-    def sensors(self) -> typing.List[SensorInstrument]:
+    def sensors(self) -> List[SensorInstrument]:
         """
         Returns a list of SensorsInstruments
         :return: [list-of-SensorInstruments]
@@ -783,8 +777,8 @@ class MapView(QFrame):
         :return:
         """
         assert isinstance(sensor, SensorInstrument)
-        return [c for c in self.mapCanvases() if isinstance(c, MapCanvas) and \
-                isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor() == sensor]
+        return [c for c in self.mapCanvases() if isinstance(c, MapCanvas)
+                and isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor() == sensor]
 
     def sensorLayer(self, sensor: SensorInstrument):
         """
@@ -1045,7 +1039,7 @@ class MapViewListModel(QAbstractListModel):
         self.endInsertRows()
         self.sigMapViewsAdded.emit(mapViews)
 
-    def doRefresh(self, mapViews: typing.List[MapView]):
+    def doRefresh(self, mapViews: List[MapView]):
         for mapView in mapViews:
             idx = self.mapView2idx(mapView)
             self.dataChanged.emit(idx, idx)
@@ -1053,7 +1047,7 @@ class MapViewListModel(QAbstractListModel):
     def removeMapView(self, mapView: MapView):
         self.removeMapViews([mapView])
 
-    def removeMapViews(self, mapViews: typing.List[MapView]):
+    def removeMapViews(self, mapViews: List[MapView]):
         assert isinstance(mapViews, list)
         for mv in mapViews:
             assert mv in self.mMapViewList
@@ -1112,7 +1106,8 @@ class MapViewListModel(QAbstractListModel):
             value = mapView
         return value
 
-def closest_index(tsd_target: TimeSeriesDate, tsds: typing.List[TimeSeriesDate]) -> int:
+
+def closest_index(tsd_target: TimeSeriesDate, tsds: List[TimeSeriesDate]) -> int:
     """
     Returns the index of the TimeSeriesDate closest to tsd_target
     :param tsd_target:
@@ -1190,8 +1185,8 @@ class MapWidget(QFrame):
         # self.mCurrentMapView: MapView = None
         # self.mCurrentMapCanvas: MapCanvas = None
 
-        self.mMapViews: typing.List[MapView] = []
-        self.mCanvases: typing.Dict[MapView, typing.List[MapCanvas]] = dict()
+        self.mMapViews: List[MapView] = []
+        self.mCanvases: Dict[MapView, List[MapCanvas]] = dict()
         self.mCanvasSignals = dict()
         self.mTimeSeries: TimeSeries = None
 
@@ -1305,7 +1300,7 @@ class MapWidget(QFrame):
                 mts = c.mapTools()
                 mts.activate(self.mMapToolKey)
 
-    def visibleTSDs(self) -> typing.List[TimeSeriesDate]:
+    def visibleTSDs(self) -> List[TimeSeriesDate]:
         """
         Returns the list of currently shown TimeSeriesDates.
         :return: [list-of-TimeSeriesDates]
@@ -1553,7 +1548,7 @@ class MapWidget(QFrame):
 
             mvNode = mvNode.nextSiblingElement()
 
-    def usedLayers(self) -> typing.List[QgsMapLayer]:
+    def usedLayers(self) -> List[QgsMapLayer]:
         layers = set()
         for c in self.mapCanvases():
             layers = layers.union(set(c.layers()))
@@ -1599,7 +1594,7 @@ class MapWidget(QFrame):
         slider = self.timeSlider()
         assert isinstance(slider, QSlider)
         n = len(self.timeSeries())
-        slider.setRange(0, n-1)
+        slider.setRange(0, n - 1)
         slider.setEnabled(n > 0)
 
         if n > 10:
@@ -1637,43 +1632,43 @@ class MapWidget(QFrame):
             px_per_date = px_width / self.mTimeSlider.maximum()
             px_dateS = int(self.mTimeSlider.value() * px_per_date)
             px_start_left = int(i0 * px_per_date)
-            px_start_right = px_width - int(i1 *px_per_date)
+            px_start_right = px_width - int(i1 * px_per_date)
         # handle_width = 12 if n < 1 else max(12, int(px_width * (len(visible_dates) / n)))
         css = """
-               QSlider::groove:horizontal {{
-            border: 1px solid #999999;
-            height: 8px; /* the groove expands to the size of the slider by default. by giving it a height, it has a fixed size */
-           /* background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);*/
-            /*
-            position: absolute;
-            left: 10px;
-            right: 10px;
-          */
-            /*width: 25px 100;*/
-            margin: 2px 0;
-        }}
-        
-        QSlider::handle:horizontal {{
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
-            border: 1px solid #5c5c5c;    
-            width: 24px;
-            margin: -2px 0; /* handle is placed by default on the contents rect of the groove. Expand outside the groove */
-            border-radius: 3px;
-        }}
-        
-        QSlider::sub-page {{
-            border: 1px solid lightgrey;
-            border-right: none;
-            background: yellow;
-            margin: 0px 0 0 {};
-        }}
-        
-        QSlider::add-page {{
-            border: 1px solid lightgrey;
-            border-left: none;
-            background: yellow;
-            margin: 0px {} 0 0;
-        }}
+QSlider::groove:horizontal {{
+    border: 1px solid #999999;
+    height: 8px; /* the groove expands to the size of the slider by default. by giving it a height, it has a fixed size */
+    /* background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #c4c4c4);*/
+    /*
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    */
+    /*width: 25px 100;*/
+    margin: 2px 0;
+}}
+
+QSlider::handle:horizontal {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+    border: 1px solid #5c5c5c;
+    width: 24px;
+    margin: -2px 0; /* handle is placed by default on the contents rect of the groove. Expand outside the groove */
+    border-radius: 3px;
+}}
+
+QSlider::sub-page {{
+    border: 1px solid lightgrey;
+    border-right: none;
+    background: yellow;
+    margin: 0px 0 0 {};
+}}
+
+QSlider::add-page {{
+    border: 1px solid lightgrey;
+    border-left: none;
+    background: yellow;
+    margin: 0px {} 0 0;
+}}
         """.format(px_start_left, px_start_right)
         self.mTimeSlider.setStyleSheet(css)
 
@@ -1740,7 +1735,7 @@ class MapWidget(QFrame):
             self.sigMapsPerMapViewChanged.emit(self.mMapViewColumns, self.mMapViewRows)
         return self.mapsPerMapView()
 
-    def mapsPerMapView(self) -> typing.Tuple[int, int]:
+    def mapsPerMapView(self) -> Tuple[int, int]:
         """
         Returns the number of maps per map view as tuple of columns x rows
         :return: (int, int)
@@ -1771,14 +1766,14 @@ class MapWidget(QFrame):
         """
         return self.mMapSize
 
-    def mapCanvases(self) -> typing.List[MapCanvas]:
+    def mapCanvases(self) -> List[MapCanvas]:
         """
         Returns all MapCanvases
         :return: [list-of-MapCanvases]
         """
         return self.findChildren(MapCanvas)
 
-    def mapViewCanvases(self, mapView: MapView) -> typing.List[MapCanvas]:
+    def mapViewCanvases(self, mapView: MapView) -> List[MapCanvas]:
         """
         Returns the MapCanvases related to a MapView, sorted in temporal order
         :param mapView: MapView
@@ -1817,7 +1812,7 @@ class MapWidget(QFrame):
         if len(visibleNow) > 0 and len(visibleAll) > 0:
             tsdLast = visibleNow[-1]
             i0 = closest_index(tsdLast, visibleAll)
-            i = min(i0 + int(0.5 * n_maps), len(visibleAll)-1)
+            i = min(i0 + int(0.5 * n_maps), len(visibleAll) - 1)
             self.setCurrentDate(visibleAll[i])
 
     def moveToPreviousTSDFast(self):
@@ -1941,7 +1936,7 @@ class MapWidget(QFrame):
             self.sigMapViewRemoved.emit(mapView)
         return mapView
 
-    def mapViews(self) -> typing.List[MapView]:
+    def mapViews(self) -> List[MapView]:
         """
         Returns a list of all MapViews
         :return: [list-of-MapViews]
@@ -1982,8 +1977,8 @@ class MapWidget(QFrame):
         else:
             self.mLastEOTSVMapCanvasCenter = self.mLastEOTSVMapCanvasCenter.toCrs(self.crs())
 
-        if not (isinstance(self.mLastEOTSVMapCanvasCenter, SpatialPoint) and \
-                isinstance(self.mLastQGISMapCanvasCenter, SpatialPoint)):
+        if not (isinstance(self.mLastEOTSVMapCanvasCenter, SpatialPoint)
+                and isinstance(self.mLastQGISMapCanvasCenter, SpatialPoint)):
             return
 
         shiftQGIS = recentQGISCenter - self.mLastQGISMapCanvasCenter
@@ -2154,14 +2149,14 @@ class MapWidget(QFrame):
             w.layout().update()
             w.update()
 
-    def _updateLayerCache(self) -> typing.List[MapCanvas]:
+    def _updateLayerCache(self) -> List[MapCanvas]:
         canvases = self.findChildren(MapCanvas)
         for c in canvases:
             assert isinstance(c, MapCanvas)
             self.mMapLayerCache[self._layerListKey(c)] = c.layers()
         return canvases
 
-    def _layerListKey(self, canvas: MapCanvas) -> typing.Tuple[MapView, TimeSeriesDate]:
+    def _layerListKey(self, canvas: MapCanvas) -> Tuple[MapView, TimeSeriesDate]:
         return (canvas.mapView(), canvas.tsd())
 
     def _updateCanvasDates(self, updateLayerCache: bool = True):
@@ -2184,7 +2179,7 @@ class MapWidget(QFrame):
 
             i_middle = closest_index(self.mCurrentDate, visible)
             i_visible = list(range(len(visible)))
-            i_visible = sorted(i_visible, key=lambda i: abs(i-i_middle))
+            i_visible = sorted(i_visible, key=lambda i: abs(i - i_middle))
             i_visible = i_visible[0: min(len(i_visible), nCanvases)]
 
             visible = sorted([visible[i] for i in i_visible])
@@ -2304,6 +2299,7 @@ class MapWidget(QFrame):
 
             mapView.setInfoExpressionError(errorText)
 
+
 class MapViewDock(QgsDockWidget):
     sigMapViewAdded = pyqtSignal(MapView)
     sigMapViewRemoved = pyqtSignal(MapView)
@@ -2365,8 +2361,6 @@ class MapViewDock(QgsDockWidget):
         self.actionAddMapView.triggered.connect(self.createMapView)
         self.actionRemoveMapView.triggered.connect(
             lambda: self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
-
-
 
         self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
@@ -2451,7 +2445,7 @@ class MapViewDock(QgsDockWidget):
         """
         return self.mMapWidget
 
-    def mapViews(self) -> typing.List[MapView]:
+    def mapViews(self) -> List[MapView]:
         """
         Returns the defined MapViews
         :return: [list-of-MapViews]
@@ -2772,10 +2766,6 @@ class MapViewDock(QgsDockWidget):
     def setShowCrosshair(self, b):
         for mapView in self.mMapViews:
             mapView.setCrosshairVisibility(b)
-
-    def index(self, mapView):
-        assert isinstance(mapView, MapView)
-        return self.mapViewsDefinitions.index(mapView)
 
     def setCurrentMapView(self, mapView):
         assert isinstance(mapView, MapView) and mapView in self.mapViews()

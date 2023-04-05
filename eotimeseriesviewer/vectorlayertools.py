@@ -1,10 +1,8 @@
-
-
 from qgis.PyQt.QtCore import pyqtSignal
-from .externals.qps.vectorlayertools import VectorLayerTools
+from .qgispluginsupport.qps.vectorlayertools import VectorLayerTools
+
 
 class EOTSVVectorLayerTools(VectorLayerTools):
-
     sigFocusVisibility = pyqtSignal()
 
     def __init__(self, *args, **kwds):

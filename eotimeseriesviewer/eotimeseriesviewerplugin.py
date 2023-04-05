@@ -23,11 +23,13 @@
 import os
 import sys
 import site
-import typing
+
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
+
+from eotimeseriesviewer import TITLE
 
 
 class EOTimeSeriesViewerPlugin:
@@ -50,14 +52,13 @@ class EOTimeSeriesViewerPlugin:
         eotimeseriesviewer.initAll()
 
     def initGui(self):
-        self.mToolbarActions: typing.List[QAction] = []
+        self.mToolbarActions: List[QAction] = []
         from qgis.utils import iface
         assert isinstance(self.iface, QgisInterface)
 
         import eotimeseriesviewer
 
         # init main UI
-        from eotimeseriesviewer import DIR_UI, jp, TITLE
         icon = eotimeseriesviewer.icon()
         action = QAction(icon, TITLE, iface)
         action.triggered.connect(self.run)

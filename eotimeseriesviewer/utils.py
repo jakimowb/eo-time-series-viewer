@@ -18,21 +18,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-
-
+from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtWidgets import QToolButton, QWidget, QAction, QMenu
 from qgis.gui import QgisInterface
 import qgis.utils
-
-from eotimeseriesviewer.externals.qps.utils import *
-
-import weakref
-import numpy as np
-
-jp = os.path.join
-dn = os.path.dirname
-
-MAP_LAYER_STORES = MAP_LAYER_STORES  # [QgsProject.instance()]
 
 
 def qgisInstance():
@@ -59,4 +48,3 @@ def fixMenuButtons(w: QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu) \
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
-

@@ -1,10 +1,9 @@
 import datetime
-import re
 import os
+import re
+
 import numpy as np
 from osgeo import gdal
-
-from qgis.core import QgsMapLayer, QgsRasterLayer
 from qgis.PyQt.QtCore import QDate
 
 # regular expression. compile them only once
@@ -83,7 +82,7 @@ def num2date(n, dt64=True, qDate=False):
         doy = 1
     try:
         date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy - 1)
-    except:
+    except Exception:
         s = ""
     if qDate:
         return QDate(date.year, date.month, date.day)

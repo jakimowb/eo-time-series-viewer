@@ -6,14 +6,15 @@ import sys
 import unittest
 import example
 import example.Images
+import numpy as np
 from osgeo import gdal, ogr, osr
 from qgis.core import QgsRasterLayer, QgsApplication
 from qgis.gui import QgsTaskManagerWidget
-from eotimeseriesviewer.utils import file_search
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.tests import TestObjects
-from eotimeseriesviewer.timeseries import *
 from eotimeseriesviewer.tests import EOTSVTestCase
-import xmlrunner
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource
 
 
 class TestTimeSeries(EOTSVTestCase):

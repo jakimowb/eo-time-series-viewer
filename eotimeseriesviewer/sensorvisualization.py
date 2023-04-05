@@ -18,16 +18,15 @@
  *                                                                         *
  ***************************************************************************/
 """
+from PyQt5.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, QModelIndex, QAbstractListModel
+from PyQt5.QtWidgets import QHeaderView
 # noinspection PyPep8Naming
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
 from qgis.gui import QgsDockWidget
 
 from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 from eotimeseriesviewer.timeseries import TimeSeries, SensorInstrument, TimeSeriesDate
-from eotimeseriesviewer.utils import loadUi
 
 
 class SensorDockUI(QgsDockWidget):

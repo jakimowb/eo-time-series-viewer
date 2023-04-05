@@ -19,19 +19,16 @@
  *                                                                         *
  ***************************************************************************/
 """
-import os, sys, re, pickle, tempfile, uuid
+import os
+import re
+import uuid
 from xml.etree import ElementTree
-from collections import OrderedDict
-import tempfile
-from osgeo import gdal, osr, ogr, gdalconst as gc
+from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF, QPoint
+from osgeo import gdal, osr, ogr
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
     QgsPolygon, QgsRectangle
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-
-from eotimeseriesviewer import Option, OptionListModel
+from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel, Option
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -71,7 +68,7 @@ GRA_tooltips = {
     'Med': 'median resampling, selects the median value of all non-NODATA contributing pixels.',
     'Q1': 'first quartile resampling, selects the first quartile value of all non-NODATA contributing pixels. ',
     'Q3': 'third quartile resampling, selects the third quartile value of all non-NODATA contributing pixels'
-    }
+}
 
 RESAMPLE_ALGS = OptionListModel()
 for GRAkey in [k for k in list(gdal.__dict__.keys()) if k.startswith('GRA_')]:
@@ -598,7 +595,7 @@ class VRTRaster(QObject):
         for f in toAdd:
             self.mSourceRasterBounds[f] = RasterBounds(f)
 
-        if len(srcFiles) > 0 and self.crs() == None:
+        if len(srcFiles) > 0 and self.crs() is None:
             self.setCrs(self.mSourceRasterBounds[srcFiles[0]].crs)
 
         elif len(srcFiles) == 0:
@@ -643,10 +640,6 @@ class VRTRaster(QObject):
 
         :param pathVRT: str, path of final VRT.
         :param warpedImageFolder: basename of folder that is created
-        :return:
-        """
-        """
-        :param pathVRT: 
         :return:
         """
         assert len(self) >= 1, 'VRT needs to define at least 1 band'

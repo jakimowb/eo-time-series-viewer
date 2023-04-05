@@ -32,7 +32,8 @@ from qgis.PyQt.QtWidgets import QHeaderView, QDialog, QDialogButtonBox, QFileDia
 from qgis.core import QgsRasterLayer, QgsProviderRegistry, QgsProject
 from qgis.gui import QgsFileWidget, QgisInterface
 import qgis.utils
-from eotimeseriesviewer.utils import read_vsimem, loadUi
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import read_vsimem, loadUi, write_vsimem
 from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.dateparser import extractDateTimeGroup
@@ -299,7 +300,7 @@ class InputStackTableModel(QAbstractTableModel):
         :param i: index where to add the first datasource.
         """
 
-        if i == None:
+        if i is None:
             i = self.rowCount()
 
         if not isinstance(paths, list):
@@ -828,7 +829,7 @@ class StackedBandInputDialog(QDialog):
             return writtenFiles
 
         self.progressBar.setValue(0)
-        from eotimeseriesviewer.virtualrasters import write_vsimem, read_vsimem
+
         for i, outVRT in enumerate(self.tableModelOutputImages):
             assert isinstance(outVRT, OutputVRTDescription)
             xml = self.tableModelOutputImages.vrtXML(outVRT)

@@ -20,6 +20,8 @@
  ***************************************************************************/
  This script initializes the plugin, making it known to QGIS.
 """
+import pathlib
+import site
 
 
 # noinspection PyPep8Naming
@@ -29,10 +31,9 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
-    import os, sys
-    d = os.path.dirname(__file__)
-    if not d in sys.path:
-        sys.path.append(d)
+
+    d = pathlib.Path(__file__).parent
+    site.addsitedir(d)
 
     from eotimeseriesviewer.eotimeseriesviewerplugin import EOTimeSeriesViewerPlugin
     return EOTimeSeriesViewerPlugin(iface)

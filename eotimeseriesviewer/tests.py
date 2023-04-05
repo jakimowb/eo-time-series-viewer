@@ -1,4 +1,4 @@
-        # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 /***************************************************************************
                               EO Time Series Viewer
@@ -22,49 +22,41 @@
 
 import os
 import pathlib
+
 import numpy as np
-from qgis.gui import *
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-import eotimeseriesviewer.externals.qps.testing
-import eotimeseriesviewer.externals.qps
-from eotimeseriesviewer.utils import file_search
 from osgeo import osr, gdal
-import example
-from eotimeseriesviewer import DIR_EXAMPLES, DIR_QGIS_RESOURCES, DIR_UI, DIR_REPO
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import QgsApplication
+
+from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.resources import initResourceFile
+from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
-from eotimeseriesviewer.externals.qps.testing import TestObjects, TestCase, start_app
-from eotimeseriesviewer.externals.qps.resources import initQtResources
 
 
 class EOTSVTestCase(TestCase):
     @classmethod
-    def setUpClass(cls):
-        if DIR_QGIS_RESOURCES.is_dir():
-            initQtResources(DIR_QGIS_RESOURCES)
+    def setUpClass(cls, *args, **kwds):
+        super().setUpClass(*args, *kwds)
 
-        initQtResources(DIR_REPO / 'eotimeseriesviewer' / 'externals')
         eotsv_resources = DIR_UI / 'eotsv_resources_rc.py'
         assert eotsv_resources.is_file(), \
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
-        initQtResources(DIR_UI)
-        super().setUpClass()
-        import os
-        os.environ['EOTSV_DEBUG'] = 'True'
+        initResourceFile(eotsv_resources)
 
     def closeBlockingWidget(self):
         """
         Closes the active blocking (modal) widget
         """
-        w = QApplication.instance().activeModalWidget()
+        w = QgsApplication.instance().activeModalWidget()
         if isinstance(w, QWidget):
             print('Close blocking {} "{}"'.format(w.__class__.__name__, w.windowTitle()))
             w.close()
 
 
 def testRasterFiles() -> list:
-    return list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
+    return list(file_search(DIR_EXAMPLES, '*.tif', recursive=True))
 
 
 def createTimeSeries(self) -> TimeSeries:
@@ -76,10 +68,11 @@ def createTimeSeries(self) -> TimeSeries:
     return TS
 
 
-class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
+class TestObjects(TObj):
     """
     Creates objects to be used for testing. It is preferred to generate objects in-memory.
     """
+
     @staticmethod
     def createTimeSeries() -> TimeSeries:
 
@@ -176,7 +169,7 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
 
     @staticmethod
     def createMultiSourceTimeSeries() -> list:
-        import example
+
         # real files
         files = TestObjects.testImagePaths()
         movedFiles = []
@@ -197,7 +190,6 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
             dsDst.SetMetadata(dsSrc.GetMetadata(''), '')
             dsDst.FlushCache()
 
-
             dsDst = None
             dsDst = gdal.Open(pathDst)
             assert list(dsDst.GetGeoTransform()) == gt
@@ -208,4 +200,3 @@ class TestObjects(eotimeseriesviewer.externals.qps.testing.TestObjects):
             final.append(f1)
             final.append(f2)
         return final
-

@@ -26,7 +26,7 @@ import os
 import pathlib
 import re
 import shutil
-import typing
+
 import site
 import io
 import docutils.core
@@ -71,7 +71,7 @@ def aboutText() -> str:
 MD.mAbout = aboutText()
 
 
-def scantree(path, pattern=re.compile(r'.$')) -> typing.Iterator[pathlib.Path]:
+def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
     """
     Recursively returns file paths in directory
     :param path: root directory to search in

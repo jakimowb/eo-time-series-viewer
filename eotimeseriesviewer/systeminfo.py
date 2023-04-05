@@ -20,26 +20,26 @@
 """
 # noinspection PyPep8Naming
 
-import sys
 import os
 import re
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
 from collections import OrderedDict
-from qgis.gui import QgsDockWidget
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
 
 import numpy as np
+from PyQt5.QtCore import QAbstractTableModel, QModelIndex
+from PyQt5.QtGui import QCursor
+from PyQt5.QtWidgets import QTableView, QMenu, QApplication, QFileDialog
+from qgis.PyQt import Qt
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
+from qgis.gui import QgsDockWidget
+
 from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.utils import loadUi, SpatialExtent
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 
 PSUTIL_AVAILABLE = False
 try:
-    import psutil
-
+    __import__('psutil')
     PSUTIL_AVAILABLE = True
-except:
+except ModuleNotFoundError:
     pass
 
 
@@ -140,7 +140,7 @@ class MapLayerRegistryModel(QAbstractTableModel):
         assert isinstance(lyr, QgsMapLayer)
         # return self.createIndex(self.mSpecLib.index(profile), 0)
         # pw = self.mProfileWrappers[profile]
-        if not lyr in self.mLayers:
+        if lyr not in self.mLayers:
             return None
         return self.createIndex(self.mLayers.index(lyr), 0)
 
@@ -239,10 +239,10 @@ class DataLoadingModel(QAbstractTableModel):
             sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda n: len(self.mLoadingTimes[n]), reverse=rev)
         elif columnName == self.cAvgAll:
             sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda name:
-            np.asarray(self.mLoadingTimes[name]).mean(), reverse=rev)
+                                 np.asarray(self.mLoadingTimes[name]).mean(), reverse=rev)
         elif columnName == self.cAvg10:
             sortedNames = sorted(self.mLoadingTimes.keys(), key=lambda name:
-            np.asarray(self.mLoadingTimes[name][-10:]).mean(), reverse=rev)
+                                 np.asarray(self.mLoadingTimes[name][-10:]).mean(), reverse=rev)
 
         if sortedNames is not None:
             tmp = OrderedDict([(name, self.mLoadingTimes[name]) for name in sortedNames])
@@ -330,7 +330,7 @@ class SystemInfoDock(QgsDockWidget):
 
         self.btnResetDataLoadingModel.clicked.connect(resetModel)
 
-        self.labelPSUTIL.setVisible(PSUTIL_AVAILABLE == False)
+        self.labelPSUTIL.setVisible(PSUTIL_AVAILABLE is False)
         if PSUTIL_AVAILABLE:
             self.tableViewSystemParameters.setVisible(True)
             # self.systemInfoModel = SystemInfoModel()

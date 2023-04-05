@@ -1,9 +1,7 @@
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtXml import *
+from PyQt5.QtCore import QMimeData, QUrl, QByteArray
+from PyQt5.QtXml import QDomNamedNodeMap, QDomDocument
+from qgis._core import QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer
 from qgis.core import QgsReadWriteContext, QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer
-from qgis.gui import QgsLayerTreeLayer, QgsLayerTreeGroup, QgsLayerTree
-import re
-from qgis.gui import *
 
 MDF_DOCKTREEMODELDATA = 'application/enmapbox.docktreemodeldata'
 MDF_DOCKTREEMODELDATA_XML = 'dock_tree_model_data'

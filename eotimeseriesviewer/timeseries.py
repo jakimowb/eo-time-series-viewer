@@ -18,39 +18,46 @@
  *                                                                         *
  ***************************************************************************/
 """
-# noinspection PyPep8Naming
-import os
 import bisect
 import collections
 import datetime
 import enum
 import json
+# noinspection PyPep8Naming
+import os
 import pathlib
 import pickle
 import re
-import typing
 import urllib
+from typing import List, Iterator, Tuple, Dict, Set, Union, Any
 
-from osgeo import osr, ogr, gdal_array
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer.utils import relativePath, gdalDataset
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
+import numpy as np
+from PyQt5.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, Qt, \
+    QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
+from PyQt5.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
+from PyQt5.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
+from osgeo import gdal
+from osgeo import osr, ogr
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis.core import QgsRasterLayerTemporalProperties
 from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
-    QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, \
-    QgsTaskManager, QgsPoint, QgsPointXY, \
+    QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
+    QgsPointXY, \
     QgsMimeDataUtils, QgsCoordinateTransform
-
-try:
-    from qgis.core import QgsRasterLayerTemporalProperties
-except:
-    pass
 from qgis.gui import QgsDockWidget, QgisInterface
-from .externals.qps.utils import datetime64
+
+from eotimeseriesviewer import DIR_UI
+from eotimeseriesviewer import messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64
+from eotimeseriesviewer.dateparser import parseDateFromDataSet
+from qgis.PyQt.QtCore import QRegExp
+from eotimeseriesviewer.virtualrasters import px2geo
+from .qgispluginsupport.qps.utils import datetime64, bandClosestToWavelength, SpatialExtent, gdalDataset, \
+    SpatialPoint, \
+    geo2px, relativePath, loadUi
+
+gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
 DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
 
@@ -63,17 +70,6 @@ LUT_WAVELENGTH_UNITS[r'um'] = r'μm'
 LUT_WAVELENGTH_UNITS[r'millimeters'] = r'mm'
 LUT_WAVELENGTH_UNITS[r'centimeters'] = r'cm'
 LUT_WAVELENGTH_UNITS[r'decimeters'] = r'dm'
-
-from osgeo import gdal
-from eotimeseriesviewer.dateparser import DOYfromDatetime64
-from eotimeseriesviewer.utils import SpatialExtent, loadUi, px2geo, geo2px, SpatialPoint
-
-gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
-
-import numpy as np
-
-from eotimeseriesviewer import messageLog
-from eotimeseriesviewer.dateparser import parseDateFromDataSet
 
 
 def transformGeometry(geom, crsSrc, crsDst, trans=None):
@@ -251,7 +247,7 @@ class SensorInstrument(QObject):
         path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
         drv: gdal.Driver = gdal.GetDriverByName('ENVI')
         self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
-        from eotimeseriesviewer.tests import TestObjects
+
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
         self.mMockupDS.SetGeoTransform([1, 1, 0.0, 1, 0.0, -1])
@@ -292,7 +288,6 @@ class SensorInstrument(QObject):
         :param wl_unit: str
         :return: int
         """
-        from .utils import bandClosestToWavelength
         return bandClosestToWavelength(self.mMockupDS, wl, wl_unit=wl_unit)
 
     def proxyRasterLayer(self) -> QgsRasterLayer:
@@ -439,7 +434,7 @@ class TimeSeriesSource(object):
     MIMEDATA_FORMATS = ['text/uri-list']
 
     @classmethod
-    def fromMimeData(cls, mimeData: QMimeData) -> typing.List:
+    def fromMimeData(cls, mimeData: QMimeData) -> List:
         sources = []
         if mimeData.hasUrls():
             for url in mimeData.urls():
@@ -448,10 +443,9 @@ class TimeSeriesSource(object):
                     tss = TimeSeriesSource.create(url)
                     if isinstance(tss, TimeSeriesSource):
                         sources.append(tss)
-                except:
+                except Exception:
                     pass
         return sources
-
 
     @classmethod
     def fromJson(cls, jsonData: str):
@@ -547,7 +541,7 @@ class TimeSeriesSource(object):
         self.mTimeSeriesDate = None
         try:
             dataset = gdalDataset(dataset)
-        except:
+        except Exception:
             pass
 
         if isinstance(dataset, gdal.Dataset):
@@ -829,7 +823,7 @@ class TimeSeriesDate(QAbstractTableModel):
         self.mSensor: SensorInstrument = sensor
         self.mDate: np.datetime64 = None
         self.mDOY: int = None
-        self.mSources: typing.List[TimeSeriesSource] = []
+        self.mSources: List[TimeSeriesSource] = []
         self.mMasks = []
         self.mTimeSeries: TimeSeries = timeSeries
         self.setDate(date)
@@ -892,14 +886,14 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mSensor
 
-    def sources(self) -> typing.List[TimeSeriesSource]:
+    def sources(self) -> List[TimeSeriesSource]:
         """
         Returns the source images
         :return: [list-of-TimeSeriesSource]
         """
         return self.mSources
 
-    def sourceUris(self) -> typing.List[str]:
+    def sourceUris(self) -> List[str]:
         """
         Returns all source URIs as list of strings-
         :return: [list-of-str]
@@ -1007,7 +1001,7 @@ class TimeSeriesDate(QAbstractTableModel):
     def __getitem__(self, slice):
         return self.mSources[slice]
 
-    def __iter__(self) -> typing.Iterator[TimeSeriesSource]:
+    def __iter__(self) -> Iterator[TimeSeriesSource]:
         """
         Iterator over all sources
         """
@@ -1181,12 +1175,12 @@ class TimeSeriesFindOverlapTask(QgsTask):
 
     def __init__(self,
                  extent: SpatialExtent,
-                 time_series_sources: typing.List[TimeSeriesSource],
+                 time_series_sources: List[TimeSeriesSource],
                  date_of_interest: np.datetime64 = None,
                  max_forward: int = -1,
                  max_backward: int = -1,
                  callback=None,
-                 description: str =None,
+                 description: str = None,
                  sample_size: int = 16,
                  progress_interval: int = 2):
         """
@@ -1207,13 +1201,13 @@ class TimeSeriesFindOverlapTask(QgsTask):
             if date_of_interest is not None and (max_forward != -1 or max_backward != -1):
                 description = f'Find image overlap ({str(date_of_interest)})'
             else:
-                description = f'Find image overlap (all dates)'
+                description = 'Find image overlap (all dates)'
 
         super().__init__(description=description, flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
         assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
-        self.mTSS: typing.List[typing.Tuple[str, np.datetime64]] = \
+        self.mTSS: List[Tuple[str, np.datetime64]] = \
             [(tss.uri(), tss.date()) for tss in time_series_sources]
 
         self.mDates = set([t[1] for t in self.mTSS])
@@ -1236,7 +1230,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
         self.mTargetExtent = extent.__copy__()
         self.mSampleSize = sample_size
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
-        self.mIntersections: typing.Dict[str, bool] = dict()
+        self.mIntersections: Dict[str, bool] = dict()
         self.mError = None
 
         emptyStats: QgsRasterBandStats = QgsRasterBandStats()
@@ -1245,7 +1239,7 @@ class TimeSeriesFindOverlapTask(QgsTask):
         self.mEmptyMinMax = (emptyMin, emptyMax)
 
         targetCRS: QgsCoordinateReferenceSystem = self.mTargetExtent.crs()
-        self.mExtentLookup: typing.Dict[str, SpatialExtent] = dict()
+        self.mExtentLookup: Dict[str, SpatialExtent] = dict()
         self.mExtentLookup[targetCRS.toWkt()] = self.mTargetExtent
 
     def testTSS(self, tssUri: str) -> bool:
@@ -1279,11 +1273,11 @@ class TimeSeriesFindOverlapTask(QgsTask):
 
             x0 = max(ul.x(), 0)
             y0 = max(ul.y(), 0)
-            x1 = min(lr.x(), ds.RasterXSize-1)
-            y1 = min(lr.y(), ds.RasterYSize-1)
+            x1 = min(lr.x(), ds.RasterXSize - 1)
+            y1 = min(lr.y(), ds.RasterYSize - 1)
 
-            xsize = x1-x0+1
-            ysize = y1-y0+1
+            xsize = x1 - x0 + 1
+            ysize = y1 - y0 + 1
 
             if xsize <= 0 or ysize <= 0:
                 return False
@@ -1382,8 +1376,8 @@ class TimeSeriesLoadingTask(QgsTask):
     sigMessage = pyqtSignal(str, bool)
 
     def __init__(self,
-                 files: typing.List[str],
-                 visibility: typing.List[bool] = None,
+                 files: List[str],
+                 visibility: List[bool] = None,
                  description: str = "Load Images",
                  callback=None,
                  progress_interval: int = 3):
@@ -1392,16 +1386,16 @@ class TimeSeriesLoadingTask(QgsTask):
 
         assert progress_interval >= 1
 
-        self.mFiles: typing.List[str] = files
+        self.mFiles: List[str] = files
         if visibility:
             assert isinstance(visibility, list) and len(visibility) == len(files)
-            self.mVisibility: typing.List[bool] = [b == True for b in visibility]
+            self.mVisibility: List[bool] = [b is True for b in visibility]
         else:
-            self.mVisibility: typing.List[bool] = [True for f in files]
-        self.mSources: typing.List[TimeSeriesSource] = []
+            self.mVisibility: List[bool] = [True for f in files]
+        self.mSources: List[TimeSeriesSource] = []
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mCallback = callback
-        self.mInvalidSources: typing.List[typing.Tuple[str, Exception]] = []
+        self.mInvalidSources: List[Tuple[str, Exception]] = []
         self.mError: Exception = None
 
     def canCancel(self) -> bool:
@@ -1487,7 +1481,7 @@ class TimeSeries(QAbstractItemModel):
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
         self.mLUT_Path2TSD = {}
-        self.mVisibleDates: typing.Set[TimeSeriesDate] = set()
+        self.mVisibleDates: Set[TimeSeriesDate] = set()
 
         self.cnDate = 'Date'
         self.cnSensor = 'Sensor'
@@ -1528,7 +1522,7 @@ class TimeSeries(QAbstractItemModel):
             from eotimeseriesviewer.settings import value, Keys
             runAsync = value(Keys.QgsTaskAsync, True)
 
-        tssToTest: typing.List[TimeSeriesSource] = []
+        tssToTest: List[TimeSeriesSource] = []
         if isinstance(ext, SpatialExtent):
             changed = False
             for tsd in self:
@@ -1540,9 +1534,6 @@ class TimeSeries(QAbstractItemModel):
 
         if len(tssToTest) > 0:
             from eotimeseriesviewer.settings import value, Keys
-
-
-
 
             qgsTask = TimeSeriesFindOverlapTask(ext,
                                                 tssToTest,
@@ -1664,14 +1655,14 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-    def sensors(self) -> typing.List[SensorInstrument]:
+    def sensors(self) -> List[SensorInstrument]:
         """
         Returns the list of sensors derived from the TimeSeries data sources
         :return: [list-of-SensorInstruments]
         """
         return self.mSensors[:]
 
-    def loadFromFile(self, path:typing.Union[str, pathlib.Path], n_max=None, runAsync: bool = None):
+    def loadFromFile(self, path: Union[str, pathlib.Path], n_max=None, runAsync: bool = None):
         """
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
@@ -1836,7 +1827,7 @@ class TimeSeries(QAbstractItemModel):
     def hideTSDs(self, tsds):
         self.showTSDs(tsds, False)
 
-    def removeTSDs(self, tsds: typing.List[TimeSeriesDate]):
+    def removeTSDs(self, tsds: List[TimeSeriesDate]):
         """
         Removes a list of TimeSeriesDate
         :param tsds: [list-of-TimeSeriesDate]
@@ -1851,11 +1842,11 @@ class TimeSeries(QAbstractItemModel):
         toRemove = sorted(list(toRemove))
         removed = []
         while len(toRemove) > 0:
-            block: typing.List[TimeSeriesDate] = [toRemove.pop(0)]
+            block: List[TimeSeriesDate] = [toRemove.pop(0)]
 
             r0 = r1 = self.tsdToIdx(block[0]).row()
             while len(toRemove) > 0:
-                if self.index(r1+1, 0).data(Qt.UserRole) != toRemove[0]:
+                if self.index(r1 + 1, 0).data(Qt.UserRole) != toRemove[0]:
                     break
                 else:
                     block.append(toRemove.pop(0))
@@ -1879,7 +1870,7 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def timeSeriesSources(self, copy: bool = False, sensor: SensorInstrument = None) -> typing.List[TimeSeriesSource]:
+    def timeSeriesSources(self, copy: bool = False, sensor: SensorInstrument = None) -> List[TimeSeriesSource]:
         """
         Returns a flat list of all sources
         :param copy:
@@ -1896,7 +1887,7 @@ class TimeSeries(QAbstractItemModel):
                     tss = tss.clone()
                 yield tss
 
-    def tsds(self, date: np.datetime64 = None, sensor: SensorInstrument = None) -> typing.List[TimeSeriesDate]:
+    def tsds(self, date: np.datetime64 = None, sensor: SensorInstrument = None) -> List[TimeSeriesDate]:
 
         """
         Returns a list of  TimeSeriesDate of the TimeSeries. By default all TimeSeriesDate will be returned.
@@ -1923,7 +1914,7 @@ class TimeSeries(QAbstractItemModel):
         :param sensor: SensorInstrument
         """
         assert isinstance(sensor, SensorInstrument)
-        if not sensor in self.mSensors:
+        if sensor not in self.mSensors:
             sensor.sigNameChanged.connect(self.onSensorNameChanged)
             self.mSensors.append(sensor)
             self.sigSensorAdded.emit(sensor)
@@ -1971,7 +1962,7 @@ class TimeSeries(QAbstractItemModel):
             return sensor
         return None
 
-    def addTimeSeriesSources(self, sources: typing.List[TimeSeriesSource]):
+    def addTimeSeriesSources(self, sources: List[TimeSeriesSource]):
         """
         Adds a list of time series sources to the time series
         :param sources:  list-of-TimeSeriesSources
@@ -1990,7 +1981,7 @@ class TimeSeries(QAbstractItemModel):
 
     def addSources(self,
                    sources: list,
-                   visibility: typing.List[bool] = None,
+                   visibility: List[bool] = None,
                    runAsync: bool = None):
         """
         Adds source images to the TimeSeries
@@ -2056,7 +2047,6 @@ class TimeSeries(QAbstractItemModel):
                 if len(task.mIntersections) > 0:
                     self.onFoundOverlap(task.mIntersections)
             self.sigFindOverlapTaskFinished.emit()
-
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """
@@ -2157,7 +2147,7 @@ class TimeSeries(QAbstractItemModel):
     def __len__(self):
         return len(self.mTSDs)
 
-    def __iter__(self) -> typing.Iterator[TimeSeriesDate]:
+    def __iter__(self) -> Iterator[TimeSeriesDate]:
         return iter(self.mTSDs)
 
     def __getitem__(self, slice):
@@ -2311,7 +2301,7 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-    def visibleTSDs(self) -> typing.List[TimeSeriesDate]:
+    def visibleTSDs(self) -> List[TimeSeriesDate]:
         """
         Returns the visible TSDs (which have TimeSeriesSource to be shown)
         :return:
@@ -2460,7 +2450,7 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-    def setData(self, index: QModelIndex, value: typing.Any, role: int):
+    def setData(self, index: QModelIndex, value: Any, role: int):
 
         if not index.isValid():
             return False
@@ -2618,8 +2608,8 @@ class TimeSeriesTreeView(QTreeView):
             a.setToolTip(f'Sets the current map date to {node.date()}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 
-            a = menu.addAction('Move to extent'.format(node.date()))
-            a.setToolTip(f'Sets the current map extent')
+            a = menu.addAction('Move to extent {}'.format(node.date()))
+            a.setToolTip('Sets the current map extent')
             a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
 
             menu.addSeparator()
@@ -2655,14 +2645,14 @@ class TimeSeriesTreeView(QTreeView):
         if isinstance(extent, SpatialExtent):
             self.sigMoveToExtent.emit(extent)
 
-    def openInQGIS(self, tssList: typing.List[TimeSeriesSource]):
+    def openInQGIS(self, tssList: List[TimeSeriesSource]):
         import qgis.utils
         iface = qgis.utils.iface
         if isinstance(iface, QgisInterface):
             layers = [tss.asRasterLayer() for tss in tssList]
             QgsProject.instance().addMapLayers(layers, True)
 
-    def setClipboardUris(self, tssList: typing.List[TimeSeriesSource]):
+    def setClipboardUris(self, tssList: List[TimeSeriesSource]):
         urls = []
         paths = []
         for tss in tssList:
@@ -2678,12 +2668,12 @@ class TimeSeriesTreeView(QTreeView):
         md.setText('\n'.join(paths))
         md.setUrls(urls)
 
-        QApplication.clipboard().setMimeData(md)
+        QgsApplication.clipboard().setMimeData(md)
 
     def timeseries(self) -> TimeSeries:
         return self.model().sourceModel()
 
-    def onSetCheckState(self, tsds: typing.List[TimeSeriesDate], checkState: Qt.CheckStateRole):
+    def onSetCheckState(self, tsds: List[TimeSeriesDate], checkState: Qt.CheckStateRole):
         """
         Sets a ChecState to all selected rows
         :param checkState: Qt.CheckState
@@ -2706,7 +2696,7 @@ class TimeSeriesTreeView(QTreeView):
             for k, values in R.items():
                 info.append(delimiter.join([str(v) for v in values]))
             info = '\n'.join(info)
-            QApplication.clipboard().setText(info)
+            QgsApplication.clipboard().setText(info)
 
 
 regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
@@ -2950,8 +2940,8 @@ class TimeSeriesFilterModel(QSortFilterProxyModel):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
         self.setRecursiveFilteringEnabled(True)
-        #self.setSortRole(Qt.EditRole)
-        #self.setDynamicSortFilter(True)
+        # self.setSortRole(Qt.EditRole)
+        # self.setDynamicSortFilter(True)
 
     def filterAcceptsRow(self, sourceRow, sourceParent):
         reg = self.filterRegExp()
@@ -2969,7 +2959,6 @@ class TimeSeriesFilterModel(QSortFilterProxyModel):
 
 
 class TimeSeriesWidget(QMainWindow):
-
     sigTimeSeriesDatesSelected = pyqtSignal(bool)
 
     def __init__(self, *args, **kwds):
@@ -2991,7 +2980,6 @@ class TimeSeriesWidget(QMainWindow):
         self.optionCaseSensitive.toggled.connect(self.onFilterExpressionChanged)
         self.optionUseRegex.toggled.connect(self.onFilterExpressionChanged)
         self.tbFilterExpression.textChanged.connect(self.onFilterExpressionChanged)
-
 
     def onFilterExpressionChanged(self, *args):
         expression: str = self.tbFilterExpression.text()
@@ -3129,16 +3117,3 @@ class TimeSeriesDock(QgsDockWidget):
 
     def timeSeriesWidget(self) -> TimeSeriesWidget:
         return self.mTimeSeriesWidget
-
-
-
-if __name__ == '__main__':
-    q = QApplication([])
-    p = QProgressBar()
-    p.setRange(0, 0)
-
-    p.show()
-    q.exec_()
-
-    print(convertMetricUnit(100, 'cm', 'm'))
-    print(convertMetricUnit(1, 'm', 'um'))

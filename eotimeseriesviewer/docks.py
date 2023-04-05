@@ -2,14 +2,13 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.core import QgsVectorLayer, QgsVectorLayerTools
 from qgis.gui import QgsDockWidget
-from eotimeseriesviewer.externals.qps.vectorlayertools import VectorLayerTools
-from eotimeseriesviewer.externals.qps.speclib.core import SpectralLibrary
-from eotimeseriesviewer.externals.qps.speclib.gui import SpectralLibraryWidget, SpectralLibraryPanel
 from eotimeseriesviewer.labeling import LabelWidget, gotoNextFeature, gotoPreviousFeature
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
+    SpectralLibraryWidget
 
 
 class SpectralLibraryDockWidget(SpectralLibraryPanel):
-    def __init__(self, speclib: SpectralLibrary, *args, **kwds):
+    def __init__(self, speclib: QgsVectorLayer, *args, **kwds):
         super().__init__(*args, speclib=speclib, **kwds)
         assert isinstance(self.SLW, SpectralLibraryWidget)
         self.mActionNextFeature = QAction('Next Feature', parent=self)
@@ -34,7 +33,7 @@ class SpectralLibraryDockWidget(SpectralLibraryPanel):
     def setVectorLayerTools(self, tools: QgsVectorLayerTools):
         self.SLW.setVectorLayerTools(tools)
 
-    def spectralLibrary(self) -> SpectralLibrary:
+    def spectralLibrary(self) -> QgsVectorLayer:
         return self.SLW.spectralLibrary()
 
 

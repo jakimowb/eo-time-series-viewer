@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    
+    mapviewscrollarea.py
     ---------------------
     Date                 : 10.01.2018
     Copyright            : (C) 2018 by Benjamin Jakimow
@@ -16,10 +16,11 @@
 *                                                                         *
 ***************************************************************************
 """
-# noinspection PyPep8Naming
+from PyQt5.QtCore import QPoint
+from PyQt5.QtWidgets import QScrollArea, QWidget
 
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtWidgets import *
+
+# noinspection PyPep8Naming
 
 
 class MapViewScrollArea(QScrollArea):

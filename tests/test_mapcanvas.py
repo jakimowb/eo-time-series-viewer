@@ -18,21 +18,17 @@
 """
 # noinspection PyPep8Naming
 import unittest
-import os
-import xmlrunner
-from eotimeseriesviewer.tests import start_app, testRasterFiles, TestObjects, EOTSVTestCase
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtWidgets import *
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsWkbTypes, QgsProject
+
+from PyQt5.QtCore import QPoint
+from PyQt5.QtWidgets import QMenu
+from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
 from qgis.gui import QgsMapCanvas, QgsFontButton
 
-from eotimeseriesviewer import SpatialPoint, SpatialExtent
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase
 
-
-# set to False to show GUI elements
 
 class TestMapCanvas(EOTSVTestCase):
     """Test resources work."""
@@ -64,6 +60,8 @@ class TestMapCanvas(EOTSVTestCase):
         c.setExtent(lyr1.extent())
 
         self.showGui(c)
+        del c
+        QgsProject.instance().removeAllMapLayers()
 
     def test_contextMenu(self):
         files = testRasterFiles()
@@ -165,9 +163,8 @@ class TestMapCanvas(EOTSVTestCase):
         m.sigCrosshairPositionChanged.connect(onChanged)
 
         center = SpatialPoint.fromMapCanvasCenter(m)
-        import eotimeseriesviewer.externals.qps.maptools as mts
         m.setCrosshairVisibility(True)
-        mt = mts.SpectralProfileMapTool(m)
+        mt = SpectralProfileMapTool(m)
         m.setMapTool(mt)
         self.assertTrue(m.crosshairPosition() == center)
 
@@ -179,5 +176,5 @@ class TestMapCanvas(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

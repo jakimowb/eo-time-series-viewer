@@ -26,6 +26,12 @@ from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
 
 __version__ = '1.17'  # sub-subversion number is added automatically
+
+from eotimeseriesviewer.qgispluginsupport.qps import registerEditorWidgets, registerExpressionFunctions, \
+    registerMapLayerConfigWidgetFactories, unregisterEditorWidgets, unregisterExpressionFunctions, \
+    unregisterMapLayerConfigWidgetFactories
+from eotimeseriesviewer.qgispluginsupport.qps.resources import initQtResources
+
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
@@ -78,39 +84,6 @@ def debugLog(msg: str = '', skip_prefix: bool = False):
         QgsApplication.messageLog().logMessage(msg, tag=LOG_MESSAGE_TAG, level=Qgis.Info)
 
 
-# import QPS modules
-# skip imports when on RTD, as we can not install the full QGIS environment as required
-# https://docs.readthedocs.io/en/stable/builds.html
-
-if True and not os.environ.get('READTHEDOCS') in ['True', 'TRUE', True]:
-    debugLog('load crosshair')
-    from .externals.qps.crosshair.crosshair import CrosshairStyle, CrosshairWidget, CrosshairMapCanvasItem, \
-        CrosshairDialog, getCrosshairStyle
-
-    debugLog('load plotstyling')
-    from .externals.qps.plotstyling.plotstyling import PlotStyle, PlotStyleDialog, PlotStyleButton, PlotStyleWidget
-
-    debugLog('load classification')
-    from .externals.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, \
-        ClassificationSchemeComboBox, ClassificationSchemeWidget, ClassificationSchemeDialog, hasClassification
-
-    debugLog('load models')
-    from .externals.qps.models import Option, OptionListModel, TreeNode, TreeModel, TreeView
-
-    debugLog('load speclib')
-    from .externals.qps.speclib.core import SpectralLibrary, SpectralProfile
-    from .externals.qps.speclib.gui import SpectralLibraryPanel, SpectralLibraryWidget
-
-    debugLog('load layer config')
-    from .externals.qps.layerconfigwidgets.vectorlayerfields import LayerFieldsConfigWidget
-
-    debugLog('load maptools')
-    from .externals.qps.maptools import *
-
-    debugLog('load utils')
-    from .externals.qps.utils import *
-
-
 def messageLog(msg, level=Qgis.Info):
     """
     Writes a log message to the QGIS EO TimeSeriesViewer log
@@ -126,7 +99,6 @@ def initResources():
     :return:
     """
     debugLog('initResources')
-    from eotimeseriesviewer.externals.qps.resources import initQtResources
     initQtResources(pathlib.Path(__file__).parent)
 
 
@@ -137,8 +109,6 @@ def initAll():
     """
     # resources first, as we need the icon resource paths!
     initResources()
-
-    from .externals.qps import registerEditorWidgets, registerMapLayerConfigWidgetFactories, registerExpressionFunctions
     registerEditorWidgets()
     registerExpressionFunctions()
     registerMapLayerConfigWidgetFactories()
@@ -148,8 +118,6 @@ def initAll():
 
 
 def unloadAll():
-    from .externals.qps import unregisterMapLayerConfigWidgetFactories, unregisterEditorWidgets, \
-        unregisterExpressionFunctions
     unregisterEditorWidgets()
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()

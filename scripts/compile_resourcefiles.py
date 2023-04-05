@@ -3,10 +3,12 @@
 import os
 import pathlib
 import site
+
+from eotimeseriesviewer.qgispluginsupport.qps.resources import compileResourceFiles
+
 site.addsitedir(pathlib.Path(__file__).parents[1])
 
 from eotimeseriesviewer import DIR_REPO
-from eotimeseriesviewer.externals.qps.resources import compileResourceFiles
 
 
 def compileEOTSVResourceFiles():

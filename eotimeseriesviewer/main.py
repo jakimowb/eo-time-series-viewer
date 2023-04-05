@@ -18,53 +18,56 @@
  *                                                                         *
  ***************************************************************************/
 """
+import os
+import pathlib
+import re
 # noinspection PyPep8Naming
 import sys
-import os
-import re
-import typing
-import pathlib
+import webbrowser
+from typing import List, Union
+
 import numpy as np
+import qgis.utils
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QObject, QFile, Qt, QSize, QCoreApplication, \
-    QVariant, QDate, QDateTime, QTimer
+    QVariant, QDateTime, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QMainWindow, \
+from qgis.PyQt.QtWidgets import QWidget, QHBoxLayout, QMainWindow, \
     QToolButton, QAction, QLabel, QProgressBar, QApplication, QSizePolicy, \
     QMenu, QDialogButtonBox, QProgressDialog, QToolBar, QComboBox, QDialog, QFileDialog, QDockWidget
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
     QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol, \
-    QgsProjectArchive, QgsZipUtils, QgsPointXY, QgsFields
-
+    QgsProjectArchive, QgsZipUtils, QgsPointXY
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
-import qgis.utils
-from eotimeseriesviewer import LOG_MESSAGE_TAG, DIR_UI, settings
-from eotimeseriesviewer.utils import SpatialPoint, SpatialExtent, datetime64, fixMenuButtons, file_search, loadUi
+
+import eotimeseriesviewer.settings as eotsvSettings
+from eotimeseriesviewer import LOG_MESSAGE_TAG, DIR_UI, settings, DOCUMENTATION
+from eotimeseriesviewer import debugLog
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapWidget
+from eotimeseriesviewer.profilevisualization import ProfileViewDock
+from eotimeseriesviewer.settings import Keys as SettingKeys, value as SettingValue
+from eotimeseriesviewer.settings import defaultValues, setValue
+from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, TimeSeriesDate, TimeSeriesTreeView, \
     DateTimePrecision, SensorInstrument, SensorProxyLayer, SensorMatching, TimeSeriesFindOverlapTask, \
     TimeSeriesDock, TimeSeriesWidget
-from eotimeseriesviewer.settings import Keys as SettingKeys, value as SettingValue
-from eotimeseriesviewer.settings import defaultValues, setValue
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-import eotimeseriesviewer.settings as eotsvSettings
-from .externals.qps.speclib.core import SpectralProfile, SpectralLibrary
-from .externals.qps.speclib.gui import SpectralLibraryPanel, SpectralLibraryWidget
-from .externals.qps.cursorlocationvalue import CursorLocationInfoModel, CursorLocationInfoDock
-from .externals.qps.vectorlayertools import VectorLayerTools
-from .externals.qps.maptools import MapTools
-import eotimeseriesviewer.labeling
-from eotimeseriesviewer import debugLog
+from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
+from .qgispluginsupport.qps.layerproperties import subLayers
+from .qgispluginsupport.qps.maptools import MapTools
+from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library
+from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
+from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
+from .qgispluginsupport.qps.utils import loadUi, SpatialPoint, datetime64, SpatialExtent, file_search
+from .utils import fixMenuButtons
 
 DEBUG = False
 
-SPECTRA_PROFILE_FIELDS = SpectralProfile().fields()
+SPECTRA_PROFILE_FIELDS = [create_profile_field('Profiles')]
 SPECTRA_PROFILE_FIELDS.append(QgsField('date', QVariant.Date, 'date'))
 SPECTRA_PROFILE_FIELDS.append(QgsField('doy', QVariant.Int, 'int'))
 SPECTRA_PROFILE_FIELDS.append(QgsField('sensor', QVariant.String, 'varchar'))
@@ -373,7 +376,7 @@ class TaskManagerStatusButton(QToolButton):
         height = super().sizeHint().height() - 5
         return QSize(width, height)
 
-    def activeTasks(self) -> typing.List[QgsTask]:
+    def activeTasks(self) -> List[QgsTask]:
         results = []
         for t in self.mManager.tasks():
             if isinstance(t, QgsTask):
@@ -464,7 +467,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         import eotimeseriesviewer.utils
         eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
-        from eotimeseriesviewer.timeseries import TimeSeriesDock
         from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
 
         mvd: MapViewDock = self.ui.dockMapViews
@@ -635,8 +637,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
 
         self.ui.actionSettings.triggered.connect(self.onShowSettingsDialog)
-        import webbrowser
-        from eotimeseriesviewer import DOCUMENTATION, SpectralLibrary, SpectralLibraryPanel, SpectralLibraryWidget
+
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
         # SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
@@ -671,7 +672,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.onReloadProject()
 
     def onClose(self):
-        debugLog(f'Close EOTSV')
+        debugLog('Close EOTSV')
         EOTimeSeriesViewer._instance = None
         self.mapWidget().onClose()
 
@@ -787,7 +788,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             w.setSizePolicy(QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
             w.setMinimumSize(0, 0)
 
-    def sensors(self) -> typing.List[SensorInstrument]:
+    def sensors(self) -> List[SensorInstrument]:
         """
         Returns the list of Sensors
         :return: [list-of-Sensors]
@@ -908,10 +909,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.profileDock.temporalProfileLayer()
 
-    def spectralLibraryWidgets(self) -> typing.List[SpectralLibraryWidget]:
+    def spectralLibraryWidgets(self) -> List[SpectralLibraryWidget]:
         return [dw.spectralLibraryWidget() for dw in self.ui.findChildren(SpectralLibraryDockWidget)]
 
-    def spectralLibraries(self) -> typing.List[SpectralLibrary]:
+    def spectralLibraries(self) -> List[QgsVectorLayer]:
         """
         Returns the SpectraLibrary that are opened as the SpectralLibrary dock
         :return: SpectraLibrary
@@ -922,7 +923,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                                  title: str = 'Open Subdatasets',
                                  filter: str = '*.*'):
 
-        from .externals.qps.subdatasets import SubDatasetSelectionDialog
+        from .qgispluginsupport.qps.subdatasets import SubDatasetSelectionDialog
 
         d = SubDatasetSelectionDialog()
         d.setWindowTitle(title)
@@ -996,7 +997,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     self.setSpatialExtent(tss.spatialExtent())
 
     def moveTo(self, date: QDateTime = None,
-               geometry: typing.Union[SpatialPoint, SpatialExtent] = None):
+               geometry: Union[SpatialPoint, SpatialExtent] = None):
 
         # set geometry first, e.g. on zoom operations
         if isinstance(geometry, SpatialPoint):
@@ -1021,7 +1022,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.mTimeSeries.showTSDs([tsd], b=True)
             self.ui.mMapWidget.setCurrentDate(tsd)
 
-    def mapCanvases(self) -> typing.List[MapCanvas]:
+    def mapCanvases(self) -> List[MapCanvas]:
         """
         Returns all MapCanvases of the spatial visualization
         :return: [list-of-MapCanvases]
@@ -1107,13 +1108,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
-
     def onShowLayerProperties(self, lyr=None):
         if not isinstance(lyr, QgsMapLayer):
             lyr = self.currentLayer()
 
         if isinstance(lyr, (QgsVectorLayer, QgsRasterLayer)):
-            from .externals.qps.layerproperties import showLayerPropertiesDialog
+            from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
             showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
 
     def onShowSettingsDialog(self):
@@ -1136,7 +1136,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # the default values
         defaults = defaultValues()
         for key in list(SettingKeys):
-            if SettingValue(key) == None and key in defaults.keys():
+            if SettingValue(key) is None and key in defaults.keys():
                 setValue(key, defaults[key])
 
         v = SettingValue(SettingKeys.DateTimePrecision)
@@ -1306,9 +1306,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
-            p = SpectralProfile.fromRasterLayer(lyr, spatialPoint)
+            p = SpectralLibraryUtils.fromRasterLayer(lyr, spatialPoint)
             basename = os.path.basename(lyr.source())
-            if isinstance(p, SpectralProfile):
+            if isinstance(p, QgsFeature):
                 p = p.copyFieldSubset(SPECTRA_PROFILE_FIELDS)
                 p.setName(f'{basename}')
                 p.setAttribute('date', '{}'.format(tsd.date()))
@@ -1321,13 +1321,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if len(currentSpectra) > 0:
             self.setCurrentSpectralProfiles(currentSpectra)
 
-    def setCurrentSpectralProfiles(self, spectra: typing.List[SpectralProfile]):
+    def setCurrentSpectralProfiles(self, spectra: List[QgsFeature]):
         if not isinstance(spectra, list):
             spectra = [spectra]
         for s in spectra:
-            assert isinstance(s, SpectralProfile)
+            assert isinstance(s, QgsFeature)
 
-        widgets: typing.List[SpectralLibraryWidget] = self.spectralLibraryWidgets()
+        widgets: List[SpectralLibraryWidget] = self.spectralLibraryWidgets()
         if len(widgets) == 0:
             self.onCreateSpectralLibrary()
             widgets = self.spectralLibraryWidgets()
@@ -1362,10 +1362,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if isinstance(tsd, TimeSeriesDate):
                 profiles2 = []
                 sl = self.spectralLibrary()
-                if isinstance(sl, SpectralLibrary):
+                if is_spectral_library(sl):
                     for p in profiles:
                         self.cntSpectralProfile += 1
-                        assert isinstance(p, SpectralProfile)
+                        assert isinstance(p, QgsFeature)
                         p2 = p.copyFieldSubset(fields=sl.fields())
                         p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
                         p2.setAttribute('date', '{}'.format(tsd.mDate))
@@ -1390,7 +1390,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         return self.ui.mMapWidget.messageBar()
 
     def loadTimeSeriesDefinition(self,
-                                 files: typing.List[typing.Union[str, pathlib.Path]] = None,
+                                 files: List[Union[str, pathlib.Path]] = None,
                                  n_max: int = None,
                                  runAsync=True):
         """
@@ -1438,7 +1438,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.dockMapViews.createMapView(name=name)
 
-    def mapViews(self) -> typing.List[MapView]:
+    def mapViews(self) -> List[MapView]:
         """
         Returns all MapViews
         :return: [list-of-MapViews]
@@ -1605,7 +1605,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
 
-    def focusTimeSeriesDateVisibility(self, *args, extent:SpatialExtent = None, date: TimeSeriesDate = None):
+    def focusTimeSeriesDateVisibility(self, *args, extent: SpatialExtent = None, date: TimeSeriesDate = None):
         """
         Adjusts the visibility of TimeSeriesDates to the presence of data in a spatial extent.
         :param args:
@@ -1676,9 +1676,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(lyr, QgsVectorLayer)
 
         # 1. check if this layer is already opened as dock widget
-        docks: typing.List[QgsDockWidget] = self.ui.findChildren(QgsDockWidget)
-        vectorLayerDocks: typing.List[QgsDockWidget] = [d for d in docks if
-                                                        isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
+        docks: List[QgsDockWidget] = self.ui.findChildren(QgsDockWidget)
+        vectorLayerDocks: List[QgsDockWidget] = [d for d in docks if
+                                                 isinstance(d, (LabelDockWidget, SpectralLibraryDockWidget))]
 
         for d in vectorLayerDocks:
             if isinstance(d, LabelDockWidget) and d.vectorLayer().id() == lyr.id() or \
@@ -1690,7 +1690,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         # 2. create dock widget
 
-        if isinstance(lyr, SpectralLibrary):
+        if is_spectral_library(lyr):
             dock = SpectralLibraryDockWidget(speclib=lyr)
             dock.setObjectName(f'SpectralLibraryDockWidget{id(dock)}')
             dock.setVectorLayerTools(self.vectorLayerTools())
@@ -1720,7 +1720,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 #    w.widget().deleteLater()
         QApplication.processEvents()
 
-    def addMapLayers(self, layers: typing.List[QgsMapLayer]) -> typing.List[QgsMapLayer]:
+    def addMapLayers(self, layers: List[QgsMapLayer]) -> List[QgsMapLayer]:
         """
         Adds QgsMapLayers
         :param layers:
@@ -1741,7 +1741,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         return layers
 
     def onCreateSpectralLibrary(self):
-        speclib: SpectralLibrary = SpectralLibrary()
+        speclib: QgsVectorLayer = SpectralLibraryUtils.createSpectralLibrary()
         speclib.startEditing()
         for field in SPECTRA_PROFILE_FIELDS:
             speclib.addAttribute(field)
@@ -1770,8 +1770,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if not isinstance(files, list):
             files = [files]
         if files:
-            from eotimeseriesviewer.mapvisualization import MapView
-            from .externals.qps.layerproperties import subLayers
 
             for f in files:
                 vectorLayers.extend(subLayers(QgsVectorLayer(f)))

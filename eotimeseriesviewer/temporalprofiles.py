@@ -20,39 +20,38 @@
 """
 # noinspection PyPep8Naming
 
-import os
-import sys
 import datetime
-import re
-import typing
+import os
 import pathlib
+import re
+import sys
 import traceback
+
 import uuid
 from collections import OrderedDict
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
-    Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsDateTimeRange, \
-    QgsTextFormat, QgsProject, QgsSingleSymbolRenderer, QgsGeometry, QgsApplication, QgsFillSymbol,  \
-    QgsTask, QgsRasterBandStats, QgsRectangle, QgsRasterDataProvider, QgsTaskManager, QgsPoint, QgsPointXY, \
-    QgsRasterLayerTemporalProperties, QgsMimeDataUtils, QgsCoordinateTransform, QgsFeatureRequest, \
+from typing import Tuple, List, Dict
+
+import numpy as np
+from PyQt5.QtCore import QPoint, QDate, QObject, pyqtSignal, QVariant, QModelIndex
+from PyQt5.QtGui import QDropEvent, QDragEnterEvent, QDragMoveEvent
+from PyQt5.QtWidgets import QFileDialog, QHeaderView, QMenu
+from osgeo import ogr, osr, gdal
+from qgis.PyQt import Qt
+from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem, \
+    QgsWkbTypes, QgsProviderRegistry, QgsFeature, QgsGeometry, QgsApplication, QgsTask, QgsRectangle, QgsTaskManager, \
+    QgsPointXY, \
+    QgsCoordinateTransform, QgsFeatureRequest, \
     QgsVectorLayerCache, QgsVectorFileWriter, \
     QgsConditionalStyle, QgsConditionalLayerStyles, \
     QgsField, QgsFields, QgsExpressionContext, QgsExpression, QgsFileUtils
+from qgis.gui import QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, \
+    QgsAttributeTableView
 
-from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
-    QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface, \
-    QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, QgsAttributeTableView
-
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
-import numpy as np
-from osgeo import ogr, osr, gdal
-from .externals import pyqtgraph as pg
-
+from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
+from .qgispluginsupport.qps.pyqtgraph.pyqtgraph.examples.syntax import QColor
+from .qgispluginsupport.qps.utils import createQgsField, SpatialExtent, geo2px, SpatialPoint, setQgsFieldValue
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
-from .utils import SpatialExtent, SpatialPoint, px2geo, geo2px
-from .externals.qps.speclib.core import createQgsField, setQgsFieldValue
-
+from .virtualrasters import px2geo
 
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
@@ -70,7 +69,7 @@ FN_NAME = 'name'
 
 FN_DOY = 'DOY'
 FN_DTG = 'DTG'
-FN_IS_NODATA ='is_nodata'
+FN_IS_NODATA = 'is_nodata'
 FN_SOURCE_IMAGE = 'source_image'
 FN_GEO_X = 'geo_x'
 FN_GEO_Y = 'geo_y'
@@ -81,9 +80,9 @@ rxBandKey = re.compile(r"(?<!\w)b\d+(?!\w)", re.IGNORECASE)
 rxBandKeyExact = re.compile(r'^' + rxBandKey.pattern + '$', re.IGNORECASE)
 
 try:
-    import OpenGL
+    __import__('OpenGL')
     OPENGL_AVAILABLE = True
-except:
+except ModuleNotFoundError:
     pass
 
 
@@ -103,12 +102,12 @@ def temporalProfileFeatureFields(sensor: SensorInstrument, singleBandOnly=False)
 
     for b in range(sensor.nb):
         bandKey = bandIndex2bandKey(b)
-        fields.append(createQgsField(bandKey, 1.0, comment='value band {}'.format(b+1)))
+        fields.append(createQgsField(bandKey, 1.0, comment='value band {}'.format(b + 1)))
 
     return fields
 
 
-def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False) -> QgsFeature:
+def sensorExampleQgsFeature(sensor: SensorInstrument, singleBandOnly=False) -> QgsFeature:
     """
     Returns an exemplary QgsFeature with value for a specific sensor
     :param sensor: SensorInstrument
@@ -136,7 +135,7 @@ def sensorExampleQgsFeature(sensor:SensorInstrument, singleBandOnly=False) -> Qg
     return f
 
 
-def geometryToPixel(ds:gdal.Dataset, geometry: QgsGeometry) -> typing.Tuple[list, list]:
+def geometryToPixel(ds: gdal.Dataset, geometry: QgsGeometry) -> Tuple[list, list]:
     """
     Returns the pixel-positions of pixels whose pixel center is covered by a geometry
     :param datset:
@@ -170,8 +169,8 @@ def geometryToPixel(ds:gdal.Dataset, geometry: QgsGeometry) -> typing.Tuple[list
                 ibb = geometry.boundingBox()
                 pxUL = geo2px(QgsPointXY(ibb.xMinimum(), ibb.yMaximum()), gt)
                 pxLR = geo2px(QgsPointXY(ibb.xMaximum(), ibb.yMinimum()), gt)
-                x_range = [max(0, pxUL.x()), min(pxLR.x(), ds.RasterXSize-1)]
-                y_range = [max(0, pxUL.y()), min(pxLR.y(), ds.RasterYSize-1)]
+                x_range = [max(0, pxUL.x()), min(pxLR.x(), ds.RasterXSize - 1)]
+                y_range = [max(0, pxUL.y()), min(pxLR.y(), ds.RasterYSize - 1)]
                 x = x_range[0]
                 while x <= x_range[1]:
                     y = y_range[0]
@@ -199,7 +198,6 @@ def dateDOY(date):
 
 
 def daysPerYear(year):
-
     if isinstance(year, np.datetime64):
         year = year.astype(datetime.date)
     if isinstance(year, datetime.date):
@@ -209,7 +207,7 @@ def daysPerYear(year):
 
 
 def date2num(d):
-    #kindly taken from https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
+    # kindly taken from https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
     if isinstance(d, np.datetime64):
         d = d.astype(datetime.datetime)
 
@@ -236,13 +234,12 @@ def num2date(n, dt64=True, qDate=False):
     yearDuration = daysPerYear(year)
     yearElapsed = fraction * yearDuration
 
-    import math
     doy = round(yearElapsed)
     if doy < 1:
         doy = 1
     try:
-        date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy-1)
-    except:
+        date = datetime.date(year, 1, 1) + datetime.timedelta(days=doy - 1)
+    except Exception:
         s = ""
     if qDate:
         return QDate(date.year, date.month, date.day)
@@ -252,7 +249,7 @@ def num2date(n, dt64=True, qDate=False):
         return date
 
 
-def bandIndex2bandKey(i : int):
+def bandIndex2bandKey(i: int):
     assert i >= 0
     return 'b{}'.format(i + 1)
 
@@ -265,11 +262,10 @@ def bandKey2bandIndex(key: str):
 
 
 class TemporalProfile(QObject):
-
     sigLoadMissingImageDataRequest = pyqtSignal(list)
     sigNameChanged = pyqtSignal(str)
 
-    def __init__(self, layer, fid:int, geometry:QgsGeometry):
+    def __init__(self, layer, fid: int, geometry: QgsGeometry):
         super(TemporalProfile, self).__init__()
         assert isinstance(geometry, QgsGeometry)
         assert isinstance(layer, TemporalProfileLayer)
@@ -293,7 +289,7 @@ class TemporalProfile(QObject):
                     FN_SOURCE_IMAGE: None}
             self.mData[tsd] = meta
 
-    def printData(self, sensor:SensorInstrument=None):
+    def printData(self, sensor: SensorInstrument = None):
         """
         Prints the entire temporal profile. For debug purposes.
         """
@@ -321,7 +317,7 @@ class TemporalProfile(QObject):
 
         return other.mID == self.mID and self.mLayer == other.mLayer
 
-    def geometry(self, crs:QgsCoordinateReferenceSystem = None) -> QgsGeometry:
+    def geometry(self, crs: QgsCoordinateReferenceSystem = None) -> QgsGeometry:
         """
         Returns the temporal profile geometry
         :param crs:
@@ -351,7 +347,7 @@ class TemporalProfile(QObject):
         """Feature ID within connected QgsVectorLayer"""
         return self.mID
 
-    def attribute(self, key : str):
+    def attribute(self, key: str):
         f = self.mLayer.getFeature(self.mID)
         i = f.fieldNameIndex(key)
         if i >= 0:
@@ -370,7 +366,7 @@ class TemporalProfile(QObject):
     def name(self):
         return self.attribute('name')
 
-    def setName(self, name:str):
+    def setName(self, name: str):
         self.setAttribute('name', name)
 
     def timeSeries(self):
@@ -385,7 +381,7 @@ class TemporalProfile(QObject):
                                             callback=self.mLayer.updateProfileData)
         qgsTask.finished(qgsTask.run())
 
-    def missingBandIndices(self, tsd: TimeSeriesDate, required_indices: typing.List[int] = None):
+    def missingBandIndices(self, tsd: TimeSeriesDate, required_indices: List[int] = None):
         """
         Returns the band indices [0, sensor.nb) that have not been loaded yet for a given time series date.
         :param tsd: TimeSeriesDate of interest
@@ -429,11 +425,10 @@ class TemporalProfile(QObject):
         for k, v in newValues.items():
             self.mData[tsd][k] = v
 
-
     def dataFromExpression(self,
-                        sensor: SensorInstrument,
-                        expression: str,
-                        dateType: str = 'date'):
+                           sensor: SensorInstrument,
+                           expression: str,
+                           dateType: str = 'date'):
 
         assert dateType in ['date', 'doy']
         x = []
@@ -516,7 +511,7 @@ class TemporalProfile(QObject):
         """
         return self.mLoaded, self.mNoData, self.mLoadedMax
 
-    #def updateLoadingStatus(self):
+    # def updateLoadingStatus(self):
     #    """
     #    Calculates the loading status in terms of single pixel values.
     #    nMax is the sum of all bands over each TimeSeriesDate and Sensors
@@ -566,15 +561,16 @@ class TemporalProfile(QObject):
     def __repr__(self):
         return 'TemporalProfile {} "{}"'.format(self.id(), self.name())
 
+
 class TemporalProfileLayer(QgsVectorLayer):
     """
     A collection to store the TemporalProfile data delivered by a PixelLoader
     """
 
-    #sigSensorAdded = pyqtSignal(SensorInstrument)
-    #sigSensorRemoved = pyqtSignal(SensorInstrument)
-    #sigPixelAdded = pyqtSignal()
-    #sigPixelRemoved = pyqtSignal()
+    # sigSensorAdded = pyqtSignal(SensorInstrument)
+    # sigSensorRemoved = pyqtSignal(SensorInstrument)
+    # sigPixelAdded = pyqtSignal()
+    # sigPixelRemoved = pyqtSignal()
 
     sigTemporalProfilesAdded = pyqtSignal(list)
     sigTemporalProfilesRemoved = pyqtSignal(list)
@@ -638,7 +634,6 @@ class TemporalProfileLayer(QgsVectorLayer):
         assert isinstance(path, str)
         super(TemporalProfileLayer, self).__init__(path, baseName, 'ogr', options)
 
-
         """
         assert isinstance(timeSeries, TimeSeries)
         crs = QgsCoordinateReferenceSystem('EPSG:4326')
@@ -651,14 +646,14 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         self.setName('EOTS Temporal Profiles')
         fields = QgsFields()
-        #fields.append(createQgsField(FN_ID, self.mNextID))
+        # fields.append(createQgsField(FN_ID, self.mNextID))
         fields.append(createQgsField(FN_NAME, ''))
         fields.append(createQgsField(FN_X, 0.0, comment='Longitude'))
         fields.append(createQgsField(FN_Y, 0.0, comment='Latitude'))
-        #fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
-        #fields.append(createQgsField(FN_N_NODATA,0, comment='Total of no-data values.'))
-        #fields.append(createQgsField(FN_N_LOADED, 0, comment='Loaded valid band values.'))
-        #fields.append(createQgsField(FN_N_LOADED_PERCENT,0.0, comment='Loading progress (%)'))
+        # fields.append(createQgsField(FN_N_TOTAL, 0, comment='Total number of band values'))
+        # fields.append(createQgsField(FN_N_NODATA,0, comment='Total of no-data values.'))
+        # fields.append(createQgsField(FN_N_LOADED, 0, comment='Loaded valid band values.'))
+        # fields.append(createQgsField(FN_N_LOADED_PERCENT,0.0, comment='Loading progress (%)'))
         assert self.startEditing()
         assert self.dataProvider().addAttributes(fields)
         assert self.commitChanges()
@@ -676,7 +671,7 @@ class TemporalProfileLayer(QgsVectorLayer):
     def saveTemporalProfiles(self, pathVector, sep='\t'):
         if pathVector is None or len(pathVector) == 0:
             global DEFAULT_SAVE_PATH
-            if DEFAULT_SAVE_PATH == None:
+            if DEFAULT_SAVE_PATH is None:
                 DEFAULT_SAVE_PATH = 'temporalprofiles.shp'
             d = os.path.dirname(DEFAULT_SAVE_PATH)
             filters = QgsProviderRegistry.instance().fileVectorFilters()
@@ -688,7 +683,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             else:
                 DEFAULT_SAVE_PATH = pathVector
 
-
         drvName = QgsVectorFileWriter.driverForExtension(os.path.splitext(pathVector)[-1])
         QgsVectorFileWriter.writeAsVectorFormat(self, pathVector, 'utf-8', destCRS=self.crs(), driverName=drvName)
 
@@ -696,7 +690,8 @@ class TemporalProfileLayer(QgsVectorLayer):
         # write a flat list of profiles
         csvLines = ['Temporal Profiles']
         nBands = max([s.nb for s in self.mTimeSeries.sensors()])
-        csvLines.append(sep.join(['id', 'name', 'sensor', 'date', 'doy'] + ['b{}'.format(b+1) for b in range(nBands)]))
+        csvLines.append(
+            sep.join(['id', 'name', 'sensor', 'date', 'doy'] + ['b{}'.format(b + 1) for b in range(nBands)]))
 
         for p in list(self.getFeatures()):
 
@@ -711,10 +706,10 @@ class TemporalProfileLayer(QgsVectorLayer):
                 assert isinstance(tsd, TimeSeriesDate)
                 line = [fid, name, tsd.mSensor.name(), tsd.mDate, tsd.mDOY]
                 for b in range(tsd.mSensor.nb):
-                    key = 'b{}'.format(b+1)
+                    key = 'b{}'.format(b + 1)
                     line.append(values.get(key))
 
-                line = ['' if v == None else str(v) for v in line]
+                line = ['' if v is None else str(v) for v in line]
                 line = sep.join([str(l) for l in line])
                 csvLines.append(line)
             s = ""
@@ -730,8 +725,8 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.mTimeSeries = timeSeries
 
     def loadMissingBandInfos(self,
-                             required_profiles: typing.List[TemporalProfile] = None,
-                             required_sensor_bands: typing.Dict[SensorInstrument, typing.List[int]] = None,
+                             required_profiles: List[TemporalProfile] = None,
+                             required_sensor_bands: Dict[SensorInstrument, List[int]] = None,
                              run_async: bool = True):
         from eotimeseriesviewer import debugLog
         debugLog('Load temporal profile data')
@@ -744,11 +739,11 @@ class TemporalProfileLayer(QgsVectorLayer):
         if len(qgsTask.MISSING_DATA) == 0:
             return
 
-        #tid = id(qgsTask)
-        #self.mTasks[tid] = qgsTask
+        # tid = id(qgsTask)
+        # self.mTasks[tid] = qgsTask
 
-        #qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
-        #qgsTask.taskTerminated.connect(lambda *args, t=tid: self.onRemoveTask(t))
+        # qgsTask.taskCompleted.connect(lambda *args, t=tid: self.onRemoveTask(t))
+        # qgsTask.taskTerminated.connect(lambda *args, t=tid: self.onRemoveTask(t))
 
         if run_async:
             tm = QgsApplication.taskManager()
@@ -757,7 +752,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         else:
             qgsTask.finished(qgsTask.run())
 
-    def updateProfileData(self, successful:bool, task) -> typing.List[TemporalProfile]:
+    def updateProfileData(self, successful: bool, task) -> List[TemporalProfile]:
         """
         Updates TemporalProfiles
         :param qgsTask:
@@ -797,7 +792,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         """
         return self.mTimeSeries
 
-    def onGeometryChanged(self, fid:int, g:QgsGeometry):
+    def onGeometryChanged(self, fid: int, g: QgsGeometry):
         # geometryChanged (QgsFeatureId fid, const QgsGeometry &geometry)
         s = ""
 
@@ -826,8 +821,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             if len(temporalProfiles) > 0:
                 self.sigTemporalProfilesAdded.emit(temporalProfiles)
 
-
-    def onFeaturesRemoved(self,  removedFIDs):
+    def onFeaturesRemoved(self, removedFIDs):
         # only features which have been permanent before
         removedFIDs = [fid for fid in removedFIDs if fid >= 0]
         if len(removedFIDs) > 0:
@@ -839,7 +833,6 @@ class TemporalProfileLayer(QgsVectorLayer):
 
             self.sigTemporalProfilesRemoved.emit(removed)
 
-
     def initConditionalStyles(self):
         styles = self.conditionalStyles()
         assert isinstance(styles, QgsConditionalLayerStyles)
@@ -848,11 +841,11 @@ class TemporalProfileLayer(QgsVectorLayer):
             red = QgsConditionalStyle("@value is NULL")
             red.setTextColor(QColor('red'))
             styles.setFieldStyles(fieldName, [red])
-        #styles.setRowStyles([red])
+        # styles.setRowStyles([red])
 
     def createTemporalProfiles(self,
-                               coordinates: typing.List[SpatialPoint],
-                               names:typing.List[str] = None) -> typing.List[TemporalProfile]:
+                               coordinates: List[SpatialPoint],
+                               names: List[str] = None) -> List[TemporalProfile]:
         """
         Creates temporal profiles for a list of coordinates
         :param coordinates:
@@ -865,7 +858,7 @@ class TemporalProfileLayer(QgsVectorLayer):
             n = self.featureCount()
             names = []
             for i in range(len(coordinates)):
-                names.append('Profile {}'.format(n+i+1))
+                names.append('Profile {}'.format(n + i + 1))
 
         assert len(coordinates) == len(names)
 
@@ -887,6 +880,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         self.startEditing()
 
         newFeatures = []
+
         def onFeaturesAdded(lid, fids):
             newFeatures.extend(fids)
 
@@ -927,7 +921,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             if i == -1:
                 missingFields.append(field)
         if len(missingFields) > 0:
-
             b = self.isEditable()
             self.startEditing()
             self.dataProvider().addAttributes(missingFields)
@@ -944,8 +937,7 @@ class TemporalProfileLayer(QgsVectorLayer):
     def __contains__(self, item):
         return item in self.mProfiles.values()
 
-
-    def selectByCoordinate(self, spatialPoint:SpatialPoint):
+    def selectByCoordinate(self, spatialPoint: SpatialPoint):
         """ Tests if a Temporal Profile already exists for the given spatialPoint"""
         for p in list(self.mProfiles.values()):
             assert isinstance(p, TemporalProfile)
@@ -953,7 +945,7 @@ class TemporalProfileLayer(QgsVectorLayer):
                 return p
         return None
 
-    def removeTemporalProfiles(self, temporalProfiles:typing.List[TemporalProfile]):
+    def removeTemporalProfiles(self, temporalProfiles: List[TemporalProfile]):
         """
         Removes temporal profiles from this collection
         :param temporalProfile: TemporalProfile
@@ -974,8 +966,6 @@ class TemporalProfileLayer(QgsVectorLayer):
             self.saveEdits(leaveEditable=b)
 
             self.sigTemporalProfilesRemoved.emit(temporalProfiles)
-
-
 
     def loadCoordinatesFromOgr(self, path):
         """Loads the TemporalProfiles for vector geometries in data source 'path' """
@@ -1032,9 +1022,9 @@ class TemporalProfileLayer(QgsVectorLayer):
 
         if b:
             self.startEditing()
-        #todo: remove TS Profiles
-        #self.mTemporalProfiles.clear()
-        #self.sensorPxLayers.clear()
+        # todo: remove TS Profiles
+        # self.mTemporalProfiles.clear()
+        # self.sensorPxLayers.clear()
         pass
 
 
@@ -1047,8 +1037,8 @@ class TemporalProfileLoaderTask(QgsTask):
 
     def __init__(self,
                  temporalProfileLayer: TemporalProfileLayer,
-                 required_profiles: typing.List[TemporalProfile] = None,
-                 required_sensor_bands: typing.Dict[SensorInstrument, typing.List[int]] = None,
+                 required_profiles: List[TemporalProfile] = None,
+                 required_sensor_bands: Dict[SensorInstrument, List[int]] = None,
                  callback=None,
                  progress_interval: int = 10):
 
@@ -1059,8 +1049,8 @@ class TemporalProfileLoaderTask(QgsTask):
         timeSeries: TimeSeries = temporalProfileLayer.timeSeries()
         self.nTotal = len(timeSeries)
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
-        self.mRequiredSensorBands: typing.Dict[SensorInstrument, typing.List[int]] = dict()
-        self.mRequiredSensorBandKeys: typing.Dict[SensorInstrument, typing.List[str]] = dict()
+        self.mRequiredSensorBands: Dict[SensorInstrument, List[int]] = dict()
+        self.mRequiredSensorBandKeys: Dict[SensorInstrument, List[str]] = dict()
         self.mTSS2TSD = dict()
 
         crsWKTs = set()
@@ -1094,7 +1084,7 @@ class TemporalProfileLoaderTask(QgsTask):
         for tp in required_profiles:
             assert isinstance(tp, TemporalProfile)
             self.GEOMETRY_CACHE[tp.id()] = dict()
-            missingTPData: typing.Dict[TimeSeriesDate] = dict()
+            missingTPData: Dict[TimeSeriesDate] = dict()
             for sensor, tsds in required_tsds.items():
                 for tsd in timeSeries.tsds(sensor=sensor):
                     existingTSDData: dict = tp.data(tsd)
@@ -1126,10 +1116,10 @@ class TemporalProfileLoaderTask(QgsTask):
 
         self.mCallback = callback
 
-    def profileIDs(self) -> typing.List[int]:
+    def profileIDs(self) -> List[int]:
         return list(self.MISSING_DATA.keys())
 
-    def timeSeriesSources(self) -> typing.List[TimeSeriesSource]:
+    def timeSeriesSources(self) -> List[TimeSeriesSource]:
         return list(self.mTSS2TSD.keys())
 
     def run(self) -> bool:
@@ -1310,7 +1300,6 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
         result = super(TemporalProfileTableModel, self).data(index, role=role)
         return result
 
-
     def setData(self, index, value, role=None):
         """
         Sets Temporal Profile Data.
@@ -1325,7 +1314,7 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
         f = self.feature(index)
         result = False
 
-        if value == None:
+        if value is None:
             value = QVariant()
         cname = self.columnNames()[index.column()]
         if role == Qt.EditRole and cname not in TemporalProfileTableModel.AUTOGENERATES_COLUMNS:
@@ -1343,13 +1332,12 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
         else:
             result = super().setData(index, value, role=role)
 
-
         return result
 
-    def headerData(self, section:int, orientation:Qt.Orientation, role:int):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int):
         data = super(TemporalProfileTableModel, self).headerData(section, orientation, role)
         if role == Qt.ToolTipRole and orientation == Qt.Horizontal:
-            #add the field comment to column description
+            # add the field comment to column description
             field = self.layer().fields().at(section)
             assert isinstance(field, QgsField)
             comment = field.comment()
@@ -1357,12 +1345,6 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
                 data = re.sub('</p>$', ' <i>{}</i></p>'.format(comment), data)
 
         return data
-
-    def supportedDragActions(self):
-        return Qt.CopyAction | Qt.MoveAction
-
-    def supportedDropActions(self):
-        return Qt.CopyAction | Qt.MoveAction
 
     def supportedDragActions(self):
         return Qt.CopyAction
@@ -1375,7 +1357,7 @@ class TemporalProfileTableModel(QgsAttributeTableModel):
         if index.isValid():
             columnName = self.columnNames()[index.column()]
             flags = super(TemporalProfileTableModel, self).flags(index) | Qt.ItemIsSelectable
-            #if index.column() == 0:
+            # if index.column() == 0:
             #    flags = flags | Qt.ItemIsUserCheckable
 
             if columnName in TemporalProfileTableModel.AUTOGENERATES_COLUMNS:
@@ -1395,7 +1377,6 @@ class TemporalProfileFeatureSelectionManager(QgsIFeatureSelectionManager):
         return self.mLayer
 
     def deselect(self, ids):
-
         if len(ids) > 0:
             selected = [id for id in self.selectedFeatureIds() if id not in ids]
             self.mLayer.deselect(ids)
@@ -1418,19 +1399,16 @@ class TemporalProfileFeatureSelectionManager(QgsIFeatureSelectionManager):
         self.mLayer.selectByIds(ids)
 
 
-
 class TemporalProfileTableView(QgsAttributeTableView):
 
     def __init__(self, parent=None):
         super(TemporalProfileTableView, self).__init__(parent)
 
-
-        #self.setSelectionBehavior(QAbstractItemView.SelectRows)
-        #self.setSelectionMode(QAbstractItemView.SingleSelection)
+        # self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.horizontalHeader().setSectionsMovable(True)
         self.willShowContextMenu.connect(self.onWillShowContextMenu)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-
 
         self.mSelectionManager = None
 
@@ -1438,16 +1416,15 @@ class TemporalProfileTableView(QgsAttributeTableView):
 
         super(TemporalProfileTableView, self).setModel(filterModel)
 
-
         self.mSelectionManager = TemporalProfileFeatureSelectionManager(self.model().layer())
         self.setFeatureSelectionManager(self.mSelectionManager)
-        #self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+        # self.selectionModel().selectionChanged.connect(self.onSelectionChanged)
         self.mContextMenuActions = []
 
-    def setContextMenuActions(self, actions:list):
+    def setContextMenuActions(self, actions: list):
         self.mContextMenuActions = actions
 
-    #def contextMenuEvent(self, event):
+    # def contextMenuEvent(self, event):
     def onWillShowContextMenu(self, menu, index):
         assert isinstance(menu, QMenu)
         assert isinstance(index, QModelIndex)
@@ -1468,11 +1445,8 @@ class TemporalProfileTableView(QgsAttributeTableView):
         for a in self.actions():
             menu.addAction(a)
 
-
     def temporalProfileLayer(self):
         return self.model().layer()
-
-
 
     def fidsToIndices(self, fids):
         """
@@ -1496,35 +1470,29 @@ class TemporalProfileTableView(QgsAttributeTableView):
         layer.deleteFeatures(fids)
         layer.saveEdits(leaveEditable=b)
 
-
     def dropEvent(self, event):
         assert isinstance(event, QDropEvent)
         mimeData = event.mimeData()
 
         if self.model().rowCount() == 0:
-            index = self.model().createIndex(0,0)
+            index = self.model().createIndex(0, 0)
         else:
             index = self.indexAt(event.pos())
 
-        #if mimeData.hasFormat(mimedata.MDF_SPECTRALLIBRARY):
-         #   self.model().dropMimeData(mimeData, event.dropAction(), index.row(), index.column(), index.parent())
-          #  event.accept()
-
-
-
-
+        # if mimeData.hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+        #   self.model().dropMimeData(mimeData, event.dropAction(), index.row(), index.column(), index.parent())
+        #  event.accept()
 
     def dragEnterEvent(self, event):
         assert isinstance(event, QDragEnterEvent)
-        #if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+        # if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
         #    event.accept()
 
     def dragMoveEvent(self, event):
         assert isinstance(event, QDragMoveEvent)
-        #if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
+        # if event.mimeData().hasFormat(mimedata.MDF_SPECTRALLIBRARY):
         #    event.accept()
         s = ""
-
 
     def mimeTypes(self):
         pass
