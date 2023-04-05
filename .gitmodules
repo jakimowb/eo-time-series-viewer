@@ -1,0 +1,6 @@
+[submodule "eotimeseriesviewer/qgispluginsupport"]
+	path = eotimeseriesviewer/qgispluginsupport
+	url = https://github.com/EnMAP-Box/qgispluginsupport.git
+	pushurl = git@github.com:EnMAP-Box/qgispluginsupport.git
+	branch = master
+
