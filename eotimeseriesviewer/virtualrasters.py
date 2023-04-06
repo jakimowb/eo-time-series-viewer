@@ -20,15 +20,15 @@
  ***************************************************************************/
 """
 import os
-import re
 import uuid
 from xml.etree import ElementTree
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF, QPoint
+
 from osgeo import gdal, osr, ogr
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
-    QgsPolygon, QgsRectangle
 
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel, Option
+from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF, QPoint
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
+    QgsPolygon, QgsRectangle
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -641,6 +641,8 @@ class VRTRaster(QObject):
         :param pathVRT: str, path of final VRT.
         :param warpedImageFolder: basename of folder that is created
         :return:
+
+        see https://raw.githubusercontent.com/OSGeo/gdal/master/data/gdalvrt.xsd
         """
         assert len(self) >= 1, 'VRT needs to define at least 1 band'
         assert os.path.splitext(pathVRT)[-1].lower() == '.vrt'
@@ -686,15 +688,6 @@ class VRTRaster(QObject):
                     f'\tgeotransformation = {dsSrc.GetGeoTransform()}'
 
                 vrtXML = read_vsimem(warpedFileName)
-                xml = ElementTree.fromstring(vrtXML)
-                # print(vrtXML.decode('utf-8'))
-
-                if False:
-                    dsTmp = gdal.Open(warpedFileName)
-                    assert isinstance(dsTmp, gdal.Dataset)
-                    drvVRT.Delete(warpedFileName)
-                    dsTmp = gdal.Open(warpedFileName)
-                    assert not isinstance(dsTmp, gdal.Dataset)
 
                 srcLookup[pathSrc] = warpedFileName
 
@@ -738,21 +731,20 @@ class VRTRaster(QObject):
             gt = dsVRTDst.GetGeoTransform()
             crs = dsVRTDst.GetProjectionRef()
             eType = dsVRTDst.GetRasterBand(1).DataType
-            SOURCE_TEMPLATES = dict()
 
             xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
-            # todo: parse XML
-            for i, srcFile in enumerate(srcFiles):
-                band: gdal.Band = dsVRTDst.GetRasterBand(i + 1)
-                assert isinstance(band, gdal.Band)
-                vrt_sources = band.GetMetadata('vrt_sources')
-                assert len(vrt_sources) == 1
-                srcXML = vrt_sources['source_0']
-                assert os.path.basename(srcFile) + '</SourceFilename>' in srcXML
-                assert '<SourceBand>1</SourceBand>' in srcXML
-                SOURCE_TEMPLATES[srcFile] = srcXML
-
             drvVRT.Delete(pathInMEMVRT)
+
+            SOURCE_TEMPLATES = dict()
+            etree = ElementTree.fromstring(xmlVRT)
+            for iSrc, xmlVRTBand in enumerate(etree.findall('VRTRasterBand')):
+                for xmlSrc in xmlVRTBand.findall('*'):
+                    if xmlSrc.text.endswith('Source'):
+                        break
+                src_path = srcFiles[iSrc]
+                src_path_xml = xmlSrc.find('SourceFilename').text
+                assert src_path.endswith(src_path_xml)
+                SOURCE_TEMPLATES[src_path] = xmlSrc
 
         else:
             # special case: no source files defined
@@ -798,8 +790,9 @@ class VRTRaster(QObject):
                 assert isinstance(sourceInfo, VRTRasterInputSourceBand)
                 bandIndex = sourceInfo.mBandIndex
                 xml = SOURCE_TEMPLATES[srcLookup[sourceInfo.mPath]]
-                xml = re.sub('<SourceBand>1</SourceBand>', '<SourceBand>{}</SourceBand>'.format(bandIndex + 1), xml)
-                md['source_{}'.format(iSrc)] = xml
+                xml.find('SourceBand').text = f'{bandIndex + 1}'
+                md['source_{}'.format(iSrc)] = ElementTree.tostring(xml)
+
             vrtBandDst.SetMetadata(md, 'vrt_sources')
 
         dsVRTDst = None
