@@ -16,8 +16,8 @@
 *                                                                         *
 ***************************************************************************
 """
-from PyQt5.QtCore import QPoint
-from PyQt5.QtWidgets import QScrollArea, QWidget
+from qgis.PyQt.QtCore import QPoint
+from qgis.PyQt.QtWidgets import QScrollArea, QWidget
 
 
 # noinspection PyPep8Naming

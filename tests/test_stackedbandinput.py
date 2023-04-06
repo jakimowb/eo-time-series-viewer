@@ -20,10 +20,10 @@
 import os
 import sys
 import unittest
-from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import ElementTree, Element
 
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QDialog
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtWidgets import QApplication
 from qgis.core import QgsRasterLayer
 
@@ -156,7 +156,7 @@ class TestStackedInputs(EOTSVTestCase):
             dates.update(s.dates())
 
         m.setMultiStackSources(stackInfos, list(dates))
-        return
+
         self.assertTrue(len(m) > 0)
 
         outInfo = m.mOutputImages[0]
@@ -166,7 +166,7 @@ class TestStackedInputs(EOTSVTestCase):
         self.assertIsInstance(xml, str)
 
         eTree = m.vrtXML(outInfo, asElementTree=True)
-        self.assertIsInstance(eTree, ElementTree.Element)
+        self.assertIsInstance(eTree, Element)
 
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
     def test_dialog(self):
@@ -208,6 +208,7 @@ class TestStackedInputs(EOTSVTestCase):
         self.assertTrue(len(TSV.mTimeSeries) == len(writtenFiles))
 
         self.showGui(d)
+        TSV.close()
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ import json
 # noinspection PyPep8Naming
 import unittest
 
-from PyQt5.QtWidgets import QTableView
+from qgis.PyQt.QtWidgets import QTableView
 
 from eotimeseriesviewer.settings import *
 from eotimeseriesviewer.tests import EOTSVTestCase

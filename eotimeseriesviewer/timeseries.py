@@ -32,10 +32,10 @@ import urllib
 from typing import List, Iterator, Tuple, Dict, Set, Union, Any
 
 import numpy as np
-from PyQt5.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, Qt, \
+from qgis.PyQt.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, Qt, \
     QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
-from PyQt5.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
-from PyQt5.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
+from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
+from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
 from osgeo import gdal
 from osgeo import osr, ogr
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode

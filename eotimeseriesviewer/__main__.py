@@ -19,6 +19,9 @@
 
 import pathlib
 import sys
+
+from eotimeseriesviewer.tests import start_app
+from qgis._core import QgsApplication
 from qgis.gui import QgisInterface
 
 
@@ -26,14 +29,10 @@ def run():
     # add site-packages to sys.path
     pluginDir = pathlib.Path(__file__).parents[1]
     sys.path.append(pluginDir.as_posix())
-    print(pluginDir)
-    from eotimeseriesviewer.tests import start_app
-    import qgis.utils
 
-    qgisIface = isinstance(qgis.utils.iface, QgisInterface)
+    need_execute = QgsApplication.instance() is None
 
-    if not qgisIface:
-        qgsApp = start_app()
+    start_app()
 
     from eotimeseriesviewer import initAll
     initAll()
@@ -43,9 +42,9 @@ def run():
     ts = EOTimeSeriesViewer()
     ts.show()
 
-    if not qgisIface:
-        qgsApp.exec_()
-        qgsApp.exitQgis()
+    if need_execute:
+        QgsApplication.instance().exec_()
+
 
 
 if __name__ == '__main__':

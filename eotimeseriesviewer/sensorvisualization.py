@@ -18,8 +18,8 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt5.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, QModelIndex, QAbstractListModel
-from PyQt5.QtWidgets import QHeaderView
+from qgis.PyQt.QtCore import Qt, QSortFilterProxyModel, QAbstractTableModel, QModelIndex, QAbstractListModel
+from qgis.PyQt.QtWidgets import QHeaderView
 # noinspection PyPep8Naming
 
 from qgis.gui import QgsDockWidget

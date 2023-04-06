@@ -33,5 +33,6 @@ eotimeseriesviewer/ui/tmp.ui
 *.pyd
 *.iml
 *__pycache__/
-
+symbology-style.db
+user-history.db
 /qgisresources/

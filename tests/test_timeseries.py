@@ -4,20 +4,33 @@
 import os
 import sys
 import unittest
+import re
+from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortFilterProxyModel, QUrl, QMimeData, QPointF
+from qgis.PyQt.QtGui import QDropEvent
+from qgis.PyQt.QtWidgets import QTableView, QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+
 import example
 import example.Images
 import numpy as np
 from osgeo import gdal, ogr, osr
+
+from qgis._core import QgsMimeDataUtils, QgsProject
+
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from qgis.core import QgsRasterLayer, QgsApplication
 from qgis.gui import QgsTaskManagerWidget
 
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint, SpatialExtent
 from eotimeseriesviewer.tests import TestObjects
 from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
+    TimeSeriesFindOverlapTask, SensorMatching, DateTimePrecision, TimeSeriesDock
 
 
 class TestTimeSeries(EOTSVTestCase):
+
+
 
     def createTestDatasets(self):
         vsiDir = '/vsimem/tmp'
@@ -149,6 +162,9 @@ class TestTimeSeries(EOTSVTestCase):
         center: SpatialPoint = ext.spatialCenter()
 
         self.showGui(EOTSV.ui)
+        EOTSV.close()
+        QgsProject.instance().removeAllMapLayers()
+        s = ""
 
     def test_TimeSeriesDate(self):
 
@@ -350,7 +366,7 @@ class TestTimeSeries(EOTSVTestCase):
         TS.addSources(files, nWorkers=1)
 
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
-            QCoreApplication.processEvents()
+            QgsApplication.processEvents()
 
         self.assertTrue(len(files) == len(TS))
         self.showGui(w)

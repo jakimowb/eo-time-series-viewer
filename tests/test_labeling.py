@@ -21,9 +21,9 @@ import re
 import unittest
 
 import numpy as np
-from PyQt5.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
+from qgis.PyQt.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
+from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
+from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
 from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
     QgsFields
 from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
@@ -292,6 +292,7 @@ class TestLabeling(EOTSVTestCase):
         event = QMouseEvent(QEvent.MouseButtonPress, pointCenter, Qt.RightButton, Qt.RightButton, Qt.NoModifier)
         canvas.mousePressEvent(event)
         self.showGui(canvas)
+        QgsProject.instance().removeAllMapLayers()
 
     def test_LabelShortCutType(self):
 

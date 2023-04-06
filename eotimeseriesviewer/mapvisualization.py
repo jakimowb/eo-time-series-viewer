@@ -1176,7 +1176,7 @@ class MapWidget(QFrame):
         self.mLastEOTSVMapCanvasCenter: SpatialPoint = None
         self.mMaxNumberOfCachedLayers = 0
 
-        self.mMapLayerStore = QgsMapLayerStore()
+        self.mMapLayerStore = QgsMapLayerStore(parent=self)
         self.mMapLayerCache = dict()
         self.mCanvasCache = dict()
 
@@ -1246,6 +1246,12 @@ class MapWidget(QFrame):
         self.mTimeSlider.setTracking(False)
         self.mTimeSlider.valueChanged.connect(self.onSliderValueChanged)
         self.mTimeSlider.sliderMoved.connect(self.onSliderMoved)
+
+    def close(self):
+        self.mMapRefreshTimer.stop()
+        self.mMapLayerStore.removeAllMapLayers()
+        self.mMapLayerCache.clear()
+        super().close()
 
     def clearCanvasGrid(self):
         """
@@ -1935,6 +1941,9 @@ QSlider::add-page {{
             self.sigMapViewsChanged.emit()
             self.sigMapViewRemoved.emit(mapView)
         return mapView
+
+    def mapLayerStore(self) -> QgsMapLayerStore:
+        return self.mMapLayerStore
 
     def mapViews(self) -> List[MapView]:
         """

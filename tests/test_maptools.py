@@ -18,16 +18,14 @@
 """
 # noinspection PyPep8Naming
 
-import configparser
 import unittest
-import os
 
-from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
-from qgis.gui import QgsMapToolZoom, QgsMapToolPan
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer.externals.qps.maptools import MapTools, MapToolCenter, \
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools, MapToolCenter, \
     FullExtentMapTool, PixelScaleExtentMapTool, QgsMapToolAddFeature, CursorLocationMapTool, QgsMapToolSelect
+from eotimeseriesviewer.tests import EOTSVTestCase
+from qgis.core import QgsVectorLayer, QgsProject
+from qgis.gui import QgsMapToolZoom, QgsMapToolPan
 
 
 class TestMapTools(EOTSVTestCase):
@@ -42,7 +40,7 @@ class TestMapTools(EOTSVTestCase):
     """
 
     def test_TimeSeriesViewer(self):
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
+
 
         TSV = EOTimeSeriesViewer()
         TSV.show()
@@ -83,6 +81,9 @@ class TestMapTools(EOTSVTestCase):
 
         TSV.setMapTool(MapTools.SelectFeature)
         self.assertIsInstance(TSV.mapCanvases()[0].mapTool(), QgsMapToolSelect)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
+        s = ""
 
 
 if __name__ == '__main__':

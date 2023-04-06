@@ -46,9 +46,9 @@ from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem, \
 from qgis.gui import QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, \
     QgsAttributeTableView
 from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from .qgispluginsupport.qps.utils import createQgsField, SpatialExtent, geo2px, SpatialPoint, setQgsFieldValue
+from .qgispluginsupport.qps.utils import createQgsField, SpatialExtent, geo2px, SpatialPoint, setQgsFieldValue, px2geo
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
-from .virtualrasters import px2geo
+
 
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'

@@ -13,12 +13,11 @@ __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
-
-
+import os
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from qgis.core import QgsProject, QgsRectangle, QgsRasterLayer
 from qgis.gui import QgsMapCanvas
-from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
-from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.tests import EOTSVTestCase
 
 
@@ -27,10 +26,10 @@ class TestUtils(EOTSVTestCase):
     def test_spatialExtent(self):
         canvas = QgsMapCanvas()
 
-        l = QgsRasterLayer(Img_2014_04_21_LC82270652014111LGN00_BOA)
-        QgsProject.instance().addMapLayer(l)
-        canvas.setLayers([l])
-        canvas.setExtent(l.extent())
+        lyr = QgsRasterLayer(Img_2014_04_21_LC82270652014111LGN00_BOA)
+        QgsProject.instance().addMapLayer(lyr)
+        canvas.setLayers([lyr])
+        canvas.setExtent(lyr.extent())
 
         ext = SpatialExtent.fromMapCanvas(canvas)
         self.assertIsInstance(ext, SpatialExtent)
@@ -39,6 +38,7 @@ class TestUtils(EOTSVTestCase):
         center = SpatialPoint.fromMapCanvasCenter(canvas)
         self.assertIsInstance(center, SpatialPoint)
         self.assertEqual(ext.spatialCenter(), center)
+        QgsProject.instance().removeAllMapLayers()
 
     def test_file_search(self):
         import example

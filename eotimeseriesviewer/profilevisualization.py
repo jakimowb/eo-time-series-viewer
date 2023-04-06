@@ -25,10 +25,10 @@ import sys
 from typing import List, Iterator
 
 import numpy as np
-from PyQt5.QtCore import Qt, QItemSelectionModel, QModelIndex, QAbstractItemModel, QPoint, pyqtSignal, QVariant, \
+from qgis.PyQt.QtCore import Qt, QItemSelectionModel, QModelIndex, QAbstractItemModel, QPoint, pyqtSignal, QVariant, \
     QAbstractTableModel, QSize, QSortFilterProxyModel, QTimer, QPointF, pyqtSlot
-from PyQt5.QtGui import QColor, QPen, QPalette, QContextMenuEvent, QCursor, QPainter
-from PyQt5.QtWidgets import QTableView, QMenu, QAction, QWidgetAction, QSlider, QStyledItemDelegate, QLabel, QComboBox, \
+from qgis.PyQt.QtGui import QColor, QPen, QPalette, QContextMenuEvent, QCursor, QPainter
+from qgis.PyQt.QtWidgets import QTableView, QMenu, QAction, QWidgetAction, QSlider, QStyledItemDelegate, QLabel, QComboBox, \
     QWidget, QFrame, QGridLayout, QRadioButton, QDateEdit, QHeaderView, QToolBar, QDialog
 from qgis.core import QgsVectorLayer, QgsPoint, QgsAttributeTableConfig, QgsMapLayerProxyModel, QgsFeature, \
     QgsCoordinateReferenceSystem

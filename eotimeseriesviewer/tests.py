@@ -25,15 +25,18 @@ import pathlib
 
 import numpy as np
 from osgeo import osr, gdal
+
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from qgis.PyQt.QtWidgets import QWidget
 from qgis.core import QgsApplication
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.resources import initResourceFile
-from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj
+from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj, start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
 
+start_app = start_app
 
 class EOTSVTestCase(TestCase):
     @classmethod
@@ -44,6 +47,10 @@ class EOTSVTestCase(TestCase):
         assert eotsv_resources.is_file(), \
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
         initResourceFile(eotsv_resources)
+
+    def tearDown(self):
+        self.assertTrue(EOTimeSeriesViewer.instance() is None)
+        super().tearDown()
 
     def closeBlockingWidget(self):
         """

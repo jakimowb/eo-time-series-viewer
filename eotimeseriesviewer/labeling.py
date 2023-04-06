@@ -3,9 +3,9 @@ import math
 from typing import List, Union, Dict
 
 import numpy as np
-from PyQt5.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
-from PyQt5.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
-from PyQt5.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, QWidget, \
+from qgis.PyQt.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
+from qgis.PyQt.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
+from qgis.PyQt.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, QWidget, \
     QLineEdit
 from qgis.core import QgsVectorLayer, QgsField, QgsFields, \
     QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, QgsRendererCategory, QgsCategorizedSymbolRenderer, \

@@ -464,7 +464,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTaskManagerButton.setFont(statusBarFont)
         self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
         self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
-        self.mMapLayerStore = self.mapWidget().mMapLayerStore
+        self.mMapLayerStore = self.mapWidget().mapLayerStore()
 
         mvd: MapViewDock = self.ui.dockMapViews
         tswidget: TimeSeriesWidget = self.ui.dockTimeSeries.timeSeriesWidget()
@@ -648,9 +648,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         temporalProfileLayer = self.profileDock.temporalProfileLayer()
         assert isinstance(temporalProfileLayer, QgsVectorLayer)
         temporalProfileLayer.setName('EOTS Temporal Profiles')
-        self.mMapLayerStore.addMapLayer(temporalProfileLayer)
+        self.mapLayerStore().addMapLayer(temporalProfileLayer)
 
-        eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mMapLayerStore)
+        eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mapLayerStore())
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
         self.applySettings()
 
@@ -932,9 +932,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.addTimeSeriesImages(files)
 
     def close(self):
-        self.mapWidget().mMapRefreshTimer.stop()
+        self.mapWidget().close()
         self.ui.close()
-
+        EOTimeSeriesViewer._instance = None
 
     def actionCopyLayerStyle(self) -> QAction:
         return self.ui.mActionCopyLayerStyle
@@ -1033,7 +1033,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         Returns the QgsMapLayerStore which is used to register QgsMapLayers
         :return: QgsMapLayerStore
         """
-        return self.mMapLayerStore
+        return self.mapWidget().mapLayerStore()
 
     def onOpenTable(self):
         c = self.currentLayer()
@@ -1305,7 +1305,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
-            p = SpectralLibraryUtils.fromRasterLayer(lyr, spatialPoint)
+            p: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
             basename = os.path.basename(lyr.source())
             if isinstance(p, QgsFeature):
                 p = p.copyFieldSubset(SPECTRA_PROFILE_FIELDS)

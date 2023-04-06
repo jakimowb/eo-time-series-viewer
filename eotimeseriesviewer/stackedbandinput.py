@@ -620,7 +620,7 @@ class OutputImageModel(QAbstractTableModel):
             if cname == self.cn_date:
                 return str(vrt.mDate)
 
-    def vrtXML(self, outputDefinition: OutputVRTDescription, asElementTree=False) -> str:
+    def vrtXML(self, outputDefinition: OutputVRTDescription, asElementTree: bool = False) -> str:
         """
         Create the VRT XML related to an outputDefinition
         :param outputDefinition:

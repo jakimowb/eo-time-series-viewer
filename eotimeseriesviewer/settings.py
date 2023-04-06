@@ -4,11 +4,11 @@ import sys
 from json import JSONDecodeError
 from typing import Union, List, Any
 
-from PyQt5.QtCore import QSize, QSettings, QVariant, QByteArray, QAbstractTableModel, QModelIndex, Qt, \
+from qgis.PyQt.QtCore import QSize, QSettings, QVariant, QByteArray, QAbstractTableModel, QModelIndex, Qt, \
     QSortFilterProxyModel, QItemSelectionModel, QItemSelection
-from PyQt5.QtGui import QColor, QFont
-from PyQt5.QtWidgets import QDialog, QComboBox, QDialogButtonBox
-from PyQt5.QtXml import QDomDocument
+from qgis.PyQt.QtGui import QColor, QFont
+from qgis.PyQt.QtWidgets import QDialog, QComboBox, QDialogButtonBox
+from qgis.PyQt.QtXml import QDomDocument
 from osgeo import gdal
 from qgis.core import QgsReadWriteContext, QgsTextFormat, QgsTextBufferSettings, QgsUnitTypes
 from qgis.gui import QgsFileWidget

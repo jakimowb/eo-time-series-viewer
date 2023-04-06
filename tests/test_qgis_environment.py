@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from PyQt5.QtWidgets import QHBoxLayout, QMenu, QAction
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QAction
 from qgis.core import \
     QgsProject, QgsMapLayer, QgsCoordinateReferenceSystem, QgsProviderRegistry, QgsRasterLayer, \
     QgsLayerTree, QgsLayerTreeModel

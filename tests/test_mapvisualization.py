@@ -16,10 +16,12 @@
 *                                                                         *
 ***************************************************************************
 """
-from PyQt5.QtWidgets import QPushButton
+from qgis.PyQt.QtWidgets import QPushButton
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToXml, rendererFromXml
-from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitModel
+from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search, \
+    UnitLookup
 # noinspection PyPep8Naming
 
 from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, EOTSVTestCase
@@ -263,6 +265,8 @@ class TestMapVisualization(EOTSVTestCase):
         MW.setCrs(l.crs())
         MW.setSpatialExtent(SpatialExtent.fromLayer(l))
         self.showGui()
+        MW.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_mapViewDock(self):
 
@@ -307,6 +311,7 @@ class TestMapVisualization(EOTSVTestCase):
         wl, wlu = parseWavelength(lyr)
         self.assertIsInstance(wl, np.ndarray)
         self.assertIsInstance(wlu, str)
+        wlu = UnitLookup.baseUnit(wlu)
         self.assertEqual(wlu, 'μm')
         refWL = [0.49, 0.56, 0.66, 0.84, 1.65, 2.2]
 
@@ -352,7 +357,7 @@ class TestMapVisualization(EOTSVTestCase):
             self.assertIsInstance(xml1, QDomDocument)
 
             r1b = rendererFromXml(xml1)
-            self.assertTrue(type(r1), type(r1b))
+            self.assertTrue(type(r1) == type(r1b), msg='Failed to reconstruct {r1.__class__.__name__}')
 
             if isinstance(r1, QgsRasterRenderer):
                 self.assertIsInstance(r1b, QgsRasterRenderer)

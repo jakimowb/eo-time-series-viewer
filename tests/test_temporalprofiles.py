@@ -17,7 +17,7 @@ import tempfile
 import sys
 import os
 
-
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from qgis.core import QgsTask, QgsMapLayer, QgsRasterLayer, QgsProject, \
     QgsPointXY, QgsGeometry
 from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
@@ -211,6 +211,8 @@ class TestTemporalProfiles(EOTSVTestCase):
         self.assertIsInstance(tv, QTableView)
         self.showGui(tv)
 
+        s = ""
+
     def test_profiledock(self):
 
         ts = TestObjects.createTimeSeries()
@@ -272,6 +274,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         pd.loadCoordinate(point2)
 
         self.showGui([pd])
+        QgsProject.instance().removeAllMapLayers()
 
 
 if __name__ == "__main__":

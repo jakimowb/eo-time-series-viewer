@@ -26,7 +26,7 @@ import configparser
 import unittest
 import tempfile
 
-from PyQt5.QtWidgets import QDialog
+from qgis.PyQt.QtWidgets import QDialog
 from qgis._core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
 from qgis._gui import QgsMapCanvas
 

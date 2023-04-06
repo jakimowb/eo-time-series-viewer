@@ -24,9 +24,6 @@ ignore =
     QGS105,
     # allow line break before binary operator
     W503
-    # QGIS IMPORTS
-    QGS103
-    QGS101
 
 
 max-line-length=120
@@ -57,3 +54,6 @@ per-file-ignores =
     # just not available in OSGeo4W installations
     # script should run immediately which site.addsitedir(REPO) before other imports
     scripts/*.py : E402
+    # 'import qgis.PyQt.pyrcc_main' instead of 'import PyQt5.pyrcc_main'
+    */resources.py: QGS104
+
