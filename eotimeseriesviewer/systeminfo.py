@@ -25,10 +25,9 @@ import re
 from collections import OrderedDict
 
 import numpy as np
-from PyQt5.QtCore import QAbstractTableModel, QModelIndex
-from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import QTableView, QMenu, QApplication, QFileDialog
-from qgis.PyQt import Qt
+from qgis.PyQt.QtCore import Qt, QAbstractTableModel, QModelIndex
+from qgis.PyQt.QtGui import QCursor
+from qgis.PyQt.QtWidgets import QTableView, QMenu, QApplication, QFileDialog
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
 from qgis.gui import QgsDockWidget
 

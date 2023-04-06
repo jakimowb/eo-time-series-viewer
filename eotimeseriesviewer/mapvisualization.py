@@ -712,9 +712,9 @@ class MapView(QFrame):
         """
         layers = []
         for c in self.mapCanvases():
-            for l in c.layers():
-                if isinstance(l, SensorProxyLayer) and l.sensor() == sensor:
-                    layers.append(l)
+            for lyr in c.layers():
+                if isinstance(lyr, SensorProxyLayer) and lyr.sensor() == sensor:
+                    layers.append(lyr)
         return layers
 
     def sensors(self) -> List[SensorInstrument]:

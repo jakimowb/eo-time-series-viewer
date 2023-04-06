@@ -740,7 +740,9 @@ class VRTRaster(QObject):
             eType = dsVRTDst.GetRasterBand(1).DataType
             SOURCE_TEMPLATES = dict()
             for i, srcFile in enumerate(srcFiles):
-                vrt_sources = dsVRTDst.GetRasterBand(i + 1).GetMetadata(str('vrt_sources'))
+                band: gdal.Band = dsVRTDst.GetRasterBand(i + 1)
+                assert isinstance(band, gdal.Band)
+                vrt_sources = band.GetMetadata('vrt_sources')
                 assert len(vrt_sources) == 1
                 srcXML = vrt_sources['source_0']
                 assert os.path.basename(srcFile) + '</SourceFilename>' in srcXML

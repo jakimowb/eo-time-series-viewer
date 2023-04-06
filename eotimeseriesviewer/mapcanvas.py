@@ -313,7 +313,7 @@ class MapCanvasMapTools(QObject):
         self.mtFullExtentMapTool = FullExtentMapTool(canvas)
         self.mtCursorLocation = CursorLocationMapTool(canvas, True)
 
-        self.mtAddFeature = QgsMapToolAddFeature(canvas, QgsMapToolCapture.CaptureNone, cadDock)
+        self.mtAddFeature = QgsMapToolAddFeature(canvas, cadDock, mode=QgsMapToolCapture.CaptureNone)
         self.mtSelectFeature = QgsMapToolSelect(canvas)
 
     def activate(self, mapToolKey, **kwds):
@@ -396,8 +396,7 @@ class MapCanvas(QgsMapCanvas):
         self.setProperty(KEY_LAST_CLICKED, time.time())
         self.mMapLayerStore: QgsProject = QgsProject.instance()
 
-        if Qgis.QGIS_VERSION >= '3.16':
-            self.contextMenuAboutToShow.connect(self.populateContextMenu)
+        self.contextMenuAboutToShow.connect(self.populateContextMenu)
 
         self.mMapTools: MapCanvasMapTools = None
         self.initMapTools()

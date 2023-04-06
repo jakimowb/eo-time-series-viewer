@@ -586,8 +586,8 @@ class TimeSeriesSource(object):
             sName = sensorName(dataset)
             self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
 
-            self.mUL = QgsPointXY(*px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
-            self.mLR = QgsPointXY(*px2geo(QPoint(self.ns, self.nl), self.mGeoTransform, pxCenter=False))
+            self.mUL = QgsPointXY(px2geo(QPoint(0, 0), self.mGeoTransform))
+            self.mLR = QgsPointXY(px2geo(QPoint(self.ns, self.nl), self.mGeoTransform))
 
     def __reduce_ex__(self, protocol):
         return self.__class__, (), self.__getstate__()

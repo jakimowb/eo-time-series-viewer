@@ -538,6 +538,7 @@ class OutputImageModel(QAbstractTableModel):
         dsVRT.FlushCache()
         drv = dsVRT.GetDriver()
         masterVRT_XML = read_vsimem(pathVSITmp).decode('utf-8')
+
         drv.Delete(pathVSITmp)
         outputVRTs = []
 

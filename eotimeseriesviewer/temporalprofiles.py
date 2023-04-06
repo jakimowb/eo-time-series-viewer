@@ -32,11 +32,10 @@ from collections import OrderedDict
 from typing import Tuple, List, Dict
 
 import numpy as np
-from PyQt5.QtCore import QPoint, QDate, QObject, pyqtSignal, QVariant, QModelIndex
-from PyQt5.QtGui import QDropEvent, QDragEnterEvent, QDragMoveEvent
-from PyQt5.QtWidgets import QFileDialog, QHeaderView, QMenu
+from qgis.PyQt.QtCore import Qt, QPoint, QDate, QObject, pyqtSignal, QVariant, QModelIndex
+from qgis.PyQt.QtGui import QDropEvent, QDragEnterEvent, QDragMoveEvent, QColor
+from qgis.PyQt.QtWidgets import QFileDialog, QHeaderView, QMenu
 from osgeo import ogr, osr, gdal
-from qgis.PyQt import Qt
 from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem, \
     QgsWkbTypes, QgsProviderRegistry, QgsFeature, QgsGeometry, QgsApplication, QgsTask, QgsRectangle, QgsTaskManager, \
     QgsPointXY, \
@@ -46,9 +45,7 @@ from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem, \
     QgsField, QgsFields, QgsExpressionContext, QgsExpression, QgsFileUtils
 from qgis.gui import QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, \
     QgsAttributeTableView
-
 from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from .qgispluginsupport.qps.pyqtgraph.pyqtgraph.examples.syntax import QColor
 from .qgispluginsupport.qps.utils import createQgsField, SpatialExtent, geo2px, SpatialPoint, setQgsFieldValue
 from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
 from .virtualrasters import px2geo

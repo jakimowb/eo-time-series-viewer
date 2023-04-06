@@ -42,12 +42,13 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOut
 from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
 
+import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsvSettings
 from eotimeseriesviewer import LOG_MESSAGE_TAG, DIR_UI, settings, DOCUMENTATION
 from eotimeseriesviewer import debugLog
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapWidget
+from eotimeseriesviewer.mapvisualization import MapView, MapWidget, MapViewDock
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.settings import Keys as SettingKeys, value as SettingValue
 from eotimeseriesviewer.settings import defaultValues, setValue
@@ -464,10 +465,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
         self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
         self.mMapLayerStore = self.mapWidget().mMapLayerStore
-
-        import eotimeseriesviewer.utils
-        eotimeseriesviewer.utils.MAP_LAYER_STORES.insert(0, self.mapLayerStore())
-        from eotimeseriesviewer.mapvisualization import MapViewDock, MapWidget
 
         mvd: MapViewDock = self.ui.dockMapViews
         tswidget: TimeSeriesWidget = self.ui.dockTimeSeries.timeSeriesWidget()
@@ -935,7 +932,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.addTimeSeriesImages(files)
 
     def close(self):
+        self.mapWidget().mMapRefreshTimer.stop()
         self.ui.close()
+
 
     def actionCopyLayerStyle(self) -> QAction:
         return self.ui.mActionCopyLayerStyle
