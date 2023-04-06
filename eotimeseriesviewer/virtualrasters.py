@@ -739,6 +739,9 @@ class VRTRaster(QObject):
             crs = dsVRTDst.GetProjectionRef()
             eType = dsVRTDst.GetRasterBand(1).DataType
             SOURCE_TEMPLATES = dict()
+
+            xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
+            # todo: parse XML
             for i, srcFile in enumerate(srcFiles):
                 band: gdal.Band = dsVRTDst.GetRasterBand(i + 1)
                 assert isinstance(band, gdal.Band)
