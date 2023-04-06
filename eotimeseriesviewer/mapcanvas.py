@@ -44,6 +44,7 @@ from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInpu
 
 import eotimeseriesviewer.settings
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
+
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -51,7 +52,7 @@ from .qgispluginsupport.qps.maptools import QgsMapToolSelectionHandler, \
     CursorLocationMapTool, QgsMapToolAddFeature, \
     MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, \
     QgsMapToolSelect
-from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, filenameFromString
+from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, filenameFromString, findParent
 from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -1094,7 +1095,6 @@ class MapCanvas(QgsMapCanvas):
             action.triggered.connect(lambda: QApplication.clipboard().setPixmap(self.pixmap()))
             action.setToolTip('Copies this map into the clipboard.')
 
-            from .utils import findParent
             from .mapvisualization import MapWidget
             mw = findParent(self, MapWidget)
             if isinstance(mw, MapWidget):
