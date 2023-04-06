@@ -17,49 +17,41 @@
 ***************************************************************************
 """
 
-import unittest
 import re
-import xmlrunner
-import datetime
-from qgis.PyQt.QtCore import *
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtWidgets import *
+import unittest
+
 import numpy as np
+from PyQt5.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
 from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
     QgsFields
-from qgis.gui import QgsDualView, QgsEditorConfigWidget, QgsMapLayerStyleManagerWidget, \
-    QgsMapCanvas, QgsGui, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper
+from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
+    QgsMapCanvas, QgsGui
+from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
+    EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
 
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.labeling import LabelWidget, LabelConfigurationKey, LabelAttributeTableModel, shortcuts, \
-    LabelShortcutEditorConfigWidget, quickLayerFieldSetup, quickLabelLayers, EDITOR_WIDGET_REGISTRY_KEY, \
-    LabelShortcutType, LabelConfigurationKey, registerLabelShortcutEditorWidget, Option, OptionListModel, \
-    LabelShortcutEditorWidgetWrapper, LabelShortcutWidgetFactory, createWidgetSetup, createWidgetConf, quickLabelValue
+import eotimeseriesviewer
+from eotimeseriesviewer.docks import LabelDockWidget
+from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, shortcuts, \
+    LabelShortcutEditorConfigWidget, quickLabelLayers, LabelShortcutType, registerLabelShortcutEditorWidget, \
+    LabelShortcutWidgetFactory, createWidgetSetup, quickLabelValue
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView
+from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme
+from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
+from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-from eotimeseriesviewer.externals.qps.utils import createQgsField
-from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
+from eotimeseriesviewer.timeseries import TimeSeriesDate
 
-import eotimeseriesviewer
 
 class TestLabeling(EOTSVTestCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        print('## setUpClass')
-        # app = qgis.testing.start_app(cleanup=True)
-
-        print('## setUpClass - cleanup')
-        for store in eotimeseriesviewer.MAP_LAYER_STORES:
-            store.removeAllMapLayers()
-        reg = QgsGui.editorWidgetRegistry()
-        if len(reg.factories()) == 0:
-            reg.initEditors()
         registerLabelShortcutEditorWidget()
-        print('## setUpClass - done')
 
     def createVectorLayer(self) -> QgsVectorLayer:
 
@@ -88,7 +80,7 @@ class TestLabeling(EOTSVTestCase):
         m = QStandardItemModel()
         m.appendRow(QStandardItem('AA'))
         m.appendRow(QStandardItem('BB'))
-        #m.addOptions(['AA', 'BB'])
+        # m.addOptions(['AA', 'BB'])
         w = QWidget()
         cb = QComboBox()
         cb.setInsertPolicy(QComboBox.InsertAtTop)
@@ -159,10 +151,10 @@ class TestLabeling(EOTSVTestCase):
             elif re.search('real', field.typeName(), re.I):
                 for t in [LabelShortcutType.Off, LabelShortcutType.DOY]:
                     self.assertTrue(t in possibleTypes)
+        QgsProject.instance().removeAllMapLayers()
 
     def test_LabelShortcutEditorConfigWidget(self):
         print('## test_LabelShortcutEditorConfigWidget')
-        QgsProject.instance().clear()
 
         vl = self.createVectorLayer()
         vl.setName('TEST_LAYER_LABELING')
@@ -177,7 +169,7 @@ class TestLabeling(EOTSVTestCase):
         pathXML = dirXML / 'test.qgs'
         QgsProject.instance().addMapLayer(vl)
         QgsProject.instance().write(pathXML.as_posix())
-        QgsProject.instance().clear()
+        QgsProject.instance().removeAllMapLayers()
         vl = None
         self.assertTrue(QgsProject.instance().read(pathXML.as_posix()))
         for lyr in QgsProject.instance().mapLayers().values():
@@ -201,9 +193,6 @@ class TestLabeling(EOTSVTestCase):
         self.assertIsInstance(w, LabelShortcutEditorConfigWidget)
         w.setLayerGroupModel(model)
         parent.layout().addWidget(w)
-
-
-
 
         canvas = QgsMapCanvas(parent)
         canvas.setVisible(False)
@@ -243,13 +232,11 @@ class TestLabeling(EOTSVTestCase):
             for l in quickLabelLayers():
                 print('{}={}'.format(l.name(), l.source()))
 
-
         self.showGui([dv, parent])
         self.assertTrue(vl.commitChanges())
-        pass
+        QgsProject.instance().removeAllMapLayers()
 
     def setupEditWidgets(self, vl):
-        from eotimeseriesviewer import ClassificationScheme
         classScheme1 = ClassificationScheme.create(5)
         classScheme1.setName('Schema1')
         classScheme2 = ClassificationScheme.create(3)
@@ -258,8 +245,10 @@ class TestLabeling(EOTSVTestCase):
         vl.setEditorWidgetSetup(vl.fields().lookupField('sensor'), createWidgetSetup(LabelShortcutType.Sensor))
         vl.setEditorWidgetSetup(vl.fields().lookupField('date'), createWidgetSetup(LabelShortcutType.Date))
 
-        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp1'), createWidgetSetup(LabelShortcutType.Date, 'Group1'))
-        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp2'), createWidgetSetup(LabelShortcutType.Date, 'Group2'))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp1'),
+                                createWidgetSetup(LabelShortcutType.Date, 'Group1'))
+        vl.setEditorWidgetSetup(vl.fields().lookupField('dateGrp2'),
+                                createWidgetSetup(LabelShortcutType.Date, 'Group2'))
 
         vl.setEditorWidgetSetup(vl.fields().lookupField('datetime'), createWidgetSetup(LabelShortcutType.DateTime))
 
@@ -270,9 +259,7 @@ class TestLabeling(EOTSVTestCase):
         vl.setEditorWidgetSetup(vl.fields().lookupField('decyr'), createWidgetSetup(LabelShortcutType.DecimalYear))
 
         # set different types of classifications
-        from eotimeseriesviewer.externals.qps.classification.classificationscheme import \
-            EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
-        from eotimeseriesviewer.externals.qps.classification.classificationscheme import classSchemeToConfig
+
         vl.setEditorWidgetSetup(vl.fields().lookupField('class1l'),
                                 QgsEditorWidgetSetup(CS_KEY, classSchemeToConfig(classScheme1)))
 
@@ -337,7 +324,7 @@ class TestLabeling(EOTSVTestCase):
         EOTSV.loadExampleTimeSeries(loadAsync=False)
         EOTSV.showAttributeTable(lyr)
         EOTSV.mapViews()[0].addLayer(lyr)
-        #EOTSV.onShowLayerProperties(lyr)
+        # EOTSV.onShowLayerProperties(lyr)
 
         self.assertEqual(1, len(EOTSV.ui.findChildren(LabelDockWidget)))
 
@@ -347,7 +334,8 @@ class TestLabeling(EOTSVTestCase):
         self.assertTrue('Layer B' in dockWidgets[0].windowTitle())
 
         self.showGui(EOTSV.ui)
-
+        EOTSV.close()
+        QgsProject.instance().removeAllMapLayers()
     def test_labelValue(self):
 
         fields = [
@@ -406,5 +394,5 @@ class TestLabeling(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

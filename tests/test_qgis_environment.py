@@ -2,13 +2,15 @@
 
 import os
 import unittest
+
+from PyQt5.QtWidgets import QHBoxLayout, QMenu, QAction
 from qgis.core import \
     QgsProject, QgsMapLayer, QgsCoordinateReferenceSystem, QgsProviderRegistry, QgsRasterLayer, \
     QgsLayerTree, QgsLayerTreeModel
 from qgis.gui import \
     QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeViewDefaultActions, \
     QgsLayerTreeMapCanvasBridge, QgsLayerTreeViewMenuProvider
-import xmlrunner
+
 from eotimeseriesviewer.tests import *
 
 
@@ -120,6 +122,8 @@ class TestQGISEnvironment(EOTSVTestCase):
         w.layout().addWidget(c)
 
         self.showGui(w)
+        w.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_qgis_environment(self):
         """QGIS environment has the expected providers"""
@@ -152,5 +156,5 @@ class TestQGISEnvironment(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

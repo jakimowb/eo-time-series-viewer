@@ -16,6 +16,10 @@
 *                                                                         *
 ***************************************************************************
 """
+from PyQt5.QtWidgets import QPushButton
+
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToXml, rendererFromXml
+from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search
 # noinspection PyPep8Naming
 
 from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, EOTSVTestCase
@@ -30,7 +34,7 @@ from qgis.core import QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, \
     QgsExpressionContext, QgsProject, QgsExpressionContextScope
 from qgis.gui import QgsFontButton, QgsExpressionLineEdit
 import unittest
-import xmlrunner
+
 from eotimeseriesviewer.utils import *
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.mapcanvas import *
@@ -320,7 +324,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.assertTrue(lyr.isValid())
 
         r0 = lyr.renderer()
-        from eotimeseriesviewer.externals.qps.layerproperties import rendererFromXml, rendererToXml
+
         xml0 = rendererToXml(r0)
         r0b = rendererFromXml(xml0)
         self.assertTrue(type(r0), type(r0b))
@@ -381,5 +385,5 @@ class TestMapVisualization(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

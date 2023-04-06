@@ -16,17 +16,14 @@
 *                                                                         *
 ***************************************************************************
 """
+import json
 # noinspection PyPep8Naming
 import unittest
-import json
-import tempfile
-import xmlrunner
 
-from qgis.core import QgsReadWriteContext, QgsTextFormat
-
-from eotimeseriesviewer.tests import EOTSVTestCase
+from PyQt5.QtWidgets import QTableView
 
 from eotimeseriesviewer.settings import *
+from eotimeseriesviewer.tests import EOTSVTestCase
 
 
 class TestSettings(EOTSVTestCase):
@@ -136,7 +133,7 @@ class TestSettings(EOTSVTestCase):
     def test_saveAndRestoreSensorNames(self):
 
         from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
-        from eotimeseriesviewer.timeseries import TimeSeriesSource, SensorInstrument, sensorIDtoProperties
+        from eotimeseriesviewer.timeseries import TimeSeriesSource
         tss = TimeSeriesSource.create(Img_2014_01_15_LC82270652014015LGN00_BOA)
         self.assertIsInstance(tss, TimeSeriesSource)
         sensorID = tss.sid()
@@ -151,5 +148,5 @@ class TestSettings(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

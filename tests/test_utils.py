@@ -13,7 +13,7 @@ __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
-import xmlrunner
+
 
 from qgis.core import QgsProject, QgsRectangle, QgsRasterLayer
 from qgis.gui import QgsMapCanvas
@@ -51,5 +51,5 @@ class TestUtils(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

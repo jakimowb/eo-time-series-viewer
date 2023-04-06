@@ -18,22 +18,15 @@
 """
 # noinspection PyPep8Naming
 
-import os
-import sys
-import configparser
-import xmlrunner
-from eotimeseriesviewer.tests import start_app, testRasterFiles, EOTSVTestCase
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-from qgis.core import QgsMapLayer, QgsVectorLayer, QgsRasterLayer, QgsRectangle, \
-    QgsCoordinateReferenceSystem, QgsMapToPixel, QgsProject
-from qgis.gui import QgsMapCanvas, QgisInterface
 import unittest
-import tempfile
 
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects
+from qgis._core import QgsApplication, QgsVectorLayer, QgsProject, QgsMapToPixel, QgsCoordinateReferenceSystem, \
+    QgsRectangle
+from qgis._gui import QgisInterface, QgsMapCanvas
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
+from eotimeseriesviewer.tests import EOTSVTestCase
 
 
 class TestQGISInteraction(EOTSVTestCase):
@@ -47,18 +40,11 @@ class TestQGISInteraction(EOTSVTestCase):
 
     """
 
-    def setUp(self):
-
-        eotsv = EOTimeSeriesViewer.instance()
-        if isinstance(eotsv, EOTimeSeriesViewer):
-            eotsv.close()
-            QApplication.processEvents()
-
     def test_syncExtents(self):
 
         TSV = EOTimeSeriesViewer()
         TSV.loadExampleTimeSeries(loadAsync=False)
-        QApplication.processEvents()
+        QgsApplication.processEvents()
 
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
@@ -72,26 +58,25 @@ class TestQGISInteraction(EOTSVTestCase):
         qgisCanvas.setDestinationCrs(world.crs())
         qgisCanvas.setExtent(world)
 
-
-        def moveCanvasToCorner(canvas: QgsMapCanvas, pos:str) -> SpatialPoint:
+        def moveCanvasToCorner(canvas: QgsMapCanvas, pos: str) -> SpatialPoint:
             pos = pos.upper()
             assert pos in ['UL', 'LR', 'UR', 'LL']
             assert isinstance(canvas, QgsMapCanvas)
             m2p: QgsMapToPixel = canvas.mapSettings().mapToPixel()
-            tol = m2p.toMapCoordinates(0,0) - m2p.toMapCoordinates(1,1)
+            tol = m2p.toMapCoordinates(0, 0) - m2p.toMapCoordinates(1, 1)
             center = canvas.center()
             crs: QgsCoordinateReferenceSystem = canvas.mapSettings().destinationCrs()
-            bounds : QgsRectangle = crs.bounds()
+            bounds: QgsRectangle = crs.bounds()
             w = canvas.width()
             h = canvas.height()
             if pos == 'UL':
                 newCenter = m2p.toMapCoordinates(1, 1)
             elif pos == 'LR':
-                newCenter = m2p.toMapCoordinates(w-1, h-1)
+                newCenter = m2p.toMapCoordinates(w - 1, h - 1)
             elif pos == 'UR':
-                newCenter = m2p.toMapCoordinates(w-1, 0)
+                newCenter = m2p.toMapCoordinates(w - 1, 0)
             elif pos == 'LL':
-                newCenter = m2p.toMapCoordinates(0, h-1)
+                newCenter = m2p.toMapCoordinates(0, h - 1)
             else:
                 raise NotImplementedError()
 
@@ -120,7 +105,6 @@ class TestQGISInteraction(EOTSVTestCase):
 
         s = ""
 
-
         extent = TSV.spatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
         center = extent.spatialCenter()
@@ -129,9 +113,9 @@ class TestQGISInteraction(EOTSVTestCase):
         self.showGui(TSV)
 
         TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)
-

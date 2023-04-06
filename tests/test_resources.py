@@ -15,20 +15,20 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 import pathlib
 import re
-import xmlrunner
-from qgis import *
+import os
+
 from qgis.PyQt.QtGui import QIcon
-from eotimeseriesviewer import file_search
+
+from eotimeseriesviewer import icon as eotsvIcon, DIR_UI
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, scanResources
 from eotimeseriesviewer.tests import EOTSVTestCase
 
 
 class TestResources(EOTSVTestCase):
 
     def test_icon(self):
-        from eotimeseriesviewer import icon, DIR_UI
-        from eotimeseriesviewer.externals.qps.resources import scanResources
         existing = list(scanResources())
-        self.assertFalse(icon().isNull())
+        self.assertFalse(eotsvIcon().isNull())
         iconSVGs = file_search(os.path.join(DIR_UI, 'icons'), '*.svg')
         iconSVGs = [pathlib.Path(s).as_posix() for s in iconSVGs]
         iconSVGs = sorted([re.sub(r'^.*/eotimeseriesviewer/ui/icons/', ':/eotimeseriesviewer/icons/', s)
@@ -46,7 +46,7 @@ class TestResources(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)
 
 

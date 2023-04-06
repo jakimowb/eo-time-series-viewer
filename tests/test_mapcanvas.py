@@ -21,6 +21,7 @@ import unittest
 
 from PyQt5.QtCore import QPoint
 from PyQt5.QtWidgets import QMenu
+from qgis._core import QgsApplication
 from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
 from qgis.gui import QgsMapCanvas, QgsFontButton
 
@@ -79,6 +80,9 @@ class TestMapCanvas(EOTSVTestCase):
         self.assertIsInstance(menu, QMenu)
         self.showGui(menu)
 
+        del canvas
+        QgsProject.instance().removeAllMapLayers()
+
     def test_mapcanvasInfoItem(self):
 
         mc = MapCanvas()
@@ -127,6 +131,8 @@ class TestMapCanvas(EOTSVTestCase):
             w.show()
 
         self.showGui([mc, btn])
+
+        QgsProject.instance().removeAllMapLayers()
 
     def test_mapcanvas(self):
         files = testRasterFiles()

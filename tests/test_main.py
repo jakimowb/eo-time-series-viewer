@@ -21,36 +21,21 @@
 import os
 import sys
 import configparser
-import xmlrunner
-from eotimeseriesviewer.tests import start_app, testRasterFiles
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-from qgis.core import *
-from qgis.core import QgsProject, QgsApplication
-from qgis.gui import *
-from qgis.testing import TestCase
+
+
 import unittest
 import tempfile
 
+from PyQt5.QtWidgets import QDialog
+from qgis._core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
+from qgis._gui import QgsMapCanvas
 
-
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
-from eotimeseriesviewer.main import *
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
 
 
 class TestMain(EOTSVTestCase):
 
-    def tearDown(self):
-        eotsv = EOTimeSeriesViewer.instance()
-
-        if isinstance(eotsv, EOTimeSeriesViewer):
-            try:
-                eotsv.close()
-            except Exception as ex:
-                pass
-            QApplication.processEvents()
-        super().tearDown()
 
     def test_TimeSeriesViewer(self):
         from qgis.utils import iface
@@ -70,7 +55,7 @@ class TestMain(EOTSVTestCase):
 
         TSV.loadExampleTimeSeries(loadAsync=True)
         while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
-            QCoreApplication.processEvents()
+            QgsApplication.processEvents()
 
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
@@ -84,6 +69,8 @@ class TestMain(EOTSVTestCase):
         TSV.onReloadProject()
 
         self.showGui([TSV.ui])
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_TimeSeriesViewerNoSource(self):
 
@@ -93,6 +80,8 @@ class TestMain(EOTSVTestCase):
 
         self.assertIsInstance(TSV, EOTimeSeriesViewer)
         self.showGui(TSV.ui)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_TimeSeriesViewerInvalidSource(self):
 
@@ -103,6 +92,8 @@ class TestMain(EOTSVTestCase):
         TSV.addTimeSeriesImages(images, loadAsync=False)
 
         self.showGui(TSV)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_TimeSeriesViewerMultiSource(self):
 
@@ -114,6 +105,8 @@ class TestMain(EOTSVTestCase):
         TSV.addTimeSeriesImages(paths, loadAsync=True)
 
         self.showGui(TSV.ui)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_AboutDialog(self):
 
@@ -143,6 +136,8 @@ class TestMain(EOTSVTestCase):
         TSV.exportMapsToImages(path=pathTestOutput)
 
         self.showGui(TSV)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_TimeSeriesViewerMassiveSources(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -153,10 +148,12 @@ class TestMain(EOTSVTestCase):
         TSV.addTimeSeriesImages(files)
 
         self.showGui(TSV)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
 
 
 if __name__ == '__main__':
     print('\nRun 1 test in 5.373s\n\nFAILED (failures=1)', file=sys.stderr, flush=True)
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)
 

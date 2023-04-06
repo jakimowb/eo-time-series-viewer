@@ -16,7 +16,7 @@ import unittest
 import tempfile
 import sys
 import os
-import xmlrunner
+
 
 from qgis.core import QgsTask, QgsMapLayer, QgsRasterLayer, QgsProject, \
     QgsPointXY, QgsGeometry
@@ -275,5 +275,5 @@ class TestTemporalProfiles(EOTSVTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

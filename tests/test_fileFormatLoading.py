@@ -1,16 +1,17 @@
 import os, re, io, importlib, uuid, unittest
 
 import qgis.testing
-import xmlrunner
+from osgeo import gdal
+
+from eotimeseriesviewer import DIR_EXAMPLES
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer import *
-from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.timeseries import *
+from eotimeseriesviewer.timeseries import TimeSeriesSource, TimeSeries, SensorInstrument, TimeSeriesDate
 
 DIR_SENTINEL = r''
 DIR_PLEIADES = r'H:\Pleiades'
 DIR_RAPIDEYE = r'Y:\RapidEye\3A'
-DIR_LANDSAT = jp(DIR_EXAMPLES, 'Images')
+DIR_LANDSAT = DIR_EXAMPLES / 'Images'
 DIR_VRT = r'O:\SenseCarbonProcessing\BJ_NOC\01_RasterData\02_CuttedVRT'
 
 
@@ -31,7 +32,7 @@ class TestFileFormatLoading(EOTSVTestCase):
 
     def test_loadRapidEyeLocal(self):
         # load RapidEye
-        searchDir = jp(DIR_EXAMPLES, 'Images')
+        searchDir = DIR_EXAMPLES / 'Images'
         if not os.path.isdir(searchDir):
             print('data directory undefined. skip test.')
             return
@@ -160,5 +161,5 @@ class TestFileFormatLoading(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)

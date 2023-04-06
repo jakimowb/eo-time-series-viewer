@@ -21,7 +21,7 @@
 import configparser
 import unittest
 import os
-import xmlrunner
+
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject
 from qgis.gui import QgsMapToolZoom, QgsMapToolPan
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -86,5 +86,5 @@ class TestMapTools(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'), buffer=False)
+    unittest.main(buffer=False)
     exit(0)
