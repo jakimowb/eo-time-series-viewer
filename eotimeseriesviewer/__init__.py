@@ -25,12 +25,7 @@ import pathlib
 from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '1.17'  # sub-subversion number is added automatically
-
-from eotimeseriesviewer.qgispluginsupport.qps import registerEditorWidgets, registerExpressionFunctions, \
-    registerMapLayerConfigWidgetFactories, unregisterEditorWidgets, unregisterExpressionFunctions, \
-    unregisterMapLayerConfigWidgetFactories
-from eotimeseriesviewer.qgispluginsupport.qps.resources import initQtResources
+__version__ = '1.18'  # sub-subversion number is added automatically
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
@@ -55,9 +50,11 @@ DIR_UI = DIR / 'ui'
 DIR_DOCS = DIR_REPO / 'doc'
 DIR_EXAMPLES = DIR_REPO / 'example'
 PATH_EXAMPLE_TIMESERIES = DIR_EXAMPLES / 'ExampleTimeSeries.csv'
-PATH_LICENSE = DIR_REPO / 'LICENSE.html'
-PATH_CHANGELOG = DIR_REPO / 'CHANGELOG'
-PATH_ABOUT = DIR_REPO / 'ABOUT.html'
+PATH_LICENSE = DIR_REPO / 'LICENSE.md'
+PATH_CHANGELOG = DIR_REPO / 'CHANGELOG.md'
+PATH_CONTRIBUTORS = DIR_REPO / 'CONTRIBUTORS.md'
+PATH_ABOUT = DIR_REPO / 'ABOUT.md'
+
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
 URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
 
@@ -99,6 +96,7 @@ def initResources():
     :return:
     """
     debugLog('initResources')
+    from eotimeseriesviewer.qgispluginsupport.qps.resources import initQtResources
     initQtResources(pathlib.Path(__file__).parent)
 
 
@@ -109,8 +107,11 @@ def initAll():
     """
     # resources first, as we need the icon resource paths!
     initResources()
+    from eotimeseriesviewer.qgispluginsupport.qps import registerEditorWidgets
     registerEditorWidgets()
+    from eotimeseriesviewer.qgispluginsupport.qps import registerExpressionFunctions
     registerExpressionFunctions()
+    from eotimeseriesviewer.qgispluginsupport.qps import registerMapLayerConfigWidgetFactories
     registerMapLayerConfigWidgetFactories()
 
     from .labeling import registerLabelShortcutEditorWidget
@@ -118,6 +119,7 @@ def initAll():
 
 
 def unloadAll():
+    from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, unregisterMapLayerConfigWidgetFactories
     unregisterEditorWidgets()
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()
