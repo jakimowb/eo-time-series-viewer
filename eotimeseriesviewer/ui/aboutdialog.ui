@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>550</width>
-    <height>300</height>
+    <width>840</width>
+    <height>364</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -138,6 +138,11 @@
          </item>
          <item>
           <property name="text">
+           <string>Contributors</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
            <string>License</string>
           </property>
          </item>
@@ -189,7 +194,7 @@
           <enum>QFrame::NoFrame</enum>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>2</number>
          </property>
          <widget class="QWidget" name="pageAbout">
           <property name="sizePolicy">
@@ -365,7 +370,7 @@
            <item>
             <widget class="QTextBrowser" name="tbAbout">
              <property name="styleSheet">
-              <string notr="true">background-color: rgb(240, 240, 240);</string>
+              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
@@ -383,7 +388,7 @@
               <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="placeholderText">
@@ -395,7 +400,10 @@ p, li { white-space: pre-wrap; }
               </url>
              </property>
              <property name="openExternalLinks">
-              <bool>true</bool>
+              <bool>false</bool>
+             </property>
+             <property name="openLinks">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -417,8 +425,35 @@ p, li { white-space: pre-wrap; }
            </property>
            <item>
             <widget class="QTextBrowser" name="tbChanges">
+             <property name="styleSheet">
+              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
+             </property>
+             <property name="html">
+              <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Changelog.md&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="openExternalLinks">
-              <bool>true</bool>
+              <bool>false</bool>
+             </property>
+             <property name="openLinks">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="pageContributors">
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QTextBrowser" name="tbContributors">
+             <property name="styleSheet">
+              <string notr="true">background-color: rgba(0, 0, 0, 0);</string>
+             </property>
+             <property name="openLinks">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -440,8 +475,14 @@ p, li { white-space: pre-wrap; }
            </property>
            <item>
             <widget class="QTextBrowser" name="tbLicense">
+             <property name="styleSheet">
+              <string notr="true">background-color: rgb(0, 0, 0,0);</string>
+             </property>
              <property name="openExternalLinks">
-              <bool>true</bool>
+              <bool>false</bool>
+             </property>
+             <property name="openLinks">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
