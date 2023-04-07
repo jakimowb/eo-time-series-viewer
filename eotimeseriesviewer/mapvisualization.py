@@ -1141,7 +1141,8 @@ class MapWidget(QFrame):
         MapViewByCols = 2
 
     sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
-    sigCrosshairPositionChanged = pyqtSignal([SpatialPoint], [SpatialPoint, MapCanvas])
+    sigCrosshairPositionChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
+                                             [QgsCoordinateReferenceSystem, QgsPointXY, MapCanvas])
     sigCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigMapSizeChanged = pyqtSignal(QSize)
 
@@ -2083,7 +2084,8 @@ QSlider::add-page {{
 
         if self.mCrosshairPosition != spatialPoint:
             self.setCrosshairPosition(spatialPoint)
-            self.sigCrosshairPositionChanged[SpatialPoint, MapCanvas].emit(self.mCrosshairPosition, canvas)
+            self.sigCrosshairPositionChanged[QgsCoordinateReferenceSystem, QgsPointXY, MapCanvas].emit(
+                self.mCrosshairPosition.crs(), self.mCrosshairPosition, canvas)
 
     def setCurrentLayer(self, layer: QgsMapLayer):
 
@@ -2099,7 +2101,8 @@ QSlider::add-page {{
                 assert isinstance(canvas, MapCanvas)
                 canvas.setCrosshairPosition(spatialPoint)
 
-            self.sigCrosshairPositionChanged[SpatialPoint].emit(self.mCrosshairPosition)
+            self.sigCrosshairPositionChanged[QgsCoordinateReferenceSystem, QgsPointXY].emit(
+                self.mCrosshairPosition.crs(), self.mCrosshairPosition)
         return self.crosshairPosition()
 
     def crosshairPosition(self) -> SpatialPoint:

@@ -20,9 +20,9 @@
 import pathlib
 import sys
 
+from qgis.core import QgsApplication
+
 from eotimeseriesviewer.tests import start_app
-from qgis._core import QgsApplication
-from qgis.gui import QgisInterface
 
 
 def run():
@@ -46,7 +46,5 @@ def run():
         QgsApplication.instance().exec_()
 
 
-
 if __name__ == '__main__':
-
     run()

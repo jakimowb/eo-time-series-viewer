@@ -1009,7 +1009,7 @@ class MapCanvas(QgsMapCanvas):
             elif isinstance(mapLayer, QgsRasterLayer):
                 sub.setIcon(QIcon(''))
             elif isinstance(mapLayer, QgsVectorLayer):
-                wkbType = QgsWkbTypes.displayString(int(mapLayer.wkbType()))
+                wkbType = QgsWkbTypes.displayString(mapLayer.wkbType())
                 if re.search('polygon', wkbType, re.I):
                     sub.setIcon(QIcon(r':/images/themes/default/mIconPolygonLayer.svg'))
                 elif re.search('line', wkbType, re.I):

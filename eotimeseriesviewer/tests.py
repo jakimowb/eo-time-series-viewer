@@ -38,6 +38,7 @@ from eotimeseriesviewer.timeseries import TimeSeries
 
 start_app = start_app
 
+
 class EOTSVTestCase(TestCase):
     @classmethod
     def setUpClass(cls, *args, **kwds):

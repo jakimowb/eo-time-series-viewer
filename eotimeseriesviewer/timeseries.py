@@ -29,30 +29,32 @@ import pathlib
 import pickle
 import re
 import urllib
+import xml.etree.ElementTree as ET
 from typing import List, Iterator, Tuple, Dict, Set, Union, Any
 
 import numpy as np
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, Qt, \
-    QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
-from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
-from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
 from osgeo import gdal
 from osgeo import osr, ogr
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-from qgis.core import QgsRasterLayerTemporalProperties
-from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
-    Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
-    QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
-    QgsPointXY, \
-    QgsMimeDataUtils, QgsCoordinateTransform
-from qgis.gui import QgsDockWidget, QgisInterface
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
 from eotimeseriesviewer.dateparser import parseDateFromDataSet
-from qgis.PyQt.QtCore import QRegExp
 from eotimeseriesviewer.virtualrasters import px2geo
+from qgis.PyQt.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, \
+    Qt, \
+    QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
+from qgis.PyQt.QtCore import QRegExp
+from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
+from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
+from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
+    Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
+    QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
+    QgsPointXY, \
+    QgsMimeDataUtils, QgsCoordinateTransform
+from qgis.core import QgsRasterLayerTemporalProperties
+from qgis.gui import QgsDockWidget, QgisInterface
 from .qgispluginsupport.qps.utils import datetime64, bandClosestToWavelength, SpatialExtent, gdalDataset, \
     SpatialPoint, \
     geo2px, relativePath, loadUi
@@ -374,13 +376,25 @@ class SensorProxyLayer(QgsRasterLayer):
         """
         return self.mSensor
 
-    def setMapLayerStyle(self, style: QgsMapLayerStyle):
-        if self.mStyleXml is None:
-            self.mStyleXml = self.mapLayerStyle().xmlData()
-        xml = style.xmlData()
-        if self.mStyleXml != xml:
-            style.writeToLayer(self)
+    def xmlDiff(self, xml1: str, xml2: str) -> str:
 
+        t1 = ET.fromstring(xml1)
+        t2 = ET.fromstring(xml2)
+
+        s = ""
+
+    def cleanXml(self, xmlStr: str) -> str:
+        """
+        Removes unnecessary characters to make XML comparable by content, not XML flavour
+        """
+        return re.sub('[\n\t]', '', xmlStr)
+
+    def setMapLayerStyle(self, style: QgsMapLayerStyle):
+        xml = self.cleanXml(style.xmlData())
+        if self.mStyleXml is None:
+            self.mStyleXml = xml
+
+        elif self.mStyleXml != xml:
             self.mStyleXml = xml
             self.styleChanged.emit()
             # xml2 = self.mapLayerStyle().xmlData()
