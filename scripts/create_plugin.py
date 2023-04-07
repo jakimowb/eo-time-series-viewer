@@ -39,7 +39,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
 
 site.addsitedir(pathlib.Path(__file__).parents[1])
 import eotimeseriesviewer
-from eotimeseriesviewer import DIR_REPO, __version__, PATH_CHANGELOG
+from eotimeseriesviewer import DIR_REPO, __version__, PATH_CHANGELOG, PATH_ABOUT
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
@@ -63,16 +63,7 @@ MD.mEmail = eotimeseriesviewer.MAIL
 
 ########## End of config section
 
-def aboutText() -> str:
-    with open(eotimeseriesviewer.PATH_ABOUT, 'r', encoding='utf-8') as f:
-        aboutText = f.readlines()
-        for i in range(1, len(aboutText)):
-            aboutText[i] = '    ' + aboutText[i]
-        aboutText = ''.join(aboutText)
-    return aboutText
 
-
-MD.mAbout = aboutText()
 
 
 def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
@@ -131,6 +122,7 @@ def create_plugin(include_testdata: bool = False,
 
     PATH_METADATAFILE = PLUGIN_DIR / 'metadata.txt'
     MD.mVersion = BUILD_NAME
+    MD.mAbout = markdown2html(PATH_ABOUT)
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
     # 1. (re)-compile all resource files
@@ -212,7 +204,7 @@ def markdown2html(path: Union[str, pathlib.Path]) -> str:
     path_md = pathlib.Path(path)
     with open(path_md, 'r', encoding='utf-8') as f:
         md = f.read()
-    return markdown.markdown(md).replace('\n', '')
+    return markdown.markdown(md)
 
 
 def createHTMLDocuments(dirPlugin: pathlib.Path):
@@ -225,7 +217,7 @@ def createHTMLDocuments(dirPlugin: pathlib.Path):
     os.makedirs(pathHTML.parent, exist_ok=True)
 
     # make html compact
-    html = markdown2html(PATH_CHANGELOG)
+    html = markdown2html(PATH_CHANGELOG).replace('\n', '')
     with open(pathHTML, 'w', encoding='utf-8') as f:
         f.write(''.join(html))
 
