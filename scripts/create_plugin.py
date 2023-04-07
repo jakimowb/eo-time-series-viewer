@@ -29,12 +29,17 @@ import shutil
 
 import site
 import io
-import docutils.core
+from typing import Iterator, Union
+
+import markdown
 from xml.dom import minidom
+
+from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter
+from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
+
 site.addsitedir(pathlib.Path(__file__).parents[1])
 import eotimeseriesviewer
-from eotimeseriesviewer import DIR_REPO, __version__
-from eotimeseriesviewer.externals.qps.make.deploy import QGISMetadataFileWriter
+from eotimeseriesviewer import DIR_REPO, __version__, PATH_CHANGELOG
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
@@ -52,9 +57,8 @@ MD.mHomepage = eotimeseriesviewer.HOMEPAGE
 MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = '3.14'
+MD.mQgisMinimumVersion = '3.28'
 MD.mEmail = eotimeseriesviewer.MAIL
-
 
 
 ########## End of config section
@@ -141,9 +145,9 @@ def create_plugin(include_testdata: bool = False,
     files.extend(list(scantree(DIR_REPO / 'tests', pattern=re.compile(r'\.py$'))))
     files.extend(list(scantree(DIR_REPO / 'example', pattern=re.compile(r'\.(gpkg|csv|tif|xml|py)$'))))
     files.append(DIR_REPO / '__init__.py')
-    files.append(DIR_REPO / 'CHANGELOG.rst')
-    files.append(DIR_REPO / 'ABOUT.html')
-    files.append(DIR_REPO / 'CONTRIBUTORS.rst')
+    files.append(DIR_REPO / 'CHANGELOG.md')
+    files.append(DIR_REPO / 'ABOUT.md')
+    files.append(DIR_REPO / 'CONTRIBUTORS.md')
     files.append(DIR_REPO / 'LICENSE.md')
     files.append(DIR_REPO / 'requirements.txt')
     files.append(DIR_REPO / 'requirements_dev.txt')
@@ -180,7 +184,6 @@ def create_plugin(include_testdata: bool = False,
 
     # 5. create a zip
     print('Create zipfile...')
-    from eotimeseriesviewer.utils import zipdir
     zipdir(PLUGIN_DIR, PLUGIN_ZIP)
 
     # 7. install the zip file into the local QGIS instance. You will need to restart QGIS!
@@ -205,75 +208,26 @@ def create_plugin(include_testdata: bool = False,
     return PLUGIN_ZIP.as_posix()
 
 
-def rst2html(pathMD: pathlib.Path) -> str:
-    """
-    Convert a rst file to html
-    """
-
-    assert pathMD.is_file()
-
-    overrides = {'stylesheet': None,
-                 'embed_stylesheet': False,
-                 'output_encoding': 'utf-8',
-                 'dump_pseudo_xml': False,
-                 }
-
-    buffer = io.StringIO()
-    html = docutils.core.publish_file(source_path=pathMD.as_posix(), writer_name='html5', settings_overrides=overrides, destination=buffer)
-
-    xml = minidom.parseString(html)
-    #  remove headline
-    for i, node in enumerate(xml.getElementsByTagName('h1')):
-        if i == 0:
-            node.parentNode.removeChild(node)
-        else:
-            node.tagName = 'h4'
-
-    for node in xml.getElementsByTagName('link'):
-        node.parentNode.removeChild(node)
-
-    for node in xml.getElementsByTagName('meta'):
-        if node.getAttribute('name') == 'generator':
-            node.parentNode.removeChild(node)
-
-    xml = xml.getElementsByTagName('body')[0]
-    html = xml.toxml()
-    html_cleaned = []
-    for line in html.split('\n'):
-        # line to modify
-        line = re.sub(r'class="[^"]*"', '', line)
-        line = re.sub(r'id="[^"]*"', '', line)
-        line = re.sub(r'<li><p>', '<li>', line)
-        line = re.sub(r'</p></li>', '</li>', line)
-        line = re.sub(r'</?(dd|dt|div|body)[ ]*>', '', line)
-        line = line.strip()
-        if line != '':
-            html_cleaned.append(line)
-    return html
+def markdown2html(path: Union[str, pathlib.Path]) -> str:
+    path_md = pathlib.Path(path)
+    with open(path_md, 'r', encoding='utf-8') as f:
+        md = f.read()
+    return markdown.markdown(md).replace('\n', '')
 
 
 def createHTMLDocuments(dirPlugin: pathlib.Path):
     """
-    Reads the CHANGELOG.rst and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
+    Reads the CHANGELOG.md and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
     :return:
     """
-
-    pathMD = DIR_REPO / 'CHANGELOG.rst'
     pathHTML = dirPlugin / 'CHANGELOG'
     # pathCL2 = DIR_REPO / 'CHANGELOG'
     os.makedirs(pathHTML.parent, exist_ok=True)
 
     # make html compact
-    html_cleaned = rst2html(pathMD)
+    html = markdown2html(PATH_CHANGELOG)
     with open(pathHTML, 'w', encoding='utf-8') as f:
-        f.write(''.join(html_cleaned))
-
-    pathMD = DIR_REPO / 'LICENSE.md'
-    pathHTML = dirPlugin / 'LICENSE.html'
-    html_cleaned = rst2html(pathMD)
-
-    with open(pathHTML, 'w', encoding='utf-8') as f:
-        f.write(''.join(html_cleaned))
+        f.write(''.join(html))
 
 
 if __name__ == "__main__":

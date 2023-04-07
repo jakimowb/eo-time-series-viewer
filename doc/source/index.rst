@@ -59,7 +59,7 @@ as published by the Free Software Foundation. See also :ref:`License`.
     Graphical User Interface <gui.rst>
     Quick Labeling <quick_labeling.rst>
     Shortcuts <shortcuts.rst>
-    Changelog <changelog_visual.rst>
+    Changelog <CHANGELOG.md>
     Gallery <gallery.rst>
     LICENSE.md
 

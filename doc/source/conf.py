@@ -24,11 +24,16 @@ import mock
 if True:
     MOCK_MODULES = ['qgis', 'qgis.core', 'qgis.gui', 'qgis.utils', 'numpy', 'scipy', 'osgeo', 'gdal',
                 'vrtbuilder', 'vrtbuilder.virtualrasters',
-                'qgis.PyQt', 'qgis.PyQt.Qt', 'qgis.PyQt.QtCore', 'qgis.PyQt.QtGui', 'qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
+                'qgis.PyQt',
+                'qgis.PyQt.QtCore',
+                'qgis.PyQt.QtGui',
+                'qgis.Pyqt.QtSvg',
+                'qgis.PyQt.QtWidgets', 'qgis.PyQt.QtXml',
                 'processing', 'processing.core', 'processing.core.ProcessingConfig']
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
+
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../'))
@@ -74,7 +79,7 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosectionlabel',
-    'recommonmark',
+    'myst_parser',
     ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -120,7 +125,7 @@ release = u'{}'.format(eotimeseriesviewer.__version__)
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

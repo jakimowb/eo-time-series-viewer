@@ -1,40 +1,21 @@
-
 import argparse
+import copy
 import re
+import shutil
 import site
 import pathlib
 import sys
+
+from eotimeseriesviewer.qgispluginsupport.qps.resources import findQGISResourceFiles, initResourceFile, scanResources
+from eotimeseriesviewer.qgispluginsupport.qps.utils import relativePath
+
 site.addsitedir(pathlib.Path(__file__).parents[1])
 
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.core import QgsApplication
-from eotimeseriesviewer import DIR_REPO, DIR_DOCS, ISSUE_TRACKER
+from eotimeseriesviewer import DIR_REPO, DIR_DOCS, ISSUE_TRACKER, initResources
 
-
-
-def convert_changelog():
-    """
-    Converts <repo>/CHANGELOG.rst to <repo>/doc/source/changelog.rst
-    """
-    pathSrc = DIR_REPO / 'CHANGELOG.rst'
-    pathDst = DIR_DOCS / 'source' / 'changelog.rst'
-
-    assert pathSrc.is_file()
-
-    with open(pathSrc, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-
-    for i in range(len(lines)):
-        line = lines[i]
-        # convert #104 to
-        #         `#104 <https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/104>`_
-        line = re.sub(r' #(\d+)', r' `#\1 <{}/\1>`_'.format(ISSUE_TRACKER), line)
-
-        lines[i] = line
-
-    with open(pathDst, 'w', encoding='utf-8') as f:
-        f.writelines(lines)
 
 def update_icons():
     from eotimeseriesviewer import DIR_REPO
@@ -50,11 +31,6 @@ def update_icons():
     if not isinstance(QgsApplication.instance(), QgsApplication):
         app = start_app()
 
-    from eotimeseriesviewer.externals.qps.resources import findQGISResourceFiles, scanResources, initResourceFile
-    from eotimeseriesviewer import initResources
-    from eotimeseriesviewer.utils import relativePath
-
-
     initResources()
     for f in findQGISResourceFiles():
         initResourceFile(f)
@@ -66,7 +42,7 @@ def update_icons():
     resourcePaths = [p for p in resourcePaths if rxIconSource.search(p)]
 
     assert len(resourcePaths) > 0, 'No resource icons found'
-    #|mActionZoomOut| image::
+    # |mActionZoomOut| image::
 
     newLines = []
     iconSize = QSize(64, 64)
@@ -80,7 +56,7 @@ def update_icons():
                 pass
                 name = match.group('name')
                 if name == 'mActionZoomIn':
-                    s =""
+                    s = ""
                 rxmatch = re.compile(r'.*/' + name + r'.(svg|png)$')
                 found = False
                 for p in resourcePaths:
@@ -115,18 +91,25 @@ def update_icons():
     return True
 
 
+def update_markdown():
+    DIR_DOC_SOURCE = DIR_DOCS / 'source'
+
+    def copy_to_dir(file: pathlib.Path, dirpath: pathlib.Path):
+        assert file.is_file()
+        shutil.copy(file, dirpath / file.name)
+
+    for f in ['CHANGELOG.md', 'ABOUT.md', 'CONTRIBUTORS.md', 'LICENSE.md']:
+        copy_to_dir(DIR_REPO / f, DIR_DOC_SOURCE)
+
+
 def update_documentation():
-
-    convert_changelog()
-
-    pass
+    update_icons()
+    update_markdown()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Update documentation')
     args = parser.parse_args()
-    update_icons()
     update_documentation()
     print('Update documentation finished')
     exit(0)
-
