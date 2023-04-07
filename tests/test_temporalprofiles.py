@@ -41,13 +41,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
         self.TS.addSources(files, runAsync=False)
         self.assertTrue(len(self.TS) > 0)
-        self.dirTmp = tempfile.mkdtemp(prefix='EOTSV_Test')
 
-    def tearDown(self):
-        """Runs after each test."""
-
-        import shutil
-        shutil.rmtree(self.dirTmp)
 
     def createTemporalProfiles(self):
 
@@ -210,8 +204,8 @@ class TestTemporalProfiles(EOTSVTestCase):
         tv = PlotSettingsTableView()
         self.assertIsInstance(tv, QTableView)
         self.showGui(tv)
-
-        s = ""
+        tv.close()
+        QgsProject.instance().removeAllMapLayers()
 
     def test_profiledock(self):
 

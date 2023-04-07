@@ -10,13 +10,17 @@
 
 gitpython
 git-lfs
-
+sphinx_rtd_theme
 recommonmark
 docutils
+markdown
 sphinx
 sphinx-argparse
 sphinx-markdown
 sphinx-rtd-theme
 sphinx-autobuild
-xmlrunner
 coverage
+pytest
+pytest-cov
+flake8
+flake8-qgis

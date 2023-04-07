@@ -380,13 +380,9 @@ class MapCanvas(QgsMapCanvas):
         UpdateMapItems = 5
 
     saveFileDirectories = dict()
-    # sigShowProfiles = pyqtSignal(SpatialPoint, str)
-    sigSpatialExtentChanged = pyqtSignal(SpatialExtent)
-    # sigChangeDVRequest = pyqtSignal(QgsMapCanvas, str)
-    # sigChangeMVRequest = pyqtSignal(QgsMapCanvas, str)
-    # sigChangeSVRequest = pyqtSignal(QgsMapCanvas, QgsRasterRenderer)
+    sigSpatialExtentChanged = pyqtSignal(object)
     sigMapRefreshed = pyqtSignal([float, float], [float])
-    sigCrosshairPositionChanged = pyqtSignal(SpatialPoint)
+    sigCrosshairPositionChanged = pyqtSignal(object)
     sigCrosshairVisibilityChanged = pyqtSignal(bool)
     sigDestinationCrsChanged = pyqtSignal(QgsCoordinateReferenceSystem)
     sigCrosshairStyleChanged = pyqtSignal(CrosshairStyle)

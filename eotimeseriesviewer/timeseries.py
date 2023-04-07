@@ -23,6 +23,7 @@ import collections
 import datetime
 import enum
 import json
+import uuid
 # noinspection PyPep8Naming
 import os
 import pathlib
@@ -33,8 +34,9 @@ import xml.etree.ElementTree as ET
 from typing import List, Iterator, Tuple, Dict, Set, Union, Any
 
 import numpy as np
-from osgeo import gdal
+from osgeo import gdal, gdal_array
 from osgeo import osr, ogr
+from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer import messageLog
@@ -245,15 +247,16 @@ class SensorInstrument(QObject):
 
         self.hashvalue = hash(self.mId)
 
-        import uuid
-        path = '/vsimem/mockupImage.{}.bsq'.format(uuid.uuid4())
-        drv: gdal.Driver = gdal.GetDriverByName('ENVI')
-        self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
-
+        path = '/vsimem/mockupImage.{}.tif'.format(uuid.uuid4())
+        # drv: gdal.Driver = gdal.GetDriverByName('ENVI')
+        self.mMockupDS = gdal_array.SaveArray(np.ones((self.nb, 2, 2),
+                                                      dtype=GDALTypeCodeToNumericTypeCode(self.dataType)), path)
+        # self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
         self.mMockupDS.SetGeoTransform([1, 1, 0.0, 1, 0.0, -1])
         self.mMockupDS.SetProjection(srs.ExportToWkt())
+
         if self.wl is not None:
             self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
         if self.wlu is not None:

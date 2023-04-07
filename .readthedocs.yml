@@ -13,7 +13,7 @@ formats:
   - htmlzip
 
 python:
-  version: 3.7
+  version: 3.10
   install:
     - requirements:  doc/source/requirements.txt
 

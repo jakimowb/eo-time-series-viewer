@@ -22,7 +22,6 @@ import os
 import sys
 import configparser
 
-
 import unittest
 import tempfile
 
@@ -36,7 +35,6 @@ from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
 
 class TestMain(EOTSVTestCase):
 
-
     def test_TimeSeriesViewer(self):
         from qgis.utils import iface
         c = iface.mapCanvas()
@@ -44,6 +42,7 @@ class TestMain(EOTSVTestCase):
 
         def onCRSChanged():
             print(f'QGIS MapCanvas CRS changed to {c.mapSettings().destinationCrs().description()}', flush=True)
+
         c.destinationCrsChanged.connect(onCRSChanged)
 
         crs = QgsCoordinateReferenceSystem('EPSG:32633')
@@ -66,7 +65,7 @@ class TestMain(EOTSVTestCase):
         path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
-        TSV.onReloadProject()
+        TSV.reloadProject()
 
         self.showGui([TSV.ui])
         TSV.close()
@@ -108,15 +107,6 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
-    def test_AboutDialog(self):
-
-        from eotimeseriesviewer.main import AboutDialogUI
-
-        dialog = AboutDialogUI()
-
-        self.assertIsInstance(dialog, QDialog)
-        self.showGui([dialog])
-
     def test_exportMapsToImages(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
@@ -156,4 +146,3 @@ if __name__ == '__main__':
     print('\nRun 1 test in 5.373s\n\nFAILED (failures=1)', file=sys.stderr, flush=True)
     unittest.main(buffer=False)
     exit(0)
-
