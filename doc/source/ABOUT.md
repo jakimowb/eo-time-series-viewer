@@ -11,14 +11,16 @@ The EO Time Series Viewer is a QGIS Plugin to visualize and label Earth Observat
 * Documentation [https://eo-time-series-viewer.readthedocs.io/en/latest](https://eo-time-series-viewer.readthedocs.io/en/latest)
 * Repository [https://github.com/jakimowb/eo-time-series-viewer](https://github.com/jakimowb/eo-time-series-viewer.git)
 
-* Publication <cite>Jakimow, B., van der Linden, S., Thiel, F., Frantz, D., & Hostert, P. (2020).
-            Visualizing and labeling dense multi-sensor earth observation time series: The EO Time Series Viewer.
-            <a href="https://doi.org/10.1016/j.envsoft.2020.104631">Environmental Modelling & Software, 125. 10.1016/j.envsoft.2020.104631</a></cite>
+* Publication:
+
+  _Jakimow, B., van der Linden, S., Thiel, F., Frantz, D., & Hostert, P. (2020).
+              Visualizing and labeling dense multi-sensor earth observation time series: The EO Time Series Viewer.
+              Environmental Modelling & Software, 125. [10.1016/j.envsoft.2020.104631](https://doi.org/10.1016/j.envsoft.2020.104631)_
 
 ### How to cite this plugin?
-<cite>
-Jakimow, B. (%year%). EO Time Series Viewer, version %version%, https://plugins.qgis.org/plugins/timeseriesviewerplugin
-</cite>
+
+_Jakimow, B. (%year%). EO Time Series Viewer, version %version%, https://plugins.qgis.org/plugins/timeseriesviewerplugin_
+
 
 ### Acknowledgements
 

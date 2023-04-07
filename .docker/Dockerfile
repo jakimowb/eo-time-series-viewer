@@ -11,7 +11,7 @@ RUN apt-get update && \
 RUN apt-get update
 
 COPY ./requirements.txt /tmp/
-COPY ./requirements_developer.txt /tmp/
+COPY ./requirements_dev.txt /tmp/
 RUN pip3 install -r /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements_dev.txt
 
