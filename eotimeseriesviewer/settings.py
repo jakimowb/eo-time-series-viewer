@@ -4,6 +4,9 @@ import sys
 from json import JSONDecodeError
 from typing import Union, List, Any
 
+from qgis.PyQt.QtGui import QPen
+
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from qgis.PyQt.QtCore import QSize, QSettings, QVariant, QByteArray, QAbstractTableModel, QModelIndex, Qt, \
     QSortFilterProxyModel, QItemSelectionModel, QItemSelection
 from qgis.PyQt.QtGui import QColor, QFont
@@ -34,6 +37,9 @@ class Keys(enum.Enum):
     VectorSourceDirectory = 'vector_source_directory'
     MapImageExportDirectory = 'map_image_export_directory'
     SettingsVersion = 'settings_version'
+    ProfileStyleCurrent = 'profile_style_current'
+    ProfileStyleAdded = 'profile_style_added'
+    ProfileStyleTemporal = 'profile_style_temporal'
     Debug = 'debug'
     QgsTaskAsync = 'qgs_task_async'
     QgsTaskBlockSize = 'qgs_task_block_size'
@@ -65,6 +71,19 @@ def defaultValues() -> dict:
     d[Keys.MapUpdateInterval] = 500  # milliseconds
     d[Keys.MapSize] = QSize(150, 150)
     d[Keys.MapBackgroundColor] = QColor('black')
+
+    # Profiles
+    stylec = PlotStyle()
+    stylec.setLinePen(QPen(QColor('green')))
+    stylec.setMarkerColor('green')
+
+    style = PlotStyle()
+    style.setMarkerColor('grey')
+    style.setLinePen(QPen(QColor('grey')))
+
+    d[Keys.ProfileStyleCurrent] = stylec
+    d[Keys.ProfileStyleAdded] = style
+    d[Keys.ProfileStyleTemporal] = style
 
     d[Keys.QgsTaskAsync] = True
     d[Keys.QgsTaskBlockSize] = 25
@@ -170,6 +189,12 @@ def value(key: Keys, default=None):
                     # delete old-style settings
                     del value[sensorID]
 
+        if key in [Keys.ProfileStyleAdded,
+                   Keys.ProfileStyleCurrent,
+                   Keys.ProfileStyleTemporal]:
+            if isinstance(value, str):
+                value = PlotStyle.fromJSON(value)
+
     except TypeError as error:
         value = None
         settings().setValue(key.value, None)
@@ -232,6 +257,12 @@ def setValue(key: Keys, value):
 
     if key == Keys.SensorSpecs:
         s = ""
+
+    if key in [Keys.ProfileStyleCurrent,
+               Keys.ProfileStyleTemporal,
+               Keys.ProfileStyleAdded]:
+        if isinstance(value, PlotStyle):
+            value = value.json()
     # if isinstance(value, dict) and key == Keys.SensorSpecs:
     #   settings().setValue(key.value, value)
 
@@ -582,6 +613,11 @@ class SettingsDialog(QDialog):
         d[Keys.MapBackgroundColor] = self.mCanvasColorButton.color()
         d[Keys.MapTextFormat] = self.mMapTextFormatButton.textFormat()
 
+        # profiles
+        d[Keys.ProfileStyleCurrent] = self.btnProfileCurrent.plotStyle()
+        d[Keys.ProfileStyleAdded] = self.btnProfileAdded.plotStyle()
+        d[Keys.ProfileStyleTemporal] = self.btnProfileTemporal.plotStyle()
+
         # others page
         d[Keys.Debug] = self.cbDebug.isChecked()
         d[Keys.QgsTaskAsync] = self.cbAsyncQgsTasks.isChecked()
@@ -670,3 +706,12 @@ class SettingsDialog(QDialog):
 
             if checkKey(key, Keys.RasterOverlapSampleSize) and isinstance(value, int):
                 self.sbRasterOverlapSampleSize.setValue(value)
+
+            if checkKey(key, Keys.ProfileStyleCurrent) and isinstance(value, PlotStyle):
+                self.btnProfileCurrent.setPlotStyle(value)
+
+            if checkKey(key, Keys.ProfileStyleAdded) and isinstance(value, PlotStyle):
+                self.btnProfileAdded.setPlotStyle(value)
+
+            if checkKey(key, Keys.ProfileStyleTemporal) and isinstance(value, PlotStyle):
+                self.btnProfileTemporal.setPlotStyle(value)

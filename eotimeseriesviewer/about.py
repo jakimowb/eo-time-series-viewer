@@ -1,16 +1,18 @@
 import os
 import webbrowser
 
-from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtWidgets import QDialog
+from qgis.PyQt.QtCore import Qt, QUrl
+from qgis.PyQt.QtWidgets import QDialog
 
 from eotimeseriesviewer import DIR_UI, PATH_CONTRIBUTORS
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
+
 
 def anchorClicked(url: QUrl):
     """Opens a URL in local browser / mail client"""
     assert isinstance(url, QUrl)
     webbrowser.open(url.url())
+
 
 class AboutDialogUI(QDialog):
     def __init__(self, parent=None):
@@ -59,5 +61,3 @@ class AboutDialogUI(QDialog):
         if suffix:
             title += ' ' + suffix
         self.setWindowTitle(title)
-
-

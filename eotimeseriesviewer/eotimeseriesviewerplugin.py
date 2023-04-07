@@ -23,13 +23,14 @@
 import os
 import sys
 import site
-
+from typing import List
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtWidgets import QAction, QApplication
 from qgis.gui import QgisInterface
 
 from eotimeseriesviewer import TITLE
+from eotimeseriesviewer import settings
 
 
 class EOTimeSeriesViewerPlugin:
@@ -70,6 +71,7 @@ class EOTimeSeriesViewerPlugin:
 
     def initProcessing(self):
         """
+        dummy
         """
         pass
 
@@ -115,6 +117,10 @@ class EOTimeSeriesViewerPlugin:
         else:
             self.mEOTSV = EOTimeSeriesViewer()
             self.mEOTSV.ui.sigAboutToBeClosed.connect(self.onUiClosed)
+
+            if settings.value(settings.Keys.StartupRestoreProjectSettings, False):
+                self.mEOTSV.reloadProject()
+
             self.mEOTSV.show()
 
     def onUiClosed(self):
