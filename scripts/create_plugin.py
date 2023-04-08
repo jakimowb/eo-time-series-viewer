@@ -144,6 +144,15 @@ def create_plugin(include_testdata: bool = False,
     files.append(DIR_REPO / 'requirements.txt')
     files.append(DIR_REPO / 'requirements_dev.txt')
 
+    # exclude
+    files = [f for f in files
+             if 'qgispluginsupport' not in f.as_posix()
+             and 'pyqtgraph' not in f.as_posix()
+             or (
+                     'qgispluginsupport/qps/' in f.as_posix()
+                 or 'pyqtgraph/pyqtgraph' in f.as_posix())
+             ]
+
     for fileSrc in files:
         assert fileSrc.is_file()
         fileDst = PLUGIN_DIR / fileSrc.relative_to(DIR_REPO)

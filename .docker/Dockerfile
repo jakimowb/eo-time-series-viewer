@@ -5,11 +5,10 @@ MAINTAINER Benjamin Jakimow <benjamin.jakimow@geo.hu-berlin.de>
 LABEL Description="Docker container with QGIS + EO Time Series Viewer" Vendor="QGIS.org"
 
 RUN apt-get update && \
-    apt-get -y install python3-pip wget unzip \
+    apt-get -y install python3-pip wget unzip git git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update
-
 COPY ./requirements.txt /tmp/
 COPY ./requirements_dev.txt /tmp/
 RUN pip3 install -r /tmp/requirements.txt
