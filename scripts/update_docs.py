@@ -67,7 +67,16 @@ def update_icons():
                         pm: QPixmap = icon.pixmap(iconSize)
                         path = DIR_QGIS_ICONS / f'{name}.png'
 
-                        pm.save(path.as_posix(), format='PNG')
+                        write_icon = False
+                        if path.is_file():
+                            # compare with existing file
+                            pm_old = QPixmap(path.as_posix())
+                            if pm.toImage() != pm_old.toImage():
+                                write_icon = True
+                        else:
+                            write_icon = True
+                        if write_icon:
+                            pm.save(path.as_posix(), format='PNG')
                         assert path.is_file()
                         relPath = relativePath(path, pathIconLinks.parent)
                         newLine = f'.. |{name}| image:: {relPath.as_posix()} \n'
