@@ -56,10 +56,12 @@ PATH_CONTRIBUTORS = DIR_REPO / 'CONTRIBUTORS.md'
 PATH_ABOUT = DIR_REPO / 'ABOUT.md'
 
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
-URL_QGIS_RESOURCES = r'https://bitbucket.org/jakimowb/qgispluginsupport/downloads/qgisresources.zip'
+URL_QGIS_RESOURCES = r'https://bitbucket.org/hu-geomatics/enmap-box/downloads/qgisresources.zip'
 
 
 def debugLog(msg: str = '', skip_prefix: bool = False):
+    """
+    """
     if str(os.environ.get('DEBUG')).lower() in ['true', '1', 'yes']:
         if skip_prefix:
             prefix = ''

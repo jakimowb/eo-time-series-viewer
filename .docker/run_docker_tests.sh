@@ -21,6 +21,6 @@ ls -l
 export QT_QPA_PLATFORM=offscreen
 export CI=True
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-# python3 scripts/setup_repository.py -r
+python3 scripts/setup_repository.py -r
 source scripts/runtests.sh
 popd

@@ -2,6 +2,7 @@
 Initial setup of the EOTSV repository.
 Run this script after you have cloned the EOTSV repository
 """
+import argparse
 import pathlib
 import requests
 import zipfile
@@ -13,7 +14,7 @@ site.addsitedir(pathlib.Path(__file__).parents[1])
 
 
 
-
+from scripts.compile_resourcefiles import compileEOTSVResourceFiles
 from eotimeseriesviewer import DIR_REPO, URL_QGIS_RESOURCES
 
 def install_zipfile(url: str, localPath: pathlib.Path, zip_root: str = None):
@@ -53,23 +54,48 @@ def install_qgisresources():
     localpath = DIR_REPO / 'qgisresources'
     install_zipfile(URL_QGIS_RESOURCES, localpath)
 
-def setup_eotsv_repository():
+def setup_eotsv_repository(resources:bool = True,
+                           qgis_resources:bool = False):
     # specify the local path to the cloned QGIS repository
     site.addsitedir(DIR_REPO)
 
     DIR_SITEPACKAGES = DIR_REPO / 'site-packages'
     DIR_QGISRESOURCES = DIR_REPO / 'qgisresources'
 
-
-    from scripts.compile_resourcefiles import compileEOTSVResourceFiles
-    print('Compile EOTSV resource files')
-    compileEOTSVResourceFiles()
-    print('Install QGIS resource files')
-    install_qgisresources()
+    if resources:
+        print('Compile EOTSV resource files')
+        compileEOTSVResourceFiles()
+    if qgis_resources:
+        print('Install QGIS resource files')
+        install_qgisresources()
     print('EO Time Series Viewer repository setup finished')
 
 
 if __name__ == "__main__":
-    print('setup repository')
-    setup_eotsv_repository()
-    exit(0)
+    parser = argparse.ArgumentParser(description='Setup Repository. Run this after you have cloned the '
+                                                 'EO Time Series Viewer repository')
+    parser.add_argument('-r', '--resources',
+                        required=False,
+                        default=False,
+                        help='Create *_rc.py resource file modules from *.qrc files',
+                        action='store_true'
+                        )
+
+    parser.add_argument('-q', '--qgisresources',
+                        required=False,
+                        default=False,
+                        action='store_true',
+                        help='Download and install QGIS resource files compiled as *_rc.py modules',
+                        )
+
+    args = parser.parse_args()
+
+    if not any([args.resources,
+                args.qgisresources]):
+        args.resources = True
+        args.qgisresources = True
+
+    print('Setup repository')
+    setup_eotsv_repository(resources=args.resources,
+                           qgis_resources=args.qgisresources)
+    print('EO Time Series Viewer repository setup finished')
