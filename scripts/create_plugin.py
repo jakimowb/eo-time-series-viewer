@@ -21,21 +21,23 @@
 # noinspection PyPep8Naming
 
 import argparse
+import git
 import datetime
 import os
 import pathlib
 import re
 import shutil
-
+import textwrap
 import site
-import io
-from typing import Iterator, Union
+
+from typing import Iterator, Union, Optional
 
 import markdown
 from xml.dom import minidom
 
-from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter
+from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
+from qgis.core import QgsUserProfileManager, QgsUserProfile
 
 site.addsitedir(pathlib.Path(__file__).parents[1])
 import eotimeseriesviewer
@@ -82,39 +84,38 @@ def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
 
 def create_plugin(include_testdata: bool = False,
                   include_qgisresources: bool = False,
-                  zipfilename: str = None,
-                  latest: bool = False) -> str:
+                  create_zip: bool = True,
+                  copy_to_profile: bool = False,
+                  build_name: str = None) -> Optional[pathlib.Path]:
     assert (DIR_REPO / '.git').is_dir()
-    DIR_DEPLOY = DIR_REPO / 'deploy'
 
-    try:
-        import git
-        REPO = git.Repo(DIR_REPO)
-        currentBranch = REPO.active_branch.name
-    except Exception as ex:
-        currentBranch = 'TEST'
-        print('Unable to find git repo. Set currentBranch to "{}"'.format(currentBranch))
+    #BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
+    #BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
+    #BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
+    #PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
 
-    timestamp = datetime.datetime.now().isoformat().split('.')[0]
+    DIR_DEPLOY_LOCAL = DIR_REPO / 'deploy'
 
-    BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
-    BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
-    BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
-    PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
+    REPO = git.Repo(DIR_REPO)
+    active_branch = REPO.active_branch.name
+    from eotimeseriesviewer import __version__ as VERSION
+    VERSION_SHA = REPO.active_branch.commit.hexsha
+    lastCommitDate = REPO.active_branch.commit.authored_datetime
+    timestamp = re.split(r'[.+]', lastCommitDate.isoformat())[0]
 
-    if latest:
-
-        branch = currentBranch
-        branch = re.sub(r'[:-]', '', branch)
-        branch = re.sub(r'[\\/]', '_', branch)
-        PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.latest.zip'.format(branch)
-    else:
-        if isinstance(zipfilename, str) and len(zipfilename) > 0:
-            if not zipfilename.endswith('.zip'):
-                zipfilename += '.zip'
-            PLUGIN_ZIP = DIR_DEPLOY / zipfilename
+    if build_name is None:
+        # we are on release branch
+        if re.search(r'release_\d+\.\d+', active_branch):
+            BUILD_NAME = VERSION
         else:
-            PLUGIN_ZIP = DIR_DEPLOY / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
+            BUILD_NAME = '{}.{}.{}'.format(VERSION, timestamp, active_branch)
+            BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
+            BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
+    else:
+        BUILD_NAME = build_name
+
+    PLUGIN_DIR = DIR_DEPLOY_LOCAL / 'timeseriesviewerplugin'
+    PLUGIN_ZIP = DIR_DEPLOY_LOCAL / 'timeseriesviewerplugin.{}.zip'.format(BUILD_NAME)
 
     if PLUGIN_DIR.is_dir():
         shutil.rmtree(PLUGIN_DIR)
@@ -171,11 +172,11 @@ def create_plugin(include_testdata: bool = False,
     f.close()
 
     # include test data into test versions
-    if include_testdata and not re.search(currentBranch, 'master', re.I):
+    if include_testdata and not re.search(active_branch, 'master', re.I):
         if os.path.isdir(eotimeseriesviewer.DIR_TESTDATA):
             shutil.copytree(eotimeseriesviewer.DIR_TESTDATA, PLUGIN_DIR / 'example')
 
-    if include_qgisresources and not re.search(currentBranch, 'master', re.I):
+    if include_qgisresources and not re.search(active_branch, 'master', re.I):
         qgisresources = pathlib.Path(DIR_REPO) / 'qgisresources'
         shutil.copytree(qgisresources, PLUGIN_DIR / 'qgisresources')
 
@@ -183,27 +184,57 @@ def create_plugin(include_testdata: bool = False,
     import scripts.update_docs
     scripts.update_docs.update_documentation()
 
+    # Copy to other deploy directory
+    if copy_to_profile:
+        profileManager: QgsUserProfileManager = userProfileManager()
+        assert len(profileManager.allProfiles()) > 0
+        if isinstance(copy_to_profile, str):
+            profileName = copy_to_profile
+        else:
+            profileName = profileManager.lastProfileName()
+        assert profileManager.profileExists(profileName), \
+            f'QGIS profiles "{profileName}" does not exist in {profileManager.allProfiles()}'
+
+        profileManager.setActiveUserProfile(profileName)
+        profile: QgsUserProfile = profileManager.userProfile()
+
+        DIR_QGIS_USERPROFILE = pathlib.Path(profile.folder())
+        if DIR_QGIS_USERPROFILE:
+            os.makedirs(DIR_QGIS_USERPROFILE, exist_ok=True)
+            if not DIR_QGIS_USERPROFILE.is_dir():
+                raise f'QGIS profile directory "{profile.name()}" does not exists: {DIR_QGIS_USERPROFILE}'
+
+            QGIS_PROFILE_DEPLOY = DIR_QGIS_USERPROFILE / 'python' / 'plugins' / PLUGIN_DIR.name
+            # just in case the <profile>/python/plugins folder has not been created before
+            os.makedirs(DIR_QGIS_USERPROFILE.parent, exist_ok=True)
+            if QGIS_PROFILE_DEPLOY.is_dir():
+                print(f'Copy plugin to {QGIS_PROFILE_DEPLOY}...')
+                shutil.rmtree(QGIS_PROFILE_DEPLOY)
+            shutil.copytree(PLUGIN_DIR, QGIS_PROFILE_DEPLOY)
+
     # 5. create a zip
-    print('Create zipfile...')
-    zipdir(PLUGIN_DIR, PLUGIN_ZIP)
+    # Create a zip
+    if create_zip:
+        print('Create zipfile...')
+        zipdir(PLUGIN_DIR, PLUGIN_ZIP)
 
-    # 7. install the zip file into the local QGIS instance. You will need to restart QGIS!
-    if True:
-        info = []
-        info.append('\n### To update/install the EO Time Series Viewer, run this command on your QGIS Python shell:\n')
-        info.append('from pyplugin_installer.installer import pluginInstaller')
-        info.append('pluginInstaller.installFromZipFile(r"{}")'.format(PLUGIN_ZIP))
-        info.append('#### Close (and restart manually)\n')
-        # print('iface.mainWindow().close()\n')
-        info.append('QProcess.startDetached(QgsApplication.arguments()[0], [])')
-        info.append('QgsApplication.quit()\n')
-        info.append('## press ENTER\n')
+        # 7. install the zip file into the local QGIS instance. You will need to restart QGIS!
+        if True:
+            info = []
+            info.append('\n### To update/install the EO Time Series Viewer, run this command on your QGIS Python shell:\n')
+            info.append('from pyplugin_installer.installer import pluginInstaller')
+            info.append('pluginInstaller.installFromZipFile(r"{}")'.format(PLUGIN_ZIP))
+            info.append('#### Close (and restart manually)\n')
+            # print('iface.mainWindow().close()\n')
+            info.append('QProcess.startDetached(QgsApplication.arguments()[0], [])')
+            info.append('QgsApplication.quit()\n')
+            info.append('## press ENTER\n')
 
-        print('\n'.join(info))
+            print('\n'.join(info))
 
-        # cb = QGuiApplication.clipboard()
-        # if isinstance(cb, QClipboard):
-        #    cb.setText('\n'.join(info))
+            # cb = QGuiApplication.clipboard()
+            # if isinstance(cb, QClipboard):
+            #    cb.setText('\n'.join(info))
 
     print('Finished')
     return PLUGIN_ZIP.as_posix()
@@ -238,23 +269,39 @@ if __name__ == "__main__":
                         default=False,
                         help='Add qgisresources directory to plugin zip. This is only required for test environments',
                         action='store_true')
-    parser.add_argument('-z', '--zipfilename',
-                        required=False,
-                        default=None,
-                        type=str,
-                        help='final path of generated zipfile')
 
-    parser.add_argument('-l', '--latest',
+    parser.add_argument('-z', '--skip_zip',
                         required=False,
-                        help='Name the output zip like timeseriesviewer.<branch name>.latest.zip,'
-                             'e.g. for generic uploads',
-                        default=None,
+                        default=False,
+                        help='Skip zip file creation',
                         action='store_true')
 
+    parser.add_argument('-b', '--build-name',
+                        required=False,
+                        default=None,
+                        help=textwrap.dedent("""
+                            The build name in "timeseriesviewerplugin.<build name>.zip"
+                            Defaults:
+                                <version> in case of a release.* branch
+                                <version>.<timestamp>.<branch name> in case of any other branch.
+                            """
+                                             ))
+
+    parser.add_argument('-p', '--profile',
+                        nargs='?',
+                        const=True,
+                        default=False,
+                        help=textwrap.dedent("""
+                                Install the plugin into a QGIS user profile.
+                                Requires that QGIS is closed. Use:
+                                -p or --profile for installation into the active user profile
+                                --profile=myProfile for installation install it into profile "myProfile"
+                                """)
+                        )
     args = parser.parse_args()
 
     path = create_plugin(include_qgisresources=args.qgisresources,
-                         zipfilename=args.zipfilename,
-                         latest=args.latest)
+                         build_name=args.build_name,
+                         create_zip=not args.skip_zip,
+                         copy_to_profile=args.profile)
     print('EOTSV_ZIP={}'.format(path))
-    exit(0)
