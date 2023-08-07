@@ -199,28 +199,6 @@ class TestTimeSeries(EOTSVTestCase):
         self.showGui(TV)
 
     def test_TimeSeriesSource(self):
-        wcs = r'dpiMode=7&identifier=BGS_EMODNET_CentralMed-MCol&url=http://194.66.252.155/cgi-bin/BGS_EMODnet_bathymetry/ows?VERSION%3D1.1.0%26coverage%3DBGS_EMODNET_CentralMed-MCol'
-
-        p = r'Q:\Processing_BJ\01_Data\level2_overview\20180629_SEN2B_BOA.vrt'
-        if os.path.isfile(p):
-            tss = TimeSeriesSource.create(p)
-            self.assertIsInstance(tss, TimeSeriesSource)
-
-        p = r'Q:\Processing_BJ\99_OSARIS_Testdata\Loibl-2019-OSARIS-Ala-Archa\Amplitudes\20151207--20151231-amplitude.grd'
-        if os.path.isfile(p):
-            try:
-                tss = TimeSeriesSource.create(p)
-                self.assertIsInstance(tss, TimeSeriesSource)
-            except Exception as ex:
-                print(ex, file=sys.stderr)
-                s = ""
-
-        if False:
-            webSources = [QgsRasterLayer(wcs, 'test', 'wcs')]
-
-            for src in webSources:
-                tss = TimeSeriesSource.create(src)
-                self.assertIsInstance(tss, TimeSeriesSource)
 
         sources = [example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA,
                    gdal.Open(example.Images.Img_2014_03_20_LC82270652014079LGN00_BOA),
@@ -249,6 +227,10 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertTrue(lyr.isValid())
             self.assertEqual(lyr.width(), tss.ns)
             self.assertEqual(lyr.height(), tss.nl)
+            ext1 = SpatialExtent.fromLayer(lyr)
+            ext2 = tss.spatialExtent()
+            if ext1 != ext2:
+                s = ""
             self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())
 
         import pickle
@@ -575,4 +557,4 @@ class TestTimeSeries(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-    exit(0)
+

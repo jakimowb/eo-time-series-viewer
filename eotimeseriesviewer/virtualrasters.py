@@ -20,15 +20,16 @@
  ***************************************************************************/
 """
 import os
+import pathlib
 import uuid
 from xml.etree import ElementTree
 
-from osgeo import gdal, osr, ogr
+from osgeo import gdal, osr
+from qgis.core import QgsGeometry, QgsRasterLayer, QgsMapToPixel
 
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel, Option
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF, QPoint
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint, QgsCircularString, \
-    QgsPolygon, QgsRectangle
+from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -105,13 +106,6 @@ def write_vsimem(fn: str, data: str):
     size = len(data)
     gdal.VSIFWriteL(data, 1, size, vsifile)
     return gdal.VSIFCloseL(vsifile)
-
-
-def px2geo(px, gt):
-    # see http://www.gdal.org/gdal_datamodel.html
-    gx = gt[0] + px.x() * gt[1] + px.y() * gt[2]
-    gy = gt[3] + px.x() * gt[4] + px.y() * gt[5]
-    return QgsPoint(gx, gy)
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,
@@ -881,42 +875,32 @@ def createVirtualBandStack(bandFiles, pathVRT):
 
 class RasterBounds(object):
     def __init__(self, path):
-        self.path = None
-        self.polygon = None
-        self.curve = None
+        self.path: path.Path = None
+        self.polygon: QgsGeometry = None
         self.crs = None
 
         if path is not None:
             self.fromImage(path)
 
     def fromImage(self, path):
-        self.path = path
-        ds = gdal.Open(path)
-        assert isinstance(ds, gdal.Dataset)
-        gt = ds.GetGeoTransform()
-        bounds = [px2geo(QPoint(0, 0), gt),
-                  px2geo(QPoint(ds.RasterXSize, 0), gt),
-                  px2geo(QPoint(ds.RasterXSize, ds.RasterYSize), gt),
-                  px2geo(QPoint(0, ds.RasterYSize), gt)]
-        crs = QgsCoordinateReferenceSystem(ds.GetProjection())
-        ring = ogr.Geometry(ogr.wkbLinearRing)
-        for p in bounds:
-            assert isinstance(p, QgsPoint)
-            ring.AddPoint(p.x(), p.y())
+        self.path = pathlib.Path(path)
 
-        curve = ogr.Geometry(ogr.wkbLinearRing)
-        curve.AddGeometry(ring)
-        self.curve = QgsCircularString()
-        self.curve.fromWkt(curve.ExportToWkt())
+        loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+        lyr = QgsRasterLayer(path, options=loptions)
+        if not lyr.isValid():
+            return None
+        self.crs = lyr.crs()
+        c = lyr.extent().center()
+        dx = lyr.rasterUnitsPerPixelX()
+        dy = lyr.rasterUnitsPerPixelY()
+        m2p = QgsMapToPixel(lyr.rasterUnitsPerPixelX(), c.x(), c.y(), lyr.width(), lyr.height(), 0)
 
-        polygon = ogr.Geometry(ogr.wkbPolygon)
-        polygon.AddGeometry(ring)
-        self.polygon = QgsPolygon()
-        self.polygon.fromWkt(polygon.ExportToWkt())
-        self.polygon.exteriorRing().close()
-        assert self.polygon.exteriorRing().isClosed()
-
-        self.crs = crs
+        points = [m2p.toMapCoordinatesF(0, 0),  # UL
+                  m2p.toMapCoordinatesF(lyr.width() + dx, 0),  # UR
+                  m2p.toMapCoordinatesF(lyr.width() + dx, lyr.height() + dy),
+                  m2p.toMapCoordinatesF(0, lyr.height() + dy),
+                  ]
+        self.polygon = QgsGeometry.fromPolygonXY([points])
 
         return self
 

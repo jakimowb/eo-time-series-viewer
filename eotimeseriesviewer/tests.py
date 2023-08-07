@@ -36,6 +36,9 @@ from qgis.core import QgsApplication
 
 start_app = start_app
 
+osr.UseExceptions()
+gdal.UseExceptions()
+
 
 class EOTSVTestCase(TestCase):
     @classmethod

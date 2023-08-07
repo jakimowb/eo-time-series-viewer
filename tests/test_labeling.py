@@ -341,9 +341,9 @@ class TestLabeling(EOTSVTestCase):
         attrTable.mLabelWidget.mActionZoomMapToSelectedRows.trigger()
         self.showGui(EOTSV.ui)
 
-
         EOTSV.close()
         QgsProject.instance().removeAllMapLayers()
+
     def test_labelValue(self):
 
         fields = [

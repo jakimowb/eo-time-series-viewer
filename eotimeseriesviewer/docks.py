@@ -2,7 +2,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.core import QgsVectorLayer, QgsVectorLayerTools
 from qgis.gui import QgsDockWidget
-from eotimeseriesviewer.labeling import LabelWidget, gotoNextFeature, gotoPreviousFeature
+from eotimeseriesviewer.labeling import LabelWidget, gotoFeature
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
     SpectralLibraryWidget
 
@@ -25,10 +25,10 @@ class SpectralLibraryDockWidget(SpectralLibraryPanel):
         self.SLW.mToolbar.insertSeparator(self.SLW.mActionToggleEditing)
 
     def onGotoNextFeature(self, *arg):
-        gotoNextFeature(self.SLW)
+        gotoFeature(self.SLW, goDown=True)
 
     def onGotoPreviousFeature(self, *args):
-        gotoPreviousFeature(self.SLW)
+        gotoFeature(self.SLW, goDown=False)
 
     def setVectorLayerTools(self, tools: QgsVectorLayerTools):
         self.SLW.setVectorLayerTools(tools)

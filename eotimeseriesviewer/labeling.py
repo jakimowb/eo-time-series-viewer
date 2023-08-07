@@ -1,24 +1,27 @@
 import enum
 import math
-from typing import List, Union, Dict
+from typing import List, Dict
 
 import numpy as np
-from qgis.PyQt.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
-from qgis.PyQt.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
-from qgis.PyQt.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, QWidget, \
-    QLineEdit
-from qgis.core import QgsVectorLayer, QgsField, QgsFields, \
-    QgsEditorWidgetSetup, QgsFeature, QgsVectorLayerTools, QgsRendererCategory, QgsCategorizedSymbolRenderer, \
-    QgsProject, QgsMapLayerStore, QgsSymbol
-from qgis.gui import QgsSpinBox, QgsDoubleSpinBox, \
-    QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
-    QgsGui, QgsEditorWidgetRegistry, \
-    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsAttributeTableModel
+from qgis.PyQt.QtCore import QSortFilterProxyModel
+from qgis.gui import QgsAttributeTableView
 
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.PyQt.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
+from qgis.PyQt.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
+from qgis.PyQt.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, \
+    QWidget, \
+    QLineEdit
+from qgis.core import QgsVectorLayer, QgsField, QgsFields, \
+    QgsEditorWidgetSetup, QgsFeature, QgsRendererCategory, QgsCategorizedSymbolRenderer, \
+    QgsProject, QgsMapLayerStore, QgsSymbol
+from qgis.gui import QgsSpinBox, QgsDoubleSpinBox, \
+    QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
+    QgsGui, QgsEditorWidgetRegistry, \
+    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsAttributeTableModel
 from .qgispluginsupport.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
 from .qgispluginsupport.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -648,7 +651,7 @@ class GotoFeatureOptions(enum.IntFlag):
     FocusVisibility = 8
 
 
-def gotoFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
+def gotoLayerFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, options: GotoFeatureOptions):
     if GotoFeatureOptions.SelectFeature in options:
         layer.selectByIds([fid])
     if GotoFeatureOptions.PanToFeature in options:
@@ -659,81 +662,40 @@ def gotoFeature(fid: int, layer: QgsVectorLayer, tools: EOTSVVectorLayerTools, o
         tools.focusVisibility()
 
 
-def gotoNextFeature(layer: Union[QgsVectorLayer, AttributeTableWidget],
-                    tools: EOTSVVectorLayerTools = None,
-                    visible_features: List[int] = None,
-                    options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
-                    ) -> int:
-    if isinstance(layer, AttributeTableWidget):
-        return gotoNextFeature(layer.mLayer, layer.vectorLayerTools(), layer.mMainView.filteredFeatures(), options)
+def gotoFeature(attributeTable: AttributeTableWidget,
+                goDown: bool = True,
+                options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature
 
-    assert isinstance(tools, QgsVectorLayerTools)
-    if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
-        if not isinstance(visible_features, list):
-            visible_features = layer.allFeatureIds()
+                ) -> int:
+    assert isinstance(attributeTable, AttributeTableWidget)
 
-        if len(visible_features) == 0:
-            return None
+    tv: QgsAttributeTableView = attributeTable.mMainView.tableView()
+    model: QSortFilterProxyModel = tv.model()
 
-        visible_features = sorted(visible_features)
-        selected_fids = layer.selectedFeatureIds()
-        selected_fids = [f for f in visible_features if f in selected_fids]
+    FID_ORDER = []
 
-        if len(selected_fids) == 0:
-            nextFID = visible_features[0]
+    for r in range(model.rowCount()):
+        fid = model.data(model.index(r, 0), Qt.UserRole)
+        FID_ORDER.append(fid)
+
+    if len(FID_ORDER) > 0:
+        sfids = tv.selectedFeaturesIds()
+        if len(sfids) == 0:
+            nextFID = FID_ORDER[0]
+        elif goDown:
+            row = FID_ORDER.index(sfids[-1])
+            nextFID = model.data(model.index(row + 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[-1]
         else:
-            next_index = visible_features.index(max(selected_fids)) + 1
-            if next_index >= len(visible_features):
-                nextFID = visible_features[-1]
-            else:
-                nextFID = visible_features[next_index]
+            row = FID_ORDER.index(sfids[0])
+            nextFID = model.data(model.index(row - 1, 0), Qt.UserRole)
+            if nextFID is None:
+                nextFID = FID_ORDER[0]
 
-        gotoFeature(nextFID, layer, tools, options)
-        return nextFID
-    return None
-
-
-def gotoPreviousFeature(layer: Union[QgsVectorLayer, AttributeTableWidget],
-                        tools: EOTSVVectorLayerTools = None,
-                        visible_features: List[int] = None,
-                        options: GotoFeatureOptions = GotoFeatureOptions.SelectFeature):
-    """
-    Selects the next feature
-    :param layer:
-    :type layer:
-    :param tools:
-    :type tools:
-    :param visible_features:
-    :type visible_features:
-    :return:
-    :rtype:
-    """
-    if isinstance(layer, AttributeTableWidget):
-        return gotoPreviousFeature(layer.mLayer, layer.vectorLayerTools(), layer.mMainView.filteredFeatures(), options)
-
-    assert isinstance(tools, QgsVectorLayerTools)
-    if isinstance(layer, QgsVectorLayer) and layer.hasFeatures():
-        if not isinstance(visible_features, list):
-            visible_features = layer.allFeatureIds()
-
-        if len(visible_features) == 0:
-            return None
-
-        visible_features = sorted(visible_features)
-        selected_fids = layer.selectedFeatureIds()
-        selected_fids = [f for f in visible_features if f in selected_fids]
-
-        if len(selected_fids) == 0:
-            nextFID = visible_features[0]
-        else:
-            next_index = visible_features.index(max(selected_fids)) - 1
-            if next_index < 0:
-                nextFID = visible_features[0]
-            else:
-                nextFID = visible_features[next_index]
-
-        gotoFeature(nextFID, layer, tools, options)
-        s = ""
+        if isinstance(nextFID, int):
+            tv.scrollToFeature(nextFID)
+        gotoLayerFeature(nextFID, attributeTable.mLayer, attributeTable.vectorLayerTools(), options)
         return nextFID
     return None
 
@@ -848,10 +810,7 @@ class LabelWidget(AttributeTableWidget):
         self.mMainView.tableView().willShowContextMenu.connect(self.onShowContextMenu)
 
     def onGotoNextFeature(self, *arg):
-        # todo: allow to got to unselected features. needs VectorLayerTools support panToFids / zoomToFids
-        fid = gotoNextFeature(self, options=self.gotoFeatureOptions())
-        if isinstance(fid, int):
-            self.mMainView.tableView().scrollToFeature(fid)
+        gotoFeature(self, goDown=True, options=self.gotoFeatureOptions())
 
     def gotoFeatureOptions(self) -> GotoFeatureOptions:
         """
@@ -869,9 +828,7 @@ class LabelWidget(AttributeTableWidget):
         return options
 
     def onGotoPreviousFeature(self, *args):
-        fid = gotoPreviousFeature(self, options=self.gotoFeatureOptions())
-        if isinstance(fid, int):
-            self.mMainView.tableView().scrollToFeature(fid)
+        gotoFeature(self, goDown=False, options=self.gotoFeatureOptions())
 
     def onShowContextMenu(self, menu: QMenu, idx: QModelIndex):
 
