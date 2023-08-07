@@ -323,18 +323,25 @@ class TestLabeling(EOTSVTestCase):
         EOTSV = EOTimeSeriesViewer()
         EOTSV.mapWidget().setMapsPerMapView(5, 2)
         EOTSV.loadExampleTimeSeries(loadAsync=False)
-        EOTSV.showAttributeTable(lyr)
+        attrTable = EOTSV.showAttributeTable(lyr)
         EOTSV.mapViews()[0].addLayer(lyr)
-        # EOTSV.onShowLayerProperties(lyr)
 
         self.assertEqual(1, len(EOTSV.ui.findChildren(LabelDockWidget)))
 
         dockWidgets = EOTSV.ui.findChildren(LabelDockWidget)
+
         self.assertEqual(1, len(dockWidgets))
+        self.assertEqual(dockWidgets[0], attrTable)
         lyr.setName('Layer B')
         self.assertTrue('Layer B' in dockWidgets[0].windowTitle())
 
+        features = list(lyr.getFeatures())
+
+        lyr.selectByIds([features[10].id()])
+        attrTable.mLabelWidget.mActionZoomMapToSelectedRows.trigger()
         self.showGui(EOTSV.ui)
+
+
         EOTSV.close()
         QgsProject.instance().removeAllMapLayers()
     def test_labelValue(self):
