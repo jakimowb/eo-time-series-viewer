@@ -24,7 +24,7 @@ import re
 # noinspection PyPep8Naming
 import sys
 import webbrowser
-from typing import List, Union
+from typing import List, Union, Tuple, Dict
 
 import numpy as np
 
@@ -51,6 +51,7 @@ from qgis.PyQt.QtWidgets import QWidget, QHBoxLayout, QMainWindow, \
     QToolButton, QAction, QLabel, QProgressBar, QApplication, QSizePolicy, \
     QMenu, QDialogButtonBox, QProgressDialog, QToolBar, QComboBox, QDialog, QFileDialog, QDockWidget
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import QgsExpressionContextUtils, QgsExpressionContext
 from qgis.core import QgsFields
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsMessageOutput, QgsCoordinateReferenceSystem, \
     Qgis, QgsWkbTypes, QgsTask, QgsProviderRegistry, QgsMapLayerStore, QgsFeature, QgsField, \
@@ -62,7 +63,8 @@ from .about import AboutDialogUI
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library
+from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, profile_fields, \
+    profile_field_list
 from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
@@ -1256,35 +1258,30 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         assert isinstance(spatialPoint, SpatialPoint)
         from .mapcanvas import MapCanvas
         assert isinstance(mapCanvas, MapCanvas)
-        tsd = mapCanvas.tsd()
+        tsd: TimeSeriesDate = mapCanvas.tsd()
 
         sensorLayers = [lyr for lyr in mapCanvas.layers() if isinstance(lyr, SensorProxyLayer)]
-        currentSpectra = []
+
+        profilesAndContext = []
 
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
 
-            p: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
+            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
 
-            f = QgsFeature(SPECTRA_PROFILE_FIELDS)
-            f.setAttribute('profiles',
-                           encodeProfileValueDict(p, encoding=SPECTRA_PROFILE_FIELDS.field('profiles')))
-            f.setAttribute('date', '{}'.format(tsd.date()))
-            f.setAttribute('doy', int(tsd.doy()))
-            f.setAttribute('sensor', tsd.sensor().name())
+            context = QgsExpressionContext()
+            context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
+            context.appendScope(tsd.scope())
 
-            currentSpectra.append(f)
+            profilesAndContext.append((profileDict, context))
+
             if self.mCurrentMapSpectraLoading == 'TOP':
                 break
 
-        if len(currentSpectra) > 0:
-            self.setCurrentSpectralProfiles(currentSpectra)
+        if len(profilesAndContext) > 0:
+            self.setCurrentSpectralProfiles(profilesAndContext)
 
-    def setCurrentSpectralProfiles(self, spectra: List[QgsFeature]):
-        if not isinstance(spectra, list):
-            spectra = [spectra]
-        for s in spectra:
-            assert isinstance(s, QgsFeature)
+    def setCurrentSpectralProfiles(self, spectra: List[Tuple[Dict, QgsExpressionContext]]):
 
         widgets: List[SpectralLibraryWidget] = self.spectralLibraryWidgets()
         if len(widgets) == 0:
@@ -1294,7 +1291,31 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         style = settings.value(settings.Keys.ProfileStyleCurrent)
 
         for w in widgets:
-            w.setCurrentProfiles(spectra, make_permanent=False, currentProfileStyles=style)
+
+            sl: QgsVectorLayer = w.speclib()
+
+            pfields = profile_field_list(sl)
+            if len(pfields) > 0:
+                currentStyles = dict()
+                new_features: List[QgsFeature] = []
+                pfield: QgsField = pfields[0]
+                fid = 0
+                for (profileDict, context) in spectra:
+                    context: QgsExpressionContext
+                    fid += 1
+                    feature = QgsFeature(sl.fields())
+                    feature.setId(fid)
+                    feature.setAttribute(pfield.name(), encodeProfileValueDict(profileDict, encoding=pfield))
+
+                    varnames = [n for n in sl.fields().names() if n in n in context.variableNames()]
+                    for n in varnames:
+                        vfield: QgsField = sl.fields()[n]
+
+                        feature.setAttribute(n, context.variable(n))
+                    new_features.append(feature)
+                    currentStyles[(fid, pfield.name())] = style
+
+                w.setCurrentProfiles(new_features, make_permanent=False, currentProfileStyles=currentStyles)
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):

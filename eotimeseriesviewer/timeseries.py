@@ -42,7 +42,6 @@ from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer import messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64
 from eotimeseriesviewer.dateparser import parseDateFromDataSet
-from eotimeseriesviewer.virtualrasters import px2geo
 from qgis.PyQt.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, \
     Qt, \
     QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
@@ -50,6 +49,7 @@ from qgis.PyQt.QtCore import QRegExp
 from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
 from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis._core import QgsExpressionContextScope
 from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
@@ -59,7 +59,7 @@ from qgis.core import QgsRasterLayerTemporalProperties
 from qgis.gui import QgsDockWidget, QgisInterface
 from .qgispluginsupport.qps.utils import datetime64, bandClosestToWavelength, SpatialExtent, gdalDataset, \
     SpatialPoint, \
-    geo2px, relativePath, loadUi
+    geo2px, relativePath, loadUi, px2geo
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -862,6 +862,14 @@ class TimeSeriesDate(QAbstractTableModel):
             self.endRemoveRows()
             self.sigSourcesRemoved.emit([source])
 
+    def scope(self) -> QgsExpressionContextScope:
+
+        scope = QgsExpressionContextScope(self.__class__.__name__)
+        scope.setVariable('date', str(self.date()))
+        scope.setVariable('doy', self.doy())
+        scope.setVariable('sensor', self.sensor().name())
+
+        return scope
     def addSource(self, source):
         """
         Adds an time series source to this TimeSeriesDate
