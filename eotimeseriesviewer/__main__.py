@@ -29,6 +29,9 @@ def run():
     # add site-packages to sys.path
     pluginDir = pathlib.Path(__file__).parents[1]
     sys.path.append(pluginDir.as_posix())
+    from osgeo import osr, gdal
+    osr.UseExceptions()
+    gdal.UseExceptions()
 
     need_execute = QgsApplication.instance() is None
 
