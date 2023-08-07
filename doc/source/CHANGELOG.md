@@ -1,4 +1,11 @@
 ## Changelog
+
+### 2023-04-07 (version 1.18.1)
+
+* bugfixes to keep running with QGIS 3.32
+* fixed VRT building
+* got next / previous feature considers table order
+
 ### 2023-04-07 (version 1.18)
 _Stability Update_
 * removed several issues related to updates in QGIS and GDAL
