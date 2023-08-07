@@ -1176,20 +1176,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def setCrs(self, crs: QgsCoordinateReferenceSystem):
         self.mapWidget().setCrs(crs)
 
-    def setSpatialExtent(self, spatialExtent: SpatialExtent):
+    def setSpatialExtent(self, *args):
         """
         Sets the map canvas extent
         :param spatialExtent: SpatialExtent
         """
         debugLog()
-        self.mapWidget().setSpatialExtent(spatialExtent)
+        self.mapWidget().setSpatialExtent(*args)
 
-    def setSpatialCenter(self, spatialPoint: SpatialPoint):
+    def setSpatialCenter(self, *args):
         """
         Sets the center of map canvases
         :param spatialPoint: SpatialPoint
         """
-        self.mapWidget().setSpatialCenter(spatialPoint)
+        self.mapWidget().setSpatialCenter(*args)
 
     def spatialExtent(self) -> SpatialExtent:
         """

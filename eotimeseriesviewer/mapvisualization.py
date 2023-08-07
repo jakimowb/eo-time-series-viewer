@@ -1328,14 +1328,21 @@ class MapWidget(QFrame):
         """
         return self.mSpatialExtent
 
-    def setSpatialExtent(self, extent: SpatialExtent) -> SpatialExtent:
+    def setSpatialExtent(self, *args) -> SpatialExtent:
         """
         Sets a SpatialExtent to all MapCanvases.
+        Arguments can be those to construct a SpatialExtent
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
-        if type(extent) == QgsRectangle:
-            extent = SpatialExtent(self.crs(), extent)
+        if len(args) == 1 and type(args[0]) == QgsRectangle:
+            extent = SpatialExtent(self.crs(), args[0])
+        else:
+            if isinstance(args[0], SpatialExtent):
+                extent = args[0]
+            else:
+                extent = SpatialExtent(*args)
+
         try:
             assert isinstance(extent, SpatialExtent), \
                 'Expected SpatialExtent, but got {} {}'.format(type(extent), extent)
@@ -1359,11 +1366,12 @@ class MapWidget(QFrame):
             self.sigSpatialExtentChanged.emit(self.mSpatialExtent.__copy__())
         return self.spatialExtent()
 
-    def setSpatialCenter(self, centerNew: SpatialPoint):
+    def setSpatialCenter(self, *args):
         """
         Sets the spatial center of all MapCanvases
         :param centerNew: SpatialPoint
         """
+        centerNew = SpatialPoint(*args)
         assert isinstance(centerNew, SpatialPoint)
         extent = self.spatialExtent()
         if isinstance(extent, SpatialExtent):
