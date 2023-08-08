@@ -867,9 +867,11 @@ class TimeSeriesDate(QAbstractTableModel):
         scope = QgsExpressionContextScope(self.__class__.__name__)
         scope.setVariable('date', str(self.date()))
         scope.setVariable('doy', self.doy())
+        scope.setVariable('decimalYear', self.decimalYear())
         scope.setVariable('sensor', self.sensor().name())
 
         return scope
+
     def addSource(self, source):
         """
         Adds an time series source to this TimeSeriesDate

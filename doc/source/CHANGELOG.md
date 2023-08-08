@@ -1,10 +1,13 @@
 ## Changelog
 
-### 2023-04-07 (version 1.18.1)
+### 2023-04-07 (version 1.19)
 
+* attribute table: next / previous feature buttons consider order as shown in table
 * bugfixes to keep running with QGIS 3.32
 * fixed VRT building
-* got next / previous feature considers table order
+* fixed context menu connection in QGIS environments with other languages than english
+* maps can flash selected features
+* spectral profiles now extracted with context information
 
 ### 2023-04-07 (version 1.18)
 _Stability Update_

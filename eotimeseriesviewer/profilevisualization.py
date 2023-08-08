@@ -1235,7 +1235,8 @@ class DateTimePlotWidget(pg.PlotWidget):
                     assert pdi in self.temporalProfilePlotDataItems()
                     assert pdi.isVisible()
                     # assert len(pdi.xData) > 0
-                    assert len(pdi.xData) == len(pdi.yData)
+                    if pdi.xData:
+                        assert len(pdi.xData) == len(pdi.yData)
 
         if len(toBeUpdated) > 0:
             for ps in toBeUpdated:

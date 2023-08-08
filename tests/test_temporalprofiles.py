@@ -13,23 +13,25 @@ __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
-import tempfile
-import sys
 import os
 
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
-from qgis.core import QgsTask, QgsMapLayer, QgsRasterLayer, QgsProject, \
-    QgsPointXY, QgsGeometry
-from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
-from qgis.PyQt.QtGui import QIcon
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QTableView
+
 import example.Images
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate
-from eotimeseriesviewer.temporalprofiles import *
-from eotimeseriesviewer.profilevisualization import *
-from eotimeseriesviewer.utils import *
+from eotimeseriesviewer.profilevisualization import ProfileViewDock
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyleButton
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
+from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer, TemporalProfile, geometryToPixel, \
+    TemporalProfileLoaderTask, TemporalProfileTableModel
 from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
+from eotimeseriesviewer.tests import start_app
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument
+from qgis._core import QgsGeometry, QgsPointXY, QgsTask
+from qgis.core import QgsMapLayer, QgsProject
+from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 
-
+start_app()
 class TestTemporalProfiles(EOTSVTestCase):
     """Test temporal profiles"""
 

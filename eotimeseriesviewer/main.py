@@ -61,13 +61,12 @@ from qgis.gui import QgsMapCanvas, QgsStatusBar, QgsFileWidget, \
     QgsMessageBar, QgsMessageViewer, QgsDockWidget, QgsTaskManagerWidget, QgisInterface
 from .about import AboutDialogUI
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
-from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, profile_fields, \
-    profile_field_list
+from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, profile_field_list
 from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
-from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict
+from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict, validateProfileValueDict
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
+from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import loadUi, SpatialPoint, datetime64, SpatialExtent, file_search
 from .utils import fixMenuButtons
 
@@ -454,6 +453,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mVectorLayerTools.sigZoomRequest.connect(self.setSpatialExtent)
         self.mVectorLayerTools.sigEditingStarted.connect(self.updateCurrentLayerActions)
         self.mVectorLayerTools.sigFocusVisibility.connect(self.focusTimeSeriesDateVisibility)
+        self.mVectorLayerTools.sigFlashFeatureRequest.connect(self.flashFeatures)
         # Save reference to the QGIS interface
 
         # init empty time series
@@ -1267,9 +1267,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
 
-            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
+            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint, return_context=True)
 
-            context = QgsExpressionContext()
+            if not validateProfileValueDict(profileDict)[0]:
+                continue
+
+            context: QgsExpressionContext = profileDict.pop('context')
             context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
             context.appendScope(tsd.scope())
 
@@ -1549,7 +1552,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             # make polygons transparent
 
-            self.addVectorData(vectorFiles)
+            added_vector_layers = self.addVectorData(vectorFiles)
 
             for lyr in QgsProject.instance().mapLayers().values():
                 if isinstance(lyr, QgsVectorLayer) and lyr.source() in vectorFiles:
@@ -1588,6 +1591,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def unload(self):
         """Removes the plugin menu item and icon """
         self.iface.removeToolBarIcon(self.action)
+
+    def flashFeatures(self, layer: QgsVectorLayer, featuresIDs: List[int]):
+
+        for c in self.mapCanvases():
+            c.flashFeatureIds(layer, featuresIDs)
 
     def focusTimeSeriesDateVisibility(self, *args, extent: SpatialExtent = None, date: TimeSeriesDate = None):
         """
@@ -1740,7 +1748,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.showAttributeTable(speclib)
         self.addMapLayers(speclib)
 
-    def addVectorData(self, files=None) -> list:
+    def addVectorData(self, files=None) -> List[QgsVectorLayer]:
         """
         Adds vector data
         :param files: vector layer sources
