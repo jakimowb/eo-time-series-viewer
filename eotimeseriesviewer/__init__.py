@@ -25,7 +25,7 @@ import pathlib
 from qgis.core import QgsApplication, Qgis
 from qgis.PyQt.QtGui import QIcon
 
-__version__ = '1.18'  # sub-subversion number is added automatically
+__version__ = '1.19'  # sub-subversion number is added automatically
 
 LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
