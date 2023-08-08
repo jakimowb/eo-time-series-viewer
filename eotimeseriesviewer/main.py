@@ -1272,6 +1272,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             context = QgsExpressionContext()
             context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
             context.appendScope(tsd.scope())
+            context.lastScope().setVariable('name', lyr.name())
+            context.lastScope().setVariable('source', lyr.source())
 
             profilesAndContext.append((profileDict, context))
 
@@ -1311,7 +1313,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     for n in varnames:
                         vfield: QgsField = sl.fields()[n]
 
-                        feature.setAttribute(n, context.variable(n))
+                        try:
+                            newValue = vfield.convertCompatible(context.variable(n))
+                            feature.setAttribute(n, newValue)
+                        except ValueError as ex:
+                            print(ex, file=sys.stderr)
                     new_features.append(feature)
                     currentStyles[(fid, pfield.name())] = style
 
