@@ -19,16 +19,16 @@
 # noinspection PyPep8Naming
 import unittest
 
-from qgis.PyQt.QtCore import QPoint
-from qgis.PyQt.QtWidgets import QMenu
-from qgis._core import QgsApplication
-from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
-from qgis.gui import QgsMapCanvas, QgsFontButton
-
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase
+from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase, start_app
+from qgis.PyQt.QtCore import QPoint
+from qgis.PyQt.QtWidgets import QMenu
+from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
+from qgis.gui import QgsMapCanvas, QgsFontButton
+
+start_app()
 
 
 class TestMapCanvas(EOTSVTestCase):

@@ -21,17 +21,7 @@ import re
 import unittest
 
 import numpy as np
-from qgis.PyQt.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
-from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
-from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
-from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
-    QgsFields
-from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
-    QgsMapCanvas, QgsGui
-from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
-    EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
 
-import eotimeseriesviewer
 from eotimeseriesviewer.docks import LabelDockWidget
 from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, shortcuts, \
     LabelShortcutEditorConfigWidget, quickLabelLayers, LabelShortcutType, registerLabelShortcutEditorWidget, \
@@ -40,11 +30,21 @@ from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme
+from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
+    EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase
+from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import TimeSeriesDate
+from qgis.PyQt.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
+from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
+from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
+from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
+    QgsFields
+from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
+    QgsMapCanvas
 
+start_app()
 
 class TestLabeling(EOTSVTestCase):
 

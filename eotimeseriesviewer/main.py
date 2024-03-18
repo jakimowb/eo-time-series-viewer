@@ -1267,12 +1267,13 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         for lyr in sensorLayers:
             assert isinstance(lyr, SensorProxyLayer)
 
-            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint, return_context=True)
+            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
 
             if not validateProfileValueDict(profileDict)[0]:
                 continue
 
-            context: QgsExpressionContext = profileDict.pop('context')
+            # context: QgsExpressionContext = profileDict.pop('context')
+            context = QgsExpressionContext()
             context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
             context.appendScope(tsd.scope())
             context.lastScope().setVariable('name', lyr.name())

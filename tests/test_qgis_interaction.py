@@ -20,13 +20,15 @@
 
 import unittest
 
-from qgis._core import QgsApplication, QgsVectorLayer, QgsProject, QgsMapToPixel, QgsCoordinateReferenceSystem, \
+from qgis.core import QgsApplication, QgsVectorLayer, QgsProject, QgsMapToPixel, QgsCoordinateReferenceSystem, \
     QgsRectangle
-from qgis._gui import QgisInterface, QgsMapCanvas
+from qgis.gui import QgisInterface, QgsMapCanvas
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+
+start_app()
 
 
 class TestQGISInteraction(EOTSVTestCase):

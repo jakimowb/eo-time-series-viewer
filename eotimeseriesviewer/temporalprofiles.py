@@ -55,7 +55,6 @@ LABEL_TIME = 'Date'
 DEBUG = False
 OPENGL_AVAILABLE = False
 DEFAULT_SAVE_PATH = None
-DEFAULT_CRS = QgsCoordinateReferenceSystem('EPSG:4326')
 
 VSI_DIR = r'/vsimem/temporalprofiles/'
 

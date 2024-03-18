@@ -1335,7 +1335,7 @@ class MapWidget(QFrame):
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
-        if len(args) == 1 and type(args[0]) == QgsRectangle:
+        if len(args) == 1 and type(args[0]) is QgsRectangle:
             extent = SpatialExtent(self.crs(), args[0])
         else:
             if isinstance(args[0], SpatialExtent):

@@ -20,11 +20,20 @@ import json
 # noinspection PyPep8Naming
 import unittest
 
+from qgis.PyQt.QtCore import QSettings, QByteArray
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtXml import QDomDocument
+
+from eotimeseriesviewer.timeseries import SensorMatching
 from qgis.PyQt.QtWidgets import QTableView
 
-from eotimeseriesviewer.settings import *
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.settings import values, SettingsDialog, Keys, defaultValues, value, setValues, \
+    SensorSettingsTableModel, setValue
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from qgis.core import QgsTextFormat, QgsReadWriteContext
 
+
+start_app()
 
 class TestSettings(EOTSVTestCase):
 

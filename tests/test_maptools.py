@@ -23,10 +23,11 @@ import unittest
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools, MapToolCenter, \
     FullExtentMapTool, PixelScaleExtentMapTool, QgsMapToolAddFeature, CursorLocationMapTool, QgsMapToolSelect
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from qgis.core import QgsVectorLayer, QgsProject
 from qgis.gui import QgsMapToolZoom, QgsMapToolPan
 
+start_app()
 
 class TestMapTools(EOTSVTestCase):
     """Test that the plugin init is usable for QGIS.

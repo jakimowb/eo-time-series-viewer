@@ -3,7 +3,7 @@
 import os
 import unittest
 
-from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QAction
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QAction, QWidget
 from qgis.core import \
     QgsProject, QgsMapLayer, QgsCoordinateReferenceSystem, QgsProviderRegistry, QgsRasterLayer, \
     QgsLayerTree, QgsLayerTreeModel
@@ -11,8 +11,9 @@ from qgis.gui import \
     QgsLayerTreeView, QgsMapCanvas, QgsLayerTreeViewDefaultActions, \
     QgsLayerTreeMapCanvasBridge, QgsLayerTreeViewMenuProvider
 
-from eotimeseriesviewer.tests import *
+from eotimeseriesviewer.tests import start_app, EOTSVTestCase
 
+start_app()
 
 class TestQGISEnvironment(EOTSVTestCase):
     """Test the QGIS Environment"""

@@ -20,17 +20,13 @@
 
 import os
 import sys
-import configparser
-
 import unittest
-import tempfile
 
-from qgis.PyQt.QtWidgets import QDialog
-from qgis._core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
-from qgis._gui import QgsMapCanvas
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app
+from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
+from qgis.gui import QgsMapCanvas
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
+start_app()
 
 
 class TestMain(EOTSVTestCase):

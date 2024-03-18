@@ -18,30 +18,31 @@
 """
 # noinspection PyPep8Naming
 import os
-import sys
 import unittest
-from xml.etree.ElementTree import ElementTree, Element
+from xml.etree.ElementTree import Element
 
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QDialog
-from qgis.PyQt.QtWidgets import QApplication
-from qgis.core import QgsRasterLayer
-
-from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
-from eotimeseriesviewer.stackedbandinput import StackedBandInputDialog, InputStackTableModel, OutputImageModel, \
-    InputStackInfo, OutputVRTDescription
-from eotimeseriesviewer.tests import EOTSVTestCase
-from osgeo import gdal_array, osr
 import numpy as np
 from osgeo import gdal
+from osgeo import gdal_array, osr
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
+
+from eotimeseriesviewer.stackedbandinput import StackedBandInputDialog, InputStackTableModel, OutputImageModel, \
+    InputStackInfo, OutputVRTDescription
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QApplication
+from qgis.PyQt.QtWidgets import QDialog
+from qgis.core import QgsRasterLayer
+
+start_app()
 
 class TestStackedInputs(EOTSVTestCase):
 
     def setUp(self):
-
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
         if isinstance(eotsv, EOTimeSeriesViewer):
             eotsv.close()
@@ -213,4 +214,3 @@ class TestStackedInputs(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)

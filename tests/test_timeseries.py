@@ -2,31 +2,29 @@
 """Tests QGIS plugin init."""
 
 import os
-import sys
-import unittest
 import re
-from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortFilterProxyModel, QUrl, QMimeData, QPointF
-from qgis.PyQt.QtGui import QDropEvent
-from qgis.PyQt.QtWidgets import QTableView, QTreeView
-from qgis.PyQt.QtXml import QDomDocument
+import unittest
+
+import numpy as np
+from osgeo import gdal, osr
 
 import example
 import example.Images
-import numpy as np
-from osgeo import gdal, ogr, osr
-
-from qgis._core import QgsMimeDataUtils, QgsProject
-
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint, SpatialExtent
+from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import TestObjects, start_app
+from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
+    TimeSeriesFindOverlapTask, SensorMatching, DateTimePrecision, TimeSeriesDock
+from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortFilterProxyModel, QUrl, QMimeData, \
+    QPointF
+from qgis.PyQt.QtGui import QDropEvent
+from qgis.PyQt.QtWidgets import QTableView, QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import QgsMimeDataUtils, QgsProject
 from qgis.core import QgsRasterLayer, QgsApplication
 from qgis.gui import QgsTaskManagerWidget
 
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint, SpatialExtent
-from eotimeseriesviewer.tests import TestObjects
-from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
-    TimeSeriesFindOverlapTask, SensorMatching, DateTimePrecision, TimeSeriesDock
-
+start_app()
 
 class TestTimeSeries(EOTSVTestCase):
 
@@ -152,7 +150,6 @@ class TestTimeSeries(EOTSVTestCase):
     def test_find_overlap_memory_leak(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer
-        import random
         EOTSV = EOTimeSeriesViewer()
         EOTSV.loadExampleTimeSeries(loadAsync=False)
         EOTSV.ui.show()
@@ -436,7 +433,6 @@ class TestTimeSeries(EOTSVTestCase):
         s = ""
 
     def test_rapideye(self):
-        from example.Images import re_2014_06_25
         paths = [r'Y:\RapidEye\3A\2135821_2014-06-25_RE2_3A_328202\2135821_2014-06-25_RE2_3A_328202.tif']
 
         for p in paths:

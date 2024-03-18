@@ -1,10 +1,13 @@
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+start_app()
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotitems import SpectralProfilePlotWidget, \
-    SpectralProfilePlotItem, SpectralProfilePlotDataItem
+    SpectralProfilePlotDataItem
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase
-from qgis._core import QgsProject, QgsVectorLayer
+from qgis.core import QgsProject, QgsVectorLayer
+
 
 
 class TestSpectralProfiles(EOTSVTestCase):

@@ -1,4 +1,7 @@
 import unittest
+from eotimeseriesviewer.tests import start_app
+
+start_app()
 
 EE_Available = False
 try:

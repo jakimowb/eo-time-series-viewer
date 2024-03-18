@@ -49,8 +49,7 @@ from qgis.PyQt.QtCore import QRegExp
 from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
 from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-from qgis._core import QgsExpressionContextScope
-from qgis.core import QgsRasterLayer, QgsCoordinateReferenceSystem, \
+from qgis.core import QgsExpressionContextScope, QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
     QgsPointXY, \
@@ -63,7 +62,7 @@ from .qgispluginsupport.qps.utils import datetime64, bandClosestToWavelength, Sp
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
-DEFAULT_WKT = QgsCoordinateReferenceSystem('EPSG:4326').toWkt()
+DEFAULT_CRS = 'EPSG:4326'
 
 LUT_WAVELENGTH_UNITS = {}
 for siUnit in [r'nm', r'μm', r'mm', r'cm', r'dm']:
@@ -399,7 +398,8 @@ class SensorProxyLayer(QgsRasterLayer):
 
         elif self.mStyleXml != xml:
             self.mStyleXml = xml
-            self.styleChanged.emit()
+            # self.styleChanged.emit()
+            self.emitStyleChanged()
             # xml2 = self.mapLayerStyle().xmlData()
             # assert xml2 == xml
             # assert self.mStyleXml == xml
@@ -591,7 +591,7 @@ class TimeSeriesSource(object):
 
             if self.mWKT == '':
                 # default to WGS-84 lat lon
-                self.mWKT = str(DEFAULT_WKT)
+                self.mWKT = QgsCoordinateReferenceSystem(DEFAULT_CRS).toWkt()
 
             self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
 

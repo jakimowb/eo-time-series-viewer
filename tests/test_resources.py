@@ -21,7 +21,9 @@ from qgis.PyQt.QtGui import QIcon
 
 from eotimeseriesviewer import icon as eotsvIcon, DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, scanResources
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+
+start_app()
 
 
 class TestResources(EOTSVTestCase):

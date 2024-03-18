@@ -27,7 +27,7 @@ import numpy as np
 from osgeo import osr, gdal
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+
 from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj, start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
@@ -51,6 +51,7 @@ class EOTSVTestCase(TestCase):
         initAll()
 
     def tearDown(self):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
         self.assertTrue(EOTimeSeriesViewer.instance() is None)
         super().tearDown()
 

@@ -26,6 +26,7 @@ import sys
 import time
 from typing import Dict, Union, List
 
+import eotimeseriesviewer.settings
 import qgis.utils
 from qgis.PyQt.QtCore import QSize, QDateTime, QDir, QMimeData, pyqtSignal, Qt, \
     QPoint, QObject, QRectF, QPointF, QRect, QTimer, QTime
@@ -33,7 +34,7 @@ from qgis.PyQt.QtGui import QIcon, QMouseEvent, QPainter, QFont, QColor
 from qgis.PyQt.QtWidgets import QApplication, QMenu, QFileDialog, QSizePolicy, QStyle, QStyleOptionProgressBar
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEnhancement, \
     QgsDateTimeRange, QgsProject, QgsTextRenderer, QgsApplication, QgsCoordinateReferenceSystem, \
-    QgsMapToPixel, QgsRenderContext, QgsMapSettings, QgsRasterBandStats, QgsPalettedRasterRenderer, QgsPointXY, Qgis, \
+    QgsMapToPixel, QgsRenderContext, QgsMapSettings, QgsPalettedRasterRenderer, QgsPointXY, Qgis, \
     QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsRasterLayerTemporalProperties, QgsRasterDataProvider, \
     QgsTextFormat, QgsMapLayerStore, QgsField, \
     QgsPolygon, QgsMultiBandColorRenderer, QgsRectangle, QgsSingleBandGrayRenderer, \
@@ -41,10 +42,7 @@ from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsContrastEn
 from qgis.gui import QgsMapCanvas, QgisInterface, QgsFloatingWidget, QgsUserInputWidget, \
     QgsAdvancedDigitizingDockWidget, QgsMapCanvasItem, \
     QgsMapTool, QgsMapToolPan, QgsMapToolZoom, QgsMapToolCapture, QgsGeometryRubberBand
-
-import eotimeseriesviewer.settings
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
-
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairDialog, CrosshairStyle, CrosshairMapCanvasItem
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -52,6 +50,7 @@ from .qgispluginsupport.qps.maptools import QgsMapToolSelectionHandler, \
     CursorLocationMapTool, QgsMapToolAddFeature, \
     MapToolCenter, PixelScaleExtentMapTool, FullExtentMapTool, \
     QgsMapToolSelect
+from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, filenameFromString, findParent
 from .timeseries import TimeSeriesDate, TimeSeriesSource, SensorProxyLayer
 
@@ -1340,7 +1339,7 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(dp, QgsRasterDataProvider)
 
         def getCE(band):
-            stats = dp.bandStatistics(band, QgsRasterBandStats.All, extent, 256)
+            stats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
 
             ce = QgsContrastEnhancement(dp.dataType(band))
             d = (stats.maximumValue - stats.minimumValue)
