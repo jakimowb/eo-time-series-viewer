@@ -66,6 +66,7 @@ class TestMain(EOTSVTestCase):
         self.showGui([TSV.ui])
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
+        s = ""
 
     def test_TimeSeriesViewerNoSource(self):
 

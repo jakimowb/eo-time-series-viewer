@@ -20,6 +20,7 @@ from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortF
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
+from qgis._core import Qgis
 from qgis.core import QgsMimeDataUtils, QgsProject
 from qgis.core import QgsRasterLayer, QgsApplication
 from qgis.gui import QgsTaskManagerWidget
@@ -473,6 +474,28 @@ class TestTimeSeries(EOTSVTestCase):
 
             self.assertEqual(tss.mWLU, wlu)
             self.assertEqual(tss.mWL, wl)
+
+    def test_SensorProxyLayerMockupDataProvider(self):
+        from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
+
+        registerDataProvider()
+
+        sid = sensorID(7, 30, 30, dt=Qgis.DataType.Float32)
+        self.assertIsInstance(sid, str)
+        sensor = SensorInstrument(sid)
+        self.assertIsInstance(sensor, SensorInstrument)
+        self.assertIsInstance(sensor.dataType, Qgis.DataType)
+
+        sensor2 = SensorInstrument(sid)
+        self.assertEqual(sensor, sensor2)
+
+        lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
+        dp = lyr.dataProvider()
+        self.assertIsInstance(dp, SensorMockupDataProvider)
+
+        dp2 = dp.clone()
+        self.assertIsInstance(dp2, SensorMockupDataProvider)
+        self.assertNotEqual(id(dp), id(dp2))
 
     def test_sensors(self):
 

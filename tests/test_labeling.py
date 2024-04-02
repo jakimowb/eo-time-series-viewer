@@ -22,19 +22,28 @@ import unittest
 
 import numpy as np
 
+from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase, start_app
+
+from eotimeseriesviewer.labeling import LabelWidget, gotoFeature
+start_app()
+
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
+    SpectralLibraryWidget
+
 from eotimeseriesviewer.docks import LabelDockWidget
 from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, shortcuts, \
     LabelShortcutEditorConfigWidget, quickLabelLayers, LabelShortcutType, registerLabelShortcutEditorWidget, \
     LabelShortcutWidgetFactory, createWidgetSetup, quickLabelValue
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
+start_app()
+
 from eotimeseriesviewer.mapvisualization import MapView
 from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme
 from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationscheme import \
     EDITOR_WIDGET_REGISTRY_KEY as CS_KEY, classSchemeToConfig
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import TimeSeriesDate
 from qgis.PyQt.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
 from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
@@ -44,8 +53,8 @@ from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject
 from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
     QgsMapCanvas
 
-start_app()
 
+s = ""
 class TestLabeling(EOTSVTestCase):
 
     @classmethod
@@ -403,4 +412,3 @@ class TestLabeling(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)

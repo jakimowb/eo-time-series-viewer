@@ -49,6 +49,8 @@ from qgis.PyQt.QtCore import QRegExp
 from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
 from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis.core import QgsRasterDataProvider, QgsProviderMetadata, QgsProviderRegistry, QgsMessageLog, QgsDataProvider, \
+    QgsRasterInterface
 from qgis.core import QgsExpressionContextScope, QgsRasterLayer, QgsCoordinateReferenceSystem, \
     Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
     QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
@@ -133,7 +135,13 @@ def getDS(pathOrDataset) -> gdal.Dataset:
         return ds
 
 
-def sensorID(nb: int, px_size_x: float, px_size_y: float, dt: int, wl: list, wlu: str, name: str) -> str:
+def sensorID(nb: int,
+             px_size_x: float,
+             px_size_y: float,
+             dt: Qgis.DataType,
+             wl: list = None,
+             wlu: str = None,
+             name: str = None) -> str:
     """
     Creates a sensor ID str
     :param name:
@@ -146,6 +154,7 @@ def sensorID(nb: int, px_size_x: float, px_size_y: float, dt: int, wl: list, wlu
     :return: str
     """
     assert dt in GDAL_DATATYPES.values()
+    assert isinstance(dt, Qgis.DataType)
     assert isinstance(nb, int) and nb > 0
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
@@ -163,7 +172,7 @@ def sensorID(nb: int, px_size_x: float, px_size_y: float, dt: int, wl: list, wlu
     jsonDict = {'nb': nb,
                 'px_size_x': px_size_x,
                 'px_size_y': px_size_y,
-                'dt': dt,
+                'dt': int(dt),
                 'wl': wl,
                 'wlu': wlu,
                 'name': name
@@ -184,14 +193,14 @@ def sensorIDtoProperties(idString: str) -> tuple:
     nb = jsonDict.get('nb')
     px_size_x = jsonDict.get('px_size_x')
     px_size_y = jsonDict.get('px_size_y')
-    dt = jsonDict.get('dt')
+    dt = Qgis.DataType(jsonDict.get('dt'))
 
     # can haves
     wl = jsonDict.get('wl', None)
     wlu = jsonDict.get('wlu', None)
     name = jsonDict.get('name', None)
 
-    assert isinstance(dt, int) and dt >= 0
+    assert isinstance(dt, Qgis.DataType)
     assert isinstance(nb, int)
     assert isinstance(px_size_x, (int, float)) and px_size_x > 0
     assert isinstance(px_size_y, (int, float)) and px_size_y > 0
@@ -223,6 +232,9 @@ class SensorInstrument(QObject):
         self.wlu: str
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, self.mNameOriginal \
             = sensorIDtoProperties(self.mId)
+
+        self.mMockupLayer = QgsRasterLayer('')
+
         if self.mNameOriginal in [None, '']:
             self.mName = '{}bands@{}m'.format(self.nb, self.px_size_x)
         else:
@@ -246,21 +258,26 @@ class SensorInstrument(QObject):
 
         self.hashvalue = hash(self.mId)
 
-        path = '/vsimem/mockupImage.{}.tif'.format(uuid.uuid4())
-        # drv: gdal.Driver = gdal.GetDriverByName('ENVI')
-        self.mMockupDS = gdal_array.SaveArray(np.ones((self.nb, 2, 2),
-                                                      dtype=GDALTypeCodeToNumericTypeCode(self.dataType)), path)
-        # self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        self.mMockupDS.SetGeoTransform([1, 1, 0.0, 1, 0.0, -1])
-        self.mMockupDS.SetProjection(srs.ExportToWkt())
+        if False:
+            path = '/vsimem/mockupImage.{}.tif'.format(uuid.uuid4())
+            # drv: gdal.Driver = gdal.GetDriverByName('ENVI')
+            self.mMockupDS = gdal_array.SaveArray(np.ones((self.nb, 2, 2),
+                                                          dtype=GDALTypeCodeToNumericTypeCode(self.dataType)), path)
+            # self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
+            for b in range(self.nb):
+                band: gdal.Band = self.mMockupDS.GetRasterBand(b + 1)
+                band.ComputeStatistics(0)
 
-        if self.wl is not None:
-            self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
-        if self.wlu is not None:
-            self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
-        self.mMockupDS.FlushCache()
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(4326)
+            self.mMockupDS.SetGeoTransform([1, 1, 0.0, 1, 0.0, -1])
+            self.mMockupDS.SetProjection(srs.ExportToWkt())
+
+            if self.wl is not None:
+                self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
+            if self.wlu is not None:
+                self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
+            self.mMockupDS.FlushCache()
 
     @staticmethod
     def readXml(node: QDomNode):
@@ -299,7 +316,12 @@ class SensorInstrument(QObject):
         Creates an "empty" layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
         """
-        lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0], name=self.name(), sensor=self)
+        if False:
+            layerOptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+            lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0],
+                                   name=self.name(), sensor=self, options=layerOptions)
+
+        lyr = QgsRasterLayer(self.mId, name=self.name(), providerType=SensorMockupDataProvider.providerKey())
         lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
         lyr.setCustomProperty('eotsv/sensorid', self.id())
         self.sigNameChanged.connect(lyr.setName)
@@ -361,6 +383,82 @@ class SensorInstrument(QObject):
             info.append('{}\t{}\t{}'.format(b + 1, self.bandNames[b], wl))
 
         return '\n'.join(info)
+
+
+class SensorMockupDataProvider(QgsRasterDataProvider):
+
+    def __init__(self,
+                 sid: str,
+                 providerOptions: QgsDataProvider.ProviderOptions,
+                 flags: QgsDataProvider.ReadFlags, **kwds):
+        super().__init__(sid, providerOptions, flags, **kwds)
+
+        self.mSid = sid
+        self.mProviderOptions = providerOptions
+        self.mFlags = flags
+        sensor = SensorInstrument(sid)
+        self.mSensor: SensorInstrument = sensor
+        self.mCrs = QgsCoordinateReferenceSystem('EPSG:4326')
+
+    def setSensor(self, sensor: SensorInstrument):
+        assert isinstance(sensor, SensorInstrument)
+        self.mSensor = sensor
+
+    def capabilities(self):
+        caps = QgsRasterInterface.Size | QgsRasterInterface.Identify | QgsRasterInterface.IdentifyValue
+        return QgsRasterDataProvider.ProviderCapabilities(caps)
+
+    def crs(self):
+        return self.mCrs
+
+    def extent(self):
+        return QgsRectangle(QgsPointXY(0, 0), QgsPointXY(1, 1))
+
+    def isValid(self) -> bool:
+        return isinstance(self.mSensor, SensorInstrument)
+
+    def name(self):
+        return 'Name'
+
+    def dataType(self, bandNo: int):
+        return self.mSensor.dataType
+
+    def bandCount(self):
+        return self.mSensor.nb
+
+    def clone(self):
+        return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
+
+    def sourceDataType(self, bandNo: int):
+        return self.dataType(bandNo)
+
+    @classmethod
+    def providerKey(cls) -> str:
+        return 'sensormockup'
+
+    @classmethod
+    def description(cls) -> str:
+        return 'SpectralLibraryRasterDataProvider'
+
+    @classmethod
+    def createProvider(cls, uri, providerOptions, flags=None):
+        # compatibility with Qgis < 3.16, ReadFlags only available since 3.16
+        flags = QgsDataProvider.ReadFlags()
+        provider = SensorMockupDataProvider(uri, providerOptions, flags)
+        return provider
+
+
+def registerDataProvider():
+    metadata = QgsProviderMetadata(
+        SensorMockupDataProvider.providerKey(),
+        SensorMockupDataProvider.description(),
+        SensorMockupDataProvider.createProvider,
+    )
+    registry = QgsProviderRegistry.instance()
+    successs = registry.registerProvider(metadata)
+    if not successs:
+        s = ""
+    QgsMessageLog.logMessage('EOTSV SensorMockupDataProvider registered', level=Qgis.MessageLevel.Info)
 
 
 class SensorProxyLayer(QgsRasterLayer):
@@ -598,7 +696,7 @@ class TimeSeriesSource(object):
             px_x = float(abs(self.mGeoTransform[1]))
             px_y = float(abs(self.mGeoTransform[5]))
             self.mGSD = (px_x, px_y)
-            self.mDataType = dataset.GetRasterBand(1).DataType
+            self.mDataType = Qgis.DataType(dataset.GetRasterBand(1).DataType)
 
             sName = sensorName(dataset)
             self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
@@ -2099,7 +2197,8 @@ class TimeSeries(QAbstractItemModel):
 
         # if necessary, add a new sensor instance
         if not isinstance(sensor, SensorInstrument):
-            sensor = self.addSensor(SensorInstrument(sid))
+            sensor = SensorInstrument(sid)
+            sensor = self.addSensor(sensor)
             assert isinstance(sensor, SensorInstrument)
         assert isinstance(sensor, SensorInstrument)
         tsd = self.tsd(tsdDate, sensor)

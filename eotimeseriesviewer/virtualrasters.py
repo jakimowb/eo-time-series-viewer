@@ -22,6 +22,7 @@
 import os
 import pathlib
 import uuid
+from pathlib import Path
 from xml.etree import ElementTree
 
 from osgeo import gdal, osr
@@ -641,14 +642,15 @@ class VRTRaster(QObject):
         assert len(self) >= 1, 'VRT needs to define at least 1 band'
         assert os.path.splitext(pathVRT)[-1].lower() == '.vrt'
 
+        pathVRT = Path(pathVRT)
         srcLookup = dict()
         srcNodata = None
-        inMemory = pathVRT.startswith('/vsimem/')
+        inMemory = pathVRT.as_posix().startswith('/vsimem/')
 
         if inMemory:
-            dirWarped = '/vsimem/'
+            dirWarped = Path('/vsimem/')
         else:
-            dirWarped = os.path.join(os.path.splitext(pathVRT)[0] + '.WarpedImages')
+            dirWarped = pathVRT.parent / (os.path.splitext(pathVRT.name)[0] + '.WarpedImages')
 
         drvVRT = gdal.GetDriverByName('VRT')
         for i, pathSrc in enumerate(self.sourceRaster()):
@@ -715,6 +717,7 @@ class VRTRaster(QObject):
             if srs is not None:
                 kwds['outputSRS'] = srs
 
+            kwds['bandList'] = [1 for _ in range(len(srcFiles))]
             pathInMEMVRT = '/vsimem/{}.vrt'.format(uuid.uuid4())
             vro = gdal.BuildVRTOptions(separate=True, **kwds)
             dsVRTDst = gdal.BuildVRT(pathInMEMVRT, srcFiles, options=vro)
@@ -729,16 +732,21 @@ class VRTRaster(QObject):
             xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
             drvVRT.Delete(pathInMEMVRT)
 
+            # save the XML snipped per file source
             SOURCE_TEMPLATES = dict()
             etree = ElementTree.fromstring(xmlVRT)
             for iSrc, xmlVRTBand in enumerate(etree.findall('VRTRasterBand')):
                 for xmlSrc in xmlVRTBand.findall('*'):
                     if xmlSrc.text.endswith('Source'):
                         break
-                src_path = srcFiles[iSrc]
-                src_path_xml = xmlSrc.find('SourceFilename').text
-                assert src_path.endswith(src_path_xml)
-                SOURCE_TEMPLATES[src_path] = xmlSrc
+                src_path = xmlSrc.find('SourceFilename')
+
+                if src_path.attrib.get('relativeToVRT') == "1":
+                    full_path = Path(pathInMEMVRT).parent / src_path.text
+                    srcLookup[full_path.as_posix()] = src_path.text
+                    s = ""
+
+                SOURCE_TEMPLATES[src_path.text] = xmlSrc
 
         else:
             # special case: no source files defined
@@ -763,7 +771,7 @@ class VRTRaster(QObject):
         # 2. build final VRT from scratch
         drvVRT = gdal.GetDriverByName('VRT')
         assert isinstance(drvVRT, gdal.Driver)
-        dsVRTDst = drvVRT.Create(pathVRT, ns, nl, 0, eType=eType)
+        dsVRTDst = drvVRT.Create(pathVRT.as_posix(), ns, nl, 0, eType=eType)
         # 2.1. set general properties
         assert isinstance(dsVRTDst, gdal.Dataset)
 
@@ -783,6 +791,12 @@ class VRTRaster(QObject):
             for iSrc, sourceInfo in enumerate(vBand.mSources):
                 assert isinstance(sourceInfo, VRTRasterInputSourceBand)
                 bandIndex = sourceInfo.mBandIndex
+
+                if sourceInfo.mPath not in srcLookup:
+                    s = ""
+                if srcLookup[sourceInfo.mPath] not in SOURCE_TEMPLATES:
+                    s = ""
+
                 xml = SOURCE_TEMPLATES[srcLookup[sourceInfo.mPath]]
                 xml.find('SourceBand').text = f'{bandIndex + 1}'
                 md['source_{}'.format(iSrc)] = ElementTree.tostring(xml)
@@ -792,7 +806,7 @@ class VRTRaster(QObject):
         dsVRTDst = None
 
         # check if we get what we like to get
-        dsCheck = gdal.Open(pathVRT)
+        dsCheck = gdal.Open(pathVRT.as_posix())
         assert isinstance(dsCheck, gdal.Dataset)
 
         return dsCheck

@@ -119,9 +119,13 @@ def initAll():
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
+    from eotimeseriesviewer.timeseries import registerDataProvider
+    registerDataProvider()
+
 
 def unloadAll():
-    from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, unregisterMapLayerConfigWidgetFactories
+    from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, \
+        unregisterMapLayerConfigWidgetFactories
     unregisterEditorWidgets()
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()
