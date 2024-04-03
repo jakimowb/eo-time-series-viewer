@@ -22,6 +22,7 @@ import os
 import sys
 import unittest
 
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app
 from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
 from qgis.gui import QgsMapCanvas
@@ -68,9 +69,16 @@ class TestMain(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
         s = ""
 
-    def test_TimeSeriesViewerNoSource(self):
+    def test_TimeSeriesViewerExampleSources(self):
 
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
+        TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+
+        self.showGui(TSV.ui)
+        TSV.close()
+        QgsProject.instance().removeAllMapLayers()
+
+    def test_TimeSeriesViewerNoSource(self):
 
         TSV = EOTimeSeriesViewer()
 
