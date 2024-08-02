@@ -7,29 +7,25 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, osr
-
-import example
-import example.Images
- from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterArray, SpatialPoint, SpatialExtent
-from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer.tests import TestObjects, start_app
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
-    TimeSeriesFindOverlapTask, SensorMatching, DateTimePrecision, TimeSeriesDock
-from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortFilterProxyModel, QUrl, QMimeData, \
-    QPointF
+from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
+from qgis.gui import QgsTaskManagerWidget
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
+    QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
-from qgis._core import Qgis
-from qgis.core import QgsMimeDataUtils, QgsProject
-from qgis.core import QgsRasterLayer, QgsApplication
-from qgis.gui import QgsTaskManagerWidget
+
+import example
+import example.Images
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.timeseries import DateTimePrecision, SensorInstrument, SensorMatching, TimeSeries, \
+    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource
 
 start_app()
 
+
 class TestTimeSeries(EOTSVTestCase):
-
-
 
     def createTestDatasets(self):
         vsiDir = '/vsimem/tmp'
@@ -416,7 +412,7 @@ class TestTimeSeries(EOTSVTestCase):
             r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
             ,
             r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
-            ]
+        ]
         for p in paths:
             if not os.path.isfile(p):
                 continue
@@ -499,9 +495,7 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertIsInstance(dp2, SensorMockupDataProvider)
         self.assertNotEqual(id(dp), id(dp2))
 
-
         s = dp2.capabilities()
-
 
         self.assertEqual(nb, dp2.bandCount())
 
@@ -584,4 +578,3 @@ class TestTimeSeries(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-
