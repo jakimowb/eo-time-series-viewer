@@ -10,7 +10,7 @@ from osgeo import gdal, osr
 
 import example
 import example.Images
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint, SpatialExtent
+ from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterArray, SpatialPoint, SpatialExtent
 from eotimeseriesviewer.tests import EOTSVTestCase
 from eotimeseriesviewer.tests import TestObjects, start_app
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
@@ -479,8 +479,10 @@ class TestTimeSeries(EOTSVTestCase):
         from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
 
         registerDataProvider()
-
-        sid = sensorID(7, 30, 30, dt=Qgis.DataType.Float32)
+        nb = 7
+        dx = 30
+        dy = 30
+        sid = sensorID(nb, dx, dy, dt=Qgis.DataType.Float32)
         self.assertIsInstance(sid, str)
         sensor = SensorInstrument(sid)
         self.assertIsInstance(sensor, SensorInstrument)
@@ -496,6 +498,12 @@ class TestTimeSeries(EOTSVTestCase):
         dp2 = dp.clone()
         self.assertIsInstance(dp2, SensorMockupDataProvider)
         self.assertNotEqual(id(dp), id(dp2))
+
+
+        s = dp2.capabilities()
+
+
+        self.assertEqual(nb, dp2.bandCount())
 
     def test_sensors(self):
 

@@ -21,7 +21,13 @@ import re
 import unittest
 
 import numpy as np
+from PyQt5.QtCore import QMetaType
 
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_BOOL, QMETATYPE_DOUBLE, QMETATYPE_INT, \
+    QMETATYPE_QBYTEARRAY, QMETATYPE_QDATE, \
+    QMETATYPE_QDATETIME, \
+    QMETATYPE_QSTRING, \
+    QMETATYPE_QTIME
 from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase, start_app
 
 from eotimeseriesviewer.labeling import LabelWidget, gotoFeature
@@ -68,18 +74,18 @@ class TestLabeling(EOTSVTestCase):
         self.assertIsInstance(lyr, QgsVectorLayer)
         self.assertTrue(lyr.featureCount() > 0)
         lyr.startEditing()
-        lyr.addAttribute(QgsField('sensor', QVariant.String, 'varchar'))
-        lyr.addAttribute(QgsField('date', QVariant.Date, 'date'))
-        lyr.addAttribute(QgsField('dateGrp1', QVariant.Date, 'date'))
-        lyr.addAttribute(QgsField('dateGrp2', QVariant.Date, 'date'))
-        lyr.addAttribute(QgsField('datetime', QVariant.DateTime, 'datetime'))
-        lyr.addAttribute(QgsField('time', QVariant.Time, 'time'))
-        lyr.addAttribute(QgsField('DOY', QVariant.Int, 'int'))
-        lyr.addAttribute(QgsField('decyr', QVariant.Double, 'double'))
-        lyr.addAttribute(QgsField('class1l', QVariant.Int, 'int'))
-        lyr.addAttribute(QgsField('class1n', QVariant.String, 'varchar'))
-        lyr.addAttribute(QgsField('class2l', QVariant.Int, 'int'))
-        lyr.addAttribute(QgsField('class2n', QVariant.String, 'varchar'))
+        lyr.addAttribute(QgsField('sensor', QMETATYPE_QSTRING, 'varchar'))
+        lyr.addAttribute(QgsField('date', QMETATYPE_QDATE, 'date'))
+        lyr.addAttribute(QgsField('dateGrp1', QMETATYPE_QDATE, 'date'))
+        lyr.addAttribute(QgsField('dateGrp2', QMETATYPE_QDATE, 'date'))
+        lyr.addAttribute(QgsField('datetime', QMETATYPE_QDATETIME, 'datetime'))
+        lyr.addAttribute(QgsField('time', QMETATYPE_QTIME, 'time'))
+        lyr.addAttribute(QgsField('DOY', QMETATYPE_INT, 'int'))
+        lyr.addAttribute(QgsField('decyr', QMETATYPE_DOUBLE, 'double'))
+        lyr.addAttribute(QgsField('class1l', QMETATYPE_INT, 'int'))
+        lyr.addAttribute(QgsField('class1n', QMETATYPE_QSTRING, 'varchar'))
+        lyr.addAttribute(QgsField('class2l', QMETATYPE_INT, 'int'))
+        lyr.addAttribute(QgsField('class2n', QMETATYPE_QSTRING, 'varchar'))
         assert lyr.commitChanges()
         names = lyr.fields().names()
 
@@ -359,11 +365,11 @@ class TestLabeling(EOTSVTestCase):
             createQgsField('text', ''),
             createQgsField('int', 1),
             createQgsField('float', 1.0),
-            QgsField('datetime', QVariant.DateTime, 'datetime'),
-            QgsField('date', QVariant.Date, 'date'),
-            QgsField('time', QVariant.Time, 'time'),
-            QgsField('bool', QVariant.Bool, 'bool'),
-            QgsField('blob', QVariant.ByteArray, 'blob')
+            QgsField('datetime', QMETATYPE_QDATETIME, 'datetime'),
+            QgsField('date', QMETATYPE_QDATE, 'date'),
+            QgsField('time', QMETATYPE_QTIME, 'time'),
+            QgsField('bool', QMETATYPE_BOOL, 'bool'),
+            QgsField('blob', QMETATYPE_QBYTEARRAY, 'blob')
         ]
 
         TS = TestObjects.createTimeSeries()

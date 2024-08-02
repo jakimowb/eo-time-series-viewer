@@ -20,10 +20,14 @@
 
 import os
 import sys
+import tracemalloc
 import unittest
+from time import time
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app
+from qgis._core import QgsRasterLayer
+
+from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app, testRasterFiles
 from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
 from qgis.gui import QgsMapCanvas
 
@@ -44,7 +48,7 @@ class TestMain(EOTSVTestCase):
 
         crs = QgsCoordinateReferenceSystem('EPSG:32633')
         c.setDestinationCrs(crs)
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
+
         TSV = EOTimeSeriesViewer()
         TSV.createMapView('True Color')
         TSV.createMapView('False Color')
@@ -56,12 +60,14 @@ class TestMain(EOTSVTestCase):
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
+
         from example import exampleEvents
         TSV.addVectorData(exampleEvents)
         # save and read settings
         path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
+
         TSV.reloadProject()
 
         self.showGui([TSV.ui])
@@ -69,6 +75,7 @@ class TestMain(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
         s = ""
 
+    # @unittest.skip('test')
     def test_TimeSeriesViewerExampleSources(self):
 
         TSV = EOTimeSeriesViewer()
@@ -78,6 +85,7 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    # @unittest.skip('test')
     def test_TimeSeriesViewerNoSource(self):
 
         TSV = EOTimeSeriesViewer()
@@ -87,9 +95,8 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    # @unittest.skip('test')
     def test_TimeSeriesViewerInvalidSource(self):
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         TSV = EOTimeSeriesViewer()
         images = ['not-existing-source']
@@ -99,9 +106,8 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    # @unittest.skip('test')
     def test_TimeSeriesViewerMultiSource(self):
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         TSV = EOTimeSeriesViewer()
 
@@ -113,8 +119,6 @@ class TestMain(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
 
     def test_exportMapsToImages(self):
-
-        from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
 
         d = SaveAllMapsDialog()
         self.assertEqual(d.fileType(), 'PNG')
@@ -134,8 +138,8 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    # @unittest.skip('test')
     def test_TimeSeriesViewerMassiveSources(self):
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
 
         TSV = EOTimeSeriesViewer()
 
@@ -148,6 +152,4 @@ class TestMain(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    print('\nRun 1 test in 5.373s\n\nFAILED (failures=1)', file=sys.stderr, flush=True)
-    unittest.main(buffer=False)
-    exit(0)
+    unittest.main()
