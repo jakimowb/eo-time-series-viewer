@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          lfs: True
+          lfs: true
 
       - name: Docker Environment Info
         run: |
@@ -39,6 +39,10 @@ jobs:
           docker --version
       - name: Python Packages Info
         run: pip list
+      - name: Repo Info
+        run: |
+          ls -la
+          ls -la example
       - name: Test EO Time Series Viewer on QGIS
         run: |
           chmod +x .docker/run_docker_tests.sh
