@@ -17,15 +17,15 @@
 ***************************************************************************
 """
 
-from eotimeseriesviewer.tests import start_app
 from qgis.core import QgsApplication
-
-start_app()
-
-s = ""
 
 
 def run():
+    qAppExists = isinstance(QgsApplication.instance(), QgsApplication)
+    if not qAppExists:
+        from eotimeseriesviewer.tests import start_app
+        start_app()
+
     from eotimeseriesviewer import initAll
     initAll()
 
