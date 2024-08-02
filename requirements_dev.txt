@@ -4,7 +4,6 @@
 # requirements for developers
 
 gitpython
-git-lfs
 sphinx_rtd_theme
 recommonmark
 docutils
