@@ -32,4 +32,4 @@ ENV PYTHONPATH="${PYTHONPATH}"\
 WORKDIR /
 
 # Set the entrypoint
-ENTRYPOINT ["/bin/bash", "-c", "source ${VIRTUAL_ENV}/bin/activate && exec \"$@\"", "--"]
+ENTRYPOINT ["/bin/bash", "-c", "source ${VENV}/bin/activate && exec \"$@\"", "--"]
