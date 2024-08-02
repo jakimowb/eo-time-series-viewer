@@ -23,44 +23,33 @@ import collections
 import datetime
 import enum
 import json
-import uuid
 # noinspection PyPep8Naming
 import os
 import pathlib
 import pickle
 import re
 import urllib
-import xml.etree.ElementTree as ET
-from typing import List, Iterator, Tuple, Dict, Set, Union, Any
+import uuid
+from typing import Any, Dict, Iterator, List, Set, Tuple, Union
 
 import numpy as np
-from osgeo import gdal, gdal_array
-from osgeo import osr, ogr
+from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
-
-from eotimeseriesviewer import DIR_UI
-from eotimeseriesviewer import messageLog
-from eotimeseriesviewer.dateparser import DOYfromDatetime64
-from eotimeseriesviewer.dateparser import parseDateFromDataSet
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QMimeData, QPoint, QDateTime, QTime, QAbstractTableModel, QModelIndex, \
-    Qt, \
-    QAbstractItemModel, QUrl, QDir, QSortFilterProxyModel, QItemSelectionModel
-from qgis.PyQt.QtCore import QRegExp
-from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent, QContextMenuEvent, QCursor
-from qgis.PyQt.QtWidgets import QTreeView, QAbstractItemView, QMenu, QMainWindow, QAction, QToolBar, QHeaderView
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
+    QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
+    QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
+    QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, QgsTaskManager
+from qgis.gui import QgisInterface, QgsDockWidget
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
+    QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-from qgis.core import QgsRasterDataProvider, QgsProviderMetadata, QgsProviderRegistry, QgsMessageLog, QgsDataProvider, \
-    QgsRasterInterface
-from qgis.core import QgsExpressionContextScope, QgsRasterLayer, QgsCoordinateReferenceSystem, \
-    Qgis, QgsDateTimeRange, QgsMapLayerStyle, \
-    QgsProject, QgsGeometry, QgsApplication, QgsTask, QgsRasterBandStats, QgsRectangle, QgsTaskManager, QgsPoint, \
-    QgsPointXY, \
-    QgsMimeDataUtils, QgsCoordinateTransform
-from qgis.core import QgsRasterLayerTemporalProperties
-from qgis.gui import QgsDockWidget, QgisInterface
-from .qgispluginsupport.qps.utils import datetime64, bandClosestToWavelength, SpatialExtent, gdalDataset, \
-    SpatialPoint, \
-    geo2px, relativePath, loadUi, px2geo
+
+from eotimeseriesviewer import DIR_UI, messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
+from .qgispluginsupport.qps.utils import bandClosestToWavelength, datetime64, gdalDataset, geo2px, loadUi, px2geo, \
+    relativePath, SpatialExtent, SpatialPoint
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -220,6 +209,8 @@ class SensorInstrument(QObject):
     SensorNameSettingsPrefix = 'SensorName.'
     sigNameChanged = pyqtSignal(str)
 
+    PROPERTY_KEY = 'eotsv/sensor'
+
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
 
@@ -316,14 +307,9 @@ class SensorInstrument(QObject):
         Creates an "empty" layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
         """
-        if False:
-            layerOptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
-            lyr = SensorProxyLayer(self.mMockupDS.GetFileList()[0],
-                                   name=self.name(), sensor=self, options=layerOptions)
-
         lyr = QgsRasterLayer(self.mId, name=self.name(), providerType=SensorMockupDataProvider.providerKey())
         lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
-        lyr.setCustomProperty('eotsv/sensorid', self.id())
+        lyr.setCustomProperty(self.PROPERTY_KEY, self.id())
         self.sigNameChanged.connect(lyr.setName)
         return lyr
 
@@ -404,9 +390,15 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         assert isinstance(sensor, SensorInstrument)
         self.mSensor = sensor
 
+    def sensor(self) -> SensorInstrument:
+        return self.mSensor
+
     def capabilities(self):
         caps = QgsRasterInterface.Size | QgsRasterInterface.Identify | QgsRasterInterface.IdentifyValue
-        return QgsRasterDataProvider.ProviderCapabilities(caps)
+        if Qgis.versionInt() >= 33800:
+            return Qgis.RasterInterfaceCapabilities(caps)
+        else:
+            return QgsRasterDataProvider.ProviderCapabilities(caps)
 
     def crs(self):
         return self.mCrs
@@ -459,53 +451,6 @@ def registerDataProvider():
     if not successs:
         s = ""
     QgsMessageLog.logMessage('EOTSV SensorMockupDataProvider registered', level=Qgis.MessageLevel.Info)
-
-
-class SensorProxyLayer(QgsRasterLayer):
-
-    def __init__(self, *args, sensor: SensorInstrument, **kwds):
-        super(SensorProxyLayer, self).__init__(*args, **kwds)
-        self.mSensor: SensorInstrument = sensor
-        self.mTSS: TimeSeriesSource = None
-        self.mStyleXml: str = None
-
-    def sensor(self) -> SensorInstrument:
-        """
-        Returns the SensorInstrument this layer relates to
-        :return: SensorInstrument
-        """
-        return self.mSensor
-
-    def xmlDiff(self, xml1: str, xml2: str) -> str:
-
-        t1 = ET.fromstring(xml1)
-        t2 = ET.fromstring(xml2)
-
-        s = ""
-
-    def cleanXml(self, xmlStr: str) -> str:
-        """
-        Removes unnecessary characters to make XML comparable by content, not XML flavour
-        """
-        return re.sub('[\n\t]', '', xmlStr)
-
-    def setMapLayerStyle(self, style: QgsMapLayerStyle):
-        xml = self.cleanXml(style.xmlData())
-        if self.mStyleXml is None:
-            self.mStyleXml = xml
-
-        elif self.mStyleXml != xml:
-            self.mStyleXml = xml
-            # self.styleChanged.emit()
-            self.emitStyleChanged()
-            # xml2 = self.mapLayerStyle().xmlData()
-            # assert xml2 == xml
-            # assert self.mStyleXml == xml
-
-    def mapLayerStyle(self) -> QgsMapLayerStyle:
-        style = QgsMapLayerStyle()
-        style.readFromLayer(self)
-        return style
 
 
 def verifyInputImage(datasource):
@@ -807,6 +752,7 @@ class TimeSeriesSource(object):
         tprop.setIsActive(True)
         tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
         dtg = self.date().astype(object)
+        lyr.setCustomProperty('eotsv/dtg', str(dtg))
         dt1 = QDateTime(dtg, QTime(0, 0))
         dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
         tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
@@ -1500,7 +1446,12 @@ class TimeSeriesFindOverlapTask(QgsTask):
             self.mCallback(result, self)
 
 
-class TimeSeriesLoadingTask(QgsTask):
+class EOTSVTask(QgsTask):
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+
+class TimeSeriesLoadingTask(EOTSVTask):
     sigFoundSources = pyqtSignal(list)
     sigMessage = pyqtSignal(str, bool)
 
@@ -1919,13 +1870,13 @@ class TimeSeries(QAbstractItemModel):
         assert tsd.sensor() in self.mSensors
 
         tsd.mTimeSeries = self
-        tsd.sigRemoveMe.connect(lambda tsd=tsd: self.removeTSDs([tsd]))
+        tsd.sigRemoveMe.connect(lambda t=tsd: self.removeTSDs([t]))
 
         tsd.rowsAboutToBeRemoved.connect(
-            lambda p, first, last, tsd=tsd: self.beginRemoveRows(self.tsdToIdx(tsd), first, last))
+            lambda p, first, last, t=tsd: self.beginRemoveRows(self.tsdToIdx(t), first, last))
         tsd.rowsRemoved.connect(self.endRemoveRows)
         tsd.rowsAboutToBeInserted.connect(
-            lambda p, first, last, tsd=tsd: self.beginInsertRows(self.tsdToIdx(tsd), first, last))
+            lambda p, first, last, t=tsd: self.beginInsertRows(self.tsdToIdx(t), first, last))
         tsd.rowsInserted.connect(self.endInsertRows)
 
         tsd.sigSourcesAdded.connect(self.sigSourcesAdded)
@@ -2149,6 +2100,7 @@ class TimeSeries(QAbstractItemModel):
             tm = QgsApplication.taskManager()
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
+            s = ""
         else:
             qgsTask.finished(qgsTask.run())
 
@@ -3247,3 +3199,14 @@ class TimeSeriesDock(QgsDockWidget):
 
     def timeSeriesWidget(self) -> TimeSeriesWidget:
         return self.mTimeSeriesWidget
+
+
+def has_sensor_id(layer) -> bool:
+    return sensor_id(layer) is not None
+
+
+def sensor_id(layer) -> Union[str, None]:
+    if isinstance(layer, QgsRasterLayer):
+        return layer.customProperty(SensorInstrument.PROPERTY_KEY)
+    else:
+        return None

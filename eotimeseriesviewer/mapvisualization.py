@@ -26,7 +26,7 @@ import re
 import sys
 import time
 import traceback
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple, Union
 
 import numpy as np
 import qgis.utils
@@ -53,17 +53,19 @@ from qgis.gui import \
     QgsProjectionSelectionWidget, QgsMessageBar, QgsExpressionBuilderDialog
 
 from eotimeseriesviewer import DIR_UI, debugLog
-from eotimeseriesviewer.utils import fixMenuButtons
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
 from .qgispluginsupport.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.utils import SpatialPoint, SpatialExtent, loadUi, datetime64
-from .timeseries import SensorInstrument, TimeSeriesDate, TimeSeries, SensorProxyLayer
+from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeriesDate, TimeSeries
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
-KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
+
+
+# KEY_SENSOR_LAYER = 'eotsv/sensorlayer'
 
 
 def equalTextFormats(tf1: QgsTextFormat, tf2: QgsTextFormat) -> True:
@@ -173,6 +175,7 @@ class MapView(QFrame):
                                       | QgsLayerTreeModel.AllowNodeRename
                                       | QgsLayerTreeModel.AllowNodeReorder)
 
+        self.mLayerTreeSensorNode: QgsLayerTreeGroup = None
         self._createSensorNode()
         self.mLayerTreeView: QgsLayerTreeView
         self.mLayerTreeView.setModel(self.mLayerTreeModel)
@@ -326,7 +329,7 @@ class MapView(QFrame):
             sensor = SensorInstrument(sid)
             mapView.addSensor(sensor)
             lyr = mapView.sensorProxyLayer(sensor)
-            lyr.setMapLayerStyle(style)
+            copyMapLayerStyle(style, lyr)
 
             lyrNode = lyrNode.nextSiblingElement()
         return mapView
@@ -349,10 +352,11 @@ class MapView(QFrame):
 
         for sensor in self.sensors():
             lyr = self.sensorProxyLayer(sensor)
-            if isinstance(lyr, SensorProxyLayer):
+            if isinstance(lyr, QgsRasterLayer):
                 sensorNode = doc.createElement('MapViewProxyLayer')
-                sensorNode.setAttribute('sensor_id', sensor.id())
-                style: QgsMapLayerStyle = lyr.mapLayerStyle()
+                sensorNode.setAttribute('sensor_id', lyr.customProperty(SensorInstrument.PROPERTY_KEY))
+                style: QgsMapLayerStyle = QgsMapLayerStyle()
+                style.readFromLayer(lyr)
                 styleNode = doc.createElement('LayerStyle')
                 style.writeXml(styleNode)
                 sensorNode.appendChild(styleNode)
@@ -662,14 +666,13 @@ class MapView(QFrame):
         :return: QgsMapLayer
         """
         cl = self.mLayerTreeView.currentLayer()
-        if isinstance(cl, SensorProxyLayer):
-            sensor = cl.sensor()
-            canvases = [c for c in self.mapCanvases() if c.tsd().sensor() == sensor]
+        if sid := sensor_id(cl):
+            canvases = [c for c in self.mapCanvases() if c.tsd().sensor().id() == sid]
             canvases = sorted(canvases, key=lambda c: c is not self.currentMapCanvas())
             for c in canvases:
-                for l in c.layers():
-                    if isinstance(l, SensorProxyLayer):
-                        return l
+                for lyr in c.layers():
+                    if has_sensor_id(lyr):
+                        return lyr
         return cl
 
     def crosshairStyle(self) -> CrosshairStyle:
@@ -690,22 +693,28 @@ class MapView(QFrame):
             self.mCrossHairStyle.setVisibility(b)
             self.sigCrosshairChanged.emit()
 
-    def sensorProxyLayers(self) -> List[SensorProxyLayer]:
+    def sensorProxyLayers(self) -> List[QgsRasterLayer]:
         layers = [n.layer() for n in self.mLayerTreeSensorNode.findLayers()]
-        return [l for l in layers if isinstance(l, SensorProxyLayer)]
+        layers = [lyr for lyr in layers if
+                  isinstance(lyr, QgsRasterLayer) and isinstance(lyr.dataProvider(), SensorMockupDataProvider)]
+        for lyr in layers:
+            assert lyr.customProperty(SensorInstrument.PROPERTY_KEY)
+        return layers
 
-    def sensorProxyLayer(self, sensor: SensorInstrument) -> SensorProxyLayer:
+    def sensorProxyLayer(self, sensor: Union[SensorInstrument, str]) -> QgsRasterLayer:
         """
         Returns the proxy layer related to a SensorInstrument
         :param sensor: SensorInstrument
         :return: SensorLayer
         """
-        for l in self.sensorProxyLayers():
-            if l.sensor() == sensor:
-                return l
+        if isinstance(sensor, SensorInstrument):
+            sensor = sensor.id()
+        for lyr in self.sensorProxyLayers():
+            if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor:
+                return lyr
         return None
 
-    def sensorLayers(self, sensor: SensorInstrument) -> List[SensorProxyLayer]:
+    def sensorLayers(self, sensor: SensorInstrument) -> List[QgsRasterLayer]:
         """
         :param sensor:
         :return:
@@ -713,7 +722,7 @@ class MapView(QFrame):
         layers = []
         for c in self.mapCanvases():
             for lyr in c.layers():
-                if isinstance(lyr, SensorProxyLayer) and lyr.sensor() == sensor:
+                if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor:
                     layers.append(lyr)
         return layers
 
@@ -734,7 +743,7 @@ class MapView(QFrame):
         if sensor not in self.sensors():
             sensor.sigNameChanged.connect(self.sigCanvasAppearanceChanged)
 
-            masterLayer: SensorProxyLayer = sensor.proxyRasterLayer()
+            masterLayer: QgsRasterLayer = sensor.proxyRasterLayer()
             assert isinstance(masterLayer.renderer(), QgsRasterRenderer)
 
             self.mSensorLayerList.append((sensor, masterLayer))
@@ -742,7 +751,7 @@ class MapView(QFrame):
             masterLayer.nameChanged.connect(self.onMasterLyrNameChanged)
             layerTreeLayer: QgsLayerTreeLayer = self.mLayerTreeSensorNode.addLayer(masterLayer)
             layerTreeLayer.setCustomProperty(KEY_LOCKED_LAYER, True)
-            layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
+            # layerTreeLayer.setCustomProperty(KEY_SENSOR_LAYER, True)
 
             dummyLayers = self.mDummyCanvas.layers() + [masterLayer]
             self.mDummyCanvas.setLayers(dummyLayers)
@@ -755,14 +764,16 @@ class MapView(QFrame):
         ltn = self.mLayerTreeSensorNode.findLayer(lyr)
         # print(ltn.name())
 
-    def onMasterStyleChanged(self, masterLayer: SensorProxyLayer):
+    def onMasterStyleChanged(self, masterLayer: QgsRasterLayer):
 
-        sensor: SensorInstrument = masterLayer.sensor()
-        style: QgsMapLayerStyle = masterLayer.mapLayerStyle()
-        # print('### MASTER-STYLE-CHANGED')
-        # print(style.xmlData())
+        assert has_sensor_id(masterLayer)
+        sensor = sensor_id(masterLayer)
+
+        style: QgsMapLayerStyle = QgsMapLayerStyle()
+        style.readFromLayer(masterLayer)
+
         for lyr in self.sensorLayers(sensor):
-            lyr.setMapLayerStyle(style)
+            copyMapLayerStyle(style, lyr)
 
         for c in self.sensorCanvases(sensor):
             assert isinstance(c, MapCanvas)
@@ -770,15 +781,16 @@ class MapView(QFrame):
 
         self.mLayerStyleInitialized[sensor] = True
 
-    def sensorCanvases(self, sensor: SensorInstrument) -> list:
+    def sensorCanvases(self, sensor: Union[str, SensorInstrument]) -> List[MapCanvas]:
         """
         Returns the MapCanvases that show a layer with data for the given ``sensor``
         :param sensor: SensorInstrument
         :return:
         """
-        assert isinstance(sensor, SensorInstrument)
+        if isinstance(sensor, SensorInstrument):
+            sensor = sensor.id()
         return [c for c in self.mapCanvases() if isinstance(c, MapCanvas)
-                and isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor() == sensor]
+                and isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sensor]
 
     def sensorLayer(self, sensor: SensorInstrument):
         """
@@ -858,9 +870,9 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
 
     def onRemoveLayers(self):
         selected = self.layerTreeView().selectedLayers()
-        for l in selected:
-            if not isinstance(l, SensorProxyLayer):
-                self.mapView().mLayerTree.removeLayer(l)
+        for lyr in selected:
+            if not has_sensor_id(lyr):
+                self.mapView().mLayerTree.removeLayer(lyr)
 
     def onSetCanvasCRS(self):
         s = ""
@@ -878,15 +890,18 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             s = ""
 
     def onStretchToExtent(self):
-        current = self.mapView().currentLayer()
+
         canvas = self.mapView().currentMapCanvas()
         if not isinstance(canvas, MapCanvas):
             return
-        if isinstance(current, SensorProxyLayer):
 
-            for l in canvas.layers():
-                if isinstance(l, SensorProxyLayer) and l.sensor() == current.sensor():
-                    canvas.stretchToExtent(layer=current)
+        current = self.mapView().currentLayer()
+        csid = sensor_id(current)
+        if csid:
+            for lyr in canvas.layers():
+                sid = sensor_id(lyr)
+                if sid == csid:
+                    canvas.stretchToExtent(layer=lyr)
                     break
 
         elif isinstance(current, QgsRasterLayer):
@@ -904,7 +919,7 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
         currentCanvas = self.mapView().currentMapCanvas()
         isSensorGroup = isinstance(currentGroup, QgsLayerTreeGroup) and currentGroup.customProperty(
             KEY_SENSOR_GROUP) in [True, 'true']
-        isSensorLayer = isinstance(currentLayer, SensorProxyLayer)
+        isSensorLayer = isinstance(sensor_id(currentLayer), str)
         mv: MapView = self.mapView()
         mw: MapWidget = mv.mapWidget()
         mw.setCurrentMapView(mv)
@@ -961,9 +976,6 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             if isinstance(currentLayer, QgsVectorLayer):
                 menu.addAction(eotsv.actionOpenTable())
                 menu.addAction(eotsv.actionToggleEditing())
-
-            if isinstance(currentLayer, QgsRasterLayer) and not isinstance(currentLayer, SensorProxyLayer):
-                pass
 
             menu.addSeparator()
             # ----------
@@ -2217,6 +2229,7 @@ QSlider::add-page {{
 
                         key = self._layerListKey(canvas)
                         if key in self.mMapLayerCache.keys():
+                            v = self.mMapLayerCache[key]
                             canvas.setLayers(self.mMapLayerCache.pop(key))
                         bTSDChanged = True
 
@@ -2232,9 +2245,9 @@ QSlider::add-page {{
 
     def _freeUnusedMapLayers(self):
 
-        layers = [l for l in self.mMapLayerStore.mapLayers().values() if isinstance(l, SensorProxyLayer)]
+        layers = [lyr for lyr in self.mMapLayerStore.mapLayers().values() if has_sensor_id(lyr)]
         needed = self.usedLayers()
-        toRemove = [l for l in layers if isinstance(l, SensorProxyLayer) and l not in needed]
+        toRemove = [lyr for lyr in layers if has_sensor_id(lyr) and lyr not in needed]
 
         # todo: use a kind of caching
 
