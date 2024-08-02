@@ -7,6 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 RUN apt update \
     &&  apt install -y \
+         git-lfs \
          pyqt5-dev-tools \
      	 python3-pip \
      	 python3-venv \
