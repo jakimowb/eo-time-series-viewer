@@ -1103,12 +1103,13 @@ class DateTimePlotWidget(pg.PlotWidget):
         """
         Constructor of the widget
         """
-        super(DateTimePlotWidget, self).__init__(parent)
-        self.plotItem = pg.PlotItem(
-                            axisItems={'bottom': DateTimeAxis(orientation='bottom')},
-                            viewBox=DateTimeViewBox()
-                        )
-        self.setCentralItem(self.plotItem)
+        plotItem = pg.PlotItem(
+            axisItems={'bottom': DateTimeAxis(orientation='bottom')},
+            viewBox=DateTimeViewBox()
+        )
+        super(DateTimePlotWidget, self).__init__(parent, plotItem=plotItem)
+        self.plotItem = plotItem
+        # self.setCentralItem(self.plotItem)
         # self.xAxisInitialized = False
 
         pi = self.getPlotItem()
