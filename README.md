@@ -10,7 +10,7 @@ Please visit http://eo-time-series-viewer.readthedocs.io/en/latest/ for more inf
 ````bash
 git clone --recurse-submodules git@github.com:jakimowb/eo-time-series-viewer.git
 cd eo-time-series-viewer
-git submodule update --recursive
+git submodule update --init --recursive
 ````
 
    
