@@ -6,6 +6,10 @@ export PYTHONPATH="${PYTHONPATH}"\
 ":$(pwd)"\
 ":/usr/share/qgis/python/plugins"
 
+ROOT_DIR=$(dirname "$0")/..
+
+cd $ROOT_DIR
+
 rm -Rf test-outputs
 rm -Rf test-reports
 echo "Run pytest in $(pwd)"
