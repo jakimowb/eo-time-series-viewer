@@ -29,7 +29,7 @@ class TestSpectralProfiles(EOTSVTestCase):
         for slw in EOTSV.spectralLibraryWidgets():
             speclib = slw.speclib()
             self.assertIsInstance(speclib, QgsVectorLayer)
-            self.assertTrue(speclib.featureCount() == 1)
+            self.assertTrue(speclib.featureCount() == 1, msg=f'Got {speclib.featureCount()} profiles instead of 1')
             pw: SpectralProfilePlotWidget = slw.plotWidget()
             pdis = [item for item in slw.plotControl().plotWidget().items()
                     if isinstance(item, SpectralProfilePlotDataItem)]
