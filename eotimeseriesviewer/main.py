@@ -1275,6 +1275,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
 
             if not validateProfileValueDict(profileDict)[0]:
+                raise Exception(f'Not a valid profile value dict: {profileDict}')
                 continue
 
             # context: QgsExpressionContext = profileDict.pop('context')

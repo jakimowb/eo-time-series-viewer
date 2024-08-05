@@ -29,6 +29,11 @@ jobs:
         with:
           submodules: recursive
           lfs: true
+      - name: Git Status
+        run: |
+          git status
+          git submodule status --recursive
+          git lfs status
 
       - name: Docker Environment Info
         run: |
