@@ -56,7 +56,7 @@ PATH_CONTRIBUTORS = DIR_REPO / 'CONTRIBUTORS.md'
 PATH_ABOUT = DIR_REPO / 'ABOUT.md'
 
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
-URL_QGIS_RESOURCES = r'https://bitbucket.org/hu-geomatics/enmap-box/downloads/qgisresources.zip'
+URL_QGIS_RESOURCES = r'https://box.hu-berlin.de/f/6949ab1099044018a5e4/?dl=1'
 
 
 def debugLog(msg: str = '', skip_prefix: bool = False):

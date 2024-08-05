@@ -22,9 +22,14 @@ class TestSpectralProfiles(EOTSVTestCase):
         canvases = EOTSV.mapCanvases()
         self.assertEqual(len(canvases), n)
         c1: MapCanvas = EOTSV.mapCanvases()[0]
-        pt = SpatialPoint.fromMapCanvasCenter(c1)
+        pt: SpatialPoint = SpatialPoint.fromMapCanvasCenter(c1)
+        self.assertIsInstance(pt, SpatialPoint)
+        self.assertTrue(not pt.isEmpty())
+        self.assertTrue(pt.crs().isValid())
         EOTSV.createSpectralLibrary()
-        EOTSV.loadCurrentSpectralProfile(pt, c1)
+        n = len(EOTSV.loadCurrentSpectralProfile(pt, c1))
+        self.assertIsInstance(n, int)
+        self.assertTrue(n > 0)
 
         for slw in EOTSV.spectralLibraryWidgets():
             speclib = slw.speclib()

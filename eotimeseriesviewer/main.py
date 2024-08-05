@@ -1254,7 +1254,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockCursorLocation.loadCursorLocation(spatialPoint, mapCanvas)
 
     @pyqtSlot(SpatialPoint, QgsMapCanvas)
-    def loadCurrentSpectralProfile(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas):
+    def loadCurrentSpectralProfile(self, spatialPoint: SpatialPoint, mapCanvas: QgsMapCanvas) \
+            -> List[Tuple[Dict, QgsExpressionContext]]:
         """
         Loads SpectralProfiles from a location defined by `spatialPoint`
         :param spatialPoint: SpatialPoint
@@ -1290,6 +1291,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if len(profilesAndContext) > 0:
             self.setCurrentSpectralProfiles(profilesAndContext)
+
+        return profilesAndContext
 
     def setCurrentSpectralProfiles(self, spectra: List[Tuple[Dict, QgsExpressionContext]]):
 
