@@ -1,4 +1,5 @@
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.timeseries import has_sensor_id
 
 start_app()
 
@@ -27,6 +28,9 @@ class TestSpectralProfiles(EOTSVTestCase):
         self.assertTrue(not pt.isEmpty())
         self.assertTrue(pt.crs().isValid())
         EOTSV.createSpectralLibrary()
+
+        sensorLayers = [lyr for lyr in c1.layers() if has_sensor_id(lyr)]
+        self.assertTrue(len(sensorLayers) > 0)
         n = len(EOTSV.loadCurrentSpectralProfile(pt, c1))
         self.assertIsInstance(n, int)
         self.assertTrue(n > 0)
