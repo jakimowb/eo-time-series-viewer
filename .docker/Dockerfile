@@ -14,7 +14,6 @@ RUN apt update \
      	 python3-h5py \
       	 python3-pyqt5.qtopengl \
       	 python3-netcdf4 \
-       	 python3-astropy \
     && apt autoremove -y \
     && apt clean
 
@@ -30,7 +29,7 @@ RUN python3 -m venv --system-site-packages $VENV \
 ENV PYTHONPATH="${PYTHONPATH}"\
 ":/usr/share/qgis/python/plugins"
 
-WORKDIR /
+WORKDIR /src
 
 # Set the entrypoint
 ENTRYPOINT ["/bin/bash", "-c", "source ${VENV}/bin/activate && exec \"$@\"", "--"]
