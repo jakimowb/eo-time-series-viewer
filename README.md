@@ -7,7 +7,13 @@ Please visit http://eo-time-series-viewer.readthedocs.io/en/latest/ for more inf
 
 ## How to clone this repo
 
-   ``git clone --recurse-submodules git@github.com:jakimowb/eo-time-series-viewer.git``
+````bash
+git clone --recurse-submodules git@github.com:jakimowb/eo-time-series-viewer.git
+cd eo-time-series-viewer
+git submodule update --recursive
+````
+
+   
 
 ## Licence and Use ##
 
