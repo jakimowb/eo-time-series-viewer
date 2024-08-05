@@ -1,4 +1,5 @@
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+
 start_app()
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -9,9 +10,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from qgis.core import QgsProject, QgsVectorLayer
 
 
-
 class TestSpectralProfiles(EOTSVTestCase):
-
 
     def test_load_spectral_profiles(self):
         n = 3

@@ -14,7 +14,9 @@ sphinx-markdown
 sphinx-rtd-theme
 sphinx-autobuild
 coverage
-pytest
+pytest>= 8.0.0
+pytest-env
 pytest-cov
+pytest-xdist # parallel testing
 flake8
 flake8-qgis
