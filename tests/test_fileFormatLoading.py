@@ -164,4 +164,3 @@ class TestFileFormatLoading(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-    exit(0)

@@ -121,4 +121,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     update_documentation()
     print('Update documentation finished')
-    exit(0)
