@@ -37,7 +37,7 @@ jobs:
         run: pip list
       - name: Example Images
         run: |
-          ls -la example/Images
+          ls -lash example/Images
       - name: Test EO Time Series Viewer on QGIS
         run: |
           chmod +x .docker/run_docker_tests.sh
