@@ -30,36 +30,27 @@ from typing import Dict, Iterator, List, Tuple, Union
 
 import numpy as np
 import qgis.utils
-from qgis.PyQt.QtCore import \
-    Qt, QSize, pyqtSignal, QModelIndex, QTimer, QAbstractListModel
-from qgis.PyQt.QtGui import \
-    QColor, QIcon, QGuiApplication, QMouseEvent, QKeySequence
-from qgis.PyQt.QtWidgets import \
-    QWidget, QFrame, QLabel, QGridLayout, QSlider, QMenu, \
-    QToolBox, QDialog, QSpinBox, QLineEdit
-from qgis.PyQt.QtXml import \
-    QDomDocument, QDomNode, QDomElement
-from qgis.core import \
-    QgsCoordinateReferenceSystem, QgsTextFormat, QgsProject, \
-    QgsRectangle, QgsRasterRenderer, QgsMapLayerStore, QgsMapLayerStyle, \
-    QgsLayerTreeModel, QgsLayerTreeGroup, QgsPointXY, \
-    QgsLayerTree, QgsLayerTreeLayer, QgsReadWriteContext, QgsVector, \
-    QgsRasterLayer, QgsVectorLayer, QgsMapLayer, QgsMapLayerProxyModel, QgsExpressionContextGenerator, \
-    QgsExpressionContext, \
-    QgsExpressionContextUtils, QgsExpression, QgsExpressionContextScope
-from qgis.gui import \
-    QgsDockWidget, QgsMapCanvas, QgsLayerTreeView, \
-    QgisInterface, QgsLayerTreeViewMenuProvider, QgsLayerTreeMapCanvasBridge, \
-    QgsProjectionSelectionWidget, QgsMessageBar, QgsExpressionBuilderDialog
+from qgis.PyQt.QtCore import QAbstractListModel, QModelIndex, QSize, QTimer, Qt, pyqtSignal
+from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
+    QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
+    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
+    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProject, \
+    QgsRasterLayer, QgsRasterRenderer, QgsReadWriteContext, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
+from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
+    QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
 
 from eotimeseriesviewer import DIR_UI, debugLog
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
-from .mapcanvas import MapCanvas, MapCanvasInfoItem, KEY_LAST_CLICKED
-from .qgispluginsupport.qps.crosshair.crosshair import getCrosshairStyle, CrosshairStyle, CrosshairMapCanvasItem
+from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
+from .maplayerproject import EOTimeSeriesViewerProject
+from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.utils import SpatialPoint, SpatialExtent, loadUi, datetime64
-from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeriesDate, TimeSeries
+from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, datetime64, loadUi
+from .timeseries import SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, has_sensor_id, sensor_id
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -1189,7 +1180,7 @@ class MapWidget(QFrame):
         self.mLastEOTSVMapCanvasCenter: SpatialPoint = None
         self.mMaxNumberOfCachedLayers = 0
 
-        self.mMapLayerStore = QgsMapLayerStore(parent=self)
+        self.mMapLayerStore = EOTimeSeriesViewerProject()
         self.mMapLayerCache = dict()
         self.mCanvasCache = dict()
 
@@ -1963,7 +1954,7 @@ QSlider::add-page {{
             self.sigMapViewRemoved.emit(mapView)
         return mapView
 
-    def mapLayerStore(self) -> QgsMapLayerStore:
+    def mapLayerStore(self) -> EOTimeSeriesViewerProject:
         return self.mMapLayerStore
 
     def mapViews(self) -> List[MapView]:
@@ -2253,7 +2244,7 @@ QSlider::add-page {{
 
         # remove layers from MapLayerCache and MapLayerStore
         for mv in self.mMapLayerCache.keys():
-            layers = [l for l in self.mMapLayerCache[mv] if l not in toRemove]
+            layers = [lyr for lyr in self.mMapLayerCache[mv] if lyr not in toRemove]
             self.mMapLayerCache[mv] = layers
         self.mMapLayerStore.removeMapLayers(toRemove)
 

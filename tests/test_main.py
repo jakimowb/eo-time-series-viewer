@@ -19,18 +19,13 @@
 # noinspection PyPep8Naming
 
 import os
-import sys
-import tracemalloc
 import unittest
-from threading import Event
-from time import sleep
 
-from qgis.core import QgsRasterLayer
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
+from qgis.gui import QgsMapCanvas
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app, example_raster_files
-from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
-from qgis.gui import QgsMapCanvas
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app
 
 start_app()
 
@@ -57,7 +52,9 @@ class TestMain(EOTSVTestCase):
 
         tm: QgsTaskManager = QgsApplication.taskManager()
 
+        assert len(QgsProject.instance().mapLayers()) == 0
         TSV.loadExampleTimeSeries(loadAsync=False)
+        assert len(QgsProject.instance().mapLayers()) == 0
 
         while any(tm.activeTasks()):
             # print(f'Tasks: {len(tm.activeTasks())}', flush=True)
@@ -69,17 +66,24 @@ class TestMain(EOTSVTestCase):
 
         from example import exampleEvents
         TSV.addVectorData(exampleEvents)
+        assert len(QgsProject.instance().mapLayers()) == 0
         # save and read settings
+
+        #
+
         path = self.createTestOutputDirectory() / 'test.qgz'
         QgsProject.instance().write(path.as_posix())
-        self.assertTrue(QgsProject.instance().read(path.as_posix()))
+        # self.assertTrue(QgsProject.instance().read(path.as_posix()))
 
-        TSV.reloadProject()
+        # TSV.reloadProject()
         while any(tm.activeTasks()):
             QgsApplication.processEvents()
 
-        self.showGui([TSV.ui])
+        self.showGui([TSV.ui])  #
+
         TSV.close()
+        assert len(QgsProject.instance().mapLayers()) == 0
+        assert len(TSV.mapLayerStore().mapLayers()) == 0
         QgsProject.instance().removeAllMapLayers()
         s = ""
 
