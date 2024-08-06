@@ -24,35 +24,35 @@ import re
 # noinspection PyPep8Naming
 import sys
 import webbrowser
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Match, Pattern, Tuple, Union
 
 import numpy as np
+
+import eotimeseriesviewer
+import eotimeseriesviewer.settings as eotsvSettings
 import qgis.utils
+from eotimeseriesviewer import DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, debugLog, settings
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.profilevisualization import ProfileViewDock
+from eotimeseriesviewer.settings import Keys as SettingKeys, defaultValues, setValue, value as SettingValue
+from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
+from eotimeseriesviewer.timeseries import DateTimePrecision, EOTSVTask, SensorInstrument, SensorMatching, TimeSeries, \
+    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource, TimeSeriesTreeView, TimeSeriesWidget, \
+    has_sensor_id
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.PyQt.QtCore import QCoreApplication, QDateTime, QFile, QObject, QSize, QTimer, Qt, pyqtSignal, pyqtSlot
+from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsExpressionContext, \
     QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, \
     QgsMapLayerStore, QgsMessageOutput, QgsPointXY, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, \
     QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomDocument
-
-import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsvSettings
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
-from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.timeseries import DateTimePrecision, EOTSVTask, has_sensor_id, SensorInstrument, SensorMatching, \
-    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource, TimeSeriesTreeView, \
-    TimeSeriesWidget
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
 from .qgispluginsupport.qps.maptools import MapTools
@@ -62,7 +62,7 @@ from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryU
 from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict, validateProfileValueDict
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
 from .qgispluginsupport.qps.subdatasets import subLayers
-from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, datetime64, file_search, loadUi
 from .utils import fixMenuButtons
 
 DEBUG = False
@@ -1544,17 +1544,24 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             writtenFiles = d.saveImages()
             self.addTimeSeriesImages(writtenFiles)
 
-    def loadExampleTimeSeries(self, n: int = None, loadAsync: bool = True):
+    def loadExampleTimeSeries(self,
+                              n: int = None,
+                              loadAsync: bool = True,
+                              filter_raster: Union[str, Pattern, Match] = re.compile(r'.*\.tif$'),
+                              filter_vector: Union[str, Pattern, Match] = re.compile(r'.*\.(gpkg|shp)$')):
         """
         Loads an example time series
+        :param filter_vector:
+        :param filter_raster:
+        :param loadAsync: object
         :param n: int, max. number of images to load. Useful for developer test-cases
         """
 
         import example.Images
         exampleDataDir = pathlib.Path(example.Images.__file__).parent
-        rasterFiles = list(file_search(exampleDataDir, '*.tif', recursive=True))
-        vectorFiles = list(file_search(exampleDataDir.parent, re.compile(r'.*\.(gpkg|shp)$'), recursive=True))
-        vectorFiles = []
+        rasterFiles = sorted(list(file_search(exampleDataDir, filter_raster, recursive=True)))
+        vectorFiles = sorted(list(file_search(exampleDataDir.parent, filter_vector, recursive=True)))
+
         if isinstance(n, bool) or not isinstance(n, int):
             n = len(rasterFiles)
 
