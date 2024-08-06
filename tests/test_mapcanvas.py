@@ -36,7 +36,7 @@ class TestMapCanvas(EOTSVTestCase):
 
     def test_basic_behaviour(self):
 
-        files = TestObjects.testImagePaths()
+        files = TestObjects.exampleImagePaths()
         lyr1 = QgsRasterLayer(files[0])
         self.assertTrue(lyr1.isValid())
         QgsProject.instance().addMapLayer(lyr1)

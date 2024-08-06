@@ -887,8 +887,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 self.addTimeSeriesImages(files)
 
     def close(self):
-        self.mapWidget().close()
         self._stopTasks()
+        self.mapWidget().close()
+        self.mapLayerStore().removeAllMapLayers()
         self.ui.close()
         EOTimeSeriesViewer._instance = None
 
@@ -901,6 +902,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 if isinstance(task, EOTSVTask):
                     task.cancel()
             QgsApplication.instance().processEvents()
+        s = ""
 
     def actionCopyLayerStyle(self) -> QAction:
         return self.ui.mActionCopyLayerStyle

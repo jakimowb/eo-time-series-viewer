@@ -50,6 +50,11 @@ class EOTSVTestCase(TestCase):
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
         initAll()
 
+    def taskManagerProcessEvents(self):
+        tm = QgsApplication.taskManager()
+        while any(tm.activeTasks()):
+            QgsApplication.processEvents()
+
     def tearDown(self):
         from eotimeseriesviewer.main import EOTimeSeriesViewer
         self.assertTrue(EOTimeSeriesViewer.instance() is None)
@@ -65,12 +70,12 @@ class EOTSVTestCase(TestCase):
             w.close()
 
 
-def testRasterFiles(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
+def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
     return list(file_search(DIR_EXAMPLES, pattern, recursive=True))
 
 
 def createTimeSeries(self) -> TimeSeries:
-    files = testRasterFiles()
+    files = example_raster_files()
     TS = TimeSeries()
     self.assertIsInstance(TS, TimeSeries)
     TS.addSources(files)
@@ -97,7 +102,7 @@ class TestObjects(TObj):
         vsiDir = '/vsimem/tmp'
         d1 = np.datetime64('2000-01-01')
         print('Create in-memory test timeseries of length {}...'.format(n))
-        files = testRasterFiles()
+        files = example_raster_files()
 
         paths = []
         i = 0
@@ -160,7 +165,7 @@ class TestObjects(TObj):
         return datasets
 
     @staticmethod
-    def testImagePaths() -> list:
+    def exampleImagePaths() -> list:
         import example
         path = pathlib.Path(example.__file__).parent / 'Images'
         files = list(file_search(path, '*.tif', recursive=True))
@@ -181,7 +186,7 @@ class TestObjects(TObj):
     def createMultiSourceTimeSeries() -> list:
 
         # real files
-        files = TestObjects.testImagePaths()
+        files = TestObjects.exampleImagePaths()
         movedFiles = []
         d = r'/vsimem/'
         for pathSrc in files:

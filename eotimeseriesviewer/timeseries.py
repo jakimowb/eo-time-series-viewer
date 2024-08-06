@@ -23,6 +23,7 @@ import collections
 import datetime
 import enum
 import json
+import copy
 # noinspection PyPep8Naming
 import os
 import pathlib
@@ -1466,7 +1467,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
 
         assert progress_interval >= 1
 
-        self.mFiles: List[str] = files
+        self.mFiles: List[str] = copy.deepcopy(files)
         if visibility:
             assert isinstance(visibility, list) and len(visibility) == len(files)
             self.mVisibility: List[bool] = [b is True for b in visibility]
@@ -1486,6 +1487,11 @@ class TimeSeriesLoadingTask(EOTSVTask):
         n = len(self.mFiles)
 
         t0 = datetime.datetime.now()
+
+        def cloneAndClear():
+            results = [tss.clone() for tss in result_block]
+            result_block.clear()
+            return results
 
         try:
             for i, path in enumerate(self.mFiles):
@@ -1511,11 +1517,13 @@ class TimeSeriesLoadingTask(EOTSVTask):
                 if dt > self.mProgressInterval:
                     progress = int(100 * (i + 1) / n)
                     self.setProgress(progress)
-                    self.sigFoundSources.emit(result_block[:])
+                    # self.sigFoundSources.emit(cloneAndClear())
+                    self.sigFoundSources.emit([tss.clone() for tss in result_block])
                     result_block.clear()
 
             if len(result_block) > 0:
-                self.sigFoundSources.emit(result_block[:])
+                # self.sigFoundSources.emit(cloneAndClear())
+                self.sigFoundSources.emit([tss.clone() for tss in result_block])
                 result_block.clear()
         except Exception as ex:
             self.mError = ex
@@ -2096,11 +2104,12 @@ class TimeSeries(QAbstractItemModel):
         qgsTask.sigFoundSources.connect(self.addTimeSeriesSources)
         qgsTask.progressChanged.connect(self.sigProgress.emit)
 
+        self.mTasks[id(qgsTask)] = qgsTask
+
         if runAsync:
-            tm = QgsApplication.taskManager()
+            tm: QgsTaskManager = QgsApplication.taskManager()
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
-            s = ""
         else:
             qgsTask.finished(qgsTask.run())
 
@@ -2128,6 +2137,9 @@ class TimeSeries(QAbstractItemModel):
                 if len(task.mIntersections) > 0:
                     self.onFoundOverlap(task.mIntersections)
             self.sigFindOverlapTaskFinished.emit()
+        tm: QgsTaskManager = QgsApplication.taskManager()
+
+        self.onRemoveTask(task)
 
     def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
         """

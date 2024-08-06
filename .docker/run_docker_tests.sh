@@ -11,24 +11,20 @@
 #*                                                                         *
 #***************************************************************************
 
-set -e
+# set -e
 
 # pushd /usr/src
 # DEFAULT_PARAMS='-x -v'
 # cd /usr/src
 # REPO_ROOT=$(readlink -f "$0")
-REPO_ROOT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )/..
-cd $REPO_ROOT
 
-# cd $REPO_ROOT
-pwd
-
-# REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)
-# echo $REPO_ROOT
+REPO_ROOT="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")/..")"
+echo $REPO_ROOT
+# echo $SCRIPT_DIR
 
 export QT_QPA_PLATFORM=offscreen
 export CI=True
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-python3 scripts/setup_repository.py -r
-source scripts/runtests.sh "$@"
+python3 $REPO_ROOT/scripts/setup_repository.py -r
+source $REPO_ROOT/scripts/runtests.sh "$@"
 #popd
