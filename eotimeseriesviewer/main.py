@@ -29,7 +29,7 @@ from typing import Dict, List, Match, Pattern, Tuple, Union
 import numpy as np
 
 import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsvSettings
+import eotimeseriesviewer.settings as eotsv_settings
 import qgis.utils
 from eotimeseriesviewer import DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, debugLog, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
@@ -1474,7 +1474,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def onSensorAdded(self, sensor: SensorInstrument):
 
-        knownName = eotsvSettings.sensorName(sensor.id())
+        knownName = eotsv_settings.sensorName(sensor.id())
         sensor.sigNameChanged.connect(lambda *args, s=sensor: self.onSensorNameChanged(sensor))
 
         if isinstance(knownName, str) and len(knownName) > 0:

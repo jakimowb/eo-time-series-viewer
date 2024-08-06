@@ -22,12 +22,12 @@
 
 import os
 import pathlib
+from typing import List, Match, Pattern, Union
 
 import numpy as np
-from osgeo import osr, gdal
+from osgeo import gdal, osr
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
-
 from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj, start_app
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
@@ -65,8 +65,8 @@ class EOTSVTestCase(TestCase):
             w.close()
 
 
-def testRasterFiles() -> list:
-    return list(file_search(DIR_EXAMPLES, '*.tif', recursive=True))
+def testRasterFiles(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
+    return list(file_search(DIR_EXAMPLES, pattern, recursive=True))
 
 
 def createTimeSeries(self) -> TimeSeries:

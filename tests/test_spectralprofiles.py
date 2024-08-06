@@ -1,6 +1,3 @@
-from osgeo import gdal
-
-from eotimeseriesviewer.qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import has_sensor_id
 
@@ -20,7 +17,7 @@ class TestSpectralProfiles(EOTSVTestCase):
         n = 3
         EOTSV = EOTimeSeriesViewer()
         self.assertEqual(len(EOTSV.mapViews()), 0, msg=f'MapViews: {EOTSV.mapViews()}')
-        EOTSV.loadExampleTimeSeries(n, loadAsync=False)
+        EOTSV.loadExampleTimeSeries(n, filter_raster='re_*.tif', loadAsync=False)
         self.assertEqual(len(EOTSV.timeSeries()), n)
         self.assertEqual(len(EOTSV.mapViews()), 1, msg=f'MapViews: {EOTSV.mapViews()}')
         canvases = EOTSV.mapCanvases()
@@ -34,18 +31,6 @@ class TestSpectralProfiles(EOTSVTestCase):
 
         sensorLayers = [lyr for lyr in c1.layers() if has_sensor_id(lyr)]
         self.assertTrue(len(sensorLayers) > 0)
-
-        for lyr in sensorLayers:
-            sp: QgsRasterLayerSpectralProperties = QgsRasterLayerSpectralProperties.fromRasterLayer(lyr)
-            wl = sp.wavelengths()
-            self.assertIsInstance(wl, list)
-            if not isinstance(wl[0], (int, float)):
-                src = lyr.source()
-                ds: gdal.Dataset = gdal.Open(src)
-                md = ds.GetMetadata_Dict()
-                err = f'Unable to read wavelength info from {src}\n{md}'
-
-                self.assertIsInstance(wl[0], (int, float), msg=err)
 
         n = len(EOTSV.loadCurrentSpectralProfile(pt, c1))
         self.assertIsInstance(n, int)

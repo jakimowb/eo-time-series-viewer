@@ -12,16 +12,20 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
-import unittest
+import os
 import pathlib
 import re
-import os
+import unittest
 
-from qgis.PyQt.QtGui import QIcon
+from osgeo import gdal
 
-from eotimeseriesviewer import icon as eotsvIcon, DIR_UI
+from eotimeseriesviewer import DIR_UI, icon as eotsvIcon
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
+from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import validateProfileValueDict
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, scanResources
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, testRasterFiles
+from qgis.PyQt.QtGui import QIcon
+from qgis.core import QgsRasterLayer
 
 start_app()
 
@@ -44,10 +48,19 @@ class TestResources(EOTSVTestCase):
                 icon = QIcon(resource)
                 self.assertFalse(icon.isNull(), msg=f'unable to load icon {resource}')
 
-        self.assertTrue(len(unusedSVGs) == 0,  msg='Unused resources:\n{}'.format('\n'.join(sorted(unusedSVGs))))
+        self.assertTrue(len(unusedSVGs) == 0, msg='Unused resources:\n{}'.format('\n'.join(sorted(unusedSVGs))))
+
+    def test_example_images(self):
+
+        for file in testRasterFiles(pattern=re.compile(r'.*\.tif$')):
+            ds: gdal.Dataset = gdal.Open(file)
+            self.assertIsInstance(ds, gdal.Dataset)
+
+            lyr = QgsRasterLayer(file)
+            self.assertTrue(lyr.isValid())
+            pDict = SpectralLibraryUtils.readProfileDict(lyr, lyr.extent().center())
+            self.assertTrue(validateProfileValueDict(pDict))
 
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-
-
