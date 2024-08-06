@@ -22,12 +22,13 @@ import os
 import sys
 import tracemalloc
 import unittest
-from time import time
+from threading import Event
+from time import sleep
 
-from qgis._core import QgsRasterLayer
+from qgis.core import QgsRasterLayer
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app, testRasterFiles
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, start_app, example_raster_files
 from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsProject
 from qgis.gui import QgsMapCanvas
 
@@ -36,6 +37,7 @@ start_app()
 
 class TestMain(EOTSVTestCase):
 
+    # @unittest.skip('N/A')
     def test_TimeSeriesViewer(self):
         from qgis.utils import iface
         c = iface.mapCanvas()
@@ -53,8 +55,12 @@ class TestMain(EOTSVTestCase):
         TSV.createMapView('True Color')
         TSV.createMapView('False Color')
 
-        TSV.loadExampleTimeSeries(loadAsync=True)
-        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TSV.timeSeries().mTasks) > 0:
+        tm: QgsTaskManager = QgsApplication.taskManager()
+
+        TSV.loadExampleTimeSeries(loadAsync=False)
+
+        while any(tm.activeTasks()):
+            # print(f'Tasks: {len(tm.activeTasks())}', flush=True)
             QgsApplication.processEvents()
 
         if len(TSV.timeSeries()) > 0:
@@ -69,17 +75,22 @@ class TestMain(EOTSVTestCase):
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
 
         TSV.reloadProject()
+        while any(tm.activeTasks()):
+            QgsApplication.processEvents()
 
         self.showGui([TSV.ui])
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
         s = ""
 
-    # @unittest.skip('test')
+    # @unittest.skip('N/A')
     def test_TimeSeriesViewerExampleSources(self):
 
+        self.taskManagerProcessEvents()
         TSV = EOTimeSeriesViewer()
-        TSV.loadExampleTimeSeries(loadAsync=False)
+
+        TSV.loadExampleTimeSeries(loadAsync=True)
+        self.taskManagerProcessEvents()
 
         self.showGui(TSV.ui)
         TSV.close()
@@ -118,6 +129,7 @@ class TestMain(EOTSVTestCase):
         TSV.close()
         QgsProject.instance().removeAllMapLayers()
 
+    # @unittest.skip('N/A')
     def test_exportMapsToImages(self):
 
         d = SaveAllMapsDialog()
@@ -144,7 +156,7 @@ class TestMain(EOTSVTestCase):
         TSV = EOTimeSeriesViewer()
 
         files = TestObjects.createArtificialTimeSeries(100)
-        TSV.addTimeSeriesImages(files)
+        TSV.addTimeSeriesImages(files, loadAsync=False)
 
         self.showGui(TSV)
         TSV.close()
