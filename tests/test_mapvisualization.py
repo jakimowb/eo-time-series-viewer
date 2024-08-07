@@ -16,16 +16,17 @@
 *                                                                         *
 ***************************************************************************
 """
-import unittest
 import os
-
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtWidgets import QApplication, QWidget, QGridLayout, QSpinBox, QLabel
-from qgis.PyQt.QtXml import QDomNode, QDomDocument
+import unittest
 
 import numpy as np
-from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase, start_app
+
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomNode
+
 start_app()
 
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -46,6 +47,7 @@ from qgis.core import QgsFeatureRenderer, \
 from qgis.gui import QgsFontButton
 
 start_app()
+
 
 # noinspection PyPep8Naming
 
@@ -299,7 +301,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.showGui([dock, mw])
 
     def test_mapcanvas(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         m = MapCanvas()
         m.setLayers([])
@@ -397,4 +399,3 @@ class TestMapVisualization(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-

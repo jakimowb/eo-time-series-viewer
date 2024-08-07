@@ -20,10 +20,10 @@
 """
 import bisect
 import collections
+import copy
 import datetime
 import enum
 import json
-import copy
 # noinspection PyPep8Naming
 import os
 import pathlib
@@ -31,7 +31,7 @@ import pickle
 import re
 import urllib
 import uuid
-from typing import Any, Dict, Iterator, List, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
@@ -3217,7 +3217,7 @@ def has_sensor_id(layer) -> bool:
     return sensor_id(layer) is not None
 
 
-def sensor_id(layer) -> Union[str, None]:
+def sensor_id(layer) -> Optional[str]:
     if isinstance(layer, QgsRasterLayer):
         return layer.customProperty(SensorInstrument.PROPERTY_KEY)
     else:

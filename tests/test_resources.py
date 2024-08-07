@@ -18,14 +18,15 @@ import re
 import unittest
 
 from osgeo import gdal
+from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
+from qgis.PyQt.QtGui import QIcon
 
 from eotimeseriesviewer import DIR_UI, icon as eotsvIcon
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import validateProfileValueDict
+from eotimeseriesviewer.qgispluginsupport.qps.subdatasets import subLayers
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, scanResources
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, testRasterFiles
-from qgis.PyQt.QtGui import QIcon
-from qgis.core import QgsRasterLayer
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app
 
 start_app()
 
@@ -52,7 +53,7 @@ class TestResources(EOTSVTestCase):
 
     def test_example_images(self):
 
-        for file in testRasterFiles(pattern=re.compile(r'.*\.tif$')):
+        for file in example_raster_files(pattern=re.compile(r'.*\.tif$')):
             ds: gdal.Dataset = gdal.Open(file)
             self.assertIsInstance(ds, gdal.Dataset)
 
@@ -60,6 +61,23 @@ class TestResources(EOTSVTestCase):
             self.assertTrue(lyr.isValid())
             pDict = SpectralLibraryUtils.readProfileDict(lyr, lyr.extent().center())
             self.assertTrue(validateProfileValueDict(pDict))
+
+    def test_example_vectors(self):
+
+        from example import exampleEvents, exampleGPKG
+        sources = [exampleEvents, exampleGPKG]
+
+        for src in sources:
+            for slyr in subLayers(src):
+                self.assertIsInstance(slyr, QgsMapLayer)
+
+            lyr = QgsVectorLayer(src)
+            self.assertIsInstance(lyr, QgsVectorLayer)
+            self.assertTrue(lyr.isValid())
+
+            for slyr in subLayers(lyr):
+                self.assertIsInstance(slyr, QgsMapLayer)
+                self.assertTrue(slyr.isValid())
 
 
 if __name__ == "__main__":
