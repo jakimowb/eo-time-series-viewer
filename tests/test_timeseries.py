@@ -577,4 +577,4 @@ class TestTimeSeries(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(buffer=False)
+    unittest.main(buffer=False, failfast=True)
