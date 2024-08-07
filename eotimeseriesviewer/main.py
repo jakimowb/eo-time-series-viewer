@@ -27,33 +27,34 @@ import webbrowser
 from typing import Dict, List, Match, Pattern, Tuple, Union
 
 import numpy as np
-
-import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsv_settings
 import qgis.utils
-from eotimeseriesviewer import DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, debugLog, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
-from eotimeseriesviewer.settings import Keys as SettingKeys, defaultValues, setValue, value as SettingValue
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.timeseries import DateTimePrecision, EOTSVTask, SensorInstrument, SensorMatching, TimeSeries, \
-    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource, TimeSeriesTreeView, TimeSeriesWidget, \
-    has_sensor_id
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.PyQt.QtCore import QCoreApplication, QDateTime, QFile, QObject, QSize, QTimer, Qt, pyqtSignal, pyqtSlot
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsExpressionContext, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, \
+    QgsMessageOutput, QgsPointXY, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, \
+    QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
+    QgsStatusBar, QgsTaskManagerWidget
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsExpressionContext, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, \
-    QgsMapLayerStore, QgsMessageOutput, QgsPointXY, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, \
-    QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
+
+import eotimeseriesviewer
+import eotimeseriesviewer.settings as eotsv_settings
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.profilevisualization import ProfileViewDock
+from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
+from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
+from eotimeseriesviewer.timeseries import DateTimePrecision, EOTSVTask, has_sensor_id, SensorInstrument, SensorMatching, \
+    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource, TimeSeriesTreeView, \
+    TimeSeriesWidget
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
+from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
@@ -62,7 +63,7 @@ from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryU
 from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict, validateProfileValueDict
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
 from .qgispluginsupport.qps.subdatasets import subLayers
-from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, datetime64, file_search, loadUi
+from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
 from .utils import fixMenuButtons
 
 DEBUG = False
@@ -421,7 +422,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTaskManagerButton.setFont(statusBarFont)
         self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
         self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
-        self.mMapLayerStore = self.mapWidget().mapLayerStore()
+        self.mMapLayerStore: EOTimeSeriesViewerProject = self.mapWidget().mapLayerStore()
 
         mvd: MapViewDock = self.ui.dockMapViews
         tswidget: TimeSeriesWidget = self.ui.dockTimeSeries.timeSeriesWidget()
@@ -697,6 +698,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             self.timeSeries().clear()
 
             mapviews = self.mapViews()
+
             for mv in mapviews:
                 self.mapWidget().removeMapView(mv)
 
@@ -996,7 +998,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.mMapWidget.mapCanvases()
 
-    def mapLayerStore(self) -> QgsMapLayerStore:
+    def mapLayerStore(self) -> EOTimeSeriesViewerProject:
         """
         Returns the QgsMapLayerStore which is used to register QgsMapLayers
         :return: QgsMapLayerStore
@@ -1579,8 +1581,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             added_vector_layers = self.addVectorData(vectorFiles)
 
-            for lyr in QgsProject.instance().mapLayers().values():
-                if isinstance(lyr, QgsVectorLayer) and lyr.source() in vectorFiles:
+            for lyr in added_vector_layers:
+                if isinstance(lyr, QgsVectorLayer):
                     renderer = lyr.renderer()
                     if lyr.geometryType() == QgsWkbTypes.PolygonGeometry and isinstance(renderer,
                                                                                         QgsSingleSymbolRenderer):
@@ -1749,11 +1751,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         layers = [lyr for lyr in layers if not has_sensor_id(lyr)]
         if len(layers) > 0:
-            QgsProject.instance().addMapLayers(layers)
+            self.mapLayerStore().addMapLayers(layers)
             for mapView in self.mapViews():
                 assert isinstance(mapView, MapView)
-                for l in layers:
-                    mapView.addLayer(l)
+                for lyr in layers:
+                    mapView.addLayer(lyr)
 
                 break  # add to first mapview only
         return layers

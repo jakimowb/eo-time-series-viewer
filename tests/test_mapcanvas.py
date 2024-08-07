@@ -22,11 +22,11 @@ import unittest
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
-from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
-from qgis.gui import QgsMapCanvas, QgsFontButton
+from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
+from qgis.gui import QgsFontButton, QgsMapCanvas
 
 start_app()
 
@@ -65,7 +65,7 @@ class TestMapCanvas(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
 
     def test_contextMenu(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
 
@@ -135,7 +135,7 @@ class TestMapCanvas(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
 
     def test_mapcanvas(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
 
