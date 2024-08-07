@@ -26,31 +26,31 @@ import re
 import sys
 import time
 import traceback
-from typing import Dict, Iterator, List, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import qgis.utils
-from qgis.PyQt.QtCore import QAbstractListModel, QModelIndex, QSize, QTimer, Qt, pyqtSignal
-from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
-from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
-    QWidget
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
 from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
     QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProject, \
     QgsRasterLayer, QgsRasterRenderer, QgsReadWriteContext, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QModelIndex, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
+    QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
 
-from eotimeseriesviewer import DIR_UI, debugLog
+from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.utils import SpatialExtent, SpatialPoint, datetime64, loadUi
-from .timeseries import SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, has_sensor_id, sensor_id
+from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialExtent, SpatialPoint
+from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
 KEY_SENSOR_GROUP = 'eotsv/sensorgroup'
@@ -78,7 +78,7 @@ class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
-        self.mMapView: MapView = None
+        self.mMapView: Optional[MapView] = None
 
     def setMapView(self, mapView):
         self.mMapView = mapView
@@ -119,7 +119,7 @@ class MapView(QFrame):
                                                    default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
         self.mMapWidget = None
 
-        self.mLayerStyleInitialized: Dict[SensorInstrument, bool] = dict()
+        self.mLayerStyleInitialized: Dict[str, bool] = dict()
 
         self.mTimeSeries = None
         self.mSensorLayerList = list()
@@ -166,7 +166,7 @@ class MapView(QFrame):
                                       | QgsLayerTreeModel.AllowNodeRename
                                       | QgsLayerTreeModel.AllowNodeReorder)
 
-        self.mLayerTreeSensorNode: QgsLayerTreeGroup = None
+        self.mLayerTreeSensorNode: Optional[QgsLayerTreeGroup] = None
         self._createSensorNode()
         self.mLayerTreeView: QgsLayerTreeView
         self.mLayerTreeView.setModel(self.mLayerTreeModel)
@@ -417,11 +417,13 @@ class MapView(QFrame):
         elif filter == QgsMapLayerProxyModel.VectorLayer:
             title = 'Select Vector Layer'
             text = 'Vector'
+        else:
+            text = title = ''
         d.setWindowTitle(title)
         d.addLayerDescription(text, filter)
         if d.exec() == QDialog.Accepted:
-            for l in d.mapLayers():
-                self.addLayer(l)
+            for lyr in d.mapLayers():
+                self.addLayer(lyr)
 
     def setCurrentLayer(self, layer: QgsMapLayer):
         """
@@ -614,7 +616,7 @@ class MapView(QFrame):
 
         return self.mCrossHairStyle
 
-    def setHighlighted(self, b=True, timeout=1000):
+    def setHighlighted(self, b=True, timeout: int = 1000):
         """
         Activates or deactivates a red-line border of the MapCanvases
         :param b: True | False to activate / deactivate the highlighted lines-
@@ -634,7 +636,7 @@ class MapView(QFrame):
             for mapCanvas in self.mapCanvases():
                 mapCanvas.setStyleSheet(styleOff)
 
-    def currentMapCanvas(self) -> MapCanvas:
+    def currentMapCanvas(self) -> Optional[MapCanvas]:
         """
         Returns the MapCanvas that was clicked / used last
         :return: MapCanvas
@@ -692,7 +694,7 @@ class MapView(QFrame):
             assert lyr.customProperty(SensorInstrument.PROPERTY_KEY)
         return layers
 
-    def sensorProxyLayer(self, sensor: Union[SensorInstrument, str]) -> QgsRasterLayer:
+    def sensorProxyLayer(self, sensor: Union[SensorInstrument, str]) -> Optional[QgsRasterLayer]:
         """
         Returns the proxy layer related to a SensorInstrument
         :param sensor: SensorInstrument
@@ -705,15 +707,15 @@ class MapView(QFrame):
                 return lyr
         return None
 
-    def sensorLayers(self, sensor: SensorInstrument) -> List[QgsRasterLayer]:
+    def sensorLayers(self, sensor_id: str) -> List[QgsRasterLayer]:
         """
-        :param sensor:
+        :param sensor_id:
         :return:
         """
         layers = []
         for c in self.mapCanvases():
             for lyr in c.layers():
-                if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor:
+                if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor_id:
                     layers.append(lyr)
         return layers
 
@@ -747,7 +749,7 @@ class MapView(QFrame):
             dummyLayers = self.mDummyCanvas.layers() + [masterLayer]
             self.mDummyCanvas.setLayers(dummyLayers)
 
-            self.mLayerStyleInitialized[sensor] = False
+            self.mLayerStyleInitialized[sensor.id()] = False
 
     def onMasterLyrNameChanged(self, *args):
         lyr = self.sender()
@@ -758,19 +760,20 @@ class MapView(QFrame):
     def onMasterStyleChanged(self, masterLayer: QgsRasterLayer):
 
         assert has_sensor_id(masterLayer)
-        sensor = sensor_id(masterLayer)
+        sid = sensor_id(masterLayer)
 
-        style: QgsMapLayerStyle = QgsMapLayerStyle()
-        style.readFromLayer(masterLayer)
+        if isinstance(sid, str):
+            style: QgsMapLayerStyle = QgsMapLayerStyle()
+            style.readFromLayer(masterLayer)
 
-        for lyr in self.sensorLayers(sensor):
-            copyMapLayerStyle(style, lyr)
+            for lyr in self.sensorLayers(sid):
+                copyMapLayerStyle(style, lyr)
 
-        for c in self.sensorCanvases(sensor):
-            assert isinstance(c, MapCanvas)
-            c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
+            for c in self.sensorCanvases(sid):
+                assert isinstance(c, MapCanvas)
+                c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
 
-        self.mLayerStyleInitialized[sensor] = True
+            self.mLayerStyleInitialized[sid] = True
 
     def sensorCanvases(self, sensor: Union[str, SensorInstrument]) -> List[MapCanvas]:
         """
@@ -1555,6 +1558,8 @@ class MapWidget(QFrame):
 
         while mvNode.nodeName() == 'MapView':
             mapView = MapView.readXml(mvNode)
+            mvNode = mvNode.nextSiblingElement()
+
             if isinstance(mapView, MapView):
                 setValue(Keys.MapTextFormat, mapView.mapTextFormat())
                 setValue(Keys.MapBackgroundColor, mapView.mapBackgroundColor())
@@ -1563,8 +1568,6 @@ class MapWidget(QFrame):
                     self.timeSeries().addSensor(s)
 
                 self.addMapView(mapView)
-
-            mvNode = mvNode.nextSiblingElement()
 
     def usedLayers(self) -> List[QgsMapLayer]:
         layers = set()
@@ -1905,13 +1908,15 @@ QSlider::add-page {{
         """
         return self.mCurrentDate
 
-    def addMapView(self, mapView: MapView) -> MapView:
+    def addMapView(self, mapView: MapView) -> Optional[MapView]:
         """
         Adds a MapView
         :param mapView: MapView
         :return: MapView
         """
         assert isinstance(mapView, MapView)
+        if mapView in self.mMapViews:
+            return None
         if mapView not in self.mMapViews:
             self.mMapViews.append(mapView)
 
