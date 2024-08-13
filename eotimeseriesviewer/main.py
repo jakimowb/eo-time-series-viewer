@@ -56,6 +56,7 @@ from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
+from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
 from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, profile_field_list
@@ -581,7 +582,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
         self.ui.mActionLayerProperties.triggered.connect(self.onShowLayerProperties)
-
         from qgis.utils import iface
         self.ui.actionLoadProject.triggered.connect(iface.actionOpenProject().trigger)
         self.ui.actionReloadProject.triggered.connect(self.reloadProject)
@@ -1082,8 +1082,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             lyr = self.currentLayer()
 
         if isinstance(lyr, (QgsVectorLayer, QgsRasterLayer)):
-            from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
-            showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
+            showLayerPropertiesDialog(lyr,
+                                      canvas=self.currentMapCanvas(),
+                                      messageBar=self.messageBar(),
+                                      useQGISDialog=False, modal=True)
+            # showLayerPropertiesDialog(layer, canvas=canvas, messageBar=messageBar,
+            #                                   modal=True, useQGISDialog=False)
 
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
@@ -1427,6 +1431,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             for file in sorted(files):
                 s.setValue('file_ts_definition', file)
                 self.mTimeSeries.loadFromFile(file, n_max=n_max, runAsync=runAsync)
+
+    def currentMapCanvas(self) -> MapCanvas:
+        return self.mapWidget().currentMapCanvas()
 
     def currentLayer(self) -> QgsMapLayer:
         """
