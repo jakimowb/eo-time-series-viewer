@@ -24,7 +24,7 @@ import re
 # noinspection PyPep8Naming
 import sys
 import webbrowser
-from typing import Dict, List, Match, Pattern, Tuple, Union
+from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
 import numpy as np
 import qgis.utils
@@ -49,8 +49,8 @@ from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.timeseries import DateTimePrecision, EOTSVTask, has_sensor_id, SensorInstrument, SensorMatching, \
-    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource, TimeSeriesTreeView, \
+from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
+    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
@@ -65,6 +65,7 @@ from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileVal
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
+from .tasks import EOTSVTask
 from .utils import fixMenuButtons
 
 DEBUG = False
@@ -115,6 +116,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # self.dockMapViews = addDockWidget(MapViewDockUI(self))
 
         self.dockTimeSeries: TimeSeriesDock = self.addDockWidget(area, TimeSeriesDock(self))
+
         tbar: QToolBar = self.dockTimeSeries.timeSeriesWidget().toolBar()
         tbar.addSeparator()
         tbar.addAction(self.actionAddTSD)
@@ -125,9 +127,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         tbar.addAction(self.actionClearTS)
         self.dockTimeSeries.timeSeriesWidget().sigTimeSeriesDatesSelected.connect(self.actionRemoveTSD.setEnabled)
 
-        from eotimeseriesviewer.profilevisualization import ProfileViewDock
         self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
-
         area = Qt.LeftDockWidgetArea
         # self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
         #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
@@ -315,10 +315,8 @@ class TaskManagerStatusButton(QToolButton):
 
     def onTaskAdded(self, taskID):
         task = self.mManager.task(taskID)
-        from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
-        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask
 
-        if isinstance(task, (TemporalProfileLoaderTask, TimeSeriesFindOverlapTask, TimeSeriesLoadingTask)):
+        if isinstance(task, EOTSVTask):
             task.progressChanged.connect(self.updateTaskInfo)
             task.taskCompleted.connect(self.updateTaskInfo)
             task.taskTerminated.connect(self.updateTaskInfo)
@@ -366,16 +364,6 @@ class TaskManagerStatusButton(QToolButton):
 
 
 class EOTimeSeriesViewer(QgisInterface, QObject):
-    _instance = None
-
-    @staticmethod
-    def instance():
-        """
-        Returns the TimeSeriesViewer instance
-        :return:
-        """
-        return EOTimeSeriesViewer._instance
-
     sigCurrentDateChanged = pyqtSignal(TimeSeriesDate)
     sigCurrentLocationChanged = pyqtSignal([QgsCoordinateReferenceSystem, QgsPointXY],
                                            [QgsCoordinateReferenceSystem, QgsPointXY, QgsMapCanvas])
@@ -383,6 +371,16 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     sigCurrentSpectralProfilesChanged = pyqtSignal(list)
     sigCurrentTemporalProfilesChanged = pyqtSignal(list)
     currentLayerChanged = pyqtSignal(QgsMapLayer)
+
+    _instance = None
+
+    @staticmethod
+    def instance() -> Optional['EOTimeSeriesViewer']:
+        """
+        Returns the TimeSeriesViewer instance
+        :return:
+        """
+        return EOTimeSeriesViewer._instance
 
     def __init__(self):
         """Constructor.
@@ -392,7 +390,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             application at run time.
         :type iface: QgsInterface
         """
-        QObject.__init__(self)
+        # QObject.__init__(self)
         QgisInterface.__init__(self)
         # QApplication.processEvents()
 
