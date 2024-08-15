@@ -18,11 +18,12 @@
  *                                                                         *
  ***************************************************************************/
 """
+import inspect
 # noinspection PyPep8Naming
 import os
-import inspect
 import pathlib
-from qgis.core import QgsApplication, Qgis
+
+from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
 __version__ = '1.19'  # sub-subversion number is added automatically
@@ -31,14 +32,13 @@ LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
-HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+HOMEPAGE = 'https://eo-time-series-viewer.readthedocs.io'
 DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
-REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+REPOSITORY = 'https://github.com/jakimowb/eo-time-series-viewer'
 AUTHOR = 'Benjamin Jakimow'
 MAIL = 'benjamin.jakimow@geo.hu-berlin.de'
-HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
-CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
+ISSUE_TRACKER = 'https://github.com/jakimowb/eo-time-series-viewer/issues'
+CREATE_ISSUE = 'https://github.com/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'osgeo.gdal']
 URL_TESTDATA = r''
 
