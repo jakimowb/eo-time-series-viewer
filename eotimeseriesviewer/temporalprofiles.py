@@ -26,29 +26,26 @@ import pathlib
 import re
 import sys
 import traceback
-
 import uuid
 from collections import OrderedDict
-from typing import Tuple, List, Dict
+from typing import Dict, List, Tuple
 
 import numpy as np
-from qgis.PyQt.QtCore import Qt, QPoint, QDate, QObject, pyqtSignal, QVariant, QModelIndex
-from qgis.PyQt.QtGui import QDropEvent, QDragEnterEvent, QDragMoveEvent, QColor
+from osgeo import gdal, ogr, osr
+from qgis.core import QgsApplication, QgsConditionalLayerStyles, QgsConditionalStyle, QgsCoordinateReferenceSystem, \
+    QgsCoordinateTransform, QgsExpression, QgsExpressionContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, \
+    QgsFileUtils, QgsGeometry, QgsPointXY, QgsProviderRegistry, QgsRectangle, QgsTaskManager, QgsVectorFileWriter, \
+    QgsVectorLayer, QgsVectorLayerCache, QgsWkbTypes
+from qgis.gui import QgsAttributeTableFilterModel, QgsAttributeTableModel, QgsAttributeTableView, \
+    QgsIFeatureSelectionManager
+from qgis.PyQt.QtCore import pyqtSignal, QDate, QModelIndex, QObject, QPoint, Qt, QVariant
+from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QFileDialog, QHeaderView, QMenu
-from osgeo import ogr, osr, gdal
-from qgis.core import QgsVectorLayer, QgsCoordinateReferenceSystem, \
-    QgsWkbTypes, QgsProviderRegistry, QgsFeature, QgsGeometry, QgsApplication, QgsTask, QgsRectangle, QgsTaskManager, \
-    QgsPointXY, \
-    QgsCoordinateTransform, QgsFeatureRequest, \
-    QgsVectorLayerCache, QgsVectorFileWriter, \
-    QgsConditionalStyle, QgsConditionalLayerStyles, \
-    QgsField, QgsFields, QgsExpressionContext, QgsExpression, QgsFileUtils
-from qgis.gui import QgsAttributeTableFilterModel, QgsIFeatureSelectionManager, QgsAttributeTableModel, \
-    QgsAttributeTableView
-from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from .qgispluginsupport.qps.utils import createQgsField, SpatialExtent, geo2px, SpatialPoint, setQgsFieldValue, px2geo
-from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument, TimeSeriesSource
 
+from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
+from .qgispluginsupport.qps.utils import createQgsField, geo2px, px2geo, setQgsFieldValue, SpatialExtent, SpatialPoint
+from .tasks import EOTSVTask
+from .timeseries import SensorInstrument, TimeSeries, TimeSeriesDate, TimeSeriesSource
 
 LABEL_EXPRESSION_2D = 'DN or Index'
 LABEL_TIME = 'Date'
@@ -1024,7 +1021,7 @@ class TemporalProfileLayer(QgsVectorLayer):
         pass
 
 
-class TemporalProfileLoaderTask(QgsTask):
+class TemporalProfileLoaderTask(EOTSVTask):
     """
     A QgsTask to load pixel-band values from different Time Series Source images and
     different Temporal Profiles geometries.

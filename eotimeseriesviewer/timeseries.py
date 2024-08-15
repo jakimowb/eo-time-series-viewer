@@ -51,6 +51,7 @@ from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.utils import bandClosestToWavelength, datetime64, gdalDataset, geo2px, loadUi, px2geo, \
     relativePath, SpatialExtent, SpatialPoint
+from .tasks import EOTSVTask
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
 
@@ -495,7 +496,7 @@ class TimeSeriesSource(object):
     MIMEDATA_FORMATS = ['text/uri-list']
 
     @classmethod
-    def fromMimeData(cls, mimeData: QMimeData) -> List:
+    def fromMimeData(cls, mimeData: QMimeData) -> List['TimeSeriesSource']:
         sources = []
         if mimeData.hasUrls():
             for url in mimeData.urls():
@@ -509,7 +510,7 @@ class TimeSeriesSource(object):
         return sources
 
     @classmethod
-    def fromJson(cls, jsonData: str):
+    def fromJson(cls, jsonData: str) -> 'TimeSeriesSource':
         """
         Returns a TimeSeriesSource from its JSON representation
         :param json:
@@ -521,7 +522,7 @@ class TimeSeriesSource(object):
         return source
 
     @classmethod
-    def create(cls, source):
+    def create(cls, source) -> 'TimeSeriesSource':
         """
         Reads the argument and returns a TimeSeriesSource
         :param source: gdal.Dataset, str, QgsRasterLayer
@@ -1246,7 +1247,7 @@ class SensorMatching(enum.Flag):
         return '\n'.join(parts)
 
 
-class TimeSeriesFindOverlapTask(QgsTask):
+class TimeSeriesFindOverlapTask(EOTSVTask):
     sigTimeSeriesSourceOverlap = pyqtSignal(dict)
 
     def __init__(self,
@@ -1447,11 +1448,6 @@ class TimeSeriesFindOverlapTask(QgsTask):
             self.mCallback(result, self)
 
 
-class EOTSVTask(QgsTask):
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-
-
 class TimeSeriesLoadingTask(EOTSVTask):
     sigFoundSources = pyqtSignal(list)
     sigMessage = pyqtSignal(str, bool)
@@ -1472,8 +1468,8 @@ class TimeSeriesLoadingTask(EOTSVTask):
             assert isinstance(visibility, list) and len(visibility) == len(files)
             self.mVisibility: List[bool] = [b is True for b in visibility]
         else:
-            self.mVisibility: List[bool] = [True for f in files]
-        self.mSources: List[TimeSeriesSource] = []
+            self.mVisibility: List[bool] = [True for _ in files]
+        # self.mSources: List[TimeSeriesSource] = []
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
         self.mCallback = callback
         self.mInvalidSources: List[Tuple[str, Exception]] = []
@@ -1483,15 +1479,10 @@ class TimeSeriesLoadingTask(EOTSVTask):
         return True
 
     def run(self) -> bool:
-        result_block = []
+        result_block: List[TimeSeriesSource] = []
         n = len(self.mFiles)
 
         t0 = datetime.datetime.now()
-
-        def cloneAndClear():
-            results = [tss.clone() for tss in result_block]
-            result_block.clear()
-            return results
 
         try:
             for i, path in enumerate(self.mFiles):
@@ -1503,7 +1494,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
                     tss = TimeSeriesSource.create(path)
                     assert isinstance(tss, TimeSeriesSource)
                     tss.setIsVisible(self.mVisibility[i])
-                    self.mSources.append(tss)
+                    # self.mSources.append(tss)
                     result_block.append(tss)
                     del tss
                 except Exception as ex:
@@ -1755,6 +1746,7 @@ class TimeSeries(QAbstractItemModel):
         Loads a CSV file with source images of a TimeSeries
         :param path: str, Path of CSV file
         :param n_max: optional, maximum number of files to load
+        :param runAsync: optional,
         """
 
         refDir = pathlib.Path(path).parent
@@ -2073,6 +2065,7 @@ class TimeSeries(QAbstractItemModel):
                    runAsync: bool = None):
         """
         Adds source images to the TimeSeries
+        :param visibility:
         :param sources: list of source images, e.g. a list of file paths
         :param runAsync: bool
         """
@@ -2097,6 +2090,7 @@ class TimeSeries(QAbstractItemModel):
                                         visibility=visibility,
                                         callback=self.onTaskFinished,
                                         )
+
         # tid = id(qgsTask)
         # self.mTasks[tid] = qgsTask
         # qgsTask.taskCompleted.connect(lambda *args, tid=tid: self.onRemoveTask(tid))
@@ -2174,7 +2168,8 @@ class TimeSeries(QAbstractItemModel):
             # addedDates.append(tsd)
         assert isinstance(tsd, TimeSeriesDate)
 
-        # ensure that the source refers to the sensor ID of the linked sensor (which might be different from its orginal sensor id)
+        # ensure that the source refers to the sensor ID of the linked sensor (which might be
+        # different from its original sensor id)
         tss.mSid = sensor.id()
 
         # add the source
