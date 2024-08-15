@@ -26,13 +26,14 @@ from typing import List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
+from qgis.core import QgsApplication
+from qgis.PyQt.QtWidgets import QWidget
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
-from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj, start_app
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import QgsApplication
 
 start_app = start_app
 
@@ -50,17 +51,24 @@ class EOTSVTestCase(TestCase):
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
         initAll()
 
-    def taskManagerProcessEvents(self):
+    @staticmethod
+    def taskManagerProcessEvents() -> bool:
         tm = QgsApplication.taskManager()
+        has_active_tasks = False
         while any(tm.activeTasks()):
+            if not has_active_tasks:
+                print('Wait for QgsTaskManager tasks to be finished...\r', flush=True)
+                has_active_tasks = True
             QgsApplication.processEvents()
+        print('\rfinished.', flush=True)
+        return has_active_tasks
 
     def tearDown(self):
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
         self.assertTrue(EOTimeSeriesViewer.instance() is None)
         super().tearDown()
 
-    def closeBlockingWidget(self):
+    @staticmethod
+    def closeBlockingWidget():
         """
         Closes the active blocking (modal) widget
         """
