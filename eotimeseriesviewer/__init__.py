@@ -109,12 +109,8 @@ def initAll():
     """
     # resources first, as we need the icon resource paths!
     initResources()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerEditorWidgets
-    registerEditorWidgets()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerExpressionFunctions
-    registerExpressionFunctions()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerMapLayerConfigWidgetFactories
-    registerMapLayerConfigWidgetFactories()
+    from eotimeseriesviewer.qgispluginsupport.qps import initAll as initAllQps
+    initAllQps()
 
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()

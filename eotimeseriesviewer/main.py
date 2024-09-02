@@ -27,21 +27,10 @@ import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
 import numpy as np
-import qgis.utils
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsExpressionContext, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, \
-    QgsMessageOutput, QgsPointXY, QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, \
-    QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomDocument
 
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
+import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -53,6 +42,17 @@ from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, Sens
     TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, QgsProject, \
+    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
+    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
+    QgsStatusBar, QgsTaskManagerWidget
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomDocument
 from .about import AboutDialogUI
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
@@ -61,8 +61,9 @@ from .qgispluginsupport.qps.maptools import MapTools
 from .qgispluginsupport.qps.qgisenums import QMETATYPE_INT, QMETATYPE_QDATE, QMETATYPE_QSTRING
 from .qgispluginsupport.qps.speclib.core import create_profile_field, is_spectral_library, profile_field_list
 from .qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
-from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict, validateProfileValueDict
+from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileValueDict
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
+from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLayerProfileSource
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
@@ -1278,19 +1279,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         profilesAndContext = []
 
         for lyr in sensorLayers:
-            profileDict: dict = SpectralLibraryUtils.readProfileDict(lyr, spatialPoint)
 
-            if not validateProfileValueDict(profileDict)[0]:
-                continue
+            source = StandardLayerProfileSource(lyr)
+            results = source.collectProfiles(spatialPoint, kernel_size=QSize(1, 1), snap=False)
 
-            # context: QgsExpressionContext = profileDict.pop('context')
-            context = QgsExpressionContext()
-            context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
-            context.appendScope(tsd.scope())
-            context.lastScope().setVariable('name', lyr.name())
-            context.lastScope().setVariable('source', lyr.source())
-
-            profilesAndContext.append((profileDict, context))
+            if len(results) > 0:
+                profilesAndContext.extend(results)
 
             if self.mCurrentMapSpectraLoading == 'TOP':
                 break
@@ -1315,16 +1309,37 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
             pfields = profile_field_list(sl)
             if len(pfields) > 0:
+
                 currentStyles = dict()
                 new_features: List[QgsFeature] = []
                 pfield: QgsField = pfields[0]
                 fid = 0
+                g: QgsGeometry = None
                 for (profileDict, context) in spectra:
-                    context: QgsExpressionContext
                     fid += 1
+
                     feature = QgsFeature(sl.fields())
                     feature.setId(fid)
-                    feature.setAttribute(pfield.name(), encodeProfileValueDict(profileDict, encoding=pfield))
+
+                    # set spectral profile values
+                    dump = encodeProfileValueDict(profileDict, encoding=pfield)
+                    feature.setAttribute(pfield.name(), dump)
+
+                    if g is None and context.hasGeometry():
+                        # use the geometry related to the origin of the 1. profile field as
+                        # feature geometry
+                        _g = QgsGeometry(context.geometry())
+                        crs = context.variable('_source_crs')
+                        if sl.crs().isValid() and isinstance(crs, QgsCoordinateReferenceSystem) and crs.isValid():
+                            trans = QgsCoordinateTransform()
+                            trans.setSourceCrs(crs)
+                            trans.setDestinationCrs(sl.crs())
+                            if _g.transform(trans) == Qgis.GeometryOperationResult.Success:
+                                g = _g
+
+                        del crs
+                    if isinstance(g, QgsGeometry):
+                        feature.setGeometry(QgsGeometry(g))
 
                     varnames = [n for n in sl.fields().names() if n in n in context.variableNames()]
                     for n in varnames:
