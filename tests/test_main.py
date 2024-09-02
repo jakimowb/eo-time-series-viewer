@@ -21,7 +21,7 @@
 import os
 import unittest
 
-from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer, SaveAllMapsDialog
@@ -52,15 +52,11 @@ class TestMain(EOTSVTestCase):
             TSV.createMapView('True Color')
             TSV.createMapView('False Color')
 
-            tm: QgsTaskManager = QgsApplication.taskManager()
+            assert len(QgsProject.instance().mapLayers()) == 0
+            TSV.loadExampleTimeSeries(loadAsync=True)
+            self.taskManagerProcessEvents()
 
             assert len(QgsProject.instance().mapLayers()) == 0
-            TSV.loadExampleTimeSeries(loadAsync=False)
-            assert len(QgsProject.instance().mapLayers()) == 0
-
-            while any(tm.activeTasks()):
-                # print(f'Tasks: {len(tm.activeTasks())}', flush=True)
-                QgsApplication.processEvents()
 
             if len(TSV.timeSeries()) > 0:
                 tsd = TSV.timeSeries()[-1]
@@ -70,14 +66,7 @@ class TestMain(EOTSVTestCase):
             TSV.addVectorData(exampleEvents)
             assert len(QgsProject.instance().mapLayers()) == 0
 
-            # save and read settings
-            path = self.createTestOutputDirectory() / 'test.qgz'
-            QgsProject.instance().write(path.as_posix())
-            self.assertTrue(QgsProject.instance().read(path.as_posix()))
-
-            # TSV.reloadProject()
-            while any(tm.activeTasks()):
-                QgsApplication.processEvents()
+            self.taskManagerProcessEvents()
 
         self.showGui([TSV.ui])  #
 

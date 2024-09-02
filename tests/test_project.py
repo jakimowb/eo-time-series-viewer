@@ -20,10 +20,11 @@
 
 import unittest
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
 from qgis.gui import QgsMapCanvas
+
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
 
