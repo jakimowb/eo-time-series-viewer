@@ -7,6 +7,15 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, osr
+
+import example
+import example.Images
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.timeseries import create_sensor_id, DateTimePrecision, sensor_id, sensorIDtoProperties, \
+    SensorInstrument, \
+    SensorMatching, TimeSeries, \
+    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
 from qgis.gui import QgsTaskManagerWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
@@ -14,13 +23,6 @@ from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData,
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
-
-import example
-import example.Images
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import DateTimePrecision, SensorInstrument, SensorMatching, TimeSeries, \
-    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource
 
 start_app()
 
@@ -405,6 +407,17 @@ class TestTimeSeries(EOTSVTestCase):
         extent = TS.maxSpatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
 
+    def test_get_tss_from_source(self):
+
+        TS = TimeSeries()
+        sources = self.exampleRasterFiles()
+        TS.addSources(sources)
+        self.assertEqual(len(TS), len(sources))
+
+        for src in sources:
+            tsd = TS.getTSD(src)
+            self.assertIsInstance(tsd, TimeSeriesDate)
+
     def test_SensorProxyLayerMockupDataProvider(self):
         from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
 
@@ -432,6 +445,23 @@ class TestTimeSeries(EOTSVTestCase):
         s = dp2.capabilities()
 
         self.assertEqual(nb, dp2.bandCount())
+
+    def test_sensorId(self):
+
+        lyr1 = QgsRasterLayer(example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA)
+        lyr2 = QgsRasterLayer(example.Images.Img_2014_04_29_LE72270652014119CUB00_BOA)
+        lyr3 = QgsRasterLayer(example.Images.re_2014_08_17)
+
+        for lyr in [lyr1, lyr2, lyr3]:
+            sid1 = create_sensor_id(lyr)
+            self.assertFalse(SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys())
+            sid2 = sensor_id(lyr)
+
+            self.assertEqual(sid1, sid2)
+            self.assertTrue(SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys())
+
+            props = sensorIDtoProperties(sid1)
+            s = ""
 
     def test_sensors(self):
 

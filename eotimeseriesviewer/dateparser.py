@@ -1,11 +1,13 @@
 import datetime
 import os
 import re
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
 from osgeo import gdal
 
+from qgis.core import Qgis, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 from qgis.PyQt.QtCore import QDate
 
 # regular expression. compile them only once
@@ -316,3 +318,94 @@ def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[np.datetime64]:
         if dtg:
             return dtg
     return None
+
+
+rxLandsatSceneID = re.compile(r'L[COTEM][45789]\d{3}\d{3}(?P<dtg>\d{4}\d{3})[A-Z]{2}[A-Z1]\d{2}')
+
+# date-time formats supported to read
+# either as fmt = datetime.strptime format code, or
+# or (fmt, rx), with rx being the regular expression to extract the part to be parsed with fmt
+# regex needs to define a group called 'dtg' that can be extracted with match.group('dtg')
+DATETIME_FORMATS = [
+    # Landsat Scene ID
+    ('%Y%j', rxLandsatSceneID),
+
+    # RapidEye
+    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})')),
+    ('%Y-%m-%d', re.compile(r'(?P<dtg>\d{4}-\d{2}-\d{2})')),
+    ('%Y/%m/%d', re.compile(r'(?P<dtg>\d{4}/\d{2}/\d{2})')),
+
+    # FORCE outputs
+    ('%Y%m%d', re.compile(r'(?P<dtg>\d{8})_LEVEL\d_.+_(BOA|QAI|DST|HOT|VZN)')),
+]
+
+
+class ImageDateUtils(object):
+    PROPERTY_KEY = 'eotsv/dtg'
+
+    @staticmethod
+    def datetimeFromString(text: str) -> Optional[datetime.datetime]:
+        if not isinstance(text, str):
+            return None
+
+        for fmt in DATETIME_FORMATS:
+            try:
+                if isinstance(fmt, str):
+                    dtg = datetime.datetime.strptime(text, fmt)
+                    return dtg
+                elif isinstance(fmt, tuple):
+                    fmt, rx = fmt
+                    match = rx.search(text)
+                    if match:
+                        dtg = datetime.datetime.strptime(match.group('dtg'), fmt)
+                        return dtg
+            except Exception as ex:
+                s = ""
+        return None
+
+    @staticmethod
+    def datetimeFromLayer(layer: QgsRasterLayer) -> Optional[datetime.datetime]:
+        if isinstance(layer, Path):
+            return ImageDateUtils.datetimeFromLayer(QgsRasterLayer(layer.as_posix()))
+        elif isinstance(layer, str):
+            return ImageDateUtils.datetimeFromLayer(QgsRasterLayer(layer))
+        if not isinstance(layer, QgsRasterLayer) and layer.isValid():
+            return None
+        if ImageDateUtils.PROPERTY_KEY in layer.customPropertyKeys():
+            dateString = layer.customProperty(ImageDateUtils.PROPERTY_KEY)
+            dtg = datetime.datetime.fromisoformat(dateString)
+            return dtg
+        else:
+
+            dtg = None
+            filepath = Path(layer.source())
+
+            # read from raster layer's temporal properties
+            tprop: QgsRasterLayerTemporalProperties = layer.temporalProperties()
+
+            if tprop.mode() == Qgis.RasterTemporalMode.FixedTemporalRange and not (
+                    dateRange := tprop.fixedTemporalRange()).isInfinite():
+                t0 = dateRange.begin()
+
+            if not dtg:
+                # read from raster data provider
+                dp: QgsRasterDataProvider = layer.dataProvider()
+                tcap = dp.temporalCapabilities()
+                dtg = ImageDateUtils.datetimeFromDataProvider(dp)
+
+            if not dtg:
+                # read from file name
+                dtg = ImageDateUtils.datetimeFromString(filepath.name)
+
+            if not dtg:
+                # read from parent directory
+                dtg = ImageDateUtils.datetimeFromString(filepath.parent.name)
+
+            if isinstance(dtg, datetime.datetime):
+                layer.setCustomProperty(ImageDateUtils.PROPERTY_KEY, dtg.isoformat())
+            return dtg
+
+    @staticmethod
+    def datetimeFromDataProvider(dp: QgsRasterDataProvider) -> Optional[datetime.datetime]:
+        if not isinstance(dp, QgsRasterDataProvider) and dp.isValid():
+            return None

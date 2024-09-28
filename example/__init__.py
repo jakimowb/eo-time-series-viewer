@@ -1,11 +1,15 @@
 #!/usr/bin/env python
-import sys
-import os
-import pathlib
-thisDir = os.path.dirname(__file__)
+from pathlib import Path
+
+thisDir = Path(__file__)
+images = thisDir / 'Images'
 # File path attributes:
 # Vector files:
-exampleGPKG = os.path.join(thisDir, r'exampleEvents.gpkg')
-exampleEvents = exampleGPKG + '|layername=exampleEvents'
-exampleTimeSeries = os.path.join(thisDir, 'ExampleTimeSeries.csv')
-exampleNoDataImage = os.path.join(thisDir, '20140108_no_data.tif')
+exampleGPKG = thisDir / r'exampleEvents.gpkg'
+exampleEvents = exampleGPKG.as_posix() + '|layername=exampleEvents'
+exampleTimeSeries = thisDir / 'ExampleTimeSeries.csv'
+exampleNoDataImage = thisDir / '20140108_no_data.tif'
+exampleRapidEye = images / 're_2014-06-25.tif'
+exampleLandsat8 = images / '2014-01-15_LC82270652014015LGN00_BOA.tif'
+
+del thisDir, images

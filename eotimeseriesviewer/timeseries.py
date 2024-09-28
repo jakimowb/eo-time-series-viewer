@@ -36,6 +36,9 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+
+from eotimeseriesviewer import DIR_UI, messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
     QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
     QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
@@ -46,9 +49,7 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-
-from eotimeseriesviewer import DIR_UI, messageLog
-from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
+from .qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 from .qgispluginsupport.qps.utils import bandClosestToWavelength, datetime64, gdalDataset, geo2px, loadUi, px2geo, \
     relativePath, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
@@ -124,6 +125,32 @@ def getDS(pathOrDataset) -> gdal.Dataset:
         ds = gdal.Open(pathOrDataset)
         assert isinstance(ds, gdal.Dataset)
         return ds
+
+
+def create_sensor_id(lyr: QgsRasterLayer) -> Optional[str]:
+    if isinstance(lyr, str):
+        lyr = QgsRasterLayer(lyr)
+
+    elif isinstance(lyr, TimeSeriesSource):
+        lyr = lyr.asRasterLayer(loadDefaultStyle=False)
+    if not isinstance(lyr, QgsRasterLayer) and lyr.isValid():
+        return None
+
+    nb = lyr.bandCount()
+    dp: QgsRasterDataProvider = lyr.dataProvider()
+    px_size_x = lyr.rasterUnitsPerPixelX()
+    px_size_y = lyr.rasterUnitsPerPixelY()
+    dt = dp.dataType(1)
+
+    wl = wlu = name = None
+    spectralProperties = QgsRasterLayerSpectralProperties.fromRasterLayer(lyr)
+    if spectralProperties:
+        wl = spectralProperties.wavelengths()
+        wlu = spectralProperties.wavelengthUnits()
+        if isinstance(wlu, list):
+            wlu = wlu[0]
+        name = None
+    return sensorID(nb, px_size_x, px_size_y, dt, wl, wlu, name)
 
 
 def sensorID(nb: int,
@@ -226,7 +253,7 @@ class SensorInstrument(QObject):
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, self.mNameOriginal \
             = sensorIDtoProperties(self.mId)
 
-        self.mMockupLayer = QgsRasterLayer('')
+        # self.mMockupLayer = QgsRasterLayer('')
 
         if self.mNameOriginal in [None, '']:
             self.mName = '{}bands@{}m'.format(self.nb, self.px_size_x)
@@ -3214,6 +3241,13 @@ def has_sensor_id(layer) -> bool:
 
 def sensor_id(layer) -> Optional[str]:
     if isinstance(layer, QgsRasterLayer):
-        return layer.customProperty(SensorInstrument.PROPERTY_KEY)
+
+        if SensorInstrument.PROPERTY_KEY in layer.customPropertyKeys():
+            return layer.customProperty(SensorInstrument.PROPERTY_KEY)
+        else:
+            # retries key and add to layer:
+            sid = create_sensor_id(layer)
+            layer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
+            return sid
     else:
         return None

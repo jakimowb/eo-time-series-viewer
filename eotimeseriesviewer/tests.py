@@ -26,14 +26,14 @@ from typing import List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
-from qgis.core import QgsApplication
-from qgis.PyQt.QtWidgets import QWidget
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
+from qgis.core import QgsApplication
+from qgis.PyQt.QtWidgets import QWidget
 
 start_app = start_app
 
@@ -76,6 +76,10 @@ class EOTSVTestCase(TestCase):
         if isinstance(w, QWidget):
             print('Close blocking {} "{}"'.format(w.__class__.__name__, w.windowTitle()))
             w.close()
+
+    @classmethod
+    def exampleRasterFiles(cls) -> List[str]:
+        return example_raster_files()
 
 
 def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
