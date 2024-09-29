@@ -22,31 +22,30 @@
 
 import re
 import sys
-from typing import List, Iterator
+from typing import Iterator, List
 
 import numpy as np
-from qgis.PyQt.QtCore import Qt, QItemSelectionModel, QModelIndex, QAbstractItemModel, QPoint, pyqtSignal, QVariant, \
-    QAbstractTableModel, QSize, QSortFilterProxyModel, QTimer, QPointF, pyqtSlot
-from qgis.PyQt.QtGui import QColor, QPen, QPalette, QContextMenuEvent, QCursor, QPainter
-from qgis.PyQt.QtWidgets import QTableView, QMenu, QAction, QWidgetAction, QSlider, QStyledItemDelegate, QLabel, QComboBox, \
-    QWidget, QFrame, QGridLayout, QRadioButton, QDateEdit, QHeaderView, QToolBar, QDialog
-from qgis.core import QgsVectorLayer, QgsPoint, QgsAttributeTableConfig, QgsMapLayerProxyModel, QgsFeature, \
-    QgsCoordinateReferenceSystem
-from qgis.gui import QgsFieldExpressionWidget, QgsFeatureListComboBox, QgsDockWidget
 
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QAbstractItemModel, QAbstractTableModel, QItemSelectionModel, \
+    QModelIndex, QPoint, QPointF, QSize, QSortFilterProxyModel, Qt, QTimer, QVariant
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QPainter, QPalette, QPen
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QDateEdit, QDialog, QFrame, QGridLayout, QHeaderView, QLabel, QMenu, \
+    QRadioButton, QSlider, QStyledItemDelegate, QTableView, QToolBar, QWidget, QWidgetAction
+from qgis.core import QgsAttributeTableConfig, QgsCoordinateReferenceSystem, QgsFeature, QgsMapLayerProxyModel, \
+    QgsPoint, QgsVectorLayer
+from qgis.gui import QgsDockWidget, QgsFeatureListComboBox, QgsFieldExpressionWidget
 from eotimeseriesviewer import DIR_UI
 from .qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from .qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from .qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem, SpotItem, mkPen
+from .qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkPen, ScatterPlotItem, SpotItem
 from .qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
-from .qgispluginsupport.qps.utils import nextColor, SpatialPoint, loadUi, SelectMapLayersDialog
+from .qgispluginsupport.qps.utils import loadUi, LUT_WAVELENGTH, nextColor, SelectMapLayersDialog, SpatialPoint
 from .qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from .sensorvisualization import SensorListModel
-from .temporalprofiles import TemporalProfile, num2date, date2num, TemporalProfileLayer, \
-    LABEL_EXPRESSION_2D, LABEL_TIME, sensorExampleQgsFeature, FN_ID, bandKey2bandIndex, bandIndex2bandKey, \
-    dateDOY, rxBandKey
-from .timeseries import TimeSeries, TimeSeriesDate, SensorInstrument
+from .temporalprofiles import bandIndex2bandKey, bandKey2bandIndex, date2num, dateDOY, FN_ID, LABEL_EXPRESSION_2D, \
+    LABEL_TIME, num2date, rxBandKey, sensorExampleQgsFeature, TemporalProfile, TemporalProfileLayer
+from .timeseries import SensorInstrument, TimeSeries, TimeSeriesDate
 
 DEBUG = False
 OPENGL_AVAILABLE = False
@@ -719,8 +718,8 @@ class PlotSettingsTableView(QTableView):
 
     def sensorHasWavelengths(self, sensor: SensorInstrument) -> bool:
         return isinstance(sensor, SensorInstrument) and \
-               sensor.wl is not None and \
-               len(sensor.wl) > 0
+            sensor.wl is not None and \
+            len(sensor.wl) > 0
 
     def contextMenuEvent(self, event: QContextMenuEvent):
         """
@@ -742,7 +741,6 @@ class PlotSettingsTableView(QTableView):
 
             a = menu.addAction('Set Style')
             a.triggered.connect(lambda *args, i=indices: self.onSetStyle(i))
-            from .utils import LUT_WAVELENGTH
 
             has_wavelength = self.sensorHasWavelengths(refSensor)
 

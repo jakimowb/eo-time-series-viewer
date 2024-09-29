@@ -36,6 +36,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
     QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
     QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
@@ -46,11 +47,11 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
-from .qgispluginsupport.qps.utils import bandClosestToWavelength, datetime64, gdalDataset, geo2px, loadUi, px2geo, \
-    relativePath, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.unitmodel import UnitLookup
+from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
+    SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -302,7 +303,14 @@ class SensorInstrument(QObject):
         :param wl_unit: str
         :return: int
         """
-        return bandClosestToWavelength(self.mMockupDS, wl, wl_unit=wl_unit)
+        if isinstance(wl, str):
+            if wl in LUT_WAVELENGTH:
+                wl = LUT_WAVELENGTH[wl]
+
+        if self.wlu != wl_unit:
+            wl = UnitLookup.convertLengthUnit(wl, wl_unit, self.wlu)
+
+        return int(np.argmin(np.abs(np.asarray(self.wl) - wl)))
 
     def proxyRasterLayer(self) -> QgsRasterLayer:
         """
