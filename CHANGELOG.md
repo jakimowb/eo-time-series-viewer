@@ -2,11 +2,10 @@
 
 ### 2024-09-29 (version 1.19)
 
-* bugfixes to run with QGIS 3.34 - 3.38
+* API fixes to run with QGIS 3.34 - 3.38
 * updates Spectral Library Module
 * enabled tooltips in MapCanvas context menu
 * attribute table: next / previous feature buttons consider order as shown in table
-* bugfixes to keep running with QGIS 3.32
 * fixed VRT building
 * fixed context menu connection in QGIS environments with other languages than english
 * maps can flash selected features
