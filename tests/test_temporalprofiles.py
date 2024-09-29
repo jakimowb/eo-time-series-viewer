@@ -12,28 +12,25 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
+import re
 import unittest
 import os
 
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtWidgets import QTableView
-
 import example.Images
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
-from eotimeseriesviewer.tests import start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyleButton
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
-
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer, TemporalProfile, geometryToPixel, \
+from eotimeseriesviewer.temporalprofiles import geometryToPixel, TemporalProfile, TemporalProfileLayer, \
     TemporalProfileLoaderTask, TemporalProfileTableModel
-
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument
-from qgis.core import QgsGeometry, QgsPointXY, QgsTask
-from qgis.core import QgsMapLayer, QgsProject
+from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries, TimeSeriesSource
+from qgis.core import QgsGeometry, QgsMapLayer, QgsPointXY, QgsProject, QgsTask
 from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 
 start_app()
+
 
 class TestTemporalProfiles(EOTSVTestCase):
     """Test temporal profiles"""
@@ -72,6 +69,22 @@ class TestTemporalProfiles(EOTSVTestCase):
 
         tss = timeSeries[0][0]
         self.assertIsInstance(tss, TimeSeriesSource)
+
+    def test_temporalprofileloadertaskinfo(self):
+
+        DIR_FORCE = r'D:\EOTSV\FORCE_CUBE'
+        timeSeries = TimeSeries()
+
+        files = file_search(DIR_FORCE, re.compile(r'.*_BOA.tif$'), recursive=True)
+        timeSeries.addSources(files, runAsync=False)
+
+        self.assertIsInstance(timeSeries, TimeSeries)
+        center = timeSeries.maxSpatialExtent().spatialCenter()
+        lyr = TemporalProfileLayer()
+        lyr.setTimeSeries(timeSeries)
+        tp1: TemporalProfile = lyr.createTemporalProfiles(center)[0]
+        self.assertIsInstance(tp1, TemporalProfile)
+        tp1.loadMissingData()
 
     def test_geometryToPixel(self):
 

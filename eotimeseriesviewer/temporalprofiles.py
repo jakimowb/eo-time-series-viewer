@@ -32,6 +32,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 from osgeo import gdal, ogr, osr
+
 from qgis.core import QgsApplication, QgsConditionalLayerStyles, QgsConditionalStyle, QgsCoordinateReferenceSystem, \
     QgsCoordinateTransform, QgsExpression, QgsExpressionContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, \
     QgsFileUtils, QgsGeometry, QgsPointXY, QgsProviderRegistry, QgsRectangle, QgsTaskManager, QgsVectorFileWriter, \
@@ -41,7 +42,6 @@ from qgis.gui import QgsAttributeTableFilterModel, QgsAttributeTableModel, QgsAt
 from qgis.PyQt.QtCore import pyqtSignal, QDate, QModelIndex, QObject, QPoint, Qt, QVariant
 from qgis.PyQt.QtGui import QColor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QFileDialog, QHeaderView, QMenu
-
 from .qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from .qgispluginsupport.qps.utils import createQgsField, geo2px, px2geo, setQgsFieldValue, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
@@ -1144,7 +1144,7 @@ class TemporalProfileLoaderTask(EOTSVTask):
                 if len(INTERSECTING) == 0:
                     continue
 
-                ds = tss.asDataset()
+                ds: gdal.Dataset = tss.asDataset()
                 assert isinstance(ds, gdal.Dataset)
 
                 # get the px indices for each geometry
@@ -1188,10 +1188,15 @@ class TemporalProfileLoaderTask(EOTSVTask):
                         win_xsize = int(max(px_x) - xoff + 1)
                         win_ysize = int(max(px_y) - yoff + 1)
                         s = ""
-                        block = band.ReadAsArray(xoff=xoff,
-                                                 yoff=yoff,
-                                                 win_xsize=win_xsize,
-                                                 win_ysize=win_ysize)
+                        try:
+                            block = band.ReadAsArray(xoff=xoff,
+                                                     yoff=yoff,
+                                                     win_xsize=win_xsize,
+                                                     win_ysize=win_ysize)
+                        except RuntimeError as ex:
+                            self.mErrors.append(f'band.ReadAsArray({xoff},{yoff},{win_xsize},{win_ysize}) in '
+                                                f'ds ({ds.RasterCount}, {ds.RasterYSize}, {ds.RasterXSize})\n{ex}')
+                            continue
                         block = block[np.asarray(px_x) - xoff, np.asarray(px_y) - yoff]
                         if band.GetNoDataValue():
                             block = block[np.where(block != band.GetNoDataValue())]
