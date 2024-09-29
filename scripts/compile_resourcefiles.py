@@ -22,4 +22,3 @@ if __name__ == '__main__':
 
     compileEOTSVResourceFiles()
     print('Compiling finished')
-    exit(0)

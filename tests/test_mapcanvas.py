@@ -19,16 +19,16 @@
 # noinspection PyPep8Naming
 import unittest
 
-from qgis.PyQt.QtCore import QPoint
-from qgis.PyQt.QtWidgets import QMenu
-from qgis._core import QgsApplication
-from qgis.core import QgsRasterLayer, QgsWkbTypes, QgsProject
-from qgis.gui import QgsMapCanvas, QgsFontButton
-
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import testRasterFiles, TestObjects, EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
+from qgis.PyQt.QtCore import QPoint
+from qgis.PyQt.QtWidgets import QMenu
+from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
+from qgis.gui import QgsFontButton, QgsMapCanvas
+
+start_app()
 
 
 class TestMapCanvas(EOTSVTestCase):
@@ -36,7 +36,7 @@ class TestMapCanvas(EOTSVTestCase):
 
     def test_basic_behaviour(self):
 
-        files = TestObjects.testImagePaths()
+        files = TestObjects.exampleImagePaths()
         lyr1 = QgsRasterLayer(files[0])
         self.assertTrue(lyr1.isValid())
         QgsProject.instance().addMapLayer(lyr1)
@@ -65,7 +65,7 @@ class TestMapCanvas(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
 
     def test_contextMenu(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
 
@@ -135,7 +135,7 @@ class TestMapCanvas(EOTSVTestCase):
         QgsProject.instance().removeAllMapLayers()
 
     def test_mapcanvas(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         lyr2 = QgsRasterLayer(files[1])
 
@@ -183,4 +183,3 @@ class TestMapCanvas(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)

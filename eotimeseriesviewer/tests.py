@@ -22,17 +22,18 @@
 
 import os
 import pathlib
+from typing import List, Match, Pattern, Union
 
 import numpy as np
-from osgeo import osr, gdal
+from osgeo import gdal, osr
+from qgis.core import QgsApplication
+from qgis.PyQt.QtWidgets import QWidget
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.qgispluginsupport.qps.testing import TestCase, TestObjects as TObj, start_app
+from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
 from eotimeseriesviewer.timeseries import TimeSeries
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import QgsApplication
 
 start_app = start_app
 
@@ -50,11 +51,24 @@ class EOTSVTestCase(TestCase):
             'eotsv_resources_rc.py not compiled. run python scripts/compile_resourcefiles.py first.'
         initAll()
 
+    @staticmethod
+    def taskManagerProcessEvents() -> bool:
+        tm = QgsApplication.taskManager()
+        has_active_tasks = False
+        while any(tm.activeTasks()):
+            if not has_active_tasks:
+                print('Wait for QgsTaskManager tasks to be finished...\r', flush=True)
+                has_active_tasks = True
+            QgsApplication.processEvents()
+        print('\rfinished.', flush=True)
+        return has_active_tasks
+
     def tearDown(self):
         self.assertTrue(EOTimeSeriesViewer.instance() is None)
         super().tearDown()
 
-    def closeBlockingWidget(self):
+    @staticmethod
+    def closeBlockingWidget():
         """
         Closes the active blocking (modal) widget
         """
@@ -64,12 +78,12 @@ class EOTSVTestCase(TestCase):
             w.close()
 
 
-def testRasterFiles() -> list:
-    return list(file_search(DIR_EXAMPLES, '*.tif', recursive=True))
+def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:
+    return list(file_search(DIR_EXAMPLES, pattern, recursive=True))
 
 
 def createTimeSeries(self) -> TimeSeries:
-    files = testRasterFiles()
+    files = example_raster_files()
     TS = TimeSeries()
     self.assertIsInstance(TS, TimeSeries)
     TS.addSources(files)
@@ -96,7 +110,7 @@ class TestObjects(TObj):
         vsiDir = '/vsimem/tmp'
         d1 = np.datetime64('2000-01-01')
         print('Create in-memory test timeseries of length {}...'.format(n))
-        files = testRasterFiles()
+        files = example_raster_files()
 
         paths = []
         i = 0
@@ -159,7 +173,7 @@ class TestObjects(TObj):
         return datasets
 
     @staticmethod
-    def testImagePaths() -> list:
+    def exampleImagePaths() -> list:
         import example
         path = pathlib.Path(example.__file__).parent / 'Images'
         files = list(file_search(path, '*.tif', recursive=True))
@@ -180,7 +194,7 @@ class TestObjects(TObj):
     def createMultiSourceTimeSeries() -> list:
 
         # real files
-        files = TestObjects.testImagePaths()
+        files = TestObjects.exampleImagePaths()
         movedFiles = []
         d = r'/vsimem/'
         for pathSrc in files:

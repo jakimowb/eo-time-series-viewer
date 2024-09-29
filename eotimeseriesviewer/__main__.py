@@ -17,25 +17,14 @@
 ***************************************************************************
 """
 
-import pathlib
-import sys
-
 from qgis.core import QgsApplication
-
-from eotimeseriesviewer.tests import start_app
 
 
 def run():
-    # add site-packages to sys.path
-    pluginDir = pathlib.Path(__file__).parents[1]
-    sys.path.append(pluginDir.as_posix())
-    from osgeo import osr, gdal
-    osr.UseExceptions()
-    gdal.UseExceptions()
-
-    need_execute = QgsApplication.instance() is None
-
-    start_app()
+    qAppExists = isinstance(QgsApplication.instance(), QgsApplication)
+    if not qAppExists:
+        from eotimeseriesviewer.tests import start_app
+        start_app()
 
     from eotimeseriesviewer import initAll
     initAll()
@@ -45,9 +34,7 @@ def run():
     ts = EOTimeSeriesViewer()
     ts.show()
 
-    if need_execute:
-        QgsApplication.instance().exec_()
-
 
 if __name__ == '__main__':
     run()
+    QgsApplication.instance().exec_()

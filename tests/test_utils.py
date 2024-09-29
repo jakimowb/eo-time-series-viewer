@@ -18,7 +18,10 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialE
 from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
 from qgis.core import QgsProject, QgsRectangle, QgsRasterLayer
 from qgis.gui import QgsMapCanvas
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+
+
+start_app()
 
 
 class TestUtils(EOTSVTestCase):
@@ -52,4 +55,3 @@ class TestUtils(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)

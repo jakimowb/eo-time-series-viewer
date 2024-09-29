@@ -1,6 +1,6 @@
 import enum
 import math
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import numpy as np
 from qgis.PyQt.QtCore import QSortFilterProxyModel
@@ -28,9 +28,17 @@ from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
 from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
 
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
-MAP_LAYER_STORES = [QgsProject.instance()]
+MAP_LAYER_STORES = []
 
 EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
+
+
+def mapLayerStores() -> List[Union[QgsProject, QgsMapLayerStore]]:
+
+    if len(MAP_LAYER_STORES) == 0:
+        MAP_LAYER_STORES.append(QgsProject.instance())
+
+    return MAP_LAYER_STORES[:]
 
 
 class LabelConfigurationKey(object):
@@ -173,7 +181,7 @@ def quickLabelLayers() -> List[QgsVectorLayer]:
     layers = []
 
     classSchemes = set()
-    for store in MAP_LAYER_STORES:
+    for store in mapLayerStores():
         assert isinstance(store, (QgsProject, QgsMapLayerStore))
         for layer in store.mapLayers().values():
             if isinstance(layer, QgsVectorLayer):

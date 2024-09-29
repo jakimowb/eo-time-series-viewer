@@ -21,27 +21,24 @@
 # noinspection PyPep8Naming
 
 import argparse
-import git
-import datetime
 import os
 import pathlib
 import re
 import shutil
-import textwrap
 import site
+import textwrap
+from typing import Iterator, Optional, Union
 
-from typing import Iterator, Union, Optional
-
+import git
 import markdown
-from xml.dom import minidom
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
-from qgis.core import QgsUserProfileManager, QgsUserProfile
 
 site.addsitedir(pathlib.Path(__file__).parents[1])
 import eotimeseriesviewer
-from eotimeseriesviewer import DIR_REPO, __version__, PATH_CHANGELOG, PATH_ABOUT
+from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG, PATH_ABOUT
 
 print('DIR_REPO={}'.format(DIR_REPO))
 CHECK_COMMITS = False
@@ -59,14 +56,12 @@ MD.mHomepage = eotimeseriesviewer.HOMEPAGE
 MD.mAbout = ''
 MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
-MD.mQgisMinimumVersion = '3.30'
+MD.mQgisMinimumVersion = '3.34'
 MD.mEmail = eotimeseriesviewer.MAIL
 MD.mIsExperimental = True
 
 
 ########## End of config section
-
-
 
 
 def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
@@ -90,10 +85,10 @@ def create_plugin(include_testdata: bool = False,
                   build_name: str = None) -> Optional[pathlib.Path]:
     assert (DIR_REPO / '.git').is_dir()
 
-    #BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
-    #BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
-    #BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
-    #PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
+    # BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
+    # BUILD_NAME = re.sub(r'[:-]', '', BUILD_NAME)
+    # BUILD_NAME = re.sub(r'[\\/]', '_', BUILD_NAME)
+    # PLUGIN_DIR = DIR_DEPLOY / 'timeseriesviewerplugin'
 
     DIR_DEPLOY_LOCAL = DIR_REPO / 'deploy'
 
@@ -152,7 +147,7 @@ def create_plugin(include_testdata: bool = False,
              and 'pyqtgraph' not in f.as_posix()
              or (
                      'qgispluginsupport/qps/' in f.as_posix()
-                 or 'pyqtgraph/pyqtgraph' in f.as_posix())
+                     or 'pyqtgraph/pyqtgraph' in f.as_posix())
              ]
 
     for fileSrc in files:
@@ -222,7 +217,8 @@ def create_plugin(include_testdata: bool = False,
         # 7. install the zip file into the local QGIS instance. You will need to restart QGIS!
         if True:
             info = []
-            info.append('\n### To update/install the EO Time Series Viewer, run this command on your QGIS Python shell:\n')
+            info.append(
+                '\n### To update/install the EO Time Series Viewer, run this command on your QGIS Python shell:\n')
             info.append('from pyplugin_installer.installer import pluginInstaller')
             info.append('pluginInstaller.installFromZipFile(r"{}")'.format(PLUGIN_ZIP))
             info.append('#### Close (and restart manually)\n')

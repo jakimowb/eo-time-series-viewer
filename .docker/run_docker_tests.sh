@@ -13,16 +13,18 @@
 
 set -e
 
-pushd /usr/src
-DEFAULT_PARAMS='-x -v'
-cd /usr/src
+# pushd /usr/src
+# DEFAULT_PARAMS='-x -v'
+# cd /usr/src
+# REPO_ROOT=$(readlink -f "$0")
 
-ls -l
+REPO_ROOT="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")/..")"
+echo $REPO_ROOT
+# echo $SCRIPT_DIR
+
 export QT_QPA_PLATFORM=offscreen
 export CI=True
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-git lfs checkout
-ls -lisa example/images
-python3 scripts/setup_repository.py -r
-source scripts/runtests.sh
-popd
+python3 $REPO_ROOT/scripts/setup_repository.py -r
+source $REPO_ROOT/scripts/runtests.sh "$@"
+#popd

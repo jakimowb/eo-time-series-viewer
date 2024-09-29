@@ -16,33 +16,40 @@
 *                                                                         *
 ***************************************************************************
 """
-from qgis.PyQt.QtWidgets import QPushButton
-
-from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToXml, rendererFromXml
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitModel
-from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search, \
-    UnitLookup
-# noinspection PyPep8Naming
-
-from eotimeseriesviewer.tests import createTimeSeries, testRasterFiles, TestObjects, EOTSVTestCase
-from qgis.PyQt.QtGui import *
-from qgis.PyQt.QtCore import *
-from qgis.core import QgsProject, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, \
-    QgsRasterRenderer, QgsFeatureRenderer, \
-    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsMultiBandColorRenderer, \
-    QgsPalettedRasterRenderer, QgsSingleBandColorDataRenderer, QgsHillshadeRenderer, \
-    QgsRasterShader, \
-    QgsVirtualLayerDefinition, QgsExpressionContextGenerator, QgsExpressionContextUtils, \
-    QgsExpressionContext, QgsProject, QgsExpressionContextScope
-from qgis.gui import QgsFontButton, QgsExpressionLineEdit
+import os
 import unittest
 
-from eotimeseriesviewer.utils import *
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesDate, TimeSeriesSource
-from eotimeseriesviewer.mapcanvas import *
-from eotimeseriesviewer.mapvisualization import *
+import numpy as np
+
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
+from qgis.PyQt.QtCore import QSize
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomNode
+
+start_app()
+
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapWidget, MapView, MapViewDock
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import rendererToXml, rendererFromXml
+from eotimeseriesviewer.qgispluginsupport.qps.maptools import MapTools
+from eotimeseriesviewer.qgispluginsupport.qps.utils import parseWavelength, bandClosestToWavelength, file_search, \
+    UnitLookup, SpatialExtent
+from eotimeseriesviewer.timeseries import SensorInstrument
 from example.Images import Img_2014_05_07_LC82270652014127LGN00_BOA
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+from qgis.PyQt.QtWidgets import QPushButton
+from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsMultiBandColorRenderer, QgsSingleBandGrayRenderer, \
+    QgsPalettedRasterRenderer, QgsSingleBandPseudoColorRenderer, QgsRasterRenderer
+from qgis.core import QgsFeatureRenderer, \
+    QgsSingleBandColorDataRenderer, QgsHillshadeRenderer, \
+    QgsRasterShader, \
+    QgsVirtualLayerDefinition
+from qgis.gui import QgsFontButton
+
+start_app()
+
+
+# noinspection PyPep8Naming
 
 
 # from eotimeseriesviewer import initResources
@@ -91,6 +98,7 @@ class TestMapVisualization(EOTSVTestCase):
     """Test resources work."""
 
     def setUp(self):
+        from eotimeseriesviewer.main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
         if isinstance(eotsv, EOTimeSeriesViewer):
             eotsv.close()
@@ -293,7 +301,7 @@ class TestMapVisualization(EOTSVTestCase):
         self.showGui([dock, mw])
 
     def test_mapcanvas(self):
-        files = testRasterFiles()
+        files = example_raster_files()
         lyr1 = QgsRasterLayer(files[0])
         m = MapCanvas()
         m.setLayers([])
@@ -391,4 +399,3 @@ class TestMapVisualization(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-    exit(0)

@@ -1,15 +1,9 @@
 # this file lists packages that are required to run the EO Time Series Viewer
 # see https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format
 
-
-# standard requirements
--r requirements.txt
-
-
 # requirements for developers
 
 gitpython
-git-lfs
 sphinx_rtd_theme
 recommonmark
 docutils
@@ -20,7 +14,10 @@ sphinx-markdown
 sphinx-rtd-theme
 sphinx-autobuild
 coverage
-pytest
+coverage-badge
+pytest>= 8.0.0
+pytest-env
 pytest-cov
+pytest-xdist # parallel testing
 flake8
 flake8-qgis

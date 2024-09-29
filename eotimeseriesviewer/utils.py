@@ -18,6 +18,9 @@
  *                                                                         *
  ***************************************************************************/
 """
+from typing import Union
+
+from qgis.core import QgsMapLayer, QgsMapLayerStyle
 from qgis.PyQt.QtCore import QSettings
 from qgis.PyQt.QtWidgets import QToolButton, QWidget, QAction, QMenu
 from qgis.gui import QgisInterface
@@ -48,3 +51,15 @@ def fixMenuButtons(w: QWidget):
         if isinstance(toolButton.defaultAction(), QAction) and isinstance(toolButton.defaultAction().menu(), QMenu) \
                 or isinstance(toolButton.menu(), QMenu):
             toolButton.setPopupMode(QToolButton.MenuButtonPopup)
+
+
+def copyMapLayerStyle(style1: Union[QgsMapLayer, QgsMapLayerStyle], layer2: QgsMapLayer):
+    if isinstance(style1, QgsMapLayer):
+        s = QgsMapLayerStyle()
+        s.readFromLayer(style1)
+        style1 = s
+
+    style2 = QgsMapLayerStyle()
+    style2.readFromLayer(layer2)
+    if style1.xmlData() != style2.xmlData():
+        style1.writeToLayer(layer2)

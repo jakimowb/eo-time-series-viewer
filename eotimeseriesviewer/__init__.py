@@ -18,11 +18,12 @@
  *                                                                         *
  ***************************************************************************/
 """
+import inspect
 # noinspection PyPep8Naming
 import os
-import inspect
 import pathlib
-from qgis.core import QgsApplication, Qgis
+
+from qgis.core import Qgis, QgsApplication
 from qgis.PyQt.QtGui import QIcon
 
 __version__ = '1.19'  # sub-subversion number is added automatically
@@ -31,14 +32,13 @@ LICENSE = 'GNU GPL-3'
 TITLE = 'EO Time Series Viewer'
 LOG_MESSAGE_TAG = TITLE
 DESCRIPTION = 'Visualization of multi-sensor Earth observation time series data.'
-HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+HOMEPAGE = 'https://eo-time-series-viewer.readthedocs.io'
 DOCUMENTATION = 'http://eo-time-series-viewer.readthedocs.io/en/latest/'
-REPOSITORY = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
+REPOSITORY = 'https://github.com/jakimowb/eo-time-series-viewer'
 AUTHOR = 'Benjamin Jakimow'
 MAIL = 'benjamin.jakimow@geo.hu-berlin.de'
-HOMEPAGE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer'
-ISSUE_TRACKER = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues'
-CREATE_ISSUE = 'https://bitbucket.org/jakimowb/eo-time-series-viewer/issues/new'
+ISSUE_TRACKER = 'https://github.com/jakimowb/eo-time-series-viewer/issues'
+CREATE_ISSUE = 'https://github.com/jakimowb/eo-time-series-viewer/issues/new'
 DEPENDENCIES = ['numpy', 'osgeo.gdal']
 URL_TESTDATA = r''
 
@@ -56,7 +56,7 @@ PATH_CONTRIBUTORS = DIR_REPO / 'CONTRIBUTORS.md'
 PATH_ABOUT = DIR_REPO / 'ABOUT.md'
 
 DIR_QGIS_RESOURCES = DIR_REPO / 'qgisresources'
-URL_QGIS_RESOURCES = r'https://bitbucket.org/hu-geomatics/enmap-box/downloads/qgisresources.zip'
+URL_QGIS_RESOURCES = r'https://box.hu-berlin.de/f/6949ab1099044018a5e4/?dl=1'
 
 
 def debugLog(msg: str = '', skip_prefix: bool = False):
@@ -109,19 +109,19 @@ def initAll():
     """
     # resources first, as we need the icon resource paths!
     initResources()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerEditorWidgets
-    registerEditorWidgets()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerExpressionFunctions
-    registerExpressionFunctions()
-    from eotimeseriesviewer.qgispluginsupport.qps import registerMapLayerConfigWidgetFactories
-    registerMapLayerConfigWidgetFactories()
+    from eotimeseriesviewer.qgispluginsupport.qps import initAll as initAllQps
+    initAllQps()
 
     from .labeling import registerLabelShortcutEditorWidget
     registerLabelShortcutEditorWidget()
 
+    from eotimeseriesviewer.timeseries import registerDataProvider
+    registerDataProvider()
+
 
 def unloadAll():
-    from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, unregisterMapLayerConfigWidgetFactories
+    from eotimeseriesviewer.qgispluginsupport.qps import unregisterEditorWidgets, unregisterExpressionFunctions, \
+        unregisterMapLayerConfigWidgetFactories
     unregisterEditorWidgets()
     unregisterExpressionFunctions()
     unregisterMapLayerConfigWidgetFactories()

@@ -1,9 +1,11 @@
 import datetime
 import os
 import re
+from typing import Optional
 
 import numpy as np
 from osgeo import gdal
+
 from qgis.PyQt.QtCore import QDate
 
 # regular expression. compile them only once
@@ -294,11 +296,20 @@ class ImageDateParserLandsat(ImageDateReader):
         return None
 
 
-dateParserList = [c for c in ImageDateReader.__subclasses__()]
-dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault)))  # set to first position
+# dateParserList = [c for c in ImageDateReader.__subclasses__()]
+# dateParserList.insert(0, dateParserList.pop(dateParserList.index(ImageDateReaderDefault)))  # set to first position
+
+dateParserList = [
+    ImageDateReaderDefault,
+    ImageDateParserLandsat,
+    ImageDateReaderSentinel2,
+    ImageDateReaderPLEIADES,
+    ImageReaderOWS
+
+]
 
 
-def parseDateFromDataSet(dataSet: gdal.Dataset) -> np.datetime64:
+def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[np.datetime64]:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
         dtg = parser(dataSet).readDTG()

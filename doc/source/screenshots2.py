@@ -1,6 +1,8 @@
 import json
 import sys
 import os
+from pathlib import Path
+
 import numpy as np
 import re
 from qgis.PyQt.QtCore import QSize, Qt
@@ -44,6 +46,7 @@ QgsApplication.processEvents()
 
 
 def widgetScreenshot(widget, path):
+    path = Path(path)
     assert isinstance(widget, QWidget)
     QgsApplication.processEvents()
     rect = widget.rect()
@@ -52,7 +55,7 @@ def widgetScreenshot(widget, path):
     # pixmap = QPixmap(rect.size())
     # widget.render(pixmap, QPoint(), QRegion(rect))
 
-    pixmap.save(path, quality=100)
+    pixmap.save(path.as_posix(), quality=100)
 
 
 def blankGUI(bn: str):

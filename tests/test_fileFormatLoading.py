@@ -5,8 +5,10 @@ from osgeo import gdal
 
 from eotimeseriesviewer import DIR_EXAMPLES
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
-from eotimeseriesviewer.tests import EOTSVTestCase
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import TimeSeriesSource, TimeSeries, SensorInstrument, TimeSeriesDate
+
+start_app()
 
 DIR_SENTINEL = r''
 DIR_PLEIADES = r'H:\Pleiades'
@@ -162,4 +164,3 @@ class TestFileFormatLoading(EOTSVTestCase):
 
 if __name__ == '__main__':
     unittest.main(buffer=False)
-    exit(0)

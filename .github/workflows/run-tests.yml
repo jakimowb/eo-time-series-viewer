@@ -11,35 +11,40 @@ on:
       - main
       - release-**
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   # Run EnMAP-Box tests
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        qgis_version: [release-3_28, release-3_30, latest]
-        python: [3.10]
+        qgis_version: [ 3.34, 3.36, 3.38 ]
+        python: [ 3.10 ]
     env:
-        QGIS_TEST_VERSION: ${{ matrix.qgis_version}}
+      QGIS_VERSION: ${{ matrix.qgis_version}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
+          lfs: true
+      - name: Git Status
+        run: |
+          git status
+          git submodule status --recursive
+          git lfs status
 
       - name: Docker Environment Info
         run: |
-          # ls -la .docker/
-          # ls -la
-          # ls -la ~
-          # ls -la /usr/bin
           docker --version
       - name: Python Packages Info
         run: pip list
+      - name: Example Images
+        run: |
+          ls -lash example/Images
       - name: Test EO Time Series Viewer on QGIS
-        run: | 
+        run: |
           chmod +x .docker/run_docker_tests.sh
           ls -la .docker/
           docker compose -f .docker/docker-compose.gh.yml run qgis /usr/src/.docker/run_docker_tests.sh

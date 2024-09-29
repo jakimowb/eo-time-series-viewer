@@ -2,35 +2,30 @@
 """Tests QGIS plugin init."""
 
 import os
-import sys
-import unittest
 import re
-from qgis.PyQt.QtCore import QAbstractTableModel, Qt, QAbstractItemModel, QSortFilterProxyModel, QUrl, QMimeData, QPointF
+import unittest
+
+import numpy as np
+from osgeo import gdal, osr
+from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
+from qgis.gui import QgsTaskManagerWidget
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
+    QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
 
 import example
 import example.Images
-import numpy as np
-from osgeo import gdal, ogr, osr
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.timeseries import DateTimePrecision, SensorInstrument, SensorMatching, TimeSeries, \
+    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource
 
-from qgis._core import QgsMimeDataUtils, QgsProject
-
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from qgis.core import QgsRasterLayer, QgsApplication
-from qgis.gui import QgsTaskManagerWidget
-
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint, SpatialExtent
-from eotimeseriesviewer.tests import TestObjects
-from eotimeseriesviewer.tests import EOTSVTestCase
-from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument, TimeSeriesDate, \
-    TimeSeriesFindOverlapTask, SensorMatching, DateTimePrecision, TimeSeriesDock
+start_app()
 
 
 class TestTimeSeries(EOTSVTestCase):
-
-
 
     def createTestDatasets(self):
         vsiDir = '/vsimem/tmp'
@@ -152,7 +147,6 @@ class TestTimeSeries(EOTSVTestCase):
     def test_find_overlap_memory_leak(self):
 
         from eotimeseriesviewer.main import EOTimeSeriesViewer
-        import random
         EOTSV = EOTimeSeriesViewer()
         EOTSV.loadExampleTimeSeries(loadAsync=False)
         EOTSV.ui.show()
@@ -337,18 +331,17 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(TS) == 0.5 * len(srcUris))
 
     def test_timeseries_loadasync(self):
-        if os.environ.get('CI'):
-            self.skipTest('Test might not terminate in CI setting. Reason unclear.')
 
         files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
-
+        self.assertTrue(len(files) > 0)
         w = QgsTaskManagerWidget(QgsApplication.taskManager())
 
         TS = TimeSeries()
-        TS.addSources(files, nWorkers=1)
+        TS.addSources(files, runAsync=True)
+        TS.addSources(files, runAsync=True)
+        TS.addSources(files, runAsync=True)
 
-        while QgsApplication.taskManager().countActiveTasks() > 0 or len(TS.mTasks) > 0:
-            QgsApplication.processEvents()
+        self.taskManagerProcessEvents()
 
         self.assertTrue(len(files) == len(TS))
         self.showGui(w)
@@ -412,71 +405,33 @@ class TestTimeSeries(EOTSVTestCase):
         extent = TS.maxSpatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
 
-    def test_pleiades(self):
+    def test_SensorProxyLayerMockupDataProvider(self):
+        from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
 
-        paths = [
-            r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\DIM_PHR1A_PMS_201703031416139_ORT_2224693101-001.XML'
-            ,
-            r'Y:\Pleiades\GFIO_Gp13_Novo_SO16018091-4-01_DS_PHR1A_201703031416139_FR1_PX_W056S07_0906_01636\TPP1600581943\IMG_PHR1A_PMS_001\IMG_PHR1A_PMS_201703031416139_ORT_2224693101-001_R1C1.JP2'
-            ]
-        for p in paths:
-            if not os.path.isfile(p):
-                continue
+        registerDataProvider()
+        nb = 7
+        dx = 30
+        dy = 30
+        sid = sensorID(nb, dx, dy, dt=Qgis.DataType.Float32)
+        self.assertIsInstance(sid, str)
+        sensor = SensorInstrument(sid)
+        self.assertIsInstance(sensor, SensorInstrument)
+        self.assertIsInstance(sensor.dataType, Qgis.DataType)
 
-            ds = gdal.Open(p)
-            self.assertIsInstance(ds, gdal.Dataset)
-            band = ds.GetRasterBand(1)
-            self.assertIsInstance(band, gdal.Band)
+        sensor2 = SensorInstrument(sid)
+        self.assertEqual(sensor, sensor2)
 
-            tss = TimeSeriesSource(ds)
-            self.assertIsInstance(tss, TimeSeriesSource)
-            self.assertEqual(tss.mWLU, r'μm')
-            self.assertListEqual(tss.mWL, [0.775, 0.867, 1.017, 1.315])
+        lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
+        dp = lyr.dataProvider()
+        self.assertIsInstance(dp, SensorMockupDataProvider)
 
-        s = ""
+        dp2 = dp.clone()
+        self.assertIsInstance(dp2, SensorMockupDataProvider)
+        self.assertNotEqual(id(dp), id(dp2))
 
-    def test_rapideye(self):
-        from example.Images import re_2014_06_25
-        paths = [r'Y:\RapidEye\3A\2135821_2014-06-25_RE2_3A_328202\2135821_2014-06-25_RE2_3A_328202.tif']
+        s = dp2.capabilities()
 
-        for p in paths:
-            if not os.path.isfile(p):
-                continue
-
-            ds = gdal.Open(p)
-            self.assertIsInstance(ds, gdal.Dataset)
-            band = ds.GetRasterBand(1)
-            self.assertIsInstance(band, gdal.Band)
-
-            tss = TimeSeriesSource(ds)
-            self.assertIsInstance(tss, TimeSeriesSource)
-
-    def test_sentinel2(self):
-
-        p = r'Q:\Processing_BJ\01_Data\Sentinel\T21LXL\S2A_MSIL1C_20161221T141042_N0204_R110_T21LXL_20161221T141040.SAFE\MTD_MSIL1C.xml'
-
-        if not os.path.isfile(p):
-            return
-
-        dsC = gdal.Open(p)
-        self.assertIsInstance(dsC, gdal.Dataset)
-        for item in dsC.GetSubDatasets():
-            path = item[0]
-            ds = gdal.Open(path)
-            gt = ds.GetGeoTransform()
-            self.assertIsInstance(ds, gdal.Dataset)
-
-            band = ds.GetRasterBand(1)
-            self.assertIsInstance(band, gdal.Band)
-
-            wlu = ds.GetRasterBand(1).GetMetadata_Dict()['WAVELENGTH_UNIT']
-            wl = [float(ds.GetRasterBand(b + 1).GetMetadata_Dict()['WAVELENGTH']) for b in range(ds.RasterCount)]
-
-            tss = TimeSeriesSource(ds)
-            self.assertIsInstance(tss, TimeSeriesSource)
-
-            self.assertEqual(tss.mWLU, wlu)
-            self.assertEqual(tss.mWL, wl)
+        self.assertEqual(nb, dp2.bandCount())
 
     def test_sensors(self):
 
@@ -503,9 +458,6 @@ class TestTimeSeries(EOTSVTestCase):
         sensor3 = SensorInstrument.readXml(node)
 
         self.assertEqual(sensor, sensor3)
-
-    def test_datematching(self):
-        pass
 
     def test_TimeSeriesTreeModel(self):
 
@@ -556,5 +508,4 @@ class TestTimeSeries(EOTSVTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main(buffer=False)
-
+    unittest.main(buffer=False, failfast=True)

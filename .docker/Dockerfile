@@ -1,25 +1,35 @@
-ARG QGIS_TEST_VERSION=latest
-FROM  qgis/qgis:${QGIS_TEST_VERSION}
-MAINTAINER Benjamin Jakimow <benjamin.jakimow@geo.hu-berlin.de>
+ARG QGIS_VERSION=latest
+FROM  qgis/qgis:${QGIS_VERSION}
+LABEL maintainer="Benjamin Jakimow <benjamin.jakimow@geo.hu-berlin.de>"
+LABEL description="Container to test the EO Time Series Viewer"
 
-LABEL Description="Docker container with QGIS + EO Time Series Viewer" Vendor="QGIS.org"
+SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && \
-    apt-get -y install python3-pip wget unzip git git-lfs \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt update \
+    &&  apt install -y \
+         git-lfs \
+         pyqt5-dev-tools \
+     	 python3-pip \
+     	 python3-venv \
+     	 python3-h5py \
+      	 python3-pyqt5.qtopengl \
+      	 python3-netcdf4 \
+    && apt autoremove -y \
+    && apt clean
 
-RUN apt-get update
-COPY ./requirements.txt /tmp/
+
+ENV VENV=/opt/venvs/eotsv
+
 COPY ./requirements_dev.txt /tmp/
-RUN pip3 install -r /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements_dev.txt
 
-# Avoid sqlcmd termination due to locale -- see https://github.com/Microsoft/mssql-docker/issues/163
-RUN echo "nb_NO.UTF-8 UTF-8" > /etc/locale.gen
-RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-RUN locale-gen
-ENV PATH="/usr/local/bin:${PATH}"
+RUN python3 -m venv --system-site-packages $VENV \
+     && source $VENV/bin/activate \
+     && python3 -m pip install -r tmp/requirements_dev.txt
 
-ENV LANG=C.UTF-8
+ENV PYTHONPATH="${PYTHONPATH}"\
+":/usr/share/qgis/python/plugins"
 
-WORKDIR /
+WORKDIR /src
+
+# Set the entrypoint
+ENTRYPOINT ["/bin/bash", "-c", "source ${VENV}/bin/activate && exec \"$@\"", "--"]

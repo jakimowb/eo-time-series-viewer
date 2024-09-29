@@ -15,23 +15,26 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import unittest
 import os
 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QTableView
+from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt.QtWidgets import QTableView
 
 import example.Images
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
+from eotimeseriesviewer.tests import start_app
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyleButton
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
+
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer, TemporalProfile, geometryToPixel, \
     TemporalProfileLoaderTask, TemporalProfileTableModel
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects
-from eotimeseriesviewer.tests import start_app
+
 from eotimeseriesviewer.timeseries import TimeSeries, TimeSeriesSource, SensorInstrument
-from qgis._core import QgsGeometry, QgsPointXY, QgsTask
+from qgis.core import QgsGeometry, QgsPointXY, QgsTask
 from qgis.core import QgsMapLayer, QgsProject
 from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 
 start_app()
+
 class TestTemporalProfiles(EOTSVTestCase):
     """Test temporal profiles"""
 
@@ -43,7 +46,6 @@ class TestTemporalProfiles(EOTSVTestCase):
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
         self.TS.addSources(files, runAsync=False)
         self.assertTrue(len(self.TS) > 0)
-
 
     def createTemporalProfiles(self):
 
@@ -275,4 +277,3 @@ class TestTemporalProfiles(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)

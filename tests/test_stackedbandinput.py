@@ -18,39 +18,31 @@
 """
 # noinspection PyPep8Naming
 import os
-import sys
 import unittest
-from xml.etree.ElementTree import ElementTree, Element
+from xml.etree.ElementTree import Element
 
+import numpy as np
+from osgeo import gdal, gdal_array, osr
+from qgis.core import QgsRasterLayer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog
-from qgis.PyQt.QtWidgets import QApplication
-from qgis.core import QgsRasterLayer
 
 from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
-from eotimeseriesviewer.stackedbandinput import StackedBandInputDialog, InputStackTableModel, OutputImageModel, \
-    InputStackInfo, OutputVRTDescription
-from eotimeseriesviewer.tests import EOTSVTestCase
-from osgeo import gdal_array, osr
-import numpy as np
-from osgeo import gdal
+from eotimeseriesviewer.stackedbandinput import InputStackInfo, InputStackTableModel, OutputImageModel, \
+    OutputVRTDescription, StackedBandInputDialog
+from eotimeseriesviewer.temporalprofiles import date2num
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
-from eotimeseriesviewer.main import EOTimeSeriesViewer
+start_app()
+
+PATH_STACK = r'T:\4BJ\2018-2018_000-000_LEVEL4_TSA_SEN2L_EVI_C0_S0_TSS.tif'
 
 
 class TestStackedInputs(EOTSVTestCase):
 
-    def setUp(self):
-
-        eotsv = EOTimeSeriesViewer.instance()
-        if isinstance(eotsv, EOTimeSeriesViewer):
-            eotsv.close()
-            QApplication.processEvents()
-
     def createTestDatasets(self):
 
         vsiDir = r'/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 
@@ -113,16 +105,13 @@ class TestStackedInputs(EOTSVTestCase):
                 datasets.append(ds)
         return datasets
 
+    @unittest.skipIf(not os.path.isfile(PATH_STACK), f'PATH_STACK does not exists: {PATH_STACK}')
     def test_FORCEStacks(self):
 
-        pathStack = r'T:\4BJ\2018-2018_000-000_LEVEL4_TSA_SEN2L_EVI_C0_S0_TSS.tif'
-
-        if os.path.isfile(pathStack):
-            d = StackedBandInputDialog()
-            d.show()
-            d.addSources([pathStack])
-
-            self.showGui()
+        d = StackedBandInputDialog()
+        d.show()
+        d.addSources([PATH_STACK])
+        self.showGui()
 
     def test_inputmodel(self):
         testData = self.createTestDatasets()
@@ -213,4 +202,3 @@ class TestStackedInputs(EOTSVTestCase):
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-    exit(0)
