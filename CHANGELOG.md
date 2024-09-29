@@ -1,12 +1,10 @@
 ## Changelog
 
-### 2024-09-29 (version 1.20)
+### 2024-09-29 (version 1.19)
 
-* several bugfixes to run with QGIS 3.34 - 3.38
+* bugfixes to run with QGIS 3.34 - 3.38
 * updates Spectral Library Module
-
-### 2023-04-07 (version 1.19)
-
+* enabled tooltips in MapCanvas context menu
 * attribute table: next / previous feature buttons consider order as shown in table
 * bugfixes to keep running with QGIS 3.32
 * fixed VRT building
