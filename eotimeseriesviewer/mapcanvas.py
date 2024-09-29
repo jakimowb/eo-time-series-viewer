@@ -39,7 +39,6 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-
 import eotimeseriesviewer.settings
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
@@ -870,6 +869,7 @@ class MapCanvas(QgsMapCanvas):
         :return: QMenu
         """
         assert isinstance(menu, QMenu)
+        menu.setToolTipsVisible(True)
 
         mapSettings = self.mapSettings()
         assert isinstance(mapSettings, QgsMapSettings)
@@ -964,7 +964,8 @@ class MapCanvas(QgsMapCanvas):
                                     lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
 
         if has_sensor_id(refSensorLayer):
-            m = menu.addMenu('Raster stretch...')
+            m: QMenu = menu.addMenu('Raster stretch...')
+            m.setToolTipsVisible(True)
             action = m.addAction('Linear')
             action.triggered.connect(lambda *args, lyr=refSensorLayer:
                                      self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.0))
@@ -997,6 +998,7 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         m = menu.addMenu('Layers...')
+        m.setToolTipsVisible(True)
         visibleLayers = viewPortRasterLayers + viewPortVectorLayers
 
         for mapLayer in visibleLayers:
@@ -1005,7 +1007,8 @@ class MapCanvas(QgsMapCanvas):
                 name = os.path.basename(mapLayer.source())
             else:
                 name = mapLayer.name()
-            sub = m.addMenu(name)
+            sub: QMenu = m.addMenu(name)
+            sub.setToolTipsVisible(True)
 
             if is_sensor_layer:
                 sub.setIcon(QIcon(':/eotimeseriesviewer/icons/icon.svg'))
@@ -1053,7 +1056,8 @@ class MapCanvas(QgsMapCanvas):
 
         menu.addSeparator()
 
-        m = menu.addMenu('Crosshair...')
+        m: QMenu = menu.addMenu('Crosshair...')
+        m.setToolTipsVisible(True)
         action = m.addAction('Show')
         action.setCheckable(True)
         action.setChecked(self.mCrosshairItem.visibility())
@@ -1074,7 +1078,8 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(tsd, TimeSeriesDate):
             menu.addSeparator()
-            m = menu.addMenu('Copy...')
+            m: QMenu = menu.addMenu('Copy...')
+            m.setToolTipsVisible(True)
             action = m.addAction('Date')
             action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
             action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
@@ -1105,8 +1110,8 @@ class MapCanvas(QgsMapCanvas):
                 action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.grab()))
                 action.setToolTip('Copies all maps into the clipboard.')
 
-        m = menu.addMenu('Map Coordinates...')
-
+        m: QMenu = menu.addMenu('Map Coordinates...')
+        m.setToolTipsVisible(True)
         ext = self.spatialExtent()
         center = self.spatialExtent().spatialCenter()
         action = m.addAction('Extent (WKT Coordinates)')
@@ -1137,7 +1142,8 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('CRS (Proj4)')
         action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
 
-        m = menu.addMenu('Save to...')
+        m: QMenu = menu.addMenu('Save to...')
+        m.setToolTipsVisible(True)
         action = m.addAction('PNG')
         action.triggered.connect(lambda: self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
@@ -1178,8 +1184,9 @@ class MapCanvas(QgsMapCanvas):
             else:
                 n_max = 5
             action = menu.addAction('Update source visibility')
-            action.setToolTip('Updates observation source visibility according their spatial intersection '
-                              'with this map extent.')
+            action.setToolTip(
+                'Hides from the observations shown those observations that do <br>'
+                'not have valid pixels for the currently displayed map extent')
             action.triggered.connect(lambda *args, ext=self.spatialExtent():
                                      ts.focusVisibility(ext,
                                                         date_of_interest=date,
@@ -1188,9 +1195,10 @@ class MapCanvas(QgsMapCanvas):
                                                         ))
 
             action = menu.addAction('Update source visibility (all)')
-            action.setToolTip('Updates observation source visibility according their spatial intersection '
-                              'with this map extent.<br/>'
-                              '<span style="color:red">This can take some time for long time series</span>')
+            action.setToolTip(
+                'Hides all observations that do not have valid pixels for the currently displayed map extent.'
+                '<br><i>Depending on the length of your time series this may take some time</i>'
+            )
 
             action.triggered.connect(lambda *args, ext=self.spatialExtent():
                                      ts.focusVisibility(ext, date_of_interest=date))
@@ -1203,7 +1211,7 @@ class MapCanvas(QgsMapCanvas):
             action.triggered.connect(lambda *args: ts.removeTSDs([tsd]))
 
     def onSetLayerProperties(self, lyr: QgsRasterLayer):
-        showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
+        showLayerPropertiesDialog(lyr, self, useQGISDialog=False)
         # if isinstance(lyr, SensorProxyLayer):
         #    #print('# MAPCANVAS :onsetLayerProperties: SET')
         #    r = lyr.renderer().clone()
@@ -1264,9 +1272,9 @@ class MapCanvas(QgsMapCanvas):
                     and not bool(mt.flags() & QgsMapTool.ShowContextMenu) \
                     and bool(modifiers & Qt.ControlModifier):
                 menu = QMenu()
-                menu.setToolTipsVisible(True)
                 # mt.populateContextMenu(menu)
                 self.populateContextMenu(menu, event.pos())
+                menu.setToolTipsVisible(True)
                 menu.exec_(event.globalPos())
         else:
             if bRight:
