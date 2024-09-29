@@ -10,9 +10,9 @@ from pathlib import Path
 
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofileV2 import LoadTimeSeriesProfileData, TemporalProfileUtils
+from eotimeseriesviewer.temporalprofileV2 import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsCoordinateReferenceSystem, QgsRasterLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
 
 start_app()
 
@@ -33,7 +33,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         nFiles = len(files)
         info = dict(id=1)
-        task = LoadTimeSeriesProfileData(files, points, crs=crs, info=info)
+        task = LoadTemporalProfileTask(files, points, crs=crs, info=info)
         task.run()
 
         profiles = task.profiles()
@@ -72,7 +72,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             self.assertTrue(lyr.isValid())
             pt = SpatialPoint.fromMapLayerCenter(lyr)
             files = files[0:5]
-            task = LoadTimeSeriesProfileData(files, [pt], pt.crs())
+            task = LoadTemporalProfileTask(files, [pt], pt.crs())
             task.progressChanged.connect(onProgress)
             task.run()
             cache = task.mCache
@@ -86,7 +86,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             for k, v in task.mTimeIt.items():
                 print(f'Avg {k}: {v}')
 
-            task = LoadTimeSeriesProfileData(files, [pt], pt.crs(), cache=cache)
+            task = LoadTemporalProfileTask(files, [pt], pt.crs(), cache=cache)
             task.progressChanged.connect(onProgress)
             task.run()
             profiles2 = task.profiles()
@@ -101,6 +101,25 @@ class TestTemporalProfilesV2(EOTSVTestCase):
     def test_load_timeseries_profiledata_async(self):
 
         pass
+
+    def test_temporal_profile_field(self):
+
+        field = TemporalProfileUtils.createProfileField('myProfiles')
+        self.assertIsInstance(field, QgsField)
+        self.assertTrue(TemporalProfileUtils.isProfileField(field))
+
+    def test_create_temporal_profile_layer(self):
+
+        lyr = TemporalProfileUtils.createProfileLayer()
+        self.assertIsInstance(lyr, QgsVectorLayer)
+        self.assertTrue(lyr.isValid())
+        self.assertEqual(lyr.featureCount(), 0)
+
+        tpFields = TemporalProfileUtils.temporalProfileFields(lyr.fields())
+        self.assertIsInstance(tpFields, QgsFields)
+        self.assertTrue(tpFields.count() > 0)
+        for field in tpFields:
+            self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
 
 if __name__ == "__main__":

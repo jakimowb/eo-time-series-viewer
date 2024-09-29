@@ -1,14 +1,17 @@
 import json
+import os.path
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+from uuid import uuid4
 
 from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.timeseries import sensor_id, sensorIDtoProperties
-from qgis.core import (Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsField, QgsPointXY,
-                       QgsRasterDataProvider, QgsRasterLayer)
-
+from qgis.core import (Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeature, QgsField, QgsFields,
+                       QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter,
+                       QgsVectorLayer)
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -22,12 +25,24 @@ from qgis.core import (Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransfor
 #
 #
 
+TPF_COMMENT = 'Temporal profile data'
+TPF_TYPE = QMETATYPE_QVARIANTMAP
+TPF_TYPENAME = 'JSON'
+TPF_SUBTYPE = None
+TPL_NAME = 'Temporal Profile Layer'
+
+
 class TemporalProfileUtils(object):
     Source = 'source'  # optional
     Date = 'date'
     SensorIDs = 'sensor_ids'
     Sensor = 'sensor'
     Values = 'values'
+
+    @staticmethod
+    def isProfileField(field: QgsField) -> bool:
+
+        return isinstance(field, QgsField) and field.type() == TPF_TYPE and field.comment() == TPF_COMMENT
 
     @staticmethod
     def isProfileDict(d: dict) -> bool:
@@ -82,13 +97,73 @@ class TemporalProfileUtils(object):
         return data
 
     @staticmethod
-    def createTemporalProfileField(name: str) -> QgsField:
-        field = QgsField(name, typeName='JSON')
-        field.setMetadata(Qgis.FieldMetadataProperty.CustomProperty + 1, 'EOTSV')
+    def createProfileField(name: str) -> QgsField:
+        field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME)
+        field.setComment(TPF_COMMENT)
         return field
 
+    @staticmethod
+    def temporalProfileFields(source: Union[str, Path, QgsFeature, QgsVectorLayer, QgsFields]):
 
-class LoadTimeSeriesProfileData(EOTSVTask):
+        if isinstance(source, (str, Path)):
+            lyr = QgsVectorLayer(Path(str).as_posix())
+            assert lyr.isValid()
+            return TemporalProfileUtils.temporalProfileFields(lyr.fields())
+
+        elif isinstance(source, (QgsVectorLayer, QgsFeature)):
+            return TemporalProfileUtils.temporalProfileFields(source.fields())
+
+        elif isinstance(source, QgsFields):
+
+            results = QgsFields()
+            for field in source:
+                if TemporalProfileUtils.isProfileField(field):
+                    results.append(QgsField(field))
+            return results
+        else:
+            raise NotImplementedError(f'Unable to extract profile fields from {source}')
+
+    @staticmethod
+    def createProfileLayer(path: Union[str, Path] = None) -> QgsVectorLayer:
+        """
+        Creates a GPKG to store temporal profiles
+        :param path:
+        :return:
+        """
+        if path is None:
+            path = Path(f'/vsimem/temporalprofiles.{uuid4()}.gpkg')
+
+        fields = QgsFields()
+        fields.append(TemporalProfileUtils.createProfileField('profile'))
+        fields.append(QgsField(name='notes', type=QMETATYPE_QSTRING))
+
+        wkbType = Qgis.WkbType.Point
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        transformContext = QgsProject.instance().transformContext()
+
+        driver = QgsVectorFileWriter.driverForExtension(os.path.splitext(path.name)[1])
+        dmd = QgsVectorFileWriter.MetaData()
+        assert QgsVectorFileWriter.driverMetadata(driver, dmd)
+
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = driver
+        options.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
+
+        writer = QgsVectorFileWriter.create(path.as_posix(), fields, wkbType, crs, transformContext, options)
+        assert QgsVectorFileWriter.WriterError.NoError == writer.hasError(), \
+            f'Error creating {path}:\n{writer.errorMessage()}'
+
+        writer.flushBuffer()
+
+        del writer
+
+        lyr = QgsVectorLayer(path.as_posix())
+        assert lyr.isValid()
+        lyr.setName(TPL_NAME)
+        return lyr
+
+
+class LoadTemporalProfileTask(EOTSVTask):
 
     def __init__(self,
                  sources: List[Union[str, Path]],
