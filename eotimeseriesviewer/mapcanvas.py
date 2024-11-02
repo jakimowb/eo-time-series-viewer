@@ -1226,23 +1226,16 @@ class MapCanvas(QgsMapCanvas):
         layers = []
         for lyr in mapLayers:
             if has_sensor_id(lyr):
-                lyr = QgsRasterLayer(lyr.source(), os.path.basename(lyr.source()), lyr.dataProvider().name())
-                r = lyr.renderer().clone()
-                r.setInput(lyr.dataProvider())
-                lyr.setRenderer(r)
-
-                tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+                lyr2 = lyr.clone()
+                tprop: QgsRasterLayerTemporalProperties = lyr2.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
                 tprop.setIsActive(True)
-                if isinstance(lyr.mTSS, TimeSeriesSource):
-                    dtg = lyr.mTSS.date().astype(object)
-                else:
-                    dtg = self.tsd().date().astype(object)
+                dtg = self.tsd().date().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
                 dt2 = QDateTime(dtg, QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
                 tprop.setFixedTemporalRange(range)
-                layers.append(lyr)
+                layers.append(lyr2)
             else:
                 layers.append(lyr)
         if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):
