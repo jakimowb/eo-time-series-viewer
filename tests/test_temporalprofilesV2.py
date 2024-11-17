@@ -8,17 +8,58 @@ import os
 import unittest
 from pathlib import Path
 
-from eotimeseriesviewer.force import FORCEUtils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofileV2 import LoadTemporalProfileTask, TemporalProfileUtils
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from qgis._core import QgsMapLayer, QgsProject
+from qgis._gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
+
+from eotimeseriesviewer.force import FORCEUtils
+from eotimeseriesviewer.profilevisualization import PlotSettingsModel, PlotSettingsTableView, \
+    PlotSettingsTableViewWidgetDelegate, ProfileViewDock
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.temporalprofiles import TemporalProfileTableModel
+from eotimeseriesviewer.temporalprofileV2 import LoadTemporalProfileTask, TemporalProfileUtils
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 
 
 class TestTemporalProfilesV2(EOTSVTestCase):
     """Test temporal profiles"""
+
+    def test_profiledock2(self):
+
+        layer = TemporalProfileUtils.createProfileLayer()
+        TS = TestObjects.createTimeSeries()
+        extent = TS.maxSpatialExtent()
+        center = extent.spatialCenter()
+
+        point1 = SpatialPoint(center.crs(), center.x(), center.y())
+        point2 = SpatialPoint(center.crs(), center.x() + 30, center.y() - 30)
+        point3 = SpatialPoint(center.crs(), center.x() + 30, center.y() + 30)
+        points = [point1, point2, point3]
+        n = len(points)
+
+        # tps = layer.createTemporalProfiles([point1])
+
+        pd = ProfileViewDock(layer)
+        pd.setTimeSeries(TS)
+        pd.loadCoordinate(points)
+
+        model = TemporalProfileTableModel(layer)
+        self.assertEqual(model.rowCount(), n)
+
+        QgsProject.instance().addMapLayer(pd.temporalProfileLayer())
+        reg = QgsGui.instance().mapLayerActionRegistry()
+
+        moveToFeatureCenter = QgsMapLayerAction('Move to', pd, QgsMapLayer.VectorLayer)
+
+        assert isinstance(reg, QgsMapLayerActionRegistry)
+        reg.setDefaultActionForLayer(pd.temporalProfileLayer(), moveToFeatureCenter)
+        pd.loadCoordinate(point3)
+        pd.loadCoordinate(point2)
+
+        self.showGui([pd])
+        QgsProject.instance().removeAllMapLayers()
 
     def test_load_timeseries_profiledata(self):
         files = self.exampleRasterFiles()[1:]
@@ -101,6 +142,22 @@ class TestTemporalProfilesV2(EOTSVTestCase):
     def test_load_timeseries_profiledata_async(self):
 
         pass
+
+    def test_calc_indices(self):
+
+        pass
+
+    def test_plotModel(self):
+
+        timeSeries = TestObjects.createTimeSeries()
+        layer = TestObjects.createProfileLayer(timeSeries)
+        model = PlotSettingsModel(layer, timeSeries)
+        view = PlotSettingsTableView()
+        delegate = PlotSettingsTableViewWidgetDelegate(view)
+        view.setItemDelegate(delegate)
+        view.setModel(model)
+
+        self.showGui(view)
 
     def test_temporal_profile_field(self):
 

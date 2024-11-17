@@ -27,12 +27,14 @@ from typing import List, Match, Pattern, Union
 import numpy as np
 from osgeo import gdal, osr
 
+from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
+    QgsVectorLayer
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLayerMapToPixel
+from eotimeseriesviewer.temporalprofileV2 import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.timeseries import TimeSeries
-from qgis.core import QgsApplication
 from qgis.PyQt.QtWidgets import QWidget
 
 start_app = start_app
@@ -104,13 +106,48 @@ class TestObjects(TObj):
     def createTimeSeries() -> TimeSeries:
 
         TS = TimeSeries()
-        files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
+        files = file_search(DIR_EXAMPLES / 'Images', '*.tif', recursive=True)
         TS.addSources(list(files), runAsync=False)
         assert len(TS) > 0
         return TS
 
     @staticmethod
-    def createArtificialTimeSeries(n=100) -> list:
+    def createProfileLayer(timeseries: TimeSeries = None) -> QgsVectorLayer:
+
+        if timeseries is None:
+            timeseries = TestObjects.createTimeSeries()
+        layer = TemporalProfileUtils.createProfileLayer()
+        tpFields = TemporalProfileUtils.temporalProfileFields(layer)
+
+        sources = timeseries.sourceUris()
+        l0 = QgsRasterLayer(sources[0])
+        ns, nl = l0.width(), l0.height()
+        m2p: QgsMapToPixel = rasterLayerMapToPixel(l0)
+        points = [m2p.toMapCoordinates(0, 0),
+                  m2p.toMapCoordinates(int(0.5 * ns), int(0.5 * nl)),
+                  m2p.toMapCoordinates(ns - 1, nl - 1)]
+
+        task = LoadTemporalProfileTask(sources, points, crs=l0.crs())
+        task.run()
+
+        profiles = task.profiles()
+        new_features: List[QgsFeature] = list()
+        for profile, point in zip(profiles, task.profilePoints()):
+            f = QgsFeature(layer.fields())
+            f.setGeometry(QgsGeometry.fromWkt(point.asWkt()))
+            profileJson = TemporalProfileUtils.profileJsonFromDict(profile)
+            f.setAttribute(tpFields[0].name(), profile)
+            new_features.append(f)
+
+            with edit(layer):
+                if not layer.addFeatures(new_features):
+                    err = layer.error()
+                    if isinstance(err, QgsError):
+                        raise err.message()
+        return layer
+
+    @staticmethod
+    def createArtificialTimeSeries(n=100) -> List[str]:
         vsiDir = '/vsimem/tmp'
         d1 = np.datetime64('2000-01-01')
         print('Create in-memory test timeseries of length {}...'.format(n))

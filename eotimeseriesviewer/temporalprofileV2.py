@@ -106,7 +106,7 @@ class TemporalProfileUtils(object):
     def temporalProfileFields(source: Union[str, Path, QgsFeature, QgsVectorLayer, QgsFields]):
 
         if isinstance(source, (str, Path)):
-            lyr = QgsVectorLayer(Path(str).as_posix())
+            lyr = QgsVectorLayer(Path(source).as_posix())
             assert lyr.isValid()
             return TemporalProfileUtils.temporalProfileFields(lyr.fields())
 
@@ -174,7 +174,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                  *args, **kwds):
         super().__init__(*args, **kwds)
 
-        self.mInfo = info.copy() if info else None
+        self.mInfo = info.copy() if isinstance(info, dict) else None
         self.mSources: List[Path] = [Path(s) for s in sources]
         self.mPoints = points[:]
         self.mCrs = crs
@@ -192,6 +192,9 @@ class LoadTemporalProfileTask(EOTSVTask):
 
     def profilePoints(self) -> List[QgsPointXY]:
         return self.mPoints
+
+    def info(self) -> dict:
+        return self.mInfo
 
     def timeIt(self, key: str, datetime: datetime):
         l = self.mTimeIt.get(key, [])
