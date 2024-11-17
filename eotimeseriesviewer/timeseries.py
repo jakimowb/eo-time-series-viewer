@@ -848,7 +848,7 @@ class TimeSeriesSource(object):
         """
         return self.mCRS
 
-    def spatialExtent(self) -> SpatialExtent:
+    def spatialExtent(self, crs: QgsCoordinateReferenceSystem = None) -> SpatialExtent:
         """
         Returns the SpatialExtent
         :return:
@@ -856,7 +856,8 @@ class TimeSeriesSource(object):
         """
         if not isinstance(self.mSpatialExtent, SpatialExtent):
             self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
-        return self.mSpatialExtent
+
+        return self.mSpatialExtent.toCrs(crs) if crs else self.mSpatialExtent
 
     def asDataset(self) -> gdal.Dataset:
         """
@@ -1060,7 +1061,7 @@ class TimeSeriesDate(QAbstractTableModel):
                     return True
         return False
 
-    def spatialExtent(self):
+    def spatialExtent(self, crs: QgsCoordinateReferenceSystem = None):
         """
         Returns the SpatialExtent of all data sources
         :return: SpatialExtent
@@ -1069,9 +1070,11 @@ class TimeSeriesDate(QAbstractTableModel):
         for i, tss in enumerate(self.sources()):
             assert isinstance(tss, TimeSeriesSource)
             if i == 0:
-                ext = tss.spatialExtent()
+                ext = tss.spatialExtent(crs=crs)
+                if crs is None:
+                    crs = ext.crs()
             else:
-                ext.combineExtentWith(tss.spatialExtent())
+                ext.combineExtentWith(tss.spatialExtent(crs=crs))
         return ext
 
     def imageBorders(self) -> QgsGeometry:
@@ -1834,7 +1837,7 @@ class TimeSeries(QAbstractItemModel):
             r.append((QgsRectangle(sensor.px_size_x, sensor.px_size_y)))
         return r
 
-    def maxSpatialExtent(self, crs=None) -> SpatialExtent:
+    def maxSpatialExtent(self, crs: QgsCoordinateReferenceSystem = None) -> SpatialExtent:
         """
         Returns the maximum SpatialExtent of all images of the TimeSeries
         :param crs: QgsCoordinateSystem to express the SpatialExtent coordinates.
@@ -1843,7 +1846,7 @@ class TimeSeries(QAbstractItemModel):
         extent = None
         for i, tsd in enumerate(self.mTSDs):
             assert isinstance(tsd, TimeSeriesDate)
-            ext = tsd.spatialExtent()
+            ext = tsd.spatialExtent(crs=crs)
             if isinstance(extent, SpatialExtent):
                 extent = extent.combineExtentWith(ext)
             else:
@@ -2239,7 +2242,7 @@ class TimeSeries(QAbstractItemModel):
 
         return date
 
-    def sources(self) -> list:
+    def sources(self) -> List[TimeSeriesSource]:
         """
         Returns the input sources
         :return: iterator over [list-of-TimeSeriesSources]
@@ -2249,7 +2252,7 @@ class TimeSeries(QAbstractItemModel):
             for source in tsd:
                 yield source
 
-    def sourceUris(self) -> list:
+    def sourceUris(self) -> List[str]:
         """
         Returns the uris of all sources
         :return: [list-of-str]
