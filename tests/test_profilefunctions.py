@@ -66,17 +66,30 @@ class ProfileFunctionTestCases(TestCase):
         context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
         context.appendScope(spectral_index_scope())
 
-        for feature in lyr.getFeatures():
+        ndvis = []
+        tps = []
+
+        tpFields = TemporalProfileUtils.temporalProfileFields(lyr)
+
+        for i, feature in enumerate(lyr.getFeatures()):
             context.setFeature(feature)
+
+            tps.append(feature.attribute(tpFields[0].name()))
+
+            context1 = QgsExpressionContext(context)
             exp = QgsExpression(f'{f.name()}(\'NDVI\')')
-            exp.prepare(context)
+            exp.prepare(context1)
             self.assertTrue(exp.parserErrorString() == '', msg=exp.parserErrorString())
-            ndvi_values = exp.evaluate(context)
+            ndvi_values = exp.evaluate(context1)
             self.assertTrue(exp.evalErrorString() == '', msg=exp.evalErrorString())
             self.assertIsInstance(ndvi_values, list)
 
-            # run QGIS Expression on each single data
-            # this allows to user other QGIS functions
+            if i > 0:
+                self.assertNotEqual(ndvis[-1], ndvi_values)
+            ndvis.append(ndvi_values)
+
+            # run QGIS Expression on each single datum
+            # this allows to use other QGIS functions
             context2 = QgsExpressionContext(context)
             for i, ndvi in enumerate(ndvi_values):
                 context2.lastScope().setVariable('dates', i)

@@ -2,13 +2,13 @@ import json
 from typing import List
 
 import numpy as np
-
 from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, Qt
 from qgis.core import QgsExpressionContext, QgsExpressionContextScope, QgsExpressionFunction, QgsExpressionNode, \
     QgsScopedExpressionFunction
+
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.temporalprofileV2 import TemporalProfileUtils
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 
 INDICES = dict()
 CONSTANTS = dict()
@@ -404,11 +404,10 @@ def spectral_index_acronyms(band_identifier_model: SpectralIndexBandIdentifierMo
             'constants': constant_model.asMap()}
 
 
-class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
-    NAME = 'bval'
+class TemporalProfileExpressionFunctionUtils(object):
 
-    @staticmethod
-    def cachedAcronyms(context: QgsExpressionContext) -> dict:
+    @classmethod
+    def cachedAcronyms(cls, context: QgsExpressionContext) -> dict:
         k = 'eotsv/acronyms'
         if context.hasVariable(k):
             index_acronyms = context.variable(k)
@@ -505,6 +504,14 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
             s = ""
         return dump
 
+
+class ProfileTimeExpressionFunction(QgsScopedExpressionFunction):
+    NAME = 'tptime'
+
+
+class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
+    NAME = 'tpval'
+
     def __init__(self, ):
 
         params = [
@@ -517,15 +524,22 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
                          'Extracts values from a temporal profile',
                          lazyEval=True)
 
-    def clone(self) -> 'ProfileValueExpressionFunction':
-        return ProfileValueExpressionFunction()
+    def clone(self) -> '':
+        return ()
+
+    def func_(self, values: List[QgsExpressionNode], context: QgsExpressionContext, parent, node):
+        try:
+            return self.func_core(values, context, parent, node)
+        except Exception as ex:
+            parent.setEvalErrorString(str(ex))
+            return None
 
     def func(self, values: List[QgsExpressionNode], context: QgsExpressionContext, parent, node):
         band = values[0].value()
         field = values[1].value()
         date = values[2].value()
 
-        tp = self.cachedTemporalProfile(context, field)
+        tp = TemporalProfileExpressionFunctionUtils.cachedTemporalProfile(context, field)
         if tp is None:
             return
 
@@ -549,25 +563,30 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
         else:
             date_indices = list(range(n_dates))
 
-        result_profile = []
+        x_values = [tp[TemporalProfileUtils.Date][i] for i in date_indices]
+        context.setCachedValue('eotsv/current_dates', x_values)
 
-        band_values = None
+        y_values = []
+
         if isinstance(band, int):
             # return band number
-            result_profile = [tp[TemporalProfileUtils.Values][i][band] for i in date_indices]
+            assert band >= 1, 'Band number must be >= 1'
+            y_values = [tp[TemporalProfileUtils.Values][i][band - 1] for i in date_indices]
+
+
         elif isinstance(band, str):
-            acronyms = self.cachedAcronyms(context)
+            acronyms = TemporalProfileExpressionFunctionUtils.cachedAcronyms(context)
             constants = acronyms['constants']
             band_identifier = acronyms['band_identifier']
 
-            band_lookups = self.cachedSensorBandLookups(context, tp, band_identifier)
+            band_lookups = TemporalProfileExpressionFunctionUtils.cachedSensorBandLookups(context, tp, band_identifier)
 
             if band in band_identifier:
                 for i in date_indices:
                     profile: dict = tp[TemporalProfileUtils.Values][i]
                     sidx = tp[TemporalProfileUtils.Sensor][i]
                     bidx = band_lookups[sidx][band]
-                    result_profile.append(profile[bidx])
+                    y_values.append(profile[bidx])
             else:
                 assert band in indices, f'Unknown band / spectral index: {band}'
                 index_info: dict = indices[band]
@@ -586,11 +605,11 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
                             params[b] = profile[bidx]
 
                     result_value = eval(index_info["formula"], {}, params)
-                    result_profile.append(result_value)
+                    y_values.append(result_value)
         else:
             raise NotImplementedError
 
-        if len(result_profile) == 1:
-            return result_profile[0]
-        else:
-            return result_profile
+        if len(y_values) == 1:
+            y_values = y_values[0]
+
+        return y_values

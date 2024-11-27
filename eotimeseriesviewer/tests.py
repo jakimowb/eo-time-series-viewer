@@ -139,11 +139,11 @@ class TestObjects(TObj):
             f.setAttribute(tpFields[0].name(), profile)
             new_features.append(f)
 
-            with edit(layer):
-                if not layer.addFeatures(new_features):
-                    err = layer.error()
-                    if isinstance(err, QgsError):
-                        raise err.message()
+        with edit(layer):
+            if not layer.addFeatures(new_features):
+                err = layer.error()
+                if isinstance(err, QgsError):
+                    raise err.message()
         return layer
 
     @staticmethod

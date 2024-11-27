@@ -35,7 +35,7 @@ from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG,
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
+from eotimeseriesviewer.profilevisualization import TemporalProfileDock
 from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
@@ -128,7 +128,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         tbar.addAction(self.actionClearTS)
         self.dockTimeSeries.timeSeriesWidget().sigTimeSeriesDatesSelected.connect(self.actionRemoveTSD.setEnabled)
 
-        self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
+        self.dockProfiles = self.addDockWidget(area, TemporalProfileDock(self))
         area = Qt.LeftDockWidgetArea
         # self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
         #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
@@ -470,7 +470,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
-        self.profileDock: ProfileViewDock = self.ui.dockProfiles
+        self.profileDock: TemporalProfileDock = self.ui.dockProfiles
         assert isinstance(self, EOTimeSeriesViewer)
         self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 

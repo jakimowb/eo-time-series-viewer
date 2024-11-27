@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TemporalProfileDock</class>
+ <widget class="QgsDockWidget" name="TemporalProfileDock">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>884</width>
+    <height>357</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Temporal Profiles</string>
+  </property>
+  <widget class="QWidget" name="dockWidgetContents">
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <property name="spacing">
+     <number>1</number>
+    </property>
+    <property name="leftMargin">
+     <number>1</number>
+    </property>
+    <property name="topMargin">
+     <number>1</number>
+    </property>
+    <property name="rightMargin">
+     <number>1</number>
+    </property>
+    <property name="bottomMargin">
+     <number>1</number>
+    </property>
+    <item>
+     <widget class="QToolBar" name="mPlotToolBar">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>1</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="windowTitle">
+       <string>Profile Plot Toolbar</string>
+      </property>
+      <property name="movable">
+       <bool>false</bool>
+      </property>
+      <property name="allowedAreas">
+       <set>Qt::TopToolBarArea</set>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>18</width>
+        <height>18</height>
+       </size>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonIconOnly</enum>
+      </property>
+      <property name="floatable">
+       <bool>false</bool>
+      </property>
+      <addaction name="separator"/>
+      <addaction name="actionAddStyle2D"/>
+      <addaction name="actionRemoveStyle2D"/>
+      <addaction name="actionRefresh2D"/>
+      <addaction name="actionSaveTemporalProfiles"/>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <widget class="QWidget" name="layoutWidget">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox"/>
+        </item>
+        <item>
+         <widget class="QgsFilterLineEdit" name="mLineEdit">
+          <property name="qgisRelation" stdset="0">
+           <string notr="true"/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="PlotSettingsTreeView" name="mTreeView">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>1</horstretch>
+            <verstretch>2</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QProgressBar" name="progressBar">
+            <property name="value">
+             <number>24</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="DateTimePlotWidget" name="mPlotWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>3</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">background-color: rgb(0, 0, 0);</string>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
+       </property>
+       <property name="backgroundBrush">
+        <brush brushstyle="NoBrush">
+         <color alpha="255">
+          <red>0</red>
+          <green>0</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </property>
+       <property name="foregroundBrush">
+        <brush brushstyle="NoBrush">
+         <color alpha="255">
+          <red>0</red>
+          <green>0</green>
+          <blue>0</blue>
+         </color>
+        </brush>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <action name="actionRefresh2D">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Refresh Plot</string>
+   </property>
+   <property name="toolTip">
+    <string>Refresh Plot</string>
+   </property>
+  </action>
+  <action name="actionAddStyle2D">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add temporal profile visualization</string>
+   </property>
+   <property name="toolTip">
+    <string>Adds a new profile visualization, e.g. to show different raster bands for the same temporal profile coordinate.</string>
+   </property>
+  </action>
+  <action name="actionRemoveStyle2D">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionRemove.svg</normaloff>:/images/themes/default/mActionRemove.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Remove profile visualization</string>
+   </property>
+   <property name="toolTip">
+    <string>Removes selected profile visualization</string>
+   </property>
+  </action>
+  <action name="actionLoadProfileRequest">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileAdd.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileAdd.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Select Profile</string>
+   </property>
+   <property name="toolTip">
+    <string>Select temporal profile from map.</string>
+   </property>
+  </action>
+  <action name="actionLoadTPFromOgr">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddOgrLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Load Coordinates</string>
+   </property>
+   <property name="toolTip">
+    <string>Loads the coordinate from a vector file</string>
+   </property>
+  </action>
+  <action name="actionLoadMissingValues">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileRefresh.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfileRefresh.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Load Missing Values</string>
+   </property>
+   <property name="toolTip">
+    <string>Load missing band values. Depending on your time series (number of images, number of bands) this might take a while.</string>
+   </property>
+  </action>
+  <action name="actionSaveTemporalProfiles">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionFileSaveAs.svg</normaloff>:/images/themes/default/mActionFileSaveAs.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Save Temporal Profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Save temporal profiles</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsDockWidget</class>
+   <extends>QDockWidget</extends>
+   <header>qgsdockwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QgsFilterLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>qgsfilterlineedit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsMapLayerComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsmaplayercombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>DateTimePlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>eotimeseriesviewer.profilevisualization</header>
+  </customwidget>
+  <customwidget>
+   <class>PlotSettingsTreeView</class>
+   <extends>QTreeView</extends>
+   <header>eotimeseriesviewer.profilevisualization</header>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="eotsv_resources.qrc"/>
+  <include location="../../../QGIS/images/images.qrc"/>
+ </resources>
+ <connections/>
+</ui>
