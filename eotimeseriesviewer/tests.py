@@ -25,15 +25,16 @@ import pathlib
 from typing import List, Match, Pattern, Union
 
 import numpy as np
+from matplotlib.dates import date2num
 from osgeo import gdal, osr
 
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
     QgsVectorLayer
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLayerMapToPixel
-from eotimeseriesviewer.temporalprofileV2 import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.timeseries import TimeSeries
 from qgis.PyQt.QtWidgets import QWidget
 
@@ -177,7 +178,6 @@ class TestObjects(TObj):
     @staticmethod
     def createTimeSeriesStacks():
         vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles import date2num
         ns = 50
         nl = 100
 

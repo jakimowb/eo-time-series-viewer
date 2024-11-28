@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
+from PyQt5.QtCore import QModelIndex, QSortFilterProxyModel
+from qgis._core import QgsMapLayer, QgsMapLayerModel
+
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -32,6 +35,26 @@ TPF_SUBTYPE = None
 TPL_NAME = 'Temporal Profile Layer'
 
 
+class TemporalProfileLayerProxyModel(QSortFilterProxyModel):
+    """
+    A model that shown only vectorlayer with a temporal profile fields.
+    """
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mModel = QgsMapLayerModel()
+        self.setSourceModel(self.mModel)
+
+    def filterAcceptsRow(self, source_row: QModelIndex, source_parent: QModelIndex):
+        idx: QModelIndex = self.sourceModel().index(source_row, 0, parent=source_parent)
+
+        layer = idx.data(QgsMapLayerModel.CustomRole.Layer)
+        return TemporalProfileUtils.isProfileLayer(layer)
+
+    def setProject(self, project: QgsProject):
+        self.mModel.setProject(project)
+
+
 class TemporalProfileUtils(object):
     Source = 'source'  # optional
     Date = 'date'
@@ -39,13 +62,13 @@ class TemporalProfileUtils(object):
     Sensor = 'sensor'
     Values = 'values'
 
-    @staticmethod
-    def isProfileField(field: QgsField) -> bool:
+    @classmethod
+    def isProfileField(cls, field: QgsField) -> bool:
 
         return isinstance(field, QgsField) and field.type() == TPF_TYPE and field.comment() == TPF_COMMENT
 
-    @staticmethod
-    def isProfileDict(d: dict) -> bool:
+    @classmethod
+    def isProfileDict(cls, d: dict) -> bool:
         for k in [TemporalProfileUtils.Date,
                   TemporalProfileUtils.SensorIDs,
                   TemporalProfileUtils.Sensor,
@@ -55,8 +78,15 @@ class TemporalProfileUtils(object):
 
         return True
 
-    @staticmethod
-    def verifyProfile(profileDict: dict) -> Tuple[bool, str]:
+    @classmethod
+    def isProfileLayer(cls, layer: QgsMapLayer) -> bool:
+        if isinstance(layer, QgsVectorLayer):
+            return any([cls.isProfileField(f) for f in layer.fields()])
+        else:
+            return False
+
+    @classmethod
+    def verifyProfile(cls, profileDict: dict) -> Tuple[bool, str]:
 
         n = len(profileDict[TemporalProfileUtils.Date])
         sensorIds = profileDict[TemporalProfileUtils.SensorIDs]
@@ -86,24 +116,40 @@ class TemporalProfileUtils(object):
 
         return True, None
 
-    @staticmethod
-    def profileJsonFromDict(d: dict) -> str:
+    @classmethod
+    def profileJsonFromDict(cls, d: dict) -> str:
         txt = json.dumps(d)
         return txt
 
-    @staticmethod
-    def profileDictFromJson(json_string: str) -> dict:
+    @classmethod
+    def profileDict(cls, input) -> Optional[dict]:
+
+        if isinstance(input, str):
+            input = cls.profileDictFromJson(input)
+
+        if isinstance(input, dict):
+            return input
+        else:
+            return None
+
+    @classmethod
+    def profileSensors(cls, profile: dict) -> List[str]:
+        d = cls.profileDict(cls)
+        return d.get(cls.SensorIDs)
+
+    @classmethod
+    def profileDictFromJson(cls, json_string: str) -> dict:
         data = json.loads(json_string)
         return data
 
-    @staticmethod
-    def createProfileField(name: str) -> QgsField:
+    @classmethod
+    def createProfileField(cls, name: str) -> QgsField:
         field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME)
         field.setComment(TPF_COMMENT)
         return field
 
-    @staticmethod
-    def temporalProfileFields(source: Union[str, Path, QgsFeature, QgsVectorLayer, QgsFields]):
+    @classmethod
+    def temporalProfileFields(cls, source: Union[str, Path, QgsFeature, QgsVectorLayer, QgsFields]):
 
         if isinstance(source, (str, Path)):
             lyr = QgsVectorLayer(Path(source).as_posix())
@@ -122,6 +168,33 @@ class TemporalProfileUtils(object):
             return results
         else:
             raise NotImplementedError(f'Unable to extract profile fields from {source}')
+
+    @classmethod
+    def profileLayers(cls, layers: Union[List[QgsMapLayer], QgsProject]) -> List[QgsVectorLayer]:
+        """
+        Returns the vector layer with temporal profile fields
+        :param layers:
+        :param project:
+        :return:
+        """
+        if isinstance(layers, QgsProject):
+            layers = layers.mapLayers().values()
+
+        return [l for l in layers if cls.isProfileLayer(l)]
+
+    @classmethod
+    def profileFields(cls, layer: QgsVectorLayer) -> QgsFields:
+        """
+        Returns the fields with temporal profiles
+        :param layer: QgaVectorLayer
+        :return: QgsFields
+        """
+        assert isinstance(layer, QgsVectorLayer)
+        fields = QgsFields()
+        for f in layer.fields():
+            if cls.isProfileField(f):
+                fields.append(f)
+        return fields
 
     @staticmethod
     def createProfileLayer(path: Union[str, Path] = None) -> QgsVectorLayer:

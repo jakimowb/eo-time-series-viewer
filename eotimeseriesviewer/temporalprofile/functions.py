@@ -2,10 +2,10 @@ import json
 from typing import List
 
 import numpy as np
+
 from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, Qt
 from qgis.core import QgsExpressionContext, QgsExpressionContextScope, QgsExpressionFunction, QgsExpressionNode, \
     QgsScopedExpressionFunction
-
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
@@ -489,7 +489,7 @@ class TemporalProfileExpressionFunctionUtils(object):
                     dump = context.feature().attribute(field)
                     if isinstance(dump, str):
                         dump = json.loads(dump)
-                    sensor_attributes = [json.loads(sid) for sid in dump['sensor_ids']]
+                    sensor_attributes = [json.loads(sid) for sid in dump[TemporalProfileUtils.SensorIDs]]
                     for s in sensor_attributes:
                         v_wl = s.get('wl')
                         v_wlu = s.get('wlu')

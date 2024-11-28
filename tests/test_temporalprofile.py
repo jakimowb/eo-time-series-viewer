@@ -8,14 +8,17 @@ import os
 import unittest
 from pathlib import Path
 
-from qgis._core import QgsProject
-from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
+from PyQt5.QtWidgets import QComboBox
+from qgis._core import QgsFeature, QgsProject
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofile.profilevisualization import PlotSettingsTableModel, PlotSettingsTableView, \
-    PlotSettingsTableViewWidgetDelegate, TemporalProfileDock
-from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
+from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock
+from eotimeseriesviewer.temporalprofile.tableview import PlotSettingsTableModel, PlotSettingsTableView, \
+    PlotSettingsTableViewWidgetDelegate
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileLayerProxyModel, \
+    TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
@@ -141,17 +144,64 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         for field in tpFields:
             self.assertTrue(TemporalProfileUtils.isProfileField(field))
 
+    def test_TemporalProfileUtils(self):
+
+        lyr = TestObjects.createProfileLayer()
+
+        project = QgsProject()
+        project.addMapLayer(lyr)
+
+        layers = TemporalProfileUtils.profileLayers(project)
+        self.assertIsInstance(layers, list)
+        self.assertTrue(len(layers) == 1 and layers[0] == lyr)
+
+        self.assertTrue(lyr.featureCount() > 0)
+        self.assertTrue(TemporalProfileUtils.isProfileLayer(lyr))
+
+        fields = TemporalProfileUtils.profileFields(lyr)
+        self.assertTrue(fields.count() == 1)
+        for field in fields:
+            self.assertTrue(TemporalProfileUtils.isProfileField(field))
+
+            for f in lyr.getFeatures():
+                f: QgsFeature
+                dump = TemporalProfileUtils.profileDict(f.attribute(field.name()))
+                self.assertTrue(TemporalProfileUtils.isProfileDict(dump))
+
+    def test_TemporalProfileLayerProxyModel(self):
+
+        layers = [
+            TestObjects.createProfileLayer(),
+            TestObjects.createVectorLayer(),
+            TestObjects.createRasterLayer()
+        ]
+        project = QgsProject()
+        project.addMapLayers(layers)
+
+        model = TemporalProfileLayerProxyModel()
+        model.setProject(project)
+
+        self.assertTrue(model.rowCount() == 1)
+
+        lyr = TestObjects.createProfileLayer()
+        lyr.setName('Layer 2')
+        project.addMapLayer(lyr)
+        self.assertTrue(model.rowCount() == 2)
+
+        cb = QComboBox()
+        cb.setModel(model)
+
+        self.showGui(cb)
+
     def test_TemporalProfileDock(self):
 
         ts = TestObjects.createTimeSeries()
         layer = TestObjects.createProfileLayer(ts)
-
         l2 = TestObjects.createVectorLayer()
         project = QgsProject()
         project.addMapLayers([layer, l2])
         dock = TemporalProfileDock()
         dock.setTimeSeries(ts)
-        dock.setLayer(layer)
         dock.setProject(project)
 
         self.showGui(dock)

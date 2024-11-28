@@ -74,10 +74,10 @@
       <widget class="QWidget" name="layoutWidget">
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <widget class="QgsMapLayerComboBox" name="mMapLayerComboBox"/>
-        </item>
-        <item>
          <widget class="QgsFilterLineEdit" name="mLineEdit">
+          <property name="placeholderText">
+           <string>Search </string>
+          </property>
           <property name="qgisRelation" stdset="0">
            <string notr="true"/>
           </property>
@@ -252,19 +252,14 @@
    <header>qgsfilterlineedit.h</header>
   </customwidget>
   <customwidget>
-   <class>QgsMapLayerComboBox</class>
-   <extends>QComboBox</extends>
-   <header>qgsmaplayercombobox.h</header>
+   <class>PlotSettingsTreeView</class>
+   <extends>QTreeView</extends>
+   <header>eotimeseriesviewer.temporalprofile.plotsettings</header>
   </customwidget>
   <customwidget>
    <class>DateTimePlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>eotimeseriesviewer.profilevisualization</header>
-  </customwidget>
-  <customwidget>
-   <class>PlotSettingsTreeView</class>
-   <extends>QTreeView</extends>
-   <header>eotimeseriesviewer.profilevisualization</header>
+   <header>eotimeseriesviewer.temporalprofile.datetimeplot</header>
   </customwidget>
  </customwidgets>
  <resources>

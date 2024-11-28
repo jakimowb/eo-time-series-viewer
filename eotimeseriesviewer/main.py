@@ -35,15 +35,14 @@ from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG,
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import TemporalProfileDock
 from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
     TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, QgsProject, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProject, \
     QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
     QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
@@ -67,6 +66,7 @@ from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLa
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
+from .temporalprofile.visualization import TemporalProfileDock
 from .utils import fixMenuButtons
 
 DEBUG = False
@@ -855,11 +855,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if len(self.mapViews()) == 1:
             mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
 
-    def temporalProfileLayer(self) -> TemporalProfileLayer:
+    def temporalProfileLayers(self) -> List[QgsVectorLayer]:
         """
-        Returns the TemporalProfileLayer
+        Returns known layers with temporal profiles
         :return:
         """
+
         return self.profileDock.temporalProfileLayer()
 
     def spectralLibraryWidgets(self) -> List[SpectralLibraryWidget]:
