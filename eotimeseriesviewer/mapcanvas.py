@@ -48,7 +48,7 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate, TimeSeriesSource
+from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate
 from .utils import copyMapLayerStyle
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -206,7 +206,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         context.setMapToPixel(m2p)
         context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
         context.setUseAdvancedEffects(True)
-        context.setCustomRenderingFlag('Antialiasing', True)
+        # context.setCustomRenderingFlag('Antialiasing', True)
         context.setPainter(painter)
         # context.setExtent(self.mCanvas.extent())
         # context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
