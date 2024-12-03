@@ -29,6 +29,7 @@ import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
+
 import qgis.utils
 from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
@@ -41,7 +42,6 @@ from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouse
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
@@ -1508,7 +1508,7 @@ class MapWidget(QFrame):
         mwNode.setAttribute('mapHeight', f'{mapSize.height()}')
         currentDate = self.currentDate()
         if isinstance(currentDate, TimeSeriesDate):
-            mwNode.setAttribute('mapDate', f'{currentDate.date()}')
+            mwNode.setAttribute('mapDate', f'{currentDate.dtg()}')
         crsNode = doc.createElement('MapExtent')
         self.spatialExtent().writeXml(crsNode, doc)
         mwNode.appendChild(crsNode)
@@ -1699,7 +1699,7 @@ QSlider::add-page {{
     def _updateSliderDate(self, i=None):
         tsd = self.sliderDate(i)
         if isinstance(tsd, TimeSeriesDate):
-            self.tbSliderDate.setText('{}({:03})'.format(tsd.date(), tsd.doy()))
+            self.tbSliderDate.setText('{}({:03})'.format(tsd.dtg(), tsd.doy()))
             # self.tbSliderDate.setToolTip(''{}({:03})'.format(tsd.date(), tsd.doy())')
 
     def onSliderValueChanged(self):

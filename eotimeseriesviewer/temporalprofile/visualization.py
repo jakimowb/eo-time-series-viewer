@@ -18,25 +18,26 @@
  *                                                                         *
  ***************************************************************************/
 """
-from typing import Dict
+from typing import List
 
-from qgis._core import QgsFields
+import numpy as np
 
+from qgis.core import QgsFeature, QgsFeatureRequest, QgsFields, QgsProject, QgsVectorLayer
 from qgis.gui import QgsDockWidget
-from qgis.core import QgsProject
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, \
+from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
     QModelIndex, QObject, QPoint, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QAction, QMenu, \
     QSlider, QTableView, QWidgetAction
 from eotimeseriesviewer import DIR_UI
-from .datetimeplot import DateTimePlotWidget
+from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
-    TPVisGroup
-from .plotstyle import TemporalProfilePlotStyle
+    PlotSettingsTreeViewDelegate, TPVisGroup
 from .temporalprofile import TemporalProfileUtils
+from ..dateparser import ImageDateUtils
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from ..qgispluginsupport.qps.utils import loadUi
+from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..timeseries import SensorInstrument, TimeSeries
 
 DEBUG = False
@@ -134,34 +135,6 @@ class _SensorPoints(pg.PlotDataItem):
         return self.menu
 
 
-class MultiSensorProfileStyle(QObject):
-    """
-    PlotStyle for a multi-sensor temporal profile
-    Allows to define different PlotStyles for each sensor.
-    """
-    sigStyleUpdated = pyqtSignal()
-
-    @staticmethod
-    def defaultSensorStyle(sensor: SensorInstrument) -> TemporalProfilePlotStyle:
-        style = TemporalProfilePlotStyle()
-        style.setSensor(sensor)
-        # todo: use last settings
-        return style
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-        self.mSensorStyles: Dict[str, TemporalProfilePlotStyle] = dict()
-
-    def setSensorStyle(self,
-                       sensorID: str,
-                       style=None,
-                       expression: str = '@b1'):
-        if style is None:
-            style = self.defaultSensorStyle()
-
-        self.mSensorStyles[sensorID] = style
-
-
 class TemporalProfileVisualization(QObject):
 
     def __init__(self,
@@ -175,16 +148,158 @@ class TemporalProfileVisualization(QObject):
 
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
+        self.mModel.itemChanged.connect(self.onStyleChanged)
 
         self.mProxyModel = PlotSettingsProxyModel()
         self.mProxyModel.setSourceModel(self.mModel)
         self.mTreeView.setModel(self.mProxyModel)
-        # self.mDelegate = PlotSettingsTreeViewDelegate(self.mTreeView)
-        # self.mTreeView.setItemDelegate(self.mDelegate)
+        self.mDelegate = PlotSettingsTreeViewDelegate(self.mTreeView)
+        self.mTreeView.setItemDelegate(self.mDelegate)
+
+        self.mLastStyle: dict = dict()
 
         self.mProject = QgsProject.instance()
         self.mIsInitialized: bool = False
-        self.mTimeSeries: TimeSeries = None
+
+    def treeView(self) -> PlotSettingsTreeView:
+        self.mTreeView
+
+    def createVisualization(self, *args) -> TPVisGroup:
+
+        v = TPVisGroup()
+        # append missing sensors
+        v.addSensors(self.timeSeries().sensors())
+        self.mModel.addVisualizations(v)
+
+        return v
+
+    def selectedVisualizations(self) -> List[TPVisGroup]:
+        """
+        Returns the currently selected visualizations
+        :return: list
+        """
+        indices = self.mTreeView.selectedIndexes()
+        selected = []
+        for idx in indices:
+            s = ""
+        return selected
+
+    def removeSelectedVisualizations(self):
+
+        to_remove = self.selectedVisualizations()
+        if len(to_remove) > 0:
+            self.mModel.removeVisualizations(to_remove)
+
+    def onStyleChanged(self, *args):
+
+        settings = self.mModel.settingsMap()
+        if settings != self.mLastStyle:
+            print(f'STYLE CHANGE {args} {id(args[0])}')
+            self.updatePlot(settings)
+
+    def updatePlot(self, settings: dict = None):
+
+        if settings is None:
+            settings = self.mModel.settingsMap()
+
+        print('# Update plot')
+        pw = self.mPlotWidget
+        #
+
+        new_plotitems = []
+        project = self.project()
+
+        layers = []
+        for i, vis in enumerate(settings['visualizations']):
+            vis: dict
+            if not vis.get('show', False):
+                continue
+
+            vis_layer = vis['layer']
+            lyr = project.mapLayer(vis_layer['id'])
+            if not isinstance(lyr, QgsVectorLayer):
+                lyr = QgsVectorLayer(vis_layer['name'])
+
+            if not isinstance(lyr, QgsVectorLayer):
+                continue
+
+            layers.append(lyr)
+
+            request = QgsFeatureRequest()
+            filter_expression = vis.get('filter')
+            if filter_expression:
+                request.setFilterExpression(filter_expression)
+            vis_field = vis['field']
+
+            LUT_SENSOR = {s['sensor_id']: s for s in vis['sensors']}
+
+            for feature in lyr.getFeatures(request):
+                feature: QgsFeature
+
+                attributeMap = feature.attributeMap()
+                tpData: dict = TemporalProfileUtils.profileDict(attributeMap[vis_field])
+
+                n = len(tpData[TemporalProfileUtils.Values])
+
+                y_values = []
+                x_dates = tpData[TemporalProfileUtils.Date]
+                colors = []
+                markers = []
+
+                all_sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
+                all_value_list = tpData[TemporalProfileUtils.Values]
+                all_dates = np.asarray(
+                    [ImageDateUtils.datetimeFromString(d) for d in tpData[TemporalProfileUtils.Date]])
+                # all_dates = np.asarray(range(n))
+
+                all_show = np.ones((n,))
+
+                all_x = all_dates.copy()
+                all_y = np.empty(n, dtype=object)
+                all_markers = np.empty(n, dtype=object)
+                all_marker_pens = np.empty(n, dtype=object)
+
+                # get the data to show
+                for i_sid, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+
+                    if sid not in LUT_SENSOR:
+                        match = self.timeSeries().findMatchingSensor(sid)
+                        if isinstance(match, SensorInstrument) and match.id() in LUT_SENSOR:
+                            LUT_SENSOR[sid] = LUT_SENSOR[match.id()]
+
+                    sensor_style = LUT_SENSOR.get(sid)
+                    if not sensor_style:
+                        # missing styling info. skip
+                        continue
+
+                    is_sensor = np.where(all_sidx == i_sid)[0]
+                    if len(is_sensor) == 0:
+                        continue
+
+                    sensor_values = np.asarray([all_value_list[j] for j in is_sensor])
+                    sensor_dates = all_dates[is_sensor]
+
+                    sensor_expression = sensor_style.get('expression')
+                    # todo: eval index expressions
+                    # y = y * 3
+                    # y = b('ndvi')
+                    # y = b('ndvi') # return ndvi values
+                    # y = b(1) # return values of 1st band
+                    # x = x
+                    sensor_y = sensor_values[:, 0]
+
+                    all_x[is_sensor] = sensor_dates
+                    all_y[is_sensor] = sensor_y
+
+                timestamps = [d.timestamp() for d in all_x]
+                data = {'x': timestamps,
+                        'y': all_y.astype(float)}
+                pdi = DateTimePlotDataItem(data)
+                new_plotitems.append(pdi)
+
+        self.mPlotWidget.plotItem.clear()
+        for item in new_plotitems:
+            self.mPlotWidget.plotItem.addItem(item)
 
     def initPlot(self):
 
@@ -205,13 +320,30 @@ class TemporalProfileVisualization(QObject):
             vis.setField(exampleField)
 
             if exampleData:
-                sensors = exampleData[TemporalProfileUtils.SensorIDs]
+                sensor_ids = exampleData[TemporalProfileUtils.SensorIDs]
+
+                ts = self.timeSeries()
+                if ts:
+                    sensors = []
+                    for sid in sensor_ids:
+                        match = ts.findMatchingSensor(sid)
+                        if match:
+                            if match not in sensors:
+                                sensors.append(match)
+                        elif sid not in sensors:
+                            sensors.append(sid)
+                else:
+                    sensors = sensor_ids
+
                 vis.addSensors(sensors)
 
-            self.mModel.addVisualization(vis)
+            self.mModel.addVisualizations(vis)
 
     def setTimeSeries(self, timeseries: TimeSeries):
-        self.mTimeSeries = timeseries
+        self.mModel.setTimeSeries(timeseries)
+
+    def timeSeries(self) -> TimeSeries:
+        return self.mModel.timeSeries()
 
     def project(self) -> QgsProject:
         return self.mProject
@@ -236,8 +368,15 @@ class TemporalProfileDock(QgsDockWidget):
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
 
+        self.actionRefreshPlot.triggered.connect(lambda: self.mVis.updatePlot())
+        self.actionAddVisualization.triggered.connect(self.mVis.createVisualization)
+        self.actionRemoveVisualization.triggered.connect(self.mVis.removeSelectedVisualizations)
+
     def setProject(self, project: QgsProject):
         self.mVis.setProject(project)
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mVis.setTimeSeries(timeseries)
+
+    def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
+        pass

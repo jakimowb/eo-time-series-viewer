@@ -60,9 +60,9 @@
        <bool>false</bool>
       </property>
       <addaction name="separator"/>
-      <addaction name="actionAddStyle2D"/>
-      <addaction name="actionRemoveStyle2D"/>
-      <addaction name="actionRefresh2D"/>
+      <addaction name="actionAddVisualization"/>
+      <addaction name="actionRemoveVisualization"/>
+      <addaction name="actionRefreshPlot"/>
       <addaction name="actionSaveTemporalProfiles"/>
      </widget>
     </item>
@@ -154,7 +154,7 @@
     </item>
    </layout>
   </widget>
-  <action name="actionRefresh2D">
+  <action name="actionRefreshPlot">
    <property name="icon">
     <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionReload.svg</normaloff>:/images/themes/default/mActionReload.svg</iconset>
@@ -166,7 +166,7 @@
     <string>Refresh Plot</string>
    </property>
   </action>
-  <action name="actionAddStyle2D">
+  <action name="actionAddVisualization">
    <property name="icon">
     <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
@@ -178,7 +178,7 @@
     <string>Adds a new profile visualization, e.g. to show different raster bands for the same temporal profile coordinate.</string>
    </property>
   </action>
-  <action name="actionRemoveStyle2D">
+  <action name="actionRemoveVisualization">
    <property name="icon">
     <iconset resource="../../../QGIS/images/images.qrc">
      <normaloff>:/images/themes/default/mActionRemove.svg</normaloff>:/images/themes/default/mActionRemove.svg</iconset>

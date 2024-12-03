@@ -1,13 +1,14 @@
+import datetime
 import re
 import sys
 from typing import List
 
 import numpy as np
 from matplotlib.dates import date2num
-from PyQt5.QtCore import pyqtSignal, QPointF
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QDateEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 
+from qgis.PyQt.QtCore import pyqtSignal, QPointF
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QDateEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 from eotimeseriesviewer.dateparser import dateDOY, num2date
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
@@ -70,7 +71,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         super().closeEvent(*args, **kwds)
 
     def temporalProfilePlotDataItems(self) -> List[TemporalProfilePlotDataItem]:
-        return [i for i in self.plotItem.items if isinstance(i, TemporalProfilePlotDataItem)]
+        return [i for i in self.plotItem.items if isinstance(i, DateTimePlotDataItem)]
 
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
@@ -94,9 +95,10 @@ class DateTimePlotWidget(pg.PlotWidget):
             nearest_index = -1
             nearest_distance = sys.float_info.max
 
-            date = num2date(x)
+            date = datetime.datetime.fromtimestamp(x)
+            # date = num2date(x)
             doy = dateDOY(date)
-            vb.updateCurrentDate(num2date(x, dt64=True))
+            vb.updateCurrentDate(date)
 
             positionInfo = 'Value:{:0.5f}\nDate {}\nDOY {}'.format(mousePoint.y(), date, doy)
             self.mInfoLabelCursor.setText(positionInfo, color=self.mInfoColor)
@@ -162,7 +164,7 @@ class DateTimePlotWidget(pg.PlotWidget):
                 self.mCrosshairLineH.setPos(mousePoint.y())
 
 
-class DateTimeAxis(pg.AxisItem):
+class DateTimeAxis(pg.DateAxisItem):
 
     def __init__(self, *args, **kwds):
         super(DateTimeAxis, self).__init__(*args, **kwds)
@@ -173,7 +175,7 @@ class DateTimeAxis(pg.AxisItem):
     def logTickStrings(self, values, scale, spacing):
         s = ""
 
-    def tickStrings(self, values, scale, spacing):
+    def __tickStrings(self, values, scale, spacing):
         strns = []
 
         if len(values) == 0:
@@ -235,6 +237,12 @@ class DateTimeAxis(pg.AxisItem):
             p.translate(-rect.center())  # revert coordinate system
             p.drawText(rect, flags, text)
             p.restore()  # restore the painter state
+
+
+class DateTimePlotDataItem(pg.PlotDataItem):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
 
 
 class DateTimeViewBox(pg.ViewBox):
@@ -336,11 +344,11 @@ class DateTimeViewBox(pg.ViewBox):
 
             self.setXRange(t0, t1)
 
-    def updateCurrentDate(self, date):
-        if isinstance(date, np.datetime64):
-            self.mCurrentDate = date
-            self.mActionMoveToDate.setData(date)
-            self.mActionMoveToDate.setText('Move maps to {}'.format(date))
+    def updateCurrentDate(self, dtg: datetime.datetime):
+        if isinstance(dtg, datetime.datetime):
+            self.mCurrentDate = dtg
+            self.mActionMoveToDate.setData(dtg)
+            self.mActionMoveToDate.setText('Move maps to {}'.format(dtg))
 
     def raiseContextMenu(self, ev):
 
@@ -349,7 +357,7 @@ class DateTimeViewBox(pg.ViewBox):
 
         plotDataItems = [item for item in self.scene().itemsNearEvent(ev) if
                          isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(),
-                                                                          TemporalProfilePlotDataItem)]
+                                                                          DateTimePlotDataItem)]
 
         xRange, yRange = self.viewRange()
         if min(xRange) > 0:

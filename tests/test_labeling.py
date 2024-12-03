@@ -21,20 +21,15 @@ import re
 import unittest
 
 import numpy as np
-from PyQt5.QtCore import QMetaType
 
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_BOOL, QMETATYPE_DOUBLE, QMETATYPE_INT, \
     QMETATYPE_QBYTEARRAY, QMETATYPE_QDATE, \
     QMETATYPE_QDATETIME, \
     QMETATYPE_QSTRING, \
     QMETATYPE_QTIME
-from eotimeseriesviewer.tests import TestObjects, EOTSVTestCase, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
-from eotimeseriesviewer.labeling import LabelWidget, gotoFeature
 start_app()
-
-from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryPanel, \
-    SpectralLibraryWidget
 
 from eotimeseriesviewer.docks import LabelDockWidget
 from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, shortcuts, \
@@ -42,6 +37,7 @@ from eotimeseriesviewer.labeling import LabelWidget, LabelAttributeTableModel, s
     LabelShortcutWidgetFactory, createWidgetSetup, quickLabelValue
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
+
 start_app()
 
 from eotimeseriesviewer.mapvisualization import MapView
@@ -51,7 +47,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.classification.classificationschem
 from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import createQgsField
 from eotimeseriesviewer.timeseries import TimeSeriesDate
-from qgis.PyQt.QtCore import Qt, QVariant, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
+from qgis.PyQt.QtCore import Qt, QPoint, QPointF, QEvent, QDate, QDateTime, QTime
 from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QMouseEvent
 from qgis.PyQt.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QMenu, QAction
 from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject, \
@@ -59,8 +55,9 @@ from qgis.core import QgsVectorLayer, QgsField, QgsEditorWidgetSetup, QgsProject
 from qgis.gui import QgsDualView, QgsMapLayerStyleManagerWidget, \
     QgsMapCanvas
 
-
 s = ""
+
+
 class TestLabeling(EOTSVTestCase):
 
     @classmethod
@@ -375,7 +372,7 @@ class TestLabeling(EOTSVTestCase):
         TS = TestObjects.createTimeSeries()
 
         tsd: TimeSeriesDate = TS[0]
-        tsd.setDate(np.datetime64('2019-02-05T11:23:42.00'))
+        tsd.setDTG(np.datetime64('2019-02-05T11:23:42.00'))
         tss = tsd[0]
         tss.mUri = '/path/to/image'
         tsd.sensor().setName('LND')

@@ -31,7 +31,35 @@ class TestDateParser(EOTSVTestCase):
         self.assertTrue(rl.isValid())
         self.assertTrue(ImageDateUtils.datetimeFromLayer(pathTmp) is None)
 
+        dt1 = datetime.datetime(2022, 1, 1)
+        self.assertTrue(ImageDateUtils.doiFromDateTime(dt1), 1)
+
+        dt2 = datetime.datetime(2023, 12, 31)
+        self.assertTrue(ImageDateUtils.doiFromDateTime(dt2), 365)
+
+        dt2 = datetime.datetime(2024, 12, 31)
+        self.assertTrue(ImageDateUtils.doiFromDateTime(dt2), 366)
         s = ""
+
+    def test_date_precission(self):
+        s = ""
+        examples = [
+            datetime.datetime(2024, 12, day=1),
+            datetime.datetime(2024, 12, 31),
+            datetime.datetime(2024, 12, 31, minute=24),
+            datetime.datetime(2024, 12, 31, minute=24, second=12),
+            datetime.datetime(2024, 12, 31, minute=24, second=12, microsecond=34),
+
+        ]
+        for i, dt in enumerate(examples):
+            txt_iso = dt.isoformat()
+            dt2 = datetime.datetime.fromisoformat(txt_iso)
+            assert dt == dt2
+            dt3 = ImageDateUtils.datetimeFromString(txt_iso)
+            if dt != dt3:
+                s = ""
+            self.assertEqual(dt3, dt,
+                             msg=f'Unable to reconstruct example {i + 1}:\nExpected {dt} from {txt_iso}, got {dt2}')
 
 
 if __name__ == '__main__':

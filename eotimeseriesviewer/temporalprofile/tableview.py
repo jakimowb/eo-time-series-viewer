@@ -1,14 +1,12 @@
 from typing import Iterator, List, Optional, Union
 
-from PyQt5.QtCore import QAbstractTableModel, QModelIndex, QSize, QSortFilterProxyModel, Qt
-from PyQt5.QtGui import QContextMenuEvent, QCursor, QPainter, QPalette
-from PyQt5.QtWidgets import QLabel, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QTableView
-from qgis._core import QgsExpression, QgsVectorLayer
-from qgis._gui import QgsFieldExpressionWidget
-
+from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, QSize, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtGui import QContextMenuEvent, QCursor, QPainter, QPalette
+from qgis.PyQt.QtWidgets import QLabel, QMenu, QStyledItemDelegate, QStyleOptionViewItem, QTableView
+from qgis.core import QgsExpression, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, PlotStyleDialog
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.temporalprofile.visualization import MultiSensorProfileStyle
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsContextGenerator
 from eotimeseriesviewer.temporalprofile.plotstyle import TemporalProfilePlotStyle
 from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
@@ -126,13 +124,6 @@ class PlotSettingsTableModel(QAbstractTableModel):
                 self.beginRemoveRows(parent, row, row)
                 self.mTemporalProfileLayer.remove(row)
                 self.endRemoveRows()
-
-    def multiSensorProfilePlotStyle(self) -> MultiSensorProfileStyle:
-
-        style = MultiSensorProfileStyle()
-        for tp in self.temporalProfileStyles():
-            style.setSensorStyle(tp.sensor().id(), tp)
-        return style
 
     def timeSeries(self) -> TimeSeries:
         return self.mTimeSeries

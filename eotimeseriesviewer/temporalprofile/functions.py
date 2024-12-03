@@ -524,8 +524,8 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
                          'Extracts values from a temporal profile',
                          lazyEval=True)
 
-    def clone(self) -> '':
-        return ()
+    def clone(self) -> 'ProfileValueExpressionFunction':
+        return ProfileValueExpressionFunction()
 
     def func_(self, values: List[QgsExpressionNode], context: QgsExpressionContext, parent, node):
         try:
@@ -572,7 +572,6 @@ class ProfileValueExpressionFunction(QgsScopedExpressionFunction):
             # return band number
             assert band >= 1, 'Band number must be >= 1'
             y_values = [tp[TemporalProfileUtils.Values][i][band - 1] for i in date_indices]
-
 
         elif isinstance(band, str):
             acronyms = TemporalProfileExpressionFunctionUtils.cachedAcronyms(context)

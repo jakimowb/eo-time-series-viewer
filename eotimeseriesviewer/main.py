@@ -274,15 +274,6 @@ class TaskManagerStatusButton(QToolButton):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.setLayout(QHBoxLayout())
 
-        from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
-        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask, TimeSeriesFindOverlapTask
-
-        self.mTrackedTasks = [
-            TemporalProfileLoaderTask,
-            TimeSeriesFindOverlapTask,
-            TimeSeriesLoadingTask
-        ]
-
         self.mInfoLabel = QLabel('', parent=self)
         # self.setStyleSheet('background-color:yellow')
         # self.mInfoLabel.setStyleSheet('background-color:#234521;')
@@ -338,11 +329,9 @@ class TaskManagerStatusButton(QToolButton):
     def activeTasks(self) -> List[QgsTask]:
         results = []
         for t in self.mManager.tasks():
-            if isinstance(t, QgsTask):
-                for taskType in self.mTrackedTasks:
-                    if isinstance(t, taskType):
-                        results.append(t)
-                        break
+            if isinstance(t, EOTSVTask):
+                results.append(t)
+                break
         return results
 
     def updateTaskInfo(self, *args):
@@ -470,9 +459,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
-        self.profileDock: TemporalProfileDock = self.ui.dockProfiles
+        # self.profileDock: TemporalProfileDock = self.ui.dockProfiles
         assert isinstance(self, EOTimeSeriesViewer)
-        self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
+        # self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 
         # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -586,7 +575,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionReloadProject.triggered.connect(self.reloadProject)
         self.ui.actionSaveProject.triggered.connect(iface.actionSaveProject().trigger)
 
-        self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
+        # self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
 
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
@@ -603,10 +592,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         # self.mMapLayerStore.addMapLayer(sl)
 
-        temporalProfileLayer = self.profileDock.temporalProfileLayer()
-        assert isinstance(temporalProfileLayer, QgsVectorLayer)
-        temporalProfileLayer.setName('EOTS Temporal Profiles')
-        self.mapLayerStore().addMapLayer(temporalProfileLayer)
+        # temporalProfileLayer = self.profileDock.temporalProfileLayer()
+        # assert isinstance(temporalProfileLayer, QgsVectorLayer)
+        # temporalProfileLayer.setName('EOTS Temporal Profiles')
+        # self.mapLayerStore().addMapLayer(temporalProfileLayer)
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mapLayerStore())
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
@@ -828,7 +817,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             mv = mapCanvas.mapView()
             assert isinstance(mv, MapView)
             mapCanvas.waitWhileRendering()
-            imgPath = '{}.{}.{}'.format(tsd.date(), mv.title(), format)
+            imgPath = '{}.{}.{}'.format(tsd.dtg(), mv.title(), format)
 
             imgPath = ''.join(c for c in imgPath if c in valid_chars)
             imgPath = imgPath.replace(' ', '_')
@@ -849,7 +838,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param mapView:
         :return:
         """
-        mapView.addLayer(self.profileDock.temporalProfileLayer())
+        # mapView.addLayer(self.profileDock.temporalProfileLayer())
         mapView.addSpectralProfileLayers()
 
         if len(self.mapViews()) == 1:
@@ -1389,8 +1378,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                         self.cntSpectralProfile += 1
                         assert isinstance(p, QgsFeature)
                         p2 = p.copyFieldSubset(fields=sl.fields())
-                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
-                        p2.setAttribute('date', '{}'.format(tsd.mDate))
+                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDTG))
+                        p2.setAttribute('date', '{}'.format(tsd.mDTG))
                         p2.setAttribute('doy', int(tsd.mDOY))
                         p2.setAttribute('sensor', tsd.mSensor.name())
                         profiles2.append(p2)

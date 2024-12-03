@@ -5,16 +5,14 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from uuid import uuid4
 
-from PyQt5.QtCore import QModelIndex, QSortFilterProxyModel
-from qgis._core import QgsMapLayer, QgsMapLayerModel
-
+from qgis.PyQt.QtCore import QModelIndex, QSortFilterProxyModel
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeature, QgsField, QgsFields, \
+    QgsMapLayer, QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, \
+    QgsVectorLayer
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.timeseries import sensor_id, sensorIDtoProperties
-from qgis.core import (Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeature, QgsField, QgsFields,
-                       QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter,
-                       QgsVectorLayer)
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],

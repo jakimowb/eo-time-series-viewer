@@ -39,7 +39,6 @@ from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QP
     QTime, QTimer
 from qgis.PyQt.QtGui import QColor, QFont, QIcon, QMouseEvent, QPainter
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QMenu, QSizePolicy, QStyle, QStyleOptionProgressBar
-
 import eotimeseriesviewer.settings
 from .labeling import quickLabelLayers, setQuickTSDLabelsForRegisteredLayers
 from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo
@@ -543,7 +542,7 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            varDate = str(tsd.date())
+            varDate = str(tsd.dtg())
             varDOY = tsd.doy()
             varSensor = tsd.sensor().name()
 
@@ -882,7 +881,7 @@ class MapCanvas(QgsMapCanvas):
         date = None
 
         if isinstance(tsd, TimeSeriesDate):
-            date = tsd.date()
+            date = tsd.dtg()
 
         from .main import EOTimeSeriesViewer
         eotsv = EOTimeSeriesViewer.instance()
@@ -1076,8 +1075,8 @@ class MapCanvas(QgsMapCanvas):
             menu.addSeparator()
             m = menu.addMenu('Copy...')
             action = m.addAction('Date')
-            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
-            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
+            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.dtg())))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.dtg())))
 
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
@@ -1227,9 +1226,9 @@ class MapCanvas(QgsMapCanvas):
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
                 tprop.setIsActive(True)
                 if isinstance(lyr.mTSS, TimeSeriesSource):
-                    dtg = lyr.mTSS.date().astype(object)
+                    dtg = lyr.mTSS.dtg().astype(object)
                 else:
-                    dtg = self.tsd().date().astype(object)
+                    dtg = self.tsd().dtg().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
                 dt2 = QDateTime(dtg, QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
@@ -1419,7 +1418,7 @@ class MapCanvas(QgsMapCanvas):
                                                     os.path.expanduser('~'))
         from eotimeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDate) and isinstance(self.mMapView, MapView):
-            path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
+            path = filenameFromString('{}.{}'.format(self.mTSD.dtg(), self.mMapView.title()))
         else:
             path = 'mapcanvas'
         path = os.path.join(lastDir, '{}.{}'.format(path, fileType.lower()))

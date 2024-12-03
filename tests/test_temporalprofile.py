@@ -14,9 +14,6 @@ from qgis._core import QgsFeature, QgsProject
 from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock
-from eotimeseriesviewer.temporalprofile.tableview import PlotSettingsTableModel, PlotSettingsTableView, \
-    PlotSettingsTableViewWidgetDelegate
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileLayerProxyModel, \
     TemporalProfileUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
@@ -113,18 +110,6 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         pass
 
-    def test_plotSettinsTableModel(self):
-
-        timeSeries = TestObjects.createTimeSeries()
-        layer = TestObjects.createProfileLayer(timeSeries)
-        model = PlotSettingsTableModel(layer, timeSeries)
-        view = PlotSettingsTableView()
-        delegate = PlotSettingsTableViewWidgetDelegate(view)
-        view.setItemDelegate(delegate)
-        view.setModel(model)
-
-        self.showGui(view)
-
     def test_temporal_profile_field(self):
 
         field = TemporalProfileUtils.createProfileField('myProfiles')
@@ -192,19 +177,6 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         cb.setModel(model)
 
         self.showGui(cb)
-
-    def test_TemporalProfileDock(self):
-
-        ts = TestObjects.createTimeSeries()
-        layer = TestObjects.createProfileLayer(ts)
-        l2 = TestObjects.createVectorLayer()
-        project = QgsProject()
-        project.addMapLayers([layer, l2])
-        dock = TemporalProfileDock()
-        dock.setTimeSeries(ts)
-        dock.setProject(project)
-
-        self.showGui(dock)
 
 
 if __name__ == "__main__":

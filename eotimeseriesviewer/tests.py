@@ -136,7 +136,7 @@ class TestObjects(TObj):
         for profile, point in zip(profiles, task.profilePoints()):
             f = QgsFeature(layer.fields())
             f.setGeometry(QgsGeometry.fromWkt(point.asWkt()))
-            profileJson = TemporalProfileUtils.profileJsonFromDict(profile)
+            # profileJson = TemporalProfileUtils.profileJsonFromDict(profile)
             f.setAttribute(tpFields[0].name(), profile)
             new_features.append(f)
 

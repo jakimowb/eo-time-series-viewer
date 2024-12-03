@@ -311,6 +311,15 @@ dateParserList = [
 ]
 
 
+def parseDateFromLayer(layer: QgsRasterLayer) -> Optional[datetime.datetime]:
+    assert isinstance(layer, QgsRasterLayer)
+    for parser in dateParserList:
+        dtg = parser(layer).readDTG()
+        if dtg:
+            return dtg
+    return None
+
+
 def parseDateFromDataSet(dataSet: gdal.Dataset) -> Optional[np.datetime64]:
     assert isinstance(dataSet, gdal.Dataset)
     for parser in dateParserList:
@@ -343,10 +352,25 @@ DATETIME_FORMATS = [
 class ImageDateUtils(object):
     PROPERTY_KEY = 'eotsv/dtg'
 
-    @staticmethod
-    def datetimeFromString(text: str) -> Optional[datetime.datetime]:
+    rxDTG = re.compile('((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
+
+    @classmethod
+    def datetimeFromString(cls, text: str) -> Optional[datetime.datetime]:
         if not isinstance(text, str):
             return None
+        # try ISO
+        try:
+            return datetime.datetime.fromisoformat(text)
+        except Exception as ex:
+            pass
+
+        try:
+            dtg = np.datetime64(text).astype(object)
+            if isinstance(dtg, datetime.date):
+                dtg = datetime.datetime(dtg.year, dtg.month, dtg.day)
+            return dtg
+        except Exception as ex:
+            pass
 
         for fmt in DATETIME_FORMATS:
             try:
@@ -359,12 +383,12 @@ class ImageDateUtils(object):
                     if match:
                         dtg = datetime.datetime.strptime(match.group('dtg'), fmt)
                         return dtg
-            except Exception as ex:
+            except Exception:
                 s = ""
         return None
 
-    @staticmethod
-    def datetimeFromLayer(layer: QgsRasterLayer) -> Optional[datetime.datetime]:
+    @classmethod
+    def datetimeFromLayer(cls, layer: QgsRasterLayer) -> Optional[datetime.datetime]:
         if isinstance(layer, Path):
             return ImageDateUtils.datetimeFromLayer(QgsRasterLayer(layer.as_posix()))
         elif isinstance(layer, str):
@@ -401,11 +425,27 @@ class ImageDateUtils(object):
                 # read from parent directory
                 dtg = ImageDateUtils.datetimeFromString(filepath.parent.name)
 
+            if not dtg:
+                # read from HTML metadata
+                html = layer.htmlMetadata()
+                if match := cls.rxDTG.search(html):
+                    dtg = ImageDateUtils.datetimeFromString(match.group('dtg'))
+
             if isinstance(dtg, datetime.datetime):
                 layer.setCustomProperty(ImageDateUtils.PROPERTY_KEY, dtg.isoformat())
             return dtg
 
-    @staticmethod
-    def datetimeFromDataProvider(dp: QgsRasterDataProvider) -> Optional[datetime.datetime]:
+    @classmethod
+    def doiFromDateTime(cls, dtg: datetime.datetime) -> int:
+
+        if isinstance(dtg, np.datetime64):
+            dtg = dtg.astype(object)
+
+        assert isinstance(dtg, datetime.datetime)
+        d0 = datetime.date(dtg.year, 1, 1)
+        return (dtg.date() - d0).days + 1
+
+    @classmethod
+    def datetimeFromDataProvider(cls, dp: QgsRasterDataProvider) -> Optional[datetime.datetime]:
         if not isinstance(dp, QgsRasterDataProvider) and dp.isValid():
             return None

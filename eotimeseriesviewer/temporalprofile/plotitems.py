@@ -1,11 +1,9 @@
-from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtGui import QColor, QPen
-from PyQt5.QtWidgets import QMenu, QSlider, QWidgetAction
-
+from qgis.PyQt.QtCore import QPoint, Qt
+from qgis.PyQt.QtGui import QColor, QPen
+from qgis.PyQt.QtWidgets import QAction, QMenu, QSlider, QWidgetAction
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkPen
 from eotimeseriesviewer.temporalprofile.plotstyle import TemporalProfilePlotStyle
-from qgis.PyQt.QtWidgets import QAction
 
 
 class TemporalProfilePlotDataItem(pg.PlotDataItem):

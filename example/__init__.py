@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from pathlib import Path
 
-thisDir = Path(__file__)
+thisDir = Path(__file__).parent
 images = thisDir / 'Images'
 # File path attributes:
 # Vector files:
