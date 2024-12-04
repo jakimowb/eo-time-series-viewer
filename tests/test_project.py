@@ -20,9 +20,10 @@
 
 import unittest
 
+from qgis._core import QgsVectorLayer
+
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
 from qgis.gui import QgsMapCanvas
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
@@ -60,8 +61,25 @@ class TestProjectIO(EOTSVTestCase):
             TSV.setCurrentDate(tsd)
 
         from example import exampleEvents
-        TSV.addVectorData(exampleEvents)
+        lyr = QgsVectorLayer(exampleEvents)
+        lyr.setName('MyTestLayer')
+        TSV.addMapLayers([lyr])
         assert len(QgsProject.instance().mapLayers()) == 0
+
+        def read_map_view_data(eotsv: EOTimeSeriesViewer) -> dict:
+            result = dict()
+            for mv in eotsv.mapViews():
+                layerData = []
+                for l in mv.layers():
+                    layerData.append({
+                        'source': l.source(),
+                        'name': l.name(),
+                        'provider': l.dataProvider().name()}
+                    )
+                result[mv.name()] = layerData
+            return result
+
+        settings1 = read_map_view_data(TSV)
 
         # save and read settings
         path = self.createTestOutputDirectory() / 'test.qgz'
@@ -69,6 +87,8 @@ class TestProjectIO(EOTSVTestCase):
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
 
         self.taskManagerProcessEvents()
+        settings2 = read_map_view_data(TSV)
+        self.assertEqual(settings1, settings2)
 
         self.showGui([TSV.ui])  #
 

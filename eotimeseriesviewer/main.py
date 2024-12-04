@@ -18,6 +18,7 @@
  *                                                                         *
  ***************************************************************************/
 """
+import json
 import os
 import pathlib
 import re
@@ -27,6 +28,7 @@ import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
 import numpy as np
+from PyQt5.QtXml import QDomCDATASection, QDomElement
 
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
@@ -628,17 +630,65 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         EOTimeSeriesViewer._instance = None
         self.mapWidget().onClose()
 
+    def asMap(self) -> dict:
+
+        d = {'TimeSeries': self.timeSeries().asMap(),
+             'MapWidget': self.mapWidget().asMap()}
+        return d
+
+    def asJson(self) -> str:
+        return json.dumps(self.asMap())
+
     def onWriteProject(self, dom: QDomDocument):
 
-        node = dom.createElement('EOTSV')
+        node: QDomElement = dom.createElement('EOTSV')
         root = dom.documentElement()
+        cdata: QDomCDATASection = dom.createCDATASection(self.asJson())
+        jsonNode = dom.createElement('jsonSettings')
+        jsonNode.appendChild(cdata)
+        node.appendChild(jsonNode)
 
+        dom.createElement('TimeSeries')
         # save time series
         self.timeSeries().writeXml(node, dom)
 
         # save map views
         self.mapWidget().writeXml(node, dom)
         root.appendChild(node)
+
+    def onReadProject(self, doc: QDomDocument) -> bool:
+        """
+        Reads images and visualization settings from a QgsProject QDomDocument
+        :param doc: QDomDocument
+        :return: bool
+        """
+        if not isinstance(doc, QDomDocument):
+            return False
+
+        root = doc.documentElement()
+        node = root.firstChildElement('EOTSV')
+        if node.nodeName() == 'EOTSV':
+            self.timeSeries().clear()
+
+            mapviews = self.mapViews()
+
+            for mv in mapviews:
+                self.mapWidget().removeMapView(mv)
+
+            jsonNode = node.firstChildElement('jsonSettings')
+
+            self.mapWidget().readXml(node)
+
+            mwNode = node.firstChildElement('MapWidget')
+            if mwNode.nodeName() == 'MapWidget' and mwNode.hasAttribute('mapDate'):
+                dt64 = datetime64(mwNode.attribute('mapDate'))
+                if isinstance(dt64, np.datetime64):
+                    self.mPostDataLoadingArgs['mapDate'] = dt64
+
+            self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
+            self.timeSeries().readXml(node)
+
+        return True
 
     def reloadProject(self, *args):
 
@@ -681,38 +731,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for d in to_remove:
             self.ui.removeDockWidget(d)
-
-    def onReadProject(self, doc: QDomDocument) -> bool:
-        """
-        Reads images and visualization settings from a QgsProject QDomDocument
-        :param doc: QDomDocument
-        :return: bool
-        """
-        if not isinstance(doc, QDomDocument):
-            return False
-
-        root = doc.documentElement()
-        node = root.firstChildElement('EOTSV')
-        if node.nodeName() == 'EOTSV':
-            self.timeSeries().clear()
-
-            mapviews = self.mapViews()
-
-            for mv in mapviews:
-                self.mapWidget().removeMapView(mv)
-
-            self.mapWidget().readXml(node)
-
-            mwNode = node.firstChildElement('MapWidget')
-            if mwNode.nodeName() == 'MapWidget' and mwNode.hasAttribute('mapDate'):
-                dt64 = datetime64(mwNode.attribute('mapDate'))
-                if isinstance(dt64, np.datetime64):
-                    self.mPostDataLoadingArgs['mapDate'] = dt64
-
-            self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
-            self.timeSeries().readXml(node)
-
-        return True
 
     def onPostDataLoading(self):
         """

@@ -29,6 +29,7 @@ import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
+
 import qgis.utils
 from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
@@ -41,7 +42,6 @@ from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouse
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
@@ -324,6 +324,21 @@ class MapView(QFrame):
 
             lyrNode = lyrNode.nextSiblingElement()
         return mapView
+
+    def asMap(self) -> dict:
+
+        sensor_styles = dict()
+        for s in self.sensorProxyLayers():
+            pass
+
+        d = {'name': self.name(),
+             'bg': self.mapBackgroundColor().name(),
+             'visible': self.isVisible(),
+             'infoexpression': self.mapInfoExpression(),
+             'sensor_styles': sensor_styles,
+             }
+
+        return d
 
     def writeXml(self, node: QDomNode, doc: QDomDocument):
 
@@ -1492,6 +1507,16 @@ class MapWidget(QFrame):
             if len(canvases) > 0:
                 position = min(position, len(canvases) - 1)
                 self.setCurrentMapCanvas(canvases[position])
+
+    def asMap(self) -> dict:
+        d = {'map_size_x': self.mapSize().width(),
+             'map_size_y': self.mapSize().height(),
+             'crs': self.crs().toWkt(),
+             'maps_per_view': self.mapsPerMapView(),
+             'map_views': [mv.asMap() for mv in self.mapViews()]
+             }
+
+        return d
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """
