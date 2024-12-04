@@ -36,6 +36,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
     QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
@@ -46,7 +47,6 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
     QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, QgsTaskManager
 from qgis.gui import QgisInterface, QgsDockWidget
-
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.unitmodel import UnitLookup
@@ -382,7 +382,7 @@ class SensorInstrument(QObject):
 
 
 class SensorMockupDataProvider(QgsRasterDataProvider):
-    ALL_INSTANCES = []
+    ALL_INSTANCES = dict()
 
     def __init__(self,
                  sid: str,
@@ -396,8 +396,6 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         sensor = SensorInstrument(sid)
         self.mSensor: SensorInstrument = sensor
         self.mCrs = QgsCoordinateReferenceSystem('EPSG:4326')
-        self.ALL_INSTANCES.append(self)
-        print(f'## Created {len(self.ALL_INSTANCES)}: {self}')
 
     def setSensor(self, sensor: SensorInstrument):
         assert isinstance(sensor, SensorInstrument)
@@ -431,9 +429,6 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
     def bandCount(self):
         return self.mSensor.nb
 
-    def clone(self):
-        return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
-
     def sourceDataType(self, bandNo: int):
         return self.dataType(bandNo)
 
@@ -450,7 +445,26 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         # compatibility with Qgis < 3.16, ReadFlags only available since 3.16
         flags = QgsDataProvider.ReadFlags()
         provider = SensorMockupDataProvider(uri, providerOptions, flags)
+
+        # keep a python reference on the new provider instance
+        cls.ALL_INSTANCES[id(provider)] = provider
+        # print(f'## Created {len(cls.ALL_INSTANCES)}: {provider}')
         return provider
+
+    def clone(self):
+        return self.createProvider(self.mSid, self.mProviderOptions, self.mFlags)
+        # return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
+
+    def setParent(self, parent: QObject):
+        # print(f'# setParent{parent}')
+        super().setParent(parent)
+        parent.destroyed.connect(self.objectDestroyed)
+
+    def objectDestroyed(self):
+        myId = id(self)
+        if myId in self.ALL_INSTANCES:
+            self.ALL_INSTANCES.pop(myId)
+            print(f'## Removed {myId}')
 
 
 def registerDataProvider():

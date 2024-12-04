@@ -7,14 +7,14 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, osr
+
+from qgis.gui import QgsMapCanvas, QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
-from qgis.gui import QgsTaskManagerWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
-
 import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
@@ -422,6 +422,9 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertEqual(sensor, sensor2)
 
         lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
+        del lyr
+
+        lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
         dp = lyr.dataProvider()
         self.assertIsInstance(dp, SensorMockupDataProvider)
 
@@ -430,8 +433,15 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertNotEqual(id(dp), id(dp2))
 
         s = dp2.capabilities()
-
         self.assertEqual(nb, dp2.bandCount())
+
+        lyr = QgsRasterLayer(sid, 'TestLayer2', SensorMockupDataProvider.providerKey())
+
+        canvas = QgsMapCanvas()
+        canvas.show()
+        canvas.setLayers([lyr])
+        canvas.zoomToFullExtent()
+        self.showGui(canvas)
 
     def test_sensors(self):
 
