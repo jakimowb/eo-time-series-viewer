@@ -20,10 +20,11 @@
 
 import unittest
 
+from PyQt5.QtCore import QSize
 from qgis._core import QgsVectorLayer
-
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
 from qgis.gui import QgsMapCanvas
+
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
@@ -79,16 +80,34 @@ class TestProjectIO(EOTSVTestCase):
                 result[mv.name()] = layerData
             return result
 
-        settings1 = read_map_view_data(TSV)
+        settings1 = TSV.asMap()
 
-        # save and read settings
-        path = self.createTestOutputDirectory() / 'test.qgz'
+        # save settings
+        path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
-        self.assertTrue(QgsProject.instance().read(path.as_posix()))
 
+        # read settings
+        self.assertTrue(QgsProject.instance().read(path.as_posix()))
         self.taskManagerProcessEvents()
-        settings2 = read_map_view_data(TSV)
-        self.assertEqual(settings1, settings2)
+
+        settings2 = TSV.asMap()
+
+        self.assertEqualItem(settings1, settings2)
+
+        # do some changes
+        TSV.setMapSize(QSize(300, 100))
+        mv = TSV.createMapView('My New MapView')
+
+        settings3 = TSV.asMap()
+        self.assertNotEqual(settings1, settings3)
+        QgsProject.instance().write(path.as_posix())
+
+        TSV.mapWidget().removeAllMapViews()
+        TSV.timeSeries().clear()
+
+        self.assertNotEqual(settings3, TSV.asMap())
+        QgsProject.instance().read(path.as_posix())
+        self.assertEqualItem(settings3, TSV.asMap())
 
         self.showGui([TSV.ui])  #
 

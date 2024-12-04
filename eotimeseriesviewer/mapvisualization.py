@@ -29,19 +29,19 @@ import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
-
 import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QModelIndex, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
+from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
+    QWidget
+from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
 from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
     QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProject, \
     QgsRasterLayer, QgsRasterRenderer, QgsReadWriteContext, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QModelIndex, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
-from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
-    QWidget
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
@@ -328,8 +328,11 @@ class MapView(QFrame):
     def asMap(self) -> dict:
 
         sensor_styles = dict()
-        for s in self.sensorProxyLayers():
-            pass
+        for lyr in self.sensorProxyLayers():
+            style = QgsMapLayerStyle()
+            style.readFromLayer(lyr)
+            sid = lyr.source()
+            sensor_styles[sid] = style.xmlData()
 
         d = {'name': self.name(),
              'bg': self.mapBackgroundColor().name(),
@@ -339,6 +342,24 @@ class MapView(QFrame):
              }
 
         return d
+
+    def fromMap(self, data: dict):
+
+        if 'bg' in data:
+            self.setMapBackgroundColor(QColor(data.get('bg')))
+        if 'infoexpression' in data:
+            self.setMapInfoExpression(data.get('infoexpression'))
+
+        self.setVisibility(data.get('visible', self.isVisible()))
+        sensor_styles = data.get('sensor_styles', {})
+        for lyr in self.sensorProxyLayers():
+            styleXml = sensor_styles.get(lyr.source())
+            if styleXml:
+                doc = QDomDocument()
+                doc.setContent(f'<LayerStyle>{styleXml}</LayerStyle>)')
+                style = QgsMapLayerStyle()
+                style.readXml(doc.documentElement())
+                style.writeToLayer(lyr)
 
     def writeXml(self, node: QDomNode, doc: QDomDocument):
 
@@ -1518,6 +1539,27 @@ class MapWidget(QFrame):
 
         return d
 
+    def fromMap(self, data: dict):
+
+        self.removeAllMapViews()
+
+        w, h = self.mapSize().width(), self.mapSize().height()
+        w, h = data.get('map_size_x', w), data.get('map_size_y', h)
+        self.setMapSize(QSize(w, h))
+        if (wkt := data.get('crs')):
+            crs = QgsCoordinateReferenceSystem.fromWkt(wkt)
+            if crs.isValid():
+                self.setCrs(crs)
+        if (maps_per_view := data.get('maps_per_viiew')):
+            cols, rows = maps_per_view
+            self.setMapsPerMapView(cols, rows)
+
+        for mv in data.get('map_views', []):
+            mapView = MapView(name=mv.get('name'))
+            mapView.setTimeSeries(self.timeSeries())
+            mapView.fromMap(mv)
+            mapView = self.addMapView(mapView)
+
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """
         Writes the MapWidget settings to a QDomNode
@@ -1967,6 +2009,12 @@ QSlider::add-page {{
         if isinstance(mapView, MapView):
             self.setCurrentMapView(mapView)
         self.sigCurrentLayerChanged.emit(layer)
+
+    def removeAllMapViews(self):
+
+        to_remove = reversed(self.mMapViews)
+        for mv in to_remove:
+            self.removeMapView(mv)
 
     def removeMapView(self, mapView: MapView) -> MapView:
         """

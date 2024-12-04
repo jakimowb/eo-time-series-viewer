@@ -36,7 +36,6 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
-
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
     QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
@@ -47,6 +46,7 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
     QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, QgsTaskManager
 from qgis.gui import QgisInterface, QgsDockWidget
+
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.unitmodel import UnitLookup
@@ -2422,6 +2422,35 @@ class TimeSeries(QAbstractItemModel):
         :rtype:
         """
         return [tsd for tsd in self if not tsd.checkState() == Qt.Unchecked]
+
+    def asMap(self) -> dict:
+
+        d = {}
+        sources = []
+        for tss in self.timeSeriesSources():
+            tss: TimeSeriesSource
+            sources.append({
+                'uri': tss.mUri,
+                'visible': tss.isVisible()
+            })
+        d['sources'] = sources
+        return d
+
+    def fromMap(self, data: dict):
+
+        self.clear()
+
+        sources = []
+        for d in data.get('sources', []):
+            uri = d.get('uri')
+
+            if uri:
+                tss = TimeSeriesSource.create(uri)
+                if isinstance(tss, TimeSeriesSource):
+                    sources.append(tss)
+
+        if len(sources) > 0:
+            self.addTimeSeriesSources(sources)
 
     def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
         """

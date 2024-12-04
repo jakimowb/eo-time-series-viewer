@@ -12,22 +12,23 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 __date__ = '2017-07-17'
 __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
+import os
 import re
 import unittest
-import os
 
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtWidgets import QTableView
+from qgis.core import QgsGeometry, QgsMapLayer, QgsPointXY, QgsProject, QgsTask
+from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
+
 import example.Images
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyleButton
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.temporalprofiles import geometryToPixel, TemporalProfile, TemporalProfileLayer, \
     TemporalProfileLoaderTask, TemporalProfileTableModel
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries, TimeSeriesSource
-from qgis.core import QgsGeometry, QgsMapLayer, QgsPointXY, QgsProject, QgsTask
-from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
 
 start_app()
 
@@ -73,6 +74,9 @@ class TestTemporalProfiles(EOTSVTestCase):
     def test_temporalprofileloadertaskinfo(self):
 
         DIR_FORCE = r'D:\EOTSV\FORCE_CUBE'
+        if not os.path.isdir(DIR_FORCE):
+            return
+
         timeSeries = TimeSeries()
 
         files = file_search(DIR_FORCE, re.compile(r'.*_BOA.tif$'), recursive=True)

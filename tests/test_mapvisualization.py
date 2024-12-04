@@ -20,12 +20,12 @@ import os
 import unittest
 
 import numpy as np
-
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
+
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 
 start_app()
 
@@ -234,7 +234,6 @@ class TestMapVisualization(EOTSVTestCase):
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
         lyr.setName('Layer1 NAME')
-        lyr.setTitle('Layer1 title')
         lyr2 = TestObjects.createVectorLayer()
         lyr2.setName('Layer2 name')
 

@@ -26,8 +26,8 @@ from typing import List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
-from qgis.core import QgsApplication
 from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import QgsApplication
 
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -76,6 +76,20 @@ class EOTSVTestCase(TestCase):
         if isinstance(w, QWidget):
             print('Close blocking {} "{}"'.format(w.__class__.__name__, w.windowTitle()))
             w.close()
+
+    def assertEqualItem(self, d1, d2):
+        self.assertEqual(type(d1), type(d2))
+        if isinstance(d1, dict):
+            self.assertEqual(d1.keys(), d2.keys())
+            for k in d1.keys():
+                self.assertEqualItem(d1[k], d2[k])
+        elif isinstance(d1, list):
+            for v1, v2 in zip(d1, d2):
+                self.assertEqualItem(v1, v2)
+        else:
+            if d1 != d2:
+                s = ""
+            self.assertEqual(d1, d2)
 
 
 def example_raster_files(pattern: Union[str, Pattern, Match] = '*.tif') -> List[str]:

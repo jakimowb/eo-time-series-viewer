@@ -22,17 +22,26 @@ import json
 import os
 import pathlib
 import re
-# noinspection PyPep8Naming
 import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import numpy as np
-from PyQt5.QtXml import QDomCDATASection, QDomElement
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomElement
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, QgsProject, \
+    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
+    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
+    QgsStatusBar, QgsTaskManagerWidget
 
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
-import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -44,17 +53,6 @@ from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, Sens
     TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, QgsProject, \
-    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
-    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomDocument
 from .about import AboutDialogUI
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
@@ -67,7 +65,7 @@ from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileVal
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
 from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLayerProfileSource
 from .qgispluginsupport.qps.subdatasets import subLayers
-from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
 from .utils import fixMenuButtons
 
@@ -627,6 +625,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def onClose(self):
         debugLog('Close EOTSV')
+
         EOTimeSeriesViewer._instance = None
         self.mapWidget().onClose()
 
@@ -636,8 +635,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
              'MapWidget': self.mapWidget().asMap()}
         return d
 
+    def fromMap(self, map_data: dict):
+
+        self.timeSeries().fromMap(map_data.get('TimeSeries'))
+        self.mapWidget().fromMap(map_data.get('MapWidget'))
+
     def asJson(self) -> str:
         return json.dumps(self.asMap())
+
+    def fromJson(self, jsonText: str):
+
+        data = json.loads(jsonText)
+
+        if isinstance(data, dict):
+            self.fromMap(data)
 
     def onWriteProject(self, dom: QDomDocument):
 
@@ -647,13 +658,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         jsonNode = dom.createElement('jsonSettings')
         jsonNode.appendChild(cdata)
         node.appendChild(jsonNode)
-
-        dom.createElement('TimeSeries')
-        # save time series
-        self.timeSeries().writeXml(node, dom)
-
-        # save map views
-        self.mapWidget().writeXml(node, dom)
         root.appendChild(node)
 
     def onReadProject(self, doc: QDomDocument) -> bool:
@@ -675,18 +679,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             for mv in mapviews:
                 self.mapWidget().removeMapView(mv)
 
-            jsonNode = node.firstChildElement('jsonSettings')
+            jsonText = node.firstChildElement('jsonSettings').text()
+            self.fromJson(jsonText)
 
-            self.mapWidget().readXml(node)
-
-            mwNode = node.firstChildElement('MapWidget')
-            if mwNode.nodeName() == 'MapWidget' and mwNode.hasAttribute('mapDate'):
-                dt64 = datetime64(mwNode.attribute('mapDate'))
-                if isinstance(dt64, np.datetime64):
-                    self.mPostDataLoadingArgs['mapDate'] = dt64
-
-            self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
-            self.timeSeries().readXml(node)
+            return
 
         return True
 
