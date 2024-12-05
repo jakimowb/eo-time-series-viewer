@@ -14,7 +14,6 @@ from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData,
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
-from qgis.PyQt.QtXml import QDomDocument
 import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
@@ -460,14 +459,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         lyr = sensor.proxyRasterLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
-
-        doc = QDomDocument('eotsv')
-        node = doc.createElement('MySensor')
-        sensor.writeXml(node, doc)
-
-        sensor3 = SensorInstrument.readXml(node)
-
-        self.assertEqual(sensor, sensor3)
 
     def test_TimeSeriesTreeModel(self):
 

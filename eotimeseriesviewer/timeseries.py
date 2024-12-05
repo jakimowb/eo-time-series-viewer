@@ -36,17 +36,17 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
     QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
     QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
     QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
     QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, QgsTaskManager
 from qgis.gui import QgisInterface, QgsDockWidget
-
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.unitmodel import UnitLookup
@@ -272,29 +272,6 @@ class SensorInstrument(QObject):
             if self.wlu is not None:
                 self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
             self.mMockupDS.FlushCache()
-
-    @staticmethod
-    def readXml(node: QDomNode):
-        sensor: SensorInstrument = None
-        nodeId = node.firstChildElement('SensorId').toElement()
-        if nodeId.nodeName() == 'SensorId':
-            sid = nodeId.firstChild().nodeValue()
-            sensor = SensorInstrument(sid)
-
-        nodeName = node.firstChildElement('SensorName').toElement()
-        if isinstance(sensor, SensorInstrument) and nodeName.nodeName() == 'SensorName':
-            name = nodeName.firstChild().nodeValue()
-            sensor.setName(name)
-        return sensor
-
-    def writeXml(self, node: QDomNode, doc: QDomDocument):
-
-        nodeId = doc.createElement('SensorId')
-        nodeId.appendChild(doc.createTextNode(self.id()))
-        nodeName = doc.createElement('SensorName')
-        nodeName.appendChild(doc.createTextNode(self.name()))
-        node.appendChild(nodeId)
-        node.appendChild(nodeName)
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
@@ -2440,77 +2417,23 @@ class TimeSeries(QAbstractItemModel):
 
         self.clear()
 
+        uri_vis = dict()
+
         sources = []
         for d in data.get('sources', []):
             uri = d.get('uri')
 
             if uri:
                 tss = TimeSeriesSource.create(uri)
+                uri_vis[tss.uri()] = d.get('visible', True)
                 if isinstance(tss, TimeSeriesSource):
                     sources.append(tss)
 
         if len(sources) > 0:
             self.addTimeSeriesSources(sources)
 
-    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
-        """
-        Writes the TimeSeries to a QDomNode
-        :param node: QDomElement
-        :param doc: QDomDocument
-        :return: bool
-        """
-        tsNode = doc.createElement('TimeSeries')
-
-        for sensor in self.sensors():
-            sensorNode = doc.createElement('Sensor')
-            sensor.writeXml(sensorNode, doc)
-            tsNode.appendChild(sensorNode)
-
-        for tss in self.sources():
-            assert isinstance(tss, TimeSeriesSource)
-            tssNode = doc.createElement('TimeSeriesSource')
-            tssNode.setAttribute('isVisible', str(tss.isVisible()))
-            tssNode.appendChild(doc.createTextNode((tss.uri())))
-            tsNode.appendChild(tssNode)
-        node.appendChild(tsNode)
-        return True
-
-    def readXml(self, node: QDomNode):
-        if not node.nodeName() == 'TimeSeries':
-            node = node.firstChildElement('TimeSeries')
-        if node.isNull():
-            return None
-
-        sensorNode = node.firstChildElement('Sensor')
-        while sensorNode.nodeName() == 'Sensor':
-            sensor = SensorInstrument.readXml(sensorNode)
-
-            if isinstance(sensor, SensorInstrument):
-                sid = sensor.id()
-                name = sensor.name()
-                self.addSensor(sensor)
-
-                # set name on sensor instance (which might be already there)
-                sensor = self.sensor(sid)
-                if isinstance(sensor, SensorInstrument):
-                    sensor.setName(name)
-            sensorNode = sensorNode.nextSiblingElement()
-
-        tssNode = node.firstChildElement('TimeSeriesSource')
-        to_add = []
-        tss_visibility = []
-        while tssNode.nodeName() == 'TimeSeriesSource':
-            uri = tssNode.firstChild().nodeValue()
-            to_add.append(uri)
-            if tssNode.hasAttribute('isVisible'):
-                tss_visibility.append(str(tssNode.attribute('isVisible')).lower() in ['1', 'true'])
-            else:
-                tss_visibility.append(True)
-
-            tssNode = tssNode.nextSiblingElement()
-
-        if len(to_add) > 0:
-            self.addSources(to_add, visibility=tss_visibility, runAsync=True)
+        for tss in self.timeSeriesSources():
+            tss.setIsVisible(uri_vis.get(tss.uri(), tss.isVisible()))
 
     def data(self, index, role):
         """
