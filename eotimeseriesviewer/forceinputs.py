@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 from typing import List, Union
 
-from qgis.PyQt.QtCore import pyqtSignal
+from qgis.PyQt.QtCore import pyqtSignal, Qt
 from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.gui import QgsFileWidget
@@ -11,14 +11,14 @@ from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
 
 FORCE_PRODUCTS = {
-    'BOA': (r'.*BOA\.(tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
-    'TOA': (r'.*TOA\.(tif|dat|hdr)$', 'Top-of-Atmosphere Reflectance (TOA)'),
-    'QAI': (r'.*QAI\.(tif|dat|hdr)$', 'Quality Assurance Information (QAI)'),
-    'AOD': (r'.*AOD\.(tif|dat|hdr)$', 'Aerosol Optical Depth (AOD)'),
-    'DST': (r'.*DST\.(tif|dat|hdr)$', 'Cloud / Cloud shadow /Snow distance (DST)'),
-    'WVP': (r'.*WVP\.(tif|dat|hdr)$', 'Water vapor (WVP)'),
-    'VZN': (r'.*VZN\.(tif|dat|hdr)$', 'View zenith (VZN)'),
-    'HOT': (r'.*HOT\.(tif|dat|hdr)$', 'Haze Optimized Transformation (HOT)'),
+    'BOA': (r'.*BOA\.(vrt|tif|dat|hdr)$', 'Bottom of Atmosphere (BOA)'),
+    'TOA': (r'.*TOA\.(vrt|tif|dat|hdr)$', 'Top-of-Atmosphere Reflectance (TOA)'),
+    'QAI': (r'.*QAI\.(vrt|tif|dat|hdr)$', 'Quality Assurance Information (QAI)'),
+    'AOD': (r'.*AOD\.(vrt|tif|dat|hdr)$', 'Aerosol Optical Depth (AOD)'),
+    'DST': (r'.*DST\.(vrt|tif|dat|hdr)$', 'Cloud / Cloud shadow /Snow distance (DST)'),
+    'WVP': (r'.*WVP\.(vrt|tif|dat|hdr)$', 'Water vapor (WVP)'),
+    'VZN': (r'.*VZN\.(vrt|tif|dat|hdr)$', 'View zenith (VZN)'),
+    'HOT': (r'.*HOT\.(vrt|tif|dat|hdr)$', 'Haze Optimized Transformation (HOT)'),
 }
 
 
@@ -65,6 +65,7 @@ class FORCEProductImportDialog(QDialog):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         loadUi(DIR_UI / 'forceproductimportdialog.ui', self)
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.mModel = OptionListModel()
         for p, (r, n) in FORCE_PRODUCTS.items():
             self.mModel.addOption(Option(p, name=n))

@@ -2,23 +2,21 @@ import enum
 import pathlib
 import sys
 from json import JSONDecodeError
-from typing import Union, List, Any
+from typing import Any, List, Union
 
-from qgis.PyQt.QtGui import QPen
-
-from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
-from qgis.PyQt.QtCore import QSize, QSettings, QVariant, QByteArray, QAbstractTableModel, QModelIndex, Qt, \
-    QSortFilterProxyModel, QItemSelectionModel, QItemSelection
-from qgis.PyQt.QtGui import QColor, QFont
-from qgis.PyQt.QtWidgets import QDialog, QComboBox, QDialogButtonBox
-from qgis.PyQt.QtXml import QDomDocument
 from osgeo import gdal
-from qgis.core import QgsReadWriteContext, QgsTextFormat, QgsTextBufferSettings, QgsUnitTypes
-from qgis.gui import QgsFileWidget
 
+from qgis.PyQt.QtGui import QColor, QFont, QPen
+from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
+from qgis.PyQt.QtCore import QAbstractTableModel, QByteArray, QItemSelection, QItemSelectionModel, QModelIndex, \
+    QSettings, QSize, QSortFilterProxyModel, Qt, QVariant
+from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import QgsReadWriteContext, QgsTextBufferSettings, QgsTextFormat, QgsUnitTypes
+from qgis.gui import QgsFileWidget
 from eotimeseriesviewer import __version__ as EOTSV_VERSION, DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
-from eotimeseriesviewer.timeseries import SensorMatching, SensorInstrument
+from eotimeseriesviewer.timeseries import SensorInstrument, SensorMatching
 
 
 class Keys(enum.Enum):

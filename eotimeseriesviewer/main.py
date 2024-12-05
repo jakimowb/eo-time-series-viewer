@@ -1616,8 +1616,15 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def loadFORCEProducts(self):
 
         d = FORCEProductImportDialog(parent=self.ui)
+        if force_root := eotsv_settings.settings().value('force_root'):
+            d.setRootFolder(force_root)
+        if force_product := eotsv_settings.settings().value('force_product'):
+            d.setProductType(force_product)
 
         if d.exec_() == QDialog.Accepted:
+            eotsv_settings.settings().setValue('force_root', str(d.rootFolder()))
+            eotsv_settings.settings().setValue('force_product', d.productType())
+
             task = FindFORCEProductsTask(d.productType(), d.rootFolder())
 
             def onCompleted(t: FindFORCEProductsTask):
