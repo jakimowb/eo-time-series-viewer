@@ -1344,6 +1344,8 @@ class MapCanvas(QgsMapCanvas):
         dp: QgsRasterDataProvider = layer.dataProvider()
         newRenderer = None
         extent = spatialExtent.toCrs(layer.crs())
+        if not isinstance(extent, SpatialExtent):
+            return
 
         assert isinstance(dp, QgsRasterDataProvider)
 
