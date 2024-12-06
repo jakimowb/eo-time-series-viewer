@@ -320,7 +320,7 @@ class FORCEProductImportDialog(QDialog):
         return read_tileids(tile_text)
 
     def onFinished(self):
-        print('# FINISHED')
+        # print('# FINISHED')
         for t in self.mTasks:
             t.cancel()
         self.mTasks.clear()
