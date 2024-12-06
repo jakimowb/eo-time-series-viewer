@@ -27,6 +27,9 @@ import time
 import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from qgis.PyQt.QtCore import QTextStream, QByteArray
+from qgis.core import QgsApplication, QgsMultiBandColorRenderer
+
 import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
@@ -90,6 +93,22 @@ class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
         return context
 
 
+def layerStyleString(layer: QgsMapLayer) -> str:
+    # style = QgsMapLayerStyle()
+    # style.readFromLayer(layer)
+    # xmlData = style.xmlData()
+    doc = QDomDocument()
+    err = layer.exportNamedStyle(doc,
+                                 categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
+    ba = QByteArray()
+    stream = QTextStream(ba)
+    stream.setCodec('utf-8')
+    doc.documentElement().save(stream, 0)
+    xmlData = str(ba, 'utf-8')
+
+    return xmlData
+
+
 class MapView(QFrame):
     """
     A MapView defines how a single map canvas visualizes sensor specific EOTS data plus additional vector overlays
@@ -98,7 +117,6 @@ class MapView(QFrame):
     sigCanvasAppearanceChanged = pyqtSignal()
     sigCrosshairChanged = pyqtSignal()
     sigTitleChanged = pyqtSignal(str)
-    sigSensorRendererChanged = pyqtSignal(SensorInstrument, QgsRasterRenderer)
     sigCurrentLayerChanged = pyqtSignal(QgsMapLayer)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
@@ -251,23 +269,22 @@ class MapView(QFrame):
     MKeyTextExpression = 'text_expression'
     MKeyBGColor = 'map_background_color'
     MKeyIsVisible = 'visible'
-    MkeySensorStyle = 'sensor_styles'
+    MKeySensorStyle = 'sensor_styles'
 
     def asMap(self) -> dict:
 
         sensor_styles = dict()
+
         for lyr in self.sensorProxyLayers():
-            style = QgsMapLayerStyle()
-            style.readFromLayer(lyr)
             sid = lyr.source()
-            sensor_styles[sid] = style.xmlData()
+            sensor_styles[sid] = layerStyleString(lyr)
 
         d = {self.MKeyName: self.name(),
              self.MKeyTextFormat: self.mapTextFormat().toMimeData().text(),
              self.MKeyBGColor: self.mapBackgroundColor().name(),
              self.MKeyIsVisible: self.isVisible(),
              self.MKeyTextExpression: self.mapInfoExpression(),
-             self.MkeySensorStyle: sensor_styles,
+             self.MKeySensorStyle: sensor_styles,
              }
 
         return d
@@ -293,16 +310,21 @@ class MapView(QFrame):
         if b := data.get(self.MKeyIsVisible):
             self.setVisibility(b)
 
-        if sensor_styles := data.get(self.MkeySensorStyle):
-            for lyr in self.sensorProxyLayers():
-                if styleXml := sensor_styles.get(lyr.source()):
+        if sensor_styles := data.get(self.MKeySensorStyle):
+            for sid, styleXml in sensor_styles.items():
+                lyr = self.sensorProxyLayer(sid)
+                if not isinstance(lyr, QgsRasterLayer):
+                    s = ""
+                else:
                     doc = QDomDocument()
                     doc.setContent(f'<LayerStyle>{styleXml}</LayerStyle>)')
                     style = QgsMapLayerStyle()
                     style.readXml(doc.documentElement())
-                    r1 = lyr.renderer()
                     style.writeToLayer(lyr)
-                    r2 = lyr.renderer()
+                    style2 = layerStyleString(lyr)
+                    if style2 != styleXml:
+                        s = ""
+
                     s = ""
 
     def setName(self, name: str):
@@ -504,6 +526,8 @@ class MapView(QFrame):
         :param timeSeries: TimeSeries
         """
         assert isinstance(timeSeries, TimeSeries)
+        if self.mTimeSeries == timeSeries:
+            return
 
         for s in self.sensors():
             self.removeSensor(s)
@@ -1489,6 +1513,17 @@ class MapWidget(QFrame):
 
         return d
 
+    def _allReds(self):
+        QgsApplication.processEvents()
+        self.timedRefresh()
+        QgsApplication.processEvents()
+        reds = []
+        for mv in self.mapViews():
+            for lyr in mv.sensorProxyLayers():
+                if isinstance(lyr.renderer(), QgsMultiBandColorRenderer):
+                    reds.append(lyr.renderer().redContrastEnhancement().minimumValue())
+        return reds
+
     def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
         self.removeAllMapViews()
@@ -1506,20 +1541,30 @@ class MapWidget(QFrame):
             cols, rows = maps_per_view
             self.setMapsPerMapView(cols, rows)
 
+        reds_before = []
+        reds_after = []
         for mv in data.get(self.MKeyMapViews, []):
             mapView = MapView()
             mapView.setTimeSeries(self.timeSeries())
             mapView.fromMap(mv)
-            mapView = self.addMapView(mapView)
 
+            reds_before.append(self._allReds())
+            self.addMapView(mapView)
+            reds_after.append(self._allReds())
+            s = ""
+
+        reds3 = self._allReds()
         if current_date := data.get(self.MKeyCurrentDate):
             tsd = self.timeSeries().findDate(current_date)
+            reds3b = self._allReds()
             if isinstance(tsd, TimeSeriesDate):
                 self.setCurrentDate(tsd)
-
+        reds4 = self._allReds()
         if extent := data.get(self.MKeyCurrentExtent):
             extent = QgsRectangle.fromWkt(extent)
             self.setSpatialExtent(SpatialExtent(self.crs(), extent))
+        reds5 = self._allReds()
+        s = ""
 
     def usedLayers(self) -> List[QgsMapLayer]:
         layers = set()
@@ -1545,6 +1590,8 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigTimeSeriesDatesRemoved.disconnect(self._updateSliderRange)
             self.mTimeSeries.sigFindOverlapTaskFinished.disconnect(self._updateCanvasDates)
             self.mTimeSeries.sigSensorNameChanged.disconnect(self._updateCanvasAppearance)
+            self.mTimeSeries.sigSensorAdded.disconnect(self.addSensor)
+            self.mTimeSeries.sigSensorRemoved.disconnect(self.removeSensor)
 
         self.mTimeSeries = ts
         if isinstance(self.mTimeSeries, TimeSeries):
@@ -1554,6 +1601,8 @@ class MapWidget(QFrame):
             self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self._updateSliderRange)
             self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self._updateSliderRange)
             self.mTimeSeries.sigSensorNameChanged.connect(self._updateCanvasAppearance)
+            self.mTimeSeries.sigSensorAdded.connect(self.addSensor)
+            self.mTimeSeries.sigSensorRemoved.connect(self.removeSensor)
             if len(self.mTimeSeries) > 0:
                 self.mCurrentDate = self.mTimeSeries[0]
             else:
@@ -1561,6 +1610,23 @@ class MapWidget(QFrame):
             self._updateSliderRange()
 
         return self.timeSeries()
+
+    def addSensor(self, sensor: SensorInstrument):
+        """
+        Adds a new SensorInstrument
+        :param sensor: SensorInstrument
+        """
+        for mapView in self.mapViews():
+            mapView.addSensor(sensor)
+
+    def removeSensor(self, sensor: SensorInstrument):
+        """
+        Removes a Sensor
+        :param sensor: SensorInstrument
+        """
+        for mapView in self.mapViews():
+            assert isinstance(mapView, MapView)
+            mapView.removeSensor(sensor)
 
     def onSetInitialCurrentDate(self):
         if len(self.timeSeries()) > 0:
@@ -1824,18 +1890,22 @@ QSlider::add-page {{
         :return: TimeSeriesDate
         """
         assert isinstance(tsd, TimeSeriesDate)
-
+        reds0 = self._allReds()
         b = tsd != self.mCurrentDate or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
-        self.mCurrentDate = tsd
 
+        reds1 = self._allReds()
+        self.mCurrentDate = tsd
+        reds2 = self._allReds()
         if b:
             self._updateCanvasDates()
-
+            reds3 = self._allReds()
             i = self.mTimeSeries[:].index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
                 self.mTimeSlider.setValue(i)
+            reds4 = self._allReds()
             self.sigCurrentDateChanged.emit(self.mCurrentDate)
+            reds5 = self._allReds()
 
         if isinstance(self.currentDate(), TimeSeriesDate):
             i = self.timeSeries()[:].index(self.currentDate())
@@ -1849,8 +1919,9 @@ QSlider::add-page {{
 
         for a in [self.actionBackward, self.actionBackwardFast, self.actionFirstDate]:
             a.setEnabled(canBackward)
-
+        reds6 = self._allReds()
         self._updateSliderCss()
+        reds7 = self._allReds()
         # update slider CSS
         # set CSS
         return self.mCurrentDate
@@ -1865,6 +1936,30 @@ QSlider::add-page {{
         """
         return self.mCurrentDate
 
+    def createMapView(self, name: str = None) -> MapView:
+        """
+        Create a new MapView
+        :return: MapView
+        """
+        mapView = MapView()
+
+        n = len(self.mapViews()) + 1
+        if isinstance(name, str) and len(name) > 0:
+            title = name
+        else:
+            title = 'Map View {}'.format(n)
+            while title in [m.title() for m in self.mapViews()]:
+                n += 1
+                title = 'Map View {}'.format(n)
+        if n == 1:
+            pass
+            # mapView.optionShowDate.setChecked(True)
+            # mapView.optionShowSensorName.setChecked(True)
+
+        mapView.setTitle(title)
+        self.addMapView(mapView)
+        return mapView
+
     def addMapView(self, mapView: MapView) -> Optional[MapView]:
         """
         Adds a MapView
@@ -1874,23 +1969,32 @@ QSlider::add-page {{
         assert isinstance(mapView, MapView)
         if mapView in self.mMapViews:
             return None
-        if mapView not in self.mMapViews:
-            self.mMapViews.append(mapView)
+        reds1 = self._allReds()
+        mapView.setTimeSeries(self.timeSeries())
+        reds2 = self._allReds()
 
-            mapView.setMapWidget(self)
+        self.mMapViews.append(mapView)
 
-            # connect signals
-            mapView.sigCanvasAppearanceChanged.connect(self._updateCanvasAppearance)
-            mapView.sigCrosshairChanged.connect(self._updateCrosshair)
-            mapView.sigCurrentLayerChanged.connect(self.onCurrentMapViewLayerChanged)
+        mapView.setMapWidget(self)
+        reds3 = self._allReds()
 
-            self._updateGrid()
-            self._updateCrosshair(mapView=mapView)
-            self.sigMapViewsChanged.emit()
-            self.sigMapViewAdded.emit(mapView)
-
-            if len(self.mapViews()) == 1:
-                self.setCurrentMapView(mapView)
+        # connect signals
+        # mapView.sigShowProfiles.connect(self.sigShowProfiles)
+        mapView.sigCanvasAppearanceChanged.connect(self._updateCanvasAppearance)
+        mapView.sigCrosshairChanged.connect(self._updateCrosshair)
+        mapView.sigCurrentLayerChanged.connect(self.onCurrentMapViewLayerChanged)
+        reds4 = self._allReds()
+        self._updateGrid()
+        reds4b = self._allReds()
+        self._updateCrosshair(mapView=mapView)
+        reds5 = self._allReds()
+        self.sigMapViewsChanged.emit()
+        reds6 = self._allReds()
+        self.sigMapViewAdded.emit(mapView)
+        reds7 = self._allReds()
+        if len(self.mapViews()) == 1:
+            self.setCurrentMapView(mapView)
+            reds8 = self._allReds()
 
         return mapView
 
@@ -1906,12 +2010,14 @@ QSlider::add-page {{
         for mv in to_remove:
             self.removeMapView(mv)
 
-    def removeMapView(self, mapView: MapView) -> MapView:
+    def removeMapView(self, mapView: MapView) -> Optional[MapView]:
         """
         Removes a MapView
         :param mapView: Mapview
         :return: MapView
         """
+        if not isinstance(mapView, MapView):
+            return None
         if mapView in self.mMapViews:
             self.mMapViews.remove(mapView)
             mapView.setMapWidget(None)
@@ -2097,6 +2203,7 @@ QSlider::add-page {{
         nc = self.mMapViewColumns
         nr = len(self.mapViews()) * self.mMapViewRows
 
+        reds3 = self._allReds()
         for iMV, mv in enumerate(self.mMapViews):
             assert isinstance(mv, MapView)
             self.mCanvases[mv] = []
@@ -2112,11 +2219,16 @@ QSlider::add-page {{
                     self.mGrid.addWidget(c, gridrow, gridcol)
                     c.setVisible(visible)
                     self.mCanvases[mv].append(c)
-
+        reds4 = self._allReds()
         self._updateCanvasDates()
+        reds5 = self._allReds()
         self._updateSliderCss()
+        reds6 = self._allReds()
         self.mGrid.parentWidget().setVisible(True)
+        reds7 = self._allReds()
         self.mMapRefreshTimer.start()
+        reds8 = self._allReds()
+        s = ""
 
     def _updateWidgetSize(self):
 
@@ -2154,10 +2266,10 @@ QSlider::add-page {{
 
         visibleBefore = self.visibleTSDs()
         bTSDChanged = False
-
+        reds1 = self._allReds()
         if updateLayerCache:
             self._updateLayerCache()
-
+        reds3 = self._allReds()
         if not (isinstance(self.mCurrentDate, TimeSeriesDate) and isinstance(self.timeSeries(), TimeSeries)):
             for c in self.findChildren(MapCanvas):
                 assert isinstance(c, MapCanvas)
@@ -2176,9 +2288,10 @@ QSlider::add-page {{
             visible = sorted([visible[i] for i in i_visible])
 
             # set TSD of remaining canvases to None
+            reds4 = self._allReds()
             while len(visible) < nCanvases:
                 visible.append(None)
-
+            reds5 = self._allReds()
             for mapView in self.mapViews():
                 for tsd, canvas in zip(visible, self.mCanvases[mapView]):
                     assert isinstance(tsd, TimeSeriesDate) or tsd is None
@@ -2191,16 +2304,18 @@ QSlider::add-page {{
                             v = self.mMapLayerCache[key]
                             canvas.setLayers(self.mMapLayerCache.pop(key))
                         bTSDChanged = True
-
-                    # canvas.setLayers()
+            reds6 = self._allReds()
+            # canvas.setLayers()
         if bTSDChanged:
             self._updateCanvasAppearance()
 
         visible2 = self.visibleTSDs()
         if visible2 != visibleBefore:
             self.sigVisibleDatesChanged.emit(visible2)
-
+        reds7 = self._allReds()
         self._freeUnusedMapLayers()
+        reds8 = self._allReds()
+        s = ""
 
     def _freeUnusedMapLayers(self):
 
@@ -2309,8 +2424,8 @@ class BlockExtentChange(object):
 
 
 class MapViewDock(QgsDockWidget):
-    sigMapViewAdded = pyqtSignal(MapView)
-    sigMapViewRemoved = pyqtSignal(MapView)
+    # sigMapViewAdded = pyqtSignal(MapView)
+    # sigMapViewRemoved = pyqtSignal(MapView)
     sigShowProfiles = pyqtSignal(SpatialPoint, MapCanvas, str)
 
     sigMapCanvasColorChanged = pyqtSignal(QColor)
@@ -2320,12 +2435,6 @@ class MapViewDock(QgsDockWidget):
     sigMapSizeChanged = pyqtSignal(QSize)
     sigMapsPerMapViewChanged = pyqtSignal(int, int)
     sigMapTextFormatChanged = pyqtSignal(QgsTextFormat)
-
-    def setTimeSeries(self, timeSeries: TimeSeries):
-        assert isinstance(timeSeries, TimeSeries)
-        self.mTimeSeries = timeSeries
-        self.mTimeSeries.sigSensorAdded.connect(self.addSensor)
-        self.mTimeSeries.sigSensorRemoved.connect(self.removeSensor)
 
     def __init__(self, parent=None):
         super(MapViewDock, self).__init__(parent)
@@ -2366,10 +2475,6 @@ class MapViewDock(QgsDockWidget):
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
         self.btnApplySizeChanges.clicked.connect(self.onApplyButtonClicked)
 
-        self.actionAddMapView.triggered.connect(self.createMapView)
-        self.actionRemoveMapView.triggered.connect(
-            lambda: self.removeMapView(self.currentMapView()) if self.currentMapView() else None)
-
         self.toolBox.currentChanged.connect(self.onToolboxIndexChanged)
 
         self.spinBoxMapSizeX.valueChanged.connect(lambda: self.onMapSizeChanged('X'))
@@ -2378,14 +2483,13 @@ class MapViewDock(QgsDockWidget):
         # self.mLastMapViewColumns: int = self.sbMapViewColumns.value()
         # self.mLastMapViewRows: int = self.sbMapViewRows.value()
 
-        self.mTimeSeries = None
-        self.mMapWidget = None
+        self.mMapWidget: Optional[MapWidget] = None
 
     def exclusiveMapViewVisibility(self) -> bool:
         return self.optionMutuallyExclusiveMapViews.isChecked()
 
     def onNextMapView(self):
-        mapViews = self.mapViews()
+        mapViews = self.toolBoxMapViews()
         if len(mapViews) > 1:
             current = self.currentMapView()
             i = mapViews.index(current) + 1
@@ -2394,7 +2498,7 @@ class MapViewDock(QgsDockWidget):
             self.setCurrentMapView(mapViews[i])
 
     def onPreviousMapView(self):
-        mapViews = self.mapViews()
+        mapViews = self.toolBoxMapViews()
         if len(mapViews) > 1:
             current = self.currentMapView()
             i = mapViews.index(current) - 1
@@ -2412,7 +2516,7 @@ class MapViewDock(QgsDockWidget):
         self.sigMapSizeChanged.emit(QSize(self.spinBoxMapSizeX.value(), self.spinBoxMapSizeY.value()))
         self.sigMapsPerMapViewChanged.emit(self.sbMapViewColumns.value(), self.sbMapViewRows.value())
 
-    def setMapWidget(self, mw) -> MapWidget:
+    def setMapWidget(self, mw: MapWidget) -> MapWidget:
         """
         Connects this MapViewDock with a MapWidget
         :param mw: MapWidget
@@ -2420,7 +2524,6 @@ class MapViewDock(QgsDockWidget):
         """
         assert isinstance(mw, MapWidget)
 
-        assert mw.timeSeries() == self.mTimeSeries, 'Set the time series first!'
         self.mMapWidget = mw
 
         self.btnCrs.setCrs(mw.crs())
@@ -2436,13 +2539,14 @@ class MapViewDock(QgsDockWidget):
         self.sigMapsPerMapViewChanged.connect(mw.setMapsPerMapView)
         mw.sigMapsPerMapViewChanged.connect(self.setMapsPerMapView)
 
-        self.sigMapViewAdded.connect(mw.addMapView)
-        self.sigMapViewRemoved.connect(mw.removeMapView)
         mw.sigMapViewAdded.connect(self.addMapView)
         mw.sigMapViewRemoved.connect(self.removeMapView)
 
         for mapView in mw.mapViews():
             self.addMapView(mapView)
+
+        self.actionAddMapView.triggered.connect(mw.createMapView)
+        self.actionRemoveMapView.triggered.connect(lambda *args, _mw=mw: _mw.removeMapView(self.currentMapView()))
 
         return self.mMapWidget
 
@@ -2453,9 +2557,9 @@ class MapViewDock(QgsDockWidget):
         """
         return self.mMapWidget
 
-    def mapViews(self) -> List[MapView]:
+    def toolBoxMapViews(self) -> List[MapView]:
         """
-        Returns the defined MapViews
+        Returns the defined MapViews that have been added to the toolBox
         :return: [list-of-MapViews]
         """
         assert isinstance(self.toolBox, QToolBox)
@@ -2466,17 +2570,17 @@ class MapViewDock(QgsDockWidget):
                 mapViews.append(item)
         return mapViews
 
-    def mapCanvases(self) -> list:
-        """
-        Returns all MapCanvases from all MapViews
-        :return: [list-of-MapCanvases]
-        """
-
-        maps = []
-        for mapView in self.mapViews():
-            assert isinstance(mapView, MapView)
-            maps.extend(mapView.mapCanvases())
-        return maps
+    # def mapCanvases(self) -> list:
+    #    """
+    #    Returns all MapCanvases from all MapViews
+    #    :return: [list-of-MapCanvases]
+    #    """
+    #
+    #    maps = []
+    #    for mapView in self.mapViews():
+    #        assert isinstance(mapView, MapView)
+    #        maps.extend(mapView.mapCanvases())
+    #    return maps
 
     def setCrs(self, crs: QgsCoordinateReferenceSystem):
         if isinstance(crs, QgsCoordinateReferenceSystem):
@@ -2623,34 +2727,6 @@ class MapViewDock(QgsDockWidget):
         self.actionApplyStyles.setEnabled(b)
         self.actionHighlightMapView.setEnabled(b)
 
-    def createMapView(self, name: str = None) -> MapView:
-        """
-        Create a new MapView
-        :return: MapView
-        """
-
-        mapView = MapView()
-
-        n = len(self.mapViews()) + 1
-        if isinstance(name, str) and len(name) > 0:
-            title = name
-        else:
-            title = 'Map View {}'.format(n)
-            while title in [m.title() for m in self.mapViews()]:
-                n += 1
-                title = 'Map View {}'.format(n)
-
-        if n == 1:
-            pass
-            # mapView.optionShowDate.setChecked(True)
-            # mapView.optionShowSensorName.setChecked(True)
-
-        mapView.setTitle(title)
-        mapView.sigShowProfiles.connect(self.sigShowProfiles)
-        mapView.setTimeSeries(self.mTimeSeries)
-        self.addMapView(mapView)
-        return mapView
-
     def onInfoOptionToggled(self):
 
         self.sigMapInfoChanged.emit()
@@ -2662,7 +2738,7 @@ class MapViewDock(QgsDockWidget):
         :param mapView: MapView
         """
         assert isinstance(mapView, MapView)
-        if mapView not in self:
+        if mapView not in self.toolBoxMapViews():
             mapView.sigTitleChanged.connect(lambda *args, mv=mapView: self.onMapViewUpdated(mv))
             # mapView.sigVisibilityChanged.connect(lambda *args, mv=mapView: self.onMapViewUpdated(mv))
             mapView.sigCanvasAppearanceChanged.connect(lambda *args, mv=mapView: self.onMapViewUpdated(mv))
@@ -2670,13 +2746,12 @@ class MapViewDock(QgsDockWidget):
             self.sigMapCanvasTextFormatChanged.connect(mapView.setMapTextFormat)
             i = self.toolBox.addItem(mapView, mapView.windowIcon(), mapView.title())
             self.toolBox.setCurrentIndex(i)
-
             self.onMapViewUpdated(mapView)
 
-            if len(self.mapViews()) == 1:
+            if len(self.toolBoxMapViews()) == 1:
                 self.setMapTextFormat(mapView.mapTextFormat())
 
-            self.sigMapViewAdded.emit(mapView)
+            # self.sigMapViewAdded.emit(mapView)
 
     def onToolboxIndexChanged(self):
 
@@ -2710,7 +2785,7 @@ class MapViewDock(QgsDockWidget):
         :param mapView: MapView
         :return: MapView
         """
-        if mapView in self.mapViews():
+        if mapView in self.toolBoxMapViews():
             for i in range(self.toolBox.count()):
                 w = self.toolBox.widget(i)
                 if isinstance(w, MapView) and w == mapView:
@@ -2719,7 +2794,7 @@ class MapViewDock(QgsDockWidget):
                     if self.toolBox.count() >= i:
                         self.toolBox.setCurrentIndex(min(i, self.toolBox.count() - 1))
 
-            self.sigMapViewRemoved.emit(mapView)
+            # self.sigMapViewRemoved.emit(mapView)
         return mapView
 
     def __len__(self) -> int:
@@ -2727,41 +2802,24 @@ class MapViewDock(QgsDockWidget):
         Returns the number of MapViews
         :return: int
         """
-        return len(self.mapViews())
+        return len(self.toolBoxMapViews())
 
     def __iter__(self):
         """
         Provides an iterator over all MapViews
         :return:
         """
-        return iter(self.mapViews())
+        return iter(self.toolBoxMapViews())
 
     def __getitem__(self, slice):
-        return self.mapViews()[slice]
+        return self.toolBoxMapViews()[slice]
 
     def __contains__(self, mapView):
-        return mapView in self.mapViews()
+        return mapView in self.toolBoxMapViews()
 
     def index(self, mapView):
         assert isinstance(mapView, MapView)
-        return self.mapViews().index(mapView)
-
-    def addSensor(self, sensor: SensorInstrument):
-        """
-        Adds a new SensorInstrument
-        :param sensor: SensorInstrument
-        """
-        for mapView in self.mapViews():
-            mapView.addSensor(sensor)
-
-    def removeSensor(self, sensor: SensorInstrument):
-        """
-        Removes a Sensor
-        :param sensor: SensorInstrument
-        """
-        for mapView in self.mapViews():
-            assert isinstance(mapView, MapView)
-            mapView.removeSensor(sensor)
+        return self.toolBoxMapViews().index(mapView)
 
     def applyStyles(self):
         for mapView in self.mMapViews:
@@ -2776,10 +2834,10 @@ class MapViewDock(QgsDockWidget):
             mapView.setCrosshairVisibility(b)
 
     def setCurrentMapView(self, mapView):
-        assert isinstance(mapView, MapView) and mapView in self.mapViews()
+        assert isinstance(mapView, MapView) and mapView in self.toolBoxMapViews()
 
         if self.exclusiveMapViewVisibility():
-            for mv in self.mapViews():
+            for mv in self.toolBoxMapViews():
                 mv.setVisibility(mv == mapView)
         self.toolBox.setCurrentWidget(mapView)
         self.updateTitle()
@@ -2793,13 +2851,12 @@ class MapViewDock(QgsDockWidget):
             title = self.baseTitle
         self.setWindowTitle(title)
 
-    def currentMapView(self) -> MapView:
+    def currentMapView(self) -> Optional[MapView]:
         w = self.toolBox.currentWidget()
         if isinstance(w, MapView):
             return w
         else:
             # return first map view
-            views = self.mapViews()
-            if len(views) > 0:
-                return views[0]
+            for mv in self.toolBoxMapViews():
+                return mv
         return None

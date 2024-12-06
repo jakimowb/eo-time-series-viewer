@@ -26,21 +26,9 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProjectArchive, QgsProviderRegistry, \
-    QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, \
-    QgsZipUtils
-import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
+import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -52,6 +40,18 @@ from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, Sens
     TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProjectArchive, QgsProviderRegistry, \
+    QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, \
+    QgsZipUtils
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
+    QgsStatusBar, QgsTaskManagerWidget
 from .about import AboutDialogUI
 from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
 from .maplayerproject import EOTimeSeriesViewerProject
@@ -107,7 +107,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         # self.dockRendering = addDockWidget(docks.RenderingDockUI(self))
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
-        self.dockMapViews = self.addDockWidget(area, MapViewDock(self))
+        self.dockMapViews: MapViewDock = self.addDockWidget(area, MapViewDock(self))
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         # self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
@@ -469,7 +469,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.dockProfiles.setTimeSeries(self.mTimeSeries)
         self.ui.dockProfiles.setVectorLayerTools(self.mVectorLayerTools)
         mw.setTimeSeries(self.mTimeSeries)
-        mvd.setTimeSeries(self.mTimeSeries)
+        # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
         self.profileDock: ProfileViewDock = self.ui.dockProfiles
@@ -560,7 +560,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionPan.toggle()
         self.ui.dockCursorLocation.sigLocationRequest.connect(self.ui.actionIdentifyCursorLocationValues.trigger)
         # self.ui.dockCursorLocation.mLocationInfoModel.setNodeExpansion(CursorLocationInfoModel.ALWAYS_EXPAND)
-        self.ui.actionAddMapView.triggered.connect(mvd.createMapView)
+        self.ui.actionAddMapView.triggered.connect(mw.createMapView)
         self.ui.actionAddTSD.triggered.connect(lambda: self.addTimeSeriesImages(None))
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionCreateSpectralLibrary.triggered.connect(self.createSpectralLibrary)
@@ -650,7 +650,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
 
     def asJson(self) -> str:
-        return json.dumps(self.asMap())
+        return json.dumps(self.asMap(), ensure_ascii=False)
 
     def fromJson(self, jsonText: str, feedback: QgsProcessingFeedback = None):
 
@@ -1509,19 +1509,19 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.mapWidget().currentLayer()
 
-    def createMapView(self, name: str = None) -> MapView:
+    def createMapView(self, *args, **kwds) -> MapView:
         """
         Creates a new MapView.
         :return: MapView
         """
-        return self.ui.dockMapViews.createMapView(name=name)
+        return self.mapWidget().createMapView(*args, **kwds)
 
     def mapViews(self) -> List[MapView]:
         """
         Returns all MapViews
         :return: [list-of-MapViews]
         """
-        return self.ui.dockMapViews[:]
+        return self.mapWidget().mapViews()
 
     def icon(self) -> QIcon:
         """
@@ -1586,8 +1586,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     tsd = self.timeSeries()[0]
                 self.setCurrentDate(tsd)
 
-                if len(self.ui.dockMapViews) == 0:
-                    self.ui.dockMapViews.createMapView()
+                if len(self.mapViews()) == 0:
+                    self.createMapView()
 
         if len(self.mTimeSeries) == 0:
             self.mSpatialMapExtentInitialized = False

@@ -17,19 +17,19 @@
 ***************************************************************************
 """
 import os.path
-import unittest
 import random
+import unittest
 from typing import List
 
 from PyQt5.QtCore import QSize
 from qgis._core import QgsRectangle, QgsVectorLayer
 
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
 from qgis.gui import QgsMapCanvas
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 # noinspection PyPep8Naming
 
@@ -61,6 +61,26 @@ class TestProjectIO(EOTSVTestCase):
         for k in ['sources']:
             self.assertTrue(k in a['TimeSeries'])
 
+    def assertEqualMapView(self, a: dict, b: dict):
+        self.assertIsInstance(a, dict)
+        self.assertIsInstance(b, dict)
+
+        for k in self.getMKeys(MapView):
+            self.assertTrue(k in a)
+            self.assertTrue(k in b)
+
+            v_a, v_b = a[k], b[k]
+            if k == MapView.MKeySensorStyle:
+                self.assertIsInstance(v_a, dict)
+                self.assertIsInstance(v_b, dict)
+                for sid in v_a.keys():
+                    self.assertTrue(sid in v_b)
+                    style_a, style_b = v_a[sid], v_b[sid]
+
+                    self.assertEqual(style_a, style_b)
+            else:
+                self.assertEqual(v_a, v_b)
+
     def assertEqualSetting(self, a: dict, b: dict):
 
         self.assertValidSettings(a)
@@ -70,16 +90,42 @@ class TestProjectIO(EOTSVTestCase):
 
         mwA, mwB = a['MapWidget'], b['MapWidget']
         for k in self.getMKeys(MapWidget):
-            v1, v2 = mwA[k], mwB[k]
+            v_a, v_b = mwA[k], mwB[k]
             if k == MapWidget.MKeyCurrentExtent:
-                ext1, ext2 = QgsRectangle.fromWkt(v1), QgsRectangle.fromWkt(v2)
+                ext1, ext2 = QgsRectangle.fromWkt(v_a), QgsRectangle.fromWkt(v_b)
                 self.assertEqual(ext1.center(), ext2.center())
                 self.assertAlmostEqual(ext1.width(), ext2.width(), 5)
                 self.assertAlmostEqual(ext1.height(), ext2.height(), 5)
-            else:
-                self.assertEqual(v1, v2, msg=f'Different values for key "{k}": {v1} vs. {v2}')
+            elif k == MapWidget.MKeyMapViews:
+                self.assertEqual(len(v_a), len(v_b))
 
+                for view_a, view_b in zip(v_a, v_b):
+                    if view_a != view_b:
+                        s = ""
+                    self.assertEqualMapView(view_a, view_b)
+            else:
+                self.assertEqualElements(v_a, v_b)
+                self.assertEqual(v_a, v_b, msg=f'Different values for key "{k}": {v_a} vs. {v_b}')
+
+            if v_a != v_b:
+                s = ""
         s = ""
+
+    def assertEqualElements(self, a, b, msg: str = ''):
+        self.assertEqual(type(a), type(b), msg=msg + 'Unequal types')
+
+        if isinstance(a, dict):
+            self.assertEqual(a.keys(), b.keys())
+            for k in a.keys():
+                self.assertEqualElements(a[k], b[k], msg=f'Key {k}:')
+        elif isinstance(a, list):
+            self.assertEqual(len(a), len(b))
+            for k1, k2 in zip(a, b):
+                self.assertEqualElements(k1, k2)
+        else:
+            if a != b:
+                s = ""
+            self.assertEqual(a, b)
 
     def test_write_read(self):
         from qgis.utils import iface
@@ -110,27 +156,62 @@ class TestProjectIO(EOTSVTestCase):
         lyr.setName('MyTestLayer')
         TSV.addMapLayers([lyr])
         assert len(QgsProject.instance().mapLayers()) == 0
+        TSV.createMapView('My 2nd View')
+        map_views = TSV.mapViews()
+        self.assertTrue(len(map_views) == 2)
+
+        # read settings
+        def getRedMinValues(tsv):
+            tsv.mapWidget().timedRefresh()
+            QgsApplication.processEvents()
+            reds = []
+            for mv in tsv.mapViews():
+                for lyr in mv.sensorProxyLayers():
+                    reds.append(lyr.renderer().redContrastEnhancement().minimumValue())
+            return reds
+
+        reds = getRedMinValues(TSV)
 
         ext = SpatialExtent.fromLayer(lyr)
         TSV.setCrs(ext.crs())
         self.assertEqual(TSV.crs(), ext.crs())
         TSV.setSpatialExtent(ext)
-        settings2 = TSV.asMap()
         self.taskManagerProcessEvents()
-        # self.assertEqual(ext, TSV.spatialExtent())
 
+        settings2 = TSV.asMap()
+        self.assertValidSettings(settings2)
+        for mv, mvmap in zip(map_views, settings2['MapWidget'][MapWidget.MKeyMapViews]):
+            self.assertEqual(mv.name(), mvmap[MapView.MKeyName])
+
+        # self.assertEqual(ext, TSV.spatialExtent())
+        TSV.mapWidget().timedRefresh()
         settings1 = TSV.asMap()
 
         # save settings
         path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
+        TSV.mapWidget().timedRefresh()
 
         settings2 = TSV.asMap()
         self.assertEqualSetting(settings1, settings2)
 
-        # read settings
-        settings2 = TSV.asMap()
+        reds1_a = getRedMinValues(TSV)
+        TSV.mapWidget().timedRefresh()
+        QgsApplication.processEvents()
+        reds1_b = getRedMinValues(TSV)
+
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
+
+        r2ba = TSV.mapWidget()._allReds()
+        QgsApplication.processEvents()
+        reds2_a = getRedMinValues(TSV)
+        r2b = TSV.mapWidget()._allReds()
+        TSV.mapWidget().timedRefresh()
+        QgsApplication.processEvents()
+        reds2_b = getRedMinValues(TSV)
+        r2c = TSV.mapWidget()._allReds()
+        QgsApplication.processEvents()
+        settings2 = TSV.asMap()
         self.assertEqualSetting(settings1, settings2)
 
         # do some changes
