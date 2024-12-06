@@ -1,5 +1,12 @@
 ## Changelog
 
+### 2024-12-06 (version 1.20)
+
+* added FORCE Product Import
+* project settings loading now considers source visibility, map layer styles,
+  map extent, crs and current date.
+* fixed fatal crash related to a missing QgsRasterDataProvider python ref
+
 ### 2024-09-29 (version 1.19)
 
 * API fixes to run with QGIS 3.34 - 3.38
