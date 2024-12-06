@@ -170,7 +170,7 @@ def sensorID(nb: int,
                 'wlu': wlu,
                 'name': name
                 }
-    return json.dumps(jsonDict)
+    return json.dumps(jsonDict, ensure_ascii=False)
 
 
 def sensorIDtoProperties(idString: str) -> tuple:
