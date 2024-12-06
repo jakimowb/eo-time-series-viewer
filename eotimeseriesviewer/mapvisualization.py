@@ -27,20 +27,20 @@ import time
 import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
-    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
-    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProcessingFeedback, \
-    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
 import qgis.utils
+from eotimeseriesviewer import debugLog, DIR_UI
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
+    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
+    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProcessingFeedback, \
+    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
@@ -1204,6 +1204,8 @@ class MapWidget(QFrame):
         self.mTimeSlider.valueChanged.connect(self.onSliderValueChanged)
         self.mTimeSlider.sliderMoved.connect(self.onSliderMoved)
 
+        self.mBlockExtentChange: bool = False
+
     def close(self):
         self.mMapRefreshTimer.stop()
         self.mMapLayerStore.removeAllMapLayers()
@@ -1296,6 +1298,7 @@ class MapWidget(QFrame):
         :param extent: SpatialExtent
         :return: SpatialExtent the current SpatialExtent
         """
+
         if len(args) == 1 and type(args[0]) is QgsRectangle:
             extent = SpatialExtent(self.crs(), args[0])
         else:
@@ -1310,23 +1313,28 @@ class MapWidget(QFrame):
         except Exception as ex:
             traceback.print_exception(*sys.exc_info())
             raise ex
-        if self.spatialExtent() == extent:
-            return extent
+
+        if self.mBlockExtentChange:
+            return self.mSpatialExtent
 
         ext = extent.toCrs(self.crs())
         if not isinstance(ext, SpatialExtent):
             s = ""
             # last resort: zoom to CRS boundaries
 
-        if isinstance(ext, SpatialExtent) and ext != self.spatialExtent():
-            self.mSpatialExtent = ext
-            debugLog(f'new extent: {self.mSpatialExtent}')
-            for c in self.mapCanvases():
-                assert isinstance(c, MapCanvas)
-                c.setSpatialExtent(ext)
-                # c.addToRefreshPipeLine(self.mSpatialExtent)
-            self.sigSpatialExtentChanged.emit(extent.__copy__())
-        return self.spatialExtent()
+        if isinstance(ext, SpatialExtent) and ext != self.mSpatialExtent:
+
+            with BlockExtentChange(self) as blocker:
+                self.mSpatialExtent = ext
+                debugLog(f'new extent: {self.mSpatialExtent}')
+                for c in self.mapCanvases():
+                    assert isinstance(c, MapCanvas)
+                    c.setSpatialExtent(ext)
+                    c.refresh()
+                    # c.addToRefreshPipeLine(self.mSpatialExtent)
+            self.sigSpatialExtentChanged.emit(ext.__copy__())
+
+        return ext
 
     def setSpatialCenter(self, *args):
         """
@@ -1336,6 +1344,7 @@ class MapWidget(QFrame):
         centerNew = SpatialPoint(*args)
         assert isinstance(centerNew, SpatialPoint)
         extent = self.spatialExtent()
+
         if isinstance(extent, SpatialExtent):
             centerOld = extent.center()
             centerNew = centerNew.toCrs(extent.crs())
@@ -1359,16 +1368,29 @@ class MapWidget(QFrame):
         :return: QgsCoordinateReferenceSystem
         """
         crs = QgsCoordinateReferenceSystem(crs)
+
         if self.crs() == crs:
             return crs
 
-        for i, c in enumerate(self.mapCanvases()):
-            wasBlocked = c.blockSignals(True)
-            c.setDestinationCrs(crs)
-            if not wasBlocked:
-                c.blockSignals(False)
+        if self.mBlockExtentChange:
+            return self.crs()
+
+        with BlockExtentChange(self) as blocker:
+            canvases = self.mapCanvases()
+            if len(canvases) > 0:
+                for i, c in enumerate(self.mapCanvases()):
+                    c.setDestinationCrs(crs)
+                    if i == 0:
+                        self.mSpatialExtent = SpatialExtent.fromMapCanvas(c)
+            else:
+                new_extent = self.mSpatialExtent.toCrs(crs)
+                if isinstance(new_extent, SpatialExtent):
+                    self.mSpatialExtent = new_extent
+                else:
+                    self.mSpatialExtent = SpatialExtent(QgsCoordinateReferenceSystem('EPSG:4326'),
+                                                        crs.bounds()).toCrs(crs)
         self.sigCrsChanged.emit(crs)
-        self.mSpatialExtent = self.mSpatialExtent.toCrs(crs)
+
         return self.crs()
 
     def timedRefresh(self):
@@ -2268,6 +2290,22 @@ QSlider::add-page {{
                     canvas.addToRefreshPipeLine(mapView.mapBackgroundColor())
 
             mapView.setInfoExpressionError(errorText)
+
+
+class BlockExtentChange(object):
+    """
+    Signal blocker for arbitrary number of QObjects
+    """
+
+    def __init__(self, mapWidget: MapWidget):
+        assert isinstance(mapWidget, MapWidget)
+        self.mMapWidget = mapWidget
+
+    def __enter__(self):
+        self.mMapWidget.mBlockExtentChange = True
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.mMapWidget.mBlockExtentChange = False
 
 
 class MapViewDock(QgsDockWidget):
