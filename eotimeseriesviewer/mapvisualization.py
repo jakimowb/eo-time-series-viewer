@@ -27,18 +27,16 @@ import time
 import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-from qgis._core import QgsProcessingFeedback
-
+from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
+    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
+    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProcessingFeedback, \
+    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
 import qgis.utils
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
-    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
-    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProject, \
-    QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
 from eotimeseriesviewer import debugLog, DIR_UI
