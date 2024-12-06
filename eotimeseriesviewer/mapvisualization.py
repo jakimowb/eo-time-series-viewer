@@ -27,6 +27,8 @@ import time
 import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
+from qgis._core import QgsProcessingFeedback
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
 import qgis.utils
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
@@ -1467,7 +1469,7 @@ class MapWidget(QFrame):
 
         return d
 
-    def fromMap(self, data: dict):
+    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
         self.removeAllMapViews()
 

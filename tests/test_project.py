@@ -96,7 +96,7 @@ class TestProjectIO(EOTSVTestCase):
         tm: QgsTaskManager = QgsApplication.taskManager()
 
         assert len(QgsProject.instance().mapLayers()) == 0
-        TSV.loadExampleTimeSeries(loadAsync=True)
+        TSV.loadExampleTimeSeries(loadAsync=False)
         assert len(QgsProject.instance().mapLayers()) == 0
 
         self.taskManagerProcessEvents()
@@ -115,6 +115,8 @@ class TestProjectIO(EOTSVTestCase):
         TSV.setCrs(ext.crs())
         self.assertEqual(TSV.crs(), ext.crs())
         TSV.setSpatialExtent(ext)
+        settings2 = TSV.asMap()
+        self.taskManagerProcessEvents()
         # self.assertEqual(ext, TSV.spatialExtent())
 
         settings1 = TSV.asMap()
@@ -123,12 +125,12 @@ class TestProjectIO(EOTSVTestCase):
         path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
 
-        # read settings
-        self.assertTrue(QgsProject.instance().read(path.as_posix()))
-        self.taskManagerProcessEvents()
-
         settings2 = TSV.asMap()
+        self.assertEqualSetting(settings1, settings2)
 
+        # read settings
+        settings2 = TSV.asMap()
+        self.assertTrue(QgsProject.instance().read(path.as_posix()))
         self.assertEqualSetting(settings1, settings2)
 
         # do some changes
@@ -148,6 +150,8 @@ class TestProjectIO(EOTSVTestCase):
 
         TSV.mapWidget().setMapsPerMapView(*new_maps_per_view)
 
+        self.assertEqual(new_crs, TSV.crs())
+
         settings3 = TSV.asMap()
         self.assertNotEqual(settings1, settings3)
         QgsProject.instance().write(path.as_posix())
@@ -156,11 +160,14 @@ class TestProjectIO(EOTSVTestCase):
         TSV.timeSeries().clear()
         TSV.mapWidget().removeAllMapViews()
         TSV.mapWidget().setMapsPerMapView(1, 1)
-        TSV.mapWidget().setCrs(QgsCoordinateReferenceSystem('EPSG:32721'))
+        crs = QgsCoordinateReferenceSystem('EPSG:32721')
+        TSV.mapWidget().setCrs(crs)
+        self.assertEqual(crs, TSV.crs())
         self.assertNotEqual(settings3, TSV.asMap())
 
         # reload project settings
         QgsProject.instance().read(path.as_posix())
+        self.taskManagerProcessEvents()
 
         self.assertEqual(new_crs, TSV.crs())
         self.assertEqual(new_maps_per_view, TSV.mapWidget().mapsPerMapView())
