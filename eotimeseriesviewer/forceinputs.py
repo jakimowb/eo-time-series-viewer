@@ -1,3 +1,4 @@
+import os.path
 import re
 from pathlib import Path
 from typing import List, Union
@@ -21,12 +22,34 @@ FORCE_PRODUCTS = {
     'HOT': (r'.*HOT\.(vrt|tif|dat|hdr)$', 'Haze Optimized Transformation (HOT)'),
 }
 
+rx_FORCE_TILEID = re.compile(r'(X\d+)_(Y\d+)')
+rx_FORCE_TILEFOLDER = re.compile(f'^{rx_FORCE_TILEID.pattern}$')
+
+
+def read_tileids(text: str) -> List[str]:
+    """
+    Reads all FORCE tile-ids out of a string
+    :param text:
+    :return:
+    """
+    tile_ids = set()
+    for match in rx_FORCE_TILEID.finditer(text):
+        x, y = match.groups()
+        if len(x) == len(y):
+            tile_ids.add(match.group())
+    return sorted(tile_ids)
+
 
 class FindFORCEProductsTask(EOTSVTask):
     taskInfo = pyqtSignal(str)
 
-    def __init__(self, product: str, path, *args, **kwds):
+    def __init__(self, product: str, path, *args, tile_ids: List[str] = None, **kwds):
         super().__init__(*args, **kwds)
+
+        self.mTileIDs: List[str] = tile_ids if tile_ids else []
+
+        for tile_id in self.mTileIDs:
+            assert rx_FORCE_TILEID.match(tile_id), f'Not a force tile_id: {tile_id}'
 
         assert product in FORCE_PRODUCTS.keys()
         path = Path(path)
@@ -42,18 +65,26 @@ class FindFORCEProductsTask(EOTSVTask):
         return self.mFiles
 
     def run(self):
-        rx_FORCE_DIR = re.compile(r'X\d+_Y\d+')
+
         self.taskInfo.emit(f'Search for {self.mProduct} files...')
 
-        n = 0
-        for file in file_search(self.mPath, self.mRxProduct, recursive=True):
-            n += 1
-            self.mFiles.append(file)
+        tile_folders = []
+        if len(self.mTileIDs) == 0:
+            tile_folders.append(self.mPath)
+        else:
+            for folder in file_search(self.mPath, rx_FORCE_TILEID, recursive=True, directories=True):
+                tile_folders.append(Path(folder))
 
-            if n % 50 == 0:
-                if self.isCanceled():
-                    return False
-                self.taskInfo.emit(f'Found {n} {self.mProduct} files...')
+        n = 0
+        for folder in tile_folders:
+            for file in file_search(folder, self.mRxProduct, recursive=True):
+                n += 1
+                self.mFiles.append(file)
+
+                if n % 50 == 0:
+                    if self.isCanceled():
+                        return False
+                    self.taskInfo.emit(f'Found {n} {self.mProduct} files...')
         self.taskInfo.emit(f'Found {n} {self.mProduct} files')
         return True
 
@@ -92,6 +123,11 @@ class FORCEProductImportDialog(QDialog):
             r = self.mModel.mOptions.index(o)
             self.cbProductType.setCurrentIndex(r)
 
+    def setTileIDs(self, text: Union[str, Path]):
+        if isinstance(text, Path):
+            text = str(text)
+        self.mTileIDs.setFilePath(text)
+
     def productType(self) -> str:
         return self.cbProductType.currentData().value()
 
@@ -101,8 +137,20 @@ class FORCEProductImportDialog(QDialog):
     def updateInfo(self):
         product = self.productType()
         path = self.rootFolder()
+        tileIDs = self.tileIds()
 
         if product in FORCE_PRODUCTS.keys() and path.is_dir():
-            task = FindFORCEProductsTask(product, path)
+            task = FindFORCEProductsTask(product, path, tile_ids=tileIDs)
             task.taskInfo.connect(lambda info: self.labelInfos.setText(f'<i>{info}</i>'))
             task.run()
+
+    def tileIds(self) -> List[str]:
+
+        tile_file = self.mTileIDs.filePath()
+        if os.path.isfile(tile_file):
+            with open(tile_file, 'r') as f:
+                tile_text = f.read()
+        else:
+            tile_text = tile_file
+
+        return read_tileids(tile_text)
