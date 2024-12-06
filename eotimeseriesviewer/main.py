@@ -1625,15 +1625,19 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             eotsv_settings.settings().setValue('force_root', str(d.rootFolder()))
             eotsv_settings.settings().setValue('force_product', d.productType())
 
-            task = FindFORCEProductsTask(d.productType(), d.rootFolder())
+            search_results = d.files()
+            if not isinstance(search_results, list):
+                task = FindFORCEProductsTask(d.productType(), d.rootFolder())
 
-            def onCompleted(t: FindFORCEProductsTask):
-                files = t.files()
-                self.addTimeSeriesImages(files)
-                s = ""
+                def onCompleted(t: FindFORCEProductsTask):
+                    files = t.files()
+                    self.addTimeSeriesImages(files)
+                    s = ""
 
-            task.taskCompleted.connect(lambda *args, t=task: onCompleted(task))
-            self.taskManager().addTask(task)
+                task.taskCompleted.connect(lambda *args, t=task: onCompleted(task))
+                self.taskManager().addTask(task)
+            else:
+                self.addTimeSeriesImages(search_results)
 
     def loadTimeSeriesStack(self):
 
