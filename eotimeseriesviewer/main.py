@@ -18,19 +18,29 @@
  *                                                                         *
  ***************************************************************************/
 """
+import json
 import os
 import pathlib
 import re
-# noinspection PyPep8Naming
 import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import numpy as np
-
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProjectArchive, QgsProviderRegistry, \
+    QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, \
+    QgsZipUtils
+import qgis.utils
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
+from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
+    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
+from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
+from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
+    QgsStatusBar, QgsTaskManagerWidget
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
-import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
 from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
 from eotimeseriesviewer.mapcanvas import MapCanvas
@@ -42,18 +52,8 @@ from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, Sens
     TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, QgsProject, \
-    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
-    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
-from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
-from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
-    QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
-from qgis.PyQt.QtXml import QDomDocument
 from .about import AboutDialogUI
+from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.cursorlocationvalue import CursorLocationInfoDock
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
@@ -65,7 +65,7 @@ from .qgispluginsupport.qps.speclib.core.spectralprofile import encodeProfileVal
 from .qgispluginsupport.qps.speclib.gui.spectrallibrarywidget import SpectralLibraryWidget
 from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLayerProfileSource
 from .qgispluginsupport.qps.subdatasets import subLayers
-from .qgispluginsupport.qps.utils import datetime64, file_search, loadUi, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
 from .utils import fixMenuButtons
 
@@ -266,10 +266,10 @@ def showMessage(message, title, level):
 
 class TaskManagerStatusButton(QToolButton):
 
-    def __init__(self, parent: QWidget = None):
+    def __init__(self, taskManager: QgsTaskManager, parent: QWidget = None):
         super().__init__(parent)
 
-        self.mManager = QgsApplication.taskManager()
+        self.mManager: QgsTaskManager = taskManager
         self.setAutoRaise(True)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.setLayout(QHBoxLayout())
@@ -280,7 +280,8 @@ class TaskManagerStatusButton(QToolButton):
         self.mTrackedTasks = [
             TemporalProfileLoaderTask,
             TimeSeriesFindOverlapTask,
-            TimeSeriesLoadingTask
+            TimeSeriesLoadingTask,
+            FindFORCEProductsTask,
         ]
 
         self.mInfoLabel = QLabel('', parent=self)
@@ -418,7 +419,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.statusBar().setFont(statusBarFont)
         self.ui.statusBar().addPermanentWidget(self.mStatusBar, 1)
 
-        self.mTaskManagerButton = TaskManagerStatusButton(self.mStatusBar)
+        self.mTaskManager = QgsApplication.taskManager()
+        self.mTaskManagerButton = TaskManagerStatusButton(self.mTaskManager, parent=self.mStatusBar, )
         self.mTaskManagerButton.setFont(statusBarFont)
         self.mStatusBar.addPermanentWidget(self.mTaskManagerButton, 10, QgsStatusBar.AnchorLeft)
         self.mTaskManagerButton.clicked.connect(lambda *args: self.ui.dockTaskManager.raise_())
@@ -577,6 +579,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionSaveTS.triggered.connect(self.saveTimeSeriesDefinition)
         self.ui.actionAddTSExample.triggered.connect(lambda: self.loadExampleTimeSeries(loadAsync=True))
         self.ui.actionLoadTimeSeriesStack.triggered.connect(self.loadTimeSeriesStack)
+        self.ui.actionAddFORCEProducts.triggered.connect(self.loadFORCEProducts)
         # self.ui.actionShowCrosshair.toggled.connect(mw.setCrosshairVisibility)
         self.ui.actionExportMapsToImages.triggered.connect(lambda: self.exportMapsToImages())
 
@@ -623,22 +626,105 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         QgsProject.instance().writeProject.connect(self.onWriteProject)
         QgsProject.instance().readProject.connect(self.onReadProject)
 
+    def taskManager(self) -> QgsTaskManager:
+        return self.mTaskManager
+
     def onClose(self):
         debugLog('Close EOTSV')
+
         EOTimeSeriesViewer._instance = None
         self.mapWidget().onClose()
 
+    def asMap(self) -> dict:
+
+        d = {'TimeSeries': self.timeSeries().asMap(),
+             'MapWidget': self.mapWidget().asMap()}
+        return d
+
+    def fromMap(self, map_data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
+
+        multistep = QgsProcessingMultiStepFeedback(2, feedback)
+        multistep.setCurrentStep(1)
+        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
+        multistep.setCurrentStep(2)
+        self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
+
+    def asJson(self) -> str:
+        return json.dumps(self.asMap())
+
+    def fromJson(self, jsonText: str, feedback: QgsProcessingFeedback = None):
+
+        data = json.loads(jsonText)
+
+        if isinstance(data, dict):
+            self.fromMap(data, feedback=feedback)
+
     def onWriteProject(self, dom: QDomDocument):
 
-        node = dom.createElement('EOTSV')
+        node: QDomElement = dom.createElement('EOTSV')
         root = dom.documentElement()
-
-        # save time series
-        self.timeSeries().writeXml(node, dom)
-
-        # save map views
-        self.mapWidget().writeXml(node, dom)
+        cdata: QDomCDATASection = dom.createCDATASection(self.asJson())
+        jsonNode = dom.createElement('jsonSettings')
+        jsonNode.appendChild(cdata)
+        node.appendChild(jsonNode)
         root.appendChild(node)
+
+    def onReadProject(self, doc: QDomDocument) -> bool:
+        """
+        Reads images and visualization settings from a QgsProject QDomDocument
+        :param doc: QDomDocument
+        :return: bool
+        """
+        if not isinstance(doc, QDomDocument):
+            return False
+
+        root = doc.documentElement()
+        node = root.firstChildElement('EOTSV')
+        if node.nodeName() == 'EOTSV':
+
+            class MyProgress(QgsProcessingFeedback):
+
+                textChanged = pyqtSignal(str)
+
+                def __init__(self, *args, **kwds):
+                    super().__init__(*args, **kwds)
+
+                def setProgressText(self, text):
+                    super().setProgressText(text)
+                    self.textChanged.emit(text)
+
+            dialog = self._createProgressDialog(title='Load Project')
+            dialog.setMinimumDuration(1)
+            dialog.setWindowModality(Qt.WindowModal)
+            dialog.setRange(0, 100)
+            dialog.setValue(0)
+            feedback = MyProgress()
+
+            def onProgress(v):
+                dialog.setValue(int(v))
+
+            feedback.progressChanged.connect(onProgress)
+            feedback.textChanged.connect(dialog.setLabelText)
+            dialog.canceled.connect(feedback.cancel)
+
+            try:
+                self.timeSeries().clear()
+
+                mapviews = self.mapViews()
+
+                for mv in mapviews:
+                    self.mapWidget().removeMapView(mv)
+                dialog.setValue(50)
+                jsonText = node.firstChildElement('jsonSettings').text()
+                self.fromJson(jsonText, feedback=feedback)
+            except Exception as ex:
+                pass
+            dialog.setValue(100)
+            dialog.close()
+
+            return
+
+        return True
 
     def reloadProject(self, *args):
 
@@ -681,38 +767,6 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         for d in to_remove:
             self.ui.removeDockWidget(d)
-
-    def onReadProject(self, doc: QDomDocument) -> bool:
-        """
-        Reads images and visualization settings from a QgsProject QDomDocument
-        :param doc: QDomDocument
-        :return: bool
-        """
-        if not isinstance(doc, QDomDocument):
-            return False
-
-        root = doc.documentElement()
-        node = root.firstChildElement('EOTSV')
-        if node.nodeName() == 'EOTSV':
-            self.timeSeries().clear()
-
-            mapviews = self.mapViews()
-
-            for mv in mapviews:
-                self.mapWidget().removeMapView(mv)
-
-            self.mapWidget().readXml(node)
-
-            mwNode = node.firstChildElement('MapWidget')
-            if mwNode.nodeName() == 'MapWidget' and mwNode.hasAttribute('mapDate'):
-                dt64 = datetime64(mwNode.attribute('mapDate'))
-                if isinstance(dt64, np.datetime64):
-                    self.mPostDataLoadingArgs['mapDate'] = dt64
-
-            self.timeSeries().sigLoadingTaskFinished.connect(self.onPostDataLoading)
-            self.timeSeries().readXml(node)
-
-        return True
 
     def onPostDataLoading(self):
         """
@@ -1558,6 +1612,32 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if path not in [None, '']:
             path = self.mTimeSeries.saveToFile(path)
             s.setValue('FILE_TS_DEFINITION', path)
+
+    def loadFORCEProducts(self):
+
+        d = FORCEProductImportDialog(parent=self.ui)
+        if force_root := eotsv_settings.settings().value('force_root'):
+            d.setRootFolder(force_root)
+        if force_product := eotsv_settings.settings().value('force_product'):
+            d.setProductType(force_product)
+
+        if d.exec_() == QDialog.Accepted:
+            eotsv_settings.settings().setValue('force_root', str(d.rootFolder()))
+            eotsv_settings.settings().setValue('force_product', d.productType())
+
+            search_results = d.files()
+            if not isinstance(search_results, list):
+                task = FindFORCEProductsTask(d.productType(), d.rootFolder())
+
+                def onCompleted(t: FindFORCEProductsTask):
+                    files = t.files()
+                    self.addTimeSeriesImages(files)
+                    s = ""
+
+                task.taskCompleted.connect(lambda *args, t=task: onCompleted(task))
+                self.taskManager().addTask(task)
+            else:
+                self.addTimeSeriesImages(search_results)
 
     def loadTimeSeriesStack(self):
 

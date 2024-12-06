@@ -37,18 +37,19 @@ import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
 
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
-    QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
-    QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, \
-    QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, QgsTaskManager
-from qgis.gui import QgisInterface, QgsDockWidget
+from eotimeseriesviewer import DIR_UI, messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
     QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-from eotimeseriesviewer import DIR_UI, messageLog
-from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
+    QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, \
+    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
+    QgsRectangle, QgsTask, QgsTaskManager
+from qgis.gui import QgisInterface, QgsDockWidget
 from .qgispluginsupport.qps.unitmodel import UnitLookup
 from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
     SpatialExtent, SpatialPoint
@@ -273,29 +274,6 @@ class SensorInstrument(QObject):
                 self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
             self.mMockupDS.FlushCache()
 
-    @staticmethod
-    def readXml(node: QDomNode):
-        sensor: SensorInstrument = None
-        nodeId = node.firstChildElement('SensorId').toElement()
-        if nodeId.nodeName() == 'SensorId':
-            sid = nodeId.firstChild().nodeValue()
-            sensor = SensorInstrument(sid)
-
-        nodeName = node.firstChildElement('SensorName').toElement()
-        if isinstance(sensor, SensorInstrument) and nodeName.nodeName() == 'SensorName':
-            name = nodeName.firstChild().nodeValue()
-            sensor.setName(name)
-        return sensor
-
-    def writeXml(self, node: QDomNode, doc: QDomDocument):
-
-        nodeId = doc.createElement('SensorId')
-        nodeId.appendChild(doc.createTextNode(self.id()))
-        nodeName = doc.createElement('SensorName')
-        nodeName.appendChild(doc.createTextNode(self.name()))
-        node.appendChild(nodeId)
-        node.appendChild(nodeName)
-
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
         Returns the band index closest to a certain wavelength
@@ -382,6 +360,7 @@ class SensorInstrument(QObject):
 
 
 class SensorMockupDataProvider(QgsRasterDataProvider):
+    ALL_INSTANCES = dict()
 
     def __init__(self,
                  sid: str,
@@ -428,9 +407,6 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
     def bandCount(self):
         return self.mSensor.nb
 
-    def clone(self):
-        return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
-
     def sourceDataType(self, bandNo: int):
         return self.dataType(bandNo)
 
@@ -447,7 +423,26 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         # compatibility with Qgis < 3.16, ReadFlags only available since 3.16
         flags = QgsDataProvider.ReadFlags()
         provider = SensorMockupDataProvider(uri, providerOptions, flags)
+
+        # keep a python reference on the new provider instance
+        cls.ALL_INSTANCES[id(provider)] = provider
+        # print(f'## Created {len(cls.ALL_INSTANCES)}: {provider}')
         return provider
+
+    def clone(self):
+        return self.createProvider(self.mSid, self.mProviderOptions, self.mFlags)
+        # return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
+
+    def setParent(self, parent: QObject):
+        # print(f'# setParent{parent}')
+        super().setParent(parent)
+        parent.destroyed.connect(self.objectDestroyed)
+
+    def objectDestroyed(self):
+        myId = id(self)
+        if myId in self.ALL_INSTANCES:
+            self.ALL_INSTANCES.pop(myId)
+            print(f'## Removed {myId}')
 
 
 def registerDataProvider():
@@ -1465,7 +1460,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
                  visibility: List[bool] = None,
                  description: str = "Load Images",
                  callback=None,
-                 progress_interval: int = 3):
+                 progress_interval: int = 5):
 
         super().__init__(description=description)
 
@@ -1508,12 +1503,11 @@ class TimeSeriesLoadingTask(EOTSVTask):
                 except Exception as ex:
                     self.mInvalidSources.append((path, ex))
 
-                if self.isCanceled():
-                    return False
-
                 dt = datetime.datetime.now() - t0
 
                 if dt > self.mProgressInterval:
+                    if self.isCanceled():
+                        return False
                     progress = int(100 * (i + 1) / n)
                     self.setProgress(progress)
                     # self.sigFoundSources.emit(cloneAndClear())
@@ -2406,65 +2400,49 @@ class TimeSeries(QAbstractItemModel):
         """
         return [tsd for tsd in self if not tsd.checkState() == Qt.Unchecked]
 
-    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
-        """
-        Writes the TimeSeries to a QDomNode
-        :param node: QDomElement
-        :param doc: QDomDocument
-        :return: bool
-        """
-        tsNode = doc.createElement('TimeSeries')
+    def asMap(self) -> dict:
 
-        for sensor in self.sensors():
-            sensorNode = doc.createElement('Sensor')
-            sensor.writeXml(sensorNode, doc)
-            tsNode.appendChild(sensorNode)
+        d = {}
+        sources = []
+        for tss in self.timeSeriesSources():
+            tss: TimeSeriesSource
+            sources.append({
+                'uri': tss.mUri,
+                'visible': tss.isVisible()
+            })
+        d['sources'] = sources
+        return d
 
-        for tss in self.sources():
-            assert isinstance(tss, TimeSeriesSource)
-            tssNode = doc.createElement('TimeSeriesSource')
-            tssNode.setAttribute('isVisible', str(tss.isVisible()))
-            tssNode.appendChild(doc.createTextNode((tss.uri())))
-            tsNode.appendChild(tssNode)
-        node.appendChild(tsNode)
-        return True
+    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
-    def readXml(self, node: QDomNode):
-        if not node.nodeName() == 'TimeSeries':
-            node = node.firstChildElement('TimeSeries')
-        if node.isNull():
-            return None
+        multistep = QgsProcessingMultiStepFeedback(4, feedback)
+        multistep.setCurrentStep(1)
+        multistep.setProgressText('Clean')
+        self.clear()
 
-        sensorNode = node.firstChildElement('Sensor')
-        while sensorNode.nodeName() == 'Sensor':
-            sensor = SensorInstrument.readXml(sensorNode)
+        uri_vis = dict()
 
-            if isinstance(sensor, SensorInstrument):
-                sid = sensor.id()
-                name = sensor.name()
-                self.addSensor(sensor)
+        multistep.setCurrentStep(2)
+        multistep.setProgressText('Read Sources')
+        sources = []
 
-                # set name on sensor instance (which might be already there)
-                sensor = self.sensor(sid)
-                if isinstance(sensor, SensorInstrument):
-                    sensor.setName(name)
-            sensorNode = sensorNode.nextSiblingElement()
+        for d in data.get('sources', []):
+            uri = d.get('uri')
 
-        tssNode = node.firstChildElement('TimeSeriesSource')
-        to_add = []
-        tss_visibility = []
-        while tssNode.nodeName() == 'TimeSeriesSource':
-            uri = tssNode.firstChild().nodeValue()
-            to_add.append(uri)
-            if tssNode.hasAttribute('isVisible'):
-                tss_visibility.append(str(tssNode.attribute('isVisible')).lower() in ['1', 'true'])
-            else:
-                tss_visibility.append(True)
+            if uri:
+                tss = TimeSeriesSource.create(uri)
+                uri_vis[tss.uri()] = d.get('visible', True)
+                if isinstance(tss, TimeSeriesSource):
+                    sources.append(tss)
 
-            tssNode = tssNode.nextSiblingElement()
+        multistep.setCurrentStep(3)
+        multistep.setProgressText('Add Sources')
 
-        if len(to_add) > 0:
-            self.addSources(to_add, visibility=tss_visibility, runAsync=True)
+        if len(sources) > 0:
+            self.addTimeSeriesSources(sources)
+
+        for tss in self.timeSeriesSources():
+            tss.setIsVisible(uri_vis.get(tss.uri(), tss.isVisible()))
 
     def data(self, index, role):
         """

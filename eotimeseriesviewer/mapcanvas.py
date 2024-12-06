@@ -48,7 +48,7 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate, TimeSeriesSource
+from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate
 from .utils import copyMapLayerStyle
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
@@ -206,7 +206,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         context.setMapToPixel(m2p)
         context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
         context.setUseAdvancedEffects(True)
-        context.setCustomRenderingFlag('Antialiasing', True)
+        # context.setCustomRenderingFlag('Antialiasing', True)
         context.setPainter(painter)
         # context.setExtent(self.mCanvas.extent())
         # context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
@@ -1226,23 +1226,16 @@ class MapCanvas(QgsMapCanvas):
         layers = []
         for lyr in mapLayers:
             if has_sensor_id(lyr):
-                lyr = QgsRasterLayer(lyr.source(), os.path.basename(lyr.source()), lyr.dataProvider().name())
-                r = lyr.renderer().clone()
-                r.setInput(lyr.dataProvider())
-                lyr.setRenderer(r)
-
-                tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+                lyr2 = lyr.clone()
+                tprop: QgsRasterLayerTemporalProperties = lyr2.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
                 tprop.setIsActive(True)
-                if isinstance(lyr.mTSS, TimeSeriesSource):
-                    dtg = lyr.mTSS.date().astype(object)
-                else:
-                    dtg = self.tsd().date().astype(object)
+                dtg = self.tsd().date().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
                 dt2 = QDateTime(dtg, QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
                 tprop.setFixedTemporalRange(range)
-                layers.append(lyr)
+                layers.append(lyr2)
             else:
                 layers.append(lyr)
         if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):
@@ -1351,6 +1344,8 @@ class MapCanvas(QgsMapCanvas):
         dp: QgsRasterDataProvider = layer.dataProvider()
         newRenderer = None
         extent = spatialExtent.toCrs(layer.crs())
+        if not isinstance(extent, SpatialExtent):
+            return
 
         assert isinstance(dp, QgsRasterDataProvider)
 

@@ -26,9 +26,9 @@ from typing import List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
-from qgis.core import QgsApplication
-from qgis.PyQt.QtWidgets import QWidget
 
+from qgis.PyQt.QtWidgets import QWidget
+from qgis.core import QgsApplication
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj

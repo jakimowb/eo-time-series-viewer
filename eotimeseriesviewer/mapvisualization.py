@@ -22,26 +22,23 @@
 
 import enum
 import math
-import re
 import sys
 import time
 import traceback
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-import numpy as np
-import qgis.utils
 from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
     QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
-    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProject, \
-    QgsRasterLayer, QgsRasterRenderer, QgsReadWriteContext, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
-from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
-    QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QModelIndex, QSize, Qt, QTimer
+    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProcessingFeedback, \
+    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+import qgis.utils
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
-from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
-
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
+    QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
 from eotimeseriesviewer import debugLog, DIR_UI
 from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
@@ -49,7 +46,7 @@ from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
 from .qgispluginsupport.qps.maptools import MapTools
-from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import loadUi, SpatialExtent, SpatialPoint
 from .timeseries import has_sensor_id, sensor_id, SensorInstrument, SensorMockupDataProvider, TimeSeries, TimeSeriesDate
 
 KEY_LOCKED_LAYER = 'eotsv/locked'
@@ -249,110 +246,64 @@ class MapView(QFrame):
     def __iter__(self) -> Iterator[TimeSeriesDate]:
         return iter(self.mapCanvases())
 
-    @staticmethod
-    def readXml(node: QDomNode):
-        if node.nodeName() == 'MapView':
-            nodeMapView = node
-        else:
-            nodeMapView = node.firstChildElement('MapView')
+    MKeyName = 'name'
+    MKeyTextFormat = 'text_format'
+    MKeyTextExpression = 'text_expression'
+    MKeyBGColor = 'map_background_color'
+    MKeyIsVisible = 'visible'
+    MkeySensorStyle = 'sensor_styles'
 
-        if nodeMapView.nodeName() != 'MapView':
-            return None
+    def asMap(self) -> dict:
 
-        context = QgsReadWriteContext()
-        mapView = MapView()
-
-        def to_bool(value) -> bool:
-            return str(value).lower() in ['1', 'true']
-
-        mapView.setName(nodeMapView.attribute('name'))
-        mapView.setMapBackgroundColor(QColor(nodeMapView.attribute('bg')))
-        mapView.setVisibility(to_bool(nodeMapView.attribute('visible')))
-
-        # mapView.optionShowDate.setChecked(to_bool(nodeMapView.attribute('showDate')))
-        # mapView.optionShowSensorName.setChecked(to_bool(nodeMapView.attribute('showSensorName')))
-        # mapView.optionShowMapViewName.setChecked(to_bool(nodeMapView.attribute('showMapViewName')))
-
-        # nodeMapView.setAttribute('showDate', str(self.optionShowDate.checked()))
-        # nodeMapView.setAttribute('showSensorName', str(self.optionShowSensorName.checked()))
-        # nodeMapView.setAttribute('showMapViewName', str(self.optionShowMapViewName.checked()))
-
-        textFormat = mapView.mapTextFormat()
-        textFormat.readXml(nodeMapView, context)
-
-        lyrTreeNode = node.firstChildElement('MapViewLayerTree').toElement()
-
-        def copyLayerTree(parentSrc: QgsLayerTreeGroup, parentDst: QgsLayerTreeGroup):
-
-            for child in parentSrc.children():
-                if 'eotsv/locked' in child.customProperties():
-                    continue
-                if isinstance(child, QgsLayerTreeLayer):
-                    lyr = child.layer()
-                    if isinstance(lyr, QgsMapLayer) and lyr.isValid():
-                        parentDst.addChildNode(child.clone())
-                    s = ""
-                elif isinstance(child, QgsLayerTreeGroup):
-                    if 'eotsv/locked' in child.customProperties():
-                        continue
-                    grp = QgsLayerTreeGroup()
-                    grp.setName(child.name())
-                    grp.setIsMutuallyExclusive(child.isMutuallyExclusive())
-                    parentDst.addChildNode(grp)
-                    copyLayerTree(child, grp)
-
-        if not lyrTreeNode.isNull():
-            tree: QgsLayerTree = QgsLayerTree.readXml(lyrTreeNode, context)
-            tree.resolveReferences(QgsProject.instance(), looseMatching=True)
-            if len(tree.children()) > 0:
-                copyLayerTree(tree.children()[0], mapView.mLayerTreeModel.rootGroup())
-                # move sensor node to last position
-                mapView.mLayerTree.removeChildNode(mapView.mLayerTreeSensorNode)
-                # will be added again to the bottom
-                # mapView.mLayerTree.addChildNode(mapView.mLayerTreeSensorNode)
-
-        lyrNode = node.firstChildElement('MapViewProxyLayer').toElement()
-        while lyrNode.nodeName() == 'MapViewProxyLayer':
-            sid = lyrNode.attribute('sensor_id')
-            styleNode = lyrNode.firstChildElement('LayerStyle')
+        sensor_styles = dict()
+        for lyr in self.sensorProxyLayers():
             style = QgsMapLayerStyle()
-            style.readXml(styleNode)
-            sensor = SensorInstrument(sid)
-            mapView.addSensor(sensor)
-            lyr = mapView.sensorProxyLayer(sensor)
-            copyMapLayerStyle(style, lyr)
+            style.readFromLayer(lyr)
+            sid = lyr.source()
+            sensor_styles[sid] = style.xmlData()
 
-            lyrNode = lyrNode.nextSiblingElement()
-        return mapView
+        d = {self.MKeyName: self.name(),
+             self.MKeyTextFormat: self.mapTextFormat().toMimeData().text(),
+             self.MKeyBGColor: self.mapBackgroundColor().name(),
+             self.MKeyIsVisible: self.isVisible(),
+             self.MKeyTextExpression: self.mapInfoExpression(),
+             self.MkeySensorStyle: sensor_styles,
+             }
 
-    def writeXml(self, node: QDomNode, doc: QDomDocument):
+        return d
 
-        nodeMapView = doc.createElement('MapView')
-        nodeMapView.setAttribute('name', self.name())
-        nodeMapView.setAttribute('bg', self.mapBackgroundColor().name())
-        nodeMapView.setAttribute('visible', str(self.isVisible()))
-        nodeMapView.setAttribute('infoexpression', self.mapInfoExpression())
+    def fromMap(self, data: dict):
 
-        context = QgsReadWriteContext()
-        nodeTextStyle = self.mapTextFormat().writeXml(doc, context)
-        nodeMapView.appendChild(nodeTextStyle)
+        if name := data.get(self.MKeyName):
+            self.setName(name)
 
-        nodeLayerTree = doc.createElement('MapViewLayerTree')
-        self.mLayerTree.writeXml(nodeLayerTree, context)
-        nodeMapView.appendChild(nodeLayerTree)
+        if bg := data.get(self.MKeyBGColor):
+            self.setMapBackgroundColor(QColor(bg))
 
-        for sensor in self.sensors():
-            lyr = self.sensorProxyLayer(sensor)
-            if isinstance(lyr, QgsRasterLayer):
-                sensorNode = doc.createElement('MapViewProxyLayer')
-                sensorNode.setAttribute('sensor_id', lyr.customProperty(SensorInstrument.PROPERTY_KEY))
-                style: QgsMapLayerStyle = QgsMapLayerStyle()
-                style.readFromLayer(lyr)
-                styleNode = doc.createElement('LayerStyle')
-                style.writeXml(styleNode)
-                sensorNode.appendChild(styleNode)
-                nodeMapView.appendChild(sensorNode)
-        node.appendChild(nodeMapView)
+        if expr := data.get(self.MKeyTextExpression):
+            self.setMapInfoExpression(expr)
+
+        if fmt := data.get(self.MKeyTextFormat):
+            md = QMimeData()
+            md.setText(fmt)
+            textFormat, success = QgsTextFormat.fromMimeData(md)
+            if success:
+                self.setMapTextFormat(textFormat)
+
+        if b := data.get(self.MKeyIsVisible):
+            self.setVisibility(b)
+
+        if sensor_styles := data.get(self.MkeySensorStyle):
+            for lyr in self.sensorProxyLayers():
+                if styleXml := sensor_styles.get(lyr.source()):
+                    doc = QDomDocument()
+                    doc.setContent(f'<LayerStyle>{styleXml}</LayerStyle>)')
+                    style = QgsMapLayerStyle()
+                    style.readXml(doc.documentElement())
+                    r1 = lyr.renderer()
+                    style.writeToLayer(lyr)
+                    r2 = lyr.renderer()
+                    s = ""
 
     def setName(self, name: str):
         self.setTitle(name)
@@ -1204,7 +1155,6 @@ class MapWidget(QFrame):
         self.mMapViewRows: int = 1
 
         self.mSpatialExtent: SpatialExtent = SpatialExtent.world()
-        self.mCrs: QgsCoordinateReferenceSystem = self.mSpatialExtent.crs()
         self.mCrsInitialized: bool = False
 
         self.mCurrentDate: TimeSeriesDate = None
@@ -1332,6 +1282,11 @@ class MapWidget(QFrame):
         Returns the current SpatialExtent
         :return: SpatialExtent
         """
+        for c in self.mapCanvases():
+            ext = SpatialExtent.fromMapCanvas(c)
+            self.mSpatialExtent = ext
+            return ext
+        # backup: latest spatial extent stored
         return self.mSpatialExtent
 
     def setSpatialExtent(self, *args) -> SpatialExtent:
@@ -1355,8 +1310,8 @@ class MapWidget(QFrame):
         except Exception as ex:
             traceback.print_exception(*sys.exc_info())
             raise ex
-        if self.mSpatialExtent == extent:
-            return
+        if self.spatialExtent() == extent:
+            return extent
 
         ext = extent.toCrs(self.crs())
         if not isinstance(ext, SpatialExtent):
@@ -1368,8 +1323,9 @@ class MapWidget(QFrame):
             debugLog(f'new extent: {self.mSpatialExtent}')
             for c in self.mapCanvases():
                 assert isinstance(c, MapCanvas)
-                c.addToRefreshPipeLine(self.mSpatialExtent)
-            self.sigSpatialExtentChanged.emit(self.mSpatialExtent.__copy__())
+                c.setSpatialExtent(ext)
+                # c.addToRefreshPipeLine(self.mSpatialExtent)
+            self.sigSpatialExtentChanged.emit(extent.__copy__())
         return self.spatialExtent()
 
     def setSpatialCenter(self, *args):
@@ -1402,18 +1358,17 @@ class MapWidget(QFrame):
         :param crs: QgsCoordinateReferenceSystem
         :return: QgsCoordinateReferenceSystem
         """
-        if self.mCrs == crs:
-            return self.crs()
+        crs = QgsCoordinateReferenceSystem(crs)
+        if self.crs() == crs:
+            return crs
 
-        self.mCrs = QgsCoordinateReferenceSystem(crs)
         for i, c in enumerate(self.mapCanvases()):
             wasBlocked = c.blockSignals(True)
-            c.setDestinationCrs(self.mCrs)
-            if i == 0:
-                self.mSpatialExtent = SpatialExtent.fromMapCanvas(c)
+            c.setDestinationCrs(crs)
             if not wasBlocked:
                 c.blockSignals(False)
-        self.sigCrsChanged.emit(self.crs())
+        self.sigCrsChanged.emit(crs)
+        self.mSpatialExtent = self.mSpatialExtent.toCrs(crs)
         return self.crs()
 
     def timedRefresh(self):
@@ -1493,81 +1448,56 @@ class MapWidget(QFrame):
                 position = min(position, len(canvases) - 1)
                 self.setCurrentMapCanvas(canvases[position])
 
-    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
-        """
-        Writes the MapWidget settings to a QDomNode
-        :param node:
-        :param doc:
-        :return:
-        """
-        context = QgsReadWriteContext()
-        mwNode = doc.createElement('MapWidget')
-        mapSize = self.mapSize()
-        mwNode.setAttribute('mapsPerMapView', f'{self.mapsPerMapView()}')
-        mwNode.setAttribute('mapWidth', f'{mapSize.width()}')
-        mwNode.setAttribute('mapHeight', f'{mapSize.height()}')
-        currentDate = self.currentDate()
-        if isinstance(currentDate, TimeSeriesDate):
-            mwNode.setAttribute('mapDate', f'{currentDate.date()}')
-        crsNode = doc.createElement('MapExtent')
-        self.spatialExtent().writeXml(crsNode, doc)
-        mwNode.appendChild(crsNode)
+    MKeyMapSize = 'map_size'
+    MKeyCrs = 'crs'
+    MKeyMapsPerView = 'maps_per_view'
+    MKeyMapViews = 'map_views'
+    MKeyCurrentDate = 'current_date'
+    MKeyCurrentExtent = 'extent'
 
-        for mapView in self.mapViews():
-            mapView.writeXml(mwNode, doc)
-        node.appendChild(mwNode)
-        return True
+    def asMap(self) -> dict:
 
-    def readXml(self, node: QDomNode):
-        from .settings import setValue, Keys
-        debugLog()
-        if not node.nodeName() == 'MapWidget':
-            node = node.firstChildElement('MapWidget')
-        if node.isNull():
-            return None
+        d = {self.MKeyMapSize: [self.mapSize().width(), self.mapSize().height()],
+             self.MKeyCrs: self.crs().toWkt(),
+             self.MKeyMapsPerView: self.mapsPerMapView(),
+             self.MKeyMapViews: [mv.asMap() for mv in self.mapViews()],
+             self.MKeyCurrentDate: str(self.currentDate().date()),
+             self.MKeyCurrentExtent: self.spatialExtent().asWktPolygon(),
+             }
 
-        if node.hasAttribute('mapsPerMapView'):
-            v = node.attribute('mapsPerMapView')
-            v = [int(v) for v in re.findall(r'\d+', v)]
-            if len(v) >= 2:
-                self.setMapsPerMapView(v[0], v[1])
-        if node.hasAttribute('mapWidth') and node.hasAttribute('mapHeight'):
-            mapSize = QSize(
-                int(node.attribute('mapWidth')),
-                int(node.attribute('mapHeight'))
-            )
+        return d
 
-            self.setMapSize(mapSize)
-            setValue(Keys.MapSize, mapSize)
+    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
-        if node.hasAttribute('mapDate'):
-            dt64 = datetime64(node.attribute('mapDate'))
-            if isinstance(dt64, np.datetime64):
-                tsd = self.timeSeries().tsd(dt64, None)
-                if isinstance(tsd, TimeSeriesDate):
-                    self.setCurrentDate(tsd)
+        self.removeAllMapViews()
 
-        nodeExtent = node.firstChildElement('MapExtent')
-        if nodeExtent.nodeName() == 'MapExtent':
-            extent = SpatialExtent.readXml(nodeExtent)
-            if isinstance(extent, SpatialExtent):
-                self.setCrs(extent.crs())
-                self.setSpatialExtent(extent)
+        if self.MKeyMapSize in data:
+            w, h = data.get(self.MKeyMapSize)
+            self.setMapSize(QSize(w, h))
 
-        mvNode = node.firstChildElement('MapView').toElement()
+        if wkt := data.get(self.MKeyCrs):
+            crs = QgsCoordinateReferenceSystem.fromWkt(wkt)
+            if crs.isValid():
+                self.setCrs(crs)
 
-        while mvNode.nodeName() == 'MapView':
-            mapView = MapView.readXml(mvNode)
-            mvNode = mvNode.nextSiblingElement()
+        if maps_per_view := data.get(self.MKeyMapsPerView):
+            cols, rows = maps_per_view
+            self.setMapsPerMapView(cols, rows)
 
-            if isinstance(mapView, MapView):
-                setValue(Keys.MapTextFormat, mapView.mapTextFormat())
-                setValue(Keys.MapBackgroundColor, mapView.mapBackgroundColor())
+        for mv in data.get(self.MKeyMapViews, []):
+            mapView = MapView()
+            mapView.setTimeSeries(self.timeSeries())
+            mapView.fromMap(mv)
+            mapView = self.addMapView(mapView)
 
-                for s in mapView.sensors():
-                    self.timeSeries().addSensor(s)
+        if current_date := data.get(self.MKeyCurrentDate):
+            tsd = self.timeSeries().findDate(current_date)
+            if isinstance(tsd, TimeSeriesDate):
+                self.setCurrentDate(tsd)
 
-                self.addMapView(mapView)
+        if extent := data.get(self.MKeyCurrentExtent):
+            extent = QgsRectangle.fromWkt(extent)
+            self.setSpatialExtent(SpatialExtent(self.crs(), extent))
 
     def usedLayers(self) -> List[QgsMapLayer]:
         layers = set()
@@ -1576,7 +1506,12 @@ class MapWidget(QFrame):
         return list(layers)
 
     def crs(self) -> QgsCoordinateReferenceSystem:
-        return self.mCrs
+        # returns the used CRS
+        for c in self.mapCanvases():
+            return c.mapSettings().destinationCrs()
+
+        # backup:
+        return self.spatialExtent().crs()
 
     def setTimeSeries(self, ts: TimeSeries) -> TimeSeries:
         assert ts is None or isinstance(ts, TimeSeries)
@@ -1942,6 +1877,12 @@ QSlider::add-page {{
         if isinstance(mapView, MapView):
             self.setCurrentMapView(mapView)
         self.sigCurrentLayerChanged.emit(layer)
+
+    def removeAllMapViews(self):
+
+        to_remove = reversed(self.mMapViews)
+        for mv in to_remove:
+            self.removeMapView(mv)
 
     def removeMapView(self, mapView: MapView) -> MapView:
         """
