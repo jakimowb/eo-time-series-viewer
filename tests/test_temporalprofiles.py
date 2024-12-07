@@ -65,7 +65,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         tss = timeSeries[0][0]
         self.assertIsInstance(tss, TimeSeriesSource)
 
-    DIR_FORCE = Path('D:\EOTSV\FORCE_CUBE')
+    DIR_FORCE = Path(r'D:\EOTSV\FORCE_CUBE')
 
     @unittest.skipIf(DIR_FORCE.is_dir(), f'Missing FORCE dir: {DIR_FORCE}')
     def test_temporalprofileloadertaskinfo2(self):
