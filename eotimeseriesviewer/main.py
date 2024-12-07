@@ -37,7 +37,7 @@ from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
 from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
 from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
-    TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
+    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
     TimeSeriesWidget
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
@@ -635,6 +635,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         EOTimeSeriesViewer._instance = None
         self.mapWidget().onClose()
 
+    def applyAllVisualChanges(self):
+        tm = QgsApplication.taskManager()
+        while any(tm.activeTasks()):
+            print('Wait for QgsTaskManager to finish all tasks...\r', flush=True)
+            QgsApplication.processEvents()
+        QApplication.processEvents()
+        while self.mapWidget().mMapRefreshBlock:
+            QApplication.processEvents()
+        self.mapWidget().timedRefresh()
+        while any(tm.activeTasks()):
+            print('Wait for QgsTaskManager to finish all tasks...\r', flush=True)
+            QgsApplication.processEvents()
+        QApplication.processEvents()
+
     def asMap(self) -> dict:
 
         d = {'TimeSeries': self.timeSeries().asMap(),
@@ -714,11 +728,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
                 for mv in mapviews:
                     self.mapWidget().removeMapView(mv)
-                dialog.setValue(50)
+                dialog.setValue(35)
                 jsonText = node.firstChildElement('jsonSettings').text()
                 self.fromJson(jsonText, feedback=feedback)
             except Exception as ex:
-                pass
+                print(ex, file=sys.stderr)
+
             dialog.setValue(100)
             dialog.close()
 
@@ -1130,17 +1145,50 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.mapWidget().setCrs(iface.mapCanvas().mapSettings().destinationCrs())
 
-    def onShowLayerProperties(self, lyr=None):
+    def onShowLayerProperties(self,
+                              lyr: Optional[QgsMapLayer] = None,
+                              canvas: Optional[QgsMapCanvas] = None):
+
         if not isinstance(lyr, QgsMapLayer):
             lyr = self.currentLayer()
+            canvas = self.currentMapCanvas()
 
-        if isinstance(lyr, (QgsVectorLayer, QgsRasterLayer)):
+        # in any case, replace a mockup layer with a real layer instance
+        # to let the properties dialog make image stats calculations on real images
+        if (isinstance(lyr, QgsRasterLayer) and lyr.isValid()
+                and lyr.dataProvider().name() == SensorMockupDataProvider.__name__):
+            sid = lyr.source()
+
+            newLyr = None
+            for mv in self.mapViews():
+                if lyr not in mv.sensorProxyLayers():
+                    continue
+                for sLyr in mv.sensorLayers(sid):
+                    newLyr = sLyr
+                    break
+            if newLyr is None:
+                # find
+                for tsd in self.timeSeries():
+                    if tsd.sensor().id() == sid:
+                        for tss in tsd.sources():
+                            newLyr = tss.asRasterLayer(True)
+                            break
+                    if newLyr:
+                        break
+            if newLyr:
+                lyr = newLyr
+
+        if isinstance(lyr, QgsMapLayer):
+            if not isinstance(canvas, QgsMapCanvas) or lyr not in canvas.layers():
+                canvas = QgsMapCanvas()
+                canvas.setDestinationCrs(lyr.crs())
+                canvas.setExtent(lyr.extent())
+                canvas.setLayers([lyr])
+
             showLayerPropertiesDialog(lyr,
-                                      canvas=self.currentMapCanvas(),
+                                      canvas=canvas,
                                       messageBar=self.messageBar(),
                                       useQGISDialog=False, modal=True)
-            # showLayerPropertiesDialog(layer, canvas=canvas, messageBar=messageBar,
-            #                                   modal=True, useQGISDialog=False)
 
     def onShowSettingsDialog(self):
         from eotimeseriesviewer.settings import SettingsDialog
