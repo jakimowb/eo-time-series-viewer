@@ -15,13 +15,12 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 import os
 import re
 import unittest
+from pathlib import Path
 
 from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtWidgets import QTableView
 from qgis.core import QgsGeometry, QgsMapLayer, QgsPointXY, QgsProject, QgsTask
 from qgis.gui import QgsGui, QgsMapLayerAction, QgsMapLayerActionRegistry
-
-import example.Images
 from eotimeseriesviewer.profilevisualization import ProfileViewDock
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyleButton
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
@@ -39,18 +38,13 @@ class TestTemporalProfiles(EOTSVTestCase):
     def setUp(self):
         """Runs before each test."""
         super().setUp()
-        self.TS = TimeSeries()
-
-        files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif'))
-        self.TS.addSources(files, runAsync=False)
-        self.assertTrue(len(self.TS) > 0)
 
     def createTemporalProfiles(self):
-
-        center = self.TS.maxSpatialExtent().spatialCenter()
+        TS = TestObjects.createTimeSeries()
+        center = TS.maxSpatialExtent().spatialCenter()
 
         lyr = TemporalProfileLayer()
-        lyr.setTimeSeries(self.TS)
+        lyr.setTimeSeries(TS)
         results = []
         results.extend(lyr.createTemporalProfiles(center))
         results.extend(lyr.createTemporalProfiles(SpatialPoint(center.crs(), center.x() + 40, center.y() + 50)))
@@ -58,7 +52,7 @@ class TestTemporalProfiles(EOTSVTestCase):
             self.assertIsInstance(p, TemporalProfile)
         return results
 
-    def test_temporalprofileloadertaskinfo(self):
+    def test_temporalprofileloadertaskinfo1(self):
 
         timeSeries = TestObjects.createTimeSeries()
         self.assertIsInstance(timeSeries, TimeSeries)
@@ -71,15 +65,17 @@ class TestTemporalProfiles(EOTSVTestCase):
         tss = timeSeries[0][0]
         self.assertIsInstance(tss, TimeSeriesSource)
 
-    def test_temporalprofileloadertaskinfo(self):
+    DIR_FORCE = Path('D:\EOTSV\FORCE_CUBE')
 
-        DIR_FORCE = r'D:\EOTSV\FORCE_CUBE'
-        if not os.path.isdir(DIR_FORCE):
+    @unittest.skipIf(DIR_FORCE.is_dir(), f'Missing FORCE dir: {DIR_FORCE}')
+    def test_temporalprofileloadertaskinfo2(self):
+
+        if not os.path.isdir(self.DIR_FORCE):
             return
 
         timeSeries = TimeSeries()
 
-        files = file_search(DIR_FORCE, re.compile(r'.*_BOA.tif$'), recursive=True)
+        files = file_search(self.DIR_FORCE, re.compile(r'.*_BOA.tif$'), recursive=True)
         timeSeries.addSources(files, runAsync=False)
 
         self.assertIsInstance(timeSeries, TimeSeries)
@@ -132,11 +128,11 @@ class TestTemporalProfiles(EOTSVTestCase):
             self.assertEqual(len(px), tss.nl * tss.ns)
 
     def test_createTemporalProfile(self):
-
-        center = self.TS.maxSpatialExtent().spatialCenter()
+        TS = TestObjects.createTimeSeries()
+        center = TS.maxSpatialExtent().spatialCenter()
 
         lyr = TemporalProfileLayer()
-        lyr.setTimeSeries(self.TS)
+        lyr.setTimeSeries(TS)
         tp = lyr.createTemporalProfiles(center)[0]
 
         self.assertIsInstance(tp, TemporalProfile)
@@ -151,12 +147,12 @@ class TestTemporalProfiles(EOTSVTestCase):
             self.assertEqual(total, nd + nnd)
 
     def test_temporalProfileLayer(self):
-
+        TS = TestObjects.createTimeSeries()
         lyr1 = TemporalProfileLayer()
         self.assertTrue(lyr1.crs().isValid())
-        lyr1.setTimeSeries(self.TS)
+        lyr1.setTimeSeries(TS)
 
-        extent = self.TS.maxSpatialExtent()
+        extent = TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
         point1 = SpatialPoint(center.crs(), center.x(), center.y())
@@ -189,7 +185,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         lyr1.loadMissingBandInfos(run_async=False)
 
     def test_expressions(self):
-        s = ""
+        TS = TestObjects.createTimeSeries()
         tps = self.createTemporalProfiles()
         expressions = ['b1 + b2']
 
@@ -197,11 +193,11 @@ class TestTemporalProfiles(EOTSVTestCase):
             self.assertIsInstance(tp, TemporalProfile)
             tp.loadMissingData()
             tsdKeys = list(tp.mData.keys())
-            for tsd in self.TS:
+            for tsd in TS:
                 self.assertIn(tsd, tsdKeys)
                 s = ""
 
-            for sensor in self.TS.sensors():
+            for sensor in TS.sensors():
                 self.assertIsInstance(sensor, SensorInstrument)
                 for expression in expressions:
                     x, y = tp.dataFromExpression(sensor, expression)
@@ -257,10 +253,10 @@ class TestTemporalProfiles(EOTSVTestCase):
 
     def test_profiledock2(self):
 
-        TS = self.TS
+        TS = TestObjects.createTimeSeries()
         layer = TemporalProfileLayer()
-        layer.setTimeSeries(self.TS)
-        extent = self.TS.maxSpatialExtent()
+        layer.setTimeSeries(TS)
+        extent = TS.maxSpatialExtent()
         center = extent.spatialCenter()
 
         point1 = SpatialPoint(center.crs(), center.x(), center.y())
@@ -277,7 +273,7 @@ class TestTemporalProfiles(EOTSVTestCase):
         self.assertEqual(model.rowCount(), n)
 
         pd = ProfileViewDock()
-        pd.setTimeSeries(self.TS)
+        pd.setTimeSeries(TS)
         QgsProject.instance().addMapLayer(pd.temporalProfileLayer())
         reg = QgsGui.instance().mapLayerActionRegistry()
 

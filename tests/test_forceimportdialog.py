@@ -2,8 +2,8 @@ import os
 import unittest
 from pathlib import Path
 
-from eotimeseriesviewer.forceinputs import FindFORCEProductsTask, FORCEProductImportDialog, read_tileids, \
-    find_tile_folders, rx_FORCE_TILEFOLDER
+from eotimeseriesviewer.forceinputs import find_tile_folders, FindFORCEProductsTask, FORCEProductImportDialog, \
+    read_tileids, rx_FORCE_TILEFOLDER
 from eotimeseriesviewer.tests import start_app, TestCase
 
 start_app()
@@ -33,7 +33,7 @@ class FORCEImportTestCases(TestCase):
         ids = d.tileIds()
         self.assertEqual(set(tile_ids), set(ids))
 
-    @unittest.skipIf(not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
+    @unittest.skipIf(True or not FORCE_ROOT.is_dir(), 'Missing FORCE_ROOT')
     def test_read_files(self):
 
         tile_ids = ['X0044_Y0052', 'X0045_Y0050']

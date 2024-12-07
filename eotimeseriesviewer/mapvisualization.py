@@ -25,26 +25,24 @@ import math
 import sys
 import time
 import traceback
+from threading import Lock
 from typing import Dict, Iterator, List, Optional, Tuple, Union
 
-from qgis.PyQt.QtCore import QTextStream, QByteArray
-from qgis.core import QgsApplication, QgsMultiBandColorRenderer
-
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, \
+    QgsExpressionContextGenerator, QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, \
+    QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, \
+    QgsMultiBandColorRenderer, QgsPointXY, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsRasterRenderer, \
+    QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 import qgis.utils
 from eotimeseriesviewer import debugLog, DIR_UI
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractListModel, QMimeData, QModelIndex, QSize, Qt, QTimer
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, setLayerStyleString
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsCoordinateReferenceSystem, QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, \
-    QgsExpressionContextScope, QgsExpressionContextUtils, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, \
-    QgsLayerTreeModel, QgsMapLayer, QgsMapLayerProxyModel, QgsMapLayerStyle, QgsPointXY, QgsProcessingFeedback, \
-    QgsProject, QgsRasterLayer, QgsRasterRenderer, QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
-from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem
+from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from .maplayerproject import EOTimeSeriesViewerProject
 from .qgispluginsupport.qps.crosshair.crosshair import CrosshairMapCanvasItem, CrosshairStyle, getCrosshairStyle
 from .qgispluginsupport.qps.layerproperties import VectorLayerTools
@@ -93,22 +91,6 @@ class MapViewExpressionContextGenerator(QgsExpressionContextGenerator):
         return context
 
 
-def layerStyleString(layer: QgsMapLayer) -> str:
-    # style = QgsMapLayerStyle()
-    # style.readFromLayer(layer)
-    # xmlData = style.xmlData()
-    doc = QDomDocument()
-    err = layer.exportNamedStyle(doc,
-                                 categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
-    ba = QByteArray()
-    stream = QTextStream(ba)
-    stream.setCodec('utf-8')
-    doc.documentElement().save(stream, 0)
-    xmlData = str(ba, 'utf-8')
-
-    return xmlData
-
-
 class MapView(QFrame):
     """
     A MapView defines how a single map canvas visualizes sensor specific EOTS data plus additional vector overlays
@@ -134,7 +116,7 @@ class MapView(QFrame):
                                                    default=DEFAULT_VALUES.get(Keys.MapTextFormat, QgsTextFormat()))
         self.mMapWidget = None
 
-        self.mLayerStyleInitialized: Dict[str, bool] = dict()
+        # self.mLayerStyleInitialized: Dict[str, bool] = dict()
 
         self.mTimeSeries = None
         self.mSensorLayerList = list()
@@ -277,7 +259,15 @@ class MapView(QFrame):
 
         for lyr in self.sensorProxyLayers():
             sid = lyr.source()
-            sensor_styles[sid] = layerStyleString(lyr)
+
+            categories = QgsMapLayer.StyleCategory.Symbology
+            if lyr.customProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, defaultValue=False):
+                categories = categories | QgsMapLayer.StyleCategory.Rendering
+
+            sensor_styles[sid] = {
+                'xml': layerStyleString(lyr, categories=categories),
+                'initialized': lyr.customProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED)
+            }
 
         d = {self.MKeyName: self.name(),
              self.MKeyTextFormat: self.mapTextFormat().toMimeData().text(),
@@ -311,21 +301,18 @@ class MapView(QFrame):
             self.setVisibility(b)
 
         if sensor_styles := data.get(self.MKeySensorStyle):
-            for sid, styleXml in sensor_styles.items():
-                lyr = self.sensorProxyLayer(sid)
-                if not isinstance(lyr, QgsRasterLayer):
-                    s = ""
-                else:
-                    doc = QDomDocument()
-                    doc.setContent(f'<LayerStyle>{styleXml}</LayerStyle>)')
-                    style = QgsMapLayerStyle()
-                    style.readXml(doc.documentElement())
-                    style.writeToLayer(lyr)
-                    style2 = layerStyleString(lyr)
-                    if style2 != styleXml:
-                        s = ""
 
-                    s = ""
+            for sid, style_dict in sensor_styles.items():
+                lyr = self.sensorProxyLayer(sid)
+                if isinstance(lyr, QgsRasterLayer):
+                    if styleXml := style_dict.get('xml', None):
+                        setLayerStyleString(lyr, styleXml,
+                                            categories=STYLE_CATEGORIES)
+
+                    # the style (render settings etc.) was initialized on a map canvas
+                    # if not, it will be stretched to the first map canvas
+                    is_initialized = style_dict.get('initialized', False) is True
+                    lyr.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, is_initialized)
 
     def setName(self, name: str):
         self.setTitle(name)
@@ -635,7 +622,8 @@ class MapView(QFrame):
         """
         cl = self.mLayerTreeView.currentLayer()
         if sid := sensor_id(cl):
-            canvases = [c for c in self.mapCanvases() if c.tsd().sensor().id() == sid]
+            canvases = [c for c in self.mapCanvases()
+                        if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid]
             canvases = sorted(canvases, key=lambda c: c is not self.currentMapCanvas())
             for c in canvases:
                 for lyr in c.layers():
@@ -682,16 +670,16 @@ class MapView(QFrame):
                 return lyr
         return None
 
-    def sensorLayers(self, sensor_id: str) -> List[QgsRasterLayer]:
+    def sensorLayers(self, sensor_id: Optional[str] = None) -> List[QgsRasterLayer]:
         """
         :param sensor_id:
         :return:
         """
         layers = []
         for c in self.mapCanvases():
-            for lyr in c.layers():
-                if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor_id:
-                    layers.append(lyr)
+            layers.extend([lyr for lyr in c.layers() if has_sensor_id(lyr)])
+        if sensor_id:
+            layers = [lyr for lyr in layers if lyr.customProperty(SensorInstrument.PROPERTY_KEY) == sensor_id]
         return layers
 
     def sensors(self) -> List[SensorInstrument]:
@@ -724,7 +712,7 @@ class MapView(QFrame):
             dummyLayers = self.mDummyCanvas.layers() + [masterLayer]
             self.mDummyCanvas.setLayers(dummyLayers)
 
-            self.mLayerStyleInitialized[sensor.id()] = False
+            # self.mLayerStyleInitialized[sensor.id()] = False
 
     def onMasterLyrNameChanged(self, *args):
         lyr = self.sender()
@@ -738,17 +726,17 @@ class MapView(QFrame):
         sid = sensor_id(masterLayer)
 
         if isinstance(sid, str):
-            style: QgsMapLayerStyle = QgsMapLayerStyle()
-            style.readFromLayer(masterLayer)
 
+            styleXml = layerStyleString(masterLayer,
+                                        categories=STYLE_CATEGORIES)
             for lyr in self.sensorLayers(sid):
-                copyMapLayerStyle(style, lyr)
+                copyMapLayerStyle(styleXml, lyr)
 
             for c in self.sensorCanvases(sid):
                 assert isinstance(c, MapCanvas)
                 c.addToRefreshPipeLine(MapCanvas.Command.RefreshRenderer)
 
-            self.mLayerStyleInitialized[sid] = True
+            # self.mLayerStyleInitialized[sid] = True
 
     def sensorCanvases(self, sensor: Union[str, SensorInstrument]) -> List[MapCanvas]:
         """
@@ -782,8 +770,8 @@ class MapView(QFrame):
         :param sensor:
         :return:
         """
-        if sensor in self.mLayerStyleInitialized.keys():
-            self.mLayerStyleInitialized.pop(sensor)
+        # if sensor in self.mLayerStyleInitialized.keys():
+        #    self.mLayerStyleInitialized.pop(sensor)
 
         toRemove = []
         for t in self.mSensorLayerList:
@@ -870,7 +858,9 @@ class MapViewLayerTreeViewMenuProvider(QgsLayerTreeViewMenuProvider):
             for lyr in canvas.layers():
                 sid = sensor_id(lyr)
                 if sid == csid:
-                    canvas.stretchToExtent(layer=lyr)
+                    b = canvas.stretchToExtent(layer=lyr)
+                    if not b:
+                        s = ""
                     break
 
         elif isinstance(current, QgsRasterLayer):
@@ -1193,6 +1183,7 @@ class MapWidget(QFrame):
         self.mMapRefreshTimer.timeout.connect(self.timedRefresh)
         self.mMapRefreshTimer.setInterval(500)
         self.mMapRefreshTimer.start()
+        self.mMapRefreshBlock: bool = False
 
         # define shortcuts
         self.actionForward.setShortcuts([QKeySequence(QKeySequence.MoveToNextChar)])
@@ -1260,11 +1251,9 @@ class MapWidget(QFrame):
 
     def refresh(self):
         debugLog()
-        for c in self.mapCanvases():
-            b = c.blockSignals(True)
-            assert isinstance(c, MapCanvas)
-            c.timedRefresh()
-            c.blockSignals(b)
+        canvases = self.mapCanvases()
+        for c in canvases:
+            c.refresh()
 
     def setMapTextFormat(self, textFormat: QgsTextFormat) -> QgsTextFormat:
 
@@ -1417,33 +1406,43 @@ class MapWidget(QFrame):
 
         return self.crs()
 
-    def timedRefresh(self):
+    def timedRefresh(self) -> bool:
         """
         Calls the timedRefresh() routine for all MapCanvases
         """
-        if self.mSyncQGISMapCanvasCenter:
-            self.syncQGISCanvasCenter()
+        if self.mMapRefreshBlock:
+            return False
 
-        for c in self.mapCanvases():
-            assert isinstance(c, MapCanvas)
-            b = c.blockSignals(True)
-            c.timedRefresh()
-            c.blockSignals(b)
+        with Lock() as lock:
+            print('# TIMED REFRESH')
+            self.mMapRefreshBlock = True
+            # with MapWidgetTimedRefreshBlocker(self):
 
-        for mapView in self.mapViews():
-            # test for initial raster stretches
-            for sensor in self.timeSeries().sensors():
-                if not mapView.mLayerStyleInitialized.get(sensor, False):
-                    for c in self.mapViewCanvases(mapView):
-                        # find the first map canvas that contains  layer data of this sensor
-                        # in its extent
-                        if not isinstance(c.tsd(), TimeSeriesDate):
-                            continue
-                        if c.tsd().sensor() == sensor and c.stretchToCurrentExtent():
-                            mapView.mLayerStyleInitialized[sensor] = True
-                            break
+            if self.mSyncQGISMapCanvasCenter:
+                self.syncQGISCanvasCenter()
 
-    def currentLayer(self) -> QgsMapLayer:
+            canvases = self.mapCanvases()
+
+            for c in canvases:
+                c.timedRefresh()
+
+            for mapView in self.mapViews():
+                # test for initial raster stretches
+                for proxyLayer in mapView.sensorProxyLayers():
+                    if proxyLayer.customProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, defaultValue=False):
+                        continue
+
+                    sid = proxyLayer.customProperty(SensorInstrument.PROPERTY_KEY)
+                    for c in mapView.mapCanvases():
+                        if isinstance(c.tsd(), TimeSeriesDate) and c.tsd().sensor().id() == sid:
+                            for lyr in c.layers():
+                                if sensor_id(lyr) == sid:
+                                    c.stretchToCurrentExtent(layer=lyr)
+                                    proxyLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED, True)
+            self.mMapRefreshBlock = False
+        return True
+
+    def currentLayer(self) -> Optional[QgsMapLayer]:
         mv = self.currentMapView()
         if isinstance(mv, MapView):
             return mv.currentLayer()
@@ -1513,15 +1512,33 @@ class MapWidget(QFrame):
 
         return d
 
-    def _allReds(self):
-        QgsApplication.processEvents()
-        self.timedRefresh()
-        QgsApplication.processEvents()
-        reds = []
+    def allProxyLayers(self) -> List[QgsRasterLayer]:
+        """
+        Returns all QgsRasterLayers that are used as SensorProxyLayer inside the layer trees.
+        :return:
+        """
+        layers = []
         for mv in self.mapViews():
-            for lyr in mv.sensorProxyLayers():
-                if isinstance(lyr.renderer(), QgsMultiBandColorRenderer):
-                    reds.append(lyr.renderer().redContrastEnhancement().minimumValue())
+            layers.extend(mv.sensorProxyLayers())
+        return layers
+
+    def _allReds(self, skip_refresh: bool = False):
+        """
+        For debugging only. Returns all minimum values of red-band contrast enhancements.
+        :return:
+        """
+        if not skip_refresh:
+            QgsApplication.processEvents()
+            self.timedRefresh()
+            QgsApplication.processEvents()
+            self.timedRefresh()
+            QgsApplication.processEvents()
+
+        reds = []
+        for lyr in self.allProxyLayers():
+            if isinstance(lyr.renderer(), QgsMultiBandColorRenderer):
+                reds.append(lyr.renderer().redContrastEnhancement().minimumValue())
+        reds = ['nan' if math.isnan(r) else r for r in reds]
         return reds
 
     def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
@@ -1541,29 +1558,23 @@ class MapWidget(QFrame):
             cols, rows = maps_per_view
             self.setMapsPerMapView(cols, rows)
 
-        reds_before = []
-        reds_after = []
         for mv in data.get(self.MKeyMapViews, []):
             mapView = MapView()
             mapView.setTimeSeries(self.timeSeries())
             mapView.fromMap(mv)
 
-            reds_before.append(self._allReds())
             self.addMapView(mapView)
-            reds_after.append(self._allReds())
-            s = ""
 
-        reds3 = self._allReds()
         if current_date := data.get(self.MKeyCurrentDate):
             tsd = self.timeSeries().findDate(current_date)
-            reds3b = self._allReds()
+
             if isinstance(tsd, TimeSeriesDate):
                 self.setCurrentDate(tsd)
-        reds4 = self._allReds()
+
         if extent := data.get(self.MKeyCurrentExtent):
             extent = QgsRectangle.fromWkt(extent)
             self.setSpatialExtent(SpatialExtent(self.crs(), extent))
-        reds5 = self._allReds()
+
         s = ""
 
     def usedLayers(self) -> List[QgsMapLayer]:
@@ -1890,22 +1901,16 @@ QSlider::add-page {{
         :return: TimeSeriesDate
         """
         assert isinstance(tsd, TimeSeriesDate)
-        reds0 = self._allReds()
         b = tsd != self.mCurrentDate or (len(self.mapCanvases()) > 0 and self.mapCanvases()[0].tsd() is None)
 
-        reds1 = self._allReds()
         self.mCurrentDate = tsd
-        reds2 = self._allReds()
         if b:
             self._updateCanvasDates()
-            reds3 = self._allReds()
             i = self.mTimeSeries[:].index(self.mCurrentDate)
 
             if self.mTimeSlider.value() != i:
                 self.mTimeSlider.setValue(i)
-            reds4 = self._allReds()
             self.sigCurrentDateChanged.emit(self.mCurrentDate)
-            reds5 = self._allReds()
 
         if isinstance(self.currentDate(), TimeSeriesDate):
             i = self.timeSeries()[:].index(self.currentDate())
@@ -1919,9 +1924,8 @@ QSlider::add-page {{
 
         for a in [self.actionBackward, self.actionBackwardFast, self.actionFirstDate]:
             a.setEnabled(canBackward)
-        reds6 = self._allReds()
         self._updateSliderCss()
-        reds7 = self._allReds()
+
         # update slider CSS
         # set CSS
         return self.mCurrentDate
@@ -1969,32 +1973,22 @@ QSlider::add-page {{
         assert isinstance(mapView, MapView)
         if mapView in self.mMapViews:
             return None
-        reds1 = self._allReds()
         mapView.setTimeSeries(self.timeSeries())
-        reds2 = self._allReds()
-
         self.mMapViews.append(mapView)
 
         mapView.setMapWidget(self)
-        reds3 = self._allReds()
 
         # connect signals
         # mapView.sigShowProfiles.connect(self.sigShowProfiles)
         mapView.sigCanvasAppearanceChanged.connect(self._updateCanvasAppearance)
         mapView.sigCrosshairChanged.connect(self._updateCrosshair)
         mapView.sigCurrentLayerChanged.connect(self.onCurrentMapViewLayerChanged)
-        reds4 = self._allReds()
         self._updateGrid()
-        reds4b = self._allReds()
         self._updateCrosshair(mapView=mapView)
-        reds5 = self._allReds()
         self.sigMapViewsChanged.emit()
-        reds6 = self._allReds()
         self.sigMapViewAdded.emit(mapView)
-        reds7 = self._allReds()
         if len(self.mapViews()) == 1:
             self.setCurrentMapView(mapView)
-            reds8 = self._allReds()
 
         return mapView
 
@@ -2203,7 +2197,6 @@ QSlider::add-page {{
         nc = self.mMapViewColumns
         nr = len(self.mapViews()) * self.mMapViewRows
 
-        reds3 = self._allReds()
         for iMV, mv in enumerate(self.mMapViews):
             assert isinstance(mv, MapView)
             self.mCanvases[mv] = []
@@ -2219,16 +2212,10 @@ QSlider::add-page {{
                     self.mGrid.addWidget(c, gridrow, gridcol)
                     c.setVisible(visible)
                     self.mCanvases[mv].append(c)
-        reds4 = self._allReds()
         self._updateCanvasDates()
-        reds5 = self._allReds()
         self._updateSliderCss()
-        reds6 = self._allReds()
         self.mGrid.parentWidget().setVisible(True)
-        reds7 = self._allReds()
         self.mMapRefreshTimer.start()
-        reds8 = self._allReds()
-        s = ""
 
     def _updateWidgetSize(self):
 
@@ -2260,16 +2247,14 @@ QSlider::add-page {{
         return canvases
 
     def _layerListKey(self, canvas: MapCanvas) -> Tuple[MapView, TimeSeriesDate]:
-        return (canvas.mapView(), canvas.tsd())
+        return canvas.mapView(), canvas.tsd()
 
     def _updateCanvasDates(self, updateLayerCache: bool = True):
 
         visibleBefore = self.visibleTSDs()
         bTSDChanged = False
-        reds1 = self._allReds()
         if updateLayerCache:
             self._updateLayerCache()
-        reds3 = self._allReds()
         if not (isinstance(self.mCurrentDate, TimeSeriesDate) and isinstance(self.timeSeries(), TimeSeries)):
             for c in self.findChildren(MapCanvas):
                 assert isinstance(c, MapCanvas)
@@ -2288,34 +2273,27 @@ QSlider::add-page {{
             visible = sorted([visible[i] for i in i_visible])
 
             # set TSD of remaining canvases to None
-            reds4 = self._allReds()
             while len(visible) < nCanvases:
                 visible.append(None)
-            reds5 = self._allReds()
             for mapView in self.mapViews():
+
                 for tsd, canvas in zip(visible, self.mCanvases[mapView]):
                     assert isinstance(tsd, TimeSeriesDate) or tsd is None
                     assert isinstance(canvas, MapCanvas)
                     if canvas.tsd() != tsd:
                         canvas.setTSD(tsd)
-
                         key = self._layerListKey(canvas)
                         if key in self.mMapLayerCache.keys():
                             v = self.mMapLayerCache[key]
                             canvas.setLayers(self.mMapLayerCache.pop(key))
                         bTSDChanged = True
-            reds6 = self._allReds()
-            # canvas.setLayers()
+
         if bTSDChanged:
             self._updateCanvasAppearance()
 
         visible2 = self.visibleTSDs()
         if visible2 != visibleBefore:
             self.sigVisibleDatesChanged.emit(visible2)
-        reds7 = self._allReds()
-        self._freeUnusedMapLayers()
-        reds8 = self._allReds()
-        s = ""
 
     def _freeUnusedMapLayers(self):
 

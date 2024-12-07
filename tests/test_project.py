@@ -28,7 +28,8 @@ from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
-from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
+from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
 from qgis.gui import QgsMapCanvas
 
 # noinspection PyPep8Naming
@@ -73,13 +74,7 @@ class TestProjectIO(EOTSVTestCase):
             if k == MapView.MKeySensorStyle:
                 self.assertIsInstance(v_a, dict)
                 self.assertIsInstance(v_b, dict)
-                for sid in v_a.keys():
-                    self.assertTrue(sid in v_b)
-                    style_a, style_b = v_a[sid], v_b[sid]
-
-                    self.assertEqual(style_a, style_b)
-            else:
-                self.assertEqual(v_a, v_b)
+            self.assertEqualElements(v_a, v_b)
 
     def assertEqualSetting(self, a: dict, b: dict):
 
@@ -111,21 +106,40 @@ class TestProjectIO(EOTSVTestCase):
                 s = ""
         s = ""
 
-    def assertEqualElements(self, a, b, msg: str = ''):
-        self.assertEqual(type(a), type(b), msg=msg + 'Unequal types')
+    def assertEqualElements(self, a, b, prefix: str = ''):
+        self.assertEqual(type(a), type(b), msg=f'{prefix}\n\tUnequal types: {a} vs {b}'.strip())
 
         if isinstance(a, dict):
             self.assertEqual(a.keys(), b.keys())
             for k in a.keys():
-                self.assertEqualElements(a[k], b[k], msg=f'Key {k}:')
+                self.assertEqualElements(a[k], b[k], prefix=f'{prefix}["{k}"]'.strip())
         elif isinstance(a, list):
-            self.assertEqual(len(a), len(b))
-            for k1, k2 in zip(a, b):
-                self.assertEqualElements(k1, k2)
+            self.assertEqual(len(a), len(b), msg=f'{prefix}')
+            for i, (k1, k2) in enumerate(zip(a, b)):
+                self.assertEqualElements(k1, k2, prefix=f'{prefix}[{i}]'.strip())
         else:
-            if a != b:
-                s = ""
-            self.assertEqual(a, b)
+            self.assertEqual(a, b, msg=f'{prefix}:\n\tUnequal elements: {a} vs. {b}'.strip())
+
+    def test_force(self):
+
+        TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+
+        for tsd in TSV.timeSeries():
+            self.assertIsInstance(tsd, TimeSeriesDate)
+            tsd_range = tsd.temporalRange()
+            for tss in tsd:
+                self.assertIsInstance(tss, TimeSeriesSource)
+                self.assertTrue(tsd_range.contains(tss.qDateTime()))
+
+                lyr = tss.asRasterLayer()
+                lyr_range = lyr.temporalProperties().fixedTemporalRange()
+                self.assertTrue(tsd_range.contains(lyr_range))
+
+        TSV.setMapsPerMapView(5, 1)
+        TSV.createMapView('View2')
+        self.showGui(TSV.ui)
+        TSV.close()
 
     def test_write_read(self):
         from qgis.utils import iface
@@ -135,18 +149,19 @@ class TestProjectIO(EOTSVTestCase):
 
         crs = QgsCoordinateReferenceSystem('EPSG:32633')
         c.setDestinationCrs(crs)
-
         TSV = EOTimeSeriesViewer()
+        # reds0a = TSV.mapWidget()._allReds()
+
         TSV.createMapView('True Color')
-
-        tm: QgsTaskManager = QgsApplication.taskManager()
-
+        reds0b = TSV.mapWidget()._allReds()
         assert len(QgsProject.instance().mapLayers()) == 0
         TSV.loadExampleTimeSeries(loadAsync=False)
+        reds0c = TSV.mapWidget()._allReds()
+
         assert len(QgsProject.instance().mapLayers()) == 0
-
+        reds0d = TSV.mapWidget()._allReds()
         self.taskManagerProcessEvents()
-
+        reds0e = TSV.mapWidget()._allReds()
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
@@ -157,62 +172,39 @@ class TestProjectIO(EOTSVTestCase):
         TSV.addMapLayers([lyr])
         assert len(QgsProject.instance().mapLayers()) == 0
         TSV.createMapView('My 2nd View')
+        TSV.applyAllVisualChanges()
+
         map_views = TSV.mapViews()
         self.assertTrue(len(map_views) == 2)
 
-        # read settings
-        def getRedMinValues(tsv):
-            tsv.mapWidget().timedRefresh()
-            QgsApplication.processEvents()
-            reds = []
-            for mv in tsv.mapViews():
-                for lyr in mv.sensorProxyLayers():
-                    reds.append(lyr.renderer().redContrastEnhancement().minimumValue())
-            return reds
-
-        reds = getRedMinValues(TSV)
+        reds = TSV.mapWidget()._allReds()
 
         ext = SpatialExtent.fromLayer(lyr)
         TSV.setCrs(ext.crs())
         self.assertEqual(TSV.crs(), ext.crs())
         TSV.setSpatialExtent(ext)
-        self.taskManagerProcessEvents()
+        TSV.applyAllVisualChanges()
 
         settings2 = TSV.asMap()
         self.assertValidSettings(settings2)
-        for mv, mvmap in zip(map_views, settings2['MapWidget'][MapWidget.MKeyMapViews]):
-            self.assertEqual(mv.name(), mvmap[MapView.MKeyName])
+        TSV.applyAllVisualChanges()
 
-        # self.assertEqual(ext, TSV.spatialExtent())
-        TSV.mapWidget().timedRefresh()
+        reds0_b = TSV.mapWidget()._allReds()
+
         settings1 = TSV.asMap()
 
         # save settings
         path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
-        TSV.mapWidget().timedRefresh()
+
+        TSV.applyAllVisualChanges()
 
         settings2 = TSV.asMap()
-        self.assertEqualSetting(settings1, settings2)
-
-        reds1_a = getRedMinValues(TSV)
-        TSV.mapWidget().timedRefresh()
-        QgsApplication.processEvents()
-        reds1_b = getRedMinValues(TSV)
-
+        self.assertEqualElements(settings1, settings2)
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
-
-        r2ba = TSV.mapWidget()._allReds()
-        QgsApplication.processEvents()
-        reds2_a = getRedMinValues(TSV)
-        r2b = TSV.mapWidget()._allReds()
-        TSV.mapWidget().timedRefresh()
-        QgsApplication.processEvents()
-        reds2_b = getRedMinValues(TSV)
-        r2c = TSV.mapWidget()._allReds()
-        QgsApplication.processEvents()
+        TSV.applyAllVisualChanges()
         settings2 = TSV.asMap()
-        self.assertEqualSetting(settings1, settings2)
+        self.assertEqualElements(settings1, settings2)
 
         # do some changes
         new_map_size = QSize(300, 250)
@@ -262,6 +254,7 @@ class TestProjectIO(EOTSVTestCase):
             self.assertEqual(tss.isVisible(), tss_vis.pop(tss.uri()))
         self.assertTrue(len(tss_vis) == 0)
 
+        TSV.setMapsPerMapView(5, 1)
         self.showGui([TSV.ui])  #
 
         TSV.close()
