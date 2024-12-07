@@ -37,18 +37,19 @@ import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
 
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDate, QDateTime, QDir, \
+    QItemSelectionModel, QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, \
+    QgsCoordinateTransform, QgsDataProvider, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, \
+    QgsMimeDataUtils, QgsPoint, QgsPointXY, QgsProcessingFeedback, \
+    QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, \
+    QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, \
+    QgsTaskManager
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDateTime, QDir, QItemSelectionModel, \
-    QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
-    QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPoint, QgsPointXY, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, \
-    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
-    QgsRectangle, QgsTask, QgsTaskManager
 from qgis.gui import QgisInterface, QgsDockWidget
 from .qgispluginsupport.qps.unitmodel import UnitLookup
 from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
@@ -214,6 +215,7 @@ class SensorInstrument(QObject):
     sigNameChanged = pyqtSignal(str)
 
     PROPERTY_KEY = 'eotsv/sensor'
+    PROPERTY_KEY_STYLE_INITIALIZED = 'eotsv/style_initialized'
 
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
@@ -228,7 +230,7 @@ class SensorInstrument(QObject):
         self.nb, self.px_size_x, self.px_size_y, self.dataType, self.wl, self.wlu, self.mNameOriginal \
             = sensorIDtoProperties(self.mId)
 
-        self.mMockupLayer = QgsRasterLayer('')
+        # self.mMockupLayer = QgsRasterLayer('')
 
         if self.mNameOriginal in [None, '']:
             self.mName = '{}bands@{}m'.format(self.nb, self.px_size_x)
@@ -292,12 +294,14 @@ class SensorInstrument(QObject):
 
     def proxyRasterLayer(self) -> QgsRasterLayer:
         """
-        Creates an "empty" layer that can be used as proxy for band names, data types and render styles
+        Creates an "empty" in-memory layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
         """
         lyr = QgsRasterLayer(self.mId, name=self.name(), providerType=SensorMockupDataProvider.providerKey())
         lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
         lyr.setCustomProperty(self.PROPERTY_KEY, self.id())
+        lyr.setCustomProperty(self.PROPERTY_KEY_STYLE_INITIALIZED, False)
+
         self.sigNameChanged.connect(lyr.setName)
         return lyr
 
@@ -399,7 +403,7 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         return isinstance(self.mSensor, SensorInstrument)
 
     def name(self):
-        return 'Name'
+        return self.__class__.__name__
 
     def dataType(self, bandNo: int):
         return self.mSensor.dataType
@@ -416,7 +420,7 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
 
     @classmethod
     def description(cls) -> str:
-        return 'SpectralLibraryRasterDataProvider'
+        return 'SensorMockupDataProvider'
 
     @classmethod
     def createProvider(cls, uri, providerOptions, flags=None):
@@ -759,7 +763,7 @@ class TimeSeriesSource(object):
         dtg = self.date().astype(object)
         lyr.setCustomProperty('eotsv/dtg', str(dtg))
         dt1 = QDateTime(dtg, QTime(0, 0))
-        dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+        dt2 = QDateTime(dtg, QTime(23, 59, 59))
         tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
         return lyr
 
@@ -807,6 +811,9 @@ class TimeSeriesSource(object):
         :param tsd: TimeSeriesDate
         """
         self.mTimeSeriesDate = tsd
+
+    def qDateTime(self) -> QDateTime:
+        return QDateTime(self.mDate.astype(object))
 
     def date(self) -> np.datetime64:
         """
@@ -864,7 +871,7 @@ class TimeSeriesSource(object):
 
 class TimeSeriesDate(QAbstractTableModel):
     """
-    A container to store all source images related to a single observation date and sensor.
+    A container to store all source images related to a single observation date (range) and sensor.
     """
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
@@ -995,7 +1002,14 @@ class TimeSeriesDate(QAbstractTableModel):
             d1 = min(dates).astype(object)
             d2 = max(dates).astype(object)
 
+        if d1 == d2:
+            if isinstance(d1, datetime.date) and isinstance(d2, datetime.date):
+                return QgsDateTimeRange(QDateTime(QDate(d1)),
+                                        QDateTime(QDate(d1), QTime(23, 59, 59)))
         return QgsDateTimeRange(QDateTime(d1), QDateTime(d2))
+
+    def qDateTime(self) -> QDateTime:
+        return QDateTime(self.mDate.astype(object))
 
     def date(self) -> np.datetime64:
         """
@@ -1952,7 +1966,9 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def timeSeriesSources(self, copy: bool = False, sensor: SensorInstrument = None) -> List[TimeSeriesSource]:
+    def timeSeriesSources(self,
+                          copy: Optional[bool] = False,
+                          sensor: Optional[SensorInstrument] = None) -> List[TimeSeriesSource]:
         """
         Returns a flat list of all sources
         :param copy:
