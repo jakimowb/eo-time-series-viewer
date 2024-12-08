@@ -214,8 +214,6 @@
    :width: 28px
 .. |select_location| image:: img/qgis_icons/select_location.png 
    :width: 28px
-.. |speclib| image:: img/qgis_icons/speclib.png 
-   :width: 28px
 .. |speclib_add| image:: img/qgis_icons/speclib_add.png 
    :width: 28px
 .. |speclib_clear| image:: img/qgis_icons/speclib_clear.png 

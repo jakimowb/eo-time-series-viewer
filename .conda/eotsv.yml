@@ -9,6 +9,12 @@ dependencies:
   - qgis>=3.38
   - gitpython
   - markdown
+  - sphinx_rtd_theme > 1
+  - sphinx-copybutton
+  - sphinx-autobuild
+  - sphinx-tabs
+  - flake8
+  - doc8
   - pip # pip as dependency
 
   - pip: # pip requirements

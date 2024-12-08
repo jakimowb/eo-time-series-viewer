@@ -1,6 +1,8 @@
+# About
+
 The EO Time Series Viewer is a QGIS Plugin to visualize and label Earth Observation (EO) time series data.
 
-### Highlights
+## Highlights
 
 * Interactive visualization of Earth observation time series raster data
 * Spatially synchronized maps for each observation date
@@ -9,14 +11,14 @@ The EO Time Series Viewer is a QGIS Plugin to visualize and label Earth Observat
 * Visualization of Spectral and Temporal Profiles
 * Quick labeling of vector files
 
-### Resources
+## Resources
 
 * Documentation:
   [https://eo-time-series-viewer.readthedocs.io/en/latest](https://eo-time-series-viewer.readthedocs.io/en/latest)
 * Repository:
   [https://github.com/jakimowb/eo-time-series-viewer](https://github.com/jakimowb/eo-time-series-viewer.git)
 
-### How to cite?
+## How to cite?
 
 * Publication: _Jakimow, B., van der Linden, S., Thiel, F., Frantz, D., & Hostert, P. (2020).
   Visualizing and labeling dense multi-sensor earth observation time series: The EO Time Series Viewer.
@@ -26,7 +28,7 @@ The EO Time Series Viewer is a QGIS Plugin to visualize and label Earth Observat
 * Python Plugin: _Jakimow, B. (year). EO Time Series Viewer, version (
   version), [https://plugins.qgis.org/plugins/timeseriesviewerplugin](https://plugins.qgis.org/plugins/timeseriesviewerplugin)_
 
-### Acknowledgements
+## Acknowledgements
 
 The EO Time Series Viewer (EOTSV) is developed at Humboldt-Universität zu Berlin (Germany),
 [Earth Observation Lab](https://hu-berlin.de/eo-lab).

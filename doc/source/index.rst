@@ -1,6 +1,6 @@
 .. EO Time Series Viewer documentation master file
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+You can adapt this file completely to your liking, but it should at least
+contain the root `toctree` directive.
 
 ======================
 EO Time Series Viewer
@@ -9,7 +9,7 @@ EO Time Series Viewer
 The Earth Observation Time Series Viewer (EOTSV) is a free-and-open source QGIS Plugin to visualize and label
 raster-based earth observation time series data.
 
-.. image:: img/screenshot1.png
+.. image:: img/screenshot_1.20.png
 
 
 
