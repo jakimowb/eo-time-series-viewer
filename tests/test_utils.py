@@ -14,12 +14,15 @@ __copyright__ = 'Copyright 2017, Benjamin Jakimow'
 
 import unittest
 import os
-from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
-from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
-from qgis.core import QgsProject, QgsRectangle, QgsRasterLayer
-from qgis.gui import QgsMapCanvas
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
+from qgis._core import QgsMapLayer
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.utils import layerStyleString, setLayerStyleString
+from example.Images import Img_2014_04_21_LC82270652014111LGN00_BOA
+from qgis.core import QgsProject, QgsRasterLayer, QgsRectangle
+from qgis.gui import QgsMapCanvas
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 
 start_app()
 
@@ -51,6 +54,27 @@ class TestUtils(EOTSVTestCase):
 
         files = list(file_search(os.path.dirname(example.Images.__file__), '*.tif', recursive=True))
         self.assertTrue(len(files) > 0)
+
+    def test_copy_styles(self):
+        lyr1 = TestObjects.createRasterLayer(nb=10)
+        lyr1.renderer().setRedBand(1)
+        lyr2 = lyr1.clone()
+        lyr3 = lyr1.clone()
+
+        lyr2.renderer().setRedBand(4)
+        lyr2.setCustomProperty('myProp', 'myVal')
+
+        xml1 = layerStyleString(lyr1, categories=QgsMapLayer.StyleCategory.Rendering)
+        xml2 = layerStyleString(lyr2, categories=QgsMapLayer.StyleCategory.Rendering)
+        xml3 = layerStyleString(lyr1, categories=QgsMapLayer.StyleCategory.Rendering)
+        self.assertNotEqual(xml1, xml2)
+        self.assertEqual(xml1, xml3)
+        self.assertTrue('redBand="1"' in xml1)
+        self.assertTrue('redBand="4"' in xml2)
+
+        self.assertNotEqual(lyr1.renderer().redBand(), lyr2.renderer().redBand())
+        setLayerStyleString(lyr2, xml1)
+        self.assertEqual(lyr1.renderer().redBand(), lyr2.renderer().redBand())
 
 
 if __name__ == "__main__":

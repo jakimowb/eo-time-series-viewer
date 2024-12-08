@@ -35,8 +35,8 @@ from osgeo import gdal, ogr, osr
 
 from qgis.core import QgsApplication, QgsConditionalLayerStyles, QgsConditionalStyle, QgsCoordinateReferenceSystem, \
     QgsCoordinateTransform, QgsExpression, QgsExpressionContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, \
-    QgsFileUtils, QgsGeometry, QgsPointXY, QgsProviderRegistry, QgsRectangle, QgsTaskManager, QgsVectorFileWriter, \
-    QgsVectorLayer, QgsVectorLayerCache, QgsWkbTypes
+    QgsFileUtils, QgsGeometry, QgsPointXY, QgsProviderRegistry, QgsRectangle, QgsTask, QgsTaskManager, \
+    QgsVectorFileWriter, QgsVectorLayer, QgsVectorLayerCache, QgsWkbTypes
 from qgis.gui import QgsAttributeTableFilterModel, QgsAttributeTableModel, QgsAttributeTableView, \
     QgsIFeatureSelectionManager
 from qgis.PyQt.QtCore import pyqtSignal, QDate, QModelIndex, QObject, QPoint, Qt, QVariant
@@ -1035,7 +1035,8 @@ class TemporalProfileLoaderTask(EOTSVTask):
                  callback=None,
                  progress_interval: int = 10):
 
-        super().__init__(description='Load Temporal Profiles')
+        super().__init__(description='Load Temporal Profiles',
+                         flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt | QgsTask.Silent)
 
         assert isinstance(progress_interval, int) and progress_interval > 0
         assert isinstance(temporalProfileLayer, TemporalProfileLayer)
@@ -1217,12 +1218,11 @@ class TemporalProfileLoaderTask(EOTSVTask):
                     del band
                 del required_band_profiles
 
-                if self.isCanceled():
-                    self.mErrors.append('Canceled')
-                    return False
-
                 dt = datetime.datetime.now() - t0
                 if dt > self.mProgressInterval:
+                    if self.isCanceled():
+                        self.mErrors.append('Canceled')
+                        return False
                     t0 = datetime.datetime.now()
                     progress = 100 * n / n_total
                     self.setProgress(progress)

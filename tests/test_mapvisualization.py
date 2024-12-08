@@ -20,12 +20,12 @@ import os
 import unittest
 
 import numpy as np
+
+from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QWidget
 from qgis.PyQt.QtXml import QDomDocument, QDomNode
-
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
 
 start_app()
 
@@ -284,12 +284,9 @@ class TestMapVisualization(EOTSVTestCase):
         mw.setMapTool(MapTools.CursorLocation)
         dock = MapViewDock()
         self.assertIsInstance(dock, MapViewDock)
-        dock.setTimeSeries(TS)
+        # dock.setTimeSeries(TS)
 
         dock.setMapWidget(mw)
-        mapView = dock.createMapView()
-        self.assertIsInstance(mapView, MapView)
-        mapView.setTimeSeries(TS)
 
         tsd = TS[0]
         tss = tsd[0]

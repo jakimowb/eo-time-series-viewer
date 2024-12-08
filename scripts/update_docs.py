@@ -1,5 +1,4 @@
 import argparse
-import copy
 import re
 import shutil
 import site
@@ -14,7 +13,7 @@ site.addsitedir(pathlib.Path(__file__).parents[1])
 from qgis.PyQt.QtCore import QSize
 from qgis.PyQt.QtGui import QIcon, QPixmap
 from qgis.core import QgsApplication
-from eotimeseriesviewer import DIR_REPO, DIR_DOCS, ISSUE_TRACKER, initResources
+from eotimeseriesviewer import DIR_REPO, DIR_DOCS, initResources
 
 
 def update_icons():

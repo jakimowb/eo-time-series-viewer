@@ -33,7 +33,7 @@ from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries import DateTimePrecision, TimeSeries
 
 start_app = start_app
 
@@ -97,9 +97,10 @@ class TestObjects(TObj):
     """
 
     @staticmethod
-    def createTimeSeries() -> TimeSeries:
+    def createTimeSeries(precision: DateTimePrecision = DateTimePrecision.Day) -> TimeSeries:
 
         TS = TimeSeries()
+        TS.setDateTimePrecision(precision)
         files = file_search(DIR_EXAMPLES, '*.tif', recursive=True)
         TS.addSources(list(files), runAsync=False)
         assert len(TS) > 0

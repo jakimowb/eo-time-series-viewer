@@ -7,6 +7,7 @@ import unittest
 
 import numpy as np
 from osgeo import gdal, osr
+from qgis._core import QgsDateTimeRange
 
 from qgis.gui import QgsMapCanvas, QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
@@ -190,6 +191,20 @@ class TestTimeSeries(EOTSVTestCase):
         TV = QTableView()
         TV.setModel(tsd)
         self.showGui(TV)
+
+    def test_tsd_daterange(self):
+
+        ts = TestObjects.createTimeSeries(DateTimePrecision.Day)
+        ts.setDateTimePrecision(DateTimePrecision.Day)
+        for tsd in ts:
+
+            date = tsd.date()
+            t_range = tsd.temporalRange()
+            self.assertIsInstance(t_range, QgsDateTimeRange)
+            self.assertTrue(t_range.contains(tsd.qDateTime()))
+            for tss in tsd:
+                tss: TimeSeriesSource
+                self.assertTrue(t_range.contains(tss.qDateTime()))
 
     def test_TimeSeriesSource(self):
 
