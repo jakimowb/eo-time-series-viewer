@@ -651,14 +651,52 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     def asMap(self) -> dict:
 
-        d = {'TimeSeries': self.timeSeries().asMap(),
+        dockInfos = dict()
+        for dock in self.ui.findChildren(QDockWidget):
+            dock: QDockWidget
+            n = dock.windowTitle()
+            dockInfos[n] = {
+                'floating': dock.isFloating(),
+                'visible': dock.isVisibleTo(dock.parent()),
+                'size': [dock.width(), dock.height()]
+            }
+
+        mainWindow = {
+            'size': [self.ui.width(), self.ui.height()],
+            'pos': [self.ui.pos().x(), self.ui.pos().y()],
+            'docks': dockInfos,
+        }
+
+        d = {'MainWindow': mainWindow,
+             'TimeSeries': self.timeSeries().asMap(),
              'MapWidget': self.mapWidget().asMap()}
+
         return d
 
     def fromMap(self, map_data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
         multistep = QgsProcessingMultiStepFeedback(2, feedback)
         multistep.setCurrentStep(1)
+
+        if mainWindow := map_data.get('MainWindow'):
+            if s := mainWindow.get('size'):
+                self.ui.resize(*s)
+            if s := mainWindow.get('pos'):
+                self.ui.move(*s)
+
+            if dockInfos := mainWindow.get('docks'):
+                dockInfos: Dict[str, dict]
+                for dock in self.ui.findChildren(QDockWidget):
+                    dock: QDockWidget
+                    dockTitle = dock.windowTitle()
+                    if dockInfo := dockInfos.get(dockTitle):
+
+                        dock.setFloating(dockInfo.get('floating', dock.isFloating()))
+                        dock.setVisible(dockInfo.get('visible', dock.isVisible()))
+                        if bSize := dockInfo.get('size'):
+                            dock.resize(*bSize)
+                        # dock.set(dockInfo.get('isFloating', dock.isFloating()))
+
         self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
         multistep.setCurrentStep(2)
         self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
@@ -738,7 +776,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 jsonText = node.firstChildElement('jsonSettings').text()
                 self.fromJson(jsonText, feedback=feedback)
             except Exception as ex:
-                if False:
+                if True:
                     raise ex
                 print(ex, file=sys.stderr)
 

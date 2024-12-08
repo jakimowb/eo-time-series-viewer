@@ -204,6 +204,7 @@ class TestProjectIO(EOTSVTestCase):
         TSV.setCrs(ext.crs())
         self.assertEqual(TSV.crs(), ext.crs())
         TSV.setSpatialExtent(ext)
+        # TSV.ui.show()
         TSV.applyAllVisualChanges()
 
         settings2 = TSV.asMap()
@@ -231,7 +232,7 @@ class TestProjectIO(EOTSVTestCase):
         nslayers2 = mapViewNoneSensorLayers()
         self.assertEqualElements(settings1, settings2)
         self.assertEqualElements(nslayers1, nslayers2, sort_lists=True)
-        
+
         # do some changes
         new_map_size = QSize(300, 250)
         new_maps_per_view = (2, 2)
