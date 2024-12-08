@@ -2,17 +2,16 @@ import datetime
 import os.path
 import re
 from pathlib import Path
-from typing import List, Union, Optional, Set, Dict
+from typing import Dict, List, Optional, Set, Union
 
+from qgis.core import QgsApplication, QgsTask
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, loadUi
 from eotimeseriesviewer.tasks import EOTSVTask
 from qgis.PyQt.QtCore import pyqtSignal, Qt
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QComboBox
-from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QLabel
-from qgis.core import QgsApplication
+from qgis.PyQt.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QLabel
 from qgis.gui import QgsFileWidget
 
 FORCE_PRODUCTS = {
@@ -61,7 +60,10 @@ class FindFORCEProductsTask(EOTSVTask):
     taskInfo = pyqtSignal(str)
 
     def __init__(self, product: str, path, *args, tile_ids: List[str] = None, **kwds):
-        super().__init__(*args, **kwds)
+        super().__init__(
+            *args,
+            flags=QgsTask.Silent | QgsTask.CanCancel | QgsTask.CancelWithoutPrompt,
+            **kwds)
 
         self.mTileIDs: List[str] = tile_ids if tile_ids else []
 
@@ -136,7 +138,7 @@ class FindFORCEProductsTask(EOTSVTask):
                     info_check(progress=100 * i_folder / n_folders)
 
         self.setProgress(100.0)
-        self.taskInfo.emit(self.infoMessage() + ' (done).')
+        self.taskInfo.emit(self.infoMessage() + '.')
         return True
 
     def infoMessage(self) -> str:

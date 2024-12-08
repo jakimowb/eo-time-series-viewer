@@ -1414,7 +1414,7 @@ class MapWidget(QFrame):
             return False
 
         with Lock() as lock:
-            print('# TIMED REFRESH')
+            # print('# TIMED REFRESH')
             self.mMapRefreshBlock = True
             # with MapWidgetTimedRefreshBlocker(self):
 

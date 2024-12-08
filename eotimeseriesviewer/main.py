@@ -1239,17 +1239,19 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if isinstance(v, int) and v > 0:
             self.ui.mMapWidget.mMapRefreshTimer.start(v)
 
-        v = SettingValue(SettingKeys.MapBackgroundColor)
-        if isinstance(v, QColor):
-            self.ui.dockMapViews.setMapBackgroundColor(v)
+        if False:
+            # defaults only, used in 1st initialization
+            v = SettingValue(SettingKeys.MapBackgroundColor)
+            if isinstance(v, QColor):
+                self.ui.dockMapViews.setMapBackgroundColor(v)
 
-        v = SettingValue(SettingKeys.MapTextFormat)
-        if isinstance(v, QgsTextFormat):
-            self.ui.dockMapViews.setMapTextFormat(v)
+            v = SettingValue(SettingKeys.MapTextFormat)
+            if isinstance(v, QgsTextFormat):
+                self.ui.dockMapViews.setMapTextFormat(v)
 
-        v = SettingValue(SettingKeys.MapSize)
-        if isinstance(v, QSize):
-            self.ui.mMapWidget.setMapSize(v)
+            v = SettingValue(SettingKeys.MapSize)
+            if isinstance(v, QSize):
+                self.ui.mMapWidget.setMapSize(v)
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """

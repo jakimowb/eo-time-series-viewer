@@ -1297,7 +1297,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             else:
                 description = 'Find image overlap (all dates)'
 
-        super().__init__(description=description, flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
+        super().__init__(description=description,
+                         flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt | QgsTask.Silent)
         assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
@@ -1416,8 +1417,6 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             highest = max(self.mDates)
 
             for i, t in enumerate(sources):
-                if self.isCanceled():
-                    return False
 
                 tssUri: str = t[0]
                 obs_date: np.datetime64 = t[1]
@@ -1440,6 +1439,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
 
                 dt = datetime.datetime.now() - t0
                 if dt > self.mProgressInterval:
+                    if self.isCanceled():
+                        return False
                     self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
                     self.mIntersections.clear()
                     progress = int(100 * (i + 1) / n)
@@ -1476,7 +1477,8 @@ class TimeSeriesLoadingTask(EOTSVTask):
                  callback=None,
                  progress_interval: int = 5):
 
-        super().__init__(description=description)
+        super().__init__(description=description,
+                         flags=QgsTask.Silent | QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
 
         assert progress_interval >= 1
 
@@ -1504,8 +1506,6 @@ class TimeSeriesLoadingTask(EOTSVTask):
         try:
             for i, path in enumerate(self.mFiles):
                 assert isinstance(path, str)
-                if self.isCanceled():
-                    return False
 
                 try:
                     tss = TimeSeriesSource.create(path)

@@ -1418,12 +1418,9 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(newRenderer, QgsRasterRenderer):
             sender = self.sender()
-            print(f'{sender} Stretch {layer} {layer.isValid()} {stretchType}')
+            # print(f'{sender} Stretch {layer} {layer.isValid()} {stretchType}')
             newRenderer.setInput(layer.dataProvider())
             layer.setRenderer(newRenderer)
-            # layer.emitStyleChanged()
-            # layer.reload()
-            # layer.triggerRepaint()
             return True
 
         return False
