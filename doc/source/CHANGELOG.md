@@ -3,8 +3,9 @@
 ## 2024-12-08 (version 1.20)
 
 * added FORCE Product Import
-* source visibility, map layer styles (rendering + symbology),
-  map extent, crs and current date can now be restored from QgsProject settings.
+* restore / reload EOTSV workbench from QGIS Project, e.g.
+  time series sources, map layer styles (rendering + symbology),
+  map extent, crs and current date
 * optimized map rendering
 * background tasks can be canceled in task manager.
 * fixed fatal crash related to a missing QgsRasterDataProvider python ref
