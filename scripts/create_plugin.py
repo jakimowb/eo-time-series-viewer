@@ -22,19 +22,19 @@
 
 import argparse
 import os
-from pathlib import Path
 import re
 import shutil
 import site
 import textwrap
+from pathlib import Path
 from typing import Iterator, Optional, Union
 
 import git
 import markdown
 
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
@@ -82,7 +82,8 @@ def create_plugin(include_testdata: bool = False,
                   include_qgisresources: bool = False,
                   create_zip: bool = True,
                   copy_to_profile: bool = False,
-                  build_name: str = None) -> Optional[Path]:
+                  build_name: str = None,
+                  experimental: bool = False) -> Optional[Path]:
     assert (DIR_REPO / '.git').is_dir()
 
     # BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
@@ -120,6 +121,7 @@ def create_plugin(include_testdata: bool = False,
     PATH_METADATAFILE = PLUGIN_DIR / 'metadata.txt'
     MD.mVersion = BUILD_NAME
     MD.mAbout = markdown2html(PATH_ABOUT)
+    MD.mIsExperimental = experimental is True
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
     # 1. (re)-compile all resource files
@@ -276,6 +278,12 @@ if __name__ == "__main__":
                         help='Skip zip file creation',
                         action='store_true')
 
+    parser.add_argument('-e', '--experimental',
+                        required=False,
+                        default=False,
+                        help='Set True to create an experimental plugin',
+                        action='store_true')
+
     parser.add_argument('-b', '--build-name',
                         required=False,
                         default=None,
@@ -303,5 +311,6 @@ if __name__ == "__main__":
     path = create_plugin(include_qgisresources=args.qgisresources,
                          build_name=args.build_name,
                          create_zip=not args.skip_zip,
-                         copy_to_profile=args.profile)
+                         copy_to_profile=args.profile,
+                         experimental=args.experimental)
     print('EOTSV_ZIP={}'.format(path))

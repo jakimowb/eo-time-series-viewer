@@ -17,19 +17,20 @@
 ***************************************************************************
 """
 import os.path
-import unittest
 import random
+import unittest
 from typing import List
 
 from PyQt5.QtCore import QSize
 from qgis._core import QgsRectangle, QgsVectorLayer
 
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
-from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsProject, QgsTaskManager
-from qgis.gui import QgsMapCanvas
-from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
+from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
+from qgis.core import QgsCoordinateReferenceSystem, QgsProject
+from qgis.gui import QgsMapCanvas
 
 # noinspection PyPep8Naming
 
@@ -61,6 +62,20 @@ class TestProjectIO(EOTSVTestCase):
         for k in ['sources']:
             self.assertTrue(k in a['TimeSeries'])
 
+    def assertEqualMapView(self, a: dict, b: dict):
+        self.assertIsInstance(a, dict)
+        self.assertIsInstance(b, dict)
+
+        for k in self.getMKeys(MapView):
+            self.assertTrue(k in a)
+            self.assertTrue(k in b)
+
+            v_a, v_b = a[k], b[k]
+            if k == MapView.MKeySensorStyle:
+                self.assertIsInstance(v_a, dict)
+                self.assertIsInstance(v_b, dict)
+            self.assertEqualElements(v_a, v_b)
+
     def assertEqualSetting(self, a: dict, b: dict):
 
         self.assertValidSettings(a)
@@ -70,16 +85,78 @@ class TestProjectIO(EOTSVTestCase):
 
         mwA, mwB = a['MapWidget'], b['MapWidget']
         for k in self.getMKeys(MapWidget):
-            v1, v2 = mwA[k], mwB[k]
+            v_a, v_b = mwA[k], mwB[k]
             if k == MapWidget.MKeyCurrentExtent:
-                ext1, ext2 = QgsRectangle.fromWkt(v1), QgsRectangle.fromWkt(v2)
+                ext1, ext2 = QgsRectangle.fromWkt(v_a), QgsRectangle.fromWkt(v_b)
                 self.assertEqual(ext1.center(), ext2.center())
                 self.assertAlmostEqual(ext1.width(), ext2.width(), 5)
                 self.assertAlmostEqual(ext1.height(), ext2.height(), 5)
-            else:
-                self.assertEqual(v1, v2, msg=f'Different values for key "{k}": {v1} vs. {v2}')
+            elif k == MapWidget.MKeyMapViews:
+                self.assertEqual(len(v_a), len(v_b))
 
+                for view_a, view_b in zip(v_a, v_b):
+                    if view_a != view_b:
+                        s = ""
+                    self.assertEqualMapView(view_a, view_b)
+            else:
+                self.assertEqualElements(v_a, v_b)
+                self.assertEqual(v_a, v_b, msg=f'Different values for key "{k}": {v_a} vs. {v_b}')
+
+            if v_a != v_b:
+                s = ""
         s = ""
+
+    def assertEqualElements(self, a, b,
+                            prefix: str = '',
+                            sort_lists: bool = False):
+        self.assertEqual(type(a), type(b),
+                         msg=f'{prefix}\n\tUnequal types: {a} vs {b}'.strip())
+
+        if isinstance(a, dict):
+            self.assertEqual(a.keys(), b.keys())
+            for k in a.keys():
+                if k.startswith('_'):
+                    continue
+                self.assertEqualElements(a[k], b[k],
+                                         prefix=f'{prefix}["{k}"]'.strip(),
+                                         sort_lists=sort_lists)
+        elif isinstance(a, set):
+            self.assertEqualElements(list(a), list(b),
+                                     sort_lists=sort_lists,
+                                     prefix=prefix)
+        elif isinstance(a, list):
+            self.assertEqual(len(a), len(b),
+                             msg=f'{prefix}:\n\tLists differ in number of elements: {len(a)} != {len(b)}'
+                                 f'\n\tExpected: {a}\n\t  Actual: {b}')
+            if sort_lists:
+                a, b = sorted(a), sorted(b)
+
+            for i, (k1, k2) in enumerate(zip(a, b)):
+                self.assertEqualElements(k1, k2, prefix=f'{prefix}[{i}]'.strip())
+        else:
+            self.assertEqual(a, b,
+                             msg=f'{prefix}:\n\tUnequal elements: {a} vs. {b}'.strip())
+
+    def test_force(self):
+
+        TSV = EOTimeSeriesViewer()
+        TSV.loadExampleTimeSeries(loadAsync=False)
+
+        for tsd in TSV.timeSeries():
+            self.assertIsInstance(tsd, TimeSeriesDate)
+            tsd_range = tsd.temporalRange()
+            for tss in tsd:
+                self.assertIsInstance(tss, TimeSeriesSource)
+                self.assertTrue(tsd_range.contains(tss.qDateTime()))
+
+                lyr = tss.asRasterLayer()
+                lyr_range = lyr.temporalProperties().fixedTemporalRange()
+                self.assertTrue(tsd_range.contains(lyr_range))
+
+        TSV.setMapsPerMapView(5, 1)
+        TSV.createMapView('View2')
+        self.showGui(TSV.ui)
+        TSV.close()
 
     def test_write_read(self):
         from qgis.utils import iface
@@ -89,18 +166,17 @@ class TestProjectIO(EOTSVTestCase):
 
         crs = QgsCoordinateReferenceSystem('EPSG:32633')
         c.setDestinationCrs(crs)
-
         TSV = EOTimeSeriesViewer()
+        # reds0a = TSV.mapWidget()._allReds()
+
         TSV.createMapView('True Color')
-
-        tm: QgsTaskManager = QgsApplication.taskManager()
-
+        reds0b = TSV.mapWidget()._allReds()
         assert len(QgsProject.instance().mapLayers()) == 0
         TSV.loadExampleTimeSeries(loadAsync=False)
+        reds0c = TSV.mapWidget()._allReds()
+
         assert len(QgsProject.instance().mapLayers()) == 0
-
         self.taskManagerProcessEvents()
-
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
@@ -108,30 +184,54 @@ class TestProjectIO(EOTSVTestCase):
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
         lyr.setName('MyTestLayer')
+        TSV.mapViews()[0].setName('True Color')
         TSV.addMapLayers([lyr])
         assert len(QgsProject.instance().mapLayers()) == 0
+        TSV.createMapView('My 2nd View')
+        TSV.applyAllVisualChanges()
+
+        def mapViewNoneSensorLayers() -> dict:
+            return {mv.name(): [lyr.name() for lyr in mv.layers() if isinstance(lyr, QgsVectorLayer)] for mv in
+                    TSV.mapViews()}
+
+        nslayers1 = mapViewNoneSensorLayers()
+        self.assertTrue('MyTestLayer' in nslayers1['True Color'])
+
+        map_views = TSV.mapViews()
+        self.assertTrue(len(map_views) == 2)
 
         ext = SpatialExtent.fromLayer(lyr)
         TSV.setCrs(ext.crs())
         self.assertEqual(TSV.crs(), ext.crs())
         TSV.setSpatialExtent(ext)
+        # TSV.ui.show()
+        TSV.applyAllVisualChanges()
+
         settings2 = TSV.asMap()
-        self.taskManagerProcessEvents()
-        # self.assertEqual(ext, TSV.spatialExtent())
+        self.assertValidSettings(settings2)
+        TSV.applyAllVisualChanges()
 
         settings1 = TSV.asMap()
 
         # save settings
         path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
+        TSV.applyAllVisualChanges()
 
+        # Ensure that writing does not change the configuration
+        # This test is inspired by MS Word's PDF export, that modified my dissertation docx
+        # several times without even telling me! (I know I should have used LaTeX and have been doing so since.)
         settings2 = TSV.asMap()
-        self.assertEqualSetting(settings1, settings2)
+        self.assertEqualElements(settings1, settings2)
+        nslayers2 = mapViewNoneSensorLayers()
+        self.assertEqualElements(nslayers1, nslayers2)
 
-        # read settings
-        settings2 = TSV.asMap()
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
-        self.assertEqualSetting(settings1, settings2)
+        TSV.applyAllVisualChanges()
+        settings2 = TSV.asMap()
+        nslayers2 = mapViewNoneSensorLayers()
+        self.assertEqualElements(settings1, settings2)
+        self.assertEqualElements(nslayers1, nslayers2, sort_lists=True)
 
         # do some changes
         new_map_size = QSize(300, 250)
@@ -140,7 +240,7 @@ class TestProjectIO(EOTSVTestCase):
         TSV.setMapSize(new_map_size)
         TSV.createMapView('My New MapView')
         TSV.setCrs(new_crs)
-
+        new_ns_layers = mapViewNoneSensorLayers()
         new_map_view_names = [mv.name() for mv in TSV.mapViews()]
 
         new_tss_visibility = dict()
@@ -180,6 +280,12 @@ class TestProjectIO(EOTSVTestCase):
             self.assertTrue(tss.uri() in tss_vis)
             self.assertEqual(tss.isVisible(), tss_vis.pop(tss.uri()))
         self.assertTrue(len(tss_vis) == 0)
+
+        ns_layers3 = mapViewNoneSensorLayers()
+
+        self.assertEqualElements(new_ns_layers, ns_layers3)
+
+        TSV.setMapsPerMapView(5, 1)
 
         self.showGui([TSV.ui])  #
 

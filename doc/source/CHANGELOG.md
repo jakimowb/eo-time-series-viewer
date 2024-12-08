@@ -1,10 +1,12 @@
 ## Changelog
 
-### 2024-12-06 (version 1.20)
+### 2024-12-08 (version 1.20)
 
 * added FORCE Product Import
-* project settings loading now considers source visibility, map layer styles,
-  map extent, crs and current date.
+* source visibility, map layer styles (rendering + symbology),
+  map extent, crs and current date can now be restored from QgsProject settings.
+* optimized map rendering
+* background tasks can be canceled in task manager.
 * fixed fatal crash related to a missing QgsRasterDataProvider python ref
 
 ### 2024-09-29 (version 1.19)
