@@ -692,8 +692,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if not isinstance(doc, QDomDocument):
             return False
 
+        sender = self.sender()
+
         root = doc.documentElement()
         node = root.firstChildElement('EOTSV')
+
+        if isinstance(sender, QgsProject):
+            print(f'# READ_PROJECT: {id(sender)} {sender.fileName()}')
+
         if node.nodeName() == 'EOTSV':
 
             class MyProgress(QgsProcessingFeedback):
@@ -732,12 +738,12 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 jsonText = node.firstChildElement('jsonSettings').text()
                 self.fromJson(jsonText, feedback=feedback)
             except Exception as ex:
+                if False:
+                    raise ex
                 print(ex, file=sys.stderr)
 
             dialog.setValue(100)
             dialog.close()
-
-            return
 
         return True
 

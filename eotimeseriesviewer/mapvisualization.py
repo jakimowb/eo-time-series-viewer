@@ -556,6 +556,9 @@ class MapView(QFrame):
         nodes = self.mLayerTree.findLayers()
         return [n.layer() for n in nodes if isinstance(n.layer(), QgsMapLayer)]
 
+    def layerTree(self) -> QgsLayerTree:
+        return self.mLayerTree
+
     def title(self, maskNewLines=True) -> str:
         """
         Returns the MapView title
@@ -1499,9 +1502,13 @@ class MapWidget(QFrame):
     MKeyMapViews = 'map_views'
     MKeyCurrentDate = 'current_date'
     MKeyCurrentExtent = 'extent'
+    MKeyAuxMapLayers = '_aux_map_layers'
 
     def asMap(self) -> dict:
-
+        """
+        Returns the current visualisation settings as dict, to be serialized in a JSON dump.
+        :return: dict
+        """
         d = {self.MKeyMapSize: [self.mapSize().width(), self.mapSize().height()],
              self.MKeyCrs: self.crs().toWkt(),
              self.MKeyMapsPerView: self.mapsPerMapView(),
@@ -1510,6 +1517,30 @@ class MapWidget(QFrame):
              self.MKeyCurrentExtent: self.spatialExtent().asWktPolygon(),
              }
 
+        # basic storing of aux map layers. relates to https://github.com/jakimowb/eo-time-series-viewer/issues/12
+        # to be replaced by proper layer-tree reconstruction
+        aux_map_layers = {}
+        aux_mapview_layers = []
+        for mv in self.mapViews():
+            mv_layer_info = []
+            for lyr in mv.layers():
+                if not has_sensor_id(lyr):
+                    if lyr.id() not in aux_map_layers:
+                        info_source = {
+                            'id': lyr.id(),
+                            'source': lyr.source(),
+                            'provider': lyr.dataProvider().name(),
+                            'class': lyr.__class__.__name__,
+                            'name': lyr.name(),
+                            'style': layerStyleString(lyr, QgsMapLayer.AllStyleCategories)}
+                        aux_map_layers[lyr.id()] = info_source
+                    mv_layer_info.append(lyr.id())
+            aux_mapview_layers.append(mv_layer_info)
+
+        d[self.MKeyAuxMapLayers] = {
+            'sources': aux_map_layers,
+            'map_views': aux_mapview_layers
+        }
         return d
 
     def allProxyLayers(self) -> List[QgsRasterLayer]:
@@ -1575,7 +1606,57 @@ class MapWidget(QFrame):
             extent = QgsRectangle.fromWkt(extent)
             self.setSpatialExtent(SpatialExtent(self.crs(), extent))
 
-        s = ""
+        CLASS2INIT = {c.__name__: c for c in [QgsVectorLayer, QgsRasterLayer]}
+
+        if aux_layers := data.get(self.MKeyAuxMapLayers):
+            new_layers = dict()
+            if sources := aux_layers.get('sources'):
+
+                for oldId, sourceInfo in sources.items():
+                    clsName = sourceInfo.get('class')
+                    source = sourceInfo.get('source')
+                    name = sourceInfo.get('name')
+                    provider = sourceInfo.get('provider')
+
+                    if not (source and name and provider):
+                        continue
+
+                    lyr = None
+                    # check for layers that already exist, e.g. because we
+                    # call load project within the same session
+                    # check QGIS and internal layers
+                    for store in [self.mMapLayerStore, QgsProject.instance()]:
+                        if existingLayer := store.mapLayer(oldId):
+                            if existingLayer.isValid():
+                                lyr = existingLayer
+                                break
+
+                    if lyr is None:
+                        if clsName == QgsVectorLayer.__name__:
+                            lyr = QgsVectorLayer(source, name, providerLib=provider)
+                        elif clsName == QgsRasterLayer.__name__:
+                            lyr = QgsRasterLayer(source, name, providerType=provider)
+                    if isinstance(lyr, QgsMapLayer) and lyr.isValid():
+                        if styleXml := sourceInfo.get('style'):
+                            setLayerStyleString(lyr, styleXml)
+
+                            new_layers[oldId] = lyr
+
+            self.mMapLayerStore.addMapLayers(new_layers.values())
+
+            for i_mv, mv_layer_ids in enumerate(aux_layers.get('map_views', [])):
+                if i_mv >= len(self.mapViews()):
+                    break
+                new_mv: MapView = self.mapViews()[i_mv]
+                new_mv_layers = []
+                for oldId in mv_layer_ids:
+                    lyrNew = new_layers.get(oldId)
+                    if isinstance(lyrNew, QgsMapLayer):
+                        new_mv_layers.append(lyrNew)
+                existing_layers = new_mv.layers()
+                for lyr in reversed(new_mv_layers):
+                    if lyr not in existing_layers:
+                        new_mv.addLayer(lyr)
 
     def usedLayers(self) -> List[QgsMapLayer]:
         layers = set()

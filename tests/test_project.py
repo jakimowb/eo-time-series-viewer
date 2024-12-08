@@ -106,19 +106,36 @@ class TestProjectIO(EOTSVTestCase):
                 s = ""
         s = ""
 
-    def assertEqualElements(self, a, b, prefix: str = ''):
-        self.assertEqual(type(a), type(b), msg=f'{prefix}\n\tUnequal types: {a} vs {b}'.strip())
+    def assertEqualElements(self, a, b,
+                            prefix: str = '',
+                            sort_lists: bool = False):
+        self.assertEqual(type(a), type(b),
+                         msg=f'{prefix}\n\tUnequal types: {a} vs {b}'.strip())
 
         if isinstance(a, dict):
             self.assertEqual(a.keys(), b.keys())
             for k in a.keys():
-                self.assertEqualElements(a[k], b[k], prefix=f'{prefix}["{k}"]'.strip())
+                if k.startswith('_'):
+                    continue
+                self.assertEqualElements(a[k], b[k],
+                                         prefix=f'{prefix}["{k}"]'.strip(),
+                                         sort_lists=sort_lists)
+        elif isinstance(a, set):
+            self.assertEqualElements(list(a), list(b),
+                                     sort_lists=sort_lists,
+                                     prefix=prefix)
         elif isinstance(a, list):
-            self.assertEqual(len(a), len(b), msg=f'{prefix}')
+            self.assertEqual(len(a), len(b),
+                             msg=f'{prefix}:\n\tLists differ in number of elements: {len(a)} != {len(b)}'
+                                 f'\n\tExpected: {a}\n\t  Actual: {b}')
+            if sort_lists:
+                a, b = sorted(a), sorted(b)
+
             for i, (k1, k2) in enumerate(zip(a, b)):
                 self.assertEqualElements(k1, k2, prefix=f'{prefix}[{i}]'.strip())
         else:
-            self.assertEqual(a, b, msg=f'{prefix}:\n\tUnequal elements: {a} vs. {b}'.strip())
+            self.assertEqual(a, b,
+                             msg=f'{prefix}:\n\tUnequal elements: {a} vs. {b}'.strip())
 
     def test_force(self):
 
@@ -159,9 +176,7 @@ class TestProjectIO(EOTSVTestCase):
         reds0c = TSV.mapWidget()._allReds()
 
         assert len(QgsProject.instance().mapLayers()) == 0
-        reds0d = TSV.mapWidget()._allReds()
         self.taskManagerProcessEvents()
-        reds0e = TSV.mapWidget()._allReds()
         if len(TSV.timeSeries()) > 0:
             tsd = TSV.timeSeries()[-1]
             TSV.setCurrentDate(tsd)
@@ -169,15 +184,21 @@ class TestProjectIO(EOTSVTestCase):
         from example import exampleEvents
         lyr = QgsVectorLayer(exampleEvents)
         lyr.setName('MyTestLayer')
+        TSV.mapViews()[0].setName('True Color')
         TSV.addMapLayers([lyr])
         assert len(QgsProject.instance().mapLayers()) == 0
         TSV.createMapView('My 2nd View')
         TSV.applyAllVisualChanges()
 
+        def mapViewNoneSensorLayers() -> dict:
+            return {mv.name(): [lyr.name() for lyr in mv.layers() if isinstance(lyr, QgsVectorLayer)] for mv in
+                    TSV.mapViews()}
+
+        nslayers1 = mapViewNoneSensorLayers()
+        self.assertTrue('MyTestLayer' in nslayers1['True Color'])
+
         map_views = TSV.mapViews()
         self.assertTrue(len(map_views) == 2)
-
-        reds = TSV.mapWidget()._allReds()
 
         ext = SpatialExtent.fromLayer(lyr)
         TSV.setCrs(ext.crs())
@@ -189,23 +210,28 @@ class TestProjectIO(EOTSVTestCase):
         self.assertValidSettings(settings2)
         TSV.applyAllVisualChanges()
 
-        reds0_b = TSV.mapWidget()._allReds()
-
         settings1 = TSV.asMap()
 
         # save settings
         path = self.createTestOutputDirectory() / 'test.qgs'
         QgsProject.instance().write(path.as_posix())
-
         TSV.applyAllVisualChanges()
 
+        # Ensure that writing does not change the configuration
+        # This test is inspired by MS Word's PDF export, that modified my dissertation docx
+        # several times without even telling me! (I know I should have used LaTeX and have been doing so since.)
         settings2 = TSV.asMap()
         self.assertEqualElements(settings1, settings2)
+        nslayers2 = mapViewNoneSensorLayers()
+        self.assertEqualElements(nslayers1, nslayers2)
+
         self.assertTrue(QgsProject.instance().read(path.as_posix()))
         TSV.applyAllVisualChanges()
         settings2 = TSV.asMap()
+        nslayers2 = mapViewNoneSensorLayers()
         self.assertEqualElements(settings1, settings2)
-
+        self.assertEqualElements(nslayers1, nslayers2, sort_lists=True)
+        
         # do some changes
         new_map_size = QSize(300, 250)
         new_maps_per_view = (2, 2)
@@ -213,7 +239,7 @@ class TestProjectIO(EOTSVTestCase):
         TSV.setMapSize(new_map_size)
         TSV.createMapView('My New MapView')
         TSV.setCrs(new_crs)
-
+        new_ns_layers = mapViewNoneSensorLayers()
         new_map_view_names = [mv.name() for mv in TSV.mapViews()]
 
         new_tss_visibility = dict()
@@ -254,7 +280,12 @@ class TestProjectIO(EOTSVTestCase):
             self.assertEqual(tss.isVisible(), tss_vis.pop(tss.uri()))
         self.assertTrue(len(tss_vis) == 0)
 
+        ns_layers3 = mapViewNoneSensorLayers()
+
+        self.assertEqualElements(new_ns_layers, ns_layers3)
+
         TSV.setMapsPerMapView(5, 1)
+
         self.showGui([TSV.ui])  #
 
         TSV.close()
