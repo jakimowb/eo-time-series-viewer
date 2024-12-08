@@ -735,9 +735,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         root = doc.documentElement()
         node = root.firstChildElement('EOTSV')
 
-        if isinstance(sender, QgsProject):
-            print(f'# READ_PROJECT: {id(sender)} {sender.fileName()}')
-
+        # if isinstance(sender, QgsProject):
+        #    print(f'# READ_PROJECT: {id(sender)} {sender.fileName()}')
+        #    print(f'# READ_PROJECT: {id(sender)} {sender.fileName()}')
+        debugLog()
         if node.nodeName() == 'EOTSV':
 
             class MyProgress(QgsProcessingFeedback):
