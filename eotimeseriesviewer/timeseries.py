@@ -36,7 +36,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, ogr, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
-
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDate, QDateTime, QDir, \
     QItemSelectionModel, QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, \
@@ -45,12 +45,13 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, \
     QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, \
     QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, \
     QgsTaskManager
-from eotimeseriesviewer import DIR_UI, messageLog
-from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.gui import QgisInterface, QgsDockWidget
+
+from eotimeseriesviewer import DIR_UI, messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.unitmodel import UnitLookup
 from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
     SpatialExtent, SpatialPoint
@@ -366,6 +367,13 @@ class SensorInstrument(QObject):
 class SensorMockupDataProvider(QgsRasterDataProvider):
     ALL_INSTANCES = dict()
 
+    @staticmethod
+    def _release_sip_deleted():
+        to_delete = {k for k, o in SensorMockupDataProvider.ALL_INSTANCES.items()
+                     if sip.isdeleted(o)}
+        for k in to_delete:
+            SensorMockupDataProvider.ALL_INSTANCES.pop(k)
+
     def __init__(self,
                  sid: str,
                  providerOptions: QgsDataProvider.ProviderOptions,
@@ -430,23 +438,11 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
 
         # keep a python reference on the new provider instance
         cls.ALL_INSTANCES[id(provider)] = provider
-        # print(f'## Created {len(cls.ALL_INSTANCES)}: {provider}')
+        cls._release_sip_deleted()
         return provider
 
     def clone(self):
         return self.createProvider(self.mSid, self.mProviderOptions, self.mFlags)
-        # return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
-
-    def setParent(self, parent: QObject):
-        # print(f'# setParent{parent}')
-        super().setParent(parent)
-        parent.destroyed.connect(self.objectDestroyed)
-
-    def objectDestroyed(self):
-        myId = id(self)
-        if myId in self.ALL_INSTANCES:
-            self.ALL_INSTANCES.pop(myId)
-            print(f'## Removed {myId}')
 
 
 def registerDataProvider():

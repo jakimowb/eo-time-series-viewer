@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Tests QGIS plugin init."""
-
 import os
 import re
 import unittest
@@ -8,19 +7,21 @@ import unittest
 import numpy as np
 from osgeo import gdal, osr
 from qgis._core import QgsDateTimeRange
-
 from qgis.gui import QgsMapCanvas, QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
+
 import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import DateTimePrecision, SensorInstrument, SensorMatching, TimeSeries, \
-    TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, TimeSeriesSource
+from eotimeseriesviewer.timeseries import DateTimePrecision, registerDataProvider, sensorID, SensorInstrument, \
+    SensorMatching, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
+    TimeSeriesSource
 
 start_app()
 
@@ -420,7 +421,6 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertIsInstance(extent, SpatialExtent)
 
     def test_SensorProxyLayerMockupDataProvider(self):
-        from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
 
         registerDataProvider()
         nb = 7
@@ -456,6 +456,40 @@ class TestTimeSeries(EOTSVTestCase):
         canvas.setLayers([lyr])
         canvas.zoomToFullExtent()
         self.showGui(canvas)
+
+    def test_sensor_proxy_layer_provider_footprint(self):
+        registerDataProvider()
+
+        def print_provider_references():
+            print(' # : object id    : sip.isdeleted()')
+            for i, (oid, p) in enumerate(SensorMockupDataProvider.ALL_INSTANCES.items()):
+                print(f'{i:2} : {oid}: {sip.isdeleted(p)}')
+
+        print('Before:')
+        print_provider_references()
+        sid = sensorID(100, 200, 300, Qgis.DataType.Float32)
+
+        # create multiple layers with this data provider:
+        layer = None
+        keep_layers = []
+        for i in range(10):
+            layer = QgsRasterLayer(sid, 'test layer', SensorMockupDataProvider.providerKey())
+            if i % 2 == 0:
+                keep_layers.append(layer)
+        # draw layers
+        print('Before drawing layers:')
+        print_provider_references()
+        c = QgsMapCanvas()
+        c.setLayers(keep_layers)
+        c.mapSettings().setDestinationCrs(layer.crs())
+        c.setExtent(layer.extent())
+
+        print('After drawing layers:')
+        print_provider_references()
+        del keep_layers
+
+        print('After deleting layers:')
+        print_provider_references()
 
     def test_sensors(self):
 
