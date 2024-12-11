@@ -34,6 +34,15 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 from osgeo import gdal, gdal_array, osr
 from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+from qgis.PyQt import sip
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDate, QDateTime, QDir, \
+    QItemSelectionModel, QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, \
+    QgsCoordinateTransform, QgsDataProvider, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, \
+    QgsMimeDataUtils, QgsPoint, QgsPointXY, QgsProcessingFeedback, \
+    QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, \
+    QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, \
+    QgsTaskManager
 
 from eotimeseriesviewer import DIR_UI, messageLog
 from eotimeseriesviewer.dateparser import ImageDateUtils
@@ -46,6 +55,14 @@ from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel
     QMimeData, QModelIndex, QObject, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
+from qgis.PyQt.QtXml import QDomDocument
+from qgis.gui import QgisInterface, QgsDockWidget
+
+from eotimeseriesviewer import DIR_UI, messageLog
+from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
+from .qgispluginsupport.qps.unitmodel import UnitLookup
+from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
+    SpatialExtent, SpatialPoint
 from qgis.PyQt.QtXml import QDomDocument, QDomElement, QDomNode
 from .qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 from .qgispluginsupport.qps.utils import bandClosestToWavelength, geo2px, loadUi, relativePath, \
@@ -196,7 +213,7 @@ def sensorID(nb: int,
                 'wlu': wlu,
                 'name': name
                 }
-    return json.dumps(jsonDict)
+    return json.dumps(jsonDict, ensure_ascii=False)
 
 
 def sensorIDtoProperties(idString: str) -> tuple:
@@ -240,6 +257,7 @@ class SensorInstrument(QObject):
     sigNameChanged = pyqtSignal(str)
 
     PROPERTY_KEY = 'eotsv/sensor'
+    PROPERTY_KEY_STYLE_INITIALIZED = 'eotsv/style_initialized'
 
     def __init__(self, sid: str, band_names: list = None):
         super(SensorInstrument, self).__init__()
@@ -300,29 +318,6 @@ class SensorInstrument(QObject):
                 self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
             self.mMockupDS.FlushCache()
 
-    @staticmethod
-    def readXml(node: QDomNode):
-        sensor: SensorInstrument = None
-        nodeId = node.firstChildElement('SensorId').toElement()
-        if nodeId.nodeName() == 'SensorId':
-            sid = nodeId.firstChild().nodeValue()
-            sensor = SensorInstrument(sid)
-
-        nodeName = node.firstChildElement('SensorName').toElement()
-        if isinstance(sensor, SensorInstrument) and nodeName.nodeName() == 'SensorName':
-            name = nodeName.firstChild().nodeValue()
-            sensor.setName(name)
-        return sensor
-
-    def writeXml(self, node: QDomNode, doc: QDomDocument):
-
-        nodeId = doc.createElement('SensorId')
-        nodeId.appendChild(doc.createTextNode(self.id()))
-        nodeName = doc.createElement('SensorName')
-        nodeName.appendChild(doc.createTextNode(self.name()))
-        node.appendChild(nodeId)
-        node.appendChild(nodeName)
-
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
         Returns the band index closest to a certain wavelength
@@ -330,16 +325,25 @@ class SensorInstrument(QObject):
         :param wl_unit: str
         :return: int
         """
-        return bandClosestToWavelength(self.mMockupDS, wl, wl_unit=wl_unit)
+        if isinstance(wl, str):
+            if wl in LUT_WAVELENGTH:
+                wl = LUT_WAVELENGTH[wl]
+
+        if self.wlu != wl_unit:
+            wl = UnitLookup.convertLengthUnit(wl, wl_unit, self.wlu)
+
+        return int(np.argmin(np.abs(np.asarray(self.wl) - wl)))
 
     def proxyRasterLayer(self) -> QgsRasterLayer:
         """
-        Creates an "empty" layer that can be used as proxy for band names, data types and render styles
+        Creates an "empty" in-memory layer that can be used as proxy for band names, data types and render styles
         :return: QgsRasterLayer
         """
         lyr = QgsRasterLayer(self.mId, name=self.name(), providerType=SensorMockupDataProvider.providerKey())
         lyr.nameChanged.connect(lambda *args, l=lyr: self.setName(l.name()))
         lyr.setCustomProperty(self.PROPERTY_KEY, self.id())
+        lyr.setCustomProperty(self.PROPERTY_KEY_STYLE_INITIALIZED, False)
+
         self.sigNameChanged.connect(lyr.setName)
         return lyr
 
@@ -402,6 +406,14 @@ class SensorInstrument(QObject):
 
 
 class SensorMockupDataProvider(QgsRasterDataProvider):
+    ALL_INSTANCES = dict()
+
+    @staticmethod
+    def _release_sip_deleted():
+        to_delete = {k for k, o in SensorMockupDataProvider.ALL_INSTANCES.items()
+                     if sip.isdeleted(o)}
+        for k in to_delete:
+            SensorMockupDataProvider.ALL_INSTANCES.pop(k)
 
     def __init__(self,
                  sid: str,
@@ -440,16 +452,13 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
         return isinstance(self.mSensor, SensorInstrument)
 
     def name(self):
-        return 'Name'
+        return self.__class__.__name__
 
     def dataType(self, bandNo: int):
         return self.mSensor.dataType
 
     def bandCount(self):
         return self.mSensor.nb
-
-    def clone(self):
-        return SensorMockupDataProvider(self.mSid, providerOptions=self.mProviderOptions, flags=self.mFlags)
 
     def sourceDataType(self, bandNo: int):
         return self.dataType(bandNo)
@@ -460,14 +469,21 @@ class SensorMockupDataProvider(QgsRasterDataProvider):
 
     @classmethod
     def description(cls) -> str:
-        return 'SpectralLibraryRasterDataProvider'
+        return 'SensorMockupDataProvider'
 
     @classmethod
     def createProvider(cls, uri, providerOptions, flags=None):
         # compatibility with Qgis < 3.16, ReadFlags only available since 3.16
         flags = QgsDataProvider.ReadFlags()
         provider = SensorMockupDataProvider(uri, providerOptions, flags)
+
+        # keep a python reference on the new provider instance
+        cls.ALL_INSTANCES[id(provider)] = provider
+        cls._release_sip_deleted()
         return provider
+
+    def clone(self):
+        return self.createProvider(self.mSid, self.mProviderOptions, self.mFlags)
 
 
 def registerDataProvider():
@@ -650,7 +666,7 @@ class TimeSeriesSource(object):
         dtg = self.dtg()
         lyr.setCustomProperty('eotsv/dtg', str(dtg))
         dt1 = QDateTime(dtg, QTime(0, 0))
-        dt2 = QDateTime(dtg, QTime(QTime(23, 59, 59)))
+        dt2 = QDateTime(dtg, QTime(23, 59, 59))
         tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
         return lyr
 
@@ -679,6 +695,10 @@ class TimeSeriesSource(object):
         self.mTimeSeriesDate = tsd
 
     def dtg(self) -> datetime.datetime:
+    def qDateTime(self) -> QDateTime:
+        return QDateTime(self.mDate.astype(object))
+
+    def date(self) -> np.datetime64:
         """
         Returns the date-time-group of the source image
         :return:
@@ -692,9 +712,9 @@ class TimeSeriesSource(object):
         :return:
         :rtype:
         """
-        return self.mLayer.crs()
+        return self.mCRS
 
-    def spatialExtent(self, crs: QgsCoordinateReferenceSystem = None) -> SpatialExtent:
+    def spatialExtent(self) -> SpatialExtent:
         """
         Returns the SpatialExtent
         :return:
@@ -735,7 +755,7 @@ class TimeSeriesSource(object):
 
 class TimeSeriesDate(QAbstractTableModel):
     """
-    A container to store all source images related to a single observation date and sensor.
+    A container to store all source images related to a single observation date (range) and sensor.
     """
     sigSourcesAdded = pyqtSignal(list)
     sigSourcesRemoved = pyqtSignal(list)
@@ -861,15 +881,23 @@ class TimeSeriesDate(QAbstractTableModel):
 
     def temporalRange(self) -> QgsDateTimeRange:
 
-        d1 = d2 = self.mDTG
+        d1 = d2 = self.mDate.astype(object)
         if len(self.mSources) > 0:
-            dates = [s.dtg() for s in self]
-            d1 = min(dates)
-            d2 = max(dates)
+            dates = [s.date() for s in self]
+            d1 = min(dates).astype(object)
+            d2 = max(dates).astype(object)
 
+        if d1 == d2:
+            if isinstance(d1, datetime.date) and isinstance(d2, datetime.date):
+                return QgsDateTimeRange(QDateTime(QDate(d1)),
+                                        QDateTime(QDate(d1), QTime(23, 59, 59)))
         return QgsDateTimeRange(QDateTime(d1), QDateTime(d2))
 
     def dtg(self) -> datetime.datetime:
+    def qDateTime(self) -> QDateTime:
+        return QDateTime(self.mDate.astype(object))
+
+    def date(self) -> np.datetime64:
         """
         Returns the observation date-time group (DTG)
         :return: numpy.datetime64
@@ -1157,7 +1185,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             else:
                 description = 'Find image overlap (all dates)'
 
-        super().__init__(description=description, flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
+        super().__init__(description=description,
+                         flags=QgsTask.CanCancel | QgsTask.CancelWithoutPrompt | QgsTask.Silent)
         assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
@@ -1276,8 +1305,6 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             highest = max(self.mDates)
 
             for i, t in enumerate(sources):
-                if self.isCanceled():
-                    return False
 
                 tssUri: str = t[0]
                 obs_date: np.datetime64 = t[1]
@@ -1300,6 +1327,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
 
                 dt = datetime.datetime.now() - t0
                 if dt > self.mProgressInterval:
+                    if self.isCanceled():
+                        return False
                     self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
                     self.mIntersections.clear()
                     progress = int(100 * (i + 1) / n)
@@ -1334,9 +1363,10 @@ class TimeSeriesLoadingTask(EOTSVTask):
                  visibility: List[bool] = None,
                  description: str = "Load Images",
                  callback=None,
-                 progress_interval: int = 3):
+                 progress_interval: int = 5):
 
-        super().__init__(description=description)
+        super().__init__(description=description,
+                         flags=QgsTask.Silent | QgsTask.CanCancel | QgsTask.CancelWithoutPrompt)
 
         assert progress_interval >= 1
 
@@ -1364,8 +1394,6 @@ class TimeSeriesLoadingTask(EOTSVTask):
         try:
             for i, path in enumerate(self.mFiles):
                 assert isinstance(path, str)
-                if self.isCanceled():
-                    return False
 
                 try:
                     tss = TimeSeriesSource.create(path)
@@ -1377,12 +1405,11 @@ class TimeSeriesLoadingTask(EOTSVTask):
                 except Exception as ex:
                     self.mInvalidSources.append((path, ex))
 
-                if self.isCanceled():
-                    return False
-
                 dt = datetime.datetime.now() - t0
 
                 if dt > self.mProgressInterval:
+                    if self.isCanceled():
+                        return False
                     progress = int(100 * (i + 1) / n)
                     self.setProgress(progress)
                     # self.sigFoundSources.emit(cloneAndClear())
@@ -1827,7 +1854,9 @@ class TimeSeries(QAbstractItemModel):
             self.checkSensorList()
             self.sigTimeSeriesDatesRemoved.emit(removed)
 
-    def timeSeriesSources(self, copy: bool = False, sensor: SensorInstrument = None) -> List[TimeSeriesSource]:
+    def timeSeriesSources(self,
+                          copy: Optional[bool] = False,
+                          sensor: Optional[SensorInstrument] = None) -> List[TimeSeriesSource]:
         """
         Returns a flat list of all sources
         :param copy:
@@ -2271,65 +2300,49 @@ class TimeSeries(QAbstractItemModel):
         """
         return [tsd for tsd in self if not tsd.checkState() == Qt.Unchecked]
 
-    def writeXml(self, node: QDomElement, doc: QDomDocument) -> bool:
-        """
-        Writes the TimeSeries to a QDomNode
-        :param node: QDomElement
-        :param doc: QDomDocument
-        :return: bool
-        """
-        tsNode = doc.createElement('TimeSeries')
+    def asMap(self) -> dict:
 
-        for sensor in self.sensors():
-            sensorNode = doc.createElement('Sensor')
-            sensor.writeXml(sensorNode, doc)
-            tsNode.appendChild(sensorNode)
+        d = {}
+        sources = []
+        for tss in self.timeSeriesSources():
+            tss: TimeSeriesSource
+            sources.append({
+                'uri': tss.mUri,
+                'visible': tss.isVisible()
+            })
+        d['sources'] = sources
+        return d
 
-        for tss in self.sources():
-            assert isinstance(tss, TimeSeriesSource)
-            tssNode = doc.createElement('TimeSeriesSource')
-            tssNode.setAttribute('isVisible', str(tss.isVisible()))
-            tssNode.appendChild(doc.createTextNode((tss.uri())))
-            tsNode.appendChild(tssNode)
-        node.appendChild(tsNode)
-        return True
+    def fromMap(self, data: dict, feedback: QgsProcessingFeedback = QgsProcessingFeedback()):
 
-    def readXml(self, node: QDomNode):
-        if not node.nodeName() == 'TimeSeries':
-            node = node.firstChildElement('TimeSeries')
-        if node.isNull():
-            return None
+        multistep = QgsProcessingMultiStepFeedback(4, feedback)
+        multistep.setCurrentStep(1)
+        multistep.setProgressText('Clean')
+        self.clear()
 
-        sensorNode = node.firstChildElement('Sensor')
-        while sensorNode.nodeName() == 'Sensor':
-            sensor = SensorInstrument.readXml(sensorNode)
+        uri_vis = dict()
 
-            if isinstance(sensor, SensorInstrument):
-                sid = sensor.id()
-                name = sensor.name()
-                self.addSensor(sensor)
+        multistep.setCurrentStep(2)
+        multistep.setProgressText('Read Sources')
+        sources = []
 
-                # set name on sensor instance (which might be already there)
-                sensor = self.sensor(sid)
-                if isinstance(sensor, SensorInstrument):
-                    sensor.setName(name)
-            sensorNode = sensorNode.nextSiblingElement()
+        for d in data.get('sources', []):
+            uri = d.get('uri')
 
-        tssNode = node.firstChildElement('TimeSeriesSource')
-        to_add = []
-        tss_visibility = []
-        while tssNode.nodeName() == 'TimeSeriesSource':
-            uri = tssNode.firstChild().nodeValue()
-            to_add.append(uri)
-            if tssNode.hasAttribute('isVisible'):
-                tss_visibility.append(str(tssNode.attribute('isVisible')).lower() in ['1', 'true'])
-            else:
-                tss_visibility.append(True)
+            if uri:
+                tss = TimeSeriesSource.create(uri)
+                uri_vis[tss.uri()] = d.get('visible', True)
+                if isinstance(tss, TimeSeriesSource):
+                    sources.append(tss)
 
-            tssNode = tssNode.nextSiblingElement()
+        multistep.setCurrentStep(3)
+        multistep.setProgressText('Add Sources')
 
-        if len(to_add) > 0:
-            self.addSources(to_add, visibility=tss_visibility, runAsync=True)
+        if len(sources) > 0:
+            self.addTimeSeriesSources(sources)
+
+        for tss in self.timeSeriesSources():
+            tss.setIsVisible(uri_vis.get(tss.uri(), tss.isVisible()))
 
     def data(self, index, role):
         """

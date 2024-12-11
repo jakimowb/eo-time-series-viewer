@@ -5,7 +5,7 @@
 .. |cbc| image:: img/checkbox_checked.png
 .. |cbu| image:: img/checkbox_unchecked.png
 
-.. |timeseriesdock| image:: img/timeseriesdock.png
+.. |timeseriesdock| image:: img/timeseriespanel.png
 .. |mapviewbutton| image:: img/mapviewbutton.png
 .. |questionmark| image:: img/questionmark.png
 
@@ -158,8 +158,8 @@ For every Map View you can alter the following settings:
 
 .. * **Vector Rendering** allows you to visualize vector data (e.g. a shapefile). In order to do so, open the file in QGIS. Once loaded in the QGIS Layers Panel, it will become selectable
 ..  in the dropdown menu. Vector styling will be same as in QGIS (i.e. if you want to adjust it, do it in QGIS). Check |cbc| or uncheck |cbu| in order to activate/deactivate Vector Rendering.
-  Furthermore, you can visualize the locations of :ref:`Temporal Profiles` or :ref:`Spectral Profiles <Spectral Library>` as points. Select the desired option
-  from the dropdown list.
+Furthermore, you can visualize the locations of :ref:`Temporal Profiles` or :ref:`Spectral Profiles <Spectral Library>` as points. Select the desired option
+from the dropdown list.
 
 **Layer representation:**
 

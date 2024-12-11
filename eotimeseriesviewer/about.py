@@ -1,9 +1,9 @@
 import os
+import re
 import webbrowser
 
 from qgis.PyQt.QtCore import Qt, QUrl
 from qgis.PyQt.QtWidgets import QDialog
-
 from eotimeseriesviewer import DIR_UI, PATH_CONTRIBUTORS
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 
@@ -40,6 +40,8 @@ class AboutDialogUI(QDialog):
             if os.path.isfile(path):
                 f = open(path, encoding='utf-8')
                 txt = f.read()
+                # increase headline level to make them looking smaller
+                txt = re.sub(r'^(#+)', r'\1#', txt, flags=re.M)
                 f.close()
             else:
                 txt = 'unable to read {}'.format(path)

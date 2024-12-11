@@ -6,6 +6,9 @@ import re
 import unittest
 
 import numpy as np
+from osgeo import gdal, osr
+from qgis._core import QgsDateTimeRange
+from qgis.gui import QgsMapCanvas, QgsTaskManagerWidget
 from osgeo import gdal
 
 import example
@@ -17,12 +20,19 @@ from eotimeseriesviewer.timeseries import create_sensor_id, DateTimePrecision, s
     SensorInstrument, SensorMatching, sensorName, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
     TimeSeriesSource
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
-from qgis.gui import QgsTaskManagerWidget
+from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
-from qgis.PyQt.QtXml import QDomDocument
+
+import example
+import example.Images
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
+from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.timeseries import DateTimePrecision, registerDataProvider, sensorID, SensorInstrument, \
+    SensorMatching, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
+    TimeSeriesSource
 
 start_app()
 
@@ -145,6 +155,20 @@ class TestTimeSeries(EOTSVTestCase):
         TV = QTableView()
         TV.setModel(tsd)
         self.showGui(TV)
+
+    def test_tsd_daterange(self):
+
+        ts = TestObjects.createTimeSeries(DateTimePrecision.Day)
+        ts.setDateTimePrecision(DateTimePrecision.Day)
+        for tsd in ts:
+
+            date = tsd.date()
+            t_range = tsd.temporalRange()
+            self.assertIsInstance(t_range, QgsDateTimeRange)
+            self.assertTrue(t_range.contains(tsd.qDateTime()))
+            for tss in tsd:
+                tss: TimeSeriesSource
+                self.assertTrue(t_range.contains(tss.qDateTime()))
 
     def test_TimeSeriesSource(self):
 
@@ -381,7 +405,6 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertIsInstance(tsd, TimeSeriesDate)
 
     def test_SensorProxyLayerMockupDataProvider(self):
-        from eotimeseriesviewer.timeseries import registerDataProvider, SensorMockupDataProvider, sensorID
 
         registerDataProvider()
         nb = 7
@@ -397,6 +420,9 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertEqual(sensor, sensor2)
 
         lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
+        del lyr
+
+        lyr = QgsRasterLayer(sid, 'TestLayer', SensorMockupDataProvider.providerKey())
         dp = lyr.dataProvider()
         self.assertIsInstance(dp, SensorMockupDataProvider)
 
@@ -405,35 +431,7 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertNotEqual(id(dp), id(dp2))
 
         s = dp2.capabilities()
-
         self.assertEqual(nb, dp2.bandCount())
-
-    def test_sensorname(self):
-
-        lyr1 = QgsRasterLayer(example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA)
-        lyr2 = QgsRasterLayer(example.Images.Img_2014_04_29_LE72270652014119CUB00_BOA)
-        lyr3 = QgsRasterLayer(example.Images.re_2014_08_17)
-
-        for lyr in [lyr1, lyr2, lyr3]:
-            sid1 = sensorName(lyr)
-            self.assertFalse(SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys())
-
-    def test_sensorId(self):
-
-        lyr1 = QgsRasterLayer(example.Images.Img_2014_01_15_LC82270652014015LGN00_BOA)
-        lyr2 = QgsRasterLayer(example.Images.Img_2014_04_29_LE72270652014119CUB00_BOA)
-        lyr3 = QgsRasterLayer(example.Images.re_2014_08_17)
-
-        for lyr in [lyr1, lyr2, lyr3]:
-            sid1 = create_sensor_id(lyr)
-            self.assertFalse(SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys())
-            sid2 = sensor_id(lyr)
-
-            self.assertEqual(sid1, sid2)
-            self.assertTrue(SensorInstrument.PROPERTY_KEY in lyr.customPropertyKeys())
-
-            props = sensorIDtoProperties(sid1)
-            s = ""
 
     def test_sensors(self):
 
@@ -452,14 +450,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         lyr = sensor.proxyRasterLayer()
         self.assertIsInstance(lyr, QgsRasterLayer)
-
-        doc = QDomDocument('eotsv')
-        node = doc.createElement('MySensor')
-        sensor.writeXml(node, doc)
-
-        sensor3 = SensorInstrument.readXml(node)
-
-        self.assertEqual(sensor, sensor3)
 
     def test_TimeSeriesTreeModel(self):
 

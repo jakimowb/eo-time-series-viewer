@@ -51,3 +51,19 @@ Image crosshair
    Detailed and fully customizable crosshair with pixel highlighting and scale bar
 
 
+Restore Workbench
+-----------------
+
+.. figure:: img/project_restore.webp
+
+    Save and restore the EOTSV workbench inside a QGIS Project file.
+
+Import FORCE Datasets
+---------------------
+
+Import products from the datacube folders created with the
+`Framework for Operational Radiometric Correction for Environmental monitoring (FORCE)
+<https://force-eo.readthedocs.io/en/latest/components/lower-level/level2/format.html#naming-convention>`_.
+
+.. figure:: img/import_force_products.webp
+

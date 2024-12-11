@@ -19,20 +19,22 @@
  ***************************************************************************/
 """
 import enum
+import math
 import os
 import re
 import sys
 # noinspection PyPep8Naming
 import time
-from typing import Dict, List, Union
+import warnings
+from typing import Dict, List, Optional, Union
 
-import qgis.utils
 from qgis.core import Qgis, QgsApplication, QgsContrastEnhancement, QgsCoordinateReferenceSystem, QgsDateTimeRange, \
-    QgsExpression, QgsField, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapLayerStyle, QgsMapSettings, \
-    QgsMapToPixel, QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, \
-    QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsRenderContext, \
-    QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsTextFormat, QgsTextRenderer, QgsUnitTypes, \
-    QgsVectorLayer, QgsWkbTypes
+    QgsExpression, QgsField, QgsLayerTreeGroup, QgsMapLayer, QgsMapLayerStore, QgsMapSettings, QgsMapToPixel, \
+    QgsMimeDataUtils, QgsMultiBandColorRenderer, QgsPalettedRasterRenderer, QgsPointXY, QgsPolygon, QgsProject, \
+    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRasterRenderer, \
+    QgsRectangle, QgsRenderContext, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsTextFormat, \
+    QgsTextRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes
+import qgis.utils
 from qgis.gui import QgisInterface, QgsAdvancedDigitizingDockWidget, QgsFloatingWidget, QgsGeometryRubberBand, \
     QgsMapCanvas, QgsMapCanvasItem, QgsMapTool, QgsMapToolCapture, QgsMapToolPan, QgsMapToolZoom, QgsUserInputWidget
 from qgis.PyQt.QtCore import pyqtSignal, QDateTime, QDir, QMimeData, QObject, QPoint, QPointF, QRect, QRectF, QSize, Qt, \
@@ -48,10 +50,12 @@ from .qgispluginsupport.qps.maptools import CursorLocationMapTool, FullExtentMap
     PixelScaleExtentMapTool, QgsMapToolAddFeature, QgsMapToolSelect, QgsMapToolSelectionHandler
 from .qgispluginsupport.qps.qgisenums import QGIS_RASTERBANDSTATISTIC
 from .qgispluginsupport.qps.utils import filenameFromString, findParent, SpatialExtent, SpatialPoint
-from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate, TimeSeriesSource
-from .utils import copyMapLayerStyle
+from .timeseries import has_sensor_id, sensor_id, SensorMockupDataProvider, TimeSeriesDate
+from .utils import copyMapLayerStyle, layerStyleString, setLayerStyleString
 
 KEY_LAST_CLICKED = 'LAST_CLICKED'
+
+STYLE_CATEGORIES = QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering
 
 
 def toQgsMimeDataUtilsUri(mapLayer: QgsMapLayer):
@@ -206,7 +210,7 @@ class MapCanvasInfoItem(QgsMapCanvasItem):
         context.setMapToPixel(m2p)
         context.setScaleFactor(QgsApplication.desktop().logicalDpiX() / 25.4)
         context.setUseAdvancedEffects(True)
-        context.setCustomRenderingFlag('Antialiasing', True)
+        # context.setCustomRenderingFlag('Antialiasing', True)
         context.setPainter(painter)
         # context.setExtent(self.mCanvas.extent())
         # context.setExpressionContext(self.mCanvas.mapSettings().expressionContext())
@@ -395,6 +399,7 @@ class MapCanvas(QgsMapCanvas):
         self.initMapTools()
 
         self.mTimedRefreshPipeLine = dict()
+        self.mMapRefreshBlock: bool = False
 
         self.mCrosshairItem = CrosshairMapCanvasItem(self)
         self.mInfoItem = MapCanvasInfoItem(self)
@@ -417,7 +422,6 @@ class MapCanvas(QgsMapCanvas):
         self.mNeedsRefresh = False
 
         def onMapCanvasRefreshed(*args):
-            self.mIsRefreshing = False
             self.mRenderingFinished = True
             self.mIsRefreshing = False
             t2 = time.time()
@@ -520,7 +524,10 @@ class MapCanvas(QgsMapCanvas):
         if isinstance(self.mTSD, TimeSeriesDate):
             self.mTSD.sensor().sigNameChanged.disconnect(self.updateScope)
 
+        # remove all layers
+        self.setLayers([])
         self.mTSD = tsd
+
         if isinstance(tsd, TimeSeriesDate):
             self.setTemporalRange(tsd.temporalRange())
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
@@ -542,7 +549,7 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            varDate = str(tsd.dtg())
+            varDate = str(tsd.date())
             varDOY = tsd.doy()
             varSensor = tsd.sensor().name()
 
@@ -609,6 +616,14 @@ class MapCanvas(QgsMapCanvas):
         :param mapLayers:
         """
         self.mMapLayerStore.addMapLayers(mapLayers)
+
+        myRange = self.temporalRange()
+        for lyr in mapLayers:
+            if has_sensor_id(lyr):
+                r = lyr.temporalProperties().fixedTemporalRange()
+                if not myRange.contains(r):
+                    s = ""
+
         super(MapCanvas, self).setLayers(mapLayers)
 
     def isRefreshing(self) -> bool:
@@ -621,7 +636,7 @@ class MapCanvas(QgsMapCanvas):
         """
         return self.visibleRegion().boundingRect().isValid()
 
-    def addToRefreshPipeLine(self, arguments: list):
+    def addToRefreshPipeLine(self, arguments):
         """
         Adds commands or other arguments to a pipeline which will be handled during the next timed refresh.
         :param arguments: argument | [list-of-arguments]
@@ -651,10 +666,12 @@ class MapCanvas(QgsMapCanvas):
             else:
                 print('Unsupported argument: {} {}'.format(type(a), str(a)), file=sys.stderr)
 
-    def timedRefresh(self):
+    def timedRefresh(self) -> bool:
         """
         Called to refresh the map canvas with all things needed to be done with lazy evaluation
         """
+
+        # with MapWidgetTimedRefreshBlocker(self) as blocker:
         expected = []
 
         existing: List[QgsMapLayer] = self.layers()
@@ -667,47 +684,50 @@ class MapCanvas(QgsMapCanvas):
         if mapView is None or self.tsd() is None:
             self.setLayers([])
             self.mInfoItem.clearInfoText()
-            self.update()
-            return
+            # self.update()
+            return False
 
         sensor: SensorInstrument = self.tsd().sensor()
 
         for lyr in mapView.visibleLayers():
             assert isinstance(lyr, QgsMapLayer)
             dp = lyr.dataProvider()
-            if isinstance(lyr, QgsRasterLayer):
-                dp = lyr.dataProvider()
             if isinstance(dp, SensorMockupDataProvider):
-                s = ""
-                # if isinstance(lyr, SensorProxyLayer):
                 if sensor == dp.sensor():
                     # check if we need to add a new source
-                    for tss in self.tsd():
-                        if not tss.isVisible():
-                            continue
+                    for tss in [s for s in self.tsd() if s.isVisible()]:
 
                         source = tss.uri()
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]
                         else:
-                            loadDefaultStyle = mapView.mLayerStyleInitialized.get(sensor, False) is False
-                            sourceLayer = tss.asRasterLayer(loadDefaultStyle=loadDefaultStyle)
-                            # add new layer
-                            master: QgsRasterLayer = mapView.sensorProxyLayer(sensor)
+                            # create a new source layer
+                            sid = self.tsd().sensor().id()
 
-                            # options = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
-                            # sourceLayer = QgsRasterLayer(source, options=options)
-                            # sourceLayer.setName(f'{lyr.name()} {source}')
-                            # sourceLayer.setCustomProperty('eotsv/sensorid', sensor.id())
-                            # sourceLayer.setCustomProperty('eotsv/datetime', str(tss.date()))
-                            # sourceLayer.mTSS = tss
-                            # SensorProxyLayer
-                            style = QgsMapLayerStyle()
-                            style.readFromLayer(master)
-                            style.writeToLayer(sourceLayer)
-                            # sourceLayer.setMapLayerStyle(style)
-                            sourceLayer.styleChanged.connect(
-                                lambda *args, slyr=sourceLayer: self.onSetMasterLayerStyle(slyr))
+                            use_as_masterstyle = not lyr.customProperty(
+                                SensorInstrument.PROPERTY_KEY_STYLE_INITIALIZED,
+                                False)
+                            sourceLayer = tss.asRasterLayer(loadDefaultStyle=use_as_masterstyle)
+                            sourceLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
+
+                            s_range1 = sourceLayer.temporalProperties().fixedTemporalRange()
+                            assert self.tsd().temporalRange().contains(
+                                sourceLayer.temporalProperties().fixedTemporalRange())
+
+                            if use_as_masterstyle:
+                                self.onSetMasterLayerStyle(sourceLayer)
+                            else:
+                                masterStyle = layerStyleString(self.mapView().sensorProxyLayer(sid),
+                                                               categories=STYLE_CATEGORIES)
+                                setLayerStyleString(sourceLayer, masterStyle,
+                                                    categories=STYLE_CATEGORIES
+                                                    )
+
+                            sourceLayer.styleChanged.connect(self.onSetMasterLayerStyle)
+                            s_range2 = sourceLayer.temporalProperties().fixedTemporalRange()
+                            if s_range1 != s_range2:
+                                warnings.warn('Changed temporal ranges. Reset')
+                                sourceLayer.temporalProperties().setFixedTemporalRange(s_range1)
 
                         assert isinstance(sourceLayer, QgsRasterLayer)
                         expected.append(sourceLayer)
@@ -719,7 +739,7 @@ class MapCanvas(QgsMapCanvas):
 
         if len(self.mTimedRefreshPipeLine) == 0 and self.layers() == expected:
             # there is nothing to do.
-            return
+            return False
         else:
             lyrs = self.layers()
 
@@ -750,43 +770,29 @@ class MapCanvas(QgsMapCanvas):
                         if command == MapCanvas.Command.RefreshRenderer:
                             sensor = self.tsd().sensor()
                             sid = sensor.id()
-                            # master = self.mapView().sensorProxyLayer(sensor)
-                            # masterStyle = QgsMapLayerStyle()
-                            # masterStyle.readFromLayer(master)
-                            # masterStyleXML = masterStyle.xmlData()
+                            master = self.mapView().sensorProxyLayer(sensor)
+                            masterStyle = layerStyleString(master,
+                                                           categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
                             for lyr in self.layers():
                                 if sensor_id(lyr) == sid:
+                                    copyMapLayerStyle(masterStyle, lyr,
+                                                      categories=QgsMapLayer.StyleCategory.Symbology | QgsMapLayer.StyleCategory.Rendering)
                                     lyr.triggerRepaint()
-                                    # style = QgsMapLayerStyle()
-                                    # style.readFromLayer(l)
-                                    # if style.xmlData() == masterStyleXML:
-                                    #    print(style.xmlData())
-                                    #    s = ""
-                                    # else:
-                                    #    style.writeToLayer(l)
 
                 self.mTimedRefreshPipeLine.clear()
+            # self.refresh()
+        return True
 
-            # self.freeze(False)
-            self.refresh()
-            # is this really required?
+    def onSetMasterLayerStyle(self, lyr: Optional[QgsRasterLayer] = None):
+        if lyr is None:
+            lyr = self.sender()
 
-    def onSetMasterLayerStyle(self, lyr: QgsRasterLayer):
-
+        assert isinstance(lyr, QgsRasterLayer)
         sid = sensor_id(lyr)
         if sid:
             masterLyr = self.mapView().sensorProxyLayer(sid)
             if masterLyr:
                 copyMapLayerStyle(lyr, masterLyr)
-
-    def setLayerVisibility(self, cls, isVisible: bool):
-        """
-        :param cls: type of layer, e.g. QgsRasterLayer to set visibility of all layers of same type
-                    QgsMapLayer instance to the visibility of a specific layer
-        :param isVisible: bool
-        """
-        self.mMapLayerModel.setLayerVisibility(cls, isVisible)
-        self.addToRefreshPipeLine(MapCanvas.Command.RefreshVisibility)
 
     def setCrosshairStyle(self, crosshairStyle: CrosshairStyle, emitSignal=True):
         """
@@ -869,6 +875,7 @@ class MapCanvas(QgsMapCanvas):
         :return: QMenu
         """
         assert isinstance(menu, QMenu)
+        menu.setToolTipsVisible(True)
 
         mapSettings = self.mapSettings()
         assert isinstance(mapSettings, QgsMapSettings)
@@ -963,7 +970,8 @@ class MapCanvas(QgsMapCanvas):
                                     lambda _, vl=layer, f=field, c=classInfo: setQuickClassInfo(vl, f, c))
 
         if has_sensor_id(refSensorLayer):
-            m = menu.addMenu('Raster stretch...')
+            m: QMenu = menu.addMenu('Raster stretch...')
+            m.setToolTipsVisible(True)
             action = m.addAction('Linear')
             action.triggered.connect(lambda *args, lyr=refSensorLayer:
                                      self.stretchToExtent(self.spatialExtent(), 'linear_minmax', layer=lyr, p=0.0))
@@ -996,6 +1004,7 @@ class MapCanvas(QgsMapCanvas):
         menu.addSeparator()
 
         m = menu.addMenu('Layers...')
+        m.setToolTipsVisible(True)
         visibleLayers = viewPortRasterLayers + viewPortVectorLayers
 
         for mapLayer in visibleLayers:
@@ -1004,7 +1013,8 @@ class MapCanvas(QgsMapCanvas):
                 name = os.path.basename(mapLayer.source())
             else:
                 name = mapLayer.name()
-            sub = m.addMenu(name)
+            sub: QMenu = m.addMenu(name)
+            sub.setToolTipsVisible(True)
 
             if is_sensor_layer:
                 sub.setIcon(QIcon(':/eotimeseriesviewer/icons/icon.svg'))
@@ -1052,7 +1062,8 @@ class MapCanvas(QgsMapCanvas):
 
         menu.addSeparator()
 
-        m = menu.addMenu('Crosshair...')
+        m: QMenu = menu.addMenu('Crosshair...')
+        m.setToolTipsVisible(True)
         action = m.addAction('Show')
         action.setCheckable(True)
         action.setChecked(self.mCrosshairItem.visibility())
@@ -1073,10 +1084,11 @@ class MapCanvas(QgsMapCanvas):
 
         if isinstance(tsd, TimeSeriesDate):
             menu.addSeparator()
-            m = menu.addMenu('Copy...')
+            m: QMenu = menu.addMenu('Copy...')
+            m.setToolTipsVisible(True)
             action = m.addAction('Date')
-            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.dtg())))
-            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.dtg())))
+            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
 
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
@@ -1104,8 +1116,8 @@ class MapCanvas(QgsMapCanvas):
                 action.triggered.connect(lambda: QApplication.clipboard().setPixmap(mw.grab()))
                 action.setToolTip('Copies all maps into the clipboard.')
 
-        m = menu.addMenu('Map Coordinates...')
-
+        m: QMenu = menu.addMenu('Map Coordinates...')
+        m.setToolTipsVisible(True)
         ext = self.spatialExtent()
         center = self.spatialExtent().spatialCenter()
         action = m.addAction('Extent (WKT Coordinates)')
@@ -1136,7 +1148,8 @@ class MapCanvas(QgsMapCanvas):
         action = m.addAction('CRS (Proj4)')
         action.triggered.connect(lambda: QApplication.clipboard().setText(self.crs().toProj4()))
 
-        m = menu.addMenu('Save to...')
+        m: QMenu = menu.addMenu('Save to...')
+        m.setToolTipsVisible(True)
         action = m.addAction('PNG')
         action.triggered.connect(lambda: self.saveMapImageDialog('PNG'))
         action = m.addAction('JPEG')
@@ -1177,8 +1190,9 @@ class MapCanvas(QgsMapCanvas):
             else:
                 n_max = 5
             action = menu.addAction('Update source visibility')
-            action.setToolTip('Updates observation source visibility according their spatial intersection '
-                              'with this map extent.')
+            action.setToolTip(
+                'Hides from the observations shown those observations that do <br>'
+                'not have valid pixels for the currently displayed map extent')
             action.triggered.connect(lambda *args, ext=self.spatialExtent():
                                      ts.focusVisibility(ext,
                                                         date_of_interest=date,
@@ -1187,9 +1201,10 @@ class MapCanvas(QgsMapCanvas):
                                                         ))
 
             action = menu.addAction('Update source visibility (all)')
-            action.setToolTip('Updates observation source visibility according their spatial intersection '
-                              'with this map extent.<br/>'
-                              '<span style="color:red">This can take some time for long time series</span>')
+            action.setToolTip(
+                'Hides all observations that do not have valid pixels for the currently displayed map extent.'
+                '<br><i>Depending on the length of your time series this may take some time</i>'
+            )
 
             action.triggered.connect(lambda *args, ext=self.spatialExtent():
                                      ts.focusVisibility(ext, date_of_interest=date))
@@ -1202,7 +1217,7 @@ class MapCanvas(QgsMapCanvas):
             action.triggered.connect(lambda *args: ts.removeTSDs([tsd]))
 
     def onSetLayerProperties(self, lyr: QgsRasterLayer):
-        showLayerPropertiesDialog(lyr, self, useQGISDialog=True)
+        showLayerPropertiesDialog(lyr, self, useQGISDialog=False)
         # if isinstance(lyr, SensorProxyLayer):
         #    #print('# MAPCANVAS :onsetLayerProperties: SET')
         #    r = lyr.renderer().clone()
@@ -1217,23 +1232,16 @@ class MapCanvas(QgsMapCanvas):
         layers = []
         for lyr in mapLayers:
             if has_sensor_id(lyr):
-                lyr = QgsRasterLayer(lyr.source(), os.path.basename(lyr.source()), lyr.dataProvider().name())
-                r = lyr.renderer().clone()
-                r.setInput(lyr.dataProvider())
-                lyr.setRenderer(r)
-
-                tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
+                lyr2 = lyr.clone()
+                tprop: QgsRasterLayerTemporalProperties = lyr2.temporalProperties()
                 tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
                 tprop.setIsActive(True)
-                if isinstance(lyr.mTSS, TimeSeriesSource):
-                    dtg = lyr.mTSS.dtg().astype(object)
-                else:
-                    dtg = self.tsd().dtg().astype(object)
+                dtg = self.tsd().date().astype(object)
                 dt1 = QDateTime(dtg, QTime(0, 0))
                 dt2 = QDateTime(dtg, QTime(23, 59, 59))
                 range = QgsDateTimeRange(dt1, dt2)
                 tprop.setFixedTemporalRange(range)
-                layers.append(lyr)
+                layers.append(lyr2)
             else:
                 layers.append(lyr)
         if len(layers) > 0 and isinstance(qgis.utils.iface, QgisInterface):
@@ -1242,11 +1250,13 @@ class MapCanvas(QgsMapCanvas):
     def onPasteStyleFromClipboard(self, lyr):
         from .qgispluginsupport.qps.layerproperties import pasteStyleFromClipboard
         pasteStyleFromClipboard(lyr)
-        if has_sensor_id(lyr):
-            r = lyr.renderer().clone()
-            proxyLayer = self.mMapView.sensorProxyLayer(lyr.sensor())
-            r.setInput(proxyLayer.dataProvider())
-            proxyLayer.setRenderer(r)
+
+    # if has_sensor_id(lyr):
+    #     sid = sensor_id(lyr)
+    #     r = lyr.renderer().clone()
+    #     proxyLayer = self.mMapView.sensorProxyLayer()
+    #     r.setInput(proxyLayer.dataProvider())
+    #     proxyLayer.setRenderer(r)
 
     def mousePressEvent(self, event: QMouseEvent):
         self.setProperty(KEY_LAST_CLICKED, time.time())
@@ -1263,9 +1273,9 @@ class MapCanvas(QgsMapCanvas):
                     and not bool(mt.flags() & QgsMapTool.ShowContextMenu) \
                     and bool(modifiers & Qt.ControlModifier):
                 menu = QMenu()
-                menu.setToolTipsVisible(True)
                 # mt.populateContextMenu(menu)
                 self.populateContextMenu(menu, event.pos())
+                menu.setToolTipsVisible(True)
                 menu.exec_(event.globalPos())
         else:
             if bRight:
@@ -1302,20 +1312,27 @@ class MapCanvas(QgsMapCanvas):
                     lqgis = iface.addVectorLayer(l.source(), l.name(), 'ogr')
                     lqgis.setRenderer(l.renderer().clone())
 
-    def stretchToCurrentExtent(self) -> bool:
+    def stretchToCurrentExtent(self,
+                               stretchType='linear_minmax',
+                               p=0.05,
+                               layer: QgsRasterLayer = None,
+                               ) -> bool:
         """
         Stretches the top-raster layer band to the current spatial extent
         return: True, if a QgsRasterLayer was found to perform the stretch
         """
-        se = self.spatialExtent()
-        return self.stretchToExtent(se, stretchType='linear_minmax', p=0.05)
+        return self.stretchToExtent(spatialExtent=self.spatialExtent(),
+                                    stretchType=stretchType,
+                                    p=p,
+                                    layer=layer)
 
     def stretchToExtent(self,
                         spatialExtent: SpatialExtent = None,
-                        stretchType='linear_minmax',
+                        stretchType: str = 'linear_minmax',
                         layer: Union[QgsRasterLayer, None] = None,
                         **stretchArgs) -> bool:
         """
+        :param layer:
         :param spatialExtent: rectangle to get the image statistics for
         :param stretchType: ['linear_minmax' (default), 'gaussian']
         :param stretchArgs:
@@ -1326,14 +1343,11 @@ class MapCanvas(QgsMapCanvas):
         if not isinstance(layer, QgsRasterLayer):
             for lyr in self.layers():
                 if isinstance(lyr, QgsRasterLayer):
-                    # todo: test for intersection
-                    extent: QgsRectangle = lyr.extent()
-
                     layer = lyr
                     break
 
         if not isinstance(layer, QgsRasterLayer):
-            return
+            return False
 
         if not isinstance(spatialExtent, SpatialExtent):
             spatialExtent = SpatialExtent.fromLayer(layer)
@@ -1342,11 +1356,15 @@ class MapCanvas(QgsMapCanvas):
         dp: QgsRasterDataProvider = layer.dataProvider()
         newRenderer = None
         extent = spatialExtent.toCrs(layer.crs())
+        if not isinstance(extent, SpatialExtent):
+            return False
 
         assert isinstance(dp, QgsRasterDataProvider)
 
-        def getCE(band):
-            stats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+        def getCE(band) -> Optional[QgsContrastEnhancement]:
+            stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+            if math.nan in [stats.minimumValue, stats.maximumValue]:
+                return None
 
             ce = QgsContrastEnhancement(dp.dataType(band))
             d = (stats.maximumValue - stats.minimumValue)
@@ -1367,43 +1385,43 @@ class MapCanvas(QgsMapCanvas):
             return ce
 
         if isinstance(r, QgsMultiBandColorRenderer):
-            newRenderer = r.clone()
 
             ceR = getCE(r.redBand())
             ceG = getCE(r.greenBand())
             ceB = getCE(r.blueBand())
-
-            newRenderer.setRedContrastEnhancement(ceR)
-            newRenderer.setGreenContrastEnhancement(ceG)
-            newRenderer.setBlueContrastEnhancement(ceB)
+            # print(ceR.maximumValue())
+            if ceR and ceG and ceB:
+                newRenderer = r.clone()
+                newRenderer.setRedContrastEnhancement(ceR)
+                newRenderer.setGreenContrastEnhancement(ceG)
+                newRenderer.setBlueContrastEnhancement(ceB)
 
         elif isinstance(r, QgsSingleBandPseudoColorRenderer):
-            newRenderer = r.clone()
-            ce = getCE(newRenderer.band())
 
-            # stats = dp.bandStatistics(newRenderer.band(), QgsRasterBandStats.All, extent, 500)
-
-            shader = newRenderer.shader()
-            newRenderer.setClassificationMax(ce.maximumValue())
-            newRenderer.setClassificationMin(ce.minimumValue())
-            shader.setMaximumValue(ce.maximumValue())
-            shader.setMinimumValue(ce.minimumValue())
+            if ceS := getCE(r.band()):
+                newRenderer = r.clone()
+                shader = newRenderer.shader()
+                newRenderer.setClassificationMax(ceS.maximumValue())
+                newRenderer.setClassificationMin(ceS.minimumValue())
+                shader.setMaximumValue(ceS.maximumValue())
+                shader.setMinimumValue(ceS.minimumValue())
 
         elif isinstance(r, QgsSingleBandGrayRenderer):
 
-            newRenderer = r.clone()
-            ce = getCE(newRenderer.grayBand())
-            newRenderer.setContrastEnhancement(ce)
+            if ceG := getCE(r.grayBand()):
+                newRenderer = r.clone()
+                newRenderer.setContrastEnhancement(ceG)
 
         elif isinstance(r, QgsPalettedRasterRenderer):
 
             newRenderer = r.clone()
 
-        if newRenderer is not None:
-
-            if isinstance(layer, QgsRasterLayer):
-                layer.setRenderer(newRenderer)
-                return True
+        if isinstance(newRenderer, QgsRasterRenderer):
+            sender = self.sender()
+            # print(f'{sender} Stretch {layer} {layer.isValid()} {stretchType}')
+            newRenderer.setInput(layer.dataProvider())
+            layer.setRenderer(newRenderer)
+            return True
 
         return False
 
@@ -1418,7 +1436,7 @@ class MapCanvas(QgsMapCanvas):
                                                     os.path.expanduser('~'))
         from eotimeseriesviewer.mapvisualization import MapView
         if isinstance(self.mTSD, TimeSeriesDate) and isinstance(self.mMapView, MapView):
-            path = filenameFromString('{}.{}'.format(self.mTSD.dtg(), self.mMapView.title()))
+            path = filenameFromString('{}.{}'.format(self.mTSD.date(), self.mMapView.title()))
         else:
             path = 'mapcanvas'
         path = os.path.join(lastDir, '{}.{}'.format(path, fileType.lower()))
@@ -1430,14 +1448,15 @@ class MapCanvas(QgsMapCanvas):
 
     def setSpatialExtent(self, spatialExtent: SpatialExtent):
         """
-        Sets the SpatialExtent to be shown.
+        Sets the SpatialExtent to be shown. Keeps the CRS.
         :param spatialExtent: SpatialExtent
         """
         assert isinstance(spatialExtent, SpatialExtent)
-        if self.spatialExtent() != spatialExtent:
-            if spatialExtent.crs() != self.mapSettings().destinationCrs():
-                self.mapSettings().setDestinationCrs(spatialExtent.crs())
-            self.setExtent(spatialExtent)
+
+        se = spatialExtent.toCrs(self.crs())
+        if isinstance(se, SpatialExtent) and self.spatialExtent() != se:
+            self.setExtent(se)
+            s = ""
 
     def spatialExtent(self) -> SpatialExtent:
         """

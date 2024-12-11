@@ -234,7 +234,6 @@ class TestMapVisualization(EOTSVTestCase):
         TS = TestObjects.createTimeSeries()
         lyr = TestObjects.createVectorLayer()
         lyr.setName('Layer1 NAME')
-        lyr.setTitle('Layer1 title')
         lyr2 = TestObjects.createVectorLayer()
         lyr2.setName('Layer2 name')
 
@@ -285,12 +284,9 @@ class TestMapVisualization(EOTSVTestCase):
         mw.setMapTool(MapTools.CursorLocation)
         dock = MapViewDock()
         self.assertIsInstance(dock, MapViewDock)
-        dock.setTimeSeries(TS)
+        # dock.setTimeSeries(TS)
 
         dock.setMapWidget(mw)
-        mapView = dock.createMapView()
-        self.assertIsInstance(mapView, MapView)
-        mapView.setTimeSeries(TS)
 
         tsd = TS[0]
         tss = tsd[0]

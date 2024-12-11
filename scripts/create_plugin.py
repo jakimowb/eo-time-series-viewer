@@ -22,21 +22,21 @@
 
 import argparse
 import os
-import pathlib
 import re
 import shutil
 import site
 import textwrap
+from pathlib import Path
 from typing import Iterator, Optional, Union
 
 import git
 import markdown
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 
-site.addsitedir(pathlib.Path(__file__).parents[1])
+site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
 from eotimeseriesviewer import DIR_REPO, PATH_CHANGELOG, PATH_ABOUT
 
@@ -58,13 +58,13 @@ MD.mTracker = eotimeseriesviewer.ISSUE_TRACKER
 MD.mRepository = eotimeseriesviewer.REPOSITORY
 MD.mQgisMinimumVersion = '3.34'
 MD.mEmail = eotimeseriesviewer.MAIL
-MD.mIsExperimental = True
+MD.mIsExperimental = False
 
 
 ########## End of config section
 
 
-def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
+def scantree(path, pattern=re.compile(r'.$')) -> Iterator[Path]:
     """
     Recursively returns file paths in directory
     :param path: root directory to search in
@@ -75,14 +75,15 @@ def scantree(path, pattern=re.compile(r'.$')) -> Iterator[pathlib.Path]:
         if entry.is_dir(follow_symlinks=False):
             yield from scantree(entry.path, pattern=pattern)
         elif entry.is_file and pattern.search(entry.path):
-            yield pathlib.Path(entry.path)
+            yield Path(entry.path)
 
 
 def create_plugin(include_testdata: bool = False,
                   include_qgisresources: bool = False,
                   create_zip: bool = True,
                   copy_to_profile: bool = False,
-                  build_name: str = None) -> Optional[pathlib.Path]:
+                  build_name: str = None,
+                  experimental: bool = False) -> Optional[Path]:
     assert (DIR_REPO / '.git').is_dir()
 
     # BUILD_NAME = '{}.{}.{}'.format(__version__, timestamp, currentBranch)
@@ -120,6 +121,7 @@ def create_plugin(include_testdata: bool = False,
     PATH_METADATAFILE = PLUGIN_DIR / 'metadata.txt'
     MD.mVersion = BUILD_NAME
     MD.mAbout = markdown2html(PATH_ABOUT)
+    MD.mIsExperimental = experimental is True
     MD.writeMetadataTxt(PATH_METADATAFILE)
 
     # 1. (re)-compile all resource files
@@ -173,12 +175,15 @@ def create_plugin(include_testdata: bool = False,
             shutil.copytree(eotimeseriesviewer.DIR_TESTDATA, PLUGIN_DIR / 'example')
 
     if include_qgisresources and not re.search(active_branch, 'master', re.I):
-        qgisresources = pathlib.Path(DIR_REPO) / 'qgisresources'
+        qgisresources = Path(DIR_REPO) / 'qgisresources'
         shutil.copytree(qgisresources, PLUGIN_DIR / 'qgisresources')
 
     createHTMLDocuments(PLUGIN_DIR)
     import scripts.update_docs
     scripts.update_docs.update_documentation()
+
+    # copy license
+    shutil.copy(PLUGIN_DIR / 'LICENSE.md', PLUGIN_DIR / 'LICENSE')
 
     # Copy to other deploy directory
     if copy_to_profile:
@@ -194,7 +199,7 @@ def create_plugin(include_testdata: bool = False,
         profileManager.setActiveUserProfile(profileName)
         profile: QgsUserProfile = profileManager.userProfile()
 
-        DIR_QGIS_USERPROFILE = pathlib.Path(profile.folder())
+        DIR_QGIS_USERPROFILE = Path(profile.folder())
         if DIR_QGIS_USERPROFILE:
             os.makedirs(DIR_QGIS_USERPROFILE, exist_ok=True)
             if not DIR_QGIS_USERPROFILE.is_dir():
@@ -237,14 +242,14 @@ def create_plugin(include_testdata: bool = False,
     return PLUGIN_ZIP.as_posix()
 
 
-def markdown2html(path: Union[str, pathlib.Path]) -> str:
-    path_md = pathlib.Path(path)
+def markdown2html(path: Union[str, Path]) -> str:
+    path_md = Path(path)
     with open(path_md, 'r', encoding='utf-8') as f:
         md = f.read()
     return markdown.markdown(md)
 
 
-def createHTMLDocuments(dirPlugin: pathlib.Path):
+def createHTMLDocuments(dirPlugin: Path):
     """
     Reads the CHANGELOG.md and creates the deploy/CHANGELOG (without extension!) for the QGIS Plugin Manager
     :return:
@@ -271,6 +276,12 @@ if __name__ == "__main__":
                         required=False,
                         default=False,
                         help='Skip zip file creation',
+                        action='store_true')
+
+    parser.add_argument('-e', '--experimental',
+                        required=False,
+                        default=False,
+                        help='Set True to create an experimental plugin',
                         action='store_true')
 
     parser.add_argument('-b', '--build-name',
@@ -300,5 +311,6 @@ if __name__ == "__main__":
     path = create_plugin(include_qgisresources=args.qgisresources,
                          build_name=args.build_name,
                          create_zip=not args.skip_zip,
-                         copy_to_profile=args.profile)
+                         copy_to_profile=args.profile,
+                         experimental=args.experimental)
     print('EOTSV_ZIP={}'.format(path))
