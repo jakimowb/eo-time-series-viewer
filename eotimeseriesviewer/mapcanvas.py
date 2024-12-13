@@ -529,7 +529,7 @@ class MapCanvas(QgsMapCanvas):
         self.mTSD = tsd
 
         if isinstance(tsd, TimeSeriesDate):
-            self.setTemporalRange(tsd.temporalRange())
+            self.setTemporalRange(tsd.dateTimeRange())
             self.mTSD.sensor().sigNameChanged.connect(self.updateScope)
 
         self.updateScope()
@@ -549,7 +549,7 @@ class MapCanvas(QgsMapCanvas):
 
         tsd = self.tsd()
         if isinstance(tsd, TimeSeriesDate):
-            varDate = str(tsd.date())
+            varDate = tsd.dtg().date().toString(Qt.ISODate)
             varDOY = tsd.doy()
             varSensor = tsd.sensor().name()
 
@@ -697,7 +697,7 @@ class MapCanvas(QgsMapCanvas):
                     # check if we need to add a new source
                     for tss in [s for s in self.tsd() if s.isVisible()]:
 
-                        source = tss.uri()
+                        source = tss.source()
                         if source in existingSources:
                             sourceLayer = existing[existingSources.index(source)]
                         else:
@@ -711,7 +711,7 @@ class MapCanvas(QgsMapCanvas):
                             sourceLayer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
 
                             s_range1 = sourceLayer.temporalProperties().fixedTemporalRange()
-                            assert self.tsd().temporalRange().contains(
+                            assert self.tsd().dateTimeRange().contains(
                                 sourceLayer.temporalProperties().fixedTemporalRange())
 
                             if use_as_masterstyle:
@@ -1362,6 +1362,7 @@ class MapCanvas(QgsMapCanvas):
         assert isinstance(dp, QgsRasterDataProvider)
 
         def getCE(band) -> Optional[QgsContrastEnhancement]:
+
             stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
             if math.nan in [stats.minimumValue, stats.maximumValue]:
                 return None

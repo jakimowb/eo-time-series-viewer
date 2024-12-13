@@ -26,27 +26,7 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsv_settings
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
-from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
-    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
-    TimeSeriesWidget
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
-    QgsPointXY, QgsProject, \
-    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
-    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
-    QgsStatusBar, QgsTaskManagerWidget
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
@@ -59,6 +39,18 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
+import eotimeseriesviewer
+import eotimeseriesviewer.settings as eotsv_settings
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
+from eotimeseriesviewer.timeseries import has_sensor_id, SensorInstrument, SensorMatching, \
+    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
+    TimeSeriesWidget
+from .dateparser import DateTimePrecision
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
 from .maplayerproject import EOTimeSeriesViewerProject
@@ -1093,6 +1085,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool = True):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
+        :param show_if_hidden:
         :param tsd:  TimeSeriesDate or numpy.datetime64
         """
         tsd = self.timeSeries().findDate(tsd)
@@ -1534,8 +1527,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                         self.cntSpectralProfile += 1
                         assert isinstance(p, QgsFeature)
                         p2 = p.copyFieldSubset(fields=sl.fields())
-                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDTG))
-                        p2.setAttribute('date', '{}'.format(tsd.mDTG))
+                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDTR))
+                        p2.setAttribute('date', '{}'.format(tsd.mDTR))
                         p2.setAttribute('doy', int(tsd.mDOY))
                         p2.setAttribute('sensor', tsd.mSensor.name())
                         profiles2.append(p2)

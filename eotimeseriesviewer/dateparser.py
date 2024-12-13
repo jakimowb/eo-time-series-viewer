@@ -1,4 +1,5 @@
 import datetime
+import enum
 import os
 import re
 from pathlib import Path
@@ -7,8 +8,8 @@ from typing import Optional
 import numpy as np
 from osgeo import gdal
 
-from qgis.core import Qgis, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
-from qgis.PyQt.QtCore import QDate
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
+from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 
 # regular expression. compile them only once
 
@@ -31,6 +32,21 @@ regYYYYMM = re.compile(r'([0-9]{4})-(1[0-2]|0[1-9])')
 
 regYYYYDOY = re.compile(r'(?P<year>(19|20)\d\d)-?(?P<day>36[0-6]|3[0-5][0-9]|[12][0-9]{2}|0[1-9][0-9]|00[1-9])')
 regDecimalYear = re.compile(r'(?P<year>(19|20)\d\d)\.(?P<datefraction>\d\d\d)')
+
+
+class DateTimePrecision(enum.Enum):
+    """
+    Describes the precision to pares DateTimeStamps.
+    """
+
+    Year = 'Y'
+    Month = 'M'
+    Week = 'W'
+    Day = 'D'
+    Hour = 'h'
+    Minute = 'm'
+    Second = 's'
+    Millisecond = 'ms'
 
 
 def matchOrNone(regex, text):
@@ -352,53 +368,62 @@ DATETIME_FORMATS = [
 class ImageDateUtils(object):
     PROPERTY_KEY = 'eotsv/dtg'
 
-    rxDTG = re.compile('((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
+    rxDTGKey = re.compile(r'(acquisition|observation)[ _]*(time|date|datetime)', re.IGNORECASE)
+    rxDTG = re.compile(r'((acquisition|observation)[ _]*(time|date|datetime)=(?P<dtg>[^<]+))', re.IGNORECASE)
 
     @classmethod
-    def datetimeFromString(cls, text: str) -> Optional[datetime.datetime]:
+    def dateTimeFromString(cls, text: str) -> Optional[QDateTime]:
         if not isinstance(text, str):
             return None
-        # try ISO
-        try:
-            return datetime.datetime.fromisoformat(text)
-        except Exception as ex:
-            pass
 
-        try:
-            dtg = np.datetime64(text).astype(object)
-            if isinstance(dtg, datetime.date):
-                dtg = datetime.datetime(dtg.year, dtg.month, dtg.day)
-            return dtg
-        except Exception as ex:
-            pass
+        # try Qt Formats
+        for fmt in [Qt.ISODateWithMs, Qt.ISODate, Qt.TextDate]:
+            try:
+                dtg = QDateTime.fromString(text, fmt)
+                if dtg.isValid():
+                    return dtg
+            except Exception as ex:
+                pass
 
         for fmt in DATETIME_FORMATS:
             try:
                 if isinstance(fmt, str):
                     dtg = datetime.datetime.strptime(text, fmt)
-                    return dtg
+                    return QDateTime(dtg)
                 elif isinstance(fmt, tuple):
                     fmt, rx = fmt
                     match = rx.search(text)
                     if match:
                         dtg = datetime.datetime.strptime(match.group('dtg'), fmt)
-                        return dtg
-            except Exception:
+                        return QDateTime(dtg)
+            except Exception as ex:
                 s = ""
+
+        try:
+            dt = np.datetime64(text).astype(object)
+            dtg = None
+            if isinstance(dt, datetime.date):
+                dtg = QDateTime(QDate(dtg), QTime())
+            elif isinstance(dt, datetime.datetime):
+                dtg = QDateTime(dt)
+            if isinstance(dtg, QDateTime) and dtg.isValid():
+                return dtg
+        except Exception as ex:
+            pass
+
         return None
 
     @classmethod
-    def datetimeFromLayer(cls, layer: QgsRasterLayer) -> Optional[datetime.datetime]:
+    def dateTimeFromLayer(cls, layer: QgsRasterLayer) -> Optional[QDateTime]:
         if isinstance(layer, Path):
-            return ImageDateUtils.datetimeFromLayer(QgsRasterLayer(layer.as_posix()))
+            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer.as_posix()))
         elif isinstance(layer, str):
-            return ImageDateUtils.datetimeFromLayer(QgsRasterLayer(layer))
+            return ImageDateUtils.dateTimeFromLayer(QgsRasterLayer(layer))
         if not isinstance(layer, QgsRasterLayer) and layer.isValid():
             return None
         if ImageDateUtils.PROPERTY_KEY in layer.customPropertyKeys():
             dateString = layer.customProperty(ImageDateUtils.PROPERTY_KEY)
-            dtg = datetime.datetime.fromisoformat(dateString)
-            return dtg
+            return ImageDateUtils.dateTimeFromString(dateString)
         else:
 
             dtg = None
@@ -409,43 +434,148 @@ class ImageDateUtils(object):
 
             if tprop.mode() == Qgis.RasterTemporalMode.FixedTemporalRange and not (
                     dateRange := tprop.fixedTemporalRange()).isInfinite():
-                t0 = dateRange.begin()
+                d = dateRange.begin()
+                if d.isValid():
+                    dtg = d
+
+            if not dtg:
+
+                for k in layer.customPropertyKeys():
+                    if match := ImageDateUtils.rxDTGKey.match(k):
+                        v = layer.customProperty(k)
+                        d = QDateTime.fromString(v)
+                        if d.isValid():
+                            dtg = d
+                            break
 
             if not dtg:
                 # read from raster data provider
                 dp: QgsRasterDataProvider = layer.dataProvider()
                 tcap = dp.temporalCapabilities()
-                dtg = ImageDateUtils.datetimeFromDataProvider(dp)
+                dtg = ImageDateUtils.dateTimeFromDataProvider(dp)
 
             if not dtg:
                 # read from file name
-                dtg = ImageDateUtils.datetimeFromString(filepath.name)
+                dtg = ImageDateUtils.dateTimeFromString(filepath.name)
 
             if not dtg:
                 # read from parent directory
-                dtg = ImageDateUtils.datetimeFromString(filepath.parent.name)
+                dtg = ImageDateUtils.dateTimeFromString(filepath.parent.name)
 
             if not dtg:
                 # read from HTML metadata
                 html = layer.htmlMetadata()
                 if match := cls.rxDTG.search(html):
-                    dtg = ImageDateUtils.datetimeFromString(match.group('dtg'))
+                    dtg = ImageDateUtils.dateTimeFromString(match.group('dtg'))
 
-            if isinstance(dtg, datetime.datetime):
-                layer.setCustomProperty(ImageDateUtils.PROPERTY_KEY, dtg.isoformat())
-            return dtg
-
-    @classmethod
-    def doiFromDateTime(cls, dtg: datetime.datetime) -> int:
-
-        if isinstance(dtg, np.datetime64):
-            dtg = dtg.astype(object)
-
-        assert isinstance(dtg, datetime.datetime)
-        d0 = datetime.date(dtg.year, 1, 1)
-        return (dtg.date() - d0).days + 1
+            if isinstance(dtg, QDateTime) and dtg.isValid():
+                return dtg
+            return None
 
     @classmethod
-    def datetimeFromDataProvider(cls, dp: QgsRasterDataProvider) -> Optional[datetime.datetime]:
+    def doiFromDateTime(cls, dateTime: QDateTime) -> int:
+        return dateTime.date().dayOfYear()
+
+    @classmethod
+    def decimalYear(cls, dateTime: QDateTime) -> float:
+        """
+        Returns the decimal year of a date-time
+        <year>.<fraction of seconds to next year>
+        :param dateTime:
+        :return:
+        """
+        d: QDate = dateTime.date()
+        d0 = QDateTime(QDate(d.year(), 1, 1))
+        d1 = QDateTime(QDate(d.year() + 1, 1, 1))
+
+        total_msecs = d1.toMSecsSinceEpoch() - d0.toMSecsSinceEpoch()
+        msecs_since_d0 = dateTime.toMSecsSinceEpoch() - d0.toMSecsSinceEpoch()
+        return d.year() + (msecs_since_d0 / total_msecs)
+
+    @classmethod
+    def dateTimeFromDataProvider(cls, dp: QgsRasterDataProvider) -> Optional[QDateTime]:
         if not isinstance(dp, QgsRasterDataProvider) and dp.isValid():
             return None
+
+        tcap = dp.temporalCapabilities()
+        if tcap.hasTemporalCapabilities():
+            raise NotImplementedError()
+        else:
+            return None
+
+    @classmethod
+    def dateRange(cls,
+                  dtg: QDateTime,
+                  precision: DateTimePrecision = DateTimePrecision.Day) -> QgsDateTimeRange:
+        """
+        Returns the date-range a date-time-group belongs to, given a certain precission
+        :param dtg:
+        :param precision:
+        :return:
+        """
+        assert isinstance(dtg, QDateTime)
+        assert isinstance(precision, DateTimePrecision)
+        d: QDate = dtg.date()
+        t: QTime = dtg.time()
+        if precision == DateTimePrecision.Millisecond:
+            return QgsDateTimeRange(dtg, dtg)
+
+        if precision == DateTimePrecision.Second:
+            t0 = QTime(t.hour(), t.minute(), t.second())
+            t1 = t0.addSecs(1).addMSecs(-1)
+            result = QgsDateTimeRange(
+                QDateTime(d, t0),
+                QDateTime(d, t1),
+            )
+
+        elif precision == DateTimePrecision.Minute:
+            t0 = QTime(t.hour(), t.minute(), 0)
+            t1 = t0.addSecs(60).addMSecs(-1)
+            result = QgsDateTimeRange(
+                QDateTime(d, t0),
+                QDateTime(d, t1),
+            )
+        elif precision == DateTimePrecision.Hour:
+            t0 = QTime(t.hour(), 0, 0)
+            t1 = t0.addSecs(60 * 60).addMSecs(-1)
+            result = QgsDateTimeRange(
+                QDateTime(d, t0),
+                QDateTime(d, t1),
+            )
+
+        elif precision == DateTimePrecision.Day:
+            d0 = QDateTime(QDate(d.year(), d.month(), d.day()))
+            d1 = d0.addDays(1).addMSecs(-1)
+            result = QgsDateTimeRange(d0, d1)
+
+        elif precision == DateTimePrecision.Month:
+            d0 = QDateTime(QDate(d.year(), d.month(), 1))
+            d1 = d0.addMonths(1).addMSecs(-1)
+            result = QgsDateTimeRange(d0, d1)
+
+        elif precision == DateTimePrecision.Year:
+            d0 = QDateTime(QDate(d.year(), 1, 1))
+            d1 = d0.addYears(1).addMSecs(-1)
+            result = QgsDateTimeRange(d0, d1)
+
+        elif precision == DateTimePrecision.Week:
+            day_of_week = d.dayOfWeek()
+            d0 = d.addDays(- (day_of_week - 1))
+            d1 = d.addDays(7 - day_of_week)
+
+            result = QgsDateTimeRange(
+                QDateTime(d0, QTime()),
+                QDateTime(d1, QTime(23, 59, 59, 999)))
+
+        else:
+            raise NotImplementedError(f'Unknown precision: {precision}')
+
+        return result
+
+    @classmethod
+    def dateString(cls, dtg: QDateTime, precision: DateTimePrecision) -> str:
+
+        s = dtg.toString(Qt.ISODateWithMs)
+        if DateTimePrecision.Year:
+            return s[0:4]
+        return s

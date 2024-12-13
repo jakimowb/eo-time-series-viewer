@@ -9,6 +9,7 @@ from qgis.PyQt.QtCore import QModelIndex, QSortFilterProxyModel
 from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeature, QgsField, QgsFields, \
     QgsMapLayer, QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, \
     QgsVectorLayer
+
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -311,7 +312,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                     errors.append(f'Unable to load sensor id from {lyr}')
                     continue
 
-                dtg = ImageDateUtils.datetimeFromLayer(lyr)
+                dtg = ImageDateUtils.dateTimeFromLayer(lyr)
                 if not dtg:
                     errors.append(f'Unable to load date-time from {lyr}')
                     continue

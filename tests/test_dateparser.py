@@ -1,65 +1,94 @@
-import datetime
 import unittest
 
-from eotimeseriesviewer.dateparser import ImageDateUtils
+from PyQt5.QtCore import QTime
+from qgis._core import QgsDateTimeRange
+
+from qgis.PyQt.QtCore import QDate, QDateTime, Qt
+from qgis.core import QgsRasterLayer
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
-from qgis.core import QgsRasterLayer
 
 start_app()
 
 
 class TestDateParser(EOTSVTestCase):
 
+    def test_imagedate_utils(self):
+
+        expected = [
+            '2014-06-08T12:24:30',
+            '2014-06-08',
+            '2014-01-01T00:00:00',
+            '2014-12-31T23:59:59.999',
+
+        ]
+
+        for i, example in enumerate(expected):
+            year = int(example[0:4])
+            dt = QDateTime.fromString(example, Qt.ISODateWithMs)
+            self.assertIsInstance(dt, QDateTime)
+            self.assertTrue(dt.isValid())
+            dyr = ImageDateUtils.decimalYear(dt)
+            self.assertIsInstance(dyr, float)
+            self.assertEqual(year, int(dyr))
+
     def test_date_extraction(self):
         lyr = QgsRasterLayer(exampleNoDataImage.as_posix())
-        dtg = ImageDateUtils.datetimeFromLayer(lyr)
-        self.assertIsInstance(dtg, datetime.datetime)
+        dtg = ImageDateUtils.dateTimeFromLayer(lyr)
+        self.assertIsInstance(dtg, QDateTime)
 
-        dtg = ImageDateUtils.datetimeFromLayer(exampleRapidEye)
+        dtg = ImageDateUtils.dateTimeFromLayer(exampleRapidEye)
         # 2014-06-25
-        self.assertEqual(dtg, datetime.datetime(2014, 6, 25))
-        self.assertIsInstance(dtg, datetime.datetime)
+        self.assertIsInstance(dtg, QDateTime)
+        self.assertTrue(dtg.isValid())
+        self.assertEqual(dtg, QDateTime.fromString('2014-06-25', Qt.ISODate))
 
-        dtg = ImageDateUtils.datetimeFromLayer(exampleLandsat8)
+        dtg = ImageDateUtils.dateTimeFromLayer(exampleLandsat8)
         # 2014-01-15
-        self.assertEqual(dtg, datetime.datetime(2014, 1, 15))
+        self.assertEqual(dtg, QDateTime(QDate(2014, 1, 15), QTime()))
 
         pathTmp = '/vsimem/nothing.tif'
         ds = TestObjects.createRasterDataset(path=pathTmp, drv='GTiff')
         rl = QgsRasterLayer(pathTmp)
         self.assertTrue(rl.isValid())
-        self.assertTrue(ImageDateUtils.datetimeFromLayer(pathTmp) is None)
+        self.assertTrue(ImageDateUtils.dateTimeFromLayer(pathTmp) is None)
 
-        dt1 = datetime.datetime(2022, 1, 1)
+        dt1 = QDateTime(QDate(2022, 1, 1), QTime())
         self.assertTrue(ImageDateUtils.doiFromDateTime(dt1), 1)
 
-        dt2 = datetime.datetime(2023, 12, 31)
+        dt2 = QDateTime(QDate(2023, 12, 31), QTime())
         self.assertTrue(ImageDateUtils.doiFromDateTime(dt2), 365)
 
-        dt2 = datetime.datetime(2024, 12, 31)
+        dt2 = QDateTime(QDate(2024, 12, 31), QTime())
         self.assertTrue(ImageDateUtils.doiFromDateTime(dt2), 366)
         s = ""
 
     def test_date_precission(self):
         s = ""
         examples = [
-            datetime.datetime(2024, 12, day=1),
-            datetime.datetime(2024, 12, 31),
-            datetime.datetime(2024, 12, 31, minute=24),
-            datetime.datetime(2024, 12, 31, minute=24, second=12),
-            datetime.datetime(2024, 12, 31, minute=24, second=12, microsecond=34),
+            # date , expected begin / end of date range, precission
+            ('2024-12-02T12:34:23', '2024-12-02T12:34:23.000', '2024-12-02T12:34:23.999', DateTimePrecision.Second),
+            ('2024-12-02T12:34:23', '2024-12-02T12:34:00', '2024-12-02T12:34:59.999', DateTimePrecision.Minute),
+            ('2024-12-02T12:34:23', '2024-12-02T12:00:00', '2024-12-02T12:59:59.999', DateTimePrecision.Hour),
+            ('2024-12-02T12:34:23', '2024-12-02T00:00:00', '2024-12-02T23:59:59.999', DateTimePrecision.Day),
+            ('2024-12-02T12:34:23', '2024-12-01T00:00:00', '2024-12-31T23:59:59.999', DateTimePrecision.Month),
+            ('2024-12-01T12:34:23', '2024-01-01T00:00:00', '2024-12-31T23:59:59.999', DateTimePrecision.Year),
+            ('2024-12-13T12:34:23', '2024-12-09T00:00:00.000', '2024-12-15T23:59:59.999', DateTimePrecision.Week),
 
         ]
-        for i, dt in enumerate(examples):
-            txt_iso = dt.isoformat()
-            dt2 = datetime.datetime.fromisoformat(txt_iso)
-            assert dt == dt2
-            dt3 = ImageDateUtils.datetimeFromString(txt_iso)
-            if dt != dt3:
-                s = ""
-            self.assertEqual(dt3, dt,
-                             msg=f'Unable to reconstruct example {i + 1}:\nExpected {dt} from {txt_iso}, got {dt2}')
+
+        for i, (srcStr, exp0, exp1, prec) in enumerate(examples):
+            dtSrc = QDateTime.fromString(srcStr, Qt.ISODate)
+            date_range = ImageDateUtils.dateRange(dtSrc, prec)
+            self.assertIsInstance(date_range, QgsDateTimeRange)
+            self.assertFalse(date_range.isInfinite())
+            self.assertTrue(date_range.contains(dtSrc))
+            expected_d0 = QDateTime.fromString(exp0, Qt.ISODateWithMs)
+            expected_d1 = QDateTime.fromString(exp1, Qt.ISODateWithMs)
+            d0, d1 = date_range.begin(), date_range.end()
+            self.assertEqual(expected_d0, d0, msg=f'Failed start "{prec}"')
+            self.assertEqual(expected_d1, d1, msg=f'Failed end "{prec}"')
 
 
 if __name__ == '__main__':
