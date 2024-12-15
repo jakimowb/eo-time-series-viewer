@@ -573,9 +573,25 @@ class ImageDateUtils(object):
         return result
 
     @classmethod
-    def dateString(cls, dtg: QDateTime, precision: DateTimePrecision) -> str:
-
-        s = dtg.toString(Qt.ISODateWithMs)
-        if DateTimePrecision.Year:
-            return s[0:4]
-        return s
+    def dateString(cls,
+                   dtg: QDateTime,
+                   precision: DateTimePrecision = DateTimePrecision.Day) -> str:
+        if not dtg.isValid():
+            return ''
+        if precision == DateTimePrecision.Millisecond:
+            return dtg.toString(Qt.ISODateWithMs)
+        if precision == DateTimePrecision.Second:
+            return dtg.toString(Qt.ISODate)
+        if precision == DateTimePrecision.Minute:
+            return dtg.toString(Qt.ISODateWithMs)[0:-7]
+        if precision == DateTimePrecision.Hour:
+            return dtg.toString(Qt.ISODateWithMs)[0:-10]
+        if precision == DateTimePrecision.Day:
+            return dtg.toString(Qt.ISODateWithMs)[0:10]
+        if precision == DateTimePrecision.Month:
+            return dtg.toString(Qt.ISODateWithMs)[0:7]
+        if precision == DateTimePrecision.Year:
+            return dtg.toString(Qt.ISODateWithMs)[0:4]
+        if precision == DateTimePrecision.Week:
+            return '{1}-{0:03}'.format(*dtg.date().weekNumber())
+        raise NotImplementedError(f'{precision}')
