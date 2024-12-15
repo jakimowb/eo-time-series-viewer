@@ -75,5 +75,5 @@ jobs:
 
       - name: Test in ${{matrix.mamba_env}}
         run: |
-          chmod +x runtests.sh
-          bash ./runtests.sh -n auto
+          chmod +x scripts/runtests.sh
+          bash ./scripts/runtests.sh -n auto
