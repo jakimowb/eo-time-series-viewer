@@ -1087,8 +1087,10 @@ class MapCanvas(QgsMapCanvas):
             m: QMenu = menu.addMenu('Copy...')
             m.setToolTipsVisible(True)
             action = m.addAction('Date')
-            action.triggered.connect(lambda: QApplication.clipboard().setText(str(tsd.date())))
-            action.setToolTip('Sends "{}" to the clipboard.'.format(str(tsd.date())))
+
+            txt = tsd.dtgString()
+            action.triggered.connect(lambda: QApplication.clipboard().setText(txt))
+            action.setToolTip('Sends "{}" to the clipboard.'.format(txt))
 
             action = m.addAction('Sensor')
             action.triggered.connect(lambda: QApplication.clipboard().setText(tsd.sensor().name()))
@@ -1363,7 +1365,10 @@ class MapCanvas(QgsMapCanvas):
 
         def getCE(band) -> Optional[QgsContrastEnhancement]:
 
-            stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=DeprecationWarning)
+                stats: QgsRasterBandStats = dp.bandStatistics(band, QGIS_RASTERBANDSTATISTIC.All, extent, 256)
+
             if math.nan in [stats.minimumValue, stats.maximumValue]:
                 return None
 

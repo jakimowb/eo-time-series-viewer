@@ -156,7 +156,7 @@ class TestTimeSeries(EOTSVTestCase):
         ts.setDateTimePrecision(DateTimePrecision.Day)
         for tsd in ts:
 
-            t_range = tsd.temporalRange()
+            t_range = tsd.dateTimeRange()
             self.assertIsInstance(t_range, QgsDateTimeRange)
             self.assertTrue(t_range.contains(tsd.dtg()))
             for tss in tsd:
@@ -302,22 +302,24 @@ class TestTimeSeries(EOTSVTestCase):
             s = ""
 
         TS = TimeSeries()
-        self.assertTrue(len(TS) == 0)
+        self.assertEqual(len(TS), 0)
 
         TS.addSources(sources, runAsync=False)
         self.assertEqual(len(TS), 1)
 
         tsd = TS[0]
         self.assertIsInstance(tsd, TimeSeriesDate)
-        self.assertTrue(len(tsd.sources()) == 2)
+        self.assertEqual(len(tsd.sources()), 2)
 
         paths = TestObjects.createMultiSourceTimeSeries()
+
         TS = TimeSeries()
         TS.addSources(paths, runAsync=False)
         srcUris = TS.sourceUris()
-        self.assertTrue(len(srcUris) == len(paths))
-        self.assertTrue(len(TS) == 0.5 * len(paths))
-        self.assertTrue(len(TS) == 0.5 * len(srcUris))
+
+        self.assertEqual(len(srcUris), len(paths))
+        self.assertEqual(len(TS), 0.5 * len(paths))
+        self.assertEqual(len(TS), 0.5 * len(srcUris))
 
     def test_timeseries_loadasync(self):
 

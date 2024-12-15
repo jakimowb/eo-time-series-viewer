@@ -18,9 +18,11 @@
  *                                                                         *
  ***************************************************************************/
 """
+import datetime
 from typing import List
 
 import numpy as np
+
 from qgis.core import QgsFeature, QgsFeatureRequest, QgsFields, QgsProject, QgsVectorLayer
 from qgis.gui import QgsDockWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
@@ -28,13 +30,11 @@ from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QAction, QMenu, \
     QSlider, QTableView, QWidgetAction
-
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
 from .temporalprofile import TemporalProfileUtils
-from ..dateparser import ImageDateUtils
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from ..qgispluginsupport.qps.utils import loadUi
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
@@ -249,7 +249,7 @@ class TemporalProfileVisualization(QObject):
                 all_sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
                 all_value_list = tpData[TemporalProfileUtils.Values]
                 all_dates = np.asarray(
-                    [ImageDateUtils.dateTimeFromString(d) for d in tpData[TemporalProfileUtils.Date]])
+                    [datetime.datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
                 # all_dates = np.asarray(range(n))
 
                 all_show = np.ones((n,))

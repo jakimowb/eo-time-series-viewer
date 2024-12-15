@@ -22,7 +22,7 @@ import unittest
 from typing import List
 
 from PyQt5.QtCore import QSize
-from qgis._core import QgsRectangle, QgsVectorLayer
+from qgis._core import QgsApplication, QgsRectangle, QgsVectorLayer
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapvisualization import MapView, MapWidget
@@ -144,10 +144,10 @@ class TestProjectIO(EOTSVTestCase):
 
         for tsd in TSV.timeSeries():
             self.assertIsInstance(tsd, TimeSeriesDate)
-            tsd_range = tsd.temporalRange()
+            tsd_range = tsd.dateTimeRange()
             for tss in tsd:
                 self.assertIsInstance(tss, TimeSeriesSource)
-                self.assertTrue(tsd_range.contains(tss.qDateTime()))
+                self.assertTrue(tsd_range.contains(tss.dtg()))
 
                 lyr = tss.asRasterLayer()
                 lyr_range = lyr.temporalProperties().fixedTemporalRange()
@@ -242,11 +242,11 @@ class TestProjectIO(EOTSVTestCase):
         TSV.setCrs(new_crs)
         new_ns_layers = mapViewNoneSensorLayers()
         new_map_view_names = [mv.name() for mv in TSV.mapViews()]
-
+        QgsApplication.processEvents()
         new_tss_visibility = dict()
         for tss in TSV.timeSeries().timeSeriesSources():
             tss.setIsVisible(random.choice([True, False]))
-            new_tss_visibility[tss.uri()] = tss.isVisible()
+            new_tss_visibility[tss.source()] = tss.isVisible()
 
         TSV.mapWidget().setMapsPerMapView(*new_maps_per_view)
 
@@ -254,7 +254,9 @@ class TestProjectIO(EOTSVTestCase):
 
         settings3 = TSV.asMap()
         self.assertNotEqual(settings1, settings3)
+        QgsApplication.processEvents()
         QgsProject.instance().write(path.as_posix())
+        QgsApplication.processEvents()
 
         # reset all
         TSV.timeSeries().clear()
@@ -264,9 +266,10 @@ class TestProjectIO(EOTSVTestCase):
         TSV.mapWidget().setCrs(crs)
         self.assertEqual(crs, TSV.crs())
         self.assertNotEqual(settings3, TSV.asMap())
-
+        QgsApplication.processEvents()
         # reload project settings
         QgsProject.instance().read(path.as_posix())
+        QgsApplication.processEvents()
         self.taskManagerProcessEvents()
 
         self.assertEqual(new_crs, TSV.crs())
@@ -277,8 +280,8 @@ class TestProjectIO(EOTSVTestCase):
         self.assertEqualSetting(settings3, TSV.asMap())
         tss_vis = new_tss_visibility.copy()
         for tss in TSV.timeSeries().timeSeriesSources():
-            self.assertTrue(tss.uri() in tss_vis)
-            self.assertEqual(tss.isVisible(), tss_vis.pop(tss.uri()))
+            self.assertTrue(tss.source() in tss_vis)
+            self.assertEqual(tss.isVisible(), tss_vis.pop(tss.source()))
         self.assertTrue(len(tss_vis) == 0)
 
         ns_layers3 = mapViewNoneSensorLayers()

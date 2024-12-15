@@ -22,15 +22,16 @@
 
 import os
 import pathlib
+import uuid
 from typing import List, Match, Pattern, Union
 
 import numpy as np
 from matplotlib.dates import date2num
 from osgeo import gdal, osr
 
-from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
-from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
+from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
     QgsVectorLayer
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
@@ -121,7 +122,12 @@ class TestObjects(TObj):
         if timeseries is None:
             timeseries = TestObjects.createTimeSeries()
         layer = TemporalProfileUtils.createProfileLayer()
+        assert isinstance(layer, QgsVectorLayer)
+        assert layer.isValid()
+
         tpFields = TemporalProfileUtils.temporalProfileFields(layer)
+        assert isinstance(tpFields, QgsFields)
+        assert tpFields.count() > 0
 
         sources = timeseries.sourceUris()
         l0 = QgsRasterLayer(sources[0])
@@ -240,10 +246,10 @@ class TestObjects(TObj):
         # real files
         files = TestObjects.exampleImagePaths()
         movedFiles = []
-        d = r'/vsimem/'
-        for pathSrc in files:
+        uid = uuid.uuid4()
+        for pathSrc in files[0:10]:
             bn = os.path.basename(pathSrc)
-            pathDst = d + 'shifted_' + bn + '.bsq'
+            pathDst = f'/vsimem/{uid}_shifted_{bn}.bsq'
             dsSrc = gdal.Open(pathSrc)
             tops = gdal.TranslateOptions(format='ENVI')
             gdal.Translate(pathDst, dsSrc, options=tops)
@@ -256,7 +262,7 @@ class TestObjects(TObj):
             dsDst.SetGeoTransform(gt)
             dsDst.SetMetadata(dsSrc.GetMetadata(''), '')
             dsDst.FlushCache()
-
+            del dsDst
             dsDst = None
             dsDst = gdal.Open(pathDst)
             assert list(dsDst.GetGeoTransform()) == gt

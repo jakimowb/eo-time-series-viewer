@@ -90,6 +90,28 @@ class TestDateParser(EOTSVTestCase):
             self.assertEqual(expected_d0, d0, msg=f'Failed start "{prec}"')
             self.assertEqual(expected_d1, d1, msg=f'Failed end "{prec}"')
 
+    def test_dateRangeString(self):
+
+        dtg = QDateTime.fromString('2024-12-02T12:34:23.999', Qt.ISODateWithMs)
+        assert dtg.isValid()
+
+        examples = [
+            # date , expected begin / end of date range, precission
+            ('2024-049', DateTimePrecision.Week),
+            ('2024-12-02T12:34:23.999', DateTimePrecision.Millisecond),
+            ('2024-12-02T12:34:23', DateTimePrecision.Second),
+            ('2024-12-02T12:34', DateTimePrecision.Minute),
+            ('2024-12-02T12', DateTimePrecision.Hour),
+            ('2024-12-02', DateTimePrecision.Day),
+            ('2024-12', DateTimePrecision.Month),
+            ('2024', DateTimePrecision.Year),
+
+        ]
+
+        for (expected, prec) in examples:
+            txt = ImageDateUtils.dateString(dtg, prec)
+            self.assertEqual(expected, txt)
+
 
 if __name__ == '__main__':
     unittest.main()

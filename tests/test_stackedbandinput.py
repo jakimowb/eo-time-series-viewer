@@ -23,14 +23,15 @@ from xml.etree.ElementTree import Element
 
 import numpy as np
 from osgeo import gdal, gdal_array, osr
+from PyQt5.QtCore import QDateTime
+
+from eotimeseriesviewer.dateparser import ImageDateUtils
 from qgis.core import QgsRasterLayer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog
-
 from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
 from eotimeseriesviewer.stackedbandinput import InputStackInfo, InputStackTableModel, OutputImageModel, \
     OutputVRTDescription, StackedBandInputDialog
-from eotimeseriesviewer.temporalprofiles import date2num
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 
 start_app()
@@ -68,7 +69,8 @@ class TestStackedInputs(EOTSVTestCase):
             ds.SetMetadataItem('wavelength', dateString, 'ENVI')
 
             for b, date in enumerate(r):
-                decimalYear = date2num(date)
+                dt = QDateTime(date.astype(object))
+                decimalYear = ImageDateUtils.decimalYear(dt)
 
                 band = ds.GetRasterBand(b + 1)
                 assert isinstance(band, gdal.Band)

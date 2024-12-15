@@ -18,9 +18,9 @@ import re
 import unittest
 
 from osgeo import gdal
+
 from qgis.core import QgsMapLayer, QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtGui import QIcon
-
 from eotimeseriesviewer import DIR_UI, icon as eotsvIcon
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectrallibrary import SpectralLibraryUtils
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.core.spectralprofile import validateProfileValueDict
@@ -71,7 +71,7 @@ class TestResources(EOTSVTestCase):
             for slyr in subLayers(src):
                 self.assertIsInstance(slyr, QgsMapLayer)
 
-            lyr = QgsVectorLayer(src)
+            lyr = QgsVectorLayer(str(src))
             self.assertIsInstance(lyr, QgsVectorLayer)
             self.assertTrue(lyr.isValid())
 

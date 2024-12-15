@@ -2,14 +2,17 @@ import json
 import os.path
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 from uuid import uuid4
 
-from qgis.PyQt.QtCore import QModelIndex, QSortFilterProxyModel
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsFeature, QgsField, QgsFields, \
-    QgsMapLayer, QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, \
-    QgsVectorLayer
-
+from qgis.PyQt.QtCore import NULL, pyqtSignal, QModelIndex, QSortFilterProxyModel, Qt, QVariant
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
+    QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsMapLayer, QgsMapLayerModel, \
+    QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer
+from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
+    QgsGui
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -27,6 +30,7 @@ from eotimeseriesviewer.timeseries import sensor_id, sensorIDtoProperties
 #
 #
 
+TPF_EDITOR_WIDGET_KEY = 'Temporal Profile'
 TPF_COMMENT = 'Temporal profile data'
 TPF_TYPE = QMETATYPE_QVARIANTMAP
 TPF_TYPENAME = 'JSON'
@@ -54,6 +58,253 @@ class TemporalProfileLayerProxyModel(QSortFilterProxyModel):
         self.mModel.setProject(project)
 
 
+class TemporalProfileEditorWidgetWrapper(QgsEditorWidgetWrapper):
+
+    def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
+        super(TemporalProfileEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
+        self.mWidget: QWidget = None
+
+        self.mLastValue: QVariant = QVariant()
+        s = ""
+
+    def createWidget(self, parent: QWidget):
+        # log('createWidget')
+
+        if not self.isInTable(parent):
+            self.mWidget = TemporalProfileEditorWidget(parent=parent)
+        else:
+            self.mWidget = QLabel('Profile', parent=parent)
+        return self.mWidget
+
+    def initWidget(self, editor: QWidget):
+        # log(' initWidget')
+        conf = self.config()
+
+        if isinstance(editor, TemporalProfileEditorWidget):
+            pass
+
+        elif isinstance(editor, QLabel):
+            editor.setText(f'Temporal Profile ({self.field().typeName()})')
+            editor.setToolTip('Use Form View to edit values')
+
+    def onValueChanged(self, *args):
+        self.valuesChanged.emit(self.value())
+
+    def valid(self, *args, **kwargs) -> bool:
+        return isinstance(self.mWidget, (TemporalProfileEditorWidget, QLabel))
+
+    def value(self, *args, **kwargs):
+        value = self.mLastValue
+        w = self.widget()
+        if isinstance(w, TemporalProfileEditorWidget):
+            pass
+        return value
+
+    def setFeature(self, feature: QgsFeature) -> None:
+        super(TemporalProfileEditorWidgetWrapper, self).setFeature(feature)
+
+    def setEnabled(self, enabled: bool):
+        w = self.widget()
+        if isinstance(w, TemporalProfileEditorWidget):
+            w.setEnabled(enabled)
+
+    def setValue(self, value: Any) -> None:
+        self.mLastValue = value
+        w = self.widget()
+        if isinstance(w, TemporalProfileEditorWidget):
+            pass
+
+
+class TemporalProfileEditorConfigWidget(QgsEditorConfigWidget):
+
+    def __init__(self, vl: QgsVectorLayer, fieldIdx: int, parent: QWidget):
+        super(TemporalProfileEditorConfigWidget, self).__init__(vl, fieldIdx, parent)
+        self.label = QLabel('A field to store temporal profiles')
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.label)
+        self.setLayout(hbox)
+
+    def config(self, *args, **kwargs) -> dict:
+        config = {}
+
+        return config
+
+    def setConfig(self, config: dict):
+        pass
+
+
+class TemporalProfileFieldFormatter(QgsFieldFormatter):
+
+    def __init__(self, *args, **kwds):
+        super(TemporalProfileFieldFormatter, self).__init__(*args, **kwds)
+
+    def id(self) -> str:
+        return TPF_EDITOR_WIDGET_KEY
+
+    def representValue(self, layer: QgsVectorLayer, fieldIndex: int, config: dict, cache, value):
+
+        if value not in [None, NULL]:
+            return str(value)
+            # return f'{SPECTRAL_PROFILE_FIELD_REPRESENT_VALUE} ({layer.fields().at(fieldIndex).typeName()})'
+        else:
+            return 'NULL'
+        s = ""
+
+
+class TemporalProfileEditorWidgetFactory(QgsEditorWidgetFactory):
+    _INSTANCE_WF: Optional['TemporalProfileEditorWidgetFactory'] = None
+    _INSTANCE_FF: Optional[TemporalProfileFieldFormatter] = None
+
+    @classmethod
+    def register(cls):
+        if not isinstance(cls._INSTANCE_FF, TemporalProfileFieldFormatter):
+            cls._INSTANCE_FF = TemporalProfileFieldFormatter()
+            fmtReg: QgsFieldFormatterRegistry = QgsApplication.instance().fieldFormatterRegistry()
+            fmtReg.addFieldFormatter(cls._INSTANCE_FF)
+
+        if not isinstance(cls._INSTANCE_WF, TemporalProfileEditorWidgetFactory):
+            cls._INSTANCE_WF = TemporalProfileEditorWidgetFactory(TPF_EDITOR_WIDGET_KEY)
+            ewReg: QgsEditorWidgetRegistry = QgsGui.editorWidgetRegistry()
+            ewReg.registerWidget(TPF_EDITOR_WIDGET_KEY, cls._INSTANCE_WF)
+
+    def __init__(self, name: str):
+
+        super(TemporalProfileEditorWidgetFactory, self).__init__(name)
+
+        self.mConfigurations = {}
+
+    def configWidget(self, layer: QgsVectorLayer, fieldIdx: int, parent=QWidget) -> TemporalProfileEditorConfigWidget:
+        """
+        Returns a SpectralProfileEditorConfigWidget
+        :param layer: QgsVectorLayer
+        :param fieldIdx: int
+        :param parent: QWidget
+        :return: SpectralProfileEditorConfigWidget
+        """
+
+        w = TemporalProfileEditorConfigWidget(layer, fieldIdx, parent)
+        key = self.configKey(layer, fieldIdx)
+        w.setConfig(self.readConfig(key))
+        w.changed.connect(lambda *args, ww=w, k=key: self.writeConfig(key, ww.config()))
+        return w
+
+    def configKey(self, layer: QgsVectorLayer, fieldIdx: int) -> Tuple[str, int]:
+        """
+        Returns a tuple to be used as dictionary key to identify a layer profile_field configuration.
+        :param layer: QgsVectorLayer
+        :param fieldIdx: int
+        :return: (str, int)
+        """
+        return layer.id(), fieldIdx
+
+    def create(self, layer: QgsVectorLayer, fieldIdx: int, editor: QWidget,
+               parent: QWidget) -> TemporalProfileEditorWidgetWrapper:
+        """
+        Create a SpectralProfileEditorWidgetWrapper
+        :param layer: QgsVectorLayer
+        :param fieldIdx: int
+        :param editor: QWidget
+        :param parent: QWidget
+        :return: SpectralProfileEditorWidgetWrapper
+        """
+
+        w = TemporalProfileEditorWidgetWrapper(layer, fieldIdx, editor, parent)
+        # self.editWrapper = w
+        return w
+
+    def writeConfig(self, key: tuple, config: dict):
+        """
+        :param key: tuple (str, int), as created with .configKey(layer, fieldIdx)
+        :param config: dict with config values
+        """
+        self.mConfigurations[key] = config
+        # print('Save config')
+        # print(config)
+
+    def readConfig(self, key: tuple):
+        """
+        :param key: tuple (str, int), as created with .configKey(layer, fieldIdx)
+        :return: {}
+        """
+        return self.mConfigurations.get(key, {})
+
+    def supportsField(self, vl: QgsVectorLayer, fieldIdx: int) -> bool:
+        """
+        :param vl:
+        :param fieldIdx:
+        :return:
+        """
+        field: QgsField = vl.fields().at(fieldIdx)
+        return TemporalProfileUtils.isProfileField(field)
+
+    def fieldScore(self, vl: QgsVectorLayer, fieldIdx: int) -> int:
+        """
+        This method allows disabling this editor widget type for a certain profile_field.
+        0: not supported: none String fields
+        5: maybe support String fields with length <= 400
+        20: specialized support: String fields with length > 400
+
+        :param vl: QgsVectorLayer
+        :param fieldIdx: int
+        :return: int
+        """
+        # log(' fieldScore()')
+        field = vl.fields().at(fieldIdx)
+        assert isinstance(field, QgsField)
+        if TemporalProfileUtils.isProfileField(field):
+            return 20
+        elif field.type() in [QMETATYPE_QVARIANTMAP, QMETATYPE_QSTRING]:
+            return 5
+        else:
+            return 0
+
+
+class TemporalProfileEditorWidget(QGroupBox):
+    VIEW_TABLE = 1
+    VIEW_JSON_EDITOR = 2
+
+    profileChanged = pyqtSignal()
+
+    def __init__(self, *args, **kwds):
+        super(TemporalProfileEditorWidget, self).__init__(*args, **kwds)
+        self.setWindowIcon(QIcon(':/eotimeseriesviewer/icons/mIconTemporalProfile.svg'))
+        self.mDefault: dict = False
+
+        vbox = QVBoxLayout()
+        vbox.setSpacing(1)
+        vbox.addWidget(QLabel('Temporal Profile'))
+        self.setLayout(vbox)
+
+        s = ""
+
+    def editorProfileChanged(self):
+
+        w = self.stackedWidget.currentWidget()
+
+        if self.sender() != w:
+            return
+
+    def initConfig(self, conf: dict):
+        """
+        Initializes widget elements like QComboBoxes etc.
+        :param conf: dict
+        """
+
+        pass
+
+    def setProfile(self, profile: dict):
+        """
+        Sets the profile values to be shown
+        :param values: dict() or SpectralProfile
+        :return:
+        """
+        pass
+
+    def resetProfile(self):
+        if isinstance(self.mDefault, dict):
+            self.setProfile(self.mDefault)
+
+
 class TemporalProfileUtils(object):
     Source = 'source'  # optional
     Date = 'date'
@@ -64,7 +315,8 @@ class TemporalProfileUtils(object):
     @classmethod
     def isProfileField(cls, field: QgsField) -> bool:
 
-        return isinstance(field, QgsField) and field.type() == TPF_TYPE and field.comment() == TPF_COMMENT
+        return (isinstance(field,
+                           QgsField) and field.type() == TPF_TYPE and field.editorWidgetSetup().type() == TPF_EDITOR_WIDGET_KEY)
 
     @classmethod
     def isProfileDict(cls, d: dict) -> bool:
@@ -144,6 +396,8 @@ class TemporalProfileUtils(object):
     @classmethod
     def createProfileField(cls, name: str) -> QgsField:
         field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME)
+        setup = QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {})
+        field.setEditorWidgetSetup(setup)
         field.setComment(TPF_COMMENT)
         return field
 
@@ -217,8 +471,14 @@ class TemporalProfileUtils(object):
         dmd = QgsVectorFileWriter.MetaData()
         assert QgsVectorFileWriter.driverMetadata(driver, dmd)
 
+        f1: QgsField = fields['profile']
+        f2: QgsField = QgsField(f1)
+        assert TemporalProfileUtils.isProfileField(f1), f'{f1}: {f1.comment()}'
+        assert TemporalProfileUtils.isProfileField(f2), f'{f2}: {f2.comment()}'
+
         options = QgsVectorFileWriter.SaveVectorOptions()
         options.driverName = driver
+
         options.actionOnExistingFile = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
         writer = QgsVectorFileWriter.create(path.as_posix(), fields, wkbType, crs, transformContext, options)
@@ -231,6 +491,10 @@ class TemporalProfileUtils(object):
 
         lyr = QgsVectorLayer(path.as_posix())
         assert lyr.isValid()
+        idx = lyr.fields().lookupField('profile')
+        lyr.setEditorWidgetSetup(idx, QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {}))
+        field: QgsField = lyr.fields()['profile']
+        assert TemporalProfileUtils.isProfileField(field), f'{field}:{field.comment()}'
         lyr.setName(TPL_NAME)
         return lyr
 
@@ -371,7 +635,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                 profile[TemporalProfileUtils.Source].append(src.as_posix())
                 profile[TemporalProfileUtils.Values].append(values)
                 profile[TemporalProfileUtils.Sensor].append(sensor_ids.index(sid))
-                profile[TemporalProfileUtils.Date].append(dtg.isoformat())
+                profile[TemporalProfileUtils.Date].append(dtg.toString(Qt.ISODateWithMs))
 
             tNow = datetime.now()
             if tNow > tNextProgress:

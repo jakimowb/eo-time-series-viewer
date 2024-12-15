@@ -310,7 +310,7 @@ def quickLabelValue(fieldType: QVariant,
                     tsd: TimeSeriesDate,
                     tss: TimeSeriesSource):
     value = None
-    datetime: QDateTime = QDateTime(tsd.dtg().astype(object))
+    dt: QDateTime = tsd.dtg()
 
     if labelType == LabelShortcutType.Off:
         return value
@@ -327,42 +327,42 @@ def quickLabelValue(fieldType: QVariant,
 
     elif labelType == LabelShortcutType.Date:
         if fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = QDateTime(datetime.date())
+            value = dt
         elif fieldType == QVariant.String:
-            value = datetime.date().toPyDate().isoformat()
+            value = dt.toString(Qt.ISODate)
 
     elif labelType == LabelShortcutType.DateTime:
         if fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.String:
-            value = datetime.toPyDateTime().isoformat()
+            value = dt.toPyDateTime().isoformat()
 
     elif labelType == LabelShortcutType.Time:
         if fieldType == QVariant.Date:
             value = None
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.Time:
-            value = datetime.time()
+            value = dt.time()
         elif fieldType == QVariant.String:
-            value = datetime.time().toPyTime().isoformat()
+            value = dt.time().toString(Qt.ISODate)
 
     elif labelType == LabelShortcutType.Year:
 
         if fieldType == QVariant.String:
-            value = str(datetime.date().year())
+            value = str(dt.date().year())
         elif fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.Time:
-            value = datetime.time()
+            value = dt.time()
         elif fieldType == QVariant.Int:
-            value = datetime.date().year()
+            value = dt.date().year()
 
     elif labelType == LabelShortcutType.DecimalYear:
         if fieldType == QVariant.String:
@@ -374,7 +374,7 @@ def quickLabelValue(fieldType: QVariant,
 
     elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
         if fieldType == QVariant.String:
-            value = tss.uri()
+            value = tss.source()
 
     if value is not None and fieldType == QVariant.String:
         value = str(value)

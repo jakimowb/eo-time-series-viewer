@@ -2,11 +2,12 @@ import json
 import unittest
 
 from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
-from qgis._core import QgsProject
+from qgis._core import QgsProject, QgsVectorLayer
 
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, TPVisSensor
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 from eotimeseriesviewer import initResources
@@ -14,6 +15,8 @@ from eotimeseriesviewer.timeseries import SensorInstrument
 
 start_app()
 initResources()
+
+TemporalProfileEditorWidgetFactory.register()
 
 
 class PlotSettingsTests(TestCase):
@@ -78,6 +81,8 @@ class PlotSettingsTests(TestCase):
             sensor.setName(f'Sensor {i + 1}')
 
         layer = TestObjects.createProfileLayer(ts)
+        self.assertIsInstance(layer, QgsVectorLayer)
+        self.assertTrue(layer.isValid())
         l2 = TestObjects.createVectorLayer()
         project = QgsProject()
         project.addMapLayers([layer, l2])

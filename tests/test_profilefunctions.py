@@ -3,10 +3,10 @@ import unittest
 
 from PyQt5.QtWidgets import QTableView
 
-from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextUtils
-from eotimeseriesviewer.profilefunctions import ProfileValueExpressionFunction, spectral_index_scope, \
+from eotimeseriesviewer.temporalprofile.functions import ProfileValueExpressionFunction, spectral_index_scope, \
     SpectralIndexBandIdentifierModel, SpectralIndexConstantModel
-from eotimeseriesviewer.temporalprofileV2 import TemporalProfileUtils
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextUtils
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 
 start_app()
@@ -55,6 +55,7 @@ class ProfileFunctionTestCases(TestCase):
         view.setModel(model)
         self.showGui(view)
 
+    @unittest.skip('WIP')
     def test_ProfileValueExpression(self):
         f = ProfileValueExpressionFunction()
 

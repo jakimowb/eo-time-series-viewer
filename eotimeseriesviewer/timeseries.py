@@ -857,13 +857,12 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return self.mDTR.begin()
 
-    def dateString(self) -> str:
+    def dtgString(self) -> str:
 
-        if isinstance(self.mTimeSeries, TimeSeries):
-            prec = self.mTimeSeries.dateTimePrecision()
-            return ImageDateUtils.dateTimeString(self.dtg(), prec)
-        else:
-            return self.dtg().toString(Qt.ISODate)
+        prec = self.mTimeSeries.dateTimePrecision() \
+            if isinstance(self.mTimeSeries, TimeSeries) \
+            else DateTimePrecision.Day
+        return ImageDateUtils.dateString(self.dtg(), prec)
 
     def decimalYear(self) -> float:
         """
@@ -2206,7 +2205,7 @@ class TimeSeries(QAbstractItemModel):
         for tss in self.timeSeriesSources():
             tss: TimeSeriesSource
             sources.append({
-                'uri': tss.mUri,
+                'source': tss.source(),
                 'visible': tss.isVisible()
             })
         d['sources'] = sources
@@ -2226,11 +2225,11 @@ class TimeSeries(QAbstractItemModel):
         sources = []
 
         for d in data.get('sources', []):
-            uri = d.get('uri')
+            src = d.get('source')
 
-            if uri:
-                tss = TimeSeriesSource.create(uri)
-                uri_vis[tss.uri()] = d.get('visible', True)
+            if src:
+                tss = TimeSeriesSource.create(src)
+                uri_vis[tss.source()] = d.get('visible', True)
                 if isinstance(tss, TimeSeriesSource):
                     sources.append(tss)
 
@@ -2241,7 +2240,7 @@ class TimeSeries(QAbstractItemModel):
             self.addTimeSeriesSources(sources)
 
         for tss in self.timeSeriesSources():
-            tss.setIsVisible(uri_vis.get(tss.uri(), tss.isVisible()))
+            tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))
 
     def data(self, index: QModelIndex, role: Qt.DisplayRole):
         """
@@ -2274,11 +2273,11 @@ class TimeSeries(QAbstractItemModel):
                 if c == self.cImages:
                     return tss.source()
                 if c == self.cNB:
-                    return tss.nb
+                    return tss.nb()
                 if c == self.cNL:
-                    return tss.nl
+                    return tss.nl()
                 if c == self.cNS:
-                    return tss.ns
+                    return tss.ns()
                 if c == self.cCRS:
                     return tss.crs().description()
                 if c == self.cSensor:
@@ -2300,7 +2299,7 @@ class TimeSeries(QAbstractItemModel):
                 if c == self.cImages:
                     return len(tsd)
                 if c == self.cDate:
-                    return self.dateRangeString(tsd.dateTimeRange())
+                    return ImageDateUtils.dateString(tsd.dtg(), self.dateTimePrecision())
 
             if role == Qt.CheckStateRole and index.column() == 0:
                 return node.checkState()
@@ -2468,7 +2467,7 @@ class TimeSeriesTreeView(QTreeView):
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
-            a = menu.addAction('Move to date {}'.format(node.dtg()))
+            a = menu.addAction('Move to date {}'.format(node.dtgString()))
             a.setToolTip(f'Sets the current map date to {node.dtg()}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 

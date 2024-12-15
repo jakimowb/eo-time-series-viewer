@@ -1513,7 +1513,7 @@ class MapWidget(QFrame):
              self.MKeyCrs: self.crs().toWkt(),
              self.MKeyMapsPerView: self.mapsPerMapView(),
              self.MKeyMapViews: [mv.asMap() for mv in self.mapViews()],
-             self.MKeyCurrentDate: str(self.currentDate().date()),
+             self.MKeyCurrentDate: str(self.currentDate().dtg().toString(Qt.ISODateWithMs)),
              self.MKeyCurrentExtent: self.spatialExtent().asWktPolygon(),
              }
 

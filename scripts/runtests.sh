@@ -1,4 +1,5 @@
 #!/bin/bash
+
 export QT_QPA_PLATFORM=offscreen
 export CI=True
 export QGIS_CONTINUOUS_INTEGRATION_RUN=true

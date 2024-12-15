@@ -22,7 +22,7 @@ import unittest
 from eotimeseriesviewer.mapcanvas import MapCanvas, MapCanvasInfoItem
 from eotimeseriesviewer.qgispluginsupport.qps.maptools import SpectralProfileMapTool
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.tests import EOTSVTestCase, TestObjects, example_raster_files, start_app
+from eotimeseriesviewer.tests import EOTSVTestCase, example_raster_files, start_app, TestObjects
 from qgis.PyQt.QtCore import QPoint
 from qgis.PyQt.QtWidgets import QMenu
 from qgis.core import QgsProject, QgsRasterLayer, QgsWkbTypes
@@ -81,6 +81,17 @@ class TestMapCanvas(EOTSVTestCase):
         self.showGui(menu)
 
         del canvas
+
+        ts = TestObjects.createTimeSeries()
+
+        canvas = MapCanvas()
+        canvas.setTSD(ts[0])
+        pos = QPoint(int(canvas.width() * 0.5), int(canvas.height() * 0.5))
+        menu = QMenu()
+        canvas.populateContextMenu(menu, pos)
+        self.assertIsInstance(menu, QMenu)
+        self.showGui(menu)
+
         QgsProject.instance().removeAllMapLayers()
 
     def test_mapcanvasInfoItem(self):

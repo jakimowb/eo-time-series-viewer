@@ -20,8 +20,6 @@
 import re
 import unittest
 
-import numpy as np
-
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_BOOL, QMETATYPE_DOUBLE, QMETATYPE_INT, \
     QMETATYPE_QBYTEARRAY, QMETATYPE_QDATE, \
     QMETATYPE_QDATETIME, \
@@ -372,7 +370,7 @@ class TestLabeling(EOTSVTestCase):
         TS = TestObjects.createTimeSeries()
 
         tsd: TimeSeriesDate = TS[0]
-        tsd.setDTG(np.datetime64('2019-02-05T11:23:42.00'))
+        # tsd.setDTG(np.datetime64('2019-02-05T11:23:42.00'))
         tss = tsd[0]
         tss.mUri = '/path/to/image'
         tsd.sensor().setName('LND')
