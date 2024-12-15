@@ -70,7 +70,7 @@ jobs:
 
       - name: Setup Repository
         run: |
-          python runfirst.py
+          python scripts/setup_repository.py
           mkdir -p ~/.local/share/QGIS/QGIS3/profiles
 
       - name: Test in ${{matrix.mamba_env}}
