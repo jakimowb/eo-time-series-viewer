@@ -5,7 +5,7 @@ name: eotsv
 channels:
   - conda-forge
 dependencies:
-  - python=3.10
+  - python>=3.10
   - qgis>=3.38
   - gitpython
   - markdown
@@ -13,6 +13,9 @@ dependencies:
   - sphinx-copybutton
   - sphinx-autobuild
   - sphinx-tabs
+  - pytest
+  - pytest-cov
+  - pytest-xdist
   - flake8
   - doc8
   - pip # pip as dependency
