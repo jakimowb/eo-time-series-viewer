@@ -22,24 +22,30 @@
 import os
 import copy
 import re
+import uuid
+from collections import OrderedDict
+from pathlib import Path
+from xml.etree import ElementTree
+from typing import List, Optional
+from xml.etree.ElementTree import Element
+
 from osgeo import gdal
 import numpy as np
-from collections import OrderedDict
-from xml.etree import ElementTree
-from qgis.PyQt.QtCore import Qt, QModelIndex, QAbstractTableModel, QItemSelectionModel, QTimer
-from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QHeaderView, QDialog, QDialogButtonBox, QFileDialog
-from qgis.core import QgsRasterLayer, QgsProviderRegistry, QgsProject
-from qgis.gui import QgsFileWidget, QgisInterface
-import qgis.utils
 
-from eotimeseriesviewer.qgispluginsupport.qps.utils import read_vsimem, loadUi, write_vsimem
+from qgis.gui import QgisInterface, QgsFileWidget, QgsFilterLineEdit
+from qgis.PyQt.QtCore import QAbstractTableModel, QItemSelectionModel, QModelIndex, Qt, QTimer
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QHeaderView
+from qgis.core import QgsProject, QgsProviderRegistry, QgsRasterLayer
+import qgis.utils
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, read_vsimem, write_vsimem
 from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.dateparser import extractDateTimeGroup
 
 
 def datesFromDataset(dataset: gdal.Dataset) -> list:
+    assert isinstance(dataset, gdal.Dataset)
     nb = dataset.RasterCount
 
     def checkDates(dateList):
@@ -178,7 +184,7 @@ class InputStackInfo(object):
         return self.mDates
 
     def structure(self):
-        return (self.ns, self.nl, self.nb, self.gt, self.wkt)
+        return self.ns, self.nl, self.nb, self.gt, self.wkt
 
     def wavelength(self):
         return self.mMetaData[''].get('wavelength')
@@ -194,11 +200,19 @@ class OutputVRTDescription(object):
 
     def __init__(self, path: str, date: np.datetime64):
         super(OutputVRTDescription, self).__init__()
+        assert isinstance(path, str)
+        assert isinstance(date, np.datetime64)
         self.mPath = path
         self.mDate = date
 
     def setPath(self, path: str):
+        assert isinstance(path, str)
         self.mPath = path
+
+    def isValid(self) -> bool:
+        if self.mPath.startswith('/vsimem/'):
+            return True
+        return Path(self.mPath).parent.is_dir()
 
 
 class InputStackTableModel(QAbstractTableModel):
@@ -284,10 +298,10 @@ class InputStackTableModel(QAbstractTableModel):
             elif role == Qt.ToolTipRole:
                 return self.mColumnTooltips.get(cname)
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
+            return col + 1
         return None
 
-    def rowCount(self, parent=None):
+    def rowCount(self, parent: QModelIndex = None):
         return len(self.mStackImages)
 
     def columnCount(self, parent: QModelIndex):
@@ -432,38 +446,39 @@ class InputStackTableModel(QAbstractTableModel):
 
 
 class OutputImageModel(QAbstractTableModel):
+    cDate = 0
+    cPath = 1
 
     def __init__(self, parent=None):
         super(OutputImageModel, self).__init__(parent)
 
-        self.cn_uri = 'Path'
-        self.cn_date = 'Date'
-        self.mOutputImages = []
+        self.mOutputImages: List[OutputVRTDescription] = []
 
-        self.mColumnNames = [self.cn_date, self.cn_uri]
-        self.mColumnTooltips = {}
-        self.mColumnTooltips[self.cn_uri] = 'Output location'
+        self.mColumnNames = {self.cDate: 'Date',
+                             self.cPath: 'Path'}
+        self.mColumnTooltips = {self.cDate: 'Date',
+                                self.cPath: 'Output location'}
+
         self.masterVRT_DateLookup = {}
         self.masterVRT_SourceBandTemplates = {}
         self.masterVRT_InputStacks = None
         self.masterVRT_XML = None
-        self.mOutputDir = '/vsimem/'
-        self.mOutputPrefix = 'date'
+        self.mOutputDir: str = '/vsimem/'
+        self.mOutputPrefix: str = 'date'
 
     def headerData(self, col, orientation, role):
         if Qt is None:
             return None
         if orientation == Qt.Horizontal:
-            cname = self.mColumnNames[col]
             if role == Qt.DisplayRole:
-                return cname
+                return self.mColumnNames[col]
             elif role == Qt.ToolTipRole:
-                return self.mColumnTooltips.get(cname)
+                return self.mColumnTooltips[col]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return col
+            return col + 1
         return None
 
-    def createVRTUri(self, date: np.datetime64):
+    def createVRTUri(self, date: np.datetime64) -> str:
 
         path = os.path.join(self.mOutputDir, self.mOutputPrefix)
         path = '{}{}.vrt'.format(path, date)
@@ -518,7 +533,7 @@ class OutputImageModel(QAbstractTableModel):
             wavelength.append(stack.wavelength())
             VRT.addVirtualBand(vrtBand)
 
-        pathVSITmp = '/vsimem/temp.vrt'
+        pathVSITmp = f'/vsimem/temp_{uuid.uuid4()}.vrt'
         dsVRT = VRT.saveVRT(pathVSITmp)
         dsVRT.SetMetadataItem('acquisition date', 'XML_REPLACE_DATE')
 
@@ -538,15 +553,24 @@ class OutputImageModel(QAbstractTableModel):
         dsVRT.FlushCache()
         drv = dsVRT.GetDriver()
         masterVRT_XML = read_vsimem(pathVSITmp).decode('utf-8')
-
         drv.Delete(pathVSITmp)
+
+        to_abs_paths = not self.mOutputDir.startswith('/vsimem/')
+
         outputVRTs = []
 
         eTree = ElementTree.fromstring(masterVRT_XML)
         for iBand, elemBand in enumerate(eTree.findall('VRTRasterBand')):
             sourceElements = elemBand.findall('ComplexSource') + elemBand.findall('SimpleSource')
             assert len(sourceElements) == 1
-            self.masterVRT_SourceBandTemplates[iBand] = copy.deepcopy(sourceElements[0])
+
+            elem = copy.deepcopy(sourceElements[0])
+
+            if to_abs_paths:
+                nodeSource = elem.find('SourceFilename')
+                s = ""
+
+            self.masterVRT_SourceBandTemplates[iBand] = elem
             elemBand.remove(sourceElements[0])
 
         for date in dates:
@@ -562,6 +586,8 @@ class OutputImageModel(QAbstractTableModel):
         self.endInsertRows()
 
     def setOutputDir(self, path: str):
+        if path in ['', None]:
+            path = os.getcwd()
         self.mOutputDir = path
         self.updateOutputURIs()
 
@@ -570,9 +596,9 @@ class OutputImageModel(QAbstractTableModel):
         self.updateOutputURIs()
 
     def updateOutputURIs(self):
-        c = self.mColumnNames.index(self.cn_uri)
-        ul = self.createIndex(0, c)
-        lr = self.createIndex(self.rowCount() - 1, c)
+
+        ul = self.createIndex(0, self.cPath)
+        lr = self.createIndex(self.rowCount() - 1, self.cPath)
 
         for outputVRT in self:
             assert isinstance(outputVRT, OutputVRTDescription)
@@ -612,15 +638,20 @@ class OutputImageModel(QAbstractTableModel):
         if not index.isValid():
             return None
 
-        cname = self.columnName(index)
-        vrt = self.index2vrt(index)
+        col = index.column()
+        vrt: OutputVRTDescription = self.index2vrt(index)
         if role in [Qt.DisplayRole, Qt.ToolTipRole]:
-            if cname == self.cn_uri:
+            if col == self.cPath:
                 return vrt.mPath
-            if cname == self.cn_date:
+            if col == self.cDate:
                 return str(vrt.mDate)
+        if role == Qt.ForegroundRole and col == self.cPath:
+            if not vrt.isValid():
+                return QColor('red')
 
-    def vrtXML(self, outputDefinition: OutputVRTDescription, asElementTree: bool = False) -> str:
+        # return super().data(index, role)
+
+    def vrtXML(self, outputDefinition: OutputVRTDescription, asElementTree: bool = False) -> Optional[str]:
         """
         Create the VRT XML related to an outputDefinition
         :param outputDefinition:
@@ -643,12 +674,29 @@ class OutputImageModel(QAbstractTableModel):
         # insert required rasterbands
         requiredBands = self.masterVRT_DateLookup[outputDefinition.mDate]
 
+        outputDir = Path(outputDefinition.mPath).parent
+
         xmlVRTBands = xmlTree.findall('VRTRasterBand')
 
         for t in requiredBands:
             stackIndex, stackBandIndex = t
 
             stackSourceXMLTemplate = copy.deepcopy(self.masterVRT_SourceBandTemplates[stackIndex])
+
+            node: Element = stackSourceXMLTemplate.find('SourceFilename')
+            if node.attrib['relativeToVRT'] == '1':
+                pathSrc = Path(f'/vsimem/{node.text}')
+            else:
+                pathSrc = Path(node.text).resolve()
+
+            if pathSrc.is_relative_to(outputDir):
+                node.attrib['relativeToVRT'] = '1'
+                node.text = pathSrc.relative_to(outputDir).as_posix()
+            else:
+                node.attrib['relativeToVRT'] = '0'
+                node.text = pathSrc.as_posix()
+            s = ""
+
             stackSourceXMLTemplate.find('SourceBand').text = str(stackBandIndex + 1)
             xmlVRTBands[stackIndex].append(stackSourceXMLTemplate)
 
@@ -665,6 +713,7 @@ class StackedBandInputDialog(QDialog):
         super(StackedBandInputDialog, self).__init__(parent=parent)
         loadUi(DIR_UI / 'stackedinputdatadialog.ui', self)
         self.setWindowTitle('Stacked Time Series Data Input')
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.mWrittenFiles = []
 
         self.tableModelInputStacks = InputStackTableModel()
@@ -690,7 +739,7 @@ class StackedBandInputDialog(QDialog):
         self.tbFilePrefix.setText('img')
 
         self.fileWidgetOutputDir.setStorageMode(QgsFileWidget.GetDirectory)
-        self.fileWidgetOutputDir.fileChanged.connect(self.tableModelOutputImages.setOutputDir)
+        self.fileWidgetOutputDir.fileChanged.connect(self.updateOutputs)
 
         sm = self.tableViewSourceStacks.selectionModel()
         assert isinstance(sm, QItemSelectionModel)
@@ -725,7 +774,13 @@ class StackedBandInputDialog(QDialog):
         if self.rbSaveInMemory.isChecked():
             self.tableModelOutputImages.setOutputDir(r'/vsimem/')
         elif self.rbSaveInDirectory.isChecked():
-            self.tableModelOutputImages.setOutputDir(self.fileWidgetOutputDir.filePath())
+            path = Path(self.fileWidgetOutputDir.filePath())
+            lineEdit: QgsFilterLineEdit = self.fileWidgetOutputDir.lineEdit()
+            if not path.is_dir():
+                lineEdit.setStyleSheet('color:red;')
+            else:
+                lineEdit.setStyleSheet('')
+            self.tableModelOutputImages.setOutputDir(str(path.resolve()))
 
     def updateInputInfo(self):
         """
@@ -838,10 +893,8 @@ class StackedBandInputDialog(QDialog):
             if outVRT.mPath.startswith('/vsimem/'):
                 write_vsimem(outVRT.mPath, xml)
             else:
-                f = open(outVRT.mPath, 'w', encoding='utf-8')
-                f.write(xml)
-                f.flush()
-                f.close()
+                with open(outVRT.mPath, 'w', encoding='utf-8') as f:
+                    f.write(xml)
 
             writtenFiles.append(outVRT.mPath)
 

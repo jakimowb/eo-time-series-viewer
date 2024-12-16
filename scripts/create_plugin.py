@@ -31,10 +31,10 @@ from typing import Iterator, Optional, Union
 
 import git
 import markdown
+from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 from eotimeseriesviewer.qgispluginsupport.qps.make.deploy import QGISMetadataFileWriter, userProfileManager
 from eotimeseriesviewer.qgispluginsupport.qps.utils import zipdir
-from qgis.core import QgsUserProfile, QgsUserProfileManager
 
 site.addsitedir(Path(__file__).parents[1].as_posix())
 import eotimeseriesviewer
@@ -142,6 +142,7 @@ def create_plugin(include_testdata: bool = False,
     files.append(DIR_REPO / 'LICENSE.md')
     files.append(DIR_REPO / 'requirements.txt')
     files.append(DIR_REPO / 'requirements_dev.txt')
+    files.append(DIR_REPO / 'tox.ini')
 
     # exclude
     files = [f for f in files

@@ -26,11 +26,11 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from osgeo import gdal, osr
-from qgis.core import QgsGeometry, QgsRasterLayer, QgsMapToPixel
 
-from eotimeseriesviewer.qgispluginsupport.qps.models import OptionListModel, Option
-from qgis.PyQt.QtCore import QObject, pyqtSignal, QSizeF
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsRectangle
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
+    QgsRectangle
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
+from qgis.PyQt.QtCore import pyqtSignal, QObject, QSizeF
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -718,19 +718,21 @@ class VRTRaster(QObject):
                 kwds['outputSRS'] = srs
 
             kwds['bandList'] = [1 for _ in range(len(srcFiles))]
-            pathInMEMVRT = '/vsimem/{}.vrt'.format(uuid.uuid4())
+            path_vsimem_vrt: str = f'/vsimem/{uuid.uuid4()}.vrt'
             vro = gdal.BuildVRTOptions(separate=True, **kwds)
-            dsVRTDst = gdal.BuildVRT(pathInMEMVRT, srcFiles, options=vro)
+            with gdal.BuildVRT(path_vsimem_vrt, srcFiles, options=vro) as dsVRTDst:
 
-            assert isinstance(dsVRTDst, gdal.Dataset)
+                assert isinstance(dsVRTDst, gdal.Dataset)
 
-            ns, nl = dsVRTDst.RasterXSize, dsVRTDst.RasterYSize
-            gt = dsVRTDst.GetGeoTransform()
-            crs = dsVRTDst.GetProjectionRef()
-            eType = dsVRTDst.GetRasterBand(1).DataType
+                ns, nl = dsVRTDst.RasterXSize, dsVRTDst.RasterYSize
+                gt = dsVRTDst.GetGeoTransform()
+                crs = dsVRTDst.GetProjectionRef()
+                eType = dsVRTDst.GetRasterBand(1).DataType
 
-            xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
-            drvVRT.Delete(pathInMEMVRT)
+                xmlVRT = dsVRTDst.GetMetadata('xml:VRT')[0]
+
+            gdal.Unlink(path_vsimem_vrt)
+            drvVRT.Delete(path_vsimem_vrt)
 
             # save the XML snipped per file source
             SOURCE_TEMPLATES = dict()
@@ -742,7 +744,7 @@ class VRTRaster(QObject):
                 src_path = xmlSrc.find('SourceFilename')
 
                 if src_path.attrib.get('relativeToVRT') == "1":
-                    full_path = Path(pathInMEMVRT).parent / src_path.text
+                    full_path = Path(path_vsimem_vrt).parent / src_path.text
                     srcLookup[full_path.as_posix()] = src_path.text
                     s = ""
 

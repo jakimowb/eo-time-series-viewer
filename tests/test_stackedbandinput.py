@@ -19,13 +19,20 @@
 # noinspection PyPep8Naming
 import os
 import unittest
+import uuid
+from pathlib import Path
 from xml.etree.ElementTree import Element
+from typing import List
 
 import numpy as np
 from osgeo import gdal, gdal_array, osr
-from PyQt5.QtCore import QDateTime
+from PyQt5.QtWidgets import QApplication
+from qgis._core import QgsProject
 
-from eotimeseriesviewer.dateparser import ImageDateUtils
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.timeseries import TimeSeriesSource
+from qgis.PyQt.QtCore import QDateTime
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from qgis.core import QgsRasterLayer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog
@@ -41,25 +48,26 @@ PATH_STACK = r'T:\4BJ\2018-2018_000-000_LEVEL4_TSA_SEN2L_EVI_C0_S0_TSS.tif'
 
 class TestStackedInputs(EOTSVTestCase):
 
-    def createTestDatasets(self):
+    def createTestDatasets(self) -> List[str]:
 
-        vsiDir = r'/vsimem/tmp'
-        ns = 50
-        nl = 100
+        uid = uuid.uuid4()
+        vsiDir = Path(f'/vsimem/tmp{uid}')
+        ns = 5
+        nl = 10
 
-        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
-        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
+        r1 = np.arange('2000-01-01', '2005-04-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
+        r2 = np.arange('2000-01-01', '2005-04-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
         drv = gdal.GetDriverByName(r'ENVI')
 
         crs = osr.SpatialReference()
         crs.ImportFromEPSG(32633)
 
         assert isinstance(drv, gdal.Driver)
-        datasets = []
+        datasets: List[gdal.Dataset] = []
         for i, r in enumerate([r1, r2]):
-            p = '{}stack{}.bsq'.format(vsiDir, i + 1)
+            p = vsiDir / f'stacksource_{i + 1}.bsq'
             nb = len(r)
-            ds = drv.Create(p, ns, nl, nb, eType=gdal.GDT_Float32)
+            ds = drv.Create(p.as_posix(), ns, nl, nb, eType=gdal.GDT_Float32)
             assert isinstance(ds, gdal.Dataset)
 
             ds.SetProjection(crs.ExportToWkt())
@@ -74,9 +82,13 @@ class TestStackedInputs(EOTSVTestCase):
 
                 band = ds.GetRasterBand(b + 1)
                 assert isinstance(band, gdal.Band)
-                band.Fill(decimalYear)
+                arr = band.ReadAsArray()
+                arr[:] = decimalYear
+                arr[0, 0] = decimalYear - 100
+                band.WriteArray(arr)
+
             ds.FlushCache()
-            datasets.append(p)
+            datasets.append(ds)
 
             if i == 0:
                 # create a classification image stack
@@ -92,12 +104,12 @@ class TestStackedInputs(EOTSVTestCase):
                 for j, date in enumerate(r):
                     c = j + 1
                     data[j, j:-1, 0:j] = c
-                    classNames.append('Class {}'.format(date))
+                    classNames.append(f'Class {date}')
                     colorTable.SetColorEntry(c, color.getRgb())
                     color = nextColor(color)
 
-                p = '{}tmpClassificationStack.bsq'.format(vsiDir)
-                ds = gdal_array.SaveArray(data, p, format='ENVI', prototype=datasets[0])
+                p = vsiDir / 'tmpClassificationStack.bsq'
+                ds = gdal_array.SaveArray(data, p.as_posix(), format='ENVI', prototype=datasets[0])
                 ds.GetRasterBand(1).SetColorTable(colorTable)
                 ds.GetRasterBand(1).SetCategoryNames(classNames)
 
@@ -105,7 +117,7 @@ class TestStackedInputs(EOTSVTestCase):
                 ds.SetMetadataItem('wavelength', dateString, 'ENVI')
                 ds.FlushCache()
                 datasets.append(ds)
-        return datasets
+        return [d.GetDescription() for d in datasets]
 
     @unittest.skipIf(not os.path.isfile(PATH_STACK), f'PATH_STACK does not exists: {PATH_STACK}')
     def test_FORCEStacks(self):
@@ -161,15 +173,25 @@ class TestStackedInputs(EOTSVTestCase):
 
     @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
     def test_dialog(self):
-        d = StackedBandInputDialog()
-        d.addSources(self.createTestDatasets())
 
-        r = d.exec_()
+        testdata = self.createTestDatasets()
+
+        for d in testdata:
+            ds: gdal.Dataset = gdal.Open(d)
+            self.assertIsInstance(ds, gdal.Dataset)
+            arr = ds.ReadAsArray()
+            self.assertIsInstance(arr, np.ndarray)
+            del ds
+
+        dialog = StackedBandInputDialog()
+        dialog.addSources(testdata)
+
+        r = dialog.exec_()
 
         self.assertTrue(r in [QDialog.Rejected, QDialog.Accepted])
         if r == QDialog.Accepted:
-            d.saveImages()
-            images = d.writtenFiles()
+            dialog.saveImages()
+            images = dialog.writtenFiles()
             self.assertTrue(len(images) > 0)
 
             for p in images:
@@ -178,29 +200,54 @@ class TestStackedInputs(EOTSVTestCase):
                 lyr = QgsRasterLayer(p)
                 self.assertIsInstance(lyr, QgsRasterLayer)
                 self.assertTrue(lyr.isValid())
+                del lyr
+                del ds
         else:
-            self.assertTrue(len(d.writtenFiles()) == 0)
+            self.assertTrue(len(dialog.writtenFiles()) == 0)
 
-        self.showGui(d)
+        self.showGui(dialog)
+        for d in testdata:
+            gdal.Unlink(d)
 
     def test_withTSV(self):
 
-        testImages = self.createTestDatasets()
-        from eotimeseriesviewer.main import EOTimeSeriesViewer
-        TSV = EOTimeSeriesViewer()
-        TSV.show()
-
         d = StackedBandInputDialog()
-        d.addSources(self.createTestDatasets())
-        writtenFiles = d.saveImages()
-        self.assertTrue(len(writtenFiles) > 0)
-        TSV.addTimeSeriesImages(writtenFiles, loadAsync=False)
-
-        self.assertTrue(len(TSV.mTimeSeries) == len(writtenFiles))
+        datasets = self.createTestDatasets()
+        d.addSources(datasets)
 
         self.showGui(d)
-        TSV.close()
+
+        writtenFiles = d.saveImages()
+        self.assertTrue(len(writtenFiles) > 0)
+
+        for f in writtenFiles:
+            lyr = QgsRasterLayer(f)
+            self.assertTrue(lyr.isValid())
+
+            tss = TimeSeriesSource.create(lyr)
+            self.assertIsInstance(tss, TimeSeriesSource)
+            del tss
+            del lyr
+
+        if True:
+            TSV = EOTimeSeriesViewer()
+            TSV.timeSeries().setDateTimePrecision(DateTimePrecision.Year)
+
+            TSV.addTimeSeriesImages(writtenFiles, loadAsync=False)
+            self.assertEqual(len(list(TSV.timeSeries().sources())), len(writtenFiles))
+
+            self.showGui(TSV)
+            QApplication.processEvents()
+            TSV.close()
+            QApplication.processEvents()
+            QgsProject.instance().removeAllMapLayers()
+            del TSV
+
+        for d in datasets:
+            gdal.Unlink(d)
 
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
+
+    from pytest import main

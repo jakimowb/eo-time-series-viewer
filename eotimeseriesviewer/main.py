@@ -26,8 +26,8 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
@@ -649,9 +649,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 'size': [dock.width(), dock.height()]
             }
 
+        g: QRect = self.ui.geometry()
         mainWindow = {
-            'size': [self.ui.width(), self.ui.height()],
-            'pos': [self.ui.pos().x(), self.ui.pos().y()],
+            'geometry': [g.x(), g.y(), g.width(), g.height()],
             'docks': dockInfos,
         }
 
@@ -666,11 +666,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         multistep = QgsProcessingMultiStepFeedback(2, feedback)
         multistep.setCurrentStep(1)
 
+        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
+        multistep.setCurrentStep(2)
+        self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
+
         if mainWindow := map_data.get('MainWindow'):
-            if s := mainWindow.get('size'):
-                self.ui.resize(*s)
-            if s := mainWindow.get('pos'):
-                self.ui.move(*s)
 
             if dockInfos := mainWindow.get('docks'):
                 dockInfos: Dict[str, dict]
@@ -685,9 +685,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                             dock.resize(*bSize)
                         # dock.set(dockInfo.get('isFloating', dock.isFloating()))
 
-        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
-        multistep.setCurrentStep(2)
-        self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
+            if g := mainWindow.get('geometry'):
+                self.ui.setGeometry(QRect(*g))
+                QApplication.processEvents()
+                assert self.ui.height() == g[-1]
 
     def asJson(self) -> str:
         return json.dumps(self.asMap(), ensure_ascii=False)
