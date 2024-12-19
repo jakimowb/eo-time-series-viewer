@@ -26,11 +26,11 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from osgeo import gdal, osr
-
 from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
     QgsRectangle
-from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 from qgis.PyQt.QtCore import pyqtSignal, QObject, QSizeF
+
+from eotimeseriesviewer.qgispluginsupport.qps.models import Option, OptionListModel
 
 # lookup GDAL Data Type and its size in bytes
 LUT_GDT_SIZE = {gdal.GDT_Byte: 1,
@@ -95,7 +95,7 @@ def read_vsimem(fn):
     return gdal.VSIFReadL(1, vsileng, vsifile)
 
 
-def write_vsimem(fn: str, data: str):
+def write_vsimem(fn: str, data: str) -> int:
     """
     Writes data to vsimem path
     :param fn: vsimem path (str)
@@ -103,10 +103,16 @@ def write_vsimem(fn: str, data: str):
     :return: result of gdal.VSIFCloseL(vsifile)
     """
     '''Write GDAL vsimem files'''
+    assert isinstance(fn, str)
+    assert isinstance(data, str)
+    file_info = gdal.VSIStatL(fn)
+    assert file_info is None
     vsifile = gdal.VSIFOpenL(fn, 'w')
     size = len(data)
     gdal.VSIFWriteL(data, 1, size, vsifile)
-    return gdal.VSIFCloseL(vsifile)
+    ret_val = gdal.VSIFCloseL(vsifile)
+    assert ret_val == gdal.CPLE_None
+    return ret_val
 
 
 def describeRawFile(pathRaw, pathVrt, xsize, ysize,

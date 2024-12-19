@@ -26,17 +26,16 @@ import uuid
 from typing import List, Match, Pattern, Union
 
 import numpy as np
-from matplotlib.dates import date2num
 from osgeo import gdal, osr
-
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
     QgsVectorLayer
+from qgis.PyQt.QtWidgets import QWidget
+
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLayerMapToPixel
-from qgis.PyQt.QtWidgets import QWidget
 from eotimeseriesviewer.timeseries import TimeSeries
 from eotimeseriesviewer.dateparser import DateTimePrecision
 
@@ -183,44 +182,6 @@ class TestObjects(TObj):
         print('Done!')
 
         return paths
-
-    @staticmethod
-    def createTimeSeriesStacks():
-        vsiDir = '/vsimem/tmp'
-        ns = 50
-        nl = 100
-
-        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
-        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
-        drv = gdal.GetDriverByName('ENVI')
-
-        crs = osr.SpatialReference()
-        crs.ImportFromEPSG(32633)
-
-        assert isinstance(drv, gdal.Driver)
-        datasets = []
-        for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
-
-            ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
-            assert isinstance(ds, gdal.Dataset)
-
-            ds.SetProjection(crs.ExportToWkt())
-
-            dateString = ','.join([str(d) for d in r])
-            dateString = '{{{}}}'.format(dateString)
-            ds.SetMetadataItem('wavelength', dateString, 'ENVI')
-
-            for b, date in enumerate(r):
-                decimalYear = date2num(date)
-
-                band = ds.GetRasterBand(b + 1)
-                assert isinstance(band, gdal.Band)
-                band.Fill(decimalYear)
-            ds.FlushCache()
-            datasets.append(p)
-
-        return datasets
 
     @staticmethod
     def exampleImagePaths() -> list:

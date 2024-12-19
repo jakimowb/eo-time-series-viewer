@@ -19,6 +19,7 @@
 *                                                                         *
 ***************************************************************************
 """
+import datetime
 import os
 import copy
 import re
@@ -31,15 +32,15 @@ from xml.etree.ElementTree import Element
 
 from osgeo import gdal
 import numpy as np
-
 from qgis.gui import QgisInterface, QgsFileWidget, QgsFilterLineEdit
-from qgis.PyQt.QtCore import QAbstractTableModel, QItemSelectionModel, QModelIndex, Qt, QTimer
+from qgis.PyQt.QtCore import QAbstractTableModel, QItemSelectionModel, QModelIndex, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QHeaderView
 from qgis.core import QgsProject, QgsProviderRegistry, QgsRasterLayer
 import qgis.utils
-from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, read_vsimem, write_vsimem
-from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand
+
+from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi, read_vsimem
+from eotimeseriesviewer.virtualrasters import VRTRaster, VRTRasterBand, VRTRasterInputSourceBand, write_vsimem
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.dateparser import extractDateTimeGroup
 
@@ -156,7 +157,8 @@ class InputStackInfo(object):
         self.wkt = dataset.GetProjection()
         self.gt = dataset.GetGeoTransform()
 
-        self.colorTable = dataset.GetRasterBand(1).GetColorTable()
+        ct = dataset.GetRasterBand(1).GetColorTable()
+        self.colorTable = ct.Clone() if isinstance(ct, gdal.ColorTable) else None
         self.classNames = dataset.GetRasterBand(1).GetCategoryNames()
 
         self.path = dataset.GetDescription()
@@ -220,7 +222,7 @@ class InputStackTableModel(QAbstractTableModel):
     def __init__(self, parent=None):
 
         super(InputStackTableModel, self).__init__(parent)
-        self.mStackImages = []
+        self.mStackImages: List[InputStackInfo] = []
 
         self.cn_source = 'Source'
         self.cn_dates = 'Dates'
@@ -372,7 +374,7 @@ class InputStackTableModel(QAbstractTableModel):
         if not index.isValid():
             return None
 
-        info = self.mStackImages[index.row()]
+        info: InputStackInfo = self.mStackImages[index.row()]
         assert isinstance(info, InputStackInfo)
         cname = self.columnName(index)
 
@@ -546,7 +548,7 @@ class OutputImageModel(QAbstractTableModel):
             assert isinstance(band, gdal.Band)
             assert isinstance(stack, InputStackInfo)
             if isinstance(stack.colorTable, gdal.ColorTable) and stack.colorTable.GetCount() > 0:
-                band.SetColorTable(stack.colorTable)
+                band.SetColorTable(stack.colorTable.Clone())
             if stack.classNames:
                 band.SetCategoryNames(stack.classNames)
 
@@ -708,10 +710,11 @@ class OutputImageModel(QAbstractTableModel):
 
 class StackedBandInputDialog(QDialog):
 
-    def __init__(self, parent=None):
+    def __init__(self, *args, parent=None, **kwds):
 
-        super(StackedBandInputDialog, self).__init__(parent=parent)
+        super().__init__(*args, parent=parent, **kwds)
         loadUi(DIR_UI / 'stackedinputdatadialog.ui', self)
+
         self.setWindowTitle('Stacked Time Series Data Input')
         self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.mWrittenFiles = []
@@ -873,7 +876,7 @@ class StackedBandInputDialog(QDialog):
             self.tbXMLPreview.setPlainText(None)
             s = ""
 
-    def saveImages(self):
+    def saveImages(self) -> List[str]:
         """
         Write the VRT images
         :return: [list-of-written-file-paths]
@@ -886,6 +889,7 @@ class StackedBandInputDialog(QDialog):
 
         self.progressBar.setValue(0)
 
+        t0 = datetime.datetime.now()
         for i, outVRT in enumerate(self.tableModelOutputImages):
             assert isinstance(outVRT, OutputVRTDescription)
             xml = self.tableModelOutputImages.vrtXML(outVRT)
@@ -898,12 +902,18 @@ class StackedBandInputDialog(QDialog):
 
             writtenFiles.append(outVRT.mPath)
 
-            self.progressBar.setValue(int(100. * i / nTotal))
+            t1 = datetime.datetime.now()
 
-        QTimer.singleShot(500, lambda: self.progressBar.setValue(0))
+            if (t1 - t0).seconds > 1:
+                self.progressBar.setValue(int(100. * i / nTotal))
+                t0 = t1
+
+        self.progressBar.setValue(100)
+        # QTimer.singleShot(500, lambda: self.progressBar.setValue(0))
 
         if self.cbOpenInQGIS.isEnabled() and self.cbOpenInQGIS.isChecked():
             mapLayers = [QgsRasterLayer(p) for p in writtenFiles]
             QgsProject.instance().addMapLayers(mapLayers, addToLegend=True)
+
         self.mWrittenFiles.extend(writtenFiles)
         return writtenFiles

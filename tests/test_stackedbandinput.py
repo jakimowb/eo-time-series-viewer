@@ -28,14 +28,14 @@ import numpy as np
 from osgeo import gdal, gdal_array, osr
 from PyQt5.QtWidgets import QApplication
 from qgis._core import QgsProject
-
-from eotimeseriesviewer.main import EOTimeSeriesViewer
-from eotimeseriesviewer.timeseries import TimeSeriesSource
 from qgis.PyQt.QtCore import QDateTime
-from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from qgis.core import QgsRasterLayer
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QDialog
+
+from eotimeseriesviewer.main import EOTimeSeriesViewer
+from eotimeseriesviewer.timeseries import TimeSeriesSource
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import nextColor
 from eotimeseriesviewer.stackedbandinput import InputStackInfo, InputStackTableModel, OutputImageModel, \
     OutputVRTDescription, StackedBandInputDialog
@@ -171,7 +171,7 @@ class TestStackedInputs(EOTSVTestCase):
         eTree = m.vrtXML(outInfo, asElementTree=True)
         self.assertIsInstance(eTree, Element)
 
-    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking dialog')
+    @unittest.skipIf(EOTSVTestCase.runsInCI(), 'Blocking Dialog')
     def test_dialog(self):
 
         testdata = self.createTestDatasets()
@@ -211,11 +211,12 @@ class TestStackedInputs(EOTSVTestCase):
 
     def test_withTSV(self):
 
-        d = StackedBandInputDialog()
         datasets = self.createTestDatasets()
+        d = StackedBandInputDialog()
+        d.show()
+        QApplication.processEvents()
         d.addSources(datasets)
-
-        self.showGui(d)
+        d.show()
 
         writtenFiles = d.saveImages()
         self.assertTrue(len(writtenFiles) > 0)
@@ -229,25 +230,24 @@ class TestStackedInputs(EOTSVTestCase):
             del tss
             del lyr
 
-        if True:
-            TSV = EOTimeSeriesViewer()
-            TSV.timeSeries().setDateTimePrecision(DateTimePrecision.Year)
+        TSV = EOTimeSeriesViewer()
+        TSV.timeSeries().setDateTimePrecision(DateTimePrecision.Year)
 
-            TSV.addTimeSeriesImages(writtenFiles, loadAsync=False)
-            self.assertEqual(len(list(TSV.timeSeries().sources())), len(writtenFiles))
+        TSV.addTimeSeriesImages(writtenFiles, loadAsync=False)
+        self.assertEqual(len(list(TSV.timeSeries().sources())), len(writtenFiles))
 
-            self.showGui(TSV)
-            QApplication.processEvents()
-            TSV.close()
-            QApplication.processEvents()
-            QgsProject.instance().removeAllMapLayers()
-            del TSV
+        self.showGui(TSV)
+        QApplication.processEvents()
+        TSV.close()
+        QApplication.processEvents()
+        QgsProject.instance().removeAllMapLayers()
+        del TSV
 
         for d in datasets:
             gdal.Unlink(d)
 
+        QgsProject.instance().removeAllMapLayers()
+
 
 if __name__ == "__main__":
     unittest.main(buffer=False)
-
-    from pytest import main
