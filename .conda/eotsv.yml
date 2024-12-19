@@ -14,6 +14,7 @@ dependencies:
   - sphinx-autobuild
   - sphinx-tabs
   - pytest
+  - matplotlib
   - pytest-cov
   - pytest-xdist
   - flake8
