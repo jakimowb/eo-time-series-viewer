@@ -19,7 +19,6 @@
  ***************************************************************************/
 """
 import bisect
-import collections
 import copy
 import datetime
 import enum
@@ -27,34 +26,31 @@ import json
 # noinspection PyPep8Naming
 import os
 import pathlib
-import pickle
 import re
-import urllib
-import uuid
+import warnings
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import numpy as np
-from osgeo import gdal, gdal_array, ogr, osr
-from osgeo.gdal_array import GDALTypeCodeToNumericTypeCode
+from osgeo import gdal
+
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
+    QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPointXY, \
+    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, \
+    QgsRasterBandStats, QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, \
+    QgsRectangle, QgsTask, QgsTaskManager
 from qgis.PyQt import sip
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QAbstractTableModel, QDate, QDateTime, QDir, \
-    QItemSelectionModel, QMimeData, QModelIndex, QObject, QPoint, QRegExp, QSortFilterProxyModel, Qt, QTime, QUrl
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, \
-    QgsCoordinateTransform, QgsDataProvider, QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, \
-    QgsMimeDataUtils, QgsPoint, QgsPointXY, QgsProcessingFeedback, \
-    QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, QgsRasterBandStats, \
-    QgsRasterDataProvider, QgsRasterInterface, QgsRasterLayer, QgsRasterLayerTemporalProperties, QgsRectangle, QgsTask, \
-    QgsTaskManager
+    QItemSelectionModel, QMimeData, QModelIndex, QObject, QRegExp, QSortFilterProxyModel, Qt, QUrl
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
-from qgis.PyQt.QtXml import QDomDocument
 from qgis.gui import QgisInterface, QgsDockWidget
-
+from qgis.PyQt.QtXml import QDomDocument
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer import DIR_UI, messageLog
-from eotimeseriesviewer.dateparser import DOYfromDatetime64, parseDateFromDataSet
 from .qgispluginsupport.qps.unitmodel import UnitLookup
-from .qgispluginsupport.qps.utils import datetime64, gdalDataset, geo2px, loadUi, LUT_WAVELENGTH, px2geo, relativePath, \
-    SpatialExtent, SpatialPoint
+from .qgispluginsupport.qps.utils import loadUi, LUT_WAVELENGTH, relativePath, SpatialExtent
+from .qgispluginsupport.qps.qgsrasterlayerproperties import QgsRasterLayerSpectralProperties
 from .tasks import EOTSVTask
 
 gdal.SetConfigOption('VRT_SHARED_SOURCE', '0')  # !important. really. do not change this.
@@ -130,6 +126,32 @@ def getDS(pathOrDataset) -> gdal.Dataset:
         return ds
 
 
+def create_sensor_id(lyr: QgsRasterLayer) -> Optional[str]:
+    """
+    Creates a unique sensor_id
+    :param lyr:
+    :return:
+    """
+    assert isinstance(lyr, QgsRasterLayer) and lyr.isValid()
+
+    nb = lyr.bandCount()
+    dp: QgsRasterDataProvider = lyr.dataProvider()
+    px_size_x = lyr.rasterUnitsPerPixelX()
+    px_size_y = lyr.rasterUnitsPerPixelY()
+    dt = dp.dataType(1)
+
+    name = sensorName(lyr)
+    wl = wlu = None
+    spectralProperties = QgsRasterLayerSpectralProperties.fromRasterLayer(lyr)
+    if spectralProperties:
+        wl = spectralProperties.wavelengths()
+        wlu = spectralProperties.wavelengthUnits()
+        if isinstance(wlu, list):
+            wlu = wlu[0]
+
+    return sensorID(nb, px_size_x, px_size_y, dt, wl, wlu, name)
+
+
 def sensorID(nb: int,
              px_size_x: float,
              px_size_y: float,
@@ -157,6 +179,9 @@ def sensorID(nb: int,
     if wl is not None:
         assert isinstance(wl, list)
         assert len(wl) == nb
+
+        if all([w is None for w in wl]):
+            wl = None
 
     if wlu is not None:
         assert isinstance(wlu, str)
@@ -255,27 +280,6 @@ class SensorInstrument(QObject):
             self.wl = np.asarray(self.wl).tolist()
 
         self.hashvalue = hash(self.mId)
-
-        if False:
-            path = '/vsimem/mockupImage.{}.tif'.format(uuid.uuid4())
-            # drv: gdal.Driver = gdal.GetDriverByName('ENVI')
-            self.mMockupDS = gdal_array.SaveArray(np.ones((self.nb, 2, 2),
-                                                          dtype=GDALTypeCodeToNumericTypeCode(self.dataType)), path)
-            # self.mMockupDS: gdal.Dataset = drv.Create(path, 2, 2, self.nb, eType=self.dataType)
-            for b in range(self.nb):
-                band: gdal.Band = self.mMockupDS.GetRasterBand(b + 1)
-                band.ComputeStatistics(0)
-
-            srs = osr.SpatialReference()
-            srs.ImportFromEPSG(4326)
-            self.mMockupDS.SetGeoTransform([1, 1, 0.0, 1, 0.0, -1])
-            self.mMockupDS.SetProjection(srs.ExportToWkt())
-
-            if self.wl is not None:
-                self.mMockupDS.SetMetadataItem('wavelength', '{{{}}}'.format(','.join(str(wl) for wl in self.wl)))
-            if self.wlu is not None:
-                self.mMockupDS.SetMetadataItem('wavelength units', self.wlu)
-            self.mMockupDS.FlushCache()
 
     def bandIndexClosestToWavelength(self, wl, wl_unit='nm') -> int:
         """
@@ -498,6 +502,12 @@ class TimeSeriesSource(object):
 
     MIMEDATA_FORMATS = ['text/uri-list']
 
+    MKeyDateTime = 'datetime'
+    MKeySource = 'source'
+    MKeyProvider = 'provider'
+    MKeyName = 'name'
+    MKeySensor = 'sid'
+
     @classmethod
     def fromMimeData(cls, mimeData: QMimeData) -> List['TimeSeriesSource']:
         sources = []
@@ -516,276 +526,137 @@ class TimeSeriesSource(object):
     def fromJson(cls, jsonData: str) -> 'TimeSeriesSource':
         """
         Returns a TimeSeriesSource from its JSON representation
-        :param json:
+        :param jsonData:
         :return:
         """
-        source = cls(None)
-        state = json.loads(jsonData)
-        source.__setstatedictionary(state)
-        return source
+
+        d = json.loads(jsonData)
+        layer = QgsRasterLayer(d[TimeSeriesSource.MKeySource],
+                               name=d.get(TimeSeriesSource.MKeyName),
+                               providerType=d.get(TimeSeriesSource.MKeyProvider))
+        dtg = QDateTime.fromString(d[TimeSeriesSource.MKeyDateTime], Qt.ISODateWithMs)
+        return TimeSeriesSource(layer, dtg)
+
+    def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
+
+        uri = QgsMimeDataUtils.Uri(self.asRasterLayer())
+        return uri
 
     @classmethod
-    def create(cls, source) -> 'TimeSeriesSource':
+    def create(cls, source: Union[QgsRasterLayer, str, Path]) -> 'TimeSeriesSource':
         """
         Reads the argument and returns a TimeSeriesSource
-        :param source: gdal.Dataset, str, QgsRasterLayer
+        :param source: gdal.Dataset, str or QgsRasterLayer
         :return: TimeSeriesSource
         """
-        ds = None
-        if isinstance(source, QgsRasterLayer):
-            lyr = source
-            provider = lyr.providerType()
 
-            if provider == 'gdal':
-                ds = gdal.Open(lyr.source())
-                s = ""
-            elif provider == 'wcs':
-                parts = urllib.parse.parse_qs(lyr.source())
-                url = re.search(r'^[^?]+', parts['url'][0]).group()
-                identifier = re.search(r'^[^?]+', parts['identifier'][0]).group()
-
-                uri2 = 'WCS:{}?coverage={}'.format(url, identifier)
-                ds = gdal.Open(uri2)
-
-                if not isinstance(ds, gdal.Dataset) or ds.RasterCount == 0:
-                    dsGetCoverage = gdal.Open('WCS:{}'.format(url))
-                    for subdatasetUrl, id in dsGetCoverage.GetSubDatasets():
-                        if id == identifier:
-                            ds = gdal.Open(subdatasetUrl)
-                            break
-
-            else:
-                raise Exception('Unsupported raster data provider: {}'.format(provider))
-
-        elif isinstance(source, str):
-            ds = gdal.Open(source)
-            s = ""
-
+        if isinstance(source, str):
+            source = QgsRasterLayer(source)
+        elif isinstance(source, Path):
+            source = QgsRasterLayer(source.as_posix())
         elif isinstance(source, gdal.Dataset):
-            ds = source
+            source = QgsRasterLayer(source.GetDescription(), providerType='gdal')
 
-        if not isinstance(ds, gdal.Dataset):
-            raise Exception('Unsupported source: {}'.format(source))
+        if isinstance(source, QgsRasterLayer) and source.isValid():
+            date = ImageDateUtils.dateTimeFromLayer(source)
+            if isinstance(date, QDateTime):
+                return TimeSeriesSource(source, date)
+            else:
+                raise Exception(f'Unable to read observation date for {source.source()}')
+        else:
+            raise Exception(f'Unable to open {source} as QgsRasterLayer')
 
-        srs = osr.SpatialReference()
-        proj = ds.GetProjection()
-        if proj in ['', None]:
-            # try to find another SRS definition
-            mdDict = ds.GetMetadata_Dict()
-            if mdDict.get('lat#long_name') == 'latitude' and \
-                    mdDict.get('lon#long_name') == 'longitude':
-                srs.ImportFromEPSG(4326)
-                proj = srs.ExportToWkt()
+    def __init__(self, layer: QgsRasterLayer, dtg: QDateTime):
 
-        assert srs.ImportFromWkt(proj) == ogr.OGRERR_NONE, 'Can not read spatial reference from {}'.format(
-            ds.GetDescription())
+        if isinstance(layer, (Path, str)):
+            layer = QgsRasterLayer(Path(layer).as_posix())
 
-        return cls(ds)
-
-    def __init__(self, dataset: gdal.Dataset = None):
+        assert isinstance(layer, QgsRasterLayer) and layer.isValid()
+        assert isinstance(dtg, QDateTime)
 
         self.mIsVisible: bool = True
-        self.mUri = None
-        self.mDrv = None
-        self.mWKT = None
-        self.mCRS = None
-        self.mWL = None
-        self.mWLU = None
-        self.nb: int = None
-        self.ns: int = None
-        self.nl: int = None
-        self.mGeoTransform = None
-        self.mGSD = None
-        self.mDataType = None
-        self.mSid = None
-        self.mMetaData = None
-        self.mUL = self.mLR = None
+        self.mCrs: QgsCoordinateReferenceSystem = layer.crs()
+        self.mExtent: QgsRectangle = layer.extent()
+        self.mSource: str = layer.source()
+        self.mName: str = layer.name()
+        self.mProvider: str = layer.dataProvider().name()
+        self.mSid: str = create_sensor_id(layer)
+        self.mDims = [layer.bandCount(), layer.height(), layer.width()]
+        self.mIsVisible: bool = True
+        self.mDTG: QDateTime = dtg
 
-        self.mSpatialExtent: SpatialExtent
-        self.mSpatialExtent = None
-        self.mTimeSeriesDate = None
-        try:
-            dataset = gdalDataset(dataset)
-        except Exception:
-            pass
+        self.mLayer: QgsRasterLayer = layer
+        self.mTimeSeriesDate: Optional[TimeSeriesDate] = None
 
-        if isinstance(dataset, gdal.Dataset):
-            assert dataset.RasterCount > 0
-            assert dataset.RasterYSize > 0
-            assert dataset.RasterXSize > 0
-            # self.mUri = dataset.GetFileList()[0]
-            self.mUri = dataset.GetDescription()
-
-            self.mDate = parseDateFromDataSet(dataset)
-            assert self.mDate is not None, 'Unable to find acquisition date of {}'.format(self.mUri)
-
-            self.mDrv = dataset.GetDriver().ShortName
-
-            self.mWL, self.mWLU = extractWavelengths(dataset)
-
-            self.nb, self.nl, self.ns = dataset.RasterCount, dataset.RasterYSize, dataset.RasterXSize
-            self.mGeoTransform = dataset.GetGeoTransform()
-            self.mMetaData = collections.OrderedDict()
-            for domain in dataset.GetMetadataDomainList():
-                self.mMetaData[domain] = dataset.GetMetadata_Dict(domain)
-
-            self.mWKT: str = dataset.GetProjection()
-            if self.mWKT == '':
-                # no CRS? try with QGIS API
-                loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
-                lyr = QgsRasterLayer(self.mUri, options=loptions)
-                if lyr.crs().isValid():
-                    self.mWKT = lyr.crs().toWkt()
-
-            if self.mWKT == '':
-                # default to WGS-84 lat lon
-                self.mWKT = QgsCoordinateReferenceSystem(DEFAULT_CRS).toWkt()
-
-            self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
-
-            px_x = float(abs(self.mGeoTransform[1]))
-            px_y = float(abs(self.mGeoTransform[5]))
-            self.mGSD = (px_x, px_y)
-            self.mDataType = Qgis.DataType(dataset.GetRasterBand(1).DataType)
-
-            sName = sensorName(dataset)
-            self.mSidOriginal = self.mSid = sensorID(self.nb, px_x, px_y, self.mDataType, self.mWL, self.mWLU, sName)
-
-            self.mUL = QgsPointXY(px2geo(QPoint(0, 0), self.mGeoTransform, pxCenter=False))
-            self.mLR = QgsPointXY(px2geo(QPoint(self.ns, self.nl), self.mGeoTransform, pxCenter=False))
-
-            # lyr = QgsRasterLayer(self.mUri)
-            # ext1 = lyr.extent()
-            s = ""
-
-    def __reduce_ex__(self, protocol):
-        return self.__class__, (), self.__getstate__()
-
-    def __statedictionary(self):
+    def nb(self) -> int:
         """
-        Returns the internal state as serializable dictionary.
-
-        :return: dict
+        Returns the number of bands.
+        :return: int
         """
-        state = dict()
-        for name in dir(self):
-            if re.search('^(n|m).+', name):
-                value = getattr(self, name)
-                if isinstance(value, (str, int, float, dict, list, tuple)):
-                    state[name] = value
-                elif isinstance(value, QgsPointXY):
-                    state[name] = value.asWkt()
-                elif isinstance(value, np.datetime64):
-                    state[name] = str(value)
-                elif name in ['mCRS', 'mTimeSeriesDate']:
-                    # will be derived from other variables
-                    continue
-                elif callable(value):
-                    continue
-                else:
-                    s = ""
-        return state
+        return self.mDims[0]
 
-    def __setstatedictionary(self, state: dict):
-        assert isinstance(state, dict)
-        for k, v in state.items():
-            self.__dict__[k] = v
-        self.mCRS = QgsCoordinateReferenceSystem(self.mWKT)
-        if not self.mCRS.isValid():
-            srs = osr.SpatialReference()
-            assert srs.ImportFromWkt(
-                self.mCRS.toWkt()) == ogr.OGRERR_NONE, 'Unable to import spatial reference of {}'.format(self.mUri)
-        self.mUL = QgsPointXY(QgsGeometry.fromWkt(self.mUL).asPoint())
-        self.mLR = QgsPointXY(QgsGeometry.fromWkt(self.mLR).asPoint())
-        self.mDate = np.datetime64(self.mDate)
-        self.mSpatialExtent = None
+    def nl(self) -> int:
+        """
+        Returns the number of lines.
+        :return: int
+        """
+        return self.mDims[1]
 
-    def __getstate__(self):
+    def ns(self) -> int:
+        """
+        Returns the number of samples.
+        :return: int
+        """
+        return self.mDims[2]
 
-        dump = pickle.dumps(self.__statedictionary())
-        return dump
-
-    def __setstate__(self, state):
-        d = pickle.loads(state)
-
-        self.__setstatedictionary(d)
+    def source(self) -> str:
+        """
+        Returns the source uri.
+        :return: str
+        """
+        return self.mSource
 
     def clone(self):
-        import copy
-        return copy.deepcopy(self)
+        return TimeSeriesSource(self.asRasterLayer(False), self.mDTG)
 
-    def rasterUnitsPerPixelX(self) -> float:
-        return abs(self.mGeoTransform[1])
+    def asMap(self) -> dict:
 
-    def rasterUnitsPerPixelY(self) -> float:
-        return abs(self.mGeoTransform[5])
+        d = {self.MKeySource: self.mSource,
+             self.MKeyName: self.mName,
+             self.MKeyProvider: self.mProvider,
+             self.MKeySensor: self.mSid,
+             self.MKeyDateTime: self.mDTG.toString(Qt.ISODate)}
+
+        return d
 
     def json(self) -> str:
         """
-        Returns a JSON representation
+        JSON representation of this for fast restore
         :return:
         """
-        return json.dumps(self.__statedictionary())
+        return json.dumps(self.asMap(), ensure_ascii=False)
 
     def name(self) -> str:
         """
         Returns a name for this data source
         :return:
         """
-        bn = os.path.basename(self.uri())
-        return '{} {}'.format(bn, self.date())
-
-    def uri(self) -> str:
-        """
-        URI that can be used with GDAL to open a dataset
-        :return: str
-        """
-        return self.mUri
-
-    def qgsMimeDataUtilsUri(self) -> QgsMimeDataUtils.Uri:
-        uri = QgsMimeDataUtils.Uri()
-        uri.name = self.name()
-        uri.providerKey = 'gdal'
-        uri.uri = self.uri()
-        uri.layerType = 'raster'
-        return uri
+        return self.mName
+        # bn = os.path.basename(self.mSource)
+        # return '{} {}'.format(bn, self.dtg())
 
     def asRasterLayer(self, loadDefaultStyle: bool = False) -> QgsRasterLayer:
         loptions = QgsRasterLayer.LayerOptions(loadDefaultStyle=loadDefaultStyle)
-        lyr = QgsRasterLayer(self.uri(), self.name(), 'gdal', options=loptions)
+        lyr = QgsRasterLayer(self.mSource, self.mName, self.mProvider, options=loptions)
         tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
         tprop.setIsActive(True)
         tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-        dtg = self.date().astype(object)
-        lyr.setCustomProperty('eotsv/dtg', str(dtg))
-        dt1 = QDateTime(dtg, QTime(0, 0))
-        dt2 = QDateTime(dtg, QTime(23, 59, 59))
-        tprop.setFixedTemporalRange(QgsDateTimeRange(dt1, dt2))
+        lyr.setCustomProperty('eotsv/dtg', self.dtg().toString(Qt.ISODate))
+        tprop.setFixedTemporalRange(QgsDateTimeRange(self.dtg(), self.dtg()))
         return lyr
 
     def crsWkt(self) -> str:
-        return self.mWKT
-
-    def pixelCoordinate(self, geometry) -> QPoint:
-        """
-
-        :param QgsGeometry | QgsPoint | SpatialPoint:
-        :return: QPoint, if coordinate interects with source raster, None else
-        """
-
-        if isinstance(geometry, QgsGeometry):
-            geometry = geometry.asPoint()
-        if isinstance(geometry, QgsPoint):
-            geometry = QgsPointXY(geometry.x(), geometry.y())
-        if isinstance(geometry, SpatialPoint):
-            geometry = geometry.toCrs(self.crs())
-        assert isinstance(geometry, QgsPointXY)
-        px = geo2px(geometry, self.mGeoTransform)
-        assert isinstance(px, QPoint)
-
-        if px.x() < 0 or px.y() < 0 or px.x() >= self.ns or px.y() > self.nl:
-            return None
-        return px
+        return self.crs().toWkt()
 
     def sid(self) -> str:
         """
@@ -794,30 +665,23 @@ class TimeSeriesSource(object):
         """
         return self.mSid
 
-    def timeSeriesDate(self):
-        """
-        Returns the parent TimeSeriesDate (if set)
-        :return: TimeSeriesDate
-        """
-        return self.mTimeSeriesDate
-
-    def setTimeSeriesDate(self, tsd):
+    def setTimeSeriesDate(self, tsd: 'TimeSeriesDate'):
         """
         Sets the parent TimeSeriesDate
         :param tsd: TimeSeriesDate
         """
+        assert isinstance(tsd, TimeSeriesDate)
         self.mTimeSeriesDate = tsd
 
-    def qDateTime(self) -> QDateTime:
-        return QDateTime(self.mDate.astype(object))
+    def timeSeriesDate(self) -> 'TimeSeriesDate':
+        return self.mTimeSeriesDate
 
-    def date(self) -> np.datetime64:
+    def dtg(self) -> QDateTime:
         """
-        Returns the date-time-group of the source image
-        :return:
-        :rtype:
+        Returns the Date-Time-Group this observation is related to
+        :return: QDateTime
         """
-        return self.mDate
+        return self.mDTG
 
     def crs(self) -> QgsCoordinateReferenceSystem:
         """
@@ -825,7 +689,7 @@ class TimeSeriesSource(object):
         :return:
         :rtype:
         """
-        return self.mCRS
+        return self.mCrs
 
     def spatialExtent(self) -> SpatialExtent:
         """
@@ -833,9 +697,7 @@ class TimeSeriesSource(object):
         :return:
         :rtype:
         """
-        if not isinstance(self.mSpatialExtent, SpatialExtent):
-            self.mSpatialExtent = SpatialExtent(self.mCRS, self.mUL, self.mLR)
-        return self.mSpatialExtent
+        return SpatialExtent(self.mCrs, self.mExtent)
 
     def asDataset(self) -> gdal.Dataset:
         """
@@ -843,7 +705,7 @@ class TimeSeriesSource(object):
         :return:
         :rtype:
         """
-        return gdal.Open(self.uri())
+        return gdal.Open(self.mSource)
 
     def isVisible(self) -> bool:
         return self.mIsVisible
@@ -855,14 +717,14 @@ class TimeSeriesSource(object):
     def __eq__(self, other):
         if not isinstance(other, TimeSeriesSource):
             return False
-        return self.mUri == other.mUri
+        return self.mSource == other.mSource
 
     def __lt__(self, other):
         assert isinstance(other, TimeSeriesSource)
-        return self.date() < other.date()
+        return self.dtg() < other.dtg()
 
     def __hash__(self):
-        return hash(self.mUri)
+        return hash(self.mSource)
 
 
 class TimeSeriesDate(QAbstractTableModel):
@@ -881,29 +743,23 @@ class TimeSeriesDate(QAbstractTableModel):
 
     ColumnNames = [cnNB, cnNL, cnNS, cnCRS, cnUri]
 
-    def __init__(self, timeSeries, date: np.datetime64, sensor: SensorInstrument):
+    def __init__(self, dtr: QgsDateTimeRange, sensor: SensorInstrument):
         """
         Constructor
-        :param timeSeries: TimeSeries, parent TimeSeries instance, optional
-        :param date: np.datetime64,
+        :param dtr: np.datetime64,
         :param sensor: SensorInstrument
         """
         super(TimeSeriesDate, self).__init__()
 
-        assert isinstance(date, np.datetime64)
+        assert isinstance(dtr, QgsDateTimeRange)
         assert isinstance(sensor, SensorInstrument)
 
         self.mSensor: SensorInstrument = sensor
-        self.mDate: np.datetime64 = None
-        self.mDOY: int = None
+        self.mDTR: QgsDateTimeRange = dtr
+
         self.mSources: List[TimeSeriesSource] = []
         self.mMasks = []
-        self.mTimeSeries: TimeSeries = timeSeries
-        self.setDate(date)
-
-    def setDate(self, date):
-        self.mDate = date
-        self.mDOY = DOYfromDatetime64(date)
+        self.mTimeSeries: Optional[TimeSeries] = None
 
     def removeSource(self, source: TimeSeriesSource):
 
@@ -914,41 +770,45 @@ class TimeSeriesDate(QAbstractTableModel):
             self.endRemoveRows()
             self.sigSourcesRemoved.emit([source])
 
+    def dateTimeRange(self) -> QgsDateTimeRange:
+        return QgsDateTimeRange(self.mDTR.begin(), self.mDTR.end())
+
     def scope(self) -> QgsExpressionContextScope:
 
         scope = QgsExpressionContextScope(self.__class__.__name__)
-        scope.setVariable('date', str(self.date()))
-        scope.setVariable('doy', self.doy())
-        scope.setVariable('decimalYear', self.decimalYear())
+        dtg0: QDateTime = self.dateTimeRange().begin()
+        d0: QDate = dtg0.date()
+
+        scope.setVariable('date', dtg0.toString(Qt.ISODate))
+        scope.setVariable('doy', ImageDateUtils.doiFromDateTime(dtg0))
+        scope.setVariable('decimalYear', ImageDateUtils.decimalYear(dtg0))
         scope.setVariable('sensor', self.sensor().name())
+        scope.setVariable('sensor_id', self.sensor().id())
 
         return scope
 
-    def addSource(self, source):
+    def addSource(self, source: TimeSeriesSource):
         """
         Adds an time series source to this TimeSeriesDate
         :param path: TimeSeriesSource or any argument accepted by TimeSeriesSource.create()
         :return: TimeSeriesSource, if added
         """
 
-        if not isinstance(source, TimeSeriesSource):
-            return self.addSource(TimeSeriesSource.create(source))
+        assert isinstance(source, TimeSeriesSource)
+        # assert self.mDate == source.date()
+        # assert self.mSensor.id() == source.sid()
+
+        source.setTimeSeriesDate(self)
+
+        if source not in self.mSources:
+            i = len(self)
+            self.beginInsertRows(QModelIndex(), i, i)
+            self.mSources.append(source)
+            self.endInsertRows()
+            self.sigSourcesAdded.emit([source])
+            return source
         else:
-            assert isinstance(source, TimeSeriesSource)
-            # assert self.mDate == source.date()
-            assert self.mSensor.id() == source.sid()
-
-            source.setTimeSeriesDate(self)
-
-            if source not in self.mSources:
-                i = len(self)
-                self.beginInsertRows(QModelIndex(), i, i)
-                self.mSources.append(source)
-                self.endInsertRows()
-                self.sigSourcesAdded.emit([source])
-                return source
-            else:
-                return None
+            return None
 
     def checkState(self) -> Qt.CheckState:
         """
@@ -965,7 +825,7 @@ class TimeSeriesDate(QAbstractTableModel):
     def sensor(self) -> SensorInstrument:
         """
         Returns the SensorInstrument
-        :return: SensorInsturment
+        :return: SensorInstrument
         """
         return self.mSensor
 
@@ -981,7 +841,7 @@ class TimeSeriesDate(QAbstractTableModel):
         Returns all source URIs as list of strings-
         :return: [list-of-str]
         """
-        return [tss.uri() for tss in self.sources()]
+        return [tss.source() for tss in self.sources()]
 
     def qgsMimeDataUtilsUris(self) -> list:
         """
@@ -990,29 +850,19 @@ class TimeSeriesDate(QAbstractTableModel):
         """
         return [s.qgsMimeDataUtilsUri() for s in self.sources()]
 
-    def temporalRange(self) -> QgsDateTimeRange:
-
-        d1 = d2 = self.mDate.astype(object)
-        if len(self.mSources) > 0:
-            dates = [s.date() for s in self]
-            d1 = min(dates).astype(object)
-            d2 = max(dates).astype(object)
-
-        if d1 == d2:
-            if isinstance(d1, datetime.date) and isinstance(d2, datetime.date):
-                return QgsDateTimeRange(QDateTime(QDate(d1)),
-                                        QDateTime(QDate(d1), QTime(23, 59, 59)))
-        return QgsDateTimeRange(QDateTime(d1), QDateTime(d2))
-
-    def qDateTime(self) -> QDateTime:
-        return QDateTime(self.mDate.astype(object))
-
-    def date(self) -> np.datetime64:
+    def dtg(self) -> QDateTime:
         """
-        Returns the observation date
-        :return: numpy.datetime64
+        Returns the beginning date-time group (DTG) of the described date-time-range.
+        :return: QDateTime
         """
-        return np.datetime64(self.mDate)
+        return self.mDTR.begin()
+
+    def dtgString(self) -> str:
+
+        prec = self.mTimeSeries.dateTimePrecision() \
+            if isinstance(self.mTimeSeries, TimeSeries) \
+            else DateTimePrecision.Day
+        return ImageDateUtils.dateString(self.dtg(), prec)
 
     def decimalYear(self) -> float:
         """
@@ -1020,21 +870,21 @@ class TimeSeriesDate(QAbstractTableModel):
         :return: float
         """
 
-        return self.year() + self.doy() / (366 + 1)
+        return ImageDateUtils.decimalYear(self.dtg())
 
     def year(self) -> int:
         """
         Returns the observation year
         :return: int
         """
-        return self.mDate.astype(object).year
+        return self.dtg().date().year()
 
     def doy(self) -> int:
         """
         Returns the day of Year (DOY)
         :return: int
         """
-        return int(self.mDOY)
+        return ImageDateUtils.doiFromDateTime(self.dtg())
 
     def hasIntersectingSource(self, spatialExtent: SpatialExtent):
         for source in self:
@@ -1046,7 +896,7 @@ class TimeSeriesDate(QAbstractTableModel):
                     return True
         return False
 
-    def spatialExtent(self):
+    def spatialExtent(self, crs: Optional[QgsCoordinateReferenceSystem] = None):
         """
         Returns the SpatialExtent of all data sources
         :return: SpatialExtent
@@ -1056,8 +906,12 @@ class TimeSeriesDate(QAbstractTableModel):
             assert isinstance(tss, TimeSeriesSource)
             if i == 0:
                 ext = tss.spatialExtent()
+                if crs is None:
+                    crs = ext.crs()
+                else:
+                    ext = ext.toCrs(crs)
             else:
-                ext.combineExtentWith(tss.spatialExtent())
+                ext.combineExtentWith(tss.spatialExtent().toCrs(crs))
         return ext
 
     def imageBorders(self) -> QgsGeometry:
@@ -1073,7 +927,7 @@ class TimeSeriesDate(QAbstractTableModel):
         String representation
         :return:
         """
-        return 'TimeSeriesDate({},{})'.format(str(self.mDate), str(self.mSensor))
+        return 'TimeSeriesDate({},{})'.format(str(self.mDTR), str(self.mSensor))
 
     def __eq__(self, other) -> bool:
         """
@@ -1110,9 +964,9 @@ class TimeSeriesDate(QAbstractTableModel):
         :return: bool
         """
         assert isinstance(other, TimeSeriesDate)
-        if self.date() < other.date():
+        if self.dtg() < other.dtg():
             return True
-        elif self.date() > other.date():
+        elif self.dtg() > other.dtg():
             return False
         else:
             return self.sensor().id() < other.sensor().id()
@@ -1148,53 +1002,26 @@ class TimeSeriesDate(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             if cn == TimeSeriesDate.cnNB:
-                return tss.nb
+                return tss.nb()
             if cn == TimeSeriesDate.cnNS:
-                return tss.ns
+                return tss.ns()
             if cn == TimeSeriesDate.cnNL:
-                return tss.nl
+                return tss.nl()
             if cn == TimeSeriesDate.cnCRS:
                 return tss.crs().description()
             if cn == TimeSeriesDate.cnUri:
-                return tss.uri()
+                return tss.source()
 
         return None
 
-    def id(self) -> tuple:
+    def id(self) -> Tuple[QgsDateTimeRange, str]:
         """
         :return: tuple
         """
-        return (self.mDate, self.mSensor.id())
-
-    def mimeDataUris(self) -> list:
-        """
-        Returns the sources of this TSD as list of QgsMimeDataUtils.Uris
-        :return: [list-of-QgsMimeDataUtils]
-        """
-        results = []
-        for tss in self.sources():
-            assert isinstance(tss, TimeSeriesSource)
-
-        [tss.uri() for tss in self.sources()]
+        return self.mDTR, self.mSensor.id()
 
     def __hash__(self):
-        return hash(self.id())
-
-
-class DateTimePrecision(enum.Enum):
-    """
-    Describes the precision to pares DateTimeStamps.
-    """
-
-    Year = 'Y'
-    Month = 'M'
-    Week = 'W'
-    Day = 'D'
-    Hour = 'h'
-    Minute = 'm'
-    Second = 's'
-    Milisecond = 'ms'
-    Original = 0
+        return hash(str(self.id()))
 
 
 class SensorMatching(enum.Flag):
@@ -1266,7 +1093,7 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
     def __init__(self,
                  extent: SpatialExtent,
                  time_series_sources: List[TimeSeriesSource],
-                 date_of_interest: np.datetime64 = None,
+                 date_of_interest: QDateTime = None,
                  max_forward: int = -1,
                  max_backward: int = -1,
                  callback=None,
@@ -1298,22 +1125,22 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         assert sample_size >= 1
         assert progress_interval >= 1
         assert isinstance(extent, SpatialExtent)
-        self.mTSS: List[Tuple[str, np.datetime64]] = \
-            [(tss.uri(), tss.date()) for tss in time_series_sources]
+        self.mTimeSeriesSources: List[TimeSeriesSource] = [tss.clone() for tss in time_series_sources]
 
-        self.mDates = set([t[1] for t in self.mTSS])
-        if not isinstance(date_of_interest, np.datetime64):
+        self.mDates = set([tss.dtg() for tss in self.mTimeSeriesSources])
+
+        if not isinstance(date_of_interest, QDateTime):
             self.mDOI = list(self.mDates)[0]
         else:
             self.mDOI = date_of_interest
 
         if max_forward == -1:
-            self.m_max_forward = len(self.mTSS)
+            self.m_max_forward = len(self.mTimeSeriesSources)
         else:
             self.m_max_forward = max_forward
 
         if max_backward == -1:
-            self.m_max_backward = len(self.mTSS)
+            self.m_max_backward = len(self.mTimeSeriesSources)
         else:
             self.m_max_backward = max_backward
 
@@ -1333,9 +1160,8 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         self.mExtentLookup: Dict[str, SpatialExtent] = dict()
         self.mExtentLookup[targetCRS.toWkt()] = self.mTargetExtent
 
-    def testTSS(self, tssUri: str) -> bool:
+    def testTSS(self, tss: TimeSeriesSource) -> bool:
 
-        tss = TimeSeriesSource.create(tssUri)
         wkt = tss.crsWkt()
         if wkt not in self.mExtentLookup.keys():
             self.mExtentLookup[wkt] = self.mTargetExtent.toCrs(tss.crs())
@@ -1347,48 +1173,20 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         if not targetExtent2.intersects(tss.spatialExtent()):
             return False
 
-        if True:
-            ds: gdal.Dataset = tss.asDataset()
-            if not isinstance(ds, gdal.Dataset):
-                return False
-            band1: gdal.Band = ds.GetRasterBand(1)
-            if not isinstance(band1, gdal.Band):
-                return False
+        lyr: QgsRasterLayer = tss.asRasterLayer()
+        if not isinstance(lyr, QgsRasterLayer):
+            return False
 
-            nodata = band1.GetNoDataValue()
-            if nodata is None:
-                return True
-            gt = ds.GetGeoTransform()
-            ul = geo2px(targetExtent2.upperLeftPt(), gt)
-            lr = geo2px(targetExtent2.lowerRightPt(), gt)
-
-            x0 = max(ul.x(), 0)
-            y0 = max(ul.y(), 0)
-            x1 = min(lr.x(), ds.RasterXSize - 1)
-            y1 = min(lr.y(), ds.RasterYSize - 1)
-
-            xsize = x1 - x0 + 1
-            ysize = y1 - y0 + 1
-
-            if xsize <= 0 or ysize <= 0:
-                return False
-
-            data = band1.ReadAsArray(x0, y0, xsize, ysize, min(self.mSampleSize, xsize), min(self.mSampleSize, ysize))
-            return bool(np.any(data != nodata))
-
-        else:
-            lyr: QgsRasterLayer = tss.asRasterLayer()
-            if not isinstance(lyr, QgsRasterLayer):
-                return False
-
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
             stats: QgsRasterBandStats = lyr.dataProvider().bandStatistics(1,
-                                                                          stats=QgsRasterBandStats.Range,
+                                                                          stats=Qgis.RasterBandStatistic.Range,
                                                                           extent=targetExtent2,
                                                                           sampleSize=self.mSampleSize)
 
-            if not isinstance(stats, QgsRasterBandStats):
-                return False
-            return (stats.minimumValue, stats.maximumValue) != self.mEmptyMinMax
+        if not isinstance(stats, QgsRasterBandStats):
+            return False
+        return (stats.minimumValue, stats.maximumValue) != self.mEmptyMinMax
 
     def run(self):
         """
@@ -1396,15 +1194,16 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         :return:
         """
 
-        try:
+        # try:
+        if True:
             # for tssUri in self.mTSS:
             #    self.mIntersections[tssUri] = False
 
-            n = len(self.mTSS)
+            n = len(self.mTimeSeriesSources)
 
             t0 = datetime.datetime.now()
 
-            sources = sorted(self.mTSS, key=lambda t: abs(self.mDOI - t[1]))
+            sources = sorted(self.mTimeSeriesSources, key=lambda tss: abs(tss.dtg().secsTo(self.mDOI)))
 
             dates_before = set()
             dates_after = set()
@@ -1412,16 +1211,15 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
             smallest = min(self.mDates)
             highest = max(self.mDates)
 
-            for i, t in enumerate(sources):
+            for i, tss in enumerate(sources):
 
-                tssUri: str = t[0]
-                obs_date: np.datetime64 = t[1]
+                obs_date: QDateTime = tss.dtg()
 
                 if obs_date < smallest or obs_date > highest:
                     continue
 
-                is_intersection: bool = self.testTSS(tssUri)
-                self.mIntersections[tssUri] = is_intersection
+                is_intersection: bool = self.testTSS(tss)
+                self.mIntersections[tss.source()] = is_intersection
 
                 if is_intersection:
                     if obs_date < self.mDOI:
@@ -1443,9 +1241,9 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
                     self.setProgress(progress)
                     t0 = datetime.datetime.now()
 
-        except Exception as ex:
-            self.mError = ex
-            return False
+        # except Exception as ex:
+        #    self.mError = ex
+        #    return False
 
         if len(self.mIntersections) > 0:
             self.sigTimeSeriesSourceOverlap.emit(self.mIntersections.copy())
@@ -1505,7 +1303,7 @@ class TimeSeriesLoadingTask(EOTSVTask):
 
                 try:
                     tss = TimeSeriesSource.create(path)
-                    assert isinstance(tss, TimeSeriesSource)
+                    assert isinstance(tss, TimeSeriesSource), f'Unable to open {path} as TimeSeriesSource'
                     tss.setIsVisible(self.mVisibility[i])
                     # self.mSources.append(tss)
                     result_block.append(tss)
@@ -1562,28 +1360,36 @@ class TimeSeries(QAbstractItemModel):
     sigMessage = pyqtSignal(str, Qgis.MessageLevel)
     _sep = ';'
 
+    cDate = 0
+    cSensor = 1
+    cNS = 2
+    cNL = 3
+    cNB = 4
+    cCRS = 5
+    cImages = 6
+
     def __init__(self, imageFiles=None):
         super(TimeSeries, self).__init__()
-        self.mTSDs = list()
-        self.mSensors = []
+        self.mTSDs: List[TimeSeriesDate] = list()
+        self.mSensors: List[SensorInstrument] = []
         self.mShape = None
         self.mTreeView: QTreeView = None
-        self.mDateTimePrecision = DateTimePrecision.Original
+        self.mDateTimePrecision = DateTimePrecision.Day
         self.mSensorMatchingFlags = SensorMatching.PX_DIMS
 
         self.mLUT_Path2TSD = {}
         self.mVisibleDates: Set[TimeSeriesDate] = set()
 
-        self.cnDate = 'Date'
-        self.cnSensor = 'Sensor'
-        self.cnNS = 'ns'
-        self.cnNL = 'nl'
-        self.cnNB = 'nb'
-        self.cnCRS = 'CRS'
-        self.cnImages = 'Source Image(s)'
-        self.mColumnNames = [self.cnDate, self.cnSensor,
-                             self.cnNS, self.cnNL, self.cnNB,
-                             self.cnCRS, self.cnImages]
+        self.mColumnNames = {
+            self.cDate: 'Date',
+            self.cSensor: 'Sensor',
+            self.cNS: 'ns',
+            self.cNB: 'nb',
+            self.cNL: 'nl',
+            self.cCRS: 'CRS',
+            self.cImages: 'Source Image(s)'
+        }
+
         self.mRootIndex = QModelIndex()
         self.mTasks = dict()
 
@@ -1726,15 +1532,15 @@ class TimeSeries(QAbstractItemModel):
 
         return None
 
-    def sensor(self, sensorID: str) -> SensorInstrument:
+    def sensor(self, sensor_id: str) -> SensorInstrument:
         """
         Returns the sensor with sid = sid
-        :param sensorID: str, sensor id
+        :param sensor_id: str, sensor id
         :return: SensorInstrument
         """
-        assert isinstance(sensorID, str)
+        assert isinstance(sensor_id, str)
 
-        nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensorID)
+        nb, px_size_x, px_size_y, dt, wl, wlu, name = sensorIDtoProperties(sensor_id)
 
         refValues = (nb, px_size_y, px_size_x, dt, wl, wlu, name)
         for sensor in self.sensors():
@@ -1798,7 +1604,7 @@ class TimeSeries(QAbstractItemModel):
         for TSD in self:
             assert isinstance(TSD, TimeSeriesDate)
             for TSS in TSD:
-                uri = TSS.uri()
+                uri = TSS.source()
                 if relative_path:
                     uri = relativePath(uri, path.parent)
                 lines.append(str(uri))
@@ -1819,7 +1625,7 @@ class TimeSeries(QAbstractItemModel):
             r.append((QgsRectangle(sensor.px_size_x, sensor.px_size_y)))
         return r
 
-    def maxSpatialExtent(self, crs=None) -> SpatialExtent:
+    def maxSpatialExtent(self, crs: QgsCoordinateReferenceSystem = None) -> SpatialExtent:
         """
         Returns the maximum SpatialExtent of all images of the TimeSeries
         :param crs: QgsCoordinateSystem to express the SpatialExtent coordinates.
@@ -1828,7 +1634,7 @@ class TimeSeries(QAbstractItemModel):
         extent = None
         for i, tsd in enumerate(self.mTSDs):
             assert isinstance(tsd, TimeSeriesDate)
-            ext = tsd.spatialExtent()
+            ext = tsd.spatialExtent(crs=crs)
             if isinstance(extent, SpatialExtent):
                 extent = extent.combineExtentWith(ext)
             else:
@@ -1852,23 +1658,24 @@ class TimeSeries(QAbstractItemModel):
                     return tsd
         return None
 
-    def tsd(self, date: np.datetime64, sensor) -> TimeSeriesDate:
+    def tsd(self, dtr: QgsDateTimeRange, sensor: Union[SensorInstrument, str]) -> Optional[TimeSeriesDate]:
         """
-        Returns the TimeSeriesDate identified by date and sensorID
-        :param date: numpy.datetime64
+        Returns the TimeSeriesDate identified by date-time-range and sensorID
+        :param dtr: numpy.datetime64
         :param sensor: SensorInstrument | str with sensor id
         :return:
         """
-        assert isinstance(date, np.datetime64)
+        assert isinstance(dtr, QgsDateTimeRange)
         if isinstance(sensor, str):
             sensor = self.sensor(sensor)
+
         if isinstance(sensor, SensorInstrument):
             for tsd in self.mTSDs:
-                if tsd.date() == date and tsd.sensor() == sensor:
+                if tsd.dateTimeRange() == dtr and tsd.sensor() == sensor:
                     return tsd
         else:
             for tsd in self.mTSDs:
-                if tsd.date() == date:
+                if tsd.dateTimeRange() == dtr:
                     return tsd
         return None
 
@@ -1991,7 +1798,7 @@ class TimeSeries(QAbstractItemModel):
         """
         tsds = self.mTSDs[:]
         if date:
-            tsds = [tsd for tsd in tsds if tsd.date() == date]
+            tsds = [tsd for tsd in tsds if tsd.dtg() == date]
         if sensor:
             tsds = [tsd for tsd in tsds if tsd.sensor() == sensor]
         return tsds
@@ -2020,10 +1827,8 @@ class TimeSeries(QAbstractItemModel):
         sensor = self.sender()
 
         if isinstance(sensor, SensorInstrument) and sensor in self.sensors():
-            c = self.columnNames().index(self.cnSensor)
-
-            idx0 = self.index(0, c)
-            idx1 = self.index(self.rowCount() - 1, c)
+            idx0 = self.index(0, self.cSensor)
+            idx1 = self.index(self.rowCount() - 1, self.cSensor)
             self.dataChanged.emit(idx0, idx1)
             self.sigSensorNameChanged.emit(sensor)
         s = ""
@@ -2149,21 +1954,17 @@ class TimeSeries(QAbstractItemModel):
 
         self.onRemoveTask(task)
 
-    def addTimeSeriesSource(self, source: TimeSeriesSource) -> TimeSeriesDate:
+    def addTimeSeriesSource(self, tss: TimeSeriesSource) -> TimeSeriesDate:
         """
         :param source:
         :return: TimeSeriesDate (if new created)
         """
-        if isinstance(source, TimeSeriesSource):
-            tss = source
-        else:
-            tss = TimeSeriesSource.create(source)
-
         assert isinstance(tss, TimeSeriesSource)
 
         newTSD = None
 
-        tsdDate = self.date2date(tss.date())
+        tsr: QgsDateTimeRange = ImageDateUtils.dateRange(tss.dtg(), self.mDateTimePrecision)
+
         sid = tss.sid()
         sensor = self.findMatchingSensor(sid)
 
@@ -2173,24 +1974,25 @@ class TimeSeries(QAbstractItemModel):
             sensor = self.addSensor(sensor)
             assert isinstance(sensor, SensorInstrument)
         assert isinstance(sensor, SensorInstrument)
-        tsd = self.tsd(tsdDate, sensor)
+        tsd = self.tsd(tsr, sensor)
 
         # if necessary, add a new TimeSeriesDate instance
         if not isinstance(tsd, TimeSeriesDate):
-            tsd = self.insertTSD(TimeSeriesDate(self, tsdDate, sensor))
-            newTSD = tsd
+            tsd = TimeSeriesDate(tsr, sensor)
+            tsd.mTimeSeries = self
+            newTSD = self.insertTSD(tsd)
+            assert tsd == newTSD
             # addedDates.append(tsd)
         assert isinstance(tsd, TimeSeriesDate)
-
-        # ensure that the source refers to the sensor ID of the linked sensor (which might be
-        # different from its original sensor id)
-        tss.mSid = sensor.id()
 
         # add the source
 
         tsd.addSource(tss)
-        self.mLUT_Path2TSD[tss.uri()] = tsd
+        self.mLUT_Path2TSD[tss.source()] = tsd
         return newTSD
+
+    def dateTimePrecision(self) -> DateTimePrecision:
+        return self.mDateTimePrecision
 
     def setDateTimePrecision(self, mode: DateTimePrecision):
         """
@@ -2198,8 +2000,13 @@ class TimeSeries(QAbstractItemModel):
         :param mode: TimeSeriesViewer:DateTimePrecision
         :return:
         """
+        assert isinstance(mode, DateTimePrecision)
+        all_sources = list(self.timeSeriesSources())
+        self.beginResetModel()
+        self.clear()
         self.mDateTimePrecision = mode
-
+        self.addTimeSeriesSources(all_sources)
+        self.endResetModel()
         # do we like to update existing sources?
 
     def setSensorMatching(self, flags: SensorMatching):
@@ -2212,21 +2019,7 @@ class TimeSeries(QAbstractItemModel):
         assert bool(flags & SensorMatching.PX_DIMS), 'SensorMatching flags PX_DIMS needs to be set'
         self.mSensorMatchingFlags = flags
 
-    def date2date(self, date: np.datetime64) -> np.datetime64:
-        """
-        Converts a date of arbitrary precision into the date with precision according to the EOTSV settions.
-        :param date: numpy.datetime64
-        :return: numpy.datetime64
-        """
-        assert isinstance(date, np.datetime64)
-        if self.mDateTimePrecision == DateTimePrecision.Original:
-            return date
-        else:
-            date = np.datetime64(date, self.mDateTimePrecision.value)
-
-        return date
-
-    def sources(self) -> list:
+    def sources(self) -> List[TimeSeriesSource]:
         """
         Returns the input sources
         :return: iterator over [list-of-TimeSeriesSources]
@@ -2236,7 +2029,7 @@ class TimeSeries(QAbstractItemModel):
             for source in tsd:
                 yield source
 
-    def sourceUris(self) -> list:
+    def sourceUris(self) -> List[str]:
         """
         Returns the uris of all sources
         :return: [list-of-str]
@@ -2322,13 +2115,6 @@ class TimeSeries(QAbstractItemModel):
 
         if isinstance(node, TimeSeriesSource):
             return 0
-
-    def columnNames(self) -> list:
-        """
-        Returns the column names
-        :return: [list-of-string]
-        """
-        return self.mColumnNames[:]
 
     def columnCount(self, index: QModelIndex = None) -> int:
         """
@@ -2419,7 +2205,7 @@ class TimeSeries(QAbstractItemModel):
         for tss in self.timeSeriesSources():
             tss: TimeSeriesSource
             sources.append({
-                'uri': tss.mUri,
+                'source': tss.source(),
                 'visible': tss.isVisible()
             })
         d['sources'] = sources
@@ -2439,11 +2225,11 @@ class TimeSeries(QAbstractItemModel):
         sources = []
 
         for d in data.get('sources', []):
-            uri = d.get('uri')
+            src = d.get('source')
 
-            if uri:
-                tss = TimeSeriesSource.create(uri)
-                uri_vis[tss.uri()] = d.get('visible', True)
+            if src:
+                tss = TimeSeriesSource.create(src)
+                uri_vis[tss.source()] = d.get('visible', True)
                 if isinstance(tss, TimeSeriesSource):
                     sources.append(tss)
 
@@ -2454,9 +2240,9 @@ class TimeSeries(QAbstractItemModel):
             self.addTimeSeriesSources(sources)
 
         for tss in self.timeSeriesSources():
-            tss.setIsVisible(uri_vis.get(tss.uri(), tss.isVisible()))
+            tss.setIsVisible(uri_vis.get(tss.source(), tss.isVisible()))
 
-    def data(self, index, role):
+    def data(self, index: QModelIndex, role: Qt.DisplayRole):
         """
         :param index: QModelIndex
         :param role: Qt.ItemRole
@@ -2478,56 +2264,42 @@ class TimeSeries(QAbstractItemModel):
         if role == Qt.UserRole:
             return node
 
-        cName = self.mColumnNames[index.column()]
+        c = index.column()
 
         if isinstance(node, TimeSeriesSource):
             if role in [Qt.DisplayRole]:
-                if cName == self.cnDate:
-                    return str(tss.date())
-                if cName == self.cnImages:
-                    return tss.uri()
-                if cName == self.cnNB:
-                    return tss.nb
-                if cName == self.cnNL:
-                    return tss.nl
-                if cName == self.cnNS:
-                    return tss.ns
-                if cName == self.cnCRS:
+                if c == self.cDate:
+                    return tss.dtg().toString(Qt.ISODate)
+                if c == self.cImages:
+                    return tss.source()
+                if c == self.cNB:
+                    return tss.nb()
+                if c == self.cNL:
+                    return tss.nl()
+                if c == self.cNS:
+                    return tss.ns()
+                if c == self.cCRS:
                     return tss.crs().description()
-                if cName == self.cnSensor:
+                if c == self.cSensor:
                     return tsd.sensor().name()
 
-            if role == Qt.CheckStateRole and index.column() == 0:
+            if role == Qt.CheckStateRole and c == 0:
                 return Qt.Checked if node.isVisible() else Qt.Unchecked
 
-            if role == Qt.DecorationRole and index.column() == 0:
-
+            if role == Qt.DecorationRole and c == 0:
                 return None
-
-                ext = tss.spatialExtent()
-                if isinstance(self.mCurrentSpatialExtent, SpatialExtent) and isinstance(ext, SpatialExtent):
-                    ext = ext.toCrs(self.mCurrentSpatialExtent.crs())
-
-                    b = isinstance(ext, SpatialExtent) and ext.intersects(self.mCurrentSpatialExtent)
-                    if b:
-                        return QIcon(r':/eotimeseriesviewer/icons/mapview.svg')
-                    else:
-                        return QIcon(r':/eotimeseriesviewer/icons/mapviewHidden.svg')
-                else:
-                    print(ext)
-                    return None
 
             if role == Qt.BackgroundColorRole and tsd in self.mVisibleDates:
                 return QColor('yellow')
 
         if isinstance(node, TimeSeriesDate):
             if role in [Qt.DisplayRole]:
-                if cName == self.cnSensor:
+                if c == self.cSensor:
                     return tsd.sensor().name()
-                if cName == self.cnImages:
+                if c == self.cImages:
                     return len(tsd)
-                if cName == self.cnDate:
-                    return str(tsd.date())
+                if c == self.cDate:
+                    return ImageDateUtils.dateString(tsd.dtg(), self.dateTimePrecision())
 
             if role == Qt.CheckStateRole and index.column() == 0:
                 return node.checkState()
@@ -2536,6 +2308,10 @@ class TimeSeries(QAbstractItemModel):
                 return QColor('yellow')
 
         return None
+
+    def dateRangeString(self, dateTimeRange: QgsDateTimeRange):
+
+        return dateTimeRange.begin().toString(Qt.ISODate)
 
     def setData(self, index: QModelIndex, value: Any, role: int):
 
@@ -2588,24 +2364,24 @@ class TimeSeries(QAbstractItemModel):
                     return tssCandidate
         return None
 
-    def findDate(self, date) -> TimeSeriesDate:
+    def findDate(self, date) -> Optional[TimeSeriesDate]:
         """
         Returns a TimeSeriesDate closest to that in date
-        :param date: numpy.datetime64 | str | TimeSeriesDate
+        :param date: QDateTime | str | TimeSeriesDate
         :return: TimeSeriesDate
         """
         if isinstance(date, TimeSeriesDate):
-            date = date.date()
-        else:
-            date = datetime64(date)
+            date = date.dtg()
+        elif isinstance(date, str):
+            date = QDateTime.fromString(date, Qt.ISODateWithMs)
 
-        assert isinstance(date, np.datetime64)
+        assert isinstance(date, QDateTime)
 
         if len(self) == 0:
             return None
-        dtAbs = np.abs(date - np.asarray([tsd.date() for tsd in self.mTSDs]))
 
-        i = np.argmin(dtAbs)
+        secs2date = [date.secsTo(tsd.dtg()) for tsd in self.mTSDs]
+        i = np.argmin(np.abs(np.asarray(secs2date)))
         return self.mTSDs[i]
 
     def flags(self, index):
@@ -2691,11 +2467,11 @@ class TimeSeriesTreeView(QTreeView):
         menu.addSeparator()
 
         if isinstance(node, TimeSeriesDate):
-            a = menu.addAction('Move to date {}'.format(node.date()))
-            a.setToolTip(f'Sets the current map date to {node.date()}.')
+            a = menu.addAction('Move to date {}'.format(node.dtgString()))
+            a.setToolTip(f'Sets the current map date to {node.dtg()}.')
             a.triggered.connect(lambda *args, tsd=node: self.sigMoveToDate.emit(tsd))
 
-            a = menu.addAction('Move to extent {}'.format(node.date()))
+            a = menu.addAction('Move to extent {}'.format(node.dtg()))
             a.setToolTip('Sets the current map extent')
             a.triggered.connect(lambda *args, tsd=node: self.onMoveToExtent(tsd.spatialExtent()))
 
@@ -2704,7 +2480,7 @@ class TimeSeriesTreeView(QTreeView):
         elif isinstance(node, TimeSeriesSource):
 
             a = menu.addAction('Show {}'.format(node.name()))
-            a.setToolTip(f'Sets the current map date to {node.date()} and zooms\nto the spatial extent of {node.uri()}')
+            a.setToolTip(f'Sets the current map date to {node.dtg()} and zooms\nto the spatial extent of {node.uri()}')
             a.triggered.connect(lambda *args, tss=node: self.sigMoveToSource.emit(tss))
 
             a = menu.addAction(f'Set map CRS from {node.name()}')
@@ -2788,35 +2564,21 @@ class TimeSeriesTreeView(QTreeView):
 
 regSensorName = re.compile(r'(SATELLITEID|(sensor|product)[ _]?(type|name))', re.IGNORECASE)
 
+rxSensorName = re.compile(r'<li>(SATELLITEID|(sensor|product)[ _]?(type|name))=(?P<name>[^<]+)</li>', re.I)
 
-def sensorName(dataset: gdal.Dataset) -> str:
+
+def sensorName(layer: QgsRasterLayer) -> Optional[str]:
     """
     Reads the sensor/product name. Returns None if a proper name can not be extracted.
     :param dataset: gdal.Dataset
     :return: str
     """
-    assert isinstance(dataset, gdal.Dataset)
-    domains = dataset.GetMetadataDomainList()
-    if isinstance(domains, list):
-        for domain in domains:
-            md = dataset.GetMetadata_Dict(domain)
-            if isinstance(md, dict):
-                for key, value in md.items():
-                    if regSensorName.search(key):
-                        return str(value)
+    assert isinstance(layer, QgsRasterLayer) and layer.isValid()
 
-    for b in range(dataset.RasterCount):
-        band = dataset.GetRasterBand(b + 1)
-        if isinstance(band, gdal.Band):
-            domains = band.GetMetadataDomainList()
-            if isinstance(domains, list):
-                for domain in domains:
-                    md = band.GetMetadata_Dict(domain)
-                    if isinstance(md, dict):
-                        for key, value in md.items():
-                            if regSensorName.search(key):
-                                return str(value)
-
+    html = layer.htmlMetadata()
+    match = rxSensorName.search(html)
+    if match:
+        return match.group('name')
     return None
 
 
@@ -3212,6 +2974,13 @@ def has_sensor_id(layer) -> bool:
 
 def sensor_id(layer) -> Optional[str]:
     if isinstance(layer, QgsRasterLayer):
-        return layer.customProperty(SensorInstrument.PROPERTY_KEY)
+
+        if SensorInstrument.PROPERTY_KEY in layer.customPropertyKeys():
+            return layer.customProperty(SensorInstrument.PROPERTY_KEY)
+        else:
+            # retries key and add to layer:
+            sid = create_sensor_id(layer)
+            layer.setCustomProperty(SensorInstrument.PROPERTY_KEY, sid)
+            return sid
     else:
         return None

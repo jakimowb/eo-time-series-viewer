@@ -1,31 +1,27 @@
 import enum
 import math
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import numpy as np
-from qgis.PyQt.QtCore import QSortFilterProxyModel
-from qgis.gui import QgsAttributeTableView
 
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractTableModel, QDate, QDateTime, QModelIndex, QSortFilterProxyModel, Qt, \
+    QTime, QVariant
+from qgis.gui import QgsAttributeTableModel, QgsAttributeTableView, QgsDateEdit, QgsDateTimeEdit, QgsDoubleSpinBox, \
+    QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, QgsGui, QgsSpinBox, \
+    QgsTimeEdit
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.timeseries import TimeSeriesDate, TimeSeriesSource
 from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.PyQt.QtCore import Qt, QVariant, QDateTime, QAbstractTableModel, QModelIndex, pyqtSignal, QDate, QTime
-from qgis.PyQt.QtGui import QKeySequence, QIcon, QStandardItemModel, QStandardItem
-from qgis.PyQt.QtWidgets import QStyledItemDelegate, QTableView, QComboBox, QAction, QMenu, QToolBar, QToolButton, \
-    QWidget, \
-    QLineEdit
-from qgis.core import QgsVectorLayer, QgsField, QgsFields, \
-    QgsEditorWidgetSetup, QgsFeature, QgsRendererCategory, QgsCategorizedSymbolRenderer, \
-    QgsProject, QgsMapLayerStore, QgsSymbol
-from qgis.gui import QgsSpinBox, QgsDoubleSpinBox, \
-    QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetWrapper, \
-    QgsGui, QgsEditorWidgetRegistry, \
-    QgsDateTimeEdit, QgsDateEdit, QgsTimeEdit, QgsAttributeTableModel
-from .qgispluginsupport.qps.classification.classificationscheme import ClassInfo, ClassificationScheme
-from .qgispluginsupport.qps.classification.classificationscheme import EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
+from qgis.PyQt.QtGui import QIcon, QKeySequence, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QLineEdit, QMenu, QStyledItemDelegate, QTableView, QToolBar, \
+    QToolButton, QWidget
+from qgis.core import QgsCategorizedSymbolRenderer, QgsEditorWidgetSetup, QgsFeature, QgsField, QgsFields, \
+    QgsMapLayerStore, QgsProject, QgsRendererCategory, QgsSymbol, QgsVectorLayer
+from .qgispluginsupport.qps.classification.classificationscheme import ClassificationScheme, ClassInfo, \
+    EDITOR_WIDGET_REGISTRY_KEY as CS_KEY
 from .qgispluginsupport.qps.layerproperties import showLayerPropertiesDialog
-from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialPoint, SpatialExtent
+from .qgispluginsupport.qps.utils import datetime64, loadUi, SpatialExtent, SpatialPoint
 
 # the QgsProject(s) and QgsMapLayerStore(s) to search for QgsVectorLayers
 MAP_LAYER_STORES = []
@@ -34,7 +30,6 @@ EDITOR_WIDGET_REGISTRY_KEY = 'EOTSV Quick Label'
 
 
 def mapLayerStores() -> List[Union[QgsProject, QgsMapLayerStore]]:
-
     if len(MAP_LAYER_STORES) == 0:
         MAP_LAYER_STORES.append(QgsProject.instance())
 
@@ -284,7 +279,7 @@ def setQuickTSDLabels(vectorLayer: QgsVectorLayer,
     assert isinstance(vectorLayer, QgsVectorLayer)
     if not vectorLayer.isEditable():
         return
-    vectorLayer.beginEditCommand('Quick labels {}'.format(tsd.date()))
+    vectorLayer.beginEditCommand('Quick labels {}'.format(tsd.dtg()))
     for field in quickLayerFieldSetup(vectorLayer, label_group=label_group):
         assert isinstance(field, QgsField)
         iField: int = vectorLayer.fields().lookupField(field.name())
@@ -315,7 +310,7 @@ def quickLabelValue(fieldType: QVariant,
                     tsd: TimeSeriesDate,
                     tss: TimeSeriesSource):
     value = None
-    datetime: QDateTime = QDateTime(tsd.date().astype(object))
+    dt: QDateTime = tsd.dtg()
 
     if labelType == LabelShortcutType.Off:
         return value
@@ -332,42 +327,42 @@ def quickLabelValue(fieldType: QVariant,
 
     elif labelType == LabelShortcutType.Date:
         if fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = QDateTime(datetime.date())
+            value = dt
         elif fieldType == QVariant.String:
-            value = datetime.date().toPyDate().isoformat()
+            value = dt.toString(Qt.ISODate)
 
     elif labelType == LabelShortcutType.DateTime:
         if fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.String:
-            value = datetime.toPyDateTime().isoformat()
+            value = dt.toPyDateTime().isoformat()
 
     elif labelType == LabelShortcutType.Time:
         if fieldType == QVariant.Date:
             value = None
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.Time:
-            value = datetime.time()
+            value = dt.time()
         elif fieldType == QVariant.String:
-            value = datetime.time().toPyTime().isoformat()
+            value = dt.time().toString(Qt.ISODate)
 
     elif labelType == LabelShortcutType.Year:
 
         if fieldType == QVariant.String:
-            value = str(datetime.date().year())
+            value = str(dt.date().year())
         elif fieldType == QVariant.Date:
-            value = datetime.date()
+            value = dt.date()
         elif fieldType == QVariant.DateTime:
-            value = datetime
+            value = dt
         elif fieldType == QVariant.Time:
-            value = datetime.time()
+            value = dt.time()
         elif fieldType == QVariant.Int:
-            value = datetime.date().year()
+            value = dt.date().year()
 
     elif labelType == LabelShortcutType.DecimalYear:
         if fieldType == QVariant.String:
@@ -379,7 +374,7 @@ def quickLabelValue(fieldType: QVariant,
 
     elif labelType == LabelShortcutType.SourceImage and isinstance(tss, TimeSeriesSource):
         if fieldType == QVariant.String:
-            value = tss.uri()
+            value = tss.source()
 
     if value is not None and fieldType == QVariant.String:
         value = str(value)

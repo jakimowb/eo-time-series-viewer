@@ -5,21 +5,23 @@ import re
 import unittest
 
 import numpy as np
-from osgeo import gdal, osr
+from PyQt5.QtCore import QDateTime
 from qgis._core import QgsDateTimeRange
-from qgis.gui import QgsMapCanvas, QgsTaskManagerWidget
+from osgeo import gdal
+
+from qgis.gui import QgsTaskManagerWidget
 from qgis.core import Qgis, QgsApplication, QgsMimeDataUtils, QgsProject, QgsRasterLayer
-from qgis.PyQt import sip
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QMimeData, QPointF, QSortFilterProxyModel, Qt, \
     QUrl
 from qgis.PyQt.QtGui import QDropEvent
 from qgis.PyQt.QtWidgets import QTableView, QTreeView
-
+import example.Images
+from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import DateTimePrecision, registerDataProvider, sensorID, SensorInstrument, \
+from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, \
     SensorMatching, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
     TimeSeriesSource
 
@@ -27,52 +29,6 @@ start_app()
 
 
 class TestTimeSeries(EOTSVTestCase):
-
-    def createTestDatasets(self):
-        vsiDir = '/vsimem/tmp'
-        from eotimeseriesviewer.temporalprofiles import date2num
-        ns = 50
-        nl = 100
-
-        r1 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(16, 'D'), dtype=np.datetime64)
-        r2 = np.arange('2000-01-01', '2005-06-14', step=np.timedelta64(8, 'D'), dtype=np.datetime64)
-        drv = gdal.GetDriverByName('ENVI')
-
-        crs = osr.SpatialReference()
-        crs.ImportFromEPSG(32633)
-
-        assert isinstance(drv, gdal.Driver)
-        datasets = []
-
-        for i, r in enumerate([r1, r2]):
-            p = '{}tmpstack{}.bsq'.format(vsiDir, i + 1)
-
-            ds = drv.Create(p, ns, nl, len(r), eType=gdal.GDT_Float32)
-            assert isinstance(ds, gdal.Dataset)
-
-            ds.SetProjection(crs.ExportToWkt())
-
-            dateString = ','.join([str(d) for d in r])
-            dateString = '{{{}}}'.format(dateString)
-            ds.SetMetadataItem('wavelength', dateString, 'ENVI')
-
-            for b, date in enumerate(r):
-                decimalYear = date2num(date)
-
-                band = ds.GetRasterBand(b + 1)
-                assert isinstance(band, gdal.Band)
-                band.Fill(decimalYear)
-            ds.FlushCache()
-            datasets.append(p)
-        return datasets
-
-    def createTimeSeries(self) -> TimeSeries:
-        files = list(file_search(os.path.dirname(example.__file__), '*.tif', recursive=True))
-        TS = TimeSeries()
-        self.assertIsInstance(TS, TimeSeries)
-        TS.addSources(files)
-        self.assertTrue(len(TS) > 0)
-        return TS
 
     def test_loadfromfile(self):
         ts = TimeSeries()
@@ -107,9 +63,7 @@ class TestTimeSeries(EOTSVTestCase):
 
     def test_TimeSeriesFindOverlapTask(self):
 
-        import example
-
-        tss = TimeSeriesSource(example.exampleNoDataImage)
+        tss = TimeSeriesSource.create(example.exampleNoDataImage)
         self.assertIsInstance(tss, TimeSeriesSource)
 
         overlapped = []
@@ -168,13 +122,16 @@ class TestTimeSeries(EOTSVTestCase):
         tss = TimeSeriesSource.create(file)
         tss2 = TimeSeriesSource.create(example.Images.Img_2014_07_02_LE72270652014183CUB00_BOA)
         sensor = SensorInstrument(tss.sid())
+        dtr = ImageDateUtils.dateRange(tss.dtg())
 
-        tsd = TimeSeriesDate(None, tss.date(), sensor)
-        tsd2 = TimeSeriesDate(None, tss.date(), sensor)
+        tsd = TimeSeriesDate(dtr, sensor)
+        tsd2 = TimeSeriesDate(dtr, sensor)
+
         self.assertIsInstance(tsd, TimeSeriesDate)
         self.assertEqual(tsd, tsd2)
         self.assertEqual(tsd.sensor(), sensor)
         self.assertEqual(len(tsd), 0)
+
         tsd.addSource(tss)
         tsd.addSource(tss)
         self.assertEqual(len(tsd), 1)
@@ -199,13 +156,12 @@ class TestTimeSeries(EOTSVTestCase):
         ts.setDateTimePrecision(DateTimePrecision.Day)
         for tsd in ts:
 
-            date = tsd.date()
-            t_range = tsd.temporalRange()
+            t_range = tsd.dateTimeRange()
             self.assertIsInstance(t_range, QgsDateTimeRange)
-            self.assertTrue(t_range.contains(tsd.qDateTime()))
+            self.assertTrue(t_range.contains(tsd.dtg()))
             for tss in tsd:
                 tss: TimeSeriesSource
-                self.assertTrue(t_range.contains(tss.qDateTime()))
+                self.assertTrue(t_range.contains(tss.dtg()))
 
     def test_TimeSeriesSource(self):
 
@@ -218,8 +174,10 @@ class TestTimeSeries(EOTSVTestCase):
         for src in sources:
             print('Test input source: {}'.format(src))
             tss = TimeSeriesSource.create(src)
+            self.assertIsInstance(tss, TimeSeriesSource)
             self.assertIsInstance(tss.spatialExtent(), SpatialExtent)
             self.assertIsInstance(tss, TimeSeriesSource)
+            self.assertIsInstance(tss.dtg(), QDateTime)
 
             if not isinstance(ref, TimeSeriesSource):
                 ref = tss
@@ -234,26 +192,20 @@ class TestTimeSeries(EOTSVTestCase):
             self.assertTrue(b)
             self.assertIsInstance(lyr, QgsRasterLayer)
             self.assertTrue(lyr.isValid())
-            self.assertEqual(lyr.width(), tss.ns)
-            self.assertEqual(lyr.height(), tss.nl)
+            self.assertEqual(lyr.width(), tss.ns())
+            self.assertEqual(lyr.height(), tss.nl())
             ext1 = SpatialExtent.fromLayer(lyr)
             ext2 = tss.spatialExtent()
             if ext1 != ext2:
                 s = ""
             self.assertEqual(SpatialExtent.fromLayer(lyr), tss.spatialExtent())
 
-        import pickle
-
-        dump = pickle.dumps(tss)
-        tss2 = pickle.loads(dump)
-        self.assertIsInstance(tss2, TimeSeriesSource)
-        self.assertEqual(tss, tss2)
-
-        json = tss.json()
-        self.assertIsInstance(json, str)
-        tss3 = TimeSeriesSource.fromJson(json)
-        self.assertIsInstance(tss3, TimeSeriesSource)
-        self.assertEqual(tss, tss3)
+            json = tss.json()
+            self.assertIsInstance(json, str)
+            tss3 = TimeSeriesSource.fromJson(json)
+            self.assertIsInstance(tss3, TimeSeriesSource)
+            self.assertEqual(tss, tss3)
+            self.assertEqual(tss.dtg(), tss3.dtg())
 
     def test_sensorMatching(self):
 
@@ -291,30 +243,52 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertIsInstance(img2, gdal.Dataset)
         t0 = np.datetime64('now')
 
-        pairs = [('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Minute),
-                 ('2018-12-23T14:40', '2018-12-23T14:39', DateTimePrecision.Hour),
-                 ('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Day),
-                 ('2018-12-23', '2018-12-22', DateTimePrecision.Week),
-                 ('2018-12-23', '2018-12-01', DateTimePrecision.Month),
-                 ('2018-12-23', '2018-11-01', DateTimePrecision.Year),
+        # different timestamps but, using the provided precision,
+        # each TSS pair should be linked to the same TSD
+        #
+        pairs = [('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Minute, 1),
+                 ('2018-12-23T14:40', '2018-12-23T14:39', DateTimePrecision.Hour, 1),
+                 ('2018-12-23T14:40:48', '2018-12-23T14:40:47', DateTimePrecision.Day, 1),
+                 ('2018-12-23', '2018-12-22', DateTimePrecision.Week, 2),
+                 ('2018-12-23', '2018-12-01', DateTimePrecision.Month, 2),
+                 ('2018-12-23', '2018-11-01', DateTimePrecision.Year, 2),
                  ]
         for p in pairs:
-            t1, t2, precision = p
+            t1, t2, precision, n_tsd_default = p
+            self.assertNotEqual(t1, t2)
             img1.SetMetadataItem('acquisition time', t1)
             img2.SetMetadataItem('acquisition time', t2)
             img1.FlushCache()
             img2.FlushCache()
+            images = [img1, img2]
+            image_dates = [
+                QDateTime.fromString(t1, Qt.ISODateWithMs),
+                QDateTime.fromString(t2, Qt.ISODateWithMs),
+            ]
 
+            for dt, img in zip(image_dates, images):
+                lyr = QgsRasterLayer(img.GetDescription())
+                dtg = ImageDateUtils.dateTimeFromLayer(lyr)
+                self.assertIsInstance(dtg, QDateTime)
+                self.assertEqual(dt, dtg)
+                s = ""
             TS = TimeSeries()
             self.assertIsInstance(TS, TimeSeries)
-            self.assertTrue(TS.mDateTimePrecision == DateTimePrecision.Original)
-            TS.addSources([img1, img2], runAsync=False)
-            self.assertTrue(len(TS) == 2)
+            self.assertTrue(TS.mDateTimePrecision == DateTimePrecision.Day)
 
-            TS = TimeSeries()
+            TS.addSources(images, runAsync=False)
+            sources = list(TS.sources())
+            self.assertEqual(2, len(sources))
+
+            for src in sources:
+                self.assertTrue(src.dtg() in image_dates)
+            self.assertEqual(n_tsd_default, len(TS))
+
             TS.setDateTimePrecision(precision)
-            TS.addSources([img1, img2], runAsync=False)
-            self.assertTrue(len(TS) == 1)
+            TS.addSources(images, runAsync=False)
+            sources = list(TS.sources())
+            self.assertEqual(2, len(sources))
+            self.assertEqual(1, len(TS))
 
     def test_multisource_tsd(self):
 
@@ -328,22 +302,24 @@ class TestTimeSeries(EOTSVTestCase):
             s = ""
 
         TS = TimeSeries()
-        self.assertTrue(len(TS) == 0)
+        self.assertEqual(len(TS), 0)
 
         TS.addSources(sources, runAsync=False)
         self.assertEqual(len(TS), 1)
 
         tsd = TS[0]
         self.assertIsInstance(tsd, TimeSeriesDate)
-        self.assertTrue(len(tsd.sources()) == 2)
+        self.assertEqual(len(tsd.sources()), 2)
 
         paths = TestObjects.createMultiSourceTimeSeries()
+
         TS = TimeSeries()
         TS.addSources(paths, runAsync=False)
         srcUris = TS.sourceUris()
-        self.assertTrue(len(srcUris) == len(paths))
-        self.assertTrue(len(TS) == 0.5 * len(paths))
-        self.assertTrue(len(TS) == 0.5 * len(srcUris))
+
+        self.assertEqual(len(srcUris), len(paths))
+        self.assertEqual(len(TS), 0.5 * len(paths))
+        self.assertEqual(len(TS), 0.5 * len(srcUris))
 
     def test_timeseries_loadasync(self):
 
@@ -420,6 +396,17 @@ class TestTimeSeries(EOTSVTestCase):
         extent = TS.maxSpatialExtent()
         self.assertIsInstance(extent, SpatialExtent)
 
+    def test_get_tss_from_source(self):
+
+        TS = TimeSeries()
+        sources = self.exampleRasterFiles()
+        TS.addSources(sources, runAsync=False)
+        self.assertEqual(len(TS), len(sources))
+
+        for src in sources:
+            tsd = TS.getTSD(src)
+            self.assertIsInstance(tsd, TimeSeriesDate)
+
     def test_SensorProxyLayerMockupDataProvider(self):
 
         registerDataProvider()
@@ -448,48 +435,6 @@ class TestTimeSeries(EOTSVTestCase):
 
         s = dp2.capabilities()
         self.assertEqual(nb, dp2.bandCount())
-
-        lyr = QgsRasterLayer(sid, 'TestLayer2', SensorMockupDataProvider.providerKey())
-
-        canvas = QgsMapCanvas()
-        canvas.show()
-        canvas.setLayers([lyr])
-        canvas.zoomToFullExtent()
-        self.showGui(canvas)
-
-    def test_sensor_proxy_layer_provider_footprint(self):
-        registerDataProvider()
-
-        def print_provider_references():
-            print(' # : object id    : sip.isdeleted()')
-            for i, (oid, p) in enumerate(SensorMockupDataProvider.ALL_INSTANCES.items()):
-                print(f'{i:2} : {oid}: {sip.isdeleted(p)}')
-
-        print('Before:')
-        print_provider_references()
-        sid = sensorID(100, 200, 300, Qgis.DataType.Float32)
-
-        # create multiple layers with this data provider:
-        layer = None
-        keep_layers = []
-        for i in range(10):
-            layer = QgsRasterLayer(sid, 'test layer', SensorMockupDataProvider.providerKey())
-            if i % 2 == 0:
-                keep_layers.append(layer)
-        # draw layers
-        print('Before drawing layers:')
-        print_provider_references()
-        c = QgsMapCanvas()
-        c.setLayers(keep_layers)
-        c.mapSettings().setDestinationCrs(layer.crs())
-        c.setExtent(layer.extent())
-
-        print('After drawing layers:')
-        print_provider_references()
-        del keep_layers
-
-        print('After deleting layers:')
-        print_provider_references()
 
     def test_sensors(self):
 

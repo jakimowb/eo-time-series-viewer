@@ -1,3 +1,4 @@
+from eotimeseriesviewer.dateparser import DateTimePrecision
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app
 from eotimeseriesviewer.timeseries import has_sensor_id
 
@@ -16,6 +17,7 @@ class TestSpectralProfiles(EOTSVTestCase):
     def test_load_spectral_profiles(self):
         n = 3
         EOTSV = EOTimeSeriesViewer()
+        EOTSV.timeSeries().setDateTimePrecision(DateTimePrecision.Day)
         self.assertEqual(len(EOTSV.mapViews()), 0, msg=f'MapViews: {EOTSV.mapViews()}')
         EOTSV.loadExampleTimeSeries(n, filter_raster='re_*.tif', loadAsync=False)
         self.assertEqual(len(EOTSV.timeSeries()), n)
