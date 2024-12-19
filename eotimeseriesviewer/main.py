@@ -26,21 +26,8 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-import eotimeseriesviewer
-import eotimeseriesviewer.settings as eotsv_settings
+from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
-from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
-from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
-from eotimeseriesviewer.mapcanvas import MapCanvas
-from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
-from eotimeseriesviewer.profilevisualization import ProfileViewDock
-from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
-from eotimeseriesviewer.temporalprofiles import TemporalProfileLayer
-from eotimeseriesviewer.timeseries import DateTimePrecision, has_sensor_id, SensorInstrument, SensorMatching, \
-    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
-    TimeSeriesWidget
-from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
-from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QSize, Qt, QTimer
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
@@ -52,6 +39,18 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
+import eotimeseriesviewer
+import eotimeseriesviewer.settings as eotsv_settings
+from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
+from eotimeseriesviewer.docks import LabelDockWidget, SpectralLibraryDockWidget
+from eotimeseriesviewer.mapcanvas import MapCanvas
+from eotimeseriesviewer.mapvisualization import MapView, MapViewDock, MapWidget
+from eotimeseriesviewer.settings import defaultValues, Keys as SettingKeys, setValue, value as SettingValue
+from eotimeseriesviewer.timeseries import has_sensor_id, SensorInstrument, SensorMatching, \
+    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesSource, TimeSeriesTreeView, \
+    TimeSeriesWidget
+from .dateparser import DateTimePrecision
+from eotimeseriesviewer.vectorlayertools import EOTSVVectorLayerTools
 from .about import AboutDialogUI
 from .forceinputs import FindFORCEProductsTask, FORCEProductImportDialog
 from .maplayerproject import EOTimeSeriesViewerProject
@@ -67,6 +66,7 @@ from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLa
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
+from .temporalprofile.visualization import TemporalProfileDock
 from .utils import fixMenuButtons
 
 DEBUG = False
@@ -128,7 +128,7 @@ class EOTimeSeriesViewerUI(QMainWindow):
         tbar.addAction(self.actionClearTS)
         self.dockTimeSeries.timeSeriesWidget().sigTimeSeriesDatesSelected.connect(self.actionRemoveTSD.setEnabled)
 
-        self.dockProfiles = self.addDockWidget(area, ProfileViewDock(self))
+        self.dockProfiles = self.addDockWidget(area, TemporalProfileDock(self))
         area = Qt.LeftDockWidgetArea
         # self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
         #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
@@ -274,16 +274,6 @@ class TaskManagerStatusButton(QToolButton):
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.setLayout(QHBoxLayout())
 
-        from eotimeseriesviewer.temporalprofiles import TemporalProfileLoaderTask
-        from eotimeseriesviewer.timeseries import TimeSeriesLoadingTask, TimeSeriesFindOverlapTask
-
-        self.mTrackedTasks = [
-            TemporalProfileLoaderTask,
-            TimeSeriesFindOverlapTask,
-            TimeSeriesLoadingTask,
-            FindFORCEProductsTask,
-        ]
-
         self.mInfoLabel = QLabel('', parent=self)
         # self.setStyleSheet('background-color:yellow')
         # self.mInfoLabel.setStyleSheet('background-color:#234521;')
@@ -339,11 +329,9 @@ class TaskManagerStatusButton(QToolButton):
     def activeTasks(self) -> List[QgsTask]:
         results = []
         for t in self.mManager.tasks():
-            if isinstance(t, QgsTask):
-                for taskType in self.mTrackedTasks:
-                    if isinstance(t, taskType):
-                        results.append(t)
-                        break
+            if isinstance(t, EOTSVTask):
+                results.append(t)
+                break
         return results
 
     def updateTaskInfo(self, *args):
@@ -472,9 +460,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
-        self.profileDock: ProfileViewDock = self.ui.dockProfiles
+        # self.profileDock: TemporalProfileDock = self.ui.dockProfiles
         assert isinstance(self, EOTimeSeriesViewer)
-        self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
+        # self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 
         # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -589,7 +577,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionReloadProject.triggered.connect(self.reloadProject)
         self.ui.actionSaveProject.triggered.connect(iface.actionSaveProject().trigger)
 
-        self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
+        # self.profileDock.actionLoadProfileRequest.triggered.connect(self.activateIdentifyTemporalProfileMapTool)
 
         # connect buttons with actions
         self.ui.actionAbout.triggered.connect(lambda: AboutDialogUI(self.ui).exec_())
@@ -606,10 +594,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         # self.mMapLayerStore.addMapLayer(sl)
 
-        temporalProfileLayer = self.profileDock.temporalProfileLayer()
-        assert isinstance(temporalProfileLayer, QgsVectorLayer)
-        temporalProfileLayer.setName('EOTS Temporal Profiles')
-        self.mapLayerStore().addMapLayer(temporalProfileLayer)
+        # temporalProfileLayer = self.profileDock.temporalProfileLayer()
+        # assert isinstance(temporalProfileLayer, QgsVectorLayer)
+        # temporalProfileLayer.setName('EOTS Temporal Profiles')
+        # self.mapLayerStore().addMapLayer(temporalProfileLayer)
 
         eotimeseriesviewer.labeling.MAP_LAYER_STORES.append(self.mapLayerStore())
         eotimeseriesviewer.labeling.registerLabelShortcutEditorWidget()
@@ -661,9 +649,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 'size': [dock.width(), dock.height()]
             }
 
+        g: QRect = self.ui.geometry()
         mainWindow = {
-            'size': [self.ui.width(), self.ui.height()],
-            'pos': [self.ui.pos().x(), self.ui.pos().y()],
+            'geometry': [g.x(), g.y(), g.width(), g.height()],
             'docks': dockInfos,
         }
 
@@ -678,11 +666,11 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         multistep = QgsProcessingMultiStepFeedback(2, feedback)
         multistep.setCurrentStep(1)
 
+        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
+        multistep.setCurrentStep(2)
+        self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
+
         if mainWindow := map_data.get('MainWindow'):
-            if s := mainWindow.get('size'):
-                self.ui.resize(*s)
-            if s := mainWindow.get('pos'):
-                self.ui.move(*s)
 
             if dockInfos := mainWindow.get('docks'):
                 dockInfos: Dict[str, dict]
@@ -697,9 +685,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                             dock.resize(*bSize)
                         # dock.set(dockInfo.get('isFloating', dock.isFloating()))
 
-        self.timeSeries().fromMap(map_data.get('TimeSeries'), feedback=multistep)
-        multistep.setCurrentStep(2)
-        self.mapWidget().fromMap(map_data.get('MapWidget'), feedback=multistep)
+            if g := mainWindow.get('geometry'):
+                self.ui.setGeometry(QRect(*g))
+                QApplication.processEvents()
+                assert self.ui.height() == g[-1]
 
     def asJson(self) -> str:
         return json.dumps(self.asMap(), ensure_ascii=False)
@@ -942,7 +931,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             mv = mapCanvas.mapView()
             assert isinstance(mv, MapView)
             mapCanvas.waitWhileRendering()
-            imgPath = '{}.{}.{}'.format(tsd.date(), mv.title(), format)
+            imgPath = '{}.{}.{}'.format(tsd.dtg(), mv.title(), format)
 
             imgPath = ''.join(c for c in imgPath if c in valid_chars)
             imgPath = imgPath.replace(' ', '_')
@@ -963,17 +952,18 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         :param mapView:
         :return:
         """
-        mapView.addLayer(self.profileDock.temporalProfileLayer())
+        # mapView.addLayer(self.profileDock.temporalProfileLayer())
         mapView.addSpectralProfileLayers()
 
         if len(self.mapViews()) == 1:
             mapView.setMapInfoExpression("@map_date + '\n' + @map_sensor")
 
-    def temporalProfileLayer(self) -> TemporalProfileLayer:
+    def temporalProfileLayers(self) -> List[QgsVectorLayer]:
         """
-        Returns the TemporalProfileLayer
+        Returns known layers with temporal profiles
         :return:
         """
+
         return self.profileDock.temporalProfileLayer()
 
     def spectralLibraryWidgets(self) -> List[SpectralLibraryWidget]:
@@ -1096,6 +1086,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
     def setCurrentDate(self, tsd: TimeSeriesDate, show_if_hidden: bool = True):
         """
         Moves the viewport of the scroll window to a specific TimeSeriesDate
+        :param show_if_hidden:
         :param tsd:  TimeSeriesDate or numpy.datetime64
         """
         tsd = self.timeSeries().findDate(tsd)
@@ -1537,8 +1528,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                         self.cntSpectralProfile += 1
                         assert isinstance(p, QgsFeature)
                         p2 = p.copyFieldSubset(fields=sl.fields())
-                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDate))
-                        p2.setAttribute('date', '{}'.format(tsd.mDate))
+                        p2.setName('Profile {} {}'.format(self.cntSpectralProfile, tsd.mDTR))
+                        p2.setAttribute('date', '{}'.format(tsd.mDTR))
                         p2.setAttribute('doy', int(tsd.mDOY))
                         p2.setAttribute('sensor', tsd.mSensor.name())
                         profiles2.append(p2)

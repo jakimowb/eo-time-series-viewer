@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="eotimeseriesviewer">
+    <file>icons/satellite.svg</file>
     <file>icons/map.svg</file>
     <file>icons/mIconTemporalProfileAdd.svg</file>
     <file>icons/mIconTemporalProfileClock.svg</file>

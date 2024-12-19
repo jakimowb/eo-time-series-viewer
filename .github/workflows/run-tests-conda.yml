@@ -1,0 +1,80 @@
+name: 🐍 Conda Environments
+
+on:
+  push:
+    branches:
+      - '**'
+
+  pull_request:
+    branches:
+      - main
+
+  release:
+    types: [ published ]
+
+jobs:
+  # Run EnMAP-Box tests
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+      CI: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        conda_env: [ eotsv ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Environment Info
+        run: |
+          lsb_release -a
+
+      - name: Conda environment file
+        run: |
+          echo "conda environment file: ${{matrix.conda_env}}.yml"
+          cat .conda/${{matrix.conda_env}}.yml
+
+      - name: Setup Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          # miniforge-variant: Mambaforge
+          # miniforge-version: latest
+          # mamba-version: "*"
+          channels: conda-forge,defaults
+          channel-priority: true
+          activate-environment: ${{matrix.conda_env}}
+          environment-file: .conda/${{matrix.conda_env}}.yml
+          miniforge-version: latest
+          clean-patched-environment-file: false
+          # use-mamba: false
+          # auto-activate-base: false
+      - name: Conda Environment Info
+        run: |
+          conda info
+          conda list
+
+      - name: Python and QGIS versions
+        run: |
+          python --version
+          qgis --version
+
+      - name: Setup Repository
+        run: |
+          python scripts/setup_repository.py
+          mkdir -p ~/.local/share/QGIS/QGIS3/profiles
+
+      - name: Test in ${{matrix.mamba_env}}
+        run: |
+          chmod +x scripts/runtests.sh
+          bash ./scripts/runtests.sh -n auto

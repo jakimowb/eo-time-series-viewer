@@ -52,7 +52,7 @@ def defaultValues() -> dict:
     :return: dict
     """
     d = dict()
-    from eotimeseriesviewer.timeseries import DateTimePrecision
+    from eotimeseriesviewer.dateparser import DateTimePrecision
 
     # general settings
     home = pathlib.Path.home()
@@ -495,7 +495,7 @@ class SettingsDialog(QDialog):
         loadUi(DIR_UI / 'settingsdialog.ui', self)
 
         assert isinstance(self.cbDateTimePrecission, QComboBox)
-        from eotimeseriesviewer.timeseries import DateTimePrecision
+        from eotimeseriesviewer.dateparser import DateTimePrecision
         for e in DateTimePrecision:
             assert isinstance(e, enum.Enum)
             self.cbDateTimePrecission.addItem(e.name, e)

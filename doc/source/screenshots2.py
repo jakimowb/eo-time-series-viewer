@@ -2,26 +2,24 @@ import json
 import sys
 import os
 from pathlib import Path
+import re
 
 import numpy as np
-import re
+
+from qgis.core import QgsApplication, QgsFillSymbolLayer, QgsMultiBandColorRenderer, QgsProject, QgsRasterLayer, \
+    QgsVectorLayer
+from qgis.gui import QgsMapCanvas, QgsRasterLayerProperties
 from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtWidgets import QWidget
-
 from eotimeseriesviewer import DIR_REPO
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.mapcanvas import MapCanvas
 from eotimeseriesviewer.mapvisualization import MapViewDock
 from eotimeseriesviewer.profilevisualization import ProfileViewDock, TemporalProfilePlotStyle
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app
-from qgis._core import QgsApplication, QgsRasterLayer, QgsProject, QgsVectorLayer, QgsFillSymbolLayer, \
-    QgsMultiBandColorRenderer
-
-from qgis._gui import QgsMapCanvas, QgsRasterLayerProperties
-
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialExtent
-from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeriesDate, SensorProxyLayer
+from eotimeseriesviewer.timeseries import SensorInstrument, SensorProxyLayer, TimeSeriesDate
 
 app = start_app()
 
