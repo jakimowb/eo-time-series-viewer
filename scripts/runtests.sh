@@ -17,4 +17,4 @@ rm -Rf test-outputs
 rm -Rf test-reports
 echo "Run pytest in $(pwd)"
 pytest --no-cov-on-fail --cov-config=.coveragec "$@"
-coverage-badge -o coverage.svg -f -v
+# coverage-badge -o coverage.svg -f -v
