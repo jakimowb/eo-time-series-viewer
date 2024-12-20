@@ -3,11 +3,10 @@ import enum
 import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 from osgeo import gdal
-
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt, QTime
 from qgis.core import Qgis, QgsDateTimeRange, QgsRasterDataProvider, QgsRasterLayer, QgsRasterLayerTemporalProperties
 
@@ -475,6 +474,19 @@ class ImageDateUtils(object):
     @classmethod
     def doiFromDateTime(cls, dateTime: QDateTime) -> int:
         return dateTime.date().dayOfYear()
+
+    @classmethod
+    def timestamp(cls, dtg: Union[QDateTime, QDate, datetime.datetime, datetime.date]) -> float:
+
+        if isinstance(dtg, datetime.datetime):
+            return dtg.timestamp()
+        elif isinstance(dtg, QDateTime):
+            return dtg.toPyDateTime().timestamp()
+        elif isinstance(dtg, datetime.date):
+            return cls.timestamp(datetime.datetime(dtg.year, dtg.month, dtg.day))
+        elif isinstance(dtg, QDate):
+            return cls.timestamp(QDateTime(dtg, QTime()))
+        raise NotImplementedError(f'Unknown type: {type(dtg)}')
 
     @classmethod
     def decimalYear(cls, dateTime: QDateTime) -> float:
