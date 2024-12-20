@@ -1,10 +1,11 @@
+import datetime
 import unittest
 
 from PyQt5.QtCore import QTime
 from qgis._core import QgsDateTimeRange
-
 from qgis.PyQt.QtCore import QDate, QDateTime, Qt
 from qgis.core import QgsRasterLayer
+
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
 from example import exampleLandsat8, exampleNoDataImage, exampleRapidEye
@@ -13,6 +14,19 @@ start_app()
 
 
 class TestDateParser(EOTSVTestCase):
+
+    def test_timestamp(self):
+
+        inputs = [
+            QDateTime.fromString('2014-06-08T12:24:30', Qt.ISODateWithMs),
+            QDate.fromString('2014-06-08', Qt.ISODate),
+            datetime.datetime(2014, 6, 8, 12, 24, 30),
+            datetime.date(2014, 6, 8),
+        ]
+
+        for input in inputs:
+            ts = ImageDateUtils.timestamp(input)
+            self.assertIsInstance(ts, float)
 
     def test_imagedate_utils(self):
 

@@ -1,12 +1,14 @@
 import json
 from typing import Dict, List, Optional, Union
 
+from qgis.PyQt.QtWidgets import QApplication, QHeaderView, QMenu, QStyle, QStyledItemDelegate, QStyleOptionButton, \
+    QStyleOptionViewItem, QTreeView, QWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap, QStandardItem, \
     QStandardItemModel
-from qgis.PyQt.QtWidgets import QMenu, QStyle, QStyledItemDelegate, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
     QgsExpressionContextUtils, QgsField, QgsProperty, QgsPropertyDefinition, QgsVectorLayer
+
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
@@ -17,7 +19,16 @@ from eotimeseriesviewer.temporalprofile.functions import ProfileValueExpressionF
 from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
 
 
-class MarkerStyleItem(PlotStyleItem):
+class StyleItem(PlotStyleItem):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+    def heightHint(self) -> int:
+        return 1
+
+
+class PlotSymbolItem(StyleItem):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
@@ -28,29 +39,52 @@ class MarkerStyleItem(PlotStyleItem):
 
         w.setMinimumSize(5, 5)
         w.setPlotStyle(self.plotStyle())
-        w.setColorWidgetVisibility(self.mEditColors)
+        F = PlotStyleWidget.VisibilityFlags
+        w.setVisibilityFlags(F.SymbolPen | F.Symbol | F.Type | F.Color | F.Size | F.Preview)
         w.setVisibilityCheckboxVisible(False)
-        w.setToolTip('Set marker style')
+        w.setToolTip('Set plot symbol')
         return w
 
+    def heightHint(self) -> int:
+        style = self.plotStyle()
+        h = 5
+        if style.markerSymbol is not None:
+            h += style.markerSize
 
-class LineStyleItem(PlotStyleItem):
+            if style.markerPen.style() != Qt.NoPen:
+                h += style.markerPen.width()
+        return h
+
+
+class LineStyleItem(StyleItem):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+
+        # default line style
+        self.mPlotStyle.setLinePen(QPen(QColor('green'), 0, Qt.SolidLine))
+
+    def heightHint(self) -> int:
+        style = self.plotStyle()
+        h = 5
+
+        if style.linePen.style() != Qt.NoPen:
+            h += style.linePen.width()
+        return h
 
     def createEditor(self, parent):
         # show editor without marker symbols
         w = PlotStyleButton(parent=parent)
         d: PlotStyleDialog = w.mDialog
-        d.setColorWidgetVisibility(True)
 
-        dw: PlotStyleWidget = d.w
+        dw: PlotStyleWidget = d.plotStyleWidget()
+        F = PlotStyleWidget.VisibilityFlags
+        dw.setVisibilityFlags(F.Line | F.Color | F.Size | F.Type | F.Preview)
 
         w.setMinimumSize(5, 5)
         w.setPlotStyle(self.plotStyle())
-        w.setColorWidgetVisibility(self.mEditColors)
-        w.setVisibilityCheckboxVisible(False)
+        # w.setColorWidgetVisibility(self.mEditColors)
+        # w.setVisibilityCheckboxVisible(False)
         w.setToolTip('Set line style')
         return w
 
@@ -81,8 +115,7 @@ class TPVisGroup(PropertyItemGroup):
         self.mPField.setIsProfileFieldProperty(True)
         self.mPField.label().setIcon(QIcon(':/images/themes/default/mSourceFields.svg'))
 
-        self.mPLineStyle = LineStyleItem('LineStyle')
-        self.mPLineStyle.setEditColors(False)
+        self.mPLineStyle = LineStyleItem('Line')
         self.mPLineStyle.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
         self.mPLabel = QgsPropertyItem('Label')
@@ -119,6 +152,18 @@ class TPVisGroup(PropertyItemGroup):
 
         self.mLayer: QgsVectorLayer = None
 
+    def update(self):
+
+        # update the line-style item
+        idx = self.mPLineStyle.index()
+        self.model().dataChanged.emit(idx, idx)
+
+        s = ""
+
+    def sensorItems(self) -> List['TPVisSensor']:
+
+        return list(self.mSensorItems.values())
+
     def createPixmap(self, size: QSize, hline: bool = True, bc: Optional[QColor] = None) -> QPixmap:
         """
         Create a preview of the plot
@@ -127,13 +172,14 @@ class TPVisGroup(PropertyItemGroup):
         :param bc:
         :return:
         """
-
+        print('# UPDATE PIXMAP')
         if bc is None:
             bc = QColor('black')
         else:
             bc = QColor(bc)
 
-        ns = len(self.mSensorItems)
+        sensorItems = [s for s in self.sensorItems()]
+        ns = len(sensorItems)
 
         lineStyle: PlotStyle = self.mPLineStyle.plotStyle()
 
@@ -143,37 +189,45 @@ class TPVisGroup(PropertyItemGroup):
 
             p = QPainter(pm)
             # draw the line
-
             p.setPen(lineStyle.linePen)
 
             w, h = pm.width(), pm.height()
             path = QPainterPath()
-            xvec = [x / (ns + 2) for x in range(ns + 2)]
+
+            # show a line with ns + 2 data points
+            xvec = [x / (ns + 1) for x in range(ns + 2)]
             yvec = [0.5 for _ in xvec]
 
+            # path.moveTo(xvec[0] * w, yvec[0] * h)
             path.moveTo(xvec[0] * w, yvec[0] * h)
-            for x, y in zip(xvec, yvec):
+            for x, y in zip(xvec[1:], yvec[1:]):
                 path.lineTo(x * w, y * h)
 
-            # draw a marker symbol for each sensor
-            for i, sensorItem in enumerate(self.mSensorItems.values()):
+            p.drawPath(path)
+            p.end()
+            for i, sensorItem in enumerate(sensorItems):
+                assert isinstance(sensorItem, TPVisSensor)
+                if not sensorItem.checkState() == Qt.Checked:
+                    continue
 
-                if sensorItem.isVisible():
-                    markerStyle = sensorItem.mMarker.plotStyle()
+                symbolStyle = sensorItem.symbolStyle()
 
-                    p.drawPath(path)
-                    p.translate(0.5 * pm.width(), 0.5 * pm.height())
-                    drawSymbol(p, markerStyle.markerSymbol, markerStyle.markerSize,
-                               markerStyle.markerPen, markerStyle.markerBrush)
-                    p.end()
+                p2 = QPainter(pm)
+                p2.translate(xvec[i + 1] * w, yvec[i + 1] * h)
+
+                drawSymbol(p2, symbolStyle.markerSymbol, symbolStyle.markerSize,
+                           symbolStyle.markerPen, symbolStyle.markerBrush)
+                p2.end()
+            # p.end()
         else:
             # transparent background
             pm.fill(QColor(0, 255, 0, 0))
             p = QPainter(pm)
+            # p.begin()
             p.setPen(QPen(QColor(100, 100, 100)))
             p.drawLine(0, 0, pm.width(), pm.height())
             p.drawLine(0, pm.height(), pm.width(), 0)
-            p.end()
+            # p.end()
 
         return pm
 
@@ -190,7 +244,15 @@ class TPVisGroup(PropertyItemGroup):
 
     def setLayer(self, layer: QgsVectorLayer):
         assert isinstance(layer, QgsVectorLayer)
+
+        if isinstance(self.mLayer, QgsVectorLayer):
+            self.mLayer.featuresDeleted.disconnect(self.update)
+
         self.mLayer = layer
+        self.mLayer.featuresDeleted.connect(self.update)
+        self.mLayer.selectionChanged.connect(self.update)
+        self.mLayer.featureAdded.connect(self.update)
+        self.mLayer.attributeAdded.connect(self.update)
         self.updateText()
 
     def layer(self) -> Optional[QgsVectorLayer]:
@@ -227,9 +289,6 @@ class TPVisGroup(PropertyItemGroup):
             self.setText(' '.join(text))
             self.setToolTip('<br>'.join(tt))
 
-    def __disconnect_layer(self):
-        self.mLayer = None
-
     def field(self) -> str:
         return self.mPField.text()
 
@@ -254,10 +313,13 @@ class TPVisGroup(PropertyItemGroup):
                 self.mSensorItems[sid] = item
                 if name:
                     item.setSensorName(name)
+
                 items.append(item)
 
         if len(items) > 0:
             self.appendRows(items)
+            for item in items:
+                item.signals().dataChanged.connect(self.update)
 
     def settingsMap(self) -> dict:
 
@@ -271,7 +333,7 @@ class TPVisGroup(PropertyItemGroup):
             d['layer'] = None
         d['show'] = self.checkState() == Qt.Checked
         d['field'] = self.field()
-        d['line_style'] = self.mPLineStyle.plotStyle().json()
+        d['line_style'] = self.mPLineStyle.plotStyle().map()
         d['sensors'] = [s.settingsMap() for s in self.mSensorItems.values()]
 
         return d
@@ -325,14 +387,19 @@ class TPVisSensor(PropertyItemGroup):
 
         self.mSpeclib: QgsVectorLayer = None
 
-        self.mMarker = MarkerStyleItem('MarkerStyle')
+        self.mPSymbol = PlotSymbolItem('Symbol')
+        self.mPSymbol.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
-        self.mPBand = PropertyItem('Band')
+        self.mPBand = QgsPropertyItem('Band')
         self.mPBand.setText('Band')
         # self.mPBand.label().setText('Band')
 
-        items = [self.mMarker, self.mPBand]
-        self.appendRows(items)
+        items = [self.mPSymbol, self.mPBand]
+        for item in items:
+            self.appendRow(item.propertyRow())
+
+    def symbolStyle(self) -> PlotStyle:
+        return self.mPSymbol.plotStyle()
 
     def setSensor(self, sid: str, name: str = None):
         self.mSensorID = sid
@@ -367,7 +434,7 @@ class TPVisSensor(PropertyItemGroup):
              'sensor_name': self.sensorName(),
              'show': self.checkState() == Qt.Checked,
              'band': band,
-             'marker': json.loads(self.mMarker.plotStyle().json())
+             'symbol_style': self.mPSymbol.plotStyle().map(),
              }
 
         return d
@@ -533,15 +600,20 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
 
                 h = option.rect.height()
 
-                pm = item.createPixmap(size=QSize(2 * h, h), bc=bc)
-                to_paint.append(pm)
+                if False:
+                    pm = item.createPixmap(size=QSize(10 * h, h), bc=bc)
+                    to_paint.append(pm)
                 # if not item.isComplete():
                 #    to_paint.append(QIcon(r':/images/themes/default/mIconWarning.svg'))
-                to_paint.append(item.data(Qt.DisplayRole))
+                data = item.data(Qt.DisplayRole)
+                if data:
+                    to_paint.append(data)
 
                 x0 = option.rect.x() + 1
                 y0 = option.rect.y()
                 for p in to_paint:
+                    if p is None:
+                        s = ""
                     o: QStyleOptionViewItem = QStyleOptionViewItem(option)
                     self.initStyleOption(o, index)
                     o.styleObject = option.styleObject
@@ -555,7 +627,12 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                                    Qt.PartiallyChecked: QStyle.State_NoChange}[p]
                         o.state = o.state | QStyle.State_Enabled
 
-                        style.drawPrimitive(QStyle.PE_IndicatorCheckBox, o, painter, self.mTreeView)
+                        check_option = QStyleOptionButton()
+                        check_option.state = o.state  # Checkbox is enabled
+
+                        # Set the geometry of the checkbox within the item
+                        check_option.rect = option.rect
+                        QApplication.style().drawControl(QStyle.CE_CheckBox, check_option, painter)
 
                     elif isinstance(p, QPixmap):
                         o.rect = QRect(x0, y0, h, h)
@@ -577,15 +654,16 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                         raise NotImplementedError(f'Does not support painting of "{p}"')
                     x0 = o.rect.x() + margin + o.rect.width()
 
-            elif isinstance(item, PlotStyleItem):
+            elif isinstance(item, LineStyleItem):
                 # self.initStyleOption(option, index)
-                plot_style: PlotStyle = item.plotStyle()
-
-                if total_h > 0 and total_w > 0:
-                    px = plot_style.createPixmap(size=QSize(total_w, total_h), bc=bc)
+                parentItem = item.parent()
+                if isinstance(parentItem, TPVisGroup) and total_h > 0 and total_w > 0:
+                    px = parentItem.createPixmap(size=QSize(total_w, total_h), bc=bc)
                     painter.drawPixmap(option.rect, px)
-                else:
-                    super().paint(painter, option, index)
+            elif isinstance(item, PlotSymbolItem):
+                symbolStyle: PlotStyle = item.plotStyle()
+                px = symbolStyle.createPixmap(size=QSize(total_w, total_h), bc=bc)
+                painter.drawPixmap(option.rect, px)
             else:
                 super().paint(painter, option, index)
         else:
@@ -604,6 +682,18 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                 for r in range(idx0, idx1 + 1):
                     idx = self.mTreeView.model().index(r, c, parent=parent)
                     self.mTreeView.openPersistentEditor(idx)
+
+    def sizeHint(self, option, index):
+        # Get the default size hint
+        default_size = super().sizeHint(option, index)
+
+        item = index.data(Qt.UserRole)
+        if isinstance(item, StyleItem):
+            y = max(default_size.height(), item.heightHint())
+            return QSize(default_size.width(), y)
+        else:
+            # Default height for non-selected rows
+            return default_size
 
     def plotControl(self) -> PlotSettingsTreeModel:
         return self.mTreeView.model().sourceModel()
@@ -647,6 +737,7 @@ class PlotSettingsTreeView(QTreeView):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+        self.header().setSectionResizeMode(QHeaderView.ResizeToContents)
 
     def setModel(self, model: Optional[QAbstractItemModel]) -> None:
         super().setModel(model)

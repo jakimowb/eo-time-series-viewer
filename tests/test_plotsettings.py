@@ -1,9 +1,11 @@
 import json
 import unittest
 
-from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtCore import QSize, Qt
+from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis._core import QgsProject, QgsVectorLayer
 
+from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, TPVisSensor
@@ -95,11 +97,20 @@ class PlotSettingsTests(TestCase):
 
         dock.mVis.updatePlot()
 
-        l = QHBoxLayout()
-        l.addWidget(dock)
-        l.addWidget(panel)
+        atd = AttributeTableWidget(layer)
+
+        # combine dock and panel with a splitter
+
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(dock)
+        splitter.addWidget(panel)
+
+        vl = QVBoxLayout()
+        vl.addWidget(splitter)
+        vl.addWidget(atd)
         w = QWidget()
-        w.setLayout(l)
+        w.setLayout(vl)
+        w.resize(QSize(1200, 800))
         self.showGui(w)
 
 
