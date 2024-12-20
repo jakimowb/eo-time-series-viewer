@@ -4,12 +4,11 @@ import sys
 from typing import List
 
 import numpy as np
-from matplotlib.dates import date2num
-
+from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 from qgis.PyQt.QtCore import pyqtSignal, QPointF
 from qgis.PyQt.QtGui import QColor
-from qgis.PyQt.QtWidgets import QDateEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
-from eotimeseriesviewer.dateparser import dateDOY, num2date
+
+from eotimeseriesviewer.dateparser import dateDOY, ImageDateUtils, num2date
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
@@ -274,12 +273,12 @@ class DateTimeViewBox(pg.ViewBox):
         frame.setLayout(l)
         # l.addWidget(self, QWidget, int, int, alignment: Qt.Alignment = 0): not enough arguments
         self.rbXManualRange = QRadioButton('Manual')
-        self.dateEditX0 = QDateEdit()
+        self.dateEditX0 = QDateTimeEdit()
         self.dateEditX0.setDisplayFormat('yyyy-MM-dd')
         self.dateEditX0.setToolTip('Start time')
         self.dateEditX0.setCalendarPopup(True)
         self.dateEditX0.dateChanged.connect(self.updateXRange)
-        self.dateEditX1 = QDateEdit()
+        self.dateEditX1 = QDateTimeEdit()
         self.dateEditX1.setDisplayFormat('yyyy-MM-dd')
         self.dateEditX0.setToolTip('End time')
         self.dateEditX1.setCalendarPopup(True)
@@ -337,8 +336,9 @@ class DateTimeViewBox(pg.ViewBox):
         self.dateEditX1.setEnabled(not isAutoRange)
 
         if not isAutoRange:
-            t0 = date2num(self.dateEditX0.date())
-            t1 = date2num(self.dateEditX1.date())
+            t0 = ImageDateUtils.timestamp(self.dateEditX0.dateTime())
+            t1 = ImageDateUtils.timestamp(self.dateEditX1.dateTime())
+
             t0 = min(t0, t1)
             t1 = max(t0, t1)
 
@@ -353,7 +353,8 @@ class DateTimeViewBox(pg.ViewBox):
     def raiseContextMenu(self, ev):
 
         pt = self.mapDeviceToView(ev.pos())
-        self.updateCurrentDate(num2date(pt.x(), dt64=True))
+        dtg = datetime.datetime.fromtimestamp(pt.x())
+        self.updateCurrentDate(dtg)
 
         plotDataItems = [item for item in self.scene().itemsNearEvent(ev) if
                          isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(),
@@ -361,10 +362,10 @@ class DateTimeViewBox(pg.ViewBox):
 
         xRange, yRange = self.viewRange()
         if min(xRange) > 0:
-            t0 = num2date(xRange[0], qDate=True)
-            t1 = num2date(xRange[1], qDate=True)
-            self.dateEditX0.setDate(t0)
-            self.dateEditX1.setDate(t1)
+            t0 = datetime.datetime.fromtimestamp(xRange[0])
+            t1 = datetime.datetime.fromtimestamp(xRange[1])
+            self.dateEditX0.setDate(t0.date())
+            self.dateEditX1.setDate(t1.date())
 
         menu = self.getMenu(ev)
 
