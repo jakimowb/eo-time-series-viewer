@@ -18,10 +18,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-import datetime
-from typing import List
+from typing import Dict, List
 
 import numpy as np
+
 from qgis.PyQt.QtGui import QBrush, QColor, QPen
 from qgis.core import QgsFeature, QgsFeatureRequest, QgsFields, QgsProject, QgsVectorLayer
 from qgis.gui import QgsDockWidget
@@ -29,7 +29,6 @@ from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
     QModelIndex, QObject, QPoint, Qt
 from qgis.PyQt.QtWidgets import QAction, QMenu, \
     QSlider, QTableView, QWidgetAction
-
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
@@ -213,6 +212,10 @@ class TemporalProfileVisualization(QObject):
         new_plotitems = []
         project = self.project()
 
+        # collects information required to calculate the x and y values for each sensor
+        # using use-defined expressions
+        SENSOR_SPECS: Dict[str, Dict] = dict()
+
         layers = []
         for i, vis in enumerate(settings['visualizations']):
             vis: dict
@@ -231,6 +234,9 @@ class TemporalProfileVisualization(QObject):
 
             layers.append(lyr)
 
+            # prepare/compile sensor expressions
+            # compiles the expressions that are used to calculate the x and y values
+
             request = QgsFeatureRequest()
             filter_expression = vis.get('filter')
             if filter_expression:
@@ -239,8 +245,11 @@ class TemporalProfileVisualization(QObject):
 
             layer_line_style: PlotStyle = PlotStyle.fromMap(vis['line_style'])
 
-            LUT_SENSOR = {s['sensor_id']: s for s in vis['sensors']}
+            # LUT_SENSOR = {s['sensor_id']: s for s in vis['sensors']}
             selected_fids: List[int] = lyr.selectedFeatureIds()
+
+            BAND_EXPRESSIONS = dict()
+            SENSOR_VISUALS = dict()
 
             for feature in lyr.getFeatures(request):
                 feature: QgsFeature
@@ -248,79 +257,57 @@ class TemporalProfileVisualization(QObject):
                 attributeMap = feature.attributeMap()
                 tpData: dict = TemporalProfileUtils.profileDict(attributeMap[vis_field])
 
-                n = len(tpData[TemporalProfileUtils.Values])
+                # collect for each sensor some specifications that we need to calculate the x and y values
+                for i_sid, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+                    if sid not in SENSOR_SPECS:
+                        spec = TemporalProfileUtils.sensorSpecs(sid)
+                        SENSOR_SPECS[sid] = spec
+                        match = self.timeSeries().findMatchingSensor(sid)
+                        if isinstance(match, SensorInstrument):
+                            if match.id() not in SENSOR_SPECS:
+                                SENSOR_SPECS[match.id()] = spec
+                        for vis_sensor in vis['sensors']:
+                            vsid = vis_sensor['sensor_id']
+                            if vsid in [match.id(), sid]:
+                                prepared_expr = TemporalProfileUtils.prepareBandExpression(vis_sensor['expression'])
+                                BAND_EXPRESSIONS[sid] = prepared_expr
+                                BAND_EXPRESSIONS[vsid] = prepared_expr
+                                BAND_EXPRESSIONS[match.id()] = prepared_expr
+                                SENSOR_VISUALS[sid] = SENSOR_VISUALS[vsid] = SENSOR_VISUALS[match.id()] = vis_sensor
+                        # get the expressions to calculate the x and y values for each sensor
 
-                y_values = []
-                x_dates = tpData[TemporalProfileUtils.Date]
-                colors = []
-                markers = []
+                # get the x and y values to show
+                results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
+                n = results['n']
+                all_x = results['timestamps']
+                all_y = results['y']
 
-                all_sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
-                all_value_list = tpData[TemporalProfileUtils.Values]
-                all_dates = np.asarray(
-                    [datetime.datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
-                # all_dates = np.asarray(tpData[TemporalProfileUtils.Date], dtype='datetime64')
-                # all_dates = np.asarray(range(n))
-
-                all_show = np.ones((n,))
-
-                all_x = all_dates.copy()
-                all_y = np.empty(n, dtype=float)
                 all_symbols = np.empty(n, dtype=object)
                 all_symbol_pens = np.empty(n, dtype=object)
                 all_symbol_brushes = np.empty(n, dtype=object)
                 all_symbol_sizes = np.empty(n, dtype=int)
 
                 line_pen = pg.mkPen(color='b', width=2)
-                # get the data to show
-                for i_sid, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
 
-                    if sid not in LUT_SENSOR:
-                        match = self.timeSeries().findMatchingSensor(sid)
-                        if isinstance(match, SensorInstrument) and match.id() in LUT_SENSOR:
-                            LUT_SENSOR[sid] = LUT_SENSOR[match.id()]
-                    is_sensor = np.where(all_sidx == i_sid)[0]
-                    if len(is_sensor) == 0:
-                        continue
+                for sid, is_sensor in results['sensor_indices'].items():
+                    vis_sensor = SENSOR_VISUALS[sid]
+                    if vis_sensor['show']:
+                        symbol_style: PlotStyle = PlotStyle.fromMap(vis_sensor['symbol_style'])
 
-                    viz_sensor = LUT_SENSOR.get(sid)
-                    if not (isinstance(viz_sensor, dict) and viz_sensor.get('show', False)):
-                        # missing styling info or hide this sensor
-                        all_x[is_sensor] = np.NaN
-                        all_y[is_sensor] = np.NaN
-                        continue
+                        all_symbols[is_sensor] = symbol_style.markerSymbol
+                        all_symbol_pens[is_sensor] = QPen(symbol_style.markerPen)
+                        all_symbol_brushes[is_sensor] = QBrush(symbol_style.markerBrush)
+                        all_symbol_sizes[is_sensor] = symbol_style.markerSize
 
-                    sensor_values = np.asarray([all_value_list[j] for j in is_sensor])
-                    sensor_dates = all_dates[is_sensor]
-
-                    sensor_expression = viz_sensor.get('expression')
-                    # todo: eval index expressions
-                    # y = y * 3
-                    # y = b('ndvi')
-                    # y = b('ndvi') # return ndvi values
-                    # y = b(1) # return values of 1st band
-                    # x = x
-                    sensor_y = sensor_values[:, 0]
-
-                    symbol_style: PlotStyle = PlotStyle.fromMap(viz_sensor['symbol_style'])
-
-                    all_y[is_sensor] = sensor_y
-                    all_symbols[is_sensor] = symbol_style.markerSymbol
-                    all_symbol_pens[is_sensor] = QPen(symbol_style.markerPen)
-                    all_symbol_brushes[is_sensor] = QBrush(symbol_style.markerBrush)
-                    all_symbol_sizes[is_sensor] = symbol_style.markerSize
-
-                timestamps = [d.timestamp() if isinstance(d, datetime.datetime) else np.NaN for d in all_x]
                 # data = {'x': timestamps,
                 #        'y': all_y.astype(float)}
-                if any([np.isfinite(d) for d in timestamps]):
-
+                if np.any(np.isfinite(all_y)):
                     feature_line_style = layer_line_style.clone()
                     if feature.id() in selected_fids:
                         feature_line_style.setLineColor(QColor('yellow'))
                         feature_line_style.setLineWidth(layer_line_style.lineWidth() + 3)
 
-                    pdi = pg.PlotDataItem(timestamps, all_y,
+                    pdi = pg.PlotDataItem(all_x, all_y,
                                           pen=feature_line_style.linePen,
                                           symbol=all_symbols,
                                           symbolSize=all_symbol_sizes,

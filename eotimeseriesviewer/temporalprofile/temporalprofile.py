@@ -1,10 +1,15 @@
 import json
 import os.path
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
+import numpy as np
+
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
@@ -313,6 +318,151 @@ class TemporalProfileUtils(object):
     Values = 'values'
 
     @classmethod
+    def prepareBandExpression(cls, user_code: str):
+        """
+        Prepares the band expression code for execution in the applySensorExpression method.
+        :param code: str with the band expression code specified by the user
+        :param specs: dict with the sensor specifications (e.g. band names, band indices)
+        :return: compiled code to be used with exec()
+        """
+
+        code = f"""
+import numpy as np
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+b = lambda expr: TemporalProfileUtils.bandOrIndex(expr, band_values, sensor_specs)
+y = {user_code}
+        """
+        compiled_code = compile(code, '<band sensor function>', 'exec')
+        return compiled_code
+
+    @classmethod
+    def sensorSpecs(cls, sid: str) -> dict:
+        """
+        Returns the sensor specifications for the given sensor id
+        :param sid: sensor id string
+        :return: sensor specifications as dict
+        """
+        SI_ACRONYMS = spectral_index_acronyms()
+
+        band_lookup = dict()
+        specs = json.loads(sid)
+        if isinstance(specs.get('wlu'), str) and isinstance(specs['wl'], list):
+            # convert wavelengths to nanometers
+            wl: List[float] = UnitLookup.convertLengthUnit(specs['wl'], specs['wlu'], 'nm')
+
+            for name, info in SI_ACRONYMS['band_identifier'].items():
+                center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
+
+                if min(wl) <= center_wl <= max(wl):
+                    band_lookup[name] = np.argmin(np.abs(np.asarray(wl) - center_wl))
+                else:
+                    band_lookup[name] = None
+
+        specs['sid'] = sid
+        specs['band_lookup'] = band_lookup
+
+        return specs
+
+    @classmethod
+    def applyExpressions(cls,
+                         tpData: Dict[str, Any],
+                         feature: QgsFeature,
+                         sensor_expressions: Dict[str, Any],
+                         sensor_specs: Dict[str, Any]) \
+            -> dict:
+
+        all_obs_dates = np.asarray(
+            [datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
+        n = len(all_obs_dates)
+
+        y = np.empty(n, dtype=float)
+        sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
+        all_band_values = tpData[TemporalProfileUtils.Values]
+
+        sensor_indices: Dict[str, np.ndarray] = dict()
+
+        for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+            expr = sensor_expressions.get(sid, None)
+            if expr:
+                is_sensor = np.where(sidx == i)[0]
+                if len(is_sensor) == 0:
+                    continue
+                s_band_values = np.asarray([all_band_values[j] for j in is_sensor])
+                s_obs_dates = all_obs_dates[is_sensor]
+                specs = sensor_specs[sid]
+                _globals = {'sensor_specs': specs,
+                            'band_values': s_band_values,
+                            'dates': s_obs_dates,
+                            'feature': feature}
+                exec(expr, _globals)
+                s_y = _globals['y']
+                # s_y = cls.applySensorExpression(s_band_values, s_obs_dates, feature)
+                y[is_sensor] = s_y
+                sensor_indices[sid] = is_sensor
+            else:
+                raise ValueError(f'No expression for sensor {sid}')
+
+        timestamps = [d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates]
+        results = {'timestamps': timestamps,
+                   'y': y,
+                   'n': n,
+                   'sensor_indices': sensor_indices
+                   }
+
+        return results
+
+    @classmethod
+    def bandOrIndex(cls, expr, bandData: np.ndarray, sensor_specs: dict) -> Optional[np.ndarray]:
+        """
+        Returns the band values or spectral index values for the given expression
+        :param expr:
+        :param bandData:
+        :param sensor_specs:
+        :return: numpy array with the band values or spectral index values
+        """
+        n, nb = bandData.shape
+        band_lookup: dict[str, int] = sensor_specs.get('band_lookup', {})
+        index_descriptions = spectral_indices()
+
+        acronyms = spectral_index_acronyms()
+        constants = acronyms['constants']
+        band_identifier = acronyms['band_identifier']
+
+        if isinstance(expr, str) and re.match(r'^\d+$', expr):
+            expr = int(expr)
+
+        if isinstance(expr, int):
+            assert 0 < expr <= nb, f'Invalid band number: {expr}'
+            # return the n-th band
+            return bandData[:, expr - 1]
+        elif isinstance(expr, str):
+            if expr in band_lookup:
+                return bandData[:, band_lookup[expr]]
+            elif expr in index_descriptions:
+                index_info: dict = index_descriptions[expr]
+                required_bands = index_info['bands']
+                formula = index_info['formula']
+                # get spectral index values
+
+                s = ""
+                params = {}
+                for b in required_bands:
+                    if b in constants:
+                        params[b] = constants[b]['value']
+                    elif b in band_lookup:
+                        params[b] = bandData[:, band_lookup[b]]
+                    else:
+                        return np.ones(n) * np.NaN
+                s = ""
+                return eval(formula, {}, params)
+            else:
+                return np.ones(n) * np.NaN
+                # s = ""
+                # raise ValueError(f'Unknown band name / spectral index: {expr}')
+
+        s = ""
+
+    @classmethod
     def isProfileField(cls, field: QgsField) -> bool:
 
         return (isinstance(field,
@@ -372,6 +522,11 @@ class TemporalProfileUtils(object):
         txt = json.dumps(d)
         return txt
 
+    @staticmethod
+    def profileValues(dp: QgsRasterDataProvider, pt: QgsPointXY) -> List[Optional[float]]:
+        data = [dp.sample(pt, b + 1) for b in range(dp.bandCount())]
+        return [None if not d[1] else d[0] for d in data]
+
     @classmethod
     def profileDict(cls, input) -> Optional[dict]:
 
@@ -384,8 +539,8 @@ class TemporalProfileUtils(object):
             return None
 
     @classmethod
-    def profileSensors(cls, profile: dict) -> List[str]:
-        d = cls.profileDict(cls)
+    def profileSensors(cls, profileData: dict) -> List[str]:
+        d = cls.profileDict(profileData)
         return d.get(cls.SensorIDs)
 
     @classmethod
@@ -395,6 +550,11 @@ class TemporalProfileUtils(object):
 
     @classmethod
     def createProfileField(cls, name: str) -> QgsField:
+        """
+        Creates a QgsField for temporal profiles
+        :param name: field name (e.g. 'profile')
+        :return: QgsField
+        """
         field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME)
         setup = QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {})
         field.setEditorWidgetSetup(setup)
@@ -622,9 +782,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                     # Avg identify: 0:00:00.173399 <- takes too long, total duration 19.sec
                     # Avg sample: 0:00:00.000056 <- better use dataprovider.sample, total duration 17 sec
                     t1 = datetime.now()
-                    data = [dp.sample(pt, b + 1) for b in range(dp.bandCount())]
+                    values = TemporalProfileUtils.profileValues(dp, pt)
                     self.timeIt('sample', t1)
-                    values = [None if not d[1] else d[0] for d in data]
 
                 # assert valuesI == values
 

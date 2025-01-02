@@ -1,12 +1,11 @@
 import json
 import unittest
 
+import numpy as np
 from PyQt5.QtWidgets import QTableView
 
-from eotimeseriesviewer.temporalprofile.functions import ProfileValueExpressionFunction, spectral_index_scope, \
-    SpectralIndexBandIdentifierModel, SpectralIndexConstantModel
+from eotimeseriesviewer.temporalprofile.functions import SpectralIndexBandIdentifierModel, SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextUtils
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 
 start_app()
@@ -55,50 +54,82 @@ class ProfileFunctionTestCases(TestCase):
         view.setModel(model)
         self.showGui(view)
 
-    @unittest.skip('WIP')
-    def test_ProfileValueExpression(self):
-        f = ProfileValueExpressionFunction()
+    def test_sensorSpecs(self):
+
+        ts = TestObjects.createTimeSeries()
+        for sensor in ts.sensors():
+            sid = sensor.id()
+            spec = TemporalProfileUtils.sensorSpecs(sid)
+            self.assertIsInstance(spec, dict)
+
+            self.assertIn('nb', spec)
+            self.assertIn('band_lookup', spec)
+            self.assertIn('sid', spec)
+
+    def test_bandOrIndex(self):
+
+        lyr = TestObjects.createProfileLayer()
+        for feature in lyr.getFeatures():
+            tpData = feature.attribute('profile')
+            sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
+            all_band_values = tpData[TemporalProfileUtils.Values]
+
+            for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+                is_sensor = np.where(sidx == i)[0]
+                band_values = np.asarray([all_band_values[j] for j in is_sensor])
+                if len(band_values) == 0:
+                    continue
+
+                specs = TemporalProfileUtils.sensorSpecs(sid)
+                band_lookup = specs['band_lookup']
+
+                n, nb = band_values.shape
+                self.assertEqual(nb, specs['nb'])
+
+                # b(1) or b('1') -> return 1st band
+                for expr in [1, '1']:
+                    result = TemporalProfileUtils.bandOrIndex(expr, band_values, specs)
+                    self.assertTrue(np.all(result == band_values[:, 0]))
+
+                # b(999) or b('999') -> return 999th band
+                for expr in [nb, f'{nb}']:
+                    result = TemporalProfileUtils.bandOrIndex(expr, band_values, specs)
+                    self.assertTrue(np.all(result == band_values[:, nb - 1]))
+
+                # b('B') -> return band values by band acronym
+                for band_acronym in ['R', 'G', 'B', 'N']:
+                    result = TemporalProfileUtils.bandOrIndex(band_acronym, band_values, specs)
+                    if band_acronym in band_lookup:
+                        self.assertTrue(np.all(result == band_values[:, band_lookup[band_acronym]]))
+                    else:
+                        s = ""
+                        self.assertTrue(np.all(np.isnan(result)))
+
+                result = TemporalProfileUtils.bandOrIndex('NDVI', band_values, specs)
+
+                if 'N' in band_lookup and 'R' in band_lookup:
+                    ndvi = ((band_values[:, band_lookup['N']] - band_values[:, band_lookup['R']]) /
+                            (band_values[:, band_lookup['N']] + band_values[:, band_lookup['R']]))
+                    self.assertTrue(np.all(result == ndvi))
+                else:
+                    self.assertTrue(np.all(np.isnan(result)))
+
+    def test_profile_python_function(self):
 
         lyr = TestObjects.createProfileLayer()
 
-        TemporalProfileUtils.temporalProfileFields(lyr)
+        for feature in lyr.getFeatures():
+            fTxt = 'b(1)'
 
-        context = QgsExpressionContext()
-        context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
-        context.appendScope(spectral_index_scope())
+            tpData = feature.attribute('profile')
 
-        ndvis = []
-        tps = []
+            expressions = {'*': "b('NDVI') * 100"}
 
-        tpFields = TemporalProfileUtils.temporalProfileFields(lyr)
+            x, y = TemporalProfileUtils.applyExpressions(tpData, feature, expressions)
 
-        for i, feature in enumerate(lyr.getFeatures()):
-            context.setFeature(feature)
-
-            tps.append(feature.attribute(tpFields[0].name()))
-
-            context1 = QgsExpressionContext(context)
-            exp = QgsExpression(f'{f.name()}(\'NDVI\')')
-            exp.prepare(context1)
-            self.assertTrue(exp.parserErrorString() == '', msg=exp.parserErrorString())
-            ndvi_values = exp.evaluate(context1)
-            self.assertTrue(exp.evalErrorString() == '', msg=exp.evalErrorString())
-            self.assertIsInstance(ndvi_values, list)
-
-            if i > 0:
-                self.assertNotEqual(ndvis[-1], ndvi_values)
-            ndvis.append(ndvi_values)
-
-            # run QGIS Expression on each single datum
-            # this allows to use other QGIS functions
-            context2 = QgsExpressionContext(context)
-            for i, ndvi in enumerate(ndvi_values):
-                context2.lastScope().setVariable('dates', i)
-                exp = QgsExpression(f'({f.name()}(\'N\')-{f.name()}(\'R\')) / ({f.name()}(\'N\')+{f.name()}(\'R\'))')
-                self.assertTrue(exp.parserErrorString() == '', msg=exp.parserErrorString())
-                ndvi_i = exp.evaluate(context2)
-                self.assertTrue(exp.evalErrorString() == '', msg=exp.evalErrorString())
-                self.assertEqual(ndvi_values[i], ndvi_i)
+            self.assertIsInstance(x, np.ndarray)
+            self.assertIsInstance(y, np.ndarray)
+            self.assertEqual(len(x), len(y))
 
 
 if __name__ == '__main__':

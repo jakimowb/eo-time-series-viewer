@@ -1,21 +1,20 @@
 import json
 from typing import Dict, List, Optional, Union
 
+from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from qgis.PyQt.QtWidgets import QApplication, QHeaderView, QMenu, QStyle, QStyledItemDelegate, QStyleOptionButton, \
     QStyleOptionViewItem, QTreeView, QWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap, QStandardItem, \
     QStandardItemModel
-from qgis.core import QgsExpression, QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
     QgsExpressionContextUtils, QgsField, QgsProperty, QgsPropertyDefinition, QgsVectorLayer
-
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
     PlotStyleDialog, PlotStyleWidget
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.graphicsItems.ScatterPlotItem import drawSymbol
 from eotimeseriesviewer.qgispluginsupport.qps.speclib.gui.spectrallibraryplotmodelitems import PlotStyleItem, \
     PropertyItem, PropertyItemBase, PropertyItemGroup, QgsPropertyItem
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.temporalprofile.functions import ProfileValueExpressionFunction
 from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
 
 
@@ -26,6 +25,22 @@ class StyleItem(PlotStyleItem):
 
     def heightHint(self) -> int:
         return 1
+
+
+class PythonCodeItem(PropertyItem):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.setEditable(True)
+        self.mPythonExpression = 'b(1)'
+
+    def createEditor(self, parent):
+        w = FieldPythonExpressionWidget(parent)
+        w.setExpression(self.mPythonExpression)
+        return w
+
+    def setEditorData(self, editor, index):
+        editor.setExpression(self.mPythonExpression)
 
 
 class PlotSymbolItem(StyleItem):
@@ -390,8 +405,9 @@ class TPVisSensor(PropertyItemGroup):
         self.mPSymbol = PlotSymbolItem('Symbol')
         self.mPSymbol.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
-        self.mPBand = QgsPropertyItem('Band')
-        self.mPBand.setText('Band')
+        self.mPBand = PythonCodeItem('Band')
+        self.mPBand.setToolTip('Band or spectral index to display.')
+        self.mPBand.setText('b(1)')
         # self.mPBand.label().setText('Band')
 
         items = [self.mPSymbol, self.mPBand]
@@ -433,7 +449,7 @@ class TPVisSensor(PropertyItemGroup):
         d = {'sensor_id': self.sensorId(),
              'sensor_name': self.sensorName(),
              'show': self.checkState() == Qt.Checked,
-             'band': band,
+             'expression': band,
              'symbol_style': self.mPSymbol.plotStyle().map(),
              }
 
@@ -770,8 +786,6 @@ class PlotSettingsProxyModel(QSortFilterProxyModel):
 
 
 class PlotSettingsContextGenerator(QgsExpressionContextGenerator):
-    mFunc = ProfileValueExpressionFunction()
-    QgsExpression.registerFunction(mFunc)
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)

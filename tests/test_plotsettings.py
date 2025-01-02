@@ -54,7 +54,7 @@ class PlotSettingsTests(TestCase):
         self.showGui(w)
 
     def assertIsJSONizable(self, value):
-        text = json.dumps(value)
+        text = json.dumps(value, ensure_ascii=False)
         self.assertIsInstance(text, str)
         value2 = json.loads(text)
 
@@ -72,6 +72,7 @@ class PlotSettingsTests(TestCase):
             tpSensor.setSensor(sensor.id())
             data = tpSensor.settingsMap()
             self.assertIsInstance(data, dict)
+            data = json.loads(json.dumps(data))
             self.assertEqual(data['sensor_id'], sensor.id())
 
     def test_TemporalProfileDock(self):

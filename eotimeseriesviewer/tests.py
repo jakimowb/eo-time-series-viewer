@@ -27,10 +27,10 @@ from typing import List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
+
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
     QgsVectorLayer
 from qgis.PyQt.QtWidgets import QWidget
-
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -153,6 +153,8 @@ class TestObjects(TObj):
                 err = layer.error()
                 if isinstance(err, QgsError):
                     raise err.message()
+
+        layer.setDisplayExpression("format('Feature %1', $id)")
         return layer
 
     @staticmethod

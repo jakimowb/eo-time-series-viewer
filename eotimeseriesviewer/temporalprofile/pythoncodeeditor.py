@@ -70,6 +70,7 @@ class PythonExpressionDialog(QDialog):
 
 class FieldPythonExpressionWidget(QWidget):
     expressionChanged = pyqtSignal(str)
+    previewRequest = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -94,6 +95,7 @@ class FieldPythonExpressionWidget(QWidget):
     def openExpressionDialog(self):
         """Opens a dialog with QgsCodeEditorPython to edit the expression."""
         dialog = PythonExpressionDialog(self)
+        dialog.previewRequest.connect(self.previewRequest)
         dialog.setWindowTitle("Edit Python Expression")
         dialog.setCode(self.expression())
         # Connect dialog buttons
