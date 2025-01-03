@@ -651,7 +651,8 @@ class TimeSeriesSource(object):
         tprop: QgsRasterLayerTemporalProperties = lyr.temporalProperties()
         tprop.setIsActive(True)
         tprop.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
-        lyr.setCustomProperty('eotsv/dtg', self.dtg().toString(Qt.ISODate))
+        lyr.setCustomProperty(ImageDateUtils.PROPERTY_KEY, self.dtg().toString(Qt.ISODate))
+        lyr.setCustomProperty(SensorInstrument.PROPERTY_KEY, self.sid())
         tprop.setFixedTemporalRange(QgsDateTimeRange(self.dtg(), self.dtg()))
         return lyr
 

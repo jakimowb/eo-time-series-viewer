@@ -3,6 +3,7 @@ import unittest
 
 import numpy as np
 from PyQt5.QtWidgets import QTableView
+from qgis._core import QgsFeature
 
 from eotimeseriesviewer.temporalprofile.functions import SpectralIndexBandIdentifierModel, SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
@@ -116,20 +117,24 @@ class ProfileFunctionTestCases(TestCase):
 
     def test_profile_python_function(self):
 
-        lyr = TestObjects.createProfileLayer()
+        tpData = TestObjects.createTemporalProfileDict()
 
-        for feature in lyr.getFeatures():
-            fTxt = 'b(1)'
+        f = QgsFeature()
+        expressions = {'*': 'b("NDVI")'}
+        expressions = {k: TemporalProfileUtils.prepareBandExpression(v) for k, v in expressions.items()}
 
-            tpData = feature.attribute('profile')
+        results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
+        self.assertIsInstance(results, dict)
+        x = results['x']
+        y = results['y']
+        n = results['n']
+        sidx = results['sensor_indices']
 
-            expressions = {'*': "b('NDVI') * 100"}
-
-            x, y = TemporalProfileUtils.applyExpressions(tpData, feature, expressions)
-
-            self.assertIsInstance(x, np.ndarray)
-            self.assertIsInstance(y, np.ndarray)
-            self.assertEqual(len(x), len(y))
+        self.assertIsInstance(x, np.ndarray)
+        self.assertIsInstance(y, np.ndarray)
+        self.assertEqual(x.shape, y.shape)
+        self.assertEqual(len(x), len(y))
+        self.assertEqual(len(x), n)
 
 
 if __name__ == '__main__':

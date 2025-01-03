@@ -279,7 +279,7 @@ class TemporalProfileVisualization(QObject):
                 # get the x and y values to show
                 results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
                 n = results['n']
-                all_x = results['timestamps']
+                all_x = results['x']
                 all_y = results['y']
 
                 all_symbols = np.empty(n, dtype=object)

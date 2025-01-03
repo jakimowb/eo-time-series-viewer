@@ -138,8 +138,6 @@ class SpectralIndexConstantModel(QAbstractTableModel):
             self.beginRemoveRows(QModelIndex(), row, row)
             self.mConstantDefinitions.pop(k)
             self.endRemoveRows()
-        s = ""
-        pass
 
     def loadFromSpyndex(self):
         """
@@ -234,7 +232,7 @@ class SpectralIndexBandIdentifierModel(QAbstractTableModel):
 
     def flags(self, index):
         if index.isValid():
-            c = index.column()
+            # c = index.column()
             flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
             return flags
             # return item.qt_flags(index.column())

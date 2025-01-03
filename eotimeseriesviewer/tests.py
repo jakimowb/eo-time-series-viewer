@@ -23,20 +23,20 @@
 import os
 import pathlib
 import uuid
-from typing import List, Match, Pattern, Union
+from typing import Any, Dict, List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
 
-from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsRasterLayer, \
-    QgsVectorLayer
+from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
+    QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QWidget
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.qgispluginsupport.qps.testing import start_app, TestCase, TestObjects as TObj
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, rasterLayerMapToPixel
-from eotimeseriesviewer.timeseries import TimeSeries
+from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries, TimeSeriesSource
 from eotimeseriesviewer.dateparser import DateTimePrecision
 
 start_app = start_app
@@ -103,6 +103,56 @@ class TestObjects(TObj):
     """
     Creates objects to be used for testing. It is preferred to generate objects in-memory.
     """
+
+    @staticmethod
+    def createTemporalProfileDict() -> Dict[str, Any]:
+        """
+        Returns an exemplary temporal profile dictionary
+        with a multi-sensor timeseries of 2 sensors.
+        :return: dict
+        """
+        from example.Images import Img_2014_01_15_LC82270652014015LGN00_BOA
+        from example.Images import re_2014_06_25
+
+        tss1 = TimeSeriesSource.create(Img_2014_01_15_LC82270652014015LGN00_BOA)
+        tss2 = TimeSeriesSource.create(re_2014_06_25)
+        lyr1 = tss1.asRasterLayer()
+        lyr2 = tss2.asRasterLayer()
+
+        sensorIDs = []
+        values = []
+        sensors = []
+        dates = []
+
+        def addValues(lyr: QgsRasterLayer, datetime: str):
+            sid = lyr.customProperty(SensorInstrument.PROPERTY_KEY)
+            extent = lyr.extent()
+            # random point within the extent
+            x = np.random.uniform(extent.xMinimum(), extent.xMaximum())
+            y = np.random.uniform(extent.yMinimum(), extent.yMaximum())
+            point = QgsPointXY(x, y)
+            val = TemporalProfileUtils.profileValues(lyr, point)
+            values.append(val)
+            if sid not in sensorIDs:
+                sensorIDs.append(sid)
+            sensors.append(sensorIDs.index(sid))
+            dates.append(datetime)
+
+            s = ""
+
+        addValues(lyr1, '2024-01-01')
+        addValues(lyr1, '2024-01-02')
+        addValues(lyr2, '2024-01-03')
+        addValues(lyr2, '2024-01-04')
+
+        profileDict = {TemporalProfileUtils.SensorIDs: sensorIDs,
+                       TemporalProfileUtils.Sensor: sensors,
+                       TemporalProfileUtils.Date: dates,
+                       TemporalProfileUtils.Values: values}
+        assert TemporalProfileUtils.isProfileDict(profileDict)
+        success, error = TemporalProfileUtils.verifyProfile(profileDict)
+        assert success, error
+        return profileDict
 
     @staticmethod
     def createTimeSeries(precision: DateTimePrecision = DateTimePrecision.Day) -> TimeSeries:

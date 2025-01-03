@@ -1,6 +1,7 @@
 import json
 import os.path
 import re
+import types
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -67,10 +68,9 @@ class TemporalProfileEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
     def __init__(self, vl: QgsVectorLayer, fieldIdx: int, editor: QWidget, parent: QWidget):
         super(TemporalProfileEditorWidgetWrapper, self).__init__(vl, fieldIdx, editor, parent)
-        self.mWidget: QWidget = None
+        self.mWidget: Optional[QWidget] = None
 
         self.mLastValue: QVariant = QVariant()
-        s = ""
 
     def createWidget(self, parent: QWidget):
         # log('createWidget')
@@ -83,7 +83,7 @@ class TemporalProfileEditorWidgetWrapper(QgsEditorWidgetWrapper):
 
     def initWidget(self, editor: QWidget):
         # log(' initWidget')
-        conf = self.config()
+        # conf = self.config()
 
         if isinstance(editor, TemporalProfileEditorWidget):
             pass
@@ -153,7 +153,6 @@ class TemporalProfileFieldFormatter(QgsFieldFormatter):
             # return f'{SPECTRAL_PROFILE_FIELD_REPRESENT_VALUE} ({layer.fields().at(fieldIndex).typeName()})'
         else:
             return 'NULL'
-        s = ""
 
 
 class TemporalProfileEditorWidgetFactory(QgsEditorWidgetFactory):
@@ -202,7 +201,10 @@ class TemporalProfileEditorWidgetFactory(QgsEditorWidgetFactory):
         """
         return layer.id(), fieldIdx
 
-    def create(self, layer: QgsVectorLayer, fieldIdx: int, editor: QWidget,
+    def create(self,
+               layer: QgsVectorLayer,
+               fieldIdx: int,
+               editor: QWidget,
                parent: QWidget) -> TemporalProfileEditorWidgetWrapper:
         """
         Create a SpectralProfileEditorWidgetWrapper
@@ -251,7 +253,7 @@ class TemporalProfileEditorWidgetFactory(QgsEditorWidgetFactory):
 
         :param vl: QgsVectorLayer
         :param fieldIdx: int
-        :return: int
+        :return: integer score
         """
         # log(' fieldScore()')
         field = vl.fields().at(fieldIdx)
@@ -273,14 +275,12 @@ class TemporalProfileEditorWidget(QGroupBox):
     def __init__(self, *args, **kwds):
         super(TemporalProfileEditorWidget, self).__init__(*args, **kwds)
         self.setWindowIcon(QIcon(':/eotimeseriesviewer/icons/mIconTemporalProfile.svg'))
-        self.mDefault: dict = False
+        self.mDefault: Optional[dict] = None
 
         vbox = QVBoxLayout()
         vbox.setSpacing(1)
         vbox.addWidget(QLabel('Temporal Profile'))
         self.setLayout(vbox)
-
-        s = ""
 
     def editorProfileChanged(self):
 
@@ -300,7 +300,7 @@ class TemporalProfileEditorWidget(QGroupBox):
     def setProfile(self, profile: dict):
         """
         Sets the profile values to be shown
-        :param values: dict() or SpectralProfile
+        :param profile: dict() or SpectralProfile
         :return:
         """
         pass
@@ -321,18 +321,15 @@ class TemporalProfileUtils(object):
     def prepareBandExpression(cls, user_code: str):
         """
         Prepares the band expression code for execution in the applySensorExpression method.
-        :param code: str with the band expression code specified by the user
-        :param specs: dict with the sensor specifications (e.g. band names, band indices)
+        :param user_code: str with the band expression code specified by the user
         :return: compiled code to be used with exec()
         """
-
-        code = f"""
-import numpy as np
-from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
-b = lambda expr: TemporalProfileUtils.bandOrIndex(expr, band_values, sensor_specs)
-y = {user_code}
-        """
-        compiled_code = compile(code, '<band sensor function>', 'exec')
+        code = ['import numpy as np',
+                'from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils',
+                'b = lambda expr: TemporalProfileUtils.bandOrIndex(expr, band_values, sensor_specs)',
+                f'y = {user_code}'
+                ]
+        compiled_code = compile('\n'.join(code), '<band sensor function>', 'exec')
         return compiled_code
 
     @classmethod
@@ -368,12 +365,28 @@ y = {user_code}
                          tpData: Dict[str, Any],
                          feature: QgsFeature,
                          sensor_expressions: Dict[str, Any],
-                         sensor_specs: Dict[str, Any]) \
+                         sensor_specs: Optional[Dict[str, Any]] = None) \
             -> dict:
-
+        """
+        Applies the sensor expressions to the temporal profile data and returns the results
+        in a dictionary, i.e. timestamps, y-values, and sensor indices
+        :param tpData: Temporal profile data dictionary
+        :param feature: QgsFeature
+        :param sensor_expressions: dict with sensor expressions
+        :param sensor_specs: dict with sensor specifications, as returned by sensorSpecs()
+        :return: dictionary with 'x' = timestamps, y = calculated values,
+                 n = number of observations, sensor_indices = dict with sensor indices (from numpy.where)
+        """
         all_obs_dates = np.asarray(
             [datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
         n = len(all_obs_dates)
+
+        for k, expr in sensor_expressions.items():
+            assert isinstance(k, str)
+            assert isinstance(expr, types.CodeType), f'expression "{k}" is not a code pre-compiled object: {expr}'
+
+        if sensor_specs is None:
+            sensor_specs = {}
 
         y = np.empty(n, dtype=float)
         sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
@@ -382,14 +395,14 @@ y = {user_code}
         sensor_indices: Dict[str, np.ndarray] = dict()
 
         for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
-            expr = sensor_expressions.get(sid, None)
+            is_sensor = np.where(sidx == i)[0]
+            if len(is_sensor) == 0:
+                continue
+            expr = sensor_expressions.get(sid, sensor_expressions.get('*', None))
             if expr:
-                is_sensor = np.where(sidx == i)[0]
-                if len(is_sensor) == 0:
-                    continue
                 s_band_values = np.asarray([all_band_values[j] for j in is_sensor])
                 s_obs_dates = all_obs_dates[is_sensor]
-                specs = sensor_specs[sid]
+                specs = sensor_specs.get(sid, cls.sensorSpecs(sid))
                 _globals = {'sensor_specs': specs,
                             'band_values': s_band_values,
                             'dates': s_obs_dates,
@@ -400,10 +413,11 @@ y = {user_code}
                 y[is_sensor] = s_y
                 sensor_indices[sid] = is_sensor
             else:
-                raise ValueError(f'No expression for sensor {sid}')
+                y[is_sensor] = np.NaN
 
-        timestamps = [d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates]
-        results = {'timestamps': timestamps,
+        timestamps = np.asarray([d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates])
+
+        results = {'x': timestamps,
                    'y': y,
                    'n': n,
                    'sensor_indices': sensor_indices
@@ -444,7 +458,6 @@ y = {user_code}
                 formula = index_info['formula']
                 # get spectral index values
 
-                s = ""
                 params = {}
                 for b in required_bands:
                     if b in constants:
@@ -453,7 +466,7 @@ y = {user_code}
                         params[b] = bandData[:, band_lookup[b]]
                     else:
                         return np.ones(n) * np.NaN
-                s = ""
+
                 return eval(formula, {}, params)
             else:
                 return np.ones(n) * np.NaN
@@ -487,7 +500,7 @@ y = {user_code}
             return False
 
     @classmethod
-    def verifyProfile(cls, profileDict: dict) -> Tuple[bool, str]:
+    def verifyProfile(cls, profileDict: dict) -> Tuple[bool, Optional[str]]:
 
         n = len(profileDict[TemporalProfileUtils.Date])
         sensorIds = profileDict[TemporalProfileUtils.SensorIDs]
@@ -523,7 +536,10 @@ y = {user_code}
         return txt
 
     @staticmethod
-    def profileValues(dp: QgsRasterDataProvider, pt: QgsPointXY) -> List[Optional[float]]:
+    def profileValues(dp: Union[QgsRasterLayer, QgsRasterDataProvider], pt: QgsPointXY) -> List[Optional[float]]:
+        if isinstance(dp, QgsRasterLayer):
+            dp = dp.dataProvider()
+
         data = [dp.sample(pt, b + 1) for b in range(dp.bandCount())]
         return [None if not d[1] else d[0] for d in data]
 
@@ -586,8 +602,7 @@ y = {user_code}
     def profileLayers(cls, layers: Union[List[QgsMapLayer], QgsProject]) -> List[QgsVectorLayer]:
         """
         Returns the vector layer with temporal profile fields
-        :param layers:
-        :param project:
+        :param layers: list of QgsMapLayer or QgsProject
         :return:
         """
         if isinstance(layers, QgsProject):
@@ -612,7 +627,7 @@ y = {user_code}
     @staticmethod
     def createProfileLayer(path: Union[str, Path] = None) -> QgsVectorLayer:
         """
-        Creates a GPKG to store temporal profiles
+        Creates an in-memory GeoPackage (GPKG) to store temporal profiles
         :param path:
         :return:
         """
@@ -765,25 +780,14 @@ class LoadTemporalProfileTask(EOTSVTask):
                 profile: dict = profiles[i_pt]
                 values = None
 
-                if False:
-                    t1 = datetime.now()
-                    data = dp.identify(pt, Qgis.RasterIdentifyFormat.Value)
-                    self.timeIt('identify', t1)
-
-                    if data.isValid():
-                        bandValues = data.results()
-                        if len(bandValues) > 0:
-                            valuesI = list(bandValues.values())
-
-                if True:
-                    # from benchmark, loading full-band time series with 100 images:
-                    # Avg initLayer: 0:00:00.014435
-                    # Avg sid_dtg: 0:00:00.006734
-                    # Avg identify: 0:00:00.173399 <- takes too long, total duration 19.sec
-                    # Avg sample: 0:00:00.000056 <- better use dataprovider.sample, total duration 17 sec
-                    t1 = datetime.now()
-                    values = TemporalProfileUtils.profileValues(dp, pt)
-                    self.timeIt('sample', t1)
+                # from benchmark, loading full-band time series with 100 images:
+                # Avg initLayer: 0:00:00.014435
+                # Avg sid_dtg: 0:00:00.006734
+                # Avg identify: 0:00:00.173399 <- takes too long, total duration 19.sec
+                # Avg sample: 0:00:00.000056 <- better use dataprovider.sample, total duration 17 sec
+                t1 = datetime.now()
+                values = TemporalProfileUtils.profileValues(dp, pt)
+                self.timeIt('sample', t1)
 
                 # assert valuesI == values
 
