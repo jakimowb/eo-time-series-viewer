@@ -318,7 +318,7 @@ class TemporalProfileUtils(object):
     Values = 'values'
 
     @classmethod
-    def prepareBandExpression(cls, user_code: str):
+    def prepareBandExpression(cls, user_code: str) -> Tuple[Optional[types.CodeType], Optional[str]]:
         """
         Prepares the band expression code for execution in the applySensorExpression method.
         :param user_code: str with the band expression code specified by the user
@@ -329,8 +329,13 @@ class TemporalProfileUtils(object):
                 'b = lambda expr: TemporalProfileUtils.bandOrIndex(expr, band_values, sensor_specs)',
                 f'y = {user_code}'
                 ]
-        compiled_code = compile('\n'.join(code), '<band sensor function>', 'exec')
-        return compiled_code
+        error = None
+        compiled_code = None
+        try:
+            compiled_code = compile('\n'.join(code), '<band sensor function>', 'exec')
+        except Exception as ex:
+            error = str(ex)
+        return compiled_code, error
 
     @classmethod
     def sensorSpecs(cls, sid: str) -> dict:
@@ -374,53 +379,74 @@ class TemporalProfileUtils(object):
         :param feature: QgsFeature
         :param sensor_expressions: dict with sensor expressions
         :param sensor_specs: dict with sensor specifications, as returned by sensorSpecs()
-        :return: dictionary with 'x' = timestamps, y = calculated values,
-                 n = number of observations, sensor_indices = dict with sensor indices (from numpy.where)
+        :return: dictionary with
+            'x' = timestamps,
+            'y' = calculated values,
+            'n' = number of observations,
+            'sensor_indices' = dict with sensor indices (from numpy.where)
+            'errors' = list with errors occurred during calculation
         """
-        all_obs_dates = np.asarray(
-            [datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
-        n = len(all_obs_dates)
+        errors = []
 
-        for k, expr in sensor_expressions.items():
-            assert isinstance(k, str)
-            assert isinstance(expr, types.CodeType), f'expression "{k}" is not a code pre-compiled object: {expr}'
-
-        if sensor_specs is None:
-            sensor_specs = {}
+        all_obs_dates = np.asarray([datetime.fromisoformat(d) for d in tpData[TemporalProfileUtils.Date]])
+        x = np.asarray([d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates])
+        n = len(x)
 
         y = np.empty(n, dtype=float)
         sidx = np.asarray(tpData[TemporalProfileUtils.Sensor])
         all_band_values = tpData[TemporalProfileUtils.Values]
 
-        sensor_indices: Dict[str, np.ndarray] = dict()
+        if sensor_specs is None:
+            sensor_specs = {}
 
         for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
             is_sensor = np.where(sidx == i)[0]
             if len(is_sensor) == 0:
                 continue
             expr = sensor_expressions.get(sid, sensor_expressions.get('*', None))
+
             if expr:
-                s_band_values = np.asarray([all_band_values[j] for j in is_sensor])
-                s_obs_dates = all_obs_dates[is_sensor]
-                specs = sensor_specs.get(sid, cls.sensorSpecs(sid))
-                _globals = {'sensor_specs': specs,
-                            'band_values': s_band_values,
-                            'dates': s_obs_dates,
-                            'feature': feature}
-                exec(expr, _globals)
-                s_y = _globals['y']
-                # s_y = cls.applySensorExpression(s_band_values, s_obs_dates, feature)
-                y[is_sensor] = s_y
-                sensor_indices[sid] = is_sensor
+                try:
+                    if isinstance(expr, str):
+                        expr, err = cls.prepareBandExpression(expr)
+                        assert expr, err
+                    else:
+                        assert isinstance(expr,
+                                          types.CodeType), f'expression is not a code pre-compiled object:\n\t{sid}={expr}'
+                    s_band_values = np.asarray([all_band_values[j] for j in is_sensor])
+                    s_obs_dates = x[is_sensor]
+                    specs = sensor_specs.get(sid, cls.sensorSpecs(sid))
+                    _globals = {'sensor_specs': specs,
+                                'band_values': s_band_values,
+                                'dates': s_obs_dates,
+                                'feature': feature}
+                    exec(expr, _globals)
+                    s_y = _globals['y']
+                    # s_y = cls.applySensorExpression(s_band_values, s_obs_dates, feature)
+                    y[is_sensor] = s_y
+                except Exception as ex:
+                    errors.append(f'{ex}')
+                    y[is_sensor] = np.NaN
             else:
                 y[is_sensor] = np.NaN
 
-        timestamps = np.asarray([d.timestamp() if isinstance(d, datetime) else np.NaN for d in all_obs_dates])
+        # exclude NaNs
+        is_valid = np.where(np.isfinite(y))[0]
+        y = y[is_valid]
+        x = x[is_valid]
+        sidx = sidx[is_valid]
 
-        results = {'x': timestamps,
+        sensor_indices: Dict[str, np.ndarray] = dict()
+        for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+            is_sensor = np.where(sidx == i)[0]
+            if len(is_sensor) > 0:
+                sensor_indices[sid] = is_sensor
+
+        results = {'x': x,
                    'y': y,
-                   'n': n,
-                   'sensor_indices': sensor_indices
+                   'n': len(x),
+                   'sensor_indices': sensor_indices,
+                   'errors': errors,
                    }
 
         return results

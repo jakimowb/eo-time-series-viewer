@@ -18,12 +18,14 @@
  *                                                                         *
  ***************************************************************************/
 """
+import sys
 from typing import Dict, List
 
 import numpy as np
 
+from qgis.core import QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsFields, \
+    QgsProject, QgsVectorLayer
 from qgis.PyQt.QtGui import QBrush, QColor, QPen
-from qgis.core import QgsFeature, QgsFeatureRequest, QgsFields, QgsProject, QgsVectorLayer
 from qgis.gui import QgsDockWidget
 from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
     QModelIndex, QObject, QPoint, Qt
@@ -238,8 +240,13 @@ class TemporalProfileVisualization(QObject):
             # compiles the expressions that are used to calculate the x and y values
 
             request = QgsFeatureRequest()
+            context = QgsExpressionContext()
+            context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
+            request.setExpressionContext(context)
+
             filter_expression = vis.get('filter')
-            if filter_expression:
+            if filter_expression and filter_expression != '':
+                print(f'# SET FEATURE FILTER {filter_expression}')
                 request.setFilterExpression(filter_expression)
             vis_field = vis['field']
 
@@ -269,15 +276,26 @@ class TemporalProfileVisualization(QObject):
                         for vis_sensor in vis['sensors']:
                             vsid = vis_sensor['sensor_id']
                             if vsid in [match.id(), sid]:
-                                prepared_expr = TemporalProfileUtils.prepareBandExpression(vis_sensor['expression'])
+                                if vis_sensor['show']:
+                                    prepared_expr, error = TemporalProfileUtils.prepareBandExpression(
+                                        vis_sensor['expression'])
+                                else:
+                                    # skip values of this sensor
+                                    prepared_expr = None
+
                                 BAND_EXPRESSIONS[sid] = prepared_expr
                                 BAND_EXPRESSIONS[vsid] = prepared_expr
                                 BAND_EXPRESSIONS[match.id()] = prepared_expr
                                 SENSOR_VISUALS[sid] = SENSOR_VISUALS[vsid] = SENSOR_VISUALS[match.id()] = vis_sensor
+
                         # get the expressions to calculate the x and y values for each sensor
 
                 # get the x and y values to show
-                results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
+                try:
+                    results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
+                except Exception as ex:
+                    print(ex, file=sys.stderr)
+                    break
                 n = results['n']
                 all_x = results['x']
                 all_y = results['y']

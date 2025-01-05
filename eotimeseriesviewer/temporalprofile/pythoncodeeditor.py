@@ -81,9 +81,11 @@ class FieldPythonExpressionWidget(QWidget):
         self.editButton.setIcon(QIcon(":/images/themes/default/mIconPythonFile.svg"))
 
         # Layout for the main widget
-        layout = QHBoxLayout()
+        layout = QHBoxLayout(self)
         layout.addWidget(self.lineEdit)
         layout.addWidget(self.editButton)
+        layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         # Connect button click to open the dialog

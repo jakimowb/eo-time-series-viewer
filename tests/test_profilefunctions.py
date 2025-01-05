@@ -119,9 +119,19 @@ class ProfileFunctionTestCases(TestCase):
 
         tpData = TestObjects.createTemporalProfileDict()
 
+        all_values = tpData[TemporalProfileUtils.Values]
+        values_by_sid = {}
+        for i, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
+            values = []
+            for j, s in enumerate(tpData[TemporalProfileUtils.Sensor]):
+                if s == i:
+                    values.append(tpData[TemporalProfileUtils.Values][j])
+
+            values_by_sid[sid] = np.asarray(values)
+
         f = QgsFeature()
         expressions = {'*': 'b("NDVI")'}
-        expressions = {k: TemporalProfileUtils.prepareBandExpression(v) for k, v in expressions.items()}
+        expressions = {k: TemporalProfileUtils.prepareBandExpression(v)[0] for k, v in expressions.items()}
 
         results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
         self.assertIsInstance(results, dict)
@@ -135,6 +145,40 @@ class ProfileFunctionTestCases(TestCase):
         self.assertEqual(x.shape, y.shape)
         self.assertEqual(len(x), len(y))
         self.assertEqual(len(x), n)
+
+        expressions = {}
+        results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
+        self.assertIsInstance(results, dict)
+        self.assertEqual(results['n'], 0)
+
+        sid1, sid2 = tpData[TemporalProfileUtils.SensorIDs]
+        expressions = {sid1: 'b(4)',  # valid python expression, get values of band 4
+                       sid2: 'foobar"',  # in-valid python expression
+                       }
+
+        results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
+        self.assertIsInstance(results, dict)
+        self.assertEqual(results['n'], 2)
+        errors = results['errors']
+        self.assertEqual(len(errors), 1)
+
+        y = results['y']
+        self.assertTrue(np.all(y == values_by_sid[sid1][:, 3]))
+
+        sid1, sid2 = tpData[TemporalProfileUtils.SensorIDs]
+        expressions = {sid1: 'b(1)',  # valid python expression, get values of band 4
+                       sid2: None,  # exclude sid2
+                       }
+
+        results = TemporalProfileUtils.applyExpressions(tpData, f, expressions)
+        self.assertIsInstance(results, dict)
+        self.assertEqual(results['n'], 2)
+        errors = results['errors']
+        self.assertEqual(len(errors), 0)
+
+        y = results['y']
+        self.assertTrue(np.all(y == values_by_sid[sid1][:, 0]))
+        s = ""
 
 
 if __name__ == '__main__':
