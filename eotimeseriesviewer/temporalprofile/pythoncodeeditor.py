@@ -1,7 +1,9 @@
+from typing import Optional, Tuple
+
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox, QHBoxLayout, QLineEdit, QTextBrowser, QToolButton, QWidget
 from qgis.PyQt.QtCore import pyqtSignal, Qt
-from qgis.core import QgsFeature, QgsVectorLayer
+from qgis.core import QgsVectorLayer
 from qgis.gui import QgsCodeEditorPython, QgsFeaturePickerWidget
 from eotimeseriesviewer import DIR_UI
 from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
@@ -9,10 +11,15 @@ from eotimeseriesviewer.qgispluginsupport.qps.utils import loadUi
 path_ui = DIR_UI / 'pythoncodeeditordialog.ui'
 
 
-class PythonExpressionDialog(QDialog):
-    codeChanged = pyqtSignal(str)
+def create_pythoncode_validation_request(expression: str) -> dict:
+    d = {'expression': expression,
+         'error': None}
 
-    previewRequest = pyqtSignal(QgsFeature, str)
+    return d
+
+
+class PythonExpressionDialog(QDialog):
+    validationRequest = pyqtSignal(dict)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -22,23 +29,32 @@ class PythonExpressionDialog(QDialog):
         self.setWindowTitle("Edit Python Expression")
 
         editor: QgsCodeEditorPython = self.mCodeEditor
-        editor.textChanged.connect(lambda: self.codeChanged.emit(editor.text()))
-        editor.textChanged.connect(self.requestPreview)
+        editor.textChanged.connect(self.updatePreview)
 
         featurePicker: QgsFeaturePickerWidget = self.mFeaturePickerWidget
-        featurePicker.featureChanged.connect(self.requestPreview)
+        featurePicker.featureChanged.connect(self.updatePreview)
 
-        self.mPreviewFunc: callable = None
         self.buttonBox().accepted.connect(self.accept)
         self.buttonBox().rejected.connect(self.reject)
 
     def featurePickerWidget(self) -> QgsFeaturePickerWidget:
         return self.mFeaturePickerWidget
 
-    def requestPreview(self):
-        feature: QgsFeature = self.featurePickerWidget().feature()
+    def updatePreview(self):
+        d = create_pythoncode_validation_request(self.expression())
+        d['feature'] = self.featurePickerWidget().feature()
+        d['preview_text'] = None
+        d['preview_tooltip'] = None
+        self.validationRequest.emit(d)
 
-        self.previewRequest.emit(feature, self.code())
+        text = d.get('preview_text', '')
+        tt = d.get('preview_tooltip', '')
+
+        if isinstance(text, str):
+            self.tbPreview.setText(text)
+
+        if isinstance(tt, str):
+            self.tbPreview.setToolTip(tt)
 
     def setLayer(self, layer: QgsVectorLayer):
         self.mFeaturePickerWidget.setLayer(layer)
@@ -55,10 +71,10 @@ class PythonExpressionDialog(QDialog):
     def setHelpText(self, text: str):
         self.helpTextBrowser().setText(text)
 
-    def setCode(self, code: str):
+    def setExpression(self, code: str):
         self.codeEditor().setText(code)
 
-    def code(self) -> str:
+    def expression(self) -> str:
         return self.codeEditor().text()
 
     def codeEditor(self) -> QgsCodeEditorPython:
@@ -70,7 +86,7 @@ class PythonExpressionDialog(QDialog):
 
 class FieldPythonExpressionWidget(QWidget):
     expressionChanged = pyqtSignal(str)
-    previewRequest = pyqtSignal()
+    validationRequest = pyqtSignal(dict)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -93,28 +109,56 @@ class FieldPythonExpressionWidget(QWidget):
 
         # Signal to track changes in the QLineEdit
         self.lineEdit.textChanged.connect(self.onExpressionChanged)
+        self.lineEdit.textEdited.connect(lambda: self.doValidationRequest())
+
+        self.mLayer: Optional[QgsVectorLayer] = None
+
+        self.mIsValid: bool = None
 
     def openExpressionDialog(self):
         """Opens a dialog with QgsCodeEditorPython to edit the expression."""
         dialog = PythonExpressionDialog(self)
-        dialog.previewRequest.connect(self.previewRequest)
+        dialog.validationRequest.connect(self.doValidationRequest)
         dialog.setWindowTitle("Edit Python Expression")
-        dialog.setCode(self.expression())
+        dialog.setExpression(self.expression())
         # Connect dialog buttons
         buttonBox = dialog.buttonBox()
         buttonBox.accepted.connect(lambda d=dialog: self.applyExpression(d))
         buttonBox.rejected.connect(dialog.reject)
 
+        if self.mLayer:
+            dialog.setLayer(self.mLayer)
+
         dialog.exec_()
+
+    def doValidationRequest(self, data: dict = None):
+        if data is None:
+            data = create_pythoncode_validation_request(self.expression())
+        self.validationRequest.emit(data)
+
+        error = data.get('error', None)
+        if isinstance(error, str):
+            self.lineEdit.setStyleSheet('color:red;')
+        else:
+            self.lineEdit.setStyleSheet('')
 
     def applyExpression(self, dialog: PythonExpressionDialog):
         """Applies the expression from the code editor to the line edit."""
-        self.lineEdit.setText(dialog.code())
+
+        self.lineEdit.setText(dialog.expression())
         dialog.accept()
 
     def onExpressionChanged(self, text):
         """Emit signal when the expression changes."""
         self.expressionChanged.emit(text)
+        self.doValidationRequest()
+
+    def setLayer(self, layer: QgsVectorLayer):
+        assert isinstance(layer, QgsVectorLayer) and layer.isValid()
+        self.mLayer = layer
+
+    def layer(self) -> Optional[QgsVectorLayer]:
+        return self.mLayer
 
     def expression(self):
         """Returns the current expression in the QLineEdit."""
@@ -123,3 +167,14 @@ class FieldPythonExpressionWidget(QWidget):
     def setExpression(self, expression):
         """Sets the expression in the QLineEdit."""
         self.lineEdit.setText(expression)
+
+        self.doValidationRequest()
+
+    def isValidExpression(self) -> Tuple[bool, Optional[str]]:
+
+        d = create_pythoncode_validation_request(self.expression())
+        self.validationRequest.emit(d)
+
+        error = d.get('error', None)
+
+        return not isinstance(error, str), error

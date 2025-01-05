@@ -322,7 +322,7 @@ class TemporalProfileUtils(object):
         """
         Prepares the band expression code for execution in the applySensorExpression method.
         :param user_code: str with the band expression code specified by the user
-        :return: compiled code to be used with exec()
+        :return: compiled code to be used with exec(), error message
         """
         code = ['import numpy as np',
                 'from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils',

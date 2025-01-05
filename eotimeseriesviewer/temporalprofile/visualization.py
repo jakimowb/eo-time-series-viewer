@@ -241,6 +241,8 @@ class TemporalProfileVisualization(QObject):
 
             request = QgsFeatureRequest()
             context = QgsExpressionContext()
+            context.appendScope(QgsExpressionContextUtils.globalScope())
+            context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
             context.appendScope(QgsExpressionContextUtils.layerScope(lyr))
             request.setExpressionContext(context)
 
@@ -296,6 +298,7 @@ class TemporalProfileVisualization(QObject):
                 except Exception as ex:
                     print(ex, file=sys.stderr)
                     break
+
                 n = results['n']
                 all_x = results['x']
                 all_y = results['y']

@@ -1,7 +1,5 @@
 import unittest
 
-from qgis._core import QgsFeature
-
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget, PythonExpressionDialog
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 
@@ -18,25 +16,61 @@ class PythonCodeEditorTestCases(TestCase):
         w.codeEditor().setText('# b(1)')
 
         # w.setCode('b(1)')
-
         # w.setHelpText('<h1>This is a help text</h1>')
+        txt = '<b><span style="color:red">code changed</span></b>'
+        tt = 'More info on code status'
 
-        def onCodeChanged(feature: QgsFeature, code: str):
-            print(f'Code changed: {code}')
-            txt = f'<h1>Code changed: {code}</h1>'
-            w.setPreviewText(txt)
+        def onCodeChanged(d: dict):
+            d['preview_text'] = txt
+            d['preview_tooltip'] = tt
 
-        w.previewRequest.connect(onCodeChanged)
+        w.validationRequest.connect(onCodeChanged)
         w.setLayer(lyr)
 
         # epw.setExpressionText('b(1)')
         self.showGui(w)
 
-    def test_button(self):
+    def test_FieldPythonExpressionWidget(self):
         w = FieldPythonExpressionWidget()
         w.expressionChanged.connect(lambda expr: print(f"Expression changed: {expr}"))
 
         self.showGui(w)
+
+    def test_validation(self):
+        w = FieldPythonExpressionWidget()
+        w.setExpression('1+3')
+        b, err = w.isValidExpression()
+        self.assertTrue(b and err is None)
+
+        w.setExpression('foo"')
+        b, err = w.isValidExpression()
+        self.assertTrue(b is False and isinstance(err, str))
+
+        is_ok = ['foo', 'broken"python']
+
+        errMsg = 'MyError'
+
+        def onValidateRequest(data: dict):
+
+            expr = data.get('expression')
+            self.assertIsInstance(expr, str)
+            self.assertTrue(data['is_valid'] is None)
+            self.assertTrue(data['error'] is None)
+
+            data['is_valid'] = expr in is_ok
+            if expr not in is_ok:
+                data['error'] = errMsg
+
+        w.validationRequest.connect(onValidateRequest)
+        w.setExpression('foo')
+
+        for expr in ['foo', '1+2', 'broken"python']:
+            w.setExpression(expr)
+            b, err = w.isValidExpression()
+            if expr in is_ok:
+                self.assertTrue(b and err is None)
+            else:
+                self.assertTrue(b is False and err == errMsg)
 
 
 if __name__ == '__main__':

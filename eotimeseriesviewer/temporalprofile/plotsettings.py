@@ -1,9 +1,10 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsField, QgsProject, QgsProperty, QgsPropertyDefinition, QgsVectorLayer
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsProject, QgsProperty, QgsPropertyDefinition, QgsVectorLayer
+from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 from qgis.gui import QgsFieldExpressionWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from qgis.PyQt.QtWidgets import QApplication, QHeaderView, QMenu, QStyle, QStyledItemDelegate, QStyleOptionButton, \
@@ -29,26 +30,36 @@ class StyleItem(PlotStyleItem):
 
 
 class PythonCodeItem(PropertyItem):
+    class Signals(PropertyItem.Signals):
+        validationRequest = pyqtSignal(dict)
 
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
+        def __init__(self, *args, **kwds):
+            super().__init__(*args, **kwds)
+
+    def __init__(self, *args, signals=None, **kwds):
+        if signals is None:
+            signals = PythonCodeItem.Signals()
+
+        super().__init__(*args, signals=signals, **kwds)
+
         self.setEditable(True)
         self.mPythonExpression = 'b(1)'
+        self.mIsValid: bool = True
 
     def createEditor(self, parent):
         w = FieldPythonExpressionWidget(parent=parent)
         w.setExpression(self.mPythonExpression)
-        w.previewRequest.connect(self.createPreview)
+        w.validationRequest.connect(self.signals().validationRequest)
         return w
-
-    def createPreview(self):
-        w = QApplication.sender()
-        s = ""
 
     def data(self, role: int = ...) -> Any:
 
         if role == Qt.DisplayRole:
             return self.mPythonExpression
+
+        if role == Qt.ForegroundRole:
+            if not self.mIsValid:
+                return QColor('red')
 
         return super().data(role)
 
@@ -56,9 +67,11 @@ class PythonCodeItem(PropertyItem):
         index.data()
         expr_old = index.data()
         expr_new = editor.expression()
-        if expr_new != expr_old:
-            self.mPythonExpression = expr_new
-            self.emitDataChanged()
+        is_valid, err = editor.isValidExpression()
+        if is_valid:
+            if expr_new != expr_old:
+                self.mPythonExpression = expr_new
+                self.emitDataChanged()
 
     def setEditorData(self, editor: FieldPythonExpressionWidget, index: QModelIndex):
         editor.setExpression(self.mPythonExpression)
@@ -319,6 +332,7 @@ class TPVisGroup(PropertyItemGroup):
         :return:
         """
         context = QgsExpressionContext()
+        context.appendScope(QgsExpressionContextUtils.globalScope())
         context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
         if isinstance(self.mLayer, QgsVectorLayer):
             context.appendScope(QgsExpressionContextUtils.layerScope(self.mLayer))
@@ -460,18 +474,53 @@ class TPVisSensor(PropertyItemGroup):
         self.mPBand.setToolTip('Band or spectral index to display.')
         self.mPBand.setText('b(1)')
         self.mPBand.setEditable(True)
+        self.mPBand.signals().validationRequest.connect(self.validate_sensor_band)
         # self.mPBand.label().setText('Band')
 
         items = [self.mPSymbol, self.mPBand]
         for item in items:
             self.appendRow(item.propertyRow())
 
+    def validate_sensor_band(self, d: dict):
+
+        visGroup = self.parent()
+        if not isinstance(visGroup, TPVisGroup):
+            return
+
+        expr = d.get('expression')
+        feature = d.get('feature')
+        code, error = TemporalProfileUtils.prepareBandExpression(expr)
+        d['error'] = error
+
+        if error:
+            d['preview_text'] = f'<span style="color:red">{error}</span>'
+            d['preview_tooltip'] = error
+            d['is_valid'] = False
+        else:
+            sid = self.sensorId()
+            field: str = visGroup.field()
+
+            if isinstance(feature, QgsFeature) and field in feature.fields().names():
+
+                tpData = TemporalProfileUtils.profileDict(feature.attribute(field))
+                if TemporalProfileUtils.isProfileDict(tpData):
+                    sensor_expressions = {sid: expr}
+
+                    if sid in tpData[TemporalProfileUtils.SensorIDs]:
+                        results = TemporalProfileUtils.applyExpressions(tpData, feature, sensor_expressions)
+                        errors = results['errors']
+
+                        if len(errors) > 0:
+                            d['is_valid'] = False
+                            d['preview_tooltip'] = '\n'.join(errors)
+                            d['preview_text'] = '<span style="color:red">Errors</span>'
+                        else:
+                            d['is_valid'] = True
+                            d['preview_tooltip'] = d['preview_text'] = str(results['y'])
+                        s = ""
+
     def symbolStyle(self) -> PlotStyle:
         return self.mPSymbol.plotStyle()
-
-    def setModelData(self, w, model, index):
-
-        s = ""
 
     def setSensor(self, sid: str, name: str = None):
         self.mSensorID = sid
@@ -494,6 +543,18 @@ class TPVisSensor(PropertyItemGroup):
 
     def sensorName(self) -> str:
         return self.text()
+
+    def layer(self) -> Optional[QgsVectorLayer]:
+        parent = self.parent()
+        if isinstance(parent, TPVisGroup):
+            return parent.layer()
+        return None
+
+    def field(self) -> Optional[str]:
+        parent = self.parent()
+        if isinstance(parent, TPVisGroup):
+            return parent.field()
+        return None
 
     def sensorId(self) -> str:
         return self.mSensorID
@@ -793,9 +854,12 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
             if isinstance(item, PropertyItem):
                 editor = item.createEditor(parent)
 
-                if isinstance(parentItem, TPVisGroup):
-                    if isinstance(editor, QgsFieldExpressionWidget):
-                        editor.registerExpressionContextGenerator(parentItem.mContextGenerator)
+                if isinstance(parentItem, TPVisGroup) and isinstance(editor, QgsFieldExpressionWidget):
+                    editor.registerExpressionContextGenerator(parentItem.mContextGenerator)
+
+                if isinstance(parentItem, TPVisSensor) and isinstance(editor, FieldPythonExpressionWidget):
+                    # editor.previewRequest.connect()
+                    pass
 
         if isinstance(editor, QWidget):
             return editor
@@ -811,9 +875,19 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
         item = index.data(Qt.UserRole)
         if isinstance(item, PropertyItem):
             item.setEditorData(editor, index)
+
+            parentItem = item.parent()
+
+            if isinstance(item, PythonCodeItem) and isinstance(parentItem, TPVisSensor):
+                if isinstance(editor, FieldPythonExpressionWidget):
+                    lyr = parentItem.layer()
+                    field = parentItem.field()
+                    if isinstance(lyr, QgsVectorLayer):
+                        editor.setLayer(lyr)
+                s = ""
+
         else:
             super().setEditorData(editor, index)
-
         return
 
     def setModelData(self, w: QWidget, model: QAbstractItemModel, index: QModelIndex):
