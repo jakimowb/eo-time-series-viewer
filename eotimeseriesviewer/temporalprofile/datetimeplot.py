@@ -3,11 +3,9 @@ import re
 import sys
 from typing import List
 
-import numpy as np
 from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 from qgis.PyQt.QtCore import pyqtSignal, QPointF
 from qgis.PyQt.QtGui import QColor
-
 from eotimeseriesviewer.dateparser import dateDOY, ImageDateUtils, num2date
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
@@ -99,7 +97,7 @@ class DateTimePlotWidget(pg.PlotWidget):
             doy = dateDOY(date)
             vb.updateCurrentDate(date)
 
-            positionInfo = 'Value:{:0.5f}\nDate {}\nDOY {}'.format(mousePoint.y(), date, doy)
+            positionInfo = 'Value: {:0.5f}\nDate-Time: {}\nDOY: {}'.format(y, date, doy)
             self.mInfoLabelCursor.setText(positionInfo, color=self.mInfoColor)
 
             s = self.size()
@@ -130,37 +128,6 @@ class DateTimePlotWidget(pg.PlotWidget):
         self.mCrosshairLineH.setVisible(False)
         self.mCrosshairLineV.setVisible(False)
         self.mInfoLabelCursor.setVisible(False)
-
-    def onMouseMoved2D_BAK(self, evt):
-        pos = evt[0]  # using signal proxy turns original arguments into a tuple
-
-        plotItem = self.getPlotItem()
-        if plotItem.sceneBoundingRect().contains(pos):
-            vb = plotItem.vb
-            assert isinstance(vb, DateTimeViewBox)
-            mousePoint = vb.mapSceneToView(pos)
-            x = mousePoint.x()
-            if x >= 0:
-                y = mousePoint.y()
-                date = num2date(x)
-                doy = dateDOY(date)
-                plotItem.vb.updateCurrentDate(num2date(x, dt64=True))
-                self.mInfoLabelCursor.setText('DN {:0.2f}\nDate {}\nDOY {}'.format(
-                    mousePoint.y(), date, doy),
-                    color=self.mInfoColor)
-
-                s = self.size()
-                pos = QPointF(s.width(), 0)
-                self.mInfoLabelCursor.setVisible(vb.mActionShowCursorValues.isChecked())
-                self.mInfoLabelCursor.setPos(pos)
-
-                b = vb.mActionShowCrosshair.isChecked()
-                self.mCrosshairLineH.setVisible(b)
-                self.mCrosshairLineV.setVisible(b)
-                self.mCrosshairLineH.pen.setColor(self.mInfoColor)
-                self.mCrosshairLineV.pen.setColor(self.mInfoColor)
-                self.mCrosshairLineV.setPos(mousePoint.x())
-                self.mCrosshairLineH.setPos(mousePoint.y())
 
 
 class DateTimeAxis(pg.DateAxisItem):
@@ -248,7 +215,7 @@ class DateTimeViewBox(pg.ViewBox):
     """
     Subclass of ViewBox
     """
-    sigMoveToDate = pyqtSignal(np.datetime64)
+    sigMoveToDate = pyqtSignal(datetime.datetime)
     sigMoveToLocation = pyqtSignal(SpatialPoint)
 
     def __init__(self, parent=None):
@@ -259,7 +226,7 @@ class DateTimeViewBox(pg.ViewBox):
         # self.menu = None # Override pyqtgraph ViewBoxMenu
         # self.menu = self.getMenu() # Create the menu
         # self.menu = None
-        self.mCurrentDate = np.datetime64('today')
+        self.mCurrentDate = datetime.datetime.now()
 
         self.mXAxisUnit = 'date'
         xAction = [a for a in self.menu.actions() if re.search('X Axis', a.text(), re.IGNORECASE)][0]
