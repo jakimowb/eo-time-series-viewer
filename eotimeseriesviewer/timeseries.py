@@ -1145,7 +1145,6 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         else:
             self.m_max_backward = max_backward
 
-        self.mCallback = callback
         self.mTargetExtent = extent.__copy__()
         self.mSampleSize = sample_size
         self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
@@ -1255,10 +1254,6 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
 
     def canCancel(self) -> bool:
         return True
-
-    def finished(self, result):
-        if self.mCallback is not None:
-            self.mCallback(result, self)
 
 
 class TimeSeriesLoadingTask(EOTSVTask):
