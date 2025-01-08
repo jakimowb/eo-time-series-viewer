@@ -1,14 +1,15 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.PyQt.QtWidgets import QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+    QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsProject, QgsProperty, QgsPropertyDefinition, QgsVectorLayer
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsMapLayerModel, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
+from qgis.gui import QgsFieldExpressionWidget, QgsMapLayerComboBox
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.gui import QgsFieldExpressionWidget
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
-from qgis.PyQt.QtWidgets import QApplication, QHeaderView, QMenu, QStyle, QStyledItemDelegate, QStyleOptionButton, \
-    QStyleOptionViewItem, QTreeView, QWidget
 from qgis.PyQt.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap, QStandardItem, \
     QStandardItemModel
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
@@ -27,6 +28,62 @@ class StyleItem(PlotStyleItem):
 
     def heightHint(self) -> int:
         return 1
+
+
+class ProfileFieldItem(PropertyItem):
+
+    def __init__(self, *args, **kwds):
+        self.mField: Optional[str] = None
+        super().__init__(*args, **kwds)
+
+        self.setEditable(True)
+
+        self.mFieldModel = QgsFieldModel()
+
+    def createEditor(self, parent):
+        cb = QComboBox(parent)
+        cb.setModel(self.mFieldModel)
+        return cb
+
+    def setEditorData(self, editor: QWidget, index: QModelIndex):
+        parentItem = self.parent()
+        if isinstance(parentItem, TPVisGroup):
+            layer = parentItem.layer()
+            if isinstance(layer, QgsVectorLayer):
+                profile_fields = TemporalProfileUtils.profileFields(layer)
+                self.mFieldModel.setFields(profile_fields)
+
+    def setModelData(self, editor: QWidget, bridge, index: QModelIndex):
+
+        if isinstance(editor, QComboBox):
+            fieldName = editor.currentData(QgsFieldModel.CustomRole.FieldName)
+            self.mField = fieldName
+
+    def setField(self, field: str):
+        if field != self.mField:
+            self.mField = field
+            self.emitDataChanged()
+
+    def field(self) -> Optional[str]:
+        return self.mField
+
+    def data(self, role: int = ...) -> Any:
+
+        field = self.field()
+        missing_field = field in ['', None]
+        if role == Qt.DisplayRole:
+
+            if missing_field:
+                return '<select field>'
+            else:
+                return self.mField
+
+        if role == Qt.ForegroundRole:
+
+            if missing_field:
+                return QColor('red')
+
+        return super().data(role)
 
 
 class PythonCodeItem(PropertyItem):
@@ -142,6 +199,36 @@ class LineStyleItem(StyleItem):
         return w
 
 
+class TPVisSettings(PropertyItemGroup):
+    """
+    Defines how profile candidates should be displayed
+    """
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.setIcon(QIcon(':/eotimeseriesviewer/icons/mIconTemporalProfileAdd.svg'))
+        self.mFirstColumnSpanned = True
+        self.setEditable(True)
+        self.setEnabled(True)
+        self.setText('Settings')
+        self.mZValue = 999
+
+        self.mCandidateLayer = None
+        self.mCandidateField = None
+        self.mCandidateLineStyle = LineStyleItem('candidate_style')
+        self.mCandidateLineStyle.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
+
+        for pItem in [self.mCandidateLineStyle]:
+            self.appendRow(pItem.propertyRow())
+
+    def settingsMap(self) -> dict:
+        d = dict()
+        d['candidate_add'] = True
+        d['candidate_target'] = (None, None)
+        d['candidate_line_style'] = self.mCandidateLineStyle.plotStyle().map()
+        return d
+
+
 class TPVisGroup(PropertyItemGroup):
     """
     Describes how to display am temporal profile with data from multiple sensors.
@@ -175,22 +262,18 @@ class TPVisGroup(PropertyItemGroup):
         self.mFirstColumnSpanned = True
         self.setEditable(True)
 
-        self.mPField = QgsPropertyItem('Field')
-        self.mPField.setDefinition(QgsPropertyDefinition(
-            'Field', 'Name of the field that stores the temporal profiles',
-            QgsPropertyDefinition.StandardPropertyTemplate.String))
-        self.mPField.setProperty(QgsProperty.fromField('profiles', True))
-        self.mPField.setIsProfileFieldProperty(True)
-        self.mPField.label().setIcon(QIcon(':/images/themes/default/mSourceFields.svg'))
+        self.mPField = ProfileFieldItem('Fields')
+
+        # self.mPField.label().setIcon(QIcon(':/images/themes/default/mSourceFields.svg'))
 
         self.mPLineStyle = LineStyleItem('Line')
         self.mPLineStyle.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
         self.mPLabel = QgsPropertyItem('Label')
         self.mPLabel.setDefinition(QgsPropertyDefinition(
-            'Label', 'Text label to describe plotted temporal profiles.',
+            'Label', 'Name of the temporal profile.',
             QgsPropertyDefinition.StandardPropertyTemplate.String))
-        self.mPLabel.setProperty(QgsProperty.fromExpression('$id'))
+        self.mPLabel.setProperty(QgsProperty.fromExpression(''))
         self.mPLabel.label().setIcon(QIcon(':/images/themes/default/mActionLabeling.svg'))
 
         self.mPFilter = QgsPropertyItem('Filter')
@@ -224,9 +307,9 @@ class TPVisGroup(PropertyItemGroup):
 
         # update the line-style item
         idx = self.mPLineStyle.index()
-        self.model().dataChanged.emit(idx, idx)
-
-        s = ""
+        model = self.model()
+        if isinstance(model, QAbstractItemModel):
+            model.dataChanged.emit(idx, idx)
 
     def sensorItems(self) -> List['TPVisSensor']:
 
@@ -299,16 +382,11 @@ class TPVisGroup(PropertyItemGroup):
 
         return pm
 
-    def setField(self, field: Union[str, QgsField]):
+    def setField(self, field: Union[str, QgsField, None]):
 
         if isinstance(field, QgsField):
             field = field.name()
-
-        p = self.mPField.property()
-        p.setField(field)
-        self.mPField.setProperty(p)
-
-        self.updateText()
+        self.mPField.setField(field)
 
     def setLayer(self, layer: QgsVectorLayer):
         assert isinstance(layer, QgsVectorLayer)
@@ -321,7 +399,9 @@ class TPVisGroup(PropertyItemGroup):
         self.mLayer.selectionChanged.connect(self.update)
         self.mLayer.featureAdded.connect(self.update)
         self.mLayer.attributeAdded.connect(self.update)
-        self.updateText()
+
+        if not self.field() in layer.fields().names():
+            self.setField(None)
 
     def layer(self) -> Optional[QgsVectorLayer]:
         return self.mLayer
@@ -338,39 +418,39 @@ class TPVisGroup(PropertyItemGroup):
             context.appendScope(QgsExpressionContextUtils.layerScope(self.mLayer))
         return context
 
-    def updateText(self):
+    def data(self, role: int = ...) -> Any:
 
-        if isinstance(self.mModifiedText, str):
-            self.setText(self.mModifiedText)
-            self.setToolTip(self.mModifiedText)
-        else:
-
-            text = []
-            tt = []
-
+        if role in [Qt.DisplayRole, Qt.ToolTipRole, Qt.ForegroundRole]:
             lyr = self.layer()
-            if isinstance(lyr, QgsVectorLayer):
-                text.append(lyr.name())
-                tt.extend([f'Layer: {lyr.name()}'
-                           f'ID: {lyr.id()}'])
+            is_vector = isinstance(lyr, QgsVectorLayer)
+            is_tp_layer = is_vector and TemporalProfileUtils.isProfileLayer(lyr)
 
-            else:
-                text.append('<Missing layer>')
-                tt.append('Missing Layer')
+            if role == Qt.DisplayRole:
+                if is_vector:
+                    return lyr.name()
+                else:
+                    return '<select layer>'
 
-            field = self.field()
-            if isinstance(field, str):
-                text.append(f'"{field}"')
-                tt.append(f'Field: "{field}"')
-            else:
-                text.append('<Missing field>')
-                tt.append('<Missing field>')
+            if role == Qt.ToolTipRole:
+                text = []
 
-            self.setText(' '.join(text))
-            self.setToolTip('<br>'.join(tt))
+                if is_vector:
+                    if not is_tp_layer:
+                        text.append('<b>Layer misses field for temporal profiles!</b>')
+                    text.append(lyr.name())
+                    text.append(lyr.id())
+                else:
+                    text.append('Missing vector layer. Select vector layer with field for temporal profiles')
+                return '<br>'.join(text)
+
+            if role == Qt.ForegroundRole:
+                if not is_tp_layer:
+                    return QColor('red')
+
+        return super().data(role)
 
     def field(self) -> str:
-        return self.mPField.text()
+        return self.mPField.field()
 
     def addSensors(self, sensors: Union[SensorInstrument, str, List[str], List[SensorInstrument]]):
 
@@ -411,11 +491,14 @@ class TPVisGroup(PropertyItemGroup):
                           'id': lyr.id()}
         else:
             d['layer'] = None
+
         d['show'] = self.checkState() == Qt.Checked
         d['field'] = self.field()
         d['line_style'] = self.mPLineStyle.plotStyle().map()
         d['sensors'] = [s.settingsMap() for s in self.mSensorItems.values()]
         d['filter'] = self.mPFilter.mProperty.asExpression().strip()
+        d['label'] = self.mPLabel.mProperty.asExpression().strip()
+
         return d
 
     def updateSensorNames(self, sensors: List[SensorInstrument]):
@@ -598,6 +681,18 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
         self.mVisualizations: List[TPVisGroup] = []
 
+        self.mProject: QgsProject = QgsProject.instance()
+
+        self.mSettingsNode = TPVisSettings()
+        self.insertRow(0, self.mSettingsNode)
+
+    def setProject(self, project: QgsProject):
+        assert isinstance(project, QgsProject)
+        self.mProject = project
+
+    def project(self) -> QgsProject:
+        return self.mProject
+
     def setPlotWidget(self, plotWidget: DateTimePlotWidget):
         self.mPlotWidget = plotWidget
 
@@ -611,6 +706,9 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
     def timeSeries(self) -> TimeSeries:
         return self.mTimeSeries
+
+    def visualizations(self) -> List[TPVisGroup]:
+        return [v for v in self.mVisualizations if isinstance(v, TPVisGroup)]
 
     def addVisualizations(self, vis: Union[TPVisGroup, List[TPVisGroup]]):
 
@@ -703,10 +801,47 @@ class PlotSettingsTreeModel(QStandardItemModel):
         """
 
         d = dict()
-
+        d['candidates'] = self.mSettingsNode.settingsMap()
         d['visualizations'] = [v.settingsMap() for v in self.mVisualizations]
-
         return d
+
+
+class PlotSettingsTreeView(QTreeView):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.mProject: QgsProject = QgsProject.instance()
+
+    def setProject(self, project: QgsProject):
+        assert isinstance(project, QgsProject)
+        self.mProject = project
+
+    def project(self) -> QgsProject:
+        return self.mProject
+
+    def setModel(self, model: Optional[QAbstractItemModel]) -> None:
+        super().setModel(model)
+        if isinstance(model, QAbstractItemModel):
+            model.rowsInserted.connect(self.onRowsInserted)
+
+            for r in range(0, model.rowCount()):
+                idx = model.index(r, 0)
+                item = idx.data(Qt.UserRole)
+                if isinstance(item, PropertyItemBase) and item.firstColumnSpanned():
+                    self.setFirstColumnSpanned(r, idx.parent(), True)
+
+    def onRowsInserted(self, parent: QModelIndex, first: int, last: int):
+
+        for r in range(first, last + 1):
+            idx = self.model().index(r, 0, parent=parent)
+            item = idx.data(Qt.UserRole)
+            if isinstance(item, PropertyItemGroup):
+                self.onRowsInserted(idx, 0, item.rowCount())
+            if isinstance(item, PropertyItemBase) and item.firstColumnSpanned():
+                self.setFirstColumnSpanned(r, idx.parent(), True)
+            if isinstance(item, TPVisSensor):
+                s = ""
 
 
 class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
@@ -714,10 +849,13 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
     A QStyleItemDelegate to create and manage input editors for the SpectralProfilePlotControlView
     """
 
-    def __init__(self, treeView: QTreeView, parent=None):
-        assert isinstance(treeView, QTreeView)
+    def __init__(self, treeView: PlotSettingsTreeView, parent=None):
+        assert isinstance(treeView, PlotSettingsTreeView)
         super().__init__(parent=parent)
         self.mTreeView = treeView
+
+    def project(self) -> QgsProject:
+        return self.mTreeView.project()
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
         #  return super().paint(painter, option, index)
@@ -743,6 +881,9 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                 to_paint = []
                 if index.flags() & Qt.ItemIsUserCheckable:
                     to_paint.append(item.checkState())
+
+                if item.icon():
+                    to_paint.append(item.icon())
 
                 h = option.rect.height()
 
@@ -849,17 +990,21 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
         editor = None
         if index.isValid():
             item: QStandardItem = index.data(Qt.UserRole)
-            parentItem = item.parent()
+
             # default
             if isinstance(item, PropertyItem):
                 editor = item.createEditor(parent)
-
+                parentItem = item.parent()
                 if isinstance(parentItem, TPVisGroup) and isinstance(editor, QgsFieldExpressionWidget):
                     editor.registerExpressionContextGenerator(parentItem.mContextGenerator)
 
                 if isinstance(parentItem, TPVisSensor) and isinstance(editor, FieldPythonExpressionWidget):
                     # editor.previewRequest.connect()
                     pass
+
+            if isinstance(item, TPVisGroup):
+                # editor = TemporalProfileLayerComboBox(parent=parent)
+                editor = QgsMapLayerComboBox(parent=parent)
 
         if isinstance(editor, QWidget):
             return editor
@@ -885,7 +1030,14 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                     if isinstance(lyr, QgsVectorLayer):
                         editor.setLayer(lyr)
                 s = ""
+        elif isinstance(item, TPVisGroup):
 
+            if isinstance(editor, QgsMapLayerComboBox):
+                editor.setProject(self.project())
+
+                layer = item.layer()
+                if isinstance(layer, QgsVectorLayer):
+                    editor.setLayer(layer)
         else:
             super().setEditorData(editor, index)
         return
@@ -895,44 +1047,23 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
         item = index.data(Qt.UserRole)
         if isinstance(item, PropertyItem):
             item.setModelData(w, model, index)
+        elif isinstance(item, TPVisGroup) and isinstance(w, QgsMapLayerComboBox):
+            icon = w.currentData(Qt.DecorationRole)
+            lyr = w.currentData(QgsMapLayerModel.CustomRole.Layer)
+            item.setLayer(lyr)
+            item.setIcon(icon)
+
         else:
             super().setModelData(w, model, index)
-
-
-class PlotSettingsTreeView(QTreeView):
-
-    def __init__(self, *args, **kwds):
-        super().__init__(*args, **kwds)
-        self.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-
-    def setModel(self, model: Optional[QAbstractItemModel]) -> None:
-        super().setModel(model)
-        if isinstance(model, QAbstractItemModel):
-            model.rowsInserted.connect(self.onRowsInserted)
-
-            for r in range(0, model.rowCount()):
-                idx = model.index(r, 0)
-                item = idx.data(Qt.UserRole)
-                if isinstance(item, PropertyItemBase) and item.firstColumnSpanned():
-                    self.setFirstColumnSpanned(r, idx.parent(), True)
-
-    def onRowsInserted(self, parent: QModelIndex, first: int, last: int):
-
-        for r in range(first, last + 1):
-            idx = self.model().index(r, 0, parent=parent)
-            item = idx.data(Qt.UserRole)
-            if isinstance(item, PropertyItemGroup):
-                self.onRowsInserted(idx, 0, item.rowCount())
-            if isinstance(item, PropertyItemBase) and item.firstColumnSpanned():
-                self.setFirstColumnSpanned(r, idx.parent(), True)
-            if isinstance(item, TPVisSensor):
-                s = ""
 
 
 class PlotSettingsProxyModel(QSortFilterProxyModel):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+
+        self.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.setFilterKeyColumn(-1)  # search filter uses all columns
 
 
 class PlotSettingsContextGenerator(QgsExpressionContextGenerator):

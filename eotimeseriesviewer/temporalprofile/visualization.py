@@ -19,26 +19,24 @@
  ***************************************************************************/
 """
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from qgis.core import QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsFields, \
-    QgsProject, QgsVectorLayer
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt
+from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
+from qgis.core import edit, QgsApplication, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, \
+    QgsFeatureRequest, QgsFields, QgsProject, QgsTaskManager, QgsVectorDataProvider, QgsVectorLayer
+from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QBrush, QColor, QPen
-from qgis.gui import QgsDockWidget
-from qgis.PyQt.QtCore import QAbstractItemModel, QItemSelectionModel, \
-    QModelIndex, QObject, QPoint, Qt
-from qgis.PyQt.QtWidgets import QAction, QMenu, \
-    QSlider, QTableView, QWidgetAction
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
     PlotSettingsTreeViewDelegate, TPVisGroup
-from .temporalprofile import TemporalProfileUtils
+from .temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from ..qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
-from ..qgispluginsupport.qps.utils import loadUi
+from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..timeseries import SensorInstrument, TimeSeries
 
@@ -138,6 +136,7 @@ class _SensorPoints(pg.PlotDataItem):
 
 
 class TemporalProfileVisualization(QObject):
+    loadingProgress = pyqtSignal(float)
 
     def __init__(self,
                  treeView: PlotSettingsTreeView,
@@ -159,19 +158,122 @@ class TemporalProfileVisualization(QObject):
         self.mTreeView.setItemDelegate(self.mDelegate)
 
         self.mLastStyle: dict = dict()
-
-        self.mProject = QgsProject.instance()
+        self.mTasks: List[LoadTemporalProfileTask] = list()
         self.mIsInitialized: bool = False
+
+    def temporalProfileDestination(self) -> Tuple[Optional[QgsVectorLayer], Optional[str]]:
+        """
+        Returns the destination for new added temporal profiles
+        :return: QgsVectorLayer, field name (str)
+        """
+
+        for vis in self.mModel.visualizations():
+            lyr = vis.layer()
+            field = vis.field()
+
+            if TemporalProfileUtils.isProfileLayer(lyr) and field in lyr.fields().names():
+                f = lyr.fields()[field]
+                if TemporalProfileUtils.isProfileField(f):
+                    return lyr, field
+
+        return None, None
+
+    def loadTemporalProfile(self, point: SpatialPoint, run_async: bool = True) -> bool:
+        """
+        Starts the loading of a new temporal profile
+        :param point: SpatialPoint
+        :param run_async:
+        :return:
+        """
+        assert isinstance(point, SpatialPoint)
+
+        ts: TimeSeries = self.timeSeries()
+        if not isinstance(ts, TimeSeries):
+            return False
+
+        lyr, field = self.temporalProfileDestination()
+        if isinstance(lyr, QgsVectorLayer):
+            f = QgsFeature(lyr.fields())
+            # todo: settings?
+            with edit(lyr):
+                dp: QgsVectorDataProvider = lyr.dataProvider()
+                result = dp.addFeature(f)
+                s = ""
+
+        self.mModel.mSettingsNode
+
+        # create a new feature in the target layer
+
+        task = LoadTemporalProfileTask(ts.sourceUris(), points=[point], crs=point.crs(),
+                                       callback=self.onTemporalProfileLoaded)
+        task.progressChanged.connect(self.loadingProgress)
+        self.mTasks.append(task)
+        if True:
+            tm: QgsTaskManager = QgsApplication.instance().taskManager()
+            tm.addTask(task)
+        else:
+            task.finished(task.run())
+            s = ""
+        s = ""
+
+    def onTemporalProfileLoaded(self, success, task: LoadTemporalProfileTask):
+
+        if success:
+            # where should we add the profiles to?
+            taskInfo = task.info()
+
+            layer: QgsVectorLayer
+
+            for pt, profiles in zip(task.profilePoints(), task.profiles()):
+                s = ""
+        s = ""
+
+    def setFilter(self, filter: str):
+        self.mProxyModel.setFilterWildcard(filter)
 
     def treeView(self) -> PlotSettingsTreeView:
         self.mTreeView
 
+    def initVisualization(self, vis: TPVisGroup):
+        vis.addSensors(self.timeSeries().sensors())
+
+        is_initialized = TemporalProfileUtils.isProfileLayer(vis.layer())
+
+        for v in reversed(self.mModel.visualizations()):
+            lyr = v.layer()
+            field = v.field()
+
+            if (TemporalProfileUtils.isProfileLayer(lyr)
+                    and field in lyr.fields().names()
+                    and TemporalProfileUtils.isProfileField(lyr.fields()[field])):
+                v.setLayer(lyr)
+                v.setField(field)
+                # other settings to copy?
+
+                is_initialized = True
+                break
+
+        if not is_initialized:
+            # take 1st temporal profile layer from project layers
+            for lyr in self.project().mapLayers().values():
+                if TemporalProfileUtils.isProfileLayer(lyr):
+                    field = TemporalProfileUtils.profileFields(lyr).field(0)
+                    vis.setLayer(lyr)
+                    vis.setField(field)
+                    is_initialized = True
+                    break
+
+    def cancelLoadingTask(self):
+        for task in self.mTasks:
+            task.cancel()
+
     def createVisualization(self, *args) -> TPVisGroup:
 
         v = TPVisGroup()
-
         # append missing sensors
-        v.addSensors(self.timeSeries().sensors())
+
+        self.initVisualization(v)
+
         self.mModel.addVisualizations(v)
 
         return v
@@ -234,6 +336,10 @@ class TemporalProfileVisualization(QObject):
             if not isinstance(lyr, QgsVectorLayer):
                 continue
 
+            vis_field = vis['field']
+            if vis_field not in lyr.fields().names():
+                continue
+
             layers.append(lyr)
 
             # prepare/compile sensor expressions
@@ -250,7 +356,6 @@ class TemporalProfileVisualization(QObject):
             if filter_expression and filter_expression != '':
                 print(f'# SET FEATURE FILTER {filter_expression}')
                 request.setFilterExpression(filter_expression)
-            vis_field = vis['field']
 
             layer_line_style: PlotStyle = PlotStyle.fromMap(vis['line_style'])
 
@@ -260,11 +365,19 @@ class TemporalProfileVisualization(QObject):
             BAND_EXPRESSIONS = dict()
             SENSOR_VISUALS = dict()
 
+            LABEL_EXPRESSION = QgsExpression(vis.get('label', lyr.displayExpression()))
+            s = ""
+
             for feature in lyr.getFeatures(request):
                 feature: QgsFeature
 
-                attributeMap = feature.attributeMap()
-                tpData: dict = TemporalProfileUtils.profileDict(attributeMap[vis_field])
+                feature_context = QgsExpressionContext(context)
+                feature_context.setFeature(feature)
+
+                attributeMap: dict = feature.attributeMap()
+                tpData = TemporalProfileUtils.profileDict(attributeMap.get(vis_field))
+                if not isinstance(tpData, dict):
+                    continue
 
                 # collect for each sensor some specifications that we need to calculate the x and y values
                 for i_sid, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
@@ -328,8 +441,21 @@ class TemporalProfileVisualization(QObject):
                         feature_line_style.setLineColor(QColor('yellow'))
                         feature_line_style.setLineWidth(layer_line_style.lineWidth() + 3)
 
+                    name = None
+
+                    if LABEL_EXPRESSION.isValid():
+                        expr = QgsExpression(LABEL_EXPRESSION)
+                        result = expr.evaluate(feature_context)
+                        if expr.hasParserError():
+                            s = ""
+                        elif expr.hasEvalError():
+                            s = ""
+                        else:
+                            name = result
+
                     pdi = pg.PlotDataItem(all_x, all_y,
                                           pen=feature_line_style.linePen,
+                                          name=name,
                                           symbol=all_symbols,
                                           symbolSize=all_symbol_sizes,
                                           symbolPen=all_symbol_pens,
@@ -348,7 +474,7 @@ class TemporalProfileVisualization(QObject):
     def initPlot(self):
 
         # create a visualization for each temporal profile layer
-        for lyr in TemporalProfileUtils.profileLayers(self.mProject):
+        for lyr in TemporalProfileUtils.profileLayers(self.project()):
             fields: QgsFields = TemporalProfileUtils.profileFields(lyr)
             exampleData = None
             for feature in lyr.getFeatures():
@@ -390,10 +516,12 @@ class TemporalProfileVisualization(QObject):
         return self.mModel.timeSeries()
 
     def project(self) -> QgsProject:
-        return self.mProject
+        return self.mModel.project()
 
     def setProject(self, project: QgsProject):
-        self.mProject = project
+        self.mModel.setProject(project)
+        self.mTreeView.setProject(project)
+
         if not self.mIsInitialized:
             self.initPlot()
 
@@ -411,10 +539,24 @@ class TemporalProfileDock(QgsDockWidget):
         self.mTreeView: PlotSettingsTreeView
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
+        self.mVis.loadingProgress.connect(self.setProgress)
+        self.mLineEdit: QgsFilterLineEdit
+        self.mLineEdit.valueChanged.connect(self.mVis.setFilter)
 
         self.actionRefreshPlot.triggered.connect(lambda: self.mVis.updatePlot())
         self.actionAddVisualization.triggered.connect(self.mVis.createVisualization)
         self.actionRemoveVisualization.triggered.connect(self.mVis.removeSelectedVisualizations)
+
+    def setProgress(self, progress: float):
+        btnCancelTask: QToolButton = self.btnCancelTask
+        pBar: QProgressBar = self.mProgressBar
+        progress = int(progress)
+        canCancel = 0 < progress < 100
+        pBar.setValue(int(progress))
+        btnCancelTask.setEnabled(canCancel)
+
+    def filterLineEdit(self) -> QgsFilterLineEdit:
+        return self.mLineEdit
 
     def setProject(self, project: QgsProject):
         self.mVis.setProject(project)
@@ -424,3 +566,6 @@ class TemporalProfileDock(QgsDockWidget):
 
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
         pass
+
+    def loadTemporalProfile(self, point: SpatialPoint, run_async: bool = True):
+        self.mVis.loadTemporalProfile(point, run_async=run_async)

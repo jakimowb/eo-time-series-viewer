@@ -1,11 +1,13 @@
 import json
 import unittest
+import random
 
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis._core import QgsProject, QgsVectorLayer
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
+from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, TPVisSensor
@@ -83,6 +85,8 @@ class PlotSettingsTests(TestCase):
             sensor: SensorInstrument
             sensor.setName(f'Sensor {i + 1}')
 
+        btn = QPushButton('Add random profile')
+
         layer = TestObjects.createProfileLayer(ts)
         self.assertIsInstance(layer, QgsVectorLayer)
         self.assertTrue(layer.isValid())
@@ -100,6 +104,15 @@ class PlotSettingsTests(TestCase):
 
         atd = AttributeTableWidget(layer)
 
+        def onAddRandomProfile():
+            ext = ts.maxSpatialExtent()
+            x = random.uniform(ext.xMinimum(), ext.xMaximum())
+            y = random.uniform(ext.yMinimum(), ext.yMaximum())
+            pt = SpatialPoint(ext.crs(), x, y)
+            dock.loadTemporalProfile(pt)
+
+        btn.clicked.connect(onAddRandomProfile)
+
         # combine dock and panel with a splitter
 
         splitter = QSplitter(Qt.Horizontal)
@@ -107,11 +120,13 @@ class PlotSettingsTests(TestCase):
         splitter.addWidget(panel)
 
         vl = QVBoxLayout()
+        vl.addWidget(btn)
         vl.addWidget(splitter)
         vl.addWidget(atd)
         w = QWidget()
         w.setLayout(vl)
         w.resize(QSize(1200, 800))
+        btn.click()
         self.showGui(w)
 
 

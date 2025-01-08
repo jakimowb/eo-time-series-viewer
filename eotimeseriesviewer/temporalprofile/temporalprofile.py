@@ -9,11 +9,11 @@ from uuid import uuid4
 
 import numpy as np
 
+from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsMapLayer, QgsMapLayerModel, \
     QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer
@@ -46,7 +46,7 @@ TPL_NAME = 'Temporal Profile Layer'
 
 class TemporalProfileLayerProxyModel(QSortFilterProxyModel):
     """
-    A model that shown only vectorlayer with a temporal profile fields.
+    A model that shown only vector-layers with at least one temporal profile field.
     """
 
     def __init__(self, *args, **kwds):
@@ -62,6 +62,17 @@ class TemporalProfileLayerProxyModel(QSortFilterProxyModel):
 
     def setProject(self, project: QgsProject):
         self.mModel.setProject(project)
+
+
+class TemporalProfileLayerComboBox(QComboBox):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.mProxyModel = TemporalProfileLayerProxyModel()
+        self.setModel(self.mProxyModel)
+
+    def setProject(self, project: QgsProject):
+        self.mProxyModel.setProject(project)
 
 
 class TemporalProfileEditorWidgetWrapper(QgsEditorWidgetWrapper):

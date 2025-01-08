@@ -108,9 +108,29 @@
            <number>0</number>
           </property>
           <item>
-           <widget class="QProgressBar" name="progressBar">
+           <widget class="QProgressBar" name="mProgressBar">
             <property name="value">
              <number>24</number>
+            </property>
+            <property name="textVisible">
+             <bool>true</bool>
+            </property>
+            <property name="format">
+             <string>%p%</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="btnCancelTask">
+            <property name="text">
+             <string>...</string>
+            </property>
+            <property name="icon">
+             <iconset resource="../../../QGIS/images/images.qrc">
+              <normaloff>:/images/themes/default/mTaskCancel.svg</normaloff>:/images/themes/default/mTaskCancel.svg</iconset>
+            </property>
+            <property name="autoRaise">
+             <bool>true</bool>
             </property>
            </widget>
           </item>
