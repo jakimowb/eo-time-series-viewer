@@ -17,9 +17,10 @@ class FORCEUtils(object):
         if rxFORCE_TILE.match(root.name):
             yield root
         else:
-            for d in os.scandir(root):
-                if d.is_dir() and rxFORCE_TILE.match(d.name):
-                    yield Path(d.path)
+            with os.scandir(root) as search:
+                for d in search:
+                    if d.is_dir() and rxFORCE_TILE.match(d.name):
+                        yield Path(d.path)
 
     @staticmethod
     def productFiles(tileDir: Union[str, Path], product: str) -> List[Path]:
