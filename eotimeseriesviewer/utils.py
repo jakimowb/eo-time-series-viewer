@@ -19,11 +19,12 @@
  ***************************************************************************/
 """
 import sys
-from typing import Union
+from typing import List, Union
 
+from qgis.core import QgsFeature, QgsFeatureSink, QgsMapLayer, QgsMapLayerStyle, QgsVectorLayer
+from qgis.core.additions.edit import edit
 from qgis.PyQt.QtCore import QByteArray, QSettings, QTextStream
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsMapLayer, QgsMapLayerStyle
 from qgis.PyQt.QtWidgets import QAction, QMenu, QToolButton, QWidget
 from qgis.gui import QgisInterface
 import qgis.utils
@@ -106,3 +107,48 @@ def layerStyleString(layer: QgsMapLayer,
     doc.documentElement().save(stream, 0)
     xmlData = str(ba, 'utf-8')
     return xmlData
+
+
+def addFeatures(layer: QgsVectorLayer,
+                features: List[QgsFeature],
+                flags: Union[QgsFeatureSink.Flags, QgsFeatureSink.Flag] = QgsFeatureSink.Flags(),
+                ) -> List[int]:
+    """
+    Adds features and returns the feature ids.
+    :param layer: QgsVectorLayer
+    :param features: list of QgsFeatures
+    :param flags:
+    :return: list of feature ids (int)
+    """
+    added_fids = []
+
+    def onFeatureAdded(fid):
+        added_fids.append(fid)
+
+    layer.featureAdded.connect(onFeatureAdded)
+    layer.addFeatures(features, flags=flags)
+    layer.featureAdded.disconnect(onFeatureAdded)
+    return added_fids
+
+
+class doEdit(edit):
+
+    def __init__(self, layer: QgsVectorLayer):
+
+        super().__init__(layer)
+        self.was_editable = False
+
+    def __enter__(self):
+        self.layer: QgsVectorLayer
+        self.was_editable = self.layer.isEditable()
+        if not self.was_editable:
+            return super().__enter__()
+        else:
+            return self.layer
+
+    def __exit__(self, ex_type, ex_value, traceback):
+        if not self.was_editable:
+            return super().__exit__(ex_type, ex_value, traceback)
+        else:
+            if ex_type:
+                return False
