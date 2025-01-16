@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import types
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -9,16 +10,16 @@ from uuid import uuid4
 
 import numpy as np
 
-from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
-from qgis.PyQt.QtCore import NULL, pyqtSignal, QModelIndex, QSortFilterProxyModel, Qt, QVariant
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
-    QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsMapLayer, QgsMapLayerModel, \
-    QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer
+    QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
+    QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer
+from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
+from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -40,7 +41,7 @@ TPF_EDITOR_WIDGET_KEY = 'Temporal Profile'
 TPF_COMMENT = 'Temporal profile data'
 TPF_TYPE = QMETATYPE_QVARIANTMAP
 TPF_TYPENAME = 'JSON'
-TPF_SUBTYPE = None
+TPF_SUBTYPE = 10
 TPL_NAME = 'Temporal Profile Layer'
 
 
@@ -329,6 +330,17 @@ class TemporalProfileUtils(object):
     Values = 'values'
 
     @classmethod
+    def createEmptyProfile(cls) -> dict:
+        p = {
+            TemporalProfileUtils.Source: [],
+            TemporalProfileUtils.Date: [],
+            TemporalProfileUtils.Sensor: [],
+            TemporalProfileUtils.SensorIDs: [],
+            TemporalProfileUtils.Values: [],
+        }
+        return p
+
+    @classmethod
     def prepareBandExpression(cls, user_code: str) -> Tuple[Optional[types.CodeType], Optional[str]]:
         """
         Prepares the band expression code for execution in the applySensorExpression method.
@@ -555,6 +567,7 @@ class TemporalProfileUtils(object):
                                                        profileDict[TemporalProfileUtils.Sensor],
                                                        profileDict[TemporalProfileUtils.Values])):
             try:
+                assert isinstance(date, str)
                 dtg = datetime.fromisoformat(date)
                 assert dtg is not None
                 assert 0 <= sensor < nSensors
@@ -581,13 +594,13 @@ class TemporalProfileUtils(object):
         return [None if not d[1] else d[0] for d in data]
 
     @classmethod
-    def profileDict(cls, input) -> Optional[dict]:
+    def profileDict(cls, data: Any) -> Optional[dict]:
 
-        if isinstance(input, str):
-            input = cls.profileDictFromJson(input)
+        if isinstance(data, str):
+            data = cls.profileDictFromJson(data)
 
-        if isinstance(input, dict):
-            return input
+        if isinstance(data, dict):
+            return data
         else:
             return None
 
@@ -602,13 +615,14 @@ class TemporalProfileUtils(object):
         return data
 
     @classmethod
-    def createProfileField(cls, name: str) -> QgsField:
+    def createProfileField(cls, name: str, field_type=QMETATYPE_QVARIANTMAP) -> QgsField:
         """
         Creates a QgsField for temporal profiles
         :param name: field name (e.g. 'profile')
         :return: QgsField
         """
-        field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME)
+        assert field_type in [QMETATYPE_QVARIANTMAP, QMETATYPE_QSTRING]
+        field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME, subType=TPF_SUBTYPE)
         setup = QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {})
         field.setEditorWidgetSetup(setup)
         field.setComment(TPF_COMMENT)
@@ -712,28 +726,36 @@ class TemporalProfileUtils(object):
 
 
 class LoadTemporalProfileTask(EOTSVTask):
+    interimResults = pyqtSignal(list)
 
     def __init__(self,
                  sources: List[Union[str, Path]],
                  points: List[QgsPointXY],
                  crs: QgsCoordinateReferenceSystem,
                  info: dict = None,
-                 cache: dict = None,
+                 mdCache: dict = None,
+                 lyrCache: dict = None,
+                 n_threads: int = 0,
                  *args, **kwds):
         super().__init__(*args, **kwds)
 
         self.mInfo = info.copy() if isinstance(info, dict) else None
-        self.mSources: List[Path] = [Path(s) for s in sources]
+        self.mSources: List[str] = [Path(s).as_posix() for s in sources]
         self.mPoints = points[:]
         self.mCrs = crs
         self.mProfiles = []
         self.mProgressInterval = timedelta(seconds=1)
-        self.mLoadingTime: Optional[timedelta] = None
-        self.mCache: dict = cache.copy() if isinstance(cache, dict) else dict()
-        self.mTimeIt: dict = dict()
+        self.mInterimResultsInterval = timedelta(seconds=2)
+        self.mInterimResults: bool = False
 
-    def loadingTime(self) -> Optional[timedelta]:
-        return self.mLoadingTime
+        assert n_threads >= 0
+        self.nThreads: int = n_threads
+        self.mdCache: dict = mdCache if isinstance(mdCache, dict) else dict()
+        self.lyrCache: Dict[str, QgsRasterLayer] = lyrCache if isinstance(lyrCache, dict) else dict()
+
+        self.mFutures: List = []
+        self.mResults: List = []
+        self.mTreadPoolExecutor: Optional[ThreadPoolExecutor] = None
 
     def profiles(self) -> List[dict]:
         return self.mProfiles
@@ -744,122 +766,280 @@ class LoadTemporalProfileTask(EOTSVTask):
     def info(self) -> dict:
         return self.mInfo
 
-    def timeIt(self, key: str, datetime: datetime):
-        l = self.mTimeIt.get(key, [])
-        l.append(datetime.now() - datetime)
-        self.mTimeIt[key] = l
+    def canCancel(self):
+        return True
+
+    def loadFromSource(self,
+                       lyr: Union[str, QgsRasterLayer],
+                       points: List[QgsPointXY],
+                       crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
+        """
+        Returns the profiles + meta infos from a single source
+        :param src:
+        :return: profiles (in order of points), sensor-id, list of errors
+        """
+
+        if isinstance(lyr, str):
+            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+            lyr = QgsRasterLayer(lyr, options=options)
+        assert isinstance(lyr, QgsRasterLayer)
+        src = lyr.source()
+        error = None
+
+        if not lyr.isValid():
+            return None, f'Unable to load {src}'
+
+        # sid, dtg = self.mdCache[src]
+        sid = sensor_id(lyr)
+        if not sid:
+            return None, f'Unable to load sensor id from {lyr}'
+
+        dtg = ImageDateUtils.dateTimeFromLayer(lyr)
+        if not dtg:
+            return None, f'Unable to load date-time from {lyr}'
+        dtg = dtg.toString(Qt.ISODate)
+        # self.mdCache[lyr.source()] = (sid, dtg)
+
+        if lyr.crs() == crs:
+            pts = points
+        else:
+            trans = QgsCoordinateTransform()
+            trans.setSourceCrs(crs)
+            trans.setDestinationCrs(lyr.crs())
+            pts = [trans.transform(pt) for pt in points]
+
+        results = {
+            TemporalProfileUtils.Source: lyr.source(),
+            TemporalProfileUtils.Date: dtg,
+            TemporalProfileUtils.Sensor: sid,
+            TemporalProfileUtils.Values: [],
+            '_points_lyr_crs': pts,
+        }
+
+        dp: QgsRasterDataProvider = lyr.dataProvider()
+        for i_pt, pt in enumerate(pts):
+            profile_values = None
+            if lyr.extent().contains(pt):
+                v = TemporalProfileUtils.profileValues(dp, pt)
+                if any(v):
+                    profile_values = v
+            results[TemporalProfileUtils.Values].append(profile_values)
+
+        return results, error
 
     def run(self) -> bool:
+
+        # create an empty temporal profile for each point
+        temporal_profiles = [TemporalProfileUtils.createEmptyProfile() for _ in self.mPoints]
         errors = []
-        t0 = datetime.now()
-        tNextProgress = datetime.now() + self.mProgressInterval
-
         nTotal = len(self.mSources)
+        tnow = datetime.now()
+        tNextProgress = tnow + self.mProgressInterval
+        tNextInterimResult = tnow + self.mInterimResultsInterval
 
-        profiles = [{TemporalProfileUtils.Source: [],
-                     TemporalProfileUtils.Date: [],
-                     TemporalProfileUtils.Sensor: [],
-                     TemporalProfileUtils.SensorIDs: [],
-                     TemporalProfileUtils.Values: [],
-                     }
-                    for _ in self.mPoints]
+        def appendResults(results, error):
+            nonlocal tnow, tNextProgress, tNextInterimResult
 
-        sensor_ids = []
+            if results:
+                for j, (profile, pt) in enumerate(zip(results[TemporalProfileUtils.Values], self.mPoints)):
+                    if profile:
+                        tp = temporal_profiles[j]
+                        # append profile + sensor infos to temporal profiles
+                        tp[TemporalProfileUtils.Values].append(profile)
+                        for k in [TemporalProfileUtils.Sensor,
+                                  TemporalProfileUtils.Date,
+                                  TemporalProfileUtils.Source]:
+                            tp[k].append(results[k])
 
-        for i, src in enumerate(self.mSources):
-            if self.isCanceled():
-                return False
+            if error:
+                errors.append(error)
 
-            t1 = datetime.now()
-            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
-            lyr = QgsRasterLayer(src.as_posix(), options=options)
-            self.timeIt('initLayer', t1)
-
-            if not lyr.isValid():
-                errors.append(f'Unable to load {src}')
-                continue
-
-            t1 = datetime.now()
-            if lyr.source() in self.mCache:
-                sid, dtg = self.mCache[lyr.source()]
-            else:
-                sid = sensor_id(lyr)
-                if not sid:
-                    errors.append(f'Unable to load sensor id from {lyr}')
-                    continue
-
-                dtg = ImageDateUtils.dateTimeFromLayer(lyr)
-                if not dtg:
-                    errors.append(f'Unable to load date-time from {lyr}')
-                    continue
-
-                self.mCache[lyr.source()] = (sid, dtg)
-            self.timeIt('sid_dtg', t1)
-
-            if sid not in sensor_ids:
-                sensor_ids.append(sid)
-
-            dp: QgsRasterDataProvider = lyr.dataProvider()
-
-            if lyr.crs() == self.mCrs:
-                pts = self.mPoints
-            else:
-                trans = QgsCoordinateTransform()
-                trans.setSourceCrs(self.mCrs)
-                trans.setDestinationCrs(lyr.crs())
-                pts = [trans.transform(pt) for pt in self.mPoints]
-                s = ""
-
-            for i_pt, pt in enumerate(pts):
-                if not lyr.extent().contains(pt):
-                    continue
-
-                profile: dict = profiles[i_pt]
-                values = None
-
-                # from benchmark, loading full-band time series with 100 images:
-                # Avg initLayer: 0:00:00.014435
-                # Avg sid_dtg: 0:00:00.006734
-                # Avg identify: 0:00:00.173399 <- takes too long, total duration 19.sec
-                # Avg sample: 0:00:00.000056 <- better use dataprovider.sample, total duration 17 sec
-                t1 = datetime.now()
-                values = TemporalProfileUtils.profileValues(dp, pt)
-                self.timeIt('sample', t1)
-
-                # assert valuesI == values
-
-                if not any(values):
-                    continue
-
-                # we have at least one -none-masked band value
-                profile[TemporalProfileUtils.Source].append(src.as_posix())
-                profile[TemporalProfileUtils.Values].append(values)
-                profile[TemporalProfileUtils.Sensor].append(sensor_ids.index(sid))
-                profile[TemporalProfileUtils.Date].append(dtg.toString(Qt.ISODateWithMs))
+            s = ""
+            # add to existing profiles
 
             tNow = datetime.now()
             if tNow > tNextProgress:
+                if self.isCanceled():
+                    return False
+
                 progress = (i + 1) / nTotal * 100
                 self.setProgress(progress)
                 tNextProgress = tNow + self.mProgressInterval
 
+            if self.mInterimResults and tNow > tNextInterimResult:
+                profiles = self.createTemporalProfiles(temporal_profiles)
+                self.interimResults.emit(profiles)
+
+        if self.nThreads > 1:
+            self.mTreadPoolExecutor = ThreadPoolExecutor(max_workers=self.nThreads)
+            for i, src in enumerate(self.mSources):
+                future = self.mTreadPoolExecutor.submit(self.loadFromSource,
+                                                        self.lyrCache.get(src, src),
+                                                        self.mPoints,
+                                                        self.mCrs)
+                self.mFutures.append(future)
+
+            for i, future in enumerate(as_completed(self.mFutures)):
+                results, error = future.result()
+                appendResults(results, error)
+        else:
+            for i, src in enumerate(self.mSources):
+                results, error = self.loadFromSource(
+                    self.lyrCache.get(src, src),
+                    self.mPoints,
+                    self.mCrs)
+                appendResults(results, error)
+
         # keep only profile dictionaries for which we have at least one values
-        for p in profiles:
-            p[TemporalProfileUtils.SensorIDs] = sensor_ids
-        profiles = [p for p in profiles if len(p[TemporalProfileUtils.Source]) > 0]
-        self.mProfiles = profiles
+
+        t0 = datetime.now()
+        self.mProfiles = self.createTemporalProfiles(temporal_profiles)
+
+        td = datetime.now() - t0
         self.setProgress(100)
-        self.mLoadingTime = datetime.now() - t0
-
-        for k in self.mTimeIt.keys():
-            deltas = self.mTimeIt[k]
-            if len(deltas) > 1:
-                d = deltas[0]
-                for d2 in deltas[1:]:
-                    d += d2
-            else:
-                d = deltas[0]
-
-            self.mTimeIt[k] = d / len(deltas)
 
         return True
+
+    def createTemporalProfiles(self, unsorted_profile_data) -> list:
+        """
+        Sorts the temporal profiles by sensor and date-time information
+        Empty profiles will be returned as None
+        :param list:
+        :return:
+        """
+        sorted_profiles = []
+        for unsorted_data in unsorted_profile_data:
+            dates = unsorted_data[TemporalProfileUtils.Date]
+            d = None
+            if len(dates) == 0:
+                sorted_profiles.append(None)
+            else:
+                dates = np.asarray(dates)
+                i_sorted = np.argsort(dates)
+
+                dates = [str(dates[i]) for i in i_sorted]
+
+                values = unsorted_data[TemporalProfileUtils.Values]
+                values = [values[i] for i in i_sorted]
+
+                sensor = unsorted_data[TemporalProfileUtils.Sensor]
+                sensor = [sensor[i] for i in i_sorted]
+                sensor_ids = np.unique(sensor).tolist()
+                sensor = [sensor_ids.index(s) for s in sensor]
+
+                sources = unsorted_data[TemporalProfileUtils.Source]
+                sources = [sources[i] for i in i_sorted]
+
+                d = {
+                    TemporalProfileUtils.Values: values,
+                    TemporalProfileUtils.SensorIDs: sensor_ids,
+                    TemporalProfileUtils.Sensor: sensor,
+                    TemporalProfileUtils.Date: dates,
+                    TemporalProfileUtils.Source: sources
+                }
+
+                success, err = TemporalProfileUtils.verifyProfile(d)
+                assert success, err
+
+            sorted_profiles.append(d)
+        return sorted_profiles
+
+
+class TemporalProfileLayerFieldModel(QAbstractListModel):
+    """
+    A list model to show all available temporal profile layer fields
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.mItems = []
+        self.mProject = QgsProject.instance()
+
+    def setProject(self, project: QgsProject):
+        assert isinstance(project, QgsProject)
+        self.mProject = project
+        self.update_model()
+
+    def project(self) -> QgsProject:
+        return self.mProject
+
+    def update_model(self):
+        """Populate the model with vector layers and their string fields."""
+        self.beginResetModel()
+        self.mItems.clear()
+
+        new_items = []
+        for layer in self.mProject.mapLayers().values():
+            for tpField in TemporalProfileUtils.profileFields(layer):
+                new_items.append((layer.id(), tpField.name()))
+        self.mItems.extend(sorted(new_items))
+        self.endResetModel()
+
+    def rowCount(self, parent=QModelIndex()):
+        return len(self.mItems)
+
+    def data(self, index: QModelIndex, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+
+        c = index.column()
+        item = self.mItems[index.row()]
+        layerId, fieldName = item
+
+        layer = self.mProject.mapLayer(layerId)
+        if not isinstance(layer, QgsVectorLayer):
+            return None
+
+        field: QgsField = layer.fields()[fieldName]
+        if role == Qt.DisplayRole:
+            # Display "Layer Name - Field Name"
+            return f'{layer.name()}: "{fieldName}"'
+        elif role == Qt.ToolTipRole:
+            # Tooltip: Layer Name, Layer ID, Field Name, Field Type
+            return (f"Layer: {layer.name()}<br>"
+                    f"ID: {layer.id()})"
+                    f'Source: {layer.source()}<br>'
+                    f'Field: "{field.name()}" {field.displayType(True)}')
+        elif role == Qt.DecorationRole:
+            return QgsIconUtils.iconForLayer(layer)
+        elif role == Qt.UserRole:
+            # Return the field name
+            return item
+        elif role == Qt.UserRole + 1:
+            # Return the layer
+            return layer
+        elif role == Qt.UserRole + 2:
+            # Return the QgsField object
+            return field
+        return None
+
+    def roleNames(self):
+        """Define custom roles for the model."""
+        roles = super().roleNames()
+        roles[Qt.UserRole] = b"layer_field"
+        roles[Qt.UserRole + 1] = b"layer"
+        roles[Qt.UserRole + 2] = b"field"
+        return roles
+
+
+class TemporalProfileLayerFieldComboBox(QComboBox):
+
+    def __init__(self, *args, project: QgsProject = None, **kwds):
+        super().__init__(*args, **kwds)
+
+        if project is None:
+            project = QgsProject.instance()
+
+        self.mModel = TemporalProfileLayerFieldModel()
+        self.mModel.setProject(project)
+
+        self.setModel(self.mModel)
+
+    def setProject(self, project: QgsProject):
+        self.mModel.setProject(project)
+
+    def project(self) -> QgsProject:
+        return self.mModel.project()
+
+    def layerField(self) -> Tuple[QgsVectorLayer, str]:
+        return self.currentData(Qt.UserRole)
