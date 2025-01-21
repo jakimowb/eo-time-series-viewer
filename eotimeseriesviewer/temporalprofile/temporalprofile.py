@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
-
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
@@ -18,6 +17,7 @@ from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBox
 from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
+
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
@@ -997,14 +997,14 @@ class TemporalProfileLayerFieldModel(QAbstractListModel):
         elif role == Qt.ToolTipRole:
             # Tooltip: Layer Name, Layer ID, Field Name, Field Type
             return (f"Layer: {layer.name()}<br>"
-                    f"ID: {layer.id()})"
+                    f"ID: {layer.id().strip()})<br>"
                     f'Source: {layer.source()}<br>'
                     f'Field: "{field.name()}" {field.displayType(True)}')
         elif role == Qt.DecorationRole:
             return QgsIconUtils.iconForLayer(layer)
         elif role == Qt.UserRole:
             # Return the field name
-            return item
+            return layer, field
         elif role == Qt.UserRole + 1:
             # Return the layer
             return layer
@@ -1041,5 +1041,29 @@ class TemporalProfileLayerFieldComboBox(QComboBox):
     def project(self) -> QgsProject:
         return self.mModel.project()
 
-    def layerField(self) -> Tuple[QgsVectorLayer, str]:
-        return self.currentData(Qt.UserRole)
+    def layerField(self) -> Tuple[Optional[QgsVectorLayer], Optional[QgsField]]:
+        """
+
+        :return:
+        """
+        if self.currentIndex() < 0:
+            return None, None
+        else:
+            return self.currentData(Qt.UserRole)
+
+    def setLayerField(self, layer: Union[QgsVectorLayer, str], field: Union[QgsField, str]) -> bool:
+        if isinstance(layer, QgsMapLayer):
+            layer = layer.id()
+
+        if isinstance(field, QgsField):
+            field = field.name()
+
+        for i in range(self.count()):
+            lyr, fn = self.itemData(i, Qt.UserRole)
+            lyr = lyr.id()
+            fn = fn.name()
+            if lyr == layer and fn == field:
+                self.setCurrentIndex(i)
+                return True
+
+        return False
