@@ -6,6 +6,8 @@ from typing import List
 from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 from qgis.PyQt.QtCore import pyqtSignal, QPointF
 from qgis.PyQt.QtGui import QColor
+
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent
 from eotimeseriesviewer.dateparser import dateDOY, ImageDateUtils, num2date
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
@@ -22,9 +24,10 @@ class DateTimePlotWidget(pg.PlotWidget):
         """
         Constructor of the widget
         """
-        plotItem = pg.PlotItem(
+        viewBox = DateTimeViewBox()
+        plotItem = DateTimePlotItem(
             axisItems={'bottom': DateTimeAxis(orientation='bottom')},
-            viewBox=DateTimeViewBox()
+            viewBox=viewBox
         )
         super(DateTimePlotWidget, self).__init__(parent, plotItem=plotItem)
         self.plotItem = plotItem
@@ -72,6 +75,18 @@ class DateTimePlotWidget(pg.PlotWidget):
 
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
+
+    def onPointsHovered(self, item, data, event):
+
+        s = ""
+
+    def onPointsClicked(self, *args, **kwds):
+
+        s = ""
+
+    def onCurveClicked(self, item, event):
+
+        s = ""
 
     def onMouseMoved2D(self, evt):
         pos = evt[0]  # using signal proxy turns original arguments into a tuple
@@ -205,18 +220,33 @@ class DateTimeAxis(pg.DateAxisItem):
             p.restore()  # restore the painter state
 
 
+class DateTimePlotItem(pg.PlotItem):
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+
 class DateTimePlotDataItem(pg.PlotDataItem):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+
+    def scatterHovered(self, _, points, ev):
+        s = ""
+
+    def hoverEvent(self, event: HoverEvent, **kwds):
+        s = ""
+
+    def hovFunc(self, *args, **kwds):
+        s = ""
 
 
 class DateTimeViewBox(pg.ViewBox):
     """
     Subclass of ViewBox
     """
-    sigMoveToDate = pyqtSignal(datetime.datetime)
-    sigMoveToLocation = pyqtSignal(SpatialPoint)
+    moveToDate = pyqtSignal(datetime.datetime)
+    moveToLocation = pyqtSignal(SpatialPoint)
 
     def __init__(self, parent=None):
         """
@@ -271,7 +301,7 @@ class DateTimeViewBox(pg.ViewBox):
         self.menu.removeAction(xAction)
 
         self.mActionMoveToDate = self.menu.addAction('Move to {}'.format(self.mCurrentDate))
-        self.mActionMoveToDate.triggered.connect(lambda *args: self.sigMoveToDate.emit(self.mCurrentDate))
+        self.mActionMoveToDate.triggered.connect(lambda *args: self.moveToDate.emit(self.mCurrentDate))
 
         # self.mActionMoveToProfile = self.menu.addAction('Move to profile location')
         # self.mActionMoveToProfile.triggered.connect(lambda *args: self.sigM.emit(self.mCurrentDate))

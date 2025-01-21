@@ -39,6 +39,7 @@ from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoo
     QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
+
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
@@ -460,9 +461,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         # mvd.setTimeSeries(self.mTimeSeries)
         mvd.setMapWidget(mw)
 
-        # self.profileDock: TemporalProfileDock = self.ui.dockProfiles
-        assert isinstance(self, EOTimeSeriesViewer)
-        # self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
+        self.profileDock: TemporalProfileDock = self.ui.dockProfiles
+        self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
 
         # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -1497,7 +1497,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
-        self.profileDock.loadCoordinate(spatialPoint)
+        self.profileDock.loadTemporalProfile(spatialPoint)
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 
@@ -1505,7 +1505,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         if mapToolKey == MapTools.TemporalProfile:
 
-            self.profileDock.loadCoordinate(spatialPoint)
+            self.profileDock.loadTemporalProfile(spatialPoint)
 
         elif mapToolKey == MapTools.SpectralProfile:
             tsd = None

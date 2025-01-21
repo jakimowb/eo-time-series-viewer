@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 import random
 
@@ -7,7 +8,7 @@ from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QSplitter, QVBoxLayout, QW
 from qgis._core import QgsProject, QgsVectorLayer
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, TPVisSensor
@@ -15,12 +16,13 @@ from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEd
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 from eotimeseriesviewer import initResources
-from eotimeseriesviewer.timeseries import SensorInstrument
+from eotimeseriesviewer.timeseries import SensorInstrument, TimeSeries
 
 start_app()
 initResources()
 
 TemporalProfileEditorWidgetFactory.register()
+from eotimeseriesviewer.tests import FORCE_CUBE
 
 
 class PlotSettingsTests(TestCase):
@@ -79,7 +81,14 @@ class PlotSettingsTests(TestCase):
 
     def test_TemporalProfileDock(self):
 
-        ts = TestObjects.createTimeSeries()
+        if False and FORCE_CUBE and FORCE_CUBE.is_dir():
+            files = file_search(FORCE_CUBE, re.compile('.*BOA.tif$'), recursive=True)
+            ts = TimeSeries()
+            files = list(files)[:50]
+            ts.addSources(files, runAsync=False)
+            s = ""
+        else:
+            ts = TestObjects.createTimeSeries()
 
         for i, sensor in enumerate(ts.sensors()):
             sensor: SensorInstrument
@@ -109,7 +118,12 @@ class PlotSettingsTests(TestCase):
             x = random.uniform(ext.xMinimum(), ext.xMaximum())
             y = random.uniform(ext.yMinimum(), ext.yMaximum())
             pt = SpatialPoint(ext.crs(), x, y)
-            dock.loadTemporalProfile(pt)
+            dock.loadTemporalProfile(pt, run_async=False)
+
+        def onMoveToDate(date):
+            print(f'# Move to date: {date}')
+
+        dock.sigMoveToDate.connect(onMoveToDate)
 
         btn.clicked.connect(onAddRandomProfile)
 

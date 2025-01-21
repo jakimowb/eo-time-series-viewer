@@ -23,14 +23,15 @@
 import os
 import pathlib
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
-
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
     QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QWidget
+
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -43,6 +44,11 @@ start_app = start_app
 
 osr.UseExceptions()
 gdal.UseExceptions()
+
+DIR_LARGE_TIMESERIES = None
+
+FORCE_CUBE = os.environ.get('FORCE_CUBE')
+FORCE_CUBE = Path(FORCE_CUBE) if isinstance(FORCE_CUBE, str) and os.path.isdir(FORCE_CUBE) else None
 
 
 class EOTSVTestCase(TestCase):
@@ -186,15 +192,15 @@ class TestObjects(TObj):
                   m2p.toMapCoordinates(int(0.5 * ns), int(0.5 * nl)),
                   m2p.toMapCoordinates(ns - 1, nl - 1)]
 
-        task = LoadTemporalProfileTask(sources, points, crs=l0.crs())
+        task = LoadTemporalProfileTask(sources, points, crs=l0.crs(), n_threads=os.cpu_count())
         task.run()
 
-        profiles = task.profiles()
         new_features: List[QgsFeature] = list()
-        for profile, point in zip(profiles, task.profilePoints()):
+        for profile, point in zip(task.profiles(), task.profilePoints()):
             f = QgsFeature(layer.fields())
             f.setGeometry(QgsGeometry.fromWkt(point.asWkt()))
             # profileJson = TemporalProfileUtils.profileJsonFromDict(profile)
+            assert TemporalProfileUtils.verifyProfile(profile)
             f.setAttribute(tpFields[0].name(), profile)
             new_features.append(f)
 

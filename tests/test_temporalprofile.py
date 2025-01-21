@@ -4,19 +4,20 @@ __author__ = 'benjamin.jakimow@geo.hu-berlin.de'
 __date__ = '2024-09-08'
 __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 
+import datetime
 import os
 import unittest
-from pathlib import Path
 
+import numpy as np
 from PyQt5.QtWidgets import QComboBox
-from qgis._core import QgsFeature, QgsProject
+from qgis.core import edit, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, QgsRasterLayer, \
+    QgsVectorLayer
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsField, QgsFields, QgsRasterLayer, QgsVectorLayer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
-from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileLayerProxyModel, \
-    TemporalProfileUtils
-from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
+from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
+    TemporalProfileLayerFieldComboBox, TemporalProfileLayerProxyModel, TemporalProfileUtils
+from eotimeseriesviewer.tests import EOTSVTestCase, FORCE_CUBE, start_app, TestObjects
 
 start_app()
 
@@ -37,7 +38,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         nFiles = len(files)
         info = dict(id=1)
-        task = LoadTemporalProfileTask(files, points, crs=crs, info=info)
+        task = LoadTemporalProfileTask(files, points, crs=crs, info=info, n_threads=0)
         task.run()
 
         profiles = task.profiles()
@@ -58,7 +59,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
             self.assertEqual(profile, profile2)
 
-    @unittest.skipIf('FORCE_CUBE' not in os.environ, 'FORCE_CUBE is undefined')
+    @unittest.skipIf(FORCE_CUBE is None, 'FORCE_CUBE is undefined')
     def test_load_profile_FORCE(self):
 
         def onProgress(progress):
@@ -68,7 +69,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             else:
                 print(f'\r{progress: 0.2f}')
 
-        path_cube = Path(os.environ['FORCE_CUBE'])
+        path_cube = FORCE_CUBE
         assert path_cube.is_dir()
         for tileDir in FORCEUtils.tileDirs(path_cube):
             files = FORCEUtils.productFiles(tileDir, 'BOA')
@@ -79,7 +80,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             task = LoadTemporalProfileTask(files, [pt], pt.crs())
             task.progressChanged.connect(onProgress)
             task.run()
-            cache = task.mCache
+            cache = task.mdCache
             profiles1 = task.profiles()
             for p in profiles1:
                 self.assertTrue(TemporalProfileUtils.isProfileDict(p))
@@ -90,7 +91,7 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             for k, v in task.mTimeIt.items():
                 print(f'Avg {k}: {v}')
 
-            task = LoadTemporalProfileTask(files, [pt], pt.crs(), cache=cache)
+            task = LoadTemporalProfileTask(files, [pt], pt.crs(), mdCache=cache)
             task.progressChanged.connect(onProgress)
             task.run()
             profiles2 = task.profiles()
@@ -102,13 +103,67 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             s = ""
         s = ""
 
+    @unittest.skipIf(FORCE_CUBE is None, 'Missing FORCE_CUBE')
     def test_load_timeseries_profiledata_async(self):
 
-        pass
+        files = []
+        for tileDir in FORCEUtils.tileDirs(FORCE_CUBE):
+            files.extend(FORCEUtils.productFiles(tileDir, 'BOA'))
+            break
 
-    def test_calc_indices(self):
+        lyr = QgsRasterLayer(files[0].as_posix())
+        self.assertTrue(lyr.isValid())
+        points = [SpatialPoint.fromMapLayerCenter(lyr),
+                  # SpatialPoint.fromPixelPosition(lyr, 50, 50),
+                  # SpatialPoint.fromPixelPosition(lyr, -100, -200),  # out of image
+                  ]
 
-        pass
+        # test without layer cache
+        dtime = lambda t: datetime.datetime.now() - t
+        now = datetime.datetime.now
+
+        mdCache = dict()
+        lyrCache = dict()
+
+        n_threads = os.cpu_count()
+        TEST_MATRIX = [
+            # {'r': 3},
+            # {'r': 3, 'mdCache': mdCache},
+            # {'r': 3, 'lyrCache': lyrCache},
+            # {'r': 3, 'n_threads': 1},
+            # {'r': 3, 'n_threads': 2},
+            # {'r': 3, 'n_threads': 4},
+            {'r': 3, 'n_threads': 6},
+            # {'r': 3, 'n_threads': 8},
+            # {'r': 3, 'n_threads': 4, 'lyrCache': lyrCache},
+            {'r': 3, 'n_threads': 6, 'lyrCache': lyrCache},
+            # {'r': 3, 'n_threads': 8, 'lyrCache': lyrCache},
+
+            # {'r': 3, 'n_threads': 10},
+            # {'r': 3, 'n_threads': 1, 'lyrCache': lyrCache},
+            # {'r': 3, 'n_threads': 5, 'lyrCache': lyrCache},
+            # {'r': 3, 'n_threads': 10, 'lyrCache': lyrCache},
+            # {'r': 3, 'n_threads': os.cpu_count()},
+        ]
+        files = files[0:100]
+        for s, setting in enumerate(TEST_MATRIX):
+            kwds = {k: v for k, v in setting.items() if k in ['mdCache', 'lyrCache', 'n_threads']}
+            repetitions = setting.get('r', 1)
+            print(f'# {s + 1}: Load from {len(files)} files: {kwds}')
+            durations = []
+            for r in range(repetitions):
+                t = now()
+                task = LoadTemporalProfileTask(files, points, lyr.crs(), **kwds)
+                task.run()
+                duration = dtime(t)
+                durations.append(duration)
+                print(f'{s + 1}-r{r + 1}: dt={duration}')
+            t_avg = np.mean(np.asarray(durations).astype('timedelta64')).astype(object)
+            print(f'{s + 1}-avg: {t_avg}')
+            print(f'# {s + 1}: done : {kwds}')
+        # test with layer cache
+
+    # test with
 
     def test_temporal_profile_field(self):
 
@@ -175,6 +230,45 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         cb = QComboBox()
         cb.setModel(model)
+
+        self.showGui(cb)
+
+    def test_temporalProfileLayerFieldModel(self):
+
+        vl = TestObjects.createVectorLayer()
+        vl.setName('Not to show')
+
+        tl = TestObjects.createProfileLayer()
+        tl.setName('TPLayer1')
+
+        with edit(tl):
+            field = TemporalProfileUtils.createProfileField('myProfiles2')
+            tl.addAttribute(field)
+        tl2 = TestObjects.createProfileLayer()
+        tl2.setName('TPLayer12')
+
+        # test without temporal profile layers
+        project = QgsProject()
+        cb = TemporalProfileLayerFieldComboBox(project=project)
+        lyr, field = cb.layerField()
+        self.assertTrue(lyr is None)
+        self.assertTrue(field is None)
+
+        self.assertFalse(cb.setLayerField('foo', 'bar'))
+
+        # test with temporal profile layers
+        project = QgsProject()
+        project.addMapLayers([vl, tl, tl2])
+
+        cb = TemporalProfileLayerFieldComboBox(project=project)
+
+        self.assertTrue(cb.setLayerField(tl, 'myProfiles2'))
+        self.assertTrue(cb.setLayerField(tl.id(), 'myProfiles2'))
+        self.assertFalse(cb.setLayerField('foo', 'bar'))
+
+        lyr, fn = cb.layerField()
+        self.assertIsInstance(lyr, QgsVectorLayer)
+        self.assertIsInstance(fn, QgsField)
 
         self.showGui(cb)
 

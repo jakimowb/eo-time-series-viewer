@@ -1863,16 +1863,17 @@ class TimeSeries(QAbstractItemModel):
         :param sources:  list-of-TimeSeriesSources
         """
         assert isinstance(sources, list)
-        # print('Add TSS...', flush=True)
-        addedDates = []
-        for i, source in enumerate(sources):
-            assert isinstance(source, TimeSeriesSource)
-            newTSD = self.addTimeSeriesSource(source)
-            if isinstance(newTSD, TimeSeriesDate):
-                addedDates.append(newTSD)
+        if len(sources) > 0:
+            # print('Add TSS...', flush=True)
+            addedDates = []
+            for i, source in enumerate(sources):
+                assert isinstance(source, TimeSeriesSource)
+                newTSD = self.addTimeSeriesSource(source)
+                if isinstance(newTSD, TimeSeriesDate):
+                    addedDates.append(newTSD)
 
-        if len(addedDates) > 0:
-            self.sigTimeSeriesDatesAdded.emit(addedDates)
+            if len(addedDates) > 0:
+                self.sigTimeSeriesDatesAdded.emit(addedDates)
 
     def addSources(self,
                    sources: list,

@@ -59,6 +59,7 @@
       <property name="floatable">
        <bool>false</bool>
       </property>
+      <addaction name="actionAcceptCandidate"/>
       <addaction name="separator"/>
       <addaction name="actionAddVisualization"/>
       <addaction name="actionRemoveVisualization"/>
@@ -110,7 +111,7 @@
           <item>
            <widget class="QProgressBar" name="mProgressBar">
             <property name="value">
-             <number>24</number>
+             <number>0</number>
             </property>
             <property name="textVisible">
              <bool>true</bool>
@@ -188,8 +189,8 @@
   </action>
   <action name="actionAddVisualization">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionAddMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Add temporal profile visualization</string>
@@ -200,8 +201,8 @@
   </action>
   <action name="actionRemoveVisualization">
    <property name="icon">
-    <iconset resource="../../../QGIS/images/images.qrc">
-     <normaloff>:/images/themes/default/mActionRemove.svg</normaloff>:/images/themes/default/mActionRemove.svg</iconset>
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</normaloff>:/eotimeseriesviewer/icons/mActionRemoveMapView.svg</iconset>
    </property>
    <property name="text">
     <string>Remove profile visualization</string>
@@ -256,6 +257,18 @@
    </property>
    <property name="toolTip">
     <string>Save temporal profiles</string>
+   </property>
+  </action>
+  <action name="actionAcceptCandidate">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionAdd.svg</normaloff>:/images/themes/default/mActionAdd.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Accept candidate</string>
+   </property>
+   <property name="toolTip">
+    <string>Accepts the profile candidate and adds it permanently to the vector layer</string>
    </property>
   </action>
  </widget>
