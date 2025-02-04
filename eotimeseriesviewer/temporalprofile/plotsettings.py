@@ -1,18 +1,18 @@
+import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
-from PyQt5.QtGui import QContextMenuEvent
-from qgis.PyQt.QtWidgets import QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
+from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
+    QPixmap, QStandardItem, QStandardItemModel
+from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
     QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsProject, QgsProperty, \
     QgsPropertyDefinition, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-from qgis.PyQt.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap, QStandardItem, \
-    QStandardItemModel
 
-from eotimeseriesviewer.temporalprofile.functions import spectral_indices
+from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
 from eotimeseriesviewer.qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle, PlotStyleButton, \
@@ -139,13 +139,17 @@ class PythonCodeItem(PropertyItem):
 
     def setModelData(self, editor: FieldPythonExpressionWidget, model: QAbstractItemModel, index: QModelIndex):
         index.data()
-        expr_old = index.data()
         expr_new = editor.expression()
         is_valid, err = editor.isValidExpression()
         if is_valid:
-            if expr_new != expr_old:
-                self.mPythonExpression = expr_new
-                self.emitDataChanged()
+            self.setExpression(expr_new)
+
+    def setExpression(self, code: str):
+        assert isinstance(code, str)
+        expr_old = self.mPythonExpression
+        if code != expr_old:
+            self.mPythonExpression = code
+            self.emitDataChanged()
 
     def setEditorData(self, editor: FieldPythonExpressionWidget, index: QModelIndex):
         editor.setExpression(self.mPythonExpression)
@@ -974,23 +978,61 @@ class PlotSettingsTreeView(QTreeView):
 
             parentItem = item.parent()
 
-            if isinstance(item, TPVisGroup):
-                pass
+            sensorItems = []
+            if isinstance(item, TPVisSensor):
+                sensorItems.append(item)
+            elif isinstance(item, TPVisGroup):
+                sensorItems.extend(item.sensorItems())
+            elif isinstance(parentItem, TPVisSensor):
+                sensorItems.append(parentItem)
+            elif isinstance(parentItem, TPVisGroup):
+                sensorItems.extend(parentItem.sensorItems())
 
-            elif isinstance(item, TPVisSensor):
-                pass
-            else:
-                parentItem = item.parent()
-                if isinstance(parentItem, TPVisSensor) and isinstance(item, PythonCodeItem):
-                    m = menu.addMenu('Spectral Index')
-                    indices = spectral_indices()
-                    index_names = indices.keys()
-
-                    domains = set([item['application_domain'] for item in indices])
-                s = ""
+            if len(sensorItems) > 0:
+                code_items = [s.mPBand for s in sensorItems]
+                self.addSpectralIndexMenu(menu, code_items)
 
         if not menu.isEmpty():
             menu.exec_(self.viewport().mapToGlobal(event.pos()))
+
+    def addSpectralIndexMenu(self, menu: QMenu, code_items: List[PythonCodeItem]) -> QMenu:
+        assert isinstance(menu, QMenu)
+        for i in code_items:
+            assert isinstance(i, PythonCodeItem)
+
+        m: QMenu = menu.addMenu('Spectral Index')
+        indices = spectral_indices()
+        DOMAINS = dict()
+        for idx in indices.values():
+            d = idx['application_domain']
+            if d not in ['kernel']:
+                DOMAINS[d] = DOMAINS.get(d, []) + [idx]
+        for d in sorted(DOMAINS.keys()):
+            d: str
+            mDomain: QMenu = m.addMenu(d.title())
+            mDomain.setToolTipsVisible(True)
+            indices = DOMAINS[d]
+            for batch in itertools.batched(indices, 10):
+                mBatch: QMenu = mDomain.addMenu(f'{batch[0]['short_name']} - {batch[-1]['short_name']}')
+                mBatch.setToolTipsVisible(True)
+                for idx in batch:
+                    a: QAction = mBatch.addAction(idx['short_name'])
+                    ln = idx['long_name']
+                    sn = idx['short_name']
+                    link = idx.get('reference')
+                    tt = f'{idx['long_name']}<br>{idx['formula']}<br><a href="{link}">{link}</a>'
+                    a.setText(f'{sn} - {ln}')
+                    a.setToolTip(tt)
+
+                    a.setData(idx['formula'])
+                    a.triggered.connect(lambda *args, _a=a, _i=code_items: self.setSpectralIndex(_a, _i))
+
+        return m
+
+    def setSpectralIndex(self, a: QAction, items: List[PythonCodeItem]):
+        expr = a.data()
+        for item in items:
+            item.setExpression(expr)
 
 
 class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
