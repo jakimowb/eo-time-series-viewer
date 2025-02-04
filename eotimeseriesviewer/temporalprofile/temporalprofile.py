@@ -2,6 +2,7 @@ import json
 import os.path
 import re
 import types
+import warnings
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -19,7 +20,7 @@ from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWid
     QgsGui
 
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
-from eotimeseriesviewer.temporalprofile.functions import spectral_index_acronyms, spectral_indices
+from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
 from eotimeseriesviewer.tasks import EOTSVTask
@@ -379,7 +380,7 @@ class TemporalProfileUtils(object):
                 center_wl = 0.5 * (info['wl_min'] + info['wl_max'])
 
                 if min(wl) <= center_wl <= max(wl):
-                    band_lookup[name] = np.argmin(np.abs(np.asarray(wl) - center_wl))
+                    band_lookup[name] = int(np.argmin(np.abs(np.asarray(wl) - center_wl)))
                 else:
                     band_lookup[name] = None
 
@@ -443,6 +444,12 @@ class TemporalProfileUtils(object):
                                 'band_values': s_band_values,
                                 'dates': s_obs_dates,
                                 'feature': feature}
+                    for k, band_index in specs.get('band_lookup', {}).items():
+                        if isinstance(band_index, int):
+                            if k not in _globals:
+                                _globals[k] = s_band_values[:, band_index]
+                            else:
+                                warnings.warn(f'Variable {k} is already defined.')
                     exec(expr, _globals)
                     s_y = _globals['y']
                     # s_y = cls.applySensorExpression(s_band_values, s_obs_dates, feature)
