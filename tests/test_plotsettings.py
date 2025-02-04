@@ -3,15 +3,16 @@ import re
 import unittest
 import random
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QSplitter, QVBoxLayout, QWidget
-from qgis._core import QgsProject, QgsVectorLayer
+from qgis.PyQt.QtCore import QSize, Qt
+from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QVBoxLayout, QWidget
+from qgis.core import QgsProject, QgsVectorLayer
+from qgis.PyQt.QtGui import QAction
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
-from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, TPVisSensor
+from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileEditorWidgetFactory
 from eotimeseriesviewer.temporalprofile.visualization import TemporalProfileDock, TemporalProfileVisualization
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
@@ -63,6 +64,25 @@ class PlotSettingsTests(TestCase):
         value2 = json.loads(text)
 
         self.assertEqual(value, value2)
+
+    def test_bandIndexMenu(self):
+
+        m = QMenu()
+        item = PythonCodeItem('Band')
+        view = PlotSettingsTreeView()
+        menu = view.addSpectralIndexMenu(m, item)
+
+        self.assertIsInstance(menu, QMenu)
+        for a in menu.findChildren(QAction):
+            a: QAction
+
+            if a.data():
+                index = a.data()
+                a.trigger()
+                self.assertEqual(item.mPythonExpression, index)
+            s = ""
+            print(a.text())
+        self.showGui(m)
 
     def test_SensorItems(self):
         ts = TestObjects.createTimeSeries()

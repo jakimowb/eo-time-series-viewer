@@ -1,7 +1,9 @@
 import json
 from typing import List
 
-from qgis.PyQt.QtCore import QAbstractTableModel, QModelIndex, Qt
+from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
+from qgis.PyQt.QtWidgets import QWidget, QWidgetAction
+
 from eotimeseriesviewer import DIR_REPO
 
 INDICES = dict()
@@ -380,3 +382,35 @@ def spectral_index_acronyms(band_identifier_model: SpectralIndexBandIdentifierMo
 
     return {'band_identifier': band_identifier_model.asMap(),
             'constants': constant_model.asMap()}
+
+
+class SpectralIndexModel(QAbstractItemModel):
+    """
+    A model that lists spectral indices
+    """
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+        indices = spectral_indices()
+        self._indices: List[dict] = list(indices.values())
+
+
+class SpectralIndexProxyModel(QSortFilterProxyModel):
+
+    def __init__(self, *args, **kwds):
+        self._model = SpectralIndexModel()
+        self.setSourceModel(self._model)
+
+
+class SpectralIndexSelectionWidget(QWidget):
+    """A widget to select a spectral index"""
+
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+
+
+class SpectralIndexWidgetAction(QWidgetAction):
+
+    def __init__(self, *args, **kwds):
+        pass
