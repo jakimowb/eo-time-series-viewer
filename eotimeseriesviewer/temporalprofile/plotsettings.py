@@ -131,6 +131,9 @@ class PythonCodeItem(PropertyItem):
         if role == Qt.DisplayRole:
             return self.mPythonExpression
 
+        if role == Qt.ToolTipRole:
+            return self.mPythonExpression
+
         if role == Qt.ForegroundRole:
             if not self.mIsValid:
                 return QColor('red')
@@ -1271,6 +1274,19 @@ class PlotSettingsProxyModel(QSortFilterProxyModel):
 
         self.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.setFilterKeyColumn(-1)  # search filter uses all columns
+
+    def filterAcceptsRow(self, row: int, parent: QModelIndex):
+        index = self.sourceModel().index(row, 0, parent)
+        if super().filterAcceptsRow(row, parent):
+            return True
+
+        # Check if any child rows match the filter
+        child_count = self.sourceModel().rowCount(index)
+        for child_row in range(child_count):
+            if self.filterAcceptsRow(child_row, index):
+                return True
+
+        return False
 
 
 class PlotSettingsContextGenerator(QgsExpressionContextGenerator):
