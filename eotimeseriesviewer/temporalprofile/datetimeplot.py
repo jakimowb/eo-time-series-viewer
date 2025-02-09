@@ -3,15 +3,15 @@ import re
 import sys
 from typing import List
 
+from qgis.PyQt.QtGui import QColor, QPalette
 from qgis.PyQt.QtWidgets import QDateTimeEdit, QFrame, QGridLayout, QRadioButton, QWidget, QWidgetAction
 from qgis.PyQt.QtCore import pyqtSignal, QPointF
-from qgis.PyQt.QtGui import QColor
 
-from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent
 from eotimeseriesviewer.dateparser import dateDOY, ImageDateUtils, num2date
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
 from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph import ScatterPlotItem
-from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import HoverEvent
+from eotimeseriesviewer.qgispluginsupport.qps.utils import HashablePointF, SpatialPoint
 from eotimeseriesviewer.temporalprofile.plotitems import TemporalProfilePlotDataItem
 
 
@@ -34,7 +34,7 @@ class DateTimePlotWidget(pg.PlotWidget):
         # self.setCentralItem(self.plotItem)
         # self.xAxisInitialized = False
 
-        pi = self.getPlotItem()
+        pi: DateTimePlotItem = self.getPlotItem()
         pi.getAxis('bottom').setLabel('Date')
         pi.getAxis('left').setLabel('Value')
 
@@ -52,14 +52,41 @@ class DateTimePlotWidget(pg.PlotWidget):
         pi.addItem(self.mCrosshairLineH, ignoreBounds=True)
 
         assert isinstance(self.scene(), pg.GraphicsScene)
-        self.proxy2D = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
+        self.mSignalProxyMouseMoved = pg.SignalProxy(self.scene().sigMouseMoved, rateLimit=60, slot=self.onMouseMoved2D)
+        # self.scene().sigMouseHover.connect(self.onPointsHovered)
+        # pal = self.palette()
+        # pal = getQDarkStyleLightQPalette()
+        # self.setPalette(pal)
 
+        # self.setBackground('w')
+        s = ""
         # self.mUpdateTimer = QTimer()
         # self.mUpdateTimer.setInterval(500)
         # self.mUpdateTimer.setSingleShot(False)
         # self.mUpdateTimer.timeout.connect(self.onPlotUpdateTimeOut)
         # self.mPlotSettingsModel: PlotSettingsModel = None
+        self.mHoveredPositions = set()
 
+        if False:
+            vb = self.plotItem.getViewBox()
+            p: QPalette = vb.palette()
+
+            groups = {QPalette.Inactive: 'inactive',
+                      QPalette.Active: 'active',
+                      QPalette.Disabled: 'disabled'}
+            roles = {QPalette.ToolTipText: 'ToolTipText',
+                     QPalette.ToolTipBase: 'ToolTipBase'}
+
+            results = dict()
+            for g, gs in groups.items():
+                for r, rs in roles.items():
+                    k = f'{gs}_{rs}'
+                    results[k] = p.color(g, r).name(QColor.HexArgb)
+
+            for k, v in results.items():
+                print(f'{k}={v}')
+
+        s = ""
         # self.mPlotDataItems = dict()
         # self.mUpdatedProfileStyles = set()
 
@@ -76,9 +103,15 @@ class DateTimePlotWidget(pg.PlotWidget):
     def resetViewBox(self):
         self.plotItem.getViewBox().autoRange()
 
-    def onPointsHovered(self, item, data, event):
+    def onPointsHovered(self, item, array, event: HoverEvent):
+        if event.isExit() or event.isEnter():
+            self.mHoveredPositions.clear()
 
-        s = ""
+        if isinstance(item, ScatterPlotItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
+            name = item.parentItem().name()
+            for spot in array.tolist():
+                self.mHoveredPositions.add((name, HashablePointF(spot.pos())))
+        return True
 
     def onPointsClicked(self, *args, **kwds):
 
@@ -112,7 +145,17 @@ class DateTimePlotWidget(pg.PlotWidget):
             doy = dateDOY(date)
             vb.updateCurrentDate(date)
 
-            positionInfo = 'Value: {:0.5f}\nDate-Time: {}\nDOY: {}'.format(y, date, doy)
+            positionInfo = []
+            for spotInfo in sorted(self.mHoveredPositions, reverse=True, key=lambda p: p[1].y()):
+                name, spotPos = spotInfo
+                name = f'{name}:' if name else ''
+                spotDate = datetime.datetime.fromtimestamp(spotPos.x())
+                spotValue = spotPos.y()
+                spotDoy = dateDOY(spotDate)
+
+                positionInfo.append(f'{name} {spotValue:0.5f}, {spotDate.date().isoformat()}, {spotDoy}'.strip())
+
+            positionInfo = '\n'.join(positionInfo)
             self.mInfoLabelCursor.setText(positionInfo, color=self.mInfoColor)
 
             s = self.size()
@@ -225,20 +268,16 @@ class DateTimePlotItem(pg.PlotItem):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
+    def addItem(self, item, *args, **kargs):
+        super().addItem(item, *args, **kargs)
+
 
 class DateTimePlotDataItem(pg.PlotDataItem):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
-
-    def scatterHovered(self, _, points, ev):
-        s = ""
-
-    def hoverEvent(self, event: HoverEvent, **kwds):
-        s = ""
-
-    def hovFunc(self, *args, **kwds):
-        s = ""
+        self.mFeatureID = None
+        self.mLayerId = None
 
 
 class DateTimeViewBox(pg.ViewBox):
