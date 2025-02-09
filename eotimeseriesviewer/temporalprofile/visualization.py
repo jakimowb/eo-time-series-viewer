@@ -26,11 +26,11 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from PyQt5.QtCore import QTimer
+from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
+    QTimer
 from qgis.core import QgsApplication, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, \
     QgsFeatureRequest, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsTaskManager, QgsVectorLayer, \
     QgsVectorLayerUtils
-from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QColor
@@ -316,6 +316,10 @@ class TemporalProfileVisualization(QObject):
         self.mTreeView
 
     def initVisualization(self, vis: TPVisGroup):
+        ts = self.timeSeries()
+        if isinstance(ts, TimeSeries):
+            vis.setTimeSeries(ts)
+
         vis.addSensors(self.timeSeries().sensors())
 
         is_initialized = TemporalProfileUtils.isProfileLayer(vis.layer())
@@ -396,7 +400,6 @@ class TemporalProfileVisualization(QObject):
                 fids = v.get('fids')
                 if isinstance(lyr, QgsVectorLayer) and isinstance(fids, list):
                     lyr.selectByIds(fids)
-
 
             else:
                 s = ""
@@ -696,6 +699,7 @@ class TemporalProfileVisualization(QObject):
             vis = TPVisGroup()
             vis.setLayer(lyr)
             vis.setField(exampleField)
+            vis.setTimeSeries(self.timeSeries())
 
             if exampleData:
                 sensor_ids = exampleData[TemporalProfileUtils.SensorIDs]
@@ -706,10 +710,13 @@ class TemporalProfileVisualization(QObject):
                     for sid in sensor_ids:
                         match = ts.findMatchingSensor(sid)
                         if match:
-                            if match not in sensors:
-                                sensors.append(match)
+                            if match.id() not in sensors:
+                                sensors.append(match.id())
                         elif sid not in sensors:
                             sensors.append(sid)
+                    for sensor in ts.sensors():
+                        if sensor.id() not in sensors:
+                            sensors.append(sensor.id())
                 else:
                     sensors = sensor_ids
 
@@ -758,6 +765,7 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionAddVisualization.triggered.connect(self.mVis.createVisualization)
         self.actionRemoveVisualization.triggered.connect(self.mVis.removeSelectedVisualizations)
 
+        self.actionDeselect.triggered.connect(self.deselect)
         self.actionPanToSelected.triggered.connect(self.panToSelected)
         self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
         self.onFeatureSelectionChanged(dict())
@@ -766,6 +774,14 @@ class TemporalProfileDock(QgsDockWidget):
         has_selected = len(selected_features) > 0
         self.actionPanToSelected.setEnabled(has_selected)
         self.actionZoomToSelected.setEnabled(has_selected)
+        self.actionDeselect.setEnabled(has_selected)
+
+    def deselect(self):
+        for lid, fids in self.mVis.selectedFeatures().copy().items():
+            lyr = self.project().mapLayer(lid)
+            if isinstance(lyr, QgsVectorLayer):
+                new_selection = [fid for fid in lyr.selectedFeatureIds() if fid not in fids]
+                lyr.selectByIds(new_selection)
 
     def panToSelected(self):
         if isinstance(self.mVectorLayerTool, VectorLayerTools):

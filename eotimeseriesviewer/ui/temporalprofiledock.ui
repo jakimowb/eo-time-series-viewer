@@ -67,6 +67,7 @@
       <addaction name="actionSaveTemporalProfiles"/>
       <addaction name="actionPanToSelected"/>
       <addaction name="actionZoomToSelected"/>
+      <addaction name="actionDeselect"/>
      </widget>
     </item>
     <item>
@@ -295,6 +296,18 @@
    </property>
    <property name="toolTip">
     <string>Zoom maps to location of selecte profile(s)</string>
+   </property>
+  </action>
+  <action name="actionDeselect">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionDeselectActiveLayer.svg</normaloff>:/images/themes/default/mActionDeselectActiveLayer.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Deselect</string>
+   </property>
+   <property name="toolTip">
+    <string>Unselect selected profiles</string>
    </property>
   </action>
  </widget>
