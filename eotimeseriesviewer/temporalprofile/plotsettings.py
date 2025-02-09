@@ -2,13 +2,13 @@ import itertools
 import json
 from typing import Any, Dict, List, Optional, Union
 
+from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
+    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsGeometry, QgsProject, QgsProperty, \
+    QgsPropertyDefinition, QgsVectorLayer
 from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QFontMetrics, QIcon, QPainter, QPainterPath, QPalette, QPen, \
     QPixmap, QStandardItem, QStandardItemModel
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, QMenu, QStyle, QStyledItemDelegate, \
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
-from qgis.core import QgsExpressionContext, QgsExpressionContextGenerator, QgsExpressionContextScope, \
-    QgsExpressionContextUtils, QgsFeature, QgsField, QgsFieldModel, QgsProject, QgsProperty, \
-    QgsPropertyDefinition, QgsVectorLayer
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
 
@@ -166,6 +166,8 @@ class PlotSymbolItem(StyleItem):
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
+        # self.mPlotStyle.markerPen.setColor(QColor('white'))
+        self.mPlotStyle.setMarkerColor(QColor('white'))
 
     def createEditor(self, parent):
         # show editor without marker symbols
@@ -196,7 +198,7 @@ class LineStyleItem(StyleItem):
         super().__init__(*args, **kwds)
 
         # default line style
-        self.mPlotStyle.setLinePen(QPen(QColor('green'), 0, Qt.SolidLine))
+        self.mPlotStyle.setLinePen(QPen(QColor('white'), 0, Qt.SolidLine))
 
     def heightHint(self) -> int:
         style = self.plotStyle()
@@ -367,6 +369,7 @@ class TPVisGroup(PropertyItemGroup):
         self.mContextGenerator = self.ContextGenerator(self)
         self.mModifiedText: Optional[str] = None
 
+        self.mTimeSeries: Optional[TimeSeries] = None
         self.mLastLayerFields: Dict[str, str] = dict()
 
         self.setIcon(QIcon(':/eotimeseriesviewer/icons/mIconTemporalProfile.svg'))
@@ -382,12 +385,12 @@ class TPVisGroup(PropertyItemGroup):
         self.mPLineStyle = LineStyleItem('Line')
         self.mPLineStyle.label().setIcon(QIcon(':/images/themes/default/propertyicons/stylepreset.svg'))
 
-        self.mPLabel = QgsPropertyItem('Label')
-        self.mPLabel.setDefinition(QgsPropertyDefinition(
-            'Label', 'Name of the temporal profile.',
+        self.mPName = QgsPropertyItem('Name')
+        self.mPName.setDefinition(QgsPropertyDefinition(
+            'Name', 'Name of the temporal profile.',
             QgsPropertyDefinition.StandardPropertyTemplate.String))
-        self.mPLabel.setProperty(QgsProperty.fromExpression(''))
-        self.mPLabel.label().setIcon(QIcon(':/images/themes/default/mActionLabeling.svg'))
+        self.mPName.setProperty(QgsProperty.fromExpression(''))
+        self.mPName.label().setIcon(QIcon(':/images/themes/default/mActionLabeling.svg'))
 
         self.mPFilter = QgsPropertyItem('Filter')
         self.mPFilter.setDefinition(QgsPropertyDefinition(
@@ -396,7 +399,7 @@ class TPVisGroup(PropertyItemGroup):
         self.mPFilter.label().setIcon(QIcon(':/images/themes/default/mActionFilter2.svg'))
 
         # self.mPColor.signals().dataChanged.connect(lambda : self.setPlotStyle(self.generatePlotStyle()))
-        for pItem in [self.mPField, self.mPLineStyle, self.mPLabel, self.mPFilter]:
+        for pItem in [self.mPField, self.mPLineStyle, self.mPName, self.mPFilter]:
             self.appendRow(pItem.propertyRow())
 
         self.mSensorItems: Dict[str, TPVisSensor] = dict()
@@ -494,6 +497,12 @@ class TPVisGroup(PropertyItemGroup):
 
         return pm
 
+    def setTimeSeries(self, timeseries: TimeSeries):
+        self.mTimeSeries = timeseries
+
+        for s in self.sensorItems():
+            s.setTimeSeries(timeseries)
+
     def setField(self, field: Union[str, QgsField, None]):
 
         if isinstance(field, QgsField):
@@ -529,6 +538,10 @@ class TPVisGroup(PropertyItemGroup):
         context.appendScope(QgsExpressionContextUtils.projectScope(QgsProject.instance()))
         if isinstance(self.mLayer, QgsVectorLayer):
             context.appendScope(QgsExpressionContextUtils.layerScope(self.mLayer))
+            for f in self.mLayer.getFeatures():
+                context.setFeature(f)
+                context.setGeometry(QgsGeometry(f.geometry()))
+                break
         return context
 
     def data(self, role: int = ...) -> Any:
@@ -582,10 +595,13 @@ class TPVisGroup(PropertyItemGroup):
             if sid not in self.mSensorItems:
                 item = TPVisSensor()
                 item.setSensor(sid)
+                if self.mTimeSeries:
+                    item.setTimeSeries(self.mTimeSeries)
                 item.setCheckState(Qt.Checked)
                 self.mSensorItems[sid] = item
+
                 if name:
-                    item.setSensorName(name)
+                    item.setText(name)
 
                 items.append(item)
 
@@ -610,16 +626,9 @@ class TPVisGroup(PropertyItemGroup):
         d['line_style'] = self.mPLineStyle.plotStyle().map()
         d['sensors'] = [s.settingsMap() for s in self.mSensorItems.values()]
         d['filter'] = self.mPFilter.mProperty.asExpression().strip()
-        d['label'] = self.mPLabel.mProperty.asExpression().strip()
+        d['label'] = self.mPName.mProperty.asExpression().strip()
 
         return d
-
-    def updateSensorNames(self, sensors: List[SensorInstrument]):
-
-        for sensor in sensors:
-            item = self.mSensorItems.get(sensor.id())
-            if isinstance(item, TPVisSensor):
-                item.setText(item)
 
     def removeSensors(self, sensor_ids: Union[str, List[str]]):
 
@@ -654,6 +663,7 @@ class TPVisSensor(PropertyItemGroup):
         self.mZValue = 2
         self.setIcon(QIcon(':/eotimeseriesviewer/icons/satellite.svg'))
         self.mSensorID: str = None
+        self.mSensorName: str = None
         self.mSensorAttributes: dict = None
         self.setEditable(True)
         self.setCheckable(True)
@@ -661,6 +671,7 @@ class TPVisSensor(PropertyItemGroup):
 
         self.setText('<Sensor>')
 
+        self.mTimeSeries: Optional[TimeSeries] = None
         self.mSpeclib: QgsVectorLayer = None
 
         self.mPSymbol = PlotSymbolItem('Symbol')
@@ -676,6 +687,10 @@ class TPVisSensor(PropertyItemGroup):
         items = [self.mPSymbol, self.mPBand]
         for item in items:
             self.appendRow(item.propertyRow())
+
+    def setTimeSeries(self, timeseries: TimeSeries):
+        assert isinstance(timeseries, TimeSeries)
+        self.mTimeSeries = timeseries
 
     def validate_sensor_band(self, d: dict):
 
@@ -722,23 +737,42 @@ class TPVisSensor(PropertyItemGroup):
         self.mSensorID = sid
         self.mSensorAttributes = json.loads(sid)
 
-        if name is None:
-            name = self.mSensorAttributes.get('name')
+    def data(self, role: int = ...) -> Any:
 
-        if name is None:
-            name = sid
-            self.setToolTip(f'Sensor: {name} <br>ID: {sid}')
-        else:
-            self.setToolTip(f'Sensor ID: {sid} <br>')
+        if role in [Qt.DisplayRole, Qt.ToolTipRole, Qt.EditRole]:
+            sid = self.mSensorID
+            name = None
+            if isinstance(self.mTimeSeries, TimeSeries):
+                sensor = self.mTimeSeries.sensor(sid)
+                if isinstance(sensor, SensorInstrument):
+                    name = sensor.name()
 
-        self.setText(name)
+            if name is None:
+                name = self.mSensorAttributes.get('name')
+
+            if name is None:
+                name = self.mSensorName
+
+            if name in [None, '']:
+                name = sid
+
+            if role in [Qt.DisplayRole, Qt.EditRole]:
+                return name
+
+            if role == Qt.ToolTipRole:
+                if name:
+                    return f'Sensor: {name} <br>ID: {sid}'
+                else:
+                    return f'Sensor ID: {sid} <br>'
+
+        return super().data(role)
 
     def setSensorName(self, name: str):
         if name != self.text():
             self.setText(name)
 
     def sensorName(self) -> str:
-        return self.text()
+        return self.data(Qt.DisplayRole)
 
     def layer(self) -> Optional[QgsVectorLayer]:
         parent = self.parent()
@@ -870,8 +904,7 @@ class PlotSettingsTreeModel(QStandardItemModel):
 
         for node in self.sensorNodes(sid=sensor.id()):
             node: TPVisSensor
-            node.setSensorName(sensor.name())
-            s = ""
+            node.emitDataChanged()
 
     def addSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]):
         """
@@ -1204,6 +1237,9 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
                 parentItem = item.parent()
                 if isinstance(parentItem, TPVisGroup) and isinstance(editor, QgsFieldExpressionWidget):
                     editor.registerExpressionContextGenerator(parentItem.mContextGenerator)
+                    lyr = parentItem.layer()
+                    if isinstance(lyr, QgsVectorLayer):
+                        editor.setLayer(lyr)
 
                 if isinstance(parentItem, TPVisSensor) and isinstance(editor, FieldPythonExpressionWidget):
                     # editor.previewRequest.connect()
