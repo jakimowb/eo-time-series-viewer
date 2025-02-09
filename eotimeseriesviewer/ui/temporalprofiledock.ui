@@ -65,6 +65,8 @@
       <addaction name="actionRemoveVisualization"/>
       <addaction name="actionRefreshPlot"/>
       <addaction name="actionSaveTemporalProfiles"/>
+      <addaction name="actionPanToSelected"/>
+      <addaction name="actionZoomToSelected"/>
      </widget>
     </item>
     <item>
@@ -269,6 +271,30 @@
    </property>
    <property name="toolTip">
     <string>Accepts the profile candidate and adds it permanently to the vector layer</string>
+   </property>
+  </action>
+  <action name="actionPanToSelected">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionPanToSelected.svg</normaloff>:/images/themes/default/mActionPanToSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>panToSelected</string>
+   </property>
+   <property name="toolTip">
+    <string>Pan maps to location of selected profile(s)</string>
+   </property>
+  </action>
+  <action name="actionZoomToSelected">
+   <property name="icon">
+    <iconset resource="../../../QGIS/images/images.qrc">
+     <normaloff>:/images/themes/default/mActionZoomToSelected.svg</normaloff>:/images/themes/default/mActionZoomToSelected.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom to selected profiles</string>
+   </property>
+   <property name="toolTip">
+    <string>Zoom maps to location of selecte profile(s)</string>
    </property>
   </action>
  </widget>
