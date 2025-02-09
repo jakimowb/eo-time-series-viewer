@@ -21,17 +21,19 @@
 import datetime
 import os
 import sys
+import weakref
 from itertools import chain
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from PyQt5.QtCore import QTimer
 from qgis.core import QgsApplication, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, \
     QgsFeatureRequest, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsTaskManager, QgsVectorLayer, \
     QgsVectorLayerUtils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
-from qgis.PyQt.QtGui import QBrush, QColor, QPen
+from qgis.PyQt.QtGui import QColor
 
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
@@ -40,6 +42,8 @@ from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSet
 from .temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from ..qgispluginsupport.qps.plotstyling.plotstyling import PlotStyle
 from ..qgispluginsupport.qps.pyqtgraph import pyqtgraph as pg
+from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph import mkBrush, mkPen, PlotCurveItem
+from ..qgispluginsupport.qps.pyqtgraph.pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
 from ..qgispluginsupport.qps.utils import loadUi, SpatialPoint
 from ..qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from ..timeseries import SensorInstrument, TimeSeries
@@ -144,6 +148,8 @@ class TemporalProfileVisualization(QObject):
     loadingProgress = pyqtSignal(float)
     moveToDate = pyqtSignal(datetime.datetime)
 
+    featureSelectionChanged = pyqtSignal(dict)
+
     def __init__(self,
                  treeView: PlotSettingsTreeView,
                  plotWidget: DateTimePlotWidget,
@@ -153,6 +159,9 @@ class TemporalProfileVisualization(QObject):
         self.mTreeView = treeView
         self.mPlotWidget = plotWidget
         self.mPlotWidget.plotItem.vb.moveToDate.connect(self.moveToDate)
+        # plotWidget.setBackground('white')
+        self.mPreUpdateTasks = list()
+
         self.mModel = PlotSettingsTreeModel()
         self.mModel.setPlotWidget(self.mPlotWidget)
         self.mModel.itemChanged.connect(self.onStyleChanged)
@@ -168,6 +177,13 @@ class TemporalProfileVisualization(QObject):
         self.mIsInitialized: bool = False
 
         self.mProfileCandidates: Dict[Tuple[str, str], List[int]] = dict()
+
+        self.mSelectedFeatures: Dict[str, List[int]] = dict()
+
+        self.mUpdateTimer = QTimer()
+        self.mUpdateTimer.timeout.connect(self.preUpdates)
+        self.mUpdateTimer.setInterval(500)
+        self.mUpdateTimer.start()
 
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
@@ -366,15 +382,35 @@ class TemporalProfileVisualization(QObject):
 
         settings = self.mModel.settingsMap()
         if settings != self.mLastStyle:
-            print(f'STYLE CHANGE {args} {id(args[0])}')
+            # print(f'STYLE CHANGE {args} {id(args[0])}')
             self.updatePlot(settings)
+
+    def preUpdates(self):
+        self.mUpdateTimer.stop()
+        updates = self.mPreUpdateTasks[:]
+
+        for update in updates:
+            k, v = update
+            if k == 'select_features':
+                lyr = v.get('layer')
+                fids = v.get('fids')
+                if isinstance(lyr, QgsVectorLayer) and isinstance(fids, list):
+                    lyr.selectByIds(fids)
+
+
+            else:
+                s = ""
+            self.mPreUpdateTasks.remove(update)
+
+        self.mUpdateTimer.start()
 
     def updatePlot(self, settings: dict = None):
 
         if settings is None:
             settings = self.mModel.settingsMap()
 
-        print('# Update plot')
+        # print('# Update plot')
+
         pw = self.mPlotWidget
         #
         cand_target_layer, cand_target_field = settings.get('candidates', {}).get('candidate_target', (None, None))
@@ -395,6 +431,7 @@ class TemporalProfileVisualization(QObject):
         # using use-defined expressions
         SENSOR_SPECS: Dict[str, Dict] = dict()
 
+        selectedProfiles = dict()
         layers = []
         for i, vis in enumerate(settings['visualizations']):
             vis: dict
@@ -439,7 +476,7 @@ class TemporalProfileVisualization(QObject):
 
             filter_expression = vis.get('filter')
             if filter_expression and filter_expression != '':
-                print(f'# SET FEATURE FILTER {filter_expression}')
+                # print(f'# SET FEATURE FILTER {filter_expression}')
                 request.setFilterExpression(filter_expression)
 
             layer_line_style: PlotStyle = PlotStyle.fromMap(vis['line_style'])
@@ -516,8 +553,8 @@ class TemporalProfileVisualization(QObject):
                             symbol_style.setMarkerLinecolor(cand_linestyle.linePen.color())
 
                         all_symbols[is_sensor] = symbol_style.markerSymbol
-                        all_symbol_pens[is_sensor] = QPen(symbol_style.markerPen)
-                        all_symbol_brushes[is_sensor] = QBrush(symbol_style.markerBrush)
+                        all_symbol_pens[is_sensor] = mkPen(symbol_style.markerPen)
+                        all_symbol_brushes[is_sensor] = mkBrush(symbol_style.markerBrush)
                         all_symbol_sizes[is_sensor] = symbol_style.markerSize
 
                 # data = {'x': timestamps,
@@ -527,6 +564,7 @@ class TemporalProfileVisualization(QObject):
                     if is_candidate:
                         feature_line_style.setLinePen(cand_linestyle.linePen)
                     if feature.id() in selected_fids:
+                        selectedProfiles[lyr.id()] = selectedProfiles.get(lyr.id(), []) + [feature.id()]
                         feature_line_style.setLineColor(QColor('yellow'))
                         feature_line_style.setLineWidth(layer_line_style.lineWidth() + 3)
 
@@ -540,7 +578,10 @@ class TemporalProfileVisualization(QObject):
                         elif expr.hasEvalError():
                             s = ""
                         else:
-                            name = result
+                            if result is None:
+                                name = ''
+                            else:
+                                name = f'{result}'
 
                     pdi = DateTimePlotDataItem(all_x, all_y,
                                                pen=feature_line_style.linePen,
@@ -549,30 +590,94 @@ class TemporalProfileVisualization(QObject):
                                                symbolSize=all_symbol_sizes,
                                                symbolPen=all_symbol_pens,
                                                symbolBrush=all_symbol_brushes,
-                                               hoverSize=all_symbol_sizes + 2,
                                                hoverable=True,
-                                               )
+                                               pxMode=True,
 
+                                               )
+                    pdi.curve.setClickable(True)
                     # pdi = DateTimePlotDataItem(data)
                     # pdi.setCurveClickable(True)
                     pdi.scatter.opts['hoverable'] = True
-                    pdi.scatter.setAcceptHoverEvents(True)
-                    pdi.setAcceptHoverEvents(True)
+                    pdi.scatter.setData(hoverSize=all_symbol_sizes[0] + 2,
+                                        hoverPen=mkPen('yellow'))
+                    # pdi.scatter.opts['hoverSymbol'] = all_symbols
+                    # pdi.scatter.opts['hoverSymbolSize'] = all_symbol_sizes + 2
+                    # pdi.scatter.opts['hoverPen'] = QPen(QColor('yellow'))
+
+                    pdi.scatter.opts['tip'] = None  # self.onTip
+                    # pdi.scatter.setAcceptHoverEvents(True)
+                    # pdi.curve.setToolTip('Foobar')
+                    # pdi.setAcceptHoverEvents(True)
                     # Create a new plot item that uses one line
                     # color but different symbols for each sensor
                     # pdi.setAcceptHoverEvents(True)
                     # pdi.setAcceptHoverEvents(True)
                     # pdi.curve.setAcceptHoverEvents(True)
                     # pdi.setAcceptTouchEvents(True)
-
-                    pdi.sigPointsClicked.connect(self.mPlotWidget.onPointsClicked)
-                    pdi.sigPointsHovered.connect(self.mPlotWidget.onPointsHovered)
-                    pdi.sigClicked.connect(self.mPlotWidget.onCurveClicked)
+                    pdi.mLayer = weakref.ref(lyr)
+                    pdi.mFeatureID = feature.id()
+                    # pdi.sigPointsClicked.connect(self.mPlotWidget.onPointsClicked)
+                    # pdi.sigPointsHovered.connect(self.mPlotWidget.onPointsHovered)
+                    # pdi.sigClicked.connect(self.mPlotWidget.onCurveClicked)
                     new_plotitems.append(pdi)
 
         self.mPlotWidget.plotItem.clear()
         for item in new_plotitems:
+            item.sigClicked.connect(self.itemClicked)
+            item.scatter.sigHovered.connect(self.mPlotWidget.onPointsHovered)
+            # item.sigPointsClicked.connect(self.pointsClicked)
+            # item.sigPointsHovered.connect(self.pointsHovered)
             self.mPlotWidget.plotItem.addItem(item)
+
+        self.setSelectedFeatures(selectedProfiles)
+
+    def onTip(self, *args, **kwds) -> str:
+        return None
+
+    def setSelectedFeatures(self, selected_features: dict):
+
+        if selected_features != self.mSelectedFeatures:
+            self.mSelectedFeatures.clear()
+            self.mSelectedFeatures.update(selected_features)
+            self.featureSelectionChanged.emit(self.mSelectedFeatures)
+
+    def selectedFeatures(self) -> dict:
+        return self.mSelectedFeatures
+
+    def itemClicked(self, item: Union[PlotCurveItem], event: MouseClickEvent):
+        s = ""
+        # print(f'Clicked {item}')
+
+        pdi = None
+        if isinstance(item, DateTimePlotDataItem):
+            pdi = item
+
+        if isinstance(item, PlotCurveItem) and isinstance(item.parentItem(), DateTimePlotDataItem):
+            pdi = item.parentItem()
+
+        if isinstance(pdi, DateTimePlotDataItem):
+            s = ""
+            lyr = pdi.mLayer()
+            fid = pdi.mFeatureID
+
+            if isinstance(lyr, QgsVectorLayer) and isinstance(fid, int):
+                fids: list = lyr.selectedFeatureIds()
+                if event.modifiers() & Qt.ControlModifier:
+                    if fid in fids:
+                        # remove from selection if already in
+                        fids = [f for f in fids if f != fid]
+                    else:
+                        # add to selection
+                        fids.append(fid)
+                else:
+                    fids = [fid]
+                self.mPreUpdateTasks.append(
+                    ('select_features', {'layer': lyr, 'fids': fids})
+                )
+
+                # lyr.selectByIds([fid])
+            # select feature in layer
+            event.accept()
 
     def initPlot(self):
 
@@ -638,19 +743,45 @@ class TemporalProfileDock(QgsDockWidget):
         ui_path = DIR_UI / f'{self.__class__.__name__.lower()}.ui'
         loadUi(ui_path, self)
 
-        self.mProject: QgsProject = QgsProject.instance()
         self.mPlotWidget: DateTimePlotWidget
         self.mTreeView: PlotSettingsTreeView
+        self.mVectorLayerTool: Optional[VectorLayerTools] = None
 
         self.mVis = TemporalProfileVisualization(self.mTreeView, self.mPlotWidget)
         self.mVis.loadingProgress.connect(self.setProgress)
         self.mVis.moveToDate.connect(self.sigMoveToDate)
+        self.mVis.featureSelectionChanged.connect(self.onFeatureSelectionChanged)
         self.mLineEdit: QgsFilterLineEdit
         self.mLineEdit.valueChanged.connect(self.mVis.setFilter)
 
         self.actionRefreshPlot.triggered.connect(lambda: self.mVis.updatePlot())
         self.actionAddVisualization.triggered.connect(self.mVis.createVisualization)
         self.actionRemoveVisualization.triggered.connect(self.mVis.removeSelectedVisualizations)
+
+        self.actionPanToSelected.triggered.connect(self.panToSelected)
+        self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
+        self.onFeatureSelectionChanged(dict())
+
+    def onFeatureSelectionChanged(self, selected_features: dict):
+        has_selected = len(selected_features) > 0
+        self.actionPanToSelected.setEnabled(has_selected)
+        self.actionZoomToSelected.setEnabled(has_selected)
+
+    def panToSelected(self):
+        if isinstance(self.mVectorLayerTool, VectorLayerTools):
+            selected = self.mVis.selectedFeatures()
+            for lid, fids in selected.items():
+                lyr = self.project().mapLayer(lid)
+                if isinstance(lyr, QgsVectorLayer) and len(fids) > 0:
+                    self.mVectorLayerTool.panToFeatures(lyr, fids)
+
+    def zoomToSelected(self):
+        if isinstance(self.mVectorLayerTool, VectorLayerTools):
+            selected = self.mVis.selectedFeatures()
+            for lid, fids in selected.items():
+                lyr = self.project().mapLayer(lid)
+                if isinstance(lyr, QgsVectorLayer) and len(fids) > 0:
+                    self.mVectorLayerTool.zoomToFeatures(lyr, fids)
 
     def setProgress(self, progress: float):
         btnCancelTask: QToolButton = self.btnCancelTask
@@ -666,11 +797,14 @@ class TemporalProfileDock(QgsDockWidget):
     def setProject(self, project: QgsProject):
         self.mVis.setProject(project)
 
+    def project(self) -> QgsProject:
+        return self.mVis.project()
+
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mVis.setTimeSeries(timeseries)
 
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
-        pass
+        self.mVectorLayerTool = vectorLayerTools
 
     def loadTemporalProfile(self, point: SpatialPoint, run_async: bool = True):
         self.mVis.loadTemporalProfile(point, run_async=run_async)

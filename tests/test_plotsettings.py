@@ -3,6 +3,7 @@ import re
 import unittest
 import random
 
+from qgis.gui import QgsMapCanvas
 from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis.core import QgsProject, QgsVectorLayer
@@ -10,6 +11,7 @@ from qgis.PyQt.QtGui import QAction
 
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
+from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
 from eotimeseriesviewer.sensorvisualization import SensorDockUI
 from eotimeseriesviewer.temporalprofile.datetimeplot import DateTimePlotWidget
 from eotimeseriesviewer.temporalprofile.plotsettings import PlotSettingsTreeView, PythonCodeItem, TPVisSensor
@@ -98,6 +100,59 @@ class PlotSettingsTests(TestCase):
             self.assertIsInstance(data, dict)
             data = json.loads(json.dumps(data))
             self.assertEqual(data['sensor_id'], sensor.id())
+
+    def test_TemporalProfileDock_pan_zoom(self):
+
+        ts = TestObjects.createTimeSeries()
+
+        lyr = TestObjects.createProfileLayer(ts)
+
+        project = QgsProject()
+        project.addMapLayer(lyr)
+        dock = TemporalProfileDock()
+        dock.setTimeSeries(ts)
+        dock.setProject(project)
+
+        canvas = QgsMapCanvas()
+
+        cntPan = 0
+        cntZoom = 0
+
+        def onPan(*args, **kwds):
+            nonlocal cntPan
+            cntPan += 1
+
+        def onZoom(*args, **kwargs):
+            nonlocal cntZoom
+            cntZoom += 1
+
+        lyrTools = VectorLayerTools()
+        lyrTools.sigPanRequest.connect(onPan)
+        lyrTools.sigZoomRequest.connect(onZoom)
+
+        dock.setVectorLayerTools(lyrTools)
+
+        fids = lyr.allFeatureIds()
+        fid = random.choice(fids)
+
+        aPan: QAction = dock.actionPanToSelected
+        aZoom: QAction = dock.actionZoomToSelected
+
+        lyr.selectByIds([fid])
+
+        self.assertTrue(aPan.isEnabled())
+        self.assertTrue(aZoom.isEnabled())
+        lyr.selectByIds([])
+        self.assertFalse(aPan.isEnabled())
+        self.assertFalse(aZoom.isEnabled())
+        lyr.selectByIds([fid])
+        self.assertTrue(aPan.isEnabled())
+        self.assertTrue(aZoom.isEnabled())
+
+        aPan.trigger()
+        self.assertEqual(cntPan, 1)
+        aZoom.trigger()
+        self.assertEqual(cntZoom, 1)
 
     def test_TemporalProfileDock(self):
 
