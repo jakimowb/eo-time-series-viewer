@@ -630,10 +630,13 @@ class TemporalProfileUtils(object):
         """
         assert field_type in [QMETATYPE_QVARIANTMAP, QMETATYPE_QSTRING]
         field = QgsField(name, type=QMETATYPE_QVARIANTMAP, typeName=TPF_TYPENAME, subType=TPF_SUBTYPE)
-        setup = QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {})
-        field.setEditorWidgetSetup(setup)
+        field.setEditorWidgetSetup(cls.widgetSetup())
         field.setComment(TPF_COMMENT)
         return field
+
+    @classmethod
+    def widgetSetup(cls) -> QgsEditorWidgetSetup:
+        return QgsEditorWidgetSetup(TPF_EDITOR_WIDGET_KEY, {})
 
     @classmethod
     def temporalProfileFields(cls, source: Union[str, Path, QgsFeature, QgsVectorLayer, QgsFields]):
