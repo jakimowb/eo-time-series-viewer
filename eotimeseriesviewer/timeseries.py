@@ -33,7 +33,6 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from osgeo import gdal
-
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
     QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPointXY, \
     QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, \
@@ -46,6 +45,7 @@ from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent,
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.gui import QgisInterface, QgsDockWidget
 from qgis.PyQt.QtXml import QDomDocument
+
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer import DIR_UI, messageLog
 from .qgispluginsupport.qps.unitmodel import UnitLookup
@@ -1563,6 +1563,16 @@ class TimeSeries(QAbstractItemModel):
         :param runAsync: optional,
         """
 
+        images = self.sourcesFromFile(path)
+
+        if n_max:
+            n_max = min([len(images), n_max])
+            images = images[0:n_max]
+
+        self.addSources(images, runAsync=runAsync)
+
+    @classmethod
+    def sourcesFromFile(cls, path: Union[str, Path]) -> List[str]:
         refDir = pathlib.Path(path).parent
         images = []
         masks = []
@@ -1577,12 +1587,7 @@ class TimeSeries(QAbstractItemModel):
                     path = refDir / path
 
                 images.append(path.as_posix())
-
-        if n_max:
-            n_max = min([len(images), n_max])
-            images = images[0:n_max]
-
-        self.addSources(images, runAsync=runAsync)
+        return images
 
     def saveToFile(self, path, relative_path: bool = True):
         """

@@ -26,6 +26,7 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+import processing.gui.ProcessingToolbox
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
@@ -109,6 +110,9 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews: MapViewDock = self.addDockWidget(area, MapViewDock(self))
+        self.dockProcessingToolbox = self.addDockWidget(area, processing.gui.ProcessingToolbox.ProcessingToolbox())
+        self.tabifyDockWidget(self.dockMapViews, self.dockProcessingToolbox)
+        self.dockMapViews.raise_()
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
         # self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
@@ -130,10 +134,6 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.dockTimeSeries.timeSeriesWidget().sigTimeSeriesDatesSelected.connect(self.actionRemoveTSD.setEnabled)
 
         self.dockProfiles = self.addDockWidget(area, TemporalProfileDock(self))
-        area = Qt.LeftDockWidgetArea
-        # self.dockAdvancedDigitizingDockWidget = self.addDockWidget(area,
-        #   QgsAdvancedDigitizingDockWidget(self.dockLabeling.labelingWidget().canvas(), self))
-        # self.dockAdvancedDigitizingDockWidget.setVisible(False)
 
         area = Qt.BottomDockWidgetArea
         # panel = SpectralLibraryPanel(self)
@@ -160,9 +160,10 @@ class EOTimeSeriesViewerUI(QMainWindow):
         self.dockSensors = self.addDockWidget(area, SensorDockUI(self))
         self.dockCursorLocation = self.addDockWidget(area, CursorLocationInfoDock(self))
 
-        self.tabifyDockWidget(self.dockTaskManager, self.dockCursorLocation)
-        self.tabifyDockWidget(self.dockTaskManager, self.dockSystemInfo)
-        self.tabifyDockWidget(self.dockTaskManager, self.dockSensors)
+        self.tabifyDockWidget(self.dockSensors, self.dockCursorLocation)
+        self.tabifyDockWidget(self.dockSensors, self.dockSystemInfo)
+        self.tabifyDockWidget(self.dockSensors, self.dockTaskManager)
+        self.dockSensors.raise_()
 
         for dock in self.findChildren(QDockWidget):
 
@@ -586,6 +587,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
+        self.processingToolbox().executeWithGui.connect(self.executeAlgorithm)
+
         # SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         # assert isinstance(SLW, SpectralLibraryWidget)
         # SLW.setVectorLayerTools(self.mVectorLayerTools)
@@ -613,6 +616,24 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         QgsProject.instance().writeProject.connect(self.onWriteProject)
         QgsProject.instance().readProject.connect(self.onReadProject)
+
+    def executeAlgorithm(self, alg_id):
+        # processingPlugin = qgis.utils.plugins.get('processing', ProcessingPlugin(iface))
+
+        # processingPlugin.executeAlgorithm(alg_id, parent, in_place=in_place, as_batch=as_batch)
+        alg = QgsApplication.instance().processingRegistry().createAlgorithmById(alg_id, config)
+
+        if alg is not None:
+
+            ok, message = alg.canExecute()
+            if not ok:
+                dlg = MessageDialog()
+                dlg.setTitle(self.tr('Error executing algorithm'))
+                dlg.setMessage(
+                    self.tr('<h3>This algorithm cannot '
+                            'be run :-( </h3>\n{0}').format(message))
+                dlg.exec()
+                return
 
     def taskManager(self) -> QgsTaskManager:
         return self.mTaskManager
@@ -1288,6 +1309,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             v = SettingValue(SettingKeys.MapSize)
             if isinstance(v, QSize):
                 self.ui.mMapWidget.setMapSize(v)
+
+    def processingToolbox(self) -> processing.gui.ProcessingToolbox.ProcessingToolbox:
+        return self.ui.dockProcessingToolbox
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
