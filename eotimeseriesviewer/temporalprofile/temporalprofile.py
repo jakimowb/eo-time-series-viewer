@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
+
 from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
@@ -18,7 +19,6 @@ from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBox
 from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
     QgsGui
-
 from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
@@ -847,7 +847,7 @@ class LoadTemporalProfileTask(EOTSVTask):
         tNextProgress = tnow + self.mProgressInterval
         tNextInterimResult = tnow + self.mInterimResultsInterval
 
-        def appendResults(results, error):
+        def appendResults(results, error) -> bool:
             nonlocal tnow, tNextProgress, tNextInterimResult
 
             if results:
@@ -867,6 +867,10 @@ class LoadTemporalProfileTask(EOTSVTask):
             s = ""
             # add to existing profiles
 
+        def checkProgressCancel() -> bool:
+            """Send a progress report.
+               Returns False if the task is to be canceled"""
+            nonlocal tNextProgress
             tNow = datetime.now()
             if tNow > tNextProgress:
                 if self.isCanceled():
@@ -880,6 +884,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                 profiles = self.createTemporalProfiles(temporal_profiles)
                 self.interimResults.emit(profiles)
 
+            return True
+
         if self.nThreads > 1:
             self.mTreadPoolExecutor = ThreadPoolExecutor(max_workers=self.nThreads)
             for i, src in enumerate(self.mSources):
@@ -892,6 +898,9 @@ class LoadTemporalProfileTask(EOTSVTask):
             for i, future in enumerate(as_completed(self.mFutures)):
                 results, error = future.result()
                 appendResults(results, error)
+                if not checkProgressCancel():
+                    return False
+
         else:
             for i, src in enumerate(self.mSources):
                 results, error = self.loadFromSource(
@@ -899,6 +908,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                     self.mPoints,
                     self.mCrs)
                 appendResults(results, error)
+                if not checkProgressCancel():
+                    return False
 
         # keep only profile dictionaries for which we have at least one values
 
@@ -951,7 +962,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                 success, err = TemporalProfileUtils.verifyProfile(d)
                 assert success, err
 
-            sorted_profiles.append(d)
+                sorted_profiles.append(d)
         return sorted_profiles
 
 
@@ -980,8 +991,9 @@ class TemporalProfileLayerFieldModel(QAbstractListModel):
 
         new_items = []
         for layer in self.mProject.mapLayers().values():
-            for tpField in TemporalProfileUtils.profileFields(layer):
-                new_items.append((layer.id(), tpField.name()))
+            if isinstance(layer, QgsVectorLayer) and layer.isValid():
+                for tpField in TemporalProfileUtils.profileFields(layer):
+                    new_items.append((layer.id(), tpField.name()))
         self.mItems.extend(sorted(new_items))
         self.endResetModel()
 

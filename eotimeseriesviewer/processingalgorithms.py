@@ -1,112 +1,24 @@
-from typing import Dict, Optional
+import re
+from typing import Dict
 
-from processing import AlgorithmDialog, handleAlgorithmResults
-from processing.gui.AlgorithmExecutor import execute
-from processing.gui.BatchAlgorithmDialog import BatchAlgorithmDialog
-from processing.gui.MessageBarProgress import MessageBarProgress
-from processing.gui.MessageDialog import MessageDialog
-from processing.tools import dataobjects
-from PyQt5.QtCore import QMetaType
-from qgis._core import Qgis, QgsFields, QgsMapLayer, QgsProcessing, \
-    QgsProcessingException, QgsProcessingFeedback, QgsProcessingParameterCrs, QgsProcessingParameterFeatureSink, \
-    QgsProcessingParameterField, QgsProcessingParameterFile, QgsProcessingParameterString, \
-    QgsProcessingParameterVectorLayer, QgsProcessingRegistry, QgsVectorLayer
+from qgis.core import edit, Qgis, QgsApplication, QgsFeature, QgsFeatureSink, QgsField, QgsFields, QgsMapLayer, \
+    QgsProcessing, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingException, QgsProcessingFeedback, \
+    QgsProcessingOutputVectorLayer, QgsProcessingParameterCrs, QgsProcessingParameterFeatureSink, \
+    QgsProcessingParameterField, QgsProcessingParameterFieldMapping, QgsProcessingParameterFile, \
+    QgsProcessingParameterNumber, QgsProcessingParameterString, QgsProcessingParameterVectorLayer, \
+    QgsProcessingProvider, QgsProcessingRegistry, QgsProcessingUtils, QgsVectorLayer
+from qgis.PyQt.QtCore import QMetaType
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QWidget
-from qgis.core import edit, QgsApplication, QgsProcessingAlgorithm, QgsProcessingContext, QgsProcessingProvider
-from qgis.gui import QgisInterface
-
 from eotimeseriesviewer import icon
+from eotimeseriesviewer.qgispluginsupport.qps.fieldvalueconverter import GenericPropertyTransformer
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer.timeseries import TimeSeries
 
 
-# re-implementation of processingPlugin.executeAlgorithm(alg_id, parent, in_place=in_place, as_batch=as_batch)
-# but with possibility to define the QgsProcessingContext
-def executeAlgorithm(self,
-                     alg_id,
-                     parent: QWidget,
-                     in_place: bool = False,
-                     as_batch: bool = False,
-                     context: Optional[QgsProcessingContext] = None,
-                     iface: Optional[QgisInterface] = None
-                     ):
-    config = {}
-    if in_place:
-        config['IN_PLACE'] = True
-
-    if iface is None:
-        from qgis.utils import iface as qgisIface
-        iface = qgisIface
-
-    alg = QgsApplication.instance().processingRegistry().createAlgorithmById(alg_id, config)
-
-    if alg is not None:
-
-        ok, message = alg.canExecute()
-        if not ok:
-            dlg = MessageDialog()
-            dlg.setTitle(self.tr('Error executing algorithm'))
-            dlg.setMessage(
-                self.tr('<h3>This algorithm cannot '
-                        'be run :-( </h3>\n{0}').format(message))
-            dlg.exec()
-            return
-
-        if as_batch:
-            # dlg = BatchAlgorithmDialog(alg, iface.mainWindow())
-            dlg = BatchAlgorithmDialog(alg, parent)
-            dlg.show()
-            dlg.exec()
-        else:
-            in_place_input_parameter_name = 'INPUT'
-            if hasattr(alg, 'inputParameterName'):
-                in_place_input_parameter_name = alg.inputParameterName()
-
-            if in_place and not [d for d in alg.parameterDefinitions() if
-                                 d.name() not in (in_place_input_parameter_name, 'OUTPUT')]:
-                raise NotImplementedError()
-
-                parameters = {}
-                feedback = MessageBarProgress(algname=alg.displayName())
-                ok, results = execute_in_place(alg, parameters, feedback=feedback)
-                if ok:
-                    iface.messageBar().pushSuccess('', self.tr('{algname} completed. %n feature(s) processed.',
-                                                               n=results['__count']).format(algname=alg.displayName()))
-                feedback.close()
-                # MessageBarProgress handles errors
-                return
-
-            if alg.countVisibleParameters() > 0:
-                dlg = alg.createCustomParametersWidget(parent)
-
-                if not dlg:
-                    dlg = AlgorithmDialog(alg, in_place, iface.mainWindow())
-                canvas = iface.mapCanvas()
-                prevMapTool = canvas.mapTool()
-                dlg.show()
-                dlg.exec()
-                if canvas.mapTool() != prevMapTool:
-                    try:
-                        canvas.mapTool().reset()
-                    except Exception:
-                        pass
-                    try:
-                        canvas.setMapTool(prevMapTool)
-                    except RuntimeError:
-                        pass
-            else:
-                feedback = MessageBarProgress(algname=alg.displayName())
-                context = dataobjects.createContext(feedback)
-                parameters = {}
-                ret, results = execute(alg, parameters, context, feedback)
-                handleAlgorithmResults(alg, context, feedback)
-                feedback.close()
-
-
 class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
     OUTPUT = 'OUTPUT'
-    FIELD_NAME = 'FIELD_NAME'
+    FIELD_NAMES = 'FIELD_NAMES'
+    OTHER_FIELDS = 'OTHER_FIELDS'
     CRS = 'CRS'
 
     def __init__(self, *args, **kwds):
@@ -130,11 +42,19 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
         p1.setHelp('Coordinate Reference System for the output layer.')
 
         p2 = QgsProcessingParameterString(
-            self.FIELD_NAME,
-            description="Field Name",
+            self.FIELD_NAMES,
+            description="Profile Field Name(s)",
             defaultValue="profiles")
         p2.setHelp(
-            'Name of the field to store the temporal profiles. Profiles are stored either as JSON or as a string.')
+            'Name of the field to store temporal profiles. '
+            "To add multiple fields separate field names by ',' or whitespace")
+
+        p4 = QgsProcessingParameterFieldMapping(
+            self.OTHER_FIELDS,
+            description='Other fields to add',
+            optional=True,
+        )
+        p4.setHelp('Define other field and their data types to be added.')
 
         p3 = QgsProcessingParameterFeatureSink(
             self.OUTPUT,
@@ -144,7 +64,7 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
             createByDefault=True)
         p3.setHelp('Path of output vector.')
 
-        for p in [p1, p2, p3]:
+        for p in [p1, p2, p3, p4]:
             self.addParameter(p)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -153,10 +73,56 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Parameters: {parameters}")
         geom_type = Qgis.WkbType.Point
         crs = self.parameterAsCrs(parameters, self.CRS, context)
-        field_name = self.parameterAsString(parameters, self.FIELD_NAME, context)
+        field_names = self.parameterAsString(parameters, self.FIELD_NAMES, context)
+        field_names = re.split(r'[,;: ]+', field_names)
 
         fields = QgsFields()
-        fields.append(TemporalProfileUtils.createProfileField(field_name))
+        other_fields: dict = parameters.get(self.OTHER_FIELDS, {})
+
+        default_field_attributes = {
+            'alias': None,
+            'comment': None,
+            'expression': None,
+            'length': 0,
+            'precision': 0,
+            'sub_type': 0,
+            'type': 10,
+            'type_name': 'text'}
+
+        # LUT between output QgsProcessingParameterFeatureSink and keywords of QgsField
+        LUT_KW = {
+            'name': 'name',
+            'type': 'type',
+            'type_name': 'typeName',
+            'length': 'len',
+            'precision': 'prec',
+            'comment': 'comment',
+            'sub_type': 'subType'
+        }
+
+        for fdef in other_fields:
+            if 'name' not in fdef:
+                raise QgsProcessingException(f'{self.OTHER_FIELDS} description misses "name": {fdef}')
+            fname = fdef['name']
+            if fname in field_names:
+                new_field = TemporalProfileUtils.createProfileField(fname)
+                if 'comment' in fdef:
+                    new_field.setComment(fdef['comment'])
+            else:
+
+                field_kw = default_field_attributes.copy()
+                field_kw.update(fdef)
+                field_kw = {LUT_KW[k]: v for k, v in field_kw.items() if k in LUT_KW}
+                new_field = QgsField(**field_kw)
+            if 'alias' in fdef:
+                new_field.setAlias(fdef['alias'])
+            fields.append(new_field)
+
+        for fn in field_names:
+            if fn not in fields.names():
+                fields.append(TemporalProfileUtils.createProfileField(fn))
+
+        profile_fields = [f.name() for f in fields if TemporalProfileUtils.isProfileField(f)]
 
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT, context,
                                                fields=fields,
@@ -167,28 +133,27 @@ class CreateEmptyTemporalProfileLayer(QgsProcessingAlgorithm):
 
         sink.finalize()
         del sink
-        lyr = QgsVectorLayer(dest_id)
+        lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
 
-        i = lyr.fields().indexFromName(field_name)
-        lyr.setEditorWidgetSetup(i, TemporalProfileUtils.widgetSetup())
+        for f in profile_fields:
+            i = lyr.fields().indexFromName(f)
+            assert i >= 0, f'Failed to generate profile field "{f}"'
+            lyr.setEditorWidgetSetup(i, TemporalProfileUtils.widgetSetup())
         lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
 
         return {self.OUTPUT: dest_id}
 
     def createInstance(self):
-        return ReadTemporalProfiles()
+        return self.__class__()
 
     def name(self):
-        return self.__class__.__name__.lower()
+        return self.__class__.__name__
+
+    # def id(self):
+    #    return self.name().lower()
 
     def displayName(self):
-        return "Creates Temporal Profile Layer"
-
-    def group(self):
-        return self._name
-
-    def groupId(self):
-        return self._groupID
+        return "Create Temporal Profile Layer"
 
     def shortHelpString(self):
         return "Create a new point layer with a field to store temporal profiles."
@@ -201,14 +166,14 @@ class AddTemporalProfileField(QgsProcessingAlgorithm):
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
+    def flags(self):
+        return super().flags() | QgsProcessingAlgorithm.Flag.FlagNoThreading
+
     def initAlgorithm(self, config: Dict = None):
 
-        p1 = QgsProcessingParameterFeatureSink(
+        p1 = QgsProcessingParameterVectorLayer(
             self.INPUT,
-            description="Vector Layer",
-            type=Qgis.ProcessingSourceType.VectorPoint,
-            defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
-            createByDefault=True)
+            description="Vector Layer")
         p1.setHelp('The vector Layer to append a field for temporal profiles.')
 
         p2 = QgsProcessingParameterString(
@@ -220,6 +185,8 @@ class AddTemporalProfileField(QgsProcessingAlgorithm):
 
         for p in [p1, p2]:
             self.addParameter(p)
+        o1 = QgsProcessingOutputVectorLayer(self.INPUT, 'Modified layer')
+        self.addOutput(o1)
 
     def prepareAlgorithm(self, parameters: dict, context: QgsProcessingContext,
                          feedback: QgsProcessingFeedback) -> bool:
@@ -251,19 +218,13 @@ class AddTemporalProfileField(QgsProcessingAlgorithm):
         return {self.INPUT: lyr}
 
     def createInstance(self):
-        return ReadTemporalProfiles()
+        return self.__class__()
 
     def name(self):
-        return self.__class__.__name__.lower()
+        return self.__class__.__name__
 
     def displayName(self):
-        return "Add a field to store temporal profiles"
-
-    def group(self):
-        return self._name
-
-    def groupId(self):
-        return self._groupID
+        return "Add Temporal Profile field"
 
     def shortHelpString(self):
         return "Adds a field to store temporal profiles."
@@ -273,13 +234,21 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
     INPUT = 'LAYER'
     TIMESERIES = 'TIMESERIES'
     FIELD_NAME = 'FIELD_NAME'
+    N_THREADS = 'N_THREADS'
+    OUTPUT = 'OUTPUT'
 
     def __init__(self, *args, **kwds):
         super().__init__(*args, **kwds)
 
+        self._n_threads = None
         self._layer = None
         self._sources = []
         self._field_name = None
+        self._dest_id = None
+        self._field_id = None
+
+    def flags(self):
+        return super().flags() | Qgis.ProcessingAlgorithmFlag.CanCancel
 
     def initAlgorithm(self, config: Dict = None):
         p1 = QgsProcessingParameterVectorLayer(
@@ -303,8 +272,25 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             optional=True
         )
 
-        for p in [p1, p2, p3]:
+        p4 = QgsProcessingParameterNumber(
+            self.N_THREADS,
+            description="Number of Threads to read files",
+            type=QgsProcessingParameterNumber.Integer,
+            minValue=1,
+            maxValue=16,
+            defaultValue=4,
+        )
+
+        for p in [p1, p2, p3, p4]:
             self.addParameter(p)
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT,
+                description="Calculated",
+                defaultValue=QgsProcessing.TEMPORARY_OUTPUT,
+            )
+        )
 
     def prepareAlgorithm(self,
                          parameters: dict,
@@ -312,15 +298,17 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                          feedback: QgsProcessingFeedback) -> bool:
 
         input_layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
-        time_series = self.parameterAsFile(parameters, self.TIMESERIES, context)
-        profile_field = self.parameterAsStrings(parameters, self.FIELD_NAME, context)
-
         if not isinstance(input_layer, QgsVectorLayer) or not input_layer.isValid():
             feedback.pushError(f"Invalid input layer {parameters[self.INPUT]}")
             return False
 
+        time_series = self.parameterAsFile(parameters, self.TIMESERIES, context)
+        if time_series == '':
+            time_series = self.parameterAsFileList(parameters, self.TIMESERIES, context)
+        profile_field = self.parameterAsStrings(parameters, self.FIELD_NAME, context)
+
         if not input_layer.wkbType() == Qgis.WkbType.Point:
-            feedback.pushError(f"Input layer must be a point layer.")
+            feedback.pushError("Input layer must be a point layer.")
             return False
 
         if not len(profile_field) == 1:
@@ -341,7 +329,8 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             tsv = EOTimeSeriesViewer.instance()
             if isinstance(tsv, EOTimeSeriesViewer):
                 sources = [s.source() for s in tsv.timeSeries().sources()]
-
+        elif isinstance(time_series, list):
+            sources = [str(l) for l in time_series]
         elif isinstance(time_series, str):
             sources = TimeSeries.sourcesFromFile(time_series)
 
@@ -350,8 +339,8 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                                "open EO Time Series Viewer with source files.")
             return False
 
+        self._n_threads = self.parameterAsInt(parameters, self.N_THREADS, context)
         self._field_name = profile_field
-        self._layer = input_layer
         self._sources = sources
         return True
 
@@ -359,21 +348,26 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                          feedback: QgsProcessingFeedback) -> dict:
 
         # collect geometries
-        crs = self._layer.crs()
+        input_layer: QgsVectorLayer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
 
         points = []
         fids = []
-        for f in self._layer.getFeatures():
+        for f in input_layer.getFeatures():
             fids.append(f.id())
             points.append(f.geometry().asPoint())
-        n_threads = 4
+
+        feedback.pushInfo(f'Load temporal profiles for {len(points)} points from up to {len(self._sources)} '
+                          f'raster sources with {self._n_threads} threads.')
         task = LoadTemporalProfileTask(self._sources,
                                        points,
-                                       self._layer.crs(),
-                                       n_threads=n_threads)
+                                       input_layer.crs(),
+                                       n_threads=self._n_threads)
 
         def onProgress(progress: float):
+
             feedback.setProgress(progress)
+            if feedback.isCanceled():
+                task.cancel()
 
         task.progressChanged.connect(onProgress)
         try:
@@ -382,26 +376,92 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
             feedback.pushError(str(ex))
             return {}
 
+        if feedback.isCanceled():
+            feedback.pushInfo("Task canceled.")
+            return {}
+
         points, profiles = task.profilePoints(), task.profiles()
+        fn = self._field_name
 
+        fields = QgsFields(input_layer.fields())
+
+        if fn in fields.names():
+            is_new = False
+        else:
+            fields.append(TemporalProfileUtils.createProfileField(fn))
+            is_new = True
+        self._field_id = fields.indexFromName(fn)
+
+        func = GenericPropertyTransformer.fieldValueTransformFunction(fields[self._field_id])
+
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            fields,
+            input_layer.wkbType(),
+            input_layer.crs(),
+        )
+
+        if sink is None:
+            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
+
+        for i, feat in enumerate(input_layer.getFeatures()):
+            feat: QgsFeature
+            if feedback.isCanceled():
+                break
+
+            attrs = feat.attributes()
+
+            # set new profile field
+            value = None
+            if f.id() in fids:
+                i = fids.index(f.id())
+                profile = profiles[i]
+                if profile:
+                    value = func(profile)
+
+            # write features
+            if is_new:
+                attrs.append(value)
+                feat.setAttributes(attrs)
+            else:
+                feat.setAttribute(self._field_id, value)
+            sink.addFeature(feat, QgsFeatureSink.Flag.FastInsert)
+
+        sink.finalize()
+
+        # lyr = QgsProcessingUtils.mapLayerFromString(dest_id, context)
+        # lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
+        # lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
+        # assert TemporalProfileUtils.isProfileLayer(lyr)
+
+        self._dest_id = dest_id
+        return {self.OUTPUT: dest_id}
+
+    def postProcessAlgorithm(self, context: QgsProcessingContext, feedback: QgsProcessingFeedback):
         s = ""
+        result = dict()
+        if self._dest_id:
+            lyr = QgsProcessingUtils.mapLayerFromString(self._dest_id, context)
+            lyr.setEditorWidgetSetup(self._field_id, TemporalProfileUtils.widgetSetup())
+            lyr.saveDefaultStyle(QgsMapLayer.StyleCategory.Forms)
+            assert TemporalProfileUtils.isProfileLayer(lyr)
+            result[self.OUTPUT] = self._dest_id
 
-        return {self.INPUT: parameters[self.INPUT]}
+        return result
 
     def createInstance(self):
-        return ReadTemporalProfiles()
+        return self.__class__()
 
     def name(self):
-        return "readtemporalprofiles"
+        return self.__class__.__name__
+
+    # def id(self):
+    #    return self.name().lower()
 
     def displayName(self):
         return "Read Temporal Profiles"
-
-    def group(self):
-        return self._name
-
-    def groupId(self):
-        return self._groupID
 
     def shortHelpString(self):
         return "Adds a new field 'name' to the input vector layer and populates it with extracted temporal profiles."
@@ -445,14 +505,8 @@ class EOTSVProcessingProvider(QgsProcessingProvider):
         return True
 
     def refreshAlgorithms(self):
-
         self._algs.clear()
-        self._algs.extend([
-            ReadTemporalProfiles(),
-            CreateEmptyTemporalProfileLayer(),
-            ReadTemporalProfiles(),
-        ])
-        s = ""
+        self.loadAlgorithms()
 
     def name(self):
         return self.NAME
@@ -474,8 +528,14 @@ class EOTSVProcessingProvider(QgsProcessingProvider):
         return r':/qps/ui/icons/profile_expression.svg'
 
     def loadAlgorithms(self):
-        for a in self._algs:
-            self.addAlgorithm(a.createInstance())
+
+        for a in [
+            CreateEmptyTemporalProfileLayer(),
+            AddTemporalProfileField(),
+            ReadTemporalProfiles()
+        ]:
+            self.addAlgorithm(a)
+            self._algs.append(a)
 
     def supportedOutputRasterLayerExtensions(self):
         return []
@@ -487,5 +547,6 @@ class EOTSVProcessingProvider(QgsProcessingProvider):
         result = super().addAlgorithm(algorithm)
         if result:
             # keep a reference
+
             self._algs.append(algorithm)
         return result

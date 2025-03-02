@@ -9,10 +9,11 @@ import os
 import unittest
 
 import numpy as np
-from PyQt5.QtWidgets import QComboBox
+from qgis.PyQt.QtWidgets import QComboBox
 from qgis.core import edit, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, QgsRasterLayer, \
     QgsVectorLayer
 
+from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, \
@@ -271,6 +272,14 @@ class TestTemporalProfilesV2(EOTSVTestCase):
         self.assertIsInstance(fn, QgsField)
 
         self.showGui(cb)
+
+    def test_create_new_tp_layer(self):
+
+        eotsv = EOTimeSeriesViewer()
+        eotsv.loadExampleTimeSeries(loadAsync=False)
+        eotsv.createTemporalProfileLayer(skip_dialog=True)
+        self.showGui(eotsv.ui)
+        eotsv.close()
 
 
 if __name__ == "__main__":
