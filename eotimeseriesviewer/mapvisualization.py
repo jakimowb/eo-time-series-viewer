@@ -1743,7 +1743,7 @@ class MapWidget(QFrame):
 
         slider.setPageStep(pageStep)
 
-        if n > 0:
+        if False and n > 0:
             tsd = self.currentDate()
             if isinstance(tsd, TimeSeriesDate) and tsd in self.timeSeries():
                 i = self.timeSeries()[:].index(tsd)
