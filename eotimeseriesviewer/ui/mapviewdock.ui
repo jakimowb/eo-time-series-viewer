@@ -610,8 +610,7 @@ QToolBox::tab:selected { /* italicize selected tabs */
            </size>
           </property>
           <property name="styleSheet">
-           <string notr="true">QgsFontButton#btnTextFormat{background-color: rgb(0, 0, 0);
-}</string>
+           <string notr="true"/>
           </property>
           <property name="text">
            <string>Map Info Text</string>

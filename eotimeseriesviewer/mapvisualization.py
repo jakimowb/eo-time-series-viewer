@@ -35,12 +35,13 @@ from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsExpressio
     QgsMultiBandColorRenderer, QgsPointXY, QgsProcessingFeedback, QgsProject, QgsRasterLayer, QgsRasterRenderer, \
     QgsRectangle, QgsTextFormat, QgsVector, QgsVectorLayer
 import qgis.utils
-from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, setLayerStyleString
 from qgis.PyQt.QtGui import QColor, QGuiApplication, QIcon, QKeySequence, QMouseEvent
 from qgis.PyQt.QtWidgets import QDialog, QFrame, QGridLayout, QLabel, QLineEdit, QMenu, QSlider, QSpinBox, QToolBox, \
     QWidget
 from qgis.gui import QgisInterface, QgsDockWidget, QgsExpressionBuilderDialog, QgsLayerTreeMapCanvasBridge, \
     QgsLayerTreeView, QgsLayerTreeViewMenuProvider, QgsMapCanvas, QgsMessageBar, QgsProjectionSelectionWidget
+
+from eotimeseriesviewer.utils import copyMapLayerStyle, fixMenuButtons, layerStyleString, setLayerStyleString
 from .mapcanvas import KEY_LAST_CLICKED, MapCanvas, MapCanvasInfoItem, STYLE_CATEGORIES
 from eotimeseriesviewer import debugLog, DIR_UI
 from .maplayerproject import EOTimeSeriesViewerProject
@@ -2501,7 +2502,6 @@ class MapViewDock(QgsDockWidget):
 
         self.sbMapViewColumns: QSpinBox
         self.sbMapViewRows: QSpinBox
-
         self.baseTitle = self.windowTitle()
 
         self.btnAddMapView.setDefaultAction(self.actionAddMapView)
@@ -2531,6 +2531,7 @@ class MapViewDock(QgsDockWidget):
         self.btnCrs.crsChanged.connect(self.sigCrsChanged)
         self.btnMapCanvasColor.colorChanged.connect(self.onMapCanvasColorChanged)
         self.onMapCanvasColorChanged(self.btnMapCanvasColor.color())
+
         self.btnTextFormat.changed.connect(lambda *args: self.sigMapTextFormatChanged.emit(self.mapTextFormat()))
         self.btnApplySizeChanges.clicked.connect(self.onApplyButtonClicked)
 
@@ -2566,8 +2567,26 @@ class MapViewDock(QgsDockWidget):
             self.setCurrentMapView(mapViews[i])
 
     def onMapCanvasColorChanged(self, color: QColor):
-        # todo: find a way to display the map canvas color in background
-        css = f"QgsFontButton#btnTextFormat{{background-color:{color.name()}; }}"
+        fmt = self.btnTextFormat.textFormat()
+        fmt.setPreviewBackgroundColor(color)
+        self.btnTextFormat.setTextFormat(fmt)
+        on = self.btnTextFormat.objectName()
+        css = f"""
+        QgsFontButton#{on} {{
+            background-color: {fmt.previewBackgroundColor().name()};
+        }}
+        QgsFontButton#{on}::menu-button {{
+            background-color: palette(window);
+            border: 1px solid gray;
+            width: 16px;
+        }}
+        QgsFontButton#{on}::menu-indicator {{
+            color: palette(window);
+        }}
+        QgsFontButton#{on}::menu-arrow  {{
+            color: palette(window);
+        }}"""
+
         self.btnTextFormat.setStyleSheet(css)
         self.sigMapCanvasColorChanged.emit(color)
 
@@ -2659,6 +2678,8 @@ class MapViewDock(QgsDockWidget):
 
     def setMapTextFormat(self, textFormat: QgsTextFormat):
         if isinstance(textFormat, QgsTextFormat):
+            textFormat = QgsTextFormat(textFormat)
+            textFormat.setPreviewBackgroundColor(self.btnMapCanvasColor.color())
             if not equalTextFormats(textFormat, self.mapTextFormat()):
                 self.btnTextFormat.setTextFormat(textFormat)
 
