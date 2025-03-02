@@ -11,6 +11,7 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, Q
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
+
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
@@ -916,9 +917,14 @@ class PlotSettingsTreeModel(QStandardItemModel):
             sensors = [sensors]
 
         for s in sensors:
+            assert isinstance(s, SensorInstrument)
             s: SensorInstrument
             if s.id() not in self.mSensors:
                 self.mSensors[s.id()] = s
+
+        # create nodes for missing sensors
+        for vis in self.visualizations():
+            vis.addSensors(sensors)
 
     def removeSensors(self, sensors: Union[SensorInstrument, List[SensorInstrument]]):
 
