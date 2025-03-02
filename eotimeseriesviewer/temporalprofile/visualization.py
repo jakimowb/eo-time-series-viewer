@@ -687,7 +687,7 @@ class TemporalProfileVisualization(QObject):
         # create a visualization for each temporal profile layer
         for lyr in TemporalProfileUtils.profileLayers(self.project()):
             fields: QgsFields = TemporalProfileUtils.profileFields(lyr)
-            exampleData = None
+            exampleData = exampleField = None
             for feature in lyr.getFeatures():
                 for exampleField in fields:
                     dump = TemporalProfileUtils.profileDict(feature[exampleField.name()])
@@ -723,6 +723,7 @@ class TemporalProfileVisualization(QObject):
                 vis.addSensors(sensors)
 
             self.mModel.addVisualizations(vis)
+            self.project().layersAdded.disconnect(self.initPlot)
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mModel.setTimeSeries(timeseries)
@@ -739,6 +740,9 @@ class TemporalProfileVisualization(QObject):
 
         if not self.mIsInitialized:
             self.initPlot()
+
+        if len(self.mModel.visualizations()) == 0:
+            project.layersAdded.connect(self.initPlot)
 
 
 class TemporalProfileDock(QgsDockWidget):

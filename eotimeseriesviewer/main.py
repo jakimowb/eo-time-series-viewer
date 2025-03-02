@@ -26,18 +26,19 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
+    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
+    QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, QgsProject, \
+    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
+    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 import processing.gui.ProcessingToolbox
+from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
 from qgis.PyQt.QtGui import QCloseEvent, QColor, QIcon
 from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, \
     QHBoxLayout, QLabel, QMainWindow, QMenu, QProgressBar, QProgressDialog, QSizePolicy, QToolBar, QToolButton, QWidget
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
-    QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProjectArchive, QgsProviderRegistry, \
-    QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, \
-    QgsZipUtils
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
 
@@ -68,6 +69,7 @@ from .qgispluginsupport.qps.speclib.gui.spectralprofilesources import StandardLa
 from .qgispluginsupport.qps.subdatasets import subLayers
 from .qgispluginsupport.qps.utils import file_search, loadUi, SpatialExtent, SpatialPoint
 from .tasks import EOTSVTask
+from .temporalprofile.temporalprofile import TemporalProfileUtils
 from .temporalprofile.visualization import TemporalProfileDock
 from .utils import fixMenuButtons
 
@@ -464,6 +466,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.profileDock: TemporalProfileDock = self.ui.dockProfiles
         self.profileDock.sigMoveToDate.connect(self.setCurrentDate)
+        self.profileDock.setProject(self.mapLayerStore())
 
         # mw.sigSpatialExtentChanged.connect(self.timeSeries().setCurrentSpatialExtent)
         mw.sigVisibleDatesChanged.connect(self.timeSeries().setVisibleDates)
@@ -554,6 +557,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.ui.actionAddVectorData.triggered.connect(lambda: self.addVectorData())
         self.ui.actionCreateSpectralLibrary.triggered.connect(self.createSpectralLibrary)
         self.ui.actionAddSubDatasets.triggered.connect(self.openAddSubdatasetsDialog)
+        self.ui.actionCreateTemporalProfileLayer.triggered.connect(self.createTemporalProfileLayer)
 
         # see https://sentinel.esa.int/web/sentinel/user-guides/sentinel-2-msi/data-formats/xsd
         self.ui.actionAddSentinel2.triggered.connect(
@@ -1123,6 +1127,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         """
         return self.ui.mMapWidget.mapCanvases()
 
+    def project(self) -> QgsProject:
+        return self.mapWidget().mapLayerStore()
+
     def mapLayerStore(self) -> EOTimeSeriesViewerProject:
         """
         Returns the QgsMapLayerStore which is used to register QgsMapLayers
@@ -1641,6 +1648,9 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         import eotimeseriesviewer
         return eotimeseriesviewer.icon()
 
+    def temporalProfileDock(self) -> TemporalProfileDock:
+        return self.profileDock
+
     def temporalProfiles(self) -> list:
         """
         Returns collected temporal profiles
@@ -1968,7 +1978,44 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                     mapView.addLayer(lyr)
 
                 break  # add to first mapview only
+
         return layers
+
+    def createTemporalProfileLayer(self, skip_dialog: bool = False) -> QgsVectorLayer:
+        """
+        Create a new temporal profile layer
+        :return:
+        """
+
+        from eotimeseriesviewer.processingalgorithms import CreateEmptyTemporalProfileLayer
+
+        alg = CreateEmptyTemporalProfileLayer()
+        conf = {}
+        alg.initAlgorithm(conf)
+
+        feedback = QgsProcessingFeedback()
+        context = QgsProcessingContext()
+        context.setFeedback(feedback)
+        context.setProject(QgsProject.instance())
+
+        layer = None
+
+        if skip_dialog:
+            param = {}
+            results, success = alg.run(param, context, context.feedback())
+            if success:
+                layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+        else:
+            d = AlgorithmDialog(alg)
+            d.exec_()
+            results = d.results()
+            if alg.OUTPUT in results:
+                layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+
+        if isinstance(layer, QgsVectorLayer):
+            self.addMapLayers([layer])
+            if TemporalProfileUtils.isProfileLayer(layer):
+                s = ""
 
     def createSpectralLibrary(self) -> SpectralLibraryWidget:
         """

@@ -102,6 +102,7 @@
     <addaction name="separator"/>
     <addaction name="actionAddVectorData"/>
     <addaction name="actionCreateSpectralLibrary"/>
+    <addaction name="actionCreateTemporalProfileLayer"/>
     <addaction name="separator"/>
     <addaction name="actionLoadTS"/>
     <addaction name="actionSaveTS"/>
@@ -985,6 +986,18 @@
   <action name="actionAddFORCEProducts">
    <property name="text">
     <string>FORCE Products</string>
+   </property>
+  </action>
+  <action name="actionCreateTemporalProfileLayer">
+   <property name="icon">
+    <iconset resource="eotsv_resources.qrc">
+     <normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</normaloff>:/eotimeseriesviewer/icons/mIconTemporalProfile.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Create Temporal Profile Layer</string>
+   </property>
+   <property name="toolTip">
+    <string>Create a new point vector layer that can store temporal profiles.</string>
    </property>
   </action>
  </widget>

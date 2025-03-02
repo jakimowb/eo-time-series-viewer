@@ -11,7 +11,6 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, Q
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
@@ -1295,9 +1294,10 @@ class PlotSettingsTreeViewDelegate(QStyledItemDelegate):
             icon = w.currentData(Qt.DecorationRole)
             w: TemporalProfileLayerFieldComboBox
             lyr, field = w.layerField()
-            item.setLayer(lyr)
-            item.setField(field)
-            item.setIcon(icon)
+            if isinstance(lyr, QgsVectorLayer) and field:
+                item.setLayer(lyr)
+                item.setField(field)
+                item.setIcon(icon)
 
         else:
             super().setModelData(w, model, index)
