@@ -26,12 +26,11 @@ import sys
 import webbrowser
 from typing import Dict, List, Match, Optional, Pattern, Tuple, Union
 
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsExpressionContext, \
-    QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, QgsPointXY, \
-    QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, QgsProject, \
-    QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, QgsTaskManager, \
-    QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
-import processing.gui.ProcessingToolbox
+from qgis.core import edit, Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, \
+    QgsExpressionContext, QgsFeature, QgsField, QgsFields, QgsFillSymbol, QgsGeometry, QgsMapLayer, QgsMessageOutput, \
+    QgsPointXY, QgsProcessingContext, QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProcessingUtils, \
+    QgsProject, QgsProjectArchive, QgsProviderRegistry, QgsRasterLayer, QgsSingleSymbolRenderer, QgsTask, \
+    QgsTaskManager, QgsTextFormat, QgsVectorLayer, QgsWkbTypes, QgsZipUtils
 from processing import AlgorithmDialog
 from qgis.PyQt.QtCore import pyqtSignal, pyqtSlot, QCoreApplication, QDateTime, QFile, QObject, QRect, QSize, Qt, QTimer
 import qgis.utils
@@ -112,8 +111,8 @@ class EOTimeSeriesViewerUI(QMainWindow):
 
         from eotimeseriesviewer.mapvisualization import MapViewDock
         self.dockMapViews: MapViewDock = self.addDockWidget(area, MapViewDock(self))
-        self.dockProcessingToolbox = self.addDockWidget(area, processing.gui.ProcessingToolbox.ProcessingToolbox())
-        self.tabifyDockWidget(self.dockMapViews, self.dockProcessingToolbox)
+        # self.dockProcessingToolbox = self.addDockWidget(area, processing.gui.ProcessingToolbox.ProcessingToolbox())
+        # self.tabifyDockWidget(self.dockMapViews, self.dockProcessingToolbox)
         self.dockMapViews.raise_()
 
         # self.tabifyDockWidget(self.dockMapViews, self.dockRendering)
@@ -450,6 +449,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         self.mTimeSeries = TimeSeries()
         self.mTimeSeries.setDateTimePrecision(DateTimePrecision.Day)
         self.mSpatialMapExtentInitialized = False
+        self.mTemporalProfileLayerInitialized = False
         self.mTimeSeries.sigTimeSeriesDatesAdded.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigTimeSeriesDatesRemoved.connect(self.onTimeSeriesChanged)
         self.mTimeSeries.sigSensorAdded.connect(self.onSensorAdded)
@@ -591,7 +591,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         self.ui.actionShowOnlineHelp.triggered.connect(lambda: webbrowser.open(DOCUMENTATION))
 
-        self.processingToolbox().executeWithGui.connect(self.executeAlgorithm)
+        # self.processingToolbox().executeWithGui.connect(self.executeAlgorithm)
 
         # SLW: SpectralLibraryWidget = self.ui.dockSpectralLibrary.spectralLibraryWidget()
         # assert isinstance(SLW, SpectralLibraryWidget)
@@ -1317,8 +1317,8 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if isinstance(v, QSize):
                 self.ui.mMapWidget.setMapSize(v)
 
-    def processingToolbox(self) -> processing.gui.ProcessingToolbox.ProcessingToolbox:
-        return self.ui.dockProcessingToolbox
+    # def processingToolbox(self) -> processing.gui.ProcessingToolbox.ProcessingToolbox:
+    #    return self.ui.dockProcessingToolbox
 
     def setMapTool(self, mapToolKey, *args, **kwds):
         """
@@ -1528,7 +1528,30 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
     @pyqtSlot(SpatialPoint)
     def loadCurrentTemporalProfile(self, spatialPoint: SpatialPoint):
+        if not self.mTemporalProfileLayerInitialized:
+            self.initTemporalProfileLayer()
+
         self.profileDock.loadTemporalProfile(spatialPoint)
+
+    def initTemporalProfileLayer(self):
+        """
+        Create a new temporal profile layer, just in case none exists.
+        """
+        has_tl_lyr = False
+        for lid, lyr in self.mapLayerStore().mapLayers().items():
+            if TemporalProfileUtils.isProfileLayer(lyr):
+                has_tl_lyr = True
+                break
+        if not has_tl_lyr:
+            lyr = self.createTemporalProfileLayer(skip_dialog=True)
+            if isinstance(lyr, QgsVectorLayer):
+                lyr.setName('Temporal Profiles')
+                with edit(lyr):
+                    lyr.addAttribute(QgsField('notes', QMETATYPE_QSTRING))
+                self.addMapLayers([lyr])
+                self.mTemporalProfileLayerInitialized = True
+        else:
+            self.mTemporalProfileLayerInitialized = True
 
     def onShowProfile(self, spatialPoint, mapCanvas, mapToolKey):
 
@@ -1709,8 +1732,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
                 if len(self.mapViews()) == 0:
                     self.createMapView()
 
-        if len(self.mTimeSeries) == 0:
-            self.mSpatialMapExtentInitialized = False
+        self.mSpatialMapExtentInitialized = len(self.mTimeSeries) > 0
 
     def mapWidget(self) -> MapWidget:
         """
@@ -1981,7 +2003,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
 
         return layers
 
-    def createTemporalProfileLayer(self, skip_dialog: bool = False) -> QgsVectorLayer:
+    def createTemporalProfileLayer(self, skip_dialog: bool = False) -> Optional[QgsVectorLayer]:
         """
         Create a new temporal profile layer
         :return:
@@ -1996,7 +2018,7 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         feedback = QgsProcessingFeedback()
         context = QgsProcessingContext()
         context.setFeedback(feedback)
-        context.setProject(QgsProject.instance())
+        context.setProject(self.mapLayerStore())
 
         layer = None
 
@@ -2012,10 +2034,10 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             if alg.OUTPUT in results:
                 layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
 
-        if isinstance(layer, QgsVectorLayer):
+        if isinstance(layer, QgsVectorLayer) and TemporalProfileUtils.isProfileLayer(layer):
             self.addMapLayers([layer])
-            if TemporalProfileUtils.isProfileLayer(layer):
-                s = ""
+            return layer
+        return None
 
     def createSpectralLibrary(self) -> SpectralLibraryWidget:
         """

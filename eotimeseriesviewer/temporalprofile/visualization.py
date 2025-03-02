@@ -505,6 +505,7 @@ class TemporalProfileVisualization(QObject):
                 if not isinstance(tpData, dict):
                     continue
 
+                missing_sensor_settings = []
                 # collect for each sensor some specifications that we need to calculate the x and y values
                 for i_sid, sid in enumerate(tpData[TemporalProfileUtils.SensorIDs]):
                     if sid not in SENSOR_SPECS:
@@ -514,6 +515,8 @@ class TemporalProfileVisualization(QObject):
                         if isinstance(match, SensorInstrument):
                             if match.id() not in SENSOR_SPECS:
                                 SENSOR_SPECS[match.id()] = spec
+
+                        requires_sensor_vis = True
                         for vis_sensor in vis['sensors']:
                             vsid = vis_sensor['sensor_id']
                             if vsid in [match.id(), sid]:
@@ -523,14 +526,19 @@ class TemporalProfileVisualization(QObject):
                                 else:
                                     # skip values of this sensor
                                     prepared_expr = None
-
+                                requires_sensor_vis = False
                                 BAND_EXPRESSIONS[sid] = prepared_expr
                                 BAND_EXPRESSIONS[vsid] = prepared_expr
                                 BAND_EXPRESSIONS[match.id()] = prepared_expr
                                 SENSOR_VISUALS[sid] = SENSOR_VISUALS[vsid] = SENSOR_VISUALS[match.id()] = vis_sensor
 
-                        # get the expressions to calculate the x and y values for each sensor
-
+                        if requires_sensor_vis:
+                            missing_sensor_settings.append(sid)
+                if len(missing_sensor_settings) > 0:
+                    # stop here, add sensors to plot settings model and update again
+                    missing_sensors = [SensorInstrument(s) for s in missing_sensor_settings]
+                    self.mModel.addSensors(missing_sensors)
+                    return
                 # get the x and y values to show
                 try:
                     results = TemporalProfileUtils.applyExpressions(tpData, feature, BAND_EXPRESSIONS, SENSOR_SPECS)
@@ -547,6 +555,7 @@ class TemporalProfileVisualization(QObject):
                 all_symbol_brushes = np.empty(n, dtype=object)
                 all_symbol_sizes = np.empty(n, dtype=int)
 
+                # set the sensor-specific style vor the data values
                 for sid, is_sensor in results['sensor_indices'].items():
                     vis_sensor = SENSOR_VISUALS[sid]
                     if vis_sensor['show'] or is_candidate:
@@ -697,30 +706,33 @@ class TemporalProfileVisualization(QObject):
                 if exampleData:
                     break
             vis = TPVisGroup()
-            vis.setLayer(lyr)
-            vis.setField(exampleField)
-            vis.setTimeSeries(self.timeSeries())
+            self.initVisualization(vis)
 
-            if exampleData:
-                sensor_ids = exampleData[TemporalProfileUtils.SensorIDs]
+            if False:
+                vis.setLayer(lyr)
+                vis.setField(exampleField)
+                vis.setTimeSeries(self.timeSeries())
 
-                ts = self.timeSeries()
-                if ts:
-                    sensors = []
-                    for sid in sensor_ids:
-                        match = ts.findMatchingSensor(sid)
-                        if match:
-                            if match.id() not in sensors:
-                                sensors.append(match.id())
-                        elif sid not in sensors:
-                            sensors.append(sid)
-                    for sensor in ts.sensors():
-                        if sensor.id() not in sensors:
-                            sensors.append(sensor.id())
-                else:
-                    sensors = sensor_ids
+                if exampleData:
+                    sensor_ids = exampleData[TemporalProfileUtils.SensorIDs]
 
-                vis.addSensors(sensors)
+                    ts = self.timeSeries()
+                    if ts:
+                        sensors = []
+                        for sid in sensor_ids:
+                            match = ts.findMatchingSensor(sid)
+                            if match:
+                                if match.id() not in sensors:
+                                    sensors.append(match.id())
+                            elif sid not in sensors:
+                                sensors.append(sid)
+                        for sensor in ts.sensors():
+                            if sensor.id() not in sensors:
+                                sensors.append(sensor.id())
+                    else:
+                        sensors = sensor_ids
+
+                    vis.addSensors(sensors)
 
             self.mModel.addVisualizations(vis)
             self.project().layersAdded.disconnect(self.initPlot)
