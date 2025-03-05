@@ -1,9 +1,10 @@
 import json
+import math
 import os.path
 import re
+import sys
 import types
 import warnings
-from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -11,10 +12,12 @@ from uuid import uuid4
 
 import numpy as np
 
-from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsEditorWidgetSetup, \
     QgsFeature, QgsField, QgsFieldFormatter, QgsFieldFormatterRegistry, QgsFields, QgsIconUtils, QgsMapLayer, \
-    QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer
+    QgsMapLayerModel, QgsPointXY, QgsProject, QgsRasterDataProvider, QgsRasterLayer, QgsTask, QgsVectorFileWriter, \
+    QgsVectorLayer
+from eotimeseriesviewer.tasks import EOTSVTask
+from qgis.PyQt.QtCore import NULL, pyqtSignal, QAbstractListModel, QModelIndex, QSortFilterProxyModel, Qt, QVariant
 from qgis.PyQt.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qgis.PyQt.QtGui import QIcon
 from qgis.gui import QgsEditorConfigWidget, QgsEditorWidgetFactory, QgsEditorWidgetRegistry, QgsEditorWidgetWrapper, \
@@ -23,7 +26,6 @@ from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.tasks import EOTSVTask
 from eotimeseriesviewer.timeseries import sensor_id, sensorIDtoProperties
 
 # TimeSeriesProfileData JSON Format
@@ -735,52 +737,22 @@ class TemporalProfileUtils(object):
         return lyr
 
 
-class LoadTemporalProfileTask(EOTSVTask):
-    interimResults = pyqtSignal(list)
+class LoadTemporalProfileSubTask(QgsTask):
+    executed = pyqtSignal(bool, list)
 
-    def __init__(self,
-                 sources: List[Union[str, Path]],
-                 points: List[QgsPointXY],
-                 crs: QgsCoordinateReferenceSystem,
-                 info: dict = None,
-                 mdCache: dict = None,
-                 lyrCache: dict = None,
-                 n_threads: int = 0,
-                 *args, **kwds):
+    def __init__(self, sources, points, crs, *args, **kwds):
         super().__init__(*args, **kwds)
 
-        self.mInfo = info.copy() if isinstance(info, dict) else None
-        self.mSources: List[str] = [Path(s).as_posix() for s in sources]
-        self.mPoints = points[:]
-        self.mCrs = crs
-        self.mProfiles = []
-        self.mProgressInterval = timedelta(seconds=1)
-        self.mInterimResultsInterval = timedelta(seconds=2)
-        self.mInterimResults: bool = False
-
-        assert n_threads >= 0
-        self.nThreads: int = n_threads
-        self.mdCache: dict = mdCache if isinstance(mdCache, dict) else dict()
-        self.lyrCache: Dict[str, QgsRasterLayer] = lyrCache if isinstance(lyrCache, dict) else dict()
-
-        self.mFutures: List = []
-        self.mResults: List = []
-        self.mTreadPoolExecutor: Optional[ThreadPoolExecutor] = None
-
-    def profiles(self) -> List[dict]:
-        return self.mProfiles
-
-    def profilePoints(self) -> List[QgsPointXY]:
-        return self.mPoints
-
-    def info(self) -> dict:
-        return self.mInfo
+        self.sources = [str(s) for s in sources]
+        self.points = [QgsPointXY(p) for p in points]
+        self.crs = QgsCoordinateReferenceSystem(crs)
+        self.results = []
 
     def canCancel(self):
         return True
 
     def loadFromSource(self,
-                       lyr: Union[str, QgsRasterLayer],
+                       source: str,
                        points: List[QgsPointXY],
                        crs: QgsCoordinateReferenceSystem) -> Tuple[Optional[dict], Optional[str]]:
         """
@@ -788,182 +760,181 @@ class LoadTemporalProfileTask(EOTSVTask):
         :param src:
         :return: profiles (in order of points), sensor-id, list of errors
         """
-
-        if isinstance(lyr, str):
-            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
-            lyr = QgsRasterLayer(lyr, options=options)
-        assert isinstance(lyr, QgsRasterLayer)
-        src = lyr.source()
         error = None
+        try:
+            options = QgsRasterLayer.LayerOptions(loadDefaultStyle=False)
+            lyr = QgsRasterLayer(source, options=options)
+            assert isinstance(lyr, QgsRasterLayer), 'not a raster layer'
+            src = lyr.source()
 
-        if not lyr.isValid():
-            return None, f'Unable to load {src}'
+            if not lyr.isValid():
+                return None, f'Unable to load {src}'
 
-        # sid, dtg = self.mdCache[src]
-        sid = sensor_id(lyr)
-        if not sid:
-            return None, f'Unable to load sensor id from {lyr}'
+            # sid, dtg = self.mdCache[src]
+            sid = sensor_id(lyr)
+            if not sid:
+                return None, f'Unable to load sensor id from {lyr}'
 
-        dtg = ImageDateUtils.dateTimeFromLayer(lyr)
-        if not dtg:
-            return None, f'Unable to load date-time from {lyr}'
-        dtg = dtg.toString(Qt.ISODate)
-        # self.mdCache[lyr.source()] = (sid, dtg)
+            dtg = ImageDateUtils.dateTimeFromLayer(lyr)
+            if not dtg:
+                return None, f'Unable to load date-time from {lyr}'
+            dtg = dtg.toString(Qt.ISODate)
+            # self.mdCache[lyr.source()] = (sid, dtg)
 
-        if lyr.crs() == crs:
-            pts = points
-        else:
-            trans = QgsCoordinateTransform()
-            trans.setSourceCrs(crs)
-            trans.setDestinationCrs(lyr.crs())
-            pts = [trans.transform(pt) for pt in points]
+            if lyr.crs() == crs:
+                pts = points
+            else:
+                trans = QgsCoordinateTransform()
+                trans.setSourceCrs(crs)
+                trans.setDestinationCrs(lyr.crs())
+                pts = [trans.transform(pt) for pt in points]
 
-        results = {
-            TemporalProfileUtils.Source: lyr.source(),
-            TemporalProfileUtils.Date: dtg,
-            TemporalProfileUtils.Sensor: sid,
-            TemporalProfileUtils.Values: [],
-            '_points_lyr_crs': pts,
-        }
+            results = {
+                TemporalProfileUtils.Source: lyr.source(),
+                TemporalProfileUtils.Date: dtg,
+                TemporalProfileUtils.Sensor: sid,
+                TemporalProfileUtils.Values: [],
+                # '_points_lyr_crs': pts,
+            }
 
-        dp: QgsRasterDataProvider = lyr.dataProvider()
-        for i_pt, pt in enumerate(pts):
-            profile_values = None
-            if lyr.extent().contains(pt):
-                v = TemporalProfileUtils.profileValues(dp, pt)
-                if any(v):
-                    profile_values = v
-            results[TemporalProfileUtils.Values].append(profile_values)
+            for i_pt, pt in enumerate(pts):
+                profile_values = None
+                if lyr.extent().contains(pt):
+                    v = TemporalProfileUtils.profileValues(lyr, pt)
+                    if any(v):
+                        profile_values = v
+                results[TemporalProfileUtils.Values].append(profile_values)
+        except Exception as ex:
+            results = None
+            error = str(ex)
 
         return results, error
 
     def run(self) -> bool:
+        print(f'SubTask {id(self)} started...', file=sys.stderr, flush=True)
+        n = len(self.sources)
+        for i, source in enumerate(self.sources):
+            result, error = self.loadFromSource(source, self.points, self.crs)
+            result = {'data': result,
+                      'error': error}
+            self.results.append(result)
+            self.setProgress((i + 1) / n * 100)
+
+        self.executed.emit(True, self.results.copy())
+        return True
+
+
+class LoadTemporalProfileTask(EOTSVTask):
+    interimResults = pyqtSignal(dict)
+    executed = pyqtSignal(bool, list)
+
+    def __init__(self,
+                 sources: List[Union[str, Path]],
+                 points: List[QgsPointXY],
+                 crs: QgsCoordinateReferenceSystem,
+                 info: dict = None,
+                 n_threads: int = 4,
+                 *args, **kwds):
+        super().__init__(*args, **kwds)
+
+        assert n_threads >= 0
+        self.mInfo = info.copy() if isinstance(info, dict) else None
+        self.mSources: List[str] = [Path(s).as_posix() for s in sources]
+        self.mPoints = [QgsPointXY(p) for p in points]
+
+        self.nTotal = len(self.mSources)
+        badge_size = math.ceil(self.nTotal / n_threads)
+        self.mCrs = QgsCoordinateReferenceSystem(crs)
+
+        self.nFinished = 0
+
+        self.mProgressInterval = timedelta(seconds=2)
+        self.mSubTaskResults: List[dict] = []
+        self.mErrors = None
+        self.mProfiles = None
+        self.mSubTaskErrors = []
+
+        added = []
+        badge = []
+        for i, src in enumerate(sources):
+            badge.append(src)
+            if len(badge) >= badge_size or i == self.nTotal - 1:
+                subTask = LoadTemporalProfileSubTask(badge, points, crs)
+                subTask.executed.connect(self.subTaskExecuted)
+                self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
+                added.extend(badge)
+                badge.clear()
+
+    def profilePoints(self) -> List[QgsPointXY]:
+        return self.mPoints
+
+    def subTaskExecuted(self, success: bool, results: List[Dict]):
+        self.mSubTaskResults.extend(results)
+
+    def canCancel(self):
+        return True
+
+    def run(self) -> bool:
 
         # create an empty temporal profile for each point
-        temporal_profiles = [TemporalProfileUtils.createEmptyProfile() for _ in self.mPoints]
+        temporal_profiles: List[dict] = [TemporalProfileUtils.createEmptyProfile() for _ in self.mPoints]
+
+        n_total = len(self.mSources)
+        assert n_total == len(self.mSubTaskResults)
+
         errors = []
-        nTotal = len(self.mSources)
-        tnow = datetime.now()
-        tNextProgress = tnow + self.mProgressInterval
-        tNextInterimResult = tnow + self.mInterimResultsInterval
+        # add subtask results to temporal profiles
+        for src_results in self.mSubTaskResults:
+            error = src_results.get('error')
+            data = src_results.get('data')
 
-        def appendResults(results, error) -> bool:
-            nonlocal tnow, tNextProgress, tNextInterimResult
-
-            if results:
-                for j, (profile, pt) in enumerate(zip(results[TemporalProfileUtils.Values], self.mPoints)):
+            if data:
+                for tp, profile in zip(temporal_profiles, data[TemporalProfileUtils.Values]):
                     if profile:
-                        tp = temporal_profiles[j]
-                        # append profile + sensor infos to temporal profiles
+                        tp[TemporalProfileUtils.Date].append(data[TemporalProfileUtils.Date])
                         tp[TemporalProfileUtils.Values].append(profile)
-                        for k in [TemporalProfileUtils.Sensor,
-                                  TemporalProfileUtils.Date,
-                                  TemporalProfileUtils.Source]:
-                            tp[k].append(results[k])
-
+                        tp[TemporalProfileUtils.Source].append(data[TemporalProfileUtils.Source])
+                        tp[TemporalProfileUtils.Sensor].append(data[TemporalProfileUtils.Sensor])
             if error:
                 errors.append(error)
 
-            s = ""
-            # add to existing profiles
+        for iTP in range(len(temporal_profiles)):
+            tp = temporal_profiles[iTP]
+            if len(tp[TemporalProfileUtils.Date]) == 0:
+                # empty temporal profile
+                temporal_profiles[iTP] = None
+                continue
 
-        def checkProgressCancel() -> bool:
-            """Send a progress report.
-               Returns False if the task is to be canceled"""
-            nonlocal tNextProgress
-            tNow = datetime.now()
-            if tNow > tNextProgress:
-                if self.isCanceled():
-                    return False
+            # order temporal profile content by observation time and sensor
+            i_sorted = np.argsort(np.asarray(tp[TemporalProfileUtils.Date]))
+            for k in [TemporalProfileUtils.Date,
+                      TemporalProfileUtils.Values,
+                      TemporalProfileUtils.Sensor,
+                      TemporalProfileUtils.Source]:
+                if k in tp:
+                    tp[k] = [tp[k][i] for i in i_sorted]
 
-                progress = (i + 1) / nTotal * 100
-                self.setProgress(progress)
-                tNextProgress = tNow + self.mProgressInterval
+            # use indices to refer to sensor ids
+            SENSOR_IDS = dict()
+            sensors = []
+            for sid in tp[TemporalProfileUtils.Sensor]:
+                if sid not in SENSOR_IDS:
+                    SENSOR_IDS[sid] = len(SENSOR_IDS)
+                sensors.append(SENSOR_IDS[sid])
+            tp[TemporalProfileUtils.Sensor] = sensors
+            tp[TemporalProfileUtils.SensorIDs] = SENSOR_IDS
 
-            if self.mInterimResults and tNow > tNextInterimResult:
-                profiles = self.createTemporalProfiles(temporal_profiles)
-                self.interimResults.emit(profiles)
-
-            return True
-
-        if self.nThreads > 1:
-            self.mTreadPoolExecutor = ThreadPoolExecutor(max_workers=self.nThreads)
-            for i, src in enumerate(self.mSources):
-                future = self.mTreadPoolExecutor.submit(self.loadFromSource,
-                                                        self.lyrCache.get(src, src),
-                                                        self.mPoints,
-                                                        self.mCrs)
-                self.mFutures.append(future)
-
-            for i, future in enumerate(as_completed(self.mFutures)):
-                results, error = future.result()
-                appendResults(results, error)
-                if not checkProgressCancel():
-                    return False
-
-        else:
-            for i, src in enumerate(self.mSources):
-                results, error = self.loadFromSource(
-                    self.lyrCache.get(src, src),
-                    self.mPoints,
-                    self.mCrs)
-                appendResults(results, error)
-                if not checkProgressCancel():
-                    return False
+            assert TemporalProfileUtils.verifyProfile(tp)
 
         # keep only profile dictionaries for which we have at least one values
-
-        t0 = datetime.now()
-        self.mProfiles = self.createTemporalProfiles(temporal_profiles)
-
-        td = datetime.now() - t0
+        self.mProfiles = temporal_profiles
+        self.mErrors = errors
+        self.executed.emit(True, temporal_profiles)
         self.setProgress(100)
-
         return True
 
-    def createTemporalProfiles(self, unsorted_profile_data) -> list:
-        """
-        Sorts the temporal profiles by sensor and date-time information
-        Empty profiles will be returned as None
-        :param list:
-        :return:
-        """
-        sorted_profiles = []
-        for unsorted_data in unsorted_profile_data:
-            dates = unsorted_data[TemporalProfileUtils.Date]
-            d = None
-            if len(dates) == 0:
-                sorted_profiles.append(None)
-            else:
-                dates = np.asarray(dates)
-                i_sorted = np.argsort(dates)
-
-                dates = [str(dates[i]) for i in i_sorted]
-
-                values = unsorted_data[TemporalProfileUtils.Values]
-                values = [values[i] for i in i_sorted]
-
-                sensor = unsorted_data[TemporalProfileUtils.Sensor]
-                sensor = [sensor[i] for i in i_sorted]
-                sensor_ids = np.unique(sensor).tolist()
-                sensor = [sensor_ids.index(s) for s in sensor]
-
-                sources = unsorted_data[TemporalProfileUtils.Source]
-                sources = [sources[i] for i in i_sorted]
-
-                d = {
-                    TemporalProfileUtils.Values: values,
-                    TemporalProfileUtils.SensorIDs: sensor_ids,
-                    TemporalProfileUtils.Sensor: sensor,
-                    TemporalProfileUtils.Date: dates,
-                    TemporalProfileUtils.Source: sources
-                }
-
-                success, err = TemporalProfileUtils.verifyProfile(d)
-                assert success, err
-
-                sorted_profiles.append(d)
-        return sorted_profiles
+    def profiles(self) -> List[Optional[Dict[str, Any]]]:
+        return self.mProfiles
 
 
 class TemporalProfileLayerFieldModel(QAbstractListModel):
