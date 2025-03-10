@@ -21,9 +21,9 @@ import example
 import example.Images
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialExtent, SpatialPoint
 from eotimeseriesviewer.tests import EOTSVTestCase, start_app, TestObjects
-from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, \
-    SensorMatching, SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
-    TimeSeriesSource
+from eotimeseriesviewer.timeseries import registerDataProvider, sensorID, SensorInstrument, SensorMatching, \
+    SensorMockupDataProvider, TimeSeries, TimeSeriesDate, TimeSeriesDock, TimeSeriesFindOverlapTask, \
+    TimeSeriesLoadingTask, TimeSeriesSource
 
 start_app()
 
@@ -327,10 +327,12 @@ class TestTimeSeries(EOTSVTestCase):
         self.assertTrue(len(files) > 0)
         w = QgsTaskManagerWidget(QgsApplication.taskManager())
 
+        task = TimeSeriesLoadingTask(files)
+        runAsync = False
         TS = TimeSeries()
-        TS.addSources(files, runAsync=True)
-        TS.addSources(files, runAsync=True)
-        TS.addSources(files, runAsync=True)
+        TS.addSources(files, runAsync=runAsync)
+        TS.addSources(files, runAsync=runAsync)
+        TS.addSources(files, runAsync=runAsync)
 
         self.taskManagerProcessEvents()
 

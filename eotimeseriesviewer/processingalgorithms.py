@@ -361,7 +361,8 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
         task = LoadTemporalProfileTask(self._sources,
                                        points,
                                        input_layer.crs(),
-                                       n_threads=self._n_threads)
+                                       n_threads=self._n_threads,
+                                       description='Load temporal profiles')
 
         task.setDescription('Load Temporal Profile')
 

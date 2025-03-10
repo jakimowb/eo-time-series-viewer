@@ -19,10 +19,10 @@
  ***************************************************************************/
 """
 import bisect
-import copy
 import datetime
 import enum
 import json
+import math
 # noinspection PyPep8Naming
 import os
 import pathlib
@@ -1256,15 +1256,56 @@ class TimeSeriesFindOverlapTask(EOTSVTask):
         return True
 
 
+class TimeSeriesLoadingSubTask(QgsTask):
+    imagesLoaded = pyqtSignal(list)
+
+    def __init__(self,
+                 sources: List[str], *args,
+                 report_block_size: int = 25, **kwds):
+        super().__init__(*args, **kwds)
+        assert 0 < report_block_size
+        self.report_block_size = report_block_size
+        self.sources = [str(s) for s in sources]
+        self.invalid_sources: List[Tuple[str, Exception]] = []
+        self.valid_sources: List[TimeSeriesSource] = []
+
+    def run(self):
+
+        n_total = len(self.sources)
+        block: List[TimeSeriesSource] = []
+        for i, source in enumerate(self.sources):
+            try:
+                tss = TimeSeriesSource.create(source)
+                assert isinstance(tss, TimeSeriesSource), f'Unable to open {source} as TimeSeriesSource'
+                # self.mSources.append(tss)
+                self.valid_sources.append(tss)
+                block.append(tss)
+                del tss
+                if len(block) >= self.report_block_size:
+                    self.imagesLoaded.emit([tss.clone() for tss in block])
+                    block.clear()
+            except Exception as ex:
+                self.mInvalidSources.append((source, ex))
+
+            if i % 10 == 0:
+                self.setProgress(100 * (i + 1) / n_total)
+
+        if len(block) > 0:
+            self.imagesLoaded.emit([tss.clone() for tss in block])
+
+        self.setProgress(100.0)
+        return True
+
+
 class TimeSeriesLoadingTask(EOTSVTask):
     sigFoundSources = pyqtSignal(list)
-    sigMessage = pyqtSignal(str, bool)
 
     def __init__(self,
                  files: List[str],
-                 visibility: List[bool] = None,
                  description: str = "Load Images",
                  callback=None,
+                 report_block_size=20,
+                 n_threads: int = 4,
                  progress_interval: int = 5):
 
         super().__init__(description=description,
@@ -1272,60 +1313,34 @@ class TimeSeriesLoadingTask(EOTSVTask):
 
         assert progress_interval >= 1
 
-        self.mFiles: List[str] = copy.deepcopy(files)
-        if visibility:
-            assert isinstance(visibility, list) and len(visibility) == len(files)
-            self.mVisibility: List[bool] = [b is True for b in visibility]
-        else:
-            self.mVisibility: List[bool] = [True for _ in files]
-        # self.mSources: List[TimeSeriesSource] = []
-        self.mProgressInterval = datetime.timedelta(seconds=progress_interval)
+        n_badge = math.ceil(len(files) / n_threads)
+
+        badge = []
+        n_files = len(files)
+        for i, file in enumerate(files):
+            badge.append(file)
+            if len(badge) >= n_badge or i == (n_files - 1):
+                subTask = TimeSeriesLoadingSubTask(badge[:],
+                                                   report_block_size=report_block_size,
+                                                   description=self.description())
+                subTask.imagesLoaded.connect(self.sigFoundSources)
+                badge.clear()
+                self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
+
         self.mCallback = callback
         self.mInvalidSources: List[Tuple[str, Exception]] = []
-        self.mError: Exception = None
+        self.mValidSources: List[TimeSeriesSource] = []
 
     def canCancel(self) -> bool:
         return True
 
     def run(self) -> bool:
         result_block: List[TimeSeriesSource] = []
-        n = len(self.mFiles)
 
-        t0 = datetime.datetime.now()
-
-        try:
-            for i, path in enumerate(self.mFiles):
-                assert isinstance(path, str)
-
-                try:
-                    tss = TimeSeriesSource.create(path)
-                    assert isinstance(tss, TimeSeriesSource), f'Unable to open {path} as TimeSeriesSource'
-                    tss.setIsVisible(self.mVisibility[i])
-                    # self.mSources.append(tss)
-                    result_block.append(tss)
-                    del tss
-                except Exception as ex:
-                    self.mInvalidSources.append((path, ex))
-
-                dt = datetime.datetime.now() - t0
-
-                if dt > self.mProgressInterval:
-                    if self.isCanceled():
-                        return False
-                    progress = int(100 * (i + 1) / n)
-                    self.setProgress(progress)
-                    # self.sigFoundSources.emit(cloneAndClear())
-                    if len(result_block) > 50:
-                        self.sigFoundSources.emit([tss.clone() for tss in result_block])
-                        result_block.clear()
-
-            if len(result_block) > 0:
-                # self.sigFoundSources.emit(cloneAndClear())
-                self.sigFoundSources.emit([tss.clone() for tss in result_block])
-                result_block.clear()
-        except Exception as ex:
-            self.mError = ex
-            return False
+        for subTask in self._sub_tasks:
+            assert isinstance(subTask, TimeSeriesLoadingSubTask)
+            self.mInvalidSources.extend(subTask.invalid_sources)
+            self.mValidSources.extend(subTask.valid_sources)
 
         return True
 
@@ -1883,7 +1898,6 @@ class TimeSeries(QAbstractItemModel):
 
     def addSources(self,
                    sources: list,
-                   visibility: List[bool] = None,
                    runAsync: bool = None):
         """
         Adds source images to the TimeSeries
@@ -1909,7 +1923,6 @@ class TimeSeries(QAbstractItemModel):
                 sourcePaths.append(path)
 
         qgsTask = TimeSeriesLoadingTask(sourcePaths,
-                                        visibility=visibility,
                                         callback=self.onTaskFinished,
                                         )
 
@@ -1927,7 +1940,7 @@ class TimeSeries(QAbstractItemModel):
             assert isinstance(tm, QgsTaskManager)
             tm.addTask(qgsTask)
         else:
-            qgsTask.finished(qgsTask.run())
+            qgsTask.finished(qgsTask.run_serial())
 
     def onRemoveTask(self, key):
         # print(f'remove {key}', flush=True)

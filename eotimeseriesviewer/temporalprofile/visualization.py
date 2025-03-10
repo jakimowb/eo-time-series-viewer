@@ -265,6 +265,7 @@ class TemporalProfileVisualization(QObject):
                                                crs=lyr.crs(),
                                                n_threads=min(6, os.cpu_count(), ),
                                                info=taskInfo,
+                                               description='Load temporal profiles',
                                                )
                 task.executed.connect(self.onTemporalProfileLoaded)
                 task.taskCompleted.connect(self.onTaskFinished)

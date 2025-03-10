@@ -840,7 +840,6 @@ class LoadTemporalProfileTask(EOTSVTask):
                  n_threads: int = 4,
                  *args, **kwds):
         super().__init__(*args, **kwds)
-        self.setDescription('Load Temporal Profile')
         assert n_threads >= 0
         self.mInfo = info.copy() if isinstance(info, dict) else None
         self.mSources: List[str] = [Path(s).as_posix() for s in sources]
@@ -863,8 +862,7 @@ class LoadTemporalProfileTask(EOTSVTask):
         for i, src in enumerate(sources):
             badge.append(src)
             if len(badge) >= badge_size or i == self.nTotal - 1:
-                subTask = LoadTemporalProfileSubTask(badge, points, crs)
-                subTask.setDescription(self.description())
+                subTask = LoadTemporalProfileSubTask(badge, points, crs, description=self.description())
                 subTask.executed.connect(self.subTaskExecuted)
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
                 added.extend(badge)

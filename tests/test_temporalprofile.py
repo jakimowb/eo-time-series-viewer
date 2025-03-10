@@ -10,7 +10,6 @@ import unittest
 from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
     QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QComboBox
-
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.force import FORCEUtils
 from eotimeseriesviewer.qgispluginsupport.qps.utils import SpatialPoint

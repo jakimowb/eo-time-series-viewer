@@ -192,7 +192,8 @@ class TestObjects(TObj):
                   m2p.toMapCoordinates(int(0.5 * ns), int(0.5 * nl)),
                   m2p.toMapCoordinates(ns - 1, nl - 1)]
 
-        task = LoadTemporalProfileTask(sources, points, crs=l0.crs(), n_threads=os.cpu_count())
+        task = LoadTemporalProfileTask(sources, points, crs=l0.crs(), n_threads=os.cpu_count(),
+                                       description='Load example temporal profiles')
         task.run_serial()
 
         new_features: List[QgsFeature] = list()
