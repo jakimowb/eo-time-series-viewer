@@ -1010,6 +1010,7 @@ class PlotSettingsTreeView(QTreeView):
         """
 
         menu: QMenu = QMenu()
+        menu.setToolTipsVisible(True)
         selected_indices = self.selectionModel().selectedRows()
         for idx in selected_indices:
             item = idx.data(Qt.UserRole)
@@ -1047,6 +1048,14 @@ class PlotSettingsTreeView(QTreeView):
             d = idx['application_domain']
             if d not in ['kernel']:
                 DOMAINS[d] = DOMAINS.get(d, []) + [idx]
+
+        selected_indices = sorted(['EVI', 'NDVI'])
+        selected_indices = [indices[idx] for idx in selected_indices if idx in indices]
+        if len(selected_indices) > 0:
+            for idx in selected_indices:
+                self.addSpectralIndexAction(m, idx, code_items)
+            m.addSeparator()
+
         for d in sorted(DOMAINS.keys()):
             d: str
             mDomain: QMenu = m.addMenu(d.title())
@@ -1056,18 +1065,20 @@ class PlotSettingsTreeView(QTreeView):
                 mBatch: QMenu = mDomain.addMenu(f'{batch[0]['short_name']} - {batch[-1]['short_name']}')
                 mBatch.setToolTipsVisible(True)
                 for idx in batch:
-                    a: QAction = mBatch.addAction(idx['short_name'])
-                    ln = idx['long_name']
-                    sn = idx['short_name']
-                    link = idx.get('reference')
-                    tt = f'{idx['long_name']}<br>{idx['formula']}<br><a href="{link}">{link}</a>'
-                    a.setText(f'{sn} - {ln}')
-                    a.setToolTip(tt)
-
-                    a.setData(idx['formula'])
-                    a.triggered.connect(lambda *args, _a=a, _i=code_items: self.setSpectralIndex(_a, _i))
+                    self.addSpectralIndexAction(mBatch, idx, code_items)
 
         return m
+
+    def addSpectralIndexAction(self, menu, spectral_index, code_items):
+        a: QAction = menu.addAction(spectral_index['short_name'])
+        ln = spectral_index['long_name']
+        sn = spectral_index['short_name']
+        link = spectral_index.get('reference')
+        tt = f'{spectral_index['long_name']}<br>{spectral_index['formula']}<br><a href="{link}">{link}</a>'
+        a.setText(f'{sn} - {ln}')
+        a.setToolTip(tt)
+        a.setData(spectral_index['formula'])
+        a.triggered.connect(lambda *args, _a=a, _i=code_items: self.setSpectralIndex(_a, _i))
 
     def setSpectralIndex(self, a: QAction, items: List[PythonCodeItem]):
         expr = a.data()
