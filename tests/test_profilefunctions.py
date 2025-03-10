@@ -2,11 +2,11 @@ import json
 import unittest
 
 import numpy as np
-from PyQt5.QtWidgets import QAbstractItemView, QTableView
+from PyQt5.QtWidgets import QTableView
 from qgis._core import QgsFeature
 
 from eotimeseriesviewer.temporalprofile.spectralindices import SpectralIndexBandIdentifierModel, \
-    SpectralIndexConstantModel, SpectralIndexProxyModel
+    SpectralIndexConstantModel
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileUtils
 from eotimeseriesviewer.tests import start_app, TestCase, TestObjects
 
@@ -14,14 +14,6 @@ start_app()
 
 
 class ProfileFunctionTestCases(TestCase):
-
-    def test_spectral_index_selection_widget(self):
-
-        model = SpectralIndexProxyModel()
-        view = QAbstractItemView()
-        view.setModel(model)
-
-        self.showGui(view)
 
     def test_constantModel(self):
 
@@ -94,6 +86,8 @@ class ProfileFunctionTestCases(TestCase):
                 band_lookup = specs['band_lookup']
 
                 n, nb = band_values.shape
+                if specs['nb'] != nb:
+                    s = ""
                 self.assertEqual(nb, specs['nb'])
 
                 # b(1) or b('1') -> return 1st band

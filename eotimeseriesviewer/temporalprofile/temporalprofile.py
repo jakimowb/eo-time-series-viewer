@@ -2,7 +2,6 @@ import json
 import math
 import os.path
 import re
-import sys
 import types
 import warnings
 from datetime import datetime, timedelta
@@ -26,7 +25,7 @@ from eotimeseriesviewer.qgispluginsupport.qps.unitmodel import UnitLookup
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_index_acronyms, spectral_indices
 from eotimeseriesviewer.dateparser import ImageDateUtils
 from eotimeseriesviewer.qgispluginsupport.qps.qgisenums import QMETATYPE_QSTRING, QMETATYPE_QVARIANTMAP
-from eotimeseriesviewer.timeseries import sensor_id, sensorIDtoProperties
+from eotimeseriesviewer.timeseries import sensor_id
 
 # TimeSeriesProfileData JSON Format
 # { sensors_ids = [sid 1 <str>, ..., sid n],
@@ -562,15 +561,17 @@ class TemporalProfileUtils(object):
 
         n = len(profileDict[TemporalProfileUtils.Date])
         sensorIds = profileDict[TemporalProfileUtils.SensorIDs]
+        assert isinstance(sensorIds, list)
         nSensors = len(sensorIds)
 
         optionalSource = TemporalProfileUtils.Source in profileDict
 
-        for sid in sensorIds:
-            try:
-                sdict = sensorIDtoProperties(sid)
-            except Exception as ex:
-                return False, f'Invalid sensor ID string: {sid}\n{ex}'
+        for i, sid in enumerate(sensorIds):
+            sensor_specs = TemporalProfileUtils.sensorSpecs(sid)
+            sensor_profiles = [profile for profile, j in zip(profileDict[TemporalProfileUtils.Values],
+                                                             profileDict[TemporalProfileUtils.Sensor]) if i == j]
+            for p in sensor_profiles:
+                assert len(p) == sensor_specs['nb']
 
         for i, (date, sensor, values) in enumerate(zip(profileDict[TemporalProfileUtils.Date],
                                                        profileDict[TemporalProfileUtils.Sensor],
@@ -811,7 +812,7 @@ class LoadTemporalProfileSubTask(QgsTask):
         return results, error
 
     def run(self) -> bool:
-        print(f'SubTask {id(self)} started...', file=sys.stderr, flush=True)
+        # print(f'SubTask {id(self)} started...', file=sys.stderr, flush=True)
         n = len(self.sources)
         for i, source in enumerate(self.sources):
             result, error = self.loadFromSource(source, self.points, self.crs)
@@ -819,6 +820,9 @@ class LoadTemporalProfileSubTask(QgsTask):
                       'error': error}
             self.results.append(result)
             self.setProgress((i + 1) / n * 100)
+
+            if i % 5 and self.isCanceled():
+                return False
 
         self.executed.emit(True, self.results.copy())
         return True
@@ -836,7 +840,7 @@ class LoadTemporalProfileTask(EOTSVTask):
                  n_threads: int = 4,
                  *args, **kwds):
         super().__init__(*args, **kwds)
-
+        self.setDescription('Load Temporal Profile')
         assert n_threads >= 0
         self.mInfo = info.copy() if isinstance(info, dict) else None
         self.mSources: List[str] = [Path(s).as_posix() for s in sources]
@@ -860,6 +864,7 @@ class LoadTemporalProfileTask(EOTSVTask):
             badge.append(src)
             if len(badge) >= badge_size or i == self.nTotal - 1:
                 subTask = LoadTemporalProfileSubTask(badge, points, crs)
+                subTask.setDescription(self.description())
                 subTask.executed.connect(self.subTaskExecuted)
                 self.addSubTask(subTask, subTaskDependency=QgsTask.SubTaskDependency.ParentDependsOnSubTask)
                 added.extend(badge)
@@ -884,7 +889,11 @@ class LoadTemporalProfileTask(EOTSVTask):
 
         errors = []
         # add subtask results to temporal profiles
-        for src_results in self.mSubTaskResults:
+        for i, src_results in enumerate(self.mSubTaskResults):
+
+            if i % 50 and self.isCanceled():
+                return False
+
             error = src_results.get('error')
             data = src_results.get('data')
 
@@ -904,6 +913,8 @@ class LoadTemporalProfileTask(EOTSVTask):
                 # empty temporal profile
                 temporal_profiles[iTP] = None
                 continue
+            if iTP % 10 and self.isCanceled():
+                return False
 
             # order temporal profile content by observation time and sensor
             i_sorted = np.argsort(np.asarray(tp[TemporalProfileUtils.Date]))
@@ -915,14 +926,16 @@ class LoadTemporalProfileTask(EOTSVTask):
                     tp[k] = [tp[k][i] for i in i_sorted]
 
             # use indices to refer to sensor ids
-            SENSOR_IDS = dict()
+            SID2IDX = dict()
             sensors = []
+            sensor_ids = []
             for sid in tp[TemporalProfileUtils.Sensor]:
-                if sid not in SENSOR_IDS:
-                    SENSOR_IDS[sid] = len(SENSOR_IDS)
-                sensors.append(SENSOR_IDS[sid])
+                if sid not in SID2IDX:
+                    SID2IDX[sid] = len(SID2IDX)
+                    sensor_ids.append(sid)
+                sensors.append(SID2IDX[sid])
             tp[TemporalProfileUtils.Sensor] = sensors
-            tp[TemporalProfileUtils.SensorIDs] = SENSOR_IDS
+            tp[TemporalProfileUtils.SensorIDs] = sensor_ids
 
             assert TemporalProfileUtils.verifyProfile(tp)
 

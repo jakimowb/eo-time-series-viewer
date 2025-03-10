@@ -28,10 +28,10 @@ from typing import Any, Dict, List, Match, Pattern, Union
 
 import numpy as np
 from osgeo import gdal, osr
+
 from qgis.core import edit, QgsApplication, QgsError, QgsFeature, QgsFields, QgsGeometry, QgsMapToPixel, QgsPointXY, \
     QgsRasterLayer, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QWidget
-
 from eotimeseriesviewer.temporalprofile.temporalprofile import LoadTemporalProfileTask, TemporalProfileUtils
 from eotimeseriesviewer import DIR_EXAMPLES, DIR_UI, initAll
 from eotimeseriesviewer.main import EOTimeSeriesViewer
@@ -193,7 +193,7 @@ class TestObjects(TObj):
                   m2p.toMapCoordinates(ns - 1, nl - 1)]
 
         task = LoadTemporalProfileTask(sources, points, crs=l0.crs(), n_threads=os.cpu_count())
-        task.run()
+        task.run_serial()
 
         new_features: List[QgsFeature] = list()
         for profile, point in zip(task.profiles(), task.profilePoints()):

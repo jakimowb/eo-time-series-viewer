@@ -5,13 +5,11 @@ __date__ = '2024-09-08'
 __copyright__ = 'Copyright 2024, Benjamin Jakimow'
 
 import datetime
-import os
 import unittest
 
-import numpy as np
+from qgis.core import edit, QgsApplication, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, \
+    QgsRasterLayer, QgsTaskManager, QgsVectorLayer
 from qgis.PyQt.QtWidgets import QComboBox
-from qgis.core import edit, QgsCoordinateReferenceSystem, QgsFeature, QgsField, QgsFields, QgsProject, QgsRasterLayer, \
-    QgsVectorLayer
 
 from eotimeseriesviewer.main import EOTimeSeriesViewer
 from eotimeseriesviewer.force import FORCEUtils
@@ -26,7 +24,7 @@ start_app()
 class TestTemporalProfilesV2(EOTSVTestCase):
     """Test temporal profiles"""
 
-    def test_load_timeseries_profiledata(self):
+    def test_load_timeseries_profiledata_tm(self):
         files = self.exampleRasterFiles()[1:]
 
         lyr1 = QgsRasterLayer(files[0])
@@ -39,13 +37,54 @@ class TestTemporalProfilesV2(EOTSVTestCase):
 
         nFiles = len(files)
         info = dict(id=1)
-        task = LoadTemporalProfileTask(files, points, crs=crs, info=info, n_threads=0)
-        task.run()
+
+        def onExecuted(success, results):
+            s = ""
+
+        def onProgress(progress):
+            print(f'Progress {progress}')
+
+        task = LoadTemporalProfileTask(files, points, crs=crs, info=info)
+        task.executed.connect(onExecuted)
+        task.progressChanged.connect(onProgress)
+        tm: QgsTaskManager = QgsApplication.instance().taskManager()
+        tm.addTask(task)
+
+        while tm.count() > 0:
+            QgsApplication.processEvents()
+
+        s = ""
+
+    def test_load_timeseries_profiledata(self):
+        files = self.exampleRasterFiles()[1:]
+
+        lyr1 = QgsRasterLayer(files[0])
+        self.assertTrue(lyr1.isValid())
+
+        crs = QgsCoordinateReferenceSystem('EPSG:4326')
+        points = [(-3, -3),  # out of image pixel
+                  (4, 4),
+                  (10, 10)]
+        points = [SpatialPoint.fromPixelPosition(lyr1, *px).toCrs(crs) for px in points]
+
+        nFiles = len(files)
+        info = dict(id=1)
+        task = LoadTemporalProfileTask(['does_not_exists.tif'] + files, points, crs=crs, info=info)
+
+        tm: QgsTaskManager = QgsApplication.instance().taskManager()
+        tm.addTask(task)
+
+        while tm.count() > 0:
+            QgsApplication.processEvents()
 
         profiles = task.profiles()
 
         self.assertEqual(len(profiles), len(points))
-        for profile in profiles:
+        for i, profile in enumerate(profiles):
+            if i == 0:
+                self.assertTrue(profile is None)
+                continue
+
             self.assertIsInstance(profile, dict)
 
             sources = profile[TemporalProfileUtils.Source]
@@ -59,6 +98,14 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             profile2 = TemporalProfileUtils.profileDictFromJson(profileJson)
 
             self.assertEqual(profile, profile2)
+
+    def allFORCEFiles(self, product='BOA'):
+        all_files = []
+
+        for tileDir in FORCEUtils.tileDirs(FORCE_CUBE):
+            all_files.extend(FORCEUtils.productFiles(tileDir, product))
+
+        return all_files
 
     @unittest.skipIf(FORCE_CUBE is None, 'FORCE_CUBE is undefined')
     def test_load_profile_FORCE(self):
@@ -80,91 +127,17 @@ class TestTemporalProfilesV2(EOTSVTestCase):
             files = files[0:5]
             task = LoadTemporalProfileTask(files, [pt], pt.crs())
             task.progressChanged.connect(onProgress)
-            task.run()
-            cache = task.mdCache
+
+            t0 = datetime.datetime.now()
+            task.run_task_manager()
+            loadingTime = datetime.datetime.now() - t0
+
             profiles1 = task.profiles()
             for p in profiles1:
                 self.assertTrue(TemporalProfileUtils.isProfileDict(p))
                 success, err = TemporalProfileUtils.verifyProfile(p)
                 self.assertTrue(success, msg=err)
-            print(f'Run 1: tile {tileDir}: \nduration {task.loadingTime()}')
-            nTotal = len(files)
-            for k, v in task.mTimeIt.items():
-                print(f'Avg {k}: {v}')
-
-            task = LoadTemporalProfileTask(files, [pt], pt.crs(), mdCache=cache)
-            task.progressChanged.connect(onProgress)
-            task.run()
-            profiles2 = task.profiles()
-            print(f'Run 2: tile {tileDir} (cached layer infos): \nduration: {task.loadingTime()}')
-            nTotal = len(files)
-            for k, v in task.mTimeIt.items():
-                print(f'Avg {k}: {v}')
-
-            s = ""
-        s = ""
-
-    @unittest.skipIf(FORCE_CUBE is None, 'Missing FORCE_CUBE')
-    def test_load_timeseries_profiledata_async(self):
-
-        files = []
-        for tileDir in FORCEUtils.tileDirs(FORCE_CUBE):
-            files.extend(FORCEUtils.productFiles(tileDir, 'BOA'))
-            break
-
-        lyr = QgsRasterLayer(files[0].as_posix())
-        self.assertTrue(lyr.isValid())
-        points = [SpatialPoint.fromMapLayerCenter(lyr),
-                  # SpatialPoint.fromPixelPosition(lyr, 50, 50),
-                  # SpatialPoint.fromPixelPosition(lyr, -100, -200),  # out of image
-                  ]
-
-        # test without layer cache
-        dtime = lambda t: datetime.datetime.now() - t
-        now = datetime.datetime.now
-
-        mdCache = dict()
-        lyrCache = dict()
-
-        n_threads = os.cpu_count()
-        TEST_MATRIX = [
-            # {'r': 3},
-            # {'r': 3, 'mdCache': mdCache},
-            # {'r': 3, 'lyrCache': lyrCache},
-            # {'r': 3, 'n_threads': 1},
-            # {'r': 3, 'n_threads': 2},
-            # {'r': 3, 'n_threads': 4},
-            {'r': 3, 'n_threads': 6},
-            # {'r': 3, 'n_threads': 8},
-            # {'r': 3, 'n_threads': 4, 'lyrCache': lyrCache},
-            {'r': 3, 'n_threads': 6, 'lyrCache': lyrCache},
-            # {'r': 3, 'n_threads': 8, 'lyrCache': lyrCache},
-
-            # {'r': 3, 'n_threads': 10},
-            # {'r': 3, 'n_threads': 1, 'lyrCache': lyrCache},
-            # {'r': 3, 'n_threads': 5, 'lyrCache': lyrCache},
-            # {'r': 3, 'n_threads': 10, 'lyrCache': lyrCache},
-            # {'r': 3, 'n_threads': os.cpu_count()},
-        ]
-        files = files[0:100]
-        for s, setting in enumerate(TEST_MATRIX):
-            kwds = {k: v for k, v in setting.items() if k in ['mdCache', 'lyrCache', 'n_threads']}
-            repetitions = setting.get('r', 1)
-            print(f'# {s + 1}: Load from {len(files)} files: {kwds}')
-            durations = []
-            for r in range(repetitions):
-                t = now()
-                task = LoadTemporalProfileTask(files, points, lyr.crs(), **kwds)
-                task.run()
-                duration = dtime(t)
-                durations.append(duration)
-                print(f'{s + 1}-r{r + 1}: dt={duration}')
-            t_avg = np.mean(np.asarray(durations).astype('timedelta64')).astype(object)
-            print(f'{s + 1}-avg: {t_avg}')
-            print(f'# {s + 1}: done : {kwds}')
-        # test with layer cache
-
-    # test with
+            print(f'Run: tile {tileDir}: \nduration {loadingTime}')
 
     def test_temporal_profile_field(self):
 
@@ -276,10 +249,56 @@ class TestTemporalProfilesV2(EOTSVTestCase):
     def test_create_new_tp_layer(self):
 
         eotsv = EOTimeSeriesViewer()
-        eotsv.loadExampleTimeSeries(loadAsync=False)
+        if True and FORCE_CUBE:
+            files = self.allFORCEFiles()
+            # files = files[0:50]
+            eotsv.addTimeSeriesImages(files)
+        else:
+            eotsv.loadExampleTimeSeries(loadAsync=False)
         eotsv.createTemporalProfileLayer(skip_dialog=True)
+        eotsv.ui.show()
+        while eotsv.mapCanvas() is None:
+            QgsApplication.processEvents()
+        pt = SpatialPoint.fromMapCanvasCenter(eotsv.mapCanvas())
+        eotsv.loadCurrentTemporalProfile(pt)
         self.showGui(eotsv.ui)
         eotsv.close()
+        del eotsv
+
+    @unittest.skipIf(FORCE_CUBE is None, 'FORCE_CUBE is undefined')
+    def test_FORCE2(self):
+
+        files = self.allFORCEFiles()
+        files = files[0:10]
+        lyr = QgsRasterLayer(files[0].as_posix())
+        pixels = [(100, 100),
+                  (int((lyr.width() / 2)), int(lyr.height() / 2))]
+        points = [SpatialPoint.fromPixelPosition(lyr, *px) for px in pixels]
+
+        def onProgress(progress):
+            print(f'Progress {progress}')
+
+        results = None
+
+        def onExecuted(success, r):
+            self.assertTrue(success)
+            nonlocal results
+            results = r
+
+        def onProgress(progress):
+            print(f'Progress {progress}')
+
+        task = LoadTemporalProfileTask(files[0:100], points, lyr.crs(),
+                                       n_threads=4)
+        task.executed.connect(onExecuted)
+        task.progressChanged.connect(onProgress)
+        tm: QgsTaskManager = QgsApplication.instance().taskManager()
+        tm.addTask(task)
+
+        while tm.count() > 0:
+            QgsApplication.processEvents()
+
+        self.assertEqual(len(results), len(points))
 
 
 if __name__ == "__main__":

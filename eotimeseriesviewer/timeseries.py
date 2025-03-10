@@ -33,6 +33,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from osgeo import gdal
+
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsDataProvider, \
     QgsDateTimeRange, QgsExpressionContextScope, QgsGeometry, QgsMessageLog, QgsMimeDataUtils, QgsPointXY, \
     QgsProcessingFeedback, QgsProcessingMultiStepFeedback, QgsProject, QgsProviderMetadata, QgsProviderRegistry, \
@@ -45,7 +46,6 @@ from qgis.PyQt.QtGui import QColor, QContextMenuEvent, QCursor, QDragEnterEvent,
 from qgis.PyQt.QtWidgets import QAbstractItemView, QAction, QHeaderView, QMainWindow, QMenu, QToolBar, QTreeView
 from qgis.gui import QgisInterface, QgsDockWidget
 from qgis.PyQt.QtXml import QDomDocument
-
 from eotimeseriesviewer.dateparser import DateTimePrecision, ImageDateUtils
 from eotimeseriesviewer import DIR_UI, messageLog
 from .qgispluginsupport.qps.unitmodel import UnitLookup
@@ -1315,8 +1315,9 @@ class TimeSeriesLoadingTask(EOTSVTask):
                     progress = int(100 * (i + 1) / n)
                     self.setProgress(progress)
                     # self.sigFoundSources.emit(cloneAndClear())
-                    self.sigFoundSources.emit([tss.clone() for tss in result_block])
-                    result_block.clear()
+                    if len(result_block) > 50:
+                        self.sigFoundSources.emit([tss.clone() for tss in result_block])
+                        result_block.clear()
 
             if len(result_block) > 0:
                 # self.sigFoundSources.emit(cloneAndClear())

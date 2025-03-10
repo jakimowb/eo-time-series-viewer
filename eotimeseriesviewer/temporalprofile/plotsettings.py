@@ -11,7 +11,6 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QHeaderView, Q
     QStyleOptionButton, QStyleOptionViewItem, QTreeView, QWidget
 from qgis.gui import QgsFieldExpressionWidget
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QRect, QSize, QSortFilterProxyModel, Qt
-
 from eotimeseriesviewer.temporalprofile.spectralindices import spectral_indices
 from eotimeseriesviewer.temporalprofile.temporalprofile import TemporalProfileLayerFieldComboBox, TemporalProfileUtils
 from eotimeseriesviewer.temporalprofile.pythoncodeeditor import FieldPythonExpressionWidget
@@ -664,7 +663,7 @@ class TPVisSensor(PropertyItemGroup):
         self.setIcon(QIcon(':/eotimeseriesviewer/icons/satellite.svg'))
         self.mSensorID: str = None
         self.mSensorName: str = None
-        self.mSensorAttributes: dict = None
+        self.mSensorAttributes: dict = dict()
         self.setEditable(True)
         self.setCheckable(True)
         self.mFirstColumnSpanned = True

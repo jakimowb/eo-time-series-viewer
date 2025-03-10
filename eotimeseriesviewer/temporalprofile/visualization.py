@@ -26,6 +26,7 @@ from itertools import chain
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
     QTimer
 from qgis.core import QgsApplication, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, \
@@ -34,7 +35,6 @@ from qgis.core import QgsApplication, QgsExpression, QgsExpressionContext, QgsEx
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QColor
-
 from eotimeseriesviewer import DIR_UI
 from .datetimeplot import DateTimePlotDataItem, DateTimePlotWidget
 from .plotsettings import PlotSettingsProxyModel, PlotSettingsTreeModel, PlotSettingsTreeView, \
@@ -182,7 +182,7 @@ class TemporalProfileVisualization(QObject):
 
         self.mUpdateTimer = QTimer()
         self.mUpdateTimer.timeout.connect(self.preUpdates)
-        self.mUpdateTimer.setInterval(500)
+        self.mUpdateTimer.setInterval(1000)
         self.mUpdateTimer.start()
 
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
@@ -263,17 +263,20 @@ class TemporalProfileVisualization(QObject):
                 task = LoadTemporalProfileTask(ts.sourceUris(),
                                                points=points,
                                                crs=lyr.crs(),
+                                               n_threads=min(6, os.cpu_count(), ),
                                                info=taskInfo,
-                                               n_threads=os.cpu_count(),
-                                               callback=self.onTemporalProfileLoaded)
+                                               )
+                task.executed.connect(self.onTemporalProfileLoaded)
+                task.taskCompleted.connect(self.onTaskFinished)
+                task.taskTerminated.connect(self.onTaskFinished)
                 task.progressChanged.connect(self.loadingProgress)
                 task.interimResults.connect(self.onInterimResults)
                 self.mTasks.append(task)
                 if run_async:
                     tm: QgsTaskManager = QgsApplication.instance().taskManager()
-                    tm.addTask(task)
+                    tid = tm.addTask(task)
                 else:
-                    task.finished(task.run())
+                    task.finished(task.run_serial())
             s = ""
         s = ""
 
@@ -281,8 +284,19 @@ class TemporalProfileVisualization(QObject):
 
         s = ""
 
-    def onTemporalProfileLoaded(self, success, task: LoadTemporalProfileTask):
+    def onTaskFinished(self):
+        task = self.sender()
 
+        if task in self.mTasks:
+            self.mTasks.remove(task)
+
+        self.loadingProgress.emit(0)
+
+    def onTemporalProfileLoaded(self, success, results):
+        task = self.sender()
+
+        if not isinstance(task, LoadTemporalProfileTask):
+            return
         if success:
             # where should we add the profiles to?
             taskInfo = task.info()
@@ -349,7 +363,7 @@ class TemporalProfileVisualization(QObject):
                     break
 
     def cancelLoadingTask(self):
-        for task in self.mTasks:
+        for task in self.mTasks[:]:
             task.cancel()
 
     def createVisualization(self, *args) -> TPVisGroup:
@@ -390,6 +404,7 @@ class TemporalProfileVisualization(QObject):
             self.updatePlot(settings)
 
     def preUpdates(self):
+        """Handles task that need to be done before upatePlot()"""
         self.mUpdateTimer.stop()
         updates = self.mPreUpdateTasks[:]
 
@@ -735,7 +750,11 @@ class TemporalProfileVisualization(QObject):
                     vis.addSensors(sensors)
 
             self.mModel.addVisualizations(vis)
-            self.project().layersAdded.disconnect(self.initPlot)
+            if len(self.mModel.visualizations()) > 0:
+                try:
+                    self.project().layersAdded.disconnect(self.initPlot)
+                except Exception as ex:
+                    pass
 
     def setTimeSeries(self, timeseries: TimeSeries):
         self.mModel.setTimeSeries(timeseries)
@@ -750,11 +769,11 @@ class TemporalProfileVisualization(QObject):
         self.mModel.setProject(project)
         self.mTreeView.setProject(project)
 
-        if not self.mIsInitialized:
-            self.initPlot()
-
         if len(self.mModel.visualizations()) == 0:
             project.layersAdded.connect(self.initPlot)
+
+        if not self.mIsInitialized:
+            self.initPlot()
 
 
 class TemporalProfileDock(QgsDockWidget):
@@ -785,6 +804,8 @@ class TemporalProfileDock(QgsDockWidget):
         self.actionPanToSelected.triggered.connect(self.panToSelected)
         self.actionZoomToSelected.triggered.connect(self.zoomToSelected)
         self.onFeatureSelectionChanged(dict())
+
+        self.btnCancelTask.clicked.connect(self.mVis.cancelLoadingTask)
 
     def onFeatureSelectionChanged(self, selected_features: dict):
         has_selected = len(selected_features) > 0
@@ -822,6 +843,8 @@ class TemporalProfileDock(QgsDockWidget):
         canCancel = 0 < progress < 100
         pBar.setValue(int(progress))
         btnCancelTask.setEnabled(canCancel)
+        if progress == 100:
+            pBar.setValue(0)
 
     def filterLineEdit(self) -> QgsFilterLineEdit:
         return self.mLineEdit

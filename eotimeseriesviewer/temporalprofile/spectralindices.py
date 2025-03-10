@@ -3,7 +3,6 @@ from typing import List
 
 from qgis.PyQt.QtCore import QAbstractItemModel, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
 from qgis.PyQt.QtWidgets import QWidget, QWidgetAction
-
 from eotimeseriesviewer import DIR_REPO
 
 INDICES = dict()
@@ -399,6 +398,7 @@ class SpectralIndexModel(QAbstractItemModel):
 class SpectralIndexProxyModel(QSortFilterProxyModel):
 
     def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
         self._model = SpectralIndexModel()
         self.setSourceModel(self._model)
 

@@ -363,6 +363,8 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
                                        input_layer.crs(),
                                        n_threads=self._n_threads)
 
+        task.setDescription('Load Temporal Profile')
+
         def onProgress(progress: float):
 
             feedback.setProgress(progress)
@@ -371,7 +373,7 @@ class ReadTemporalProfiles(QgsProcessingAlgorithm):
 
         task.progressChanged.connect(onProgress)
         try:
-            task.run()
+            task.run_task_manager()
         except Exception as ex:
             feedback.pushError(str(ex))
             return {}

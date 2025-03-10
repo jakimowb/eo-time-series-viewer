@@ -13,7 +13,8 @@ path_ui = DIR_UI / 'pythoncodeeditordialog.ui'
 
 def create_pythoncode_validation_request(expression: str) -> dict:
     d = {'expression': expression,
-         'error': None}
+         'error': None,
+         'is_valid': None}
 
     return d
 

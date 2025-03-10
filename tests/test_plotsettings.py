@@ -8,7 +8,6 @@ from qgis.PyQt.QtCore import QSize, Qt
 from qgis.PyQt.QtWidgets import QHBoxLayout, QMenu, QPushButton, QSplitter, QVBoxLayout, QWidget
 from qgis.core import QgsProject, QgsVectorLayer
 from qgis.PyQt.QtGui import QAction
-
 from eotimeseriesviewer.qgispluginsupport.qps.layerproperties import AttributeTableWidget
 from eotimeseriesviewer.qgispluginsupport.qps.utils import file_search, SpatialPoint
 from eotimeseriesviewer.qgispluginsupport.qps.vectorlayertools import VectorLayerTools
@@ -72,7 +71,7 @@ class PlotSettingsTests(TestCase):
         m = QMenu()
         item = PythonCodeItem('Band')
         view = PlotSettingsTreeView()
-        menu = view.addSpectralIndexMenu(m, item)
+        menu = view.addSpectralIndexMenu(m, [item])
 
         self.assertIsInstance(menu, QMenu)
         for a in menu.findChildren(QAction):

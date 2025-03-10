@@ -40,7 +40,6 @@ from qgis.PyQt.QtWidgets import QAction, QApplication, QComboBox, QDialog, QDial
 from qgis.PyQt.QtXml import QDomCDATASection, QDomDocument, QDomElement
 from qgis.gui import QgisInterface, QgsDockWidget, QgsFileWidget, QgsMapCanvas, QgsMessageBar, QgsMessageViewer, \
     QgsStatusBar, QgsTaskManagerWidget
-
 import eotimeseriesviewer
 import eotimeseriesviewer.settings as eotsv_settings
 from eotimeseriesviewer import debugLog, DIR_UI, DOCUMENTATION, LOG_MESSAGE_TAG, settings
@@ -621,12 +620,23 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         QgsProject.instance().writeProject.connect(self.onWriteProject)
         QgsProject.instance().readProject.connect(self.onReadProject)
 
+    def mapCanvas(self) -> Optional[MapCanvas]:
+        """
+        Returns the 1st shown map canvas
+        :return:
+        """
+        for c in self.mapWidget().mapCanvases():
+            return c
+        return None
+
     def executeAlgorithm(self, alg_id):
         # processingPlugin = qgis.utils.plugins.get('processing', ProcessingPlugin(iface))
 
         # processingPlugin.executeAlgorithm(alg_id, parent, in_place=in_place, as_batch=as_batch)
+        config = {}
         alg = QgsApplication.instance().processingRegistry().createAlgorithmById(alg_id, config)
 
+        return None
         if alg is not None:
 
             ok, message = alg.canExecute()

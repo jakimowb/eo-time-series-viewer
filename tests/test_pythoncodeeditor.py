@@ -37,17 +37,8 @@ class PythonCodeEditorTestCases(TestCase):
         self.showGui(w)
 
     def test_validation(self):
-        w = FieldPythonExpressionWidget()
-        w.setExpression('1+3')
-        b, err = w.isValidExpression()
-        self.assertTrue(b and err is None)
 
-        w.setExpression('foo"')
-        b, err = w.isValidExpression()
-        self.assertTrue(b is False and isinstance(err, str))
-
-        is_ok = ['foo', 'broken"python']
-
+        is_ok = ['foo', 'broken"python', '1+3']
         errMsg = 'MyError'
 
         def onValidateRequest(data: dict):
@@ -61,7 +52,17 @@ class PythonCodeEditorTestCases(TestCase):
             if expr not in is_ok:
                 data['error'] = errMsg
 
+        w = FieldPythonExpressionWidget()
         w.validationRequest.connect(onValidateRequest)
+        w.setExpression('1+3')
+        b, err = w.isValidExpression()
+        self.assertTrue(b and err is None)
+
+        w.setExpression('foo"')
+        b, err = w.isValidExpression()
+        s = ""
+        self.assertTrue(b is False and isinstance(err, str))
+
         w.setExpression('foo')
 
         for expr in ['foo', '1+2', 'broken"python']:
