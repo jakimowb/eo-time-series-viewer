@@ -1541,7 +1541,14 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
         if not self.mTemporalProfileLayerInitialized:
             self.initTemporalProfileLayer()
 
-        self.profileDock.loadTemporalProfile(spatialPoint)
+        layer = fieldname = None
+        tp_layer = self.currentLayer()
+        if TemporalProfileUtils.isProfileLayer(tp_layer):
+            for field in TemporalProfileUtils.profileFields(tp_layer):
+                fieldname = field.name()
+                layer = tp_layer
+                break
+            self.profileDock.loadTemporalProfile(spatialPoint, layer=layer, field=fieldname)
 
     def initTemporalProfileLayer(self):
         """
@@ -2037,12 +2044,20 @@ class EOTimeSeriesViewer(QgisInterface, QObject):
             results, success = alg.run(param, context, context.feedback())
             if success:
                 layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
+                s = ""
         else:
             d = AlgorithmDialog(alg)
+            d.context = context
+
+            def onExecuted(success, results):
+                nonlocal layer
+                if success and alg.OUTPUT in results:
+                    layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], d.processingContext())
+                    s = ""
+                d.close()
+
+            d.algorithmFinished.connect(onExecuted)
             d.exec_()
-            results = d.results()
-            if alg.OUTPUT in results:
-                layer = QgsProcessingUtils.mapLayerFromString(results[alg.OUTPUT], context)
 
         if isinstance(layer, QgsVectorLayer) and TemporalProfileUtils.isProfileLayer(layer):
             self.addMapLayers([layer])

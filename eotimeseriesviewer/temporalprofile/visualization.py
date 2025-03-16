@@ -27,11 +27,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from qgis.core import QgsApplication, QgsCoordinateTransform, QgsExpression, QgsExpressionContext, \
+    QgsExpressionContextUtils, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, \
+    QgsTaskManager, QgsVectorLayer, QgsVectorLayerUtils
 from qgis.PyQt.QtCore import pyqtSignal, QAbstractItemModel, QItemSelectionModel, QModelIndex, QObject, QPoint, Qt, \
     QTimer
-from qgis.core import QgsApplication, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils, QgsFeature, \
-    QgsFeatureRequest, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsTaskManager, QgsVectorLayer, \
-    QgsVectorLayerUtils
 from qgis.PyQt.QtWidgets import QAction, QMenu, QProgressBar, QSlider, QTableView, QToolButton, QWidgetAction
 from qgis.gui import QgsDockWidget, QgsFilterLineEdit
 from qgis.PyQt.QtGui import QColor
@@ -188,29 +188,34 @@ class TemporalProfileVisualization(QObject):
     def profileCandidates(self) -> Dict[Tuple[str, str], List[int]]:
         return self.mProfileCandidates
 
-    def temporalProfileDestination(self) -> Tuple[Optional[QgsVectorLayer], Optional[str]]:
+    def temporalProfileLayerFields(self) -> List[Tuple[QgsVectorLayer, str]]:
         """
-        Returns the destination for new added temporal profiles
-        :return: QgsVectorLayer, field name (str)
+        Returns a list with all layer ids and field names which are used in one of the
+        profile visualizations
+        :return:
         """
-
+        results = []
         for vis in self.mModel.visualizations():
             lyr = vis.layer()
             field = vis.field()
 
             if TemporalProfileUtils.isProfileLayer(lyr) and field in lyr.fields().names():
-                f = lyr.fields()[field]
-                if TemporalProfileUtils.isProfileField(f):
-                    return lyr, field
+                results.append((lyr, field))
 
-        return None, None
+        return results
 
-    def loadTemporalProfile(self, point: SpatialPoint, run_async: bool = True) -> bool:
+    def loadTemporalProfile(self,
+                            point: SpatialPoint,
+                            run_async: bool = True,
+                            layer: Optional[QgsVectorLayer] = None,
+                            field: Optional[Union[str, QgsField]] = None) -> bool:
         """
         Starts the loading of a new temporal profile
+        :param field: the field to add the temporal profile. Must be a temporal profile field
+        :param layer: the QgsVectorLayer to add new temporal profile
         :param point: SpatialPoint
-        :param run_async:
-        :return:
+        :param run_async: bool, set True (default) to load the temporal profile using the QgsTaskManager
+        :return: bool, True, if loading was started.
         """
         assert isinstance(point, SpatialPoint)
 
@@ -220,66 +225,80 @@ class TemporalProfileVisualization(QObject):
 
         generalSettings = self.mModel.mSettingsNode.settingsMap()
 
-        lyr, field = self.temporalProfileDestination()
+        if not isinstance(layer, QgsVectorLayer):
+            for (lyr, fn) in self.temporalProfileLayerFields():
+                layer = lyr
+                field = fn
+                break
 
-        if isinstance(lyr, QgsVectorLayer):
-            point = point.toCrs(lyr.crs())
-            if not isinstance(point, SpatialPoint):
-                return
+        if isinstance(field, QgsField):
+            field = field.name()
 
-            # delete previous profile candidates / make them persistent
-            k = (lyr.id(), field)
-            if not lyr.isEditable():
-                lyr.startEditing()
+        if not (isinstance(layer, QgsVectorLayer) and
+                field in layer.fields().names() and
+                TemporalProfileUtils.isProfileField(layer.fields()[field])):
+            return False
 
-            replace = True
-            if replace:
-                old_fids = self.mProfileCandidates.get(k, [])
-                if len(old_fids) > 0:
-                    with doEdit(lyr):
-                        lyr.deleteFeatures(old_fids)
+        trans = QgsCoordinateTransform(point.crs(), layer.crs(), QgsProject.instance())
+        if not trans.isValid():
+            print(f'Unable to do coordinate transformation: {trans}', file=sys.stderr)
+            return False
+        point = point.toCrs(layer.crs())
+        if not isinstance(point, SpatialPoint):
+            return False
 
-            g = QgsGeometry.fromPointXY(point)
-            attribute_map = dict()
-            f = QgsVectorLayerUtils.createFeature(lyr, geometry=g, attributes=attribute_map)
+        # delete previous profile candidates / make them persistent
+        k = (layer.id(), field)
+        if not layer.isEditable():
+            layer.startEditing()
 
-            # todo: settings? Edit graceful
-            added_features = None
-            with doEdit(lyr):
-                added_fids = addFeatures(lyr, [f])
-                added_features = list(lyr.getFeatures(added_fids))
+        replace = True
+        if replace:
+            old_fids = self.mProfileCandidates.get(k, [])
+            if len(old_fids) > 0:
+                with doEdit(layer):
+                    layer.deleteFeatures(old_fids)
 
-            if added_features:
-                points = [QgsPointXY(f.geometry().asQPointF()) for f in added_features]
-                fids = [f.id() for f in added_features]
+        g = QgsGeometry.fromPointXY(point)
+        attribute_map = dict()
+        f = QgsVectorLayerUtils.createFeature(layer, geometry=g, attributes=attribute_map)
 
-                self.mProfileCandidates[k] = fids
+        # todo: settings? Edit graceful
+        added_features = None
+        with doEdit(layer):
+            added_fids = addFeatures(layer, [f])
+            added_features = list(layer.getFeatures(added_fids))
 
-                # create a new feature in the target layer
-                taskInfo = {'fids': fids,
-                            'lid': lyr.id(),
-                            'field': field,
-                            }
-                task = LoadTemporalProfileTask(ts.sourceUris(),
-                                               points=points,
-                                               crs=lyr.crs(),
-                                               n_threads=min(6, os.cpu_count(), ),
-                                               info=taskInfo,
-                                               description='Load temporal profiles',
-                                               )
-                task.executed.connect(self.onTemporalProfileLoaded)
-                task.taskCompleted.connect(self.onTaskFinished)
-                task.taskTerminated.connect(self.onTaskFinished)
-                task.progressChanged.connect(self.loadingProgress)
-                task.interimResults.connect(self.onInterimResults)
-                self.mTasks.append(task)
-                if run_async:
-                    tm: QgsTaskManager = QgsApplication.instance().taskManager()
-                    tid = tm.addTask(task)
-                else:
-                    task.finished(task.run_serial())
-            s = ""
-        s = ""
+        if added_features:
+            points = [QgsPointXY(f.geometry().asQPointF()) for f in added_features]
+            fids = [f.id() for f in added_features]
+
+            self.mProfileCandidates[k] = fids
+
+            # create a new feature in the target layer
+            taskInfo = {'fids': fids,
+                        'lid': layer.id(),
+                        'field': field,
+                        }
+            task = LoadTemporalProfileTask(ts.sourceUris(),
+                                           points=points,
+                                           crs=layer.crs(),
+                                           n_threads=min(6, os.cpu_count(), ),
+                                           info=taskInfo,
+                                           description='Load temporal profiles',
+                                           )
+            task.executed.connect(self.onTemporalProfileLoaded)
+            task.taskCompleted.connect(self.onTaskFinished)
+            task.taskTerminated.connect(self.onTaskFinished)
+            task.progressChanged.connect(self.loadingProgress)
+            task.interimResults.connect(self.onInterimResults)
+            self.mTasks.append(task)
+            if run_async:
+                tm: QgsTaskManager = QgsApplication.instance().taskManager()
+                tid = tm.addTask(task)
+            else:
+                task.finished(task.run_serial())
+        return True
 
     def onInterimResults(self, *args):
 
@@ -644,6 +663,8 @@ class TemporalProfileVisualization(QObject):
                     # pdi.setAcceptTouchEvents(True)
                     pdi.mLayer = weakref.ref(lyr)
                     pdi.mFeatureID = feature.id()
+                    if is_candidate:
+                        pdi.setZValue(999998)
                     # pdi.sigPointsClicked.connect(self.mPlotWidget.onPointsClicked)
                     # pdi.sigPointsHovered.connect(self.mPlotWidget.onPointsHovered)
                     # pdi.sigClicked.connect(self.mPlotWidget.onCurveClicked)
@@ -862,5 +883,5 @@ class TemporalProfileDock(QgsDockWidget):
     def setVectorLayerTools(self, vectorLayerTools: VectorLayerTools):
         self.mVectorLayerTool = vectorLayerTools
 
-    def loadTemporalProfile(self, point: SpatialPoint, run_async: bool = True):
-        self.mVis.loadTemporalProfile(point, run_async=run_async)
+    def loadTemporalProfile(self, *args, **kwds):
+        self.mVis.loadTemporalProfile(*args, **kwds)
