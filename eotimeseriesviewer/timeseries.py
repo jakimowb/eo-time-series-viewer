@@ -1285,7 +1285,7 @@ class TimeSeriesLoadingSubTask(QgsTask):
                     self.imagesLoaded.emit([tss.clone() for tss in block])
                     block.clear()
             except Exception as ex:
-                self.mInvalidSources.append((source, ex))
+                self.invalid_sources.append((source, ex))
 
             if i % 10 == 0:
                 self.setProgress(100 * (i + 1) / n_total)
